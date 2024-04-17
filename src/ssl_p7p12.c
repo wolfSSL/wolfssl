@@ -1684,7 +1684,7 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
     }
 
     if (mem != NULL) {
-        localPkcs12 = wc_PKCS12_new();
+        localPkcs12 = wc_PKCS12_new_ex(bio->heap);
         if (localPkcs12 == NULL) {
             WOLFSSL_MSG("Memory error");
         }
