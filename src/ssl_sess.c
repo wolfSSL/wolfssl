@@ -283,6 +283,13 @@ WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl)
     return sess;
 }
 
+/* session is a private struct, return if it is setup or not */
+WOLFSSL_API int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session)
+{
+    if (session != NULL)
+        return session->isSetup;
+    return 0;
+}
 
 /*
  * Sets the session object to use when establishing a TLS/SSL session using
