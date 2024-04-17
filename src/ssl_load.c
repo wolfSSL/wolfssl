@@ -2531,7 +2531,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     }
     /* Try to detect type by parsing cert header and footer. */
     if ((ret == 0) && (type == DETECT_CERT_TYPE)) {
-#ifndef NO_CODING
+#if !defined(NO_CODING) && !defined(WOLFSSL_NO_PEM)
         const char* header = NULL;
         const char* footer = NULL;
 
