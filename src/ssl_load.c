@@ -1529,7 +1529,7 @@ static void ProcessBufferCertSetHave(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (ssl != NULL) {
         ssl->pkCurveOID = cert->pkCurveOID;
     }
-    else {
+    else if (ctx) {
         ctx->pkCurveOID = cert->pkCurveOID;
     }
     #endif
@@ -1540,7 +1540,7 @@ static void ProcessBufferCertSetHave(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     if (ssl != NULL) {
         ssl->options.haveECC = ssl->options.haveECDSAsig;
     }
-    else {
+    else if (ctx) {
         ctx->haveECC = ctx->haveECDSAsig;
     }
 #endif /* !WC_STRICT_SIG */
