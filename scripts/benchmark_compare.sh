@@ -7,6 +7,30 @@ THRESHOLD=${3:-"10"}
 declare -A symStats
 declare -A asymStats
 
+function getAlgo() { # getAlgo <mode> <line>
+    declare -a fields
+    IFS=',' read -ra fields <<< "$line"
+    if [ "$mode" = 1 ]; then
+        echo "${fields[0]}"
+    else
+        if [ "${fields[2]}" = "" ]; then
+            echo "${fields[0]}"
+        else
+            echo "${fields[0]}-${fields[2]}"
+        fi
+    fi
+}
+
+function getValue() { # getValue <mode> <line>
+    declare -a fields
+    IFS=',' read -ra fields <<< "$line"
+    if [ "$mode" = 1 ]; then
+        echo "${fields[1]}"
+    else
+        echo "${fields[4]}"
+    fi
+}
+
 mode=0
 while IFS= read -r line; do
     if [[ $line == *"Symmetric Ciphers"* ]]; then
@@ -17,20 +41,18 @@ while IFS= read -r line; do
         mode=2
         read
         read
+    elif [[ $line == "" ]]; then
+        mode=0
     fi
-    if [ "$mode" = 1 ] || [ "$mode" = 2 ]; then
-        if [[ $line == *","* ]]; then
-            declare -a fields
-            IFS=',' read -ra fields <<< "$line"
-            ALGO=${fields[0]}
-            VALUE=${fields[1]}
+    if [ "$mode" -ne 0 ]; then
+            ALGO=`getAlgo "$mode" "$line"`
+            VALUE=`getValue "$mode" "$line"`
 
             if [ "$mode" = "1" ]; then
                 symStats["${ALGO}"]=${VALUE}
             elif [ "$mode" = "2" ]; then
                 asymStats["${ALGO}"]=${VALUE}
             fi
-        fi
     fi
 done < ${FIRST_FILE}
 
@@ -54,22 +76,22 @@ function printData() { # printData <ALGO> <val1> <val2>
 mode=0
 while IFS= read -r line; do
     if [[ $line == *"Symmetric Ciphers"* ]]; then
+        RES+="ALGO,${FIRST_FILE},diff(MB/s),${SECOND_FILE}\n"
         mode=1
         read
         read
     elif [[ $line == *"Asymmetric Ciphers"* ]]; then
+        RES+="\nALGO,${FIRST_FILE},diff(ops/sec),${SECOND_FILE}\n"
         mode=2
         read
         read
+    elif [[ $line == "" ]]; then
+        mode=0
     fi
-
-    if [ "$mode" = 1 ] || [ "$mode" = 2 ]; then
+    if [ "$mode" -ne 0 ]; then
         if [[ $line == *","* ]]; then
-            declare -a fields
-            IFS=',' read -ra fields <<< "$line"
-
-            ALGO=${fields[0]}
-            VALUE=${fields[1]}
+            ALGO=`getAlgo "$mode" "$line"`
+            VALUE=`getValue "$mode" "$line"`
 
             if [ "$mode" = "1" ]; then
                 RES+=`printData "${ALGO}" "${symStats["${ALGO}"]}" "${VALUE}"`
@@ -80,4 +102,4 @@ while IFS= read -r line; do
     fi
 done < ${SECOND_FILE}
 
-echo -e "ALGO,${FIRST_FILE},difference,${SECOND_FILE}\n$RES" | column -t -s ','
+echo -e "$RES" | column -t -s ',' -L
