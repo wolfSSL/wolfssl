@@ -1,4 +1,9 @@
 #!/bin/bash
+# This script is designed to compare the output of wolfcrypt/benchmark test
+# application. If the file has an extension ".csv", then it will parse the
+# comma separated format, otherwise it will use the standard output format. The
+# green colored output field is the better result.
+# Usage: benchmark_compare.sh <first file> <second file> [threshold]
 
 FIRST_FILE=$1
 SECOND_FILE=$2
@@ -7,46 +12,79 @@ THRESHOLD=${3:-"10"}
 declare -A symStats
 declare -A asymStats
 
-function getAlgo() { # getAlgo <mode> <line>
-    declare -a fields
-    IFS=',' read -ra fields <<< "$line"
-    if [ "$mode" = 1 ]; then
-        echo "${fields[0]}"
-    else
-        if [ "${fields[2]}" = "" ]; then
+function getAlgo() { # getAlgo <asCSV> <mode> <line>
+    if [ "$asCSV" = 1 ]; then
+        declare -a fields
+        IFS=',' read -ra fields <<< "$line"
+        if [ "$mode" = 1 ]; then
             echo "${fields[0]}"
         else
-            echo "${fields[0]}-${fields[2]}"
+            if [ "${fields[2]}" = "" ]; then
+                echo "${fields[0]}"
+            else
+                echo "${fields[0]}-${fields[2]}"
+            fi
+        fi
+    else
+        if [ "$mode" = 1 ]; then
+            echo "$line" | sed 's/ *[0-9]* MiB.*//g'
+        else
+            if [[ $line == "scrypt"* ]]; then
+                echo "scrypt"
+            else
+                echo "$line" | sed 's/ *[0-9]* ops.*//g' | sed 's/ \+[0-9]\+ \+/-/g'
+            fi
         fi
     fi
 }
 
-function getValue() { # getValue <mode> <line>
-    declare -a fields
-    IFS=',' read -ra fields <<< "$line"
-    if [ "$mode" = 1 ]; then
-        echo "${fields[1]}"
+function getValue() { # getValue <asCSV> <mode> <line>
+    if [ "$asCSV" = 1 ]; then
+        declare -a fields
+        IFS=',' read -ra fields <<< "$line"
+        if [ "$mode" = 1 ]; then
+            echo "${fields[1]}"
+        else
+            echo "${fields[4]}"
+        fi
     else
-        echo "${fields[4]}"
+        if [ "$mode" = 1 ]; then
+            echo "$line" | sed 's/.*seconds, *//g' | sed 's/ *MiB\/s.*//g'
+        else
+            echo "$line" | sed 's/.* ms, *//g' | sed 's/ ops\/sec.*//g'
+        fi
     fi
 }
 
+asCSV=0
 mode=0
 while IFS= read -r line; do
-    if [[ $line == *"Symmetric Ciphers"* ]]; then
-        mode=1
-        read
-        read
-    elif [[ $line == *"Asymmetric Ciphers"* ]]; then
-        mode=2
-        read
-        read
-    elif [[ $line == "" ]]; then
-        mode=0
+    if [[ $FIRST_FILE == *".csv" ]]; then
+        asCSV=1
+        if [[ $line == *"Symmetric Ciphers"* ]]; then
+            mode=1
+            read
+            read
+        elif [[ $line == *"Asymmetric Ciphers"* ]]; then
+            mode=2
+            read
+            read
+        elif [[ $line == "" ]]; then
+            mode=0
+        fi
+    else
+        asCSV=0
+        if [[ $line == *"MiB/s"* ]]; then
+            mode=1
+        elif [[ $line == *"ops/sec"* ]]; then
+            mode=2
+        else
+            mode=0
+        fi
     fi
     if [ "$mode" -ne 0 ]; then
-            ALGO=`getAlgo "$mode" "$line"`
-            VALUE=`getValue "$mode" "$line"`
+            ALGO=`getAlgo "$asCSV" "$mode" "$line"`
+            VALUE=`getValue "$asCSV" "$mode" "$line"`
 
             if [ "$mode" = "1" ]; then
                 symStats["${ALGO}"]=${VALUE}
@@ -73,25 +111,38 @@ function printData() { # printData <ALGO> <val1> <val2>
     fi
 }
 
+asCSV=0
 mode=0
 while IFS= read -r line; do
-    if [[ $line == *"Symmetric Ciphers"* ]]; then
-        RES+="ALGO,${FIRST_FILE},diff(MB/s),${SECOND_FILE}\n"
-        mode=1
-        read
-        read
-    elif [[ $line == *"Asymmetric Ciphers"* ]]; then
-        RES+="\nALGO,${FIRST_FILE},diff(ops/sec),${SECOND_FILE}\n"
-        mode=2
-        read
-        read
-    elif [[ $line == "" ]]; then
-        mode=0
+    if [[ $SECOND_FILE == *".csv" ]]; then
+        asCSV=1
+        if [[ $line == *"Symmetric Ciphers"* ]]; then
+            RES+="ALGO,${FIRST_FILE},diff(MB/s),${SECOND_FILE}\n"
+            mode=1
+            read
+            read
+        elif [[ $line == *"Asymmetric Ciphers"* ]]; then
+            RES+="\nALGO,${FIRST_FILE},diff(ops/sec),${SECOND_FILE}\n"
+            mode=2
+            read
+            read
+        elif [[ $line == "" ]]; then
+            mode=0
+        fi
+    else
+        asCSV=0
+        if [[ $line == *"MiB/s"* ]]; then
+            mode=1
+        elif [[ $line == *"ops/sec"* ]]; then
+            mode=2
+        else
+            mode=0
+        fi
     fi
     if [ "$mode" -ne 0 ]; then
         if [[ $line == *","* ]]; then
-            ALGO=`getAlgo "$mode" "$line"`
-            VALUE=`getValue "$mode" "$line"`
+            ALGO=`getAlgo "$asCSV" "$mode" "$line"`
+            VALUE=`getValue "$asCSV" "$mode" "$line"`
 
             if [ "$mode" = "1" ]; then
                 RES+=`printData "${ALGO}" "${symStats["${ALGO}"]}" "${VALUE}"`
