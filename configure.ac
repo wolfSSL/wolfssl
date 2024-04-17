@@ -4914,12 +4914,6 @@ AC_ARG_ENABLE([cuda],
     [ ENABLED_CUDA=$enableval ],
     [ ENABLED_CUDA=no ]
     )
-# Certificate Service Support (CFLAG sections later) keep above FIPS section
-AC_ARG_ENABLE([certservice],
-    [AS_HELP_STRING([--enable-certservice],[Enable cert service (default: disabled)])],
-    [ ENABLED_CERT_SERVICE=$enableval ],
-    [ ENABLED_CERT_SERVICE=no ]
-    )
 
 if test "$ENABLED_CUDA" = "yes"
 then
@@ -4927,6 +4921,12 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWC_CUDA -DHAVE_CUDA"
 fi
 
+# Certificate Service Support (CFLAG sections later) keep above FIPS section
+AC_ARG_ENABLE([certservice],
+    [AS_HELP_STRING([--enable-certservice],[Enable cert service (default: disabled)])],
+    [ ENABLED_CERT_SERVICE=$enableval ],
+    [ ENABLED_CERT_SERVICE=no ]
+    )
 
 # PWDBASED (CFLAG sections later) keep above FIPS section
 AC_ARG_ENABLE([pwdbased],
