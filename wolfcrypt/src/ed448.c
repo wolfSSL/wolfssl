@@ -187,7 +187,7 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
     return ret;
 }
 
-#if FIPS_VERSION_GE(7,0)
+#if FIPS_VERSION3_GE(6,0,0)
 /* Performs a Pairwise Consistency Test on an Ed448 key pair.
  *
  * @param [in] key  Ed448 key to test.
@@ -323,7 +323,7 @@ int wc_ed448_make_key(WC_RNG* rng, int keySz, ed448_key* key)
         /* put public key after private key, on the same buffer */
         XMEMMOVE(key->k + ED448_KEY_SIZE, key->p, ED448_PUB_KEY_SIZE);
 
-    #if FIPS_VERSION_GE(7,0)
+    #if FIPS_VERSION3_GE(6,0,0)
         ret = wc_ed448_check_key(key);
         if (ret == 0) {
             ret = ed448_pairwise_consistency_test(key, rng);

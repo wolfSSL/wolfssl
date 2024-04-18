@@ -208,7 +208,7 @@ static int ed25519_hash(ed25519_key* key, const byte* in, word32 inLen,
 }
 
 #ifdef HAVE_ED25519_MAKE_KEY
-#if FIPS_VERSION_GE(7,0)
+#if FIPS_VERSION3_GE(6,0,0)
 /* Performs a Pairwise Consistency Test on an Ed25519 key pair.
  *
  * @param [in] key  Ed25519 key to test.
@@ -341,7 +341,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     /* put public key after private key, on the same buffer */
     XMEMMOVE(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
 
-#if FIPS_VERSION_GE(7,0)
+#if FIPS_VERSION3_GE(6,0,0)
     ret = wc_ed25519_check_key(key);
     if (ret == 0) {
         ret = ed25519_pairwise_consistency_test(key, rng);
