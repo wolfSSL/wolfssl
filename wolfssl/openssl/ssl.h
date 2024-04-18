@@ -1337,6 +1337,10 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CONF_TYPE_FILE               WOLFSSL_CONF_TYPE_FILE
 #define SSL_CONF_TYPE_DIR                WOLFSSL_CONF_TYPE_DIR
 
+#define OPENSSL_INIT_new                 wolfSSL_OPENSSL_INIT_new
+#define OPENSSL_INIT_free                wolfSSL_OPENSSL_INIT_free
+#define OPENSSL_INIT_set_config_appname  wolfSSL_OPENSSL_INIT_set_config_appname
+
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 
