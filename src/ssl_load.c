@@ -1757,6 +1757,7 @@ static int ProcessBufferCertAltPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     DecodedCert* cert, int checkKeySz)
 {
     int ret = 0;
+    void* heap = WOLFSSL_HEAP(ctx, ssl);
     byte keyType = 0;
     int keySz = 0;
 #ifndef NO_RSA
@@ -2575,9 +2576,14 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
         else if (type == PRIVATEKEY_TYPE) {
-            /* Load all other certificate types. */
+            /* When support for dual algorithm certificates is enabled, the
+             * private key file may contain both the primary and the
+             * alternative private key. Hence, we have to parse both of them.
+             */
+            long consumed = 0;
+
             ret = ProcessBuffer(ctx, content.buffer, sz, format, type, ssl,
-                NULL, userChain, verify);
+                &consumed, userChain, verify);
             if ((ret == 1) && (consumed < sz)) {
                 ret = ProcessBuffer(ctx, content.buffer + consumed,
                     sz - consumed, format, ALT_PRIVATEKEY_TYPE, ssl, NULL, 0,
@@ -3951,7 +3957,7 @@ int wolfSSL_CTX_use_PrivateKey_Id(WOLFSSL_CTX* ctx, const unsigned char* id,
     #ifdef WOLFSSL_DUAL_ALG_CERTS
         /* Set the ID for the alternative key, too. User can still override that
          * afterwards. */
-        ret = wolfSSL_CTX_use_AltPrivateKey_id(ctx, id, sz, devId, keySz);
+        ret = wolfSSL_CTX_use_AltPrivateKey_Id(ctx, id, sz, devId);
     #endif
     }
 
