@@ -1599,7 +1599,7 @@ int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
  * END OF CONF API
  ******************************************************************************/
 
-#if defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_EXTRA)
 OPENSSL_INIT_SETTINGS* wolfSSL_OPENSSL_INIT_new(void)
 {
     OPENSSL_INIT_SETTINGS* init = (OPENSSL_INIT_SETTINGS*)XMALLOC(
@@ -1624,7 +1624,7 @@ int wolfSSL_OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS* init,
 }
 #endif
 
-#endif /* WOLFSSL_NGINX */
+#endif /* OPENSSL_EXTRA */
 
 
 
