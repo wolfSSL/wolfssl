@@ -187,6 +187,56 @@ static int ed448_hash(ed448_key* key, const byte* in, word32 inLen,
     return ret;
 }
 
+#if FIPS_VERSION3_GE(6,0,0)
+/* Performs a Pairwise Consistency Test on an Ed448 key pair.
+ *
+ * @param [in] key  Ed448 key to test.
+ * @param [in] rng  Random number generator to use to create random digest.
+ * @return  0 on success.
+ * @return  ECC_PCT_E when signing or verification fail.
+ * @return  Other -ve when random number generation fails.
+ */
+static int ed448_pairwise_consistency_test(ed448_key* key, WC_RNG* rng)
+{
+    int err = 0;
+    byte digest[WC_SHA256_DIGEST_SIZE];
+    word32 digestLen = WC_SHA256_DIGEST_SIZE;
+    byte sig[ED448_SIG_SIZE];
+    word32 sigLen = ED448_SIG_SIZE;
+    int res = 0;
+
+    /* Generate a random digest to sign. */
+    err = wc_RNG_GenerateBlock(rng, digest, digestLen);
+    if (err == 0) {
+        /* Sign digest without context. */
+        err = wc_ed448_sign_msg_ex(digest, digestLen, sig, &sigLen, key, Ed448,
+            NULL, 0);
+        if (err != 0) {
+            /* Any sign failure means test failed. */
+            err = ECC_PCT_E;
+        }
+    }
+    if (err == 0) {
+        /* Verify digest without context. */
+        err = wc_ed448_verify_msg_ex(sig, sigLen, digest, digestLen, &res, key,
+            Ed448, NULL, 0);
+        if (err != 0) {
+            /* Any verification operation failure means test failed. */
+            err = ECC_PCT_E;
+        }
+        /* Check whether the signature verified. */
+        else if (res == 0) {
+            /* Test failed. */
+            err = ECC_PCT_E;
+        }
+    }
+
+    ForceZero(sig, sigLen);
+
+    return err;
+}
+#endif
+
 /* Derive the public key for the private key.
  *
  * key       [in]  Ed448 key object.
@@ -272,6 +322,13 @@ int wc_ed448_make_key(WC_RNG* rng, int keySz, ed448_key* key)
     if (ret == 0) {
         /* put public key after private key, on the same buffer */
         XMEMMOVE(key->k + ED448_KEY_SIZE, key->p, ED448_PUB_KEY_SIZE);
+
+    #if FIPS_VERSION3_GE(6,0,0)
+        ret = wc_ed448_check_key(key);
+        if (ret == 0) {
+            ret = ed448_pairwise_consistency_test(key, rng);
+        }
+    #endif
     }
 
     return ret;
@@ -966,7 +1023,7 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
         ret = BAD_FUNC_ARG;
     }
 
-    if (inLen != ED448_PUB_KEY_SIZE) {
+    if ((inLen != ED448_PUB_KEY_SIZE) && (inLen != ED448_PUB_KEY_SIZE + 1)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -995,7 +1052,7 @@ int wc_ed448_import_public_ex(const byte* in, word32 inLen, ed448_key* key,
 
     if (ret == 0) {
         key->pubKeySet = 1;
-        if (key->privKeySet && (!trusted)) {
+        if (!trusted) {
             /* Check untrusted public key data matches private key. */
             ret = wc_ed448_check_key(key);
         }
@@ -1243,31 +1300,90 @@ int wc_ed448_export_key(ed448_key* key, byte* priv, word32 *privSz,
 
 #endif /* HAVE_ED448_KEY_EXPORT */
 
-/* Check the public key of the ed448 key matches the private key.
+/* Check the public key is valid.
  *
- * key     [in]      Ed448 private/public key.
- * returns BAD_FUNC_ARG when key is NULL,
- *         PUBLIC_KEY_E when the public key is not set or doesn't match,
- *         other -ve value on hash failure,
- *         0 otherwise.
+ * When private key available, check the calculated public key matches.
+ * When no private key, check Y is in range and an X is able to be calculated.
+ *
+ * @param [in] key  Ed448 private/public key.
+ * @return  0 otherwise.
+ * @return  BAD_FUNC_ARG when key is NULL.
+ * @return  PUBLIC_KEY_E when the public key is not set, doesn't match or is
+ *          invalid.
+ * @return  other -ve value on hash failure.
  */
 int wc_ed448_check_key(ed448_key* key)
 {
     int ret = 0;
     unsigned char pubKey[ED448_PUB_KEY_SIZE];
 
+    /* Validate parameter. */
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
 
+    /* Check we have a public key to check. */
     if (ret == 0 && !key->pubKeySet) {
         ret = PUBLIC_KEY_E;
     }
-    if (ret == 0) {
+
+    /* If we have a private key just make the public key and compare. */
+    if ((ret == 0) && key->privKeySet) {
         ret = wc_ed448_make_public(key, pubKey, sizeof(pubKey));
+        if ((ret == 0) && (XMEMCMP(pubKey, key->p, ED448_PUB_KEY_SIZE) != 0)) {
+            ret = PUBLIC_KEY_E;
+        }
     }
-    if ((ret == 0) && (XMEMCMP(pubKey, key->p, ED448_PUB_KEY_SIZE) != 0)) {
-        ret = PUBLIC_KEY_E;
+    /* No private key, check Y is valid. */
+    else if ((ret == 0) && (!key->privKeySet)) {
+        /* Verify that Q is not identity element 0.
+         * 0 has no representation for Ed448. */
+
+        /* Verify that xQ and yQ are integers in the interval [0, p - 1].
+         * Only have yQ so check that ordinate.
+         * p = 2^448-2^224-1 = 0xff..fe..ff
+         */
+        {
+            int i;
+            ret = PUBLIC_KEY_E;
+
+            /* Check top part before 0xFE. */
+            for (i = ED448_PUB_KEY_SIZE - 1; i > ED448_PUB_KEY_SIZE/2; i--) {
+                if (key->p[i] < 0xff) {
+                    ret = 0;
+                    break;
+                }
+            }
+            if (ret == PUBLIC_KEY_E) {
+                /* Check against 0xFE. */
+                if (key->p[ED448_PUB_KEY_SIZE/2] < 0xfe) {
+                    ret = 0;
+                }
+                else if (key->p[ED448_PUB_KEY_SIZE/2] == 0xfe) {
+                    /* Check bottom part before last byte. */
+                    for (i = ED448_PUB_KEY_SIZE/2 - 1; i > 0; i--) {
+                        if (key->p[i] != 0xff) {
+                            ret = 0;
+                            break;
+                        }
+                    }
+                    /* Check last byte. */
+                    if ((ret == PUBLIC_KEY_E) && (key->p[0] < 0xff)) {
+                        ret = 0;
+                    }
+                }
+            }
+        }
+
+        if (ret == 0) {
+            /* Verify that Q is on the curve.
+             * Uncompressing the public key will validate yQ. */
+            ge448_p2 A;
+
+            if (ge448_from_bytes_negate_vartime(&A, key->p) != 0) {
+                ret = PUBLIC_KEY_E;
+            }
+        }
     }
 
     return ret;
