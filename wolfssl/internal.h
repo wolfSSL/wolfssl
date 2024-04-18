@@ -3585,7 +3585,7 @@ struct WOLFSSL_CTX {
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*  altPrivateKey;
-    byte        altPrivateKeyType:6;
+    byte        altPrivateKeyType;
     byte        altPrivateKeyId:1;
     byte        altPrivateKeyLabel:1;
     int         altPrivateKeySz;
@@ -4560,7 +4560,7 @@ typedef struct Buffers {
     int             keyDevId;              /* Device Id for key */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*      altKey;                /* WOLFSSL_CTX owns, unless we own */
-    byte            altKeyType:6;          /* Type of alt key */
+    byte            altKeyType;            /* Type of alt key */
     byte            altKeyId:1;            /* Key data is an id not data */
     byte            altKeyLabel:1;         /* Key data is a label not data */
     int             altKeySz;              /* Size of alt key */
