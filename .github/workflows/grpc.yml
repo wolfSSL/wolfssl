@@ -1,0 +1,103 @@
+name: grpc Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all 'CPPFLAGS=-DWOLFSSL_RSA_KEY_CHECK -DHAVE_EX_DATA_CLEANUP_HOOKS'
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-grpc
+          path: build-dir
+          retention-days: 5
+
+  grpc_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ref: v1.60.0
+            tests: >-
+              bad_ssl_alpn_test bad_ssl_cert_test client_ssl_test
+              crl_ssl_transport_security_test server_ssl_test
+              ssl_transport_security_test ssl_transport_security_utils_test
+              test_core_security_ssl_credentials_test test_cpp_end2end_ssl_credentials_test
+              h2_ssl_cert_test h2_ssl_session_reuse_test
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 60
+    needs: build_wolfssl
+    steps:
+      - name: Confirm IPv4 and IPv6 support
+        run: |
+          ip addr list lo | grep 'inet '
+          ip addr list lo | grep 'inet6 '
+
+      - name: Install prereqs
+        run:
+          sudo apt-get install build-essential autoconf libtool pkg-config cmake clang libc++-dev
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-grpc
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          # TODO point to wolf repo once merged
+          repository: julek-wolfssl/osp
+          path: osp
+          ref: grpc-update
+
+      - name: Checkout grpc
+        uses: actions/checkout@v4
+        with:
+          repository: grpc/grpc
+          path: grpc
+          ref: ${{ matrix.ref }}
+
+      - name: Build grpc
+        working-directory: ./grpc
+        run: |
+          patch -p1 < ../osp/grpc/grpc-${{ matrix.ref }}.patch
+          git submodule update --init
+          mkdir cmake/build
+          cd cmake/build
+          cmake -DgRPC_BUILD_TESTS=ON -DgRPC_SSL_PROVIDER=wolfssl \
+            -DWOLFSSL_INSTALL_DIR=$GITHUB_WORKSPACE/build-dir ../..
+          make -j $(nproc) ${{ matrix.tests }}
+
+      - name: Run grpc tests
+        working-directory: ./grpc
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          ./tools/run_tests/start_port_server.py
+          for t in ${{ matrix.tests }} ; do
+            ./cmake/build/$t
+          done
