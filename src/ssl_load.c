@@ -5374,7 +5374,9 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
         gAlloc = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((pAlloc == NULL) || (gAlloc == NULL)) {
             XFREE(pAlloc, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            pAlloc = NULL;
             XFREE(gAlloc, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            gAlloc = NULL;
             ret = MEMORY_E;
         }
     }
@@ -5389,8 +5391,10 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
 
     if (ret != 1) {
         /* Free the allocated buffers if not assigned into SSL context. */
-        XFREE(pAlloc, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        XFREE(gAlloc, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pAlloc)
+            XFREE(pAlloc, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (gAlloc)
+            XFREE(gAlloc, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     }
     return ret;
 }
