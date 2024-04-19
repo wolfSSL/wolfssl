@@ -996,6 +996,10 @@ wc_test_ret_t wolfcrypt_test(void* args)
     heap_baselineBytes = wolfCrypt_heap_peakBytes_checkpoint();
 #endif
 
+#ifdef WC_RNG_SEED_CB
+        wc_SetSeed_Cb(wc_GenerateSeed);
+#endif
+
     printf("------------------------------------------------------------------------------\n");
     printf(" wolfSSL version %s\n", LIBWOLFSSL_VERSION_STRING);
 #ifdef WOLF_CRYPTO_CB
@@ -2092,10 +2096,6 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #ifdef HAVE_WC_INTROSPECTION
         printf("Math: %s\n", wc_GetMathInfo());
-#endif
-
-#ifdef WC_RNG_SEED_CB
-        wc_SetSeed_Cb(wc_GenerateSeed);
 #endif
 
 #ifdef HAVE_STACK_SIZE
