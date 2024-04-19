@@ -133,6 +133,7 @@ static int PrintDer(FILE* fp)
     return ret;
 }
 
+#ifndef NO_CODING
 /* Print ASN.1 of a file containing Base64 encoding of BER/DER data.
  *
  * @param [in] fp  File pointer to read from.
@@ -279,6 +280,7 @@ static int PrintPem(FILE* fp, int pem_skip)
 
     return ret;
 }
+#endif
 
 /* Usage lines to show. */
 const char* usage[] = {
@@ -288,7 +290,9 @@ const char* usage[] = {
     "Options:",
     "  -?, --help           display this help and exit",
     "  -b, --branch         draw branches before tag name",
+#ifndef NO_CODING
     "  -B, --base64         file contents are Base64 encoded",
+#endif
     "  -d, --dump           show all ASN.1 item data as a hex dump",
     "  -h, --headers        show all ASN.1 item headers as a hex dump",
     "  -i, --indent         indent tag name with depth",
@@ -297,7 +301,9 @@ const char* usage[] = {
     "  -N, --no-dump-text   do not show data as a hex dump text",
     "  -o, --offset OFFSET  start decoding from offset",
     "  -O, --oid            show wolfSSL OID value in text",
+#ifndef NO_CODING
     "  -p, --pem            file contents are PEM",
+#endif
     "  -s, --skip-pem NUM   number of PEM blocks to skip",
 };
 /* Number of usage lines. */
@@ -342,11 +348,13 @@ int main(int argc, char* argv[])
             (strcmp(argv[0], "--branch") == 0)) {
             wc_Asn1PrintOptions_Set(&opts, ASN1_PRINT_OPT_DRAW_BRANCH, 1);
         }
+#ifndef NO_CODING
         /* File is Base64 encoded data. */
         else if ((strcmp(argv[0], "-b64") == 0) ||
                  (strcmp(argv[0], "--base64") == 0)) {
             file_format = FORMAT_BASE64;
         }
+#endif
         /* Dump all ASN.1 item data. */
         else if ((strcmp(argv[0], "-d") == 0) ||
                  (strcmp(argv[0], "--dump") == 0)) {
@@ -403,11 +411,13 @@ int main(int argc, char* argv[])
                  (strcmp(argv[0], "--oid") == 0)) {
             wc_Asn1PrintOptions_Set(&opts, ASN1_PRINT_OPT_SHOW_OID, 1);
         }
+#ifndef NO_CODING
         /* File contains PEM blocks. */
         else if ((strcmp(argv[0], "-p") == 0) ||
                  (strcmp(argv[0], "--pem") == 0)) {
             file_format = FORMAT_PEM;
         }
+#endif
         /* Skip a number of PEM blocks. */
         else if ((strcmp(argv[0], "-s") == 0) ||
                  (strcmp(argv[0], "--skip-pem") == 0)) {
@@ -458,12 +468,16 @@ int main(int argc, char* argv[])
     if (file_format == FORMAT_DER) {
         ret = PrintDer(fp);
     }
+#ifndef NO_CODING
     else if (file_format == FORMAT_BASE64) {
         ret = PrintBase64(fp);
     }
+#endif
+#ifndef NO_CODING
     else if (file_format == FORMAT_PEM) {
         ret = PrintPem(fp, pem_skip);
     }
+#endif
 
     if (ret != 0) {
         fprintf(stderr, "%s\n", wc_GetErrorString(ret));

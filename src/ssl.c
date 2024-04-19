@@ -21329,7 +21329,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         }
     #endif
         else {
-        #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && defined(HAVE_ECC)
             int   nret;
             const ecc_set_type *eccSet;
 
