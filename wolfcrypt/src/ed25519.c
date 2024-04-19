@@ -231,7 +231,7 @@ static int ed25519_pairwise_consistency_test(ed25519_key* key, WC_RNG* rng)
     if (err == 0) {
         /* Sign digest without context. */
         err = wc_ed25519_sign_msg_ex(digest, digestLen, sig, &sigLen, key,
-            Ed25519, NULL, 0);
+            (byte)Ed25519, NULL, 0);
         if (err != 0) {
             /* Any sign failure means test failed. */
             err = ECC_PCT_E;
@@ -240,7 +240,7 @@ static int ed25519_pairwise_consistency_test(ed25519_key* key, WC_RNG* rng)
     if (err == 0) {
         /* Verify digest without context. */
         err = wc_ed25519_verify_msg_ex(sig, sigLen, digest, digestLen, &res,
-            key, Ed25519, NULL, 0);
+            key, (byte)Ed25519, NULL, 0);
         if (err != 0) {
             /* Any verification operation failure means test failed. */
             err = ECC_PCT_E;
