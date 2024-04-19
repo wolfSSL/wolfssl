@@ -1599,4 +1599,33 @@ int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
  * END OF CONF API
  ******************************************************************************/
 
+#if defined(OPENSSL_EXTRA)
+OPENSSL_INIT_SETTINGS* wolfSSL_OPENSSL_INIT_new(void)
+{
+    OPENSSL_INIT_SETTINGS* init = (OPENSSL_INIT_SETTINGS*)XMALLOC(
+            sizeof(OPENSSL_INIT_SETTINGS), NULL, DYNAMIC_TYPE_OPENSSL);
+
+    return init;
+}
+
+void wolfSSL_OPENSSL_INIT_free(OPENSSL_INIT_SETTINGS* init)
+{
+    XFREE(init, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS* init,
+        char* appname)
+{
+    (void)init;
+    (void)appname;
+    WOLFSSL_STUB("OPENSSL_INIT_set_config_appname");
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
+#endif /* OPENSSL_EXTRA */
+
+
+
 #endif /* WOLFSSL_CONF_INCLUDED */
