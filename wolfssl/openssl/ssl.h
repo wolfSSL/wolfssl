@@ -1150,6 +1150,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLSv1_handle_timeout               wolfSSL_DTLSv1_handle_timeout
 #define DTLSv1_set_initial_timeout_duration wolfSSL_DTLSv1_set_initial_timeout_duration
 
+#define SSL_set_mtu(ssl, mtu) ((wolfSSL_dtls_set_mtu(ssl, mtu) == 0) ? SSL_SUCCESS : SSL_FAILURE)
+
 /* DTLS SRTP */
 #ifdef WOLFSSL_SRTP
 typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
@@ -1200,6 +1202,10 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define sk_SSL_CIPHER_dup               wolfSSL_sk_dup
 #define sk_SSL_CIPHER_free              wolfSSL_sk_SSL_CIPHER_free
 #define sk_SSL_CIPHER_find              wolfSSL_sk_SSL_CIPHER_find
+
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+#define SSL_get0_peername wolfSSL_get0_peername
+#endif
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY) \
     || defined(WOLFSSL_NGINX)

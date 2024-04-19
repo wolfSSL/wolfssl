@@ -2871,6 +2871,10 @@ WOLFSSL_API int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
    date check and signature check */
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn);
 
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+WOLFSSL_API const char *wolfSSL_get0_peername(WOLFSSL *ssl);
+#endif
+
 /* need to call once to load library (session cache) */
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_Init(void);
 /* call when done to cleanup/free session cache mutex / resources  */

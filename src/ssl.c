@@ -10315,6 +10315,26 @@ int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
     }
 }
 
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+const char *wolfSSL_get0_peername(WOLFSSL *ssl) {
+    if (ssl == NULL) {
+        ssl->error = BAD_FUNC_ARG;
+        return NULL;
+    }
+
+    if (ssl->buffers.domainName.buffer)
+        return (const char *)ssl->buffers.domainName.buffer;
+    else if (ssl->session && ssl->session->peer)
+        return ssl->session->peer->subjectCN;
+    else if (ssl->peerCert.subjectCN[0])
+        return ssl->peerCert.subjectCN;
+    else {
+        ssl->error = NO_PEER_CERT;
+        return NULL;
+    }
+}
+
+#endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
 /* turn on wolfSSL zlib compression
    returns WOLFSSL_SUCCESS for success, else error (not built in)
