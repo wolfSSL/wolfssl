@@ -1868,9 +1868,14 @@ WOLFSSL_API void        wolfSSL_RAND_Cleanup(void);
 WOLFSSL_API void        wolfSSL_RAND_add(const void* add, int len, double entropy);
 WOLFSSL_API int         wolfSSL_RAND_poll(void);
 
+#ifndef NO_WOLFSSL_STUB
 WOLFSSL_API WOLFSSL_COMP_METHOD* wolfSSL_COMP_zlib(void);
 WOLFSSL_API WOLFSSL_COMP_METHOD* wolfSSL_COMP_rle(void);
 WOLFSSL_API int wolfSSL_COMP_add_compression_method(int method, void* data);
+WOLFSSL_API const char *wolfSSL_COMP_get_name(const WOLFSSL_COMP_METHOD *comp);
+WOLFSSL_API const WOLFSSL_COMP_METHOD* wolfSSL_get_current_compression(const WOLFSSL *ssl);
+WOLFSSL_API const WOLFSSL_COMP_METHOD* wolfSSL_get_current_expansion(const WOLFSSL *ssl);
+#endif /* !NO_WOLFSSL_STUB */
 
 WOLFSSL_API unsigned long wolfSSL_thread_id(void);
 WOLFSSL_API void wolfSSL_set_id_callback(unsigned long (*f)(void));

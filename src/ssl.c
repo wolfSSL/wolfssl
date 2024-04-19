@@ -14935,17 +14935,13 @@ WOLFSSL_COMP_METHOD* wolfSSL_COMP_zlib(void)
     WOLFSSL_STUB("COMP_zlib");
     return 0;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 WOLFSSL_COMP_METHOD* wolfSSL_COMP_rle(void)
 {
     WOLFSSL_STUB("COMP_rle");
     return 0;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_COMP_add_compression_method(int method, void* data)
 {
     (void)method;
@@ -14953,7 +14949,24 @@ int wolfSSL_COMP_add_compression_method(int method, void* data)
     WOLFSSL_STUB("COMP_add_compression_method");
     return 0;
 }
-#endif
+
+const char *wolfSSL_COMP_get_name(const WOLFSSL_COMP_METHOD *comp)
+{
+    (void)comp;
+    return NULL;
+}
+
+const WOLFSSL_COMP_METHOD* wolfSSL_get_current_compression(const WOLFSSL *ssl) {
+    (void)ssl;
+    return NULL;
+}
+
+const WOLFSSL_COMP_METHOD* wolfSSL_get_current_expansion(const WOLFSSL *ssl) {
+    (void)ssl;
+    return NULL;
+}
+
+#endif /* NO_WOLFSSL_STUB */
 
 #ifndef NO_WOLFSSL_STUB
 const char* wolfSSL_COMP_get_name(const void* comp)

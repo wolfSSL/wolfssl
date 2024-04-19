@@ -835,6 +835,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define COMP_zlib                       wolfSSL_COMP_zlib
 #define COMP_rle                        wolfSSL_COMP_rle
 #define SSL_COMP_add_compression_method wolfSSL_COMP_add_compression_method
+#define COMP_get_name                   wolfSSL_COMP_get_name
+#define SSL_get_current_compression     wolfSSL_get_current_compression
+#define SSL_get_current_expansion       wolfSSL_get_current_expansion
 
 #define SSL_get_current_compression(ssl) 0
 #define SSL_get_current_expansion(ssl) 0
