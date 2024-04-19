@@ -1099,9 +1099,9 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
  * @return  MEMORY_E on dynamic memory allocation failure.
  * @return  0 on success.
  */
-int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
+int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
-        word32 key2Sz, byte* key3, word32 key3Sz)
+        word32 key2Sz, byte* key3, word32 key3Sz, int idxLenIndicator)
 {
     int ret = 0;
     byte block[AES_BLOCK_SIZE];
@@ -1111,6 +1111,15 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     Aes aes[1];
 #endif
     int aes_inited = 0;
+    int idxLen;
+
+    if (idxLenIndicator == WC_SRTCP_32BIT_IDX) {
+        idxLen = WC_SRTCP_INDEX_LEN;
+    } else if (idxLenIndicator == WC_SRTCP_48BIT_IDX) {
+        idxLen = WC_SRTP_INDEX_LEN;
+    } else {
+        return BAD_FUNC_ARG; /* bad or invalid idxLenIndicator */
+    }
 
     /* Validate parameters. */
     if ((key == NULL) || (keySz > AES_256_KEY_SIZE) || (salt == NULL) ||
@@ -1142,23 +1151,22 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
 
     /* Calculate first block that can be used in each derivation. */
     if (ret == 0) {
-        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, WC_SRTCP_INDEX_LEN,
-            block);
+        wc_srtp_kdf_first_block(salt, saltSz, kdrIdx, index, idxLen, block);
     }
 
     /* Calculate first key if required. */
     if ((ret == 0) && (key1 != NULL)) {
-        ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN,
+        ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_ENCRYPTION, key1, key1Sz, aes);
     }
     /* Calculate second key if required. */
     if ((ret == 0) && (key2 != NULL)) {
-        ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN,
+        ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_MSG_AUTH, key2, key2Sz, aes);
     }
     /* Calculate third key if required. */
     if ((ret == 0) && (key3 != NULL)) {
-        ret = wc_srtp_kdf_derive_key(block, WC_SRTCP_INDEX_LEN,
+        ret = wc_srtp_kdf_derive_key(block, idxLen,
             WC_SRTCP_LABEL_SALT, key3, key3Sz, aes);
     }
 
@@ -1170,6 +1178,15 @@ int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
     return ret;
 }
 
+int wc_SRTCP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
+        int kdrIdx, const byte* index, byte* key1, word32 key1Sz, byte* key2,
+        word32 key2Sz, byte* key3, word32 key3Sz)
+{
+    /* The default 32-bit IDX expected by many implementations */
+    return wc_SRTCP_KDF_ex(key, keySz, salt, saltSz, kdrIdx, index,
+                           key1, key1Sz, key2, key2Sz, key3, key3Sz,
+                           WC_SRTCP_32BIT_IDX);
+}
 /* Derive key with label using SRTP KDF algorithm.
  *
  * SP 800-135 (RFC 3711).
