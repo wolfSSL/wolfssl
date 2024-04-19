@@ -9209,6 +9209,11 @@ EVP_TEST_END:
         {
             0xC0
         };
+
+        WOLFSSL_SMALL_STACK_STATIC const byte cipher1_7bit[] =
+        {
+            0x1C
+        };
 #endif /* WOLFSSL_AES_128 */
 #ifdef WOLFSSL_AES_192
         WOLFSSL_SMALL_STACK_STATIC const byte iv2[] = {
@@ -9308,6 +9313,15 @@ EVP_TEST_END:
         if (plain[0] != msg1[0])
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     #endif /* HAVE_AES_DECRYPT */
+
+        XMEMSET(cipher, 0, sizeof(cipher));
+        ret = wc_AesCfb1Encrypt(enc, cipher, msg1, 7);
+
+        if (ret != 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+        if (cipher[0] != cipher1_7bit[0])
+            ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
     #ifdef OPENSSL_EXTRA
         ret = wc_AesSetKey(enc, key1, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
