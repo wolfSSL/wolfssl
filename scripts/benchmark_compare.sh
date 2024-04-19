@@ -3,11 +3,15 @@
 # application. If the file has an extension ".csv", then it will parse the
 # comma separated format, otherwise it will use the standard output format. The
 # green colored output field is the better result.
-# Usage: benchmark_compare.sh <first file> <second file> [threshold]
+# Usage: benchmark_compare.sh <first file> <second file>
+# You can define a few variables to set options:
+# THRESHOLD  - set the threshold for equality between two results
+# OUTPUT_CSV - set to "1" to print CSV
 
 FIRST_FILE=$1
 SECOND_FILE=$2
-THRESHOLD=${3:-"10"}
+THRESHOLD=${THRESHOLD:-"10"}
+OUTPUT_CSV=${OUTPUT_CSV:-"0"}
 
 declare -A symStats
 declare -A asymStats
@@ -153,4 +157,8 @@ while IFS= read -r line; do
     fi
 done < ${SECOND_FILE}
 
-echo -e "$RES" | column -t -s ',' -L
+if [ "${OUTPUT_CSV}" = "1" ]; then
+    echo -e "$RES"
+else
+    echo -e "$RES" | column -t -s ',' -L
+fi
