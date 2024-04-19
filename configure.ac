@@ -1915,9 +1915,9 @@ AC_ARG_ENABLE([opensslcoexist],
 
 if test "x$ENABLED_OPENSSLCOEXIST" = "xyes" || test "$ENABLED_WOLFENGINE" = "yes"
 then
-    # make sure old names are disabled
-    enable_oldnames=no
-
+    # make sure old names are disabled (except RNG)
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES -DNO_OLD_MD5_NAME"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COEXIST"
 fi
 
