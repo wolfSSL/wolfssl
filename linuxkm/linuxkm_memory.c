@@ -73,6 +73,13 @@ void *lkm_realloc(void *ptr, size_t newsize) {
 
 #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
 
+/* kernel 4.19 -- the most recent LTS before 5.4 -- lacks the necessary safety
+ * checks in __kernel_fpu_begin(), and lacks TIF_NEED_FPU_LOAD.
+ */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+    #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS on x86 requires kernel 5.4.0 or higher.
+#endif
+
 static unsigned int wc_linuxkm_fpu_states_n_tracked = 0;
 
 struct wc_thread_fpu_count_ent {
@@ -261,7 +268,10 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) 
 #else /* !LINUXKM_FPU_STATES_FOLLOW_THREADS */
 
 /* lock-free O(1)-lookup CPU-local storage facility for tracking recursive fpu
- * pushing/popping
+ * pushing/popping.
+ *
+ * caller must have already called kernel_fpu_begin() or preempt_disable()
+ * before entering this or the streamlined inline version of it below.
  */
 static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int create_p) {
     int my_cpu = raw_smp_processor_id();
@@ -283,28 +293,66 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
 
     slot = &wc_linuxkm_fpu_states[my_cpu];
     slot_pid = __atomic_load_n(&slot->pid, __ATOMIC_CONSUME);
-    if (slot_pid == my_pid)
+    if (slot_pid == my_pid) {
+        if (create_p) {
+            static int _warned_on_redundant_create_p = 0;
+            if (_warned_on_redundant_create_p < 10) {
+                pr_err("wc_linuxkm_fpu_state_assoc called with create_p=1 by"
+                       " pid %d on cpu %d with cpu slot already reserved by"
+                       " said pid.\n", my_pid, my_cpu);
+                ++_warned_on_redundant_create_p;
+            }
+        }
         return slot;
+    }
     if (create_p) {
-        /* caller must have already called kernel_fpu_begin() if create_p. */
         if (slot_pid == 0) {
             __atomic_store_n(&slot->pid, my_pid, __ATOMIC_RELEASE);
             return slot;
         } else {
+            /* if the slot is already occupied, that can be benign due to a
+             * migration, but it will require fixup by the thread that owns the
+             * slot, which will happen when it releases its lock, or sooner (see
+             * below).
+             */
             static int _warned_on_mismatched_pid = 0;
             if (_warned_on_mismatched_pid < 10) {
-                pr_err("wc_linuxkm_fpu_state_assoc called by pid %d on cpu %d"
-                       " but cpu slot already reserved by pid %d.\n", my_pid, my_cpu, slot_pid);
+                pr_warn("wc_linuxkm_fpu_state_assoc called by pid %d on cpu %d"
+                       " but cpu slot already reserved by pid %d.\n",
+                        my_pid, my_cpu, slot_pid);
                 ++_warned_on_mismatched_pid;
             }
             return NULL;
         }
     } else {
+        /* check for migration.  this can happen despite our best efforts if any
+         * I/O occured while locked, e.g. kernel messages like "uninitialized
+         * urandom read".  since we're locked now, we can safely migrate the
+         * entry in wc_linuxkm_fpu_states[], freeing up the slot on the previous
+         * cpu.
+         */
+        unsigned int cpu_i;
+        for (cpu_i = 0; cpu_i < wc_linuxkm_fpu_states_n_tracked; ++cpu_i) {
+            if (__atomic_load_n(
+                    &wc_linuxkm_fpu_states[cpu_i].pid,
+                    __ATOMIC_CONSUME)
+                == my_pid)
+            {
+                wc_linuxkm_fpu_states[my_cpu] = wc_linuxkm_fpu_states[cpu_i];
+                __atomic_store_n(&wc_linuxkm_fpu_states[cpu_i].fpu_state, 0,
+                                 __ATOMIC_RELEASE);
+                __atomic_store_n(&wc_linuxkm_fpu_states[cpu_i].pid, 0,
+                                 __ATOMIC_RELEASE);
+                return &wc_linuxkm_fpu_states[my_cpu];
+            }
+        }
         return NULL;
     }
 }
 
-static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) {
+static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(
+    int create_p)
+{
     int my_cpu = raw_smp_processor_id(); /* my_cpu is only trustworthy if we're
                                           * already nonpreemptible -- we'll
                                           * determine that soon enough by
@@ -314,23 +362,26 @@ static inline struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int cre
     pid_t my_pid = task_pid_nr(current), slot_pid;
     struct wc_thread_fpu_count_ent *slot;
 
-    if (wc_linuxkm_fpu_states == NULL)
+    if (unlikely(wc_linuxkm_fpu_states == NULL))
         return wc_linuxkm_fpu_state_assoc_unlikely(create_p);
 
     slot = &wc_linuxkm_fpu_states[my_cpu];
     slot_pid = __atomic_load_n(&slot->pid, __ATOMIC_CONSUME);
-    if (slot_pid == my_pid)
-        return slot;
-    if (create_p) {
-        /* caller must have already called kernel_fpu_begin() if create_p. */
-        if (slot_pid == 0) {
+    if (slot_pid == my_pid) {
+        if (unlikely(create_p))
+            return wc_linuxkm_fpu_state_assoc_unlikely(create_p);
+        else
+            return slot;
+    }
+    if (likely(create_p)) {
+        if (likely(slot_pid == 0)) {
             __atomic_store_n(&slot->pid, my_pid, __ATOMIC_RELEASE);
             return slot;
         } else {
             return wc_linuxkm_fpu_state_assoc_unlikely(create_p);
         }
     } else {
-        return NULL;
+        return wc_linuxkm_fpu_state_assoc_unlikely(create_p);
     }
 }
 
@@ -345,7 +396,9 @@ static struct fpstate *wc_linuxkm_fpstate_buf_from_fpu_state(
 }
 #endif
 
-static void wc_linuxkm_fpu_state_release_unlikely(struct wc_thread_fpu_count_ent *ent) {
+static void wc_linuxkm_fpu_state_release_unlikely(
+    struct wc_thread_fpu_count_ent *ent)
+{
     if (ent->fpu_state != 0) {
         static int warned_nonzero_fpu_state = 0;
         if (! warned_nonzero_fpu_state) {
@@ -358,7 +411,9 @@ static void wc_linuxkm_fpu_state_release_unlikely(struct wc_thread_fpu_count_ent
     __atomic_store_n(&ent->pid, 0, __ATOMIC_RELEASE);
 }
 
-static inline void wc_linuxkm_fpu_state_release(struct wc_thread_fpu_count_ent *ent) {
+static inline void wc_linuxkm_fpu_state_release(
+    struct wc_thread_fpu_count_ent *ent)
+{
     if (unlikely(ent->fpu_state != 0))
         return wc_linuxkm_fpu_state_release_unlikely(ent);
     __atomic_store_n(&ent->pid, 0, __ATOMIC_RELEASE);
@@ -395,7 +450,16 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         }
     }
 
-    if (irq_fpu_usable()) {
+    if (irq_fpu_usable()
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0))
+        /* work around a kernel bug -- see linux commit 59f5ede3bc0f0.
+         * what we really want here is this_cpu_read(in_kernel_fpu), but
+         * in_kernel_fpu is an unexported static array.
+         */
+        && !test_thread_flag(TIF_NEED_FPU_LOAD)
+#endif
+        )
+    {
 #ifdef WOLFSSL_COMMERCIAL_LICENSE
         struct fpstate *fpstate = wc_linuxkm_fpstate_buf_from_fpu_state(pstate);
         fpregs_lock();
@@ -435,8 +499,20 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
         wc_linuxkm_fpu_state_release(pstate);
 #endif
         return BAD_STATE_E;
+    } else if (!test_thread_flag(TIF_NEED_FPU_LOAD)) {
+        static int warned_fpu_forbidden = 0;
+        if (! warned_fpu_forbidden)
+            pr_err("save_vector_registers_x86 called with !irq_fpu_usable from"
+                   " thread without previous FPU save.\n");
+#ifdef LINUXKM_FPU_STATES_FOLLOW_THREADS
+        wc_linuxkm_fpu_state_release(pstate);
+#endif
+        return BAD_STATE_E;
     } else {
-        /* assume already safely in_kernel_fpu. */
+        /* assume already safely in_kernel_fpu from caller, but recursively
+         * preempt_disable() to be extra-safe.
+         */
+        preempt_disable();
 #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
     (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && \
     !defined(WOLFSSL_COMMERCIAL_LICENSE)
@@ -450,6 +526,7 @@ WARN_UNUSED_RESULT int save_vector_registers_x86(void)
             !defined(WOLFSSL_COMMERCIAL_LICENSE)
             migrate_enable();
         #endif
+            preempt_enable();
             return BAD_STATE_E;
         }
 #endif
@@ -491,6 +568,7 @@ void restore_vector_registers_x86(void)
     #ifndef LINUXKM_FPU_STATES_FOLLOW_THREADS
         wc_linuxkm_fpu_state_release(pstate);
     #endif
+        preempt_enable();
     }
 #if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_COUNT) && \
     (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && \
