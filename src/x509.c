@@ -11113,7 +11113,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
         InitDecodedCert(cert, *in, (word32)length, NULL);
 
         /* Parse the X509 subject name */
-        if (GetName(cert, SUBJECT, (int)length) != 0) {
+        if (GetName(cert, ASN_SUBJECT, (int)length) != 0) {
             WOLFSSL_MSG("WOLFSSL_X509_NAME parse error");
             goto cleanup;
         }

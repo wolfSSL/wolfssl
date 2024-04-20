@@ -76,11 +76,11 @@ that can be serialized and deserialized in a cross-platform way.
 #endif
 
 enum {
-    ISSUER  = 0,
-    SUBJECT = 1,
+    ASN_ISSUER  = 0,
+    ASN_SUBJECT = 1,
 
-    BEFORE  = 0,
-    AFTER   = 1
+    ASN_BEFORE  = 0,
+    ASN_AFTER   = 1
 };
 
 /* ASN Tags   */

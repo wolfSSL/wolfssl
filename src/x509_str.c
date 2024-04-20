@@ -281,11 +281,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             byte *beforeDate = ctx->current_cert->notBefore.data;
 
             if (XVALIDATE_DATE(afterDate,
-                        (byte)ctx->current_cert->notAfter.type, AFTER) < 1) {
+                    (byte)ctx->current_cert->notAfter.type, ASN_AFTER) < 1) {
                 ret = ASN_AFTER_DATE_E;
             }
             else if (XVALIDATE_DATE(beforeDate,
-                        (byte)ctx->current_cert->notBefore.type, BEFORE) < 1) {
+                    (byte)ctx->current_cert->notBefore.type, ASN_BEFORE) < 1) {
                 ret = ASN_BEFORE_DATE_E;
             }
             SetupStoreCtxError(ctx, ret);
