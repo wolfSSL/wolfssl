@@ -6907,14 +6907,14 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
             InitDecodedCert(cert, input + idx, extLen, ssl->heap);
             didInit = TRUE;
             idx += extLen;
-            ret = GetName(cert, SUBJECT, extLen);
+            ret = GetName(cert, ASN_SUBJECT, extLen);
         }
 
         if (ret == 0 && (name = wolfSSL_X509_NAME_new()) == NULL)
             ret = MEMORY_ERROR;
 
         if (ret == 0) {
-            CopyDecodedName(name, cert, SUBJECT);
+            CopyDecodedName(name, cert, ASN_SUBJECT);
             if (wolfSSL_sk_X509_NAME_push(ssl->client_ca_names, name)
                     == WOLFSSL_FAILURE)
                 ret = MEMORY_ERROR;
