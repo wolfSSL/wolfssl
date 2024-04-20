@@ -6120,8 +6120,12 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
         tls13minor = (byte)DTLSv1_3_MINOR;
+    #ifndef WOLFSSL_NO_TLS12
         tls12minor = (byte)DTLSv1_2_MINOR;
+    #endif
+    #ifndef NO_OLD_TLS
         tls11minor = (byte)DTLS_MINOR;
+    #endif
         isDtls = 1;
     }
 #endif /* WOLFSSL_DTLS13 */
