@@ -11704,7 +11704,8 @@ static int wolfssl_ec_key_int_copy(ecc_key* dst, const ecc_key* src)
 
     if (ret == 0) {
         /* Copy private key. */
-        ret = mp_copy(wc_ecc_key_get_priv(src), wc_ecc_key_get_priv(dst));
+        ret = mp_copy(wc_ecc_key_get_priv((ecc_key*)src),
+            wc_ecc_key_get_priv(dst));
         if (ret != MP_OKAY) {
             WOLFSSL_MSG("mp_copy error");
         }

@@ -613,13 +613,16 @@ struct ecc_key {
 #define ecc_get_k(key)              (key)->k
 #define ecc_blind_k(key, b)         (void)b
 #define ecc_blind_k_rng(key, rng)   0
+
+#define wc_ecc_key_get_priv(key)    (key)->k
 #else
 mp_int* ecc_get_k(ecc_key* key);
 void ecc_blind_k(ecc_key* key, mp_int* b);
 int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng);
+
+WOLFSSL_API mp_int* wc_ecc_key_get_priv(ecc_key* key);
 #endif
 
-#define wc_ecc_key_get_priv(key) (ecc_get_k(key))
 #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 
 

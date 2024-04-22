@@ -98,6 +98,12 @@ Possible ECC enable options:
  *                      Use this when CPU state can be closely observed by
  *                      attacker.
  *                                                              default: off
+ * WOLFSSL_ECC_BLIND_K
+ *                      Blind the private key k by using a random mask.
+ *                      The private key is never stored unprotected but an
+ *                      unmasked copy is computed and stored each time it is
+ *                      needed.
+ *                                                              default: off
  */
 
 /*
@@ -336,6 +342,11 @@ int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng)
         wc_FreeRng(&local_rng);
     }
     return ret;
+}
+
+mp_int* wc_ecc_key_get_priv(ecc_key* key)
+{
+    return ecc_get_k(key);
 }
 #endif
 
