@@ -942,7 +942,7 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
  * @param [in]      aes      AES object to encrypt with.
  * @return  0 on success.
  */
-static int wc_srtp_kdf_derive_key(byte* block, byte indexSz, byte label,
+static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
         byte* key, word32 keySz, Aes* aes)
 {
     int i;
