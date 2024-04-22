@@ -12505,7 +12505,7 @@ static int test_wolfSSL_PKCS8(void)
     XFILE f = XBADFILE;
     int bytes = 0;
     WOLFSSL_CTX* ctx = NULL;
-#if defined(HAVE_ECC) && !defined(NO_CODING)
+#if defined(HAVE_ECC) && !defined(NO_CODING) && !defined(WOLFSSL_NO_PEM)
     int ret;
     ecc_key key;
     word32 x = 0;
@@ -12665,7 +12665,7 @@ static int test_wolfSSL_PKCS8(void)
     ExpectIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, bytes,
                 WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
-#ifndef NO_CODING
+#if !defined(NO_CODING) && !defined(WOLFSSL_NO_PEM)
     /* decrypt PKCS8 PEM to key in DER format */
     ExpectIntGT((bytes = wc_KeyPemToDer(buff, bytes, der,
         (word32)sizeof(der), NULL)), 0);
