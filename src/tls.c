@@ -14925,6 +14925,12 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
     else if (!isRequest && ssl->options.haveEMS && !pendingEMS)
         ssl->options.haveEMS = 0;
 #endif
+#if defined(WOLFSSL_TLS13) && !defined(NO_PSK)
+    if (IsAtLeastTLSv1_3(ssl->version) && msgType == server_hello &&
+        IS_OFF(seenType, TLSX_ToSemaphore(TLSX_KEY_SHARE))) {
+        ssl->options.noPskDheKe = 1;
+    }
+#endif
 
     if (ret == 0)
         ret = SNI_VERIFY_PARSE(ssl, isRequest);
