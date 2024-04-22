@@ -388,7 +388,7 @@
          * system or other set of headers included by wolfSSL already defines
          * RNG. Examples are:
          * wolfEngine, wolfProvider and potentially other use-cases */
-        #ifndef RNG
+        #if !defined(RNG) && !defined(NO_OLD_RNGNAME)
             #define RNG WC_RNG
         #endif
     #endif
