@@ -319,7 +319,9 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
     if (!IsTLS_ex(ctx->method->version))
         return BAD_FUNC_ARG;
 
+    #ifdef WOLFSSL_TLS13
     ctx->numGroups = 0;
+    #endif
     #if !defined(NO_TLS)
     TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
     #endif /* !NO_TLS */
@@ -333,9 +335,13 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
     #endif /* !NO_TLS */
             return ret;
         }
+        #ifdef WOLFSSL_TLS13
         ctx->group[i] = (word16)groups[i];
+        #endif
     }
+    #ifdef WOLFSSL_TLS13
     ctx->numGroups = (byte)count;
+    #endif
 
     return WOLFSSL_SUCCESS;
 }
@@ -358,7 +364,9 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
     if (!IsTLS_ex(ssl->version))
         return BAD_FUNC_ARG;
 
+    #ifdef WOLFSSL_TLS13
     ssl->numGroups = 0;
+    #endif
     #if !defined(NO_TLS)
     TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
     #endif /* !NO_TLS */
@@ -372,9 +380,13 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
     #endif /* !NO_TLS */
             return ret;
         }
+        #ifdef WOLFSSL_TLS13
         ssl->group[i] = (word16)groups[i];
+        #endif
     }
+    #ifdef WOLFSSL_TLS13
     ssl->numGroups = (byte)count;
+    #endif
 
     return WOLFSSL_SUCCESS;
 }

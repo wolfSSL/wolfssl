@@ -40475,7 +40475,8 @@ static int test_wolfSSL_set1_curves_list(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+        (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC)
 static int test_wolfSSL_curves_mismatch_ctx_ready(WOLFSSL_CTX* ctx)
 {
     static int counter = 0;
@@ -40505,7 +40506,8 @@ static int test_wolfSSL_curves_mismatch_ctx_ready(WOLFSSL_CTX* ctx)
 static int test_wolfSSL_curves_mismatch(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+        (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && defined(HAVE_ECC)
     test_ssl_cbf func_cb_client;
     test_ssl_cbf func_cb_server;
     size_t i;
@@ -55515,7 +55517,7 @@ static int test_tls13_apis(void)
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientTls12Ctx, groups, numGroups),
-        BAD_FUNC_ARG);
+        WOLFSSL_SUCCESS);
 #endif
     ExpectIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups,
         WOLFSSL_MAX_GROUP_COUNT + 1), BAD_FUNC_ARG);
@@ -55539,7 +55541,7 @@ static int test_tls13_apis(void)
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_set_groups(clientTls12Ssl, groups, numGroups),
-        BAD_FUNC_ARG);
+        WOLFSSL_SUCCESS);
 #endif
     ExpectIntEQ(wolfSSL_set_groups(clientSsl, groups,
         WOLFSSL_MAX_GROUP_COUNT + 1), BAD_FUNC_ARG);
@@ -55566,7 +55568,7 @@ static int test_tls13_apis(void)
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_CTX_set1_groups_list(clientTls12Ctx, groupList),
-        WOLFSSL_FAILURE);
+        WOLFSSL_SUCCESS);
 #endif
     ExpectIntEQ(wolfSSL_CTX_set1_groups_list(clientCtx, groupList),
         WOLFSSL_SUCCESS);
@@ -55584,7 +55586,7 @@ static int test_tls13_apis(void)
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     ExpectIntEQ(wolfSSL_set1_groups_list(clientTls12Ssl, groupList),
-        WOLFSSL_FAILURE);
+        WOLFSSL_SUCCESS);
 #endif
     ExpectIntEQ(wolfSSL_set1_groups_list(clientSsl, groupList),
         WOLFSSL_SUCCESS);
