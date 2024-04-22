@@ -26375,6 +26375,61 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         0xe1, 0x29, 0x4f, 0x61, 0x30, 0x3c, 0x4d, 0x46,
         0x5f, 0x5c, 0x81, 0x3c, 0x38, 0xb6
     };
+
+    /* SRTCP w/ 48-bit idx - KDR 0 (-1) */
+    WOLFSSL_SMALL_STACK_STATIC const byte mk48_1[] = {
+        0xFF, 0xB6, 0xCB, 0x09, 0x71, 0x3F, 0x63, 0x4D,
+        0x7F, 0x42, 0xED, 0xA8, 0x12, 0x81, 0x50, 0xE6
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ms48_1[] = {
+        0x1F, 0x04, 0x76, 0xC8, 0x7F, 0x58, 0x23, 0xEF,
+        0xD3, 0x57, 0xB2, 0xBD, 0xF1, 0x32
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcp48idx_1[] = {
+        0x00, 0x00, 0x08, 0x56, 0xBC, 0x39
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcpKe_48_1[] = {
+        0xD2, 0xC3, 0xF3, 0x49, 0x00, 0x1A, 0x18, 0x0F,
+        0xB6, 0x05, 0x5A, 0x5A, 0x67, 0x8E, 0xE5, 0xB2
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcpKa_48_1[] = {
+        0x8D, 0x54, 0xBE, 0xB5, 0x7B, 0x7F, 0x7A, 0xAB,
+        0xF5, 0x46, 0xCE, 0x5B, 0x45, 0x69, 0x4A, 0x75,
+        0x81, 0x2A, 0xE2, 0xCB
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcpKs_48_1[] = {
+        0x76, 0x3C, 0x97, 0x6A, 0x45, 0x31, 0xA7, 0x79,
+        0x3C, 0x28, 0x4A, 0xA6, 0x82, 0x03
+    };
+
+    /* SRTCP w/ 48-bit idx - KDR 19 */
+    WOLFSSL_SMALL_STACK_STATIC const byte mk48_2[] = {
+        0xBD, 0x1D, 0x71, 0x6B, 0xDA, 0x28, 0xE3, 0xFC,
+        0xA5, 0xA0, 0x66, 0x3F, 0x2E, 0x34, 0xA8, 0x58
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte ms48_2[] = {
+        0x79, 0x06, 0xE5, 0xAB, 0x5C, 0x2B, 0x1B, 0x69,
+        0xFA, 0xEE, 0xD2, 0x29, 0x57, 0x3C
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcp48idx_2[] = {
+        0x00, 0x00, 0x59, 0xD0, 0xC2, 0xE8
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcpKe_48_2[] = {
+        0xB9, 0xD7, 0xAD, 0xD8, 0x90, 0x94, 0xC2, 0x92,
+        0xA5, 0x04, 0x87, 0xC4, 0x8C, 0xEF, 0xE2, 0xA3
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcpKa_48_2[] = {
+        0x07, 0xD5, 0xC4, 0xD2, 0x06, 0xFB, 0x63, 0x15,
+        0xC2, 0x9C, 0x7F, 0x55, 0xD1, 0x16, 0x5C, 0xB5,
+        0xB7, 0x44, 0x54, 0xBD
+    };
+    WOLFSSL_SMALL_STACK_STATIC const byte srtcpKs_48_2[] = {
+        0x0C, 0x5E, 0x53, 0xC1, 0xD0, 0x75, 0xAD, 0x65,
+        0xBF, 0x51, 0x74, 0x50, 0x89, 0xD7
+    };
+    int kdr_48_1 = -1;
+    int kdr_48_2 = 19;
+
     #define SRTP_TV_CNT     4
     Srtp_Kdf_Tv tv[SRTP_TV_CNT] = {
         { key_0, (word32)sizeof(key_0), salt_0, (word32)sizeof(salt_0), -1,
@@ -26611,6 +26666,37 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t srtpkdf_test(void)
         word32 kdr = 1U << i;
         idx = wc_SRTP_KDF_kdr_to_idx(kdr);
         if (idx != i)
+            return WC_TEST_RET_ENC_NC;
+    }
+
+    /* SRTCP w/ 48-bit IDX, 128-bit key test */
+    if (i == 0) {
+        ret = wc_SRTCP_KDF_ex(mk48_1, (word32)sizeof(mk48_1),
+                              ms48_1, (word32)sizeof(ms48_1),
+                              kdr_48_1, srtcp48idx_1, keyE, tv[i].keSz,
+                              keyA, tv[i].kaSz, keyS, tv[i].ksSz,
+                              WC_SRTCP_48BIT_IDX);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(keyE, srtcpKe_48_1, tv[i].keSz) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyA, srtcpKa_48_1, tv[i].kaSz) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyS, srtcpKs_48_1, tv[i].ksSz) != 0)
+            return WC_TEST_RET_ENC_NC;
+
+        ret = wc_SRTCP_KDF_ex(mk48_2, (word32)sizeof(mk48_2),
+                              ms48_2, (word32)sizeof(ms48_2),
+                              kdr_48_2, srtcp48idx_2, keyE, tv[i].keSz,
+                              keyA, tv[i].kaSz, keyS, tv[i].ksSz,
+                              WC_SRTCP_48BIT_IDX);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_EC(ret);
+        if (XMEMCMP(keyE, srtcpKe_48_2, tv[i].keSz) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyA, srtcpKa_48_2, tv[i].kaSz) != 0)
+            return WC_TEST_RET_ENC_NC;
+        if (XMEMCMP(keyS, srtcpKs_48_2, tv[i].ksSz) != 0)
             return WC_TEST_RET_ENC_NC;
     }
 
