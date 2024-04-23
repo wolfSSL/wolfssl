@@ -177,30 +177,34 @@ static WC_INLINE void* TrackMalloc(size_t sz)
     (void)line;
 #endif
 #endif
+#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
+    if (pthread_mutex_lock(&memLock) == 0)
+    {
+#endif
 
 #ifdef DO_MEM_STATS
-    ourMemStats.totalAllocs++;
-    ourMemStats.totalBytes   += sz;
-    ourMemStats.currentBytes += sz;
-#ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
-    if (ourMemStats.peakAllocsTripOdometer < ourMemStats.totalAllocs -
-            ourMemStats.totalDeallocs) {
-        ourMemStats.peakAllocsTripOdometer = ourMemStats.totalAllocs -
-            ourMemStats.totalDeallocs;
-    }
-    if (ourMemStats.peakBytesTripOdometer < ourMemStats.currentBytes)
-#endif
-    {
+        ourMemStats.totalAllocs++;
+        ourMemStats.totalBytes   += sz;
+        ourMemStats.currentBytes += sz;
     #ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
-        ourMemStats.peakBytesTripOdometer = ourMemStats.currentBytes;
+        if (ourMemStats.peakAllocsTripOdometer < ourMemStats.totalAllocs -
+                ourMemStats.totalDeallocs) {
+            ourMemStats.peakAllocsTripOdometer = ourMemStats.totalAllocs -
+                ourMemStats.totalDeallocs;
+        }
+        if (ourMemStats.peakBytesTripOdometer < ourMemStats.currentBytes)
     #endif
-        if (ourMemStats.currentBytes > ourMemStats.peakBytes)
-            ourMemStats.peakBytes = ourMemStats.currentBytes;
-    }
+        {
+        #ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
+            ourMemStats.peakBytesTripOdometer = ourMemStats.currentBytes;
+        #endif
+            if (ourMemStats.currentBytes > ourMemStats.peakBytes)
+                ourMemStats.peakBytes = ourMemStats.currentBytes;
+        }
+
 #endif /* DO_MEM_STATS */
 
 #ifdef DO_MEM_LIST
-    if (pthread_mutex_lock(&memLock) == 0) {
     #ifdef WOLFSSL_DEBUG_MEMORY
         header->func = func;
         header->line = line;
@@ -218,7 +222,8 @@ static WC_INLINE void* TrackMalloc(size_t sz)
         }
         ourMemList.tail = header;      /* add to the end either way */
         ourMemList.count++;
-
+#endif
+#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
         pthread_mutex_unlock(&memLock);
     }
 #endif /* DO_MEM_LIST */
@@ -245,7 +250,7 @@ static WC_INLINE void TrackFree(void* ptr)
     header = &mt->u.hint;
     sz = header->thisSize;
 
-#ifdef DO_MEM_LIST
+#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
     if (pthread_mutex_lock(&memLock) == 0)
     {
 #endif
@@ -277,7 +282,9 @@ static WC_INLINE void TrackFree(void* ptr)
                 prev->next = next;
         }
         ourMemList.count--;
+#endif
 
+#if defined(DO_MEM_LIST) || defined(DO_MEM_STATS)
         pthread_mutex_unlock(&memLock);
     }
 #endif
