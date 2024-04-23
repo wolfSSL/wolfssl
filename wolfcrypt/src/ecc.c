@@ -5131,7 +5131,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         #endif
         err = wc_ecc_set_curve(&public_key, private_key->dp->size,
                                private_key->dp->id);
-
         if (err == MP_OKAY) {
             err = mp_copy(point->x, public_key.pubkey.x);
         }
