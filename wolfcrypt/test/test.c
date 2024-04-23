@@ -639,7 +639,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
 #if defined(WOLFSSL_HAVE_LMS)
     #if !defined(WOLFSSL_SMALL_STACK)
-        #if defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)
+        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)) || \
+             defined(HAVE_LIBLMS)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test_verify_only(void);
         #endif
     #endif
@@ -1807,7 +1808,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #if defined(WOLFSSL_HAVE_LMS)
     #if !defined(WOLFSSL_SMALL_STACK)
-        #if defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)
+        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)) || \
+             defined(HAVE_LIBLMS)
     if ( (ret = lms_test_verify_only()) != 0)
         TEST_FAIL("LMS Vfy  test failed!\n", ret);
     else
@@ -38532,7 +38534,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK)
-#if defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)
+#if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)) || \
+             defined(HAVE_LIBLMS)
 
 /* A simple LMS verify only test.
  *
@@ -38756,17 +38759,22 @@ static byte lms_L1H10W8_sig[LMS_L1H10W8_SIGLEN] =
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
 {
-    int    ret = -1;
-    int    ret2 = -1;
-    int    j = 0;
-    LmsKey verifyKey;
-    word32 sigSz = 0;
-    word32 msgSz = sizeof(lms_msg);
-    word32 pubLen = 0;
-    int    levels = 0;
-    int    height = 0;
-    int    winternitz = 0;
+    LmsKey        verifyKey;
+    unsigned char pub_raw[HSS_MAX_PUBLIC_KEY_LEN];
+    word32        pub_len = sizeof(pub_raw);
+    word32        sigSz = 0;
+    word32        msgSz = sizeof(lms_msg);
+    word32        pubSz = 0;
+    int           levels = 0;
+    int           height = 0;
+    int           winternitz = 0;
+    int           ret = -1;
+    int           ret2 = -1;
+    int           j = 0;
+    int           n_diff = 0;
     WOLFSSL_ENTER("lms_test_verify_only");
+
+    XMEMSET(pub_raw, 0, sizeof(pub_raw));
 
     ret = wc_LmsKey_Init(&verifyKey, NULL, INVALID_DEVID);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
@@ -38788,12 +38796,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
         return -1;
     }
 
-    ret = wc_LmsKey_GetPubLen(&verifyKey, &pubLen);
+    ret = wc_LmsKey_GetPubLen(&verifyKey, &pubSz);
     if (ret != 0) { return WC_TEST_RET_ENC_EC(ret); }
 
-    if (pubLen != HSS_MAX_PUBLIC_KEY_LEN) {
-        printf("error: got %u, expected %d\n", pubLen, HSS_MAX_PUBLIC_KEY_LEN);
-        return WC_TEST_RET_ENC_EC(pubLen);
+    if (pubSz != HSS_MAX_PUBLIC_KEY_LEN) {
+        printf("error: got %u, expected %d\n", pubSz, HSS_MAX_PUBLIC_KEY_LEN);
+        return WC_TEST_RET_ENC_EC(pubSz);
     }
 
     ret = wc_LmsKey_GetSigLen(&verifyKey, &sigSz);
@@ -38809,6 +38817,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     if (ret != 0) {
         printf("error: wc_LmsKey_Verify returned %d\n", ret);
         return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    /* Now test the ExportPubRaw API, verify we recover the original pub. */
+    ret = wc_LmsKey_ExportPubRaw(&verifyKey, pub_raw, &pub_len);
+    if (ret != 0) {
+        printf("error: wc_LmsKey_ExportPubRaw returned %d, expected 0\n", ret);
+        return WC_TEST_RET_ENC_EC(ret);
+    }
+
+    if (pub_len != HSS_MAX_PUBLIC_KEY_LEN) {
+        printf("error: LMS pub len %d, expected %d\n", pub_len,
+               HSS_MAX_PUBLIC_KEY_LEN);
+        return WC_TEST_RET_ENC_EC(pub_len);
+    }
+
+    n_diff = XMEMCMP(pub_raw, lms_L1H10W8_pub, sizeof(lms_L1H10W8_pub));
+
+    if (n_diff != 0) {
+        printf("error: exported and imported pub raw do not match: %d\n",
+               n_diff);
+        return WC_TEST_RET_ENC_EC(n_diff);
     }
 
     /* Flip bits in message. This should fail. */
