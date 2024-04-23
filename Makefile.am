@@ -310,3 +310,8 @@ merge-clean:
 	@find ./ | $(GREP) \.BASE | xargs rm -f
 	@find ./ | $(GREP) \~$$ | xargs rm -f
 
+%.o: %.cu
+	$(NVCC) -dc $(CUDAFLAGS) -o $@ $<
+
+.cu.lo:
+	$(LIBTOOL) --tag=CC --mode=compile $(COMPILE) --compile -o $@ $< -static
