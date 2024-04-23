@@ -1,7 +1,16 @@
 name: hostap and wpa-supplicant Tests
 
+# START OF COMMON SECTION
 on:
-  workflow_call:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
 
 env:
   LINUX_REF: v6.6
@@ -17,10 +26,6 @@ jobs:
             wolf_extra_config: >-
               --enable-wpas-dpp --enable-brainpool --with-eccminsz=192 
               --enable-tlsv10 --enable-oldtls
-         # - build_id: hostap-vm-build3
-         #   wolf_extra_config: >-
-         #     --enable-wpas-dpp --enable-brainpool --with-eccminsz=192 
-         #     --enable-tlsv10 --enable-oldtls
     name: Build wolfSSL
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
@@ -111,6 +116,11 @@ jobs:
           {
             hostap_ref: b607d2723e927a3446d89aed813f1aa6068186bb,
             osp_ref: ad5b52a49b3cc2a5bfb47ccc1d6a5137132e9446,
+            build_id: hostap-vm-build2
+          },
+          {
+            hostap_ref: 07c9f183ea744ac04585fb6dd10220c75a5e2e74,
+            osp_ref: e1876fbbf298ee442bc7ab8561331ebc7de17528,
             build_id: hostap-vm-build2
           },
         ]
