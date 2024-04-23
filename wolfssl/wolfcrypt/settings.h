@@ -2896,6 +2896,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef WOLFSSL_SP_DIV_WORD_HALF
         #define WOLFSSL_SP_DIV_WORD_HALF
     #endif
+    #ifdef __PIE__
+        #define WC_NO_INTERNAL_FUNCTION_POINTERS
+    #endif
 #endif
 
 

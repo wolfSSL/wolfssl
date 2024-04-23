@@ -426,20 +426,147 @@ static int InitSha512_256(wc_Sha512* sha512)
 #endif
 
     static int _Transform_Sha512(wc_Sha512 *sha512);
-    static int (*Transform_Sha512_p)(wc_Sha512* sha512) = _Transform_Sha512;
-    static int (*Transform_Sha512_Len_p)(wc_Sha512* sha512, word32 len) = NULL;
-    static int transform_check = 0;
     static word32 intel_flags;
     static int Transform_Sha512_is_vectorized = 0;
 
+#ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
+
+    static enum { SHA512_UNSET, SHA512_AVX1, SHA512_AVX2, SHA512_AVX1_RORX,
+                  SHA512_AVX2_RORX, SHA512_C }
+        sha_method = SHA512_UNSET;
+
+    static void Sha512_SetTransform(void)
+    {
+
+        if (sha_method != SHA512_UNSET)
+            return;
+
+        intel_flags = cpuid_get_flags();
+
+    #if defined(HAVE_INTEL_AVX2)
+        if (IS_INTEL_AVX2(intel_flags)) {
+        #ifdef HAVE_INTEL_RORX
+            if (IS_INTEL_BMI2(intel_flags)) {
+                sha_method = SHA512_AVX2_RORX;
+                Transform_Sha512_is_vectorized = 1;
+            }
+            else
+        #endif
+            {
+                sha_method = SHA512_AVX2;
+                Transform_Sha512_is_vectorized = 1;
+            }
+        }
+        else
+    #endif
+    #if defined(HAVE_INTEL_AVX1)
+        if (IS_INTEL_AVX1(intel_flags)) {
+        #ifdef HAVE_INTEL_RORX
+            if (IS_INTEL_BMI2(intel_flags)) {
+                sha_method = SHA512_AVX1_RORX;
+                Transform_Sha512_is_vectorized = 1;
+            }
+            else
+        #endif
+            {
+                sha_method = SHA512_AVX1;
+                Transform_Sha512_is_vectorized = 1;
+            }
+        }
+        else
+    #endif
+        {
+            sha_method = SHA512_C;
+            Transform_Sha512_is_vectorized = 0;
+        }
+    }
+
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
         int ret;
+        if (sha_method == SHA512_C)
+            return _Transform_Sha512(sha512);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        switch (sha_method) {
+        case SHA512_AVX2:
+            ret = Transform_Sha512_AVX2(sha512);
+            break;
+        case SHA512_AVX2_RORX:
+            ret = Transform_Sha512_AVX2_RORX(sha512);
+            break;
+        case SHA512_AVX1:
+            ret = Transform_Sha512_AVX1(sha512);
+            break;
+        case SHA512_AVX1_RORX:
+            ret = Transform_Sha512_AVX1_RORX(sha512);
+            break;
+        case SHA512_C:
+        case SHA512_UNSET:
+        default:
+            ret = _Transform_Sha512(sha512);
+            break;
+        }
+        RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+#define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
+
+    static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
+        int ret;
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        switch (sha_method) {
+        case SHA512_AVX2:
+            ret = Transform_Sha512_AVX2_Len(sha512, len);
+            break;
+        case SHA512_AVX2_RORX:
+            ret = Transform_Sha512_AVX2_RORX_Len(sha512, len);
+            break;
+        case SHA512_AVX1:
+            ret = Transform_Sha512_AVX1_Len(sha512, len);
+            break;
+        case SHA512_AVX1_RORX:
+            ret = Transform_Sha512_AVX1_RORX_Len(sha512, len);
+            break;
+        case SHA512_C:
+        case SHA512_UNSET:
+        default:
+            ret = 0;
+            break;
+        }
+        RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+#define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
+
+#else /* !WC_NO_INTERNAL_FUNCTION_POINTERS */
+
+    static int (*Transform_Sha512_p)(wc_Sha512* sha512) = _Transform_Sha512;
+    static int (*Transform_Sha512_Len_p)(wc_Sha512* sha512, word32 len) = NULL;
+    static int transform_check = 0;
+
+    static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
+        int ret;
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha512_is_vectorized)
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+#endif
         ret = (*Transform_Sha512_p)(sha512);
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha512_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+#endif
         return ret;
     }
     static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
         int ret;
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha512_is_vectorized)
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+#endif
         ret = (*Transform_Sha512_Len_p)(sha512, len);
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha512_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+#endif
         return ret;
     }
 
@@ -494,6 +621,8 @@ static int InitSha512_256(wc_Sha512* sha512)
 
         transform_check = 1;
     }
+
+#endif /* !WC_NO_INTERNAL_FUNCTION_POINTERS */
 
 #else
     #define Transform_Sha512(sha512) _Transform_Sha512(sha512)
@@ -804,7 +933,13 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
-    if (Transform_Sha512_Len_p != NULL) {
+
+    #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
+    if (sha_method != SHA512_C)
+    #else
+    if (Transform_Sha512_Len_p != NULL)
+    #endif
+    {
         word32 blocksLen = len & ~((word32)WC_SHA512_BLOCK_SIZE-1);
 
         if (blocksLen > 0) {

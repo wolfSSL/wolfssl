@@ -371,25 +371,172 @@ static int InitSha256(wc_Sha256* sha256)
     }  /* extern "C" */
 #endif
 
-    static int (*Transform_Sha256_p)(wc_Sha256* sha256, const byte* data);
-                                                       /* = _Transform_Sha256 */
-    static int (*Transform_Sha256_Len_p)(wc_Sha256* sha256, const byte* data,
-                                         word32 len);
-                                                                    /* = NULL */
-    static int transform_check = 0;
     static word32 intel_flags;
     static int Transform_Sha256_is_vectorized = 0;
 
+#ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
+
+    static enum { SHA256_UNSET, SHA256_AVX1, SHA256_AVX2, SHA256_AVX1_RORX,
+                  SHA256_AVX2_RORX, SHA256_SSE2, SHA256_C }
+        sha_method = SHA256_UNSET;
+
+    static void Sha256_SetTransform(void)
+    {
+
+        if (sha_method != SHA256_UNSET)
+            return;
+
+        intel_flags = cpuid_get_flags();
+
+        if (IS_INTEL_SHA(intel_flags)) {
+        #ifdef HAVE_INTEL_AVX1
+            if (IS_INTEL_AVX1(intel_flags)) {
+                sha_method = SHA256_AVX1;
+                Transform_Sha256_is_vectorized = 1;
+            }
+            else
+        #endif
+            {
+                sha_method = SHA256_SSE2;
+                Transform_Sha256_is_vectorized = 1;
+            }
+        }
+        else
+    #ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_AVX2(intel_flags)) {
+        #ifdef HAVE_INTEL_RORX
+            if (IS_INTEL_BMI2(intel_flags)) {
+                sha_method = SHA256_AVX2_RORX;
+                Transform_Sha256_is_vectorized = 1;
+            }
+            else
+        #endif
+            {
+                sha_method = SHA256_AVX2;
+                Transform_Sha256_is_vectorized = 1;
+            }
+        }
+        else
+    #endif
+    #ifdef HAVE_INTEL_AVX1
+        if (IS_INTEL_AVX1(intel_flags)) {
+        #ifdef HAVE_INTEL_RORX
+            if (IS_INTEL_BMI2(intel_flags)) {
+                sha_method = SHA256_AVX1_RORX;
+                Transform_Sha256_is_vectorized = 1;
+            }
+            else
+        #endif
+            {
+                sha_method = SHA256_AVX1;
+                Transform_Sha256_is_vectorized = 1;
+            }
+        }
+        else
+    #endif
+        {
+            sha_method = SHA256_C;
+            Transform_Sha256_is_vectorized = 0;
+        }
+    }
+
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
         int ret;
-        ret = (*Transform_Sha256_p)(S, D);
+        if (sha_method == SHA256_C)
+            return Transform_Sha256(S, D);
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        switch (sha_method) {
+        case SHA256_AVX2:
+            ret = Transform_Sha256_AVX2(S, D);
+            break;
+        case SHA256_AVX2_RORX:
+            ret = Transform_Sha256_AVX2_RORX(S, D);
+            break;
+        case SHA256_AVX1:
+            ret = Transform_Sha256_AVX1_Sha(S, D);
+            break;
+        case SHA256_AVX1_RORX:
+            ret = Transform_Sha256_AVX1_RORX(S, D);
+            break;
+        case SHA256_SSE2:
+            ret = Transform_Sha256_SSE2_Sha(S, D);
+            break;
+        case SHA256_C:
+        case SHA256_UNSET:
+        default:
+            ret = Transform_Sha256(S, D);
+            break;
+        }
+        RESTORE_VECTOR_REGISTERS();
         return ret;
     }
 #define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
 
     static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
         int ret;
+        SAVE_VECTOR_REGISTERS(return _svr_ret;);
+        switch (sha_method) {
+        case SHA256_AVX2:
+            ret = Transform_Sha256_AVX2_Len(S, D, L);
+            break;
+        case SHA256_AVX2_RORX:
+            ret = Transform_Sha256_AVX2_RORX_Len(S, D, L);
+            break;
+        case SHA256_AVX1:
+            ret = Transform_Sha256_AVX1_Sha_Len(S, D, L);
+            break;
+        case SHA256_AVX1_RORX:
+            ret = Transform_Sha256_AVX1_RORX_Len(S, D, L);
+            break;
+        case SHA256_SSE2:
+            ret = Transform_Sha256_SSE2_Sha_Len(S, D, L);
+            break;
+        case SHA256_C:
+        case SHA256_UNSET:
+        default:
+            ret = 0;
+            break;
+        }
+        RESTORE_VECTOR_REGISTERS();
+        return ret;
+    }
+#define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
+
+#else /* !WC_NO_INTERNAL_FUNCTION_POINTERS */
+
+    static int (*Transform_Sha256_p)(wc_Sha256* sha256, const byte* data);
+                                                       /* = _Transform_Sha256 */
+    static int (*Transform_Sha256_Len_p)(wc_Sha256* sha256, const byte* data,
+                                         word32 len);
+                                                                    /* = NULL */
+    static int transform_check = 0;
+
+    static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
+        int ret;
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha256_is_vectorized)
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+#endif
+        ret = (*Transform_Sha256_p)(S, D);
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha256_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+#endif
+        return ret;
+    }
+#define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
+
+    static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
+        int ret;
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha256_is_vectorized)
+            SAVE_VECTOR_REGISTERS(return _svr_ret;);
+#endif
         ret = (*Transform_Sha256_Len_p)(S, D, L);
+#ifdef WOLFSSL_LINUXKM
+        if (Transform_Sha256_is_vectorized)
+            RESTORE_VECTOR_REGISTERS();
+#endif
         return ret;
     }
 #define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
@@ -462,6 +609,8 @@ static int InitSha256(wc_Sha256* sha256)
 
         transform_check = 1;
     }
+
+#endif /* !WC_NO_INTERNAL_FUNCTION_POINTERS */
 
 #if !defined(WOLFSSL_KCAPI_HASH)
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
@@ -1162,7 +1311,13 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef XTRANSFORM_LEN
         #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
+
+        #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
+        if (sha_method != SHA256_C)
+        #else
         if (Transform_Sha256_Len_p != NULL)
+        #endif
+
         #endif
         {
             if (len >= WC_SHA256_BLOCK_SIZE) {
