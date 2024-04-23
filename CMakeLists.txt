@@ -2114,6 +2114,44 @@ else()
 endif()
 set(OPTION_FILE "${WOLFSSL_OUTPUT_BASE}/wolfssl/options.h")
 
+# sccache
+add_option("ENABLE_SCCACHE"
+        "Enable sccache (default: disabled)"
+        "no" "yes;no")
+
+if (ENABLE_SCCACHE AND (NOT WOLFSSL_SCCACHE_ALREADY_SET_FLAG))
+    find_program(SCCACHE sccache REQUIRED)
+    if(SCCACHE)
+        message(STATUS "Enable sccache")
+
+        if(CMAKE_C_COMPILER_LAUNCHER)
+            set(CMAKE_C_COMPILER_LAUNCHER "${CMAKE_C_COMPILER_LAUNCHER}" "${SCCACHE}")
+        else()
+            set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE}")
+        endif()
+        if(CMAKE_CXX_COMPILER_LAUNCHER)
+            set(CMAKE_CXX_COMPILER_LAUNCHER "${CMAKE_CXX_COMPILER_LAUNCHER}" "${SCCACHE}")
+        else()
+            set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE}")
+        endif()
+
+        if (MSVC)
+            if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+                string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+                string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+            elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+                string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+                string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+            elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+                string(REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+                string(REPLACE "/Zi" "/Z7" CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}")
+            endif()
+        endif()
+        set(WOLFSSL_SCCACHE_ALREADY_SET_FLAG ON)
+    endif()
+endif()
+
+
 file(REMOVE ${OPTION_FILE})
 
 file(APPEND ${OPTION_FILE} "/* wolfssl options.h\n")
