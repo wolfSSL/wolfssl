@@ -3225,6 +3225,23 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
+    (void)tls;  /* shut up compiler */
+    (void)tls1_2;
+    (void)dtls;
+    (void)haveDH;
+    (void)havePSK;
+    (void)haveStaticRSA;
+    (void)haveStaticECC;
+    (void)haveECC;
+    (void)haveECDSAsig;
+    (void)side;
+    (void)haveRSA;    /* some builds won't read */
+    (void)haveRSAsig; /* non ecc builds won't read */
+    (void)haveAnon;   /* anon ciphers optional */
+    (void)haveNull;
+    (void)haveFalconSig;
+    (void)haveDilithiumSig;
+
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
         return;
