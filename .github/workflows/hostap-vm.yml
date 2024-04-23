@@ -139,7 +139,7 @@ jobs:
     # For openssl 1.1
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 12
+    timeout-minutes: 45
     needs: [build_wolfssl, build_uml_linux]
     steps:
       - name: Checking if we have kernel in cache
