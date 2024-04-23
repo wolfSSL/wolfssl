@@ -160,38 +160,77 @@ const char * wc_LmsKey_ParmToStr(enum wc_LmsParm lmsParm)
 {
     switch (lmsParm) {
     case WC_LMS_PARM_NONE:
-        return "LMS_NONE";
-
+        return "LMS/HSS NONE";
+    case WC_LMS_PARM_L1_H5_W1:
+        return "LMS/HSS L1_H5_W1";
+    case WC_LMS_PARM_L1_H5_W2:
+        return "LMS/HSS L1_H5_W2";
+    case WC_LMS_PARM_L1_H5_W4:
+        return "LMS/HSS L1_H5_W4";
+    case WC_LMS_PARM_L1_H5_W8:
+        return "LMS/HSS L1_H5_W8";
+    case WC_LMS_PARM_L1_H10_W2:
+        return "LMS/HSS L1_H10_W2";
+    case WC_LMS_PARM_L1_H10_W4:
+        return "LMS/HSS L1_H10_W4";
+    case WC_LMS_PARM_L1_H10_W8:
+        return "LMS/HSS L1_H10_W8";
     case WC_LMS_PARM_L1_H15_W2:
         return "LMS/HSS L1_H15_W2";
-
     case WC_LMS_PARM_L1_H15_W4:
         return "LMS/HSS L1_H15_W4";
-
+    case WC_LMS_PARM_L1_H15_W8:
+        return "LMS/HSS L1_H15_W8";
+    case WC_LMS_PARM_L1_H20_W2:
+        return "LMS/HSS L1_H20_W2";
+    case WC_LMS_PARM_L1_H20_W4:
+        return "LMS/HSS L1_H20_W4";
+    case WC_LMS_PARM_L1_H20_W8:
+        return "LMS/HSS L1_H20_W8";
+    case WC_LMS_PARM_L2_H5_W2:
+        return "LMS/HSS L2_H5_W2";
+    case WC_LMS_PARM_L2_H5_W4:
+        return "LMS/HSS L2_H5_W4";
+    case WC_LMS_PARM_L2_H5_W8:
+        return "LMS/HSS L2_H5_W8";
     case WC_LMS_PARM_L2_H10_W2:
         return "LMS/HSS L2_H10_W2";
-
     case WC_LMS_PARM_L2_H10_W4:
         return "LMS/HSS L2_H10_W4";
-
     case WC_LMS_PARM_L2_H10_W8:
         return "LMS/HSS L2_H10_W8";
-
+    case WC_LMS_PARM_L2_H15_W2:
+        return "LMS/HSS L2_H15_W2";
+    case WC_LMS_PARM_L2_H15_W4:
+        return "LMS/HSS L2_H15_W4";
+    case WC_LMS_PARM_L2_H15_W8:
+        return "LMS/HSS L2_H15_W8";
+    case WC_LMS_PARM_L2_H20_W2:
+        return "LMS/HSS L2_H20_W2";
+    case WC_LMS_PARM_L2_H20_W4:
+        return "LMS/HSS L2_H20_W4";
+    case WC_LMS_PARM_L2_H20_W8:
+        return "LMS/HSS L2_H20_W8";
     case WC_LMS_PARM_L3_H5_W2:
         return "LMS/HSS L3_H5_W2";
-
     case WC_LMS_PARM_L3_H5_W4:
         return "LMS/HSS L3_H5_W4";
-
     case WC_LMS_PARM_L3_H5_W8:
         return "LMS/HSS L3_H5_W8";
-
     case WC_LMS_PARM_L3_H10_W4:
         return "LMS/HSS L3_H10_W4";
-
+    case WC_LMS_PARM_L3_H10_W8:
+        return "LMS/HSS L3_H10_W8";
+    case WC_LMS_PARM_L4_H5_W2:
+        return "LMS/HSS L4_H5_W2";
+    case WC_LMS_PARM_L4_H5_W4:
+        return "LMS/HSS L4_H5_W4";
     case WC_LMS_PARM_L4_H5_W8:
         return "LMS/HSS L4_H5_W8";
-
+    case WC_LMS_PARM_L4_H10_W4:
+        return "LMS/HSS L4_H10_W4";
+    case WC_LMS_PARM_L4_H10_W8:
+        return "LMS/HSS L4_H10_W8";
     default:
         WOLFSSL_MSG("error: invalid LMS parameter");
         break;
@@ -279,36 +318,76 @@ int wc_LmsKey_SetLmsParm(LmsKey * key, enum wc_LmsParm lmsParm)
     /* If NONE is passed, default to the lowest predefined set. */
     switch (lmsParm) {
     case WC_LMS_PARM_NONE:
+    case WC_LMS_PARM_L1_H5_W1:
+        return wc_LmsKey_SetParameters(key, 1, 5, 1);
+    case WC_LMS_PARM_L1_H5_W2:
+        return wc_LmsKey_SetParameters(key, 1, 5, 2);
+    case WC_LMS_PARM_L1_H5_W4:
+        return wc_LmsKey_SetParameters(key, 1, 5, 4);
+    case WC_LMS_PARM_L1_H5_W8:
+        return wc_LmsKey_SetParameters(key, 1, 5, 8);
+    case WC_LMS_PARM_L1_H10_W2:
+        return wc_LmsKey_SetParameters(key, 1, 10, 2);
+    case WC_LMS_PARM_L1_H10_W4:
+        return wc_LmsKey_SetParameters(key, 1, 10, 4);
+    case WC_LMS_PARM_L1_H10_W8:
+        return wc_LmsKey_SetParameters(key, 1, 10, 8);
     case WC_LMS_PARM_L1_H15_W2:
         return wc_LmsKey_SetParameters(key, 1, 15, 2);
-
     case WC_LMS_PARM_L1_H15_W4:
         return wc_LmsKey_SetParameters(key, 1, 15, 4);
-
+    case WC_LMS_PARM_L1_H15_W8:
+        return wc_LmsKey_SetParameters(key, 1, 15, 8);
+    case WC_LMS_PARM_L1_H20_W2:
+        return wc_LmsKey_SetParameters(key, 1, 20, 2);
+    case WC_LMS_PARM_L1_H20_W4:
+        return wc_LmsKey_SetParameters(key, 1, 20, 4);
+    case WC_LMS_PARM_L1_H20_W8:
+        return wc_LmsKey_SetParameters(key, 1, 20, 8);
+    case WC_LMS_PARM_L2_H5_W2:
+        return wc_LmsKey_SetParameters(key, 2, 5, 2);
+    case WC_LMS_PARM_L2_H5_W4:
+        return wc_LmsKey_SetParameters(key, 2, 5, 4);
+    case WC_LMS_PARM_L2_H5_W8:
+        return wc_LmsKey_SetParameters(key, 2, 5, 8);
     case WC_LMS_PARM_L2_H10_W2:
         return wc_LmsKey_SetParameters(key, 2, 10, 2);
-
     case WC_LMS_PARM_L2_H10_W4:
         return wc_LmsKey_SetParameters(key, 2, 10, 4);
-
     case WC_LMS_PARM_L2_H10_W8:
         return wc_LmsKey_SetParameters(key, 2, 10, 8);
-
+    case WC_LMS_PARM_L2_H15_W2:
+        return wc_LmsKey_SetParameters(key, 2, 15, 2);
+    case WC_LMS_PARM_L2_H15_W4:
+        return wc_LmsKey_SetParameters(key, 2, 15, 4);
+    case WC_LMS_PARM_L2_H15_W8:
+        return wc_LmsKey_SetParameters(key, 2, 15, 8);
+    case WC_LMS_PARM_L2_H20_W2:
+        return wc_LmsKey_SetParameters(key, 2, 20, 2);
+    case WC_LMS_PARM_L2_H20_W4:
+        return wc_LmsKey_SetParameters(key, 2, 20, 4);
+    case WC_LMS_PARM_L2_H20_W8:
+        return wc_LmsKey_SetParameters(key, 2, 20, 8);
     case WC_LMS_PARM_L3_H5_W2:
         return wc_LmsKey_SetParameters(key, 3, 5, 2);
-
     case WC_LMS_PARM_L3_H5_W4:
         return wc_LmsKey_SetParameters(key, 3, 5, 4);
-
     case WC_LMS_PARM_L3_H5_W8:
         return wc_LmsKey_SetParameters(key, 3, 5, 8);
-
     case WC_LMS_PARM_L3_H10_W4:
         return wc_LmsKey_SetParameters(key, 3, 10, 4);
-
+    case WC_LMS_PARM_L3_H10_W8:
+        return wc_LmsKey_SetParameters(key, 3, 10, 8);
+    case WC_LMS_PARM_L4_H5_W2:
+        return wc_LmsKey_SetParameters(key, 4, 5, 2);
+    case WC_LMS_PARM_L4_H5_W4:
+        return wc_LmsKey_SetParameters(key, 4, 5, 4);
     case WC_LMS_PARM_L4_H5_W8:
         return wc_LmsKey_SetParameters(key, 4, 5, 8);
-
+    case WC_LMS_PARM_L4_H10_W4:
+        return wc_LmsKey_SetParameters(key, 4, 10, 4);
+    case WC_LMS_PARM_L4_H10_W8:
+        return wc_LmsKey_SetParameters(key, 4, 10, 8);
     default:
         WOLFSSL_MSG("error: invalid LMS parameter set");
         break;
