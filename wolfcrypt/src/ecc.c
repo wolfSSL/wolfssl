@@ -5110,10 +5110,10 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 
     err = wc_ecc_init_ex(&public_key, private_key->heap, INVALID_DEVID);
     if (err == MP_OKAY) {
+        #if FIPS_VERSION3_GE(6,0,0)
         /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
          * both keysize == 0 and curve_id == 0 ensure we select an appropriate
          * keysize here when relying on default selection */
-        #if FIPS_VERSION3_GE(6,0,0)
         if (private_key->dp->size < WC_ECC_FIPS_GEN_MIN) {
             if (private_key->dp->size == 0 &&
                 (private_key->dp->id == ECC_SECP256R1 ||
@@ -5573,10 +5573,10 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     /* make sure required variables are reset */
     wc_ecc_reset(key);
 
+    #if FIPS_VERSION3_GE(6,0,0)
     /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
      * both keysize == 0 and curve_id == 0 ensure we select an appropriate
      * keysize here when relying on default selection */
-    #if FIPS_VERSION3_GE(6,0,0)
     if (keysize < WC_ECC_FIPS_GEN_MIN) {
         if (keysize == 0 && (curve_id == ECC_SECP256R1 ||
              curve_id == ECC_SECP224R1 || curve_id == ECC_SECP384R1 ||
@@ -5585,8 +5585,6 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
             err = 0;
         } else {
             WOLFSSL_MSG("ECC curve too small for FIPS mode");
-            printf("curve_id was %d, expected either %d or %d or %d or %d\n",
-                curve_id, ECC_SECP256R1, ECC_SECP224R1, ECC_SECP384R1, ECC_SECP521R1);
             err = ECC_CURVE_OID_E;
         }
     }
