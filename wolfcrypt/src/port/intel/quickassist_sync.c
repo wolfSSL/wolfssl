@@ -144,9 +144,9 @@ typedef void (*IntelQaFreeFunc)(struct IntelQaDev*);
 
 /* QuickAssist device */
 typedef struct IntelQaDev {
-	CpaInstanceHandle handle;
+        CpaInstanceHandle handle;
     int devId;
-	void* heap;
+        void* heap;
 
     /* callback return info */
     int ret;
@@ -220,7 +220,7 @@ static int IntelQaGetCyInstanceCount(void);
 
 #ifdef WOLF_CRYPTO_CB
     static int IntelQaSymSync_CryptoDevCb(int, struct wc_CryptoInfo*,
-			void*);
+                        void*);
 #endif /* WOLF_CRYPTO_CB */
 
 
@@ -423,7 +423,7 @@ int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
 
 #ifdef QAT_DEBUG
     /* optionally enable debugging */
-    //osalLogLevelSet(8);
+    /* osalLogLevelSet(8); */
 #endif
 
     status = cpaCyGetNumInstances(&g_numInstances);

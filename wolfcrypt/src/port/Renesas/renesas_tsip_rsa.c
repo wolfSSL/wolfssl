@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
+
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if !defined(NO_RSA) && \
@@ -63,54 +63,54 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
         if (size == 1024) {
             tsip_pair1024_key =
             (tsip_rsa1024_key_pair_index_t*)XMALLOC(
-                sizeof(tsip_rsa1024_key_pair_index_t), NULL, 
+                sizeof(tsip_rsa1024_key_pair_index_t), NULL,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
             if (tsip_pair1024_key == NULL)
                 return MEMORY_E;
-                
+
             ret = R_TSIP_GenerateRsa1024RandomKeyIndex(tsip_pair1024_key);
         }
         else if (size == 2048) {
             tsip_pair2048_key =
             (tsip_rsa2048_key_pair_index_t*)XMALLOC(
-                sizeof(tsip_rsa2048_key_pair_index_t), NULL, 
+                sizeof(tsip_rsa2048_key_pair_index_t), NULL,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
             if (tsip_pair2048_key == NULL)
                 return MEMORY_E;
-                
+
             ret = R_TSIP_GenerateRsa2048RandomKeyIndex(tsip_pair2048_key);
         }
         else
             return CRYPTOCB_UNAVAILABLE;
-            
+
         if (ret == TSIP_SUCCESS) {
             if (size == 1024) {
                 if (info->rsa1024pri_keyIdx != NULL) {
-                    XFREE(info->rsa1024pri_keyIdx, NULL, 
+                    XFREE(info->rsa1024pri_keyIdx, NULL,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                 }
                 if (info->rsa1024pub_keyIdx != NULL) {
-                    XFREE(info->rsa1024pub_keyIdx, NULL, 
+                    XFREE(info->rsa1024pub_keyIdx, NULL,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                 }
-                info->rsa1024pri_keyIdx = 
+                info->rsa1024pri_keyIdx =
                 (tsip_rsa1024_private_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa1024_private_key_index_t), NULL, 
+                    sizeof(tsip_rsa1024_private_key_index_t), NULL,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
-                    
+
                 if (info->rsa1024pri_keyIdx == NULL) {
                     XFREE(tsip_pair1024_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
-                
+
                 info->rsa1024pub_keyIdx =
                 (tsip_rsa1024_public_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa1024_public_key_index_t), NULL, 
+                    sizeof(tsip_rsa1024_public_key_index_t), NULL,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
-                    
+
                 if (info->rsa1024pub_keyIdx == NULL) {
                     XFREE(tsip_pair1024_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
-                    XFREE(info->rsa1024pri_keyIdx, 0, 
+                    XFREE(info->rsa1024pri_keyIdx, 0,
                                                 DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
@@ -118,63 +118,63 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
                 XMEMCPY(info->rsa1024pri_keyIdx,
                                     &tsip_pair1024_key->private,
                                     sizeof(tsip_rsa1024_private_key_index_t));
-                XMEMCPY(info->rsa1024pub_keyIdx, 
+                XMEMCPY(info->rsa1024pub_keyIdx,
                                     &tsip_pair1024_key->public,
                                     sizeof(tsip_rsa1024_public_key_index_t));
                 XFREE(tsip_pair1024_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
-                
+
                 info->keyflgs_crypt.bits.rsapri1024_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub1024_key_set = 1;
             }
             else if (size == 2048) {
                 if (info->rsa2048pri_keyIdx != NULL) {
-                    XFREE(info->rsa2048pri_keyIdx, NULL, 
+                    XFREE(info->rsa2048pri_keyIdx, NULL,
                                     DYNAMIC_TYPE_RSA_BUFFER);
                 }
                 if (info->rsa2048pub_keyIdx != NULL) {
-                    XFREE(info->rsa2048pub_keyIdx, NULL, 
+                    XFREE(info->rsa2048pub_keyIdx, NULL,
                                     DYNAMIC_TYPE_RSA_BUFFER);
                 }
-                info->rsa2048pri_keyIdx = 
+                info->rsa2048pri_keyIdx =
                 (tsip_rsa2048_private_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa2048_private_key_index_t), NULL, 
+                    sizeof(tsip_rsa2048_private_key_index_t), NULL,
                                     DYNAMIC_TYPE_RSA_BUFFER);
-                    
+
                 if (info->rsa2048pri_keyIdx == NULL) {
                     XFREE(tsip_pair2048_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
-                
+
                 info->rsa2048pub_keyIdx =
                 (tsip_rsa2048_public_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa2048_public_key_index_t), NULL, 
+                    sizeof(tsip_rsa2048_public_key_index_t), NULL,
                                     DYNAMIC_TYPE_RSA_BUFFER);
-                    
+
                 if (info->rsa2048pub_keyIdx == NULL) {
                     XFREE(tsip_pair2048_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
-                    XFREE(info->rsa2048pri_keyIdx, 0, 
+                    XFREE(info->rsa2048pri_keyIdx, 0,
                                     DYNAMIC_TYPE_RSA_BUFFER);
                     return MEMORY_E;
                 }
                 /* copy generated key pair and free malloced key */
-                XMEMCPY(info->rsa2048pri_keyIdx, 
+                XMEMCPY(info->rsa2048pri_keyIdx,
                             &tsip_pair2048_key->private,
                             sizeof(tsip_rsa2048_private_key_index_t));
-                XMEMCPY(info->rsa2048pub_keyIdx, 
+                XMEMCPY(info->rsa2048pub_keyIdx,
                             &tsip_pair2048_key->public,
                             sizeof(tsip_rsa2048_public_key_index_t));
                 XFREE(tsip_pair2048_key, 0, DYNAMIC_TYPE_RSA_BUFFER);
-                
+
                 info->keyflgs_crypt.bits.rsapri2048_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub2048_key_set = 1;
-                
+
             }
         }
         else {
             WOLFSSL_MSG("Failed to generate key pair by TSIP");
             return CRYPTOCB_UNAVAILABLE;
         }
-        
+
         tsip_hw_unlock();
     }
 
@@ -184,7 +184,7 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
 
 /* Perform Rsa verify by TSIP
  * Assumes to be called by Crypt Callback
- * 
+ *
  * in     Buffer to hold plaintext
  * inLen  Length of plaintext in bytes
  * out    Buffer to hold generated signature
@@ -193,7 +193,7 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
  * ctx    The callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
- 
+
 WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret = 0;
@@ -201,13 +201,13 @@ WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
     tsip_rsa_byte_data_t hashData, sigData;
 
     uint8_t  tsip_hash_type;
-    
-    
+
+
     /* sanity check */
     if (info == NULL || tuc == NULL){
         return BAD_FUNC_ARG;
     }
-    
+
     if (ret == 0) {
        if (tuc->sing_hash_type == md5_mac)
            tsip_hash_type = R_TSIP_RSA_HASH_MD5;
@@ -218,7 +218,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
        else
            ret = CRYPTOCB_UNAVAILABLE;
     }
-    
+
     switch (tuc->wrappedKeyType) {
         case TSIP_KEY_TYPE_RSA1024:
             if (tuc->keyflgs_crypt.bits.rsapub1024_key_set != 1)
@@ -226,7 +226,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
 
                 WOLFSSL_MSG("tsip rsa private key 1024 not set");
-                if (ret != 0) 
+                if (ret != 0)
                     ret = CRYPTOCB_UNAVAILABLE;
 
             }
@@ -237,7 +237,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
 
                 WOLFSSL_MSG("tsip rsa private key 1024 not set");
-                if (ret != 0) 
+                if (ret != 0)
                     ret = CRYPTOCB_UNAVAILABLE;
             }
             break;
@@ -294,7 +294,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
             tsip_hw_unlock();
         }
     }
-    
+
     return ret;
 }
 #endif /* WOLFSSL_RENESAS_TSIP_CRYPTONLY */

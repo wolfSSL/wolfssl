@@ -612,7 +612,7 @@ static int iotsafe_parse_public_key(char* resp, int len, ecc_key *key)
 /* Execute GEN_KEYPAIR on the IoT-SAFE applet.
  *
  * Return -1 on error; 0 if the operation is successful, but
- * the generated public key was not yet stored in `key`; 1 if 
+ * the generated public key was not yet stored in `key`; 1 if
  * the operation is successful and the public key was found in the
  * command response and copied to the `key` structure, if not NULL.
  */
@@ -1089,11 +1089,11 @@ static int wolfIoT_hkdf_extract(byte* prk, const byte* salt, word32 saltLen,
                 localSalt = tmp;
             }
     }
-    
-    ret = iotsafe_hkdf_extract(prk, localSalt, saltLen, ikm, ikmLen, digest);    
+
+    ret = iotsafe_hkdf_extract(prk, localSalt, saltLen, ikm, ikmLen, digest);
     (void)ctx;
     return ret;
-}       
+}
 #endif
 
 static int wolfIoT_ecc_sign(WOLFSSL* ssl,
@@ -1573,7 +1573,7 @@ int wolfSSL_CTX_iotsafe_enable(WOLFSSL_CTX *ctx)
     WOLFSSL_MSG("ECC callbacks set to IoT_safe interface");
     #endif
     #ifndef NO_RSA
-    /* wolfSSL_CTX_SetRsaSignCb(wolfIoT_rsa_sign);  // TODO: RSA callbacks */
+    /* wolfSSL_CTX_SetRsaSignCb(wolfIoT_rsa_sign); */ /* TODO: RSA callbacks */
     #endif
 #else
     (void)ctx;
