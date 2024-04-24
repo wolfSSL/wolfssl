@@ -9860,8 +9860,8 @@ void bench_lms(void)
 #endif
 
 #if defined(WOLFSSL_WC_LMS) && !defined(LMS_PARAMS_BENCHED)
-    bench_lms_keygen(0x100, pub);
-    bench_lms_sign_verify(0x100, pub);
+    bench_lms_keygen(WC_LMS_PARM_L1_H5_W1, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W1, pub);
 #endif
 
     return;
