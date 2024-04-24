@@ -1930,7 +1930,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 t0, t1, t2, t3;
     const word32* rk;
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
 #else
     rk = aes->key;
@@ -2945,7 +2945,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32 t0, t1, t2, t3;
     const word32* rk;
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
 #else
     rk = aes->key;
@@ -4085,7 +4085,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
  */
 static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 {
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
     word32* rk = aes->key_C_fallback;
 #else
     word32* rk = aes->key;
@@ -4246,7 +4246,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     if (dir == AES_DECRYPTION) {
         unsigned int j;
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
         rk = aes->key_C_fallback;
 #else
         rk = aes->key;
@@ -4455,11 +4455,11 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         if (ret != 0)
             return ret;
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
 #ifdef NEED_AES_TABLES
         AesSetKey_C(aes, userKey, keylen, dir);
 #endif /* NEED_AES_TABLES */
-#endif /* WC_AES_C_DYNAMIC_FALLBACK */
+#endif /* WC_C_DYNAMIC_FALLBACK */
 
     #ifdef WOLFSSL_AESNI
         aes->use_aesni = 0;
@@ -4488,13 +4488,13 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
                 if (ret == 0)
                     aes->use_aesni = 1;
                 else {
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
                     ret = 0;
 #endif
                 }
                 return ret;
             } else {
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
                 return 0;
 #else
                 return ret;
@@ -4680,7 +4680,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 #ifdef WOLFSSL_AESNI
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
 
 #define VECTOR_REGISTERS_PUSH { \
         int orig_use_aesni = aes->use_aesni;                         \
@@ -12369,7 +12369,7 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
 
 #ifdef WOLFSSL_AESNI
     if (ret == 0) {
-        /* With WC_AES_C_DYNAMIC_FALLBACK, the main and tweak keys could have
+        /* With WC_C_DYNAMIC_FALLBACK, the main and tweak keys could have
          * conflicting _aesni status, but the AES-XTS asm implementations need
          * them to all be AESNI.  If any aren't, disable AESNI on all.
          */
@@ -12382,7 +12382,7 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
               (dir == AES_ENCRYPTION_AND_DECRYPTION))
              && (aes->aes_decrypt.use_aesni != aes->tweak.use_aesni)))
         {
-        #ifdef WC_AES_C_DYNAMIC_FALLBACK
+        #ifdef WC_C_DYNAMIC_FALLBACK
             aes->aes.use_aesni = 0;
             aes->aes_decrypt.use_aesni = 0;
             aes->tweak.use_aesni = 0;
@@ -12392,7 +12392,7 @@ int wc_AesXtsSetKeyNoInit(XtsAes* aes, const byte* key, word32 len, int dir)
         }
     #else /* !WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS */
         if (aes->aes.use_aesni != aes->tweak.use_aesni) {
-        #ifdef WC_AES_C_DYNAMIC_FALLBACK
+        #ifdef WC_C_DYNAMIC_FALLBACK
             aes->aes.use_aesni = 0;
             aes->tweak.use_aesni = 0;
         #else
