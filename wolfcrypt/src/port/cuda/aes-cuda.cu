@@ -944,7 +944,7 @@ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
     word32* rk_GPU = NULL;
     cudaError_t ret = cudaSuccess;
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
     if ( ret == cudaSuccess )
         ret = cudaMalloc(&rk_GPU, sizeof(aes->key_C_fallback));
     if ( ret == cudaSuccess )
@@ -991,7 +991,7 @@ void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
     word32* rk_GPU = NULL;
     cudaError_t ret = cudaSuccess;
 
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
     if ( ret == cudaSuccess )
         ret = cudaMalloc(&rk_GPU, sizeof(aes->key_C_fallback));
     if ( ret == cudaSuccess )
