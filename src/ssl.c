@@ -8957,6 +8957,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         return m;
     }
 
+    #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
     WOLFSSL_METHOD* wolfSSLv3_method(void)
     {
@@ -8977,6 +8978,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         return m;
     }
+    #endif
     #endif
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
