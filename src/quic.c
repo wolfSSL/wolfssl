@@ -990,11 +990,13 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_aead(WOLFSSL* ssl)
             evp_cipher = wolfSSL_EVP_chacha20_poly1305();
             break;
 #endif
-#if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
         case TLS_AES_128_CCM_SHA256:
-            FALL_THROUGH;
+            evp_cipher = wolfSSL_EVP_aes_128_ccm();
+            break;
         case TLS_AES_128_CCM_8_SHA256:
-            evp_cipher = wolfSSL_EVP_aes_128_ctr();
+            WOLFSSL_MSG("wolfSSL_quic_get_aead: no CCM-8 support in EVP layer");
+            evp_cipher = NULL;
             break;
 #endif
 
@@ -1036,10 +1038,10 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
     switch (cipher->cipherSuite) {
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
         case TLS_AES_128_GCM_SHA256:
-            evp_cipher = wolfSSL_EVP_aes_128_ctr();
+            evp_cipher = wolfSSL_EVP_aes_128_gcm();
             break;
         case TLS_AES_256_GCM_SHA384:
-            evp_cipher = wolfSSL_EVP_aes_256_ctr();
+            evp_cipher = wolfSSL_EVP_aes_256_gcm();
             break;
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -1047,14 +1049,15 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
             evp_cipher = wolfSSL_EVP_chacha20();
             break;
 #endif
-#if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
         case TLS_AES_128_CCM_SHA256:
-            FALL_THROUGH;
+            evp_cipher = wolfSSL_EVP_aes_128_ccm();
+            break;
         case TLS_AES_128_CCM_8_SHA256:
-            evp_cipher = wolfSSL_EVP_aes_128_ctr();
+            WOLFSSL_MSG("wolfSSL_quic_get_hp: no CCM-8 support in EVP layer");
+            evp_cipher = NULL;
             break;
 #endif
-
         default:
             evp_cipher = NULL;
             break;
@@ -1072,8 +1075,7 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
     size_t ret;
 #ifdef WOLFSSL_SMALL_STACK
-    WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX *)XMALLOC(
-        sizeof(*ctx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WOLFSSL_EVP_CIPHER_CTX *ctx = wolfSSL_EVP_CIPHER_CTX_new();
     if (ctx == NULL)
         return 0;
 #else
@@ -1098,30 +1100,12 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
 
 int wolfSSL_quic_aead_is_gcm(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
-    if (evp_cipher_eq(aead_cipher, wolfSSL_EVP_aes_128_gcm())
-#ifdef WOLFSSL_AES_256
-        || evp_cipher_eq(aead_cipher, wolfSSL_EVP_aes_256_gcm())
-#endif
-    ) {
-        return 1;
-    }
-#else
-    (void)aead_cipher;
-#endif
-    return 0;
+    return WOLFSSL_EVP_CIPHER_mode(aead_cipher) == WOLFSSL_EVP_CIPH_GCM_MODE;
 }
 
 int wolfSSL_quic_aead_is_ccm(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
-#if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
-    if (evp_cipher_eq(aead_cipher, wolfSSL_EVP_aes_128_ctr())) {
-        return 1;
-    }
-#else
-    (void)aead_cipher;
-#endif
-    return 0;
+    return WOLFSSL_EVP_CIPHER_mode(aead_cipher) == WOLFSSL_EVP_CIPH_CCM_MODE;
 }
 
 int wolfSSL_quic_aead_is_chacha20(const WOLFSSL_EVP_CIPHER* aead_cipher)
