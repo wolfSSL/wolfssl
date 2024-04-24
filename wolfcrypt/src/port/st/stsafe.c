@@ -539,7 +539,7 @@ int wolfSSL_STSAFE_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
                 &otherKeyY[0], (word32*)&otherKeyY_len);
             if (rc == 0) {
                 /* Compute shared secret */
-            	*info->pk.ecdh.outlen = 0;
+                *info->pk.ecdh.outlen = 0;
                 rc = stsafe_interface_shared_secret(
         #ifdef WOLFSSL_STSAFE_TAKES_SLOT
                     STSAFE_A_SLOT_0,

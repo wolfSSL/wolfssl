@@ -136,7 +136,7 @@ int atmel_get_random_number(uint32_t count, uint8_t* rand_out)
 
 int atmel_get_random_block(unsigned char* output, unsigned int sz)
 {
-	return atmel_get_random_number((uint32_t)sz, (uint8_t*)output);
+        return atmel_get_random_number((uint32_t)sz, (uint8_t*)output);
 }
 
 #if defined(WOLFSSL_ATMEL) && defined(WOLFSSL_ATMEL_TIME)
@@ -148,12 +148,12 @@ long atmel_get_curr_time_and_date(long* tm)
 {
     long rt = 0;
 
-	/* Get current time */
+        /* Get current time */
     struct rtc_calendar_time rtcTime;
     const int monthDay[] = {0,31,59,90,120,151,181,212,243,273,304,334};
     int month, year, yearLeap;
 
-	rtc_calendar_get_time(_rtc_instance[0], &rtcTime);
+        rtc_calendar_get_time(_rtc_instance[0], &rtcTime);
 
     /* Convert rtc_calendar_time to seconds since UTC */
     month = rtcTime.month % 12;
@@ -359,7 +359,7 @@ int atmel_get_enc_key_default(byte* enckey, word16 keysize)
 static int atmel_init_enc_key(void)
 {
     int ret;
-	uint8_t read_key[ATECC_KEY_SIZE];
+        uint8_t read_key[ATECC_KEY_SIZE];
     uint8_t writeBlock = 0;
     uint8_t writeOffset = 0;
     int slotId;
@@ -388,7 +388,7 @@ static int atmel_init_enc_key(void)
     ForceZero(read_key, sizeof(read_key));
     ret = atmel_ecc_translate_err(ret);
 
-	return ret;
+        return ret;
 }
 #endif
 
@@ -497,7 +497,7 @@ int atmel_init(void)
     extern ATCAIfaceCfg atecc608_0_init_data;
     #endif
 #endif
-    
+
     if (!mAtcaInitDone) {
         ATCA_STATUS status;
         int i;
@@ -940,7 +940,7 @@ exit:
     return ret;
 }
 
-static int atcatls_set_certificates(WOLFSSL_CTX *ctx) 
+static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
 {
     #ifndef ATCATLS_SIGNER_CERT_MAX_SIZE
         #define ATCATLS_SIGNER_CERT_MAX_SIZE 0x250
@@ -966,7 +966,7 @@ static int atcatls_set_certificates(WOLFSSL_CTX *ctx)
     uint8_t signerPubKeyBuffer[ATCATLS_PUBKEY_BUFF_MAX_SIZE];
 #endif
 
-#ifdef WOLFSSL_ATECC_TNGTLS	
+#ifdef WOLFSSL_ATECC_TNGTLS
     ret = tng_atcacert_max_signer_cert_size(&signerCertSize);
     if (ret != ATCACERT_E_SUCCESS) {
     #ifdef WOLFSSL_ATECC_DEBUG

@@ -40,7 +40,7 @@
 extern FSPSM_INSTANCE   gFSPSM_ctrl;
 #endif
 
-/* Set Ctx pointer to NULL. 
+/* Set Ctx pointer to NULL.
  * A created wrapped key should be freed by user
  *
  * key    RsaKey object
@@ -122,23 +122,23 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
                     struct WC_RNG* rng)
 {
     int ret;
-    
+
     FSPSM_RSA_DATA plain;
     FSPSM_RSA_DATA cipher;
-    
+
     int keySize;
-    
+
     (void) key;
     (void) rng;
-    
+
     /* sanity check */
     if (in == NULL || out == NULL ||
       ((key == NULL) && (key->ctx.keySz != 1024 && key->ctx.keySz != 2048))){
         return BAD_FUNC_ARG;
     }
-    
+
     keySize = (int)key->ctx.keySz;
-    
+
     if (keySize == 0) {
         WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
                                                         "1024 or 2048 bits.");
@@ -147,7 +147,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
 
     if ((ret = wc_fspsm_hw_lock()) == 0) {
         if (type == RSA_PUBLIC_ENCRYPT) {
-            
+
             plain.pdata = (byte*)in;
             plain.data_length = inLen;
             cipher.pdata = out;
@@ -169,7 +169,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
             plain.data_length = *outLen;
             cipher.pdata = (byte*)in;
             cipher.data_length = inLen;
-            
+
             if (keySize == 1024) {
                 ret = FSPSM_RSA1024_PKCSDEC_FUNC(&cipher, &plain,
                             (FSPSM_RSA1024_WPI_KEY*)
@@ -181,7 +181,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
                                 key->ctx.wrapped_pri2048_key, &outLen);
             }
         }
-        
+
         wc_fspsm_hw_unlock();
     }
     return ret;
@@ -189,7 +189,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
 
 /* Perform Rsa sign by FSP SM
  * Assumes to be called by Crypt Callback
- * 
+ *
  * in     Buffer to hold plaintext
  * inLen  Length of plaintext in bytes
  * out    Buffer to hold generated signature
@@ -198,40 +198,40 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
  * ctx    The callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
- 
+
 WOLFSSL_LOCAL int wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
                     word32* outLen, struct RsaKey* key, void* ctx)
 {
     int ret;
-    
+
     FSPSM_RSA_DATA message_hash;
     FSPSM_RSA_DATA signature;
     FSPSM_ST    *info = (FSPSM_ST*)ctx;
     int keySize;
-    
+
     /* sanity check */
     if (in == NULL || out == NULL || (word32*)outLen <= 0 || info == NULL ||
       ((key == NULL) && (key->ctx.keySz != 1024 && key->ctx.keySz != 2048))){
         return BAD_FUNC_ARG;
     }
-    
+
     keySize = (int)key->ctx.keySz;
-    
+
     message_hash.pdata = (byte *)in;
     message_hash.data_length = inLen;
-    message_hash.data_type = 
+    message_hash.data_type =
             info->keyflgs_crypt.bits.message_type;/* message 0, hash 1 */
     signature.pdata = out;
     signature.data_length = (word32*)outLen;
-    
+
     #if defined(WOLFSSL_RENESAS_RSIP)
-    message_hash.hash_type = signature.hash_type = 
+    message_hash.hash_type = signature.hash_type =
                 info->hash_type;   /* hash type */
     #endif
-    
+
     if ((ret = wc_fspsm_hw_lock()) == 0) {
         if (keySize == 1024) {
-            
+
             ret = FSPSM_RSA1024_SIGN_FUNC(&message_hash,
                         &signature,
                         (FSPSM_RSA1024_WPI_KEY *)
@@ -239,23 +239,23 @@ WOLFSSL_LOCAL int wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
                         HW_SCE_RSA_HASH_SHA256);
         }
         else {
-            
+
             ret = FSPSM_RSA2048_SIGN_FUNC(&message_hash,
                         &signature,
                         (FSPSM_RSA2048_WPI_KEY *)
                                     key->ctx.wrapped_pri2048_key,
                         HW_SCE_RSA_HASH_SHA256);
         }
-        
+
         wc_fspsm_hw_unlock();
     }
-    
+
     return ret;
 }
 
 /* Perform Rsa verify by FSP SM
  * Assumes to be called by Crypt Callback
- * 
+ *
  * in     Buffer to hold plaintext
  * inLen  Length of plaintext in bytes
  * out    Buffer to hold generated signature
@@ -264,40 +264,40 @@ WOLFSSL_LOCAL int wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
  * ctx    The callback context
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
- 
+
 WOLFSSL_LOCAL int wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
                     word32* outLen,struct RsaKey* key, void* ctx)
 {
     int ret;
-    
+
     FSPSM_RSA_DATA message_hash;
     FSPSM_RSA_DATA signature;
     FSPSM_ST    *info = (FSPSM_ST*)ctx;
     int keySize;
-    
+
     (void) key;
-    
+
     /* sanity check */
     if (in == NULL || out == NULL || (word32*)outLen <= 0 || info == NULL ||
       ((key == NULL) && (key->ctx.keySz != 1024 && key->ctx.keySz != 2048))){
         return BAD_FUNC_ARG;
     }
-    
+
     keySize = (int)key->ctx.keySz;
-    
-    
+
+
     message_hash.pdata =(byte*)in;
     message_hash.data_length = inLen;
-    message_hash.data_type = 
+    message_hash.data_type =
             info->keyflgs_crypt.bits.message_type;/* message 0, hash 1 */
-    
+
     signature.pdata = out;
     signature.data_length = (word32*)outLen;
     #if defined(WOLFSSL_RENESAS_RSIP)
-    message_hash.hash_type = signature.hash_type = 
+    message_hash.hash_type = signature.hash_type =
                 info->hash_type;   /* hash type */
     #endif
-    
+
     if ((ret = wc_fspsm_hw_lock()) == 0) {
         if (keySize == 1024) {
             ret = FSPSM_RSA1024_VRY_FUNC(&signature,
@@ -307,7 +307,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
                   HW_SCE_RSA_HASH_SHA256);
         }
         else {
-                ret = FSPSM_RSA2048_VRY_FUNC(&signature, 
+                ret = FSPSM_RSA2048_VRY_FUNC(&signature,
                     &message_hash,
                     (FSPSM_RSA2048_WPB_KEY *)
                          key->ctx.wrapped_pub2048_key,
@@ -315,7 +315,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
         }
         wc_fspsm_hw_unlock();
     }
-    
+
     return ret;
 }
 

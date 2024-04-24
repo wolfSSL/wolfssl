@@ -129,7 +129,7 @@ static Error caamDebugDesc(struct DescStruct* desc)
     }
 
 
-    //D0JQCR_LS
+    /* D0JQCR_LS */
     printf("Next command to be executed = 0x%08X\n", CAAM_READ(0x8804));
     printf("Desc          = 0x%08X\n", desc->caam->ring.Desc);
 

@@ -36,7 +36,7 @@
 
 #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
     defined(WOLFSSL_QNX_CAAM) || defined(WOLFSSL_SECO_CAAM) || \
-	defined(WOLFSSL_IMXRT1170_CAAM)
+        defined(WOLFSSL_IMXRT1170_CAAM)
 
 
 /* unique devId for CAAM use on crypto callbacks */
@@ -75,9 +75,9 @@ WOLFSSL_LOCAL int caamWriteToPartition(CAAM_ADDRESS addr, const unsigned char* i
 WOLFSSL_LOCAL int caamReadPartition(CAAM_ADDRESS addr, unsigned char* out, int outSz);
 
 WOLFSSL_API int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out,
-	word32* outSz);
+        word32* outSz);
 WOLFSSL_API int wc_caamCreateBlob(byte* data, word32 dataSz, byte* out,
-	word32* outSz);
+        word32* outSz);
 
 WOLFSSL_API int wc_caamOpenBlob_ex(byte* data, word32 dataSz, byte* out,
         word32* outSz, int type, byte* mod, word32 modSz);
@@ -97,7 +97,7 @@ WOLFSSL_API int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz,
 #define WC_CAAM_MAX_ENTROPY 44
 
 #if !defined(WOLFSSL_QNX_CAAM) && !defined(WOLFSSL_SECO_CAAM) && \
-	!defined(WOLFSSL_IMXRT1170_CAAM)
+        !defined(WOLFSSL_IMXRT1170_CAAM)
     WOLFSSL_API int wc_caamSetResource(IODevice ioDev);
     #ifndef WC_CAAM_READ
         #define WC_CAAM_READ(reg)      wc_caamReadRegister((reg))

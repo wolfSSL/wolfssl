@@ -123,7 +123,7 @@ WOLFSSL_LOCAL int     wc_fspsm_Open();
 WOLFSSL_LOCAL void    wc_fspsm_Close();
 WOLFSSL_LOCAL int     wc_fspsm_hw_lock();
 WOLFSSL_LOCAL void    wc_fspsm_hw_unlock( void );
-WOLFSSL_LOCAL int     wc_fspsm_usable(const struct WOLFSSL *ssl, 
+WOLFSSL_LOCAL int     wc_fspsm_usable(const struct WOLFSSL *ssl,
                                     uint8_t session_key_generated);
 
 typedef struct {
@@ -319,7 +319,7 @@ WOLFSSL_API int  FSPSM_CALLBACK_CTX_FUNC(struct WOLFSSL* ssl, void* user_ctx);
 WOLFSSL_API void FSPSM_INFORM_CERT_SIGN(const uint8_t *sign);
 
 
-#endif  /* WOLFSSL_RENESAS_FSPSM_TLS && 
+#endif  /* WOLFSSL_RENESAS_FSPSM_TLS &&
          * !WOLFSSL_RENESAS_FSPSM_CRYPT_ONLY */
 
 typedef struct FSPSM_RSA_CTX {

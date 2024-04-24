@@ -135,7 +135,7 @@ WOLFSSL_LOCAL int wc_fspsm_Open()
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG("RENESAS SCE Open failed");
         }
-        
+
     #if defined(WOLFSSL_RENESAS_FSPSM_TLS)
         if (ret == FSP_SUCCESS && g_user_key_info.encrypted_user_tls_key) {
 
@@ -184,7 +184,7 @@ WOLFSSL_LOCAL void wc_fspsm_Close()
 }
 
 #define RANDGEN_WORDS  4
-WOLFSSL_LOCAL int wc_fspsm_GenerateRandBlock(byte* output, word32 sz) 
+WOLFSSL_LOCAL int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
 {
     /* Generate PRNG based on NIST SP800-90A AES CTR-DRBG */
     int ret = 0;
@@ -384,7 +384,7 @@ WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
 
 #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
     defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
-    
+
 /* Callback for ECC shared secret */
 WOLFSSL_LOCAL int fspsm_EccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         uint8_t* pubKeyDer, unsigned int* pubKeySz,
@@ -723,7 +723,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
     Ciphers *dec;
     FSPSM_HMAC_WKEY key_client_mac;
     FSPSM_HMAC_WKEY key_server_mac;
-    
+
     FSPSM_AES_PWKEY key_client_aes = NULL;
     FSPSM_AES_PWKEY key_server_aes = NULL;
 
@@ -752,7 +752,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             if (key_client_aes == NULL || key_server_aes == NULL) {
                 return MEMORY_E;
             }
-            
+
             ret = FSPSM_SESSIONKEY_GEN_FUNC(
                     GetSceCipherSuite(
                         ssl->options.cipherSuite0,
@@ -802,7 +802,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                         return MEMORY_E;
                     }
                     XMEMSET(dec->aes, 0, sizeof(Aes));
-                    
+
                     dec->aes->ctx.wrapped_key = (FSPSM_AES_PWKEY)XMALLOC
                                             (sizeof(FSPSM_AES_WKEY),
                                             aes->heap, DYNAMIC_TYPE_AE);
@@ -853,15 +853,15 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             /* marked as session key is set */
             cbInfo->keyflgs_tls.bits.session_key_set = 1;
         }
-        
+
         if (key_client_aes)
             XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
         if (key_server_aes)
             XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
-        
+
         /* unlock hw */
         wc_fspsm_hw_unlock();
-        
+
     }
     else {
         WOLFSSL_LEAVE("hw lock failed", ret);

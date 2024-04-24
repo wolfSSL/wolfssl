@@ -694,7 +694,7 @@ int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
 }
 #endif /* WOLFSSL_CAAM_BLOB */
 
-/* outSz gets set to key size plus 16 for mac and padding 
+/* outSz gets set to key size plus 16 for mac and padding
  * return 0 on success
  */
 int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz, int flag)

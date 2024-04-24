@@ -59,7 +59,7 @@ static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
     defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 FSPSM_ST    *gCbCtx[MAX_FSPSM_CBINDEX];
 #elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
-	    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 #define FSPSM_ST       TsipUserCtx;
 #define MAX_FSPSM_CBINDEX 5
 TsipUserCtx *gCbCtx[MAX_FSPSM_CBINDEX];

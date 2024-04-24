@@ -77,7 +77,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #define WOLFSSL_MISC_INCLUDED
     #define WOLFSSL_HAVE_MIN
     #define WOLFSSL_HAVE_MAX
-//    #include <wolfcrypt/src/misc.c>
+/*    #include <wolfcrypt/src/misc.c> */
 #endif
 /* This routine performs a left circular arithmetic shift of <x> by <y> value. */
 
@@ -992,23 +992,23 @@ void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
     cudaError_t ret = cudaSuccess;
 
 #ifdef WC_AES_C_DYNAMIC_FALLBACK
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMalloc(&rk_GPU, sizeof(aes->key_C_fallback));
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMemcpy(rk_GPU, aes->key_C_fallback, sizeof(aes->key_C_fallback), cudaMemcpyDefault);
 #else
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMalloc(&rk_GPU, sizeof(aes->key));
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMemcpy(rk_GPU, aes->key, sizeof(aes->key), cudaMemcpyDefault);
 #endif
 
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMalloc(&in_GPU, sz);
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMemcpy(in_GPU, in, sz, cudaMemcpyDefault);
 
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMalloc(&out_GPU, sz);
 
     if ( ret == cudaSuccess ) {
@@ -1017,7 +1017,7 @@ void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
         AesEncrypt_C_CUDA<<<numBlocks,blockSize>>>(rk_GPU, in_GPU, out_GPU, aes->rounds >> 1, sz / AES_BLOCK_SIZE);
     }
 
-    if ( ret == cudaSuccess ) 
+    if ( ret == cudaSuccess )
         ret = cudaMemcpy(out, out_GPU, sz, cudaMemcpyDefault);
 
     cudaFree(in_GPU);

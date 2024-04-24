@@ -105,7 +105,7 @@ static int ltc_get_lsb_bin_from_mp_int(uint8_t *dst, mp_int *A, uint16_t *psz)
 #else
     res = mp_to_unsigned_bin(A, dst);
     if (res == MP_OKAY) {
-        ltc_reverse_array(dst, sz); 
+        ltc_reverse_array(dst, sz);
     }
 #endif
     *psz = sz;
@@ -134,7 +134,7 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
     szA = mp_unsigned_bin_size(A);
     szB = mp_unsigned_bin_size(B);
 
-    /* if unsigned mul can fit into LTC PKHA let's use it, otherwise call 
+    /* if unsigned mul can fit into LTC PKHA let's use it, otherwise call
      * software mul */
     if ((szA <= LTC_MAX_INT_BYTES / 2) && (szB <= LTC_MAX_INT_BYTES / 2)) {
         uint8_t *ptrA = (uint8_t*)XMALLOC(LTC_MAX_INT_BYTES, NULL,
@@ -264,7 +264,7 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
                 {
                     ltc_reverse_array(ptrC, sizeC);
                     res = mp_read_unsigned_bin(c, ptrC, sizeC);
-                
+
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
       defined(WOLFSSL_SP_INT_NEGATIVE)
                     /* fix sign */
@@ -341,10 +341,10 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
             res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
             if (res == MP_OKAY)
                 res = ltc_get_lsb_bin_from_mp_int(ptrB, b, &sizeB);
-            
+
             /* if a >= b then reduce */
             /* TODO: Perhaps always do mod reduce depending on hardware performance */
-            if (res == MP_OKAY && 
+            if (res == MP_OKAY &&
                         LTC_PKHA_CompareBigNum(ptrA, sizeA, ptrB, sizeB) >= 0) {
                 if (LTC_PKHA_ModRed(LTC_BASE, ptrA, sizeA, ptrB, sizeB,
                     ptrA, &sizeA, kLTC_PKHA_IntegerArith) != kStatus_Success) {
@@ -411,7 +411,7 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
     int res = MP_OKAY;
     status_t status;
     int szA, szB, szC;
-    
+
 #ifdef ENABLE_NXPLTC_TESTS
     mp_int t;
     mp_init(&t);
@@ -543,8 +543,8 @@ int ltc_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y, int useConstTime)
     szX = mp_unsigned_bin_size(X);
     szP = mp_unsigned_bin_size(P);
 
-    if ((szG <= LTC_MAX_INT_BYTES) && 
-        (szX <= LTC_MAX_INT_BYTES) && 
+    if ((szG <= LTC_MAX_INT_BYTES) &&
+        (szX <= LTC_MAX_INT_BYTES) &&
         (szP <= LTC_MAX_INT_BYTES))
     {
         uint16_t sizeG, sizeX, sizeP, sizeY;
@@ -563,9 +563,9 @@ int ltc_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y, int useConstTime)
 
             /* if G >= P then reduce */
             /* TODO: Perhaps always do mod reduce depending on hardware performance */
-            if (res == MP_OKAY && 
+            if (res == MP_OKAY &&
                         LTC_PKHA_CompareBigNum(ptrG, sizeG, ptrP, sizeP) >= 0) {
-                res = LTC_PKHA_ModRed(LTC_BASE, 
+                res = LTC_PKHA_ModRed(LTC_BASE,
                     ptrG, sizeG,
                     ptrP, sizeP,
                     ptrG, &sizeG, kLTC_PKHA_IntegerArith);
@@ -602,7 +602,7 @@ int ltc_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y, int useConstTime)
         }
         if (ptrG) {
             XFREE(ptrG, NULL, DYNAMIC_TYPE_BIGINT);
-        }        
+        }
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
@@ -678,7 +678,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
             res = ltc_get_lsb_bin_from_mp_int(ptrA, a, &sizeA);
         }
         if (res == MP_OKAY) {
-            if (LTC_PKHA_PrimalityTest(LTC_BASE, 
+            if (LTC_PKHA_PrimalityTest(LTC_BASE,
                 ptrB, sizeB,             /* seed */
                 (uint8_t*)&t, sizeof(t), /* trials */
                 ptrA, sizeA,             /* candidate */
@@ -726,7 +726,7 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
 #if defined(HAVE_ECC) && defined(FREESCALE_LTC_ECC)
 
 /* convert from mp_int to LTC integer, as array of bytes of size sz.
- * if mp_int has less bytes than sz, add zero bytes at most significant byte 
+ * if mp_int has less bytes than sz, add zero bytes at most significant byte
  *   positions.
  * This is when for example modulus is 32 bytes (P-256 curve)
  * and mp_int has only 31 bytes, we add leading zeros
@@ -763,7 +763,7 @@ static int ltc_get_from_mp_int(uint8_t *dst, mp_int *a, int sz)
     return res;
 }
 
-/* ECC specs in lsbyte at lowest address format for direct use by LTC PKHA 
+/* ECC specs in lsbyte at lowest address format for direct use by LTC PKHA
  * driver functions */
 #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
 #define ECC192
@@ -1196,7 +1196,7 @@ static const uint8_t invThree[32] = {
 /*
  *
  * finds square root in finite field when modulus congruent to 5 modulo 8
- * this is fixed to curve25519 modulus 2^255 - 19 which is congruent to 
+ * this is fixed to curve25519 modulus 2^255 - 19 which is congruent to
  * 5 modulo 8.
  *
  * This function solves equation: res^2 = a mod (2^255 - 19)
@@ -1914,7 +1914,7 @@ status_t LTC_PKHA_Ed25519_PointDecompress(const uint8_t *pubkey,
     return status;
 }
 
-/* LSByte first of Ed25519 parameter l = 2^252 + 
+/* LSByte first of Ed25519 parameter l = 2^252 +
  *   27742317777372353535851937790883648493 */
 static const uint8_t l_coefEdDSA[] = {
     0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7,

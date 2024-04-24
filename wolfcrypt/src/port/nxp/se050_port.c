@@ -266,7 +266,7 @@ int se050_hash_copy(SE050_HASH_Context* src, SE050_HASH_Context* dst)
 
 int se050_hash_update(SE050_HASH_Context* se050Ctx, const byte* data, word32 len)
 {
-	byte* tmp = NULL;
+        byte* tmp = NULL;
 
     if (se050Ctx == NULL || (len > 0 && data == NULL)) {
         return BAD_FUNC_ARG;
