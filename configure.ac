@@ -3545,7 +3545,7 @@ fi
 
 # KEY GENERATION
 AC_ARG_ENABLE([keygen],
-    [AS_HELP_STRING([--enable-keygen],[Enable key generation (default: disabled)])],
+    [AS_HELP_STRING([--enable-keygen],[Enable key generation (only applies to RSA key generation) (default: disabled)])],
     [ ENABLED_KEYGEN=$enableval ],
     [ ENABLED_KEYGEN=no ]
     )
