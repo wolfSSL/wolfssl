@@ -926,7 +926,9 @@ static const bench_alg bench_asym_opt[] = {
     { "-rsa-kg",             BENCH_RSA_KEYGEN        },
     #endif
     { "-rsa",                BENCH_RSA               },
+    #ifdef WOLFSSL_KEY_GEN
     { "-rsa-sz",             BENCH_RSA_SZ            },
+    #endif
 #endif
 #ifndef NO_DH
     { "-dh",                 BENCH_DH                },
