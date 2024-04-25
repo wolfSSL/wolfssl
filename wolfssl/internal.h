@@ -1768,7 +1768,7 @@ enum Misc {
     ECDHE_SIZE          = 32,  /* ECDHE server size defaults to 256 bit */
 #endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANSI X9.62 max future size */
-    MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
+    MAX_CURVE_NAME_SZ   = 18,  /* Maximum size of curve name string */
 
     NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
@@ -6117,16 +6117,11 @@ typedef struct {
     int name_len;
     const char *name;
     int nid;
+    word16 curve;
 } WOLF_EC_NIST_NAME;
 extern const WOLF_EC_NIST_NAME kNistCurves[];
-/* This is the longest and shortest curve name in the kNistCurves list. Note we
- * also have quantum-safe group names as well. */
-#define kNistCurves_MIN_NAME_LEN 5
-#ifdef HAVE_PQC
-#define kNistCurves_MAX_NAME_LEN 32
-#else
-#define kNistCurves_MAX_NAME_LEN 7
-#endif
+WOLFSSL_LOCAL int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx,
+        const char* names, byte curves_only);
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 /* internal functions */

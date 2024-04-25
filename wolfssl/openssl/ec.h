@@ -74,8 +74,14 @@ enum {
 #ifdef HAVE_ED448
     NID_ED448 = ED448k,
 #endif
+#ifdef HAVE_CURVE448
+    NID_X448 = X448k,
+#endif
 #ifdef HAVE_ED25519
     NID_ED25519 = ED25519k,
+#endif
+#ifdef HAVE_CURVE25519
+    NID_X25519 = X25519k,
 #endif
 
     OPENSSL_EC_EXPLICIT_CURVE  = 0x000,

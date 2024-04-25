@@ -55214,15 +55214,21 @@ static int test_tls13_apis(void)
 #endif
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
     char         groupList[] =
+#ifdef HAVE_CURVE25519
+            "X25519:"
+#endif
+#ifdef HAVE_CURVE448
+            "X448:"
+#endif
 #ifndef NO_ECC_SECP
 #if (defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 521
-            "P-521:"
+            "P-521:secp521r1:"
 #endif
 #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
-            "P-384:"
+            "P-384:secp384r1:"
 #endif
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
-            "P-256"
+            "P-256:secp256r1"
 #if defined(HAVE_PQC) && defined(HAVE_LIBOQS)
             ":P256_KYBER_LEVEL1"
 #endif
