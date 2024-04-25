@@ -5757,12 +5757,13 @@ int wolfSSL_Init(void)
 
     if (ret == WOLFSSL_SUCCESS) {
         initRefCount++;
+    } else {
+        initRefCount = 1; /* Force cleanup */
     }
 
     wc_UnLockMutex(&inits_count_mutex);
 
     if (ret != WOLFSSL_SUCCESS) {
-        initRefCount = 1; /* Force cleanup */
         (void)wolfSSL_Cleanup(); /* Ignore any error from cleanup */
     }
 
@@ -23923,18 +23924,22 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     }
 #endif
 #ifdef HAVE_GLOBAL_RNG
-    if (initGlobalRNG) {
-        if (wc_LockMutex(&globalRNGMutex) != 0) {
-            WOLFSSL_MSG("Bad Lock Mutex rng");
-            return ret;
-        }
+    if (wc_LockMutex(&globalRNGMutex) != 0) {
+        WOLFSSL_MSG("Bad Lock Mutex rng");
+        return ret;
+    }
 
+    if (initGlobalRNG) {
         rng = &globalRNG;
         used_global = 1;
     }
     else
 #endif
     {
+    #ifdef HAVE_GLOBAL_RNG
+        wc_UnLockMutex(&globalRNGMutex);
+    #endif
+
     #ifdef WOLFSSL_SMALL_STACK
         tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
         if (tmpRNG == NULL)
