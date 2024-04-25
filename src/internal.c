@@ -7583,6 +7583,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     defined(WOLFSSL_SSLKEYLOGFILE) && defined(WOLFSSL_TLS13)
     (void)wolfSSL_set_tls13_secret_cb(ssl, tls13ShowSecrets, NULL);
 #endif
+#if defined(HAVE_SECRET_CALLBACK) && defined(SHOW_SECRETS)
+    (void)wolfSSL_set_secret_cb(ssl, tlsShowSecrets, NULL);
+#endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     ssl->sigSpec = ctx->sigSpec;
     ssl->sigSpecSz = ctx->sigSpecSz;

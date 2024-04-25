@@ -14776,6 +14776,7 @@ int tls13ShowSecrets(WOLFSSL* ssl, int id, const unsigned char* secret,
 
     if (clientRandomSz <= 0) {
         printf("Error getting server random %d\n", clientRandomSz);
+        return BAD_FUNC_ARG;
     }
 
 #if 0
