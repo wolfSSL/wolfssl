@@ -38878,7 +38878,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     }
 
     if (pub_len != HSS_MAX_PUBLIC_KEY_LEN) {
-        printf("error: LMS pub len %d, expected %d\n", pub_len,
+        printf("error: LMS pub len %u, expected %d\n", pub_len,
                HSS_MAX_PUBLIC_KEY_LEN);
         return WC_TEST_RET_ENC_EC(pub_len);
     }
