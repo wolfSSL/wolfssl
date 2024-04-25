@@ -43,6 +43,10 @@
     WOLFSSL_LOCAL int wolfCrypt_FIPS_HMAC_sanity(void);
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    #define FIPS_ALLOW_SHORT 1
+#endif
+
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(2,0,0)
 
