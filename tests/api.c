@@ -30335,7 +30335,7 @@ static int test_wc_i2d_PKCS12(void)
     EXPECT_DECLS;
 #if !defined(NO_ASN) && !defined(NO_PWDBASED) && defined(HAVE_PKCS12) \
     && !defined(NO_FILESYSTEM) && !defined(NO_RSA) \
-    && !defined(NO_AES) && !defined(NO_DES3) && !defined(NO_SHA)
+    && !defined(NO_AES) && !defined(NO_SHA)
     WC_PKCS12* pkcs12 = NULL;
     unsigned char der[FOURK_BUF * 2];
     unsigned char* pt;
