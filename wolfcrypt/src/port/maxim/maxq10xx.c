@@ -56,7 +56,7 @@ void dbg_dumphex(const char *identifier, const uint8_t* pdata, uint32_t plen);
 #endif /* MAXQ_DEBUG */
 
 #if defined(USE_WINDOWS_API)
-# define maxq_CryptHwMutexTryLock()	(0)
+# define maxq_CryptHwMutexTryLock() 0
 #endif
 
 #define AES_KEY_ID_START      (0x2000)

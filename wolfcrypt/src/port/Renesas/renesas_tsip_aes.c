@@ -86,9 +86,9 @@ typedef e_tsip_err_t (*Tls13AesDecFinalFn)
 
 
 /*  encrypt plain data.
- *  
+ *
  *  return cipher data size on success, negative value on failure.
- *         CRYPTOCB_UNAVAILABLE may be returned.   
+ *         CRYPTOCB_UNAVAILABLE may be returned.
  */
 WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
                             struct WOLFSSL* ssl,
@@ -166,7 +166,7 @@ WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
                                     cs,
                                     key,
                                     sz);
- 
+
         if (err != TSIP_SUCCESS) {
             WOLFSSL_MSG("R_TSIP_Tls13DecryptUpdate error");
             ret = WC_HW_E;
@@ -236,7 +236,7 @@ WOLFSSL_LOCAL int tsip_Tls13AesEncrypt(
 /* decrypt encrypted handshake data for TLSv1.3
  * AES-GCM or AES-CCM can be used
  * return 0 on success, otherwise on error.
- */ 
+ */
 WOLFSSL_LOCAL int tsip_Tls13AesDecrypt(
                             struct WOLFSSL* ssl,
                             byte* output,
@@ -627,7 +627,7 @@ int wc_tsip_AesGcmEncrypt(
     uint8_t* aadBuf    = NULL;
     const uint8_t* iv_l = NULL;
     uint32_t ivSz_l = 0;
-    
+
     tsip_aes_key_index_t key_client_aes;
     TsipUserCtx *userCtx;
 
@@ -722,10 +722,10 @@ int wc_tsip_AesGcmEncrypt(
                  XMEMCPY(&key_client_aes, &userCtx->user_aes128_key_index,
                         sizeof(tsip_aes_key_index_t));
             }
-            
+
             iv_l = iv;
             ivSz_l = ivSz;
-            
+
         }
 
         if (ret == 0) {

@@ -200,7 +200,7 @@ enum {
 **   Even if HW is enabled, do not run HW math tests. See HW_MATH_ENABLED.
 **
 ** NO_ESP_MP_MUL_EVEN_ALT_CALC
-**   Used during Z = X × Y mod M
+**   Used during Z = X * Y mod M
 **   By default, even moduli use a two step HW esp_mp_mul with SW mp_mod.
 **   Enable this to instead fall back to pure software mp_mulmod.
 **
@@ -820,8 +820,8 @@ extern "C"
     /* Non-FIFO read may not be needed in chip revision v3.0. */
     #define ESP_EM__READ_NON_FIFO_REG    {DPORT_SEQUENCE_REG_READ(0x3FF40078);}
 
-    /* When the CPU frequency is 160 MHz, add six �nop� between two consecutive
-    ** FIFO reads. When the CPU frequency is 240 MHz, add seven �nop� between
+    /* When the CPU frequency is 160 MHz, add six nops between two consecutive
+    ** FIFO reads. When the CPU frequency is 240 MHz, add seven nops between
     ** two consecutive FIFO reads.  See 3.16 */
     #if defined(CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_80)
         #define ESP_EM__3_16 { \

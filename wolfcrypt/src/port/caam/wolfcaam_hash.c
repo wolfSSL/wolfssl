@@ -26,7 +26,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_CAAM) && defined(WOLFSSL_CAAM_HASH) \
-	&& !defined(WOLFSSL_IMXRT1170_CAAM)
+        && !defined(WOLFSSL_IMXRT1170_CAAM)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

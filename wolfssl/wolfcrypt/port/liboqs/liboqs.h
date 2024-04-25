@@ -43,7 +43,7 @@ implementations for Post-Quantum cryptography algorithms.
 #if defined(HAVE_LIBOQS)
 
 #include "oqs/oqs.h"
-    
+
 
 int wolfSSL_liboqsInit(void);
 

@@ -78,7 +78,7 @@ int wc_InitXsecure(wc_Xsecure* xsec)
 /**
    Convert Xilinx specific error to string
 
-   err	The error to convert
+   err  The error to convert
 
    Returns a pointer to a string (always, never returns NULL).
  */

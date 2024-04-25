@@ -40,7 +40,7 @@ void wc_Afalg_SockAddr(struct sockaddr_alg* in, const char* type, const char* na
     int nameSz = (int)XSTRLEN(name) + 1; /* +1 for null terminator */
 
     if (typeSz > (int)sizeof(in->salg_type) ||
-		    nameSz > (int)sizeof(in->salg_name)) {
+                    nameSz > (int)sizeof(in->salg_name)) {
         WOLFSSL_MSG("type or name was too large");
         return;
     }

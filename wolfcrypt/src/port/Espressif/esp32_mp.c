@@ -23,15 +23,15 @@
  * See ESP32 Technical Reference Manual - RSA Accelerator Chapter
  *
  * esp_mp_exptmod()  Large Number Modular Exponentiation Z = X^Y mod M
- * esp_mp_mulmod()   Large Number Modular Multiplication Z = X × Y mod M
- * esp_mp_mul()      Large Number Multiplication         Z = X × Y
+ * esp_mp_mulmod()   Large Number Modular Multiplication Z = X * Y mod M
+ * esp_mp_mul()      Large Number Multiplication         Z = X * Y
  *
  * The ESP32 RSA Accelerator supports operand lengths of:
- * N ∈ {512, 1024, 1536, 2048, 2560, 3072, 3584, 4096} bits. The bit length
+ * N in {512, 1024, 1536, 2048, 2560, 3072, 3584, 4096} bits. The bit length
  * of arguments Z, X, Y , M, and r can be any one from the N set, but all
  * numbers in a calculation must be of the same length.
  *
- * The bit length of M′ is always 32.
+ * The bit length of M' is always 32.
  *
  * Also, beware: "we have uint32_t == unsigned long for both Xtensa and RISC-V"
  * see https://github.com/espressif/esp-idf/issues/9511#issuecomment-1207342464
@@ -1285,8 +1285,8 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
     Zs = Xs + Ys;
 
     /* RSA Accelerator only supports Large Number Multiplication
-     * with operand length N = 32 × x,
-     * where x ∈ {1, 2, 3, . . . , 64} */
+     * with operand length N = 32 * x,
+     * where x in {1, 2, 3, . . . , 64} */
     if (Xs > 64 || Ys > 64) {
         return MP_HW_FALLBACK; /* TODO add count metric on size fallback */
     }
@@ -1334,7 +1334,7 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
 
     /* Y (left-extend)
      * Accelerator supports large-number multiplication with only
-     * four operand lengths of N ∈ {512, 1024, 1536, 2048} */
+     * four operand lengths of N in {512, 1024, 1536, 2048} */
     left_pad_offset = maxWords_sz << 2;
     if (left_pad_offset <= 512 >> 3) {
         left_pad_offset = 512 >> 3; /* 64 bytes (16 words) */
@@ -1583,10 +1583,10 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
          *    0 => no interrupt; 1 => interrupt on completion. */
         DPORT_REG_WRITE(RSA_INT_ENA_REG, 0);
         /* 2. Write number of words required for result. */
-        /* see 21.3.3 Write (/N16 − 1) to the RSA_MODE_REG register */
+        /* see 21.3.3 Write (/N16 - 1) to the RSA_MODE_REG register */
         DPORT_REG_WRITE(RSA_MODE_REG, (hwWords_sz * 2 - 1));
 
-        /* 3. Write Xi and Yi for ∈ {0, 1, . . . , n − 1} to memory blocks
+        /* 3. Write Xi and Yi for {0, 1, . . . , n - 1} to memory blocks
          * RSA_X_MEM and RSA_Z_MEM
          * Maximum is 64 words (64*8*4 = 2048 bits) */
         esp_mpint_to_memblock(RSA_X_MEM,
@@ -1796,7 +1796,7 @@ int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z)
  *
  * See 24.3.3 of the ESP32 Technical Reference Manual
  *
- * Z = X × Y mod M */
+ * Z = X * Y mod M */
 int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 {
     struct esp_mp_helper mph[1]; /* we'll save some values in this mp helper */
@@ -1839,7 +1839,7 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
     /* do we have an even moduli? */
     if ((M->dp[0] & 1) == 0) {
 #ifndef NO_ESP_MP_MUL_EVEN_ALT_CALC
-        /*  Z = X × Y mod M in mixed HW & SW*/
+        /*  Z = X * Y mod M in mixed HW & SW*/
         ret = esp_mp_mul(X, Y, tmpZ); /* HW X * Y */
         if (ret == MP_OKAY) {
             /* z = tmpZ mod M, 0 <= Z < M */
@@ -1973,13 +1973,13 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
     *    or until the RSA_INTR interrupt is generated.
     *    (Or until the INTER interrupt is generated.)
     * 6. Write 1 to RSA_INTERRUPT_REG to clear the interrupt.
-    * 7. Write Yi (i ∈ [0, n) ∩ N) to RSA_X_MEM
+    * 7. Write Yi (i in [0, n) intersect N) to RSA_X_MEM
     *    Users need to write to the memory block only according to the length
     *    of the number. Data beyond this length is ignored.
     * 8. Write 1 to RSA_MULT_START_REG
     * 9. Wait for the second operation to be completed.
     *    Poll INTERRUPT_REG until it reads 1.
-    * 10. Read the Zi (i ∈ [0, n) ∩ N) from RSA_Z_MEM
+    * 10. Read the Zi (i in [0, n) intersect N) from RSA_Z_MEM
     * 11. Write 1 to RSA_INTERUPT_REG to clear the interrupt.
     *
     * post: Release the HW engine
@@ -2500,15 +2500,15 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
  *  ESP32S3, Section 20.3.1, https://www.espressif.com/sites/default/files/documentation/esp32-s3_technical_reference_manual_en.pdf
  *
  * The operation is based on Montgomery multiplication. Aside from the
- * arguments X, Y , and M, two additional ones are needed —r and M′
+ * arguments X, Y , and M, two additional ones are needed -r and M'
 .* These arguments are calculated in advance by software.
 .*
-.* The RSA Accelerator supports operand lengths of N ∈ {512, 1024, 1536, 2048,
-.* 2560, 3072, 3584, 4096} bits on the ESP32 and N ∈ [32, 4096] bits
+.* The RSA Accelerator supports operand lengths of N in {512, 1024, 1536, 2048,
+.* 2560, 3072, 3584, 4096} bits on the ESP32 and N in [32, 4096] bits
  * on the ESP32s3.
 .* The bit length of arguments Z, X, Y , M, and r can be any one from
  * the N set, but all numbers in a calculation must be of the same length.
-.* The bit length of M′ is always 32.
+.* The bit length of M' is always 32.
 .*
  * Z = (X ^ Y) mod M   : Espressif generic notation
  * Y = (G ^ X) mod P   : wolfSSL DH reference notation */

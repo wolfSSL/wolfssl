@@ -203,7 +203,7 @@ WOLFSSL_API int wc_Md5GetHash(Md5* md5, byte* hash)
 
 WOLFSSL_API int wc_Md5Copy(Md5* src, Md5* dst)
 {
-	return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
+        return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
 }
 
 WOLFSSL_API int wc_Md5Hash(const byte*data, word32 len, byte* hash)
@@ -249,7 +249,7 @@ WOLFSSL_API int wc_ShaGetHash(Sha* sha, byte* hash)
 
 WOLFSSL_API int wc_ShaCopy(Sha* src, Sha* dst)
 {
-	return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
+        return hashCopy((wolfssl_TI_Hash *)src, (wolfssl_TI_Hash *)dst);
 }
 
 WOLFSSL_API int wc_ShaHash(const byte*data, word32 len, byte* hash)
