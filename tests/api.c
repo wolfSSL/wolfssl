@@ -64474,6 +64474,7 @@ static int test_wolfSSL_CTX_get_min_proto_version(void)
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
+    #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_TLSV10
         ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_method()));
     #else
@@ -64488,6 +64489,7 @@ static int test_wolfSSL_CTX_get_min_proto_version(void)
     #endif
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+    #endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_method()));
     ExpectIntEQ(wolfSSL_CTX_set_min_proto_version(ctx, TLS1_1_VERSION),
