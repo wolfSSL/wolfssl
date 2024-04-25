@@ -1836,15 +1836,6 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
                 break;
             }
         }
-        /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
-         * both keysize == 0 and curve_id == 0 ensure we select an appropriate
-         * keysize here when relying on default selection */
-        #if FIPS_VERSION3_GE(6,0,0)
-        if (ecc_sets[x].size < WC_ECC_FIPS_GEN_MIN) {
-            WOLFSSL_MSG("ECC curve too small for FIPS mode");
-            return ECC_CURVE_OID_E;
-        }
-        #endif
         if (ecc_sets[x].size == 0) {
             WOLFSSL_MSG("ECC Curve not found");
             return ECC_CURVE_OID_E;
@@ -5119,11 +5110,33 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 
     err = wc_ecc_init_ex(&public_key, private_key->heap, INVALID_DEVID);
     if (err == MP_OKAY) {
+        #if FIPS_VERSION3_GE(6,0,0)
+        /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
+         * both keysize == 0 and curve_id == 0 ensure we select an appropriate
+         * keysize here when relying on default selection */
+        if (private_key->dp->size < WC_ECC_FIPS_GEN_MIN) {
+            if (private_key->dp->size == 0 &&
+                (private_key->dp->id == ECC_SECP256R1 ||
+                private_key->dp->id == ECC_SECP224R1 ||
+                private_key->dp->id == ECC_SECP384R1 ||
+                private_key->dp->id == ECC_SECP521R1)) {
+                WOLFSSL_MSG("ECC dp->size zero but dp->id sufficient for FIPS");
+                err = 0;
+            } else {
+                WOLFSSL_MSG("ECC curve too small for FIPS mode");
+                err = ECC_CURVE_OID_E;
+            }
+        }
+        if (err == 0) { /* FIPS specific check */
+        #endif
         err = wc_ecc_set_curve(&public_key, private_key->dp->size,
                                private_key->dp->id);
         if (err == MP_OKAY) {
             err = mp_copy(point->x, public_key.pubkey.x);
         }
+        #if FIPS_VERSION3_GE(6,0,0)
+        } /* end FIPS specific check */
+        #endif
         if (err == MP_OKAY) {
             err = mp_copy(point->y, public_key.pubkey.y);
         }
@@ -5560,11 +5573,30 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     /* make sure required variables are reset */
     wc_ecc_reset(key);
 
+    #if FIPS_VERSION3_GE(6,0,0)
+    /* Since we are allowing a pass-through of ecc_make_key_ex_fips when
+     * both keysize == 0 and curve_id == 0 ensure we select an appropriate
+     * keysize here when relying on default selection */
+    if (keysize < WC_ECC_FIPS_GEN_MIN) {
+        if (keysize == 0 && (curve_id == ECC_SECP256R1 ||
+             curve_id == ECC_SECP224R1 || curve_id == ECC_SECP384R1 ||
+             curve_id == ECC_SECP521R1)) {
+            WOLFSSL_MSG("ECC keysize zero but curve_id sufficient for FIPS");
+            err = 0;
+        } else {
+            WOLFSSL_MSG("ECC curve too small for FIPS mode");
+            err = ECC_CURVE_OID_E;
+        }
+    }
+    if (err == 0) { /* FIPS specific check */
+    #endif
     err = wc_ecc_set_curve(key, keysize, curve_id);
     if (err != 0) {
         return err;
     }
-
+    #if FIPS_VERSION3_GE(6,0,0)
+    } /* end FIPS specific check */
+    #endif
     key->flags = (byte)flags;
 
 #ifdef WOLF_CRYPTO_CB
@@ -10489,6 +10521,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
         /* determine key size */
         keysize = (int)(inLen>>1);
+        /* NOTE: FIPS v6.0.0 or greater, no restriction on imported keys, only
+         *       on created keys or signatures */
         err = wc_ecc_set_curve(key, keysize, curve_id);
         key->type = ECC_PUBLICKEY;
     }
@@ -10883,6 +10917,8 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         wc_ecc_reset(key);
 
         /* set key size */
+        /* NOTE: FIPS v6.0.0 or greater, no restriction on imported keys, only
+         *       on created keys or signatures */
         ret = wc_ecc_set_curve(key, (int)privSz, curve_id);
         key->type = ECC_PRIVATEKEY_ONLY;
     }
@@ -11189,6 +11225,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     wc_ecc_reset(key);
 
     /* set curve type and index */
+    /* NOTE: FIPS v6.0.0 or greater, no restriction on imported keys, only
+     *       on created keys or signatures */
     err = wc_ecc_set_curve(key, 0, curve_id);
     if (err != 0) {
         return err;
