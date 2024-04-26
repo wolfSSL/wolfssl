@@ -573,10 +573,6 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
 
     WOLFSSL_ENTER("wc_partition_static_memory");
 
-    if (buffer == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
     /* align pt */
     while ((wc_ptr_t)pt % WOLFSSL_STATIC_ALIGN && pt < (buffer + sz)) {
         *pt = 0x00;
@@ -593,7 +589,7 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
         /* creating only IO buffers from memory passed in, max TLS is 16k */
         if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
             if ((ret = wc_create_memory_buckets(pt, ava,
-                                          WOLFMEM_IO_SZ, 1, &(heap->io))) < 0) {
+                            WOLFMEM_IO_SZ, 1, &(heap->io))) < 0) {
                 WOLFSSL_LEAVE("wc_partition_static_memory", ret);
                 return ret;
             }
@@ -635,10 +631,6 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
 static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
         const unsigned int* sizeList, const unsigned int* distList)
 {
-    if (heap == NULL || listSz > WOLFMEM_MAX_BUCKETS) {
-        return BAD_FUNC_ARG;
-    }
-
     XMEMSET(heap, 0, sizeof(WOLFSSL_HEAP));
 
     XMEMCPY(heap->sizeList, sizeList, listSz * sizeof(sizeList[0]));
@@ -653,8 +645,8 @@ static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
 }
 
 int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
-        unsigned int listSz, const unsigned int* memSzList,
-        const unsigned int* memDistList, unsigned char* buf,
+        unsigned int listSz, const unsigned int* sizeList,
+        const unsigned int* distList, unsigned char* buf,
         unsigned int sz, int flag, int maxSz)
 {
     WOLFSSL_HEAP*      heap = NULL;
@@ -662,11 +654,15 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
     word32 idx = 0;
     int ret;
 
-    if (pHint == NULL || buf == NULL || listSz > WOLFMEM_MAX_BUCKETS) {
+    WOLFSSL_ENTER("wc_LoadStaticMemory_ex");
+
+    if (pHint == NULL || buf == NULL || listSz > WOLFMEM_MAX_BUCKETS
+            || sizeList == NULL || distList == NULL) {
         return BAD_FUNC_ARG;
     }
 
     if ((sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT)) > sz - idx) {
+        WOLFSSL_MSG("Not enough memory for partition tracking");
         return BUFFER_E; /* not enough memory for structures */
     }
 
@@ -677,7 +673,7 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
         hint = (WOLFSSL_HEAP_HINT*)(buf + idx);
         idx += sizeof(WOLFSSL_HEAP_HINT);
 
-        ret = wc_init_memory_heap(heap, listSz, memSzList, memDistList);
+        ret = wc_init_memory_heap(heap, listSz, sizeList, distList);
         if (ret != 0) {
             return ret;
         }
@@ -700,7 +696,7 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
     ret = wc_partition_static_memory(buf + idx, sz - idx, flag, heap);
     if (ret != 1) {
         WOLFSSL_MSG("Error partitioning memory");
-        return -1;
+        return MEMORY_E;
     }
 
     /* determine what max applies too */
@@ -714,8 +710,6 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
     heap->flag |= flag;
     *pHint = hint;
 
-    (void)maxSz;
-
     return 0;
 }
 
@@ -724,10 +718,14 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
 {
     word32 sizeList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
     word32 distList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_DIST };
+    int ret = 0;
 
-    return wc_LoadStaticMemory_ex(pHint,
+    WOLFSSL_ENTER("wc_LoadStaticMemory");
+    ret = wc_LoadStaticMemory_ex(pHint,
             WOLFMEM_DEF_BUCKETS, sizeList, distList,
             buf, sz, flag, maxSz);
+    WOLFSSL_LEAVE("wc_LoadStaticMemory", ret);
+    return ret;
 }
 
 
@@ -754,7 +752,8 @@ int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
 
     WOLFSSL_ENTER("wolfSSL_StaticBufferSz_ex");
 
-    if (buffer == NULL || listSz > WOLFMEM_MAX_BUCKETS) {
+    if (buffer == NULL || listSz > WOLFMEM_MAX_BUCKETS
+            || sizeList == NULL || distList == NULL) {
         return BAD_FUNC_ARG;
     }
 
