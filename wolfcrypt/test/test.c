@@ -1676,7 +1676,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif
 
-#if defined(HAVE_PKCS12) && defined(USE_CERT_BUFFERS_2048)
+#if defined(USE_CERT_BUFFERS_2048) && \
+        defined(HAVE_PKCS12) && \
+            !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+            !defined(NO_CERTS)
     if ( (ret = pkcs12_test()) != 0)
         TEST_FAIL("PKCS12   test failed!\n", ret);
     else
@@ -24864,7 +24867,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
 
 #endif /* NO_PWDBASED */
 
-#if defined(HAVE_PKCS12) && defined(USE_CERT_BUFFERS_2048)
+#if defined(USE_CERT_BUFFERS_2048) && \
+        defined(HAVE_PKCS12) && \
+            !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+            !defined(NO_CERTS)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
 {
     wc_test_ret_t ret = 0;
