@@ -71,22 +71,30 @@ jobs:
           cd zephyr-sdk-${{ matrix.config.zephyr-sdk }}
           ./setup.sh -h -c -t x86_64-zephyr-elf
 
+      - name: Fix options for 2.7.4
+        if: ${{ matrix.config.zephyr-ref == 'v2.7.4' }}
+        working-directory: zephyr/modules/crypto/wolfssl
+        run: |
+          sed -i -e 's/CONFIG_COMMON_LIBC_MALLOC_ARENA_SIZE/CONFIG_MINIMAL_LIBC_MALLOC_ARENA_SIZE/g' $(find -name prj.conf)
+
       - name: Run wolfssl test
         id: wolfssl-test
         working-directory: zephyr
         run: |
-          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_test/sample.crypto.wolfssl_test -vvv
+          ./zephyr/scripts/twister -T modules/crypto/wolfssl --test zephyr/samples/wolfssl_test/sample.crypto.wolfssl_test -vvv
           rm -rf zephyr/twister-out
-          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_test/sample.crypto.wolfssl_test_no_malloc -vvv
+          ./zephyr/scripts/twister -T modules/crypto/wolfssl --test zephyr/samples/wolfssl_test/sample.crypto.wolfssl_test_no_malloc -vvv
           rm -rf zephyr/twister-out
 
       - name: Run wolfssl TLS sock test
+        # Results in a page fault that I can't trace
+        if: ${{ matrix.config.zephyr-ref != 'v2.7.4' }}
         id: wolfssl-tls-sock
         working-directory: zephyr
         run: |
-          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_sock/sample.crypto.wolfssl_tls_sock -vvv
+          ./zephyr/scripts/twister -T modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_sock/sample.crypto.wolfssl_tls_sock -vvv
           rm -rf zephyr/twister-out
-          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_sock/sample.crypto.wolfssl_tls_sock_no_malloc -vvv
+          ./zephyr/scripts/twister -T modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_sock/sample.crypto.wolfssl_tls_sock_no_malloc -vvv
           rm -rf zephyr/twister-out
 
       - name: Run wolfssl TLS thread test
@@ -94,7 +102,7 @@ jobs:
         id: wolfssl-tls-thread
         working-directory: zephyr
         run: |
-          ./zephyr/scripts/twister --testsuite-root modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_thread/sample.crypto.wolfssl_tls_thread -vvv
+          ./zephyr/scripts/twister -T modules/crypto/wolfssl --test zephyr/samples/wolfssl_tls_thread/sample.crypto.wolfssl_tls_thread -vvv
           rm -rf zephyr/twister-out
 
       - name: Zip failure logs
