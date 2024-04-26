@@ -5757,7 +5757,8 @@ int wolfSSL_Init(void)
 
     if (ret == WOLFSSL_SUCCESS) {
         initRefCount++;
-    } else {
+    }
+    else {
         initRefCount = 1; /* Force cleanup */
     }
 
