@@ -289,7 +289,7 @@ int wc_OBJ_sn2nid(const char *sn)
 
 #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
 static WC_RNG globalRNG;
-static int initGlobalRNG = 0;
+static volatile int initGlobalRNG = 0;
 
 static WC_MAYBE_UNUSED wolfSSL_Mutex globalRNGMutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(globalRNGMutex);
@@ -23925,22 +23925,26 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     }
 #endif
 #ifdef HAVE_GLOBAL_RNG
-    if (wc_LockMutex(&globalRNGMutex) != 0) {
-        WOLFSSL_MSG("Bad Lock Mutex rng");
-        return ret;
+    if (initGlobalRNG) {
+        if (wc_LockMutex(&globalRNGMutex) != 0) {
+            WOLFSSL_MSG("Bad Lock Mutex rng");
+            return ret;
+        }
+        /* the above access to initGlobalRNG is racey -- recheck it now that we
+         * have the lock.
+         */
+        if (initGlobalRNG) {
+            rng = &globalRNG;
+            used_global = 1;
+        }
+        else {
+            wc_UnLockMutex(&globalRNGMutex);
+        }
     }
 
-    if (initGlobalRNG) {
-        rng = &globalRNG;
-        used_global = 1;
-    }
-    else
+    if (used_global == 0)
 #endif
     {
-    #ifdef HAVE_GLOBAL_RNG
-        wc_UnLockMutex(&globalRNGMutex);
-    #endif
-
     #ifdef WOLFSSL_SMALL_STACK
         tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
         if (tmpRNG == NULL)
