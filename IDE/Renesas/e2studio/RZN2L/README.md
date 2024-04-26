@@ -10,7 +10,7 @@ They also include benchmark and cryptography tests for the wolfCrypt library.
 The example project contains both the wolfSSL and wolfCrypt libraries.
 It is built as a `Renesas RZ/N C/C++ FSP Project` and contains the Renesas RZ
 configuration. The wolfssl project uses `Renesas Secure IP on RZ`
-as hardware acceleration for cyptography.
+as hardware acceleration for cryptography.
 
 **Limitation**
 
@@ -51,7 +51,7 @@ The example project summary is listed below and is relevant for every project.
 |RSIP Engine for RZ/N2L|v1.3.0+fsp.1.2.0|Need to contact Renesas to get RSIP module|
 
 Note1:\
- To use RSIP drive, a devvice type should be `R9A07G084M04GBG`. However, choosing `R9A07G084M04GBG` won't allow to select `RSK+RZN2L` board. This example uses LED and external flash memory on `RSK + RZN2L` board. Therefore, the example temporary `R9A07G084M04GBG` for the device type. Updating e2studio or fsp could resolve the issue.
+ To use RSIP driver, a device type should be `R9A07G084M04GBG`. However, choosing `R9A07G084M04GBG` won't allow to select `RSK+RZN2L` board. This example uses LED and external flash memory on `RSK + RZN2L` board. Therefore, the example temporary `R9A07G084M04GBG` for the device type. Updating e2studio or fsp could resolve the issue.
 
 ## Setup Steps and Build wolfSSL Library
 
@@ -77,7 +77,7 @@ Note1:\
 |Thread Symbol|rzn2l_tst_thread|
 |Thread Name|rzn2l_tst_thread|
 |Thread Stack size|increase depending on your environment<br> e.g. 0xA000|
-|Thread MemoryAllocation|Dyamic|
+|Thread MemoryAllocation|Dynamic|
 |Common General Use Mutexes|Enabled|
 |Common General Enable Backward Compatibility|Enabled|
 |Common Memory Allocation Support Dynamic Allocation|Enabled|
@@ -117,7 +117,7 @@ um_serial_io_internal.h
 
 2). Select J-Link ARM and R9A07G084M04
 
-3). Break at Entory point. Change `cpsr` register value from 0xXXXXX1yy to 0xXXXXX1da
+3). Break at Entry point. Change `cpsr` register value from 0xXXXXX1yy to 0xXXXXX1da
 
 ## Run TLS 1.3 Client
 1.) Enable `WOLFSSL_TLS13` macro in `user_settings.h`
@@ -476,7 +476,7 @@ Test complete
 ```
 
 **Note**
-`SHA1/224/256/384/512` and `Random generation` of RSIP driver are enabled at the sampele output above while running wolfCrypt test.
+`SHA1/224/256/384/512` and `Random generation` of RSIP driver are enabled at the sample output above while running wolfCrypt test.
 
 ## Run Benchmark
 
@@ -536,7 +536,8 @@ Benchmark complete
  End wolfCrypt Benchmark
 ```
 **Note**
-`SHA1/224/256/384/512` and `Random generation` of RSIP driver are enabled at the sampele output above.
+`SHA1/224/256/384/512` and `Random generation` of RSIP driver are enabled at the sample output above.
+
 ## Support
 
 For support inquiries and questions, please email support@wolfssl.com. Feel free to reach out to info@wolfssl.jp as well.
