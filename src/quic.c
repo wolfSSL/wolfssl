@@ -1013,7 +1013,8 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_aead(WOLFSSL* ssl)
     return evp_cipher;
 }
 
-static int evp_cipher_eq(const WOLFSSL_EVP_CIPHER* c1,
+/* currently only used if HAVE_CHACHA && HAVE_POLY1305. */
+WC_MAYBE_UNUSED static int evp_cipher_eq(const WOLFSSL_EVP_CIPHER* c1,
                          const WOLFSSL_EVP_CIPHER* c2)
 {
     /* We could check on nid equality, but we seem to have singulars */
