@@ -27,6 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/sha3.h>
 
 #ifdef WOLFSSL_PREFIX
 #include "prefix_sha.h"
@@ -41,7 +42,7 @@
  * to Sha3 is expected to also be 16 byte aligned addresses.  */
 struct WOLFSSL_SHA3_CTX {
     /* big enough to hold wolfcrypt Sha3, but check on init */
-    ALIGN16 void* holder[(424 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+    ALIGN16 void* holder[sizeof(struct wc_Sha3)];
 };
 
 #ifndef WOLFSSL_NOSHA3_224
