@@ -42,7 +42,11 @@
  * to Sha3 is expected to also be 16 byte aligned addresses.  */
 struct WOLFSSL_SHA3_CTX {
     /* big enough to hold wolfcrypt Sha3, but check on init */
+#ifdef WOLFSSL_SHA3
     ALIGN16 void* holder[sizeof(struct wc_Sha3)];
+#else
+    ALIGN16 void* holder[(424 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
+#endif
 };
 
 #ifndef WOLFSSL_NOSHA3_224
