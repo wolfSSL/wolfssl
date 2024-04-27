@@ -151,6 +151,9 @@ struct wc_Sha512 {
 #ifdef USE_INTEL_SPEEDUP
     const byte* data;
 #endif
+#ifdef WC_C_DYNAMIC_FALLBACK
+    int sha_method;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
