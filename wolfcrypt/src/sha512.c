@@ -574,7 +574,6 @@ static int InitSha512_256(wc_Sha512* sha512)
         return ret;
 #undef SHA_METHOD
     }
-#define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
 
     static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -607,7 +606,6 @@ static int InitSha512_256(wc_Sha512* sha512)
         return ret;
 #undef SHA_METHOD
     }
-#define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
 
 #else /* !WC_NO_INTERNAL_FUNCTION_POINTERS */
 
@@ -642,6 +640,8 @@ static int InitSha512_256(wc_Sha512* sha512)
 #endif
         return ret;
     }
+
+    static word32 intel_flags;
 
     static void Sha512_SetTransform(void)
     {

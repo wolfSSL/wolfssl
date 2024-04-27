@@ -232,6 +232,7 @@ on the specific device platform.
     (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
     !defined(WOLFSSL_RENESAS_RX64_HASH)
 
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 static void Sha256_SetTransform(
 #ifdef WC_C_DYNAMIC_FALLBACK
     int *sha_method
@@ -239,6 +240,7 @@ static void Sha256_SetTransform(
     void
 #endif
     );
+#endif
 
 static int InitSha256(wc_Sha256* sha256)
 {
@@ -593,6 +595,8 @@ static int InitSha256(wc_Sha256* sha256)
         return ret;
     }
 #define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
+
+    static word32 intel_flags;
 
     static void Sha256_SetTransform(void)
     {
