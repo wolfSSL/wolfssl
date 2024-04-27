@@ -1037,22 +1037,34 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
     }
 
     switch (cipher->cipherSuite) {
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_COUNTER)
+        /* This has to be CTR even though the spec says that ECB is used for
+         * mask generation. ngtcp2_crypto_hp_mask uses a hack where they pass
+         * in the "ECB" input as the IV for the CTR cipher and then the input
+         * is just a cleared buffer. They do this so that the EVP
+         * init-update-final cycle can be used without the padding that is added
+         * for EVP_aes_(128|256)_ecb. */
+#if defined(WOLFSSL_AES_128)
         case TLS_AES_128_GCM_SHA256:
-            evp_cipher = wolfSSL_EVP_aes_128_gcm();
+            evp_cipher = wolfSSL_EVP_aes_128_ctr();
             break;
+#endif
+#if defined(WOLFSSL_AES_256)
         case TLS_AES_256_GCM_SHA384:
-            evp_cipher = wolfSSL_EVP_aes_256_gcm();
+            evp_cipher = wolfSSL_EVP_aes_256_ctr();
             break;
+#endif
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case TLS_CHACHA20_POLY1305_SHA256:
             evp_cipher = wolfSSL_EVP_chacha20();
             break;
 #endif
-#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128) && \
+        defined(WOLFSSL_AES_COUNTER)
+        /* This has to be CTR. See comment above. */
         case TLS_AES_128_CCM_SHA256:
-            evp_cipher = wolfSSL_EVP_aes_128_ccm();
+            evp_cipher = wolfSSL_EVP_aes_128_ctr();
             break;
         case TLS_AES_128_CCM_8_SHA256:
             WOLFSSL_MSG("wolfSSL_quic_get_hp: no CCM-8 support in EVP layer");
