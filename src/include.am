@@ -995,7 +995,7 @@ if BUILD_FEMATH
 if BUILD_CURVE25519_SMALL
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_low_mem.c
 else
-if BUILD_INTELASM
+if BUILD_CURVE25519_INTELASM
 if !BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
 endif !BUILD_X86_ASM
@@ -1025,7 +1025,7 @@ endif !BUILD_FIPS_V6
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_operations.c
 endif !BUILD_ARMASM
-endif !BUILD_INTELASM
+endif !BUILD_CURVE25519_INTELASM
 endif !BUILD_CURVE25519_SMALL
 endif BUILD_FEMATH
 
@@ -1035,7 +1035,7 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ge_low_mem.c
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/ge_operations.c
 if !BUILD_FEMATH
-if BUILD_INTELASM
+if BUILD_CURVE25519_INTELASM
 if !BUILD_X86_ASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_x25519_asm.S
 endif !BUILD_X86_ASM
@@ -1061,7 +1061,7 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/fe_operations.c
 endif !BUILD_ARMASM
 endif !BUILD_FIPS_V6
-endif !BUILD_INTELASM
+endif !BUILD_CURVE25519_INTELASM
 endif !BUILD_FEMATH
 endif !BUILD_ED25519_SMALL
 endif BUILD_GEMATH

@@ -338,6 +338,13 @@
         #else
             #include <asm/simd.h>
         #endif
+        #ifndef CAN_SAVE_VECTOR_REGISTERS
+            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+                #define CAN_SAVE_VECTOR_REGISTERS() (can_save_vector_registers_x86() && (SAVE_VECTOR_REGISTERS2_fuzzer() == 0))
+            #else
+                #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_x86()
+            #endif
+        #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) {    \
                 int _svr_ret = save_vector_registers_x86(); \
@@ -368,6 +375,9 @@
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
             #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
+        #endif
+        #ifndef CAN_SAVE_VECTOR_REGISTERS
+            #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_arm()
         #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
@@ -758,6 +768,7 @@
 
     extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
     extern void free_wolfcrypt_linuxkm_fpu_states(void);
+    extern __must_check int can_save_vector_registers_x86(void);
     extern __must_check int save_vector_registers_x86(void);
     extern void restore_vector_registers_x86(void);
 

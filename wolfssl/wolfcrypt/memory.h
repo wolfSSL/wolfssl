@@ -272,6 +272,9 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
     #ifndef WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED
         #define WC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED 0
     #endif
+    #ifndef CAN_SAVE_VECTOR_REGISTERS
+        #define CAN_SAVE_VECTOR_REGISTERS() (SAVE_VECTOR_REGISTERS2_fuzzer() == 0)
+    #endif
 #endif
 
 #ifdef DEBUG_VECTOR_REGISTER_ACCESS
