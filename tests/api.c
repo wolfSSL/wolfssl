@@ -63548,7 +63548,8 @@ static int test_wolfSSL_dtls_AEAD_limit(void)
 #endif
 
 #if defined(WOLFSSL_DTLS) && \
-    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(SINGLE_THREADED) && \
+    !defined(DEBUG_VECTOR_REGISTER_ACCESS_FUZZING)
 static void test_wolfSSL_dtls_send_ch(WOLFSSL* ssl)
 {
     int fd, ret;
