@@ -4275,23 +4275,39 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
     int  ret;
 
     if (ctx->isHMAC) {
-        Hmac hmacCopy;
-
-        if (wolfSSL_HmacCopy(&hmacCopy, &ctx->hash.hmac) != WOLFSSL_SUCCESS)
+#ifdef WOLFSSL_SMALL_STACK
+        Hmac *hmacCopy = (Hmac *)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_OPENSSL);
+        if (hmacCopy == NULL)
             return WOLFSSL_FAILURE;
-        ret = wc_HmacFinal(&hmacCopy, md) == 0;
-        wc_HmacFree(&hmacCopy);
+#else
+        Hmac hmacCopy[1];
+#endif
+        ret = wolfSSL_HmacCopy(hmacCopy, &ctx->hash.hmac);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = wc_HmacFinal(hmacCopy, md) == 0;
+        wc_HmacFree(hmacCopy);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(hmacCopy, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
         return ret;
     }
     else {
-        WOLFSSL_EVP_MD_CTX ctxCopy;
-        wolfSSL_EVP_MD_CTX_init(&ctxCopy);
-
-        if (wolfSSL_EVP_MD_CTX_copy_ex(&ctxCopy, ctx) != WOLFSSL_SUCCESS)
+#ifdef WOLFSSL_SMALL_STACK
+        WOLFSSL_EVP_MD_CTX *ctxCopy = (WOLFSSL_EVP_MD_CTX *)XMALLOC(sizeof(WOLFSSL_EVP_MD_CTX), NULL, DYNAMIC_TYPE_OPENSSL);
+        if (ctxCopy == NULL)
             return WOLFSSL_FAILURE;
+#else
+        WOLFSSL_EVP_MD_CTX ctxCopy[1];
+#endif
+        wolfSSL_EVP_MD_CTX_init(ctxCopy);
 
-        ret = wolfSSL_EVP_DigestFinal(&ctxCopy, md, mdlen);
-        wolfSSL_EVP_MD_CTX_cleanup(&ctxCopy);
+        ret = wolfSSL_EVP_MD_CTX_copy_ex(ctxCopy, ctx);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = wolfSSL_EVP_DigestFinal(ctxCopy, md, mdlen);
+        wolfSSL_EVP_MD_CTX_cleanup(ctxCopy);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(ctxCopy, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
         return ret;
     }
 }
