@@ -6094,19 +6094,10 @@ WOLFSSL_ABI
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 {
     int ret      = 0;
-#if defined(HAVE_PKCS11)
-    int isPkcs11 = 0;
-#endif
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-
-#if defined(HAVE_PKCS11)
-    if (key->isPkcs11) {
-        isPkcs11 = 1;
-    }
-#endif
 
 #ifdef ECC_DUMP_OID
     wc_ecc_dump_oids();
@@ -6161,16 +6152,17 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-    #if defined(HAVE_PKCS11)
-        if (!isPkcs11)
+    #ifdef WOLF_CRYPTO_CB
+    /* prefer crypto callback */
+    if (key->devId != INVALID_DEVID)
     #endif
-        {
-            /* handle as async */
-            ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
-                                                            key->heap, devId);
-        }
-#elif defined(HAVE_PKCS11)
-    (void)isPkcs11;
+    {
+        /* handle as async */
+        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
+                                                        key->heap, devId);
+    }
+    if (ret != 0)
+        return ret;
 #endif
 
 #if defined(WOLFSSL_DSP)
@@ -6222,12 +6214,6 @@ int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
         ret = BAD_FUNC_ARG;
     if (ret == 0 && (len < 0 || len > ECC_MAX_ID_LEN))
         ret = BUFFER_E;
-
-#if defined(HAVE_PKCS11)
-    XMEMSET(key, 0, sizeof(ecc_key));
-    key->isPkcs11 = 1;
-#endif
-
     if (ret == 0)
         ret = wc_ecc_init_ex(key, heap, devId);
     if (ret == 0 && id != NULL && len != 0) {
@@ -6257,12 +6243,6 @@ int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId)
         if (labelLen == 0 || labelLen > ECC_MAX_LABEL_LEN)
             ret = BUFFER_E;
     }
-
-#if defined(HAVE_PKCS11)
-    XMEMSET(key, 0, sizeof(ecc_key));
-    key->isPkcs11 = 1;
-#endif
-
     if (ret == 0)
         ret = wc_ecc_init_ex(key, heap, devId);
     if (ret == 0) {
@@ -7177,7 +7157,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
-       defined(WOLFSSL_ASYNC_CRYPT_SW)
+    defined(WOLFSSL_ASYNC_CRYPT_SW)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
         if (wc_AsyncSwInit(&key->asyncDev, ASYNC_SW_ECC_SIGN)) {
             WC_ASYNC_SW* sw = &key->asyncDev.sw;
