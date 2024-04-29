@@ -217,9 +217,6 @@ struct RsaKey {
     void* devCtx;
     int   devId;
 #endif
-#if defined(HAVE_PKCS11)
-    byte isPkcs11 : 1; /* indicate if PKCS11 is preferred */
-#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
     #ifdef WOLFSSL_CERT_GEN

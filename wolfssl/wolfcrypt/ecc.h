@@ -519,9 +519,6 @@ struct ecc_key {
     void* devCtx;
     int devId;
 #endif
-#if defined(HAVE_PKCS11)
-    byte isPkcs11 : 1; /* indicate if PKCS11 is preferred */
-#endif
 #ifdef WOLFSSL_SILABS_SE_ACCEL
     sl_se_command_context_t  cmd_ctx;
     sl_se_key_descriptor_t   key;
