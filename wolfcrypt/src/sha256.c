@@ -207,7 +207,7 @@ on the specific device platform.
         #define SHA256_UPDATE_REV_BYTES(ctx) (sha256->sha_method == SHA256_C)
     #else
         #define SHA256_UPDATE_REV_BYTES(ctx) \
-        (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+            (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
 #elif defined(FREESCALE_MMCAU_SHA)
     #define SHA256_UPDATE_REV_BYTES(ctx)    0 /* reverse not needed on update */
@@ -232,14 +232,14 @@ on the specific device platform.
     (!defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)) && \
     !defined(WOLFSSL_RENESAS_RX64_HASH)
 
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
-static void Sha256_SetTransform(
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
 #ifdef WC_C_DYNAMIC_FALLBACK
-    int *sha_method
+    #define SHA256_SETTRANSFORM_ARGS int *sha_method
 #else
-    void
+    #define SHA256_SETTRANSFORM_ARGS void
 #endif
-    );
+static void Sha256_SetTransform(SHA256_SETTRANSFORM_ARGS);
 #endif
 
 static int InitSha256(wc_Sha256* sha256)
@@ -266,7 +266,8 @@ static int InitSha256(wc_Sha256* sha256)
     sha256->used = 0;
 #endif
 
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
+#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
+    (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
     /* choose best Transform function under this runtime environment */
 #ifdef WC_C_DYNAMIC_FALLBACK
     sha256->sha_method = 0;
@@ -394,6 +395,8 @@ static int InitSha256(wc_Sha256* sha256)
     }  /* extern "C" */
 #endif
 
+    static word32 intel_flags = 0;
+
 #if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
     #define WC_NO_INTERNAL_FUNCTION_POINTERS
 #endif
@@ -405,35 +408,28 @@ static int InitSha256(wc_Sha256* sha256)
                        SHA256_C };
 
 #ifndef WC_C_DYNAMIC_FALLBACK
-    static word32 intel_flags;
     static enum sha_methods sha_method = SHA256_UNSET;
 #endif
 
-    static void Sha256_SetTransform(
-#ifdef WC_C_DYNAMIC_FALLBACK
-        int *sha_method
-#else
-        void
-#endif
-        )
+    static void Sha256_SetTransform(SHA256_SETTRANSFORM_ARGS)
     {
-#ifdef WC_C_DYNAMIC_FALLBACK
-    #define SHA_METHOD (*sha_method)
-        word32 intel_flags;
-#else
-    #define SHA_METHOD sha_method
-#endif
+    #ifdef WC_C_DYNAMIC_FALLBACK
+        #define SHA_METHOD (*sha_method)
+    #else
+        #define SHA_METHOD sha_method
+    #endif
         if (SHA_METHOD != SHA256_UNSET)
             return;
 
-#ifdef WC_C_DYNAMIC_FALLBACK
+    #ifdef WC_C_DYNAMIC_FALLBACK
         if (! CAN_SAVE_VECTOR_REGISTERS()) {
             SHA_METHOD = SHA256_C;
             return;
         }
-#endif
+    #endif
 
-        intel_flags = cpuid_get_flags();
+        if (intel_flags == 0)
+            intel_flags = cpuid_get_flags();
 
         if (IS_INTEL_SHA(intel_flags)) {
         #ifdef HAVE_INTEL_AVX1
@@ -478,15 +474,15 @@ static int InitSha256(wc_Sha256* sha256)
         {
             SHA_METHOD = SHA256_C;
         }
-#undef SHA_METHOD
+    #undef SHA_METHOD
     }
 
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
-#ifdef WC_C_DYNAMIC_FALLBACK
-    #define SHA_METHOD (S->sha_method)
-#else
-    #define SHA_METHOD sha_method
-#endif
+    #ifdef WC_C_DYNAMIC_FALLBACK
+        #define SHA_METHOD (S->sha_method)
+    #else
+        #define SHA_METHOD sha_method
+    #endif
         int ret;
 
         if (SHA_METHOD == SHA256_C)
@@ -516,16 +512,16 @@ static int InitSha256(wc_Sha256* sha256)
         }
         RESTORE_VECTOR_REGISTERS();
         return ret;
-#undef SHA_METHOD
+    #undef SHA_METHOD
     }
 #define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
 
     static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
-#ifdef WC_C_DYNAMIC_FALLBACK
-    #define SHA_METHOD (S->sha_method)
-#else
-    #define SHA_METHOD sha_method
-#endif
+    #ifdef WC_C_DYNAMIC_FALLBACK
+        #define SHA_METHOD (S->sha_method)
+    #else
+        #define SHA_METHOD sha_method
+    #endif
         int ret;
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         switch (SHA_METHOD) {
@@ -552,7 +548,7 @@ static int InitSha256(wc_Sha256* sha256)
         }
         RESTORE_VECTOR_REGISTERS();
         return ret;
-#undef SHA_METHOD
+    #undef SHA_METHOD
     }
 #define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
 
@@ -568,35 +564,33 @@ static int InitSha256(wc_Sha256* sha256)
 
     static WC_INLINE int inline_XTRANSFORM(wc_Sha256* S, const byte* D) {
         int ret;
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha256_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
-#endif
+    #endif
         ret = (*Transform_Sha256_p)(S, D);
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha256_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
-#endif
+    #endif
         return ret;
     }
 #define XTRANSFORM(...) inline_XTRANSFORM(__VA_ARGS__)
 
     static WC_INLINE int inline_XTRANSFORM_LEN(wc_Sha256* S, const byte* D, word32 L) {
         int ret;
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha256_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
-#endif
+    #endif
         ret = (*Transform_Sha256_Len_p)(S, D, L);
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha256_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
-#endif
+    #endif
         return ret;
     }
 #define XTRANSFORM_LEN(...) inline_XTRANSFORM_LEN(__VA_ARGS__)
-
-    static word32 intel_flags;
 
     static void Sha256_SetTransform(void)
     {
@@ -1958,18 +1952,18 @@ static int InitSha256(wc_Sha256* sha256)
         sha224->loLen   = 0;
         sha224->hiLen   = 0;
 
-#ifdef WC_C_DYNAMIC_FALLBACK
+    #ifdef WC_C_DYNAMIC_FALLBACK
         sha224->sha_method = 0;
-#endif
+    #endif
 
     #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
                           (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
         /* choose best Transform function under this runtime environment */
-#ifdef WC_C_DYNAMIC_FALLBACK
+    #ifdef WC_C_DYNAMIC_FALLBACK
         Sha256_SetTransform(&sha224->sha_method);
-#else
+    #else
         Sha256_SetTransform();
-#endif
+    #endif
     #endif
     #ifdef WOLFSSL_HASH_FLAGS
         sha224->flags = 0;

@@ -207,13 +207,12 @@
 
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
     (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2))
-static void Sha512_SetTransform(
 #ifdef WC_C_DYNAMIC_FALLBACK
-        int *sha_method
+    #define SHA512_SETTRANSFORM_ARGS int *sha_method
 #else
-        void
+    #define SHA512_SETTRANSFORM_ARGS void
 #endif
-    );
+static void Sha512_SetTransform(SHA512_SETTRANSFORM_ARGS);
 #endif
 
 static int InitSha512(wc_Sha512* sha512)
@@ -465,6 +464,8 @@ static int InitSha512_256(wc_Sha512* sha512)
     }  /* extern "C" */
 #endif
 
+    static word32 intel_flags = 0;
+
 #if defined(WC_C_DYNAMIC_FALLBACK) && !defined(WC_NO_INTERNAL_FUNCTION_POINTERS)
     #define WC_NO_INTERNAL_FUNCTION_POINTERS
 #endif
@@ -478,34 +479,27 @@ static int InitSha512_256(wc_Sha512* sha512)
 
 #ifndef WC_C_DYNAMIC_FALLBACK
     static enum sha_methods sha_method = SHA512_UNSET;
-    static word32 intel_flags;
 #endif
 
-    static void Sha512_SetTransform(
-#ifdef WC_C_DYNAMIC_FALLBACK
-        int *sha_method
-#else
-        void
-#endif
-        )
+    static void Sha512_SetTransform(SHA512_SETTRANSFORM_ARGS)
     {
-#ifdef WC_C_DYNAMIC_FALLBACK
-    #define SHA_METHOD (*sha_method)
-        word32 intel_flags;
-#else
-    #define SHA_METHOD sha_method
-#endif
+    #ifdef WC_C_DYNAMIC_FALLBACK
+        #define SHA_METHOD (*sha_method)
+    #else
+        #define SHA_METHOD sha_method
+    #endif
         if (SHA_METHOD != SHA512_UNSET)
             return;
 
-#ifdef WC_C_DYNAMIC_FALLBACK
+    #ifdef WC_C_DYNAMIC_FALLBACK
         if (! CAN_SAVE_VECTOR_REGISTERS()) {
             SHA_METHOD = SHA512_C;
             return;
         }
-#endif
+    #endif
 
-        intel_flags = cpuid_get_flags();
+        if (intel_flags == 0)
+            intel_flags = cpuid_get_flags();
 
     #if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_AVX2(intel_flags)) {
@@ -538,15 +532,15 @@ static int InitSha512_256(wc_Sha512* sha512)
         {
             SHA_METHOD = SHA512_C;
         }
-#undef SHA_METHOD
+    #undef SHA_METHOD
     }
 
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
-#ifdef WC_C_DYNAMIC_FALLBACK
-    #define SHA_METHOD (sha512->sha_method)
-#else
-    #define SHA_METHOD sha_method
-#endif
+    #ifdef WC_C_DYNAMIC_FALLBACK
+        #define SHA_METHOD (sha512->sha_method)
+    #else
+        #define SHA_METHOD sha_method
+    #endif
         int ret;
         if (SHA_METHOD == SHA512_C)
             return _Transform_Sha512(sha512);
@@ -572,15 +566,15 @@ static int InitSha512_256(wc_Sha512* sha512)
         }
         RESTORE_VECTOR_REGISTERS();
         return ret;
-#undef SHA_METHOD
+    #undef SHA_METHOD
     }
 
     static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
-#ifdef WC_C_DYNAMIC_FALLBACK
-    #define SHA_METHOD (sha512->sha_method)
-#else
-    #define SHA_METHOD sha_method
-#endif
+    #ifdef WC_C_DYNAMIC_FALLBACK
+        #define SHA_METHOD (sha512->sha_method)
+    #else
+        #define SHA_METHOD sha_method
+    #endif
         int ret;
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
         switch (SHA_METHOD) {
@@ -604,7 +598,7 @@ static int InitSha512_256(wc_Sha512* sha512)
         }
         RESTORE_VECTOR_REGISTERS();
         return ret;
-#undef SHA_METHOD
+    #undef SHA_METHOD
     }
 
 #else /* !WC_NO_INTERNAL_FUNCTION_POINTERS */
@@ -616,32 +610,30 @@ static int InitSha512_256(wc_Sha512* sha512)
 
     static WC_INLINE int Transform_Sha512(wc_Sha512 *sha512) {
         int ret;
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha512_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
-#endif
+    #endif
         ret = (*Transform_Sha512_p)(sha512);
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha512_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
-#endif
+    #endif
         return ret;
     }
     static WC_INLINE int Transform_Sha512_Len(wc_Sha512 *sha512, word32 len) {
         int ret;
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha512_is_vectorized)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
-#endif
+    #endif
         ret = (*Transform_Sha512_Len_p)(sha512, len);
-#ifdef WOLFSSL_LINUXKM
+    #ifdef WOLFSSL_LINUXKM
         if (Transform_Sha512_is_vectorized)
             RESTORE_VECTOR_REGISTERS();
-#endif
+    #endif
         return ret;
     }
-
-    static word32 intel_flags;
 
     static void Sha512_SetTransform(void)
     {
