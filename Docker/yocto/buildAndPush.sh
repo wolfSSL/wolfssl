@@ -11,7 +11,7 @@ fi
 NUM_FAILURES=0
 
 CUR_DATE=$(date -u +%F)
-for ver in kirkstone dunfell; do
+for ver in kirkstone dunfell langdale scarthgap; do
     echo "Building wolfssl/yocto:${ver}-${CUR_DATE} as ${DOCKER_BUILD_OPTIONS}"
     docker build -t wolfssl/yocto:${ver}-${CUR_DATE} --build-arg YOCTO_VERSION=${ver} --build-arg BUILD_DATE=${CUR_DATE} -f Dockerfile "${WOLFSSL_DIR}/Docker/yocto" && \
         docker tag wolfssl/yocto:${ver}-${CUR_DATE} wolfssl/yocto:${ver}-latest
