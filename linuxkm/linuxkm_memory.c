@@ -237,9 +237,7 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) 
              * this is not thread-safe and doesn't need to be.
              */
             int ret = allocate_wolfcrypt_linuxkm_fpu_states();
-            if (ret == 0) {
-            }
-            else
+            if (ret != 0)
 #endif
             {
                 if (_warned_on_null == 0) {
@@ -307,9 +305,7 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
              * this is not thread-safe and doesn't need to be.
              */
             int ret = allocate_wolfcrypt_linuxkm_fpu_states();
-            if (ret == 0) {
-            }
-            else
+            if (ret != 0)
 #endif
             {
                 if (_warned_on_null == 0) {
@@ -458,8 +454,7 @@ WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
         return 0;
     else if (test_thread_flag(TIF_NEED_FPU_LOAD))
         return 1;
-    else
-        return 0;
+    return 0;
 }
 
 WARN_UNUSED_RESULT int save_vector_registers_x86(void)
