@@ -124,6 +124,12 @@ struct wc_Sha3 {
 
     void*  heap;
 
+#ifdef WC_C_DYNAMIC_FALLBACK
+    void (*sha3_block)(word64 *s);
+    void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
+        word64 c);
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */

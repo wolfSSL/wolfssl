@@ -261,7 +261,7 @@ struct Aes {
     ALIGN16 bs_word bs_key[15 * AES_BLOCK_SIZE * BS_WORD_SIZE];
 #endif
     word32  rounds;
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
     word32 key_C_fallback[60];
 #endif
     int     keylen;

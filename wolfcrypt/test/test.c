@@ -9976,7 +9976,7 @@ static wc_test_ret_t aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_AES_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -10004,7 +10004,7 @@ static wc_test_ret_t aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_AES_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -10029,7 +10029,7 @@ static wc_test_ret_t aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_AES_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     XMEMSET(cipher, 0, sizeof(cipher));
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
@@ -10062,7 +10062,7 @@ static wc_test_ret_t aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_AES_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
@@ -10096,7 +10096,7 @@ static wc_test_ret_t aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
-        defined(WC_AES_C_DYNAMIC_FALLBACK)
+        defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
@@ -10987,7 +10987,7 @@ static wc_test_ret_t aesecb_test(void)
         if (XMEMCMP(cipher, niCipher, AES_BLOCK_SIZE) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
         XMEMSET(cipher, 0, AES_BLOCK_SIZE);
         WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
         ret = wc_AesSetKey(enc, niKey, sizeof(niKey), cipher, AES_ENCRYPTION);
@@ -11029,7 +11029,7 @@ static wc_test_ret_t aesecb_test(void)
         if (XMEMCMP(plain, niPlain, AES_BLOCK_SIZE) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
         XMEMSET(plain, 0, AES_BLOCK_SIZE);
         WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
         ret = wc_AesSetKey(dec, niKey, sizeof(niKey), plain, AES_DECRYPTION);
@@ -11694,7 +11694,7 @@ static wc_test_ret_t aesctr_test(Aes* enc, Aes* dec, byte* cipher, byte* plain)
 #endif
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
     for (i = 0; i < AES_CTR_TEST_LEN; i++) {
         if (testVec[i].key != NULL) {
             ret = wc_AesSetKeyDirect(enc, testVec[i].key, testVec[i].keySz,
@@ -11771,7 +11771,7 @@ static wc_test_ret_t aesctr_test(Aes* enc, Aes* dec, byte* cipher, byte* plain)
 #endif
     }
 
-#endif /* DEBUG_VECTOR_REGISTER_ACCESS && WC_AES_C_DYNAMIC_FALLBACK */
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS && WC_C_DYNAMIC_FALLBACK */
 
 
 out:
@@ -12036,7 +12036,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_test(void)
                 break;
         }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
         /* Iterate from one AES_BLOCK_SIZE of bigMsg through the whole
          * message by AES_BLOCK_SIZE for each size of AES key. */
         WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
@@ -12085,7 +12085,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_test(void)
                 break;
         }
         WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
-#endif /* DEBUG_VECTOR_REGISTER_ACCESS && WC_AES_C_DYNAMIC_FALLBACK */
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS && WC_C_DYNAMIC_FALLBACK */
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(bigCipher, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12587,7 +12587,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
     ret = wc_AesSetKey(enc, key, keySz, iv, AES_ENCRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -12662,7 +12662,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
-#endif /* DEBUG_VECTOR_REGISTER_ACCESS && WC_AES_C_DYNAMIC_FALLBACK */
+#endif /* DEBUG_VECTOR_REGISTER_ACCESS && WC_C_DYNAMIC_FALLBACK */
 
   out:
 
@@ -12754,7 +12754,7 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
     if (XMEMCMP(tag, resultT, tagSz))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     ret = wc_AesGcmEncrypt(enc, resultC, plain, plainSz, iv, ivSz,
                                      resultT, tagSz, aad, aadSz);
@@ -12789,7 +12789,7 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
-#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_AES_C_DYNAMIC_FALLBACK)
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
     ret = wc_AesGcmDecrypt(dec, resultP, resultC, cipherSz,
                    iv, ivSz, resultT, tagSz, aad, aadSz);
@@ -22661,9 +22661,19 @@ static wc_test_ret_t openssl_aes_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
 {
     wc_test_ret_t ret;
-    EVP_MD_CTX md_ctx;
+#ifdef WOLFSSL_SMALL_STACK
+    EVP_MD_CTX *md_ctx = (EVP_MD_CTX *)XMALLOC(sizeof(EVP_MD_CTX), NULL, DYNAMIC_TYPE_OPENSSL);
+#else
+    EVP_MD_CTX md_ctx[1];
+#endif
     testVector a, b, c, d, e, f;
     byte       hash[WC_SHA256_DIGEST_SIZE*2];  /* max size */
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (md_ctx == NULL)
+        return WC_TEST_RET_ENC_EC(MEMORY_E);
+#endif
+
     WOLFSSL_ENTER("openssl_test");
 
     a.inLen = 0;
@@ -22697,15 +22707,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     a.inLen  = XSTRLEN(a.input);
     a.outLen = WC_MD5_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_md5());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_md5());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
+        ret = EVP_DigestUpdate(md_ctx, a.input, (unsigned long)a.inLen);
     }
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestFinal(&md_ctx, hash, 0);
+        ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS)
         return WC_TEST_RET_ENC_NC;
     if (XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE) != 0)
@@ -22721,14 +22731,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     b.inLen  = XSTRLEN(b.input);
     b.outLen = WC_SHA_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha1());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha1());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
+        ret = EVP_DigestUpdate(md_ctx, b.input, (unsigned long)b.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS)
         return WC_TEST_RET_ENC_NC;
     if (XMEMCMP(hash, b.output, b.outLen) != 0)
@@ -22743,14 +22753,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     e.inLen  = XSTRLEN(e.input);
     e.outLen = WC_SHA224_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha224());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha224());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        ret = EVP_DigestUpdate(md_ctx, e.input, (unsigned long)e.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, e.output, e.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22764,14 +22774,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     d.inLen  = XSTRLEN(d.input);
     d.outLen = WC_SHA256_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha256());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha256());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
+        ret = EVP_DigestUpdate(md_ctx, d.input, (unsigned long)d.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, d.output, d.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22787,14 +22797,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     e.inLen  = XSTRLEN(e.input);
     e.outLen = WC_SHA384_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha384());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha384());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        ret = EVP_DigestUpdate(md_ctx, e.input, (unsigned long)e.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, e.output, e.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22811,14 +22821,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     f.inLen  = XSTRLEN(f.input);
     f.outLen = WC_SHA512_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha512());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha512());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        ret = EVP_DigestUpdate(md_ctx, f.input, (unsigned long)f.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, f.output, f.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22833,14 +22843,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     f.inLen  = XSTRLEN(f.input);
     f.outLen = WC_SHA512_224_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha512_224());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha512_224());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        ret = EVP_DigestUpdate(md_ctx, f.input, (unsigned long)f.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, f.output, f.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22856,14 +22866,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     f.inLen  = XSTRLEN(f.input);
     f.outLen = WC_SHA512_256_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha512_256());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha512_256());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        ret = EVP_DigestUpdate(md_ctx, f.input, (unsigned long)f.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, f.output, f.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22879,14 +22889,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     e.inLen  = XSTRLEN(e.input);
     e.outLen = WC_SHA3_224_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha3_224());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha3_224());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        ret = EVP_DigestUpdate(md_ctx, e.input, (unsigned long)e.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, e.output, e.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22901,14 +22911,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     d.inLen  = XSTRLEN(d.input);
     d.outLen = WC_SHA3_256_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha3_256());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha3_256());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
+        ret = EVP_DigestUpdate(md_ctx, d.input, (unsigned long)d.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, d.output, d.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22923,14 +22933,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     e.inLen  = XSTRLEN(e.input);
     e.outLen = WC_SHA3_384_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha3_384());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha3_384());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
+        ret = EVP_DigestUpdate(md_ctx, e.input, (unsigned long)e.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS || XMEMCMP(hash, e.output, e.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
@@ -22946,20 +22956,25 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
     f.inLen  = XSTRLEN(f.input);
     f.outLen = WC_SHA3_512_DIGEST_SIZE;
 
-    EVP_MD_CTX_init(&md_ctx);
-    ret = EVP_DigestInit(&md_ctx, EVP_sha3_512());
+    EVP_MD_CTX_init(md_ctx);
+    ret = EVP_DigestInit(md_ctx, EVP_sha3_512());
     if (ret == WOLFSSL_SUCCESS) {
-        ret = EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
+        ret = EVP_DigestUpdate(md_ctx, f.input, (unsigned long)f.inLen);
         if (ret == WOLFSSL_SUCCESS)
-            ret = EVP_DigestFinal(&md_ctx, hash, 0);
+            ret = EVP_DigestFinal(md_ctx, hash, 0);
     }
-    EVP_MD_CTX_cleanup(&md_ctx);
+    EVP_MD_CTX_cleanup(md_ctx);
     if (ret != WOLFSSL_SUCCESS ||
             XMEMCMP(hash, f.output, f.outLen) != 0) {
         return WC_TEST_RET_ENC_NC;
     }
 #endif /* WOLFSSL_NOSHA3_512 */
 #endif /* WOLFSSL_SHA3 */
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(md_ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+    md_ctx = NULL;
+#endif
 
 #ifndef WC_NO_RNG
     if (RAND_bytes(hash, sizeof(hash)) != WOLFSSL_SUCCESS)

@@ -116,6 +116,10 @@ static union wc_linuxkm_fpu_savebuf {
 WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
 {
     if (wc_linuxkm_fpu_states != NULL) {
+#ifdef HAVE_FIPS
+        /* see note below in wc_linuxkm_fpu_state_assoc_unlikely(). */
+        return 0;
+#else
         static int warned_for_repeat_alloc = 0;
         if (! warned_for_repeat_alloc) {
             pr_err("attempt at repeat allocation"
@@ -123,6 +127,7 @@ WARN_UNUSED_RESULT int allocate_wolfcrypt_linuxkm_fpu_states(void)
             warned_for_repeat_alloc = 1;
         }
         return BAD_STATE_E;
+#endif
     }
 
 #ifdef LINUXKM_FPU_STATES_FOLLOW_THREADS
@@ -225,12 +230,23 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) 
         static int _warned_on_null = 0;
         if (wc_linuxkm_fpu_states == NULL)
         {
-            if (_warned_on_null == 0) {
-                pr_err("wc_linuxkm_fpu_state_assoc called by pid %d"
-                       " before allocate_wolfcrypt_linuxkm_fpu_states.\n", my_pid);
-                _warned_on_null = 1;
+#ifdef HAVE_FIPS
+            /* FIPS needs to use SHA256 for the core verify HMAC, before
+             * reaching the regular wolfCrypt_Init() logic.  to break the
+             * dependency loop on intelasm builds, we allocate here.
+             * this is not thread-safe and doesn't need to be.
+             */
+            int ret = allocate_wolfcrypt_linuxkm_fpu_states();
+            if (ret != 0)
+#endif
+            {
+                if (_warned_on_null == 0) {
+                    pr_err("wc_linuxkm_fpu_state_assoc called by pid %d"
+                           " before allocate_wolfcrypt_linuxkm_fpu_states.\n", my_pid);
+                    _warned_on_null = 1;
+                }
+                return NULL;
             }
-            return NULL;
         }
     }
 
@@ -282,12 +298,23 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
         static int _warned_on_null = 0;
         if (wc_linuxkm_fpu_states == NULL)
         {
-            if (_warned_on_null == 0) {
-                pr_err("wc_linuxkm_fpu_state_assoc called by pid %d"
-                       " before allocate_wolfcrypt_linuxkm_fpu_states.\n", my_pid);
-                _warned_on_null = 1;
+#ifdef HAVE_FIPS
+            /* FIPS needs to use SHA256 for the core verify HMAC, before
+             * reaching the regular wolfCrypt_Init() logic.  to break the
+             * dependency loop on intelasm builds, we allocate here.
+             * this is not thread-safe and doesn't need to be.
+             */
+            int ret = allocate_wolfcrypt_linuxkm_fpu_states();
+            if (ret != 0)
+#endif
+            {
+                if (_warned_on_null == 0) {
+                    pr_err("wc_linuxkm_fpu_state_assoc called by pid %d"
+                           " before allocate_wolfcrypt_linuxkm_fpu_states.\n", my_pid);
+                    _warned_on_null = 1;
+                }
+                return NULL;
             }
-            return NULL;
         }
     }
 
@@ -417,6 +444,17 @@ static inline void wc_linuxkm_fpu_state_release(
     if (unlikely(ent->fpu_state != 0))
         return wc_linuxkm_fpu_state_release_unlikely(ent);
     __atomic_store_n(&ent->pid, 0, __ATOMIC_RELEASE);
+}
+
+WARN_UNUSED_RESULT int can_save_vector_registers_x86(void)
+{
+    if (irq_fpu_usable())
+        return 1;
+    else if (in_nmi() || (hardirq_count() > 0) || (softirq_count() > 0))
+        return 0;
+    else if (test_thread_flag(TIF_NEED_FPU_LOAD))
+        return 1;
+    return 0;
 }
 
 WARN_UNUSED_RESULT int save_vector_registers_x86(void)
