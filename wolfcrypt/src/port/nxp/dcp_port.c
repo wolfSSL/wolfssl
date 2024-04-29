@@ -386,6 +386,11 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     return ret;
 }
 
+int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
+{
+    return wc_Sha256Final(sha256, hash);
+}
+
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_Sha256SetFlags(wc_Sha256* sha256, word32 flags)
 {
@@ -496,6 +501,11 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
     }
     dcp_unlock();
     return ret;
+}
+
+int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
+{
+    return wc_ShaFinal(sha, hash);
 }
 
 #ifdef WOLFSSL_HASH_FLAGS
