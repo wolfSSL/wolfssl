@@ -376,7 +376,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         ret = wc_fspsm_RsaFunction(info->pk.rsa.in,
                                         info->pk.rsa.inLen,
                                         info->pk.rsa.out,
-                                        (word32*)&info->pk.rsa.outLen,
+                                        info->pk.rsa.outLen,
                                         info->pk.rsa.type,
                                         info->pk.rsa.key,
                                         info->pk.rsa.rng);
@@ -385,7 +385,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                    ret = wc_fspsm_RsaSign(info->pk.rsa.in,
                                         info->pk.rsa.inLen,
                                         info->pk.rsa.out,
-                                        (word32*)&info->pk.rsa.outLen,
+                                        info->pk.rsa.outLen,
                                         info->pk.rsa.key,
                                         (void*)ctx);
                 }
@@ -393,7 +393,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     ret = wc_fspsm_RsaVerify(info->pk.rsa.in,
                                         info->pk.rsa.inLen,
                                         info->pk.rsa.out,
-                                        (word32*)&info->pk.rsa.outLen,
+                                        info->pk.rsa.outLen,
                                         info->pk.rsa.key,
                                         (void*)ctx);
                 }

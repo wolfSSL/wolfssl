@@ -3318,7 +3318,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             if (key->devId != INVALID_DEVID) {
                 /* SCE supports 1024 and 2048 bits */
                 ret = wc_CryptoCb_Rsa(in, inLen, out,
-                                    outLen, rsa_type, key, rng);
+                                    &outLen, rsa_type, key, rng);
                 if (ret != CRYPTOCB_UNAVAILABLE)
                     return ret;
                 /* fall-through when unavailable */
@@ -3475,7 +3475,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
            #ifdef WOLF_CRYPTO_CB
                 if (key->devId != INVALID_DEVID) {
                     ret = wc_CryptoCb_Rsa(in, inLen, out,
-                                        outLen, rsa_type, key, rng);
+                                        &outLen, rsa_type, key, rng);
                     if (ret != CRYPTOCB_UNAVAILABLE)
                       return ret;
                     /* fall-through when unavailable */
