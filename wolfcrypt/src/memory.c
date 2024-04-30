@@ -729,6 +729,15 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
 }
 
 
+void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap)
+{
+    WOLFSSL_ENTER("wc_UnloadStaticMemory");
+    if (heap != NULL && heap->memory != NULL) {
+        wc_FreeMutex(&heap->memory->memory_mutex);
+    }
+}
+
+
 /* returns the size of management memory needed for each bucket.
  * This is memory that is used to keep track of and align memory buckets. */
 int wolfSSL_MemoryPaddingSz(void)
