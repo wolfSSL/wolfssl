@@ -188,7 +188,7 @@ WOLFSSL_LOCAL int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
 {
     /* Generate PRNG based on NIST SP800-90A AES CTR-DRBG */
     int ret = 0;
-    word32 buffer[RANDGEN_WORDS];
+    word32 fspbuf[RANDGEN_WORDS];
 
     while (sz > 0) {
         word32 len = sizeof(buffer);
@@ -197,9 +197,9 @@ WOLFSSL_LOCAL int wc_fspsm_GenerateRandBlock(byte* output, word32 sz)
             len = sz;
         }
         /* return 4 words random number*/
-        ret = R_RANDOM_GEN(buffer);
+        ret = R_RANDOM_GEN((uint8_t* const)fspbuf);
         if(ret == FSP_SUCCESS) {
-            XMEMCPY(output, &buffer, len);
+            XMEMCPY(output, &fspbuf, len);
             output += len;
             sz -= len;
          } else {

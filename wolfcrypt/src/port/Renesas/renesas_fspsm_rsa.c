@@ -1,6 +1,6 @@
 /* renesas_fspsm_rsa.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -99,6 +99,33 @@ WOLFSSL_LOCAL int wc_fspsm_MakeRsaKey(RsaKey *key, int size, void* ctx)
         key->ctx.wrapped_pri2048_key = info->wrapped_key_rsapri2048;
         key->ctx.wrapped_pub2048_key = info->wrapped_key_rsapub2048;
         key->ctx.keySz = 2048;
+    } else if (size == 0) {
+        if((info->keyflgs_crypt.bits.rsapri2048_installedkey_set != 1) &&
+           (info->keyflgs_crypt.bits.rsapub2048_installedkey_set != 1) &&
+           (info->keyflgs_crypt.bits.rsapri1024_installedkey_set != 1) &&
+           (info->keyflgs_crypt.bits.rsapub1024_installedkey_set != 1)) {
+                WOLFSSL_MSG("Caller should create user key in advance.");
+                WOLFSSL_MSG("Caller also need to installedkey to 1.");
+                return BAD_FUNC_ARG;
+        }
+
+        if (info->keyflgs_crypt.bits.rsapri1024_installedkey_set == 1) {
+            key->ctx.wrapped_pri1024_key = info->wrapped_key_rsapri1024;
+            key->ctx.keySz = 1024;
+        }
+        if (info->keyflgs_crypt.bits.rsapub1024_installedkey_set == 1) {
+            key->ctx.wrapped_pub1024_key = info->wrapped_key_rsapub1024;
+            key->ctx.keySz = 1024;
+        }
+
+        if (info->keyflgs_crypt.bits.rsapri2048_installedkey_set == 1) {
+            key->ctx.wrapped_pri2048_key = info->wrapped_key_rsapri2048;
+            key->ctx.keySz = 2048;
+        }
+        if (info->keyflgs_crypt.bits.rsapub2048_installedkey_set == 1) {
+            key->ctx.wrapped_pub2048_key = info->wrapped_key_rsapub2048;
+            key->ctx.keySz = 2048;
+        }
     } else
         return CRYPTOCB_UNAVAILABLE;
 
@@ -132,8 +159,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaFunction(const byte* in, word32 inLen, byte* out,
     (void) rng;
 
     /* sanity check */
-    if (in == NULL || out == NULL ||
-      ((key == NULL) && (key->ctx.keySz != 1024 && key->ctx.keySz != 2048))){
+    if (in == NULL || out == NULL || key == NULL){
         return BAD_FUNC_ARG;
     }
 
@@ -210,8 +236,8 @@ WOLFSSL_LOCAL int wc_fspsm_RsaSign(const byte* in, word32 inLen, byte* out,
     int keySize;
 
     /* sanity check */
-    if (in == NULL || out == NULL || (word32*)outLen <= 0 || info == NULL ||
-      ((key == NULL) && (key->ctx.keySz != 1024 && key->ctx.keySz != 2048))){
+    if (in == NULL || out == NULL || *outLen <= 0 || info == NULL ||
+       key == NULL){
         return BAD_FUNC_ARG;
     }
 
@@ -278,8 +304,8 @@ WOLFSSL_LOCAL int wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
     (void) key;
 
     /* sanity check */
-    if (in == NULL || out == NULL || (word32*)outLen <= 0 || info == NULL ||
-      ((key == NULL) && (key->ctx.keySz != 1024 && key->ctx.keySz != 2048))){
+    if (in == NULL || out == NULL || *outLen <= 0 || info == NULL ||
+       key == NULL){
         return BAD_FUNC_ARG;
     }
 
@@ -292,7 +318,7 @@ WOLFSSL_LOCAL int wc_fspsm_RsaVerify(const byte* in, word32 inLen, byte* out,
             info->keyflgs_crypt.bits.message_type;/* message 0, hash 1 */
 
     signature.pdata = out;
-    signature.data_length = (word32*)outLen;
+    signature.data_length = (word32)*outLen;
     #if defined(WOLFSSL_RENESAS_RSIP)
     message_hash.hash_type = signature.hash_type =
                 info->hash_type;   /* hash type */

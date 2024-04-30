@@ -361,8 +361,14 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
              * in advance. SCE supports 1024 or 2048 bits key size.
              * otherwise, falls-through happens.
              */
-            if (info->pk.rsa.key->ctx.keySz == 1024 ||
-                info->pk.rsa.key->ctx.keySz == 2048) {
+            if (cbInfo->keyflgs_crypt.bits.rsapri2048_installedkey_set ||
+                cbInfo->keyflgs_crypt.bits.rsapub2048_installedkey_set ||
+                cbInfo->keyflgs_crypt.bits.rsapri1024_installedkey_set ||
+                cbInfo->keyflgs_crypt.bits.rsapub1024_installedkey_set ) {
+
+                ret = wc_fspsm_MakeRsaKey(info->pk.rsa.key, 0, cbInfo);
+                if (ret == CRYPTOCB_UNAVAILABLE)
+                    return ret;
 
                 if (info->pk.rsa.type == RSA_PRIVATE_DECRYPT ||
                     info->pk.rsa.type == RSA_PUBLIC_ENCRYPT  )
@@ -370,7 +376,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                         ret = wc_fspsm_RsaFunction(info->pk.rsa.in,
                                         info->pk.rsa.inLen,
                                         info->pk.rsa.out,
-                                        &info->pk.rsa.outLen,
+                                        info->pk.rsa.outLen,
                                         info->pk.rsa.type,
                                         info->pk.rsa.key,
                                         info->pk.rsa.rng);

@@ -271,7 +271,7 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
         return BAD_FUNC_ARG;
     }
     wc_fspsm_hw_lock();
-    ret = Update(&hash->handle, data, sz);
+    ret = Update(&hash->handle, (byte*)data, sz);
     wc_fspsm_hw_unlock();
     return ret;
 #endif
