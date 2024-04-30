@@ -1203,7 +1203,7 @@ static int GetASN_ObjectId(const byte* input, word32 idx, int length)
     /* OID data must be at least 3 bytes. */
     if (length < 3) {
     #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
-        WOLFSSL_MSG_VSNPRINTF("OID length must be 3 or more: %d", len);
+        WOLFSSL_MSG_VSNPRINTF("OID length must be 3 or more: %d", length);
     #else
         WOLFSSL_MSG("OID length less than 3");
     #endif
