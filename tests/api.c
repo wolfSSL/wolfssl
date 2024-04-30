@@ -744,6 +744,7 @@ static int test_wc_LoadStaticMemory_ex(void)
                 (word32)(sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT)),
                 0, 1),
             0);
+    wc_UnloadStaticMemory(heap);
 
     /* Success case. */
     heap = NULL;
@@ -752,6 +753,7 @@ static int test_wc_LoadStaticMemory_ex(void)
                 staticMemory, (word32)sizeof(staticMemory),
                 0, 1),
             0);
+    wc_UnloadStaticMemory(heap);
 #endif /* WOLFSSL_STATIC_MEMORY */
     return EXPECT_RESULT();
 }
