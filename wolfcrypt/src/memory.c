@@ -904,9 +904,23 @@ int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap, WOLFSSL_MEM_STATS* stats)
  * NOT thread safe, should be set once before any expected XMALLOC XFREE calls
  */
 static void* globalHeapHint = NULL;
-void wolfSSL_SetGlobalHeapHint(void* heap)
+
+
+/* Used to set a new global heap hint. Returns a pointer to the current global
+ * heap hint before being set. */
+void* wolfSSL_SetGlobalHeapHint(void* heap)
 {
+    void *oldHint = globalHeapHint;
+
     globalHeapHint = heap;
+    return oldHint;
+}
+
+
+/* returns a pointer to the current global heap hint */
+void* wolfSSL_GetGlobalHeapHint()
+{
+    return globalHeapHint;
 }
 
 
@@ -967,6 +981,9 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
 
         if (hint == NULL) {
             hint = (WOLFSSL_HEAP_HINT*)globalHeapHint;
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            fprintf(stderr, "(Using global heap hint %p) ", hint);
+        #endif
         }
         mem = hint->memory;
 
@@ -1119,6 +1136,9 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
 
             if (hint == NULL) {
                 hint = (WOLFSSL_HEAP_HINT*)globalHeapHint;
+            #ifdef WOLFSSL_DEBUG_MEMORY
+                fprintf(stderr, "(Using global heap hint %p) ", hint);
+            #endif
             }
             mem = hint->memory;
 
@@ -1219,6 +1239,9 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
 
         if (hint == NULL) {
             hint = (WOLFSSL_HEAP_HINT*)globalHeapHint;
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            fprintf(stderr, "(Using global heap hint %p) ", hint);
+        #endif
         }
         mem = hint->memory;
 

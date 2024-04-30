@@ -2518,10 +2518,6 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             != WOLFSSL_SUCCESS)
         err_sys_ex(catastrophic, "unable to load static memory and create ctx");
 
-    /* for test case (does not handle all memory used on default build)
-       wolfSSL_SetGlobalHeapHint(wolfSSL_CTX_GetHeap(ctx, NULL));
-     */
-
     /* load in a buffer for IO */
     if (wolfSSL_CTX_load_static_memory(&ctx, NULL, memoryIO, sizeof(memoryIO),
                                  WOLFMEM_IO_POOL_FIXED | WOLFMEM_TRACK_STATS, 1)

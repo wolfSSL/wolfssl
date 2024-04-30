@@ -3042,10 +3042,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             != 0) {
         err_sys("unable to load static memory");
     }
-    /* for test case (does not handle all memory used on default build)
-       wolfSSL_SetGlobalHeapHint(heap);
-     */
-
 
     ctx = wolfSSL_CTX_new_ex(method(heap), heap);
     if (ctx == NULL)
