@@ -2572,9 +2572,7 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx,
     wolfSSL_method_func method, unsigned char* buf, unsigned int sz, int flag,
     int maxSz)
 {
-    WOLFSSL_HEAP*      heap;
-    WOLFSSL_HEAP_HINT* hint;
-    word32 idx = 0;
+    WOLFSSL_HEAP_HINT* hint = NULL;
 
     if (ctx == NULL || buf == NULL) {
         return BAD_FUNC_ARG;
@@ -2584,61 +2582,29 @@ int wolfSSL_CTX_load_static_memory(WOLFSSL_CTX** ctx,
         return BAD_FUNC_ARG;
     }
 
-    if (*ctx == NULL || (*ctx)->heap == NULL) {
-        if (sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT) > sz - idx) {
-            return BUFFER_E; /* not enough memory for structures */
-        }
-        heap = (WOLFSSL_HEAP*)buf;
-        idx += sizeof(WOLFSSL_HEAP);
-        if (wolfSSL_init_memory_heap(heap) != 0) {
-            return WOLFSSL_FAILURE;
-        }
-        hint = (WOLFSSL_HEAP_HINT*)(buf + idx);
-        idx += sizeof(WOLFSSL_HEAP_HINT);
-        XMEMSET(hint, 0, sizeof(WOLFSSL_HEAP_HINT));
-        hint->memory = heap;
+    /* If there is a heap already, capture it in hint. */
+    if (*ctx && (*ctx)->heap != NULL) {
+        hint = (*ctx)->heap;
+    }
 
-        if (*ctx && (*ctx)->heap == NULL) {
+    if (wc_LoadStaticMemory(&hint, buf, sz, flag, maxSz)) {
+        WOLFSSL_MSG("Error loading static memory");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (*ctx) {
+        if ((*ctx)->heap == NULL) {
             (*ctx)->heap = (void*)hint;
         }
     }
     else {
-#ifdef WOLFSSL_HEAP_TEST
-        /* do not load in memory if test has been set */
-        if ((*ctx)->heap == (void*)WOLFSSL_HEAP_TEST) {
-            return WOLFSSL_SUCCESS;
-        }
-#endif
-        hint = (WOLFSSL_HEAP_HINT*)((*ctx)->heap);
-        heap = hint->memory;
-    }
-
-    if (wolfSSL_load_static_memory(buf + idx, sz - idx, flag, heap) != 1) {
-        WOLFSSL_MSG("Error partitioning memory");
-        return WOLFSSL_FAILURE;
-    }
-
-    /* create ctx if needed */
-    if (*ctx == NULL) {
+        /* create ctx if needed */
         *ctx = wolfSSL_CTX_new_ex(method(hint), hint);
         if (*ctx == NULL) {
             WOLFSSL_MSG("Error creating ctx");
             return WOLFSSL_FAILURE;
         }
     }
-
-    /* determine what max applies too */
-    if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
-        heap->maxIO = maxSz;
-    }
-    else { /* general memory used in handshakes */
-        heap->maxHa = maxSz;
-    }
-
-    heap->flag |= flag;
-
-    (void)maxSz;
-    (void)method;
 
     return WOLFSSL_SUCCESS;
 }
