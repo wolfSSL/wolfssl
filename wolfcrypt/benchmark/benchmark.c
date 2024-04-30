@@ -7475,12 +7475,12 @@ void bench_sm3(int useDeviceID)
         bench_stats_start(&count, &start);
         do {
             for (times = 0; times < numBlocks; times++) {
-                ret = wc_InitSm3(hash, HEAP_HINT,
+                ret = wc_InitSm3(hash[0], HEAP_HINT,
                     useDeviceID ? devId: INVALID_DEVID);
                 if (ret == 0)
-                    ret = wc_Sm3Update(hash, bench_plain, bench_size);
+                    ret = wc_Sm3Update(hash[0], bench_plain, bench_size);
                 if (ret == 0)
-                    ret = wc_Sm3Final(hash, digest[0]);
+                    ret = wc_Sm3Final(hash[0], digest[0]);
                 if (ret != 0)
                     goto exit_sm3;
                 RECORD_MULTI_VALUE_STATS();
