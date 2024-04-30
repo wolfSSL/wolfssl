@@ -2016,7 +2016,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #endif
 #endif
 
-#ifndef OPENSSL_EXTRA
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(OPENSSL_EXTRA)
     wolfSSL_SetGlobalHeapHint(NULL);
 #endif
     TEST_PASS("Test complete\n");
