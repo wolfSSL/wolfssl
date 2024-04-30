@@ -1495,7 +1495,11 @@ static int xil_mpi_import(mp_int *mpi,
 
 #ifdef ECC_CACHE_CURVE
     /* cache (mp_int) of the curve parameters */
+    #ifdef WOLFSSL_NO_MALLOC
+    static ecc_curve_spec ecc_curve_spec_cache[ECC_SET_COUNT];
+    #else
     static ecc_curve_spec* ecc_curve_spec_cache[ECC_SET_COUNT];
+    #endif
     #ifndef SINGLE_THREADED
         static wolfSSL_Mutex ecc_curve_cache_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_curve_cache_mutex);
     #endif
@@ -1675,6 +1679,9 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     }
 #endif
 
+#ifdef WOLFSSL_NO_MALLOC
+    curve = &ecc_curve_spec_cache[x];
+#else
     /* make sure cache has been allocated */
     if (ecc_curve_spec_cache[x] == NULL
     #ifdef WOLFSSL_CUSTOM_CURVES
@@ -1701,6 +1708,8 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     else {
         curve = ecc_curve_spec_cache[x];
     }
+#endif /* WOLFSSL_NO_MALLOC */
+
     /* return new or cached curve */
     *pCurve = curve;
 #else
@@ -1780,11 +1789,16 @@ void wc_ecc_curve_cache_free(void)
 
     /* free all ECC curve caches */
     for (x = 0; x < (int)ECC_SET_COUNT; x++) {
+    #ifdef WOLFSSL_NO_MALLOC
+        wc_ecc_curve_cache_free_spec(&ecc_curve_spec_cache[x]);
+        XMEMSET(&ecc_curve_spec_cache[x], 0, sizeof(ecc_curve_spec_cache[x]));
+    #else
         if (ecc_curve_spec_cache[x]) {
             wc_ecc_curve_cache_free_spec(ecc_curve_spec_cache[x]);
             XFREE(ecc_curve_spec_cache[x], NULL, DYNAMIC_TYPE_ECC);
             ecc_curve_spec_cache[x] = NULL;
         }
+    #endif /* WOLFSSL_NO_MALLOC */
     }
 
 #if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED) && \
