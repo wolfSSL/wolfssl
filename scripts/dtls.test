@@ -25,17 +25,21 @@ if [ "${AM_BWRAPPED-}" != "yes" ]; then
     fi
 fi
 
+kill_server() {
+    for i in $(jobs -pr); do
+        if [ "$i" != "$TCPDUMP_PID" ]; then
+            kill -9 $i
+        fi
+    done
+    # empty print to show which backgrounded processes were killed
+    sleep 0.2 && echo
+}
+
 cleanup () {
     echo
     echo "Cleaning up..."
-    if [ ! -z "$UDP_PROXY_PID" ];then
-        echo "Killing udp_proxy $UDP_PROXY_PID"
-        kill $UDP_PROXY_PID
-    fi
-    if [ ! -z "$SERVER_PID" ];then
-        echo "Killing server $SERVER_PID"
-        kill $SERVER_PID
-    fi
+    kill_server
+
     if [ ! -z "$TCPDUMP_PID" ];then
         echo "Killing tcpdump $TCPDUMP_PID"
         sleep 1
@@ -69,9 +73,8 @@ run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "
     echo "" | nc -u 127.0.0.1 $SERVER_PORT # This is a marker for the PCAP file
     echo -e "\n${1}\n"
     stdbuf -oL -eL $WOLFSSL_ROOT/examples/server/server -u -p$SERVER_PORT $DTLS_VERSION $3 2>&1 | prepend "[server] " &
-    SERVER_PID=$(($! - 1))
+    sleep 0.2
     stdbuf -oL -eL $UDP_PROXY_BIN -p $PROXY_PORT -s 127.0.0.1:$SERVER_PORT $UDP_PROXY_EXTRA_ARGS $2 2>&1 | prepend "[udp-proxy] " &
-    UDP_PROXY_PID=$(($! - 1))
     sleep 0.2
     # Wrap this command in a timeout so that a deadlock won't bring down the entire test
     timeout -s KILL 1m stdbuf -oL -eL $WOLFSSL_ROOT/examples/client/client -u -p$PROXY_PORT $DTLS_VERSION $4 2>&1 | prepend "[client] "
@@ -79,10 +82,7 @@ run_test() { # usage: run_test "<testName>" "<udp-proxy args>" "<server args>" "
         echo "***Test failed***"
         ((NUM_TESTS_FAILED++))
     fi
-    kill $SERVER_PID >&/dev/null # make sure the server is no longer running
-    SERVER_PID=
-    kill $UDP_PROXY_PID
-    UDP_PROXY_PID=
+    kill_server
 }
 
 test_dropping_packets () {
