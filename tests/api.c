@@ -672,6 +672,91 @@ static int test_wolfCrypt_Cleanup(void)
     return EXPECT_RESULT();
 }
 
+static int test_wc_LoadStaticMemory_ex(void)
+{
+    EXPECT_DECLS;
+#ifdef WOLFSSL_STATIC_MEMORY
+    byte staticMemory[440000];
+    word32 sizeList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
+    word32 distList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_DIST };
+    WOLFSSL_HEAP_HINT* heap;
+
+    /* Pass in zero everything. */
+    ExpectIntEQ(wc_LoadStaticMemory_ex(NULL, 0, NULL, NULL, NULL, 0, 0, 0),
+            BAD_FUNC_ARG);
+
+    /* Set the heap pointer to NULL. */
+    ExpectIntEQ(wc_LoadStaticMemory_ex(NULL,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            BAD_FUNC_ARG);
+
+    /* Set other pointer values to NULL one at a time. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, NULL, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            BAD_FUNC_ARG);
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, NULL,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            BAD_FUNC_ARG);
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                NULL, (word32)sizeof(staticMemory),
+                0, 1),
+            BAD_FUNC_ARG);
+    /* Set the size of the static buffer to 0. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory, 0,
+                0, 1),
+            BUFFER_E);
+
+    /* Set the size of the static buffer to one less than minimum allowed. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory,
+                (word32)(sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT)) - 1,
+                0, 1),
+            BUFFER_E);
+
+    /* Set the number of buckets to 1 too many allowed. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_MAX_BUCKETS+1, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            BAD_FUNC_ARG);
+
+    /* Set the size of the static buffer to exactly the minimum size. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory,
+                (word32)(sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT)),
+                0, 1),
+            0);
+
+    /* Success case. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory, (word32)sizeof(staticMemory),
+                0, 1),
+            0);
+#endif /* WOLFSSL_STATIC_MEMORY */
+    return EXPECT_RESULT();
+}
+
+
 /*----------------------------------------------------------------------------*
  | Platform dependent function test
  *----------------------------------------------------------------------------*/
@@ -71564,6 +71649,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ForceZero),
 
     TEST_DECL(test_wolfCrypt_Init),
+
+    TEST_DECL(test_wc_LoadStaticMemory_ex),
 
     /* Locking with Compat Mutex */
     TEST_DECL(test_wc_SetMutexCb),
