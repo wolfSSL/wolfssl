@@ -160,9 +160,9 @@ enum wc_XmssState {
 };
 
 /* Private key write and read callbacks. */
-typedef enum wc_XmssRc (*write_private_key_cb)(const byte* priv, word32 privSz,
+typedef enum wc_XmssRc (*wc_xmss_write_private_key_cb)(const byte* priv, word32 privSz,
     void* context);
-typedef enum wc_XmssRc (*read_private_key_cb)(byte* priv, word32 privSz,
+typedef enum wc_XmssRc (*wc_xmss_read_private_key_cb)(byte* priv, word32 privSz,
     void* context);
 
 #ifdef __cplusplus
@@ -173,9 +173,9 @@ WOLFSSL_API int  wc_XmssKey_Init(XmssKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_XmssKey_SetParamStr(XmssKey* key, const char* str);
 #ifndef WOLFSSL_XMSS_VERIFY_ONLY
 WOLFSSL_API int  wc_XmssKey_SetWriteCb(XmssKey* key,
-    write_private_key_cb write_cb);
+    wc_xmss_write_private_key_cb write_cb);
 WOLFSSL_API int  wc_XmssKey_SetReadCb(XmssKey* key,
-    read_private_key_cb read_cb);
+    wc_xmss_read_private_key_cb read_cb);
 WOLFSSL_API int  wc_XmssKey_SetContext(XmssKey* key, void* context);
 WOLFSSL_API int  wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_XmssKey_Reload(XmssKey* key);
