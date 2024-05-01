@@ -586,7 +586,7 @@ void wc_LmsKey_Free(LmsKey* key)
  *
  * Returns 0 on success.
  * */
-int wc_LmsKey_SetWriteCb(LmsKey * key, write_private_key_cb write_cb)
+int wc_LmsKey_SetWriteCb(LmsKey * key, wc_lms_write_private_key_cb write_cb)
 {
     if (key == NULL || write_cb == NULL) {
         return BAD_FUNC_ARG;
@@ -610,7 +610,7 @@ int wc_LmsKey_SetWriteCb(LmsKey * key, write_private_key_cb write_cb)
  *
  * Returns 0 on success.
  * */
-int wc_LmsKey_SetReadCb(LmsKey * key, read_private_key_cb read_cb)
+int wc_LmsKey_SetReadCb(LmsKey * key, wc_lms_read_private_key_cb read_cb)
 {
     if (key == NULL || read_cb == NULL) {
         return BAD_FUNC_ARG;

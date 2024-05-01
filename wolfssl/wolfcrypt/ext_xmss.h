@@ -45,8 +45,8 @@ struct XmssKey {
     /* The secret key length is a function of xmss_params. */
     unsigned char *      sk;
     word32               sk_len;
-    write_private_key_cb write_private_key; /* Callback to write/update key. */
-    read_private_key_cb  read_private_key;  /* Callback to read key. */
+    wc_xmss_write_private_key_cb write_private_key; /* Callback to write/update key. */
+    wc_xmss_read_private_key_cb  read_private_key;  /* Callback to read key. */
     void *               context;           /* Context arg passed to callbacks. */
 #endif /* ifndef WOLFSSL_XMSS_VERIFY_ONLY */
     enum wc_XmssState    state;
