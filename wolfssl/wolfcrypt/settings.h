@@ -2755,7 +2755,9 @@ extern void uITRON4_free(void *p) ;
     #endif
 
     /* Enable ECC_CACHE_CURVE for ASYNC */
-    #if !defined(ECC_CACHE_CURVE)
+    #if !defined(ECC_CACHE_CURVE) && !defined(NO_ECC_CACHE_CURVE)
+        /* Enabled by default for increased async performance,
+         * but not required */
         #define ECC_CACHE_CURVE
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
