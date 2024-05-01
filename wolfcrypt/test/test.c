@@ -38381,7 +38381,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     }
 
     if (pub_len != XMSS_SHA256_PUBLEN) {
-        printf("error: xmss pub len %d, expected %d\n", pub_len,
+        printf("error: xmss pub len %u, expected %d\n", pub_len,
                XMSS_SHA256_PUBLEN);
         return WC_TEST_RET_ENC_EC(pub_len);
     }
