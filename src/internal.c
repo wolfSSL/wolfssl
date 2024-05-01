@@ -11273,7 +11273,13 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
             ssl->fuzzerCb(ssl, ssl->buffers.inputBuffer.buffer + *inOutIdx,
                           RECORD_HEADER_SZ, FUZZ_HEAD, ssl->fuzzerCtx);
 #endif
-        XMEMCPY(rh, ssl->buffers.inputBuffer.buffer + *inOutIdx, RECORD_HEADER_SZ);
+        /* Set explicitly rather than make assumptions on struct layout */
+        rh->type      = ssl->buffers.inputBuffer.buffer[*inOutIdx];
+        rh->pvMajor   = ssl->buffers.inputBuffer.buffer[*inOutIdx + 1];
+        rh->pvMinor   = ssl->buffers.inputBuffer.buffer[*inOutIdx + 2];
+        rh->length[0] = ssl->buffers.inputBuffer.buffer[*inOutIdx + 3];
+        rh->length[1] = ssl->buffers.inputBuffer.buffer[*inOutIdx + 4];
+
         *inOutIdx += RECORD_HEADER_SZ;
         ato16(rh->length, size);
     }
