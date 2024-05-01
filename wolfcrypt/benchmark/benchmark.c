@@ -10071,12 +10071,10 @@ exit_xmss_sign_verify:
 
     if (freeRng) {
         wc_FreeRng(&rng);
-        freeRng = 0;
     }
 
     if (freeKey) {
         wc_XmssKey_Free(&key);
-        freeKey = 0;
     }
 
     return;
