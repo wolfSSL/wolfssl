@@ -53,8 +53,8 @@ struct LmsKey {
     unsigned char        pub[HSS_MAX_PUBLIC_KEY_LEN];
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
     hss_working_key *    working_key;
-    write_private_key_cb write_private_key; /* Callback to write/update key. */
-    read_private_key_cb  read_private_key;  /* Callback to read key. */
+    wc_lms_write_private_key_cb write_private_key; /* Callback to write/update key. */
+    wc_lms_read_private_key_cb  read_private_key;  /* Callback to read key. */
     void *               context;           /* Context arg passed to callbacks. */
     hss_extra_info       info;
 #endif /* ifndef WOLFSSL_LMS_VERIFY_ONLY */

@@ -34,8 +34,8 @@
 typedef struct LmsKey LmsKey;
 
 /* Private key write and read callbacks. */
-typedef int (*write_private_key_cb)(const byte * priv, word32 privSz, void *context);
-typedef int (*read_private_key_cb)(byte * priv, word32 privSz, void *context);
+typedef int (*wc_lms_write_private_key_cb)(const byte * priv, word32 privSz, void *context);
+typedef int (*wc_lms_read_private_key_cb)(byte * priv, word32 privSz, void *context);
 
 /* Return codes returned by private key callbacks. */
 enum wc_LmsRc {
@@ -138,9 +138,9 @@ WOLFSSL_API int  wc_LmsKey_GetParameters(const LmsKey * key, int * levels,
     int * height, int * winternitz);
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
 WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey * key,
-    write_private_key_cb write_cb);
+    wc_lms_write_private_key_cb write_cb);
 WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey * key,
-    read_private_key_cb read_cb);
+    wc_lms_read_private_key_cb read_cb);
 WOLFSSL_API int  wc_LmsKey_SetContext(LmsKey * key, void * context);
 WOLFSSL_API int  wc_LmsKey_MakeKey(LmsKey * key, WC_RNG * rng);
 WOLFSSL_API int  wc_LmsKey_Reload(LmsKey * key);
