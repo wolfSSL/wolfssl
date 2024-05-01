@@ -85,6 +85,7 @@
 
 /* Filesystem */
 #define NO_FILESYSTEM
+#define HAVE_NETDB_H
 
 /* Debug */
 #include <applibs/log.h>
