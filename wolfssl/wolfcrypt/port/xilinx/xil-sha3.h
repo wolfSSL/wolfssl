@@ -35,7 +35,7 @@
 #endif
 
 /* Sha3 digest */
-typedef struct Sha3 {
+typedef struct wc_Sha3 {
 #ifdef WOLFSSL_XILINX_CRYPT_VERSAL
     wc_Xsecure xSec;
 #else
