@@ -592,7 +592,7 @@ typedef struct w64wrapper {
     #endif
 
     #define WC_DECLARE_HEAP_ARRAY(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE, HEAP) \
-        VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
+        VAR_TYPE* VAR_NAME[VAR_ITEMS] = { NULL, }; \
         int idx##VAR_NAME = 0, inner_idx_##VAR_NAME
     #define WC_HEAP_ARRAY_ARG(VAR_NAME, VAR_TYPE, VAR_ITEMS, VAR_SIZE) \
         VAR_TYPE* VAR_NAME[VAR_ITEMS]

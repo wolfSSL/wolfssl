@@ -10939,13 +10939,13 @@ exit:
 #ifdef WOLFSSL_SM2
 static void bench_sm2_MakeKey(int useDeviceID)
 {
-    int ret = 0, i, times, count, pending = 0;
+    int ret = 0, i, times, count = 0, pending = 0;
     int deviceID;
     int keySize;
     WC_DECLARE_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
     char name[BENCH_ECC_NAME_SZ];
-    double start;
+    double start = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 
