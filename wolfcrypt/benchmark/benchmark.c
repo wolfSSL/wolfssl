@@ -8158,6 +8158,7 @@ void bench_pbkdf2(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         ret = wc_PBKDF2(derived, (const byte*)passwd32, (int)XSTRLEN(passwd32),
             salt32, (int)sizeof(salt32), 1000, 32, WC_SHA256);
@@ -8168,6 +8169,7 @@ void bench_pbkdf2(void)
        || runs < minimum_runs
 #endif
        );
+    PRIVATE_KEY_LOCK();
 
     bench_stats_sym_finish("PBKDF2", 32, count, 32, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
@@ -8248,6 +8250,7 @@ void bench_srtpkdf(void)
     DECLARE_MULTI_VALUE_STATS_VARS()
 
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         for (i = 0; i < numBlocks; i++) {
             ret = wc_SRTP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
@@ -8261,6 +8264,7 @@ void bench_srtpkdf(void)
        || runs < minimum_runs
 #endif
        );
+    PRIVATE_KEY_LOCK();
     bench_stats_asym_finish("KDF", 128, "SRTP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -8269,6 +8273,7 @@ void bench_srtpkdf(void)
     RESET_MULTI_VALUE_STATS_VARS();
 
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         for (i = 0; i < numBlocks; i++) {
             ret = wc_SRTP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
@@ -8282,6 +8287,7 @@ void bench_srtpkdf(void)
        || runs < minimum_runs
 #endif
        );
+    PRIVATE_KEY_LOCK();
     bench_stats_asym_finish("KDF", 256, "SRTP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -8290,6 +8296,7 @@ void bench_srtpkdf(void)
     RESET_MULTI_VALUE_STATS_VARS();
 
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         for (i = 0; i < numBlocks; i++) {
             ret = wc_SRTCP_KDF(key, AES_128_KEY_SIZE, salt, sizeof(salt),
@@ -8303,6 +8310,7 @@ void bench_srtpkdf(void)
        || runs < minimum_runs
 #endif
        );
+    PRIVATE_KEY_LOCK();
     bench_stats_asym_finish("KDF", 128, "SRTCP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
@@ -8311,6 +8319,7 @@ void bench_srtpkdf(void)
     RESET_MULTI_VALUE_STATS_VARS();
 
     bench_stats_start(&count, &start);
+    PRIVATE_KEY_UNLOCK();
     do {
         for (i = 0; i < numBlocks; i++) {
             ret = wc_SRTCP_KDF(key, AES_256_KEY_SIZE, salt, sizeof(salt),
@@ -8324,6 +8333,7 @@ void bench_srtpkdf(void)
        || runs < minimum_runs
 #endif
        );
+    PRIVATE_KEY_LOCK();
     bench_stats_asym_finish("KDF", 256, "SRTCP", 0, count, start, ret);
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
