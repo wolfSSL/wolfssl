@@ -4969,7 +4969,6 @@ AS_CASE([$FIPS_VERSION],
             -DHAVE_FFDHE_3072 \
             -DHAVE_FFDHE_4096 \
             -DHAVE_FFDHE_6144 \
-            -DWOLFSSL_CHECK_MEM_ZERO \
             -DHAVE_FFDHE_8192"
 
         # KCAPI API does not support custom k for sign, don't force enable ECC key sizes and do not use seed callback
