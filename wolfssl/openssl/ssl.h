@@ -784,7 +784,9 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_pop                         wolfSSL_BIO_pop
 #define BIO_flush                       wolfSSL_BIO_flush
 #define BIO_pending                     wolfSSL_BIO_pending
-
+#define BIO_number_read                 wolfSSL_BIO_number_read
+#define BIO_number_written              wolfSSL_BIO_number_written
+#define BIO_reset                       wolfSSL_BIO_reset
 #define BIO_get_mem_data                wolfSSL_BIO_get_mem_data
 #define BIO_new_mem_buf                 wolfSSL_BIO_new_mem_buf
 
@@ -800,6 +802,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_do_handshake                wolfSSL_BIO_do_handshake
 #define BIO_ssl_shutdown                wolfSSL_BIO_ssl_shutdown
 #define SSL_set_bio                     wolfSSL_set_bio
+#define SSL_set0_rbio                   wolfSSL_set_rbio
+#define SSL_set0_wbio                   wolfSSL_set_wbio
 #define BIO_method_type                 wolfSSL_BIO_method_type
 #define BIO_set_ssl                     wolfSSL_BIO_set_ssl
 #define BIO_get_ssl                     wolfSSL_BIO_get_ssl

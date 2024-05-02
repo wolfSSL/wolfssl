@@ -145,6 +145,7 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
 
         XMEMCPY(buf, bio->mem_buf->data + bio->rdIdx, sz);
         bio->rdIdx += sz;
+        bio->bytes_read += (word32)sz;
 
         if (bio->rdIdx >= bio->wrSz) {
             if (bio->flags & BIO_FLAGS_MEM_RDONLY) {
@@ -580,6 +581,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
     bio->num = (int)bio->mem_buf->max;
     bio->wrSz += len;
     bio->wrIdx += len;
+    bio->bytes_written += (word32)len;
 
     return len;
 }
@@ -1387,6 +1389,7 @@ int wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num)
             sz = num;
         }
         bio->pair->rdIdx += sz;
+        bio->pair->bytes_read += (word32)sz;
 
         /* check if have read to the end of the buffer and need to reset */
         if (bio->pair->rdIdx == bio->pair->wrSz) {
@@ -1465,6 +1468,7 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
         }
         *buf = (char*)bio->ptr + bio->wrIdx;
         bio->wrIdx += sz;
+        bio->bytes_written += (word32)sz;
 
         /* if at the end of the buffer and space for wrap around then set
          * write index back to 0 */
@@ -1476,6 +1480,33 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
     return sz;
 }
 
+#ifdef WORD64_AVAILABLE
+word64
+#else
+word32
+#endif
+wolfSSL_BIO_number_read(WOLFSSL_BIO *bio)
+{
+    if (bio == NULL) {
+        WOLFSSL_MSG("NULL argument passed in");
+        return 0;
+    }
+    return bio->bytes_read;
+}
+
+#ifdef WORD64_AVAILABLE
+word64
+#else
+word32
+#endif
+wolfSSL_BIO_number_written(WOLFSSL_BIO *bio)
+{
+    if (bio == NULL) {
+        WOLFSSL_MSG("NULL argument passed in");
+        return 0;
+    }
+    return bio->bytes_written;
+}
 
 /* Reset BIO to initial state */
 int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)

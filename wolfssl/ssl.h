@@ -561,6 +561,15 @@ struct WOLFSSL_BIO {
     byte         type;          /* method type */
     byte         init:1;        /* bio has been initialized */
     byte         shutdown:1;    /* close flag */
+
+#ifdef WORD64_AVAILABLE
+    word64 bytes_read;
+    word64 bytes_written;
+#else
+    word32 bytes_read;
+    word32 bytes_written;
+#endif
+
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
@@ -1812,6 +1821,8 @@ WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 #endif
 WOLFSSL_API int wolfSSL_BIO_set_close(WOLFSSL_BIO *b, long flag);
 WOLFSSL_API void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
+WOLFSSL_API void wolfSSL_set_rbio(WOLFSSL* ssl, WOLFSSL_BIO* rd);
+WOLFSSL_API void wolfSSL_set_wbio(WOLFSSL* ssl, WOLFSSL_BIO* wr);
 WOLFSSL_API int wolfSSL_BIO_method_type(const WOLFSSL_BIO *b);
 
 #ifndef NO_FILESYSTEM
@@ -1844,6 +1855,13 @@ WOLFSSL_API int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
 WOLFSSL_API int  wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf);
 WOLFSSL_API int  wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num);
 WOLFSSL_API int  wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num);
+#ifdef WORD64_AVAILABLE
+WOLFSSL_API word64 wolfSSL_BIO_number_read(WOLFSSL_BIO *bio);
+WOLFSSL_API word64 wolfSSL_BIO_number_written(WOLFSSL_BIO *bio);
+#else
+WOLFSSL_API word32 wolfSSL_BIO_number_read(WOLFSSL_BIO *bio);
+WOLFSSL_API word32 wolfSSL_BIO_number_written(WOLFSSL_BIO *bio);
+#endif
 WOLFSSL_API int  wolfSSL_BIO_reset(WOLFSSL_BIO *bio);
 
 WOLFSSL_API int  wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs);
