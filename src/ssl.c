@@ -10950,6 +10950,83 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
+    static void wolfSSL_set_bio_1(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr, int flags)
+    {
+        WOLFSSL_ENTER("wolfSSL_set_bio");
+
+        if (ssl == NULL) {
+            WOLFSSL_MSG("Bad argument, ssl was NULL");
+            return;
+        }
+
+        /* free any existing WOLFSSL_BIOs in use but don't free those in
+         * a chain */
+        if ((flags & WOLFSSL_BIO_FLAG_READ) && (ssl->biord != NULL)) {
+            if ((flags & WOLFSSL_BIO_FLAG_WRITE) && (ssl->biord != ssl->biowr)) {
+                if (ssl->biowr != NULL && ssl->biowr->prev != NULL)
+                    wolfSSL_BIO_free(ssl->biowr);
+                ssl->biowr = NULL;
+            }
+            if (ssl->biord->prev != NULL)
+                wolfSSL_BIO_free(ssl->biord);
+            ssl->biord = NULL;
+        }
+        else if ((flags & WOLFSSL_BIO_FLAG_WRITE) && (ssl->biowr != NULL)) {
+            if (ssl->biowr->prev != NULL)
+                wolfSSL_BIO_free(ssl->biowr);
+            ssl->biowr = NULL;
+        }
+
+        /* set flag obviously */
+        if (rd && !(rd->flags & WOLFSSL_BIO_FLAG_READ))
+            rd->flags |= WOLFSSL_BIO_FLAG_READ;
+        if (wr && !(wr->flags & WOLFSSL_BIO_FLAG_WRITE))
+            wr->flags |= WOLFSSL_BIO_FLAG_WRITE;
+
+        if (flags & WOLFSSL_BIO_FLAG_READ)
+            ssl->biord = rd;
+        if (flags & WOLFSSL_BIO_FLAG_WRITE)
+            ssl->biowr = wr;
+
+        /* set SSL to use BIO callbacks instead */
+        if ((flags & WOLFSSL_BIO_FLAG_READ) &&
+            (((ssl->cbioFlag & WOLFSSL_CBIO_RECV) == 0)))
+        {
+            ssl->CBIORecv = BioReceive;
+        }
+        if ((flags & WOLFSSL_BIO_FLAG_WRITE) &&
+            (((ssl->cbioFlag & WOLFSSL_CBIO_SEND) == 0)))
+        {
+            ssl->CBIOSend = BioSend;
+        }
+
+        /* User programs should always retry reading from these BIOs */
+        if (rd) {
+            /* User writes to rd */
+            BIO_set_retry_write(rd);
+        }
+        if (wr) {
+            /* User reads from wr */
+            BIO_set_retry_read(wr);
+        }
+    }
+
+    void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
+    {
+        wolfSSL_set_bio_1(ssl, rd, wr, WOLFSSL_BIO_FLAG_READ | WOLFSSL_BIO_FLAG_WRITE);
+    }
+
+    void wolfSSL_set_rbio(WOLFSSL* ssl, WOLFSSL_BIO* rd)
+    {
+        wolfSSL_set_bio_1(ssl, rd, NULL, WOLFSSL_BIO_FLAG_READ);
+    }
+
+    void wolfSSL_set_wbio(WOLFSSL* ssl, WOLFSSL_BIO* wr)
+    {
+        wolfSSL_set_bio_1(ssl, NULL, wr, WOLFSSL_BIO_FLAG_WRITE);
+    }
+
+#if 0
     void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
     {
         WOLFSSL_ENTER("wolfSSL_set_bio");
@@ -10971,6 +11048,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 wolfSSL_BIO_free(ssl->biord);
             ssl->biord = NULL;
         }
+        else if (ssl->biowr != NULL) {
+            if (ssl->biowr->prev != NULL)
+                wolfSSL_BIO_free(ssl->biowr);
+            ssl->biowr = NULL;
+        }
+
         /* set flag obviously */
         if (rd && !(rd->flags & WOLFSSL_BIO_FLAG_READ))
             rd->flags |= WOLFSSL_BIO_FLAG_READ;
@@ -10998,6 +11081,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             BIO_set_retry_read(wr);
         }
     }
+#endif /* 0 */
+
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA */
 
