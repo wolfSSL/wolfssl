@@ -23790,13 +23790,19 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         if (cert->ca) {
             if (verify == VERIFY || verify == VERIFY_OCSP ||
                                                  verify == VERIFY_SKIP_DATE) {
+                word32 keyOID = cert->ca->keyOID;
+            #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
+                if (cert->selfSigned && (cert->signatureOID == CTC_SM3wSM2)) {
+                    keyOID = SM2k;
+                }
+            #endif
                 /* try to confirm/verify signature */
                 if ((ret = ConfirmSignature(&cert->sigCtx,
                         cert->source + cert->certBegin,
                         cert->sigIndex - cert->certBegin,
                         cert->ca->publicKey, cert->ca->pubKeySize,
-                        cert->ca->keyOID, cert->signature,
-                        cert->sigLength, cert->signatureOID,
+                        keyOID, cert->signature, cert->sigLength,
+                        cert->signatureOID,
                     #ifdef WC_RSA_PSS
                         cert->source + cert->sigParamsIndex,
                         cert->sigParamsLength,

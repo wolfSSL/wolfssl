@@ -5536,7 +5536,7 @@ exit:
 #endif
 
 #ifdef WOLFSSL_SM4_CCM
-void bench_sm4_ccm()
+void bench_sm4_ccm(void)
 {
     wc_Sm4 enc;
     double start;
