@@ -126,7 +126,7 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
             defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7) || \
-            defined(WOLFSSL_STM32U5))
+            defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -141,9 +141,13 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
         #define STM32_HAL_V2
     #endif
     #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
-        defined(WOLFSSL_STM32U5)
+        defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5)
         #if defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32U5)
             #define STM32_CRYPTO_AES_ONLY /* crypto engine only supports AES */
+        #endif
+        #if defined(WOLFSSL_STM32H5)
+            #define __HAL_RCC_CRYP_CLK_DISABLE  __HAL_RCC_AES_CLK_DISABLE
+            #define __HAL_RCC_CRYP_CLK_ENABLE   __HAL_RCC_AES_CLK_ENABLE
         #endif
         #define CRYP AES
         #ifndef CRYP_AES_GCM
