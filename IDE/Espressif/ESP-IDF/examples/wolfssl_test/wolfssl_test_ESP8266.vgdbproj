@@ -7,76 +7,28 @@
     </CustomSourceDirectories>
     <AutoProgramSPIFFSPartition>true</AutoProgramSPIFFSPartition>
     <ProjectModeSettings>
-      <ProjectGUID>63883b8e-8fa2-4e2f-807c-31c07f619c51</ProjectGUID>
+      <ProjectGUID>c9687472-a434-43a7-9026-7914f425b9b4</ProjectGUID>
       <GroupSourcesByTypes>true</GroupSourcesByTypes>
       <GroupSourcesByPaths>true</GroupSourcesByPaths>
       <HeaderScanMode>SourceDirs</HeaderScanMode>
     </ProjectModeSettings>
   </Project>
-  <Build xsi:type="com.visualgdb.build.cmake">
+  <Build xsi:type="com.visualgdb.build.external.esp-idf">
     <BuildLogMode xsi:nil="true" />
     <ToolchainID>
-      <ID>com.visualgdb.xtensa-esp32-elf</ID>
+      <ID>com.visualgdb.xtensa-lx106-elf</ID>
       <Version>
-        <GCC>13.2.0</GCC>
-        <GDB>12.1</GDB>
+        <GCC>8.4.0</GCC>
+        <GDB>8.1</GDB>
         <Revision>1</Revision>
       </Version>
     </ToolchainID>
-    <RelativeSourceDirectory>..</RelativeSourceDirectory>
-    <ConfigurationType>DEBUG</ConfigurationType>
-    <BinaryDirectory>build/$(PlatformName)/$(ConfigurationName)</BinaryDirectory>
-    <MakeCommandTemplate>
-      <SkipWhenRunningCommandList>false</SkipWhenRunningCommandList>
-      <Command>$(ToolchainNinja)</Command>
-      <WorkingDirectory>$(BuildDir)</WorkingDirectory>
-      <BackgroundMode xsi:nil="true" />
-    </MakeCommandTemplate>
-    <CMakeCommand>
-      <SkipWhenRunningCommandList>false</SkipWhenRunningCommandList>
-      <Command>$(SYSPROGS_CMAKE_PATH)</Command>
-      <BackgroundMode xsi:nil="true" />
-    </CMakeCommand>
-    <UpdateSourcesInCMakeFile>true</UpdateSourcesInCMakeFile>
-    <ExportCompileCommands>false</ExportCompileCommands>
-    <DisableToolchainFile>false</DisableToolchainFile>
-    <CMakeMakefileType>Ninja</CMakeMakefileType>
-    <DeployAsRoot>false</DeployAsRoot>
-    <CMakeCleanMode>RemoveBuildDirectory</CMakeCleanMode>
-    <UseCCache>false</UseCCache>
-    <ProjectModeSettings>
-      <ProjectItemSettings>
-        <GroupSourcesByTypes>true</GroupSourcesByTypes>
-        <GroupSourcesByPaths>true</GroupSourcesByPaths>
-        <GroupTargetsByPaths>true</GroupTargetsByPaths>
-        <FollowCMakeSourceGroups>false</FollowCMakeSourceGroups>
-        <AutoRefreshProject>true</AutoRefreshProject>
-        <AlwaysConsiderOutdated>false</AlwaysConsiderOutdated>
-        <SortTargetsByName>true</SortTargetsByName>
-        <RedundantTargetMode>HideOuterProjectTargets</RedundantTargetMode>
-        <SortSourcesByName>true</SortSourcesByName>
-        <BuildAllTargetsInSubdir>false</BuildAllTargetsInSubdir>
-        <FoldSingleItemPathLevels>true</FoldSingleItemPathLevels>
-      </ProjectItemSettings>
-      <TargetSpecificSettings />
-      <SetLDLibraryPathFromDependentArtifacts>true</SetLDLibraryPathFromDependentArtifacts>
-      <ProjectGUID>cd5a90ca-2d40-461a-a0c3-27654371bb00</ProjectGUID>
-      <VirtualFolders />
-      <ConfigurationNameCase>Upper</ConfigurationNameCase>
-      <DefaultHeaderDiscoveryMode>HeaderDirectoryAndSubdirectories</DefaultHeaderDiscoveryMode>
-      <EnableFastUpToDateCheck>true</EnableFastUpToDateCheck>
-      <ESPIDFExtension>
-        <IDFCheckout>
-          <Version>release/v5.2</Version>
-          <Subdirectory>esp-idf/v5.2</Subdirectory>
-          <Type>ESPIDF</Type>
-        </IDFCheckout>
-        <COMPort>COM19</COMPort>
-        <SuppressTestPrerequisiteChecks>false</SuppressTestPrerequisiteChecks>
-        <UseCCache>false</UseCCache>
-        <DeviceID>ESP32</DeviceID>
-      </ESPIDFExtension>
-    </ProjectModeSettings>
+    <IDFCheckout>
+      <Version>release/v3.4</Version>
+      <Subdirectory>rtos-sdk/v3.4</Subdirectory>
+      <Type>RTOS_SDK</Type>
+    </IDFCheckout>
+    <BuildThreadCount>0</BuildThreadCount>
   </Build>
   <CustomBuild>
     <PreSyncActions />
@@ -90,12 +42,20 @@
     <PostDebugActions />
     <DebugStopActions />
     <BreakMode>Default</BreakMode>
+    <CustomBreakCommand>
+      <SkipWhenRunningCommandList>false</SkipWhenRunningCommandList>
+      <RemoteHost>
+        <HostName>BuildMachine</HostName>
+        <Transport>BuiltinShortcut</Transport>
+      </RemoteHost>
+      <BackgroundMode xsi:nil="true" />
+    </CustomBreakCommand>
   </CustomDebug>
   <DeviceTerminalSettings>
     <Connection xsi:type="com.sysprogs.terminal.connection.serial">
-      <ComPortName>COM19</ComPortName>
+      <ComPortName>COM80</ComPortName>
       <AdvancedSettings>
-        <BaudRate>115200</BaudRate>
+        <BaudRate>74880</BaudRate>
         <DataBits>8</DataBits>
         <Parity>None</Parity>
         <StopBits>One</StopBits>
@@ -150,7 +110,7 @@
     <LineEnding>LF</LineEnding>
     <TreatLFAsCRLF>false</TreatLFAsCRLF>
     <KeepOpenAfterExit>false</KeepOpenAfterExit>
-    <ShowAfterProgramming>false</ShowAfterProgramming>
+    <ShowAfterProgramming>true</ShowAfterProgramming>
   </DeviceTerminalSettings>
   <CustomShortcuts>
     <Shortcuts />
@@ -159,30 +119,92 @@
   <UserDefinedVariables />
   <ImportedPropertySheets />
   <CodeSense>
-    <Enabled>Unknown</Enabled>
+    <Enabled>True</Enabled>
     <ExtraSettings>
       <HideErrorsInSystemHeaders>true</HideErrorsInSystemHeaders>
       <SupportLightweightReferenceAnalysis>true</SupportLightweightReferenceAnalysis>
+      <DiscoverySettings>
+        <Mode>Enabled</Mode>
+        <SearchInProjectDir>true</SearchInProjectDir>
+        <SearchInSourceDirs>true</SearchInSourceDirs>
+        <SearchInIncludeSubdirs>true</SearchInIncludeSubdirs>
+      </DiscoverySettings>
       <CheckForClangFormatFiles>true</CheckForClangFormatFiles>
       <FormattingEngine xsi:nil="true" />
     </ExtraSettings>
     <CodeAnalyzerSettings>
       <Enabled>false</Enabled>
+      <SelectedAnalyzers>
+        <string>apiModeling.google.GTest</string>
+        <string>core.builtin.BuiltinFunctions</string>
+        <string>core.builtin.NoReturnFunctions</string>
+        <string>core.CallAndMessage</string>
+        <string>core.DivideZero</string>
+        <string>core.DynamicTypePropagation</string>
+        <string>core.NonnilStringConstants</string>
+        <string>core.NonNullParamChecker</string>
+        <string>core.NullDereference</string>
+        <string>core.StackAddressEscape</string>
+        <string>core.UndefinedBinaryOperatorResult</string>
+        <string>core.uninitialized.ArraySubscript</string>
+        <string>core.uninitialized.Assign</string>
+        <string>core.uninitialized.Branch</string>
+        <string>core.uninitialized.CapturedBlockVariable</string>
+        <string>core.uninitialized.UndefReturn</string>
+        <string>core.VLASize</string>
+        <string>cplusplus.NewDelete</string>
+        <string>cplusplus.NewDeleteLeaks</string>
+        <string>cplusplus.SelfAssignment</string>
+        <string>deadcode.DeadStores</string>
+        <string>nullability.NullPassedToNonnull</string>
+        <string>nullability.NullReturnedFromNonnull</string>
+        <string>security.insecureAPI.getpw</string>
+        <string>security.insecureAPI.gets</string>
+        <string>security.insecureAPI.mkstemp</string>
+        <string>security.insecureAPI.mktemp</string>
+        <string>security.insecureAPI.UncheckedReturn</string>
+        <string>security.insecureAPI.vfork</string>
+        <string>unix.API</string>
+        <string>unix.cstring.BadSizeArg</string>
+        <string>unix.cstring.NullArg</string>
+        <string>unix.Malloc</string>
+        <string>unix.MallocSizeof</string>
+        <string>unix.MismatchedDeallocator</string>
+        <string>unix.StdCLibraryFunctions</string>
+        <string>unix.Vfork</string>
+      </SelectedAnalyzers>
+      <ExtraArguments>
+        <string>-analyzer-store=region</string>
+        <string>-analyzer-opt-analyze-nested-blocks</string>
+        <string>-analyzer-eagerly-assume</string>
+      </ExtraArguments>
     </CodeAnalyzerSettings>
   </CodeSense>
   <Configurations>
     <VisualGDBConfiguration>
       <Name>Debug</Name>
-      <BuildSettingsExtension xsi:type="com.visualgdb.build.external.esp-idf.cmake.extension" />
+      <BuildSettingsExtension xsi:type="com.visualgdb.build.external.esp-idf.extension">
+        <OutputSubdirectory>build/Debug</OutputSubdirectory>
+        <SDKConfigFile>sdkconfig-debug</SDKConfigFile>
+        <EnableVerboseBuild>false</EnableVerboseBuild>
+      </BuildSettingsExtension>
     </VisualGDBConfiguration>
     <VisualGDBConfiguration>
       <Name>Release</Name>
-      <BuildSettingsExtension xsi:type="com.visualgdb.build.external.esp-idf.cmake.extension" />
+      <BuildSettingsExtension xsi:type="com.visualgdb.build.external.esp-idf.extension">
+        <OutputSubdirectory>build/Release</OutputSubdirectory>
+        <SDKConfigFile>sdkconfig-release</SDKConfigFile>
+        <EnableVerboseBuild>false</EnableVerboseBuild>
+      </BuildSettingsExtension>
     </VisualGDBConfiguration>
   </Configurations>
   <ProgramArgumentsSuggestions />
   <Debug xsi:type="com.visualgdb.debug.embedded">
-    <AdditionalStartupCommands />
+    <AdditionalStartupCommands>
+      <GDBPreStartupCommands />
+      <GDBStartupCommands />
+      <GDBFinalizationCommands />
+    </AdditionalStartupCommands>
     <AdditionalGDBSettings>
       <Features>
         <DisableAutoDetection>false</DisableAutoDetection>
@@ -206,7 +228,7 @@
       <ExitAction>None</ExitAction>
       <DisableDisassembly>false</DisableDisassembly>
       <ExamineMemoryWithXCommand>false</ExamineMemoryWithXCommand>
-      <StepIntoNewInstanceEntry>app_main</StepIntoNewInstanceEntry>
+      <StepIntoNewInstanceEntry />
       <ExamineRegistersInRawFormat>true</ExamineRegistersInRawFormat>
       <DisableSignals>false</DisableSignals>
       <EnableAsyncExecutionMode>false</EnableAsyncExecutionMode>
@@ -219,8 +241,8 @@
     </AdditionalGDBSettings>
     <DebugMethod>
       <ID>openocd</ID>
-      <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp32">
-        <CommandLine>-f interface/ftdi/tigard.cfg -c "adapter_khz 15000" -f interface/ftdi/tigard.cfg -f target/esp32.cfg</CommandLine>
+      <Configuration xsi:type="com.visualgdb.edp.openocd.settings.esp8266">
+        <CommandLine>-f interface/ftdi/tigard.cfg -f target/esp8266.cfg</CommandLine>
         <ExtraParameters>
           <Frequency xsi:nil="true" />
           <BoostedFrequency xsi:nil="true" />
@@ -231,24 +253,25 @@
         <StartupCommands>
           <string>set remotetimeout 60</string>
           <string>target remote :$$SYS:GDB_PORT$$</string>
-          <string>mon gdb_breakpoint_override hard</string>
           <string>mon reset halt</string>
           <string>load</string>
+          <string>mon xtensa_no_interrupts_during_steps on</string>
+          <string>mon esp8266_autofeed_watchdog on</string>
         </StartupCommands>
         <ProgramFLASHUsingExternalTool>false</ProgramFLASHUsingExternalTool>
         <PreferredGDBPort>0</PreferredGDBPort>
         <PreferredTelnetPort>0</PreferredTelnetPort>
         <AlwaysPassSerialNumber>false</AlwaysPassSerialNumber>
         <SelectedCoreIndex xsi:nil="true" />
-        <LiveMemoryTimeout>5000</LiveMemoryTimeout>
-        <SuggestionLogicRevision>1</SuggestionLogicRevision>
-        <CheckFLASHSize>true</CheckFLASHSize>
+        <SuggestionLogicRevision>0</SuggestionLogicRevision>
+        <ResetMode>Soft</ResetMode>
+        <ProgramSectorSize>4096</ProgramSectorSize>
+        <EraseSectorSize>4096</EraseSectorSize>
         <FLASHSettings>
-          <Size>size2MB</Size>
+          <Size>size4M</Size>
           <Frequency>freq40M</Frequency>
-          <Mode>DIO</Mode>
+          <Mode>QIO</Mode>
         </FLASHSettings>
-        <PatchBootloader>true</PatchBootloader>
       </Configuration>
     </DebugMethod>
     <AutoDetectRTOS>true</AutoDetectRTOS>

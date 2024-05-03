@@ -1,6 +1,6 @@
 /* settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -508,6 +508,9 @@
 
         /* WC_RSA_BLINDING takes up extra space! */
         #define WC_RSA_BLINDING
+
+        /* Cache Resistant features are  on by default, but has performance
+         * penalty on embedded systems. May not be needed here. Disabled: */
         #define WC_NO_CACHE_RESISTANT
     #endif /* !WOLFSSL_ESPIDF_NO_DEFAULT */
 
@@ -1062,17 +1065,34 @@ extern void uITRON4_free(void *p) ;
 
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
         !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_TRACK_MEMORY)
-        #define XMALLOC(s, h, type)  ((void)(h), (void)(type), pvPortMalloc((s)))
+
+        /* XMALLOC */
+        #if defined(WOLFSSL_ESPIDF) && \
+           (defined(DEBUG_WOLFSSL) || defined(DEBUG_WOLFSSL_MALLOC))
+            #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
+            #define XMALLOC(s, h, type)  \
+                           ((void)(h), (void)(type), wc_debug_pvPortMalloc( \
+                           (s), (__FILE__), (__LINE__), (__FUNCTION__) ))
+        #else
+            #define XMALLOC(s, h, type)  \
+                           ((void)(h), (void)(type), pvPortMalloc((s)))
+        #endif
+
+        /* XFREE */
         #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p)))
+
+        /* XREALLOC */
         #if defined(WOLFSSL_ESPIDF)
-                /* In IDF, realloc(p, n) is equivalent to
-                 * heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
-                 *  there's no pvPortRealloc available  */
-                #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n)))
-        /* FreeRTOS pvPortRealloc() implementation can be found here:
-         * https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
+            /* In the Espressif EDP-IDF, realloc(p, n) is equivalent to
+             *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
+             * There's no pvPortRealloc available:  */
+            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n)))
         #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA)
-                #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), pvPortRealloc((p), (n)))
+            /* FreeRTOS pvPortRealloc() implementation can be found here:
+             * https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
+            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), pvPortRealloc((p), (n)))
+        #else
+            /* no XREALLOC available */
         #endif
     #endif
 

@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,12 +19,22 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* This user_settings.h is for Espressif ESP-IDF */
-#include <sdkconfig.h>
+/* This user_settings.h is for Espressif ESP-IDF
+ *
+ * Standardized wolfSSL Espressif ESP32 + ESP8266 user_settings.h V5.7.0-1
+ *
+ * Do not include any wolfssl headers here
+ *
+ * When editing this file:
+ * ensure wolfssl_test and wolfssl_benchmark settings match.
+ */
+
+/* The Espressif project config file. See also sdkconfig.defaults */
+#include "sdkconfig.h"
 
 /* The Espressif sdkconfig will have chipset info.
 **
-** Possible values:
+** Some possible values:
 **
 **   CONFIG_IDF_TARGET_ESP32
 **   CONFIG_IDF_TARGET_ESP32S2
@@ -36,18 +46,54 @@
 #undef  WOLFSSL_ESPIDF
 #define WOLFSSL_ESPIDF
 
+/* We don't use WiFi, so don't compile in the esp-sdk-lib WiFi helpers: */
+#define NO_ESP_SDK_WIFI
+
+/* Experimental Kyber */
+#if 0
+    /* Kyber typically needs a minimum 10K stack */
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
+    #define WOLFSSL_HAVE_KYBER
+    #define WOLFSSL_WC_KYBER
+    #define WOLFSSL_SHA3
+#endif
+
 /*
- * choose ONE of these Espressif chips to define:
+ * ONE of these Espressif chip families will be detected from sdkconfig:
  *
  * WOLFSSL_ESP32
- * WOLFSSL_ESPWROOM32SE
  * WOLFSSL_ESP8266
  */
 #undef WOLFSSL_ESPWROOM32SE
 #undef WOLFSSL_ESP8266
 #undef WOLFSSL_ESP32
+/* See below for chipset detection from sdkconfig.h */
 
-#define WOLFSSL_ESP32
+/* when you want to use SINGLE THREAD. Note Default ESP-IDF is FreeRTOS */
+/* #define SINGLE_THREADED */
+
+/* SMALL_SESSION_CACHE saves a lot of RAM for ClientCache and SessionCache.
+ * Memory requirement is about 5KB, otherwise 20K is needed when not specified.
+ * If extra small footprint is needed, try MICRO_SESSION_CACHE (< 1K)
+ * When really desperate or no TLS used, try NO_SESSION_CACHE.  */
+#define NO_SESSION_CACHE
+
+/* Small Stack uses more heap. */
+#define WOLFSSL_SMALL_STACK
+
+/* Full debugging turned off, but show malloc failure detail */
+/* #define DEBUG_WOLFSSL */
+#define DEBUG_WOLFSSL_MALLOC
+
+/* See test.c that sets cert buffers; we'll set them here: */
+#define USE_CERT_BUFFERS_256
+#define USE_CERT_BUFFERS_2048
+
+/* RSA_LOW_MEM: Half as much memory but twice as slow. */
+#define RSA_LOW_MEM
+
+
+
 
 /* optionally turn off SHA512/224 SHA512/256 */
 /* #define WOLFSSL_NOSHA512_224 */
@@ -61,7 +107,6 @@
 /* #define NO_OLD_TLS */
 
 #define BENCH_EMBEDDED
-#define USE_CERT_BUFFERS_2048
 
 /* TLS 1.3                                 */
 #define WOLFSSL_TLS13
@@ -79,7 +124,9 @@
 
 #define HAVE_AESGCM
 
-#define WOLFSSL_RIPEMD
+/* Optional RIPEMD: RACE Integrity Primitives Evaluation Message Digest */
+/* #define WOLFSSL_RIPEMD */
+
 /* when you want to use SHA224 */
 #define WOLFSSL_SHA224
 
@@ -92,22 +139,31 @@
 /* when you want to use SHA3 */
 #define WOLFSSL_SHA3
 
-/* Reminder: ED25519 requires SHA512 */
+ /* ED25519 requires SHA512 */
 #define HAVE_ED25519
 
-#define HAVE_ECC
-#define HAVE_CURVE25519
-#define CURVE25519_SMALL
+/* Some features not enabled for ESP8266: */
+#if defined(CONFIG_IDF_TARGET_ESP8266) || \
+    defined(CONFIG_IDF_TARGET_ESP32C2)
+    /* TODO determine low memory configuration for ECC. */
+#else
+    #define HAVE_ECC
+    #define HAVE_CURVE25519
+    #define CURVE25519_SMALL
+#endif
+
 #define HAVE_ED25519
 
 /* Optional OPENSSL compatibility */
 #define OPENSSL_EXTRA
-/* when you want to use pkcs7 */
+
+/* #Optional HAVE_PKCS7 */
 /* #define HAVE_PKCS7 */
 
-#define HAVE_PKCS7
-
 #if defined(HAVE_PKCS7)
+    /* HAVE_PKCS7 may enable HAVE_PBKDF2 see settings.h */
+    #define NO_PBKDF2
+
     #define HAVE_AES_KEYWRAP
     #define HAVE_X963_KDF
     #define WOLFSSL_AES_DIRECT
@@ -127,27 +183,11 @@
     /* #define CUSTOM_SLOT_ALLOCATION                              */
 #endif
 
-/* RSA primitive specific definition */
-#if defined(WOLFSSL_ESP32) || defined(WOLFSSL_ESPWROOM32SE)
-    /* Define USE_FAST_MATH and SMALL_STACK                        */
-    #define ESP32_USE_RSA_PRIMITIVE
+/* WC_NO_CACHE_RESISTANT: slower but more secure */
+/* #define WC_NO_CACHE_RESISTANT */
 
-    #if defined(CONFIG_IDF_TARGET_ESP32)
-
-        /* NOTE HW unreliable for small values! */
-        /* threshold for performance adjustment for HW primitive use   */
-        /* X bits of G^X mod P greater than                            */
-        #undef  ESP_RSA_EXPT_XBITS
-        #define ESP_RSA_EXPT_XBITS 32
-
-        /* X and Y of X * Y mod P greater than                         */
-        #undef  ESP_RSA_MULM_BITS
-        #define ESP_RSA_MULM_BITS  16
-
-    #endif
-#endif
-
-#define RSA_LOW_MEM
+/* TFM_TIMING_RESISTANT: slower but more secure */
+/* #define TFM_TIMING_RESISTANT */
 
 /* #define WOLFSSL_ATECC508A_DEBUG         */
 
@@ -159,9 +199,10 @@
 
 
 /* adjust wait-timeout count if you see timeout in RSA HW acceleration */
-#define ESP_RSA_TIMEOUT_CNT    0x249F00
+#define ESP_RSA_TIMEOUT_CNT    0x349F00
 
-#define HASH_SIZE_LIMIT /* for test.c */
+/* hash limit for test.c */
+#define HASH_SIZE_LIMIT
 
 /* USE_FAST_MATH is default */
 #define USE_FAST_MATH
@@ -170,6 +211,7 @@
 /* #undef USE_FAST_MATH          */
 /* #define SP_MATH               */
 /* #define WOLFSSL_SP_MATH_ALL   */
+/* #define WOLFSSL_SP_RISCV32    */
 
 /***** Use Integer Heap Math *****/
 /* #undef USE_FAST_MATH          */
@@ -205,7 +247,7 @@
 #undef  WOLFSSL_SYS_CA_CERTS
 */
 
-/*
+/* command-line options
 --enable-keygen
 --enable-certgen
 --enable-certreq
@@ -213,10 +255,14 @@
 --enable-asn-template
 */
 
-/* Default is HW enabled unless turned off.
-** Uncomment these lines to force SW instead of HW acceleration */
-
+/* Chipset detection from sdkconfig.h
+ * Default is HW enabled unless turned off.
+ * Uncomment lines to force SW instead of HW acceleration */
 #if defined(CONFIG_IDF_TARGET_ESP32)
+    #define WOLFSSL_ESP32
+    /*  Alternatively, if there's an ECC Secure Element present: */
+    /* #define WOLFSSL_ESPWROOM32SE */
+
     /* wolfSSL HW Acceleration supported on ESP32. Uncomment to disable: */
     /*  #define NO_ESP32_CRYPT                 */
     /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
@@ -234,6 +280,7 @@
     /***** END CONFIG_IDF_TARGET_ESP32 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+    #define WOLFSSL_ESP32
     /* wolfSSL HW Acceleration supported on ESP32-S2. Uncomment to disable: */
     /*  #define NO_ESP32_CRYPT                 */
     /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH    */
@@ -246,6 +293,7 @@
     /***** END CONFIG_IDF_TARGET_ESP32S2 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    #define WOLFSSL_ESP32
     /* wolfSSL HW Acceleration supported on ESP32-S3. Uncomment to disable: */
     /*  #define NO_ESP32_CRYPT                         */
     /*  #define NO_WOLFSSL_ESP32_CRYPT_HASH            */
@@ -259,6 +307,7 @@
 
 #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
       defined(CONFIG_IDF_TARGET_ESP8684)
+    #define WOLFSSL_ESP32
     /* ESP8684 is essentially ESP32-C2 chip + flash embedded together in a
      * single QFN 4x4 mm package. Out of released documentation, Technical
      * Reference Manual as well as ESP-IDF Programming Guide is applicable
@@ -284,6 +333,7 @@
     /***** END CONFIG_IDF_TARGET_ESP32C2 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+    #define WOLFSSL_ESP32
     /* wolfSSL HW Acceleration supported on ESP32-C3. Uncomment to disable: */
 
     /*  #define NO_ESP32_CRYPT                 */
@@ -301,6 +351,7 @@
     /***** END CONFIG_IDF_TARGET_ESP32C3 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
+    #define WOLFSSL_ESP32
     /* wolfSSL HW Acceleration supported on ESP32-C6. Uncomment to disable: */
 
     /*  #define NO_ESP32_CRYPT                 */
@@ -317,6 +368,7 @@
     /***** END CONFIG_IDF_TARGET_ESP32C6 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+    #define WOLFSSL_ESP32
     /*  wolfSSL Hardware Acceleration not yet implemented */
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
@@ -325,21 +377,63 @@
     /***** END CONFIG_IDF_TARGET_ESP32H2 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP8266)
-    /*  TODO: Revisit ESP8266 */
+    #define WOLFSSL_ESP8266
+
+    /* There's no hardware encryption on the ESP8266 */
+    /* Consider using the ESP32-C2/C3/C6
+     * See https://www.espressif.com/en/products/socs/esp32-c2 */
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
     /***** END CONFIG_IDF_TARGET_ESP266 *****/
+
+#elif defined(CONFIG_IDF_TARGET_ESP8684)
+    /*  There's no Hardware Acceleration available on ESP8684 */
+    #define NO_ESP32_CRYPT
+    #define NO_WOLFSSL_ESP32_CRYPT_HASH
+    #define NO_WOLFSSL_ESP32_CRYPT_AES
+    #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    /***** END CONFIG_IDF_TARGET_ESP8684 *****/
+
 #else
     /* Anything else encountered, disable HW accleration */
+    #warning "Unexpected CONFIG_IDF_TARGET_NN value"
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
 #endif /* CONFIG_IDF_TARGET Check */
 
+/* RSA primitive specific definition, listed AFTER the Chipset detection */
+#if defined(WOLFSSL_ESP32) || defined(WOLFSSL_ESPWROOM32SE)
+    /* Consider USE_FAST_MATH and SMALL_STACK                        */
+
+    #ifndef NO_RSA
+        #define ESP32_USE_RSA_PRIMITIVE
+
+        #if defined(CONFIG_IDF_TARGET_ESP32)
+            #ifdef CONFIG_ESP_MAIN_TASK_STACK_SIZE
+                #if CONFIG_ESP_MAIN_TASK_STACK_SIZE < 10500
+                    #warning "RSA may be difficult with less than 10KB Stack "/
+                #endif
+            #endif
+
+            /* NOTE HW unreliable for small values! */
+            /* threshold for performance adjustment for HW primitive use   */
+            /* X bits of G^X mod P greater than                            */
+            #undef  ESP_RSA_EXPT_XBITS
+            #define ESP_RSA_EXPT_XBITS 32
+
+            /* X and Y of X * Y mod P greater than                         */
+            #undef  ESP_RSA_MULM_BITS
+            #define ESP_RSA_MULM_BITS  16
+        #endif
+    #endif
+#endif
+
 /* Debug options:
+See wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h for details on debug options
 
 #define ESP_VERIFY_MEMBLOCK
 #define DEBUG_WOLFSSL
@@ -353,14 +447,26 @@
 #define WOLFSSL_ESP32_HW_LOCK_DEBUG
 #define WOLFSSL_DEBUG_ESP_RSA_MULM_BITS
 #define ESP_DISABLE_HW_TASK_LOCK
+
+See wolfcrypt/benchmark/benchmark.c for debug and other settings:
+
+Turn on benchmark timing debugging (CPU Cycles, RTOS ticks, etc)
+#define DEBUG_WOLFSSL_BENCHMARK_TIMING
+
+Turn on timer debugging (used when CPU cycles not available)
+#define WOLFSSL_BENCHMARK_TIMER_DEBUG
 */
 
-#define WOLFSSL_ESPIDF_ERROR_PAUSE /* Pause in a loop rather than exit. */
+/* Pause in a loop rather than exit. */
+#define WOLFSSL_ESPIDF_ERROR_PAUSE
+
 #define WOLFSSL_HW_METRICS
 
-/* #define HASH_SIZE_LIMIT */ /* for test.c */
+/* for test.c */
+/* #define HASH_SIZE_LIMIT */
 
-/* #define NO_HW_MATH_TEST */ /* Optionall turn off HW math checks */
+/* Optionally turn off HW math checks */
+/* #define NO_HW_MATH_TEST */
 
 /* Optionally include alternate HW test library: alt_hw_test.h */
 /* When enabling, the ./components/wolfssl/CMakeLists.txt file
@@ -383,8 +489,8 @@
 /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD                */
 
 
-#define WOLFSSL_PUBLIC_MP /* used by benchmark */
-#define USE_CERT_BUFFERS_2048
+/* used by benchmark: */
+#define WOLFSSL_PUBLIC_MP
 
 /* when turning on ECC508 / ECC608 support
 #define WOLFSSL_ESPWROOM32SE
@@ -393,12 +499,75 @@
 #define ATCA_WOLFSSL
 */
 
-/* optional SM4 Ciphers. See https://github.com/wolfSSL/wolfsm
+/***************************** Certificate Macros *****************************
+ *
+ * The section below defines macros used in typically all of the wolfSSL
+ * examples such as the client and server for certs stored in header files.
+ *
+ * There are various certificate examples in this header file:
+ * https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/certs_test.h
+ *
+ * To use the sets of macros below, define *one* of these:
+ *
+ *    USE_CERT_BUFFERS_1024  - ECC 1024 bit encoded ASN1
+ *    USE_CERT_BUFFERS_2048  - RSA 2048 bit encoded ASN1
+ *    WOLFSSL_SM[2,3,4]      - SM Ciphers
+ *
+ * For example: define USE_CERT_BUFFERS_2048 to use CA Certs used in this
+ *  wolfSSL function for the `ca_cert_der_2048` buffer, size and types:
+ *
+ *     ret = wolfSSL_CTX_load_verify_buffer(ctx,
+ *                                          CTX_CA_CERT,
+ *                                          CTX_CA_CERT_SIZE,
+ *                                          CTX_CA_CERT_TYPE);
+ *
+ * See https://www.wolfssl.com/documentation/manuals/wolfssl/group__CertsKeys.html#function-wolfssl_ctx_load_verify_buffer
+ *
+ * In this case the CTX_CA_CERT will be defined as `ca_cert_der_2048` as
+ * defined here: https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/certs_test.h
+ *
+ * The CTX_CA_CERT_SIZE and CTX_CA_CERT_TYPE are similarly used to reference
+ * array size and cert type respectively.
+ *
+ * Similarly for loading the private client key:
+ *
+ *  ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx,
+ *                                          CTX_CLIENT_KEY,
+ *                                          CTX_CLIENT_KEY_SIZE,
+ *                                          CTX_CLIENT_KEY_TYPE);
+ *
+ * see https://www.wolfssl.com/documentation/manuals/wolfssl/group__CertsKeys.html#function-wolfssl_ctx_use_privatekey_buffer
+ *
+ * Similarly, the other macros are for server certificates and keys:
+ *   `CTX_SERVER_CERT` and `CTX_SERVER_KEY` are available.
+ *
+ * The certificate and key names are typically `static const unsigned char`
+ * arrays. The [NAME]_size are typically `sizeof([array name])`, and the types
+ * are the known wolfSSL encoding type integers (e.g. WOLFSSL_FILETYPE_PEM).
+ *
+ * See `SSL_FILETYPE_[name]` in
+ *   https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/ssl.h
+ *
+ * See Abstract Syntax Notation One (ASN.1) in:
+ *   https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/wolfcrypt/asn.h
+ *
+ * Optional SM4 Ciphers:
+ *
+ * Although the SM ciphers are shown here, the `certs_test_sm.h` may not yet
+ * be available. See:
+ *   https://github.com/wolfSSL/wolfssl/pull/6825
+ *   https://github.com/wolfSSL/wolfsm
+ *
+ * Uncomment these 3 macros to enable the SM Ciphers and use the macros below.
+ */
+
+/*
 #define WOLFSSL_SM2
 #define WOLFSSL_SM3
 #define WOLFSSL_SM4
 */
 
+/* Conditional macros used in wolfSSL TLS client and server examples */
 #if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)
     #include <wolfssl/certs_test_sm.h>
     #define CTX_CA_CERT          root_sm2
@@ -414,15 +583,49 @@
     #undef  WOLFSSL_BASE16
     #define WOLFSSL_BASE16
 #else
-    #define USE_CERT_BUFFERS_2048
-    #define USE_CERT_BUFFERS_256
-    #define CTX_CA_CERT          ca_cert_der_2048
-    #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
-    #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
-    #define CTX_SERVER_CERT      server_cert_der_2048
-    #define CTX_SERVER_CERT_SIZE sizeof_server_cert_der_2048
-    #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_ASN1
-    #define CTX_SERVER_KEY       server_key_der_2048
-    #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_2048
-    #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
-#endif
+    #if defined(USE_CERT_BUFFERS_2048)
+    	/* Be sure to include in app when using example certs: */
+        /* #include <wolfssl/certs_test.h>                     */
+        #define CTX_CA_CERT          ca_cert_der_2048
+        #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
+        #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_SERVER_CERT      server_cert_der_2048
+        #define CTX_SERVER_CERT_SIZE sizeof_server_cert_der_2048
+        #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_SERVER_KEY       server_key_der_2048
+        #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_2048
+        #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_CLIENT_CERT      client_cert_der_2048
+        #define CTX_CLIENT_CERT_SIZE sizeof_client_cert_der_2048
+        #define CTX_CLIENT_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_CLIENT_KEY       client_key_der_2048
+        #define CTX_CLIENT_KEY_SIZE  sizeof_client_key_der_2048
+        #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
+
+    #elif defined(USE_CERT_BUFFERS_1024)
+    	/* Be sure to include in app when using example certs: */
+        /* #include <wolfssl/certs_test.h>                     */
+        #define CTX_CA_CERT          ca_cert_der_1024
+        #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_1024
+        #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_CLIENT_CERT      client_cert_der_1024
+        #define CTX_CLIENT_CERT_SIZE sizeof_client_cert_der_1024
+        #define CTX_CLIENT_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_CLIENT_KEY       client_key_der_1024
+        #define CTX_CLIENT_KEY_SIZE  sizeof_client_key_der_1024
+        #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
+
+        #define CTX_SERVER_CERT      server_cert_der_1024
+        #define CTX_SERVER_CERT_SIZE sizeof_server_cert_der_1024
+        #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_ASN1
+        #define CTX_SERVER_KEY       server_key_der_1024
+        #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_1024
+        #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
+    #else
+        /* Optionally define custom cert arrays, sizes, and types here */
+        #error "Must define USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_1024"
+    #endif
+#endif /* Conditional key and cert constant names */

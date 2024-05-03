@@ -1,6 +1,6 @@
 /* esp32-crypt.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -51,12 +51,26 @@
     #define WOLFSSL_ESPIDF_BLANKLINE_MESSAGE "."
 #endif
 
+#if defined(CONFIG_IDF_TARGET)
+    #define FOUND_CONFIG_IDF_TARGET CONFIG_IDF_TARGET
+#else
+    #define FOUND_CONFIG_IDF_TARGET "(unknown device)"
+#endif
+
 /* Optional exit message.
  * The WOLFSSL_COMPLETE keyword exits wolfSSL test harness script. */
 #define WOLFSSL_ESPIDF_EXIT_MESSAGE \
     "\n\nDone!"                 \
     "\n\nWOLFSSL_COMPLETE"      \
     "\n\nIf running from idf.py monitor, press twice: Ctrl+]"
+
+#define WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE(s, err) \
+    "\n\nDevice: " FOUND_CONFIG_IDF_TARGET  \
+    "\n\nExit code: %d "        \
+    "\n\n"s                     \
+    "\n\nWOLFSSL_COMPLETE"      \
+    "\n\nIf running from idf.py monitor, press twice: Ctrl+]", \
+    (err)
 
 /* exit codes to be used in tfm.c, sp_int.c, integer.c, etc.
  *
@@ -494,6 +508,10 @@ extern "C"
 */
 
     WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo(void);
+
+    WOLFSSL_LOCAL esp_err_t esp_DisableWatchdog(void);
+
+    WOLFSSL_LOCAL esp_err_t esp_EnableWatchdog(void);
 
     /* Compare MATH_INT_T A to MATH_INT_T B
      * During debug, the strings name_A and name_B can help

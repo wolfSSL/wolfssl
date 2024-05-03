@@ -53,7 +53,7 @@
   </CustomDebug>
   <DeviceTerminalSettings>
     <Connection xsi:type="com.sysprogs.terminal.connection.serial">
-      <ComPortName>COM70</ComPortName>
+      <ComPortName>COM80</ComPortName>
       <AdvancedSettings>
         <BaudRate>74880</BaudRate>
         <DataBits>8</DataBits>

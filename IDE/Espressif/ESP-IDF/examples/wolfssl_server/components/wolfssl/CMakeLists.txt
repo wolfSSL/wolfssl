@@ -1,5 +1,5 @@
 #
-#  Copyright (C) 2006-2023 wolfSSL Inc.
+#  Copyright (C) 2006-2024 wolfSSL Inc.
 #
 #  This file is part of wolfSSL.
 #
@@ -45,6 +45,11 @@ else()
 endif()
 message(STATUS "THIS_USER = ${THIS_USER}")
 
+if( "$ENV{IDF_PATH}" STREQUAL "" )
+    message(FATAL_ERROR "IDF_PATH Environment variable not set!")
+else()
+    string(REPLACE "\\" "/" THIS_IDF_PATH "$ENV{IDF_PATH}")
+endif()
 
 # COMPONENT_NAME = wolfssl
 # The component name is the directory name. "No feature to change this".
@@ -158,8 +163,8 @@ if(CMAKE_BUILD_EARLY_EXPANSION)
     idf_component_register(
                             REQUIRES "${COMPONENT_REQUIRES}"
                             PRIV_REQUIRES # esp_hw_support
-                                          esp_timer
-                                          driver # this will typically only be needed for wolfSSL benchmark
+                                          # esp_timer
+                                          # driver # this will typically only be needed for wolfSSL benchmark
                            )
 
 else()
@@ -363,6 +368,10 @@ else()
         "\"${WOLFSSL_ROOT}/wolfssl/\""
         "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/\""
         "\"${RTOS_IDF_PATH}/\""
+        # wolfSSL release after v5.7 includes WiFi, time, and mem/debug helpers
+        ${THIS_IDF_PATH}/components/esp_event/include
+        ${THIS_IDF_PATH}/components/esp_netif/include
+        ${THIS_IDF_PATH}/components/esp_wifi/include
         )
 
 
@@ -390,6 +399,8 @@ else()
         "\"${WOLFSSL_ROOT}/src/ssl_sess.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/x509.c\""
         "\"${WOLFSSL_ROOT}/src/x509_str.c\""
+        "\"${WOLFSSL_ROOT}/wolfcrypt/src/ext_kyber.c\""     # external Kyber disabled by default
+        "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/ext_kyber.h\"" # external Kyber disabled by default
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/evp.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/misc.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/sp_sm2_arm32.c\""

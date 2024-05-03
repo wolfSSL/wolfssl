@@ -185,4 +185,33 @@ I hear you fa shizzle!
 ./examples/server/server                   -v 3 -l ECDHE-ECDSA-SM4-CBC-SM3     -c ./certs/sm2/server-sm2.pem -k ./certs/sm2/server-sm2-priv.pem     -A ./certs/sm2/client-sm2.pem -V
 ```
 
+
+#### Linux Client using Kyber to ESP32 Server
+
+```
+# Ensure build with Kyber enabled:
+# ./configure --enable-kyber=all --enable-experimental && make
+
+./examples/client/client  -h 192.168.1.38 -v 4 -l  TLS_AES_128_GCM_SHA256 --pqc KYBER_LEVEL5
+```
+
+#### ESP32 Client to WSL Linux Server
+
+In Windows Powershell, (elevated permissions) forward the port _after_ starting the listening server:
+
+```bash
+netsh interface portproxy add v4tov4 listenport=11111 listenaddress=0.0.0.0 connectport=11111 connectaddress=127.0.0.1
+```
+
+After the server exits, remove the port proxy forward:
+
+```bash
+netsh interface portproxy delete v4tov4 listenport=11111 listenaddress=0.0.0.0
+```
+
+For additional information, see [Accessing network applications with WSL](https://learn.microsoft.com/en-us/windows/wsl/networking).
+
+
+## Additional Information
+
 See the README.md file in the upper level 'examples' directory for [more information about examples](../README.md).

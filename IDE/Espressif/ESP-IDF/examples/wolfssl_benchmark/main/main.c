@@ -1,6 +1,6 @@
 /* benchmark main.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,8 +20,8 @@
  */
 
 /* ESP-IDF */
-#include <esp_log.h>
 #include "sdkconfig.h"
+#include <esp_log.h>
 
 /* wolfSSL */
 /* The wolfSSL user_settings.h file is automatically included by the settings.h
@@ -29,6 +29,7 @@
  * The settings.h should also be listed above wolfssl library include files. */
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
 #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 #ifndef WOLFSSL_ESPIDF
     #error "Problem with wolfSSL user_settings. "           \
@@ -40,9 +41,23 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
+/* Hardware; include after other libraries,
+ * particularly after freeRTOS from settings.h */
+#include <driver/uart.h>
+
 /* set to 0 for one benchmark,
 ** set to 1 for continuous benchmark loop */
 #define BENCHMARK_LOOP 0
+
+#define THIS_MONITOR_UART_RX_BUFFER_SIZE 200
+
+#ifdef CONFIG_ESP8266_XTAL_FREQ_26
+    /* 26MHz crystal: 74880 bps */
+    #define THIS_MONITOR_UART_BAUD_DATE 74880
+#else
+    /* 40MHz crystal: 115200 bps */
+    #define THIS_MONITOR_UART_BAUD_DATE 115200
+#endif
 
 /* check BENCH_ARGV in sdkconfig to determine need to set WOLFSSL_BENCH_ARGV */
 #ifdef CONFIG_BENCH_ARGV
@@ -199,17 +214,42 @@ void app_main(void)
 {
     int stack_start = 0;
 
+    uart_config_t uart_config = {
+        .baud_rate = THIS_MONITOR_UART_BAUD_DATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+    };
+    esp_err_t ret = 0;
+    stack_start = esp_sdk_stack_pointer();
+
+    /* uart_set_pin(UART_NUM_0, TX_PIN, RX_PIN,
+     *              UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); */
+
+    /* Some targets may need to have UART speed set, such as ESP8266 */
+    ESP_LOGI(TAG, "UART init");
+    uart_param_config(UART_NUM_0, &uart_config);
+    uart_driver_install(UART_NUM_0,
+                        THIS_MONITOR_UART_RX_BUFFER_SIZE, 0, 0, NULL, 0);
+
     ESP_LOGI(TAG, "---------------- wolfSSL Benchmark Example -------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
+    ESP_LOGI(TAG, "Stack Start: 0x%x", stack_start);
+
+#ifdef WOLFSSL_ESP_NO_WATCHDOG
+    ESP_LOGW(TAG, "Found WOLFSSL_ESP_NO_WATCHDOG, disabling...");
+    esp_DisableWatchdog();
+#endif
 
 #if defined(HAVE_VERSION_EXTENDED_INFO) && defined(WOLFSSL_HAS_METRICS)
     esp_ShowExtendedSystemInfo();
 #endif
 
+    /* all platforms: stack high water mark check */
     ESP_LOGI(TAG, "app_main CONFIG_BENCH_ARGV = %s", WOLFSSL_BENCH_ARGV);
 
 /* when using atecc608a on esp32-wroom-32se */
@@ -238,7 +278,7 @@ void app_main(void)
     do {
         ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
-        wolf_benchmark_task();
+        wolf_benchmark_task(); /* TODO capture return value! */
         ESP_LOGI(TAG, "Stack used: %d\n",
                       stack_start - uxTaskGetStackHighWaterMark(NULL));
 
@@ -255,8 +295,33 @@ void app_main(void)
     ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 #endif
 
-#ifdef WOLFSSL_ESPIDF_EXIT_MESSAGE
-    ESP_LOGI(TAG, WOLFSSL_ESPIDF_EXIT_MESSAGE);
+    /* note wolfCrypt_Cleanup() should always be called when finished.
+    ** This is called at the end of wolf_test_task();
+    */
+
+#if defined(DEBUG_WOLFSSL) && defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
+    esp_hw_show_mp_metrics();
+#endif
+
+#ifdef INCLUDE_uxTaskGetStackHighWaterMark
+        ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
+
+        ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
+                                        - (uxTaskGetStackHighWaterMark(NULL)));
+#endif
+
+#ifdef WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE
+    if (ret == 0) {
+        ESP_LOGI(TAG, WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE("Success!", ret));
+    }
+    else {
+        ESP_LOGE(TAG, WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE("Failed!", ret));
+    }
+#elif defined(WOLFSSL_ESPIDF_EXIT_MESSAGE)
+     ESP_LOGI(TAG, WOLFSSL_ESPIDF_EXIT_MESSAGE);
+#else
+    ESP_LOGI(TAG, "\n\nDone!\n\n"
+                  "If running from idf.py monitor, press twice: Ctrl+]");
 #endif
 
     /* after the test, we'll just wait */

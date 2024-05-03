@@ -22,9 +22,30 @@
 /* Standardized wolfSSL Espressif ESP32 + ESP8266 user_settings.h V5.6.6-01 */
 
 /* This user_settings.h is for Espressif ESP-IDF */
-#include <sdkconfig.h>
-#define DEBUG_WOLFSSL
-#define DEBUG_WOLFSSL_VERBOSE
+
+#include "sdkconfig.h"
+
+/* #define DEBUG_WOLFSSL */
+/* #define DEBUG_WOLFSSL_VERBOSE */
+
+/* Experimental Kyber */
+#if 0
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
+    #define WOLFSSL_HAVE_KYBER
+    #define WOLFSSL_WC_KYBER
+    #define WOLFSSL_SHA3
+    #if defined(CONFIG_IDF_TARGET_ESP8266)
+        /* With limited RAM, we'll disable some of the Kyber sizes: */
+        #define WOLFSSL_NO_KYBER1024
+        #define WOLFSSL_NO_KYBER768
+        #define NO_SESSION_CACHE
+    #endif
+#endif
+
+/* Pick a cert buffer size: */
+/* #define USE_CERT_BUFFERS_2048 */
+/* #define USE_CERT_BUFFERS_1024 */
+#define USE_CERT_BUFFERS_2048
 
 /* The Espressif sdkconfig will have chipset info.
 **
@@ -40,23 +61,34 @@
 #undef  WOLFSSL_ESPIDF
 #define WOLFSSL_ESPIDF
 
+/* We don't use WiFi helpers yet, so don't compile in the esp-sdk-lib WiFi */
+#define NO_ESP_SDK_WIFI
+
 /*
  * ONE of these Espressif chipsets should be defined:
  *
  * WOLFSSL_ESP32
  * WOLFSSL_ESPWROOM32SE
  * WOLFSSL_ESP8266
+ *
+ * following ifdef detection only for syntax highlighting:
  */
-#undef WOLFSSL_ESPWROOM32SE
-#undef WOLFSSL_ESP8266
-#undef WOLFSSL_ESP32
+#ifdef WOLFSSL_ESPWROOM32SE
+    #undef WOLFSSL_ESPWROOM32SE
+#endif
+#ifdef WOLFSSL_ESP8266
+    #undef WOLFSSL_ESP8266
+#endif
+#ifdef WOLFSSL_ESP32
+    #undef WOLFSSL_ESP32
+#endif
 /* See below for chipset detection from sdkconfig.h */
 
 /* Small session cache saves a lot of RAM for ClientCache and SessionCache.
  * Memory requirement is about 5KB, otherwise 20K is needed when not specified.
  * If extra small footprint is needed, try MICRO_SESSION_CACHE (< 1K)
- * When really desparate, try NO_SESSION_CACHE.  */
-#define SMALL_SESSION_CACHE
+ * When really desperate, try NO_SESSION_CACHE.  */
+#define MICRO_SESSION_CACHE
 
 /* optionally turn off SHA512/224 SHA512/256 */
 /* #define WOLFSSL_NOSHA512_224 */
@@ -70,7 +102,7 @@
 /* #define NO_OLD_TLS */
 
 #define BENCH_EMBEDDED
-#define USE_CERT_BUFFERS_2048
+
 #define WOLFSSL_SMALL_STACK
 #define HAVE_ECC
 #define RSA_LOW_MEM
@@ -100,25 +132,36 @@
 /* when you want to use SHA384 */
 #define WOLFSSL_SHA384
 
-/* when you want to use SHA512 */
-/* #define WOLFSSL_SHA512 */
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+    /* Some known low-memory devices have features not enabled by default. */
+#else
+    /* when you want to use SHA512 */
+    #define WOLFSSL_SHA512
 
-/* when you want to use SHA3 */
-/* #define WOLFSSL_SHA3 */
+    /* when you want to use SHA3 */
+    #define WOLFSSL_SHA3
 
-/* ED25519 requires SHA512 */
-/* #define HAVE_ED25519 */
+    /* ED25519 requires SHA512 */
+    #define HAVE_ED25519
+
+    #define HAVE_ECC
+    #define HAVE_CURVE25519
+    #define CURVE25519_SMALL
+    #define HAVE_ED25519
+#endif
+
+/* Optional OpenSSL compatibility */
+/* #define OPENSSL_EXTRA */
 
 /* when you want to use pkcs7 */
 /* #define HAVE_PKCS7 */
-
 #if defined(HAVE_PKCS7)
     #define HAVE_AES_KEYWRAP
     #define HAVE_X963_KDF
     #define WOLFSSL_AES_DIRECT
 #endif
 
-/* when you want to use aes counter mode */
+/* when you want to use AES counter mode */
 /* #define WOLFSSL_AES_DIRECT */
 /* #define WOLFSSL_AES_COUNTER */
 
@@ -181,7 +224,9 @@
 #define HAVE_VERSION_EXTENDED_INFO
 /* #define HAVE_WC_INTROSPECTION */
 
-#define  HAVE_SESSION_TICKET
+#ifndef NO_SESSION_CACHE
+    #define  HAVE_SESSION_TICKET
+#endif
 
 /* #define HAVE_HASHDRBG */
 
@@ -359,6 +404,7 @@
 #endif /* CONFIG_IDF_TARGET Check */
 
 /* Debug options:
+See wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h for details on debug options
 
 #define ESP_VERIFY_MEMBLOCK
 #define DEBUG_WOLFSSL
@@ -379,7 +425,7 @@
 
 /* #define HASH_SIZE_LIMIT */ /* for test.c */
 
-/* #define NO_HW_MATH_TEST */ /* Optionall turn off HW math checks */
+/* #define NO_HW_MATH_TEST */ /* Optionally turn off HW math checks */
 
 /* Optionally include alternate HW test library: alt_hw_test.h */
 /* When enabling, the ./components/wolfssl/CMakeLists.txt file
@@ -402,8 +448,8 @@
 /* #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD                */
 
 
-#define WOLFSSL_PUBLIC_MP /* used by benchmark */
-#define USE_CERT_BUFFERS_2048
+/* used by benchmark: */
+#define WOLFSSL_PUBLIC_MP
 
 /* when turning on ECC508 / ECC608 support
 #define WOLFSSL_ESPWROOM32SE
@@ -497,7 +543,6 @@
     #define WOLFSSL_BASE16
 #else
     #if defined(USE_CERT_BUFFERS_2048)
-        #include <wolfssl/certs_test.h>
         #define CTX_CA_CERT          ca_cert_der_2048
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
         #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
@@ -517,7 +562,6 @@
         #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
 
     #elif defined(USE_CERT_BUFFERS_1024)
-        #include <wolfssl/certs_test.h>
         #define CTX_CA_CERT          ca_cert_der_1024
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_1024
         #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1

@@ -1,4 +1,4 @@
-/* time_helper.c
+/* esp_sdk_time_lib.c
  *
  * Copyright (C) 2006-2024 wolfSSL Inc.
  *
@@ -19,17 +19,44 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* See https://tf.nist.gov/tf-cgi/servers.cgi */
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
-/* common Espressif time_helper v5.6.6.001 */
-#include "sdkconfig.h"
-#include "time_helper.h"
+/* Reminder: user_settings.h is needed and included from settings.h
+ * Be sure to define WOLFSSL_USER_SETTINGS, typically in CMakeLists.txt */
+#include <wolfssl/wolfcrypt/settings.h>
 
+#if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
+
+/* Espressif */
+#include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <esp_log.h>
-#include <esp_idf_version.h>
+#include <esp_err.h>
 
-#if defined(ESP_IDF_VERSION_MAJOR) && defined(ESP_IDF_VERSION_MINOR)
-    #if (ESP_IDF_VERSION_MAJOR == 5) && (ESP_IDF_VERSION_MINOR >= 1)
+/* wolfSSL */
+#include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
+
+#define ESP_SDK_TIME_LIB_VERSION 1
+
+static const char* TAG = "time lib";
+
+esp_err_t esp_sdk_time_lib_init(void)
+{
+    int ret = ESP_OK;
+    ESP_LOGI(TAG, "esp_sdk_time_lib_init Ver %d", ESP_SDK_TIME_LIB_VERSION);
+    return ret;
+}
+
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+    #include <time.h>
+
+#elif defined(ESP_IDF_VERSION_MAJOR) && defined(ESP_IDF_VERSION_MINOR)
+    #if (ESP_IDF_VERSION_MAJOR == 5) && (ESP_IDF_VERSION_MINOR == 1)
+        #define HAS_ESP_NETIF_SNTP 1
+        #include <lwip/apps/sntp.h>
+        #include <esp_netif_sntp.h>
+    #elif (ESP_IDF_VERSION_MAJOR == 5) && (ESP_IDF_VERSION_MINOR > 1)
         #define HAS_ESP_NETIF_SNTP 1
         #include <lwip/apps/sntp.h>
         #include <esp_netif_sntp.h>
@@ -37,11 +64,13 @@
         #include <string.h>
         #include <esp_sntp.h>
     #endif
+
 #else
     /* TODO Consider non ESP-IDF environments */
 #endif
 
-/* ESP-IDF uses a 64-bit signed integer to represent time_t starting from release v5.0
+/* ESP-IDF uses a 64-bit signed integer to represent time_t
+ * starting from release v5.0
  * See: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#year-2036-and-2038-overflow-issues
  */
 
@@ -49,12 +78,13 @@
 #ifndef TIME_ZONE
     /*
      * PST represents Pacific Standard Time.
-     * +8 specifies the offset from UTC (Coordinated Universal Time), indicating
-     *   that Pacific Time is UTC-8 during standard time.
+     * +8 specifies the offset from UTC (Coordinated Universal Time),
+     *   indicating that Pacific Time is UTC-8 during standard time.
      * PDT represents Pacific Daylight Time.
      * M3.2.0 indicates that Daylight Saving Time (DST) starts on the
      *   second (2) Sunday (0) of March (3).
-     * M11.1.0 indicates that DST ends on the first (1) Sunday (0) of November (11)
+     * M11.1.0 indicates that DST ends on the first (1) Sunday (0)
+     *   of November (11)
      */
     #define TIME_ZONE "PST+8PDT,M3.2.0,M11.1.0"
 #endif /* not defined: TIME_ZONE, so we are setting our own */
@@ -86,12 +116,10 @@
     #define CONFIG_LWIP_SNTP_MAX_SERVERS NTP_SERVER_COUNT
 #endif
 
-char* ntpServerList[NTP_SERVER_COUNT] = NTP_SERVER_LIST;
-
-const static char* TAG = "time_helper";
-
 /* our NTP server list is global info */
 extern char* ntpServerList[NTP_SERVER_COUNT];
+
+char* ntpServerList[NTP_SERVER_COUNT] = NTP_SERVER_LIST;
 
 /* Show the current date and time */
 int esp_show_current_datetime(void)
@@ -117,8 +145,8 @@ int set_fixed_default_time(void)
      * but let's set a default time, just in case */
     struct tm timeinfo = {
         .tm_year = 2024 - 1900,
-        .tm_mon  = 3,
-        .tm_mday = 01,
+        .tm_mon  = 1,
+        .tm_mday = 05,
         .tm_hour = 13,
         .tm_min  = 01,
         .tm_sec  = 05
@@ -132,7 +160,11 @@ int set_fixed_default_time(void)
 
     ESP_LOGI(TAG, "Adjusting time from fixed value");
     now = (struct timeval){ .tv_sec = interim_time };
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+    (void)now;
+#else
     ret = settimeofday(&now, NULL);
+#endif
     ESP_LOGI(TAG, "settimeofday result = %d", ret);
     return ret;
 }
@@ -167,6 +199,29 @@ int probably_valid_time_string(const char* str)
     }
     return ret;
 }
+
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+/* TODO implement time functions for ESP8266 */
+int set_time_from_string(const char* time_buffer)
+{
+    ESP_LOGE(TAG, "set_time_from_string not implemented for ESP8266");
+    return ESP_FAIL;
+}
+
+int set_time(void)
+{
+    ESP_LOGE(TAG, "set_time not implemented for ESP8266");
+    return ESP_FAIL;
+}
+
+int set_time_wait_for_ntp(void)
+{
+    ESP_LOGE(TAG, "set_time_wait_for_ntp not implemented for ESP8266");
+    return ESP_FAIL;
+}
+
+#else
+/* ESP32 Time Helpers */
 
 /* set_time_from_string(s)
  *
@@ -253,7 +308,8 @@ int set_time(void)
                                        ESP_SNTP_SERVER_LIST(ntpServerList[0])
                                    );
     #else
-        esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG(ntpServerList[0]);
+        esp_sntp_config_t config =
+            ESP_NETIF_SNTP_DEFAULT_CONFIG(ntpServerList[0]);
     #endif /* CONFIG_LWIP_SNTP_MAX_SERVERS > 1 */
 #endif /* HAS_ESP_NETIF_SNTP */
 
@@ -351,7 +407,7 @@ int set_time_wait_for_ntp(void)
 
     ret = esp_netif_sntp_sync_wait(500 / portTICK_PERIOD_MS);
 #else
-    ESP_LOGW(TAG, "HAS_ESP_NETIF_SNTP not defined");
+    ESP_LOGE(TAG, "HAS_ESP_NETIF_SNTP not defined");
 #endif /* HAS_ESP_NETIF_SNTP */
     esp_show_current_datetime();
 
@@ -371,7 +427,7 @@ int set_time_wait_for_ntp(void)
 #endif
 
     if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Successfully set time via NTP servers.");
+        ESP_LOGI(TAG, "Successfuly set time via NTP servers.");
         }
     else {
         ESP_LOGW(TAG, "Warning: Failed to set time with NTP: "
@@ -380,3 +436,6 @@ int set_time_wait_for_ntp(void)
     }
     return ret;
 }
+#endif /* ESP32 or ESP8266 time helpers */
+
+#endif
