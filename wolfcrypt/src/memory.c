@@ -656,9 +656,14 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
 
     WOLFSSL_ENTER("wc_LoadStaticMemory_ex");
 
-    if (pHint == NULL || buf == NULL || listSz > WOLFMEM_MAX_BUCKETS
-            || sizeList == NULL || distList == NULL) {
+    if (pHint == NULL || buf == NULL || sizeList == NULL || distList == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    /* Cap the listSz to the actual number of items allocated in the list. */
+    if (listSz > WOLFMEM_MAX_BUCKETS) {
+        WOLFSSL_MSG("Truncating the list of memory buckets");
+        listSz = WOLFMEM_MAX_BUCKETS;
     }
 
     if ((sizeof(WOLFSSL_HEAP) + sizeof(WOLFSSL_HEAP_HINT)) > sz - idx) {
@@ -761,9 +766,14 @@ int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
 
     WOLFSSL_ENTER("wolfSSL_StaticBufferSz_ex");
 
-    if (buffer == NULL || listSz > WOLFMEM_MAX_BUCKETS
-            || sizeList == NULL || distList == NULL) {
+    if (buffer == NULL || sizeList == NULL || distList == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    /* Cap the listSz to the actual number of items allocated in the list. */
+    if (listSz > WOLFMEM_MAX_BUCKETS) {
+        WOLFSSL_MSG("Truncating the list of memory buckets");
+        listSz = WOLFMEM_MAX_BUCKETS;
     }
 
     /* align pt */

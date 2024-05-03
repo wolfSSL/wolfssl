@@ -16089,22 +16089,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* check macro settings */
-    if (sizeof(size)/sizeof(word32) != WOLFMEM_MAX_BUCKETS) {
+    if (sizeof(size)/sizeof(word32) != WOLFMEM_DEF_BUCKETS) {
         return WC_TEST_RET_ENC_NC;
     }
 
-    if (sizeof(dist)/sizeof(word32) != WOLFMEM_MAX_BUCKETS) {
+    if (sizeof(dist)/sizeof(word32) != WOLFMEM_DEF_BUCKETS) {
         return WC_TEST_RET_ENC_NC;
     }
 
-    for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
+    if (WOLFMEM_DEF_BUCKETS > WOLFMEM_MAX_BUCKETS) {
+        return WC_TEST_RET_ENC_NC;
+    }
+
+    for (i = 0; i < WOLFMEM_DEF_BUCKETS; i++) {
         if ((size[i] % WOLFSSL_STATIC_ALIGN) != 0) {
             /* each element in array should be divisible by alignment size */
             return WC_TEST_RET_ENC_NC;
         }
     }
 
-    for (i = 1; i < WOLFMEM_MAX_BUCKETS; i++) {
+    for (i = 1; i < WOLFMEM_DEF_BUCKETS; i++) {
         if (size[i - 1] >= size[i]) {
             return WC_TEST_RET_ENC_NC; /* sizes should be in increasing order */
         }
