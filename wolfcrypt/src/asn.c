@@ -23864,13 +23864,12 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 #ifndef WOLFSSL_SMALL_STACK
                     byte der[MAX_CERT_VERIFY_SZ];
                 #else
-                    byte *der = (byte*)XMALLOC(MAX_CERT_VERIFY_SZ, ssl->heap,
+                    byte *der = (byte*)XMALLOC(MAX_CERT_VERIFY_SZ, cert->heap,
                                             DYNAMIC_TYPE_DCERT);
                     if (der == NULL) {
                         ret = MEMORY_E;
                     } else
                 #endif /* ! WOLFSSL_SMALL_STACK */
-
                     {
                         ret = wc_GeneratePreTBS(cert, der, MAX_CERT_VERIFY_SZ);
 
@@ -23882,7 +23881,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                                     NULL, 0, NULL);
                         }
                 #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(der, ssl->heap, DYNAMIC_TYPE_DCERT);
+                        XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
                 #endif /* WOLFSSL_SMALL_STACK */
 
                         if (ret != 0) {
@@ -23912,6 +23911,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
 #ifdef WOLFSSL_CERT_REQ
         else if (type == CERTREQ_TYPE) {
+            /* try to confirm/verify signature */
             if ((ret = ConfirmSignature(&cert->sigCtx,
                     cert->source + cert->certBegin,
                     cert->sigIndex - cert->certBegin,
@@ -23930,6 +23930,44 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 WOLFSSL_ERROR_VERBOSE(ret);
                 return ret;
             }
+
+        #ifdef WOLFSSL_DUAL_ALG_CERTS
+            if ((ret == 0) && cert->extAltSigAlgSet &&
+                cert->extAltSigValSet) {
+            #ifndef WOLFSSL_SMALL_STACK
+                byte der[MAX_CERT_VERIFY_SZ];
+            #else
+                byte *der = (byte*)XMALLOC(MAX_CERT_VERIFY_SZ, cert->heap,
+                                        DYNAMIC_TYPE_DCERT);
+                if (der == NULL) {
+                    ret = MEMORY_E;
+                } else
+            #endif /* ! WOLFSSL_SMALL_STACK */
+                {
+                    ret = wc_GeneratePreTBS(cert, der, MAX_CERT_VERIFY_SZ);
+
+                    if (ret > 0) {
+                        ret = ConfirmSignature(&cert->sigCtx, der, ret,
+                                cert->sapkiDer, cert->sapkiLen,
+                                cert->sapkiOID, cert->altSigValDer,
+                                cert->altSigValLen, cert->altSigAlgOID,
+                                NULL, 0, NULL);
+                    }
+            #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(der, cert->heap, DYNAMIC_TYPE_DCERT);
+            #endif /* WOLFSSL_SMALL_STACK */
+
+                    if (ret != 0) {
+                        WOLFSSL_MSG("Confirm alternative signature failed");
+                        WOLFSSL_ERROR_VERBOSE(ret);
+                        return ret;
+                    }
+                    else {
+                        WOLFSSL_MSG("Alt signature has been verified!");
+                    }
+                }
+            }
+        #endif /* WOLFSSL_DUAL_ALG_CERTS */
         }
 #endif
         else {
