@@ -47,6 +47,7 @@ enum {
 };
 
 WOLFSSL_API WC_PKCS12* wc_PKCS12_new(void);
+WOLFSSL_API WC_PKCS12* wc_PKCS12_new_ex(void* heap, int devId);
 WOLFSSL_API void wc_PKCS12_free(WC_PKCS12* pkcs12);
 WOLFSSL_API int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12);
 #ifndef NO_FILESYSTEM

@@ -143,6 +143,21 @@ WC_PKCS12* wc_PKCS12_new(void)
     return pkcs12;
 }
 
+WC_PKCS12* wc_PKCS12_new_ex(void* heap, int devId)
+{
+    (void)devId;
+    WC_PKCS12* pkcs12 = (WC_PKCS12*)XMALLOC(sizeof(WC_PKCS12),
+                                                      heap, DYNAMIC_TYPE_PKCS);
+    if (pkcs12 == NULL) {
+        WOLFSSL_MSG("Memory issue when creating WC_PKCS12 struct");
+        return NULL;
+    }
+
+    XMEMSET(pkcs12, 0, sizeof(WC_PKCS12));
+    pkcs12->heap = heap;
+
+    return pkcs12;
+}
 
 static void freeSafe(AuthenticatedSafe* safe, void* heap)
 {
