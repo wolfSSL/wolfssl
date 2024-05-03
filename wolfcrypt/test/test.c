@@ -601,7 +601,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void);
 #if defined(HAVE_PKCS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_kdf_test(void);
 #if !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
-    !defined(NO_RSA)
+    !defined(NO_RSA) && !(defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void);
 #endif
 #endif
@@ -1682,7 +1682,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #if defined(HAVE_PKCS12) && !defined(NO_AES) && !defined(NO_ASN) && \
-    !defined(NO_PWDBASED) && !defined(NO_RSA)
+    !defined(NO_PWDBASED) && !defined(NO_RSA) && \
+    !(defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY))
     PRIVATE_KEY_UNLOCK();
     if ( (ret = pkcs12_test()) != 0)
         TEST_FAIL("PKCS12   test failed!\n", ret);
@@ -24807,7 +24808,8 @@ const byte aes256cbc_p12[] = {
 };
 const int aes256cbc_p12_len = (int)sizeof(aes256cbc_p12);
 
-#if !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+#if !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !(defined(WOLFSSL_NO_MALLOC) && !defined(WOLFSSL_STATIC_MEMORY))
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
 {
     wc_test_ret_t   ret;
