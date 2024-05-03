@@ -1102,6 +1102,12 @@ void wc_FreeCertList(WC_DerCertList* list, void* heap)
     (void)heap;
 }
 
+/* Publicly exposed wrapper function for wc_FreeCertList */
+void wc_PKCS12_FreeCertList(WC_DerCertList* list, void* heap)
+{
+    return wc_FreeCertList(list, heap);
+}
+
 static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
     byte** pkey, word32* pkeySz, byte** cert, word32* certSz, void* heap)
 {
