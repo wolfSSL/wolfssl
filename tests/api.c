@@ -7437,8 +7437,8 @@ done:
     !defined(WOLFSSL_NO_TLS12)
 static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
 {
-    SOCKET_T sockfd = 0;
-    SOCKET_T clientfd = 0;
+    SOCKET_T sockfd;
+    SOCKET_T clientfd = -1;
     word16 port;
 
     callback_functions* cbf;
@@ -7601,6 +7601,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
         wolfSSL_shutdown(ssl);
         wolfSSL_free(ssl); ssl = NULL;
         CloseSocket(clientfd);
+        clientfd = -1;
 
         count++;
     }
@@ -7618,7 +7619,8 @@ done:
     if (!sharedCtx)
         wolfSSL_CTX_free(ctx);
 
-    CloseSocket(clientfd);
+    if (clientfd >= 0)
+        CloseSocket(clientfd);
 
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
