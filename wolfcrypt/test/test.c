@@ -600,7 +600,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  openssl_evpSig_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void);
 #if defined(HAVE_PKCS12)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_kdf_test(void);
-#if !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+#if !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && \
+    !defined(NO_RSA) && !defined(WOLFSSL_NO_MALLOC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void);
 #endif
 #endif
@@ -1680,7 +1681,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     PRIVATE_KEY_LOCK();
 #endif
 
-#if defined(HAVE_PKCS12) && !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+#if defined(HAVE_PKCS12) && !defined(NO_AES) && !defined(NO_ASN) && \
+    !defined(NO_PWDBASED) && !defined(NO_RSA) && !defined(WOLFSSL_NO_MALLOC)
     PRIVATE_KEY_UNLOCK();
     if ( (ret = pkcs12_test()) != 0)
         TEST_FAIL("PKCS12   test failed!\n", ret);
@@ -24803,9 +24805,9 @@ const byte aes256cbc_p12[] = {
   0xb1, 0xc3, 0x7a, 0x46, 0xa1, 0x53, 0x36, 0x14, 0x2e, 0xeb, 0x04, 0x08,
   0x5d, 0x7f, 0x7d, 0x0b, 0xea, 0xf2, 0x9d, 0xdf, 0x02, 0x02, 0x08, 0x00
 };
-const int aes256cbc_p12_len = 948;
+const int aes256cbc_p12_len = (int)sizeof(aes256cbc_p12);
 
-#if !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+#if !defined(NO_AES) && !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && !defined(WOLFSSL_NO_MALLOC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
 {
     wc_test_ret_t   ret;
@@ -24815,7 +24817,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
     byte           *cert = NULL;
     word32          certLen = 0;
     WC_DerCertList *certList = NULL;
-    char passwd[] = "cryptography";
+    const char     *passwd = "cryptography";
     /* RSA key encoded within aes256cbc_p12 */
     WOLFSSL_SMALL_STACK_STATIC const byte expectedKey[] = {
         0x30, 0x6B, 0x02, 0x01, 0x01, 0x04, 0x20, 0x03, 0xC6, 0x6A, 0xCF, 
@@ -24829,7 +24831,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
         0xB4, 0xA1, 0x0F, 0xB4, 0xB9, 0xCB, 0x6E, 0x86, 0xB3, 0x50, 0xF9, 
         0x6C, 0x51, 0xBF, 0xC1, 0x82, 0xD7, 0xBE, 0xC5, 0xF9, 0x05,
     };
-    word32 expectedKeyLen = 109;
+    word32 expectedKeyLen = (word32)sizeof(expectedKey);
     /* Cert encoded within aes256cbc_p12 */
     WOLFSSL_SMALL_STACK_STATIC const byte expectedCert[] = {
         0x30, 0x82, 0x01, 0x51, 0x30, 0x81, 0xF7, 0xA0, 0x03, 0x02, 0x01, 
@@ -24864,7 +24866,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
         0xF5, 0xC8, 0x2B, 0xB3, 0x44, 0xCE, 0x24, 0xF8, 0xA5, 0x0B, 0x72, 
         0x11, 0x21, 0x34, 0xB9, 0x15, 0x4A, 0x5F, 0x0E, 0x27, 0x32, 0xA9,
     };
-    word32 expectedCertLen = 341;
+    word32 expectedCertLen = (word32)sizeof(expectedCert);
     WOLFSSL_ENTER("pkcs12_test");
 
     pkcs12 = wc_PKCS12_new();
