@@ -438,7 +438,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
                         serialHash, crle->totalCerts);
                 if (ret != 0)
                     break;
-            } else if (foundEntry == 0) {
+            }
+            else if (foundEntry == 0) {
                 ret = ASN_AFTER_DATE_E;
             }
         }
