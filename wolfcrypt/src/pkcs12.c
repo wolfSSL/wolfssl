@@ -145,7 +145,6 @@ WC_PKCS12* wc_PKCS12_new(void)
 
 WC_PKCS12* wc_PKCS12_new_ex(void* heap, int devId)
 {
-    (void)devId;
     WC_PKCS12* pkcs12 = (WC_PKCS12*)XMALLOC(sizeof(WC_PKCS12),
                                                       heap, DYNAMIC_TYPE_PKCS);
     if (pkcs12 == NULL) {
@@ -155,6 +154,7 @@ WC_PKCS12* wc_PKCS12_new_ex(void* heap, int devId)
 
     XMEMSET(pkcs12, 0, sizeof(WC_PKCS12));
     pkcs12->heap = heap;
+    (void)devId;
 
     return pkcs12;
 }
