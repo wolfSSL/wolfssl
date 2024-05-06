@@ -254,6 +254,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_F_X509_CHECK_PRIVATE_KEY   128
 
 #ifdef WOLFSSL_DTLS
+    #define DTLS_client_method          wolfDTLS_client_method
+    #define DTLS_server_method          wolfDTLS_server_method
     #define DTLSv1_client_method        wolfDTLSv1_client_method
     #define DTLSv1_server_method        wolfDTLSv1_server_method
     #define DTLSv1_2_client_method      wolfDTLSv1_2_client_method
@@ -712,7 +714,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_VERIFY_PARAM_set1_ip_asc   wolfSSL_X509_VERIFY_PARAM_set1_ip_asc
 #define X509_VERIFY_PARAM_set1_ip       wolfSSL_X509_VERIFY_PARAM_set1_ip
 #define X509_VERIFY_PARAM_set1          wolfSSL_X509_VERIFY_PARAM_set1
+#define X509_VERIFY_PARAM_lookup        wolfSSL_X509_VERIFY_PARAM_lookup
+#define X509_VERIFY_PARAM_inherit       wolfSSL_X509_VERIFY_PARAM_inherit
 #define X509_STORE_load_locations       wolfSSL_X509_STORE_load_locations
+#define X509_STORE_get0_param           wolfSSL_X509_STORE_get0_param
 
 #define X509_LOOKUP_add_dir             wolfSSL_X509_LOOKUP_add_dir
 #define X509_LOOKUP_load_file           wolfSSL_X509_LOOKUP_load_file
