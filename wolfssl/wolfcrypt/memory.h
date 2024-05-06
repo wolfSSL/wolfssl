@@ -101,48 +101,72 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     #ifndef WOLFSSL_STATIC_ALIGN
         #define WOLFSSL_STATIC_ALIGN 16
     #endif
-    #ifndef WOLFMEM_MAX_BUCKETS
-        #define WOLFMEM_MAX_BUCKETS  9
+/* WOLFMEM_BUCKETS - list of the sizes of buckets in the pool
+ * WOLFMEM_DIST - list of quantities of buffers in the buckets
+ * WOLFMEM_DEF_BUCKETS - number of values in WOLFMEM_BUCKETS and WOLFMEM_DIST
+ * WOLFMEM_MAX_BUCKETS - size of the arrays used to store the buckets and
+ *     dists in the memory pool; defaults to WOLFMEM_DEF_BUCKETS
+ *
+ * The following defines provide a reasonable set of buckets in the memory
+ * pool for running wolfSSL on a Linux box. The bucket and dist lists below
+ * have nine items each, so WOLFMEM_DEF_BUCKETS is set to 9.
+ *
+ * If WOLFMEM_DEF_BUCKETS is less then WOLFMEM_MAX_BUCKETS, the unused values
+ * are set to zero and ignored. If WOLFMEM_MAX_BUCKETS is less than
+ * WOLFMEM_DEF_BUCKETS, not all the buckets will be created in the pool.
+ */
+    #ifndef WOLFMEM_DEF_BUCKETS
+        #define WOLFMEM_DEF_BUCKETS  9  /* number of default memory blocks */
     #endif
-    #define WOLFMEM_DEF_BUCKETS  9     /* number of default memory blocks */
+
+    #ifndef WOLFMEM_MAX_BUCKETS
+        #define WOLFMEM_MAX_BUCKETS  WOLFMEM_DEF_BUCKETS
+    #endif
+
+    #if WOLFMEM_MAX_BUCKETS < WOLFMEM_DEF_BUCKETS
+        #warning "ignoring excess buckets, MAX_BUCKETS less than DEF_BUCKETS"
+    #endif
+
     #ifndef WOLFMEM_IO_SZ
         #define WOLFMEM_IO_SZ        16992 /* 16 byte aligned */
     #endif
+
+    #ifndef LARGEST_MEM_BUCKET
+        #ifndef SESSION_CERTS
+            #define LARGEST_MEM_BUCKET 16128
+        #elif defined(OPENSSL_EXTRA)
+            #ifdef WOLFSSL_TLS13
+                #define LARGEST_MEM_BUCKET 30400
+            #else
+                #define LARGEST_MEM_BUCKET 25600
+            #endif
+        #elif defined(WOLFSSL_CERT_EXT)
+            /* certificate extensions requires 24k for the SSL struct */
+            #define LARGEST_MEM_BUCKET 24576
+        #else
+            /* increase 23k for object member of WOLFSSL_X509_NAME_ENTRY */
+            #define LARGEST_MEM_BUCKET 23440
+        #endif
+    #endif
+
     #ifndef WOLFMEM_BUCKETS
         #ifndef SESSION_CERTS
             /* default size of chunks of memory to separate into */
-            #ifndef LARGEST_MEM_BUCKET
-                #define LARGEST_MEM_BUCKET 16128
-            #endif
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                     LARGEST_MEM_BUCKET
-        #elif defined (OPENSSL_EXTRA)
+        #elif defined(OPENSSL_EXTRA)
             /* extra storage in structs for multiple attributes and order */
-            #ifndef LARGEST_MEM_BUCKET
-                #ifdef WOLFSSL_TLS13
-                    #define LARGEST_MEM_BUCKET 30400
-                #else
-                    #define LARGEST_MEM_BUCKET 25600
-                #endif
-            #endif
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3360,4480,\
                                     LARGEST_MEM_BUCKET
-        #elif defined (WOLFSSL_CERT_EXT)
-            /* certificate extensions requires 24k for the SSL struct */
-            #ifndef LARGEST_MEM_BUCKET
-                #define LARGEST_MEM_BUCKET 24576
-            #endif
+        #elif defined(WOLFSSL_CERT_EXT)
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                     LARGEST_MEM_BUCKET
         #else
-            /* increase 23k for object member of WOLFSSL_X509_NAME_ENTRY */
-            #ifndef LARGEST_MEM_BUCKET
-                #define LARGEST_MEM_BUCKET 23440
-            #endif
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,\
                                     LARGEST_MEM_BUCKET
         #endif
     #endif
+
     #ifndef WOLFMEM_DIST
         #ifndef WOLFSSL_STATIC_MEMORY_SMALL
             #define WOLFMEM_DIST    49,10,6,14,5,6,9,1,1
