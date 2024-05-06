@@ -1,7 +1,16 @@
 name: stunnel Tests
 
+# START OF COMMON SECTION
 on:
-  workflow_call:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
 
 jobs:
   build_wolfssl:
