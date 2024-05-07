@@ -1400,6 +1400,20 @@ typedef struct w64wrapper {
         #endif
         typedef void*            THREAD_TYPE;
         #define WOLFSSL_THREAD
+    #elif defined(WOLFSSL_USER_THREADING)
+        /* User can define user specific threading types
+         *  THREAD_RETURN
+         *  TREAD_TYPE
+         *  WOLFSSL_THREAD
+         * e.g.
+         *  typedef unsigned int  THREAD_RETURN;
+         *  typedef size_t        THREAD_TYPE;
+         *  #define WOLFSSL_THREAD void
+         *
+         * User can aslo implement user own wolfSSL_NewThread(),
+         * wolfSSL_JoinThread() and CND(s) if want.
+         * Otherwise, those functions are omitted.
+        */
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) || \
           defined(FREESCALE_MQX)
         typedef unsigned int  THREAD_RETURN;
