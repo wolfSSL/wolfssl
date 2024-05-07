@@ -1229,7 +1229,6 @@ AC_ARG_ENABLE([xmss],
     [ ENABLED_XMSS=no ]
     )
 
-ENABLED_WC_XMSS=no
 for v in `echo $ENABLED_XMSS | tr "," " "`
 do
   case $v in
@@ -1238,15 +1237,9 @@ do
   no)
     ;;
   verify-only)
-    XMSS_VERIFY_ONLY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_XMSS_VERIFY_ONLY -DXMSS_VERIFY_ONLY"
     ;;
-  wolfssl)
-    ENABLED_WC_XMSS=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS"
-    ;;
   small)
-    ENABLED_WC_XMSS=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS_SMALL"
     ;;
   *)
@@ -1254,20 +1247,6 @@ do
     break;;
   esac
 done
-
-if test "$ENABLED_XMSS" != "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_XMSS"
-
-    if test "$ENABLED_WC_XMSS" = "no";
-    then
-        # Default is to use hash-sigs XMSS lib. Make sure it's enabled.
-        if test "$ENABLED_LIBXMSS" = "no"; then
-            AC_MSG_ERROR([The default implementation for XMSS is the xmss-reference lib.
-            Please use --with-libxmss.])
-        fi
-    fi
-fi
 
 # libxmss
 # Get the path to xmss-reference.
@@ -1321,6 +1300,19 @@ AC_ARG_WITH([libxmss],
     [XMSS_ROOT=""]
 )
 
+if test "$ENABLED_XMSS" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_XMSS"
+
+    # Use hash-sigs XMSS lib if enabled.
+    if test "$ENABLED_LIBXMSS" = "yes"; then
+        ENABLED_WC_XMSS=no
+    else
+        ENABLED_WC_XMSS=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_XMSS"
+    fi
+fi
+
 # LMS
 AC_ARG_ENABLE([lms],
     [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
@@ -1328,7 +1320,6 @@ AC_ARG_ENABLE([lms],
     [ ENABLED_LMS=no ]
     )
 
-ENABLED_WC_LMS=no
 for v in `echo $ENABLED_LMS | tr "," " "`
 do
   case $v in
@@ -1337,36 +1328,16 @@ do
   no)
     ;;
   verify-only)
-    LMS_VERIFY_ONLY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_VERIFY_ONLY"
     ;;
   small)
-    ENABLED_WC_LMS=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS_SMALL"
-    ;;
-  wolfssl)
-    ENABLED_WC_LMS=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
     ;;
   *)
     AC_MSG_ERROR([Invalid choice for LMS []: $ENABLED_LMS.])
     break;;
   esac
 done
-
-if test "$ENABLED_LMS" != "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_LMS"
-
-    if test "$ENABLED_WC_LMS" = "no";
-    then
-        # Default is to use hash-sigs LMS lib. Make sure it's enabled.
-        if test "$ENABLED_LIBLMS" = "no"; then
-            AC_MSG_ERROR([The default implementation for LMS is the hash-sigs LMS/HSS lib.
-            Please use --with-liblms.])
-        fi
-    fi
-fi
 
 # liblms
 # Get the path to the hash-sigs LMS HSS lib.
@@ -1435,6 +1406,19 @@ AC_ARG_WITH([liblms],
         ENABLED_LIBLMS="yes"
     ]
 )
+
+if test "$ENABLED_LMS" != "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_LMS"
+
+    # Use hash-sigs LMS lib if enabled.
+    if test "$ENABLED_LIBLMS" = "yes"; then
+        ENABLED_WC_LMS=no
+    else
+        ENABLED_WC_LMS=yes
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS"
+    fi
+fi
 
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
