@@ -392,6 +392,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
     for (crle = crl->crlList; crle != NULL; crle = crle->next) {
         if (XMEMCMP(crle->issuerHash, issuerHash, CRL_DIGEST_SIZE) == 0) {
+            int nextDateValid = 1;
+
             WOLFSSL_MSG("Found CRL Entry on list");
 
             if (crle->verified == 0) {
@@ -426,16 +428,19 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
                 if (!XVALIDATE_DATE(crle->nextDate,crle->nextDateFormat, AFTER)) {
                     WOLFSSL_MSG("CRL next date is no longer valid");
-                    ret = ASN_AFTER_DATE_E;
+                    nextDateValid = 0;
                 }
             #endif
             }
-            if (ret == 0) {
+            if (nextDateValid) {
                 foundEntry = 1;
                 ret = FindRevokedSerial(crle->certs, serial, serialSz,
                         serialHash, crle->totalCerts);
                 if (ret != 0)
                     break;
+            }
+            else if (foundEntry == 0) {
+                ret = ASN_AFTER_DATE_E;
             }
         }
     }
