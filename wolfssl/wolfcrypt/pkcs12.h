@@ -29,9 +29,7 @@
     extern "C" {
 #endif
 
-#ifndef WOLFSSL_TYPES_DEFINED /* do not redeclare from ssl.h */
-    typedef struct WC_PKCS12 WC_PKCS12;
-#endif
+typedef struct WC_PKCS12 WC_PKCS12;
 
 typedef struct WC_DerCertList { /* dereferenced in ssl.c */
     byte* buffer;

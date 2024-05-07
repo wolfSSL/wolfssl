@@ -11678,8 +11678,9 @@ err:
                         "-----BEGIN X509 CRL-----")) {
                 /* We have a crl */
                 WOLFSSL_MSG("Parsing crl");
-                if((PemToDer((const unsigned char*) header, footerEnd - header,
-                        CRL_TYPE, &der, NULL, NULL, NULL)) < 0) {
+                if((PemToDer((const unsigned char*) header,
+                        (long)(footerEnd - header), CRL_TYPE, &der, NULL, NULL,
+                        NULL)) < 0) {
                     WOLFSSL_MSG("PemToDer error");
                     goto err;
                 }

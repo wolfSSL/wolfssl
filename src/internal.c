@@ -37860,7 +37860,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
         if (sess == NULL) {
             ret = TlsSessionCacheGetAndRdLock(id, &sess, &freeCtx->row,
-                    ssl->options.side);
+                    (byte)ssl->options.side);
             if (ret != 0)
                 sess = NULL;
         }
