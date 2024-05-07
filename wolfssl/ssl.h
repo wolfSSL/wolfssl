@@ -1696,6 +1696,7 @@ WOLFSSL_API const char*  wolfSSL_SESSION_CIPHER_get_name(const WOLFSSL_SESSION* 
 WOLFSSL_API const char*  wolfSSL_get_cipher(WOLFSSL* ssl);
 WOLFSSL_API void wolfSSL_sk_CIPHER_free(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_SessionIsSetup(WOLFSSL_SESSION* session);
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new(void);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new_ex(void* heap);

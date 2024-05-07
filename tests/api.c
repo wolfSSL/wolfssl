@@ -47260,6 +47260,7 @@ static int test_wolfSSL_SESSION(void)
 
     ExpectPtrNE((sess = wolfSSL_get1_session(ssl)), NULL); /* ref count 1 */
     ExpectPtrNE((sess_copy = wolfSSL_get1_session(ssl)), NULL); /* ref count 2 */
+    ExpectIntEQ(wolfSSL_SessionIsSetup(sess), 1);
 #ifdef HAVE_EXT_CACHE
     ExpectPtrEq(sess, sess_copy); /* they should be the same pointer but without
                                    * HAVE_EXT_CACHE we get new objects each time */
