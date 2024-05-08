@@ -1410,8 +1410,8 @@ typedef struct w64wrapper {
          *  typedef size_t        THREAD_TYPE;
          *  #define WOLFSSL_THREAD void
          *
-         * User can aslo implement user own wolfSSL_NewThread(),
-         * wolfSSL_JoinThread() and CND(s) if want.
+         * User can also implement their own wolfSSL_NewThread(),
+         * wolfSSL_JoinThread() and wolfSSL_Cond signaling if they want.
          * Otherwise, those functions are omitted.
         */
     #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET) || \
