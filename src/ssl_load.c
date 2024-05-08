@@ -2352,6 +2352,9 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
             ret = ProcessBufferCertTypes(ctx, ssl, buff, sz, der, format, type,
                 verify);
         }
+        else {
+            FreeDer(&der);
+        }
     }
 
     /* Reset suites if this is a private key or user certificate. */
