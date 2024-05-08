@@ -749,7 +749,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
         /* Check high zeros. */
         for (--i; i > ED25519_SIG_LOW_ORDER_IDX; i--) {
             if (sig[i] > 0x00)
-                break;
+                return BAD_FUNC_ARG;
         }
         /* Did we see all zeros up to lower order index? */
         if (i == ED25519_SIG_LOW_ORDER_IDX) {
