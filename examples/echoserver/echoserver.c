@@ -350,7 +350,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
         } while (err == WC_PENDING_E);
         if (ret != WOLFSSL_SUCCESS) {
             fprintf(stderr, "SSL_accept error = %d, %s\n", err,
-                wolfSSL_ERR_error_string(err, buffer));
+                wolfSSL_ERR_error_string((unsigned long)err, buffer));
             fprintf(stderr, "SSL_accept failed\n");
             wolfSSL_free(ssl);
             CloseSocket(clientfd);
@@ -391,7 +391,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
             if (ret <= 0) {
                 if (err != WOLFSSL_ERROR_WANT_READ && err != WOLFSSL_ERROR_ZERO_RETURN){
                     fprintf(stderr, "SSL_read echo error %d, %s!\n", err,
-                        wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_ERR_error_string((unsigned long)err, buffer));
                 }
                 break;
             }
@@ -453,7 +453,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
                 } while (err == WC_PENDING_E);
                 if (ret != echoSz) {
                     fprintf(stderr, "SSL_write get error = %d, %s\n", err,
-                        wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_ERR_error_string((unsigned long)err, buffer));
                     err_sys("SSL_write get failed");
                 }
                 break;
@@ -480,7 +480,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
 
             if (ret != echoSz) {
                 fprintf(stderr, "SSL_write echo error = %d, %s\n", err,
-                        wolfSSL_ERR_error_string(err, buffer));
+                        wolfSSL_ERR_error_string((unsigned long)err, buffer));
                 err_sys("SSL_write echo failed");
             }
         }
