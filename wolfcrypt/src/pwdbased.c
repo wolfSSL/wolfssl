@@ -183,6 +183,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
            int sLen, int iterations, int kLen, int hashType)
 {
+
     return wc_PBKDF1_ex(output, kLen, NULL, 0,
         passwd, pLen, salt, sLen, iterations, hashType, NULL);
 }
@@ -208,6 +209,15 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
     if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
     }
+
+#if FIPS_VERSION3_GE(6,0,0)
+    /* Per SP800-132 section 5 "The kLen value shall be at least 112 bits in
+     * length", ensure the returned bits for the derived master key are at a
+     * minimum 14-bytes or 112-bits after stretching and strengthening
+     * (iterations) */
+    if (kLen < HMAC_FIPS_MIN_KEY/8)
+        return BAD_LENGTH_E;
+#endif
 
     if (iterations <= 0)
         iterations = 1;
