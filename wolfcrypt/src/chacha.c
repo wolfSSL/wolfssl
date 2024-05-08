@@ -72,6 +72,10 @@ Public domain.
     #elif defined(__clang__) && defined(NO_AVX2_SUPPORT)
         #undef NO_AVX2_SUPPORT
     #endif
+    #if defined(_MSC_VER) && (_MSC_VER <= 1900)
+        #undef  NO_AVX2_SUPPORT
+        #define NO_AVX2_SUPPORT
+    #endif
 
     #ifndef NO_AVX2_SUPPORT
         #define HAVE_INTEL_AVX2

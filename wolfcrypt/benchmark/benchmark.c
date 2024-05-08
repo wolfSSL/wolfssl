@@ -1971,6 +1971,7 @@ static int    numBlocks  = NUM_BLOCKS;
 static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
+static int encrypt_only = 0;
 
 #ifdef MULTI_VALUE_STATISTICS
 static int minimum_runs = 0;
@@ -5820,27 +5821,54 @@ void bench_chacha(void)
     XMEMSET(enc, 0, sizeof(ChaCha));
     wc_Chacha_SetKey(enc, bench_key, 16);
 
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < numBlocks; i++) {
-            ret = wc_Chacha_SetIV(enc, bench_iv, 0);
-            if (ret < 0) {
-                printf("wc_Chacha_SetIV error: %d\n", ret);
-                goto exit;
-            }
-            ret = wc_Chacha_Process(enc, bench_cipher, bench_plain, bench_size);
-            if (ret < 0) {
-                printf("wc_Chacha_Process error: %d\n", ret);
-                goto exit;
-            }
-            RECORD_MULTI_VALUE_STATS();
+    if (encrypt_only) {
+        ret = wc_Chacha_SetIV(enc, bench_iv, 0);
+        if (ret < 0) {
+            printf("wc_Chacha_SetIV error: %d\n", ret);
+            goto exit;
         }
-        count += i;
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-        || runs < minimum_runs
-#endif
-        );
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_Chacha_Process(enc, bench_cipher, bench_plain,
+                    bench_size);
+                if (ret < 0) {
+                    printf("wc_Chacha_Process error: %d\n", ret);
+                    goto exit;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += i;
+        } while (bench_stats_check(start)
+    #ifdef MULTI_VALUE_STATISTICS
+            || runs < minimum_runs
+    #endif
+            );
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_Chacha_SetIV(enc, bench_iv, 0);
+                if (ret < 0) {
+                    printf("wc_Chacha_SetIV error: %d\n", ret);
+                    goto exit;
+                }
+                ret = wc_Chacha_Process(enc, bench_cipher, bench_plain,
+                    bench_size);
+                if (ret < 0) {
+                    printf("wc_Chacha_Process error: %d\n", ret);
+                    goto exit;
+                }
+                RECORD_MULTI_VALUE_STATS();
+            }
+            count += i;
+        } while (bench_stats_check(start)
+    #ifdef MULTI_VALUE_STATISTICS
+            || runs < minimum_runs
+    #endif
+            );
+    }
 
     bench_stats_sym_finish("CHACHA", 0, count, bench_size, start, 0);
 #ifdef MULTI_VALUE_STATISTICS
@@ -13470,6 +13498,8 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
 #endif
         else if (string_matches(argv[1], "-dgst_full"))
             digest_stream = 0;
+        else if (string_matches(argv[1], "-enc_only"))
+            encrypt_only = 1;
 #ifndef NO_RSA
         else if (string_matches(argv[1], "-rsa_sign"))
             rsa_sign_verify = 1;

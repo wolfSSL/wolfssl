@@ -48,7 +48,14 @@
 #define WC_HAS_GCC_4_4_64BIT
 #endif
 
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
+#ifdef WOLFSSL_X86_64_BUILD
+#if defined(USE_INTEL_SPEEDUP) && !defined(NO_POLY1305_ASM)
+    #define USE_INTEL_POLY1305_SPEEDUP
+    #define HAVE_INTEL_AVX1
+#endif
+#endif
+
+#if defined(USE_INTEL_POLY1305_SPEEDUP)
 #elif (defined(WC_HAS_SIZEOF_INT128_64BIT) || defined(WC_HAS_MSVC_64BIT) ||  \
        defined(WC_HAS_GCC_4_4_64BIT))
 #define POLY130564
@@ -67,7 +74,7 @@ enum {
 
 /* Poly1305 state */
 typedef struct Poly1305 {
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
+#ifdef USE_INTEL_POLY1305_SPEEDUP
     word64 r[3];
     word64 h[3];
     word64 pad[2];

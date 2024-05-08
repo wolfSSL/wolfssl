@@ -3471,14 +3471,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
     }
     if (XMEMCMP(hash, b.output, WC_SHA256_DIGEST_SIZE) != 0) {
-{
-    for (int ii = 0; ii < WC_SHA256_DIGEST_SIZE; ii++)
-        fprintf(stderr, " %02x", hash[ii]);
-    fprintf(stderr, "\n");
-    for (int ii = 0; ii < WC_SHA256_DIGEST_SIZE; ii++)
-        fprintf(stderr, " %02x", b.output[ii]);
-    fprintf(stderr, "\n");
-}
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
     }
 #endif
