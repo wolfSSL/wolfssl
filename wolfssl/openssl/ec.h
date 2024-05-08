@@ -140,6 +140,8 @@ typedef int point_conversion_form_t;
 
 typedef struct WOLFSSL_EC_KEY_METHOD {
     /* Not implemented */
+    /* Just here so that some C compilers don't complain. To be removed. */
+    void* dummy_member;
 } WOLFSSL_EC_KEY_METHOD;
 
 WOLFSSL_API
