@@ -52,6 +52,9 @@
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0)
+    #ifdef DEBUG_WOLFSSL
+        #include <wolfssl/wolfcrypt/logging.h>
+    #endif
     const unsigned int wolfCrypt_FIPS_pbkdf_ro_sanity[2] =
                                                      { 0x1a2b3c4d, 0x00000010 };
     int wolfCrypt_FIPS_PBKDF_sanity(void)
