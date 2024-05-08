@@ -128,6 +128,10 @@ extern int wolfcrypt_benchmark_main(int argc, char** argv);
     #include "linuxkm/lkcapi_glue.c"
 #endif
 
+#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    #include "linuxkm/x86_vector_register_glue.c"
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
 static int __init wolfssl_init(void)
 #else
@@ -379,11 +383,6 @@ static struct task_struct *my_get_current_thread(void) {
     return get_current();
 }
 
-/* ditto for preempt_count(). */
-static int my_preempt_count(void) {
-    return preempt_count();
-}
-
 #if defined(WOLFSSL_LINUXKM_SIMD_X86) && defined(WOLFSSL_COMMERCIAL_LICENSE)
 
 /* ditto for fpregs_lock/fpregs_unlock */
@@ -492,41 +491,15 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     #endif
 
     wolfssl_linuxkm_pie_redirect_table.get_current = my_get_current_thread;
-    wolfssl_linuxkm_pie_redirect_table.preempt_count = my_preempt_count;
 
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-
-    #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
-        wolfssl_linuxkm_pie_redirect_table.cpu_number = &cpu_number;
-    #else
-        wolfssl_linuxkm_pie_redirect_table.pcpu_hot = &pcpu_hot;
-    #endif
-    wolfssl_linuxkm_pie_redirect_table.nr_cpu_ids = &nr_cpu_ids;
-
-    #if defined(CONFIG_SMP) && \
-        (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && \
-        !defined(WOLFSSL_COMMERCIAL_LICENSE)
-        wolfssl_linuxkm_pie_redirect_table.migrate_disable = &migrate_disable;
-        wolfssl_linuxkm_pie_redirect_table.migrate_enable = &migrate_enable;
-    #endif
-
-#ifdef WOLFSSL_LINUXKM_SIMD_X86
-    wolfssl_linuxkm_pie_redirect_table.irq_fpu_usable = irq_fpu_usable;
-    #ifdef WOLFSSL_COMMERCIAL_LICENSE
-        wolfssl_linuxkm_pie_redirect_table.fpregs_lock = my_fpregs_lock;
-        wolfssl_linuxkm_pie_redirect_table.fpregs_unlock = my_fpregs_unlock;
-    #else /* !defined(WOLFSSL_COMMERCIAL_LICENSE) */
-        #ifdef kernel_fpu_begin
-        wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin_mask =
-            kernel_fpu_begin_mask;
-        #else
-        wolfssl_linuxkm_pie_redirect_table.kernel_fpu_begin =
-            kernel_fpu_begin;
-        #endif
-        wolfssl_linuxkm_pie_redirect_table.kernel_fpu_end = kernel_fpu_end;
-    #endif /* !defined(WOLFSSL_COMMERCIAL_LICENSE) */
-#endif /* WOLFSSL_LINUXKM_SIMD_X86 */
-
+#if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+    wolfssl_linuxkm_pie_redirect_table.allocate_wolfcrypt_linuxkm_fpu_states = allocate_wolfcrypt_linuxkm_fpu_states;
+    wolfssl_linuxkm_pie_redirect_table.can_save_vector_registers_x86 = can_save_vector_registers_x86;
+    wolfssl_linuxkm_pie_redirect_table.free_wolfcrypt_linuxkm_fpu_states = free_wolfcrypt_linuxkm_fpu_states;
+    wolfssl_linuxkm_pie_redirect_table.restore_vector_registers_x86 = restore_vector_registers_x86;
+    wolfssl_linuxkm_pie_redirect_table.save_vector_registers_x86 = save_vector_registers_x86;
+#elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+    #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
 #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     wolfssl_linuxkm_pie_redirect_table.__mutex_init = __mutex_init;
