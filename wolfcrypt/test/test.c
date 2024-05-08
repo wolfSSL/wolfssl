@@ -26045,7 +26045,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
 {
     char passwd[] = "passwordpassword";
-    WOLFSSL_SMALL_STACK_STATIC const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a,
+                                                     0x5d, 0x63, 0xcb, 0x06 };
     int   iterations = 2048;
     int   kLen = 24;
     byte  derived[64];
