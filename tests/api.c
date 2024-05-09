@@ -41936,7 +41936,8 @@ static int test_wolfSSL_X509_VERIFY_PARAM(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY)
 
 static int test_wolfSSL_check_domain_verify_count = 0;
 
@@ -41998,6 +41999,14 @@ static int test_wolfSSL_check_domain(void)
     ExpectIntEQ(test_wolfSSL_check_domain_verify_count, 1);
 #endif
 
+    return EXPECT_RESULT();
+}
+
+#else
+
+static int test_wolfSSL_check_domain(void)
+{
+    EXPECT_DECLS;
     return EXPECT_RESULT();
 }
 
@@ -72953,9 +72962,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_BIO_get_len),
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wolfSSL_check_domain),
-#endif
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
     TEST_DECL(test_wolfSSL_ciphersuite_auth),
