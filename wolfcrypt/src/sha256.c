@@ -825,7 +825,14 @@ static int InitSha256(wc_Sha256* sha256)
     {
         int ret = 0;
 
-        if (sha256 == NULL || (data == NULL && len > 0)) {
+        if (sha256 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
             return BAD_FUNC_ARG;
         }
 
@@ -876,6 +883,17 @@ static int InitSha256(wc_Sha256* sha256)
 
     int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     {
+        if (sha256 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         return se050_hash_update(&sha256->se050Ctx, data, len);
     }
 

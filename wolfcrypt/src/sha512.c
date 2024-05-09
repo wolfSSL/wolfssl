@@ -166,6 +166,17 @@
     }
     int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     {
+        if (sha512 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         return se050_hash_update(&sha512->se050Ctx, data, len);
     }
     int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
@@ -1096,7 +1107,14 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
 
 int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 {
-    if (sha512 == NULL || (data == NULL && len > 0)) {
+    if (sha512 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+    if (data == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -1497,6 +1515,17 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
     }
     int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
     {
+        if (sha384 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         return se050_hash_update(&sha384->se050Ctx, data, len);
 
     }
@@ -1582,7 +1611,15 @@ static int InitSha384(wc_Sha384* sha384)
 
 int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
 {
-    if (sha384 == NULL || (data == NULL && len > 0)) {
+
+    if (sha384 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+    if (data == NULL) {
         return BAD_FUNC_ARG;
     }
 
