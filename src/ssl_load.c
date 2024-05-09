@@ -5029,8 +5029,6 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
 
 #ifdef OPENSSL_EXTRA
 
-#ifdef WOLFSSL_SYS_CA_CERTS
-
 /* Use the default paths to look for CA certificate.
  *
  * This is an OpenSSL compatibility layer function, but it doesn't mirror
@@ -5089,7 +5087,7 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
         WOLFSSL_MSG("wolfSSL_CTX_set_default_verify_paths not supported"
                     " with NO_FILESYSTEM enabled");
         ret = WOLFSSL_FATAL_ERROR;
-    #else
+    #elif defined(WOLFSSL_SYS_CA_CERTS)
         /* Load the system CA certificates. */
         ret = wolfSSL_CTX_load_system_CA_certs(ctx);
         if (ret == WOLFSSL_BAD_PATH) {
@@ -5098,6 +5096,10 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
              */
             ret = 1;
         }
+    #else
+        /* OpenSSL's implementation of this API does not require loading the
+           system CA cert directory.  Allow skipping this without erroring out. */
+        ret = 1;
     #endif
     }
 
@@ -5105,8 +5107,6 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
 
     return ret;
 }
-
-#endif /* WOLFSSL_SYS_CA_CERTS */
 
 #endif /* OPENSSL_EXTRA */
 

@@ -19614,7 +19614,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
     return ret;
 }
 
-#ifndef WOLFSSL_NO_STUB
+#ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void (*fp)(void))
 {
     (void) ctx;
@@ -19624,7 +19624,7 @@ long wolfSSL_CTX_callback_ctrl(WOLFSSL_CTX* ctx, int cmd, void (*fp)(void))
     return WOLFSSL_FAILURE;
 
 }
-#endif /* WOLFSSL_NO_STUB */
+#endif /* NO_WOLFSSL_STUB */
 
 #ifndef NO_WOLFSSL_STUB
 long wolfSSL_CTX_clear_extra_chain_certs(WOLFSSL_CTX* ctx)
