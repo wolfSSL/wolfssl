@@ -4081,11 +4081,7 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
     else if (ssl->error == SOCKET_PEER_CLOSED_E)
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
 #endif
-#if defined(WOLFSSL_HAPROXY)
-    return GetX509Error(ssl->error);
-#else
-    return (ssl->error);
-#endif
+    return ssl->error;
 }
 
 
