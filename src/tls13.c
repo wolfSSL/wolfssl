@@ -315,7 +315,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
         case sha256_mac:
             ret = wc_InitSha256_ex(&digest.sha256, ssl->heap, ssl->devId);
             if (ret == 0) {
-                    ret = wc_Sha256Update(&digest.sha256, msg, msgLen);
+                    ret = wc_Sha256Update(&digest.sha256, msg, (word32)msgLen);
                 if (ret == 0)
                     ret = wc_Sha256Final(&digest.sha256, hash);
                 wc_Sha256Free(&digest.sha256);
@@ -328,7 +328,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
         case sha384_mac:
             ret = wc_InitSha384_ex(&digest.sha384, ssl->heap, ssl->devId);
             if (ret == 0) {
-                ret = wc_Sha384Update(&digest.sha384, msg, msgLen);
+                ret = wc_Sha384Update(&digest.sha384, msg, (word32)msgLen);
                 if (ret == 0)
                     ret = wc_Sha384Final(&digest.sha384, hash);
                 wc_Sha384Free(&digest.sha384);
@@ -341,7 +341,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
         case sha512_mac:
             ret = wc_InitSha512_ex(&digest.sha512, ssl->heap, ssl->devId);
             if (ret == 0) {
-                ret = wc_Sha512Update(&digest.sha512, msg, msgLen);
+                ret = wc_Sha512Update(&digest.sha512, msg, (word32)msgLen);
                 if (ret == 0)
                     ret = wc_Sha512Final(&digest.sha512, hash);
                 wc_Sha512Free(&digest.sha512);
@@ -354,7 +354,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
         case sm3_mac:
             ret = wc_InitSm3(&digest.sm3, ssl->heap, ssl->devId);
             if (ret == 0) {
-                ret = wc_Sm3Update(&digest.sm3, msg, msgLen);
+                ret = wc_Sm3Update(&digest.sm3, msg, (word32)msgLen);
                 if (ret == 0)
                     ret = wc_Sm3Final(&digest.sm3, hash);
                 wc_Sm3Free(&digest.sm3);
@@ -392,9 +392,9 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
             return VERSION_ERROR;
     }
     if (outputLen == -1)
-        outputLen = hashSz;
+        outputLen = (int)hashSz;
 
-    ret = Tls13HKDFExpandLabel(ssl, output, outputLen, secret, hashSz,
+    ret = Tls13HKDFExpandLabel(ssl, output, (word32)outputLen, secret, hashSz,
                                protocol, protocolLen, label, labelLen,
                                hash, hashSz, digestAlg);
     return ret;
@@ -481,7 +481,7 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
 #endif /* WOLFSSL_DTLS13 */
 
     if (outputLen == -1) {
-        outputLen = hashSz;
+        outputLen = (int)hashSz;
     }
     if (includeMsgs) {
         hashOutSz = hashSz;
@@ -496,7 +496,7 @@ int Tls13DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
     }
 
     PRIVATE_KEY_UNLOCK();
-    ret = Tls13HKDFExpandKeyLabel(ssl, output, outputLen, secret, hashSz,
+    ret = Tls13HKDFExpandKeyLabel(ssl, output, (word32)outputLen, secret, hashSz,
                                   protocol, protocolLen, label, labelLen,
                                   hash, hashOutSz, digestAlg, side);
     PRIVATE_KEY_LOCK();
@@ -973,7 +973,7 @@ int Tls13_Exporter(WOLFSSL* ssl, unsigned char *out, size_t outLen,
 {
     int                 ret;
     enum wc_HashType    hashType = WC_HASH_TYPE_NONE;
-    int                 hashLen = 0;
+    word32              hashLen = 0;
     byte                hashOut[WC_MAX_DIGEST_SIZE];
     const byte*         emptyHash = NULL;
     byte                firstExpand[WC_MAX_DIGEST_SIZE];
@@ -1124,7 +1124,7 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
     void *cb_ctx = ssl->HkdfExtractCtx;
     CallbackHKDFExtract cb = ssl->ctx->HkdfExtractCb;
     if (cb != NULL) {
-        ret = cb(prk, salt, saltLen, ikm, ikmLen, digest, cb_ctx);
+        ret = cb(prk, salt, (word32)saltLen, ikm, (word32)ikmLen, digest, cb_ctx);
     }
     else
 #endif
@@ -1137,7 +1137,7 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
     {
     #if !defined(HAVE_FIPS) || \
         (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
-        ret = wc_Tls13_HKDF_Extract_ex(prk, salt, saltLen, ikm, ikmLen, digest,
+        ret = wc_Tls13_HKDF_Extract_ex(prk, salt, (word32)saltLen, ikm, (word32)ikmLen, digest,
             ssl->heap, ssl->devId);
     #else
         ret = wc_Tls13_HKDF_Extract(prk, salt, saltLen, ikm, ikmLen, digest);
@@ -1167,7 +1167,7 @@ int DeriveEarlySecret(WOLFSSL* ssl)
     PRIVATE_KEY_UNLOCK();
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     ret = Tls13_HKDF_Extract(ssl, ssl->arrays->secret, NULL, 0,
-            ssl->arrays->psk_key, ssl->arrays->psk_keySz,
+            ssl->arrays->psk_key, (int)ssl->arrays->psk_keySz,
             mac2hash(ssl->specs.mac_algorithm));
 #else
     ret = Tls13_HKDF_Extract(ssl, ssl->arrays->secret, NULL, 0,
@@ -1210,7 +1210,7 @@ int DeriveHandshakeSecret(WOLFSSL* ssl)
     PRIVATE_KEY_UNLOCK();
     ret = Tls13_HKDF_Extract(ssl, ssl->arrays->preMasterSecret,
             key, ssl->specs.hash_size,
-            ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
+            ssl->arrays->preMasterSecret, (int)ssl->arrays->preMasterSz,
             mac2hash(ssl->specs.mac_algorithm));
     PRIVATE_KEY_LOCK();
 
@@ -1416,7 +1416,7 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
     if (ret == 0) {
         ret = wc_HmacSetKey(verifyHmac, hashType, key, ssl->specs.hash_size);
         if (ret == 0)
-            ret = wc_HmacUpdate(verifyHmac, hash, hashSz);
+            ret = wc_HmacUpdate(verifyHmac, hash, (word32)hashSz);
         if (ret == 0)
             ret = wc_HmacFinal(verifyHmac, hash);
         wc_HmacFree(verifyHmac);
@@ -1432,7 +1432,7 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
 #endif
 
     if (pHashSz)
-        *pHashSz = hashSz;
+        *pHashSz = (word32)hashSz;
 
     return ret;
 }
@@ -1633,7 +1633,7 @@ int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 #endif /* WOLFSSL_DTLS13 */
 
 end:
-    ForceZero(key_dig, i);
+    ForceZero(key_dig, (word32)i);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
@@ -3273,7 +3273,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             args->headerSz = Dtls13GetRlHeaderLength(ssl, 1);
 #endif /* WOLFSSL_DTLS13 */
 
-        args->sz = args->headerSz + inSz;
+        args->sz = args->headerSz + (word32)inSz;
         args->idx  = args->headerSz;
 
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3303,7 +3303,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             args->sz += ssl->specs.aead_mac_size;
 
             if (sizeOnly)
-                return args->sz;
+                return (int)args->sz;
 
             if (args->sz > (word32)outSz) {
                 WOLFSSL_MSG("Oops, want to write past output buffer size");
@@ -3328,8 +3328,8 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
             /* TLS v1.3 can do in place encryption. */
             if (input != output + args->idx)
-                XMEMCPY(output + args->idx, input, inSz);
-            args->idx += inSz;
+                XMEMCPY(output + args->idx, input, (size_t)inSz);
+            args->idx += (word32)inSz;
 
             ssl->options.buildMsgState = BUILD_MSG_HASH;
         }
@@ -3338,7 +3338,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         case BUILD_MSG_HASH:
         {
             if (hashOutput) {
-                ret = HashOutput(ssl, output, args->headerSz + inSz, 0);
+                ret = HashOutput(ssl, output, (int)args->headerSz + inSz, 0);
                 if (ret != 0)
                     goto exit_buildmsg;
             }
@@ -3357,8 +3357,8 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 /* QUIC does not use encryption of the TLS Record Layer.
                  * Return the original length + added headers
                  * and restore it in the record header. */
-                AddTls13RecordHeader(output, inSz, type, ssl);
-                ret = args->headerSz + inSz;
+                AddTls13RecordHeader(output, (word32)inSz, (byte)type, ssl);
+                ret = (int)args->headerSz + inSz;
                 goto exit_buildmsg;
             }
 #endif
@@ -3368,7 +3368,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 byte* mac = output + args->idx;
                 output += args->headerSz;
 
-                ret = ssl->ctx->MacEncryptCb(ssl, mac, output, inSz, type, 0,
+                ret = ssl->ctx->MacEncryptCb(ssl, mac, output, (unsigned int)inSz, (byte)type, 0,
                         output, output, args->size, ssl->MacEncryptCtx);
             }
             else
@@ -3416,7 +3416,7 @@ exit_buildmsg:
 
     /* return sz on success */
     if (ret == 0) {
-        ret = args->sz;
+        ret = (int)args->sz;
     }
     else {
         WOLFSSL_ERROR_VERBOSE(ret);
@@ -4023,7 +4023,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
             idx - Dtls13GetRlHeaderLength(ssl, 0));
     else
 #endif /* WOLFSSL_DTLS13 */
-        ret = HashOutput(ssl, output, idx, 0);
+        ret = HashOutput(ssl, output, (int)idx, 0);
 
     if (ret != 0)
         return ret;
@@ -4171,7 +4171,7 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
     /* hash the body */
     if (ret == 0) {
         ret = HashRaw(ssl, ech->innerClientHello,
-              ech->innerClientHelloLen - ech->paddingLen - ech->hpke->Nt);
+              (int)(ech->innerClientHelloLen - ech->paddingLen - ech->hpke->Nt));
     }
 
     /* swap hsHashes back */
@@ -4423,7 +4423,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
-        args->preXLength = args->length;
+        args->preXLength = (int)args->length;
 
         /* get size for inner */
         ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
@@ -4434,10 +4434,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         args->ech->type = 0;
         /* set innerClientHelloLen to ClientHelloInner + padding + tag */
         args->ech->paddingLen = 31 - ((args->length - 1) % 32);
-        args->ech->innerClientHelloLen = args->length +
-            args->ech->paddingLen + args->ech->hpke->Nt;
+        args->ech->innerClientHelloLen = (word16)(args->length +
+            args->ech->paddingLen + args->ech->hpke->Nt);
         /* set the length back to before we computed ClientHelloInner size */
-        args->length = args->preXLength;
+        args->length = (word32)args->preXLength;
     }
 #endif
 
@@ -4474,7 +4474,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     }
 
     /* Total message size. */
-    args->sendSz = args->length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
+    args->sendSz = (int)(args->length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ);
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
@@ -4514,7 +4514,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         XMEMCPY(args->output + args->idx, ssl->arrays->clientRandom, RAN_LEN);
 
 #if defined(HAVE_ECH)
-    args->clientRandomOffset = args->idx;
+    args->clientRandomOffset = (int)args->idx;
 #endif
 
     args->idx += RAN_LEN;
@@ -4623,7 +4623,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     if (ssl->options.useEch == 1) {
         ret = TLSX_FinalizeEch(args->ech,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
-            args->sendSz - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ));
+            (word32)(args->sendSz - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)));
 
         if (ret != 0)
             return ret;
@@ -4657,7 +4657,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
             /* compute the outer hash */
             if (ret == 0)
-                ret = HashOutput(ssl, args->output, args->idx, 0);
+                ret = HashOutput(ssl, args->output, (int)args->idx, 0);
         }
     }
     if (ret != 0)
@@ -4684,7 +4684,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    ssl->buffers.outputBuffer.length += args->sendSz;
+    ssl->buffers.outputBuffer.length += (word32)args->sendSz;
 
     /* Advance state and proceed */
     ssl->options.asyncState = TLS_ASYNC_END;
