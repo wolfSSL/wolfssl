@@ -3731,25 +3731,33 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 #elif defined(WOLFSSL_ZEPHYR)
 
-        #include <version.h>
+    #include <version.h>
 
     #if KERNEL_VERSION_NUMBER >= 0x30500
         #include <zephyr/random/random.h>
     #else
-        #include <zephyr/random/rand32.h>
+        #if KERNEL_VERSION_NUMBER >= 0x30100
+            #include <zephyr/random/rand32.h>
+        #else
+            #include <random/rand32.h>
+        #endif
     #endif
 
     #ifndef _POSIX_C_SOURCE
-        #include <zephyr/posix/time.h>
+        #if KERNEL_VERSION_NUMBER >= 0x30100
+            #include <zephyr/posix/time.h>
+        #else
+            #include <posix/time.h>
+        #endif
     #else
         #include <time.h>
     #endif
 
-        int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-        {
-            sys_rand_get(output, sz);
-            return 0;
-        }
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        sys_rand_get(output, sz);
+        return 0;
+    }
 
 #elif defined(WOLFSSL_TELIT_M2MB)
 

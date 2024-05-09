@@ -206,7 +206,12 @@
     #endif
 #elif defined(WOLFSSL_ZEPHYR)
     #ifndef SINGLE_THREADED
-        #include <zephyr/kernel.h>
+        #include <version.h>
+        #if KERNEL_VERSION_NUMBER >= 0x30100
+            #include <zephyr/kernel.h>
+        #else
+            #include <kernel.h>
+        #endif
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
     /* do nothing */

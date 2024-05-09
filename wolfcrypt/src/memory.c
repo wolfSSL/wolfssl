@@ -992,7 +992,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                         }
                     #ifdef WOLFSSL_DEBUG_STATIC_MEMORY
                         else {
-                            fprintf(stderr, "Size: %ld, Empty: %d\n", size,
+                            fprintf(stderr, "Size: %lu, Empty: %d\n", (unsigned long) size,
                                                               mem->sizeList[i]);
                         }
                     #endif
@@ -1029,7 +1029,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         else {
             WOLFSSL_MSG("ERROR ran out of static memory");
             #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "Looking for %lu bytes at %s:%d\n", size, func, line);
+                fprintf(stderr, "Looking for %lu bytes at %s:%d\n", (unsigned long) size, func,
+                        line);
             #endif
         }
 

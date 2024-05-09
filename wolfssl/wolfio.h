@@ -129,7 +129,18 @@
         #include <lwip-socket.h>
         #include <errno.h>
     #elif defined(WOLFSSL_ZEPHYR)
-        #include <zephyr/net/socket.h>
+        #include <version.h>
+        #if KERNEL_VERSION_NUMBER >= 0x30100
+            #include <zephyr/net/socket.h>
+            #ifdef CONFIG_POSIX_API
+                #include <zephyr/posix/sys/socket.h>
+            #endif
+        #else
+            #include <net/socket.h>
+            #ifdef CONFIG_POSIX_API
+                #include <posix/sys/socket.h>
+            #endif
+        #endif
     #elif defined(MICROCHIP_PIC32)
         #include <sys/errno.h>
     #elif defined(HAVE_NETX)

@@ -354,6 +354,9 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef HAVE_PKCS7
     #include <wolfssl/wolfcrypt/pkcs7.h>
 #endif
+#ifdef HAVE_PKCS12
+    #include <wolfssl/wolfcrypt/pkcs12.h>
+#endif
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
@@ -584,6 +587,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  srp_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  random_test(void);
 #endif /* WC_NO_RNG */
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pwdbased_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  pkcs12_test(void);
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  ripemd_test(void);
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  openssl_test(void);   /* test mini api */
@@ -595,7 +599,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  openssl_evpSig_test(void);
 #endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf1_test(void);
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void);
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void);
 #if defined(HAVE_PBKDF2) && !defined(NO_SHA256) && !defined(NO_HMAC)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void);
 #endif
@@ -1670,6 +1674,16 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     else
         TEST_PASS("PWDBASED test passed!\n");
     PRIVATE_KEY_LOCK();
+#endif
+
+#if defined(USE_CERT_BUFFERS_2048) && \
+        defined(HAVE_PKCS12) && \
+            !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+            !defined(NO_CERTS) && !defined(NO_DES3)
+    if ( (ret = pkcs12_test()) != 0)
+        TEST_FAIL("PKCS12   test failed!\n", ret);
+    else
+        TEST_PASS("PKCS12   test passed!\n");
 #endif
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
@@ -24699,7 +24713,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void)
 #endif
 
 #ifdef HAVE_PKCS12
-WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
                             0x00, 0x00 };
@@ -24726,7 +24740,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
     int kLen       = 24;
     int iterations =  1;
     wc_test_ret_t ret;
-    WOLFSSL_ENTER("pkcs12_test");
+    WOLFSSL_ENTER("pkcs12_pbkdf_test");
 
     ret = wc_PKCS12_PBKDF(derived, passwd, sizeof(passwd), salt, 8,
                           iterations, kLen, WC_SHA256, id);
@@ -24831,7 +24845,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
         return ret;
 #endif
 #ifdef HAVE_PKCS12
-    ret = pkcs12_test();
+    ret = pkcs12_pbkdf_test();
     if (ret != 0)
         return ret;
 #endif
@@ -24844,6 +24858,79 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pwdbased_test(void)
 }
 
 #endif /* NO_PWDBASED */
+
+#if defined(USE_CERT_BUFFERS_2048) && \
+        defined(HAVE_PKCS12) && \
+            !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_HMAC) && \
+            !defined(NO_CERTS) && !defined(NO_DES3)
+WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
+{
+    wc_test_ret_t ret = 0;
+    WC_PKCS12* pkcs12 = NULL;
+    /* Gen vars */
+    byte* pkcs12der = NULL;
+    int pkcs12derSz = 0;
+    WC_DerCertList derCaList = {
+        (byte*)ca_cert_der_2048, sizeof_ca_cert_der_2048, NULL
+    };
+    char* pass = (char*)"wolfSSL test";
+    /* Parsing vars */
+    WC_DerCertList* derCaListOut = NULL;
+    byte* keyDer  = NULL;
+    byte* certDer = NULL;
+    word32 keySz;
+    word32 certSz;
+
+    WOLFSSL_ENTER("pkcs12_test");
+
+    pkcs12 = wc_PKCS12_create(pass, XSTRLEN(pass),
+        (char*)"friendlyName" /* not used currently */,
+        (byte*)server_key_der_2048, sizeof_server_key_der_2048,
+        (byte*)server_cert_der_2048, sizeof_server_cert_der_2048,
+        &derCaList, PBE_SHA1_DES3, PBE_SHA1_DES3, 100, 100,
+        0 /* not used currently */, HEAP_HINT);
+    if (pkcs12 == NULL)
+        return MEMORY_E;
+
+    ret = wc_i2d_PKCS12(pkcs12, NULL, &pkcs12derSz);
+    if (ret != LENGTH_ONLY_E)
+        return ret == 0 ? -1 : ret;
+
+    pkcs12der = (byte*)XMALLOC(pkcs12derSz, HEAP_HINT, DYNAMIC_TYPE_PKCS);
+    if (pkcs12der == NULL)
+        return MEMORY_E;
+
+    {
+        /* Use tmp pointer to avoid advancing pkcs12der */
+        byte* tmp = pkcs12der;
+        ret = wc_i2d_PKCS12(pkcs12, &tmp, &pkcs12derSz);
+        if (ret <= 0)
+            return ret == 0 ? -1 : ret;
+    }
+
+    wc_PKCS12_free(pkcs12);
+    pkcs12 = wc_PKCS12_new_ex(HEAP_HINT);
+    if (pkcs12 == NULL)
+        return MEMORY_E;
+
+    /* convert the DER file into an internal structure */
+    ret = wc_d2i_PKCS12(pkcs12der, pkcs12derSz, pkcs12);
+    if (ret != 0)
+        return ret;
+
+    /* parse the internal structure into its parts */
+    ret = wc_PKCS12_parse(pkcs12, "wolfSSL test", &keyDer, &keySz,
+            &certDer, &certSz, &derCaListOut);
+    if (ret != 0 || keyDer == NULL || certDer == NULL || derCaListOut == NULL)
+        return ret == 0 ? -1 : ret;
+
+    wc_FreeCertList(derCaListOut, HEAP_HINT);
+    XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_PKCS);
+    XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_PKCS);
+    wc_PKCS12_free(pkcs12);
+    return ret;
+}
+#endif
 
 #if defined(HAVE_HKDF) && !defined(NO_HMAC)
 
@@ -50249,7 +50336,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         return BAD_FUNC_ARG;
 
 #ifdef DEBUG_WOLFSSL
-    printf("CryptoDevCb: Algo Type %d\n", info->algo_type);
+    WOLFSSL_MSG_EX("CryptoDevCb: Algo Type %d\n", info->algo_type);
 #endif
 
     if (info->algo_type == WC_ALGO_TYPE_RNG) {
@@ -50291,7 +50378,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     }
     else if (info->algo_type == WC_ALGO_TYPE_PK) {
     #ifdef DEBUG_WOLFSSL
-        printf("CryptoDevCb: Pk Type %d\n", info->pk.type);
+        WOLFSSL_MSG_EX("CryptoDevCb: Pk Type %d\n", info->pk.type);
     #endif
 
     #ifndef NO_RSA

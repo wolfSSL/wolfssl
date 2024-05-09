@@ -1422,6 +1422,7 @@ typedef struct w64wrapper {
             k_thread_stack_t* threadStack;
         } THREAD_TYPE;
         #define WOLFSSL_THREAD
+        extern void* wolfsslThreadHeapHint;
     #elif defined(NETOS)
         typedef UINT        THREAD_RETURN;
         typedef struct {

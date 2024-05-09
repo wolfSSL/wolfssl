@@ -37,6 +37,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/pkcs12.h>
 
 /* For the types */
 #include <wolfssl/openssl/compat_types.h>
@@ -2974,7 +2975,6 @@ WOLFSSL_API int  wolfSSL_connect_cert(WOLFSSL* ssl);
 
 
 /* PKCS12 compatibility */
-typedef struct WC_PKCS12 WC_PKCS12;
 WOLFSSL_API WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio,
                                        WC_PKCS12** pkcs12);
 WOLFSSL_API int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12);
