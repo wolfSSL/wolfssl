@@ -70740,6 +70740,59 @@ static int test_dtls_empty_keyshare_with_cookie(void)
     return EXPECT_RESULT();
 }
 
+static int test_dtls_old_seq_number(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HVR */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server first flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client second flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Modify the sequence number */
+    {
+        DtlsRecordLayerHeader* dtlsRH = (DtlsRecordLayerHeader*)test_ctx.s_buff;
+        XMEMSET(dtlsRH->sequence_number, 0, sizeof(dtlsRH->sequence_number));
+    }
+    /* Server second flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server should not do anything as a pkt was dropped */
+    ExpectIntEQ(test_ctx.c_len, 0);
+    ExpectIntEQ(test_ctx.s_len, 0);
+    /* Trigger rtx */
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_c), WOLFSSL_SUCCESS);
+
+    /* Complete connection */
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_LIBOQS)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
@@ -72965,6 +73018,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_frag_ch),
     TEST_DECL(test_dtls13_frag_ch_pq),
     TEST_DECL(test_dtls_empty_keyshare_with_cookie),
+    TEST_DECL(test_dtls_old_seq_number),
     TEST_DECL(test_tls13_pq_groups),
     TEST_DECL(test_tls13_early_data),
     TEST_DECL(test_tls_multi_handshakes_one_record),
