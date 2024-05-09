@@ -420,7 +420,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     size_t xfer_bytes = 0;
     char* buffer;
 
-    buffer = (char*)malloc(block);
+    buffer = (char*)malloc((size_t)block);
     if (!buffer) {
         err_sys_ex(runWithErrors, "Server buffer malloc failed");
     }
@@ -520,8 +520,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                 "\tRX      %8.3f ms (%8.3f MBps)\n"
                 "\tTX      %8.3f ms (%8.3f MBps)\n",
                 (SIZE_TYPE)throughput,
-                (double)rx_time * 1000, throughput / rx_time / 1024 / 1024,
-                (double)tx_time * 1000, throughput / tx_time / 1024 / 1024
+                (double)rx_time * 1000, (double)throughput / rx_time / 1024 / 1024,
+                (double)tx_time * 1000, (double)throughput / tx_time / 1024 / 1024
             );
         }
         else {
