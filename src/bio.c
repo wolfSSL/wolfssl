@@ -50,7 +50,7 @@
  */
 static int wolfSSL_BIO_BASE64_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
-    word32 frmtSz = len;
+    word32 frmtSz = (word32)len;
 
     WOLFSSL_ENTER("wolfSSL_BIO_BASE64_read");
 
@@ -175,7 +175,7 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
                 WOLFSSL_MSG("wolfSSL_BUF_MEM_resize error");
                 return WOLFSSL_BIO_ERROR;
             }
-            bio->mem_buf->length = bio->wrSz;
+            bio->mem_buf->length = (size_t)bio->wrSz;
             bio->ptr = bio->mem_buf->data;
         }
     }
@@ -233,13 +233,13 @@ static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
 {
     if (wolfSSL_EVP_MD_CTX_type((WOLFSSL_EVP_MD_CTX*)bio->ptr) == NID_hmac) {
         if (wolfSSL_EVP_DigestSignUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, buf,
-                        sz) != WOLFSSL_SUCCESS)
+                        (unsigned int)sz) != WOLFSSL_SUCCESS)
         {
             return WOLFSSL_FATAL_ERROR;
         }
     }
     else {
-        if (wolfSSL_EVP_DigestUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, buf, sz)
+        if (wolfSSL_EVP_DigestUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, buf, (size_t)sz)
                 != WOLFSSL_SUCCESS) {
             return WOLFSSL_FATAL_ERROR;
         }
@@ -305,12 +305,12 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             case WOLFSSL_BIO_FILE:
             #ifndef NO_FILESYSTEM
                 if (bio->ptr) {
-                    ret = (int)XFREAD(buf, 1, len, (XFILE)bio->ptr);
+                    ret = (int)XFREAD(buf, 1, (size_t)len, (XFILE)bio->ptr);
                 }
                 else {
                 #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) && \
                     !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                    ret = (int)XREAD(bio->num, buf, len);
+                    ret = (int)XREAD(bio->num, buf, (size_t)len);
                 #else
                     WOLFSSL_MSG("No file pointer and XREAD not enabled");
                     ret = NOT_COMPILED_IN;
@@ -448,7 +448,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
 
     (void)heap;
 
-    return inLen;
+    return (int)inLen;
 }
 #endif /* WOLFSSL_BASE64_ENCODE */
 
@@ -591,12 +591,12 @@ static int wolfSSL_BIO_MD_write(WOLFSSL_BIO* bio, const void* data, int len)
 
     if (wolfSSL_EVP_MD_CTX_type((WOLFSSL_EVP_MD_CTX*)bio->ptr) == NID_hmac) {
         if (wolfSSL_EVP_DigestSignUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, data,
-                    len) != WOLFSSL_SUCCESS) {
+                    (unsigned int)len) != WOLFSSL_SUCCESS) {
             ret = WOLFSSL_BIO_ERROR;
         }
     }
     else {
-        if (wolfSSL_EVP_DigestUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, data, len)
+        if (wolfSSL_EVP_DigestUpdate((WOLFSSL_EVP_MD_CTX*)bio->ptr, data, (size_t)len)
                 != WOLFSSL_SUCCESS) {
             ret =  WOLFSSL_BIO_ERROR;
         }
@@ -652,7 +652,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 if (ret > 0) {
                     /* change so that data is formatted buffer */
                     data = frmt;
-                    len  = frmtSz;
+                    len  = (int)frmtSz;
                 }
             #else
                 WOLFSSL_MSG("WOLFSSL_BIO_BASE64 used without "
@@ -670,12 +670,12 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             case WOLFSSL_BIO_FILE:
             #ifndef NO_FILESYSTEM
                 if (bio->ptr) {
-                    ret = (int)XFWRITE(data, 1, len, (XFILE)bio->ptr);
+                    ret = (int)XFWRITE(data, 1, (size_t)len, (XFILE)bio->ptr);
                 }
                 else {
                 #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) && \
                     !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
-                    ret = (int)XWRITE(bio->num, data, len);
+                    ret = (int)XWRITE(bio->num, data, (size_t)len);
                 #else
                     WOLFSSL_MSG("No file pointer and XWRITE not enabled");
                     ret = NOT_COMPILED_IN;
@@ -972,7 +972,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 ret = wolfSSL_EVP_DigestFinal((WOLFSSL_EVP_MD_CTX*)bio->ptr,
                         (unsigned char*)buf, &szOut);
                 if (ret == WOLFSSL_SUCCESS) {
-                    ret = szOut;
+                    ret = (int)szOut;
                 }
             }
             break;
@@ -1257,8 +1257,8 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
     bio->rdIdx = 0;
     if (bio->mem_buf != NULL) {
         bio->mem_buf->data = (char*)bio->ptr;
-        bio->mem_buf->length = bio->num;
-        bio->mem_buf->max = bio->num;
+        bio->mem_buf->length = (size_t)bio->num;
+        bio->mem_buf->max = (size_t)bio->num;
     }
 
     return WOLFSSL_SUCCESS;
@@ -2637,7 +2637,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             len = (int)XSTRLEN((const char*)buf) + 1;
         }
 
-        if (len > 0 && wolfSSL_BUF_MEM_resize(bio->mem_buf, len) == 0) {
+        if (len > 0 && wolfSSL_BUF_MEM_resize(bio->mem_buf, (size_t)len) == 0) {
             wolfSSL_BIO_free(bio);
             return NULL;
         }

@@ -480,7 +480,7 @@ static int wolfssl_read_file_static(const char* fname, StaticBuffer* content,
         ret = static_buffer_set_size(content, (word32)sz, heap, type);
     }
     /* Read data from file. */
-    if ((ret == 0) && ((size_t)XFREAD(content->buffer, 1, sz, file) !=
+    if ((ret == 0) && ((size_t)XFREAD(content->buffer, 1, (size_t)sz, file) !=
             (size_t)sz)) {
         ret = WOLFSSL_BAD_FILE;
     }

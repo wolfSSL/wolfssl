@@ -340,7 +340,7 @@ int wolfSSL_SetServerID(WOLFSSL* ssl, const byte* id, int len, int newSession)
         if (wc_Sha256Hash(id, len, idHash) != 0)
             return WOLFSSL_FAILURE;
 #else
-        if (wc_ShaHash(id, len, idHash) != 0)
+        if (wc_ShaHash(id, (word32)len, idHash) != 0)
             return WOLFSSL_FAILURE;
 #endif
         id = idHash;
@@ -893,14 +893,14 @@ int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to)
             ret = wolfSSL_CTX_set_TicketHint(ctx, SESSION_TICKET_HINT_DEFAULT);
         }
         else {
-            ret = wolfSSL_CTX_set_TicketHint(ctx, to);
+            ret = wolfSSL_CTX_set_TicketHint(ctx, (int)to);
         }
     }
 #endif /* OPENSSL_EXTRA && HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER */
 
 #if defined(WOLFSSL_ERROR_CODE_OPENSSL)
     if (ret == WOLFSSL_SUCCESS) {
-        return prev_timeout;
+        return (int)prev_timeout;
     }
     else {
         return ret;
@@ -933,12 +933,12 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     if (ssl->options.side == WOLFSSL_SERVER_END)
         return NULL;
 
-    len = min(SERVER_ID_LEN, (word32)len);
+    len = (int)min(SERVER_ID_LEN, (word32)len);
 
     /* Do not access ssl->ctx->get_sess_cb from here. It is using a different
      * set of ID's */
 
-    row = HashObject(id, len, &error) % CLIENT_SESSION_ROWS;
+    row = HashObject(id, (word32)len, &error) % CLIENT_SESSION_ROWS;
     if (error != 0) {
         WOLFSSL_MSG("Hash session failed");
         return NULL;
@@ -950,7 +950,7 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
     }
 
     /* start from most recently used */
-    count = min((word32)ClientCache[row].totalCount, CLIENT_SESSIONS_PER_ROW);
+    count = (int)min((word32)ClientCache[row].totalCount, CLIENT_SESSIONS_PER_ROW);
     idx = ClientCache[row].nextIdx - 1;
     if (idx < 0 || idx >= CLIENT_SESSIONS_PER_ROW) {
         /* if back to front, the previous was end */
@@ -1084,7 +1084,7 @@ static int TlsSessionCacheGetAndLock(const byte *id,
         return FATAL_ERROR;
 
     /* start from most recently used */
-    count = min((word32)sessRow->totalCount, SESSIONS_PER_ROW);
+    count = (int)min((word32)sessRow->totalCount, SESSIONS_PER_ROW);
     idx = sessRow->nextIdx - 1;
     if (idx < 0 || idx >= SESSIONS_PER_ROW) {
         idx = SESSIONS_PER_ROW - 1; /* if back to front, the previous was end */
@@ -1610,7 +1610,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx,
             error = -1;
         }
         if (error == 0 && wc_LockMutex(&clisession_mutex) == 0) {
-            clientIdx = ClientCache[clientRow].nextIdx;
+            clientIdx = (word32)ClientCache[clientRow].nextIdx;
             if (clientIdx < CLIENT_SESSIONS_PER_ROW) {
                 ClientCache[clientRow].Clients[clientIdx].serverRow =
                                                                 (word16)row;
@@ -1860,13 +1860,13 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
                 cacheSession->side == side) {
             WOLFSSL_MSG("Session already exists. Overwriting.");
             overwrite = 1;
-            idx = i;
+            idx = (word32)i;
             break;
         }
     }
 
     if (!overwrite)
-        idx = sessRow->nextIdx;
+        idx = (word32)sessRow->nextIdx;
 #ifdef SESSION_INDEX
     if (sessionIndex != NULL)
         *sessionIndex = (row << SESSIDX_ROW_SHIFT) | idx;
@@ -2026,7 +2026,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 
 #ifndef NO_CLIENT_CACHE
     if (ret == 0 && clientCacheEntry != NULL) {
-        ClientSession* clientCache = AddSessionToClientCache(side, row, idx,
+        ClientSession* clientCache = AddSessionToClientCache(side, row, (int)idx,
                 addSession->serverID, addSession->idLen, id, useTicket);
         if (clientCache != NULL)
             *clientCacheEntry = clientCache;

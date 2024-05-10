@@ -4821,7 +4821,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
         PRIVATE_KEY_UNLOCK();
     #if !defined(HAVE_FIPS) || \
         (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
-        ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
+        ret = wc_HKDF_Extract_ex(digestType, zeros, (word32)digestSize,
             ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk,
             ssl->heap, ssl->devId);
     #else
@@ -4835,10 +4835,10 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
         PRIVATE_KEY_UNLOCK();
         ret = Tls13HKDFExpandKeyLabel(ssl,
             acceptConfirmation, ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize,
+            expandLabelPrk, (word32)digestSize,
             tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
             echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
-            transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
+            transcriptEchConf, (word32)digestSize, digestType, WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
     if (ret == 0) {
@@ -4959,7 +4959,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
         PRIVATE_KEY_UNLOCK();
     #if !defined(HAVE_FIPS) || \
         (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
-        ret = wc_HKDF_Extract_ex(digestType, zeros, digestSize,
+        ret = wc_HKDF_Extract_ex(digestType, zeros, (word32)digestSize,
             ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk,
             ssl->heap, ssl->devId);
     #else
@@ -4975,10 +4975,10 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
         ret = Tls13HKDFExpandKeyLabel(ssl,
             output + serverRandomOffset + RAN_LEN - ECH_ACCEPT_CONFIRMATION_SZ,
                 ECH_ACCEPT_CONFIRMATION_SZ,
-            expandLabelPrk, digestSize,
+            expandLabelPrk, (word32)digestSize,
             tls13ProtocolLabel, TLS13_PROTOCOL_LABEL_SZ,
             echAcceptConfirmationLabel, ECH_ACCEPT_CONFIRMATION_LABEL_SZ,
-            transcriptEchConf, digestSize, digestType, WOLFSSL_SERVER_END);
+            transcriptEchConf, (word32)digestSize, digestType, WOLFSSL_SERVER_END);
         PRIVATE_KEY_LOCK();
     }
 
@@ -5173,7 +5173,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Server random - keep for debugging. */
     XMEMCPY(ssl->arrays->serverRandom, input + args->idx, RAN_LEN);
 #if defined(HAVE_ECH)
-    args->serverRandomOffset = args->idx;
+    args->serverRandomOffset = (int)args->idx;
 #endif
     args->idx += RAN_LEN;
 
@@ -5465,7 +5465,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #if defined(HAVE_ECH)
     /* check for acceptConfirmation and HashInput with 8 0 bytes */
     if (ssl->options.useEch == 1) {
-        ret = EchCheckAcceptance(ssl, input, args->serverRandomOffset, helloSz);
+        ret = EchCheckAcceptance(ssl, input, args->serverRandomOffset, (int)helloSz);
         if (ret != 0)
             return ret;
     }
@@ -6060,7 +6060,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
                 return ret;
 
             /* Hash data up to binders for deriving binders in PSK extension. */
-            ret = HashInput(ssl, input, inputSz);
+            ret = HashInput(ssl, input, (int)inputSz);
             if (ret < 0)
                 return ret;
 
@@ -6076,7 +6076,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
             if (ret != 0)
                 return ret;
 
-            ret = HashInput(ssl, input, inputSz);
+            ret = HashInput(ssl, input, (int)inputSz);
             if (ret < 0)
                 return ret;
 
@@ -6172,7 +6172,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         if (usingPSK)
             *usingPSK = 0;
         /* Hash data up to binders for deriving binders in PSK extension. */
-        ret = HashInput(ssl, input,  helloSz);
+        ret = HashInput(ssl, input,  (int)helloSz);
         return ret;
     }
 
@@ -6239,7 +6239,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     else {
         /* No suitable PSK found, Hash the complete ClientHello,
          * as caller expect it after we return */
-        ret = HashInput(ssl, input,  helloSz);
+        ret = HashInput(ssl, input,  (int)helloSz);
     }
     if (ret != 0)
         return ret;
@@ -6818,7 +6818,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         realMinor = ssl->version.minor;
         ssl->version.minor = args->pv.minor;
-        ret = HashInput(ssl, input + args->begin, helloSz);
+        ret = HashInput(ssl, input + args->begin, (int)helloSz);
         ssl->version.minor = realMinor;
         if (ret == 0) {
             ret = DoClientHello(ssl, input, inOutIdx, helloSz);
@@ -7306,7 +7306,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     ret = TLSX_GetResponseSize(ssl, extMsgType, &length);
     if (ret != 0)
         return ret;
-    sendSz = idx + length;
+    sendSz = (int)(idx + length);
 
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
@@ -7545,7 +7545,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    sendSz = idx + length;
+    sendSz = (int)(idx + length);
     /* Encryption always on. */
     sendSz += MAX_MSG_EXTRA;
 
@@ -7667,7 +7667,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     if (ret != 0)
         return ret;
 
-    sendSz = i + reqSz;
+    sendSz = (int)(i + reqSz);
     /* Always encrypted and make room for padding. */
     sendSz += MAX_MSG_EXTRA;
 
@@ -8211,7 +8211,7 @@ int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
         case sha256_mac:
             ret = wc_InitSha256(&digest.sha256);
             if (ret == 0) {
-                ret = wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
+                ret = wc_Sha256Update(&digest.sha256, sigData, (word32)sigDataSz);
                 if (ret == 0)
                     ret = wc_Sha256Final(&digest.sha256, hash);
                 wc_Sha256Free(&digest.sha256);
@@ -8223,7 +8223,7 @@ int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
         case sha384_mac:
             ret = wc_InitSha384(&digest.sha384);
             if (ret == 0) {
-                ret = wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
+                ret = wc_Sha384Update(&digest.sha384, sigData, (word32)sigDataSz);
                 if (ret == 0)
                     ret = wc_Sha384Final(&digest.sha384, hash);
                 wc_Sha384Free(&digest.sha384);
@@ -8235,7 +8235,7 @@ int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
         case sha512_mac:
             ret = wc_InitSha512(&digest.sha512);
             if (ret == 0) {
-                ret = wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
+                ret = wc_Sha512Update(&digest.sha512, sigData, (word32)sigDataSz);
                 if (ret == 0)
                     ret = wc_Sha512Final(&digest.sha512, hash);
                 wc_Sha512Free(&digest.sha512);
@@ -8272,7 +8272,7 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
         case sha256_mac:
             ret = wc_InitSha256(&digest.sha256);
             if (ret == 0) {
-                ret = wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
+                ret = wc_Sha256Update(&digest.sha256, sigData, (word32)sigDataSz);
                 if (ret == 0)
                     ret = wc_Sha256Final(&digest.sha256, sigData);
                 wc_Sha256Free(&digest.sha256);
@@ -8284,7 +8284,7 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
         case sha384_mac:
             ret = wc_InitSha384(&digest.sha384);
             if (ret == 0) {
-                ret = wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
+                ret = wc_Sha384Update(&digest.sha384, sigData, (word32)sigDataSz);
                 if (ret == 0)
                     ret = wc_Sha384Final(&digest.sha384, sigData);
                 wc_Sha384Free(&digest.sha384);
@@ -8296,7 +8296,7 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
         case sha512_mac:
             ret = wc_InitSha512(&digest.sha512);
             if (ret == 0) {
-                ret = wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
+                ret = wc_Sha512Update(&digest.sha512, sigData, (word32)sigDataSz);
                 if (ret == 0)
                     ret = wc_Sha512Final(&digest.sha512, sigData);
                 wc_Sha512Free(&digest.sha512);
@@ -8350,7 +8350,7 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
                                   sigAlgo, hashAlgo);
         if (ret < 0)
             return ret;
-        sigSz = ret;
+        sigSz = (word32)ret;
 
         ret = wc_RsaPSS_CheckPadding(sigData, sigSz, decSig, decSigSz,
                                      hashType);
@@ -8548,7 +8548,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     if (ssl->fragOffset != 0)
         length -= (ssl->fragOffset + headerSz);
 
-    maxFragment = wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
+    maxFragment = (word32)wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;
@@ -8885,9 +8885,9 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_BUILD:
         {
-            int rem = ssl->buffers.outputBuffer.bufferSize
+            int rem = (int)(ssl->buffers.outputBuffer.bufferSize
               - ssl->buffers.outputBuffer.length
-              - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ;
+              - RECORD_HEADER_SZ - HANDSHAKE_HEADER_SZ);
 
             /* idx is used to track verify pointer offset to output */
             args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -9129,7 +9129,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     args->sigDataSz, args->sigAlgo, ssl->options.hashAlgo);
                 if (ret < 0)
                     goto exit_scv;
-                rsaSigBuf->length = ret;
+                rsaSigBuf->length = (unsigned int)ret;
                 ret = 0;
             }
         #endif /* !NO_RSA */
@@ -10221,7 +10221,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 #endif
                                 );
                 if (ret >= 0) {
-                    args->sendSz = ret;
+                    args->sendSz = (word32)ret;
                     ret = 0;
                 }
             }
@@ -10808,7 +10808,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
         input = output + Dtls13GetRlHeaderLength(ssl, 1);
 #endif /* WOLFSSL_DTLS13 */
 
-    AddTls13HandShakeHeader(input, finishedSz, 0, finishedSz, finished, ssl);
+    AddTls13HandShakeHeader(input, (word32)finishedSz, 0, finishedSz, finished, ssl);
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
@@ -11240,7 +11240,7 @@ static int SendTls13EndOfEarlyData(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendTls13EndOfEarlyData");
 
     length = 0;
-    sendSz = idx + length + MAX_MSG_EXTRA;
+    sendSz = (int)(idx + length + MAX_MSG_EXTRA);
     ssl->options.buildingMsg = 1;
 
     /* Check buffers are big enough and grow if needed. */
@@ -11696,7 +11696,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     /* Nonce */
     length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
 
-    sendSz = idx + length + MAX_MSG_EXTRA;
+    sendSz = (int)(idx + length + MAX_MSG_EXTRA);
 
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
@@ -12541,7 +12541,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
     if (ret == 0 && type != client_hello && type != session_ticket &&
                                                            type != key_update) {
-        ret = HashInput(ssl, input + inIdx, size);
+        ret = HashInput(ssl, input + inIdx, (int)size);
     }
 
     alertType = TranslateErrorToAlert(ret);

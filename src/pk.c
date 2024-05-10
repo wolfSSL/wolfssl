@@ -411,7 +411,7 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
         (*derSz) += (int)paddingSz;
 
         /* Encrypt DER buffer. */
-        ret = wc_BufferKeyEncrypt(info, der, *derSz, passwd, passwdSz, WC_MD5);
+        ret = wc_BufferKeyEncrypt(info, der, (word32)*derSz, passwd, passwdSz, WC_MD5);
         if (ret != 0) {
             WOLFSSL_MSG("encrypt key failed");
         }
@@ -5774,7 +5774,7 @@ static int wolfssl_dsa_key_to_pubkey_der(WOLFSSL_DSA* key, unsigned char** der,
     }
     if (sz > 0) {
         /* Encode public key to DER using wolfSSL.  */
-        sz = wc_DsaKeyToPublicDer((DsaKey*)key->internal, buf, sz);
+        sz = wc_DsaKeyToPublicDer((DsaKey*)key->internal, buf, (word32)sz);
         if (sz < 0) {
             WOLFSSL_MSG("wc_DsaKeyToPublicDer failed");
             sz = 0;
@@ -15076,7 +15076,7 @@ int wolfSSL_PEM_def_callback(char* buf, int num, int rwFlag, void* userData)
     /* We assume that the user passes a default password as userdata */
     if ((buf != NULL) && (userData != NULL)) {
         sz = (int)XSTRLEN((const char*)userData);
-        sz = min(sz, num);
+        sz = (int)min((word32)sz, (word32)num);
         XMEMCPY(buf, userData, sz);
     }
     else {
@@ -15656,7 +15656,7 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
         word32 derLen;
 
         /* Convert PEM body to DER. */
-        derLen = startEnd - PEM_END_SZ - start;
+        derLen = (word32)(startEnd - PEM_END_SZ - start);
         ret = Base64_Decode(der + start, derLen, der, &derLen);
         if (ret == 0) {
             /* Return the DER data. */
@@ -15839,7 +15839,7 @@ int wolfSSL_PEM_write_bio(WOLFSSL_BIO* bio, const char *name,
     }
 
     /* Write PEM into BIO. */
-    if ((!err) && (wolfSSL_BIO_write(bio, pem, pemLen) != (int)pemLen)) {
+    if ((!err) && (wolfSSL_BIO_write(bio, pem, (int)pemLen) != (int)pemLen)) {
         err = IO_FAILED_E;
     }
 
@@ -15930,7 +15930,7 @@ int wolfSSL_PEM_write(XFILE fp, const char *name, const char *header,
     }
 
     XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return pemLen;
+    return (int)pemLen;
 }
 #endif
 
@@ -16003,7 +16003,7 @@ int wolfSSL_PEM_do_header(EncryptedInfo* cipher, unsigned char* data, long* len,
 
     if (passwordSz > 0) {
         /* Ensure password is erased from memory. */
-        ForceZero(password, passwordSz);
+        ForceZero(password, (word32)passwordSz);
     }
 
     return ret;
@@ -16075,7 +16075,7 @@ static int pem_pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
                 key, keySz, passwd, passwdSz, PKCS5, PBES2, encAlgId,
                 NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL);
             if (ret > 0) {
-                *keySz = ret;
+                *keySz = (word32)ret;
             }
         }
         /* Dispose of random number generator. */
@@ -16171,7 +16171,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
             keySz += 128;
         }
         /* PEM encoding size from DER size. */
-        *pemSz  = (keySz + 2) / 3 * 4;
+        *pemSz  = (int)(keySz + 2) / 3 * 4;
         *pemSz += (*pemSz + 63) / 64;
         /* Header and footer. */
         if (enc != NULL) {
@@ -16184,7 +16184,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
         }
 
         /* Allocate enough memory to hold PEM encoded encrypted key. */
-        *pem = (byte*)XMALLOC(*pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *pem = (byte*)XMALLOC((size_t)*pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (*pem == NULL) {
             res = 0;
         }
@@ -16217,7 +16217,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
 
         /* Zeroize the password from memory. */
         if ((password == passwd) && (passwdSz > 0)) {
-            ForceZero(password, passwdSz);
+            ForceZero(password, (word32)passwdSz);
         }
     }
     else if ((res == 1) && (enc == NULL)) {
@@ -16233,7 +16233,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
 
     if (res == 1) {
         /* Encode PKCS#8 formatted key to PEM. */
-        ret = wc_DerToPemEx(key, keySz, *pem, *pemSz, NULL, type);
+        ret = wc_DerToPemEx(key, keySz, *pem, (word32)*pemSz, NULL, type);
         if (ret < 0) {
             res = 0;
         }
@@ -16328,7 +16328,7 @@ int wolfSSL_PEM_write_PKCS8PrivateKey(XFILE f, WOLFSSL_EVP_PKEY* pkey,
     }
 
     /* Write encoded key to file. */
-    if ((res >= 1) && (XFWRITE(pem, 1, pemSz, f) != (size_t)pemSz)) {
+    if ((res >= 1) && (XFWRITE(pem, 1, (size_t)pemSz, f) != (size_t)pemSz)) {
         res = 0;
     }
 
