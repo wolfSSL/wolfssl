@@ -15745,7 +15745,7 @@ int wolfSSL_PEM_read_bio(WOLFSSL_BIO* bio, char **name, char **header,
  * @param [in] header  Encryption header.
  * @param [in] data    DER data.
  * @param [in] len     Length of DER data.
- * @return  0 on success.
+ * @return  0 on failure.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 int wolfSSL_PEM_write_bio(WOLFSSL_BIO* bio, const char *name,
@@ -15770,6 +15770,7 @@ int wolfSSL_PEM_write_bio(WOLFSSL_BIO* bio, const char *name,
     /* Write PEM into BIO. */
     if ((!err) && (wolfSSL_BIO_write(bio, pem, pemLen) != (int)pemLen)) {
         pemLen = 0;
+        err = 1;
     }
 
     XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
