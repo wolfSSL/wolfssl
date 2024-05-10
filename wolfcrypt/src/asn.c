@@ -35328,7 +35328,7 @@ int wc_Curve448PublicKeyToDer(curve448_key* key, byte* output, word32 inLen,
     byte   pubKey[CURVE448_PUB_KEY_SIZE];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
-    if (key == NULL || output == NULL) {
+    if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 

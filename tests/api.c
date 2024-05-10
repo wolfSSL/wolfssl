@@ -26802,6 +26802,58 @@ static int test_wc_Ed448PrivateKeyToDer(void)
 } /* End test_wc_Ed448PrivateKeyToDer*/
 
 /*
+ * Testing wc_Curve448PrivateKeyToDer
+ */
+static int test_wc_Curve448PrivateKeyToDer(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_EXPORT) && \
+    (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+    byte      output[ONEK_BUF];
+    curve448_key curve448PrivKey;
+    WC_RNG    rng;
+    word32    inLen;
+
+    XMEMSET(&curve448PrivKey, 0, sizeof(curve448PrivKey));
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    ExpectIntEQ(wc_curve448_init(&curve448PrivKey), 0);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_curve448_make_key(&rng, CURVE448_KEY_SIZE, &curve448PrivKey),
+        0);
+    inLen = (word32)sizeof(output);
+
+    /* Bad Cases */
+    ExpectIntEQ(wc_Curve448PrivateKeyToDer(NULL, NULL, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Curve448PrivateKeyToDer(NULL, output, inLen), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Curve448PrivateKeyToDer(&curve448PrivKey, output, 0),
+        BAD_FUNC_ARG);
+    /* Good cases */
+    /* length only */
+    ExpectIntGT(wc_Curve448PrivateKeyToDer(&curve448PrivKey, NULL, inLen), 0);
+    ExpectIntGT(wc_Curve448PrivateKeyToDer(&curve448PrivKey, output, inLen), 0);
+
+    /* Bad Cases */
+    ExpectIntEQ(wc_Curve448PublicKeyToDer(NULL, NULL, 0, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Curve448PublicKeyToDer(NULL, output, inLen, 0), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Curve448PublicKeyToDer(&curve448PrivKey, output, 0, 0),
+        BUFFER_E);
+    ExpectIntEQ(wc_Curve448PublicKeyToDer(&curve448PrivKey, output, 0, 1),
+        BUFFER_E);
+    /* Good cases */
+    /* length only */
+    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, NULL, inLen, 0), 0);
+    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, NULL, inLen, 1), 0);
+    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, output, inLen, 0), 0);
+    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, output, inLen, 1), 0);
+
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+    wc_curve448_free(&curve448PrivKey);
+#endif
+    return EXPECT_RESULT();
+} /* End wc_Curve448PrivateKeyToDer*/
+
+/*
  * Testing wc_SetSubjectBuffer
  */
 static int test_wc_SetSubjectBuffer(void)
@@ -72011,6 +72063,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_Ed448PublicKeyToDer),
     TEST_DECL(test_wc_Ed448KeyToDer),
     TEST_DECL(test_wc_Ed448PrivateKeyToDer),
+    TEST_DECL(test_wc_Curve448PrivateKeyToDer),
 
     /* Signature API */
     TEST_DECL(test_wc_SignatureGetSize_ecc),
