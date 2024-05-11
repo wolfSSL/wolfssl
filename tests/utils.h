@@ -99,8 +99,12 @@ int copy_file(const char* in, const char* out)
         goto cleanup;
 
     while ((sz = XFREAD(buf, 1, sizeof(buf), inFile)) != 0) {
+        if (XFERROR(inFile))
+            goto cleanup;
         if (XFWRITE(buf, 1, sz, outFile) != sz)
             goto cleanup;
+        if (XFEOF(inFile))
+            break;
     }
 
     ret = 0;

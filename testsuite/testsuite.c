@@ -610,12 +610,19 @@ void file_test(const char* file, byte* check)
         return;
     }
     while( ( i = (int)fread(buf, 1, sizeof(buf), f )) > 0 ) {
+        if (ferror(f)) {
+            printf("I/O error reading %s\n", file);
+            fclose(f);
+            return;
+        }
         ret = wc_Sha256Update(&sha256, buf, i);
         if (ret != 0) {
             printf("Can't wc_Sha256Update %d\n", ret);
             fclose(f);
             return;
         }
+        if (feof(f))
+            break;
     }
 
     ret = wc_Sha256Final(&sha256, shasum);
