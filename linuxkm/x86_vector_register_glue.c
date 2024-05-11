@@ -189,8 +189,7 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc(int create_p) 
              * dependency loop on intelasm builds, we allocate here.
              * this is not thread-safe and doesn't need to be.
              */
-            int ret = allocate_wolfcrypt_linuxkm_fpu_states();
-            if (ret != 0)
+            if ((! create_p) || (allocate_wolfcrypt_linuxkm_fpu_states() != 0))
 #endif
             {
                 if (_warned_on_null == 0) {
