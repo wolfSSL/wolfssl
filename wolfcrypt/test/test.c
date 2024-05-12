@@ -15404,7 +15404,7 @@ static int sm4_ccm_test(void)
 
     ret = wc_Sm4Init(&sm4, NULL, INVALID_DEVID);
     if (ret != 0)
-        return -6720;
+        return WC_TEST_RET_ENC_EC(ret);
 
     /* Encrypt and decrypt using encrypt with CCM. */
     ret = wc_Sm4SetKey(&sm4, k1, sizeof(k1));
@@ -16069,7 +16069,7 @@ static wc_test_ret_t const_byte_ptr_test(const byte* in, word32 *outJ)
         ret = in[j]; /* The big test: can we actually access the `in` data? */
     }
     else {
-        ret = -1;
+        ret = WC_TEST_RET_ENC_I(j);
     }
 
     return ret;
@@ -24889,45 +24889,75 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
         (byte*)server_cert_der_2048, sizeof_server_cert_der_2048,
         &derCaList, PBE_SHA1_DES3, PBE_SHA1_DES3, 100, 100,
         0 /* not used currently */, HEAP_HINT);
-    if (pkcs12 == NULL)
-        return MEMORY_E;
+    if (pkcs12 == NULL) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto out;
+    }
 
     ret = wc_i2d_PKCS12(pkcs12, NULL, &pkcs12derSz);
-    if (ret != LENGTH_ONLY_E)
-        return ret == 0 ? -1 : ret;
+    if (ret != LENGTH_ONLY_E) {
+        if (ret == 0)
+            ret = WC_TEST_RET_ENC_NC;
+        else
+            ret = WC_TEST_RET_ENC_I(ret);
+        goto out;
+    }
 
     pkcs12der = (byte*)XMALLOC(pkcs12derSz, HEAP_HINT, DYNAMIC_TYPE_PKCS);
-    if (pkcs12der == NULL)
-        return MEMORY_E;
+    if (pkcs12der == NULL) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto out;
+    }
 
     {
         /* Use tmp pointer to avoid advancing pkcs12der */
         byte* tmp = pkcs12der;
         ret = wc_i2d_PKCS12(pkcs12, &tmp, &pkcs12derSz);
-        if (ret <= 0)
-            return ret == 0 ? -1 : ret;
+        if (ret <= 0) {
+            if (ret == 0)
+                ret = WC_TEST_RET_ENC_NC;
+            else
+                ret = WC_TEST_RET_ENC_I(ret);
+            goto out;
+        }
     }
 
     wc_PKCS12_free(pkcs12);
     pkcs12 = wc_PKCS12_new_ex(HEAP_HINT);
-    if (pkcs12 == NULL)
-        return MEMORY_E;
+    if (pkcs12 == NULL) {
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
+        goto out;
+    }
 
     /* convert the DER file into an internal structure */
     ret = wc_d2i_PKCS12(pkcs12der, pkcs12derSz, pkcs12);
-    if (ret != 0)
-        return ret;
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
 
     /* parse the internal structure into its parts */
     ret = wc_PKCS12_parse(pkcs12, "wolfSSL test", &keyDer, &keySz,
             &certDer, &certSz, &derCaListOut);
-    if (ret != 0 || keyDer == NULL || certDer == NULL || derCaListOut == NULL)
-        return ret == 0 ? -1 : ret;
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto out;
+    }
+    if (keyDer == NULL || certDer == NULL || derCaListOut == NULL) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto out;
+    }
 
-    wc_FreeCertList(derCaListOut, HEAP_HINT);
+out:
+
+    if (derCaListOut)
+        wc_FreeCertList(derCaListOut, HEAP_HINT);
     XFREE(keyDer, HEAP_HINT, DYNAMIC_TYPE_PKCS);
     XFREE(certDer, HEAP_HINT, DYNAMIC_TYPE_PKCS);
-    wc_PKCS12_free(pkcs12);
+    if (pkcs12)
+        wc_PKCS12_free(pkcs12);
+    XFREE(pkcs12der, HEAP_HINT, DYNAMIC_TYPE_PKCS);
+
     return ret;
 }
 #endif
@@ -25243,16 +25273,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
                  HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         printf("Failed w/ code: %d\n", ret);
-        return ret;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
     if (XMEMCMP(expected, dig, DIGL) != 0) {
         printf("Got unexpected digest\n");
-        return -1;
+        return WC_TEST_RET_ENC_NC;
     }
-
-    if (ret != 0)
-        return -1;
 
     return 0;
 }
@@ -25305,11 +25332,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls12_kdf_test(void)
         if (ret == FIPS_PRIVATE_KEY_LOCKED_E) {
             printf("    wc_PRF_TLSv12: Private key locked.\n");
         }
-        return -1;
+        return WC_TEST_RET_ENC_NC;
     }
 
     if (XMEMCMP(result, ms, msSz) != 0)
-        return -1;
+        return WC_TEST_RET_ENC_NC;
     return 0;
 }
 #endif /* WOLFSSL_BASE16 */
@@ -37917,7 +37944,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
 #endif
     byte *          sig = NULL;
     int             ret2 = -1;
-    int             ret = -1;
+    int             ret = WC_TEST_RET_ENC_NC;
     WOLFSSL_ENTER("xmss_test");
 
 #ifndef HAVE_FIPS
@@ -38413,8 +38440,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
     word32        sigSz = 0;
     const char *  param = "XMSS-SHA2_10_256";
     int           j     = 0;
-    int           ret2  = -1;
-    int           ret   = -1;
+    int           ret2  = WC_TEST_RET_ENC_NC;
+    int           ret   = WC_TEST_RET_ENC_NC;
     int           n_diff = 0;
     WOLFSSL_ENTER("xmss_test_verify_only");
 
@@ -38483,7 +38510,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test_verify_only(void)
                              (byte *) xmss_msg, sizeof(xmss_msg));
     if ((ret2 != -1) && (ret2 != SIG_VERIFY_E)) {
         printf("error: wc_XmssKey_Verify returned %d, expected -1\n", ret2);
-        return WC_TEST_RET_ENC_EC(ret);
+        return WC_TEST_RET_ENC_EC(ret2);
     }
 
     /* Flip it back. This should pass again. */
@@ -38546,8 +38573,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 {
     int           i = 0;
     int           j = 0;
-    int           ret = -1;
-    int           ret2 = -1;
+    int           ret = WC_TEST_RET_ENC_NC;
+    int           ret2 = WC_TEST_RET_ENC_NC;
     int           sigsLeft = 0;
     LmsKey        signingKey;
     LmsKey        verifyKey;
@@ -38917,8 +38944,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     int           levels = 0;
     int           height = 0;
     int           winternitz = 0;
-    int           ret = -1;
-    int           ret2 = -1;
+    int           ret = WC_TEST_RET_ENC_NC;
+    int           ret2 = WC_TEST_RET_ENC_NC;
     int           j = 0;
     int           n_diff = 0;
     WOLFSSL_ENTER("lms_test_verify_only");
@@ -38942,7 +38969,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test_verify_only(void)
     if (levels != 1 || height != 10 || winternitz != 8) {
         printf("error: invalid LMS parameters: L%d-H%d-W%d\n", levels, height,
                winternitz);
-        return -1;
+        return WC_TEST_RET_ENC_NC;
     }
 
     ret = wc_LmsKey_GetPubLen(&verifyKey, &pubSz);
