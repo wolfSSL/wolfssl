@@ -75,16 +75,25 @@
 #if defined(HAVE_AES_CBC) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
+#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 static int  linuxkm_test_aescbc(void);
 #endif
 #if defined(WOLFSSL_AES_CFB) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
+#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 static int  linuxkm_test_aescfb(void);
 #endif
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
+#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 static int  linuxkm_test_aesgcm(void);
 #endif
 #if defined(WOLFSSL_AES_XTS) && \
