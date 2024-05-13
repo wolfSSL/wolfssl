@@ -1,4 +1,4 @@
-# CMakeList.txt
+# CMakeLists.txt
 #
 # Copyright (C) 2006-2024 wolfSSL Inc.
 #
@@ -545,16 +545,89 @@ add_option(WOLFSSL_OQS
     "Enable integration with the OQS (Open Quantum Safe) liboqs library (default: disabled)"
     "no" "yes;no")
 
-if (WOLFSSL_OQS)
-    find_package(OQS)
+# Kyber
+add_option(WOLFSSL_KYBER
+    "Enable the wolfSSL PQ Kyber library (default: disabled)"
+    "no" "yes;no")
 
-    if (OQS_FOUND)
-        list(APPEND WOLFSSL_LINK_LIBS ${OQS_LIBRARY})
-        list(APPEND WOLFSSL_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
-        set(HAVE_LIBOQS 1)
-        list(APPEND WOLFSSL_DEFINITIONS
-          "-DHAVE_TLS_EXTENSIONS"
-          "-DHAVE_LIBOQS")
+# Experimental features
+add_option(WOLFSSL_EXPERIMENTAL
+    "Enable experimental features (default: disabled)"
+    "no" "yes;no")
+
+message(STATUS "Looking for WOLFSSL_EXPERIMENTAL")
+if (WOLFSSL_EXPERIMENTAL)
+    message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - found")
+
+    # We've enabled the experimental environment, but let's
+    # check if any experimental features are also enabled:
+    set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 0)
+
+    set_wolfssl_definitions("WOLFSSL_EXPERIMENTAL_SETTINGS" RESUlT)
+
+    # Checking for experimental feature: OQS
+    message(STATUS "Looking for WOLFSSL_OQS")
+    if (WOLFSSL_OQS)
+        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
+        message(STATUS "Looking for WOLFSSL_OQS - found")
+
+        message(STATUS "Checking OQS")
+        find_package(OQS)
+        if (OQS_FOUND)
+            message(STATUS "Checking OQS - found")
+            list(APPEND WOLFSSL_LINK_LIBS ${OQS_LIBRARY})
+            list(APPEND WOLFSSL_INCLUDE_DIRS ${OQS_INCLUDE_DIR})
+
+            set_wolfssl_definitions("HAVE_LIBOQS"          RESUlT)
+            set_wolfssl_definitions("HAVE_TLS_EXTENSIONS"  RESUlT)
+            set_wolfssl_definitions("OPENSSL_EXTRA"        RESUlT)
+
+        else()
+            message(STATUS "Checking OQS - not found")
+            message(STATUS "WARNING: WOLFSSL_OQS enabled but not found: OQS_LIBRARY=${OQS_LIBRARY}, OQS_INCLUDE_DIR=${OQS_INCLUDE_DIR} ")
+        endif()
+    else()
+        message(STATUS "Looking for WOLFSSL_OQS - not found")
+    endif()
+
+    # Checking for experimental feature: Kyber
+    message(STATUS "Looking for WOLFSSL_KYBER")
+    if (WOLFSSL_KYBER)
+        set(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE 1)
+
+        message(STATUS "Automatically set related requirements for Kyber:")
+        set_wolfssl_definitions("WOLFSSL_HAVE_KYBER" RESUlT)
+        set_wolfssl_definitions("WOLFSSL_WC_KYBER"   RESUlT)
+        set_wolfssl_definitions("WOLFSSL_SHA3"       RESUlT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE128"   RESUlT)
+        set_wolfssl_definitions("WOLFSSL_SHAKE256"   RESUlT)
+        message(STATUS "Looking for WOLFSSL_KYBER - found")
+    else()
+        message(STATUS "Looking for WOLFSSL_KYBER - not found")
+    endif()
+
+    # Other experimental feature detection can be added here...
+
+    # Were any experimental features found? Display a message.
+    if(WOLFSSL_FOUND_EXPERIMENTAL_FEATURE)
+        message(STATUS "WOLFSSL_EXPERIMENTAL enabled, experimental features enabled.")
+    else()
+        message(STATUS "Warning: WOLFSSL_EXPERIMENTAL enabled, but no experimental features enabled.")
+    endif()
+
+    # Sanity checks
+    if(WOLFSSL_OQS AND WOLFSSL_KYBER)
+        message(FATAL_ERROR "Error: cannot enable both WOLFSSL_OQS and WOLFSSL_KYBER at the same time.")
+    endif()
+
+else()
+    # Experimental mode not enabled, but were any experimental features enabled? Error out if so:
+    message(STATUS "Looking for WOLFSSL_EXPERIMENTAL - not found")
+    if (WOLFSSL_OQS)
+        message(FATAL_ERROR "Error: WOLFSSL_OQS requires WOLFSSL_EXPERIMENTAL at this time.")
+    endif()
+    if(WOLFSSL_KYBER)
+        message(FATAL_ERROR "Error: WOLFSSL_KYBER requires WOLFSSL_EXPERIMENTAL at this time.")
     endif()
 endif()
 
@@ -571,6 +644,9 @@ endif()
 #       - Atomic user record layer
 #       - Public key callbacks
 #       - Microchip/Atmel CryptoAuthLib
+#       - XMSS
+#       - LMS
+#       - dual-certs
 
 # AES-CBC
 add_option("WOLFSSL_AESCBC"

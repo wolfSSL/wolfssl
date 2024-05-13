@@ -941,3 +941,73 @@ function(add_to_options_file DEFINITIONS OPTION_FILE)
         endif()
     endforeach()
 endfunction()
+
+# Function: set_wolfssl_definitions
+#   Parameter: SEARCH_VALUE  The string to search for. (e.g. "WOLFSSL_SHA3")
+#   Returns:   RESULT
+#
+# Searches WOLFSSL_DEFINITIONS for SEARCH_VALUE
+#   Returns RESULT = 1 (true) if the search value is found
+#
+# Ensures setting is only added once and prints status messages.
+#
+# Also sets a parent (global in cmake file) variable by the same name to 1.
+#
+# See also get_wolfssl_definitions() for query-only.
+#
+function(set_wolfssl_definitions SEARCH_VALUE RESULT)
+    if (${SEARCH_VALUE} STREQUAL "")
+        message(FATAL_ERROR "Function set_wolfssl_definitions cannot have blank SEARCH_VALUE")
+    endif()
+
+    list(FIND WOLFSSL_DEFINITIONS "${SEARCH_VALUE}" pos)
+    string(SUBSTRING "${SEARCH_VALUE}" 0 2 PREFIX_VALUE)
+
+    if ("${PREFIX_VALUE}" STREQUAL "-D")
+        message(FATAL_ERROR "Do not specify the -D prefix in set_wolfssl_definitions")
+    endif()
+
+    if(${pos} EQUAL -1)
+        message(STATUS "${SEARCH_VALUE} not found in WOLFSSL_DEFINITIONS.")
+
+        message(STATUS "Enabling ${SEARCH_VALUE}")
+        list(APPEND WOLFSSL_DEFINITIONS "-D${SEARCH_VALUE}")
+        set(${SEARCH_VALUE} 1 PARENT_SCOPE)
+        # override_cache("${SEARCH_VALUE}" "yes") # Need to check that value is settable
+        set(${RESULT} 1 PARENT_SCOPE)
+        message(STATUS "Enabling ${SEARCH_VALUE} - success")
+
+    else()
+        message(STATUS "${SEARCH_VALUE} found in WOLFSSL_DEFINITIONS.")
+        set(${RESULT} 0 PARENT_SCOPE)
+    endif()
+endfunction()
+
+# Function: get_wolfssl_definitions
+#   Parameter: SEARCH_VALUE  The string to search for. (e.g. "WOLFSSL_SHA3")
+#   Returns:   RESULT
+#
+# Searches WOLFSSL_DEFINITIONS for SEARCH_VALUE
+#   Returns RESULT = 1 (true) if the search value is found
+#
+# Unlike set_wolfssl_definitions(), this function only queries the WOLFSSL_DEFINITIONS.
+#
+function(get_wolfssl_definitions SEARCH_VALUE RESULT)
+    if (${SEARCH_VALUE} STREQUAL "")
+        message(FATAL_ERROR "Function get_wolfssl_definitions cannot have blank SEARCH_VALUE")
+    endif()
+
+    list(FIND WOLFSSL_DEFINITIONS "${SEARCH_VALUE}" pos)
+    string(SUBSTRING "${SEARCH_VALUE}" 0 2 PREFIX_VALUE)
+
+    if ("${PREFIX_VALUE}" STREQUAL "-D")
+        message(FATAL_ERROR "Do not specify the -D prefix in get_wolfssl_definitions")
+    endif()
+
+
+    if(${pos} EQUAL -1)
+        message(STATUS "${SEARCH_VALUE} not found in WOLFSSL_DEFINITIONS.")
+    else()
+        message(STATUS "${SEARCH_VALUE} found in WOLFSSL_DEFINITIONS.")
+    endif()
+endfunction()
