@@ -116,13 +116,14 @@
  * @param [in, out] info    Info for encryption.
  * @param [in]      heap    Dynamic memory allocation hint.
  * @param [out]     der     Holds DER encoded data.
+ * @param [out]     algId   Algorithm identifier for private keys.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when format is PEM and PEM not supported.
  * @return  ASN_PARSE_E when format is ASN.1 and invalid DER encoding.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
 static int DataToDerBuffer(const unsigned char* buff, word32 len, int format,
-    int type, EncryptedInfo* info, void* heap, DerBuffer** der)
+    int type, EncryptedInfo* info, void* heap, DerBuffer** der, int* algId)
 {
     int ret;
 
@@ -131,7 +132,7 @@ static int DataToDerBuffer(const unsigned char* buff, word32 len, int format,
     /* Data in buffer has PEM format - extract DER data. */
     if (format == WOLFSSL_FILETYPE_PEM) {
     #ifdef WOLFSSL_PEM_TO_DER
-        ret = PemToDer(buff, len, type, der, heap, info, NULL);
+        ret = PemToDer(buff, len, type, der, heap, info, algId);
         if (ret != 0) {
             FreeDer(der);
         }
@@ -341,7 +342,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
             /* Get a certificate as DER. */
             ret = DataToDerBuffer(buff + consumed, (word32)(sz - consumed),
-                format, type, info, heap, &part);
+                format, type, info, heap, &part, NULL);
             if (ret == 0) {
                 /* Process the user certificate. */
                 ret = ProcessUserCert(ctx->cm, &part, type, verify,
@@ -603,6 +604,12 @@ static int ProcessBufferTryDecodeEcc(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Decode as an ECC public key. */
             idx = 0;
             ret = wc_EccPublicKeyDecode(der->buffer, &idx, key, der->length);
+        }
+    #endif
+    #ifdef WOLFSSL_SM2
+        if (*keyFormat == SM2k) {
+            ret = wc_ecc_set_curve(key, WOLFSSL_SM2_KEY_BITS / 8,
+                ECC_SM2P256V1);
         }
     #endif
         if (ret == 0) {
@@ -1317,17 +1324,18 @@ static void ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
  * @param [in]      heap    Dynamic memory allocation hint.
  * @param [in]      type    Type of data:
  *                            PRIVATEKEY_TYPE or ALT_PRIVATEKEY_TYPE.
+ * @param [in]      algId   Algorithm id of key.
  * @return  0 on success.
  * @return  WOLFSSL_BAD_FILE when not able to decode.
  */
 static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
-    DerBuffer* der, int format, EncryptedInfo* info, void* heap, int type)
+    DerBuffer* der, int format, EncryptedInfo* info, void* heap, int type,
+    int algId)
 {
     int ret;
-    int keyFormat = 0;
 #if (defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)) || \
      defined(HAVE_PKCS8)
-    word32 algId = 0;
+    word32 p8AlgId = 0;
 #endif
 
     (void)info;
@@ -1335,34 +1343,34 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
 #ifdef HAVE_PKCS8
     /* Try and remove PKCS8 header and get algorithm id. */
-    ret = ToTraditional_ex(der->buffer, der->length, &algId);
+    ret = ToTraditional_ex(der->buffer, der->length, &p8AlgId);
     if (ret > 0) {
         /* Header stripped inline. */
         der->length = ret;
-        keyFormat = algId;
+        algId = p8AlgId;
     }
 #endif
 
     /* Put the data into the SSL or SSL context object. */
     ProcessBufferPrivKeyHandleDer(ctx, ssl, &der, type);
     /* Try to decode the DER data. */
-    ret = ProcessBufferTryDecode(ctx, ssl, der, &keyFormat, heap, type);
+    ret = ProcessBufferTryDecode(ctx, ssl, der, &algId, heap, type);
 
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
     /* If private key type PKCS8 header wasn't already removed (algId == 0). */
-    if (((ret != 0) || (keyFormat == 0)) && (format != WOLFSSL_FILETYPE_PEM) &&
+    if (((ret != 0) || (algId == 0)) && (format != WOLFSSL_FILETYPE_PEM) &&
             (info->passwd_cb != NULL) && (algId == 0)) {
         /* Try to decrypt DER data as a PKCS#8 private key. */
         ret = ProcessBufferPrivPkcs8Dec(info, der, heap);
         if (ret >= 0) {
             /* Try to decode decrypted data.  */
-            ret = ProcessBufferTryDecode(ctx, ssl, der, &keyFormat, heap, type);
+            ret = ProcessBufferTryDecode(ctx, ssl, der, &algId, heap, type);
         }
     }
 #endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
 
-    /* Check if we were able to determine key format. */
-    if ((ret == 0) && (keyFormat == 0)) {
+    /* Check if we were able to determine algorithm id. */
+    if ((ret == 0) && (algId == 0)) {
     #ifdef OPENSSL_EXTRA
         /* Decryption password is probably wrong. */
         if (info->passwd_cb) {
@@ -2265,6 +2273,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
 #else
     EncryptedInfo  info[1];
 #endif
+    int           algId = 0;
 
     WOLFSSL_ENTER("ProcessBuffer");
 
@@ -2306,7 +2315,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     #endif
 
         /* Get the DER data for a private key or certificate. */
-        ret = DataToDerBuffer(buff, (word32)sz, format, type, info, heap, &der);
+        ret = DataToDerBuffer(buff, (word32)sz, format, type, info, heap, &der,
+            &algId);
         if (used != NULL) {
             /* Update to amount used/consumed. */
             *used = info->consumed;
@@ -2321,7 +2331,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
 
     if ((ret == 0) && IS_PRIVKEY_TYPE(type)) {
         /* Process the private key. */
-        ret = ProcessBufferPrivateKey(ctx, ssl, der, format, info, heap, type);
+        ret = ProcessBufferPrivateKey(ctx, ssl, der, format, info, heap, type,
+            algId);
     #ifdef WOLFSSL_SMALL_STACK
         /* Info no longer needed - keep max memory usage down. */
         XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);

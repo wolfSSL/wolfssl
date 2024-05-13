@@ -5588,7 +5588,7 @@ exit:
 #endif
 
 #ifdef WOLFSSL_SM4_CCM
-void bench_sm4_ccm()
+void bench_sm4_ccm(void)
 {
     wc_Sm4 enc;
     double start;
@@ -7554,12 +7554,12 @@ void bench_sm3(int useDeviceID)
         bench_stats_start(&count, &start);
         do {
             for (times = 0; times < numBlocks; times++) {
-                ret = wc_InitSm3(hash, HEAP_HINT,
+                ret = wc_InitSm3(hash[0], HEAP_HINT,
                     useDeviceID ? devId: INVALID_DEVID);
                 if (ret == 0)
-                    ret = wc_Sm3Update(hash, bench_plain, bench_size);
+                    ret = wc_Sm3Update(hash[0], bench_plain, bench_size);
                 if (ret == 0)
-                    ret = wc_Sm3Final(hash, digest[0]);
+                    ret = wc_Sm3Final(hash[0], digest[0]);
                 if (ret != 0)
                     goto exit_sm3;
                 RECORD_MULTI_VALUE_STATS();
@@ -11016,13 +11016,13 @@ exit:
 #ifdef WOLFSSL_SM2
 static void bench_sm2_MakeKey(int useDeviceID)
 {
-    int ret = 0, i, times, count, pending = 0;
+    int ret = 0, i, times, count = 0, pending = 0;
     int deviceID;
     int keySize;
     WC_DECLARE_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
     char name[BENCH_ECC_NAME_SZ];
-    double start;
+    double start = 0;
     const char**desc = bench_desc_words[lng_index];
     DECLARE_MULTI_VALUE_STATS_VARS()
 

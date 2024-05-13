@@ -1532,6 +1532,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         "USHR v7.2d, v7.2d, #56 \n"
 
         "# AAD \n"
+        "CBZ %[a], 20f \n"
         "CBZ %w[aSz], 20f \n"
         "MOV w12, %w[aSz] \n"
 
@@ -1702,6 +1703,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
         "20: \n"
         "# Cipher Text \n"
+        "CBZ %[c], 120f \n"
         "CBZ %w[cSz], 120f \n"
         "MOV w12, %w[cSz] \n"
 

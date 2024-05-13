@@ -29850,21 +29850,19 @@ static wc_test_ret_t ecc_test_custom_curves(WC_RNG* rng)
 #ifdef WOLFSSL_SM2
 #ifdef HAVE_ECC_VERIFY
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_CUSTOM_CURVES)
-    #ifdef WOLFSSL_SM2
-        #ifdef HAVE_OID_ENCODING
-            #define CODED_SM2P256V1    {1,2,156,10197,1,301}
-            #define CODED_SM2P256V1_SZ 6
-        #else
-            #define CODED_SM2P256V1 {0x06,0x08,0x2A,0x81,0x1C,0xCF,0x55,0x01,0x82,0x2D}
-            #define CODED_SM2P256V1_SZ 10
-        #endif
-        #ifndef WOLFSSL_ECC_CURVE_STATIC
-            static const ecc_oid_t ecc_oid_sm2p256v1[] = CODED_SM2P256V1;
-        #else
-            #define ecc_oid_sm2p256v1 CODED_SM2P256V1
-        #endif
-        #define ecc_oid_sm2p256v1_sz CODED_SM2P256V1_SZ
-    #endif /* WOLFSSL_SM2 */
+    #ifdef HAVE_OID_ENCODING
+        #define CODED_SM2P256V1    {1,2,156,10197,1,301}
+        #define CODED_SM2P256V1_SZ 6
+    #else
+        #define CODED_SM2P256V1 {0x06,0x08,0x2A,0x81,0x1C,0xCF,0x55,0x01,0x82,0x2D}
+        #define CODED_SM2P256V1_SZ 10
+    #endif
+    #ifndef WOLFSSL_ECC_CURVE_STATIC
+        static const ecc_oid_t ecc_oid_sm2p256v1[] = CODED_SM2P256V1;
+    #else
+        #define ecc_oid_sm2p256v1 CODED_SM2P256V1
+    #endif
+    #define ecc_oid_sm2p256v1_sz CODED_SM2P256V1_SZ
     #define ECC_SM2P256V1_TEST 102
 static int test_sm2_verify_caseA2(void)
 {
@@ -30041,9 +30039,7 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
     WC_DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
     WC_DECLARE_VAR(digest, byte, ECC_DIGEST_SIZE, HEAP_HINT);
     int     i;
-#ifdef HAVE_ECC_VERIFY
     int     verify;
-#endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
     int     ret;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -30239,7 +30235,6 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
-#ifdef HAVE_ECC_VERIFY
     for (i = 0; i < testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_sm2_verify_hash(sig, x, digest, ECC_DIGEST_SIZE, &verify,
@@ -30249,7 +30244,6 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
         if (verify != 1)
             ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
-#endif /* HAVE_ECC_VERIFY */
 #endif /* ECC_SHAMIR */
 
     /* test DSA sign hash with sequence (0,1,2,3,4,...) */
@@ -30262,7 +30256,6 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
-#ifdef HAVE_ECC_VERIFY
     for (i = 0; i < testVerifyCount; i++) {
         verify = 0;
         ret = wc_ecc_sm2_verify_hash(sig, x, digest, ECC_DIGEST_SIZE, &verify,
@@ -30272,7 +30265,6 @@ static int ecc_sm2_test_curve(WC_RNG* rng, int testVerifyCount)
         if (verify != 1)
             ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
-#endif /* HAVE_ECC_VERIFY */
 #endif /* HAVE_ECC_SIGN */
 #endif /* !ECC_TIMING_RESISTANT || (ECC_TIMING_RESISTANT && !WC_NO_RNG) */
 

@@ -28016,6 +28016,12 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
                                      ssl->buffers.key->length);
         }
     #endif
+    #ifdef WOLFSSL_SM2
+        if ((ret == 0) && (ssl->buffers.keyType == sm2_sa_algo)) {
+            ret = wc_ecc_set_curve((ecc_key*)ssl->hsKey,
+                WOLFSSL_SM2_KEY_BITS / 8, ECC_SM2P256V1);
+        }
+    #endif
         if (ret == 0) {
             WOLFSSL_MSG("Using ECC private key");
 
@@ -34568,7 +34574,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             {
                                 word32 keySz;
 
-                                ssl->buffers.keyType = ecc_dsa_sa_algo;
+                                ssl->buffers.keyType = ssl->options.sigAlgo;
                                 ret = DecodePrivateKey(ssl, &keySz);
                                 if (ret != 0) {
                                     goto exit_sske;
