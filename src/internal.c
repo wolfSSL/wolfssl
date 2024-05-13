@@ -517,6 +517,22 @@ int IsTLS(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_MINOR)
         return 1;
+#ifdef WOLFSSL_DTLS
+    if (ssl->version.major == DTLS_MAJOR)
+        return 1;
+#endif
+
+    return 0;
+}
+
+int IsTLS_ex(const ProtocolVersion pv)
+{
+    if (pv.major == SSLv3_MAJOR && pv.minor >=TLSv1_MINOR)
+        return 1;
+#ifdef WOLFSSL_DTLS
+    if (pv.major == DTLS_MAJOR)
+        return 1;
+#endif
 
     return 0;
 }
@@ -3048,7 +3064,7 @@ static WC_INLINE void AddSuiteHashSigAlgo(byte* hashSigAlgo, byte macAlgo,
     }
 }
 
-void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int haveSig, int tls1_2,
+void InitSuitesHashSigAlgo(byte* hashSigAlgo, int haveSig, int tls1_2,
     int keySz, word16* len)
 {
     word16 idx = 0;
@@ -3155,30 +3171,6 @@ void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int haveSig, int tls1_2,
     *len = idx;
 }
 
-void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
-    int haveFalconSig, int haveDilithiumSig, int haveAnon, int tls1_2,
-    int keySz)
-{
-    InitSuitesHashSigAlgo_ex(suites->hashSigAlgo, haveECDSAsig, haveRSAsig,
-            haveFalconSig, haveDilithiumSig, haveAnon, tls1_2, keySz,
-            &suites->hashSigAlgoSz);
-}
-
-void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
-    int haveRSAsig, int haveFalconSig, int haveDilithiumSig, int haveAnon,
-    int tls1_2, int keySz, word16* len)
-{
-    int have = 0;
-
-    if (haveECDSAsig)     have |= SIG_ECDSA;
-    if (haveRSAsig)       have |= SIG_RSA;
-    if (haveFalconSig)    have |= SIG_FALCON;
-    if (haveDilithiumSig) have |= SIG_DILITHIUM;
-    if (haveAnon)         have |= SIG_ANON;
-
-    InitSuitesHashSigAlgo_ex2(hashSigAlgo, have, tls1_2, keySz, len);
-}
-
 int AllocateCtxSuites(WOLFSSL_CTX* ctx)
 {
     if (ctx->suites == NULL) {
@@ -3241,6 +3233,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     (void)haveStaticRSA;
     (void)haveStaticECC;
     (void)haveECC;
+    (void)haveECDSAsig;
     (void)side;
     (void)haveRSA;    /* some builds won't read */
     (void)haveRSAsig; /* non ecc builds won't read */
@@ -4265,18 +4258,27 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     suites->suiteSz = idx;
 
     if (suites->hashSigAlgoSz == 0) {
-        int haveSig = 0;
-        haveSig |= (haveRSAsig | haveRSA) ? SIG_RSA : 0;
-        haveSig |= (haveECDSAsig | haveECC) ? SIG_ECDSA : 0;
-    #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-        haveSig |= (haveECDSAsig | haveECC) ? SIG_SM2 : 0;
-    #endif
-        haveSig |= haveFalconSig ? SIG_FALCON : 0;
-        haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
-        haveSig &= ~SIG_ANON;
-        InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, tls1_2, keySz,
+        InitSuitesHashSigAlgo(suites->hashSigAlgo, SIG_ALL, tls1_2, keySz,
             &suites->hashSigAlgoSz);
     }
+
+    /* Moved to the end as we set some of the vars but never use them */
+    (void)tls;  /* shut up compiler */
+    (void)tls1_2;
+    (void)dtls;
+    (void)haveDH;
+    (void)havePSK;
+    (void)haveStaticRSA;
+    (void)haveStaticECC;
+    (void)haveECC;
+    (void)haveECDSAsig;
+    (void)side;
+    (void)haveRSA;    /* some builds won't read */
+    (void)haveRSAsig; /* non ecc builds won't read */
+    (void)haveAnon;   /* anon ciphers optional */
+    (void)haveNull;
+    (void)haveFalconSig;
+    (void)haveDilithiumSig;
 }
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) || \
@@ -26729,7 +26731,7 @@ static int ParseCipherList(Suites* suites,
     #endif
         {
             suites->suiteSz   = (word16)idx;
-            InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, 1, keySz,
+            InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, keySz,
                  &suites->hashSigAlgoSz);
         }
 
@@ -26913,7 +26915,7 @@ int SetCipherListFromBytes(WOLFSSL_CTX* ctx, Suites* suites, const byte* list,
         haveSig |= haveFalconSig ? SIG_FALCON : 0;
         haveSig |= haveDilithiumSig ? SIG_DILITHIUM : 0;
         haveSig |= haveAnon ? SIG_ANON : 0;
-        InitSuitesHashSigAlgo_ex2(suites->hashSigAlgo, haveSig, 1, keySz,
+        InitSuitesHashSigAlgo(suites->hashSigAlgo, haveSig, 1, keySz,
             &suites->hashSigAlgoSz);
 #ifdef HAVE_RENEGOTIATION_INDICATION
         if (ctx->method->side == WOLFSSL_CLIENT_END) {
@@ -33507,6 +33509,24 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
     }
 
+    /* search suites for specific one, idx on success, negative on error */
+    int FindSuite(const Suites* suites, byte first, byte second)
+    {
+        int i;
+
+        if (suites == NULL || suites->suiteSz == 0) {
+            WOLFSSL_MSG("Suites pointer error or suiteSz 0");
+            return SUITES_ERROR;
+        }
+
+        for (i = 0; i < suites->suiteSz-1; i += SUITE_LEN) {
+            if (suites->suites[i]   == first &&
+                suites->suites[i+1] == second )
+                return i;
+        }
+
+        return MATCH_SUITE_ERROR;
+    }
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -35426,30 +35446,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-#if defined(HAVE_SERVER_RENEGOTIATION_INFO) || defined(HAVE_FALLBACK_SCSV) || \
-                                                            defined(OPENSSL_ALL)
-
-    /* search suites for specific one, idx on success, negative on error */
-    static int FindSuite(Suites* suites, byte first, byte second)
-    {
-        int i;
-
-        if (suites == NULL || suites->suiteSz == 0) {
-            WOLFSSL_MSG("Suites pointer error or suiteSz 0");
-            return SUITES_ERROR;
-        }
-
-        for (i = 0; i < suites->suiteSz-1; i += SUITE_LEN) {
-            if (suites->suites[i]   == first &&
-                suites->suites[i+1] == second )
-                return i;
-        }
-
-        return MATCH_SUITE_ERROR;
-    }
-
-#endif
-
 #endif /* !WOLFSSL_NO_TLS12 */
 
     /* Make sure server cert/key are valid for this suite, true on success
@@ -35942,6 +35938,47 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         int ret = 0;
         WOLFSSL_SESSION* session;
+
+#ifdef HAVE_SECRET_CALLBACK
+        if (ssl->sessionSecretCb != NULL
+#ifdef HAVE_SESSION_TICKET
+                && ssl->session->ticketLen > 0
+#endif
+                ) {
+            int secretSz = SECRET_LEN;
+            WOLFSSL_MSG("Calling session secret callback");
+            ret = wc_RNG_GenerateBlock(ssl->rng, ssl->arrays->serverRandom,
+                                       RAN_LEN);
+            if (ret == 0) {
+                ret = ssl->sessionSecretCb(ssl, ssl->arrays->masterSecret,
+                                              &secretSz, ssl->sessionSecretCtx);
+                if (secretSz != SECRET_LEN)
+                    ret = SESSION_SECRET_CB_E;
+            }
+            if (ret == 0)
+                ret = MatchSuite(ssl, clSuites);
+            if (ret == 0) {
+                #ifdef NO_OLD_TLS
+                    ret = DeriveTlsKeys(ssl);
+                #else
+                    #ifndef NO_TLS
+                        if (ssl->options.tls)
+                            ret = DeriveTlsKeys(ssl);
+                    #endif
+                        if (!ssl->options.tls)
+                            ret = DeriveKeys(ssl);
+                #endif
+                /* SERVER: peer auth based on session secret. */
+                ssl->options.peerAuthGood = (ret == 0);
+                ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
+            }
+            if (ret != 0)
+                WOLFSSL_ERROR_VERBOSE(ret);
+            WOLFSSL_LEAVE("HandleTlsResumption", ret);
+            return ret;
+        }
+#endif /* HAVE_SECRET_CALLBACK */
+
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket == 1) {
             session = ssl->session;
@@ -36601,6 +36638,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.haveSessionId = 1;
 
         /* ProcessOld uses same resume code */
+        WOLFSSL_MSG_EX("ssl->options.resuming %d", ssl->options.resuming);
         if (ssl->options.resuming) {
             ret = HandleTlsResumption(ssl, clSuites);
             if (ret != 0)
@@ -37982,6 +38020,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_START(WC_FUNC_TICKET_DO);
         WOLFSSL_ENTER("DoClientTicket");
 
+#ifdef HAVE_SECRET_CALLBACK
+        if (ssl->ticketParseCb != NULL) {
+            decryptRet = WOLFSSL_TICKET_RET_OK;
+            if (!ssl->ticketParseCb(ssl, input, len, ssl->ticketParseCtx)) {
+                /* Failure kills the connection */
+                decryptRet = WOLFSSL_TICKET_RET_FATAL;
+            }
+            else {
+                if (wolfSSL_set_SessionTicket(ssl, input, len) !=
+                        WOLFSSL_SUCCESS)
+                    decryptRet = WOLFSSL_TICKET_RET_REJECT;
+            }
+            goto cleanup;
+        }
+        else
+#endif
 #ifdef WOLFSSL_TLS13
         if (len == ID_LEN && IsAtLeastTLSv1_3(ssl->version)) {
             /* This is a stateful ticket. We can be sure about this because
@@ -37996,7 +38050,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         else
 #endif
+        if (len >= sizeof(*it))
             decryptRet = DoDecryptTicket(ssl, input, len, &it);
+        else
+            WOLFSSL_MSG("Ticket is smaller than InternalTicket. Rejecting.");
+
 
         if (decryptRet != WOLFSSL_TICKET_RET_OK &&
                 decryptRet != WOLFSSL_TICKET_RET_CREATE) {

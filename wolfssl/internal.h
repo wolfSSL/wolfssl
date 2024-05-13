@@ -1773,7 +1773,7 @@ enum Misc {
     ECDHE_SIZE          = 32,  /* ECDHE server size defaults to 256 bit */
 #endif
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANSI X9.62 max future size */
-    MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
+    MAX_CURVE_NAME_SZ   = 18,  /* Maximum size of curve name string */
 
     NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
@@ -2360,16 +2360,8 @@ typedef struct CipherSuite {
 #endif
 } CipherSuite;
 
-WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
-                                         int haveRSAsig, int haveFalconSig,
-                                         int haveDilithiumSig, int haveAnon,
-                                         int tls1_2, int keySz);
-WOLFSSL_LOCAL void InitSuitesHashSigAlgo_ex(byte* hashSigAlgo, int haveECDSAsig,
-                                            int haveRSAsig, int haveFalconSig,
-                                            int haveDilithiumSig, int haveAnon,
-                                            int tls1_2, int keySz, word16* len);
 /* use wolfSSL_API visibility to be able to test in tests/api.c */
-WOLFSSL_API void InitSuitesHashSigAlgo_ex2(byte* hashSigAlgo, int have,
+WOLFSSL_API void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
                                              int tls1_2, int keySz,
                                              word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
@@ -4045,13 +4037,16 @@ enum KeyExchangeAlgorithm {
     ecc_static_diffie_hellman_kea       /* for verify suite only */
 };
 
-/* Used with InitSuitesHashSigAlgo_ex2 */
+/* Used with InitSuitesHashSigAlgo */
 #define SIG_ECDSA       0x01
 #define SIG_RSA         0x02
 #define SIG_SM2         0x04
 #define SIG_FALCON      0x08
 #define SIG_DILITHIUM   0x10
 #define SIG_ANON        0x20
+/* SIG_ANON is omitted by default */
+#define SIG_ALL         (SIG_ECDSA | SIG_RSA | SIG_SM2 | SIG_FALCON | \
+                         SIG_DILITHIUM)
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
@@ -5874,6 +5869,8 @@ struct WOLFSSL {
 #ifdef HAVE_SECRET_CALLBACK
         SessionSecretCb sessionSecretCb;
         void*           sessionSecretCtx;
+        TicketParseCb   ticketParseCb;
+        void*           ticketParseCtx;
         TlsSecretCb     tlsSecretCb;
         void*           tlsSecretCtx;
     #ifdef WOLFSSL_TLS13
@@ -6125,16 +6122,11 @@ typedef struct {
     int name_len;
     const char *name;
     int nid;
+    word16 curve;
 } WOLF_EC_NIST_NAME;
 extern const WOLF_EC_NIST_NAME kNistCurves[];
-/* This is the longest and shortest curve name in the kNistCurves list. Note we
- * also have quantum-safe group names as well. */
-#define kNistCurves_MIN_NAME_LEN 5
-#ifdef HAVE_PQC
-#define kNistCurves_MAX_NAME_LEN 32
-#else
-#define kNistCurves_MAX_NAME_LEN 7
-#endif
+WOLFSSL_LOCAL int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx,
+        const char* names, byte curves_only);
 #endif /* OPENSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
 /* internal functions */
@@ -6194,6 +6186,7 @@ WOLFSSL_LOCAL int DeriveKeys(WOLFSSL* ssl);
 WOLFSSL_LOCAL int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side);
 
 WOLFSSL_LOCAL int IsTLS(const WOLFSSL* ssl);
+WOLFSSL_LOCAL int IsTLS_ex(const ProtocolVersion pv);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_2(const WOLFSSL* ssl);
 WOLFSSL_LOCAL int IsAtLeastTLSv1_3(ProtocolVersion pv);
 WOLFSSL_LOCAL int IsEncryptionOn(const WOLFSSL* ssl, int isSend);
@@ -6422,6 +6415,7 @@ WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
 WOLFSSL_LOCAL word32  LowResTimer(void);
 
 WOLFSSL_LOCAL int FindSuiteSSL(const WOLFSSL* ssl, byte* suite);
+WOLFSSL_LOCAL int FindSuite(const Suites* suites, byte first, byte second);
 
 WOLFSSL_LOCAL void DecodeSigAlg(const byte* input, byte* hashAlgo,
         byte* hsType);

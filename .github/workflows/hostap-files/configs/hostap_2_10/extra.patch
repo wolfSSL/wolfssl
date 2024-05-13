@@ -1,0 +1,47 @@
+From a53a6a67dc121b45d611318e2a37815cc209839c Mon Sep 17 00:00:00 2001
+From: Juliusz Sosinowicz <juliusz@wolfssl.com>
+Date: Fri, 19 Apr 2024 16:41:38 +0200
+Subject: [PATCH] Fixes for running tests under UML
+
+- Apply commit ID fix from more recent commit
+- priv_sz and pub_sz are checked and fail on UML. Probably because stack is zeroed out.
+---
+ src/crypto/crypto_wolfssl.c | 2 +-
+ tests/hwsim/run-all.sh      | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/crypto_wolfssl.c b/src/crypto/crypto_wolfssl.c
+index 00ecf61352..a57fa50697 100644
+--- a/src/crypto/crypto_wolfssl.c
++++ b/src/crypto/crypto_wolfssl.c
+@@ -785,7 +785,7 @@ int crypto_dh_init(u8 generator, const u8 *prime, size_t prime_len, u8 *privkey,
+ 	int ret = -1;
+ 	WC_RNG rng;
+ 	DhKey *dh = NULL;
+-	word32 priv_sz, pub_sz;
++	word32 priv_sz = prime_len, pub_sz = prime_len;
+ 
+ 	if (TEST_FAIL())
+ 		return -1;
+diff --git a/tests/hwsim/run-all.sh b/tests/hwsim/run-all.sh
+index ee48cd0581..75c3a58b52 100755
+--- a/tests/hwsim/run-all.sh
++++ b/tests/hwsim/run-all.sh
+@@ -15,7 +15,13 @@ export LOGDIR
+ if [ -z "$DBFILE" ]; then
+     DB=""
+ else
+-    DB="-S $DBFILE --commit $(git rev-parse HEAD)"
++    DB="-S $DBFILE"
++    if [ -z "$COMMITID" ]; then
++	COMMITID="$(git rev-parse HEAD)"
++    fi
++    if [ -n "$COMMITID" ]; then
++	DB="$DB --commit $COMMITID"
++    fi
+     if [ -n "$BUILD" ]; then
+ 	DB="$DB -b $BUILD"
+     fi
+-- 
+2.34.1
+

@@ -412,50 +412,6 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
 
 #include <wolfssl/wolfcrypt/hpke.h>
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
-const WOLF_EC_NIST_NAME kNistCurves[] = {
-    {XSTR_SIZEOF("P-192"),   "P-192",   NID_X9_62_prime192v1},
-    {XSTR_SIZEOF("P-256"),   "P-256",   NID_X9_62_prime256v1},
-    {XSTR_SIZEOF("P-112"),   "P-112",   NID_secp112r1},
-    {XSTR_SIZEOF("P-112-2"), "P-112-2", NID_secp112r2},
-    {XSTR_SIZEOF("P-128"),   "P-128",   NID_secp128r1},
-    {XSTR_SIZEOF("P-128-2"), "P-128-2", NID_secp128r2},
-    {XSTR_SIZEOF("P-160"),   "P-160",   NID_secp160r1},
-    {XSTR_SIZEOF("P-160-2"), "P-160-2", NID_secp160r2},
-    {XSTR_SIZEOF("P-224"),   "P-224",   NID_secp224r1},
-    {XSTR_SIZEOF("P-384"),   "P-384",   NID_secp384r1},
-    {XSTR_SIZEOF("P-521"),   "P-521",   NID_secp521r1},
-    {XSTR_SIZEOF("K-160"),   "K-160",   NID_secp160k1},
-    {XSTR_SIZEOF("K-192"),   "K-192",   NID_secp192k1},
-    {XSTR_SIZEOF("K-224"),   "K-224",   NID_secp224k1},
-    {XSTR_SIZEOF("K-256"),   "K-256",   NID_secp256k1},
-    {XSTR_SIZEOF("B-160"),   "B-160",   NID_brainpoolP160r1},
-    {XSTR_SIZEOF("B-192"),   "B-192",   NID_brainpoolP192r1},
-    {XSTR_SIZEOF("B-224"),   "B-224",   NID_brainpoolP224r1},
-    {XSTR_SIZEOF("B-256"),   "B-256",   NID_brainpoolP256r1},
-    {XSTR_SIZEOF("B-320"),   "B-320",   NID_brainpoolP320r1},
-    {XSTR_SIZEOF("B-384"),   "B-384",   NID_brainpoolP384r1},
-    {XSTR_SIZEOF("B-512"),   "B-512",   NID_brainpoolP512r1},
-#ifdef HAVE_PQC
-    {XSTR_SIZEOF("KYBER_LEVEL1"), "KYBER_LEVEL1", WOLFSSL_KYBER_LEVEL1},
-    {XSTR_SIZEOF("KYBER_LEVEL3"), "KYBER_LEVEL3", WOLFSSL_KYBER_LEVEL3},
-    {XSTR_SIZEOF("KYBER_LEVEL5"), "KYBER_LEVEL5", WOLFSSL_KYBER_LEVEL5},
-#ifdef HAVE_LIBOQS
-    {XSTR_SIZEOF("P256_KYBER_LEVEL1"), "P256_KYBER_LEVEL1",
-     WOLFSSL_P256_KYBER_LEVEL1},
-    {XSTR_SIZEOF("P384_KYBER_LEVEL3"), "P384_KYBER_LEVEL3",
-     WOLFSSL_P384_KYBER_LEVEL3},
-    {XSTR_SIZEOF("P521_KYBER_LEVEL5"), "P521_KYBER_LEVEL5",
-     WOLFSSL_P521_KYBER_LEVEL5},
-#endif
-#endif
-#ifdef WOLFSSL_SM2
-    {XSTR_SIZEOF("SM2"),     "SM2",     NID_sm2},
-#endif
-    {0, NULL, 0},
-};
-#endif
-
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
 /* create the hpke key and ech config to send to clients */
 int wolfSSL_CTX_GenerateEchConfig(WOLFSSL_CTX* ctx, const char* publicName,
@@ -2692,6 +2648,7 @@ int wolfSSL_GetOutputSize(WOLFSSL* ssl, int inSz)
 #ifdef HAVE_ECC
 int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_SetMinEccKey_Sz");
     if (ctx == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisible by 8 or ctx was null");
         return BAD_FUNC_ARG;
@@ -2707,6 +2664,7 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
 
 int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
 {
+    WOLFSSL_ENTER("wolfSSL_SetMinEccKey_Sz");
     if (ssl == NULL || keySz < 0 || keySz % 8 != 0) {
         WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
         return BAD_FUNC_ARG;
@@ -3349,7 +3307,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
 #endif /* NO_TLS */
 }
 
-#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_TLS13)
+#if defined(OPENSSL_EXTRA)
 int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
                                         int count)
 {
@@ -3420,7 +3378,7 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
     return wolfSSL_set_groups(ssl, _groups, count) == WOLFSSL_SUCCESS ?
             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
-#endif /* OPENSSL_EXTRA && WOLFSSL_TLS13 */
+#endif /* OPENSSL_EXTRA */
 #endif /* HAVE_SUPPORTED_CURVES */
 
 /* Application-Layer Protocol Negotiation */
@@ -7877,6 +7835,8 @@ WOLFSSL_API int wolfSSL_get_negotiated_server_cert_type(WOLFSSL* ssl, int* tp)
 /* Set Temp CTX EC-DHE size in octets, can be 14 - 66 (112 - 521 bit) */
 int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_SetTmpEC_DHE_Sz");
+
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
@@ -7911,6 +7871,8 @@ int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 /* Set Temp SSL EC-DHE size in octets, can be 14 - 66 (112 - 521 bit) */
 int wolfSSL_SetTmpEC_DHE_Sz(WOLFSSL* ssl, word16 sz)
 {
+    WOLFSSL_ENTER("wolfSSL_SetTmpEC_DHE_Sz");
+
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
@@ -8191,7 +8153,7 @@ int wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_set_session_secret_cb");
     if (ssl == NULL)
-        return WOLFSSL_FATAL_ERROR;
+        return WOLFSSL_FAILURE;
 
     ssl->sessionSecretCb = cb;
     ssl->sessionSecretCtx = ctx;
@@ -8200,6 +8162,19 @@ int wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb, void* ctx)
         ssl->session->sessionIDSz = 0;
         ssl->options.resuming = 1;
     }
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_set_session_ticket_ext_cb(WOLFSSL* ssl, TicketParseCb cb,
+        void *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_set_session_ticket_ext_cb");
+    if (ssl == NULL)
+        return WOLFSSL_FAILURE;
+
+    ssl->ticketParseCb = cb;
+    ssl->ticketParseCtx = ctx;
 
     return WOLFSSL_SUCCESS;
 }
@@ -15675,6 +15650,24 @@ static long wolf_set_options(long old_op, long op)
     return old_op | op;
 }
 
+static int FindHashSig(const Suites* suites, byte first, byte second)
+{
+    word16 i;
+
+    if (suites == NULL || suites->hashSigAlgoSz == 0) {
+        WOLFSSL_MSG("Suites pointer error or suiteSz 0");
+        return SUITES_ERROR;
+    }
+
+    for (i = 0; i < suites->hashSigAlgoSz-1; i += 2) {
+        if (suites->hashSigAlgo[i]   == first &&
+            suites->hashSigAlgo[i+1] == second )
+            return i;
+    }
+
+    return MATCH_SUITE_ERROR;
+}
+
 long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     word16 haveRSA = 1;
@@ -15690,21 +15683,25 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     ssl->options.mask = wolf_set_options(ssl->options.mask, op);
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
+        WOLFSSL_MSG("Disabling TLS 1.3");
         if (ssl->version.minor == TLSv1_3_MINOR)
             ssl->version.minor = TLSv1_2_MINOR;
     }
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_2) == WOLFSSL_OP_NO_TLSv1_2) {
+        WOLFSSL_MSG("Disabling TLS 1.2");
         if (ssl->version.minor == TLSv1_2_MINOR)
             ssl->version.minor = TLSv1_1_MINOR;
     }
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_1) == WOLFSSL_OP_NO_TLSv1_1) {
+        WOLFSSL_MSG("Disabling TLS 1.1");
         if (ssl->version.minor == TLSv1_1_MINOR)
             ssl->version.minor = TLSv1_MINOR;
     }
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1) == WOLFSSL_OP_NO_TLSv1) {
+        WOLFSSL_MSG("Disabling TLS 1.0");
         if (ssl->version.minor == TLSv1_MINOR)
             ssl->version.minor = SSLv3_MINOR;
     }
@@ -15738,11 +15735,52 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
     if (ssl->options.side != WOLFSSL_NEITHER_END) {
         if (AllocateSuites(ssl) != 0)
             return 0;
-        InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.useAnon, TRUE, ssl->options.side);
+        if (!ssl->suites->setSuites) {
+            InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
+                       havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
+                       ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
+                       ssl->options.haveFalconSig,
+                       ssl->options.haveDilithiumSig, ssl->options.useAnon,
+                       TRUE, ssl->options.side);
+        }
+        else {
+            /* Only preserve overlapping suites */
+            Suites tmpSuites;
+            word16 in, out, haveECDSAsig = 0;
+            word16 haveStaticECC = ssl->options.haveStaticECC;
+#ifdef NO_RSA
+            haveECDSAsig = 1;
+            haveStaticECC = 1;
+#endif
+            XMEMSET(&tmpSuites, 0, sizeof(Suites));
+            /* Get all possible ciphers and sigalgs for the version. Following
+             * options limit the allowed ciphers so let's try to get as many as
+             * possible.
+             * - haveStaticECC turns off haveRSA
+             * - haveECDSAsig turns off haveRSAsig */
+            InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
+                    haveStaticECC, 1, 1, 1, 1, ssl->options.side);
+            for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
+                if (FindSuite(&tmpSuites, ssl->suites->suites[in],
+                        ssl->suites->suites[in+1]) >= 0) {
+                    ssl->suites->suites[out] = ssl->suites->suites[in];
+                    ssl->suites->suites[out+1] = ssl->suites->suites[in+1];
+                    out += SUITE_LEN;
+                }
+            }
+            ssl->suites->suiteSz = out;
+            for (in = 0, out = 0; in < ssl->suites->hashSigAlgoSz; in += 2) {
+                if (FindHashSig(&tmpSuites, ssl->suites->hashSigAlgo[in],
+                    ssl->suites->hashSigAlgo[in+1]) >= 0) {
+                    ssl->suites->hashSigAlgo[out] =
+                            ssl->suites->hashSigAlgo[in];
+                    ssl->suites->hashSigAlgo[out+1] =
+                            ssl->suites->hashSigAlgo[in+1];
+                    out += 2;
+                }
+            }
+            ssl->suites->hashSigAlgoSz = out;
+        }
     }
 
     return ssl->options.mask;
@@ -17517,80 +17555,22 @@ int wolfSSL_get_peer_signature_type_nid(const WOLFSSL* ssl, int* nid)
 #ifdef HAVE_ECC
 
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES)
-static int populate_groups(int* groups, int max_count, const char *list)
-{
-    const char *end;
-    int count = 0;
-    const WOLF_EC_NIST_NAME* nist_name;
-
-    if (!groups || !list) {
-        return -1;
-    }
-
-    for (end = list; ; list = ++end) {
-        int len;
-
-        if (count > max_count) {
-            WOLFSSL_MSG("Too many curves in list");
-            return -1;
-        }
-        while (*end != ':' && *end != '\0') end++;
-        len = (int)(end - list); /* end points to char after end
-                                  * of curve name so no need for -1 */
-        if ((len < kNistCurves_MIN_NAME_LEN) ||
-                (len > kNistCurves_MAX_NAME_LEN)) {
-            WOLFSSL_MSG("Unrecognized curve name in list");
-            return -1;
-        }
-        for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
-            if (len == nist_name->name_len &&
-                    XSTRNCMP(list, nist_name->name, nist_name->name_len) == 0) {
-                break;
-            }
-        }
-        if (!nist_name->name) {
-            WOLFSSL_MSG("Unrecognized curve name in list");
-            return -1;
-        }
-        groups[count++] = nist_name->nid;
-        if (*end == '\0') break;
-    }
-
-    return count;
-}
-
 int wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list)
 {
-    int groups[WOLFSSL_MAX_GROUP_COUNT];
-    int count = 0;
-
     if (!ctx || !list) {
         return WOLFSSL_FAILURE;
     }
 
-    if ((count = populate_groups(groups,
-            WOLFSSL_MAX_GROUP_COUNT, list)) == -1) {
-        return WOLFSSL_FAILURE;
-    }
-
-    return wolfSSL_CTX_set1_groups(ctx, groups, count);
+    return set_curves_list(NULL, ctx, list, 0);
 }
 
 int wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list)
 {
-    int groups[WOLFSSL_MAX_GROUP_COUNT];
-    int count = 0;
-
     if (!ssl || !list) {
         return WOLFSSL_FAILURE;
     }
 
-    if ((count = populate_groups(groups,
-            WOLFSSL_MAX_GROUP_COUNT, list)) == -1) {
-        return WOLFSSL_FAILURE;
-    }
-
-    return wolfSSL_set1_groups(ssl, groups, count);
+    return set_curves_list(ssl, NULL, list, 0);
 }
 #endif /* WOLFSSL_TLS13 */
 
@@ -21279,25 +21259,82 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s,
 #if defined(OPENSSL_EXTRA) || defined(HAVE_CURL)
 int wolfSSL_curve_is_disabled(const WOLFSSL* ssl, word16 curve_id)
 {
-    if (curve_id >= WOLFSSL_FFDHE_START) {
-        /* DH parameters are never disabled. */
-        return 0;
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_curve_is_disabled");
+    WOLFSSL_MSG_EX("wolfSSL_curve_is_disabled checking for %d", curve_id);
+
+    /* (curve_id >= WOLFSSL_FFDHE_START) - DH parameters are never disabled. */
+    if (curve_id < WOLFSSL_FFDHE_START) {
+        if (curve_id > WOLFSSL_ECC_MAX_AVAIL) {
+            WOLFSSL_MSG("Curve id out of supported range");
+            /* Disabled if not in valid range. */
+            ret = 1;
+        }
+        else if (curve_id >= 32) {
+            /* 0 is for invalid and 1-14 aren't used otherwise. */
+            ret = (ssl->disabledCurves & (1U << (curve_id - 32))) != 0;
+        }
+        else {
+            ret = (ssl->disabledCurves & (1U << curve_id)) != 0;
+        }
     }
-    if (curve_id > WOLFSSL_ECC_MAX_AVAIL) {
-        WOLFSSL_MSG("Curve id out of supported range");
-        /* Disabled if not in valid range. */
-        return 1;
-    }
-    if (curve_id >= 32) {
-        /* 0 is for invalid and 1-14 aren't used otherwise. */
-        return (ssl->disabledCurves & (1U << (curve_id - 32))) != 0;
-    }
-    return (ssl->disabledCurves & (1U << curve_id)) != 0;
+
+    WOLFSSL_LEAVE("wolfSSL_curve_is_disabled", ret);
+    return ret;
 }
 
 #if (defined(HAVE_ECC) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE448))
-static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
+#define CURVE_NAME(c) XSTR_SIZEOF((c)), (c)
+
+const WOLF_EC_NIST_NAME kNistCurves[] = {
+    {CURVE_NAME("P-160"),   NID_secp160r1, WOLFSSL_ECC_SECP160R1},
+    {CURVE_NAME("P-160-2"), NID_secp160r2, WOLFSSL_ECC_SECP160R2},
+    {CURVE_NAME("P-192"),   NID_X9_62_prime192v1, WOLFSSL_ECC_SECP192R1},
+    {CURVE_NAME("P-224"),   NID_secp224r1, WOLFSSL_ECC_SECP224R1},
+    {CURVE_NAME("P-256"),   NID_X9_62_prime256v1, WOLFSSL_ECC_SECP256R1},
+    {CURVE_NAME("P-384"),   NID_secp384r1, WOLFSSL_ECC_SECP384R1},
+    {CURVE_NAME("P-521"),   NID_secp521r1, WOLFSSL_ECC_SECP521R1},
+    {CURVE_NAME("K-160"),   NID_secp160k1, WOLFSSL_ECC_SECP160K1},
+    {CURVE_NAME("K-192"),   NID_secp192k1, WOLFSSL_ECC_SECP192K1},
+    {CURVE_NAME("K-224"),   NID_secp224k1, WOLFSSL_ECC_SECP224R1},
+    {CURVE_NAME("K-256"),   NID_secp256k1, WOLFSSL_ECC_SECP256K1},
+    {CURVE_NAME("B-256"),   NID_brainpoolP256r1, WOLFSSL_ECC_BRAINPOOLP256R1},
+    {CURVE_NAME("B-384"),   NID_brainpoolP384r1, WOLFSSL_ECC_BRAINPOOLP384R1},
+    {CURVE_NAME("B-512"),   NID_brainpoolP512r1, WOLFSSL_ECC_BRAINPOOLP512R1},
+#ifdef HAVE_CURVE25519
+    {CURVE_NAME("X25519"),  NID_X25519, WOLFSSL_ECC_X25519},
+#endif
+#ifdef HAVE_CURVE448
+    {CURVE_NAME("X448"),    NID_X448, WOLFSSL_ECC_X448},
+#endif
+#ifdef HAVE_PQC
+    {CURVE_NAME("KYBER_LEVEL1"), WOLFSSL_KYBER_LEVEL1, WOLFSSL_KYBER_LEVEL1},
+    {CURVE_NAME("KYBER_LEVEL3"), WOLFSSL_KYBER_LEVEL3, WOLFSSL_KYBER_LEVEL1},
+    {CURVE_NAME("KYBER_LEVEL5"), WOLFSSL_KYBER_LEVEL5, WOLFSSL_KYBER_LEVEL1},
+#ifdef HAVE_LIBOQS
+    {CURVE_NAME("P256_KYBER_LEVEL1"), WOLFSSL_P256_KYBER_LEVEL1, WOLFSSL_P256_KYBER_LEVEL1},
+    {CURVE_NAME("P384_KYBER_LEVEL3"), WOLFSSL_P384_KYBER_LEVEL3, WOLFSSL_P256_KYBER_LEVEL1},
+    {CURVE_NAME("P521_KYBER_LEVEL5"), WOLFSSL_P521_KYBER_LEVEL5, WOLFSSL_P256_KYBER_LEVEL1},
+#endif
+#endif
+#ifdef WOLFSSL_SM2
+    {CURVE_NAME("SM2"),     NID_sm2, WOLFSSL_ECC_SM2P256V1},
+#endif
+    /* Alternative curve names */
+    {CURVE_NAME("prime256v1"), NID_X9_62_prime256v1, WOLFSSL_ECC_SECP256R1},
+    {CURVE_NAME("secp256r1"),  NID_X9_62_prime256v1, WOLFSSL_ECC_SECP256R1},
+    {CURVE_NAME("secp384r1"),  NID_secp384r1, WOLFSSL_ECC_SECP384R1},
+    {CURVE_NAME("secp521r1"),  NID_secp521r1, WOLFSSL_ECC_SECP521R1},
+#ifdef WOLFSSL_SM2
+    {CURVE_NAME("sm2p256v1"),  NID_sm2, WOLFSSL_ECC_SM2P256V1},
+#endif
+    {0, NULL, 0, 0},
+};
+
+int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names,
+        byte curves_only)
 {
     int idx, start = 0, len, i, ret = WOLFSSL_FAILURE;
     word16 curve;
@@ -21310,6 +21347,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
 #else
     int groups[WOLFSSL_MAX_GROUP_COUNT];
 #endif
+    const WOLF_EC_NIST_NAME* nist_name;
 
 #ifdef WOLFSSL_SMALL_STACK
     groups = (int*)XMALLOC(sizeof(int)*WOLFSSL_MAX_GROUP_COUNT,
@@ -21329,45 +21367,18 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
             goto leave;
 
         XMEMCPY(name, names + start, len);
-        name[len++] = 0;
+        name[len] = 0;
+        curve = WOLFSSL_NAMED_GROUP_INVALID;
 
-        /* Use XSTRNCMP to avoid valgrind error. */
-        if ((XSTRNCMP(name, "prime256v1", len) == 0) ||
-            (XSTRNCMP(name, "secp256r1", len) == 0) ||
-            (XSTRNCMP(name, "P-256", len) == 0))
-        {
-            curve = WOLFSSL_ECC_SECP256R1;
+        for (nist_name = kNistCurves; nist_name->name != NULL; nist_name++) {
+            if (len == nist_name->name_len &&
+                    XSTRNCMP(name, nist_name->name, len) == 0) {
+                curve = nist_name->curve;
+                break;
+            }
         }
-        else if ((XSTRNCMP(name, "secp384r1", len) == 0) ||
-                 (XSTRNCMP(name, "P-384", len) == 0))
-        {
-            curve = WOLFSSL_ECC_SECP384R1;
-        }
-        else if ((XSTRNCMP(name, "secp521r1", len) == 0) ||
-                 (XSTRNCMP(name, "P-521", len) == 0))
-        {
-            curve = WOLFSSL_ECC_SECP521R1;
-        }
-    #ifdef WOLFSSL_SM2
-        else if ((XSTRNCMP(name, "sm2p256v1", len) == 0) ||
-                 (XSTRNCMP(name, "SM2", len) == 0))
-        {
-            curve = WOLFSSL_ECC_SM2P256V1;
-        }
-    #endif
-    #ifdef HAVE_CURVE25519
-        else if (XSTRNCMP(name, "X25519", len) == 0)
-        {
-            curve = WOLFSSL_ECC_X25519;
-        }
-    #endif
-    #ifdef HAVE_CURVE448
-        else if (XSTRNCMP(name, "X448", len) == 0)
-        {
-            curve = WOLFSSL_ECC_X448;
-        }
-    #endif
-        else {
+
+        if (curve == WOLFSSL_NAMED_GROUP_INVALID) {
         #if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && defined(HAVE_ECC)
             int   nret;
             const ecc_set_type *eccSet;
@@ -21391,7 +21402,8 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
         #endif
         }
 
-        if (curve >= WOLFSSL_ECC_MAX_AVAIL) {
+        if ((curves_only && curve >= WOLFSSL_ECC_MAX_AVAIL) ||
+                curve == WOLFSSL_NAMED_GROUP_INVALID) {
             WOLFSSL_MSG("curve value is not supported");
             goto leave;
         }
@@ -21427,7 +21439,7 @@ static int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names)
             disabled &= ~(1U << curve);
         }
     #ifdef HAVE_SUPPORTED_CURVES
-    #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_OLD_SET_CURVES_LIST)
+    #if !defined(WOLFSSL_OLD_SET_CURVES_LIST)
         /* using the wolfSSL API to set the groups, this will populate
          * (ssl|ctx)->groups and reset any TLSX_SUPPORTED_GROUPS.
          * The order in (ssl|ctx)->groups will then be respected
@@ -21468,20 +21480,22 @@ leave:
 
 int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_set1_curves_list");
     if (ctx == NULL || names == NULL) {
         WOLFSSL_MSG("ctx or names was NULL");
         return WOLFSSL_FAILURE;
     }
-    return set_curves_list(NULL, ctx, names);
+    return set_curves_list(NULL, ctx, names, 1);
 }
 
 int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
 {
+    WOLFSSL_ENTER("wolfSSL_set1_curves_list");
     if (ssl == NULL || names == NULL) {
         WOLFSSL_MSG("ssl or names was NULL");
         return WOLFSSL_FAILURE;
     }
-    return set_curves_list(ssl, NULL, names);
+    return set_curves_list(ssl, NULL, names, 1);
 }
 #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
 #endif /* OPENSSL_EXTRA || HAVE_CURL */

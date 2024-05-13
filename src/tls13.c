@@ -7633,10 +7633,6 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     word32 reqSz;
     word16 hashSigAlgoSz = 0;
     SignatureAlgorithms* sa;
-    int haveSig = SIG_RSA | SIG_ECDSA | SIG_FALCON | SIG_DILITHIUM;
-#if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
-    haveSig |= SIG_SM2;
-#endif
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
     WOLFSSL_ENTER("SendTls13CertificateRequest");
@@ -7647,12 +7643,12 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
         return SIDE_ERROR;
 
     /* Get the length of the hashSigAlgo buffer */
-    InitSuitesHashSigAlgo_ex2(NULL, haveSig, 1, ssl->buffers.keySz,
+    InitSuitesHashSigAlgo(NULL, SIG_ALL, 1, ssl->buffers.keySz,
         &hashSigAlgoSz);
     sa = TLSX_SignatureAlgorithms_New(ssl, hashSigAlgoSz, ssl->heap);
     if (sa == NULL)
         return MEMORY_ERROR;
-    InitSuitesHashSigAlgo_ex2(sa->hashSigAlgo, haveSig, 1, ssl->buffers.keySz,
+    InitSuitesHashSigAlgo(sa->hashSigAlgo, SIG_ALL, 1, ssl->buffers.keySz,
         &hashSigAlgoSz);
     ret = TLSX_Push(&ssl->extensions, TLSX_SIGNATURE_ALGORITHMS, sa, ssl->heap);
     if (ret != 0) {
@@ -13690,86 +13686,6 @@ int wolfSSL_preferred_group(WOLFSSL* ssl)
 #endif
 }
 #endif
-
-#if defined(HAVE_SUPPORTED_CURVES)
-/* Sets the key exchange groups in rank order on a context.
- *
- * ctx     SSL/TLS context object.
- * groups  Array of groups.
- * count   Number of groups in array.
- * returns BAD_FUNC_ARG when ctx or groups is NULL, not using TLS v1.3 or
- * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
- */
-int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
-{
-    int ret, i;
-
-    WOLFSSL_ENTER("wolfSSL_CTX_set_groups");
-    if (ctx == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
-        return BAD_FUNC_ARG;
-    if (!IsAtLeastTLSv1_3(ctx->method->version))
-        return BAD_FUNC_ARG;
-
-    ctx->numGroups = 0;
-    #if !defined(NO_TLS)
-    TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
-    #endif /* !NO_TLS */
-    for (i = 0; i < count; i++) {
-        /* Call to wolfSSL_CTX_UseSupportedCurve also checks if input groups
-         * are valid */
-        if ((ret = wolfSSL_CTX_UseSupportedCurve(ctx, (word16)groups[i]))
-                != WOLFSSL_SUCCESS) {
-    #if !defined(NO_TLS)
-            TLSX_Remove(&ctx->extensions, TLSX_SUPPORTED_GROUPS, ctx->heap);
-    #endif /* !NO_TLS */
-            return ret;
-        }
-        ctx->group[i] = (word16)groups[i];
-    }
-    ctx->numGroups = (byte)count;
-
-    return WOLFSSL_SUCCESS;
-}
-
-/* Sets the key exchange groups in rank order.
- *
- * ssl     SSL/TLS object.
- * groups  Array of groups.
- * count   Number of groups in array.
- * returns BAD_FUNC_ARG when ssl or groups is NULL, not using TLS v1.3 or
- * count is greater than WOLFSSL_MAX_GROUP_COUNT and WOLFSSL_SUCCESS on success.
- */
-int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
-{
-    int ret, i;
-
-    WOLFSSL_ENTER("wolfSSL_set_groups");
-    if (ssl == NULL || groups == NULL || count > WOLFSSL_MAX_GROUP_COUNT)
-        return BAD_FUNC_ARG;
-    if (!IsAtLeastTLSv1_3(ssl->version))
-        return BAD_FUNC_ARG;
-
-    ssl->numGroups = 0;
-    #if !defined(NO_TLS)
-    TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
-    #endif /* !NO_TLS */
-    for (i = 0; i < count; i++) {
-        /* Call to wolfSSL_UseSupportedCurve also checks if input groups
-                 * are valid */
-        if ((ret = wolfSSL_UseSupportedCurve(ssl, (word16)groups[i]))
-                != WOLFSSL_SUCCESS) {
-    #if !defined(NO_TLS)
-            TLSX_Remove(&ssl->extensions, TLSX_SUPPORTED_GROUPS, ssl->heap);
-    #endif /* !NO_TLS */
-            return ret;
-        }
-        ssl->group[i] = (word16)groups[i];
-    }
-    ssl->numGroups = (byte)count;
-
-    return WOLFSSL_SUCCESS;
-}
-#endif /* HAVE_SUPPORTED_CURVES */
 
 #ifndef NO_PSK
 /* Set the PSK callback, that is passed the cipher suite, for a client to use

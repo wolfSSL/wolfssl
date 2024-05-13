@@ -1,0 +1,313 @@
+name: hostap and wpa-supplicant Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+env:
+  LINUX_REF: v6.6
+
+jobs:
+  build_wolfssl:
+    strategy:
+      matrix:
+        include:
+          - build_id: hostap-vm-build1
+            wolf_extra_config: --disable-tls13
+          - build_id: hostap-vm-build2
+            wolf_extra_config: >-
+              --enable-wpas-dpp --enable-brainpool --with-eccminsz=192 
+              --enable-tlsv10 --enable-oldtls
+    name: Build wolfSSL
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+        # No way to view the full strategy in the browser (really weird)
+      - name: Print strategy
+        run: |
+          cat <<EOF
+          ${{ toJSON(matrix) }}
+          EOF
+
+      - if: ${{ runner.debug }}
+        name: Enable wolfSSL debug logging
+        run: |
+          echo "wolf_debug_flags=--enable-debug" >> $GITHUB_ENV
+
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: >-
+            --enable-wpas CPPFLAGS=-DWOLFSSL_STATIC_RSA
+            ${{ env.wolf_debug_flags }} ${{ matrix.wolf_extra_config }}
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.build_id }}
+          path: build-dir
+          retention-days: 5
+
+  build_uml_linux:
+    name: Build UML (UserMode Linux)
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+      - name: Checking if we have kernel in cache
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: linux/linux
+          key: ${{ env.LINUX_REF }}
+          lookup-only: true
+
+      - name: Checkout hostap
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: julek-wolfssl/hostap-mirror
+          path: hostap
+
+      - name: Checkout linux
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: torvalds/linux 
+          path: linux
+
+      - name: Compile linux
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cp hostap/tests/hwsim/vm/kernel-config.uml linux/.config
+          cd linux
+          yes "" | ARCH=um make -j $(nproc)
+
+  hostap_test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # should hostapd be compiled with wolfssl
+        hostapd: [true, false]
+        # should wpa_supplicant be compiled with wolfssl
+        wpa_supplicant: [true, false]
+        # Fix the versions of hostap and osp to not break testing when a new
+        # patch is added in to osp. Tests are read from the corresponding
+        # configs/hostap_ref/tests file.
+        config: [
+          {
+            hostap_ref: hostap_2_10,
+            remove_teap: true,
+            # TLS 1.3 does not work for this version
+            build_id: hostap-vm-build1,
+          },
+          # Test the dpp patch
+          {
+            hostap_ref: b607d2723e927a3446d89aed813f1aa6068186bb,
+            osp_ref: ad5b52a49b3cc2a5bfb47ccc1d6a5137132e9446,
+            build_id: hostap-vm-build2
+          },
+          {
+            hostap_ref: 07c9f183ea744ac04585fb6dd10220c75a5e2e74,
+            osp_ref: e1876fbbf298ee442bc7ab8561331ebc7de17528,
+            build_id: hostap-vm-build2
+          },
+        ]
+        exclude:
+          # don't test openssl on both sides
+          - hostapd: false
+            wpa_supplicant: false
+          # no hostapd support for dpp yet
+          - hostapd: true
+            config: {
+              hostap_ref: b607d2723e927a3446d89aed813f1aa6068186bb,
+              osp_ref: ad5b52a49b3cc2a5bfb47ccc1d6a5137132e9446,
+              build_id: hostap-vm-build2
+            }
+    name: hwsim test
+    # For openssl 1.1
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 45
+    needs: [build_wolfssl, build_uml_linux]
+    steps:
+      - name: Checking if we have kernel in cache
+        uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: linux/linux
+          key: ${{ env.LINUX_REF }}
+          fail-on-cache-miss: true
+
+      - name: show file structure
+        run: tree
+
+        # No way to view the full strategy in the browser (really weird)
+      - name: Print strategy
+        run: |
+          cat <<EOF
+          ${{ toJSON(matrix) }}
+          EOF
+
+      - name: Print computed job run ID
+        run: |
+          SHA_SUM=$(sha256sum << 'END_OF_HEREDOC' | cut -d " " -f 1
+          ${{ toJSON(github) }}
+          END_OF_HEREDOC
+          )
+          echo "our_job_run_id=$SHA_SUM" >> $GITHUB_ENV
+          echo Our job run ID is $SHA_SUM
+
+      - name: Checkout wolfSSL
+        uses: actions/checkout@v4
+        with:
+          path: wolfssl
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.config.build_id }}
+          path: build-dir
+
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          # hostap dependencies
+          sudo apt-get install -y libpcap0.8 libpcap-dev curl libcurl4-openssl-dev \
+            libnl-3-dev binutils-dev libssl-dev libiberty-dev libnl-genl-3-dev \
+            libnl-route-3-dev libdbus-1-dev bridge-utils tshark
+          sudo pip3 install pycryptodome
+
+      - name: Checkout hostap
+        uses: actions/checkout@v4
+        with:
+          repository: julek-wolfssl/hostap-mirror 
+          path: hostap
+          ref: ${{ matrix.config.hostap_ref }}
+
+      - name: Update certs
+        working-directory: hostap/tests/hwsim/auth_serv
+        run: ./update.sh
+
+      - if: ${{ matrix.config.osp_ref }}
+        name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+          ref: ${{ matrix.config.osp_ref }}
+
+      - if: ${{ matrix.config.osp_ref }}
+        name: Apply patch files
+        working-directory: hostap
+        run: |
+          for f in $GITHUB_WORKSPACE/osp/hostap-patches/pending/*
+          do
+            patch -p1 < $f
+          done
+
+      - name: Apply extra patches
+        working-directory: hostap
+        run: |
+          FILE=$GITHUB_WORKSPACE/wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/extra.patch
+          if [ -f "$FILE" ]; then
+            patch -p1 < $FILE
+          fi
+
+      - if: ${{ matrix.hostapd }}
+        name: Setup hostapd config file 
+        run: |
+          cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/hostapd.config \
+             hostap/hostapd/.config
+          cat <<EOF >> hostap/hostapd/.config
+            CFLAGS += -I$GITHUB_WORKSPACE/build-dir/include -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib
+            LIBS += -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib
+          EOF
+
+      - if: ${{ matrix.wpa_supplicant }}
+        name: Setup wpa_supplicant config file 
+        run: |
+          cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/wpa_supplicant.config \
+             hostap/wpa_supplicant/.config
+          cat <<EOF >> hostap/wpa_supplicant/.config
+            CFLAGS += -I$GITHUB_WORKSPACE/build-dir/include -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib
+            LIBS += -L$GITHUB_WORKSPACE/build-dir/lib -Wl,-rpath=$GITHUB_WORKSPACE/build-dir/lib
+          EOF
+
+      - name: Build hostap and wpa_supplicant
+        working-directory: hostap/tests/hwsim/
+        run: ./build.sh
+
+      - if: ${{ matrix.hostapd }}
+        name: Confirm hostapd linking with wolfSSL
+        run: ldd hostap/hostapd/hostapd | grep wolfssl
+
+      - if: ${{ matrix.wpa_supplicant }}
+        name: Confirm wpa_supplicant linking with wolfSSL
+        run: ldd hostap/wpa_supplicant/wpa_supplicant | grep wolfssl
+
+      - if: ${{ matrix.config.remove_teap }}
+        name: Remove EAP-TEAP from test configuration
+        working-directory: hostap/tests/hwsim/auth_serv
+        run: |
+          sed -e 's/"erp-teap@example.com"\tTEAP//' -i eap_user.conf
+          sed -e 's/"erp-teap@example.com"\tMSCHAPV2\t"password"\t\[2\]//' -i eap_user.conf
+          sed -e 's/"TEAP"\t\tTEAP//' -i eap_user.conf
+          sed -e 's/TEAP,//' -i eap_user.conf
+
+      - if: ${{ runner.debug }}
+        name: Enable hostap debug logging
+        run: |
+          echo "hostap_debug_flags=--debug" >> $GITHUB_ENV
+
+      - name: Run tests
+        id: testing
+        working-directory: hostap/tests/hwsim/
+        run: |
+          cat <<EOF >> vm/vm-config
+            KERNELDIR=$GITHUB_WORKSPACE/linux
+            KVMARGS="-cpu host"
+          EOF
+          # Run tests in increments of 200 to not stall out the parallel-vm script
+          while mapfile -t -n 200 ary && ((${#ary[@]})); do
+            TESTS=$(printf '%s\n' "${ary[@]}" | tr '\n' ' ')
+            HWSIM_RES=0 # Not set when command succeeds
+            ./vm/parallel-vm.py ${{ env.hostap_debug_flags }} --nocurses $(nproc) $TESTS  || HWSIM_RES=$?
+            if [ "$HWSIM_RES" -ne "0" ]; then
+              # Let's re-run the failing tests. We gather the failed tests from the log file.
+              FAILED_TESTS=$(grep 'failed tests' /tmp/hwsim-test-logs/*-parallel.log | sed 's/failed tests: //' | tr ' ' '\n' | sort | uniq | tr '\n' ' ')
+              printf 'failed tests: %s\n' "$FAILED_TESTS"
+              ./vm/parallel-vm.py ${{ env.hostap_debug_flags }} --nocurses $(nproc) $FAILED_TESTS
+            fi
+            rm -r /tmp/hwsim-test-logs
+          done < $GITHUB_WORKSPACE/wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/tests
+
+      # The logs are quite big. It hasn't been useful so far so let's not waste
+      # precious gh space.
+      #- name: zip logs
+      #  if: ${{ failure() && steps.testing.outcome == 'failure' }}
+      #  working-directory: hostap/tests/hwsim/
+      #  run: |
+      #    rm /tmp/hwsim-test-logs/latest
+      #    zip -9 -r logs.zip /tmp/hwsim-test-logs
+      #
+      #- name: Upload failure logs
+      #  if: ${{ failure() && steps.testing.outcome == 'failure' }}
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: hostap-logs-${{ env.our_job_run_id }}
+      #    path: hostap/tests/hwsim/logs.zip
+      #    retention-days: 5

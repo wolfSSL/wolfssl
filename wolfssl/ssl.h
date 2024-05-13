@@ -1182,6 +1182,21 @@ WOLFSSL_API int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_accept(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
 WOLFSSL_API int  wolfSSL_mutual_auth(WOLFSSL* ssl, int req);
+
+WOLFSSL_API int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
+                                        int count);
+WOLFSSL_API int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SUPPORTED_CURVES)
+WOLFSSL_API int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
+                                        int count);
+WOLFSSL_API int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count);
+
+#ifdef HAVE_ECC
+WOLFSSL_API int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
+WOLFSSL_API int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
+#endif
+#endif
+
 #ifdef WOLFSSL_TLS13
 WOLFSSL_API int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
     const unsigned char* secret, unsigned int secretSz);
@@ -1199,20 +1214,6 @@ WOLFSSL_API int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_request_certificate(WOLFSSL* ssl);
 
 WOLFSSL_API int  wolfSSL_preferred_group(WOLFSSL* ssl);
-WOLFSSL_API int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
-                                        int count);
-WOLFSSL_API int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
-
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SUPPORTED_CURVES)
-WOLFSSL_API int  wolfSSL_CTX_set1_groups(WOLFSSL_CTX* ctx, int* groups,
-                                        int count);
-WOLFSSL_API int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count);
-
-#ifdef HAVE_ECC
-WOLFSSL_API int  wolfSSL_CTX_set1_groups_list(WOLFSSL_CTX *ctx, const char *list);
-WOLFSSL_API int  wolfSSL_set1_groups_list(WOLFSSL *ssl, const char *list);
-#endif
-#endif
 
 WOLFSSL_API int  wolfSSL_connect_TLSv13(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_accept_TLSv13(WOLFSSL* ssl);
@@ -1367,8 +1368,12 @@ WOLFSSL_ABI WOLFSSL_API long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx
 typedef int (*SessionSecretCb)(WOLFSSL* ssl, void* secret, int* secretSz,
                                void* ctx);
 /* This callback is used to set the master secret during resumption */
-WOLFSSL_API int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb,
-                                               void*);
+WOLFSSL_API int  wolfSSL_set_session_secret_cb(WOLFSSL* ssl, SessionSecretCb cb,
+                                               void* ctx);
+typedef int (*TicketParseCb)(WOLFSSL *ssl, const unsigned char *data,
+                                            int len, void *ctx);
+WOLFSSL_API int wolfSSL_set_session_ticket_ext_cb(WOLFSSL* ssl,
+        TicketParseCb cb, void *ctx);
 typedef int (*TlsSecretCb)(WOLFSSL* ssl, void* secret, int secretSz,
                                void* ctx);
 /* This callback is used to log the secret for TLS <= 1.2 */
