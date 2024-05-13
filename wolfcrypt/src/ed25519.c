@@ -698,14 +698,13 @@ static int ed25519_verify_msg_update_with_sha(const byte* msgSegment,
     return ed25519_hash_update(key, sha, msgSegment, msgSegmentLen);
 }
 
-/* Low part of order in big endian. */
-static const byte ed25519_low_order[] = {
-    0x14, 0xde, 0xf9, 0xde, 0xa2, 0xf7, 0x9c, 0xd6,
-    0x58, 0x12, 0x63, 0x1a, 0x5c, 0xf5, 0xd3, 0xed
+/* ed25519 order in little endian. */
+static const byte ed25519_order[] = {
+    0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
+    0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
 };
-
-#define ED25519_SIG_LOW_ORDER_IDX \
-    ((int)(ED25519_SIG_SIZE/2 + sizeof(ed25519_low_order) - 1))
 
 /*
    sig     is array of bytes containing the signature
@@ -725,6 +724,7 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     ge_p2  R;
 #endif
     int    ret;
+    int    i;
 
     /* sanity check on arguments */
     if (sig == NULL || res == NULL || key == NULL)
@@ -740,33 +740,19 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
      *     2^252 + 0x14def9dea2f79cd65812631a5cf5d3ed
      *   = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed
      */
-    if (sig[ED25519_SIG_SIZE-1] > 0x10)
-        return BAD_FUNC_ARG;
-    if (sig[ED25519_SIG_SIZE-1] == 0x10) {
-        int i = ED25519_SIG_SIZE-1;
-        int j;
 
-        /* Check high zeros. */
-        for (--i; i > ED25519_SIG_LOW_ORDER_IDX; i--) {
-            if (sig[i] > 0x00)
-                break;
-        }
-        /* Did we see all zeros up to lower order index? */
-        if (i == ED25519_SIG_LOW_ORDER_IDX) {
-            /* Check lower part. */
-            for (j = 0; j < (int)sizeof(ed25519_low_order); j++, i--) {
-                /* Check smaller. */
-                if (sig[i] < ed25519_low_order[j])
-                    break;
-                /* Check bigger. */
-                if (sig[i] > ed25519_low_order[j])
-                    return BAD_FUNC_ARG;
-            }
-            /* Check equal - all bytes match. */
-            if (i == ED25519_SIG_SIZE/2 - 1)
-                return BAD_FUNC_ARG;
-        }
+    /* Check S is not larger than or equal to order. */
+    for (i = (int)sizeof(ed25519_order) - 1; i >= 0; i--) {
+        /* Bigger than order. */
+        if (sig[ED25519_SIG_SIZE/2 + i] > ed25519_order[i])
+            return BAD_FUNC_ARG;
+        /* Less than order. */
+        if (sig[ED25519_SIG_SIZE/2 + i] < ed25519_order[i])
+            break;
     }
+    /* Check equal - all bytes match. */
+    if (i == -1)
+        return BAD_FUNC_ARG;
 
     /* uncompress A (public key), test if valid, and negate it */
 #ifndef FREESCALE_LTC_ECC
