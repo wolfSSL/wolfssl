@@ -5607,7 +5607,7 @@ int wolfSSL_DSA_do_verify_ex(const unsigned char* digest, int digest_len,
 }
 #endif /* !HAVE_SELFTEST */
 
-WOLFSSL_API int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA* dsa,
+int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA* dsa,
     unsigned char** out)
 {
     int ret = 0;
@@ -14036,6 +14036,79 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outLen,
 #endif /* WOLF_CRYPTO_CB_ONLY_ECC */
 
 /* End ECDH */
+
+#ifndef NO_WOLFSSL_STUB
+const WOLFSSL_EC_KEY_METHOD *wolfSSL_EC_KEY_OpenSSL(void)
+{
+    WOLFSSL_STUB("wolfSSL_EC_KEY_OpenSSL");
+
+    return NULL;
+}
+
+WOLFSSL_EC_KEY_METHOD *wolfSSL_EC_KEY_METHOD_new(
+        const WOLFSSL_EC_KEY_METHOD *meth)
+{
+    WOLFSSL_STUB("wolfSSL_EC_KEY_METHOD_new");
+
+    (void)meth;
+
+    return NULL;
+}
+
+void wolfSSL_EC_KEY_METHOD_free(WOLFSSL_EC_KEY_METHOD *meth)
+{
+    WOLFSSL_STUB("wolfSSL_EC_KEY_METHOD_free");
+
+    (void)meth;
+}
+
+void wolfSSL_EC_KEY_METHOD_set_init(WOLFSSL_EC_KEY_METHOD *meth,
+        void* a1, void* a2, void* a3, void* a4, void* a5, void* a6)
+{
+    WOLFSSL_STUB("wolfSSL_EC_KEY_METHOD_set_init");
+
+    (void)meth;
+    (void)a1;
+    (void)a2;
+    (void)a3;
+    (void)a4;
+    (void)a5;
+    (void)a6;
+}
+
+void wolfSSL_EC_KEY_METHOD_set_sign(WOLFSSL_EC_KEY_METHOD *meth,
+        void* a1, void* a2, void* a3)
+{
+    WOLFSSL_STUB("wolfSSL_EC_KEY_METHOD_set_sign");
+
+    (void)meth;
+    (void)a1;
+    (void)a2;
+    (void)a3;
+}
+
+const WOLFSSL_EC_KEY_METHOD *wolfSSL_EC_KEY_get_method(
+        const WOLFSSL_EC_KEY *key)
+{
+    WOLFSSL_STUB("wolfSSL_EC_KEY_get_method");
+
+    (void)key;
+
+    return NULL;
+}
+
+int wolfSSL_EC_KEY_set_method(WOLFSSL_EC_KEY *key,
+        const WOLFSSL_EC_KEY_METHOD *meth)
+{
+    WOLFSSL_STUB("wolfSSL_EC_KEY_set_method");
+
+    (void)key;
+    (void)meth;
+
+    return 0;
+}
+
+#endif /* !NO_WOLFSSL_STUB */
 
 #endif /* OPENSSL_EXTRA */
 

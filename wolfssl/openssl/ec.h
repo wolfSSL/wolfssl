@@ -138,6 +138,12 @@ struct WOLFSSL_EC_BUILTIN_CURVE {
 
 typedef int point_conversion_form_t;
 
+typedef struct WOLFSSL_EC_KEY_METHOD {
+    /* Not implemented */
+    /* Just here so that some C compilers don't complain. To be removed. */
+    void* dummy_member;
+} WOLFSSL_EC_KEY_METHOD;
+
 WOLFSSL_API
 size_t wolfSSL_EC_get_builtin_curves(WOLFSSL_EC_BUILTIN_CURVE *r,size_t nitems);
 
@@ -313,6 +319,21 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
                                  WOLFSSL_BN_CTX* ctx);
 #endif
 
+WOLFSSL_API const WOLFSSL_EC_KEY_METHOD *wolfSSL_EC_KEY_OpenSSL(void);
+WOLFSSL_API WOLFSSL_EC_KEY_METHOD *wolfSSL_EC_KEY_METHOD_new(
+        const WOLFSSL_EC_KEY_METHOD *meth);
+WOLFSSL_API void wolfSSL_EC_KEY_METHOD_free(WOLFSSL_EC_KEY_METHOD *meth);
+/* TODO when implementing change the types to the real callback signatures
+ * and use real parameter names */
+WOLFSSL_API void wolfSSL_EC_KEY_METHOD_set_init(WOLFSSL_EC_KEY_METHOD *meth,
+        void* a1, void* a2, void* a3, void* a4, void* a5, void* a6);
+WOLFSSL_API void wolfSSL_EC_KEY_METHOD_set_sign(WOLFSSL_EC_KEY_METHOD *meth,
+        void* a1, void* a2, void* a3);
+WOLFSSL_API const WOLFSSL_EC_KEY_METHOD *wolfSSL_EC_KEY_get_method(
+        const WOLFSSL_EC_KEY *key);
+WOLFSSL_API int wolfSSL_EC_KEY_set_method(WOLFSSL_EC_KEY *key,
+        const WOLFSSL_EC_KEY_METHOD *meth);
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
 typedef WOLFSSL_EC_KEY                EC_KEY;
@@ -320,6 +341,7 @@ typedef WOLFSSL_EC_GROUP              EC_GROUP;
 typedef WOLFSSL_EC_GROUP              EC_METHOD;
 typedef WOLFSSL_EC_POINT              EC_POINT;
 typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
+typedef WOLFSSL_EC_KEY_METHOD         EC_KEY_METHOD;
 
 #ifndef HAVE_ECC
 #define OPENSSL_NO_EC
@@ -404,6 +426,14 @@ typedef WOLFSSL_EC_BUILTIN_CURVE      EC_builtin_curve;
 
 #define EC_curve_nid2nist               wolfSSL_EC_curve_nid2nist
 #define EC_curve_nist2nid               wolfSSL_EC_curve_nist2nid
+
+#define EC_KEY_OpenSSL                  wolfSSL_EC_KEY_OpenSSL
+#define EC_KEY_METHOD_new               wolfSSL_EC_KEY_METHOD_new
+#define EC_KEY_METHOD_free              wolfSSL_EC_KEY_METHOD_free
+#define EC_KEY_METHOD_set_init          wolfSSL_EC_KEY_METHOD_set_init
+#define EC_KEY_METHOD_set_sign          wolfSSL_EC_KEY_METHOD_set_sign
+#define EC_KEY_get_method               wolfSSL_EC_KEY_get_method
+#define EC_KEY_set_method               wolfSSL_EC_KEY_set_method
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
