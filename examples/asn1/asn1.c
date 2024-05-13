@@ -73,6 +73,11 @@ static int asn1App_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
         while ((read_len = fread(data + len, 1, DATA_INC_LEN, fp)) != 0) {
             unsigned char* p;
 
+            if (ferror(fp)) {
+                free(data);
+                return IO_FAILED_E;
+            }
+
             /* Add read data amount to length. */
             len += (word32)read_len;
 
@@ -446,6 +451,10 @@ int main(int argc, char* argv[])
             return 1;
         }
         else {
+            if (fp != stdin) {
+                fprintf(stderr, "At most one input file can be supplied.\n");
+                return 1;
+            }
             /* Name of file to read. */
             fp = fopen(argv[0], "r");
             if (fp == NULL) {

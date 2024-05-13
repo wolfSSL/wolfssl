@@ -54505,6 +54505,7 @@ static int test_wolfSSL_PEM_write_bio_PKCS7(void)
 }
 
 #ifdef HAVE_SMIME
+/* // NOLINTBEGIN(clang-analyzer-unix.Stream) */
 static int test_wolfSSL_SMIME_read_PKCS7(void)
 {
     EXPECT_DECLS;
@@ -54530,7 +54531,10 @@ static int test_wolfSSL_SMIME_read_PKCS7(void)
     ExpectNotNull(pkcs7);
     ExpectIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
         PKCS7_NOVERIFY), SSL_SUCCESS);
-    XFCLOSE(smimeTestFile);
+    if (smimeTestFile != XBADFILE) {
+        XFCLOSE(smimeTestFile);
+        smimeTestFile = XBADFILE;
+    }
     if (bcont) BIO_free(bcont);
     bcont = NULL;
     wolfSSL_PKCS7_free(pkcs7);
@@ -54538,12 +54542,16 @@ static int test_wolfSSL_SMIME_read_PKCS7(void)
 
     /* smime-test-multipart.p7s */
     smimeTestFile = XFOPEN("./certs/test/smime-test-multipart.p7s", "r");
+    ExpectFalse(smimeTestFile == XBADFILE);
     ExpectIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     ExpectNotNull(pkcs7);
     ExpectIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
         PKCS7_NOVERIFY), SSL_SUCCESS);
-    XFCLOSE(smimeTestFile);
+    if (smimeTestFile != XBADFILE) {
+        XFCLOSE(smimeTestFile);
+        smimeTestFile = XBADFILE;
+    }
     if (bcont) BIO_free(bcont);
     bcont = NULL;
     wolfSSL_PKCS7_free(pkcs7);
@@ -54551,12 +54559,16 @@ static int test_wolfSSL_SMIME_read_PKCS7(void)
 
     /* smime-test-multipart-badsig.p7s */
     smimeTestFile = XFOPEN("./certs/test/smime-test-multipart-badsig.p7s", "r");
+    ExpectFalse(smimeTestFile == XBADFILE);
     ExpectIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     ExpectNotNull(pkcs7); /* can read in the unverified smime bundle */
     ExpectIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
         PKCS7_NOVERIFY), SSL_FAILURE);
-    XFCLOSE(smimeTestFile);
+    if (smimeTestFile != XBADFILE) {
+        XFCLOSE(smimeTestFile);
+        smimeTestFile = XBADFILE;
+    }
     if (bcont) BIO_free(bcont);
     bcont = NULL;
     wolfSSL_PKCS7_free(pkcs7);
@@ -54564,12 +54576,16 @@ static int test_wolfSSL_SMIME_read_PKCS7(void)
 
     /* smime-test-canon.p7s */
     smimeTestFile = XFOPEN("./certs/test/smime-test-canon.p7s", "r");
+    ExpectFalse(smimeTestFile == XBADFILE);
     ExpectIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     ExpectNotNull(pkcs7);
     ExpectIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, bcont, NULL,
         PKCS7_NOVERIFY), SSL_SUCCESS);
-    XFCLOSE(smimeTestFile);
+    if (smimeTestFile != XBADFILE) {
+        XFCLOSE(smimeTestFile);
+        smimeTestFile = XBADFILE;
+    }
     if (bcont) BIO_free(bcont);
     bcont = NULL;
     wolfSSL_PKCS7_free(pkcs7);
@@ -54577,6 +54593,7 @@ static int test_wolfSSL_SMIME_read_PKCS7(void)
 
     /* Test PKCS7_TEXT, PKCS7_verify() should remove Content-Type: text/plain */
     smimeTestFile = XFOPEN("./certs/test/smime-test-canon.p7s", "r");
+    ExpectFalse(smimeTestFile == XBADFILE);
     ExpectIntEQ(wolfSSL_BIO_set_fp(bio, smimeTestFile, BIO_CLOSE), SSL_SUCCESS);
     pkcs7 = wolfSSL_SMIME_read_PKCS7(bio, &bcont);
     ExpectNotNull(pkcs7);
@@ -54596,6 +54613,7 @@ static int test_wolfSSL_SMIME_read_PKCS7(void)
 #endif
     return EXPECT_RESULT();
 }
+/* // NOLINTEND(clang-analyzer-unix.Stream) */
 
 static int test_wolfSSL_SMIME_write_PKCS7(void)
 {

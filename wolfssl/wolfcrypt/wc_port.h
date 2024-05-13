@@ -709,6 +709,9 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS     fgets
     #define XFPRINTF   fprintf
     #define XFFLUSH    fflush
+    #define XFEOF(fp)  feof(fp)
+    #define XFERROR(fp) ferror(fp)
+    #define XCLEARERR(fp) clearerr(fp)
 
     #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
@@ -772,6 +775,15 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
     #ifndef MAX_PATH
         #define MAX_PATH (260 + 1)
+    #endif
+    #ifndef XFEOF
+        #define XFEOF(fp)  0
+    #endif
+    #ifndef XFERROR
+        #define XFERROR(fp) 0
+    #endif
+    #ifndef XCLEARERR
+        #define XCLEARERR(fp) WC_DO_NOTHING
     #endif
 
     WOLFSSL_LOCAL int wc_FileLoad(const char* fname, unsigned char** buf,

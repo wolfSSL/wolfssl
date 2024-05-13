@@ -778,6 +778,10 @@ int main(int argc, char* argv[])
                 fprintf(stderr, "No filename provided\n");
                 return 1;
             }
+            if (in_file != stdin) {
+                fprintf(stderr, "At most one input file can be supplied.\n");
+                return 1;
+            }
             in_file = fopen(argv[0], "r");
             if (in_file == NULL) {
                 fprintf(stderr, "File not able to be read: %s\n", argv[0]);
