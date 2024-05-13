@@ -12529,12 +12529,28 @@ void AES_XTS_encrypt_aesni(const unsigned char *in, unsigned char *out, word32 s
                      const unsigned char* i, const unsigned char* key,
                      const unsigned char* key2, int nr)
                      XASM_LINK("AES_XTS_encrypt_aesni");
+#ifdef WOLFSSL_AESXTS_STREAM
+void AES_XTS_encrypt_start_aesni(const unsigned char* i, const unsigned char* tweak_key,
+                     unsigned char *tweak_block, int tweak_nr)
+                     XASM_LINK("AES_XTS_encrypt_start_aesni");
+void AES_XTS_encrypt_update_aesni(const unsigned char *in, unsigned char *out, word32 sz,
+                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     XASM_LINK("AES_XTS_encrypt_update_aesni");
+#endif
 #ifdef HAVE_INTEL_AVX1
 void AES_XTS_encrypt_avx1(const unsigned char *in, unsigned char *out,
                           word32 sz, const unsigned char* i,
                           const unsigned char* key, const unsigned char* key2,
                           int nr)
                           XASM_LINK("AES_XTS_encrypt_avx1");
+#ifdef WOLFSSL_AESXTS_STREAM
+void AES_XTS_encrypt_start_avx1(const unsigned char* i, const unsigned char* tweak_key,
+                     unsigned char *tweak_block, int tweak_nr)
+                     XASM_LINK("AES_XTS_encrypt_start_avx1");
+void AES_XTS_encrypt_update_avx1(const unsigned char *in, unsigned char *out, word32 sz,
+                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     XASM_LINK("AES_XTS_encrypt_update_avx1");
+#endif
 #endif /* HAVE_INTEL_AVX1 */
 
 #ifdef HAVE_AES_DECRYPT
@@ -12542,12 +12558,28 @@ void AES_XTS_decrypt_aesni(const unsigned char *in, unsigned char *out, word32 s
                      const unsigned char* i, const unsigned char* key,
                      const unsigned char* key2, int nr)
                      XASM_LINK("AES_XTS_decrypt_aesni");
+#ifdef WOLFSSL_AESXTS_STREAM
+void AES_XTS_decrypt_start_aesni(const unsigned char* i, const unsigned char* tweak_key,
+                     unsigned char *tweak_block, int tweak_nr)
+                     XASM_LINK("AES_XTS_decrypt_start_aesni");
+void AES_XTS_decrypt_update_aesni(const unsigned char *in, unsigned char *out, word32 sz,
+                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     XASM_LINK("AES_XTS_decrypt_update_aesni");
+#endif
 #ifdef HAVE_INTEL_AVX1
 void AES_XTS_decrypt_avx1(const unsigned char *in, unsigned char *out,
                           word32 sz, const unsigned char* i,
                           const unsigned char* key, const unsigned char* key2,
                           int nr)
                           XASM_LINK("AES_XTS_decrypt_avx1");
+#ifdef WOLFSSL_AESXTS_STREAM
+void AES_XTS_decrypt_start_avx1(const unsigned char* i, const unsigned char* tweak_key,
+                     unsigned char *tweak_block, int tweak_nr)
+                     XASM_LINK("AES_XTS_decrypt_start_avx1");
+void AES_XTS_decrypt_update_avx1(const unsigned char *in, unsigned char *out, word32 sz,
+                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     XASM_LINK("AES_XTS_decrypt_update_avx1");
+#endif
 #endif /* HAVE_INTEL_AVX1 */
 #endif /* HAVE_AES_DECRYPT */
 
