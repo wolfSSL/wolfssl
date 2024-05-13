@@ -24883,7 +24883,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_test(void)
 
     WOLFSSL_ENTER("pkcs12_test");
 
-    pkcs12 = wc_PKCS12_create(pass, XSTRLEN(pass),
+    pkcs12 = wc_PKCS12_create(pass, (word32)XSTRLEN(pass),
         (char*)"friendlyName" /* not used currently */,
         (byte*)server_key_der_2048, sizeof_server_key_der_2048,
         (byte*)server_cert_der_2048, sizeof_server_cert_der_2048,
