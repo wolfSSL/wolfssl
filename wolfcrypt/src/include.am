@@ -15,6 +15,7 @@ EXTRA_DIST += wolfcrypt/src/evp.c
 EXTRA_DIST += wolfcrypt/src/asm.c
 EXTRA_DIST += wolfcrypt/src/aes_asm.asm
 EXTRA_DIST += wolfcrypt/src/aes_gcm_asm.asm
+EXTRA_DIST += wolfcrypt/src/aes_xts_asm.asm
 EXTRA_DIST += wolfcrypt/src/chacha_asm.asm
 EXTRA_DIST += wolfcrypt/src/poly1305_asm.asm
 EXTRA_DIST += wolfcrypt/src/wc_dsp.c
