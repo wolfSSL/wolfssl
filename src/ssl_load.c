@@ -5051,6 +5051,8 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     char* certDir;
     char* certFile;
     word32 flags;
+#elif !defined(WOLFSSL_SYS_CA_CERTS)
+    (void)ctx;
 #endif
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_default_verify_paths");
