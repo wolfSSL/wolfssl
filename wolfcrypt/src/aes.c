@@ -12530,25 +12530,25 @@ void AES_XTS_encrypt_aesni(const unsigned char *in, unsigned char *out, word32 s
                      const unsigned char* key2, int nr)
                      XASM_LINK("AES_XTS_encrypt_aesni");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_encrypt_start_aesni(const unsigned char* i, const unsigned char* tweak_key,
-                     unsigned char *tweak_block, int tweak_nr)
+void AES_XTS_encrypt_start_aesni(unsigned char* i, const unsigned char* tweak_key,
+                     int tweak_nr)
                      XASM_LINK("AES_XTS_encrypt_start_aesni");
 void AES_XTS_encrypt_update_aesni(const unsigned char *in, unsigned char *out, word32 sz,
-                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_encrypt_update_aesni");
 #endif
 #ifdef HAVE_INTEL_AVX1
 void AES_XTS_encrypt_avx1(const unsigned char *in, unsigned char *out,
-                          word32 sz, const unsigned char* i,
-                          const unsigned char* key, const unsigned char* key2,
-                          int nr)
-                          XASM_LINK("AES_XTS_encrypt_avx1");
+                     word32 sz, const unsigned char* i,
+                     const unsigned char* key, const unsigned char* key2,
+                     int nr)
+                     XASM_LINK("AES_XTS_encrypt_avx1");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_encrypt_start_avx1(const unsigned char* i, const unsigned char* tweak_key,
-                     unsigned char *tweak_block, int tweak_nr)
+void AES_XTS_encrypt_start_avx1(unsigned char* i, const unsigned char* tweak_key,
+                     int tweak_nr)
                      XASM_LINK("AES_XTS_encrypt_start_avx1");
 void AES_XTS_encrypt_update_avx1(const unsigned char *in, unsigned char *out, word32 sz,
-                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_encrypt_update_avx1");
 #endif
 #endif /* HAVE_INTEL_AVX1 */
@@ -12559,25 +12559,25 @@ void AES_XTS_decrypt_aesni(const unsigned char *in, unsigned char *out, word32 s
                      const unsigned char* key2, int nr)
                      XASM_LINK("AES_XTS_decrypt_aesni");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_decrypt_start_aesni(const unsigned char* i, const unsigned char* tweak_key,
-                     unsigned char *tweak_block, int tweak_nr)
+void AES_XTS_decrypt_start_aesni(unsigned char* i, const unsigned char* tweak_key,
+                     int tweak_nr)
                      XASM_LINK("AES_XTS_decrypt_start_aesni");
 void AES_XTS_decrypt_update_aesni(const unsigned char *in, unsigned char *out, word32 sz,
-                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_decrypt_update_aesni");
 #endif
 #ifdef HAVE_INTEL_AVX1
 void AES_XTS_decrypt_avx1(const unsigned char *in, unsigned char *out,
-                          word32 sz, const unsigned char* i,
-                          const unsigned char* key, const unsigned char* key2,
-                          int nr)
-                          XASM_LINK("AES_XTS_decrypt_avx1");
+                     word32 sz, const unsigned char* i,
+                     const unsigned char* key, const unsigned char* key2,
+                     int nr)
+                     XASM_LINK("AES_XTS_decrypt_avx1");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_decrypt_start_avx1(const unsigned char* i, const unsigned char* tweak_key,
-                     unsigned char *tweak_block, int tweak_nr)
+void AES_XTS_decrypt_start_avx1(unsigned char* i, const unsigned char* tweak_key,
+                     int tweak_nr)
                      XASM_LINK("AES_XTS_decrypt_start_avx1");
 void AES_XTS_decrypt_update_avx1(const unsigned char *in, unsigned char *out, word32 sz,
-                     const unsigned char* key, unsigned char *tweak_block, int nr)
+                     const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_decrypt_update_avx1");
 #endif
 #endif /* HAVE_INTEL_AVX1 */
@@ -12725,18 +12725,21 @@ static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AESXTS_STREAM
 
-/* streaming AES-XTS. (XTS) XEX encryption with Tweak and cipher text Stealing.
+/* Block-streaming AES-XTS tweak setup.
  *
  * xaes  AES keys to use for block encrypt/decrypt
- * i     value to use for tweak
+ * i     readwrite value to use for tweak
  *
  * returns 0 on success
  */
-static int AesXtsEncryptStart_sw(XtsAes* xaes, const byte* i, byte *tweak_block) {
-    return wc_AesEncryptDirect(&xaes->tweak, tweak_block, i);
+static int AesXtsEncryptStart_sw(XtsAes* xaes, byte* i) {
+    return wc_AesEncryptDirect(&xaes->tweak, i, i);
 }
 
-/* streaming AES-XTS. (XTS) XEX encryption with Tweak and cipher text Stealing.
+/* Block-streaming AES-XTS.
+ *
+ * Supply block-aligned input data with successive calls.  Final call need not
+ * be block aligned.
  *
  * xaes  AES keys to use for block encrypt/decrypt
  * out   output buffer to hold cipher text
@@ -12746,22 +12749,22 @@ static int AesXtsEncryptStart_sw(XtsAes* xaes, const byte* i, byte *tweak_block)
  * returns 0 on success
  */
 /* Software AES - XTS Encrypt  */
-static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
-                                  byte *tweak_block)
+static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
+                                  word32 sz,
+                                  byte *i)
 {
     int ret = 0;
     word32 blocks = (sz / AES_BLOCK_SIZE);
     Aes *aes = &xaes->aes;
 
-#if 0
-#ifdef HAVE_AES_ECB
+#if 0 && defined(HAVE_AES_ECB)
     /* encrypt all of buffer at once when possible */
-    if (in != out) { /* can not handle inline */
-        XMEMCPY(out, tweak_block, AES_BLOCK_SIZE);
+    if ((in != out) && ((sz & (AES_BLOCK_SIZE - 1)) == 0)) { /* can not handle inline */
+        XMEMCPY(out, i, AES_BLOCK_SIZE);
         if ((ret = _AesXtsHelper(aes, out, in, sz, AES_ENCRYPTION)) != 0)
             return ret;
+        XMEMCPY(i, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
-#endif
 #endif
 
     while (blocks > 0) {
@@ -12769,29 +12772,29 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in, word3
         byte carry = 0;
 
 #if 0 && defined(HAVE_AES_ECB)
-        if (in == out)
+        if ((in == out) || ((sz & (AES_BLOCK_SIZE - 1)) != 0))
 #endif
         { /* check for if inline */
             byte buf[AES_BLOCK_SIZE];
 
             XMEMCPY(buf, in, AES_BLOCK_SIZE);
-            xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
+            xorbuf(buf, i, AES_BLOCK_SIZE);
             ret = wc_AesEncryptDirect(aes, out, buf);
             if (ret != 0)
                 return ret;
         }
-        xorbuf(out, tweak_block, AES_BLOCK_SIZE);
+        xorbuf(out, i, AES_BLOCK_SIZE);
 
         /* multiply by shift left and propagate carry */
         for (j = 0; j < AES_BLOCK_SIZE; j++) {
             byte tmpC;
 
-            tmpC   = (tweak_block[j] >> 7) & 0x01;
-            tweak_block[j] = (byte)((tweak_block[j] << 1) + carry);
+            tmpC   = (i[j] >> 7) & 0x01;
+            i[j] = (byte)((i[j] << 1) + carry);
             carry  = tmpC;
         }
         if (carry) {
-            tweak_block[0] ^= GF_XTS;
+            i[0] ^= GF_XTS;
         }
 
         in  += AES_BLOCK_SIZE;
@@ -12820,10 +12823,10 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in, word3
             XMEMCPY(out, buf2, sz);
         }
 
-        xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
+        xorbuf(buf, i, AES_BLOCK_SIZE);
         ret = wc_AesEncryptDirect(aes, out - AES_BLOCK_SIZE, buf);
         if (ret == 0)
-            xorbuf(out - AES_BLOCK_SIZE, tweak_block, AES_BLOCK_SIZE);
+            xorbuf(out - AES_BLOCK_SIZE, i, AES_BLOCK_SIZE);
     }
 
     return ret;
@@ -12913,14 +12916,13 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AESXTS_STREAM
 
-int wc_AesXtsEncryptStart(XtsAes* xaes, const byte* i, word32 iSz,
-                          byte *tweak_block)
+int wc_AesXtsEncryptStart(XtsAes* xaes, byte* i, word32 iSz)
 {
     int ret;
 
     Aes *aes;
 
-    if ((xaes == NULL) || (tweak_block == NULL)) {
+    if ((xaes == NULL) || (i == NULL)) {
         return BAD_FUNC_ARG;
     }
 
@@ -12947,7 +12949,6 @@ int wc_AesXtsEncryptStart(XtsAes* xaes, const byte* i, word32 iSz,
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_XTS_encrypt_start_avx1(i,
                                            (const byte*)xaes->tweak.key,
-                                           tweak_block,
                                            (int)xaes->tweak.rounds);
                 ret = 0;
             }
@@ -12956,7 +12957,6 @@ int wc_AesXtsEncryptStart(XtsAes* xaes, const byte* i, word32 iSz,
             {
                 AES_XTS_encrypt_start_aesni(i,
                                             (const byte*)xaes->tweak.key,
-                                            tweak_block,
                                             (int)xaes->tweak.rounds);
                 ret = 0;
             }
@@ -12965,7 +12965,7 @@ int wc_AesXtsEncryptStart(XtsAes* xaes, const byte* i, word32 iSz,
         else
 #endif /* 0 && defined(WOLFSSL_AESNI) */
         {
-            ret = AesXtsEncryptStart_sw(xaes, i, tweak_block);
+            ret = AesXtsEncryptStart_sw(xaes, i);
         }
     }
 
@@ -12985,7 +12985,7 @@ int wc_AesXtsEncryptStart(XtsAes* xaes, const byte* i, word32 iSz,
  * returns 0 on success
  */
 int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
-                           byte *tweak_block)
+                           byte *i)
 {
     int ret;
 
@@ -12993,7 +12993,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     Aes *aes;
 #endif
 
-    if (xaes == NULL || out == NULL || in == NULL || tweak_block == NULL) {
+    if (xaes == NULL || out == NULL || in == NULL || i == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -13014,7 +13014,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_XTS_encrypt_update_avx1(in, out, sz,
                                             (const byte*)aes->key,
-                                            tweak_block,
+                                            i,
                                             (int)aes->rounds);
                 ret = 0;
             }
@@ -13023,7 +13023,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             {
                 AES_XTS_encrypt_update_aesni(in, out, sz,
                                             (const byte*)aes->key,
-                                            tweak_block,
+                                            i,
                                             (int)aes->rounds);
                 ret = 0;
             }
@@ -13032,7 +13032,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         else
 #endif /* 0 && defined(WOLFSSL_AESNI) */
         {
-            ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, tweak_block);
+            ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, i);
         }
     }
 
@@ -13171,13 +13171,17 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AESXTS_STREAM
 
-static int AesXtsDecryptStart_sw(XtsAes* xaes, const byte* i,
-                                 byte *tweak_block)
+static int AesXtsDecryptStart_sw(XtsAes* xaes, byte* i)
 {
-    return wc_AesEncryptDirect(&xaes->tweak, tweak_block, i);
+    return wc_AesEncryptDirect(&xaes->tweak, i, i);
 }
 
-/* Same process as encryption but use aes_decrypt key.
+/* Block-streaming AES-XTS.
+ *
+ * Same process as encryption but use decrypt key.
+ *
+ * Supply block-aligned input data with successive calls.  Final call need not
+ * be block aligned.
  *
  * xaes  AES keys to use for block encrypt/decrypt
  * out   output buffer to hold plain text
@@ -13189,7 +13193,7 @@ static int AesXtsDecryptStart_sw(XtsAes* xaes, const byte* i,
  */
 /* Software AES - XTS Decrypt */
 static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
-                                  word32 sz, byte *tweak_block)
+                                  word32 sz, byte *i)
 {
     int ret = 0;
     word32 blocks = (sz / AES_BLOCK_SIZE);
@@ -13208,42 +13212,41 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
         blocks--;
     }
 
-#if 0
-#ifdef HAVE_AES_ECB
+#if 0 && defined(HAVE_AES_ECB)
     /* decrypt all of buffer at once when possible */
-    if (in != out) { /* can not handle inline */
-        XMEMCPY(out, tweak_block, AES_BLOCK_SIZE);
+    if ((in != out) && ((sz & (AES_BLOCK_SIZE - 1)) == 0)) { /* can not handle inline */
+        XMEMCPY(out, i, AES_BLOCK_SIZE);
         if ((ret = _AesXtsHelper(aes, out, in, sz, AES_DECRYPTION)) != 0)
             return ret;
+        XMEMCPY(i, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
 #endif
-#endif /* 0 */
 
     while (blocks > 0) {
 #if 0 && defined(HAVE_AES_ECB)
-        if (in == out)
+        if ((in == out) || ((sz & (AES_BLOCK_SIZE - 1)) != 0))
 #endif
         { /* check for if inline */
             byte buf[AES_BLOCK_SIZE];
 
             XMEMCPY(buf, in, AES_BLOCK_SIZE);
-            xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
+            xorbuf(buf, i, AES_BLOCK_SIZE);
             ret = wc_AesDecryptDirect(aes, out, buf);
             if (ret != 0)
                 return ret;
         }
-        xorbuf(out, tweak_block, AES_BLOCK_SIZE);
+        xorbuf(out, i, AES_BLOCK_SIZE);
 
         /* multiply by shift left and propagate carry */
         for (j = 0; j < AES_BLOCK_SIZE; j++) {
             byte tmpC;
 
-            tmpC   = (tweak_block[j] >> 7) & 0x01;
-            tweak_block[j] = (byte)((tweak_block[j] << 1) + carry);
+            tmpC   = (i[j] >> 7) & 0x01;
+            i[j] = (byte)((i[j] << 1) + carry);
             carry  = tmpC;
         }
         if (carry) {
-            tweak_block[0] ^= GF_XTS;
+            i[0] ^= GF_XTS;
         }
         carry = 0;
 
@@ -13262,8 +13265,8 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
         for (j = 0; j < AES_BLOCK_SIZE; j++) {
             byte tmpC;
 
-            tmpC   = (tweak_block[j] >> 7) & 0x01;
-            tmp2[j] = (byte)((tweak_block[j] << 1) + carry);
+            tmpC   = (i[j] >> 7) & 0x01;
+            tmp2[j] = (byte)((i[j] << 1) + carry);
             carry  = tmpC;
         }
         if (carry) {
@@ -13291,11 +13294,11 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
         XMEMCPY(buf, in,   sz);
         XMEMCPY(out, tmp2, sz);
 
-        xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
+        xorbuf(buf, i, AES_BLOCK_SIZE);
         ret = wc_AesDecryptDirect(aes, tmp2, buf);
         if (ret != 0)
             return ret;
-        xorbuf(tmp2, tweak_block, AES_BLOCK_SIZE);
+        xorbuf(tmp2, i, AES_BLOCK_SIZE);
         XMEMCPY(out - AES_BLOCK_SIZE, tmp2, AES_BLOCK_SIZE);
     }
 
@@ -13392,17 +13395,14 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 /* Same process as encryption but Aes key is AES_DECRYPTION type.
  *
  * xaes  AES keys to use for block encrypt/decrypt
- * out   output buffer to hold plain text
- * in    input cipher text buffer to decrypt
- * sz    size of both out and in buffers
- * i     value to use for tweak
+ * i     readwrite value to use for tweak
  * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
  *       adds a sanity check on how the user calls the function.
+ * tweak_block   buffer of size AES_BLOCK_SIZE to use for tweak state
  *
  * returns 0 on success
  */
-int wc_AesXtsDecryptStart(XtsAes* xaes, const byte* i, word32 iSz,
-                          byte *tweak_block)
+int wc_AesXtsDecryptStart(XtsAes* xaes, byte* i, word32 iSz)
 {
     int ret;
     Aes *aes;
@@ -13434,7 +13434,6 @@ int wc_AesXtsDecryptStart(XtsAes* xaes, const byte* i, word32 iSz,
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_XTS_decrypt_start_avx1(i,
                                            (const byte*)xaes->tweak.key,
-                                           tweak_block,
                                            (int)xaes->tweak.rounds);
                 ret = 0;
             }
@@ -13443,7 +13442,6 @@ int wc_AesXtsDecryptStart(XtsAes* xaes, const byte* i, word32 iSz,
             {
                 AES_XTS_decrypt_start_aesni(i,
                                             (const byte*)xaes->tweak.key,
-                                            tweak_block,
                                             (int)xaes->tweak.rounds);
                 ret = 0;
             }
@@ -13452,7 +13450,7 @@ int wc_AesXtsDecryptStart(XtsAes* xaes, const byte* i, word32 iSz,
         else
 #endif /* 0 && defined(WOLFSSL_AESNI) */
         {
-            ret = AesXtsDecryptStart_sw(xaes, i, tweak_block);
+            ret = AesXtsDecryptStart_sw(xaes, i);
         }
 
     }
@@ -13466,14 +13464,12 @@ int wc_AesXtsDecryptStart(XtsAes* xaes, const byte* i, word32 iSz,
  * out   output buffer to hold plain text
  * in    input cipher text buffer to decrypt
  * sz    size of both out and in buffers
- * i     value to use for tweak
- * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
- *       adds a sanity check on how the user calls the function.
+ * i     tweak buffer of size AES_BLOCK_SIZE.
  *
  * returns 0 on success
  */
 int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
-                           byte *tweak_block)
+                           byte *i)
 {
     int ret;
 #if 0 && defined(WOLFSSL_AESNI)
@@ -13505,7 +13501,7 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             if (IS_INTEL_AVX1(intel_flags)) {
                 AES_XTS_decrypt_update_avx1(in, out, sz,
                                             (const byte*)aes->key,
-                                            tweak_block,
+                                            i,
                                             (int)aes->rounds);
                 ret = 0;
             }
@@ -13514,7 +13510,7 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             {
                 AES_XTS_decrypt_update_aesni(in, out, sz,
                                              (const byte*)aes->key,
-                                             tweak_block,
+                                             i,
                                              (int)aes->rounds);
                 ret = 0;
             }
@@ -13523,7 +13519,7 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         else
 #endif /* 0 && defined(WOLFSSL_AESNI) */
         {
-            ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz, tweak_block);
+            ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz, i);
         }
     }
 

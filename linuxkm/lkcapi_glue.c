@@ -909,7 +909,6 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
     } else {
         int tail = req->cryptlen % AES_BLOCK_SIZE;
         struct skcipher_request subreq;
-        byte tweak_block[AES_BLOCK_SIZE];
 
         if (tail > 0) {
             int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
@@ -931,8 +930,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             tail = 0;
         }
 
-        err = wc_AesXtsEncryptStart(ctx->aesXts, walk.iv, walk.ivsize,
-                                    tweak_block);
+        err = wc_AesXtsEncryptStart(ctx->aesXts, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncryptStart failed: %d\n",
@@ -946,7 +944,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
 
             err = wc_AesXtsEncryptUpdate(ctx->aesXts, walk.dst.virt.addr,
                                          walk.src.virt.addr, nbytes,
-                                         tweak_block);
+                                         walk.iv);
 
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
@@ -980,7 +978,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
 
             err = wc_AesXtsEncryptUpdate(ctx->aesXts, walk.dst.virt.addr,
                                          walk.src.virt.addr, walk.nbytes,
-                                         tweak_block);
+                                         walk.iv);
 
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
@@ -1034,7 +1032,6 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
     } else {
         int tail = req->cryptlen % AES_BLOCK_SIZE;
         struct skcipher_request subreq;
-        byte tweak_block[AES_BLOCK_SIZE];
 
         if (unlikely(tail > 0)) {
             int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
@@ -1056,8 +1053,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             tail = 0;
         }
 
-        err = wc_AesXtsDecryptStart(ctx->aesXts, walk.iv, walk.ivsize,
-                                    tweak_block);
+        err = wc_AesXtsDecryptStart(ctx->aesXts, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsDecryptStart failed: %d\n",
@@ -1071,7 +1067,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
 
             err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
                                          walk.src.virt.addr, nbytes,
-                                         tweak_block);
+                                         walk.iv);
 
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
@@ -1105,7 +1101,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
 
                 err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
                                              walk.src.virt.addr, walk.nbytes,
-                                             tweak_block);
+                                             walk.iv);
 
                 if (unlikely(err)) {
                     pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
