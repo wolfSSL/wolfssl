@@ -5222,6 +5222,7 @@ void bench_aesccm(int useDeviceID)
         goto exit;
     }
 
+#ifdef HAVE_AES_DECRYPT
     RESET_MULTI_VALUE_STATS_VARS();
 
     bench_stats_start(&count, &start);
@@ -5248,6 +5249,7 @@ void bench_aesccm(int useDeviceID)
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
         goto exit;
     }
+#endif
 
   exit:
 

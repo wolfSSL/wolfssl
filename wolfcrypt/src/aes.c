@@ -11447,6 +11447,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     return ret;
 }
 
+#ifdef HAVE_AES_DECRYPT
 static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     Aes* aes, byte* out, const byte* in, word32 sz)
 {
@@ -11497,6 +11498,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 
     return ret;
 }
+#endif
 
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
@@ -11509,6 +11511,7 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return _AesEcbEncrypt(aes, out, in, sz);
 }
 
+#ifdef HAVE_AES_DECRYPT
 int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     if ((in == NULL) || (out == NULL) || (aes == NULL))
@@ -11519,6 +11522,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     return _AesEcbDecrypt(aes, out, in, sz);
 }
+#endif /* HAVE_AES_DECRYPT */
 #endif
 #endif /* HAVE_AES_ECB */
 
