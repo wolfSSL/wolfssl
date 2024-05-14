@@ -3674,7 +3674,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         THREAD_CB cb, void* arg)
     {
         #ifndef WOLFSSL_ZEPHYR_STACK_SZ
-            #define WOLFSSL_ZEPHYR_STACK_SZ (48*1024)
+            #define WOLFSSL_ZEPHYR_STACK_SZ (24*1024)
         #endif
 
         if (thread == NULL || cb == NULL)
