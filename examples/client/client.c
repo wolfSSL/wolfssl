@@ -461,7 +461,7 @@ static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, const char* msg,
     } while (err == WC_PENDING_E);
     if (ret != msgSz) {
         LOG_ERROR("SSL_write_early_data msg error %d, %s\n", err,
-                                         wolfSSL_ERR_error_string(err, buffer));
+                                         wolfSSL_ERR_error_string((unsigned long)err, buffer));
         wolfSSL_free(ssl); ssl = NULL;
         wolfSSL_CTX_free(ctx); ctx = NULL;
         err_sys("SSL_write_early_data failed");
@@ -683,8 +683,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
         conn_time = current_time(0) - start;
 
         /* Allocate TX/RX buffers */
-        tx_buffer = (char*)XMALLOC(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        rx_buffer = (char*)XMALLOC(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        tx_buffer = (char*)XMALLOC((size_t)block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        rx_buffer = (char*)XMALLOC((size_t)block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tx_buffer && rx_buffer) {
             WC_RNG rng;
 
@@ -698,7 +698,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                 size_t xfer_bytes;
 
                 /* Generate random data to send */
-                ret = wc_RNG_GenerateBlock(&rng, (byte*)tx_buffer, block);
+                ret = wc_RNG_GenerateBlock(&rng, (byte*)tx_buffer, (word32)block);
                 wc_FreeRng(&rng);
                 if(ret != 0) {
                     err_sys("wc_RNG_GenerateBlock failed");
@@ -710,7 +710,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     int len, rx_pos, select_ret;
 
                     /* Determine packet size */
-                    len = min(block, (int)(throughput - xfer_bytes));
+                    len = (int)min((word32)block, (word32)(throughput - xfer_bytes));
 
                     /* Perform TX */
                     start = current_time(1);
@@ -766,7 +766,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     }
 
                     /* Compare TX and RX buffers */
-                    if (XMEMCMP(tx_buffer, rx_buffer, len) != 0) {
+                    if (XMEMCMP(tx_buffer, rx_buffer, (size_t)len) != 0) {
                         free(tx_buffer);
                         tx_buffer = NULL;
                         free(rx_buffer);
@@ -775,7 +775,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     }
 
                     /* Update overall position */
-                    xfer_bytes += len;
+                    xfer_bytes += (size_t)len;
                 }
             }
             else {
@@ -801,7 +801,7 @@ doExit:
     if (exitWithRet)
         return err;
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_WIN32)
 #define SIZE_FMT "%d"
 #define SIZE_TYPE int
 #else
@@ -815,8 +815,8 @@ doExit:
         "\tRX      %8.3f ms (%8.3f MBps)\n",
         (SIZE_TYPE)throughput,
         conn_time * 1000,
-        tx_time * 1000, throughput / tx_time / 1024 / 1024,
-        rx_time * 1000, throughput / rx_time / 1024 / 1024
+        (double)tx_time * 1000, (double)throughput / tx_time / 1024 / 1024,
+        (double)rx_time * 1000, (double)throughput / rx_time / 1024 / 1024
     );
 
     return EXIT_SUCCESS;
@@ -852,7 +852,7 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     }
 
     /* C: EHLO mail.example.com */
-    if (send(*sockfd, starttlsCmd[1], (int)XSTRLEN(starttlsCmd[1]), 0) !=
+    if (send(*sockfd, starttlsCmd[1], (SIZE_TYPE)XSTRLEN(starttlsCmd[1]), 0) !=
               (int)XSTRLEN(starttlsCmd[1]))
         err_sys("failed to send STARTTLS EHLO command\n");
 
@@ -869,7 +869,7 @@ static int StartTLS_Init(SOCKET_T* sockfd)
     }
 
     /* C: STARTTLS */
-    if (send(*sockfd, starttlsCmd[3], (int)XSTRLEN(starttlsCmd[3]), 0) !=
+    if (send(*sockfd, starttlsCmd[3], (SIZE_TYPE)XSTRLEN(starttlsCmd[3]), 0) !=
               (int)XSTRLEN(starttlsCmd[3])) {
         err_sys("failed to send STARTTLS command\n");
     }
@@ -980,7 +980,7 @@ static int ClientWrite(WOLFSSL* ssl, const char* msg, int msgSz, const char* str
     if (ret != msgSz) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
         LOG_ERROR("SSL_write%s msg error %d, %s\n", str, err,
-                                        wolfSSL_ERR_error_string(err, buffer));
+                                        wolfSSL_ERR_error_string((unsigned long)err, buffer));
         if (!exitWithRet) {
             err_sys("SSL_write failed");
         }
@@ -1011,7 +1011,7 @@ static int ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead,
             if (err != WOLFSSL_ERROR_WANT_READ &&
                     err != WOLFSSL_ERROR_WANT_WRITE && err != APP_DATA_READY) {
                 LOG_ERROR("SSL_read reply error %d, %s\n", err,
-                                         wolfSSL_ERR_error_string(err, buffer));
+                                         wolfSSL_ERR_error_string((unsigned long)err, buffer));
                 if (!exitWithRet) {
                     err_sys("SSL_read failed");
                 }
@@ -1090,7 +1090,7 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
     if (ret != 0) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
         LOG_ERROR("SSL_write%s msg error %d, %s\n", str, ret,
-                                        wolfSSL_ERR_error_string(ret, buffer));
+                                        wolfSSL_ERR_error_string((unsigned long)ret, buffer));
     }
 
     return ret;
@@ -2426,7 +2426,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'B' :
-                throughput = atol(myoptarg);
+                throughput = (size_t)atol(myoptarg);
                 for (; *myoptarg != '\0'; myoptarg++) {
                     if (*myoptarg == ',') {
                         block = atoi(myoptarg + 1);
@@ -2489,7 +2489,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'F' :
                 #ifdef HAVE_MAX_FRAGMENT
-                    maxFragment = atoi(myoptarg);
+                    maxFragment = (byte)atoi(myoptarg);
                     if (maxFragment < WOLFSSL_MFL_MIN ||
                                                maxFragment > WOLFSSL_MFL_MAX) {
                         Usage();
@@ -2516,7 +2516,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 {
                     word32 myoptargSz;
 
-                    statusRequest = atoi(myoptarg);
+                    statusRequest = (byte)atoi(myoptarg);
                     if (statusRequest > OCSP_STAPLING_OPT_MAX) {
                         Usage();
                         XEXIT_T(MY_EX_USAGE);
@@ -3929,7 +3929,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (ret != WOLFSSL_SUCCESS) {
         err = wolfSSL_get_error(ssl, 0);
         LOG_ERROR("wolfSSL_connect error %d, %s\n", err,
-            wolfSSL_ERR_error_string(err, buffer));
+            wolfSSL_ERR_error_string((unsigned long)err, buffer));
 
         /* cleanup */
         wolfSSL_free(ssl); ssl = NULL;
@@ -4270,11 +4270,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         printf("SSL connect ok, sending GET...\n");
 
         msgSz = (int)XSTRLEN(kHttpGetMsg);
-        XMEMCPY(msg, kHttpGetMsg, msgSz);
+        XMEMCPY(msg, kHttpGetMsg, (size_t)msgSz);
     }
     else {
         msgSz = (int)XSTRLEN(kHelloMsg);
-        XMEMCPY(msg, kHelloMsg, msgSz);
+        XMEMCPY(msg, kHelloMsg, (size_t)msgSz);
     }
 
 /* allow some time for exporting the session */
@@ -4521,7 +4521,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
         if (ret != WOLFSSL_SUCCESS) {
             LOG_ERROR("wolfSSL_connect resume error %d, %s\n", err,
-                wolfSSL_ERR_error_string(err, buffer));
+                wolfSSL_ERR_error_string((unsigned long)err, buffer));
             wolfSSL_free(sslResume); sslResume = NULL;
             CloseSocket(sockfd);
             wolfSSL_CTX_free(ctx); ctx = NULL;
@@ -4602,11 +4602,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         XMEMSET(msg, 0, sizeof(msg));
         if (sendGET) {
             msgSz = (int)XSTRLEN(kHttpGetMsg);
-            XMEMCPY(msg, kHttpGetMsg, msgSz);
+            XMEMCPY(msg, kHttpGetMsg, (size_t)msgSz);
         }
         else {
             msgSz = (int)XSTRLEN(kResumeMsg);
-            XMEMCPY(msg, kResumeMsg, msgSz);
+            XMEMCPY(msg, kResumeMsg, (size_t)msgSz);
         }
 
         (void)ClientWriteRead(sslResume, msg, msgSz, reply, sizeof(reply)-1,

@@ -37612,7 +37612,7 @@ int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
     InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
     if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
                          ca->pubKeySize, ca->keyOID, signature, sigSz,
-                         signatureOID, sigParams, sigParamsSz, NULL) != 0) {
+                         signatureOID, sigParams, (word32)sigParamsSz, NULL) != 0) {
         WOLFSSL_MSG("CRL Confirm signature failed");
         WOLFSSL_ERROR_VERBOSE(ASN_CRL_CONFIRM_E);
         return ASN_CRL_CONFIRM_E;
@@ -38336,7 +38336,7 @@ end:
                     buff);
             dcrl->sigParamsIndex =
                 dataASN[CRLASN_IDX_SIGALGO_PARAMS].offset;
-            dcrl->sigParamsLength = sigParamsSz;
+            dcrl->sigParamsLength = (word32)sigParamsSz;
         }
     #endif
 

@@ -386,7 +386,7 @@ int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out)
         output = *out;
     }
 
-    if ((len = wc_PKCS7_EncodeSignedData(p7, output, len)) < 0) {
+    if ((len = wc_PKCS7_EncodeSignedData(p7, output, (word32)len)) < 0) {
         WOLFSSL_MSG("wc_PKCS7_EncodeSignedData error");
         goto cleanup;
     }
@@ -512,7 +512,7 @@ PKCS7* wolfSSL_PKCS7_sign(WOLFSSL_X509* signer, WOLFSSL_EVP_PKEY* pkey,
     /* set signer private key, data types, defaults */
     if (err == 0) {
         p7->pkcs7.privateKey = (byte*)pkey->pkey.ptr;
-        p7->pkcs7.privateKeySz = pkey->pkey_sz;
+        p7->pkcs7.privateKeySz = (word32)pkey->pkey_sz;
         p7->pkcs7.contentOID = DATA;  /* inner content default is DATA */
         p7->pkcs7.hashOID = SHA256h;  /* default to SHA-256 hash type */
         p7->type = SIGNED_DATA;       /* PKCS7_final switches on type */
@@ -761,7 +761,7 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
 
     if (ret == 1) {
         p7->pkcs7.content = p7->data;
-        p7->pkcs7.contentSz = p7->len;
+        p7->pkcs7.contentSz = (word32)p7->len;
     }
 
     if (data != NULL) {
@@ -792,7 +792,7 @@ int wolfSSL_PKCS7_verify(PKCS7* pkcs7, WOLFSSL_STACK* certs,
             return WOLFSSL_FAILURE;
 
         p7->pkcs7.content = mem;
-        p7->pkcs7.contentSz = memSz;
+        p7->pkcs7.contentSz = (word32)memSz;
     }
 
     /* certs is the list of certificates to find the cert with issuer/serial. */
@@ -979,7 +979,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     XMEMSET(outputFoot, 0, outputFootSz);
 
     hashType = wc_OidGetHash(p7->hashOID);
-    hashSz = wc_HashGetDigestSize(hashType);
+    hashSz = (word32)wc_HashGetDigestSize(hashType);
     if (hashSz > WC_MAX_DIGEST_SIZE)
         goto error;
 
@@ -1025,7 +1025,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
 
     XMEMSET(pem, 0, pemSz);
 
-    if (wc_DerToPemEx(output, outputSz, pem, pemSz, NULL, CERT_TYPE) < 0) {
+    if (wc_DerToPemEx(output, outputSz, pem, (word32)pemSz, NULL, CERT_TYPE) < 0) {
         goto error;
     }
     if ((wolfSSL_BIO_write(bio, pem, pemSz) == pemSz)) {
@@ -1188,7 +1188,7 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
 
             section[0] = '\0';
             sectionLen = 0;
-            canonSize = remainLen + 1;
+            canonSize = (size_t)remainLen + 1;
             canonSection = (char*)XMALLOC(canonSize, NULL,
                                           DYNAMIC_TYPE_PKCS7);
             if (canonSection == NULL) {
@@ -1201,7 +1201,7 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
             }
             while (XSTRNCMP(&section[sectionLen], boundary, boundLen) &&
                             remainLen > 0) {
-                canonLineLen = lineLen;
+                canonLineLen = (word32)lineLen;
                 canonLine = wc_MIME_single_canonicalize(&section[sectionLen],
                                                         &canonLineLen);
                 if (canonLine == NULL) {
@@ -1356,7 +1356,7 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
     if (section == NULL || sectionLen <= 0) {
         goto error;
     }
-    outLen = ((sectionLen*3+3)/4)+1;
+    outLen = (word32)((sectionLen*3+3)/4)+1;
     out = (byte*)XMALLOC(outLen*sizeof(byte), NULL, DYNAMIC_TYPE_PKCS7);
     outHead = out;
     if (outHead == NULL) {
@@ -1368,13 +1368,13 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
         sectionLen--;
     }
     section[sectionLen] = '\0';
-    ret = Base64_Decode((const byte*)section, sectionLen, out, &outLen);
+    ret = Base64_Decode((const byte*)section, (word32)sectionLen, out, &outLen);
     if (ret < 0) {
         WOLFSSL_MSG("Error base64 decoding S/MIME message.");
         goto error;
     }
-    pkcs7 = wolfSSL_d2i_PKCS7_only(NULL, (const unsigned char**)&out, outLen,
-        bcontMem, bcontMemSz);
+    pkcs7 = wolfSSL_d2i_PKCS7_only(NULL, (const unsigned char**)&out, (int)outLen,
+        bcontMem, (word32)bcontMemSz);
 
     wc_MIME_free_hdrs(allHdrs);
     XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
@@ -1499,7 +1499,7 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
 
     /* Base64 encode signedData bundle */
     if (ret > 0) {
-        if (Base64_Encode(p7out, len, NULL, &sigBase64Len) != LENGTH_ONLY_E) {
+        if (Base64_Encode(p7out, (word32)len, NULL, &sigBase64Len) != LENGTH_ONLY_E) {
             ret = 0;
         }
         else {
@@ -1513,7 +1513,7 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
 
     if (ret > 0) {
         XMEMSET(sigBase64, 0, sigBase64Len);
-        if (Base64_Encode(p7out, len, sigBase64, &sigBase64Len) < 0) {
+        if (Base64_Encode(p7out, (word32)len, sigBase64, &sigBase64Len) < 0) {
             WOLFSSL_MSG("Error in Base64_Encode of signature");
             ret = 0;
         }
@@ -1732,9 +1732,9 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
         word32 certSz = 0;
         byte *certDer = NULL;
 
-        certSz = wc_i2d_PKCS12(pkcs12, &certDer, NULL);
+        certSz = (word32)wc_i2d_PKCS12(pkcs12, &certDer, NULL);
         if ((certSz > 0) && (certDer != NULL)) {
-            if (wolfSSL_BIO_write(bio, certDer, certSz) == (int)certSz) {
+            if (wolfSSL_BIO_write(bio, certDer, (int)certSz) == (int)certSz) {
                 ret = WOLFSSL_SUCCESS;
             }
         }
@@ -1784,7 +1784,7 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
     passSz = (word32)XSTRLEN(pass);
 
     keyDer = (byte*)pkey->pkey.ptr;
-    keyDerSz = pkey->pkey_sz;
+    keyDerSz = (word32)pkey->pkey_sz;
 
     certDer = (byte*)wolfSSL_X509_get_der(cert, &certDerSz);
     if (certDer == NULL) {
@@ -1821,7 +1821,7 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
                 return NULL;
             }
             XMEMCPY(cur->buffer, curDer, curDerSz);
-            cur->bufferSz = curDerSz;
+            cur->bufferSz = (word32)curDerSz;
             cur->next = list;
             list = cur;
 
@@ -1831,7 +1831,7 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name, WOLFSSL_EVP_PKEY* pkey,
     }
 
     pkcs12 = wc_PKCS12_create(pass, passSz, name, keyDer, keyDerSz,
-            certDer, certDerSz, list, keyNID, certNID, itt, macItt,
+            certDer, (word32)certDerSz, list, keyNID, certNID, itt, macItt,
             keyType, NULL);
 
     if (ca != NULL) {
@@ -2104,7 +2104,7 @@ int wolfSSL_PKCS12_verify_mac(WC_PKCS12 *pkcs12, const char *psw,
         return WOLFSSL_FAILURE;
     }
 
-    return wc_PKCS12_verify_ex(pkcs12, (const byte*)psw, pswLen) == 0 ?
+    return wc_PKCS12_verify_ex(pkcs12, (const byte*)psw, (word32)pswLen) == 0 ?
             WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 

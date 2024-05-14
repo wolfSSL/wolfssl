@@ -154,7 +154,7 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
                 printf("suite too long!\n");
                 return 0;
             }
-            XMEMCPY(suite, begin, len);
+            XMEMCPY(suite, begin, (size_t) len);
             suite[len] = '\0';
         }
         else
@@ -660,7 +660,7 @@ static void test_harness(void* vargs)
         return;
     }
 
-    script = (char*)malloc(sz+1);
+    script = (char*)malloc((size_t)(sz+1));
     if (script == 0) {
         fprintf(stderr, "unable to allocate script buffer\n");
         fclose(file);
@@ -668,7 +668,7 @@ static void test_harness(void* vargs)
         return;
     }
 
-    len = fread(script, 1, sz, file);
+    len = (long) fread(script, 1, (size_t)sz, file);
     if (len != sz) {
         fprintf(stderr, "read error\n");
         fclose(file);

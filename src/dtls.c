@@ -187,14 +187,14 @@ typedef struct WolfSSL_CH {
     byte dtls12cookieSet:1;
 } WolfSSL_CH;
 
-static int ReadVector8(const byte* input, WolfSSL_ConstVector* v)
+static word32 ReadVector8(const byte* input, WolfSSL_ConstVector* v)
 {
     v->size = *input;
     v->elements = input + OPAQUE8_LEN;
     return v->size + OPAQUE8_LEN;
 }
 
-static int ReadVector16(const byte* input, WolfSSL_ConstVector* v)
+static word32 ReadVector16(const byte* input, WolfSSL_ConstVector* v)
 {
     word16 size16;
     ato16(input, &size16);

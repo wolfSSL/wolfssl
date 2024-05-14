@@ -490,7 +490,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
         }
         if (!ssl->ctx->GenSessionKeyCb || ret == PROTOCOLCB_UNAVAILABLE)
 #endif
-        ret = _DeriveTlsKeys(key_dig, key_dig_len,
+        ret = _DeriveTlsKeys(key_dig, (word32)key_dig_len,
                          ssl->arrays->masterSecret, SECRET_LEN,
                          ssl->arrays->serverRandom, ssl->arrays->clientRandom,
                          IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
@@ -889,10 +889,10 @@ static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
     }
     if (ret == 0) {
         ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->opad,
-            blockSz);
+            (word32)blockSz);
         if (ret == 0)
             ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->innerHash,
-                digestSz);
+                (word32)digestSz);
         if (ret == 0)
             ret = wc_HashFinal(&hash, hashType, mac);
         wc_HashFree(&hash, hashType);
@@ -1000,7 +1000,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     c32toa(realLen >> ((sizeof(word32) * 8) - 3), lenBytes);
     c32toa(realLen << 3, lenBytes + sizeof(word32));
 
-    ret = Hmac_HashUpdate(hmac, (unsigned char*)hmac->ipad, blockSz);
+    ret = Hmac_HashUpdate(hmac, (unsigned char*)hmac->ipad, (word32)blockSz);
     if (ret != 0)
         return ret;
 
@@ -1019,7 +1019,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         safeBlocks = 0;
 
     XMEMSET(digest, 0, macLen);
-    k = safeBlocks * blockSz;
+    k = (unsigned int)(safeBlocks * blockSz);
     for (i = safeBlocks; i < blocks; i++) {
         unsigned char hashBlock[WC_MAX_BLOCK_SIZE];
         unsigned char isEocBlock = ctMaskEq(i, eocBlock);
@@ -1047,7 +1047,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
             hashBlock[j] = b;
         }
 
-        ret = Hmac_HashUpdate(hmac, hashBlock, blockSz);
+        ret = Hmac_HashUpdate(hmac, hashBlock, (word32)blockSz);
         if (ret != 0)
             return ret;
         ret = Hmac_HashFinalRaw(hmac, hashBlock);
@@ -1157,9 +1157,9 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     maxSz &= ~(0 - (maxSz >> 31));
 
     /* Calculate #blocks processed in HMAC for max and real data. */
-    blocks      = maxSz >> blockBits;
+    blocks      = (int)(maxSz >> blockBits);
     blocks     += ((maxSz + padSz) % blockSz) < padSz;
-    msgBlocks   = realSz >> blockBits;
+    msgBlocks   = (int)(realSz >> blockBits);
     /* #Extra blocks to process. */
     blocks -= msgBlocks + ((((realSz + padSz) % blockSz) < padSz) ? 1 : 0);
     /* Calculate whole blocks. */
@@ -1168,8 +1168,8 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     ret = wc_HmacUpdate(hmac, header, WOLFSSL_TLS_HMAC_INNER_SZ);
     if (ret == 0) {
         /* Fill the rest of the block with any available data. */
-        word32 currSz = ctMaskLT(msgSz, blockSz) & msgSz;
-        currSz |= ctMaskGTE(msgSz, blockSz) & blockSz;
+        word32 currSz = ctMaskLT((int)msgSz, blockSz) & msgSz;
+        currSz |= ctMaskGTE((int)msgSz, blockSz) & blockSz;
         currSz -= WOLFSSL_TLS_HMAC_INNER_SZ;
         currSz &= ~(0 - (currSz >> 31));
         ret = wc_HmacUpdate(hmac, in, currSz);
@@ -12201,7 +12201,7 @@ int TLSX_FinalizeEch(WOLFSSL_ECH* ech, byte* aad, word32 aadLen)
 
             /* seal the payload */
             ret = wc_HpkeSealBase(ech->hpke, ech->ephemeralKey, receiverPubkey,
-                info, infoLen, aadCopy, aadLen, ech->innerClientHello,
+                info, (word32)infoLen, aadCopy, aadLen, ech->innerClientHello,
                 ech->innerClientHelloLen - ech->hpke->Nt,
                 ech->outerClientPayload);
 
@@ -13311,7 +13311,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = SetCipherSpecs(ssl);
                 if (ret != 0)
                     return ret;
-                now = TimeNowInMilliseconds();
+                now = (word64)TimeNowInMilliseconds();
                 if (now == 0)
                     return GETTIME_ERROR;
             #ifdef WOLFSSL_32BIT_MILLI_TIME

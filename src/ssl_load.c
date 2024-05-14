@@ -146,7 +146,7 @@ static int DataToDerBuffer(const unsigned char* buff, word32 len, int format,
         word32 inOutIdx = 0;
 
         /* Get length of SEQ including header. */
-        if ((info->consumed = wolfssl_der_length(buff, len)) > 0) {
+        if ((info->consumed = wolfssl_der_length(buff, (int)len)) > 0) {
             ret = 0;
         }
         /* Private keys may be wrapped in OCT when PKCS#8 wrapper removed.
@@ -1220,11 +1220,11 @@ static int ProcessBufferPrivPkcs8Dec(EncryptedInfo* info, DerBuffer* der,
         /* Zero out encrypted data not overwritten. */
         ForceZero(der->buffer + ret, der->length - ret);
         /* Set decrypted data length. */
-        der->length = ret;
+        der->length = (word32)ret;
     }
 
     /* Ensure password is zeroized. */
-    ForceZero(password, passwordSz);
+    ForceZero(password, (word32)passwordSz);
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of password memory. */
     XFREE(password, heap, DYNAMIC_TYPE_STRING);
@@ -1357,7 +1357,7 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     ret = ToTraditional_ex(der->buffer, der->length, &p8AlgId);
     if (ret > 0) {
         /* Header stripped inline. */
-        der->length = ret;
+        der->length = (word32)ret;
         algId = p8AlgId;
     }
 #endif
@@ -2749,7 +2749,7 @@ static int wolfssl_ctx_load_path(WOLFSSL_CTX* ctx, const char* path,
         while ((fileRet == 0) && (name != NULL)) {
             WOLFSSL_MSG(name);
             /* Load file. */
-            ret = wolfssl_ctx_load_path_file(ctx, name, verify, flags,
+            ret = wolfssl_ctx_load_path_file(ctx, name, verify, (int)flags,
                 &failCount, &successCount);
             /* Get next filenmae. */
             fileRet = wc_ReadDirNext(readCtx, path, &name);
@@ -4031,7 +4031,7 @@ int wolfSSL_CTX_use_PrivateKey_id(WOLFSSL_CTX* ctx, const unsigned char* id,
     int ret = wolfSSL_CTX_use_PrivateKey_Id(ctx, id, sz, devId);
     if (ret == 1) {
         /* Set the key size which normally is calculated during decoding. */
-        ctx->privateKeySz = (word32)keySz;
+        ctx->privateKeySz = (int)keySz;
     }
 
     return ret;
@@ -4342,7 +4342,7 @@ int wolfSSL_use_PrivateKey_id(WOLFSSL* ssl, const unsigned char* id,
     int ret = wolfSSL_use_PrivateKey_Id(ssl, id, sz, devId);
     if (ret == 1) {
         /* Set the key size which normally is calculated during decoding. */
-        ssl->buffers.keySz = (word32)keySz;
+        ssl->buffers.keySz = (int)keySz;
     }
 
     return ret;
@@ -4602,7 +4602,7 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
     DerBuffer* derBuffer = NULL;
 
     /* Create a DER buffer from DER encoding. */
-    ret = AllocCopyDer(&derBuffer, der, derSz, CERT_TYPE, ctx->heap);
+    ret = AllocCopyDer(&derBuffer, der, (word32)derSz, CERT_TYPE, ctx->heap);
     if (ret != 0) {
         WOLFSSL_MSG("Memory Error");
         res = 0;
@@ -4618,7 +4618,7 @@ static int wolfssl_ctx_add_to_chain(WOLFSSL_CTX* ctx, const byte* der,
 
     if (res == 1) {
          /* Add chain to DER buffer. */
-         res = wolfssl_add_to_chain(&ctx->certChain, 1, der, derSz, ctx->heap);
+         res = wolfssl_add_to_chain(&ctx->certChain, 1, der, (word32)derSz, ctx->heap);
     #ifdef WOLFSSL_TLS13
         /* Update count of certificates. */
         ctx->certChainCnt++;
@@ -5222,8 +5222,8 @@ static int wolfssl_set_tmp_dh(WOLFSSL* ssl, unsigned char* p, int pSz,
         /* Assign the buffers and lengths to SSL. */
         ssl->buffers.serverDH_P.buffer = p;
         ssl->buffers.serverDH_G.buffer = g;
-        ssl->buffers.serverDH_P.length = pSz;
-        ssl->buffers.serverDH_G.length = gSz;
+        ssl->buffers.serverDH_P.length = (unsigned int)pSz;
+        ssl->buffers.serverDH_G.length = (unsigned int)gSz;
         /* We own the buffers. */
         ssl->buffers.weOwnDH = 1;
         /* We have a DH parameters to use. */
@@ -5337,7 +5337,7 @@ static int wolfssl_check_dh_key(unsigned char* p, int pSz, unsigned char* g,
         /* Initialize a DH object. */
         if ((ret = wc_InitDhKey(checkKey)) == 0) {
             /* Check DH parameters. */
-            ret = wc_DhSetCheckKey(checkKey, p, pSz, g, gSz, NULL, 0, 0, &rng);
+            ret = wc_DhSetCheckKey(checkKey, p, (word32)pSz, g, gSz, NULL, 0, 0, &rng);
             /* Dispose of DH object. */
             wc_FreeDhKey(checkKey);
         }
@@ -5398,8 +5398,8 @@ static int wolfssl_ctx_set_tmp_dh(WOLFSSL_CTX* ctx, unsigned char* p, int pSz,
         /* Assign the buffers and lengths to SSL context. */
         ctx->serverDH_P.buffer = p;
         ctx->serverDH_G.buffer = g;
-        ctx->serverDH_P.length = pSz;
-        ctx->serverDH_G.length = gSz;
+        ctx->serverDH_P.length = (unsigned int)pSz;
+        ctx->serverDH_G.length = (unsigned int)gSz;
         /* We have a DH parameters to use. */
         ctx->haveDH = 1;
     }
@@ -5698,11 +5698,11 @@ static int ws_ctx_ssl_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         else if (ssl != NULL) {
             /* Set p and g into SSL. */
-            res = wolfssl_set_tmp_dh(ssl, p, pSz, g, gSz);
+            res = wolfssl_set_tmp_dh(ssl, p, (int)pSz, g, gSz);
         }
         else {
             /* Set p and g into SSL context. */
-            res = wolfssl_ctx_set_tmp_dh(ctx, p, pSz, g, gSz);
+            res = wolfssl_ctx_set_tmp_dh(ctx, p, (int)pSz, g, gSz);
         }
     }
 

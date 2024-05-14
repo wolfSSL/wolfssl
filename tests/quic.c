@@ -569,10 +569,10 @@ static int ctx_session_ticket_cb(WOLFSSL* ssl,
     }
     memset(ctx->ticket, 0, sizeof(ctx->ticket));
     ctx->ticket_len = (word32)ticketSz;
-    memcpy(ctx->ticket, ticket, ticketSz);
+    memcpy(ctx->ticket, ticket, (size_t)ticketSz);
     if (ctx->verbose) {
         printf("Session Ticket[%s]: ", ctx->name);
-        dump_buffer("", ticket, ticketSz, 4);
+        dump_buffer("", ticket, (size_t)ticketSz, 4);
     }
     return 0;
 }
@@ -931,7 +931,7 @@ static int QuicConversation_start(QuicConversation *conv, const byte *data,
         if (ret < 0) {
             int err = wolfSSL_get_error(conv->client->ssl, ret);
             char lbuffer[1024];
-            printf("EARLY DATA ret = %d, error = %d, %s\n", ret, err, wolfSSL_ERR_error_string(err, lbuffer));
+            printf("EARLY DATA ret = %d, error = %d, %s\n", ret, err, wolfSSL_ERR_error_string((unsigned long)err, lbuffer));
             AssertTrue(0);
         }
         *pwritten = (size_t)written;
@@ -991,7 +991,7 @@ static int QuicConversation_step(QuicConversation *conv, int may_fail)
                 }
             }
             else if (n > 0) {
-                conv->early_data_len += n;
+                conv->early_data_len += (size_t)n;
                 if (conv->verbose)
                     printf("RECVed early data, len now=%d\n", (int)conv->early_data_len);
             }
@@ -1382,10 +1382,10 @@ static int test_quic_resumption(int verbose) {
      * a session works. */
     AssertTrue(tclient.ticket_len > 0);
     AssertNotNull(session = wolfSSL_get1_session(tclient.ssl));
-    AssertTrue((session_size = wolfSSL_i2d_SSL_SESSION(session, NULL)) > 0);
+    AssertTrue((session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session, NULL)) > 0);
     AssertTrue((size_t)session_size < sizeof(session_buffer));
     session_data2 = session_data = session_buffer;
-    session_size = wolfSSL_i2d_SSL_SESSION(session, &session_data);
+    session_size = (unsigned int)wolfSSL_i2d_SSL_SESSION(session, &session_data);
     session_restored = wolfSSL_d2i_SSL_SESSION(NULL, &session_data2, session_size);
     AssertNotNull(session_restored);
 
@@ -1550,7 +1550,7 @@ static int new_session_cb(WOLFSSL *ssl, WOLFSSL_SESSION *session)
         return -1;
     }
     data = ctx->session;
-    ctx->session_len = wolfSSL_i2d_SSL_SESSION(session, &data);
+    ctx->session_len = (word32)wolfSSL_i2d_SSL_SESSION(session, &data);
     if (ctx->verbose) {
         printf("[%s]", ctx->name);
         dump_buffer(" new SESSION", ctx->session, ctx->session_len, 4);
