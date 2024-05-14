@@ -12530,9 +12530,9 @@ void AES_XTS_encrypt_aesni(const unsigned char *in, unsigned char *out, word32 s
                      const unsigned char* key2, int nr)
                      XASM_LINK("AES_XTS_encrypt_aesni");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_encrypt_start_aesni(unsigned char* i, const unsigned char* tweak_key,
+void AES_XTS_init_aesni(unsigned char* i, const unsigned char* tweak_key,
                      int tweak_nr)
-                     XASM_LINK("AES_XTS_encrypt_start_aesni");
+                     XASM_LINK("AES_XTS_init_aesni");
 void AES_XTS_encrypt_update_aesni(const unsigned char *in, unsigned char *out, word32 sz,
                      const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_encrypt_update_aesni");
@@ -12544,9 +12544,9 @@ void AES_XTS_encrypt_avx1(const unsigned char *in, unsigned char *out,
                      int nr)
                      XASM_LINK("AES_XTS_encrypt_avx1");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_encrypt_start_avx1(unsigned char* i, const unsigned char* tweak_key,
+void AES_XTS_init_avx1(unsigned char* i, const unsigned char* tweak_key,
                      int tweak_nr)
-                     XASM_LINK("AES_XTS_encrypt_start_avx1");
+                     XASM_LINK("AES_XTS_init_avx1");
 void AES_XTS_encrypt_update_avx1(const unsigned char *in, unsigned char *out, word32 sz,
                      const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_encrypt_update_avx1");
@@ -12559,9 +12559,6 @@ void AES_XTS_decrypt_aesni(const unsigned char *in, unsigned char *out, word32 s
                      const unsigned char* key2, int nr)
                      XASM_LINK("AES_XTS_decrypt_aesni");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_decrypt_start_aesni(unsigned char* i, const unsigned char* tweak_key,
-                     int tweak_nr)
-                     XASM_LINK("AES_XTS_decrypt_start_aesni");
 void AES_XTS_decrypt_update_aesni(const unsigned char *in, unsigned char *out, word32 sz,
                      const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_decrypt_update_aesni");
@@ -12573,9 +12570,6 @@ void AES_XTS_decrypt_avx1(const unsigned char *in, unsigned char *out,
                      int nr)
                      XASM_LINK("AES_XTS_decrypt_avx1");
 #ifdef WOLFSSL_AESXTS_STREAM
-void AES_XTS_decrypt_start_avx1(unsigned char* i, const unsigned char* tweak_key,
-                     int tweak_nr)
-                     XASM_LINK("AES_XTS_decrypt_start_avx1");
 void AES_XTS_decrypt_update_avx1(const unsigned char *in, unsigned char *out, word32 sz,
                      const unsigned char* key, unsigned char *i, int nr)
                      XASM_LINK("AES_XTS_decrypt_update_avx1");
@@ -12732,7 +12726,7 @@ static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  *
  * returns 0 on success
  */
-static int AesXtsEncryptStart_sw(XtsAes* xaes, byte* i) {
+static int AesXtsInit_sw(XtsAes* xaes, byte* i) {
     return wc_AesEncryptDirect(&xaes->tweak, i, i);
 }
 
@@ -12916,7 +12910,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AESXTS_STREAM
 
-int wc_AesXtsEncryptStart(XtsAes* xaes, byte* i, word32 iSz)
+int wc_AesXtsEncryptInit(XtsAes* xaes, byte* i, word32 iSz)
 {
     int ret;
 
@@ -12942,30 +12936,28 @@ int wc_AesXtsEncryptStart(XtsAes* xaes, byte* i, word32 iSz)
     }
 
     {
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_XTS_encrypt_start_avx1(i,
-                                           (const byte*)xaes->tweak.key,
-                                           (int)xaes->tweak.rounds);
+                AES_XTS_init_avx1(i, (const byte*)xaes->tweak.key,
+                                  (int)xaes->tweak.rounds);
                 ret = 0;
             }
             else
 #endif
             {
-                AES_XTS_encrypt_start_aesni(i,
-                                            (const byte*)xaes->tweak.key,
-                                            (int)xaes->tweak.rounds);
+                AES_XTS_init_aesni(i, (const byte*)xaes->tweak.key,
+                                   (int)xaes->tweak.rounds);
                 ret = 0;
             }
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* 0 && defined(WOLFSSL_AESNI) */
+#endif /* WOLFSSL_AESNI */
         {
-            ret = AesXtsEncryptStart_sw(xaes, i);
+            ret = AesXtsInit_sw(xaes, i);
         }
     }
 
@@ -12989,7 +12981,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 {
     int ret;
 
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
     Aes *aes;
 #endif
 
@@ -12997,7 +12989,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
     aes = &xaes->aes;
 #endif
 
@@ -13007,7 +12999,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     }
 
     {
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -13030,7 +13022,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* 0 && defined(WOLFSSL_AESNI) */
+#endif /* WOLFSSL_AESNI */
         {
             ret = AesXtsEncryptUpdate_sw(xaes, out, in, sz, i);
         }
@@ -13170,11 +13162,6 @@ static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 }
 
 #ifdef WOLFSSL_AESXTS_STREAM
-
-static int AesXtsDecryptStart_sw(XtsAes* xaes, byte* i)
-{
-    return wc_AesEncryptDirect(&xaes->tweak, i, i);
-}
 
 /* Block-streaming AES-XTS.
  *
@@ -13402,7 +13389,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  *
  * returns 0 on success
  */
-int wc_AesXtsDecryptStart(XtsAes* xaes, byte* i, word32 iSz)
+int wc_AesXtsDecryptInit(XtsAes* xaes, byte* i, word32 iSz)
 {
     int ret;
     Aes *aes;
@@ -13427,30 +13414,28 @@ int wc_AesXtsDecryptStart(XtsAes* xaes, byte* i, word32 iSz)
     }
 
     {
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
             if (IS_INTEL_AVX1(intel_flags)) {
-                AES_XTS_decrypt_start_avx1(i,
-                                           (const byte*)xaes->tweak.key,
-                                           (int)xaes->tweak.rounds);
+                AES_XTS_init_avx1(i, (const byte*)xaes->tweak.key,
+                                  (int)xaes->tweak.rounds);
                 ret = 0;
             }
             else
 #endif
             {
-                AES_XTS_decrypt_start_aesni(i,
-                                            (const byte*)xaes->tweak.key,
-                                            (int)xaes->tweak.rounds);
+                AES_XTS_init_aesni(i, (const byte*)xaes->tweak.key,
+                                   (int)xaes->tweak.rounds);
                 ret = 0;
             }
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* 0 && defined(WOLFSSL_AESNI) */
+#endif /* WOLFSSL_AESNI */
         {
-            ret = AesXtsDecryptStart_sw(xaes, i);
+            ret = AesXtsInit_sw(xaes, i);
         }
 
     }
@@ -13472,7 +13457,7 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                            byte *i)
 {
     int ret;
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
     Aes *aes;
 #endif
 
@@ -13480,7 +13465,7 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
 #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
     aes = &xaes->aes_decrypt;
 #else
@@ -13494,7 +13479,7 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     }
 
     {
-#if 0 && defined(WOLFSSL_AESNI)
+#ifdef WOLFSSL_AESNI
         if (aes->use_aesni) {
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #if defined(HAVE_INTEL_AVX1)
@@ -13517,7 +13502,7 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             RESTORE_VECTOR_REGISTERS();
         }
         else
-#endif /* 0 && defined(WOLFSSL_AESNI) */
+#endif /* WOLFSSL_AESNI */
         {
             ret = AesXtsDecryptUpdate_sw(xaes, out, in, sz, i);
         }

@@ -671,9 +671,9 @@ WOLFSSL_API int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes,
 
 #ifdef WOLFSSL_AESXTS_STREAM
 
-WOLFSSL_API int wc_AesXtsEncryptStart(XtsAes* aes, byte* i, word32 iSz);
+WOLFSSL_API int wc_AesXtsEncryptInit(XtsAes* aes, byte* i, word32 iSz);
 
-WOLFSSL_API int wc_AesXtsDecryptStart(XtsAes* aes, byte* i, word32 iSz);
+WOLFSSL_API int wc_AesXtsDecryptInit(XtsAes* aes, byte* i, word32 iSz);
 
 WOLFSSL_API int wc_AesXtsEncryptUpdate(XtsAes* aes, byte* out,
          const byte* in, word32 sz, byte *i);

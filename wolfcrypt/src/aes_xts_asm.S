@@ -1,6 +1,6 @@
 /* aes_xts_asm.S */
 /*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -47,6 +47,59 @@
 
 #ifdef WOLFSSL_AES_XTS
 #ifdef WOLFSSL_X86_64_BUILD
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_init_aesni
+.type	AES_XTS_init_aesni,@function
+.align	16
+AES_XTS_init_aesni:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_init_aesni
+.p2align	4
+_AES_XTS_init_aesni:
+#endif /* __APPLE__ */
+        movdqu	(%rdi), %xmm0
+        # aes_enc_block
+        pxor	(%rsi), %xmm0
+        movdqu	16(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	32(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	48(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	64(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	80(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	96(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	112(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	128(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        movdqu	144(%rsi), %xmm2
+        aesenc	%xmm2, %xmm0
+        cmpl	$11, %edx
+        movdqu	160(%rsi), %xmm2
+        jl	L_AES_XTS_init_aesni_tweak_aes_enc_block_last
+        aesenc	%xmm2, %xmm0
+        movdqu	176(%rsi), %xmm3
+        aesenc	%xmm3, %xmm0
+        cmpl	$13, %edx
+        movdqu	192(%rsi), %xmm2
+        jl	L_AES_XTS_init_aesni_tweak_aes_enc_block_last
+        aesenc	%xmm2, %xmm0
+        movdqu	208(%rsi), %xmm3
+        aesenc	%xmm3, %xmm0
+        movdqu	224(%rsi), %xmm2
+L_AES_XTS_init_aesni_tweak_aes_enc_block_last:
+        aesenclast	%xmm2, %xmm0
+        movdqu	%xmm0, (%rdi)
+        repz retq
+#ifndef __APPLE__
+.size	AES_XTS_init_aesni,.-AES_XTS_init_aesni
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 #else
@@ -375,6 +428,291 @@ L_AES_XTS_encrypt_aesni_done_enc:
         repz retq
 #ifndef __APPLE__
 .size	AES_XTS_encrypt_aesni,.-AES_XTS_encrypt_aesni
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_encrypt_update_aesni
+.type	AES_XTS_encrypt_update_aesni,@function
+.align	16
+AES_XTS_encrypt_update_aesni:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_encrypt_update_aesni
+.p2align	4
+_AES_XTS_encrypt_update_aesni:
+#endif /* __APPLE__ */
+        pushq	%r12
+        movq	%rdx, %rax
+        movq	%rcx, %r10
+        subq	$0x40, %rsp
+        movdqu	L_aes_xts_gc_xts(%rip), %xmm12
+        movdqu	(%r8), %xmm0
+        xorl	%r12d, %r12d
+        cmpl	$0x40, %eax
+        movl	%eax, %r11d
+        jl	L_AES_XTS_encrypt_update_aesni_done_64
+        andl	$0xffffffc0, %r11d
+L_AES_XTS_encrypt_update_aesni_enc_64:
+        # 64 bytes of input
+        # aes_enc_64
+        leaq	(%rdi,%r12,1), %rcx
+        leaq	(%rsi,%r12,1), %rdx
+        movdqu	(%rcx), %xmm8
+        movdqu	16(%rcx), %xmm9
+        movdqu	32(%rcx), %xmm10
+        movdqu	48(%rcx), %xmm11
+        movdqa	%xmm0, %xmm4
+        movdqa	%xmm0, %xmm1
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm1
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm1
+        movdqa	%xmm1, %xmm4
+        movdqa	%xmm1, %xmm2
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm2
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm2
+        movdqa	%xmm2, %xmm4
+        movdqa	%xmm2, %xmm3
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm3
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm3
+        pxor	%xmm0, %xmm8
+        pxor	%xmm1, %xmm9
+        pxor	%xmm2, %xmm10
+        pxor	%xmm3, %xmm11
+        # aes_enc_block
+        movdqu	(%r10), %xmm4
+        pxor	%xmm4, %xmm8
+        pxor	%xmm4, %xmm9
+        pxor	%xmm4, %xmm10
+        pxor	%xmm4, %xmm11
+        movdqu	16(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	32(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	48(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	64(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	80(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	96(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	112(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	128(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	144(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        cmpl	$11, %r9d
+        movdqu	160(%r10), %xmm4
+        jl	L_AES_XTS_encrypt_update_aesni_aes_enc_64_aes_enc_block_last
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	176(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        cmpl	$13, %r9d
+        movdqu	192(%r10), %xmm4
+        jl	L_AES_XTS_encrypt_update_aesni_aes_enc_64_aes_enc_block_last
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	208(%r10), %xmm4
+        aesenc	%xmm4, %xmm8
+        aesenc	%xmm4, %xmm9
+        aesenc	%xmm4, %xmm10
+        aesenc	%xmm4, %xmm11
+        movdqu	224(%r10), %xmm4
+L_AES_XTS_encrypt_update_aesni_aes_enc_64_aes_enc_block_last:
+        aesenclast	%xmm4, %xmm8
+        aesenclast	%xmm4, %xmm9
+        aesenclast	%xmm4, %xmm10
+        aesenclast	%xmm4, %xmm11
+        pxor	%xmm0, %xmm8
+        pxor	%xmm1, %xmm9
+        pxor	%xmm2, %xmm10
+        pxor	%xmm3, %xmm11
+        movdqu	%xmm8, (%rdx)
+        movdqu	%xmm9, 16(%rdx)
+        movdqu	%xmm10, 32(%rdx)
+        movdqu	%xmm11, 48(%rdx)
+        movdqa	%xmm3, %xmm4
+        movdqa	%xmm3, %xmm0
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm0
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm0
+        addl	$0x40, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_encrypt_update_aesni_enc_64
+L_AES_XTS_encrypt_update_aesni_done_64:
+        cmpl	%eax, %r12d
+        movl	%eax, %r11d
+        je	L_AES_XTS_encrypt_update_aesni_done_enc
+        subl	%r12d, %r11d
+        cmpl	$16, %r11d
+        movl	%eax, %r11d
+        jl	L_AES_XTS_encrypt_update_aesni_last_15
+        andl	$0xfffffff0, %r11d
+        # 16 bytes of input
+L_AES_XTS_encrypt_update_aesni_enc_16:
+        leaq	(%rdi,%r12,1), %rcx
+        movdqu	(%rcx), %xmm8
+        pxor	%xmm0, %xmm8
+        # aes_enc_block
+        pxor	(%r10), %xmm8
+        movdqu	16(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	32(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	48(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	64(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	80(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	96(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	112(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	128(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	144(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        cmpl	$11, %r9d
+        movdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_aesni_aes_enc_block_last
+        aesenc	%xmm5, %xmm8
+        movdqu	176(%r10), %xmm6
+        aesenc	%xmm6, %xmm8
+        cmpl	$13, %r9d
+        movdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_aesni_aes_enc_block_last
+        aesenc	%xmm5, %xmm8
+        movdqu	208(%r10), %xmm6
+        aesenc	%xmm6, %xmm8
+        movdqu	224(%r10), %xmm5
+L_AES_XTS_encrypt_update_aesni_aes_enc_block_last:
+        aesenclast	%xmm5, %xmm8
+        pxor	%xmm0, %xmm8
+        leaq	(%rsi,%r12,1), %rcx
+        movdqu	%xmm8, (%rcx)
+        movdqa	%xmm0, %xmm4
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm0
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm0
+        addl	$16, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_encrypt_update_aesni_enc_16
+        cmpl	%eax, %r12d
+        je	L_AES_XTS_encrypt_update_aesni_done_enc
+L_AES_XTS_encrypt_update_aesni_last_15:
+        subq	$16, %r12
+        leaq	(%rsi,%r12,1), %rcx
+        movdqu	(%rcx), %xmm8
+        addq	$16, %r12
+        movdqu	%xmm8, (%rsp)
+        xorq	%rdx, %rdx
+L_AES_XTS_encrypt_update_aesni_last_15_byte_loop:
+        movb	(%rsp,%rdx,1), %r11b
+        movb	(%rdi,%r12,1), %cl
+        movb	%r11b, (%rsi,%r12,1)
+        movb	%cl, (%rsp,%rdx,1)
+        incl	%r12d
+        incl	%edx
+        cmpl	%eax, %r12d
+        jl	L_AES_XTS_encrypt_update_aesni_last_15_byte_loop
+        subq	%rdx, %r12
+        movdqu	(%rsp), %xmm8
+        subq	$16, %r12
+        pxor	%xmm0, %xmm8
+        # aes_enc_block
+        pxor	(%r10), %xmm8
+        movdqu	16(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	32(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	48(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	64(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	80(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	96(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	112(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	128(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        movdqu	144(%r10), %xmm5
+        aesenc	%xmm5, %xmm8
+        cmpl	$11, %r9d
+        movdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_aesni_last_15_aes_enc_block_last
+        aesenc	%xmm5, %xmm8
+        movdqu	176(%r10), %xmm6
+        aesenc	%xmm6, %xmm8
+        cmpl	$13, %r9d
+        movdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_aesni_last_15_aes_enc_block_last
+        aesenc	%xmm5, %xmm8
+        movdqu	208(%r10), %xmm6
+        aesenc	%xmm6, %xmm8
+        movdqu	224(%r10), %xmm5
+L_AES_XTS_encrypt_update_aesni_last_15_aes_enc_block_last:
+        aesenclast	%xmm5, %xmm8
+        pxor	%xmm0, %xmm8
+        leaq	(%rsi,%r12,1), %rcx
+        movdqu	%xmm8, (%rcx)
+L_AES_XTS_encrypt_update_aesni_done_enc:
+        movdqu	%xmm0, (%r8)
+        addq	$0x40, %rsp
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	AES_XTS_encrypt_update_aesni,.-AES_XTS_encrypt_update_aesni
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
@@ -752,7 +1090,400 @@ L_AES_XTS_decrypt_aesni_done_dec:
 #ifndef __APPLE__
 .size	AES_XTS_decrypt_aesni,.-AES_XTS_decrypt_aesni
 #endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_decrypt_update_aesni
+.type	AES_XTS_decrypt_update_aesni,@function
+.align	16
+AES_XTS_decrypt_update_aesni:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_decrypt_update_aesni
+.p2align	4
+_AES_XTS_decrypt_update_aesni:
+#endif /* __APPLE__ */
+        pushq	%r12
+        movq	%rdx, %rax
+        movq	%rcx, %r10
+        subq	$16, %rsp
+        movdqu	L_aes_xts_gc_xts(%rip), %xmm12
+        movdqu	(%r8), %xmm0
+        xorl	%r12d, %r12d
+        movl	%eax, %r11d
+        andl	$0xfffffff0, %r11d
+        cmpl	%eax, %r11d
+        je	L_AES_XTS_decrypt_update_aesni_mul16_64
+        subl	$16, %r11d
+        cmpl	$16, %r11d
+        jl	L_AES_XTS_decrypt_update_aesni_last_31_start
+L_AES_XTS_decrypt_update_aesni_mul16_64:
+        cmpl	$0x40, %r11d
+        jl	L_AES_XTS_decrypt_update_aesni_done_64
+        andl	$0xffffffc0, %r11d
+L_AES_XTS_decrypt_update_aesni_dec_64:
+        # 64 bytes of input
+        # aes_dec_64
+        leaq	(%rdi,%r12,1), %rcx
+        leaq	(%rsi,%r12,1), %rdx
+        movdqu	(%rcx), %xmm8
+        movdqu	16(%rcx), %xmm9
+        movdqu	32(%rcx), %xmm10
+        movdqu	48(%rcx), %xmm11
+        movdqa	%xmm0, %xmm4
+        movdqa	%xmm0, %xmm1
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm1
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm1
+        movdqa	%xmm1, %xmm4
+        movdqa	%xmm1, %xmm2
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm2
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm2
+        movdqa	%xmm2, %xmm4
+        movdqa	%xmm2, %xmm3
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm3
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm3
+        pxor	%xmm0, %xmm8
+        pxor	%xmm1, %xmm9
+        pxor	%xmm2, %xmm10
+        pxor	%xmm3, %xmm11
+        # aes_dec_block
+        movdqu	(%r10), %xmm4
+        pxor	%xmm4, %xmm8
+        pxor	%xmm4, %xmm9
+        pxor	%xmm4, %xmm10
+        pxor	%xmm4, %xmm11
+        movdqu	16(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	32(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	48(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	64(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	80(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	96(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	112(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	128(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	144(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        cmpl	$11, %r9d
+        movdqu	160(%r10), %xmm4
+        jl	L_AES_XTS_decrypt_update_aesni_aes_dec_64_aes_dec_block_last
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	176(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        cmpl	$13, %r9d
+        movdqu	192(%r10), %xmm4
+        jl	L_AES_XTS_decrypt_update_aesni_aes_dec_64_aes_dec_block_last
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	208(%r10), %xmm4
+        aesdec	%xmm4, %xmm8
+        aesdec	%xmm4, %xmm9
+        aesdec	%xmm4, %xmm10
+        aesdec	%xmm4, %xmm11
+        movdqu	224(%r10), %xmm4
+L_AES_XTS_decrypt_update_aesni_aes_dec_64_aes_dec_block_last:
+        aesdeclast	%xmm4, %xmm8
+        aesdeclast	%xmm4, %xmm9
+        aesdeclast	%xmm4, %xmm10
+        aesdeclast	%xmm4, %xmm11
+        pxor	%xmm0, %xmm8
+        pxor	%xmm1, %xmm9
+        pxor	%xmm2, %xmm10
+        pxor	%xmm3, %xmm11
+        movdqu	%xmm8, (%rdx)
+        movdqu	%xmm9, 16(%rdx)
+        movdqu	%xmm10, 32(%rdx)
+        movdqu	%xmm11, 48(%rdx)
+        movdqa	%xmm3, %xmm4
+        movdqa	%xmm3, %xmm0
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm0
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm0
+        addl	$0x40, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_decrypt_update_aesni_dec_64
+L_AES_XTS_decrypt_update_aesni_done_64:
+        cmpl	%eax, %r12d
+        movl	%eax, %r11d
+        je	L_AES_XTS_decrypt_update_aesni_done_dec
+        andl	$0xfffffff0, %r11d
+        cmpl	%eax, %r11d
+        je	L_AES_XTS_decrypt_update_aesni_mul16
+        subl	$16, %r11d
+        subl	%r12d, %r11d
+        cmpl	$16, %r11d
+        jl	L_AES_XTS_decrypt_update_aesni_last_31_start
+        addl	%r12d, %r11d
+L_AES_XTS_decrypt_update_aesni_mul16:
+L_AES_XTS_decrypt_update_aesni_dec_16:
+        # 16 bytes of input
+        leaq	(%rdi,%r12,1), %rcx
+        movdqu	(%rcx), %xmm8
+        pxor	%xmm0, %xmm8
+        # aes_dec_block
+        pxor	(%r10), %xmm8
+        movdqu	16(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	32(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	48(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	64(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	80(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	96(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	112(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	128(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	144(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        cmpl	$11, %r9d
+        movdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_aesni_aes_dec_block_last
+        aesdec	%xmm5, %xmm8
+        movdqu	176(%r10), %xmm6
+        aesdec	%xmm6, %xmm8
+        cmpl	$13, %r9d
+        movdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_aesni_aes_dec_block_last
+        aesdec	%xmm5, %xmm8
+        movdqu	208(%r10), %xmm6
+        aesdec	%xmm6, %xmm8
+        movdqu	224(%r10), %xmm5
+L_AES_XTS_decrypt_update_aesni_aes_dec_block_last:
+        aesdeclast	%xmm5, %xmm8
+        pxor	%xmm0, %xmm8
+        leaq	(%rsi,%r12,1), %rcx
+        movdqu	%xmm8, (%rcx)
+        movdqa	%xmm0, %xmm4
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm0
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm0
+        addl	$16, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_decrypt_update_aesni_dec_16
+        cmpl	%eax, %r12d
+        je	L_AES_XTS_decrypt_update_aesni_done_dec
+L_AES_XTS_decrypt_update_aesni_last_31_start:
+        movdqa	%xmm0, %xmm4
+        movdqa	%xmm0, %xmm7
+        psrad	$31, %xmm4
+        pslld	$0x01, %xmm7
+        pshufd	$0x93, %xmm4, %xmm4
+        pand	%xmm12, %xmm4
+        pxor	%xmm4, %xmm7
+        leaq	(%rdi,%r12,1), %rcx
+        movdqu	(%rcx), %xmm8
+        pxor	%xmm7, %xmm8
+        # aes_dec_block
+        pxor	(%r10), %xmm8
+        movdqu	16(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	32(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	48(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	64(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	80(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	96(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	112(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	128(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	144(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        cmpl	$11, %r9d
+        movdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_aesni_last_31_aes_dec_block_last
+        aesdec	%xmm5, %xmm8
+        movdqu	176(%r10), %xmm6
+        aesdec	%xmm6, %xmm8
+        cmpl	$13, %r9d
+        movdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_aesni_last_31_aes_dec_block_last
+        aesdec	%xmm5, %xmm8
+        movdqu	208(%r10), %xmm6
+        aesdec	%xmm6, %xmm8
+        movdqu	224(%r10), %xmm5
+L_AES_XTS_decrypt_update_aesni_last_31_aes_dec_block_last:
+        aesdeclast	%xmm5, %xmm8
+        pxor	%xmm7, %xmm8
+        movdqu	%xmm8, (%rsp)
+        addq	$16, %r12
+        xorq	%rdx, %rdx
+L_AES_XTS_decrypt_update_aesni_last_31_byte_loop:
+        movb	(%rsp,%rdx,1), %r11b
+        movb	(%rdi,%r12,1), %cl
+        movb	%r11b, (%rsi,%r12,1)
+        movb	%cl, (%rsp,%rdx,1)
+        incl	%r12d
+        incl	%edx
+        cmpl	%eax, %r12d
+        jl	L_AES_XTS_decrypt_update_aesni_last_31_byte_loop
+        subq	%rdx, %r12
+        movdqu	(%rsp), %xmm8
+        pxor	%xmm0, %xmm8
+        # aes_dec_block
+        pxor	(%r10), %xmm8
+        movdqu	16(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	32(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	48(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	64(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	80(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	96(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	112(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	128(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        movdqu	144(%r10), %xmm5
+        aesdec	%xmm5, %xmm8
+        cmpl	$11, %r9d
+        movdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_aesni_last_31_2_aes_dec_block_last
+        aesdec	%xmm5, %xmm8
+        movdqu	176(%r10), %xmm6
+        aesdec	%xmm6, %xmm8
+        cmpl	$13, %r9d
+        movdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_aesni_last_31_2_aes_dec_block_last
+        aesdec	%xmm5, %xmm8
+        movdqu	208(%r10), %xmm6
+        aesdec	%xmm6, %xmm8
+        movdqu	224(%r10), %xmm5
+L_AES_XTS_decrypt_update_aesni_last_31_2_aes_dec_block_last:
+        aesdeclast	%xmm5, %xmm8
+        pxor	%xmm0, %xmm8
+        subq	$16, %r12
+        leaq	(%rsi,%r12,1), %rcx
+        movdqu	%xmm8, (%rcx)
+L_AES_XTS_decrypt_update_aesni_done_dec:
+        movdqu	%xmm0, (%r8)
+        addq	$16, %rsp
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	AES_XTS_decrypt_update_aesni,.-AES_XTS_decrypt_update_aesni
+#endif /* __APPLE__ */
 #ifdef HAVE_INTEL_AVX1
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_init_avx1
+.type	AES_XTS_init_avx1,@function
+.align	16
+AES_XTS_init_avx1:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_init_avx1
+.p2align	4
+_AES_XTS_init_avx1:
+#endif /* __APPLE__ */
+        movl	%edx, %eax
+        vmovdqu	(%rdi), %xmm0
+        # aes_enc_block
+        vpxor	(%rsi), %xmm0, %xmm0
+        vmovdqu	16(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	32(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	48(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	64(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	80(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	96(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	112(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	128(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	144(%rsi), %xmm2
+        vaesenc	%xmm2, %xmm0, %xmm0
+        cmpl	$11, %eax
+        vmovdqu	160(%rsi), %xmm2
+        jl	L_AES_XTS_init_avx1_tweak_aes_enc_block_last
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	176(%rsi), %xmm3
+        vaesenc	%xmm3, %xmm0, %xmm0
+        cmpl	$13, %eax
+        vmovdqu	192(%rsi), %xmm2
+        jl	L_AES_XTS_init_avx1_tweak_aes_enc_block_last
+        vaesenc	%xmm2, %xmm0, %xmm0
+        vmovdqu	208(%rsi), %xmm3
+        vaesenc	%xmm3, %xmm0, %xmm0
+        vmovdqu	224(%rsi), %xmm2
+L_AES_XTS_init_avx1_tweak_aes_enc_block_last:
+        vaesenclast	%xmm2, %xmm0, %xmm0
+        vmovdqu	%xmm0, (%rdi)
+        repz retq
+#ifndef __APPLE__
+.size	AES_XTS_init_avx1,.-AES_XTS_init_avx1
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 #else
@@ -1066,13 +1797,288 @@ L_AES_XTS_encrypt_avx1_last_15_aes_enc_block_last:
         leaq	(%rsi,%r13,1), %rcx
         vmovdqu	%xmm8, (%rcx)
 L_AES_XTS_encrypt_avx1_done_enc:
-        vzeroupper
         addq	$0x40, %rsp
         popq	%r13
         popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	AES_XTS_encrypt_avx1,.-AES_XTS_encrypt_avx1
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_encrypt_update_avx1
+.type	AES_XTS_encrypt_update_avx1,@function
+.align	16
+AES_XTS_encrypt_update_avx1:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_encrypt_update_avx1
+.p2align	4
+_AES_XTS_encrypt_update_avx1:
+#endif /* __APPLE__ */
+        pushq	%r12
+        movq	%rdx, %rax
+        movq	%rcx, %r10
+        subq	$0x40, %rsp
+        vmovdqu	L_avx1_aes_xts_gc_xts(%rip), %xmm12
+        vmovdqu	(%r8), %xmm0
+        xorl	%r12d, %r12d
+        cmpl	$0x40, %eax
+        movl	%eax, %r11d
+        jl	L_AES_XTS_encrypt_update_avx1_done_64
+        andl	$0xffffffc0, %r11d
+L_AES_XTS_encrypt_update_avx1_enc_64:
+        # 64 bytes of input
+        # aes_enc_64
+        leaq	(%rdi,%r12,1), %rcx
+        leaq	(%rsi,%r12,1), %rdx
+        vmovdqu	(%rcx), %xmm8
+        vmovdqu	16(%rcx), %xmm9
+        vmovdqu	32(%rcx), %xmm10
+        vmovdqu	48(%rcx), %xmm11
+        vpsrad	$31, %xmm0, %xmm4
+        vpslld	$0x01, %xmm0, %xmm1
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm1, %xmm1
+        vpsrad	$31, %xmm1, %xmm4
+        vpslld	$0x01, %xmm1, %xmm2
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm2, %xmm2
+        vpsrad	$31, %xmm2, %xmm4
+        vpslld	$0x01, %xmm2, %xmm3
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm3, %xmm3
+        vpxor	%xmm0, %xmm8, %xmm8
+        vpxor	%xmm1, %xmm9, %xmm9
+        vpxor	%xmm2, %xmm10, %xmm10
+        vpxor	%xmm3, %xmm11, %xmm11
+        # aes_enc_block
+        vmovdqu	(%r10), %xmm4
+        vpxor	%xmm4, %xmm8, %xmm8
+        vpxor	%xmm4, %xmm9, %xmm9
+        vpxor	%xmm4, %xmm10, %xmm10
+        vpxor	%xmm4, %xmm11, %xmm11
+        vmovdqu	16(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	32(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	48(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	64(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	80(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	96(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	112(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	128(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	144(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        cmpl	$11, %r9d
+        vmovdqu	160(%r10), %xmm4
+        jl	L_AES_XTS_encrypt_update_avx1_aes_enc_64_aes_enc_block_last
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	176(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        cmpl	$13, %r9d
+        vmovdqu	192(%r10), %xmm4
+        jl	L_AES_XTS_encrypt_update_avx1_aes_enc_64_aes_enc_block_last
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	208(%r10), %xmm4
+        vaesenc	%xmm4, %xmm8, %xmm8
+        vaesenc	%xmm4, %xmm9, %xmm9
+        vaesenc	%xmm4, %xmm10, %xmm10
+        vaesenc	%xmm4, %xmm11, %xmm11
+        vmovdqu	224(%r10), %xmm4
+L_AES_XTS_encrypt_update_avx1_aes_enc_64_aes_enc_block_last:
+        vaesenclast	%xmm4, %xmm8, %xmm8
+        vaesenclast	%xmm4, %xmm9, %xmm9
+        vaesenclast	%xmm4, %xmm10, %xmm10
+        vaesenclast	%xmm4, %xmm11, %xmm11
+        vpxor	%xmm0, %xmm8, %xmm8
+        vpxor	%xmm1, %xmm9, %xmm9
+        vpxor	%xmm2, %xmm10, %xmm10
+        vpxor	%xmm3, %xmm11, %xmm11
+        vmovdqu	%xmm8, (%rdx)
+        vmovdqu	%xmm9, 16(%rdx)
+        vmovdqu	%xmm10, 32(%rdx)
+        vmovdqu	%xmm11, 48(%rdx)
+        vpsrad	$31, %xmm3, %xmm4
+        vpslld	$0x01, %xmm3, %xmm0
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm0, %xmm0
+        addl	$0x40, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_encrypt_update_avx1_enc_64
+L_AES_XTS_encrypt_update_avx1_done_64:
+        cmpl	%eax, %r12d
+        movl	%eax, %r11d
+        je	L_AES_XTS_encrypt_update_avx1_done_enc
+        subl	%r12d, %r11d
+        cmpl	$16, %r11d
+        movl	%eax, %r11d
+        jl	L_AES_XTS_encrypt_update_avx1_last_15
+        andl	$0xfffffff0, %r11d
+        # 16 bytes of input
+L_AES_XTS_encrypt_update_avx1_enc_16:
+        leaq	(%rdi,%r12,1), %rcx
+        vmovdqu	(%rcx), %xmm8
+        vpxor	%xmm0, %xmm8, %xmm8
+        # aes_enc_block
+        vpxor	(%r10), %xmm8, %xmm8
+        vmovdqu	16(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	32(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	48(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	64(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	80(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	96(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	112(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	128(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	144(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        cmpl	$11, %r9d
+        vmovdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_avx1_aes_enc_block_last
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	176(%r10), %xmm6
+        vaesenc	%xmm6, %xmm8, %xmm8
+        cmpl	$13, %r9d
+        vmovdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_avx1_aes_enc_block_last
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	208(%r10), %xmm6
+        vaesenc	%xmm6, %xmm8, %xmm8
+        vmovdqu	224(%r10), %xmm5
+L_AES_XTS_encrypt_update_avx1_aes_enc_block_last:
+        vaesenclast	%xmm5, %xmm8, %xmm8
+        vpxor	%xmm0, %xmm8, %xmm8
+        leaq	(%rsi,%r12,1), %rcx
+        vmovdqu	%xmm8, (%rcx)
+        vpsrad	$31, %xmm0, %xmm4
+        vpslld	$0x01, %xmm0, %xmm0
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm0, %xmm0
+        addl	$16, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_encrypt_update_avx1_enc_16
+        cmpl	%eax, %r12d
+        je	L_AES_XTS_encrypt_update_avx1_done_enc
+L_AES_XTS_encrypt_update_avx1_last_15:
+        subq	$16, %r12
+        leaq	(%rsi,%r12,1), %rcx
+        vmovdqu	(%rcx), %xmm8
+        addq	$16, %r12
+        vmovdqu	%xmm8, (%rsp)
+        xorq	%rdx, %rdx
+L_AES_XTS_encrypt_update_avx1_last_15_byte_loop:
+        movb	(%rsp,%rdx,1), %r11b
+        movb	(%rdi,%r12,1), %cl
+        movb	%r11b, (%rsi,%r12,1)
+        movb	%cl, (%rsp,%rdx,1)
+        incl	%r12d
+        incl	%edx
+        cmpl	%eax, %r12d
+        jl	L_AES_XTS_encrypt_update_avx1_last_15_byte_loop
+        subq	%rdx, %r12
+        vmovdqu	(%rsp), %xmm8
+        subq	$16, %r12
+        vpxor	%xmm0, %xmm8, %xmm8
+        # aes_enc_block
+        vpxor	(%r10), %xmm8, %xmm8
+        vmovdqu	16(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	32(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	48(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	64(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	80(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	96(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	112(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	128(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	144(%r10), %xmm5
+        vaesenc	%xmm5, %xmm8, %xmm8
+        cmpl	$11, %r9d
+        vmovdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_avx1_last_15_aes_enc_block_last
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	176(%r10), %xmm6
+        vaesenc	%xmm6, %xmm8, %xmm8
+        cmpl	$13, %r9d
+        vmovdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_encrypt_update_avx1_last_15_aes_enc_block_last
+        vaesenc	%xmm5, %xmm8, %xmm8
+        vmovdqu	208(%r10), %xmm6
+        vaesenc	%xmm6, %xmm8, %xmm8
+        vmovdqu	224(%r10), %xmm5
+L_AES_XTS_encrypt_update_avx1_last_15_aes_enc_block_last:
+        vaesenclast	%xmm5, %xmm8, %xmm8
+        vpxor	%xmm0, %xmm8, %xmm8
+        leaq	(%rsi,%r12,1), %rcx
+        vmovdqu	%xmm8, (%rcx)
+L_AES_XTS_encrypt_update_avx1_done_enc:
+        vmovdqu	%xmm0, (%r8)
+        addq	$0x40, %rsp
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	AES_XTS_encrypt_update_avx1,.-AES_XTS_encrypt_update_avx1
 #endif /* __APPLE__ */
 #ifndef __APPLE__
 .text
@@ -1432,13 +2438,340 @@ L_AES_XTS_decrypt_avx1_last_31_2_aes_dec_block_last:
         leaq	(%rsi,%r13,1), %rcx
         vmovdqu	%xmm8, (%rcx)
 L_AES_XTS_decrypt_avx1_done_dec:
-        vzeroupper
         addq	$16, %rsp
         popq	%r13
         popq	%r12
         repz retq
 #ifndef __APPLE__
 .size	AES_XTS_decrypt_avx1,.-AES_XTS_decrypt_avx1
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	AES_XTS_decrypt_update_avx1
+.type	AES_XTS_decrypt_update_avx1,@function
+.align	16
+AES_XTS_decrypt_update_avx1:
+#else
+.section	__TEXT,__text
+.globl	_AES_XTS_decrypt_update_avx1
+.p2align	4
+_AES_XTS_decrypt_update_avx1:
+#endif /* __APPLE__ */
+        pushq	%r12
+        movq	%rdx, %rax
+        movq	%rcx, %r10
+        subq	$16, %rsp
+        vmovdqu	L_avx1_aes_xts_gc_xts(%rip), %xmm12
+        vmovdqu	(%r8), %xmm0
+        xorl	%r12d, %r12d
+        movl	%eax, %r11d
+        andl	$0xfffffff0, %r11d
+        cmpl	%eax, %r11d
+        je	L_AES_XTS_decrypt_update_avx1_mul16_64
+        subl	$16, %r11d
+        cmpl	$16, %r11d
+        jl	L_AES_XTS_decrypt_update_avx1_last_31_start
+L_AES_XTS_decrypt_update_avx1_mul16_64:
+        cmpl	$0x40, %r11d
+        jl	L_AES_XTS_decrypt_update_avx1_done_64
+        andl	$0xffffffc0, %r11d
+L_AES_XTS_decrypt_update_avx1_dec_64:
+        # 64 bytes of input
+        # aes_dec_64
+        leaq	(%rdi,%r12,1), %rcx
+        leaq	(%rsi,%r12,1), %rdx
+        vmovdqu	(%rcx), %xmm8
+        vmovdqu	16(%rcx), %xmm9
+        vmovdqu	32(%rcx), %xmm10
+        vmovdqu	48(%rcx), %xmm11
+        vpsrad	$31, %xmm0, %xmm4
+        vpslld	$0x01, %xmm0, %xmm1
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm1, %xmm1
+        vpsrad	$31, %xmm1, %xmm4
+        vpslld	$0x01, %xmm1, %xmm2
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm2, %xmm2
+        vpsrad	$31, %xmm2, %xmm4
+        vpslld	$0x01, %xmm2, %xmm3
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm3, %xmm3
+        vpxor	%xmm0, %xmm8, %xmm8
+        vpxor	%xmm1, %xmm9, %xmm9
+        vpxor	%xmm2, %xmm10, %xmm10
+        vpxor	%xmm3, %xmm11, %xmm11
+        # aes_dec_block
+        vmovdqu	(%r10), %xmm4
+        vpxor	%xmm4, %xmm8, %xmm8
+        vpxor	%xmm4, %xmm9, %xmm9
+        vpxor	%xmm4, %xmm10, %xmm10
+        vpxor	%xmm4, %xmm11, %xmm11
+        vmovdqu	16(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	32(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	48(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	64(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	80(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	96(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	112(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	128(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	144(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        cmpl	$11, %r9d
+        vmovdqu	160(%r10), %xmm4
+        jl	L_AES_XTS_decrypt_update_avx1_aes_dec_64_aes_dec_block_last
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	176(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        cmpl	$13, %r9d
+        vmovdqu	192(%r10), %xmm4
+        jl	L_AES_XTS_decrypt_update_avx1_aes_dec_64_aes_dec_block_last
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	208(%r10), %xmm4
+        vaesdec	%xmm4, %xmm8, %xmm8
+        vaesdec	%xmm4, %xmm9, %xmm9
+        vaesdec	%xmm4, %xmm10, %xmm10
+        vaesdec	%xmm4, %xmm11, %xmm11
+        vmovdqu	224(%r10), %xmm4
+L_AES_XTS_decrypt_update_avx1_aes_dec_64_aes_dec_block_last:
+        vaesdeclast	%xmm4, %xmm8, %xmm8
+        vaesdeclast	%xmm4, %xmm9, %xmm9
+        vaesdeclast	%xmm4, %xmm10, %xmm10
+        vaesdeclast	%xmm4, %xmm11, %xmm11
+        vpxor	%xmm0, %xmm8, %xmm8
+        vpxor	%xmm1, %xmm9, %xmm9
+        vpxor	%xmm2, %xmm10, %xmm10
+        vpxor	%xmm3, %xmm11, %xmm11
+        vmovdqu	%xmm8, (%rdx)
+        vmovdqu	%xmm9, 16(%rdx)
+        vmovdqu	%xmm10, 32(%rdx)
+        vmovdqu	%xmm11, 48(%rdx)
+        vpsrad	$31, %xmm3, %xmm4
+        vpslld	$0x01, %xmm3, %xmm0
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm0, %xmm0
+        addl	$0x40, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_decrypt_update_avx1_dec_64
+L_AES_XTS_decrypt_update_avx1_done_64:
+        cmpl	%eax, %r12d
+        movl	%eax, %r11d
+        je	L_AES_XTS_decrypt_update_avx1_done_dec
+        andl	$0xfffffff0, %r11d
+        cmpl	%eax, %r11d
+        je	L_AES_XTS_decrypt_update_avx1_mul16
+        subl	$16, %r11d
+        subl	%r12d, %r11d
+        cmpl	$16, %r11d
+        jl	L_AES_XTS_decrypt_update_avx1_last_31_start
+        addl	%r12d, %r11d
+L_AES_XTS_decrypt_update_avx1_mul16:
+L_AES_XTS_decrypt_update_avx1_dec_16:
+        # 16 bytes of input
+        leaq	(%rdi,%r12,1), %rcx
+        vmovdqu	(%rcx), %xmm8
+        vpxor	%xmm0, %xmm8, %xmm8
+        # aes_dec_block
+        vpxor	(%r10), %xmm8, %xmm8
+        vmovdqu	16(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	32(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	48(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	64(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	80(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	96(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	112(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	128(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	144(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        cmpl	$11, %r9d
+        vmovdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_avx1_aes_dec_block_last
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	176(%r10), %xmm6
+        vaesdec	%xmm6, %xmm8, %xmm8
+        cmpl	$13, %r9d
+        vmovdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_avx1_aes_dec_block_last
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	208(%r10), %xmm6
+        vaesdec	%xmm6, %xmm8, %xmm8
+        vmovdqu	224(%r10), %xmm5
+L_AES_XTS_decrypt_update_avx1_aes_dec_block_last:
+        vaesdeclast	%xmm5, %xmm8, %xmm8
+        vpxor	%xmm0, %xmm8, %xmm8
+        leaq	(%rsi,%r12,1), %rcx
+        vmovdqu	%xmm8, (%rcx)
+        vpsrad	$31, %xmm0, %xmm4
+        vpslld	$0x01, %xmm0, %xmm0
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm0, %xmm0
+        addl	$16, %r12d
+        cmpl	%r11d, %r12d
+        jl	L_AES_XTS_decrypt_update_avx1_dec_16
+        cmpl	%eax, %r12d
+        je	L_AES_XTS_decrypt_update_avx1_done_dec
+L_AES_XTS_decrypt_update_avx1_last_31_start:
+        vpsrad	$31, %xmm0, %xmm4
+        vpslld	$0x01, %xmm0, %xmm7
+        vpshufd	$0x93, %xmm4, %xmm4
+        vpand	%xmm12, %xmm4, %xmm4
+        vpxor	%xmm4, %xmm7, %xmm7
+        leaq	(%rdi,%r12,1), %rcx
+        vmovdqu	(%rcx), %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        # aes_dec_block
+        vpxor	(%r10), %xmm8, %xmm8
+        vmovdqu	16(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	32(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	48(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	64(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	80(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	96(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	112(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	128(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	144(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        cmpl	$11, %r9d
+        vmovdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_avx1_last_31_aes_dec_block_last
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	176(%r10), %xmm6
+        vaesdec	%xmm6, %xmm8, %xmm8
+        cmpl	$13, %r9d
+        vmovdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_avx1_last_31_aes_dec_block_last
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	208(%r10), %xmm6
+        vaesdec	%xmm6, %xmm8, %xmm8
+        vmovdqu	224(%r10), %xmm5
+L_AES_XTS_decrypt_update_avx1_last_31_aes_dec_block_last:
+        vaesdeclast	%xmm5, %xmm8, %xmm8
+        vpxor	%xmm7, %xmm8, %xmm8
+        vmovdqu	%xmm8, (%rsp)
+        addq	$16, %r12
+        xorq	%rdx, %rdx
+L_AES_XTS_decrypt_update_avx1_last_31_byte_loop:
+        movb	(%rsp,%rdx,1), %r11b
+        movb	(%rdi,%r12,1), %cl
+        movb	%r11b, (%rsi,%r12,1)
+        movb	%cl, (%rsp,%rdx,1)
+        incl	%r12d
+        incl	%edx
+        cmpl	%eax, %r12d
+        jl	L_AES_XTS_decrypt_update_avx1_last_31_byte_loop
+        subq	%rdx, %r12
+        vmovdqu	(%rsp), %xmm8
+        vpxor	%xmm0, %xmm8, %xmm8
+        # aes_dec_block
+        vpxor	(%r10), %xmm8, %xmm8
+        vmovdqu	16(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	32(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	48(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	64(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	80(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	96(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	112(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	128(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	144(%r10), %xmm5
+        vaesdec	%xmm5, %xmm8, %xmm8
+        cmpl	$11, %r9d
+        vmovdqu	160(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_avx1_last_31_2_aes_dec_block_last
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	176(%r10), %xmm6
+        vaesdec	%xmm6, %xmm8, %xmm8
+        cmpl	$13, %r9d
+        vmovdqu	192(%r10), %xmm5
+        jl	L_AES_XTS_decrypt_update_avx1_last_31_2_aes_dec_block_last
+        vaesdec	%xmm5, %xmm8, %xmm8
+        vmovdqu	208(%r10), %xmm6
+        vaesdec	%xmm6, %xmm8, %xmm8
+        vmovdqu	224(%r10), %xmm5
+L_AES_XTS_decrypt_update_avx1_last_31_2_aes_dec_block_last:
+        vaesdeclast	%xmm5, %xmm8, %xmm8
+        vpxor	%xmm0, %xmm8, %xmm8
+        subq	$16, %r12
+        leaq	(%rsi,%r12,1), %rcx
+        vmovdqu	%xmm8, (%rcx)
+L_AES_XTS_decrypt_update_avx1_done_dec:
+        vmovdqu	%xmm0, (%r8)
+        addq	$16, %rsp
+        popq	%r12
+        repz retq
+#ifndef __APPLE__
+.size	AES_XTS_decrypt_update_avx1,.-AES_XTS_decrypt_update_avx1
 #endif /* __APPLE__ */
 #endif /* HAVE_INTEL_AVX1 */
 #endif /* WOLFSSL_X86_64_BUILD */
