@@ -26100,8 +26100,10 @@ static int test_wc_ecc_sm2_create_digest(void)
         hashType, hash, sizeof(hash), NULL), BAD_FUNC_ARG);
 
     /* Bad hash type. */
+    /* // NOLINTBEGIN(clang-analyzer-optin.core.EnumCastOutOfRange) */
     ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
         -1, hash, 0, key), BAD_FUNC_ARG);
+    /* // NOLINTEND(clang-analyzer-optin.core.EnumCastOutOfRange) */
     /* Bad hash size. */
     ExpectIntEQ(wc_ecc_sm2_create_digest(id, sizeof(id), msg, sizeof(msg),
         hashType, hash, 0, key), BUFFER_E);
