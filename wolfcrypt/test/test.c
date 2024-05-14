@@ -29328,6 +29328,9 @@ static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
     ecc_key    key2[1];
     ecc_key    key3[1];
 #endif
+#ifdef WOLFSSL_PUBLIC_MP
+    mp_int*    priv;
+#endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     if ((key2 == NULL) || (key3 == NULL))
@@ -29361,6 +29364,22 @@ static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
+
+#ifdef WOLFSSL_PUBLIC_MP
+    priv = wc_ecc_key_get_priv(key1);
+    mp_zero(priv);
+    ret = wc_ecc_mulmod(wc_ecc_key_get_priv(key1), &key2->pubkey, &key3->pubkey,
+                        wc_ecc_key_get_priv(key2), wc_ecc_key_get_priv(key3),
+                        1);
+    if (ret != 0) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+    if (!wc_ecc_point_is_at_infinity(&key2->pubkey)) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
+#endif
 
 done:
 
