@@ -12386,6 +12386,8 @@ int MatchDomainName(const char* pattern, int len, const char* str)
             while (--len > 0) {
                 p = (char)XTOLOWER((unsigned char)*pattern);
                 pattern++;
+                if (p == '\0' && len > 0)
+                    return 0;
                 if (p != '*')
                     break;
             }
