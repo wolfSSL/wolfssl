@@ -8097,6 +8097,27 @@ int sp_submod_ct(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 }
 #endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
 
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_ECC_BLIND_K)
+void sp_xor_ct(const sp_int* a, const sp_int* b, int len, sp_int* r)
+{
+    if ((a != NULL) && (b != NULL) && (r != NULL)) {
+        unsigned int i;
+
+        r->used = (len * 8 + SP_WORD_SIZE - 1) / SP_WORD_SIZE;
+        for (i = 0; i < r->used; i++) {
+            r->dp[i] = a->dp[i] ^ b->dp[i];
+        }
+        i = (len * 8) % SP_WORD_SIZE;
+        if (i > 0) {
+            r->dp[r->used - 1] &= ((sp_int_digit)1 << i) - 1;
+        }
+        /* Remove leading zeros. */
+        sp_clamp_ct(r);
+    }
+}
+#endif
+
 /********************
  * Shifting functoins
  ********************/

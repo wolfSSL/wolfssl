@@ -501,6 +501,17 @@ struct ecc_key {
     mp_int*   k;
     alt_fp_int ka[1];
 #endif
+#ifdef WOLFSSL_ECC_BLIND_K
+#ifndef ALT_ECC_SIZE
+    mp_int    kb[1];
+    mp_int    ku[1];
+#else
+    mp_int*   kb;
+    mp_int*   ku;
+    alt_fp_int kba[1];
+    alt_fp_int kua[1];
+#endif
+#endif
 
 #ifdef WOLFSSL_CAAM
     word32 blackKey;     /* address of key encrypted and in secure memory */
@@ -598,7 +609,20 @@ struct ecc_key {
 #endif
 };
 
-#define wc_ecc_key_get_priv(key) ((key)->k)
+#ifndef WOLFSSL_ECC_BLIND_K
+#define ecc_get_k(key)              (key)->k
+#define ecc_blind_k(key, b)         (void)b
+#define ecc_blind_k_rng(key, rng)   0
+
+#define wc_ecc_key_get_priv(key)    (key)->k
+#else
+mp_int* ecc_get_k(ecc_key* key);
+void ecc_blind_k(ecc_key* key, mp_int* b);
+int ecc_blind_k_rng(ecc_key* key, WC_RNG* rng);
+
+WOLFSSL_API mp_int* wc_ecc_key_get_priv(ecc_key* key);
+#endif
+
 #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
 
 

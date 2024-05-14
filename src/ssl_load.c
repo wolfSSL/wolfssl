@@ -1243,10 +1243,13 @@ static int ProcessBufferPrivPkcs8Dec(EncryptedInfo* info, DerBuffer* der,
  * @param [in, out] ctx  SSL context object.
  * @param [in, out] ssl  SSL object.
  * @param [in]      der  DER encoding.
+ * @return  0 on success.
  */
-static void ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+static int ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     DerBuffer** der, int type)
 {
+    int ret = 0;
+
     (void)type;
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
@@ -1256,6 +1259,9 @@ static void ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             /* Dispose of previous key if not context's. */
             if (ssl->buffers.weOwnAltKey) {
                 FreeDer(&ssl->buffers.altKey);
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                FreeDer(&ssl->buffers.altKeyMask);
+            #endif
             }
             ssl->buffers.altKeyId = 0;
             ssl->buffers.altKeyLabel = 0;
@@ -1286,6 +1292,9 @@ static void ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         /* Dispose of previous key if not context's. */
         if (ssl->buffers.weOwnKey) {
             FreeDer(&ssl->buffers.key);
+        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+            FreeDer(&ssl->buffers.keyMask);
+        #endif
         }
         ssl->buffers.keyId = 0;
         ssl->buffers.keyLabel = 0;
@@ -1309,6 +1318,8 @@ static void ProcessBufferPrivKeyHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         wc_MemZero_Add("CTX private key", (*der)->buffer, (*der)->length);
     #endif
     }
+
+    return ret;
 }
 
 /* Decode private key.
@@ -1352,9 +1363,11 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #endif
 
     /* Put the data into the SSL or SSL context object. */
-    ProcessBufferPrivKeyHandleDer(ctx, ssl, &der, type);
-    /* Try to decode the DER data. */
-    ret = ProcessBufferTryDecode(ctx, ssl, der, &algId, heap, type);
+    ret = ProcessBufferPrivKeyHandleDer(ctx, ssl, &der, type);
+    if (ret == 0) {
+        /* Try to decode the DER data. */
+        ret = ProcessBufferTryDecode(ctx, ssl, der, &algId, heap, type);
+    }
 
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)
     /* If private key type PKCS8 header wasn't already removed (algId == 0). */
@@ -1368,6 +1381,30 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
     }
 #endif /* WOLFSSL_ENCRYPTED_KEYS && !NO_PWDBASED */
+
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    if (type == ALT_PRIVATEKEY_TYPE) {
+        if (ssl != NULL) {
+            ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
+                &ssl->buffers.altKeyMask);
+        }
+        else {
+            ret = wolfssl_priv_der_blind(NULL, ctx->altPrivateKey,
+                &ctx->altPrivateKeyMask);
+        }
+    }
+    else
+#endif
+    if (ssl != NULL) {
+        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+            &ssl->buffers.keyMask);
+    }
+    else {
+        ret = wolfssl_priv_der_blind(NULL, ctx->privateKey,
+            &ctx->privateKeyMask);
+    }
+#endif
 
     /* Check if we were able to determine algorithm id. */
     if ((ret == 0) && (algId == 0)) {
@@ -4257,6 +4294,9 @@ int wolfSSL_use_PrivateKey_Id(WOLFSSL* ssl, const unsigned char* id,
     /* Dispose of old private key if owned and allocate and copy in id. */
     if (ssl->buffers.weOwnKey) {
         FreeDer(&ssl->buffers.key);
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        FreeDer(&ssl->buffers.keyMask);
+    #endif
     }
     if (AllocCopyDer(&ssl->buffers.key, id, (word32)sz, PRIVATEKEY_TYPE,
             ssl->heap) != 0) {
@@ -4324,6 +4364,9 @@ int wolfSSL_use_PrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
     /* Dispose of old private key if owned and allocate and copy in label. */
     if (ssl->buffers.weOwnKey) {
         FreeDer(&ssl->buffers.key);
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        FreeDer(&ssl->buffers.keyMask);
+    #endif
     }
     if (AllocCopyDer(&ssl->buffers.key, (const byte*)label, (word32)sz,
             PRIVATEKEY_TYPE, ssl->heap) != 0) {
@@ -4366,6 +4409,9 @@ int wolfSSL_use_AltPrivateKey_Id(WOLFSSL* ssl, const unsigned char* id, long sz,
     if (ret == 1) {
         if (ssl->buffers.weOwnAltKey) {
             FreeDer(&ssl->buffers.altKey);
+        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+            FreeDer(&ssl->buffers.altKeyMask);
+        #endif
         }
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ssl->heap) == 0) {
@@ -4409,8 +4455,12 @@ int wolfSSL_use_AltPrivateKey_Label(WOLFSSL* ssl, const char* label, int devId)
 
     if (ret == 1) {
         sz = (word32)XSTRLEN(label) + 1;
-        if (ssl->buffers.weOwnAltKey)
+        if (ssl->buffers.weOwnAltKey) {
             FreeDer(&ssl->buffers.altKey);
+        #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+            FreeDer(&ssl->buffers.altKeyMask);
+        #endif
+        }
         if (AllocDer(&ssl->buffers.altKey, (word32)sz, ALT_PRIVATEKEY_TYPE,
                 ssl->heap) == 0) {
             ret = 0;

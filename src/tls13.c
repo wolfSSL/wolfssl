@@ -8803,6 +8803,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CERTIFICATE_VERIFY_SEND);
     WOLFSSL_ENTER("SendTls13CertificateVerify");
 
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+#endif
+
     ssl->options.buildingMsg = 1;
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -8855,6 +8859,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         case TLS_ASYNC_BEGIN:
         {
             if (ssl->options.sendVerify == SEND_BLANK_CERT) {
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                wolfssl_priv_der_unblind(ssl->buffers.key,
+                    ssl->buffers.keyMask);
+            #endif
                 return 0;  /* sent blank cert, can't verify */
             }
 
@@ -8915,10 +8923,16 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     /* If we own it, free key before overriding it. */
                     if (ssl->buffers.weOwnKey) {
                         FreeDer(&ssl->buffers.key);
+                    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                        FreeDer(&ssl->buffers.keyMask);
+                    #endif
                     }
 
                     /* Swap keys */
-                    ssl->buffers.key = ssl->buffers.altKey;
+                    ssl->buffers.key     = ssl->buffers.altKey;
+                #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                    ssl->buffers.keyMask = ssl->buffers.altKeyMask;
+                #endif
                     ssl->buffers.weOwnKey = ssl->buffers.weOwnAltKey;
                 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
@@ -9543,6 +9557,15 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
     } /* switch(ssl->options.asyncState) */
 
 exit_scv:
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    if (ret == 0) {
+        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+            &ssl->buffers.keyMask);
+    }
+    else {
+        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    }
+#endif
 
     WOLFSSL_LEAVE("SendTls13CertificateVerify", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_VERIFY_SEND);

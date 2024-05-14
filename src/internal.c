@@ -266,6 +266,49 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 #endif /* !WOLFSSL_NO_TLS12 */
 
 
+#if !defined(NO_CERT) && defined(WOLFSSL_BLIND_PRIVATE_KEY)
+int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key, DerBuffer** mask)
+{
+    int ret = 0;
+    WC_RNG local_rng;
+
+    if (key != NULL) {
+        if (*mask != NULL) {
+            FreeDer(mask);
+        }
+        ret = AllocDer(mask, key->length, key->type, key->heap);
+        if ((ret == 0) && (rng == NULL)) {
+            if (wc_InitRng(&local_rng) != 0) {
+                ret = RNG_FAILURE_E;
+            }
+            else {
+                rng = &local_rng;
+            }
+        }
+        if (ret == 0) {
+             ret = wc_RNG_GenerateBlock(rng, (*mask)->buffer, (*mask)->length);
+        }
+        if (ret == 0) {
+            xorbuf(key->buffer, (*mask)->buffer, (*mask)->length);
+        }
+
+        if (rng == &local_rng) {
+            wc_FreeRng(rng);
+        }
+    }
+
+    return ret;
+}
+
+void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
+{
+    if (key != NULL) {
+        xorbuf(key->buffer, mask->buffer, mask->length);
+    }
+}
+#endif
+
+
 #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || defined(WOLFSSL_RENESAS_TSIP_TLS)
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 #endif
@@ -2604,11 +2647,17 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         ForceZero(ctx->privateKey->buffer, ctx->privateKey->length);
     }
     FreeDer(&ctx->privateKey);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ctx->privateKeyMask);
+#endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     if (ctx->altPrivateKey != NULL && ctx->altPrivateKey->buffer != NULL) {
         ForceZero(ctx->altPrivateKey->buffer, ctx->altPrivateKey->length);
     }
     FreeDer(&ctx->altPrivateKey);
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    FreeDer(&ctx->altPrivateKeyMask);
+#endif
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef OPENSSL_ALL
     wolfSSL_EVP_PKEY_free(ctx->privateKeyPKey);
@@ -6763,14 +6812,45 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
+#ifndef WOLFSSL_BLIND_PRIVATE_KEY
     ssl->buffers.key      = ctx->privateKey;
+#else
+    if (ctx->privateKey != NULL) {
+        AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
+            ctx->privateKey->length, ctx->privateKey->type,
+            ctx->privateKey->heap);
+        ssl->buffers.weOwnKey = 1;
+        /* Blind the private key for the SSL with new random mask. */
+        wolfssl_priv_der_unblind(ssl->buffers.key, ctx->privateKeyMask);
+        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+            &ssl->buffers.keyMask);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+#endif
     ssl->buffers.keyType  = ctx->privateKeyType;
     ssl->buffers.keyId    = ctx->privateKeyId;
     ssl->buffers.keyLabel = ctx->privateKeyLabel;
     ssl->buffers.keySz    = ctx->privateKeySz;
     ssl->buffers.keyDevId = ctx->privateKeyDevId;
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    ssl->buffers.altKey      = ctx->altPrivateKey;
+#ifndef WOLFSSL_BLIND_PRIVATE_KEY
+    ssl->buffers.altKey   = ctx->altPrivateKey;
+#else
+    if (ctx->altPrivateKey != NULL) {
+        AllocCopyDer(&ssl->buffers.altkey, ctx->altPrivateKey->buffer,
+            ctx->altPrivateKey->length, ctx->altPrivateKey->type,
+            ctx->altPrivateKey->heap);
+        /* Blind the private key for the SSL with new random mask. */
+        wolfssl_priv_der_unblind(ssl->buffers.altKey, ctx->altPrivateKeyMask);
+        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
+            &ssl->buffers.altKeyMask);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+#endif
     ssl->buffers.altKeyType  = ctx->altPrivateKeyType;
     ssl->buffers.altKeyId    = ctx->altPrivateKeyId;
     ssl->buffers.altKeyLabel = ctx->altPrivateKeyLabel;
@@ -8518,8 +8598,14 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     }
 #endif /* !NO_DH */
 
-#ifndef NO_CERTS
-    wolfSSL_UnloadCertsKeys(ssl);
+#if !defined(NO_CERTS) && !defined(OPENSSL_EXTRA) && \
+    !defined(WOLFSSL_WPAS_SMALL)
+#ifndef WOLFSSL_POST_HANDSHAKE_AUTH
+    if (ssl->options.side != WOLFSSL_CLIENT_END)
+#endif
+    {
+        wolfSSL_UnloadCertsKeys(ssl);
+    }
 #endif
 #ifdef HAVE_PK_CALLBACKS
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
@@ -28322,6 +28408,10 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word32* length)
         ERROR_OUT(NO_PRIVATE_KEY, exit_dapk);
     }
 
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    wolfssl_priv_der_unblind(ssl->buffers.altKey, ssl->buffers.altKeyMask);
+#endif
+
 #ifdef WOLF_PRIVATE_KEY_ID
     if (ssl->buffers.altKeyDevId != INVALID_DEVID &&
         (ssl->buffers.altKeyId || ssl->buffers.altKeyLabel)) {
@@ -28724,6 +28814,16 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word32* length)
     (void)length;
 
 exit_dapk:
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    if (ret == 0) {
+        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
+            &ssl->buffers.altKeyMask);
+    }
+    else {
+        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    }
+#endif
+
     if (ret != 0) {
         WOLFSSL_ERROR_VERBOSE(ret);
     }
@@ -32746,6 +32846,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CERTIFICATE_VERIFY_SEND);
     WOLFSSL_ENTER("SendCertificateVerify");
 
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+#endif
+
 #ifdef WOLFSSL_ASYNC_IO
     if (ssl->async == NULL) {
         ssl->async = (struct WOLFSSL_ASYNC*)
@@ -32792,6 +32896,10 @@ int SendCertificateVerify(WOLFSSL* ssl)
         case TLS_ASYNC_BEGIN:
         {
             if (ssl->options.sendVerify == SEND_BLANK_CERT) {
+            #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+                wolfssl_priv_der_unblind(ssl->buffers.key,
+                    ssl->buffers.keyMask);
+            #endif
                 return 0;  /* sent blank cert, can't verify */
             }
 
@@ -33196,6 +33304,15 @@ int SendCertificateVerify(WOLFSSL* ssl)
     } /* switch(ssl->options.asyncState) */
 
 exit_scv:
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    if (ret == 0) {
+        ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+            &ssl->buffers.keyMask);
+    }
+    else {
+        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    }
+#endif
 
     WOLFSSL_LEAVE("SendCertificateVerify", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_VERIFY_SEND);
@@ -33858,6 +33975,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         WOLFSSL_START(WC_FUNC_SERVER_KEY_EXCHANGE_SEND);
         WOLFSSL_ENTER("SendServerKeyExchange");
+
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    #endif
 
     #ifdef WOLFSSL_ASYNC_IO
         if (ssl->async == NULL) {
@@ -35414,6 +35535,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         } /* switch(ssl->options.asyncState) */
 
     exit_sske:
+
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        if (ret == 0) {
+            ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+                &ssl->buffers.keyMask);
+        }
+        else {
+            wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        }
+    #endif
 
         WOLFSSL_LEAVE("SendServerKeyExchange", ret);
         WOLFSSL_END(WC_FUNC_SERVER_KEY_EXCHANGE_SEND);
@@ -38937,6 +39068,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);
         WOLFSSL_ENTER("DoClientKeyExchange");
 
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+    #endif
+
     #ifdef WOLFSSL_ASYNC_CRYPT
         if (ssl->async == NULL) {
             ssl->async = (struct WOLFSSL_ASYNC*)
@@ -40130,6 +40265,16 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
         } /* switch(ssl->options.asyncState) */
 
     exit_dcke:
+
+    #ifdef WOLFSSL_BLIND_PRIVATE_KEY
+        if (ret == 0) {
+            ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
+                &ssl->buffers.keyMask);
+        }
+        else {
+            wolfssl_priv_der_unblind(ssl->buffers.key, ssl->buffers.keyMask);
+        }
+    #endif
 
         WOLFSSL_LEAVE("DoClientKeyExchange", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);

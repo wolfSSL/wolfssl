@@ -2180,6 +2180,11 @@ WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        int hsType, int label, int id,
                                        void* heap, int devId);
 #endif
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+WOLFSSL_LOCAL int wolfssl_priv_der_blind(WC_RNG* rng, DerBuffer* key,
+    DerBuffer** mask);
+WOLFSSL_LOCAL void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask);
+#endif
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word32* length);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int  DecodeAltPrivateKey(WOLFSSL *ssl, word32* length);
@@ -3574,6 +3579,9 @@ struct WOLFSSL_CTX {
     int         certChainCnt;
 #endif
     DerBuffer*  privateKey;
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    DerBuffer*  privateKeyMask;             /* Mask of private key DER. */
+#endif
     byte        privateKeyType;
     byte        privateKeyId:1;
     byte        privateKeyLabel:1;
@@ -3582,6 +3590,9 @@ struct WOLFSSL_CTX {
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*  altPrivateKey;
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    DerBuffer*  altPrivateKeyMask;          /* Mask of alt private key DER. */
+#endif
     byte        altPrivateKeyType;
     byte        altPrivateKeyId:1;
     byte        altPrivateKeyLabel:1;
@@ -4553,6 +4564,9 @@ typedef struct Buffers {
 #ifndef NO_CERTS
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
     DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    DerBuffer*      keyMask;               /* Mask of private key DER. */
+#endif
     byte            keyType;               /* Type of key */
     byte            keyId:1;               /* Key data is an id not data */
     byte            keyLabel:1;            /* Key data is a label not data */
@@ -4560,6 +4574,9 @@ typedef struct Buffers {
     int             keyDevId;              /* Device Id for key */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     DerBuffer*      altKey;                /* WOLFSSL_CTX owns, unless we own */
+#ifdef WOLFSSL_BLIND_PRIVATE_KEY
+    DerBuffer*      altKeyMask;            /* Mask of alt private key DER. */
+#endif
     byte            altKeyType;            /* Type of alt key */
     byte            altKeyId:1;            /* Key data is an id not data */
     byte            altKeyLabel:1;         /* Key data is a label not data */
