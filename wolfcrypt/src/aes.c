@@ -12751,13 +12751,12 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
     word32 blocks = (sz / AES_BLOCK_SIZE);
     Aes *aes = &xaes->aes;
 
-#if 0 && defined(HAVE_AES_ECB)
+#ifdef HAVE_AES_ECB
     /* encrypt all of buffer at once when possible */
-    if ((in != out) && ((sz & (AES_BLOCK_SIZE - 1)) == 0)) { /* can not handle inline */
+    if (in != out) { /* can not handle inline */
         XMEMCPY(out, i, AES_BLOCK_SIZE);
         if ((ret = _AesXtsHelper(aes, out, in, sz, AES_ENCRYPTION)) != 0)
             return ret;
-        XMEMCPY(i, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
 #endif
 
@@ -12765,8 +12764,8 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
         word32 j;
         byte carry = 0;
 
-#if 0 && defined(HAVE_AES_ECB)
-        if ((in == out) || ((sz & (AES_BLOCK_SIZE - 1)) != 0))
+#ifdef HAVE_AES_ECB
+        if (in == out)
 #endif
         { /* check for if inline */
             byte buf[AES_BLOCK_SIZE];
@@ -13199,19 +13198,18 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
         blocks--;
     }
 
-#if 0 && defined(HAVE_AES_ECB)
+#ifdef HAVE_AES_ECB
     /* decrypt all of buffer at once when possible */
-    if ((in != out) && ((sz & (AES_BLOCK_SIZE - 1)) == 0)) { /* can not handle inline */
+    if (in != out) { /* can not handle inline */
         XMEMCPY(out, i, AES_BLOCK_SIZE);
         if ((ret = _AesXtsHelper(aes, out, in, sz, AES_DECRYPTION)) != 0)
             return ret;
-        XMEMCPY(i, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
     }
 #endif
 
     while (blocks > 0) {
-#if 0 && defined(HAVE_AES_ECB)
-        if ((in == out) || ((sz & (AES_BLOCK_SIZE - 1)) != 0))
+#ifdef HAVE_AES_ECB
+        if (in == out)
 #endif
         { /* check for if inline */
             byte buf[AES_BLOCK_SIZE];

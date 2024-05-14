@@ -930,10 +930,10 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             tail = 0;
         }
 
-        err = wc_AesXtsEncryptStart(ctx->aesXts, walk.iv, walk.ivsize);
+        err = wc_AesXtsEncryptInit(ctx->aesXts, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
-            pr_err("%s: wc_AesXtsEncryptStart failed: %d\n",
+            pr_err("%s: wc_AesXtsEncryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
             return -EINVAL;
         }
@@ -1053,10 +1053,10 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             tail = 0;
         }
 
-        err = wc_AesXtsDecryptStart(ctx->aesXts, walk.iv, walk.ivsize);
+        err = wc_AesXtsDecryptInit(ctx->aesXts, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
-            pr_err("%s: wc_AesXtsDecryptStart failed: %d\n",
+            pr_err("%s: wc_AesXtsDecryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
             return -EINVAL;
         }
