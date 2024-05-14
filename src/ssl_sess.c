@@ -1726,7 +1726,7 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
             /* Check the session ID hash matches */
             error = clientSession->sessionIDHash != sessionIDHash;
             if (error != 0)
-                WOLFSSL_MSG("session ID hash don't match");
+                WOLFSSL_MSG("session ID hashes don't match");
         }
         if (error == 0) {
             /* Hashes match */
