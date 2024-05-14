@@ -12840,6 +12840,15 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #ifdef WOLFSSL_AESXTS_STREAM
 
+/* Block-streaming AES-XTS.
+ *
+ * xaes  AES keys to use for block encrypt/decrypt
+ * i     readwrite value to use for tweak
+ * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
+ *       adds a sanity check on how the user calls the function.
+ *
+ * returns 0 on success
+ */
 int wc_AesXtsEncryptInit(XtsAes* xaes, byte* i, word32 iSz)
 {
     int ret;
@@ -12894,12 +12903,15 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, byte* i, word32 iSz)
     return ret;
 }
 
-/* AES with XTS mode. (XTS) XEX encryption with Tweak and cipher text Stealing.
+/* Block-streaming AES-XTS
+ *
+ * Note that sz must be greater than AES_BLOCK_SIZE in each call, and must be a
+ * multiple of AES_BLOCK_SIZE in all but the final call.
  *
  * xaes  AES keys to use for block encrypt/decrypt
  * out   output buffer to hold cipher text
  * in    input plain text buffer to encrypt
- * sz    size of both out and in buffers
+ * sz    size of both out and in buffers -- must be >= AES_BLOCK_SIZE.
  * i     value to use for tweak
  * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
  *       adds a sanity check on how the user calls the function.
@@ -13211,7 +13223,6 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  * i     readwrite value to use for tweak
  * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
  *       adds a sanity check on how the user calls the function.
- * tweak_block   buffer of size AES_BLOCK_SIZE to use for tweak state
  *
  * returns 0 on success
  */
@@ -13269,7 +13280,10 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, byte* i, word32 iSz)
     return ret;
 }
 
-/* Same process as encryption but Aes key is AES_DECRYPTION type.
+/* Block-streaming AES-XTS
+ *
+ * Note that sz must be greater than AES_BLOCK_SIZE in each call, and must be a
+ * multiple of AES_BLOCK_SIZE in all but the final call.
  *
  * xaes  AES keys to use for block encrypt/decrypt
  * out   output buffer to hold plain text

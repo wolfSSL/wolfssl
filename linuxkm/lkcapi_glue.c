@@ -925,7 +925,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
 
             err = skcipher_walk_virt(&walk, req, false);
             if (!walk.nbytes)
-                return err;
+                return err ? : -EINVAL;
         } else {
             tail = 0;
         }
@@ -939,6 +939,9 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         }
 
         while ((nbytes = walk.nbytes) != 0) {
+            /* if this isn't the final call, pass block-aligned data to prevent
+             * end-of-message ciphertext stealing.
+             */
             if (nbytes < walk.total)
                 nbytes &= ~(AES_BLOCK_SIZE - 1);
 
@@ -961,7 +964,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             }
         }
 
-        if (unlikely(tail > 0 && !err)) {
+        if (unlikely(tail > 0)) {
             struct scatterlist sg_src[2], sg_dst[2];
             struct scatterlist *src, *dst;
 
@@ -1048,7 +1051,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
 
             err = skcipher_walk_virt(&walk, req, false);
             if (!walk.nbytes)
-                return err;
+                return err ? : -EINVAL;
         } else {
             tail = 0;
         }
@@ -1062,6 +1065,9 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         }
 
         while ((nbytes = walk.nbytes) != 0) {
+            /* if this isn't the final call, pass block-aligned data to prevent
+             * end-of-message ciphertext stealing.
+             */
             if (nbytes < walk.total)
                 nbytes &= ~(AES_BLOCK_SIZE - 1);
 
@@ -1084,32 +1090,32 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             }
         }
 
-        if (unlikely(tail > 0 && !err)) {
-                struct scatterlist sg_src[2], sg_dst[2];
-                struct scatterlist *src, *dst;
+        if (unlikely(tail > 0)) {
+            struct scatterlist sg_src[2], sg_dst[2];
+            struct scatterlist *src, *dst;
 
-                dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
-                if (req->dst != req->src)
-                        dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+            dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+            if (req->dst != req->src)
+                dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
 
-                skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
-                                           req->iv);
+            skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+                                       req->iv);
 
-                err = skcipher_walk_virt(&walk, &subreq, false);
-                if (err)
-                        return err;
+            err = skcipher_walk_virt(&walk, &subreq, false);
+            if (err)
+                return err;
 
-                err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
-                                             walk.src.virt.addr, walk.nbytes,
-                                             walk.iv);
+            err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+                                         walk.src.virt.addr, walk.nbytes,
+                                         walk.iv);
 
-                if (unlikely(err)) {
-                    pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
-                           crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-                    return -EINVAL;
-                }
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                return -EINVAL;
+            }
 
-                err = skcipher_walk_done(&walk, 0);
+            err = skcipher_walk_done(&walk, 0);
         }
 
     }
