@@ -28,7 +28,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
-#ifndef NO_ESP_SDK_WIFI
+#if defined(USE_WOLFSSL_ESP_SDK_WIFI)
 
 /* Espressif */
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
@@ -464,5 +464,5 @@ esp_err_t wc_wifi_show_ip(void)
 #endif
 
 
-#endif /* !NO_ESP_SDK_WIFI */
+#endif /* USE_WOLFSSL_ESP_SDK_WIFI */
 #endif /* WOLFSSL_ESPIDF */

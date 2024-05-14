@@ -130,7 +130,7 @@ BUILD_LOG="${THIS_HOME_DIR}/logs/${THIS_EXAMPLE}_build_IDF_v5.1_${THIS_TARGET}_$
 FLASH_LOG="${THIS_HOME_DIR}/logs/${THIS_EXAMPLE}_flash_IDF_v5.1_${THIS_TARGET}_${THIS_KEYWORD}.txt"
 THIS_LOG="${THIS_HOME_DIR}/logs/${THIS_EXAMPLE}_output_IDF_v5.1_${THIS_TARGET}_${THIS_KEYWORD}.txt"
 THIS_CFG="${THIS_HOME_DIR}/logs/${THIS_EXAMPLE}_user_settings_IDF_v5.1_${THIS_TARGET}_${THIS_KEYWORD}.txt"
-
+THIS_WLOG="logs\\${THIS_TARGET}_output.log"
 # cp ./components/wolfssl/include/user_settings.h "${THIS_CFG}"
 
 echo  "BUILD_LOG = ${BUILD_LOG}"
@@ -180,6 +180,7 @@ else
     THIS_ERROR_CODE=$?
     if [ $THIS_ERROR_CODE -ne 0 ]; then
         echo ""
+        tail -n 5 "${BUILD_LOG}"
         echo "Error during set-target"
         exit 1
     fi
@@ -193,6 +194,7 @@ idf.py build                                    >> "${BUILD_LOG}" 2>&1
 THIS_ERROR_CODE=$?
 if [ $THIS_ERROR_CODE -ne 0 ]; then
     echo ""
+    tail -n 5 "${BUILD_LOG}"
     echo "Error during build for $THIS_TARGET"
     echo ""
     echo ""
@@ -207,6 +209,7 @@ idf.py flash -p "${THIS_TARGET_PORT}" -b 115200 2>&1 | tee -a "${FLASH_LOG}"
 THIS_ERROR_CODE=$?
 if [ $THIS_ERROR_CODE -ne 0 ]; then
     echo ""
+    tail -n 5 "${FLASH_LOG}"
     echo "Error during flash"
     exit 1
 fi
@@ -223,5 +226,5 @@ if [ -z "$ESPIDF_PUTTY_MONITOR" ]; then
 else
     echo "Calling putty..."
     echo "$PUTTY_EXE -load \"$THIS_TARGET_PUTTY\""
-    $PUTTY_EXE -load "$THIS_TARGET_PUTTY" &
+    $PUTTY_EXE -load "$THIS_TARGET_PUTTY" -logoverwrite -sessionlog "${THIS_WLOG}" &
 fi
