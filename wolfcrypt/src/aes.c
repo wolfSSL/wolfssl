@@ -12631,90 +12631,21 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
  * returns 0 on success
  */
 /* Software AES - XTS Encrypt  */
+
+static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
+                                  word32 sz,
+                                  byte *i);
 static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         const byte* i)
 {
     int ret;
-    word32 blocks = (sz / AES_BLOCK_SIZE);
-    Aes *aes = &xaes->aes;
     byte tweak_block[AES_BLOCK_SIZE];
 
     ret = wc_AesEncryptDirect(&xaes->tweak, tweak_block, i);
     if (ret != 0)
         return ret;
 
-#ifdef HAVE_AES_ECB
-    /* encrypt all of buffer at once when possible */
-    if (in != out) { /* can not handle inline */
-        XMEMCPY(out, tweak_block, AES_BLOCK_SIZE);
-        if ((ret = _AesXtsHelper(&xaes->aes, out, in, sz, AES_ENCRYPTION)) != 0)
-            return ret;
-    }
-#endif
-
-    while (blocks > 0) {
-        word32 j;
-        byte carry = 0;
-
-#ifdef HAVE_AES_ECB
-        if (in == out)
-#endif
-        { /* check for if inline */
-            byte buf[AES_BLOCK_SIZE];
-
-            XMEMCPY(buf, in, AES_BLOCK_SIZE);
-            xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
-            ret = wc_AesEncryptDirect(aes, out, buf);
-            if (ret != 0)
-                return ret;
-        }
-        xorbuf(out, tweak_block, AES_BLOCK_SIZE);
-
-        /* multiply by shift left and propagate carry */
-        for (j = 0; j < AES_BLOCK_SIZE; j++) {
-            byte tmpC;
-
-            tmpC   = (tweak_block[j] >> 7) & 0x01;
-            tweak_block[j] = (byte)((tweak_block[j] << 1) + carry);
-            carry  = tmpC;
-        }
-        if (carry) {
-            tweak_block[0] ^= GF_XTS;
-        }
-
-        in  += AES_BLOCK_SIZE;
-        out += AES_BLOCK_SIZE;
-        sz  -= AES_BLOCK_SIZE;
-        blocks--;
-    }
-
-    /* stealing operation of XTS to handle left overs */
-    if (sz > 0) {
-        byte buf[AES_BLOCK_SIZE];
-
-        XMEMCPY(buf, out - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-        if (sz >= AES_BLOCK_SIZE) { /* extra sanity check before copy */
-            return BUFFER_E;
-        }
-        if (in != out) {
-            XMEMCPY(out, buf, sz);
-            XMEMCPY(buf, in, sz);
-        }
-        else {
-            byte buf2[AES_BLOCK_SIZE];
-
-            XMEMCPY(buf2, buf, sz);
-            XMEMCPY(buf, in, sz);
-            XMEMCPY(out, buf2, sz);
-        }
-
-        xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
-        ret = wc_AesEncryptDirect(aes, out - AES_BLOCK_SIZE, buf);
-        if (ret == 0)
-            xorbuf(out - AES_BLOCK_SIZE, tweak_block, AES_BLOCK_SIZE);
-    }
-
-    return ret;
+    return AesXtsEncryptUpdate_sw(xaes, out, in, sz, tweak_block);
 }
 
 #ifdef WOLFSSL_AESXTS_STREAM
@@ -12726,9 +12657,11 @@ static int AesXtsEncrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  *
  * returns 0 on success
  */
-static int AesXtsInit_sw(XtsAes* xaes, byte* i) {
+static int AesXtsInitTweak_sw(XtsAes* xaes, byte* i) {
     return wc_AesEncryptDirect(&xaes->tweak, i, i);
 }
+
+#endif /* WOLFSSL_AESXTS_STREAM */
 
 /* Block-streaming AES-XTS.
  *
@@ -12824,8 +12757,6 @@ static int AesXtsEncryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
 
     return ret;
 }
-
-#endif /* WOLFSSL_AESXTS_STREAM */
 
 /* AES with XTS mode. (XTS) XEX encryption with Tweak and cipher text Stealing.
  *
@@ -12956,7 +12887,7 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, byte* i, word32 iSz)
         else
 #endif /* WOLFSSL_AESNI */
         {
-            ret = AesXtsInit_sw(xaes, i);
+            ret = AesXtsInitTweak_sw(xaes, i);
         }
     }
 
@@ -13032,6 +12963,7 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #endif /* WOLFSSL_AESXTS_STREAM */
 
+
 /* Same process as encryption but use aes_decrypt key.
  *
  * xaes  AES keys to use for block encrypt/decrypt
@@ -13043,124 +12975,22 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
  * returns 0 on success
  */
 /* Software AES - XTS Decrypt */
+
+static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
+                                  word32 sz, byte *i);
+
 static int AesXtsDecrypt_sw(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         const byte* i)
 {
-    int ret = 0;
-    word32 blocks = (sz / AES_BLOCK_SIZE);
-#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-    Aes *aes = &xaes->aes_decrypt;
-#else
-    Aes *aes = &xaes->aes;
-#endif
-    word32 j;
-    byte carry = 0;
+    int ret;
     byte tweak_block[AES_BLOCK_SIZE];
-    byte stl = (sz % AES_BLOCK_SIZE);
 
     ret = wc_AesEncryptDirect(&xaes->tweak, tweak_block, i);
     if (ret != 0)
         return ret;
 
-    /* if Stealing then break out of loop one block early to handle special
-     * case */
-    if (stl > 0) {
-        blocks--;
-    }
-
-#ifdef HAVE_AES_ECB
-    /* decrypt all of buffer at once when possible */
-    if (in != out) { /* can not handle inline */
-        XMEMCPY(out, tweak_block, AES_BLOCK_SIZE);
-        if ((ret = _AesXtsHelper(aes, out, in, sz, AES_DECRYPTION)) != 0)
-            return ret;
-    }
-#endif
-
-    while (blocks > 0) {
-#ifdef HAVE_AES_ECB
-        if (in == out)
-#endif
-        { /* check for if inline */
-            byte buf[AES_BLOCK_SIZE];
-
-            XMEMCPY(buf, in, AES_BLOCK_SIZE);
-            xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
-            ret = wc_AesDecryptDirect(aes, out, buf);
-            if (ret != 0)
-                return ret;
-        }
-        xorbuf(out, tweak_block, AES_BLOCK_SIZE);
-
-        /* multiply by shift left and propagate carry */
-        for (j = 0; j < AES_BLOCK_SIZE; j++) {
-            byte tmpC;
-
-            tmpC   = (tweak_block[j] >> 7) & 0x01;
-            tweak_block[j] = (byte)((tweak_block[j] << 1) + carry);
-            carry  = tmpC;
-        }
-        if (carry) {
-            tweak_block[0] ^= GF_XTS;
-        }
-        carry = 0;
-
-        in  += AES_BLOCK_SIZE;
-        out += AES_BLOCK_SIZE;
-        sz  -= AES_BLOCK_SIZE;
-        blocks--;
-    }
-
-    /* stealing operation of XTS to handle left overs */
-    if (sz >= AES_BLOCK_SIZE) {
-        byte buf[AES_BLOCK_SIZE];
-        byte tmp2[AES_BLOCK_SIZE];
-
-        /* multiply by shift left and propagate carry */
-        for (j = 0; j < AES_BLOCK_SIZE; j++) {
-            byte tmpC;
-
-            tmpC   = (tweak_block[j] >> 7) & 0x01;
-            tmp2[j] = (byte)((tweak_block[j] << 1) + carry);
-            carry  = tmpC;
-        }
-        if (carry) {
-            tmp2[0] ^= GF_XTS;
-        }
-
-        XMEMCPY(buf, in, AES_BLOCK_SIZE);
-        xorbuf(buf, tmp2, AES_BLOCK_SIZE);
-        ret = wc_AesDecryptDirect(aes, out, buf);
-        if (ret != 0)
-            return ret;
-        xorbuf(out, tmp2, AES_BLOCK_SIZE);
-
-        /* tmp2 holds partial | last */
-        XMEMCPY(tmp2, out, AES_BLOCK_SIZE);
-        in  += AES_BLOCK_SIZE;
-        out += AES_BLOCK_SIZE;
-        sz  -= AES_BLOCK_SIZE;
-
-        /* Make buffer with end of cipher text | last */
-        XMEMCPY(buf, tmp2, AES_BLOCK_SIZE);
-        if (sz >= AES_BLOCK_SIZE) { /* extra sanity check before copy */
-            return BUFFER_E;
-        }
-        XMEMCPY(buf, in,   sz);
-        XMEMCPY(out, tmp2, sz);
-
-        xorbuf(buf, tweak_block, AES_BLOCK_SIZE);
-        ret = wc_AesDecryptDirect(aes, tmp2, buf);
-        if (ret != 0)
-            return ret;
-        xorbuf(tmp2, tweak_block, AES_BLOCK_SIZE);
-        XMEMCPY(out - AES_BLOCK_SIZE, tmp2, AES_BLOCK_SIZE);
-    }
-
-    return ret;
+    return AesXtsDecryptUpdate_sw(xaes, out, in, sz, tweak_block);
 }
-
-#ifdef WOLFSSL_AESXTS_STREAM
 
 /* Block-streaming AES-XTS.
  *
@@ -13289,8 +13119,6 @@ static int AesXtsDecryptUpdate_sw(XtsAes* xaes, byte* out, const byte* in,
 
     return ret;
 }
-
-#endif /* WOLFSSL_AESXTS_STREAM */
 
 /* Same process as encryption but Aes key is AES_DECRYPTION type.
  *
@@ -13433,7 +13261,7 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, byte* i, word32 iSz)
         else
 #endif /* WOLFSSL_AESNI */
         {
-            ret = AesXtsInit_sw(xaes, i);
+            ret = AesXtsInitTweak_sw(xaes, i);
         }
 
     }
