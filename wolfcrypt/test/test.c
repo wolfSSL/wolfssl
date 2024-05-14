@@ -29375,7 +29375,7 @@ static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
-    if (!wc_ecc_point_is_at_infinity(&key2->pubkey)) {
+    if (!wc_ecc_point_is_at_infinity(&key3->pubkey)) {
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
