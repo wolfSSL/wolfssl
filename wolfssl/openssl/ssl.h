@@ -931,7 +931,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #endif
 #define SSL_set0_verify_cert_store      wolfSSL_set0_verify_cert_store
 #define SSL_set1_verify_cert_store      wolfSSL_set1_verify_cert_store
-#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
+#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((x))
 #define SSL_get_client_CA_list          wolfSSL_get_client_CA_list
 #define SSL_set_client_CA_list          wolfSSL_set_client_CA_list
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx

@@ -11811,7 +11811,7 @@ cleanup:
     }
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
-    WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx)
+    WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(const WOLFSSL_CTX* ctx)
     {
         if (ctx == NULL) {
             return NULL;
@@ -11819,7 +11819,7 @@ cleanup:
 
         if (ctx->x509_store_pt != NULL)
             return ctx->x509_store_pt;
-        return &ctx->x509_store;
+        return &((WOLFSSL_CTX*)ctx)->x509_store;
     }
 
     void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
