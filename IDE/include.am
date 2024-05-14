@@ -31,6 +31,7 @@ include IDE/MQX/include.am
 include IDE/MSVS-2019-AZSPHERE/include.am
 include IDE/mynewt/include.am
 include IDE/NETOS/include.am
+include IDE/PlatformIO/include.am
 include IDE/QNX/include.am
 include IDE/Renesas/cs+/Projects/include.am
 include IDE/Renesas/e2studio/DK-S7G2/include.am
@@ -70,3 +71,4 @@ EXTRA_DIST+= IDE/LPCXPRESSO
 EXTRA_DIST+= IDE/MDK-ARM
 EXTRA_DIST+= IDE/MYSQL
 EXTRA_DIST+= IDE/OPENSTM32/README.md
+EXTRA_DIST+= IDE/PlatformIO
