@@ -1731,10 +1731,12 @@ enum Misc {
     AEAD_LEN_OFFSET     = 11,  /* Auth Data: Length          */
     AEAD_AUTH_DATA_SZ   = 13,  /* Size of the data to authenticate */
     AEAD_NONCE_SZ       = 12,
-    AESGCM_IMP_IV_SZ    = 4,   /* Size of GCM/CCM AEAD implicit IV */
+    AESGCM_IMP_IV_SZ    = 4,   /* Size of GCM AEAD implicit IV */
+    AESCCM_IMP_IV_SZ    = 4,   /* Size of CCM AEAD implicit IV */
     AESGCM_EXP_IV_SZ    = 8,   /* Size of GCM/CCM AEAD explicit IV */
     AESGCM_NONCE_SZ     = AESGCM_EXP_IV_SZ + AESGCM_IMP_IV_SZ,
-    GCM_IMP_IV_SZ       = 4,   /* Size of GCM/CCM AEAD implicit IV */
+    GCM_IMP_IV_SZ       = 4,   /* Size of GCM AEAD implicit IV */
+    CCM_IMP_IV_SZ       = 4,   /* Size of CCM AEAD implicit IV */
     GCM_EXP_IV_SZ       = 8,   /* Size of GCM/CCM AEAD explicit IV */
     GCM_NONCE_SZ        = GCM_EXP_IV_SZ + GCM_IMP_IV_SZ,
 
