@@ -3668,7 +3668,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 /* TLS can call too */
 int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
 {
-    int sz, i = 0;
+    size_t sz;
+    int i = 0;
     Keys* keys = &ssl->keys;
 #ifdef WOLFSSL_DTLS
     /* In case of DTLS, ssl->keys is updated here */
@@ -3712,7 +3713,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
             XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
             XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
     #endif
-            i += sz;
+            i += (int)sz;
         }
         sz = ssl->specs.key_size;
     #ifdef WOLFSSL_DTLS
@@ -3725,7 +3726,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
     #endif
         XMEMCPY(keys->client_write_key, &keyData[i], sz);
         XMEMCPY(keys->server_write_key, &keyData[i], sz);
-        i += sz;
+        i += (int)sz;
 
         sz = ssl->specs.iv_size;
     #ifdef WOLFSSL_DTLS
@@ -3767,7 +3768,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         #endif
             XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
     #endif
-            i += sz;
+            i += (int)sz;
         }
         if (side & PROVISION_SERVER) {
     #ifndef WOLFSSL_AEAD_ONLY
@@ -3778,7 +3779,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         #endif
             XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
     #endif
-            i += sz;
+            i += (int)sz;
         }
     }
     sz = ssl->specs.key_size;
@@ -3789,7 +3790,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
                     keys->client_write_key, sz);
     #endif
         XMEMCPY(keys->client_write_key, &keyData[i], sz);
-        i += sz;
+        i += (int)sz;
     }
     if (side & PROVISION_SERVER) {
     #ifdef WOLFSSL_DTLS
@@ -3798,7 +3799,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
                     keys->server_write_key, sz);
     #endif
         XMEMCPY(keys->server_write_key, &keyData[i], sz);
-        i += sz;
+        i += (int)sz;
     }
 
     sz = ssl->specs.iv_size;
@@ -3809,7 +3810,7 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
                     keys->client_write_IV, sz);
     #endif
         XMEMCPY(keys->client_write_IV, &keyData[i], sz);
-        i += sz;
+        i += (int)sz;
     }
     if (side & PROVISION_SERVER) {
     #ifdef WOLFSSL_DTLS

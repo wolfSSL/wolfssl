@@ -3544,6 +3544,24 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* Some final sanity checks */
+#ifdef WOLFSSL_APPLE_HOMEKIT
+    #ifndef WOLFCRYPT_HAVE_SRP
+        #error "WOLFCRYPT_HAVE_SRP is required for Apple Homekit"
+    #endif
+    #ifndef HAVE_CHACHA
+        #error "HAVE_CHACHA is required for Apple Homekit"
+    #endif
+    #ifdef  USE_FAST_MATH
+        #ifdef FP_MAX_BITS
+            #if FP_MAX_BITS < (8192 * 2)
+                #error "HomeKit FP_MAX_BITS must at least (8192 * 2)"
+            #endif
+        #else
+            #error "HomeKit FP_MAX_BITS must be assigned a value (8192 * 2)"
+        #endif
+    #endif
+#endif
+
 #if defined(WOLFSSL_ESPIDF) && defined(ARDUINO)
     #error "Found both ESPIDF and ARDUINO. Pick one."
 #endif

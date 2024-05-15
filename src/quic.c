@@ -82,7 +82,7 @@ static QuicRecord *quic_record_make(WOLFSSL *ssl,
             qr->capacity = qr->len = (word32)len;
         }
         else {
-            qr->capacity = qr->len = qr_length(data, len);
+            qr->capacity = qr->len = (word32) qr_length(data, len);
             if (qr->capacity > WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
                 WOLFSSL_MSG("QUIC length read larger than expected");
                 quic_record_free(ssl, qr);
@@ -123,17 +123,17 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         missing = 4 - qr->end;
         if (len < missing) {
             XMEMCPY(qr->data + qr->end, data, len);
-            qr->end += len;
+            qr->end += (word32)len;
             consumed = len;
             goto cleanup; /* len consumed, but qr->len still unknown */
         }
         XMEMCPY(qr->data + qr->end, data, missing);
-        qr->end += missing;
+        qr->end += (word32)missing;
         len -= missing;
         data += missing;
         consumed = missing;
 
-        qr->len = qr_length(qr->data, qr->end);
+        qr->len = (word32)qr_length(qr->data, qr->end);
 
         /* sanity check on length read from wire before use */
         if (qr->len > WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
@@ -163,7 +163,7 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         len = missing;
     }
     XMEMCPY(qr->data + qr->end, data, len);
-    qr->end += len;
+    qr->end += (word32)len;
     consumed += len;
 
 cleanup:
@@ -172,7 +172,7 @@ cleanup:
 }
 
 
-static word32 add_rec_header(byte* output, word32 length, int type)
+static word32 add_rec_header(byte* output, word32 length, byte type)
 {
     RecordLayerHeader* rl;
 
@@ -192,7 +192,7 @@ static word32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
 {
     word32 len = qr->end - qr->start;
     word32 offset = 0;
-    word16 rlen;
+    word32 rlen;
 
     if (len <= 0) {
         return 0;
@@ -236,7 +236,7 @@ const QuicTransportParam* QuicTransportParam_new(const uint8_t* data,
         return NULL;
     }
     XMEMCPY((uint8_t*)tp->data, data, len);
-    tp->len = len;
+    tp->len = (word16)len;
     return tp;
 }
 
@@ -793,7 +793,7 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
         }
         sz -= n;
         buf += n;
-        transferred += n;
+        transferred += (int)n;
     }
 cleanup:
     WOLFSSL_LEAVE("wolfSSL_quic_receive", transferred);
@@ -836,8 +836,8 @@ static int wolfSSL_quic_send_internal(WOLFSSL* ssl)
                 goto cleanup;
             }
             output += len;
-            length -= len;
-            ssl->quic.output_rec_remain -= len;
+            length -= (word32)len;
+            ssl->quic.output_rec_remain -= (word32)len;
         }
         else {
             /* at start of a TLS Record */
@@ -1098,7 +1098,7 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
     XMEMSET(ctx, 0, sizeof(*ctx));
     if (wolfSSL_EVP_CipherInit(ctx, aead_cipher, NULL, NULL, 0)
         == WOLFSSL_SUCCESS) {
-        ret = ctx->authTagSz;
+        ret = (size_t)ctx->authTagSz;
     } else {
         ret = 0;
     }
@@ -1355,7 +1355,7 @@ int wolfSSL_quic_aead_decrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
         return WOLFSSL_FAILURE;
     }
 
-    enclen -= ctx->authTagSz;
+    enclen -= (size_t)ctx->authTagSz;
     tag = enc + enclen;
 
     if (wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 0) != WOLFSSL_SUCCESS

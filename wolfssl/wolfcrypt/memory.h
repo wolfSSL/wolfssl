@@ -240,6 +240,8 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
         byte        haFlag; /* flag used for checking handshake count */
     } WOLFSSL_HEAP_HINT;
 
+    WOLFSSL_API void* wolfSSL_SetGlobalHeapHint(void* heap);
+    WOLFSSL_API void* wolfSSL_GetGlobalHeapHint(void);
     WOLFSSL_API int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
             unsigned int listSz, const unsigned int *sizeList,
             const unsigned int *distList, unsigned char* buf, unsigned int sz,

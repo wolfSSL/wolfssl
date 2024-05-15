@@ -658,15 +658,21 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
                                                             AES_ENCRYPTION);
                     }
                     else {
+                    #ifdef HAVE_AES_DECRYPT
                         ret = wc_AesSetKey(aes, key, derivedLen, cbcIv,
                                                             AES_DECRYPTION);
+                    #else
+                        ret = NOT_COMPILED_IN;
+                    #endif
                     }
                 }
                 if (ret == 0) {
                     if (enc)
                         ret = wc_AesCbcEncrypt(aes, input, input, (word32)length);
+                    #ifdef HAVE_AES_DECRYPT
                     else
                         ret = wc_AesCbcDecrypt(aes, input, input, (word32)length);
+                    #endif
                 }
                 if (free_aes)
                     wc_AesFree(aes);

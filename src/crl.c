@@ -110,11 +110,11 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
 #if defined(OPENSSL_EXTRA)
     crle->lastDateAsn1.length = MAX_DATE_SIZE;
     XMEMCPY (crle->lastDateAsn1.data, crle->lastDate,
-             crle->lastDateAsn1.length);
+             (size_t)crle->lastDateAsn1.length);
     crle->lastDateAsn1.type = crle->lastDateFormat;
     crle->nextDateAsn1.length = MAX_DATE_SIZE;
     XMEMCPY (crle->nextDateAsn1.data, crle->nextDate,
-             crle->nextDateAsn1.length);
+             (size_t)crle->nextDateAsn1.length);
     crle->nextDateAsn1.type = crle->nextDateFormat;
 
     crle->issuer = NULL;
@@ -318,14 +318,14 @@ static int FindRevokedSerial(RevokedCert* rc, byte* serial, int serialSz,
     while (rc) {
         if (serialHash == NULL) {
             if (rc->serialSz == serialSz &&
-                   XMEMCMP(rc->serialNumber, serial, rc->serialSz) == 0) {
+                   XMEMCMP(rc->serialNumber, serial, (size_t)rc->serialSz) == 0) {
                 WOLFSSL_MSG("Cert revoked");
                 ret = CRL_CERT_REVOKED;
                 break;
             }
         }
         else {
-            ret = CalcHashId(rc->serialNumber, rc->serialSz, hash);
+            ret = CalcHashId(rc->serialNumber, (word32)rc->serialSz, hash);
             if (ret != 0)
                 break;
             if (XMEMCMP(hash, serialHash, SIGNER_DIGEST_SIZE) == 0) {
@@ -362,7 +362,7 @@ static int VerifyCRLE(const WOLFSSL_CRL* crl, CRL_Entry* crle)
     ret = VerifyCRL_Signature(&sigCtx, crle->toBeSigned, crle->tbsSz,
             crle->signature, crle->signatureSz, crle->signatureOID,
         #ifdef WC_RSA_PSS
-            crle->sigParams, crle->sigParamsSz,
+            crle->sigParams, (int)crle->sigParamsSz,
         #else
             NULL, 0,
         #endif
@@ -528,7 +528,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
             url[0] = '\0';
             if (extCrlInfo) {
                 if (extCrlInfoSz < (int)sizeof(url) -1 ) {
-                    XMEMCPY(url, extCrlInfo, extCrlInfoSz);
+                    XMEMCPY(url, extCrlInfo, (size_t)extCrlInfoSz);
                     url[extCrlInfoSz] = '\0';
                 }
                 else  {
@@ -849,7 +849,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
 
 #ifdef HAVE_CRL_MONITOR
     if (crl->monitors[0].path) {
-        int pathSz = (int)XSTRLEN(crl->monitors[0].path) + 1;
+        size_t pathSz = XSTRLEN(crl->monitors[0].path) + 1;
         dupl->monitors[0].path = (char*)XMALLOC(pathSz, dupl->heap,
                 DYNAMIC_TYPE_CRL_MONITOR);
         if (dupl->monitors[0].path != NULL) {
@@ -861,7 +861,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
     }
 
     if (crl->monitors[1].path) {
-        int pathSz = (int)XSTRLEN(crl->monitors[1].path) + 1;
+        size_t pathSz = XSTRLEN(crl->monitors[1].path) + 1;
         dupl->monitors[1].path = (char*)XMALLOC(pathSz, dupl->heap,
                 DYNAMIC_TYPE_CRL_MONITOR);
         if (dupl->monitors[1].path != NULL) {

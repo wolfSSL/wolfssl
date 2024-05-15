@@ -990,14 +990,16 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
          defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
             ret = Transform_Sha512(sha512);
     #else
-            if(sha512->ctx.mode == ESP32_SHA_INIT) {
+            if (sha512->ctx.mode == ESP32_SHA_INIT) {
                 esp_sha_try_hw_lock(&sha512->ctx);
             }
-            ret = esp_sha512_process(sha512);
-            if(ret == 0 && sha512->ctx.mode == ESP32_SHA_SW){
+            if (sha512->ctx.mode == ESP32_SHA_SW) {
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
                                                          WC_SHA512_BLOCK_SIZE);
                 ret = Transform_Sha512(sha512);
+            }
+            else {
+                ret = esp_sha512_process(sha512);
             }
     #endif
             if (ret == 0)
@@ -1884,7 +1886,8 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 
-#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
     #if defined(CONFIG_IDF_TARGET_ESP32)
     if (ret == 0) {
         ret = esp_sha512_ctx_copy(src, dst);
@@ -2169,7 +2172,8 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 
-#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
+#if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
+   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384)
     #if defined(CONFIG_IDF_TARGET_ESP32)
         esp_sha384_ctx_copy(src, dst);
     #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \

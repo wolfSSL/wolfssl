@@ -28,7 +28,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
-
+#if defined(USE_WOLFSSL_ESP_SDK_TIME)
 /* Espressif */
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <esp_log.h>
@@ -438,4 +438,5 @@ int set_time_wait_for_ntp(void)
 }
 #endif /* ESP32 or ESP8266 time helpers */
 
-#endif
+#endif /* USE_WOLFSSL_ESP_SDK_TIME */
+#endif /* WOLFSSL_ESPIDF*/

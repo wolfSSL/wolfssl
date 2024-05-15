@@ -257,7 +257,7 @@ void echoclient_test(void* args)
     } while (err == WC_PENDING_E);
     if (ret != WOLFSSL_SUCCESS) {
         fprintf(stderr, "SSL_connect error %d, %s\n", err,
-            ERR_error_string(err, buffer));
+            ERR_error_string((unsigned long)err, buffer));
         err_sys("SSL_connect failed");
     }
 
@@ -280,7 +280,7 @@ void echoclient_test(void* args)
         } while (err == WC_PENDING_E);
         if (ret != sendSz) {
             fprintf(stderr, "SSL_write msg error %d, %s\n", err,
-                ERR_error_string(err, buffer));
+                ERR_error_string((unsigned long)err, buffer));
             err_sys("SSL_write failed");
         }
 
@@ -329,7 +329,7 @@ void echoclient_test(void* args)
 #endif
             else {
                 fprintf(stderr, "SSL_read msg error %d, %s\n", err,
-                    ERR_error_string(err, buffer));
+                    ERR_error_string((unsigned long)err, buffer));
                 err_sys("SSL_read failed");
             }
         }

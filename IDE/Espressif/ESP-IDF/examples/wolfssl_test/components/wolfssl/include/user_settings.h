@@ -131,8 +131,8 @@
     #elif defined(CONFIG_IDF_TARGET_ESP32)   || \
           defined(CONFIG_IDF_TARGET_ESP32S2) || \
           defined(CONFIG_IDF_TARGET_ESP32S3)
-        /* TODO: SRP Not enabled, known to fail on this target
-         * See https://github.com/wolfSSL/wolfssl/issues/7210 */
+        #define WOLFCRYPT_HAVE_SRP
+        #define FP_MAX_BITS (8192 * 2)
     #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
           defined(CONFIG_IDF_TARGET_ESP32H2)
         /* SRP Known to be working on this target::*/
@@ -750,3 +750,26 @@ Turn on timer debugging (used when CPU cycles not available)
         #error "Must define USE_CERT_BUFFERS_2048 or USE_CERT_BUFFERS_1024"
     #endif
 #endif /* Conditional key and cert constant names */
+
+/******************************************************************************
+** Sanity Checks
+******************************************************************************/
+#if defined(CONFIG_ESP_MAIN_TASK_STACK_SIZE)
+    #if defined(WOLFCRYPT_HAVE_SRP)
+        #if defined(FP_MAX_BITS)
+            #if FP_MAX_BITS <  (8192 * 2)
+                #define ESP_SRP_MINIMUM_STACK_8K (24 * 1024)
+            #else
+                #define ESP_SRP_MINIMUM_STACK_8K (28 * 1024)
+            #endif
+        #else
+            #error "Please define FP_MAX_BITS when using WOLFCRYPT_HAVE_SRP."
+        #endif
+
+        #if (CONFIG_ESP_MAIN_TASK_STACK_SIZE < ESP_SRP_MINIMUM_STACK)
+            #warning "WOLFCRYPT_HAVE_SRP enabled with small stack size"
+        #endif
+    #endif
+#else
+    #warning "CONFIG_ESP_MAIN_TASK_STACK_SIZE not defined!"
+#endif

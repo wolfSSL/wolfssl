@@ -3018,7 +3018,7 @@ static void* benchmarks_do(void* args)
 
 #ifndef NO_FILESYSTEM
     if (hash_input) {
-        int    rawSz;
+        size_t rawSz;
         XFILE  file;
         file = XFOPEN(hash_input, "rb");
         if (file == XBADFILE)
@@ -3037,7 +3037,7 @@ static void* benchmarks_do(void* args)
 
         XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        rawSz = (int)bench_buf_size;
+        rawSz = (size_t)bench_buf_size;
         if (bench_buf_size % 16)
             bench_buf_size += 16 - (bench_buf_size % 16);
 
@@ -3052,7 +3052,7 @@ static void* benchmarks_do(void* args)
         }
 
         if ((size_t)XFREAD(bench_plain, 1, rawSz, file)
-                != (size_t)rawSz) {
+                != rawSz) {
             XFCLOSE(file);
             goto exit;
         }
@@ -3064,7 +3064,7 @@ static void* benchmarks_do(void* args)
     }
 
     if (cipher_input) {
-        int    rawSz;
+        size_t rawSz;
         XFILE  file;
         file = XFOPEN(cipher_input, "rb");
         if (file == XBADFILE)
@@ -3083,7 +3083,7 @@ static void* benchmarks_do(void* args)
 
         XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 
-        rawSz = (int)bench_buf_size;
+        rawSz = (size_t)bench_buf_size;
         if (bench_buf_size % 16)
             bench_buf_size += 16 - (bench_buf_size % 16);
 
@@ -3099,7 +3099,7 @@ static void* benchmarks_do(void* args)
         }
 
         if ((size_t)XFREAD(bench_cipher, 1, rawSz, file)
-                != (size_t)rawSz) {
+                != rawSz) {
             XFCLOSE(file);
             goto exit;
         }
@@ -4743,9 +4743,9 @@ static void bench_aesecb_internal(int useDeviceID,
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef HAVE_FIPS
-    const int benchSz = AES_BLOCK_SIZE;
+    const word32 benchSz = AES_BLOCK_SIZE;
 #else
-    const int benchSz = (int)bench_size;
+    const word32 benchSz = bench_size;
 #endif
 
     WC_CALLOC_ARRAY(enc, Aes, BENCH_MAX_PENDING,
@@ -4768,7 +4768,7 @@ static void bench_aesecb_internal(int useDeviceID,
 
     bench_stats_start(&count, &start);
     do {
-        int outer_loop_limit = (((int)bench_size / benchSz) * 10) + 1;
+        int outer_loop_limit = (int)((bench_size / benchSz) * 10) + 1;
         for (times = 0;
              times < outer_loop_limit /* numBlocks */ || pending > 0;
             ) {
@@ -4821,7 +4821,7 @@ exit_aes_enc:
 
     bench_stats_start(&count, &start);
     do {
-        int outer_loop_limit = (10 * ((int)bench_size / benchSz)) + 1;
+        int outer_loop_limit = (int)(10 * (bench_size / benchSz)) + 1;
         for (times = 0; times < outer_loop_limit || pending > 0; ) {
             bench_async_poll(&pending);
 
@@ -5222,6 +5222,7 @@ void bench_aesccm(int useDeviceID)
         goto exit;
     }
 
+#ifdef HAVE_AES_DECRYPT
     RESET_MULTI_VALUE_STATS_VARS();
 
     bench_stats_start(&count, &start);
@@ -5248,6 +5249,7 @@ void bench_aesccm(int useDeviceID)
         printf("wc_AesCcmEncrypt failed, ret = %d\n", ret);
         goto exit;
     }
+#endif
 
   exit:
 

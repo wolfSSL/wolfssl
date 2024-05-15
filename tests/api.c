@@ -4221,7 +4221,7 @@ static int test_wolfSSL_FPKI(void)
     if (f != XBADFILE)
         XFCLOSE(f);
 
-    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
     ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
     ExpectIntEQ(wc_GetFASCNFromCert(&cert, NULL, &fascnSz), LENGTH_ONLY_E) ;
     ExpectNotNull(fascn = (byte*)XMALLOC(fascnSz, NULL,
@@ -4256,7 +4256,7 @@ static int test_wolfSSL_OtherName(void)
     if (f != XBADFILE)
         XFCLOSE(f);
 
-    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
     ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
     wc_FreeDecodedCert(&cert);
 #endif
@@ -4301,7 +4301,7 @@ static int test_wolfSSL_CertRsaPss(void)
         XFCLOSE(f);
         f = XBADFILE;
     }
-    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
     ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm), 0);
     wc_FreeDecodedCert(&cert);
 
@@ -4311,7 +4311,7 @@ static int test_wolfSSL_CertRsaPss(void)
     ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
     if (f != XBADFILE)
         XFCLOSE(f);
-    wc_InitDecodedCert(&cert, buf, bytes, NULL);
+    wc_InitDecodedCert(&cert, buf, (word32)bytes, NULL);
     ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, VERIFY, cm), 0);
     wc_FreeDecodedCert(&cert);
 #endif
@@ -12779,7 +12779,7 @@ static int test_wolfSSL_PKCS8(void)
         (word32)sizeof(der), NULL)), 0);
     ret = wc_ecc_init(&key);
     if (ret == 0) {
-        ret = wc_EccPrivateKeyDecode(der, &x, &key, bytes);
+        ret = wc_EccPrivateKeyDecode(der, &x, &key, (word32)bytes);
         wc_ecc_free(&key);
     }
     ExpectIntEQ(ret, 0);
@@ -19469,10 +19469,10 @@ static int test_wc_Arc4SetKey(void)
     const char* key = "\x01\x23\x45\x67\x89\xab\xcd\xef";
     int keyLen = 8;
 
-    ExpectIntEQ(wc_Arc4SetKey(&arc, (byte*)key, keyLen), 0);
+    ExpectIntEQ(wc_Arc4SetKey(&arc, (byte*)key, (word32)keyLen), 0);
     /* Test bad args. */
-    ExpectIntEQ(wc_Arc4SetKey(NULL, (byte*)key, keyLen), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Arc4SetKey(&arc, NULL      , keyLen), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Arc4SetKey(NULL, (byte*)key, (word32)keyLen), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Arc4SetKey(&arc, NULL      , (word32)keyLen), BAD_FUNC_ARG);
     ExpectIntEQ(wc_Arc4SetKey(&arc, (byte*)key, 0     ), BAD_FUNC_ARG);
 #endif
     return EXPECT_RESULT();
@@ -19504,17 +19504,17 @@ static int test_wc_Arc4Process(void)
     ExpectIntEQ(wc_Arc4Init(&enc, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_Arc4Init(&dec, NULL, INVALID_DEVID), 0);
 
-    ExpectIntEQ(wc_Arc4SetKey(&enc, (byte*)key, keyLen), 0);
-    ExpectIntEQ(wc_Arc4SetKey(&dec, (byte*)key, keyLen), 0);
+    ExpectIntEQ(wc_Arc4SetKey(&enc, (byte*)key, (word32)keyLen), 0);
+    ExpectIntEQ(wc_Arc4SetKey(&dec, (byte*)key, (word32)keyLen), 0);
 
-    ExpectIntEQ(wc_Arc4Process(&enc, cipher, (byte*)input, keyLen), 0);
-    ExpectIntEQ(wc_Arc4Process(&dec, plain, cipher, keyLen), 0);
+    ExpectIntEQ(wc_Arc4Process(&enc, cipher, (byte*)input, (word32)keyLen), 0);
+    ExpectIntEQ(wc_Arc4Process(&dec, plain, cipher, (word32)keyLen), 0);
     ExpectIntEQ(XMEMCMP(plain, input, keyLen), 0);
 
     /* Bad args. */
-    ExpectIntEQ(wc_Arc4Process(NULL, plain, cipher, keyLen), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Arc4Process(&dec, NULL, cipher, keyLen), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Arc4Process(&dec, plain, NULL, keyLen), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Arc4Process(NULL, plain, cipher, (word32)keyLen), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Arc4Process(&dec, NULL, cipher, (word32)keyLen), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_Arc4Process(&dec, plain, NULL, (word32)keyLen), BAD_FUNC_ARG);
 
     wc_Arc4Free(&enc);
     wc_Arc4Free(&dec);
@@ -19654,14 +19654,14 @@ static int test_wc_RsaPublicKeyDecode(void)
         f = XBADFILE;
     }
     idx = 0;
-    ExpectIntEQ(wc_RsaPublicKeyDecode_ex(buf, &idx, bytes, NULL, NULL, NULL,
+    ExpectIntEQ(wc_RsaPublicKeyDecode_ex(buf, &idx, (word32)bytes, NULL, NULL, NULL,
         NULL), 0);
     ExpectTrue((f = XFOPEN(rsaPssPubKeyNoParams, "rb")) != XBADFILE);
     ExpectIntGT(bytes = (int)XFREAD(buf, 1, sizeof(buf), f), 0);
     if (f != XBADFILE)
         XFCLOSE(f);
     idx = 0;
-    ExpectIntEQ(wc_RsaPublicKeyDecode_ex(buf, &idx, bytes, NULL, NULL, NULL,
+    ExpectIntEQ(wc_RsaPublicKeyDecode_ex(buf, &idx, (word32)bytes, NULL, NULL, NULL,
         NULL), 0);
 #endif
 
@@ -19958,17 +19958,17 @@ static int test_wc_RsaPSS_Verify(void)
         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng), 0);
 
     /* Bad cases */
-    ExpectIntEQ(wc_RsaPSS_Verify(NULL, sz, pt, outLen,
+    ExpectIntEQ(wc_RsaPSS_Verify(NULL, (word32)sz, pt, outLen,
         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPSS_Verify(pSignature, 0, pt, outLen,
         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_RsaPSS_Verify(pSignature, sz, NULL, outLen,
+    ExpectIntEQ(wc_RsaPSS_Verify(pSignature, (word32)sz, NULL, outLen,
         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPSS_Verify(NULL, 0, NULL, outLen,
         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
 
     /* Good case */
-    ExpectIntGT(wc_RsaPSS_Verify(pSignature, sz, pt, outLen,
+    ExpectIntGT(wc_RsaPSS_Verify(pSignature, (word32)sz, pt, outLen,
         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), 0);
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
@@ -20005,25 +20005,25 @@ static int test_wc_RsaPSS_VerifyCheck(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
     ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng), 0);
-    ExpectTrue((digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256)) > 0);
-    ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, digestSz),
+    ExpectTrue((digestSz = (word32)wc_HashGetDigestSize(WC_HASH_TYPE_SHA256)) > 0);
+    ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, pSignature, (word32)sz, digest, digestSz),
         0);
 
     ExpectIntGT(sz = wc_RsaPSS_Sign(digest, digestSz, pSignature, pSignatureSz,
         WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng), 0);
 
     /* Bad cases */
-    ExpectIntEQ(wc_RsaPSS_VerifyCheck(NULL, sz, pt, outLen, digest,
+    ExpectIntEQ(wc_RsaPSS_VerifyCheck(NULL, (word32)sz, pt, outLen, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPSS_VerifyCheck(pSignature, 0, pt, outLen, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_RsaPSS_VerifyCheck(pSignature, sz, NULL, outLen, digest,
+    ExpectIntEQ(wc_RsaPSS_VerifyCheck(pSignature, (word32)sz, NULL, outLen, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPSS_VerifyCheck(NULL, 0, NULL, outLen, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
 
     /* Good case */
-    ExpectIntGT(wc_RsaPSS_VerifyCheck(pSignature, sz, pt, outLen, digest,
+    ExpectIntGT(wc_RsaPSS_VerifyCheck(pSignature, (word32)sz, pt, outLen, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), 0);
 
     ExpectIntEQ(wc_FreeRsaKey(&key), 0);
@@ -20058,25 +20058,25 @@ static int test_wc_RsaPSS_VerifyCheckInline(void)
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_RsaSetRNG(&key, &rng), 0);
     ExpectIntEQ(wc_MakeRsaKey(&key, 2048, WC_RSA_EXPONENT, &rng), 0);
-    ExpectTrue((digestSz = wc_HashGetDigestSize(WC_HASH_TYPE_SHA256)) > 0);
-    ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, pSignature, sz, digest, digestSz),
+    ExpectTrue((digestSz = (word32)wc_HashGetDigestSize(WC_HASH_TYPE_SHA256)) > 0);
+    ExpectIntEQ(wc_Hash(WC_HASH_TYPE_SHA256, pSignature, (word32)sz, digest, digestSz),
         0);
 
     ExpectIntGT(sz = wc_RsaPSS_Sign(digest, digestSz, pSignature,
         sizeof(pSignature), WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key, &rng), 0);
 
     /* Bad Cases */
-    ExpectIntEQ(wc_RsaPSS_VerifyCheckInline(NULL, sz, &pt, digest,
+    ExpectIntEQ(wc_RsaPSS_VerifyCheckInline(NULL, (word32)sz, &pt, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPSS_VerifyCheckInline(pSignature, 0, NULL, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
     ExpectIntEQ(wc_RsaPSS_VerifyCheckInline(NULL, 0, &pt, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_RsaPSS_VerifyCheckInline(pSignature, sz, &pt, digest,
+    ExpectIntEQ(wc_RsaPSS_VerifyCheckInline(pSignature, (word32)sz, &pt, digest,
         digestSz, WC_HASH_TYPE_SHA, WC_MGF1SHA256, &key), BAD_FUNC_ARG);
 
     /* Good case */
-    ExpectIntGT(wc_RsaPSS_VerifyCheckInline(pSignature, sz, &pt, digest,
+    ExpectIntGT(wc_RsaPSS_VerifyCheckInline(pSignature, (word32)sz, &pt, digest,
         digestSz, WC_HASH_TYPE_SHA256, WC_MGF1SHA256, &key), 0);
 
     DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
@@ -20270,7 +20270,7 @@ static int test_wc_RsaPublicEncryptDecrypt(void)
     ExpectIntEQ(MAKE_RSA_KEY(&key, bits, WC_RSA_EXPONENT, &rng), 0);
 
     /* Encrypt. */
-    ExpectIntGT(cipherLenResult = wc_RsaPublicEncrypt(in, inLen, cipher,
+    ExpectIntGT(cipherLenResult = (word32)wc_RsaPublicEncrypt(in, inLen, cipher,
         cipherLen, &key, &rng), 0);
     /* Pass bad args - tested in another testing function.*/
 
@@ -21963,7 +21963,7 @@ static int test_wc_AesEaxEncryptAuth(void)
                                      ciphertext,
                                      msg, sizeof(msg),
                                      iv, sizeof(iv),
-                                     authtag, len,
+                                     authtag, (word32)len,
                                      aad, sizeof(aad)),
                                      0);
 
@@ -21972,42 +21972,42 @@ static int test_wc_AesEaxEncryptAuth(void)
                                      ciphertext,
                                      msg, sizeof(msg),
                                      iv, sizeof(iv),
-                                     authtag, len,
+                                     authtag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxEncryptAuth(key, sizeof(key),
                                      NULL,
                                      msg, sizeof(msg),
                                      iv, sizeof(iv),
-                                     authtag, len,
+                                     authtag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxEncryptAuth(key, sizeof(key),
                                      ciphertext,
                                      NULL, sizeof(msg),
                                      iv, sizeof(iv),
-                                     authtag, len,
+                                     authtag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxEncryptAuth(key, sizeof(key),
                                      ciphertext,
                                      msg, sizeof(msg),
                                      NULL, sizeof(iv),
-                                     authtag, len,
+                                     authtag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxEncryptAuth(key, sizeof(key),
                                      ciphertext,
                                      msg, sizeof(msg),
                                      iv, sizeof(iv),
-                                     NULL, len,
+                                     NULL, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxEncryptAuth(key, sizeof(key),
                                      ciphertext,
                                      msg, sizeof(msg),
                                      iv, sizeof(iv),
-                                     authtag, len,
+                                     authtag, (word32)len,
                                      NULL, sizeof(aad)),
                                      BAD_FUNC_ARG);
 
@@ -22022,11 +22022,11 @@ static int test_wc_AesEaxEncryptAuth(void)
             exp_ret = BAD_FUNC_ARG;
         }
 
-        ExpectIntEQ(wc_AesEaxEncryptAuth(key, i,
+        ExpectIntEQ(wc_AesEaxEncryptAuth(key, (word32)i,
                                          ciphertext,
                                          msg, sizeof(msg),
                                          iv, sizeof(iv),
-                                         authtag, len,
+                                         authtag, (word32)len,
                                          aad, sizeof(aad)),
                                          exp_ret);
     }
@@ -22038,7 +22038,7 @@ static int test_wc_AesEaxEncryptAuth(void)
                                      ciphertext,
                                      msg, sizeof(msg),
                                      iv, sizeof(iv),
-                                     authtag, len,
+                                     authtag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
 
@@ -22076,7 +22076,7 @@ static int test_wc_AesEaxDecryptAuth(void)
                                      plaintext,
                                      ct, sizeof(ct),
                                      iv, sizeof(iv),
-                                     tag, len,
+                                     tag, (word32)len,
                                      aad, sizeof(aad)),
                                      AES_EAX_AUTH_E);
 
@@ -22085,42 +22085,42 @@ static int test_wc_AesEaxDecryptAuth(void)
                                      plaintext,
                                      ct, sizeof(ct),
                                      iv, sizeof(iv),
-                                     tag, len,
+                                     tag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxDecryptAuth(key, sizeof(key),
                                      NULL,
                                      ct, sizeof(ct),
                                      iv, sizeof(iv),
-                                     tag, len,
+                                     tag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxDecryptAuth(key, sizeof(key),
                                      plaintext,
                                      NULL, sizeof(ct),
                                      iv, sizeof(iv),
-                                     tag, len,
+                                     tag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxDecryptAuth(key, sizeof(key),
                                      plaintext,
                                      ct, sizeof(ct),
                                      NULL, sizeof(iv),
-                                     tag, len,
+                                     tag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxDecryptAuth(key, sizeof(key),
                                      plaintext,
                                      ct, sizeof(ct),
                                      iv, sizeof(iv),
-                                     NULL, len,
+                                     NULL, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
     ExpectIntEQ(wc_AesEaxDecryptAuth(key, sizeof(key),
                                      plaintext,
                                      ct, sizeof(ct),
                                      iv, sizeof(iv),
-                                     tag, len,
+                                     tag, (word32)len,
                                      NULL, sizeof(aad)),
                                      BAD_FUNC_ARG);
 
@@ -22135,11 +22135,11 @@ static int test_wc_AesEaxDecryptAuth(void)
             exp_ret = BAD_FUNC_ARG;
         }
 
-        ExpectIntEQ(wc_AesEaxDecryptAuth(key, i,
+        ExpectIntEQ(wc_AesEaxDecryptAuth(key, (word32)i,
                                          plaintext,
                                          ct, sizeof(ct),
                                          iv, sizeof(iv),
-                                         tag, len,
+                                         tag, (word32)len,
                                          aad, sizeof(aad)),
                                          exp_ret);
     }
@@ -22151,7 +22151,7 @@ static int test_wc_AesEaxDecryptAuth(void)
                                      plaintext,
                                      ct, sizeof(ct),
                                      iv, sizeof(iv),
-                                     tag, len,
+                                     tag, (word32)len,
                                      aad, sizeof(aad)),
                                      BAD_FUNC_ARG);
 
@@ -22437,14 +22437,14 @@ static int test_wc_DsaKeyToPublicDer(void)
     ExpectIntEQ(wc_MakeDsaParameters(&rng, ONEK_BUF, &key), 0);
     ExpectIntEQ(wc_MakeDsaKey(&rng, &key), 0);
 
-    ExpectIntGE(sz = wc_DsaKeyToPublicDer(&key, der, ONEK_BUF), 0);
+    ExpectIntGE(sz = (word32)wc_DsaKeyToPublicDer(&key, der, ONEK_BUF), 0);
     wc_FreeDsaKey(&key);
 
     idx = 0;
     ExpectIntEQ(wc_DsaPublicKeyDecode(der, &idx, &key, sz), 0);
 
     /* Test without the SubjectPublicKeyInfo header */
-    ExpectIntGE(sz = wc_SetDsaPublicKey(der, &key, ONEK_BUF, 0), 0);
+    ExpectIntGE(sz = (word32)wc_SetDsaPublicKey(der, &key, ONEK_BUF, 0), 0);
     wc_FreeDsaKey(&key);
     idx = 0;
     ExpectIntEQ(wc_DsaPublicKeyDecode(der, &idx, &key, sz), 0);
@@ -22727,9 +22727,9 @@ static int test_wc_ed25519_make_key(void)
     ExpectIntEQ(wc_ed25519_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 
-    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey, pubkey_sz),
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey, (word32)pubkey_sz),
         ECC_PRIV_KEY_E);
-    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey+1, pubkey_sz),
+    ExpectIntEQ(wc_ed25519_make_public(&key, pubkey+1, (word32)pubkey_sz),
         ECC_PRIV_KEY_E);
     ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
 
@@ -25597,7 +25597,7 @@ static int test_wc_ecc_shared_secret_ssh(void)
     int     key2Sz = KEY24;
 #endif
     byte    secret[KEY32];
-    word32  secretLen = keySz;
+    word32  secretLen = (word32)keySz;
 
     /* Init stack variables. */
     XMEMSET(&key, 0, sizeof(ecc_key));
@@ -26586,7 +26586,7 @@ static int test_wc_EccPrivateKeyToDer(void)
     ExpectIntEQ(wc_EccPrivateKeyToDer(&eccKey, NULL, inLen), LENGTH_ONLY_E);
     ExpectIntEQ(wc_EccPrivateKeyToDer(&eccKey, output, 0), BAD_FUNC_ARG);
     /* Good Case */
-    ExpectIntGT(outLen = wc_EccPrivateKeyToDer(&eccKey, output, inLen), 0);
+    ExpectIntGT(outLen = (word32)wc_EccPrivateKeyToDer(&eccKey, output, inLen), 0);
 
     wc_ecc_free(&eccKey);
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -26876,8 +26876,8 @@ static int test_wc_SetSubjectBuffer(void)
         XFCLOSE(file);
 
     ExpectIntEQ(wc_InitCert(&cert), 0);
-    ExpectIntEQ(wc_SetSubjectBuffer(&cert, der, derSz), 0);
-    ExpectIntEQ(wc_SetSubjectBuffer(NULL, der, derSz), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_SetSubjectBuffer(&cert, der, (int)derSz), 0);
+    ExpectIntEQ(wc_SetSubjectBuffer(NULL, der, (int)derSz), BAD_FUNC_ARG);
 
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -27341,13 +27341,13 @@ static int test_wc_PKCS7_EncodeData(void)
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, certSz), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, (byte*)cert, (word32)certSz), 0);
 
     if (pkcs7 != NULL) {
         pkcs7->content = data;
         pkcs7->contentSz = sizeof(data);
         pkcs7->privateKey = key;
-        pkcs7->privateKeySz = keySz;
+        pkcs7->privateKeySz = (word32)keySz;
     }
     ExpectIntGT(wc_PKCS7_EncodeData(pkcs7, output, (word32)sizeof(output)), 0);
 
@@ -27629,7 +27629,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
         ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 
         /* use exact signed buffer size since BER encoded */
-        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, signedSz), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)signedSz), 0);
         wc_PKCS7_Free(pkcs7);
 
         /* now try with using callbacks for IO */
@@ -27662,7 +27662,7 @@ static int test_wc_PKCS7_EncodeSignedData(void)
         ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
 
         /* use exact signed buffer size since BER encoded */
-        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, strm.out, signedSz), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, strm.out, (word32)signedSz), 0);
     }
 #endif
 #ifndef NO_PKCS7_STREAM
@@ -27757,7 +27757,7 @@ static int test_wc_PKCS7_EncodeSignedData_ex(void)
     enum wc_HashType hashType = WC_HASH_TYPE_SHA;
 #endif
     byte        hashBuf[WC_MAX_DIGEST_SIZE];
-    word32      hashSz = wc_HashGetDigestSize(hashType);
+    word32      hashSz = (word32)wc_HashGetDigestSize(hashType);
 
 #ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
@@ -28319,7 +28319,7 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
         ExpectIntEQ(wc_PKCS7_SetDetached(pkcs7, 1), 0);
     }
 
-    outputSz = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    outputSz = wc_PKCS7_EncodeSignedData(pkcs7, output, (word32)outputSz);
     ExpectIntGT(outputSz, 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
@@ -28329,7 +28329,7 @@ static int CreatePKCS7SignedData(unsigned char* output, int outputSz,
         pkcs7->content = data;
         pkcs7->contentSz = dataSz;
     }
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, outputSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, (word32)outputSz), 0);
 
     wc_PKCS7_Free(pkcs7);
     wc_FreeRng(&rng);
@@ -28362,7 +28362,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     enum wc_HashType hashType = WC_HASH_TYPE_SHA;
 #endif
     byte        hashBuf[WC_MAX_DIGEST_SIZE];
-    word32      hashSz = wc_HashGetDigestSize(hashType);
+    word32      hashSz = (word32)wc_HashGetDigestSize(hashType);
 #ifndef NO_RSA
     PKCS7DecodedAttrib* decodedAttrib = NULL;
     /* contentType OID (1.2.840.113549.1.9.3) */
@@ -28401,7 +28401,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     XMEMSET(&hash, 0, sizeof(wc_HashAlg));
 
     /* Success test with RSA certs/key */
-    ExpectIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz, data,
         (word32)sizeof(data), 0, 0, 0, RSA_TYPE)), 0);
 
     /* calculate hash for content, used later */
@@ -28518,7 +28518,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
     /* Try RSA certs/key/sig first */
     outputSz = sizeof(output);
     XMEMSET(output, 0, outputSz);
-    ExpectIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz, data,
                                                   (word32)sizeof(data),
                                                   1, 1, 0, RSA_TYPE)), 0);
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -28609,7 +28609,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
 #ifndef NO_RSA
     outputSz = sizeof(output);
     XMEMSET(output, 0, outputSz);
-    ExpectIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz, data,
                                                   (word32)sizeof(data),
                                                   0, 0, 1, RSA_TYPE)), 0);
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -28656,7 +28656,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
         ExpectNotNull(buf = (byte*)XMALLOC(signedBundleSz, HEAP_HINT,
             DYNAMIC_TYPE_FILE));
         if (buf != NULL) {
-            ExpectIntEQ(XFREAD(buf, 1, signedBundleSz, signedBundle),
+            ExpectIntEQ(XFREAD(buf, 1, (size_t)signedBundleSz, signedBundle),
                 signedBundleSz);
         }
         if (signedBundle != XBADFILE) {
@@ -28670,7 +28670,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
             for (i = 0; i < signedBundleSz;) {
                 int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
                     chunkSz;
-                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
+                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, (word32)sz);
                 if (rc < 0 ) {
                     if (rc == WC_PKCS7_WANT_READ_E) {
                         i += sz;
@@ -28695,7 +28695,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
             for (i = 0; i < signedBundleSz;) {
                 int sz = (i + chunkSz > signedBundleSz)? signedBundleSz - i :
                     chunkSz;
-                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, sz);
+                rc = wc_PKCS7_VerifySignedData(pkcs7, buf + i, (word32)sz);
                 if (rc < 0 ) {
                     if (rc == WC_PKCS7_WANT_READ_E) {
                         i += sz;
@@ -28743,14 +28743,14 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
     enum wc_HashType hashType = WC_HASH_TYPE_SHA;
 #endif
     byte        hashBuf[WC_MAX_DIGEST_SIZE];
-    word32      hashSz = wc_HashGetDigestSize(hashType);
+    word32      hashSz = (word32)wc_HashGetDigestSize(hashType);
 
     XMEMSET(&hash, 0, sizeof(wc_HashAlg));
 
     /* Success test with ECC certs/key */
     outputSz = sizeof(output);
     XMEMSET(output, 0, outputSz);
-    ExpectIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz, data,
         (word32)sizeof(data), 0, 0, 0, ECC_TYPE)), 0);
 
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
@@ -28783,7 +28783,7 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
      * easily change content */
     outputSz = sizeof(output);
     XMEMSET(output, 0, outputSz);
-    ExpectIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz, data,
         (word32)sizeof(data), 1, 1, 0, ECC_TYPE)), 0);
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
@@ -28877,7 +28877,7 @@ static int test_wc_PKCS7_VerifySignedData_ECC(void)
     /* Test verify on signedData containing intermediate/root CA certs */
     outputSz = sizeof(output);
     XMEMSET(output, 0, outputSz);
-    ExpectIntGT((outputSz = CreatePKCS7SignedData(output, outputSz, data,
+    ExpectIntGT((outputSz = (word32)CreatePKCS7SignedData(output, (int)outputSz, data,
         (word32)sizeof(data), 0, 0, 1, ECC_TYPE)), 0);
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
@@ -28949,7 +28949,7 @@ static int myDecryptionFunc(PKCS7* pkcs7, int encryptOID, byte* iv, int ivSz,
     if (ret == 0) {
         ret = wc_AesSetKey(&aes, (byte*)usrCtx, 32, iv, AES_DECRYPTION);
         if (ret == 0)
-            ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
+            ret = wc_AesCbcDecrypt(&aes, out, in, (word32)inSz);
         wc_AesFree(&aes);
     }
 
@@ -29454,7 +29454,7 @@ static int test_wc_PKCS7_EncodeDecodeEnvelopedData(void)
         ExpectIntEQ(wc_PKCS7_SetWrapCEKCb(pkcs7, myCEKwrapFunc), 0);
         ExpectIntEQ(wc_PKCS7_SetDecodeEncryptedCb(pkcs7, myDecryptionFunc), 0);
         ExpectIntGT((decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, output,
-                        envelopedSz, decoded, sizeof(decoded))), 0);
+                        (word32)envelopedSz, decoded, sizeof(decoded))), 0);
         wc_PKCS7_Free(pkcs7);
         pkcs7 = NULL;
     }
@@ -29614,7 +29614,7 @@ static int test_wc_PKCS7_EncodeEncryptedData(void)
 
         /* Decode encryptedData */
         ExpectIntGT(decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted,
-            encryptedSz, decoded, sizeof(decoded)), 0);
+            (word32)encryptedSz, decoded, sizeof(decoded)), 0);
 
         ExpectIntEQ(XMEMCMP(decoded, data, decodedSz), 0);
         /* Keep values for last itr. */
@@ -29673,15 +29673,15 @@ static int test_wc_PKCS7_EncodeEncryptedData(void)
         pkcs7->encryptionKeySz = tmpWrd32;
     }
 
-    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(NULL, encrypted, encryptedSz,
+    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(NULL, encrypted, (word32)encryptedSz,
         decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, NULL, encryptedSz,
+    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, NULL, (word32)encryptedSz,
         decoded, sizeof(decoded)), BAD_FUNC_ARG);
     ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, 0,
         decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
+    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, (word32)encryptedSz,
         NULL, sizeof(decoded)), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
+    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, (word32)encryptedSz,
         decoded, 0), BAD_FUNC_ARG);
     /* Test struct fields */
 
@@ -29689,13 +29689,13 @@ static int test_wc_PKCS7_EncodeEncryptedData(void)
         tmpBytePtr = pkcs7->encryptionKey;
         pkcs7->encryptionKey = NULL;
     }
-    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
+    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, (word32)encryptedSz,
         decoded, sizeof(decoded)), BAD_FUNC_ARG);
     if (pkcs7 != NULL) {
         pkcs7->encryptionKey = tmpBytePtr;
         pkcs7->encryptionKeySz = 0;
     }
-    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
+    ExpectIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, (word32)encryptedSz,
         decoded, sizeof(decoded)), BAD_FUNC_ARG);
 
     wc_PKCS7_Free(pkcs7);
@@ -30133,18 +30133,18 @@ static int test_wc_PKCS7_signed_enveloped(void)
     /* sign cert for envelope */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
     if (pkcs7 != NULL) {
         pkcs7->content    = cert;
-        pkcs7->contentSz  = certSz;
+        pkcs7->contentSz  = (word32)certSz;
         pkcs7->contentOID = DATA;
         pkcs7->privateKey   = key;
-        pkcs7->privateKeySz = keySz;
+        pkcs7->privateKeySz = (word32)keySz;
         pkcs7->encryptOID   = RSAk;
         pkcs7->hashOID      = SHA256h;
         pkcs7->rng          = &rng;
     }
-    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, (word32)sigSz)), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -30152,16 +30152,16 @@ static int test_wc_PKCS7_signed_enveloped(void)
 #ifdef HAVE_AES_CBC
     /* create envelope */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
     if (pkcs7 != NULL) {
         pkcs7->content   = sig;
-        pkcs7->contentSz = sigSz;
+        pkcs7->contentSz = (word32)sigSz;
         pkcs7->contentOID = DATA;
         pkcs7->encryptOID = AES256CBCb;
         pkcs7->privateKey   = key;
-        pkcs7->privateKeySz = keySz;
+        pkcs7->privateKeySz = (word32)keySz;
     }
-    ExpectIntGT((envSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, env, envSz)), 0);
+    ExpectIntGT((envSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, env, (word32)envSz)), 0);
     ExpectIntLT(wc_PKCS7_EncodeEnvelopedData(pkcs7, env, 2), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
@@ -30171,13 +30171,13 @@ static int test_wc_PKCS7_signed_enveloped(void)
     sigSz = FOURK_BUF * 2;
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     ExpectIntEQ(wc_InitRng(&rng), 0);
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
     if (pkcs7 != NULL) {
         pkcs7->content    = env;
-        pkcs7->contentSz  = envSz;
+        pkcs7->contentSz  = (word32)envSz;
         pkcs7->contentOID = DATA;
         pkcs7->privateKey   = key;
-        pkcs7->privateKeySz = keySz;
+        pkcs7->privateKeySz = (word32)keySz;
         pkcs7->encryptOID   = RSAk;
         pkcs7->hashOID      = SHA256h;
         pkcs7->rng = &rng;
@@ -30189,14 +30189,14 @@ static int test_wc_PKCS7_signed_enveloped(void)
         ExpectIntEQ(wc_PKCS7_SetNoCerts(NULL, 1), BAD_FUNC_ARG);
         ExpectIntEQ(wc_PKCS7_GetNoCerts(pkcs7), 1);
     }
-    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, (word32)sigSz)), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
 
     /* check verify fails */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz),
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, (word32)sigSz),
             PKCS7_SIGNEEDS_CHECK);
 
     /* try verifying the signature manually */
@@ -30208,7 +30208,7 @@ static int test_wc_PKCS7_signed_enveloped(void)
         int  digestSz = 0;
 
         ExpectIntEQ(wc_InitRsaKey(&rKey, HEAP_HINT), 0);
-        ExpectIntEQ(wc_RsaPrivateKeyDecode(key, &idx, &rKey, keySz), 0);
+        ExpectIntEQ(wc_RsaPrivateKeyDecode(key, &idx, &rKey, (word32)keySz), 0);
         ExpectIntGT(digestSz = wc_RsaSSL_Verify(pkcs7->signature,
             pkcs7->signatureSz, digest, sizeof(digest), &rKey), 0);
         ExpectIntEQ(digestSz, pkcs7->pkcs7DigestSz);
@@ -30222,14 +30222,14 @@ static int test_wc_PKCS7_signed_enveloped(void)
 
     /* initializing the PKCS7 struct with the signing certificate should pass */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, (word32)sigSz), 0);
 
 #ifndef NO_PKCS7_STREAM
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
     ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
-    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
 
     /* test for streaming */
     ret = -1;
@@ -30250,16 +30250,16 @@ static int test_wc_PKCS7_signed_enveloped(void)
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     if (pkcs7 != NULL) {
         pkcs7->content    = env;
-        pkcs7->contentSz  = envSz;
+        pkcs7->contentSz  = (word32)envSz;
         pkcs7->contentOID = DATA;
         pkcs7->privateKey   = key;
-        pkcs7->privateKeySz = keySz;
+        pkcs7->privateKeySz = (word32)keySz;
         pkcs7->encryptOID   = RSAk;
         pkcs7->hashOID      = SHA256h;
         pkcs7->rng = &rng;
     }
     ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
-    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, (word32)sigSz)), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
     wc_FreeRng(&rng);
@@ -30267,7 +30267,7 @@ static int test_wc_PKCS7_signed_enveloped(void)
     /* check verify */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, testDevId), 0);
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, sigSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, sig, (word32)sigSz), 0);
     ExpectNotNull(pkcs7->content);
 
 #ifndef NO_PKCS7_STREAM
@@ -30279,16 +30279,16 @@ static int test_wc_PKCS7_signed_enveloped(void)
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     if (pkcs7 != NULL) {
         pkcs7->content    = env;
-        pkcs7->contentSz  = envSz;
+        pkcs7->contentSz  = (word32)envSz;
         pkcs7->contentOID = DATA;
         pkcs7->privateKey   = key;
-        pkcs7->privateKeySz = keySz;
+        pkcs7->privateKeySz = (word32)keySz;
         pkcs7->encryptOID   = RSAk;
         pkcs7->hashOID      = SHA256h;
         pkcs7->rng = &rng;
     }
     ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, DEGENERATE_SID), 0);
-    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, sigSz)), 0);
+    ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig, (word32)sigSz)), 0);
     wc_PKCS7_Free(pkcs7);
     pkcs7 = NULL;
     wc_FreeRng(&rng);
@@ -30310,13 +30310,13 @@ static int test_wc_PKCS7_signed_enveloped(void)
 #ifdef HAVE_AES_CBC
     /* check decode */
     ExpectNotNull(inner = wc_PKCS7_New(NULL, 0));
-    ExpectIntEQ(wc_PKCS7_InitWithCert(inner, cert, certSz), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(inner, cert, (word32)certSz), 0);
     if (inner != NULL) {
         inner->privateKey   = key;
-        inner->privateKeySz = keySz;
+        inner->privateKeySz = (word32)keySz;
     }
     ExpectIntGT((decodedSz = wc_PKCS7_DecodeEnvelopedData(inner, pkcs7->content,
-                   pkcs7->contentSz, decoded, decodedSz)), 0);
+                   pkcs7->contentSz, decoded, (word32)decodedSz)), 0);
     wc_PKCS7_Free(inner);
     inner = NULL;
 #endif
@@ -30327,7 +30327,7 @@ static int test_wc_PKCS7_signed_enveloped(void)
     /* check cert set */
     ExpectNotNull(pkcs7 = wc_PKCS7_New(NULL, 0));
     ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
-    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, decoded, decodedSz), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, decoded, (word32)decodedSz), 0);
     ExpectNotNull(pkcs7->singleCert);
     ExpectIntNE(pkcs7->singleCertSz, 0);
     wc_PKCS7_Free(pkcs7);
@@ -30513,7 +30513,7 @@ static int test_wc_i2d_PKCS12(void)
         XFCLOSE(f);
 
     ExpectNotNull(pkcs12 = wc_PKCS12_new());
-    ExpectIntEQ(wc_d2i_PKCS12(der, derSz, pkcs12), 0);
+    ExpectIntEQ(wc_d2i_PKCS12(der, (word32)derSz, pkcs12), 0);
     ExpectIntEQ(wc_i2d_PKCS12(pkcs12, NULL, &outSz), LENGTH_ONLY_E);
     ExpectIntEQ(outSz, derSz);
 
@@ -31998,7 +31998,7 @@ static int test_wolfSSL_ASN1_STRING_to_UTF8(void)
     ExpectNotNull(e = wolfSSL_X509_NAME_get_entry(subject, idx));
     ExpectNotNull(a = wolfSSL_X509_NAME_ENTRY_get_data(e));
     ExpectIntEQ((len = wolfSSL_ASN1_STRING_to_UTF8(&actual_output, a)), 15);
-    ExpectIntEQ(strncmp((const char*)actual_output, targetOutput, len), 0);
+    ExpectIntEQ(strncmp((const char*)actual_output, targetOutput, (size_t)len), 0);
     a = NULL;
 
     /* wolfSSL_ASN1_STRING_to_UTF8(NULL, valid) */
@@ -32133,8 +32133,8 @@ static int test_wolfSSL_ASN1_STRING_print(void)
     /* setup */
 
     for (i = 0; i < (int)sizeof(HELLO_DATA); i++) {
-        unprintableData[i]  = HELLO_DATA[i];
-        expected[i]         = HELLO_DATA[i];
+        unprintableData[i]  = (unsigned char)HELLO_DATA[i];
+        expected[i]         = (unsigned char)HELLO_DATA[i];
     }
 
     for (i = 0; i < (int)MAX_UNPRINTABLE_CHAR; i++) {
@@ -33875,7 +33875,7 @@ static int test_wc_PemToDer(void)
     XMEMSET(&info, 0, sizeof(info));
 
     ExpectIntEQ(ret = load_file(ca_cert, &cert_buf, &cert_sz), 0);
-    ExpectIntEQ(ret = wc_PemToDer(cert_buf, cert_sz, CERT_TYPE, &pDer, NULL,
+    ExpectIntEQ(ret = wc_PemToDer(cert_buf, (long int)cert_sz, CERT_TYPE, &pDer, NULL,
         &info, &eccKey), 0);
     wc_FreeDer(&pDer);
     pDer = NULL;
@@ -34014,7 +34014,7 @@ static int test_wc_KeyPemToDer(void)
 
     /* Test normal operation */
     cert_dersz = cert_sz; /* DER will be smaller than PEM */
-    ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
+    ExpectNotNull(cert_der = (byte*)malloc((size_t)cert_dersz));
     ExpectIntGE(ret = wc_KeyPemToDer(cert_buf, cert_sz, cert_der, cert_dersz,
         cert_pw), 0);
     ExpectIntLE(ret, cert_sz);
@@ -34028,7 +34028,7 @@ static int test_wc_KeyPemToDer(void)
     ExpectIntLE(ret, cert_sz);
     if (EXPECT_SUCCESS())
         cert_dersz = ret;
-    ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
+    ExpectNotNull(cert_der = (byte*)malloc((size_t)cert_dersz));
     ExpectIntGE(ret = wc_KeyPemToDer(cert_buf, cert_sz, cert_der, cert_dersz,
         cert_pw), 0);
     ExpectIntLE(ret, cert_sz);
@@ -34065,7 +34065,7 @@ static int test_wc_PubKeyPemToDer(void)
     /* Test NULL for DER buffer to return needed DER buffer size */
     ExpectIntGT(ret = wc_PubKeyPemToDer(cert_buf, (int)cert_sz, NULL, 0), 0);
     ExpectIntLE(ret, cert_sz);
-    cert_dersz = ret;
+    cert_dersz = (size_t)ret;
     ExpectNotNull(cert_der = (byte*)malloc(cert_dersz));
     ExpectIntGE(wc_PubKeyPemToDer(cert_buf, (int)cert_sz, cert_der,
         (int)cert_dersz), 0);
@@ -34708,7 +34708,7 @@ static int test_wolfSSL_private_keys(void)
 
     /* check striping PKCS8 header with wolfSSL_d2i_PrivateKey */
     bufSz = FOURK_BUF;
-    ExpectIntGT((bufSz = wc_CreatePKCS8Key(buf, &bufSz,
+    ExpectIntGT((bufSz = (word32)wc_CreatePKCS8Key(buf, &bufSz,
                     (byte*)server_key_der_2048, sizeof_server_key_der_2048,
                     RSAk, NULL, 0)), 0);
     server_key = (const unsigned char*)buf;
@@ -35519,9 +35519,9 @@ static int test_wolfSSL_PEM_PrivateKey(void)
 
         server_key = buf;
         pkey = NULL;
-        ExpectNull(d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &server_key, bytes));
+        ExpectNull(d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &server_key, (long int)bytes));
         ExpectNull(pkey);
-        ExpectNotNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey, &server_key, bytes));
+        ExpectNotNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey, &server_key, (long int)bytes));
         ExpectIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), SSL_SUCCESS);
 
         EVP_PKEY_free(pkey);
@@ -36043,7 +36043,7 @@ static int test_DSA_do_sign_verify(void)
     XMEMSET(digest, 202, sizeof(digest));
 
     ExpectNotNull(dsa = DSA_new());
-    ExpectIntEQ(DSA_LoadDer(dsa, tmp, bytes), 1);
+    ExpectIntEQ(DSA_LoadDer(dsa, tmp, (int)bytes), 1);
 
     ExpectIntEQ(wolfSSL_DSA_do_sign(digest, sigBin, dsa), 1);
     ExpectIntEQ(wolfSSL_DSA_do_verify(digest, sigBin, dsa, &dsacheck), 1);
@@ -37095,7 +37095,7 @@ static int test_wolfSSL_X509_Name_canon(void)
     /* When output buffer is NULL, should return necessary output buffer
      * length.*/
     ExpectIntGT(wolfSSL_i2d_X509_NAME_canon(name, NULL), 0);
-    ExpectIntGT((len = wolfSSL_i2d_X509_NAME_canon(name, &pbuf)), 0);
+    ExpectIntGT((len = (word32)wolfSSL_i2d_X509_NAME_canon(name, &pbuf)), 0);
     ExpectIntEQ(wc_ShaHash((const byte*)pbuf, (word32)len, digest), 0);
 
     hash = (((unsigned long)digest[3] << 24) |
@@ -37117,7 +37117,7 @@ static int test_wolfSSL_X509_Name_canon(void)
     ExpectNotNull(x509 = PEM_read_X509(file, NULL, NULL, NULL));
     ExpectNotNull(name = X509_get_issuer_name(x509));
 
-    ExpectIntGT((len = wolfSSL_i2d_X509_NAME_canon(name, &pbuf)), 0);
+    ExpectIntGT((len = (word32)wolfSSL_i2d_X509_NAME_canon(name, &pbuf)), 0);
     ExpectIntEQ(wc_ShaHash((const byte*)pbuf, (word32)len, digest), 0);
 
     hash = (((unsigned long)digest[3] << 24) |
@@ -41173,6 +41173,94 @@ static int test_wolfSSL_X509_time_adj(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_bad_altname(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA)
+    const unsigned char malformed_alt_name_cert[] = {
+        0x30, 0x82, 0x02, 0xf9, 0x30, 0x82, 0x01, 0xe1, 0xa0, 0x03, 0x02, 0x01,
+        0x02, 0x02, 0x02, 0x10, 0x21, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48,
+        0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00, 0x30, 0x0f, 0x31, 0x0d,
+        0x30, 0x0b, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13, 0x04, 0x61, 0x61, 0x31,
+        0x31, 0x30, 0x1e, 0x17, 0x0d, 0x31, 0x36, 0x30, 0x32, 0x30, 0x37, 0x31,
+        0x37, 0x32, 0x34, 0x30, 0x30, 0x5a, 0x17, 0x0d, 0x33, 0x34, 0x30, 0x32,
+        0x31, 0x34, 0x30, 0x36, 0x32, 0x36, 0x35, 0x33, 0x5a, 0x30, 0x0f, 0x31,
+        0x0d, 0x30, 0x0b, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13, 0x04, 0x61, 0x61,
+        0x61, 0x61, 0x30, 0x82, 0x01, 0x20, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86,
+        0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x03, 0x82, 0x01,
+        0x0d, 0x00, 0x30, 0x82, 0x01, 0x08, 0x02, 0x82, 0x01, 0x01, 0x00, 0xa8,
+        0x8a, 0x5e, 0x26, 0x23, 0x1b, 0x31, 0xd3, 0x37, 0x1a, 0x70, 0xb2, 0xec,
+        0x3f, 0x74, 0xd4, 0xb4, 0x44, 0xe3, 0x7a, 0xa5, 0xc0, 0xf5, 0xaa, 0x97,
+        0x26, 0x9a, 0x04, 0xff, 0xda, 0xbe, 0xe5, 0x09, 0x03, 0x98, 0x3d, 0xb5,
+        0xbf, 0x01, 0x2c, 0x9a, 0x0a, 0x3a, 0xfb, 0xbc, 0x3c, 0xe7, 0xbe, 0x83,
+        0x5c, 0xb3, 0x70, 0xe8, 0x5c, 0xe3, 0xd1, 0x83, 0xc3, 0x94, 0x08, 0xcd,
+        0x1a, 0x87, 0xe5, 0xe0, 0x5b, 0x9c, 0x5c, 0x6e, 0xb0, 0x7d, 0xe2, 0x58,
+        0x6c, 0xc3, 0xb5, 0xc8, 0x9d, 0x11, 0xf1, 0x5d, 0x96, 0x0d, 0x66, 0x1e,
+        0x56, 0x7f, 0x8f, 0x59, 0xa7, 0xa5, 0xe1, 0xc5, 0xe7, 0x81, 0x4c, 0x09,
+        0x9d, 0x5e, 0x96, 0xf0, 0x9a, 0xc2, 0x8b, 0x70, 0xd5, 0xab, 0x79, 0x58,
+        0x5d, 0xb7, 0x58, 0xaa, 0xfd, 0x75, 0x52, 0xaa, 0x4b, 0xa7, 0x25, 0x68,
+        0x76, 0x59, 0x00, 0xee, 0x78, 0x2b, 0x91, 0xc6, 0x59, 0x91, 0x99, 0x38,
+        0x3e, 0xa1, 0x76, 0xc3, 0xf5, 0x23, 0x6b, 0xe6, 0x07, 0xea, 0x63, 0x1c,
+        0x97, 0x49, 0xef, 0xa0, 0xfe, 0xfd, 0x13, 0xc9, 0xa9, 0x9f, 0xc2, 0x0b,
+        0xe6, 0x87, 0x92, 0x5b, 0xcc, 0xf5, 0x42, 0x95, 0x4a, 0xa4, 0x6d, 0x64,
+        0xba, 0x7d, 0xce, 0xcb, 0x04, 0xd0, 0xf8, 0xe7, 0xe3, 0xda, 0x75, 0x60,
+        0xd3, 0x8b, 0x6a, 0x64, 0xfc, 0x78, 0x56, 0x21, 0x69, 0x5a, 0xe8, 0xa7,
+        0x8f, 0xfb, 0x8f, 0x82, 0xe3, 0xae, 0x36, 0xa2, 0x93, 0x66, 0x92, 0xcb,
+        0x82, 0xa3, 0xbe, 0x84, 0x00, 0x86, 0xdc, 0x7e, 0x6d, 0x53, 0x77, 0x84,
+        0x17, 0xb9, 0x55, 0x43, 0x0d, 0xf1, 0x16, 0x1f, 0xd5, 0x43, 0x75, 0x99,
+        0x66, 0x19, 0x52, 0xd0, 0xac, 0x5f, 0x74, 0xad, 0xb2, 0x90, 0x15, 0x50,
+        0x04, 0x74, 0x43, 0xdf, 0x6c, 0x35, 0xd0, 0xfd, 0x32, 0x37, 0xb3, 0x8d,
+        0xf5, 0xe5, 0x09, 0x02, 0x01, 0x03, 0xa3, 0x61, 0x30, 0x5f, 0x30, 0x0c,
+        0x06, 0x03, 0x55, 0x1d, 0x13, 0x01, 0x01, 0xff, 0x04, 0x02, 0x30, 0x00,
+        0x30, 0x0f, 0x06, 0x03, 0x55, 0x1d, 0x11, 0x04, 0x08, 0x30, 0x06, 0x82,
+        0x04, 0x61, 0x2a, 0x00, 0x2a, 0x30, 0x1d, 0x06, 0x03, 0x55, 0x1d, 0x0e,
+        0x04, 0x16, 0x04, 0x14, 0x92, 0x6a, 0x1e, 0x52, 0x3a, 0x1a, 0x57, 0x9f,
+        0xc9, 0x82, 0x9a, 0xce, 0xc8, 0xc0, 0xa9, 0x51, 0x9d, 0x2f, 0xc7, 0x72,
+        0x30, 0x1f, 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04, 0x18, 0x30, 0x16, 0x80,
+        0x14, 0x6b, 0xf9, 0xa4, 0x2d, 0xa5, 0xe9, 0x39, 0x89, 0xa8, 0x24, 0x58,
+        0x79, 0x87, 0x11, 0xfc, 0x6f, 0x07, 0x91, 0xef, 0xa6, 0x30, 0x0d, 0x06,
+        0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00,
+        0x03, 0x82, 0x01, 0x01, 0x00, 0x3f, 0xd5, 0x37, 0x2f, 0xc7, 0xf8, 0x8b,
+        0x39, 0x1c, 0xe3, 0xdf, 0x77, 0xee, 0xc6, 0x4b, 0x5f, 0x84, 0xcf, 0xfa,
+        0x33, 0x2c, 0xb2, 0xb5, 0x4b, 0x09, 0xee, 0x56, 0xc0, 0xf2, 0xf0, 0xeb,
+        0xad, 0x1c, 0x02, 0xef, 0xae, 0x09, 0x53, 0xc0, 0x06, 0xad, 0x4e, 0xfd,
+        0x3e, 0x8c, 0x13, 0xb3, 0xbf, 0x80, 0x05, 0x36, 0xb5, 0x3f, 0x2b, 0xc7,
+        0x60, 0x53, 0x14, 0xbf, 0x33, 0x63, 0x47, 0xc3, 0xc6, 0x28, 0xda, 0x10,
+        0x12, 0xe2, 0xc4, 0xeb, 0xc5, 0x64, 0x66, 0xc0, 0xcc, 0x6b, 0x84, 0xda,
+        0x0c, 0xe9, 0xf6, 0xe3, 0xf8, 0x8e, 0x3d, 0x95, 0x5f, 0xba, 0x9f, 0xe1,
+        0xc7, 0xed, 0x6e, 0x97, 0xcc, 0xbd, 0x7d, 0xe5, 0x4e, 0xab, 0xbc, 0x1b,
+        0xf1, 0x3a, 0x09, 0x33, 0x09, 0xe1, 0xcc, 0xec, 0x21, 0x16, 0x8e, 0xb1,
+        0x74, 0x9e, 0xc8, 0x13, 0x7c, 0xdf, 0x07, 0xaa, 0xeb, 0x70, 0xd7, 0x91,
+        0x5c, 0xc4, 0xef, 0x83, 0x88, 0xc3, 0xe4, 0x97, 0xfa, 0xe4, 0xdf, 0xd7,
+        0x0d, 0xff, 0xba, 0x78, 0x22, 0xfc, 0x3f, 0xdc, 0xd8, 0x02, 0x8d, 0x93,
+        0x57, 0xf9, 0x9e, 0x39, 0x3a, 0x77, 0x00, 0xd9, 0x19, 0xaa, 0x68, 0xa1,
+        0xe6, 0x9e, 0x13, 0xeb, 0x37, 0x16, 0xf5, 0x77, 0xa4, 0x0b, 0x40, 0x04,
+        0xd3, 0xa5, 0x49, 0x78, 0x35, 0xfa, 0x3b, 0xf6, 0x02, 0xab, 0x85, 0xee,
+        0xcb, 0x9b, 0x62, 0xda, 0x05, 0x00, 0x22, 0x2f, 0xf8, 0xbd, 0x0b, 0xe5,
+        0x2c, 0xb2, 0x53, 0x78, 0x0a, 0xcb, 0x69, 0xc0, 0xb6, 0x9f, 0x96, 0xff,
+        0x58, 0x22, 0x70, 0x9c, 0x01, 0x2e, 0x56, 0x60, 0x5d, 0x37, 0xe3, 0x40,
+        0x25, 0xc9, 0x90, 0xc8, 0x0f, 0x41, 0x68, 0xb4, 0xfd, 0x10, 0xe2, 0x09,
+        0x99, 0x08, 0x5d, 0x7b, 0xc9, 0xe3, 0x29, 0xd4, 0x5a, 0xcf, 0xc9, 0x34,
+        0x55, 0xa1, 0x40, 0x44, 0xd6, 0x88, 0x16, 0xbb, 0xdd
+    };
+
+    X509* x509 = NULL;
+    int certSize = (int)sizeof(malformed_alt_name_cert) / sizeof(unsigned char);
+    const char *name = "aaaaa";
+    int nameLen = (int)XSTRLEN(name);
+
+    ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
+        malformed_alt_name_cert, certSize, SSL_FILETYPE_ASN1));
+
+    /* malformed_alt_name_cert has a malformed alternative
+     * name of "a*\0*". Ensure that it does not match "aaaaa" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name, nameLen,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
+    X509_free(x509);
+
+#endif
+    return EXPECT_RESULT();
+}
 
 static int test_wolfSSL_X509(void)
 {
@@ -41607,7 +41695,7 @@ static int test_wolfSSL_X509_sign(void)
     ExpectNotNull(name = X509_get_subject_name(ca));
     cnSz = X509_NAME_get_sz(name);
     ExpectNotNull(cn = (char*)XMALLOC(cnSz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL));
-    ExpectNotNull(cn = X509_NAME_oneline(name, cn, cnSz));
+    ExpectNotNull(cn = X509_NAME_oneline(name, cn, (int)cnSz));
     ExpectIntEQ(0, XSTRNCMP(cn, dCert.subject, XSTRLEN(cn)));
     XFREE(cn, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
     cn = NULL;
@@ -41629,7 +41717,7 @@ static int test_wolfSSL_X509_sign(void)
     ExpectNotNull(name = X509_get_issuer_name(x509));
     cnSz = X509_NAME_get_sz(name);
     ExpectNotNull(cn = (char*)XMALLOC(cnSz, HEAP_HINT, DYNAMIC_TYPE_OPENSSL));
-    ExpectNotNull(cn = X509_NAME_oneline(name, cn, cnSz));
+    ExpectNotNull(cn = X509_NAME_oneline(name, cn, (int)cnSz));
     /* compare and don't include the multi-attrib "/OU=OU1/OU=OU2" above */
     ExpectIntEQ(0, XSTRNCMP(cn, dCert.issuer, XSTRLEN(dCert.issuer)));
     XFREE(cn, HEAP_HINT, DYNAMIC_TYPE_OPENSSL);
@@ -43767,7 +43855,7 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest,
     ExpectIntEQ(digestSz, digestSz2);
     ExpectIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
 
-    *sz = digestSz;
+    *sz = (int)digestSz;
     return EXPECT_RESULT();
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_HMAC) */
@@ -45028,10 +45116,10 @@ static int test_wolfSSL_RC4(void)
             XMEMSET(dec, 0, sizeof(dec));
 
             /* Encrypt */
-            wolfSSL_RC4_set_key(&rc4Key, i, key);
+            wolfSSL_RC4_set_key(&rc4Key, (int)i, key);
             wolfSSL_RC4(&rc4Key, j, data, enc);
             /* Decrypt */
-            wolfSSL_RC4_set_key(&rc4Key, i, key);
+            wolfSSL_RC4_set_key(&rc4Key, (int)i, key);
             wolfSSL_RC4(&rc4Key, j, enc, dec);
 
             ExpectIntEQ(XMEMCMP(dec, data, j), 0);
@@ -49197,9 +49285,9 @@ static int test_wolfSSL_make_cert(void)
     ExpectIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
                     -1)), 5);
     ExpectIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
-                    idx)), 6);
+                    (int)idx)), 6);
     ExpectIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
-                    idx)), -1);
+                    (int)idx)), -1);
 #endif /* WOLFSSL_MULTI_ATTRIB */
 
     /* compare DN at index 0 */
@@ -49222,13 +49310,13 @@ static int test_wolfSSL_make_cert(void)
     /* get first and second DC and compare result */
     ExpectIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
                     -1)), 5);
-    ExpectNotNull(entry = X509_NAME_get_entry(x509name, idx));
+    ExpectNotNull(entry = X509_NAME_get_entry(x509name, (int)idx));
     ExpectNotNull(entryValue = X509_NAME_ENTRY_get_data(entry));
     ExpectStrEQ((const char *)ASN1_STRING_data(entryValue), "com");
 
     ExpectIntEQ((idx = X509_NAME_get_index_by_NID(x509name, NID_domainComponent,
-                   idx)), 6);
-    ExpectNotNull(entry = X509_NAME_get_entry(x509name, idx));
+                   (int)idx)), 6);
+    ExpectNotNull(entry = X509_NAME_get_entry(x509name, (int)idx));
     ExpectNotNull(entryValue = X509_NAME_ENTRY_get_data(entry));
     ExpectStrEQ((const char *)ASN1_STRING_data(entryValue), "wolfssl");
 #endif /* WOLFSSL_MULTI_ATTRIB */
@@ -49416,7 +49504,7 @@ static int test_wolfSSL_EVP_PKEY_set1_get1_DSA(void)
 
     XMEMSET(tmp, 0, sizeof(tmp));
     XMEMCPY(tmp, dsaKeyDer , dsaKeySz);
-    bytes = dsaKeySz;
+    bytes = (word32)dsaKeySz;
 #else
     byte    tmp[TWOK_BUF];
     const unsigned char* dsaKeyDer = (const unsigned char*)tmp;
@@ -51980,7 +52068,7 @@ static int test_wolfSSL_X509V3_EXT_print(void)
             /* X509_get_ext_by_NID should return 3 for now. If that changes then
              * update the index */
             ExpectIntEQ((idx = X509_get_ext_by_NID(x509, *n, -1)), 3);
-            ExpectNotNull(ext = X509_get_ext(x509, idx));
+            ExpectNotNull(ext = X509_get_ext(x509, (int)idx));
             ExpectIntEQ(X509V3_EXT_print(bio, ext, 0, 0), 1);
             ExpectIntGT(fprintf(stderr, "\n"), 0);
         }
@@ -52733,19 +52821,19 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
     PRIVATE_KEY_UNLOCK();
     /* Call with NULL for out buffer to get necessary length. */
     ExpectIntEQ(wc_CreateEncryptedPKCS8Key((byte*)server_key_der_2048,
-        sizeof_server_key_der_2048, NULL, &encKeySz, password, passwordSz,
+        sizeof_server_key_der_2048, NULL, &encKeySz, password, (int)passwordSz,
         PKCS5, PBES2, AES256CBCb, NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL),
         LENGTH_ONLY_E);
     ExpectNotNull(encKey = (byte*)XMALLOC(encKeySz, HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER));
     /* Call with the allocated out buffer. */
     ExpectIntGT(wc_CreateEncryptedPKCS8Key((byte*)server_key_der_2048,
-        sizeof_server_key_der_2048, encKey, &encKeySz, password, passwordSz,
+        sizeof_server_key_der_2048, encKey, &encKeySz, password, (int)passwordSz,
         PKCS5, PBES2, AES256CBCb, NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL),
         0);
     /* Decrypt the encrypted PKCS8 key we just made. */
-    ExpectIntGT((decKeySz = wc_DecryptPKCS8Key(encKey, encKeySz, password,
-        passwordSz)), 0);
+    ExpectIntGT((decKeySz = (word32)wc_DecryptPKCS8Key(encKey, encKeySz, password,
+        (int)passwordSz)), 0);
     /* encKey now holds the decrypted key (decrypted in place). */
     ExpectIntGT(wc_GetPkcs8TraditionalOffset(encKey, &tradIdx, decKeySz), 0);
     /* Check that the decrypted key matches the key prior to encryption. */
@@ -52777,12 +52865,12 @@ static int test_wc_GetPkcs8TraditionalOffset(void)
 
     /* valid case */
     inOutIdx = 0;
-    ExpectIntGT(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, derSz),
+    ExpectIntGT(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, (word32)derSz),
         0);
 
     /* inOutIdx > sz */
     inOutIdx = 4000;
-    ExpectIntEQ(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, derSz),
+    ExpectIntEQ(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, (word32)derSz),
         BAD_FUNC_ARG);
 
     /* null input */
@@ -52793,7 +52881,7 @@ static int test_wc_GetPkcs8TraditionalOffset(void)
     /* invalid input, fill buffer with 1's */
     XMEMSET(der, 1, sizeof(der));
     inOutIdx = 0;
-    ExpectIntEQ(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, derSz),
+    ExpectIntEQ(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, (word32)derSz),
         ASN_PARSE_E);
 #endif /* NO_ASN */
     return EXPECT_RESULT();
@@ -53127,7 +53215,7 @@ static int test_MakeCertWithPathLen(void)
     ExpectIntGE(derSize = wc_SignCert(cert.bodySz, cert.sigType, der,
         FOURK_BUF, NULL, &key, &rng), 0);
 
-    wc_InitDecodedCert(&decodedCert, der, derSize, NULL);
+    wc_InitDecodedCert(&decodedCert, der, (word32)derSize, NULL);
     ExpectIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL), 0);
     ExpectIntEQ(decodedCert.pathLength, expectedPathLen);
 
@@ -54174,12 +54262,12 @@ static int test_wolfssl_PKCS7(void)
     byte*  out = NULL;
 #endif
 
-    ExpectIntGT((len = CreatePKCS7SignedData(data, len, content,
+    ExpectIntGT((len = (word32)CreatePKCS7SignedData(data, (int)len, content,
         (word32)sizeof(content), 0, 0, 0, RSA_TYPE)), 0);
 
-    ExpectNull(pkcs7 = d2i_PKCS7(NULL, NULL, len));
+    ExpectNull(pkcs7 = d2i_PKCS7(NULL, NULL, (int)len));
     ExpectNull(pkcs7 = d2i_PKCS7(NULL, &p, 0));
-    ExpectNotNull(pkcs7 = d2i_PKCS7(NULL, &p, len));
+    ExpectNotNull(pkcs7 = d2i_PKCS7(NULL, &p, (int)len));
     ExpectIntEQ(wolfSSL_PKCS7_verify(NULL, NULL, NULL, NULL, NULL,
         PKCS7_NOVERIFY), WOLFSSL_FAILURE);
     PKCS7_free(pkcs7);
@@ -54187,7 +54275,7 @@ static int test_wolfssl_PKCS7(void)
 
     /* fail case, without PKCS7_NOVERIFY */
     p = data;
-    ExpectNotNull(pkcs7 = d2i_PKCS7(NULL, &p, len));
+    ExpectNotNull(pkcs7 = d2i_PKCS7(NULL, &p, (int)len));
     ExpectIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, NULL, NULL,
         0), WOLFSSL_FAILURE);
     PKCS7_free(pkcs7);
@@ -54195,7 +54283,7 @@ static int test_wolfssl_PKCS7(void)
 
     /* success case, with PKCS7_NOVERIFY */
     p = data;
-    ExpectNotNull(pkcs7 = d2i_PKCS7(NULL, &p, len));
+    ExpectNotNull(pkcs7 = d2i_PKCS7(NULL, &p, (int)len));
     ExpectIntEQ(wolfSSL_PKCS7_verify(pkcs7, NULL, NULL, NULL, NULL,
         PKCS7_NOVERIFY), WOLFSSL_SUCCESS);
 
@@ -54303,7 +54391,7 @@ static int test_wolfSSL_PKCS7_sign(void)
         /* verify with wc_PKCS7_VerifySignedData */
         ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
         ExpectIntEQ(wc_PKCS7_Init(p7Ver, HEAP_HINT, INVALID_DEVID), 0);
-        ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, (word32)outLen), 0);
 
     #ifndef NO_PKCS7_STREAM
         /* verify with wc_PKCS7_VerifySignedData streaming */
@@ -54390,7 +54478,7 @@ static int test_wolfSSL_PKCS7_sign(void)
             p7Ver->content = data;
             p7Ver->contentSz = sizeof(data);
         }
-        ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, (word32)outLen), 0);
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
 
@@ -54447,7 +54535,7 @@ static int test_wolfSSL_PKCS7_sign(void)
             p7Ver->content = data;
             p7Ver->contentSz = sizeof(data);
         }
-        ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, outLen), 0);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, (word32)outLen), 0);
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
 
@@ -55147,7 +55235,7 @@ static int verify_sig_cm(const char* ca, byte* cert_buf, size_t cert_sz,
     (void)ca;
 #endif
 
-    ret = wolfSSL_CertManagerVerifyBuffer(cm, cert_buf, cert_sz,
+    ret = wolfSSL_CertManagerVerifyBuffer(cm, cert_buf, (long int)cert_sz,
         WOLFSSL_FILETYPE_ASN1);
     /* Let ExpectIntEQ handle return code */
 
@@ -62633,14 +62721,14 @@ static int test_ECDSA_size_sign(void)
     ExpectIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, NULL), 0);
     ExpectIntEQ(ECDSA_sign(0, NULL, sizeof(hash), sig, &sigSz, key), 0);
     ExpectIntEQ(ECDSA_sign(0, hash, sizeof(hash), NULL, &sigSz, key), 0);
-    ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, sigSz, NULL), 0);
-    ExpectIntEQ(ECDSA_verify(0, NULL, sizeof(hash), sig, sigSz, key), 0);
-    ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), NULL, sigSz, key), 0);
+    ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, (int)sigSz, NULL), 0);
+    ExpectIntEQ(ECDSA_verify(0, NULL, sizeof(hash), sig, (int)sigSz, key), 0);
+    ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), NULL, (int)sigSz, key), 0);
 
     ExpectIntEQ(ECDSA_sign(0, hash, sizeof(hash), sig, &sigSz, key), 1);
     ExpectIntGE(ECDSA_size(key), sigSz);
-    ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, sigSz, key), 1);
-    ExpectIntEQ(ECDSA_verify(0, hash2, sizeof(hash2), sig, sigSz, key), 0);
+    ExpectIntEQ(ECDSA_verify(0, hash, sizeof(hash), sig, (int)sigSz, key), 1);
+    ExpectIntEQ(ECDSA_verify(0, hash2, sizeof(hash2), sig, (int)sigSz, key), 0);
 
     ExpectNull(ECDSA_do_sign(NULL, sizeof(hash), NULL));
     ExpectNull(ECDSA_do_sign(NULL, sizeof(hash), key));
@@ -64439,6 +64527,19 @@ static int test_wolfSSL_THREADID_hash(void)
     ExpectTrue(CRYPTO_THREADID_hash(NULL) == 0UL);
     XMEMSET(&id, 0, sizeof(id));
     ExpectTrue(CRYPTO_THREADID_hash(&id) == 0UL);
+#endif /* OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
+static int test_wolfSSL_set_ecdh_auto(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL* ssl = NULL;
+
+    ExpectIntEQ(SSL_set_ecdh_auto(NULL,0), 1);
+    ExpectIntEQ(SSL_set_ecdh_auto(NULL,1), 1);
+    ExpectIntEQ(SSL_set_ecdh_auto(ssl,0), 1);
+    ExpectIntEQ(SSL_set_ecdh_auto(ssl,1), 1);
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
@@ -67644,7 +67745,7 @@ static int test_remove_hs_msg_from_buffer(byte *buf, int *len, byte type,
     word32 hLength;
 
     idx = buf;
-    tail_len = *len;
+    tail_len = (unsigned int)*len;
     *found = 0;
     while (tail_len > _RECORD_HEADER_SZ) {
         curr = idx;
@@ -72574,6 +72675,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_PEM_read_X509),
     TEST_DECL(test_wolfSSL_X509_check_ca),
     TEST_DECL(test_wolfSSL_X509_check_ip_asc),
+    TEST_DECL(test_wolfSSL_X509_bad_altname),
     TEST_DECL(test_wolfSSL_make_cert),
 
 #ifndef NO_BIO
@@ -73030,6 +73132,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as server hangs. */
     TEST_DECL(test_wolfSSL_Tls13_Key_Logging_test),
     TEST_DECL(test_wolfSSL_Tls13_postauth),
+    TEST_DECL(test_wolfSSL_set_ecdh_auto),
     TEST_DECL(test_wolfSSL_CTX_set_ecdh_auto),
     TEST_DECL(test_wolfSSL_set_minmax_proto_version),
     TEST_DECL(test_wolfSSL_CTX_set_max_proto_version),

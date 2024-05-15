@@ -1839,8 +1839,12 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
     /* do we have an even moduli? */
     if ((M->dp[0] & 1) == 0) {
 #ifndef NO_ESP_MP_MUL_EVEN_ALT_CALC
-        /*  Z = X * Y mod M in mixed HW & SW*/
+        /*  Z = X * Y mod M in mixed HW & SW */
+    #if defined(NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL)
+        ret = mp_mul(X, Y, tmpZ);     /* SW X * Y */
+    #else
         ret = esp_mp_mul(X, Y, tmpZ); /* HW X * Y */
+    #endif
         if (ret == MP_OKAY) {
             /* z = tmpZ mod M, 0 <= Z < M */
             ret = mp_mod(tmpZ, M, Z); /* SW mod M */
@@ -1940,7 +1944,6 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 
     /* lock HW for use, enable peripheral clock */
     if (ret == MP_OKAY) {
-        mulmod_lock_called = TRUE; /* Don't try to unlock unless we locked */
         #ifdef WOLFSSL_HW_METRICS
         {
             /* Only track max values when using HW */
@@ -1954,6 +1957,12 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
         #endif
 
         ret = esp_mp_hw_lock();
+        if (ret == ESP_OK) {
+            mulmod_lock_called = TRUE; /* Don't try to unlock unless locked */
+        }
+        else {
+            ret = WC_HW_WAIT_E;
+        }
     }
 
 #if defined(CONFIG_IDF_TARGET_ESP32)
@@ -2441,14 +2450,14 @@ int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
                            esp_mp_mulmod_usage_ct);
             ESP_LOGI(TAG, "esp_mp_mulmod_error_ct = %lu failures",
                            esp_mp_mulmod_error_ct);
-            ESP_LOGI(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
+            ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
             esp_show_mp("HW Z", Z); /* this is the HW result */
             esp_show_mp("SW Z2", Z2); /* this is the SW result */
             ESP_LOGI(TAG, "esp_mp_mulmod_usage_ct = %lu tries",
                            esp_mp_mulmod_usage_ct);
             ESP_LOGI(TAG, "esp_mp_mulmod_error_ct = %lu failures",
                            esp_mp_mulmod_error_ct);
-            ESP_LOGI(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
+            ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
 
 
             #ifndef NO_RECOVER_SOFTWARE_CALC
@@ -2991,7 +3000,7 @@ int esp_hw_show_mp_metrics(void)
                   "NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL");
 #else
     /* Metrics: esp_mp_mul() */
-    ESP_LOGI(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE); /* mul follows */
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE); /* mul follows */
     ESP_LOGI(TAG, "esp_mp_mul HW acceleration enabled.");
     ESP_LOGI(TAG, "Number of calls to esp_mp_mul: %lu",
                    esp_mp_mul_usage_ct);
@@ -3010,7 +3019,7 @@ int esp_hw_show_mp_metrics(void)
                   "NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD");
 #else
     /* Metrics: esp_mp_mulmod() */
-    ESP_LOGI(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE); /* mulmod follows */
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE); /* mulmod follows */
 
     ESP_LOGI(TAG, "esp_mp_mulmod HW acceleration enabled.");
     /* Metrics: esp_mp_mulmod() */
@@ -3052,7 +3061,7 @@ int esp_hw_show_mp_metrics(void)
                   "NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD");
 #else
     /* Metrics: sp_mp_exptmod() */
-    ESP_LOGI(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE); /* exptmod follows */
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE); /* exptmod follows */
 
     ESP_LOGI(TAG, "Number of calls to esp_mp_exptmod: %lu",
                    esp_mp_exptmod_usage_ct);

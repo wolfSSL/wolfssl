@@ -160,9 +160,11 @@ struct wc_Sha512 {
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W;
 #endif
+
 #if defined(WOLFSSL_ESP32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
-   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
+    (!defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) || \
+     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384))
     WC_ESP32SHA ctx;
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
