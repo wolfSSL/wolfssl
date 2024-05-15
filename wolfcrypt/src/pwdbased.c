@@ -223,12 +223,12 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
 #endif
 
 #if FIPS_VERSION3_GE(6,0,0) && defined(DEBUG_WOLFSSL)
-    /* SP800-132 §5.2 recommends an iteration count of 1000 but this is not
-     * strictly enforceable and is listed in Appendix B Table 1 as a
+    /* SP800-132 section 5.2 recommends an iteration count of 1000 but this is
+     * not strictly enforceable and is listed in Appendix B Table 1 as a
      * non-testable requirement. wolfCrypt will log it when appropriate but
      * take no action */
     if (iterations < 1000) {
-        WOLFSSL_MSG("WARNING: Iteration < 1,000, see SP800-132 §5.2");
+        WOLFSSL_MSG("WARNING: Iteration < 1,000, see SP800-132 section 5.2");
     }
 #endif
     if (iterations <= 0)
