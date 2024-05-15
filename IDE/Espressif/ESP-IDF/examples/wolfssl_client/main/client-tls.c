@@ -298,7 +298,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
 /* see user_settings PROJECT_DH for HAVE_DH and HAVE_FFDHE_2048 */
 #ifndef NO_DH
     ret = wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
-     if (ret != SSL_SUCCESS) {
+     if (ret != WOLFSSL_SUCCESS) {
         ESP_LOGE(TAG, "Error setting minimum DH key size");
     }
 #endif
@@ -316,24 +316,28 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
                                          CTX_CLIENT_CERT,
                                          CTX_CLIENT_CERT_SIZE,
                                          CTX_CLIENT_CERT_TYPE);
-        if (ret_i != SSL_SUCCESS) {
-            ESP_LOGE(TAG, "ERROR: failed to load chain %d, "
+        if (ret_i != WOLFSSL_SUCCESS) {
+            ESP_LOGE(TAG, "ERROR: failed to load our cert chain %d, "
                           "please check the file.", ret_i);
         }
 
         /* Load client certificates into WOLFSSL_CTX */
-        WOLFSSL_MSG("Loading...cert");
+        WOLFSSL_MSG("Loading... CA cert");
         ret_i = wolfSSL_CTX_load_verify_buffer(ctx,
                                          CTX_CA_CERT,
                                          CTX_CA_CERT_SIZE,
                                          CTX_CA_CERT_TYPE);
+        if (ret_i != WOLFSSL_SUCCESS) {
+            ESP_LOGE(TAG, "ERROR: failed to load CA cert %d, "
+                          "please check the file.\n", ret_i) ;
+        }
 
+        WOLFSSL_MSG("Loading... our key");
         ret_i = wolfSSL_CTX_use_PrivateKey_buffer(ctx,
                                          CTX_CLIENT_KEY,
                                          CTX_CLIENT_KEY_SIZE,
                                          CTX_CLIENT_KEY_TYPE);
-        if(ret_i  != SSL_SUCCESS) {
-            wolfSSL_CTX_free(ctx) ; ctx = NULL ;
+        if (ret_i != WOLFSSL_SUCCESS) {
             ESP_LOGE(TAG, "ERROR: failed to load key %d, "
                           "please check the file.\n", ret_i) ;
         }
@@ -409,7 +413,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
         ESP_LOGW(TAG, "WOLFSSL_HAVE_KYBER enabled but no key size available.");
         ret_i = ESP_FAIL;
     #endif
-        if (ret_i == SSL_SUCCESS) {
+        if (ret_i == WOLFSSL_SUCCESS) {
             ESP_LOGI(TAG, "UseKeyShare Kyber success");
         }
         else {
@@ -462,7 +466,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
     ESP_LOGI(TAG, "tls_smp_client_task heap(3) @ %p = %d",
                     &this_heap, this_heap);
 #endif
-    if (ret_i == SSL_SUCCESS) {
+    if (ret_i == WOLFSSL_SUCCESS) {
 #ifdef DEBUG_WOLFSSL
         ShowCiphers(ssl);
 #endif
@@ -534,7 +538,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
             ESP_LOGE(TAG, "Bidirectional shutdown failed\n");
         }
 
-    } /* wolfSSL_connect(ssl) == SSL_SUCCESS) */
+    } /* wolfSSL_connect(ssl) == WOLFSSL_SUCCESS) */
     else {
         ESP_LOGE(TAG, "ERROR: failed to connect to wolfSSL. "
                       "Error: %d\n", ret_i);
@@ -569,7 +573,7 @@ WOLFSSL_ESP_TASK tls_smp_client_init(void* args)
     /* See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html#functions  */
     if (TLS_SMP_CLIENT_TASK_BYTES < (6 * 1024)) {
         /* Observed approximately 6KB limit for the RTOS task stack size.
-         * Reminder parameter is bytes, not words as with generic FreeeRTOS. */
+         * Reminder parameter is bytes, not words as with generic FreeRTOS. */
         ESP_LOGW(TAG, "Warning: TLS_SMP_CLIENT_TASK_BYTES < 6KB");
     }
 #ifndef WOLFSSL_SMALL_STACK
