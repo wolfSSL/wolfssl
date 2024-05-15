@@ -1002,7 +1002,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
                 ret = esp_sha512_process(sha512);
             }
     #endif
-            if (ret == ESP_OK)
+            if (ret == 0)
                 sha512->buffLen = 0;
             else
                 len = 0;
