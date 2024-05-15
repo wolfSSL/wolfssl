@@ -799,7 +799,7 @@ static int gcmAesAead_loaded = 0;
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
 
-#ifndef WOLFSSL_AESGCM_STREAM
+#ifndef WOLFSSL_AESXTS_STREAM
     #error LKCAPI registration of AES-XTS requires WOLFSSL_AESXTS_STREAM (--enable-aesxts-stream).
 #endif
 
@@ -2022,6 +2022,25 @@ static int aes_xts_128_test(void)
 
     XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
 
+    XMEMCPY(iv, i2, sizeof(i2));
+    ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE,
+                                 p2 + AES_BLOCK_SIZE,
+                                 sizeof(p2) - AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    if (XMEMCMP(c2, buf, sizeof(c2))) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
+
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
+
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         goto out;
@@ -2173,6 +2192,7 @@ static int aes_xts_128_test(void)
     #define LARGE_XTS_SZ        1024
         int i;
         int j;
+        int k;
 
         large_input = (byte *)XMALLOC(LARGE_XTS_SZ, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -2184,6 +2204,38 @@ static int aes_xts_128_test(void)
         for (i = 0; i < (int)LARGE_XTS_SZ; i++)
             large_input[i] = (byte)i;
 
+        /* first, encrypt block by block then decrypt with a one-shot call. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                goto out;
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+            if (ret != 0)
+                goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+            if (ret != 0)
+                goto out;
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+                    goto out;
+                }
+            }
+        }
+
+        /* second, encrypt with a one-shot call then decrypt block by block. */
         for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
             if (ret != 0)
@@ -2192,14 +2244,20 @@ static int aes_xts_128_test(void)
                 sizeof(i1));
             if (ret != 0)
                 goto out;
-
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
             if (ret != 0)
                 goto out;
-            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
-                sizeof(i1));
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsDecryptInit(aes, iv, sizeof(iv));
             if (ret != 0)
                 goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
             for (i = 0; i < j; i++) {
                 if (large_input[i] != (byte)i) {
                     ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
@@ -2425,6 +2483,7 @@ static int aes_xts_256_test(void)
     struct crypto_skcipher *tfm = NULL;
     struct skcipher_request *req = NULL;
     u8 iv[AES_BLOCK_SIZE];
+    byte* large_input = NULL;
 
     /* 256 key tests */
     static const unsigned char k1[] = {
@@ -2544,6 +2603,25 @@ static int aes_xts_256_test(void)
     }
 
     XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
+
+    XMEMCPY(iv, i2, sizeof(i2));
+    ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE,
+                                 p2 + AES_BLOCK_SIZE,
+                                 sizeof(p2) - AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    if (XMEMCMP(c2, buf, sizeof(c2))) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
+
+    XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         goto out;
@@ -2594,6 +2672,85 @@ static int aes_xts_256_test(void)
     if (XMEMCMP(p2, buf, sizeof(p2))) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
+    }
+
+    {
+    #define LARGE_XTS_SZ        1024
+        int i;
+        int j;
+        int k;
+
+        large_input = (byte *)XMALLOC(LARGE_XTS_SZ, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (large_input == NULL) {
+            ret = MEMORY_E;
+            goto out;
+        }
+
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        /* first, encrypt block by block then decrypt with a one-shot call. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                goto out;
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+            if (ret != 0)
+                goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+            if (ret != 0)
+                goto out;
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+                    goto out;
+                }
+            }
+        }
+
+        /* second, encrypt with a one-shot call then decrypt block by block. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                goto out;
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsDecryptInit(aes, iv, sizeof(iv));
+            if (ret != 0)
+                goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+                    goto out;
+                }
+            }
+        }
     }
 
     /* now the kernel crypto part */
@@ -2774,6 +2931,9 @@ static int aes_xts_256_test(void)
         crypto_free_skcipher(tfm);
 
   out:
+
+    if (large_input)
+        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aes_inited)
         wc_AesXtsFree(aes);
