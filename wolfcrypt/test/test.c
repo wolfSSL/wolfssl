@@ -1059,6 +1059,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         printf("unable to load static memory.\n");
         return(EXIT_FAILURE);
     }
+    #ifndef OPENSSL_EXTRA
+    wolfSSL_SetGlobalHeapHint(HEAP_HINT);
+    #endif
 #endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)
@@ -2013,6 +2016,9 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
     #endif
 #endif
 
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(OPENSSL_EXTRA)
+    wolfSSL_SetGlobalHeapHint(NULL);
+#endif
     TEST_PASS("Test complete\n");
 
     EXIT_TEST(ret);
