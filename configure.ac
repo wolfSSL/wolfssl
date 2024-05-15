@@ -100,6 +100,9 @@ else
     REPRODUCIBLE_BUILD_DEFAULT=no
 fi
 
+# Fail when an option is passed that is not recognized
+m4_divert_once([DEFAULTS], [enable_option_checking=fatal])
+
 # Allow experimental settings
 AC_ARG_ENABLE([experimental],
     [AS_HELP_STRING([--enable-experimental],[Allow experimental settings in the configuration (default: disabled)])],
