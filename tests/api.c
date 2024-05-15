@@ -41247,7 +41247,7 @@ static int test_wolfSSL_X509_bad_altname(void)
     X509* x509 = NULL;
     int certSize = sizeof(malformed_alt_name_cert) / sizeof(unsigned char);
     const char *name = "aaaaa";
-    int nameLen = strlen(name);
+    int nameLen = (int)strlen(name);
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         malformed_alt_name_cert, certSize, SSL_FILETYPE_ASN1));
