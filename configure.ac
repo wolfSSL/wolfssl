@@ -8308,7 +8308,7 @@ fi
 AC_ARG_WITH([max-ecc-bits],
     [AS_HELP_STRING([--with-max-ecc-bits=number],[number of bits to support for ECC algorithms])],
     [WITH_MAX_ECC_BITS=$withval],
-    [WITH_MAX_ECC_BITS="$DEFAULT_MAX_ECC_BITS"])
+    )
 
 if test -n "$WITH_MAX_ECC_BITS"; then
    if test "$WITH_MAX_ECC_BITS" -lt 112 -o "$WITH_MAX_ECC_BITS" -gt 1024; then
