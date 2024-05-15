@@ -939,7 +939,7 @@ then
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6 || test "$FIPS_VERSION" = "v5-dev"; then
         test "$enable_aesxts" = "" && enable_aesxts=yes
-        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
+        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && (test "$enable_armasm" = "" || test "$enable_armasm" = "no") && enable_aesxts_stream=yes
         test "$enable_aessiv" = "" && enable_aessiv=yes
     fi
 
@@ -1079,7 +1079,7 @@ then
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6 || test "$FIPS_VERSION" = "v5-dev"; then
         test "$enable_aesxts" = "" && enable_aesxts=yes
-        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && enable_aesxts_stream=yes
+        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && (test "$enable_armasm" = "" || test "$enable_armasm" = "no") && enable_aesxts_stream=yes
         test "$enable_aessiv" = "" && enable_aessiv=yes
     fi
 
@@ -4849,10 +4849,16 @@ AC_ARG_ENABLE([aesxts],
     [ ENABLED_AESXTS=$enableval ],
     [ ENABLED_AESXTS=no ]
     )
+
+AS_IF([test "$ENABLED_AESXTS" = "yes" && test "$ENABLED_ARMASM" = "no"],
+    [ ENABLED_AESXTS_STREAM_DEFAULT=yes ],
+    [ ENABLED_AESXTS_STREAM_DEFAULT=no ]
+    )
+
 AC_ARG_ENABLE([aesxts-stream],
     [AS_HELP_STRING([--enable-aesxts-stream],[Enable wolfSSL AES-XTS support with streaming APIs (default: disabled)])],
     [ ENABLED_AESXTS_STREAM=$enableval ],
-    [ ENABLED_AESXTS_STREAM=$ENABLED_AESXTS ]
+    [ ENABLED_AESXTS_STREAM=$ENABLED_AESXTS_STREAM_DEFAULT ]
     )
 
 # legacy old option name, for compatibility:
@@ -5077,10 +5083,8 @@ AS_CASE([$FIPS_VERSION],
         AS_IF([test "x$ENABLED_AESXTS" = "xyes" && test "x$ENABLED_AESNI" = "xyes"],
             [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AES_XTS"])
 
-        AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xno"],
-            [ENABLED_AESXTS_STREAM="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AESXTS_STREAM"])
-        AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xyes" && test "x$ENABLED_AESNI" = "xyes"],
-            [AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_AESXTS_STREAM"])
+        AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xno" && ! (test "$ENABLED_ARMASM" = "yes" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
+            [ENABLED_AESXTS_STREAM="yes"])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
                (test "$ENABLED_AESCTR" = "yes" && test "$HAVE_AESCTR_PORT" != "yes") ||
