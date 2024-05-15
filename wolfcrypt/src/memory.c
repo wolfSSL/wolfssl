@@ -918,7 +918,7 @@ void* wolfSSL_SetGlobalHeapHint(void* heap)
 
 
 /* returns a pointer to the current global heap hint */
-void* wolfSSL_GetGlobalHeapHint()
+void* wolfSSL_GetGlobalHeapHint(void)
 {
     return globalHeapHint;
 }
