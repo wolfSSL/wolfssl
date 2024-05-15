@@ -1141,6 +1141,10 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             #endif
             }
             mem = hint->memory;
+            if (mem == NULL) {
+                WOLFSSL_MSG("Bad hint pointer to memory");
+                return;
+            }
 
             /* get memory struct and add it to available list */
             pt = (wc_Memory*)((byte*)ptr - sizeof(wc_Memory) - padSz);
