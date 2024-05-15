@@ -6056,6 +6056,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             int ret = 0;
             word32 processed;
 
+            XMEMSET(scratch, 0, sizeof(scratch));
+
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
             }

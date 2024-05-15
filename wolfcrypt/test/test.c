@@ -5888,7 +5888,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_md5_test(void)
         wc_HmacFree(&hmac);
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_MD5)) != WC_MD5_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
@@ -5996,7 +5996,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha_test(void)
         wc_HmacFree(&hmac);
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA)) != WC_SHA_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
@@ -6096,7 +6096,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha224_test(void)
         wc_HmacFree(&hmac);
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA224)) != WC_SHA224_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
@@ -6217,11 +6217,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha256_test(void)
         wc_HmacFree(&hmac);
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA256)) != WC_SHA256_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
+#if FIPS_VERSION3_GE(6,0,0)
+    if ((ret = wc_HmacSizeByType(21)) != HMAC_KAT_FIPS_E)
+#else
     if ((ret = wc_HmacSizeByType(21)) != BAD_FUNC_ARG)
+#endif
+    {
         return WC_TEST_RET_ENC_EC(ret);
+    }
 #endif
     if ((ret = wolfSSL_GetHmacMaxSize()) != WC_MAX_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
@@ -6330,7 +6336,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha384_test(void)
         wc_HmacFree(&hmac);
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA384)) != WC_SHA384_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
@@ -6443,7 +6449,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha512_test(void)
         wc_HmacFree(&hmac);
     }
 
-#ifndef HAVE_FIPS
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     if ((ret = wc_HmacSizeByType(WC_SHA512)) != WC_SHA512_DIGEST_SIZE)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
@@ -6615,7 +6621,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hmac_sha3_test(void)
             if (i > 0)
                 continue;
 
-        #ifndef HAVE_FIPS
+        #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
             ret = wc_HmacSizeByType(hashType[j]);
             if (ret != hashSz[j])
                 return WC_TEST_RET_ENC_EC(ret);
@@ -26039,7 +26045,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pbkdf2_test(void)
 {
     char passwd[] = "passwordpassword";
-    WOLFSSL_SMALL_STACK_STATIC const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a, 0x5d, 0x63, 0xcb, 0x06 };
+    WOLFSSL_SMALL_STACK_STATIC const byte salt[] = { 0x78, 0x57, 0x8E, 0x5a,
+                                                     0x5d, 0x63, 0xcb, 0x06 };
     int   iterations = 2048;
     int   kLen = 24;
     byte  derived[64];

@@ -4510,7 +4510,8 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
 
     if (q != NULL) {
         int valid = 0;
-        /* 5.4 - check that |p-q| <= (2^(1/2))(2^((nlen/2)-1)) */
+        /* 5.4 (186-4) 5.5 (186-5) -
+         * check that |p-q| <= (2^(1/2))(2^((nlen/2)-1)) */
         ret = wc_CompareDiffPQ(p, q, nlen, &valid);
         if ((ret != MP_OKAY) || (!valid)) goto notOkay;
         prime = q;
@@ -4518,14 +4519,15 @@ static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
     else
         prime = p;
 
-    /* 4.4,5.5 - Check that prime >= (2^(1/2))(2^((nlen/2)-1))
+    /* 4.4,5.5 (186-4) 4.4,5.4 (186-5) -
+     * Check that prime >= (2^(1/2))(2^((nlen/2)-1))
      *           This is a comparison against lowerBound */
     ret = mp_read_unsigned_bin(tmp1, lower_bound, (word32)nlen/16);
     if (ret != MP_OKAY) goto notOkay;
     ret = mp_cmp(prime, tmp1);
     if (ret == MP_LT) goto exit;
 
-    /* 4.5,5.6 - Check that GCD(p-1, e) == 1 */
+    /* 4.5,5.6 (186-4 & 186-5) - Check that GCD(p-1, e) == 1 */
     ret = mp_sub_d(prime, 1, tmp1);  /* tmp1 = prime-1 */
     if (ret != MP_OKAY) goto notOkay;
 #ifdef WOLFSSL_CHECK_MEM_ZERO

@@ -1275,7 +1275,12 @@ int wolfSSL_GetHmacMaxSize(void)
 
         ret = wc_HmacInit(myHmac, heap, devId);
         if (ret == 0) {
+        #if FIPS_VERSION3_GE(6,0,0)
+            ret = wc_HmacSetKey_ex(myHmac, type, localSalt, saltSz,
+                                   FIPS_ALLOW_SHORT);
+        #else
             ret = wc_HmacSetKey(myHmac, type, localSalt, saltSz);
+        #endif
             if (ret == 0)
                 ret = wc_HmacUpdate(myHmac, inKey, inKeySz);
             if (ret == 0)
@@ -1356,7 +1361,12 @@ int wolfSSL_GetHmacMaxSize(void)
             word32 tmpSz = (n == 1) ? 0 : hashSz;
             word32 left = outSz - outIdx;
 
+        #if FIPS_VERSION3_GE(6,0,0)
+            ret = wc_HmacSetKey_ex(myHmac, type, inKey, inKeySz,
+                                   FIPS_ALLOW_SHORT);
+        #else
             ret = wc_HmacSetKey(myHmac, type, inKey, inKeySz);
+        #endif
             if (ret != 0)
                 break;
             ret = wc_HmacUpdate(myHmac, tmp, tmpSz);
