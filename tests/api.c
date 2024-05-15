@@ -12374,6 +12374,16 @@ static int test_wolfSSL_PKCS12(void)
     ExpectIntEQ(wolfSSL_X509_NAME_cmp((const WOLFSSL_X509_NAME*)subject,
             (const WOLFSSL_X509_NAME*)wolfSSL_X509_get_subject_name(x509)), 0);
 
+    /* modify case and compare subject from certificate in ca to expected.
+     * The first bit of the name is:
+     * /C=US/ST=Washington
+     * So we'll change subject->name[1] to 'c' (lower case) */
+    if (subject != NULL) {
+        subject->name[1] = 'c';
+        ExpectIntEQ(wolfSSL_X509_NAME_cmp((const WOLFSSL_X509_NAME*)subject,
+            (const WOLFSSL_X509_NAME*)wolfSSL_X509_get_subject_name(x509)), 0);
+    }
+
     EVP_PKEY_free(pkey);
     pkey = NULL;
     X509_free(x509);

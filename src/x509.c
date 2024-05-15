@@ -11159,7 +11159,7 @@ cleanup:
         _x = (x->name && *x->name) ? x->name : x->staticName;
         _y = (y->name && *y->name) ? y->name : y->staticName;
 
-        return XSTRNCMP(_x, _y, x->sz); /* y sz is the same */
+        return XSTRNCASECMP(_x, _y, x->sz); /* y sz is the same */
     }
 
 #ifndef NO_BIO
