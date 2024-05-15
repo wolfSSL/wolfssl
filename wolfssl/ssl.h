@@ -1135,6 +1135,7 @@ WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
 WOLFSSL_ABI WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method);
 WOLFSSL_API int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx);
 #ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_set_ecdh_auto(WOLFSSL* ssl, int onoff);
 WOLFSSL_API int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff);
 WOLFSSL_API int wolfSSL_get_signature_nid(WOLFSSL* ssl, int* nid);
 WOLFSSL_API int wolfSSL_get_signature_type_nid(const WOLFSSL* ssl, int* nid);

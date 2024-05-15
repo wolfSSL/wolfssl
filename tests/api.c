@@ -64530,6 +64530,19 @@ static int test_wolfSSL_THREADID_hash(void)
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
+static int test_wolfSSL_set_ecdh_auto(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL* ssl = NULL;
+
+    ExpectIntEQ(SSL_set_ecdh_auto(NULL,0), 1);
+    ExpectIntEQ(SSL_set_ecdh_auto(NULL,1), 1);
+    ExpectIntEQ(SSL_set_ecdh_auto(ssl,0), 1);
+    ExpectIntEQ(SSL_set_ecdh_auto(ssl,1), 1);
+#endif /* OPENSSL_EXTRA */
+    return EXPECT_RESULT();
+}
 static int test_wolfSSL_CTX_set_ecdh_auto(void)
 {
     EXPECT_DECLS;
@@ -73119,6 +73132,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as server hangs. */
     TEST_DECL(test_wolfSSL_Tls13_Key_Logging_test),
     TEST_DECL(test_wolfSSL_Tls13_postauth),
+    TEST_DECL(test_wolfSSL_set_ecdh_auto),
     TEST_DECL(test_wolfSSL_CTX_set_ecdh_auto),
     TEST_DECL(test_wolfSSL_set_minmax_proto_version),
     TEST_DECL(test_wolfSSL_CTX_set_max_proto_version),
