@@ -75,16 +75,25 @@
 #if defined(HAVE_AES_CBC) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESCBC))
+#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 static int  linuxkm_test_aescbc(void);
 #endif
 #if defined(WOLFSSL_AES_CFB) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESCFB))
+#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 static int  linuxkm_test_aescfb(void);
 #endif
 #if defined(HAVE_AESGCM) && \
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESGCM))
+#ifndef WOLFSSL_EXPERIMENTAL_SETTINGS
+    #error Experimental settings without WOLFSSL_EXPERIMENTAL_SETTINGS
+#endif
 static int  linuxkm_test_aesgcm(void);
 #endif
 #if defined(WOLFSSL_AES_XTS) && \
@@ -790,6 +799,10 @@ static int gcmAesAead_loaded = 0;
     (defined(LINUXKM_LKCAPI_REGISTER_ALL) || \
      defined(LINUXKM_LKCAPI_REGISTER_AESXTS))
 
+#ifndef WOLFSSL_AESXTS_STREAM
+    #error LKCAPI registration of AES-XTS requires WOLFSSL_AESXTS_STREAM (--enable-aesxts-stream).
+#endif
+
 struct km_AesXtsCtx {
     XtsAes *aesXts; /* allocated in km_AesXtsInitCommon() to assure alignment
                      * for AESNI.
@@ -835,6 +848,16 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
     int err;
     struct km_AesXtsCtx * ctx = crypto_skcipher_ctx(tfm);
 
+    /* filter bad keysizes here, to avoid console noise from
+     * CONFIG_CRYPTO_MANAGER_EXTRA_TESTS.
+     */
+    if ((key_len != (AES_128_KEY_SIZE*2)) &&
+        (key_len != (AES_192_KEY_SIZE*2)) &&
+        (key_len != (AES_256_KEY_SIZE*2)))
+    {
+        return -EINVAL;
+    }
+
     err = wc_AesXtsSetKeyNoInit(ctx->aesXts, in_key, key_len,
                                 AES_ENCRYPTION_AND_DECRYPTION);
 
@@ -852,7 +875,6 @@ static int km_AesXtsSetKey(struct crypto_skcipher *tfm, const u8 *in_key,
 static int km_AesXtsEncrypt(struct skcipher_request *req)
 {
     int                      err = 0;
-
     struct crypto_skcipher * tfm = NULL;
     struct km_AesXtsCtx *    ctx = NULL;
     struct skcipher_walk     walk;
@@ -860,6 +882,9 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
 
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
+
+    if (req->cryptlen < AES_BLOCK_SIZE)
+        return -EINVAL;
 
     err = skcipher_walk_virt(&walk, req, false);
 
@@ -869,10 +894,9 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         return err;
     }
 
-    while ((nbytes = walk.nbytes) != 0) {
+    if (walk.nbytes == walk.total) {
         err = wc_AesXtsEncrypt(ctx->aesXts, walk.dst.virt.addr,
-                               walk.src.virt.addr, nbytes,
-                               walk.iv, walk.ivsize);
+                               walk.src.virt.addr, walk.nbytes, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
             pr_err("%s: wc_AesXtsEncrypt failed: %d\n",
@@ -880,12 +904,92 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             return -EINVAL;
         }
 
-        err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+        err = skcipher_walk_done(&walk, 0);
+
+    } else {
+        int tail = req->cryptlen % AES_BLOCK_SIZE;
+        struct skcipher_request subreq;
+
+        if (tail > 0) {
+            int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
+
+            skcipher_walk_abort(&walk);
+
+            skcipher_request_set_tfm(&subreq, tfm);
+            skcipher_request_set_callback(&subreq,
+                                          skcipher_request_flags(req),
+                                          NULL, NULL);
+            skcipher_request_set_crypt(&subreq, req->src, req->dst,
+                                       blocks * AES_BLOCK_SIZE, req->iv);
+            req = &subreq;
+
+            err = skcipher_walk_virt(&walk, req, false);
+            if (!walk.nbytes)
+                return err ? : -EINVAL;
+        } else {
+            tail = 0;
+        }
+
+        err = wc_AesXtsEncryptInit(ctx->aesXts, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
-            pr_err("%s: skcipher_walk_done failed: %d\n",
+            pr_err("%s: wc_AesXtsEncryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
+            return -EINVAL;
+        }
+
+        while ((nbytes = walk.nbytes) != 0) {
+            /* if this isn't the final call, pass block-aligned data to prevent
+             * end-of-message ciphertext stealing.
+             */
+            if (nbytes < walk.total)
+                nbytes &= ~(AES_BLOCK_SIZE - 1);
+
+            err = wc_AesXtsEncryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+                                         walk.src.virt.addr, nbytes,
+                                         walk.iv);
+
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                return -EINVAL;
+            }
+
+            err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+
+            if (unlikely(err)) {
+                pr_err("%s: skcipher_walk_done failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                return err;
+            }
+        }
+
+        if (unlikely(tail > 0)) {
+            struct scatterlist sg_src[2], sg_dst[2];
+            struct scatterlist *src, *dst;
+
+            dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+            if (req->dst != req->src)
+                dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+
+            skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+                                       req->iv);
+
+            err = skcipher_walk_virt(&walk, &subreq, false);
+            if (err)
+                return err;
+
+            err = wc_AesXtsEncryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+                                         walk.src.virt.addr, walk.nbytes,
+                                         walk.iv);
+
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                return -EINVAL;
+            }
+
+            err = skcipher_walk_done(&walk, 0);
         }
     }
 
@@ -903,6 +1007,9 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
 
+    if (req->cryptlen < AES_BLOCK_SIZE)
+        return -EINVAL;
+
     err = skcipher_walk_virt(&walk, req, false);
 
     if (unlikely(err)) {
@@ -911,26 +1018,107 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
         return err;
     }
 
-    while ((nbytes = walk.nbytes) != 0) {
-        err = wc_AesXtsDecrypt(ctx->aesXts, walk.dst.virt.addr,
-                               walk.src.virt.addr, nbytes,
-                               walk.iv, walk.ivsize);
+    if (walk.nbytes == walk.total) {
+
+        err = wc_AesXtsDecrypt(ctx->aesXts,
+                               walk.dst.virt.addr, walk.src.virt.addr,
+                               walk.nbytes, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
-            pr_err("%s: wc_AesCbcDecrypt failed: %d\n",
+            pr_err("%s: wc_AesXtsDecrypt failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
             return -EINVAL;
         }
 
-        err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+        err = skcipher_walk_done(&walk, 0);
+
+    } else {
+        int tail = req->cryptlen % AES_BLOCK_SIZE;
+        struct skcipher_request subreq;
+
+        if (unlikely(tail > 0)) {
+            int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
+
+            skcipher_walk_abort(&walk);
+
+            skcipher_request_set_tfm(&subreq, tfm);
+            skcipher_request_set_callback(&subreq,
+                                          skcipher_request_flags(req),
+                                          NULL, NULL);
+            skcipher_request_set_crypt(&subreq, req->src, req->dst,
+                                       blocks * AES_BLOCK_SIZE, req->iv);
+            req = &subreq;
+
+            err = skcipher_walk_virt(&walk, req, false);
+            if (!walk.nbytes)
+                return err ? : -EINVAL;
+        } else {
+            tail = 0;
+        }
+
+        err = wc_AesXtsDecryptInit(ctx->aesXts, walk.iv, walk.ivsize);
 
         if (unlikely(err)) {
-            pr_err("%s: skcipher_walk_done failed: %d\n",
+            pr_err("%s: wc_AesXtsDecryptInit failed: %d\n",
                    crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
-            return err;
+            return -EINVAL;
         }
-    }
 
+        while ((nbytes = walk.nbytes) != 0) {
+            /* if this isn't the final call, pass block-aligned data to prevent
+             * end-of-message ciphertext stealing.
+             */
+            if (nbytes < walk.total)
+                nbytes &= ~(AES_BLOCK_SIZE - 1);
+
+            err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+                                         walk.src.virt.addr, nbytes,
+                                         walk.iv);
+
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                return -EINVAL;
+            }
+
+            err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+
+            if (unlikely(err)) {
+                pr_err("%s: skcipher_walk_done failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                return err;
+            }
+        }
+
+        if (unlikely(tail > 0)) {
+            struct scatterlist sg_src[2], sg_dst[2];
+            struct scatterlist *src, *dst;
+
+            dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+            if (req->dst != req->src)
+                dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+
+            skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+                                       req->iv);
+
+            err = skcipher_walk_virt(&walk, &subreq, false);
+            if (err)
+                return err;
+
+            err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+                                         walk.src.virt.addr, walk.nbytes,
+                                         walk.iv);
+
+            if (unlikely(err)) {
+                pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
+                       crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
+                return -EINVAL;
+            }
+
+            err = skcipher_walk_done(&walk, 0);
+        }
+
+    }
     return err;
 }
 
@@ -1834,6 +2022,25 @@ static int aes_xts_128_test(void)
 
     XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
 
+    XMEMCPY(iv, i2, sizeof(i2));
+    ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE,
+                                 p2 + AES_BLOCK_SIZE,
+                                 sizeof(p2) - AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    if (XMEMCMP(c2, buf, sizeof(c2))) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
+
+    XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
+
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         goto out;
@@ -1985,6 +2192,7 @@ static int aes_xts_128_test(void)
     #define LARGE_XTS_SZ        1024
         int i;
         int j;
+        int k;
 
         large_input = (byte *)XMALLOC(LARGE_XTS_SZ, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -1996,6 +2204,38 @@ static int aes_xts_128_test(void)
         for (i = 0; i < (int)LARGE_XTS_SZ; i++)
             large_input[i] = (byte)i;
 
+        /* first, encrypt block by block then decrypt with a one-shot call. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                goto out;
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+            if (ret != 0)
+                goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+            if (ret != 0)
+                goto out;
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+                    goto out;
+                }
+            }
+        }
+
+        /* second, encrypt with a one-shot call then decrypt block by block. */
         for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
             if (ret != 0)
@@ -2004,14 +2244,20 @@ static int aes_xts_128_test(void)
                 sizeof(i1));
             if (ret != 0)
                 goto out;
-
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
             if (ret != 0)
                 goto out;
-            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
-                sizeof(i1));
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsDecryptInit(aes, iv, sizeof(iv));
             if (ret != 0)
                 goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
             for (i = 0; i < j; i++) {
                 if (large_input[i] != (byte)i) {
                     ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
@@ -2237,6 +2483,7 @@ static int aes_xts_256_test(void)
     struct crypto_skcipher *tfm = NULL;
     struct skcipher_request *req = NULL;
     u8 iv[AES_BLOCK_SIZE];
+    byte* large_input = NULL;
 
     /* 256 key tests */
     static const unsigned char k1[] = {
@@ -2356,6 +2603,25 @@ static int aes_xts_256_test(void)
     }
 
     XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
+
+    XMEMCPY(iv, i2, sizeof(i2));
+    ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE,
+                                 p2 + AES_BLOCK_SIZE,
+                                 sizeof(p2) - AES_BLOCK_SIZE, iv);
+    if (ret != 0)
+        goto out;
+    if (XMEMCMP(c2, buf, sizeof(c2))) {
+        ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+        goto out;
+    }
+
+    XMEMSET(buf, 0, AES_XTS_256_TEST_BUF_SIZ);
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
         goto out;
@@ -2406,6 +2672,85 @@ static int aes_xts_256_test(void)
     if (XMEMCMP(p2, buf, sizeof(p2))) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
+    }
+
+    {
+    #define LARGE_XTS_SZ        1024
+        int i;
+        int j;
+        int k;
+
+        large_input = (byte *)XMALLOC(LARGE_XTS_SZ, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (large_input == NULL) {
+            ret = MEMORY_E;
+            goto out;
+        }
+
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        /* first, encrypt block by block then decrypt with a one-shot call. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                goto out;
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsEncryptInit(aes, iv, sizeof(iv));
+            if (ret != 0)
+                goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+            if (ret != 0)
+                goto out;
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+                    goto out;
+                }
+            }
+        }
+
+        /* second, encrypt with a one-shot call then decrypt block by block. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+            if (ret != 0)
+                goto out;
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                goto out;
+            XMEMCPY(iv, i1, sizeof(i1));
+            ret = wc_AesXtsDecryptInit(aes, iv, sizeof(iv));
+            if (ret != 0)
+                goto out;
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if (ret != 0)
+                    goto out;
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
+                    goto out;
+                }
+            }
+        }
     }
 
     /* now the kernel crypto part */
@@ -2586,6 +2931,9 @@ static int aes_xts_256_test(void)
         crypto_free_skcipher(tfm);
 
   out:
+
+    if (large_input)
+        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aes_inited)
         wc_AesXtsFree(aes);

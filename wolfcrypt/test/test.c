@@ -9863,6 +9863,18 @@ static wc_test_ret_t aes_xts_128_test(void)
     wc_test_ret_t ret = 0;
     unsigned char buf[AES_BLOCK_SIZE * 2 + 8];
     unsigned char cipher[AES_BLOCK_SIZE * 2 + 8];
+#ifdef WOLFSSL_AESXTS_STREAM
+    unsigned char i_copy[AES_BLOCK_SIZE];
+#endif
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+        !defined(WOLFSSL_AFALG)
+    #define LARGE_XTS_SZ        1024
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte* large_input = NULL;
+    #else
+    byte large_input[LARGE_XTS_SZ];
+    #endif
+#endif
 
     /* 128 key tests */
     WOLFSSL_SMALL_STACK_STATIC unsigned char k1[] = {
@@ -9987,6 +9999,34 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(c2, buf, sizeof(c2)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i2, sizeof(i2));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE, p2 + AES_BLOCK_SIZE, sizeof(p2) - AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c2, buf, sizeof(c2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
         defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
@@ -10015,6 +10055,27 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p1, sizeof(p1), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c1, buf, sizeof(c1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
         defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
@@ -10039,6 +10100,27 @@ static wc_test_ret_t aes_xts_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (XMEMCMP(cp2, cipher, sizeof(cp2)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, pp, sizeof(pp), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(cp2, buf, sizeof(cp2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
         defined(WC_C_DYNAMIC_FALLBACK)
@@ -10073,6 +10155,27 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(pp, buf, sizeof(pp)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf, cipher, sizeof(pp), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(pp, buf, sizeof(pp)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
         defined(WC_C_DYNAMIC_FALLBACK)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
@@ -10104,8 +10207,29 @@ static wc_test_ret_t aes_xts_128_test(void)
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
+    if (XMEMCMP(p1, buf, sizeof(p1)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf, c1, sizeof(c1), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(p1, buf, sizeof(p1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
         defined(WC_C_DYNAMIC_FALLBACK)
@@ -10176,6 +10300,34 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(c3, buf, sizeof(c3)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i3, sizeof(i3));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p3, AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE, p3 + AES_BLOCK_SIZE, sizeof(p3) - AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c3, buf, sizeof(c3)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
     ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_DECRYPTION);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
@@ -10192,21 +10344,47 @@ static wc_test_ret_t aes_xts_128_test(void)
     if (XMEMCMP(p3, buf, sizeof(p3)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i3, sizeof(i3));
+
+    ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf, c3, AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf + AES_BLOCK_SIZE, c3 + AES_BLOCK_SIZE, sizeof(c3) - AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(p3, buf, sizeof(p3)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
 #endif /* !HAVE_FIPS */
 
 #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
     !defined(WOLFSSL_AFALG)
     {
-    #define LARGE_XTS_SZ        1024
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        byte* large_input = (byte *)XMALLOC(LARGE_XTS_SZ, HEAP_HINT,
-            DYNAMIC_TYPE_TMP_BUFFER);
-    #else
-        byte large_input[LARGE_XTS_SZ];
-    #endif
         int i;
         int j;
+#ifdef WOLFSSL_AESXTS_STREAM
+        int k;
+#endif
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        large_input = (byte *)XMALLOC(LARGE_XTS_SZ, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (large_input == NULL)
             ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
     #endif
@@ -10247,15 +10425,121 @@ static wc_test_ret_t aes_xts_128_test(void)
                 }
             }
         }
-    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+
+#ifdef WOLFSSL_AESXTS_STREAM
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        /* first, encrypt block by block then decrypt with a one-shot call. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(i_copy, i1, sizeof(i1));
+            ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, i_copy);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+                if (ret != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, (word32)j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
+            #else
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+            #endif
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+
+        /* second, encrypt with a one-shot call then decrypt block by block. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, (word32)j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(i_copy, i1, sizeof(i1));
+            ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, i_copy);
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+                ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                                   WC_ASYNC_FLAG_NONE);
+                #else
+                ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+            #endif
+                if (ret != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+#endif /* WOLFSSL_AESXTS_STREAM */
     }
 #endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM &&
         * !WOLFSSL_AFALG
         */
 
   out:
+
+    #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+        !defined(WOLFSSL_AFALG) && defined(WOLFSSL_SMALL_STACK) && \
+        !defined(WOLFSSL_NO_MALLOC)
+    if (large_input)
+        XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
     if (aes_inited)
         wc_AesXtsFree(aes);
@@ -10268,6 +10552,704 @@ static wc_test_ret_t aes_xts_128_test(void)
     return ret;
 }
 #endif /* WOLFSSL_AES_128 */
+
+#ifdef WOLFSSL_AES_192
+static wc_test_ret_t aes_xts_192_test(void)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    XtsAes *aes = NULL;
+#else
+    XtsAes aes[1];
+#endif
+    int aes_inited = 0;
+    wc_test_ret_t ret = 0;
+    unsigned char buf[AES_BLOCK_SIZE * 2 + 8];
+    unsigned char cipher[AES_BLOCK_SIZE * 2 + 8];
+#ifdef WOLFSSL_AESXTS_STREAM
+    unsigned char i_copy[AES_BLOCK_SIZE];
+#endif
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+        !defined(WOLFSSL_AFALG)
+    #define LARGE_XTS_SZ        1024
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte* large_input = NULL;
+    #else
+    byte large_input[LARGE_XTS_SZ];
+    #endif
+#endif
+
+    /* 192 bit key tests */
+    WOLFSSL_SMALL_STACK_STATIC unsigned char k1[] = {
+        0x1e, 0xa6, 0x61, 0xc5, 0x8d, 0x94, 0x3a, 0x0e,
+        0x48, 0x01, 0xe4, 0x2f, 0x4b, 0x09, 0x47, 0x14,
+        0x9e, 0x7f, 0x9f, 0x8e, 0x3e, 0x68, 0xd0, 0xc7,
+        0x50, 0x52, 0x10, 0xbd, 0x31, 0x1a, 0x0e, 0x7c,
+        0xd6, 0xe1, 0x3f, 0xfd, 0xf2, 0x41, 0x8d, 0x8d,
+        0x19, 0x11, 0xc0, 0x04, 0xcd, 0xa5, 0x8d, 0xa3
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char i1[] = {
+        0x4f, 0xae, 0xf7, 0x11, 0x7c, 0xda, 0x59, 0xc6,
+        0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char p1[] = {
+        0xeb, 0xab, 0xce, 0x95, 0xb1, 0x4d, 0x3c, 0x8d,
+        0x6f, 0xb3, 0x50, 0x39, 0x07, 0x90, 0x31, 0x1c
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char pp[] = {
+        0xeb, 0xab, 0xce, 0x95, 0xb1, 0x4d, 0x3c, 0x8d,
+        0x6f, 0xb3, 0x50, 0x39, 0x07, 0x90, 0x31, 0x1c,
+        0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char c1[] = {
+        0x65, 0x37, 0x15, 0x53, 0xf1, 0x98, 0xab, 0xb4,
+        0xdb, 0x4e, 0xd3, 0x69, 0xdf, 0x8e, 0x3a, 0xe0
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char k2[] = {
+        0xad, 0x50, 0x4b, 0x85, 0xd7, 0x51, 0xbf, 0xba,
+        0x69, 0x13, 0xb4, 0xcc, 0x79, 0xb6, 0x5a, 0x62,
+        0xf7, 0xf3, 0x9d, 0x36, 0x0f, 0x35, 0xb5, 0xec,
+        0x4a, 0x7e, 0x95, 0xbd, 0x9b, 0xa5, 0xf2, 0xec,
+        0xc1, 0xd7, 0x7e, 0xa3, 0xc3, 0x74, 0xbd, 0x4b,
+        0x13, 0x1b, 0x07, 0x83, 0x87, 0xdd, 0x55, 0x5a
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char i2[] = {
+        0x5c, 0xf7, 0x9d, 0xb6, 0xc5, 0xcd, 0x99, 0x1a,
+        0x1c, 0x78, 0x81, 0x42, 0x24, 0x95, 0x1e, 0x84
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char p2[] = {
+        0xbd, 0xc5, 0x46, 0x8f, 0xbc, 0x8d, 0x50, 0xa1,
+        0x0d, 0x1c, 0x85, 0x7f, 0x79, 0x1c, 0x5c, 0xba,
+        0xb3, 0x81, 0x0d, 0x0d, 0x73, 0xcf, 0x8f, 0x20,
+        0x46, 0xb1, 0xd1, 0x9e, 0x7d, 0x5d, 0x8a, 0x56
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char c2[] = {
+        0x6c, 0xa6, 0xb5, 0x73, 0x48, 0xf1, 0x89, 0xfa,
+        0xdd, 0x80, 0x72, 0x1f, 0xb8, 0x56, 0x0c, 0xa2,
+        0x35, 0xd4, 0x08, 0xbf, 0x24, 0xcb, 0xec, 0xdb,
+        0x81, 0xe0, 0xe6, 0x4f, 0x3d, 0x1c, 0x5c, 0x46
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC unsigned char cp2[] = {
+        0xe9, 0x58, 0xfe, 0xab, 0x66, 0xb4, 0xf1, 0x79,
+        0x91, 0x3f, 0x91, 0xdc, 0x6f, 0xdf, 0xd6, 0xac,
+        0x65, 0x37, 0x15, 0x53, 0xf1, 0x98, 0xab, 0xb4
+    };
+
+#ifndef HAVE_FIPS /* FIPS requires different keys for main and tweak. */
+    WOLFSSL_SMALL_STACK_STATIC unsigned char k3[] = {
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
+    };
+    WOLFSSL_SMALL_STACK_STATIC unsigned char i3[] = {
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+    };
+    WOLFSSL_SMALL_STACK_STATIC unsigned char p3[] = {
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0xff, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20,
+        0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20
+    };
+    WOLFSSL_SMALL_STACK_STATIC unsigned char c3[] = {
+        0xa4, 0xf2, 0x71, 0x5d, 0x80, 0x60, 0x68, 0xa0,
+        0x80, 0x61, 0xd7, 0xc1, 0x55, 0xc8, 0x3a, 0x2e,
+        0xd7, 0xf4, 0x62, 0xaf, 0xbd, 0x2d, 0xf9, 0x5f,
+        0xe8, 0xc5, 0x99, 0x3d, 0x58, 0x3c, 0xeb, 0xba,
+        0x86, 0xea, 0x2c, 0x7e, 0x1f, 0xba, 0x81, 0xde
+    };
+#endif /* HAVE_FIPS */
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if ((aes = (XtsAes *)XMALLOC(sizeof *aes, HEAP_HINT, DYNAMIC_TYPE_AES)) == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_AesXtsInit(aes, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    else
+        aes_inited = 1;
+
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(c2, buf, sizeof(c2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i2, sizeof(i2));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE, p2 + AES_BLOCK_SIZE, sizeof(p2) - AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c2, buf, sizeof(c2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
+        defined(WC_C_DYNAMIC_FALLBACK)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(c2, buf, sizeof(c2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    XMEMSET(buf, 0, sizeof(buf));
+
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p1, sizeof(p1), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c1, buf, sizeof(c1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
+        defined(WC_C_DYNAMIC_FALLBACK)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* partial block encryption test */
+    XMEMSET(cipher, 0, sizeof(cipher));
+    ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(cp2, cipher, sizeof(cp2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, pp, sizeof(pp), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(cp2, buf, sizeof(cp2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
+        defined(WC_C_DYNAMIC_FALLBACK)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    XMEMSET(cipher, 0, sizeof(cipher));
+    ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(cp2, cipher, sizeof(cp2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* partial block decrypt test */
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+    #else
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(pp, buf, sizeof(pp)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf, cipher, sizeof(pp), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(pp, buf, sizeof(pp)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
+        defined(WC_C_DYNAMIC_FALLBACK)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+    #else
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(pp, buf, sizeof(pp)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* NIST decrypt test vector */
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+    #else
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(p1, buf, sizeof(p1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf, c1, sizeof(c1), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(p1, buf, sizeof(p1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
+#if defined(DEBUG_VECTOR_REGISTER_ACCESS_AESXTS) && \
+        defined(WC_C_DYNAMIC_FALLBACK)
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+    #else
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
+
+    /* fail case with decrypting using wrong key */
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+    #else
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(p2, buf, sizeof(p2)) == 0) /* fail case with wrong key */
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+    /* set correct key and retest */
+    XMEMSET(buf, 0, sizeof(buf));
+    ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesXtsDecrypt(aes, buf, c2, sizeof(c2), i2, sizeof(i2));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+    #else
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(p2, buf, sizeof(p2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifndef HAVE_FIPS
+
+    /* Test ciphertext stealing in-place. */
+    XMEMCPY(buf, p3, sizeof(p3));
+    ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_ENCRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncrypt(aes, buf, buf, sizeof(p3), i3, sizeof(i3));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(c3, buf, sizeof(c3)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i3, sizeof(i3));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p3, AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE, p3 + AES_BLOCK_SIZE, sizeof(p3) - AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c3, buf, sizeof(c3)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
+    ret = wc_AesXtsSetKeyNoInit(aes, k3, sizeof(k3), AES_DECRYPTION);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    ret = wc_AesXtsDecrypt(aes, buf, buf, sizeof(c3), i3, sizeof(i3));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+    ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev, WC_ASYNC_FLAG_NONE);
+    #else
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    if (XMEMCMP(p3, buf, sizeof(p3)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i3, sizeof(i3));
+
+    ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf, c3, AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf + AES_BLOCK_SIZE, c3 + AES_BLOCK_SIZE, sizeof(c3) - AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(p3, buf, sizeof(p3)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
+#endif /* !HAVE_FIPS */
+
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+    !defined(WOLFSSL_AFALG)
+    {
+        int i;
+        int j;
+#ifdef WOLFSSL_AESXTS_STREAM
+        int k;
+#endif
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        large_input = (byte *)XMALLOC(LARGE_XTS_SZ, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (large_input == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+    #endif
+
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
+            #else
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+            #endif
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+
+#ifdef WOLFSSL_AESXTS_STREAM
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        /* first, encrypt block by block then decrypt with a one-shot call. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(i_copy, i1, sizeof(i1));
+            ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, i_copy);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+                if (ret != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, (word32)j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
+            #else
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+            #endif
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+
+        /* second, encrypt with a one-shot call then decrypt block by block. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, (word32)j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(i_copy, i1, sizeof(i1));
+            ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, i_copy);
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+                ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                                   WC_ASYNC_FLAG_NONE);
+                #else
+                ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+            #endif
+                if (ret != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+#endif /* WOLFSSL_AESXTS_STREAM */
+    }
+#endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM &&
+        * !WOLFSSL_AFALG
+        */
+
+  out:
+
+    #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+        !defined(WOLFSSL_AFALG) && defined(WOLFSSL_SMALL_STACK) && \
+        !defined(WOLFSSL_NO_MALLOC)
+    if (large_input)
+        XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+
+    if (aes_inited)
+        wc_AesXtsFree(aes);
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    if (aes)
+        XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
+
+    return ret;
+}
+#endif /* WOLFSSL_AES_192 */
 
 
 #ifdef WOLFSSL_AES_256
@@ -10282,6 +11264,18 @@ static wc_test_ret_t aes_xts_256_test(void)
     wc_test_ret_t ret = 0;
     unsigned char buf[AES_BLOCK_SIZE * 3];
     unsigned char cipher[AES_BLOCK_SIZE * 3];
+#ifdef WOLFSSL_AESXTS_STREAM
+    unsigned char i_copy[AES_BLOCK_SIZE];
+#endif
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+        !defined(WOLFSSL_AFALG)
+    #define LARGE_XTS_SZ        1024
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte* large_input = NULL;
+    #else
+    byte large_input[LARGE_XTS_SZ];
+    #endif
+#endif
 
     /* 256 key tests */
     WOLFSSL_SMALL_STACK_STATIC unsigned char k1[] = {
@@ -10389,6 +11383,34 @@ static wc_test_ret_t aes_xts_256_test(void)
     if (XMEMCMP(c2, buf, sizeof(c2)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i2, sizeof(i2));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE, p2 + AES_BLOCK_SIZE, sizeof(p2) - AES_BLOCK_SIZE, i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c2, buf, sizeof(c2)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
+
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
     if (ret != 0)
@@ -10401,6 +11423,27 @@ static wc_test_ret_t aes_xts_256_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (XMEMCMP(c1, buf, AES_BLOCK_SIZE))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p1, sizeof(p1), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(c1, buf, sizeof(c1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
 
     /* partial block encryption test */
     XMEMSET(cipher, 0, sizeof(cipher));
@@ -10441,8 +11484,29 @@ static wc_test_ret_t aes_xts_256_test(void)
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
-    if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
+    if (XMEMCMP(p1, buf, sizeof(p1)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+    XMEMCPY(i_copy, i1, sizeof(i1));
+
+    ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    ret = wc_AesXtsDecryptUpdate(aes, buf, c1, sizeof(c1), i_copy);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+    if (XMEMCMP(p1, buf, sizeof(p1)))
+        ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif /* WOLFSSL_AESXTS_STREAM */
 
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsSetKeyNoInit(aes, k2, sizeof(k2), AES_DECRYPTION);
@@ -10461,7 +11525,171 @@ static wc_test_ret_t aes_xts_256_test(void)
     if (XMEMCMP(p2, buf, sizeof(p2)))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+    !defined(WOLFSSL_AFALG)
+    {
+        int i;
+        int j;
+#ifdef WOLFSSL_AESXTS_STREAM
+        int k;
+#endif
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+        large_input = (byte *)XMALLOC(LARGE_XTS_SZ, HEAP_HINT,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (large_input == NULL)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+    #endif
+
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
+            #else
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+            #endif
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+
+#ifdef WOLFSSL_AESXTS_STREAM
+        for (i = 0; i < (int)LARGE_XTS_SZ; i++)
+            large_input[i] = (byte)i;
+
+        /* first, encrypt block by block then decrypt with a one-shot call. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(i_copy, i1, sizeof(i1));
+            ret = wc_AesXtsEncryptInit(aes, i_copy, sizeof(i_copy));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, i_copy);
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+                if (ret != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            ret = wc_AesXtsDecrypt(aes, large_input, large_input, (word32)j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+            ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                               WC_ASYNC_FLAG_NONE);
+            #else
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+            #endif
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+
+        /* second, encrypt with a one-shot call then decrypt block by block. */
+        for (j = 16; j < (int)LARGE_XTS_SZ; j++) {
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_ENCRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsEncrypt(aes, large_input, large_input, (word32)j, i1,
+                sizeof(i1));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            XMEMCPY(i_copy, i1, sizeof(i1));
+            ret = wc_AesXtsDecryptInit(aes, i_copy, sizeof(i_copy));
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+        #endif
+            if (ret != 0)
+                ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+
+            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
+                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, i_copy);
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+                ret = wc_AsyncWait(ret, &aes->aes_decrypt.asyncDev,
+                                   WC_ASYNC_FLAG_NONE);
+                #else
+                ret = wc_AsyncWait(ret, &aes->aes.asyncDev, WC_ASYNC_FLAG_NONE);
+                #endif
+            #endif
+                if (ret != 0)
+                    ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    break;
+            }
+
+            for (i = 0; i < j; i++) {
+                if (large_input[i] != (byte)i) {
+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+                }
+            }
+        }
+#endif /* WOLFSSL_AESXTS_STREAM */
+    }
+#endif /* !BENCH_EMBEDDED && !HAVE_CAVIUM &&
+        * !WOLFSSL_AFALG
+        */
+
   out:
+
+    #if !defined(BENCH_EMBEDDED) && !defined(HAVE_CAVIUM) && \
+        !defined(WOLFSSL_AFALG) && defined(WOLFSSL_SMALL_STACK) && \
+        !defined(WOLFSSL_NO_MALLOC)
+    if (large_input)
+        XFREE(large_input, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
     if (aes_inited)
         wc_AesXtsFree(aes);
@@ -12348,6 +13576,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_xts_test(void)
     if (ret != 0)
         return ret;
     #endif
+
+    #ifdef WOLFSSL_AES_192
+    ret = aes_xts_192_test();
+    if (ret != 0)
+        return ret;
+    #endif
+
     #ifdef WOLFSSL_AES_256
     ret = aes_xts_256_test();
     if (ret != 0)
@@ -34037,7 +35272,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
     {
         /* Run tests for some rare code paths */
         /* sig is exactly equal to the order */
-        const byte rareEd1[] = {
+        static const byte rareEd1[] = {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -34048,7 +35283,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
         };
         /* sig is larger than the order before we get to the low part */
-        const byte rareEd2[] = {
+        static const byte rareEd2[] = {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -34059,7 +35294,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
             0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x10
         };
         /* sig is larger than the order in the low part */
-        const byte rareEd3[] = {
+        static const byte rareEd3[] = {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -34070,7 +35305,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10
         };
         /* sig is smaller than the order */
-        const byte rareEd4[] = {
+        static const byte rareEd4[] = {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

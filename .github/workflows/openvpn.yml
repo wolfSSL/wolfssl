@@ -39,7 +39,8 @@ jobs:
       fail-fast: false
       matrix:
         # List of refs to test
-        ref: [ release/2.6, v2.6.0, master ]
+	# disabled master on 20240514 -- see https://github.com/wolfSSL/wolfssl/issues/7508
+        ref: [ release/2.6, v2.6.0 ]
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
