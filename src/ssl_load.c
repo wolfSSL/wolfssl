@@ -160,6 +160,10 @@ static int DataToDerBuffer(const unsigned char* buff, word32 len, int format,
         else {
             ret = ASN_PARSE_E;
         }
+
+        if (info->consumed > (int)len) {
+            ret = ASN_PARSE_E;
+        }
         if (ret == 0) {
             ret = AllocCopyDer(der, buff, (word32)info->consumed, type, heap);
         }
