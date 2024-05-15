@@ -41256,7 +41256,8 @@ static int test_wolfSSL_X509_bad_altname(void)
      * name of "a*\0*". Ensure that it does not match "aaaaa" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name, nameLen, 
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
-
+    X509_free(x509);
+    
 #endif
     return EXPECT_RESULT();
 }
