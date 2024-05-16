@@ -502,7 +502,7 @@ int esp_sha_ctx_copy(struct wc_Sha* src, struct wc_Sha* dst)
 int esp_sha224_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst)
 {
     /* There's no 224 hardware on ESP32.
-     * Initializer fo dst is this ctx address for use as a breadcrumb. */
+     * Initializer for dst is this ctx address for use as a breadcrumb. */
     dst->ctx.initializer = (uintptr_t)&dst->ctx;
     #if defined(ESP_MONITOR_HW_TASK_LOCK) && !defined(SINGLE_THREADED)
     {
@@ -1414,7 +1414,7 @@ int esp_sha_try_hw_lock(WC_ESP32SHA* ctx)
                 if (mutex_ctx_owner) {
                 #ifdef WOLFSSL_DEBUG_MUTEX
                     ESP_LOGW(TAG, "revert to SW since mutex_ctx_owner = %x"
-                                    " but we are currenty ctx = %x",
+                                    " but we are currently ctx = %x",
                                     mutex_ctx_owner, (intptr_t)ctx);
                 #endif
                 }
