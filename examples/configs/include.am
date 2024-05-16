@@ -4,12 +4,13 @@
 EXTRA_DIST += examples/configs/README.md
 EXTRA_DIST += examples/configs/user_settings_all.h
 EXTRA_DIST += examples/configs/user_settings_arduino.h
-EXTRA_DIST += examples/configs/user_settings_min_ecc.h
-EXTRA_DIST += examples/configs/user_settings_wolfboot_keytools.h
-EXTRA_DIST += examples/configs/user_settings_template.h
+EXTRA_DIST += examples/configs/user_settings_EBSnet.h
 EXTRA_DIST += examples/configs/user_settings_fipsv2.h
 EXTRA_DIST += examples/configs/user_settings_fipsv5.h
+EXTRA_DIST += examples/configs/user_settings_min_ecc.h
+EXTRA_DIST += examples/configs/user_settings_platformio.h
 EXTRA_DIST += examples/configs/user_settings_stm32.h
+EXTRA_DIST += examples/configs/user_settings_template.h
 EXTRA_DIST += examples/configs/user_settings_tls12.h
+EXTRA_DIST += examples/configs/user_settings_wolfboot_keytools.h
 EXTRA_DIST += examples/configs/user_settings_wolftpm.h
-EXTRA_DIST += examples/configs/user_settings_EBSnet.h
