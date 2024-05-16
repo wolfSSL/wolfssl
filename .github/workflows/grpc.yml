@@ -49,7 +49,7 @@ jobs:
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 60
+    timeout-minutes: 30
     needs: build_wolfssl
     steps:
       - name: Confirm IPv4 and IPv6 support
@@ -70,10 +70,8 @@ jobs:
       - name: Checkout OSP
         uses: actions/checkout@v4
         with:
-          # TODO point to wolf repo once merged
-          repository: julek-wolfssl/osp
+          repository: wolfssl/osp
           path: osp
-          ref: grpc-update
 
       - name: Checkout grpc
         uses: actions/checkout@v4
