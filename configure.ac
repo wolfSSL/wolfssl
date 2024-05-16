@@ -3964,12 +3964,10 @@ fi
 # ECC Minimum Key Size
 AC_ARG_WITH([eccminsz],
     [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
-    [
-        ENABLED_ECCMINSZ=$withval
-        AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$withval"
-    ],
+    [ ENABLED_ECCMINSZ=$withval ],
     [ ENABLED_ECCMINSZ=224 ]
 )
+AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$ENABLED_ECCMINSZ"
 
 # Compressed Key
 AC_ARG_ENABLE([compkey],
