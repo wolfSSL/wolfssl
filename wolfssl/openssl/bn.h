@@ -40,7 +40,7 @@
 typedef struct WOLFSSL_BIGNUM {
     int neg;        /* openssh deference */
     void *internal; /* our big num */
-#ifndef NO_BIG_INT
+#if !defined(NO_BIG_INT) || defined(WOLFSSL_SP_MATH)
     mp_int mpi;
 #endif
 } WOLFSSL_BIGNUM;
