@@ -1116,7 +1116,11 @@ extern void uITRON4_free(void *p) ;
     #endif
 
     #ifndef SINGLE_THREADED
-        #include "semphr.h"
+        #ifdef PLATFORMIO
+            #include <freertos/semphr.h>
+        #else
+            #include "semphr.h"
+        #endif
     #endif
 #endif
 
