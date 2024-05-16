@@ -12907,8 +12907,9 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, byte* i, word32 iSz)
 
 /* Block-streaming AES-XTS
  *
- * Note that sz must be greater than AES_BLOCK_SIZE in each call, and must be a
- * multiple of AES_BLOCK_SIZE in all but the final call.
+ * Note that sz must be >= AES_BLOCK_SIZE in each call, and must be a multiple
+ * of AES_BLOCK_SIZE in each call to wc_AesXtsEncryptUpdate().
+ * wc_AesXtsEncryptFinal() can handle any length >= AES_BLOCK_SIZE.
  *
  * xaes  AES keys to use for block encrypt/decrypt
  * out   output buffer to hold cipher text
@@ -12920,7 +12921,7 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, byte* i, word32 iSz)
  *
  * returns 0 on success
  */
-int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+static int AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                            byte *i)
 {
     int ret;
@@ -12972,6 +12973,29 @@ int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         }
     }
 
+    return ret;
+}
+
+int wc_AesXtsEncryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+                           byte *i)
+{
+    if (sz & ((word32)AES_BLOCK_SIZE - 1U))
+        return BAD_FUNC_ARG;
+    return AesXtsEncryptUpdate(xaes, out, in, sz, i);
+}
+
+int wc_AesXtsEncryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+                           byte *i)
+{
+    int ret;
+    if (sz > 0)
+        ret = AesXtsEncryptUpdate(xaes, out, in, sz, i);
+    else
+        ret = 0;
+    ForceZero(i, AES_BLOCK_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(i, AES_BLOCK_SIZE);
+#endif
     return ret;
 }
 
@@ -13284,8 +13308,9 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, byte* i, word32 iSz)
 
 /* Block-streaming AES-XTS
  *
- * Note that sz must be greater than AES_BLOCK_SIZE in each call, and must be a
- * multiple of AES_BLOCK_SIZE in all but the final call.
+ * Note that sz must be >= AES_BLOCK_SIZE in each call, and must be a multiple
+ * of AES_BLOCK_SIZE in each call to wc_AesXtsDecryptUpdate().
+ * wc_AesXtsDecryptFinal() can handle any length >= AES_BLOCK_SIZE.
  *
  * xaes  AES keys to use for block encrypt/decrypt
  * out   output buffer to hold plain text
@@ -13295,7 +13320,7 @@ int wc_AesXtsDecryptInit(XtsAes* xaes, byte* i, word32 iSz)
  *
  * returns 0 on success
  */
-int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+static int AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                            byte *i)
 {
     int ret;
@@ -13350,6 +13375,29 @@ int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         }
     }
 
+    return ret;
+}
+
+int wc_AesXtsDecryptUpdate(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+                           byte *i)
+{
+    if (sz & ((word32)AES_BLOCK_SIZE - 1U))
+        return BAD_FUNC_ARG;
+    return AesXtsDecryptUpdate(xaes, out, in, sz, i);
+}
+
+int wc_AesXtsDecryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+                           byte *i)
+{
+    int ret;
+    if (sz > 0)
+        ret = AesXtsDecryptUpdate(xaes, out, in, sz, i);
+    else
+        ret = 0;
+    ForceZero(i, AES_BLOCK_SIZE);
+#ifdef WOLFSSL_CHECK_MEM_ZERO
+    wc_MemZero_Check(i, AES_BLOCK_SIZE);
+#endif
     return ret;
 }
 
