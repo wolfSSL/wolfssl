@@ -945,9 +945,14 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (nbytes < walk.total)
                 nbytes &= ~(AES_BLOCK_SIZE - 1);
 
-            err = wc_AesXtsEncryptUpdate(ctx->aesXts, walk.dst.virt.addr,
-                                         walk.src.virt.addr, nbytes,
-                                         walk.iv);
+            if (nbytes & ((unsigned int)AES_BLOCK_SIZE - 1U))
+                err = wc_AesXtsEncryptFinal(ctx->aesXts, walk.dst.virt.addr,
+                                            walk.src.virt.addr, nbytes,
+                                            walk.iv);
+            else
+                err = wc_AesXtsEncryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+                                             walk.src.virt.addr, nbytes,
+                                             walk.iv);
 
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
@@ -979,12 +984,12 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (err)
                 return err;
 
-            err = wc_AesXtsEncryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+            err = wc_AesXtsEncryptFinal(ctx->aesXts, walk.dst.virt.addr,
                                          walk.src.virt.addr, walk.nbytes,
                                          walk.iv);
 
             if (unlikely(err)) {
-                pr_err("%s: wc_AesXtsEncryptUpdate failed: %d\n",
+                pr_err("%s: wc_AesXtsEncryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
                 return -EINVAL;
             }
@@ -1071,9 +1076,14 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (nbytes < walk.total)
                 nbytes &= ~(AES_BLOCK_SIZE - 1);
 
-            err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
-                                         walk.src.virt.addr, nbytes,
-                                         walk.iv);
+            if (nbytes & ((unsigned int)AES_BLOCK_SIZE - 1U))
+                err = wc_AesXtsDecryptFinal(ctx->aesXts, walk.dst.virt.addr,
+                                            walk.src.virt.addr, nbytes,
+                                            walk.iv);
+            else
+                err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+                                             walk.src.virt.addr, nbytes,
+                                             walk.iv);
 
             if (unlikely(err)) {
                 pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
@@ -1105,12 +1115,12 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (err)
                 return err;
 
-            err = wc_AesXtsDecryptUpdate(ctx->aesXts, walk.dst.virt.addr,
+            err = wc_AesXtsDecryptFinal(ctx->aesXts, walk.dst.virt.addr,
                                          walk.src.virt.addr, walk.nbytes,
                                          walk.iv);
 
             if (unlikely(err)) {
-                pr_err("%s: wc_AesXtsDecryptUpdate failed: %d\n",
+                pr_err("%s: wc_AesXtsDecryptFinal failed: %d\n",
                        crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm)), err);
                 return -EINVAL;
             }
@@ -2029,7 +2039,7 @@ static int aes_xts_128_test(void)
     ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, iv);
     if (ret != 0)
         goto out;
-    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE,
+    ret = wc_AesXtsEncryptFinal(aes, buf + AES_BLOCK_SIZE,
                                  p2 + AES_BLOCK_SIZE,
                                  sizeof(p2) - AES_BLOCK_SIZE, iv);
     if (ret != 0)
@@ -2214,7 +2224,10 @@ static int aes_xts_128_test(void)
             if (ret != 0)
                 goto out;
             for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    ret = wc_AesXtsEncryptFinal(aes, large_input + k, large_input + k, j - k, iv);
+                else
+                    ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, iv);
                 if (ret != 0)
                     goto out;
                 if ((j - k) < AES_BLOCK_SIZE*2)
@@ -2252,7 +2265,10 @@ static int aes_xts_128_test(void)
             if (ret != 0)
                 goto out;
             for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    ret = wc_AesXtsDecryptFinal(aes, large_input + k, large_input + k, j - k, iv);
+                else
+                    ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, iv);
                 if (ret != 0)
                     goto out;
                 if ((j - k) < AES_BLOCK_SIZE*2)
@@ -2611,7 +2627,7 @@ static int aes_xts_256_test(void)
     ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, iv);
     if (ret != 0)
         goto out;
-    ret = wc_AesXtsEncryptUpdate(aes, buf + AES_BLOCK_SIZE,
+    ret = wc_AesXtsEncryptFinal(aes, buf + AES_BLOCK_SIZE,
                                  p2 + AES_BLOCK_SIZE,
                                  sizeof(p2) - AES_BLOCK_SIZE, iv);
     if (ret != 0)
@@ -2700,7 +2716,10 @@ static int aes_xts_256_test(void)
             if (ret != 0)
                 goto out;
             for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    ret = wc_AesXtsEncryptFinal(aes, large_input + k, large_input + k, j - k, iv);
+                else
+                    ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, iv);
                 if (ret != 0)
                     goto out;
                 if ((j - k) < AES_BLOCK_SIZE*2)
@@ -2738,7 +2757,10 @@ static int aes_xts_256_test(void)
             if (ret != 0)
                 goto out;
             for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, (j - k) < AES_BLOCK_SIZE*2 ? j - k : AES_BLOCK_SIZE, iv);
+                if ((j - k) < AES_BLOCK_SIZE*2)
+                    ret = wc_AesXtsDecryptFinal(aes, large_input + k, large_input + k, j - k, iv);
+                else
+                    ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, iv);
                 if (ret != 0)
                     goto out;
                 if ((j - k) < AES_BLOCK_SIZE*2)

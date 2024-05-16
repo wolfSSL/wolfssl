@@ -681,6 +681,12 @@ WOLFSSL_API int wc_AesXtsEncryptUpdate(XtsAes* aes, byte* out,
 WOLFSSL_API int wc_AesXtsDecryptUpdate(XtsAes* aes, byte* out,
          const byte* in, word32 sz, byte *i);
 
+WOLFSSL_API int wc_AesXtsEncryptFinal(XtsAes* aes, byte* out,
+         const byte* in, word32 sz, byte *i);
+
+WOLFSSL_API int wc_AesXtsDecryptFinal(XtsAes* aes, byte* out,
+         const byte* in, word32 sz, byte *i);
+
 #endif /* WOLFSSL_AESXTS_STREAM */
 
 WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
