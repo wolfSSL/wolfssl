@@ -303,7 +303,8 @@ typedef struct w64wrapper {
     #ifndef WARN_UNUSED_RESULT
         #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
             #define WARN_UNUSED_RESULT __must_check
-        #elif defined(__GNUC__) && (__GNUC__ >= 4)
+        #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+            (defined(__IAR_SYSTEMS_ICC__) && (__VER__ >= 9040001))
             #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
         #else
             #define WARN_UNUSED_RESULT
@@ -311,7 +312,7 @@ typedef struct w64wrapper {
     #endif /* WARN_UNUSED_RESULT */
 
     #ifndef WC_MAYBE_UNUSED
-        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__)
+        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__) || defined(__IAR_SYSTEMS_ICC__)
             #define WC_MAYBE_UNUSED __attribute__((unused))
         #else
             #define WC_MAYBE_UNUSED
