@@ -114,7 +114,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
             char *cert       = "./certs/ca-cert.pem";
         #endif
     #else
-        #if defined(USE_ECC_CERT) && defined(USE_CERT_BUFFERS_256) 
+        #if defined(USE_ECC_CERT) && defined(USE_CERT_BUFFERS_256)
             const unsigned char *cert       = ca_ecc_cert_der_256;
             #define  SIZEOF_CERT sizeof_ca_ecc_cert_der_256
         #else
@@ -137,7 +137,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     if ((client_ctx = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heapHint),
                                                       heapHint)) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
-        return;                                                
+        return;
     }
 
     if ((wolfSSL_CTX_load_static_memory(&client_ctx, NULL, heapBufIO,
@@ -149,7 +149,7 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
 #else
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = 
+    if ((client_ctx =
         wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
@@ -168,8 +168,8 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     /*          Root CA certificate                */
     /*---------------------------------------------*/
 
-    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, 
-                                            SSL_FILETYPE_ASN1) != SSL_SUCCESS){
+    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT,
+                                            SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS){
            printf("ERROR: can't load certificate data\n");
        return;
     }
@@ -186,15 +186,15 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     /*---------------------------------------------*/
 
     /* use specific cipher */
-    if (cipherlist != NULL && 
+    if (cipherlist != NULL &&
         wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
         printf("client can't set cipher list");
         return;
     }
-    
+
 #if defined(WOLFSSL_TLS13)
-    if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1) 
+    if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1)
                                                         != WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
         printf("client can't set use supported curves\n");
@@ -213,11 +213,11 @@ void wolfSSL_TLS_client( )
 
     #define BUFF_SIZE 256
     static const char sendBuff[]= "Hello Server\n" ;
-    
+
     char    rcvBuff[BUFF_SIZE] = {0};
-    
+
     static T_IPV4EP my_addr = { 0, 0 };
-    
+
     T_IPV4EP dst_addr;
 
     if((dst_addr.ipaddr = getIPaddr(SIMPLE_TLSSEVER_IP)) == 0){
@@ -225,7 +225,7 @@ void wolfSSL_TLS_client( )
         goto out;
     }
     if((dst_addr.portno = getPort(SIMPLE_TLSSERVER_PORT)) == 0){
-        printf("ERROR: IP address\n");
+        printf("ERROR: Port number\n");
         goto out;
     }
 
@@ -256,22 +256,22 @@ void wolfSSL_TLS_client( )
     /*---------------------------------------------*/
 #ifdef USE_ECC_CERT
 
-    /* ECDSA client certificate */   
+    /* ECDSA client certificate */
     if (wolfSSL_use_certificate_buffer(ssl, cliecc_cert_der_256,
-            sizeof_cliecc_cert_der_256, WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+            sizeof_cliecc_cert_der_256, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
         printf("ERROR wolfSSL_use_certificate_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
-        goto out;    
+        goto out;
     }
 
 #else
 
     /* RSA client certificate */
     if (wolfSSL_use_certificate_buffer(ssl, client_cert_der_2048,
-        sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+        sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
         printf("ERROR wolfSSL_use_certificate_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
-        goto out;    
+        goto out;
     }
 
 #endif /* USE_ECC_CERT */
@@ -292,17 +292,17 @@ void wolfSSL_TLS_client( )
         printf("ERROR tsip_use_PrivateKey_buffer_TLS\n");
         goto out;
     }
-    
+
     #else
 
     /* DER format ECC private key */
     if (wolfSSL_use_PrivateKey_buffer(ssl,
                                     ecc_clikey_der_256,
-                                    sizeof_ecc_clikey_der_256, 
-                                    WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+                                    sizeof_ecc_clikey_der_256,
+                                    WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
         printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
-        goto out; 
+        goto out;
     }
 
     #endif
@@ -334,10 +334,10 @@ void wolfSSL_TLS_client( )
     #else
 
     if (wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
-        sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+        sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
         printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
-        goto out; 
+        goto out;
     }
 
     #endif /* WOLFSSL_RENESAS_TSIP_TLS */
@@ -356,7 +356,7 @@ void wolfSSL_TLS_client( )
     /*          TLS handshake                      */
     /*---------------------------------------------*/
 
-    if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
+    if(wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
         goto out;
     }

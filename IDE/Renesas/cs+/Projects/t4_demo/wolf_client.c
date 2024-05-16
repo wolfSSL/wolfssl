@@ -104,12 +104,12 @@ WOLFSSL_CTX *wolfSSL_TLS_client_init()
     }
 
     #if !defined(NO_FILESYSTEM)
-    if (wolfSSL_CTX_load_verify_locations(ctx, cert, 0) != SSL_SUCCESS) {
+    if (wolfSSL_CTX_load_verify_locations(ctx, cert, 0) != WOLFSSL_SUCCESS) {
         printf("ERROR: can't load \"%s\"\n", cert);
         return NULL;
     }
     #else
-    if (wolfSSL_CTX_load_verify_buffer(ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS){
+    if (wolfSSL_CTX_load_verify_buffer(ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS){
            printf("ERROR: can't load certificate data\n");
        return NULL;
     }
@@ -138,14 +138,14 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
     T_IPV4EP dst_addr;
 
     if(args->argc >= 2){
-	    if((dst_addr.ipaddr = getIPaddr(args->argv[1])) == 0){
-		printf("ERROR: IP address\n");
-	        return;
-	    }
-	    if((dst_addr.portno = getPort(args->argv[2])) == 0){
-		printf("ERROR: IP address\n");
-	        return;
-	    }
+        if((dst_addr.ipaddr = getIPaddr(args->argv[1])) == 0){
+            printf("ERROR: IP address\n");
+            return;
+        }
+        if((dst_addr.portno = getPort(args->argv[2])) == 0){
+            printf("ERROR: Port number\n");
+            return;
+        }
     }
 
     if((ercd = tcp_con_cep(cepid, &my_addr, &dst_addr, TMO_FEVR)) != E_OK) {
@@ -162,7 +162,7 @@ void wolfSSL_TLS_client(void *v_ctx, func_args *args)
     wolfSSL_SetIOReadCtx(ssl, (void *)&cepid);
     wolfSSL_SetIOWriteCtx(ssl, (void *)&cepid);
 
-    if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
+    if(wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
         return;
     }

@@ -117,12 +117,12 @@ void wolfSSL_TLS_client_init(const char* cipherlist)
     }
 
     #if !defined(NO_FILESYSTEM)
-    if (wolfSSL_CTX_load_verify_locations(client_ctx, cert, 0) != SSL_SUCCESS) {
+    if (wolfSSL_CTX_load_verify_locations(client_ctx, cert, 0) != WOLFSSL_SUCCESS) {
         printf("ERROR: can't load \"%s\"\n", cert);
         return NULL;
     }
     #else
-    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS){
+    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, SSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS){
            printf("ERROR: can't load certificate data\n");
        return;
     }
@@ -157,7 +157,7 @@ void wolfSSL_TLS_client( )
         return;
     }
     if((dst_addr.portno = getPort(SIMPLE_TLSSERVER_PORT)) == 0){
-        printf("ERROR: IP address\n");
+        printf("ERROR: Port number\n");
         return;
     }
 
@@ -175,7 +175,7 @@ void wolfSSL_TLS_client( )
     wolfSSL_SetIOReadCtx(ssl, (void *)&cepid);
     wolfSSL_SetIOWriteCtx(ssl, (void *)&cepid);
 
-    if(wolfSSL_connect(ssl) != SSL_SUCCESS) {
+    if(wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
         printf("ERROR SSL connect: %d\n",  wolfSSL_get_error(ssl, 0));
         return;
     }

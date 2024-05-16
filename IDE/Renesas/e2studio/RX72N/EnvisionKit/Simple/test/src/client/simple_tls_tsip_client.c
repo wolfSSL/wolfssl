@@ -216,7 +216,7 @@ void wolfSSL_TLS_client( )
         goto out;
     }
     if((dst_addr.portno = getPort(SIMPLE_TLSSERVER_PORT)) == 0){
-        printf("ERROR: IP address\n");
+        printf("ERROR: Port number\n");
         goto out;
     }
 
