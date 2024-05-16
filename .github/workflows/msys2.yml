@@ -31,4 +31,5 @@ jobs:
       - name: build wolfSSL
         run: make check
       - name: Display log
+        if: always()
         run: cat test-suite.log
