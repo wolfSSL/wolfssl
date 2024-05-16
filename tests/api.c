@@ -32408,20 +32408,11 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_free(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_ASN1_GENERALIZEDTIME* asn1_gtime = NULL;
-    unsigned char nullstr[32];
 
-    XMEMSET(nullstr, 0, 32);
-    ExpectNotNull(asn1_gtime = (WOLFSSL_ASN1_GENERALIZEDTIME*)XMALLOC(
-        sizeof(WOLFSSL_ASN1_GENERALIZEDTIME), NULL, DYNAMIC_TYPE_TMP_BUFFER));
-    if (asn1_gtime != NULL) {
-        XMEMCPY(asn1_gtime->data,"20180504123500Z",ASN_GENERALIZED_TIME_SIZE);
-
-        wolfSSL_ASN1_GENERALIZEDTIME_free(asn1_gtime);
-        ExpectIntEQ(0, XMEMCMP(asn1_gtime->data, nullstr, 32));
-
-        XFREE(asn1_gtime, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    wolfSSL_ASN1_GENERALIZEDTIME_free(NULL);
+    ExpectNotNull(asn1_gtime = ASN1_GENERALIZEDTIME_new());
+    if (asn1_gtime != NULL)
+        XMEMCPY(asn1_gtime->data, "20180504123500Z", ASN_GENERALIZED_TIME_SIZE);
+    ASN1_GENERALIZEDTIME_free(asn1_gtime);
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
@@ -32430,7 +32421,7 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
-    WOLFSSL_ASN1_GENERALIZEDTIME gtime;
+    WOLFSSL_ASN1_GENERALIZEDTIME* gtime = NULL;
     BIO* bio = NULL;
     unsigned char buf[24];
     int i;
@@ -32438,19 +32429,17 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
     ExpectNotNull(bio = BIO_new(BIO_s_mem()));
     BIO_set_write_buf_size(bio, 24);
 
-    XMEMSET(&gtime, 0, sizeof(WOLFSSL_ASN1_GENERALIZEDTIME));
-    XMEMCPY(gtime.data, "20180504123500Z", ASN_GENERALIZED_TIME_SIZE);
-    gtime.length = ASN_GENERALIZED_TIME_SIZE;
+    ExpectNotNull(gtime = ASN1_GENERALIZEDTIME_new());
     /* Type not set. */
-    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
-    gtime.type = V_ASN1_GENERALIZEDTIME;
+    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, gtime), 0);
+    ExpectIntEQ(wolfSSL_ASN1_TIME_set_string(gtime, "20180504123500Z"), 1);
 
     /* Invalid parameters testing. */
     ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(NULL, NULL), BAD_FUNC_ARG);
     ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(NULL, &gtime), BAD_FUNC_ARG);
+    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(NULL, gtime), BAD_FUNC_ARG);
 
-    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 1);
+    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, gtime), 1);
     ExpectIntEQ(BIO_read(bio, buf, sizeof(buf)), 20);
     ExpectIntEQ(XMEMCMP(buf, "May 04 12:35:00 2018", 20), 0);
 
@@ -32461,14 +32450,14 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
     ExpectIntEQ(BIO_set_write_buf_size(bio, 1), 1);
     /* Ensure there is 0 bytes available to write into. */
     ExpectIntEQ(BIO_write(bio, buf, 1), 1);
-    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
+    ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, gtime), 0);
     for (i = 1; i < 20; i++) {
         ExpectIntEQ(BIO_set_write_buf_size(bio, i), 1);
-        ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, &gtime), 0);
+        ExpectIntEQ(wolfSSL_ASN1_GENERALIZEDTIME_print(bio, gtime), 0);
     }
     BIO_free(bio);
 
-    wolfSSL_ASN1_GENERALIZEDTIME_free(&gtime);
+    wolfSSL_ASN1_GENERALIZEDTIME_free(gtime);
 #endif /* OPENSSL_EXTRA */
     return EXPECT_RESULT();
 }
@@ -41651,6 +41640,13 @@ static int test_wolfSSL_X509_sign(void)
 #endif
 #endif /* WOLFSSL_ALT_NAMES */
 
+    {
+        ASN1_UTCTIME* infinite_past = NULL;
+        ExpectNotNull(infinite_past = ASN1_UTCTIME_set(NULL, 0));
+        ExpectIntEQ(X509_set1_notBefore(x509, infinite_past), 1);
+        ASN1_UTCTIME_free(infinite_past);
+    }
+
     /* test valid sign case */
     ExpectIntGT(ret = X509_sign(x509, priv, EVP_sha256()), 0);
 
@@ -41940,7 +41936,8 @@ static int test_wolfSSL_X509_VERIFY_PARAM(void)
     return EXPECT_RESULT();
 }
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    !defined(WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY)
 
 static int test_wolfSSL_check_domain_verify_count = 0;
 
@@ -42002,6 +41999,14 @@ static int test_wolfSSL_check_domain(void)
     ExpectIntEQ(test_wolfSSL_check_domain_verify_count, 1);
 #endif
 
+    return EXPECT_RESULT();
+}
+
+#else
+
+static int test_wolfSSL_check_domain(void)
+{
+    EXPECT_DECLS;
     return EXPECT_RESULT();
 }
 
@@ -55183,7 +55188,8 @@ static int test_X509_LOOKUP_add_dir(void)
     /* Now we SHOULD get CRL_MISSING, because we looked for PEM
      * in dir containing only ASN1/DER. */
     ExpectIntEQ(X509_verify_cert(storeCtx), WOLFSSL_FAILURE);
-    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx), CRL_MISSING);
+    ExpectIntEQ(X509_STORE_CTX_get_error(storeCtx),
+            X509_V_ERR_UNABLE_TO_GET_CRL);
 
     X509_CRL_free(crl);
     X509_STORE_free(store);
@@ -58647,6 +58653,155 @@ static int test_wolfSSL_X509_STORE_get1_certs(void)
 #endif /* OPENSSL_EXTRA && WOLFSSL_SIGNER_DER_CERT && !NO_FILESYSTEM */
     return EXPECT_RESULT();
 }
+
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_LOCAL_X509_STORE) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && defined(HAVE_CRL)
+static int test_wolfSSL_X509_STORE_set_get_crl_provider(X509_STORE_CTX* ctx,
+        X509_CRL** crl_out, X509* cert) {
+    X509_CRL *crl = NULL;
+    XFILE fp = XBADFILE;
+    char* cert_issuer = X509_NAME_oneline(X509_get_issuer_name(cert), NULL, 0);
+    int ret = 0;
+
+    (void)ctx;
+
+    if (cert_issuer == NULL)
+        return 0;
+
+    if ((fp = XFOPEN("certs/crl/crl.pem", "rb")) != XBADFILE) {
+        PEM_read_X509_CRL(fp, &crl, NULL, NULL);
+        XFCLOSE(fp);
+        if (crl != NULL) {
+            char* crl_issuer = X509_NAME_oneline(
+                    X509_CRL_get_issuer(crl), NULL, 0);
+            if (XSTRCMP(cert_issuer, crl_issuer) == 0) {
+                *crl_out = X509_CRL_dup(crl);
+                if (*crl_out != NULL)
+                    ret = 1;
+            }
+            OPENSSL_free(crl_issuer);
+        }
+    }
+
+    X509_CRL_free(crl);
+    OPENSSL_free(cert_issuer);
+    return ret;
+}
+
+static int test_wolfSSL_X509_STORE_set_get_crl_provider2(X509_STORE_CTX* ctx,
+        X509_CRL** crl_out, X509* cert) {
+    (void)ctx;
+    (void)cert;
+    *crl_out = NULL;
+    return 1;
+}
+
+#ifndef NO_WOLFSSL_STUB
+static int test_wolfSSL_X509_STORE_set_get_crl_check(X509_STORE_CTX* ctx,
+        X509_CRL* crl) {
+    (void)ctx;
+    (void)crl;
+    return 1;
+}
+#endif
+
+static int test_wolfSSL_X509_STORE_set_get_crl_verify(int ok,
+        X509_STORE_CTX* ctx) {
+    int cert_error = X509_STORE_CTX_get_error(ctx);
+    X509_VERIFY_PARAM* param = X509_STORE_CTX_get0_param(ctx);
+    int flags = X509_VERIFY_PARAM_get_flags(param);
+    if ((flags & (X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL)) !=
+            (X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL)) {
+        /* Make sure the flags are set */
+        return 0;
+    }
+    /* Ignore CRL missing error */
+#ifndef OPENSSL_COMPATIBLE_DEFAULTS
+    if (cert_error == CRL_MISSING)
+#else
+    if (cert_error == X509_V_ERR_UNABLE_TO_GET_CRL)
+#endif
+        return 1;
+    return ok;
+}
+
+static int test_wolfSSL_X509_STORE_set_get_crl_ctx_ready(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    X509_STORE* cert_store = NULL;
+
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+    ExpectNotNull(cert_store = SSL_CTX_get_cert_store(ctx));
+    X509_STORE_set_get_crl(cert_store,
+            test_wolfSSL_X509_STORE_set_get_crl_provider);
+#ifndef NO_WOLFSSL_STUB
+    X509_STORE_set_check_crl(cert_store,
+            test_wolfSSL_X509_STORE_set_get_crl_check);
+#endif
+
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_set_get_crl_ctx_ready2(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    X509_STORE* cert_store = NULL;
+    X509_VERIFY_PARAM* param = NULL;
+
+    SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+    ExpectNotNull(cert_store = SSL_CTX_get_cert_store(ctx));
+    X509_STORE_set_get_crl(cert_store,
+            test_wolfSSL_X509_STORE_set_get_crl_provider2);
+#ifndef NO_WOLFSSL_STUB
+    X509_STORE_set_check_crl(cert_store,
+            test_wolfSSL_X509_STORE_set_get_crl_check);
+#endif
+    X509_STORE_set_verify_cb(cert_store,
+            test_wolfSSL_X509_STORE_set_get_crl_verify);
+    ExpectNotNull(param = X509_STORE_get0_param(cert_store));
+    ExpectIntEQ(X509_VERIFY_PARAM_set_flags(
+        param, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL), 1);
+    ExpectIntEQ(X509_STORE_set_flags(cert_store,
+            X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL), 1);
+
+    return EXPECT_RESULT();
+}
+#endif
+
+/* This test mimics the usage of the CRL provider in gRPC */
+static int test_wolfSSL_X509_STORE_set_get_crl(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(WOLFSSL_LOCAL_X509_STORE) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_QT)) && defined(HAVE_CRL)
+    test_ssl_cbf func_cb_client;
+    test_ssl_cbf func_cb_server;
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_client.ctx_ready = test_wolfSSL_X509_STORE_set_get_crl_ctx_ready;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_SUCCESS);
+
+    XMEMSET(&func_cb_client, 0, sizeof(func_cb_client));
+    XMEMSET(&func_cb_server, 0, sizeof(func_cb_server));
+
+    func_cb_client.ctx_ready = test_wolfSSL_X509_STORE_set_get_crl_ctx_ready2;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
+        &func_cb_server, NULL), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
+
 static int test_wolfSSL_dup_CA_list(void)
 {
     int res = TEST_SKIPPED;
@@ -70724,11 +70879,7 @@ static int test_revoked_loaded_int_cert(void)
 
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
             &server_cbf, NULL), TEST_FAIL);
-#ifndef WOLFSSL_HAPROXY
         ExpectIntEQ(client_cbf.last_err, CRL_CERT_REVOKED);
-#else
-        ExpectIntEQ(client_cbf.last_err, WOLFSSL_X509_V_ERR_CERT_REVOKED);
-#endif
         ExpectIntEQ(server_cbf.last_err, FATAL_ERROR);
 
         if (!EXPECT_SUCCESS())
@@ -72647,6 +72798,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_X509_STORE_get0_objects),
     TEST_DECL(test_wolfSSL_X509_load_crl_file),
     TEST_DECL(test_wolfSSL_X509_STORE_get1_certs),
+    TEST_DECL(test_wolfSSL_X509_STORE_set_get_crl),
     TEST_DECL(test_wolfSSL_X509_NAME_ENTRY_get_object),
     TEST_DECL(test_wolfSSL_X509_cmp_time),
     TEST_DECL(test_wolfSSL_X509_time_adj),
@@ -72810,9 +72962,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_BIO_get_len),
 #endif
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES)
     TEST_DECL(test_wolfSSL_check_domain),
-#endif
     TEST_DECL(test_wolfSSL_cert_cb),
     TEST_DECL(test_wolfSSL_cert_cb_dyn_ciphers),
     TEST_DECL(test_wolfSSL_ciphersuite_auth),

@@ -3062,7 +3062,7 @@ word16 wolfSSL_SNI_GetRequest(WOLFSSL* ssl, byte type, void** data)
         *data = NULL;
 
     if (ssl && ssl->extensions)
-        return TLSX_SNI_GetRequest(ssl->extensions, type, data);
+        return TLSX_SNI_GetRequest(ssl->extensions, type, data, 0);
 
     return 0;
 }
@@ -4081,11 +4081,7 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
     else if (ssl->error == SOCKET_PEER_CLOSED_E)
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
 #endif
-#if defined(WOLFSSL_HAPROXY)
-    return GetX509Error(ssl->error);
-#else
-    return (ssl->error);
-#endif
+    return ssl->error;
 }
 
 
@@ -11815,7 +11811,7 @@ cleanup:
     }
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
-    WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* ctx)
+    WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(const WOLFSSL_CTX* ctx)
     {
         if (ctx == NULL) {
             return NULL;
@@ -11823,7 +11819,7 @@ cleanup:
 
         if (ctx->x509_store_pt != NULL)
             return ctx->x509_store_pt;
-        return &ctx->x509_store;
+        return &((WOLFSSL_CTX*)ctx)->x509_store;
     }
 
     void wolfSSL_CTX_set_cert_store(WOLFSSL_CTX* ctx, WOLFSSL_X509_STORE* str)
@@ -17745,7 +17741,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 #endif
 
     WOLFSSL_ENTER("wolfSSL_get_chain_X509");
-    if (chain != NULL) {
+    if (chain != NULL && idx < MAX_CHAIN_DEPTH) {
     #ifdef WOLFSSL_SMALL_STACK
         cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
                                                        DYNAMIC_TYPE_DCERT);
@@ -20025,17 +20021,17 @@ int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
     return ret;
 }
 
-
-#ifndef NO_WOLFSSL_SERVER
+/* May be called by server to get the requested accepted name and by the client
+ * to get the requested name. */
 const char * wolfSSL_get_servername(WOLFSSL* ssl, byte type)
 {
     void * serverName = NULL;
     if (ssl == NULL)
         return NULL;
-    TLSX_SNI_GetRequest(ssl->extensions, type, &serverName);
+    TLSX_SNI_GetRequest(ssl->extensions, type, &serverName,
+            !wolfSSL_is_server(ssl));
     return (const char *)serverName;
 }
-#endif /* NO_WOLFSSL_SERVER */
 #endif /* HAVE_SNI */
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
@@ -20062,6 +20058,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         return NULL;
     if (ssl->ctx == ctx)
         return ssl->ctx;
+
+    if (ctx->suites == NULL) {
+        /* suites */
+        if (AllocateCtxSuites(ctx) != 0)
+            return NULL;
+        InitSSL_CTX_Suites(ctx);
+    }
 
     wolfSSL_RefInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
@@ -20988,8 +20991,9 @@ long wolfSSL_CTX_get_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
  *          correct length.
  */
 long wolfSSL_CTX_set_tlsext_ticket_keys(WOLFSSL_CTX *ctx,
-     unsigned char *keys, int keylen)
+     const void *keys_vp, int keylen)
 {
+    const byte* keys = (const byte*)keys_vp;
     if (ctx == NULL || keys == NULL) {
         return WOLFSSL_FAILURE;
     }

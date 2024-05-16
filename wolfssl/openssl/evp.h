@@ -401,6 +401,7 @@ typedef union {
 
 #define NID_X9_62_id_ecPublicKey EVP_PKEY_EC
 #define NID_rsaEncryption        EVP_PKEY_RSA
+#define NID_rsa                  EVP_PKEY_RSA
 #define NID_dsa                  EVP_PKEY_DSA
 
 #define EVP_PKEY_OP_SIGN    (1 << 3)

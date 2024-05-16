@@ -12094,7 +12094,6 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     static int RebuildFullName(WOLFSSL_X509_NAME* name)
     {
         int totalLen = 0, i, idx, entryCount = 0;
-        char* fullName;
 
         if (name == NULL)
             return BAD_FUNC_ARG;
@@ -12114,23 +12113,26 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
             }
         }
 
-        fullName = (char*)XMALLOC(totalLen + 1, name->heap, DYNAMIC_TYPE_X509);
-        if (fullName == NULL)
-            return MEMORY_E;
-
-        idx = 0;
-        entryCount = AddAllEntry(name, fullName, totalLen, &idx);
-        if (entryCount < 0) {
-            XFREE(fullName, name->heap, DYNAMIC_TYPE_X509);
-            return entryCount;
-        }
-
         if (name->dynamicName) {
             XFREE(name->name, name->heap, DYNAMIC_TYPE_X509);
+            name->name = name->staticName;
+            name->dynamicName = 0;
         }
-        fullName[idx] = '\0';
-        name->name = fullName;
-        name->dynamicName = 1;
+
+        if (totalLen >= ASN_NAME_MAX) {
+            name->name = (char*)XMALLOC(totalLen + 1, name->heap,
+                    DYNAMIC_TYPE_X509);
+            if (name->name == NULL)
+                return MEMORY_E;
+            name->dynamicName = 1;
+        }
+
+        idx = 0;
+        entryCount = AddAllEntry(name, name->name, totalLen, &idx);
+        if (entryCount < 0)
+            return entryCount;
+
+        name->name[idx] = '\0';
         name->sz = idx + 1; /* size includes null terminator */
         name->entrySz = entryCount;
 
@@ -13897,6 +13899,16 @@ int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)
     XMEMCPY(x509->notBefore.data, t->data, CTC_DATE_SIZE);
 
     return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_X509_set1_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME *t)
+{
+    return wolfSSL_X509_set_notAfter(x509, t);
+}
+
+int wolfSSL_X509_set1_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME *t)
+{
+    return wolfSSL_X509_set_notBefore(x509, t);
 }
 
 int wolfSSL_X509_set_serialNumber(WOLFSSL_X509* x509, WOLFSSL_ASN1_INTEGER* s)

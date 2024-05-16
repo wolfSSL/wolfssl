@@ -2407,12 +2407,13 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
 #ifndef NO_WOLFSSL_SERVER
 
 /** Tells the SNI requested by the client. */
-word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
+word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data,
+        byte ignoreStatus)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_SERVER_NAME);
     SNI* sni = TLSX_SNI_Find(extension ? (SNI*)extension->data : NULL, type);
 
-    if (sni && sni->status != WOLFSSL_SNI_NO_MATCH) {
+    if (sni && (ignoreStatus || sni->status != WOLFSSL_SNI_NO_MATCH)) {
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
                 if (data) {

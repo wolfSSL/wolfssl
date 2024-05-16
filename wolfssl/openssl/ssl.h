@@ -501,6 +501,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_set_pubkey                 wolfSSL_X509_set_pubkey
 #define X509_set_notAfter               wolfSSL_X509_set_notAfter
 #define X509_set_notBefore              wolfSSL_X509_set_notBefore
+#define X509_set1_notAfter              wolfSSL_X509_set1_notAfter
+#define X509_set1_notBefore             wolfSSL_X509_set1_notBefore
 #define X509_set_serialNumber           wolfSSL_X509_set_serialNumber
 #define X509_set_version                wolfSSL_X509_set_version
 #define X509_REQ_set_version            wolfSSL_X509_set_version
@@ -635,6 +637,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
 
+#define X509_V_FLAG_PARTIAL_CHAIN 0
+#define X509_V_FLAG_TRUSTED_FIRST 0
+
 #define X509_V_FLAG_USE_CHECK_TIME WOLFSSL_USE_CHECK_TIME
 #define X509_V_FLAG_NO_CHECK_TIME  WOLFSSL_NO_CHECK_TIME
 #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT WOLFSSL_ALWAYS_CHECK_SUBJECT
@@ -675,10 +680,13 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
 #define X509_STORE_set_verify_cb_func(s, c) \
 wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_CTX_verify_cb)(c))
+#define X509_STORE_set_get_crl          wolfSSL_X509_STORE_set_get_crl
+#define X509_STORE_set_check_crl        wolfSSL_X509_STORE_set_check_crl
 
 
 #define X509_STORE_new                  wolfSSL_X509_STORE_new
 #define X509_STORE_free                 wolfSSL_X509_STORE_free
+#define X509_STORE_up_ref               wolfSSL_X509_STORE_up_ref
 #define X509_STORE_add_lookup           wolfSSL_X509_STORE_add_lookup
 #define X509_STORE_add_cert             wolfSSL_X509_STORE_add_cert
 #define X509_STORE_add_crl              wolfSSL_X509_STORE_add_crl
@@ -687,8 +695,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_STORE_get_by_subject       wolfSSL_X509_STORE_get_by_subject
 #define X509_STORE_set_ex_data          wolfSSL_X509_STORE_set_ex_data
 #define X509_STORE_get_ex_data          wolfSSL_X509_STORE_get_ex_data
+#define X509_STORE_get0_param           wolfSSL_X509_STORE_get0_param
 #define X509_STORE_CTX_get1_issuer      wolfSSL_X509_STORE_CTX_get1_issuer
 #define X509_STORE_CTX_set_time         wolfSSL_X509_STORE_CTX_set_time
+#define X509_STORE_CTX_get0_param       wolfSSL_X509_STORE_CTX_get0_param
 #define X509_VERIFY_PARAM_new           wolfSSL_X509_VERIFY_PARAM_new
 #define X509_VERIFY_PARAM_free          wolfSSL_X509_VERIFY_PARAM_free
 #define X509_VERIFY_PARAM_set_flags     wolfSSL_X509_VERIFY_PARAM_set_flags
@@ -712,6 +722,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define d2i_X509_CRL_fp                 wolfSSL_d2i_X509_CRL_fp
 #define PEM_read_X509_CRL               wolfSSL_PEM_read_X509_CRL
 
+#define X509_CRL_dup                    wolfSSL_X509_CRL_dup
 #define X509_CRL_free                   wolfSSL_X509_CRL_free
 #define X509_CRL_get_lastUpdate         wolfSSL_X509_CRL_get_lastUpdate
 #define X509_CRL_get0_lastUpdate        wolfSSL_X509_CRL_get_lastUpdate
@@ -836,18 +847,21 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #ifndef NO_ASN_TIME
 #define ASN1_TIME_new                   wolfSSL_ASN1_TIME_new
 #define ASN1_UTCTIME_new                wolfSSL_ASN1_TIME_new
+#define ASN1_GENERALIZEDTIME_new        wolfSSL_ASN1_TIME_new
 #define ASN1_TIME_free                  wolfSSL_ASN1_TIME_free
 #define ASN1_UTCTIME_free               wolfSSL_ASN1_TIME_free
+#define ASN1_GENERALIZEDTIME_free       wolfSSL_ASN1_TIME_free
 #define ASN1_TIME_adj                   wolfSSL_ASN1_TIME_adj
 #define ASN1_TIME_print                 wolfSSL_ASN1_TIME_print
 #define ASN1_TIME_to_string             wolfSSL_ASN1_TIME_to_string
 #define ASN1_TIME_to_tm                 wolfSSL_ASN1_TIME_to_tm
 #define ASN1_TIME_to_generalizedtime    wolfSSL_ASN1_TIME_to_generalizedtime
+#define ASN1_UTCTIME_set                wolfSSL_ASN1_UTCTIME_set
 #endif
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 #define ASN1_TIME_set_string            wolfSSL_ASN1_TIME_set_string
+#define ASN1_GENERALIZEDTIME_set_string wolfSSL_ASN1_TIME_set_string
 #define ASN1_GENERALIZEDTIME_print      wolfSSL_ASN1_GENERALIZEDTIME_print
-#define ASN1_GENERALIZEDTIME_free       wolfSSL_ASN1_GENERALIZEDTIME_free
 
 #define ASN1_tag2str                    wolfSSL_ASN1_tag2str
 
@@ -917,7 +931,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #endif
 #define SSL_set0_verify_cert_store      wolfSSL_set0_verify_cert_store
 #define SSL_set1_verify_cert_store      wolfSSL_set1_verify_cert_store
-#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
+#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((x))
 #define SSL_get_client_CA_list          wolfSSL_get_client_CA_list
 #define SSL_set_client_CA_list          wolfSSL_set_client_CA_list
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
@@ -938,7 +952,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 
 #define SSL_alert_type_string           wolfSSL_alert_type_string
 #define SSL_alert_desc_string           wolfSSL_alert_desc_string
-#define SSL_state_string                wolfSSL_state_string
+#define SSL_state_string                wolfSSL_state_string_long
 
 #define RSA_free                        wolfSSL_RSA_free
 #define RSA_generate_key                wolfSSL_RSA_generate_key
