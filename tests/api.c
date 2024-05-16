@@ -7478,6 +7478,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_loop(void* args)
     func_args* opts = (func_args*)args;
     int loop_count = opts->argc;
     int count = 0;
+    int freeClientfd = 0;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
