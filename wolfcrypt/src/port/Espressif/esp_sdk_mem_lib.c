@@ -41,6 +41,14 @@
     CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
 
+#ifndef SINGLE_THREADED
+    #ifdef PLATFORMIO
+        #include <freertos/semphr.h>
+    #else
+        #include "semphr.h"
+    #endif
+#endif
+
 /* Espressif */
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <esp_log.h>
@@ -257,9 +265,6 @@ esp_err_t esp_sdk_mem_lib_init(void)
     ESP_LOGI(TAG, "esp_sdk_mem_lib_init Ver %d", ESP_SDK_MEM_LIB_VERSION);
     return ret;
 }
-    #ifndef SINGLE_THREADED
-        #include "semphr.h"
-    #endif
 
 void* wc_debug_pvPortMalloc(size_t size,
                            const char* file, int line, const char* fname) {
