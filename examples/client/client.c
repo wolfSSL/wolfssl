@@ -2104,7 +2104,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    /* Set our preference for verfication to be for both the native and
+    /* Set our preference for verification to be for both the native and
      * alternative chains. Ultimately, its the server's choice. This will be
      * used in the call to wolfSSL_UseCKS(). */
     byte cks_order[3] = {

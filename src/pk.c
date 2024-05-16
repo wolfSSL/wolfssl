@@ -14423,7 +14423,7 @@ int wolfSSL_ED25519_generate_key(unsigned char *priv, unsigned int *privSz,
  * @param [in]      priv    ED25519 private key data.
  * @param [in]      privSz  Length in bytes of private key data.
  * @param [out]     sig     Signature buffer.
- * @param [in, out] sigSz   On in, the length of the siganture buffer in bytes.
+ * @param [in, out] sigSz   On in, the length of the signature buffer in bytes.
  *                          On out, the length of the signature in bytes.
  * @return  1 on success
  * @return  0 on failure.
@@ -14889,7 +14889,7 @@ int wolfSSL_ED448_generate_key(unsigned char *priv, unsigned int *privSz,
  * @param [in]      priv    ED448 private key data.
  * @param [in]      privSz  Length in bytes of private key data.
  * @param [out]     sig     Signature buffer.
- * @param [in, out] sigSz   On in, the length of the siganture buffer in bytes.
+ * @param [in, out] sigSz   On in, the length of the signature buffer in bytes.
  *                          On out, the length of the signature in bytes.
  * @return  1 on success
  * @return  0 on failure.
@@ -15143,7 +15143,7 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
  * @param [in] passwd  Password to use when encrypting.
  * @param [in] len     Length of password.
  * @param [in] cb      Password callback.
- * @param [in] arg     Password callback arguement.
+ * @param [in] arg     Password callback argument.
  * @return  1 on success.
  * @return  0 on failure.
  */
@@ -15254,7 +15254,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
  * @param [in]      bio   BIO to read from.
  * @param [in, out] key   Public key object. Object used if passed in.
  * @param [in]      cb    Password callback.
- * @param [in]      arg   Password callback arguement.
+ * @param [in]      arg   Password callback argument.
  * @return  A WOLFSSL_EVP_PKEY object on success.
  * @return  NULL on failure.
  */
@@ -15310,7 +15310,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
  * @param [in]      bio   BIO to read from.
  * @param [in, out] key   Private key object. Object used if passed in.
  * @param [in]      cb    Password callback.
- * @param [in]      arg   Password callback arguement.
+ * @param [in]      arg   Password callback argument.
  * @return  A WOLFSSL_EVP_PKEY object on success.
  * @return  NULL on failure.
  */
@@ -15391,7 +15391,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
  * @param [in]      fp    File pointer.
  * @param [in, out] key   Public key object. Object used if passed in.
  * @param [in]      cb    Password callback.
- * @param [in]      arg   Password callback arguement.
+ * @param [in]      arg   Password callback argument.
  * @return  A WOLFSSL_EVP_PKEY object on success.
  * @return  NULL on failure.
  */
@@ -15448,7 +15448,7 @@ WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, WOLFSSL_EVP_PKEY **key,
  * @param [in]      fp    File pointer.
  * @param [in, out] key   Private key object. Object used if passed in.
  * @param [in]      cb    Password callback.
- * @param [in]      arg   Password callback arguement.
+ * @param [in]      arg   Password callback argument.
  * @return  A WOLFSSL_EVP_PKEY object on success.
  * @return  NULL on failure.
  */
@@ -15668,7 +15668,7 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
     return ret;
 }
 
-/* Encode the DER data in PEM foramt into a newly allocated buffer.
+/* Encode the DER data in PEM format into a newly allocated buffer.
  *
  * @param [in]  name       Header/footer name.
  * @param [in]  header     Encryption header.
@@ -15812,7 +15812,7 @@ int wolfSSL_PEM_read_bio(WOLFSSL_BIO* bio, char **name, char **header,
     return res;
 }
 
-/* Encode the DER data in PEM foramt into a BIO.
+/* Encode the DER data in PEM format into a BIO.
  *
  * @param [in] bio     BIO to write to.
  * @param [in] name    Header/footer name.
@@ -15894,7 +15894,7 @@ int wolfSSL_PEM_read(XFILE fp, char **name, char **header, unsigned char **data,
     return res;
 }
 
-/* Encode the DER data in PEM foramt into a file.
+/* Encode the DER data in PEM format into a file.
  *
  * @param [in] fp      File pointer to write to.
  * @param [in] name    Header/footer name.
@@ -16135,7 +16135,7 @@ static int pem_pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
  * @param [out] pemSz     Size of data in buffer in bytes.
  * @param [in]  pkey      Private key to write.
  * @param [in]  enc       Encryption information to use. May be NULL.
- * @param [in]  passwd    Pasword to use when encrypting. May be NULL.
+ * @param [in]  passwd    Password to use when encrypting. May be NULL.
  * @param [in]  passwdSz  Size of password in bytes.
  * @param [in]  cb        Password callback. Used when passwd is NULL. May be
  *                        NULL.
@@ -16256,7 +16256,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
  * @param [in] bio       BIO to write to.
  * @param [in] pkey      Private key to write.
  * @param [in] enc       Encryption information to use. May be NULL.
- * @param [in] passwd    Pasword to use when encrypting. May be NULL.
+ * @param [in] passwd    Password to use when encrypting. May be NULL.
  * @param [in] passwdSz  Size of password in bytes.
  * @param [in] cb        Password callback. Used when passwd is NULL. May be
  *                       NULL.
@@ -16301,7 +16301,7 @@ int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
  * @param [in] f         File pointer.
  * @param [in] pkey      Private key to write.
  * @param [in] enc       Encryption information to use. May be NULL.
- * @param [in] passwd    Pasword to use when encrypting. May be NULL.
+ * @param [in] passwd    Password to use when encrypting. May be NULL.
  * @param [in] passwdSz  Size of password in bytes.
  * @param [in] cb        Password callback. Used when passwd is NULL. May be
  *                       NULL.

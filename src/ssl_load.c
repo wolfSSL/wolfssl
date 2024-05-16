@@ -1585,7 +1585,7 @@ static void ProcessBufferCertSetHave(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #ifndef WC_STRICT_SIG
     wolfssl_set_have_from_key_oid(ctx, ssl, cert->keyOID);
 #else
-    /* Set whether ECC is available baed on signature available. */
+    /* Set whether ECC is available based on signature available. */
     if (ssl != NULL) {
         ssl->options.haveECC = ssl->options.haveECDSAsig;
     }
@@ -5611,7 +5611,7 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
  *
  * @param [in, out] ctx     SSL context object.
  * @param [in, out] ssl     SSL object.
- * @oaram [in]      buf     Buffer holding encoded DH parameters.
+ * @param [in]      buf     Buffer holding encoded DH parameters.
  * @param [in]      sz      Size of encoded DH parameters.
  * @param [in]      format  Format of data:
  *                            WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
@@ -5724,7 +5724,7 @@ static int ws_ctx_ssl_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 /* Set the temporary DH parameters against the SSL.
  *
  * @param [in, out] ssl     SSL object.
- * @oaram [in]      buf     Buffer holding encoded DH parameters.
+ * @param [in]      buf     Buffer holding encoded DH parameters.
  * @param [in]      sz      Size of encoded DH parameters.
  * @param [in]      format  Format of data:
  *                            WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
@@ -5743,7 +5743,7 @@ int wolfSSL_SetTmpDH_buffer(WOLFSSL* ssl, const unsigned char* buf, long sz,
 /* Set the temporary DH parameters against the SSL context.
  *
  * @param [in, out] ctx     SSL context object.
- * @oaram [in]      buf     Buffer holding encoded DH parameters.
+ * @param [in]      buf     Buffer holding encoded DH parameters.
  * @param [in]      sz      Size of encoded DH parameters.
  * @param [in]      format  Format of data:
  *                            WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_ASN1.
@@ -5806,11 +5806,11 @@ static int ws_ctx_ssl_set_tmp_dh_file(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
     if (res == 1) {
         if (ssl != NULL) {
-            /* Set encoded DH paramters into SSL. */
+            /* Set encoded DH parameters into SSL. */
             res = wolfSSL_SetTmpDH_buffer(ssl, dhFile.buffer, sz, format);
         }
         else {
-            /* Set encoded DH paramters into SSL context. */
+            /* Set encoded DH parameters into SSL context. */
             res = wolfSSL_CTX_SetTmpDH_buffer(ctx, dhFile.buffer, sz, format);
         }
     }

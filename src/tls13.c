@@ -9073,7 +9073,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 if ((ssl->hsType == DYNAMIC_TYPE_RSA) &&
                     (args->sigLen > MAX_SIG_DATA_SZ)) {
                     /* We store the RSA signature in the sigData buffer
-                        * temporarly, hence its size must be fitting. */
+                     * temporarily, hence its size must be fitting. */
                     sigLen = args->sigLen;
                 }
                 args->sigData = (byte*)XMALLOC(sigLen, ssl->heap,
@@ -9091,7 +9091,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 if (ssl->hsAltType == DYNAMIC_TYPE_RSA &&
                     args->altSigLen > MAX_SIG_DATA_SZ) {
                     /* We store the RSA signature in the sigData buffer
-                     * temporarly, hence its size must be fitting. */
+                     * temporarily, hence its size must be fitting. */
                     sigLen = args->altSigLen;
                 }
                 args->altSigData = (byte*)XMALLOC(sigLen, ssl->heap,
