@@ -14,7 +14,7 @@ void app_main() {
 #ifdef WOLFSSL_ESPIDF
     ESP_LOGI(TAG, "Found WOLFSSL_ESPIDF!");
 #endif
-    printf("Hello World wolfSSL Version %s", LIBWOLFSSL_VERSION_STRING);
+    printf("Hello World wolfSSL Version\n %s", LIBWOLFSSL_VERSION_STRING);
 
 #if defined(HAVE_VERSION_EXTENDED_INFO) && defined(WOLFSSL_ESPIDF)
     esp_ShowExtendedSystemInfo();
