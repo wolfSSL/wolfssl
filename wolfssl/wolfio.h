@@ -150,6 +150,8 @@
         #include <sys/fcltypes.h>
         #include <fclerrno.h>
         #include <fclfcntl.h>
+    #elif defined(WOLFSSL_EMNET)
+        #include <IP/IP.h>
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>
@@ -305,7 +307,7 @@
     #define SOCKET_ECONNREFUSED ERR_CONN
     #define SOCKET_ECONNABORTED ERR_ABRT
 #elif defined(WOLFSSL_EMNET)
-    #include <IP/IP.h>
+    #define XSOCKLENT           int
     #define SOCKET_EWOULDBLOCK  IP_ERR_WOULD_BLOCK
     #define SOCKET_EAGAIN       IP_ERR_WOULD_BLOCK
     #define SOCKET_ECONNRESET   IP_ERR_CONN_RESET
