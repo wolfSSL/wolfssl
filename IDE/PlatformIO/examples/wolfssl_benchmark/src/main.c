@@ -18,6 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#include "main.h"
 
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFSSL_ESPIDF
@@ -30,18 +31,18 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 
-#define TAG "demo"
+#define TAG "wolfSSL demo"
 
 void app_main() {
     int ret = 0;
 #ifdef WOLFSSL_ESPIDF
     ESP_LOGI(TAG, "Found WOLFSSL_ESPIDF!");
 #endif
-    printf("Hello World wolfSSL Version %s", LIBWOLFSSL_VERSION_STRING);
+    printf("\nHello World wolfSSL Version %s\n", LIBWOLFSSL_VERSION_STRING);
 
 #if defined(HAVE_VERSION_EXTENDED_INFO) && defined(WOLFSSL_ESPIDF)
     esp_ShowExtendedSystemInfo();
 #endif
     ret =  benchmark_test(NULL);
-    printf("benchmark_test result %d", ret);
+    printf("\nbenchmark_test complete! result code: %d\n", ret);
 }
