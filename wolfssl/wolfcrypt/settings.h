@@ -3586,6 +3586,11 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && \
+    defined(OPENSSL_COEXIST)
+    #error "OPENSSL_EXTRA can not be defined with OPENSSL_COEXIST"
+#endif
+
 /* if configure.ac turned on this feature, HAVE_ENTROPY_MEMUSE will be set,
  * also define HAVE_WOLFENTROPY */
 #ifdef HAVE_ENTROPY_MEMUSE
