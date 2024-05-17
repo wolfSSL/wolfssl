@@ -813,7 +813,7 @@ static int SetupSocketAndConnect(info_t* info, const char* host,
     /* Setup server address */
     XMEMSET(&servAddr, 0, sizeof(servAddr));
     servAddr.sin_family = AF_INET;
-    servAddr.sin_port = htons((u_int16_t)port);
+    servAddr.sin_port = htons((uint16_t)port);
 
     /* Resolve host */
     entry = gethostbyname(host);
@@ -1224,7 +1224,7 @@ static int SetupSocketAndListen(int* listenFd, word32 port, int doDTLS)
     /* Setup server address */
     XMEMSET(&servAddr, 0, sizeof(servAddr));
     servAddr.sin_family = AF_INET;
-    servAddr.sin_port = htons((u_int16_t)port);
+    servAddr.sin_port = htons((uint16_t)port);
     servAddr.sin_addr.s_addr = INADDR_ANY;
 
 #ifdef WOLFSSL_DTLS
