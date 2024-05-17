@@ -58,6 +58,12 @@ typedef struct Gcm {
 #if FIPS_VERSION3_GE(6,0,0)
     extern const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2];
     WOLFSSL_LOCAL int wolfCrypt_FIPS_AES_sanity(void);
+
+    /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
+     * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+     * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes)
+     */
+    #define FIPS_XTS_LIMIT 16777216
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);

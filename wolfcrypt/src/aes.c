@@ -12785,13 +12785,16 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
     aes = &xaes->aes;
 
-/* FIPS TODO: SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
- * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
- * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes or
- * 134,217,728-bits) Add helpful printout and message along with BAD_FUNC_ARG
- * return whenever sz / AES_BLOCK_SIZE > 1,048,576 or equal to that and sz is
- * not a sequence of complete blocks.
- */
+    #if FIPS_VERSION3_GE(6,0,0)
+    /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
+     * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+     * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes)
+     */
+    if (sz > FIPS_XTS_LIMIT) {
+        WOLFSSL_MSG("Request exceeds allowed bytes per SP800-38E");
+        return BAD_FUNC_ARG;
+    }
+    #endif
 
     if (aes->keylen == 0) {
         WOLFSSL_MSG("wc_AesXtsEncrypt called with unset encryption key.");
