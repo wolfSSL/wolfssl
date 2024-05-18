@@ -6349,7 +6349,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
     res = check_cert_key(ctx->certificate, ctx->privateKey, ctx->altPrivateKey,
             ctx->heap, ctx->privateKeyDevId, ctx->privateKeyLabel,
             ctx->privateKeyId, ctx->altPrivateKeyDevId, ctx->altPrivateKeyLabel,
-            ctx->altPrivateKeyId) != 0
+            ctx->altPrivateKeyId) != 0;
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
     {
         int ret;
