@@ -1011,9 +1011,9 @@ WC_MISC_STATIC WC_INLINE char* CopyString(const char* src, int srcLen,
     if (srcLen <= 0)
         srcLen = (int)XSTRLEN(src);
 
-    dst = (char*)XMALLOC(srcLen + 1, heap, type);
+    dst = (char*)XMALLOC((size_t)srcLen + 1, heap, type);
     if (dst != NULL) {
-        XMEMCPY(dst, src, srcLen);
+        XMEMCPY(dst, src, (size_t)srcLen);
         dst[srcLen] = '\0';
     }
 
