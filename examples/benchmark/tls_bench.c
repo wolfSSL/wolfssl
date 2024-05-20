@@ -390,7 +390,7 @@ static int run_all_CAST(void)
     int ret = 0;
     int cast_idx = 0;
 
-    for (cast_idx=0; cast_idx<FIPS_CAST_COUNT; cast_idx++) {
+    for (cast_idx = 0; cast_idx < FIPS_CAST_COUNT; cast_idx++) {
         if ((ret = wc_RunCast_fips(cast_idx)) != 0) {
 #ifdef NO_ERROR_STRINGS
             fprintf(stderr,
