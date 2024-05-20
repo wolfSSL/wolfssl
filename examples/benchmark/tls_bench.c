@@ -383,6 +383,32 @@ char* myoptarg = NULL;
 int DoneHandShake = 0;
 #endif
 
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 5)
+static int run_all_CAST(void)
+{
+    int ret = 0;
+    int cast_idx = 0;
+
+    for (cast_idx = 0; cast_idx < FIPS_CAST_COUNT; cast_idx++) {
+        if ((ret = wc_RunCast_fips(cast_idx)) != 0) {
+#ifdef NO_ERROR_STRINGS
+            fprintf(stderr,
+                    "ERROR: FIPS CAST failed with return code: %d\n", ret);
+#else
+            fprintf(stderr,
+                    "ERROR: FIPS CAST failed for algorithm: %s\n",
+                    wc_GetErrorString(ret));
+#endif
+            return ret;
+        }
+    }
+
+    return ret;
+}
+#endif /* HAVE_FIPS && HAVE_FIPS_VERSION == 5 */
+
+
 static double gettime_secs(int reset)
 {
     struct timeval tv;
@@ -1862,6 +1888,23 @@ int bench_tls(void* args)
 
     /* Initialize wolfSSL */
     wolfSSL_Init();
+
+#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION == 5)
+    /*
+     * When running benchmarks on FIPS builds, we need to run ALL CASTs up
+     * front before spawning client/server threads, otherwise there is the
+     * possibility that both threads try to run a CAST at the same time during
+     * the handshake. In this scenario, the thread that doesn't win the race
+     * will not be able to run the CAST, since it returns "busy", which is treated
+     * as a failure. Running the CASTs up front is a simpler solution than
+     * implementing an additional layer of synchronization.
+     */
+    if ((ret = run_all_CAST()) != 0)
+    {
+        fprintf(stderr, "CAST failed. Exiting benchmark\n");
+        goto exit;
+    }
+#endif /* HAVE_FIPS && HAVE_FIPS_VERSION == 5 */
 
     /* Parse command line arguments */
     while ((ch = mygetopt(argc, argv, "?" "udeil:p:t:vT:sch:P:mS:g")) != -1) {
