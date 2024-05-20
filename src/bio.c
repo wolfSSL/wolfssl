@@ -351,6 +351,15 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                 ret = NOT_COMPILED_IN;
             #endif
                 break;
+            case WOLFSSL_BIO_DGRAM:
+            #ifdef USE_WOLFSSL_IO
+                /* BIO requires built-in socket support
+                 *  (cannot be used with WOLFSSL_USER_IO) */
+                ret = wolfIO_RecvDgram(bio->num, (char*)buf, len, 0);
+            #else
+                ret = NOT_COMPILED_IN;
+            #endif
+                break;
             } /* switch */
         }
 
@@ -728,6 +737,15 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 /* BIO requires built-in socket support
                  *  (cannot be used with WOLFSSL_USER_IO) */
                 ret = wolfIO_Send(bio->num, (char*)data, len, 0);
+            #else
+                ret = NOT_COMPILED_IN;
+            #endif
+                break;
+            case WOLFSSL_BIO_DGRAM:
+            #ifdef USE_WOLFSSL_IO
+                /* BIO requires built-in socket support
+                 *  (cannot be used with WOLFSSL_USER_IO) */
+                ret = wolfIO_SendDgram(bio->num, (char*)data, len, 0);
             #else
                 ret = NOT_COMPILED_IN;
             #endif
@@ -1830,6 +1848,7 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     if (bio) {
         switch (bio->type) {
             case WOLFSSL_BIO_SOCKET:
+            case WOLFSSL_BIO_DGRAM:
             #ifdef XFCNTL
                 {
                     int ret;
@@ -2145,6 +2164,32 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
         return bio;
     }
+
+
+    WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_dgram(void)
+    {
+        static WOLFSSL_BIO_METHOD meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_DGRAM);
+
+        WOLFSSL_ENTER("wolfSSL_BIO_s_dgram");
+
+        return &meth;
+    }
+
+
+    WOLFSSL_BIO* wolfSSL_BIO_new_dgram(int fd, int closeF)
+    {
+        WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_dgram());
+
+        WOLFSSL_ENTER("wolfSSL_BIO_new_dgram");
+        if (bio) {
+            bio->type  = WOLFSSL_BIO_DGRAM;
+            bio->shutdown = (byte)closeF;
+            bio->num   = fd;
+        }
+        return bio;
+    }
+
 
     /**
      * Create new socket BIO object. This is a pure TCP connection with
