@@ -13834,13 +13834,13 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when ctx is NULL or salt is NULL and len is not 0.
  */
-int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len)
+int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz)
 {
-    if (ctx == NULL || (salt == NULL && len != 0))
+    if (ctx == NULL || (salt == NULL && sz != 0))
         return BAD_FUNC_ARG;
 
     ctx->kdfSalt   = salt;
-    ctx->kdfSaltSz = len;
+    ctx->kdfSaltSz = sz;
 
     if (ctx->protocol == REQ_RESP_CLIENT) {
         ctx->cliSt = ecCLI_SALT_SET;

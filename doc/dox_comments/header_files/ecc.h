@@ -1722,7 +1722,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 
     \param ctx pointer to the ecEncCtx for which to set the salt
     \param salt pointer to salt buffer
-    \param len length salt in bytes
+    \param sz length salt in bytes
 
     _Example_
     \code
@@ -1742,7 +1742,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
     \sa wc_ecc_ctx_get_peer_salt
 */
 
-int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len);
+int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz);
 
 /*!
     \ingroup ECC
