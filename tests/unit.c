@@ -68,7 +68,6 @@ int unit_test(int argc, char** argv)
 
     (void)argc;
     (void)argv;
-
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     if (argc > 1) {
         int memFailCount = atoi(argv[1]);
@@ -161,7 +160,7 @@ int unit_test(int argc, char** argv)
         err_sys("KDF TLSv1.2 CAST failed");
     }
 #endif
-#if defined(WOLFSSL_HAVE_PRF) && defined(WOLFSSL_TLS13)
+#if defined(HAVE_HKDF) && !defined(NO_HMAC)
     if (wc_RunCast_fips(FIPS_CAST_KDF_TLS13) != 0) {
         err_sys("KDF TLSv1.3 CAST failed");
     }
@@ -172,6 +171,11 @@ int unit_test(int argc, char** argv)
     }
 #endif
 #endif /* HAVE_FIPS && HAVE_FIPS_VERSION == 5 */
+#if FIPS_VERSION3_GT(5,2,0)
+    if (wc_RunAllCast_fips() != 0) {
+        err_sys("wc_RunAllCast_fips() failed\n");
+    }
+#endif
 
     while (argc > 1) {
         if (argv[1][0] != '-') {
