@@ -13830,17 +13830,17 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt)
  *
  * @param  [in, out]  ctx   ECIES context object.
  * @param  [in]       salt  Salt to use with KDF.
- * @param  [in]       len   Length of salt in bytes.
+ * @param  [in]       sz    Length of salt in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when ctx is NULL or salt is NULL and len is not 0.
  */
-int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len)
+int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz)
 {
-    if (ctx == NULL || (salt == NULL && len != 0))
+    if (ctx == NULL || (salt == NULL && sz != 0))
         return BAD_FUNC_ARG;
 
     ctx->kdfSalt   = salt;
-    ctx->kdfSaltSz = len;
+    ctx->kdfSaltSz = sz;
 
     if (ctx->protocol == REQ_RESP_CLIENT) {
         ctx->cliSt = ecCLI_SALT_SET;
@@ -13852,9 +13852,37 @@ int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 len)
     return 0;
 }
 
+/* Set your own salt. By default we generate a random salt for ourselves.
+ * This allows overriding that after init or reset.
+ *
+ * @param  [in, out]  ctx   ECIES context object.
+ * @param  [in]       salt  Salt to use for ourselves
+ * @param  [in]       sz    Length of salt in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when ctx is NULL or salt is NULL and len is not 0.
+ */
+int wc_ecc_ctx_set_own_salt(ecEncCtx* ctx, const byte* salt, word32 sz)
+{
+    byte* saltBuffer;
+
+    if (ctx == NULL || ctx->protocol == 0 || salt == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz > EXCHANGE_SALT_SZ)
+        sz = EXCHANGE_SALT_SZ;
+    saltBuffer = (ctx->protocol == REQ_RESP_CLIENT) ?
+        ctx->clientSalt :
+        ctx->serverSalt;
+    XMEMSET(saltBuffer, 0, EXCHANGE_SALT_SZ);
+    XMEMCPY(saltBuffer, salt, sz);
+
+    return 0;
+}
+
+
 static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags)
 {
-    byte* saltBuffer = NULL;
+    byte* saltBuffer;
 
     if (ctx == NULL || flags == 0)
         return BAD_FUNC_ARG;
@@ -13863,7 +13891,6 @@ static int ecc_ctx_set_salt(ecEncCtx* ctx, int flags)
 
     return wc_RNG_GenerateBlock(ctx->rng, saltBuffer, EXCHANGE_SALT_SZ);
 }
-
 
 static void ecc_ctx_init(ecEncCtx* ctx, int flags, WC_RNG* rng)
 {

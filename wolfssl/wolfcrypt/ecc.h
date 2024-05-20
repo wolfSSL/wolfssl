@@ -978,6 +978,8 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx* ctx);
 WOLFSSL_API
 int wc_ecc_ctx_set_peer_salt(ecEncCtx* ctx, const byte* salt);
 WOLFSSL_API
+int wc_ecc_ctx_set_own_salt(ecEncCtx* ctx, const byte* salt, word32 sz);
+WOLFSSL_API
 int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz);
 WOLFSSL_API
 int wc_ecc_ctx_set_info(ecEncCtx* ctx, const byte* info, int sz);
