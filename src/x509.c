@@ -8805,11 +8805,6 @@ const WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_VERIFY_PARAM_lookup(const char *na
     return NULL;
 }
 
-const WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_get0_param(const WOLFSSL_X509_STORE *store)
-{
-    return store->param;
-}
-
 /* inherits properties of param "to" to param "from"
 *
 * WOLFSSL_VPARAM_DEFAULT          any values in "src" is copied
