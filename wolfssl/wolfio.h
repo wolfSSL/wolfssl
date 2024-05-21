@@ -217,7 +217,8 @@
     #define SOCKET_ECONNREFUSED SYS_NET_ECONNREFUSED
     #define SOCKET_ECONNABORTED SYS_NET_ECONNABORTED
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-    #if MQX_USE_IO_OLD
+    #if (defined(MQX_USE_IO_OLD) && MQX_USE_IO_OLD) || \
+        defined(FREESCALE_MQX_5_0)
         /* RTCS old I/O doesn't have an EWOULDBLOCK */
         #define SOCKET_EWOULDBLOCK  EAGAIN
         #define SOCKET_EAGAIN       EAGAIN
