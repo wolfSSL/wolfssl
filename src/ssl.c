@@ -21564,7 +21564,10 @@ int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names,
     for (i = 0; i < groups_len; ++i) {
         /* Switch the bit to off and therefore is enabled. */
         curve = (word16)groups[i];
-        if (curve >= 32) {
+        if (curve >= 64) {
+            WC_DO_NOTHING;
+        }
+        else if (curve >= 32) {
             /* 0 is for invalid and 1-14 aren't used otherwise. */
             disabled &= ~(1U << (curve - 32));
         }
