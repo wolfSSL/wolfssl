@@ -168,7 +168,9 @@
 #define BIO_C_SET_WRITE_BUF_SIZE        136
 #define BIO_C_MAKE_BIO_PAIR             138
 
-#define BIO_CTRL_DGRAM_QUERY_MTU   40
+#define BIO_CTRL_DGRAM_SET_CONNECTED 32
+#define BIO_CTRL_DGRAM_QUERY_MTU     40
+#define BIO_CTRL_DGRAM_SET_PEER      44
 
 #define BIO_FP_TEXT                0x00
 #define BIO_NOCLOSE                0x00
