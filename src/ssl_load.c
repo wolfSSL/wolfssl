@@ -53,7 +53,7 @@
 
 #if !defined(WOLFSSL_SSL_LOAD_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning ssl_bn.c does not need to be compiled separately from ssl.c
+        #warning ssl_load.c does not need to be compiled separately from ssl.c
     #endif
 #else
 
