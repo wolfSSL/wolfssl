@@ -864,6 +864,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define NID_X9_62_prime_field 406        /* 1.2.840.10045.1.1 */
 #endif /* OPENSSL_EXTRA */
 
+#define NID_id_GostR3410_2001     811
+#define NID_id_GostR3410_2012_256 979
+#define NID_id_GostR3410_2012_512 980
+
 enum ECC_TYPES
 {
     ECC_PREFIX_0 = 160,

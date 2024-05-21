@@ -214,6 +214,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_CTX_set_ecdh_auto           wolfSSL_CTX_set_ecdh_auto
 
 #define i2d_PUBKEY                      wolfSSL_i2d_PUBKEY
+#define i2d_X509_PUBKEY                 wolfSSL_i2d_X509_PUBKEY
 #define d2i_PUBKEY                      wolfSSL_d2i_PUBKEY
 #define d2i_PUBKEY_bio                  wolfSSL_d2i_PUBKEY_bio
 #define d2i_PublicKey                   wolfSSL_d2i_PublicKey
@@ -649,6 +650,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT WOLFSSL_ALWAYS_CHECK_SUBJECT
 #define X509_CHECK_FLAG_NO_WILDCARDS         WOLFSSL_NO_WILDCARDS
 #define X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS WOLFSSL_NO_PARTIAL_WILDCARDS
+#define X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS WOLFSSL_MULTI_LABEL_WILDCARDS
 
 #define X509_VP_FLAG_DEFAULT        WOLFSSL_VPARAM_DEFAULT
 #define X509_VP_FLAG_OVERWRITE      WOLFSSL_VPARAM_OVERWRITE
@@ -799,6 +801,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define BIO_set_write_buffer_size       wolfSSL_BIO_set_write_buffer_size
 #define BIO_f_ssl                       wolfSSL_BIO_f_ssl
 #define BIO_new_socket                  wolfSSL_BIO_new_socket
+#define BIO_new_dgram                   wolfSSL_BIO_new_dgram
 #define BIO_new_connect                 wolfSSL_BIO_new_connect
 #define BIO_new_accept                  wolfSSL_BIO_new_accept
 #define BIO_set_conn_port               wolfSSL_BIO_set_conn_port

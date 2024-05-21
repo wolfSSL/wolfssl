@@ -633,6 +633,7 @@ struct WOLFSSL_X509_STORE {
 #define WOLFSSL_ALWAYS_CHECK_SUBJECT 0x1
 #define WOLFSSL_NO_WILDCARDS         0x2
 #define WOLFSSL_NO_PARTIAL_WILDCARDS 0x4
+#define WOLFSSL_MULTI_LABEL_WILDCARDS 0x8
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
 #define WOLFSSL_USE_CHECK_TIME 0x2
@@ -1493,10 +1494,15 @@ WOLFSSL_API int   wolfSSL_dtls_free_peer(void* addr);
 WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
 WOLFSSL_API int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
 
+#if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL* ssl);
+#endif
+#if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
+                                                           defined(WOLFSSL_DTLS)
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, unsigned short);
 WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL* ssl, unsigned short);
+#endif
 
 #ifdef WOLFSSL_SRTP
 

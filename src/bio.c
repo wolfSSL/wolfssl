@@ -343,19 +343,11 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             #endif
                 break;
             case WOLFSSL_BIO_SOCKET:
-            #ifdef USE_WOLFSSL_IO
-                /* BIO requires built-in socket support
-                 *  (cannot be used with WOLFSSL_USER_IO) */
-                ret = wolfIO_Recv(bio->num, (char*)buf, len, 0);
-            #else
-                ret = NOT_COMPILED_IN;
-            #endif
-                break;
             case WOLFSSL_BIO_DGRAM:
             #ifdef USE_WOLFSSL_IO
                 /* BIO requires built-in socket support
                  *  (cannot be used with WOLFSSL_USER_IO) */
-                ret = wolfIO_RecvDgram(bio->num, (char*)buf, len, 0);
+                ret = wolfIO_Recv(bio->num, (char*)buf, len, 0);
             #else
                 ret = NOT_COMPILED_IN;
             #endif
@@ -733,19 +725,11 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             #endif
                 break;
             case WOLFSSL_BIO_SOCKET:
-            #ifdef USE_WOLFSSL_IO
-                /* BIO requires built-in socket support
-                 *  (cannot be used with WOLFSSL_USER_IO) */
-                ret = wolfIO_Send(bio->num, (char*)data, len, 0);
-            #else
-                ret = NOT_COMPILED_IN;
-            #endif
-                break;
             case WOLFSSL_BIO_DGRAM:
             #ifdef USE_WOLFSSL_IO
                 /* BIO requires built-in socket support
                  *  (cannot be used with WOLFSSL_USER_IO) */
-                ret = wolfIO_SendDgram(bio->num, (char*)data, len, 0);
+                ret = wolfIO_Send(bio->num, (char*)data, len, 0);
             #else
                 ret = NOT_COMPILED_IN;
             #endif
