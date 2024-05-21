@@ -3591,6 +3591,10 @@ extern void uITRON4_free(void *p) ;
     #error "OPENSSL_EXTRA can not be defined with OPENSSL_COEXIST"
 #endif
 
+#if !defined(NO_DSA) && defined(NO_SHA)
+    #error "Please disable DSA if disabling SHA-1"
+#endif
+
 /* if configure.ac turned on this feature, HAVE_ENTROPY_MEMUSE will be set,
  * also define HAVE_WOLFENTROPY */
 #ifdef HAVE_ENTROPY_MEMUSE
