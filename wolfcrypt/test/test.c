@@ -27521,6 +27521,13 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
             ret = WC_TEST_RET_ENC_EC(ret);
     }
 
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(NULL, &receiverKey, rng);
+        if (ret != -173)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        ret = 0;
+    }
+
     /* seal */
     if (ret == 0) {
         ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
