@@ -27628,14 +27628,12 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
 /* added this code to hit code coverage on lines 219-225 on hpke.c*/
 #if defined(HAVE_CURVE448) && \
     (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
-    /* have_curve448 */
+    /* test with_curve448 */
     ret = wc_HpkeInit(hpke, DHKEM_X448_HKDF_SHA512, HKDF_SHA512,
         HPKE_AES_128_GCM, NULL);
-    printf("ERROR RIGHT HERE %d\n",ret);
-    if (ret == 0)
-        return WC_TEST_RET_ENC_EC(ret);
 
-    ret = hpke_test_single(hpke);
+    if (ret != BAD_FUNC_ARG) /* Curve448 is not supported yet */
+        return WC_TEST_RET_ENC_EC(ret);
 
     if (ret == 0)
         return ret;
