@@ -3400,6 +3400,11 @@ extern void uITRON4_free(void *p) ;
     #error The SRTP extension requires DTLS
 #endif
 
+/* FIPS v5 and older doesn't support WOLF_PRIVATE_KEY_ID with PK callbacks */
+#if defined(HAVE_FIPS) && FIPS_VERSION_LT(5,3) && defined(HAVE_PK_CALLBACKS)
+    #define NO_WOLF_PRIVATE_KEY_ID
+#endif
+
 /* Are we using an external private key store like:
  *     PKCS11 / HSM / crypto callback / PK callback */
 #if !defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_WOLF_PRIVATE_KEY_ID) && \

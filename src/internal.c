@@ -33521,7 +33521,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifndef NO_CERTS
 
-#ifdef WOLF_PRIVATE_KEY_ID
+#if defined(WOLF_PRIVATE_KEY_ID) || defined(HAVE_PK_CALLBACKS)
     int GetPrivateKeySigSize(WOLFSSL* ssl)
     {
         int sigSz = 0;
@@ -33562,7 +33562,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         return sigSz;
     }
-#endif /* HAVE_PK_CALLBACKS */
+#endif /* WOLF_PRIVATE_KEY_ID || HAVE_PK_CALLBACKS */
 
 #endif /* NO_CERTS */
 
