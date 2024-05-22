@@ -182,7 +182,6 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-aes-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
-endif BUILD_AES
 
 if BUILD_AESNI
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_asm.S
@@ -193,6 +192,11 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_gcm_asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/aes_xts_asm.S
 endif
 endif
+
+if BUILD_RISCV_ASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-aes.c
+endif BUILD_RISCV_ASM
+endif BUILD_AES
 
 if BUILD_SHA
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha.c
@@ -672,9 +676,14 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-aes-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM
 endif !BUILD_ARMASM_NEON
+
 if BUILD_AFALG
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/af_alg/afalg_aes.c
 endif BUILD_AFALG
+
+if BUILD_RISCV_ASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-aes.c
+endif BUILD_RISCV_ASM
 endif BUILD_AES
 endif !BUILD_FIPS_CURRENT
 

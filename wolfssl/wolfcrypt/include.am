@@ -231,3 +231,7 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/Crypto.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/autosar/StandardTypes.h
 endif
 
+if BUILD_RISCV_ASM
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h
+endif
+
