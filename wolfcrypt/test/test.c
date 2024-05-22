@@ -27526,7 +27526,8 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
         ret = wc_HpkeGenerateKeyPair(NULL, &receiverKey, rng);
         if (ret != BAD_FUNC_ARG)
             ret = WC_TEST_RET_ENC_EC(ret);
-        ret = 0;
+        else
+            ret = 0;
     }
 
     /* seal */
