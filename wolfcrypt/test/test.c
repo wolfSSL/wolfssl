@@ -27520,10 +27520,11 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
         if (ret != 0)
             ret = WC_TEST_RET_ENC_EC(ret);
     }
-
+    
+    /* NULL argument results in failure */
     if (ret == 0) {
         ret = wc_HpkeGenerateKeyPair(NULL, &receiverKey, rng);
-        if (ret != -173)
+        if (ret != BAD_FUNC_ARG)
             ret = WC_TEST_RET_ENC_EC(ret);
         ret = 0;
     }
