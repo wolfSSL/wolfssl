@@ -47961,6 +47961,12 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     ExpectNull(SSL_SESSION_get_ex_data(serverSess, serverSessRemIdx));
     ExpectIntEQ(serverSessRemCountFree, 1);
 
+    /* check on the max fragment size */
+#ifdef HAVE_MAX_FRAGMENT
+    ExpectIntEQ(SSL_SESSION_get_max_fragment_length(serverSess),
+        MAX_RECORD_SIZE);
+#endif
+
     /* Need to free the references that we kept */
     SSL_CTX_free(serverSessCtx);
     SSL_SESSION_free(serverSess);
@@ -63202,8 +63208,15 @@ static int test_stubs_are_stubs(void)
     CHECKZERO_RET(wolfSSL_CTX_sess_misses, ctx, ctxN);
     CHECKZERO_RET(wolfSSL_CTX_sess_timeouts, ctx, ctxN);
 
+    /* when implemented this should take WOLFSSL object insted, right now
+     * always returns 0 */
+    CHECKZERO_RET(SSL_get_current_expansion, ctx, ctxN);
+
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+
+    ExpectStrEQ(SSL_COMP_get_name(NULL), "not supported");
+    ExpectIntEQ(SSL_get_current_expansion(), 0);
 #endif /* OPENSSL_EXTRA && !NO_WOLFSSL_STUB && (!NO_WOLFSSL_CLIENT ||
         * !NO_WOLFSSL_SERVER) */
     return EXPECT_RESULT();
