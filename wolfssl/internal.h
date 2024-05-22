@@ -4433,6 +4433,9 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
+#ifdef OPENSSL_EXTRA
+    word32 maxFragmentSz;
+#endif
     byte               isSetup:1;
 };
 
