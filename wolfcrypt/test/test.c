@@ -27625,6 +27625,22 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
     #endif
 #endif
 
+/* added this code to hit code coverage on lines 219-225 on hpke.c*/
+#if defined(HAVE_CURVE448) && \
+    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
+    /* have_curve448 */
+    ret = wc_HpkeInit(hpke, DHKEM_X448_HKDF_SHA512, HKDF_SHA512,
+        HPKE_AES_128_GCM, NULL);
+    printf("ERROR RIGHT HERE %d\n",ret);
+    if (ret == 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = hpke_test_single(hpke);
+
+    if (ret == 0)
+        return ret;
+#endif
+
 #if defined(HAVE_CURVE25519)
     /* test with curve25519 and aes256 */
     ret = wc_HpkeInit(hpke, DHKEM_X25519_HKDF_SHA256, HKDF_SHA256,
