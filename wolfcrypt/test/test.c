@@ -27471,7 +27471,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t x963kdf_test(void)
 
 #endif /* HAVE_X963_KDF */
 
-#if defined(HAVE_HPKE) && (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+#if defined(HAVE_HPKE) && \
+    (defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)) && \
     defined(HAVE_AESGCM)
 
 static wc_test_ret_t hpke_test_single(Hpke* hpke)
@@ -27639,8 +27640,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hpke_test(void)
         return ret;
 #endif
 
+
+#if defined(HAVE_CURVE448) && \
+    (defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512))
+    /* test with curve448 and aes256 */
+    ret = wc_HpkeInit(hpke, DHKEM_X448_HKDF_SHA512, HKDF_SHA512,
+        HPKE_AES_256_GCM, NULL);
+
+    /* HPKE does not support X448 yet, so expect failure */
+    if (ret != BAD_FUNC_ARG)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = hpke_test_single(hpke);
+
+    /* HPKE does not support X448 yet, so expect failure */
+    if (WC_TEST_RET_DEC_EC(ret) != BAD_FUNC_ARG)
+        return ret;
+    ret = 0; /* reset error code */
+#endif
+
+    /* TODO: HPKE chacha20 is not implemented */
+
     return ret;
-/* x448 and chacha20 are unimplemented */
 }
 #endif /* HAVE_HPKE && HAVE_ECC && HAVE_AESGCM */
 
