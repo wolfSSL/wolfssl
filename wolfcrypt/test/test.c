@@ -27521,15 +27521,6 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
             ret = WC_TEST_RET_ENC_EC(ret);
     }
     
-    /* NULL argument results in failure */
-    if (ret == 0) {
-        ret = wc_HpkeGenerateKeyPair(NULL, &receiverKey, rng);
-        if (ret != BAD_FUNC_ARG)
-            ret = WC_TEST_RET_ENC_EC(ret);
-        else
-            ret = 0;
-    }
-
     /* seal */
     if (ret == 0) {
         ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
@@ -27563,6 +27554,31 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
         ret = XMEMCMP(plaintext, start_text, XSTRLEN(start_text));
         if (ret != 0)
             ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* Negative test case with NULL argument */
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(NULL, &receiverKey, rng);
+        if (ret != BAD_FUNC_ARG)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(hpke, NULL, rng);
+        if (ret != BAD_FUNC_ARG)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
+    }
+
+    if (ret == 0) {
+        ret = wc_HpkeGenerateKeyPair(hpke, &receiverKey, NULL);
+        if (ret != BAD_FUNC_ARG)
+            ret = WC_TEST_RET_ENC_EC(ret);
+        else
+            ret = 0;
     }
 
     if (ephemeralKey != NULL)
