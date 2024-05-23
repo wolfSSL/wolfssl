@@ -449,10 +449,8 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
                                 devId);
     if (ret == 0) {
         compareRet = ConstantCompare(check, a, (int)min(checkSz, aSz));
-    }
-
-    if (ret == 0)
         ret = compareRet ? 1 : 0;
+    }
 
     return ret;
 }
