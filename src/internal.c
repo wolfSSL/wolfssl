@@ -14345,6 +14345,15 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
                 ca->serialHash, NULL, 0, NULL);
         if (ret != 0)
             DoCrlCallback(cm, ssl, args, &ret);
+        if (ret != 0) {
+            ret = DoVerifyCallback(SSL_CM(ssl), ssl, ret, args);
+            if (ssl->options.verifyNone &&
+                    (ret == CRL_MISSING || ret == CRL_CERT_REVOKED ||
+                    ret == CRL_CERT_DATE_ERR)) {
+                WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
+                ret = ssl->error = 0;
+            }
+        }
         if (ret != 0){
             WOLFSSL_ERROR_VERBOSE(ret);
             WOLFSSL_MSG("\tCRL check not ok");
