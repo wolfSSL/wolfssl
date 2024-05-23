@@ -27520,7 +27520,7 @@ static wc_test_ret_t hpke_test_single(Hpke* hpke)
         if (ret != 0)
             ret = WC_TEST_RET_ENC_EC(ret);
     }
-    
+
     /* seal */
     if (ret == 0) {
         ret = wc_HpkeSealBase(hpke, ephemeralKey, receiverKey,
