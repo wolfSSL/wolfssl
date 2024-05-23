@@ -403,9 +403,9 @@ static int InitSha256(wc_Sha256* sha256)
 
 #ifdef WC_NO_INTERNAL_FUNCTION_POINTERS
 
-    enum sha_methods { SHA256_UNSET = 0, SHA256_AVX1, SHA256_AVX2,
-                       SHA256_AVX1_RORX, SHA256_AVX2_RORX, SHA256_SSE2,
-                       SHA256_C };
+    enum sha_methods { SHA256_UNSET = 0, SHA256_AVX1_SHA, SHA256_AVX2,
+                       SHA256_AVX1_RORX, SHA256_AVX1_NOSHA, SHA256_AVX2_RORX,
+                       SHA256_SSE2, SHA256_C };
 
 #ifndef WC_C_DYNAMIC_FALLBACK
     static enum sha_methods sha_method = SHA256_UNSET;
@@ -434,7 +434,7 @@ static int InitSha256(wc_Sha256* sha256)
         if (IS_INTEL_SHA(intel_flags)) {
         #ifdef HAVE_INTEL_AVX1
             if (IS_INTEL_AVX1(intel_flags)) {
-                SHA_METHOD = SHA256_AVX1;
+                SHA_METHOD = SHA256_AVX1_SHA;
             }
             else
         #endif
@@ -466,7 +466,7 @@ static int InitSha256(wc_Sha256* sha256)
             else
         #endif
             {
-                SHA_METHOD = SHA256_AVX1;
+                SHA_METHOD = SHA256_AVX1_NOSHA;
             }
         }
         else
@@ -495,8 +495,11 @@ static int InitSha256(wc_Sha256* sha256)
         case SHA256_AVX2_RORX:
             ret = Transform_Sha256_AVX2_RORX(S, D);
             break;
-        case SHA256_AVX1:
+        case SHA256_AVX1_SHA:
             ret = Transform_Sha256_AVX1_Sha(S, D);
+            break;
+        case SHA256_AVX1_NOSHA:
+            ret = Transform_Sha256_AVX1(S, D);
             break;
         case SHA256_AVX1_RORX:
             ret = Transform_Sha256_AVX1_RORX(S, D);
@@ -531,8 +534,11 @@ static int InitSha256(wc_Sha256* sha256)
         case SHA256_AVX2_RORX:
             ret = Transform_Sha256_AVX2_RORX_Len(S, D, L);
             break;
-        case SHA256_AVX1:
+        case SHA256_AVX1_SHA:
             ret = Transform_Sha256_AVX1_Sha_Len(S, D, L);
+            break;
+        case SHA256_AVX1_NOSHA:
+            ret = Transform_Sha256_AVX1_Len(S, D, L);
             break;
         case SHA256_AVX1_RORX:
             ret = Transform_Sha256_AVX1_RORX_Len(S, D, L);
