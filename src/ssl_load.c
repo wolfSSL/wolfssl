@@ -1622,9 +1622,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     DecodedCert* cert, int checkKeySz)
 {
     int ret = 0;
-#ifdef WOLF_PRIVATE_KEY_ID
     byte keyType = 0;
-#endif
     int keySz = 0;
 #ifndef NO_RSA
     word32 idx;
@@ -1637,9 +1635,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         case RSAPSSk:
     #endif
         case RSAk:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = rsa_sa_algo;
-        #endif
             /* Determine RSA key size by parsing public key */
             idx = 0;
             ret = wc_RsaPublicKeyDecode_ex(cert->publicKey, &idx,
@@ -1652,9 +1648,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 #endif /* !NO_RSA */
     #ifdef HAVE_ECC
         case ECDSAk:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = ecc_dsa_sa_algo;
-        #endif
             /* Determine ECC key size based on curve */
         #ifdef WOLFSSL_CUSTOM_CURVES
             if ((cert->pkCurveOID == 0) && (cert->pkCurveSize != 0)) {
@@ -1676,9 +1670,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #endif /* HAVE_ECC */
     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
         case SM2k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = sm2_sa_algo;
-        #endif
             /* Determine ECC key size based on curve */
             keySz = WOLFSSL_SM2_KEY_BITS / 8;
             if (checkKeySz) {
@@ -1690,9 +1682,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #endif /* HAVE_ED25519 */
     #ifdef HAVE_ED25519
         case ED25519k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = ed25519_sa_algo;
-        #endif
             /* ED25519 is fixed key size */
             keySz = ED25519_KEY_SIZE;
             if (checkKeySz) {
@@ -1703,9 +1693,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #endif /* HAVE_ED25519 */
     #ifdef HAVE_ED448
         case ED448k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = ed448_sa_algo;
-        #endif
             /* ED448 is fixed key size */
             keySz = ED448_KEY_SIZE;
             if (checkKeySz) {
@@ -1717,9 +1705,7 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #if defined(HAVE_PQC)
     #if defined(HAVE_FALCON)
         case FALCON_LEVEL1k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = falcon_level1_sa_algo;
-        #endif
             /* Falcon is fixed key size */
             keySz = FALCON_LEVEL1_KEY_SIZE;
             if (checkKeySz) {
@@ -1729,11 +1715,9 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
             break;
         case FALCON_LEVEL5k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = falcon_level5_sa_algo;
-        #endif
             /* Falcon is fixed key size */
-            keySz = FALCON_MAX_KEY_SIZE;
+            keySz = FALCON_LEVEL5_KEY_SIZE;
             if (checkKeySz) {
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minFalconKeySz :
                     ctx->minFalconKeySz, FALCON_MAX_KEY_SIZE, keySz,
@@ -1743,11 +1727,9 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #endif /* HAVE_FALCON */
     #if defined(HAVE_DILITHIUM)
         case DILITHIUM_LEVEL2k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = dilithium_level2_sa_algo;
-        #endif
             /* Dilithium is fixed key size */
-            keySz = DILITHIUM_MAX_KEY_SIZE;
+            keySz = DILITHIUM_LEVEL2_KEY_SIZE;
             if (checkKeySz) {
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minDilithiumKeySz :
                     ctx->minDilithiumKeySz, DILITHIUM_MAX_KEY_SIZE, keySz,
@@ -1755,11 +1737,9 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
             break;
         case DILITHIUM_LEVEL3k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = dilithium_level3_sa_algo;
-        #endif
             /* Dilithium is fixed key size */
-            keySz = DILITHIUM_MAX_KEY_SIZE;
+            keySz = DILITHIUM_LEVEL3_KEY_SIZE;
             if (checkKeySz) {
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minDilithiumKeySz :
                     ctx->minDilithiumKeySz, DILITHIUM_MAX_KEY_SIZE, keySz,
@@ -1767,11 +1747,9 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             }
             break;
         case DILITHIUM_LEVEL5k:
-        #ifdef WOLF_PRIVATE_KEY_ID
             keyType = dilithium_level5_sa_algo;
-        #endif
             /* Dilithium is fixed key size */
-            keySz = DILITHIUM_MAX_KEY_SIZE;
+            keySz = DILITHIUM_LEVEL5_KEY_SIZE;
             if (checkKeySz) {
                 ret = CHECK_KEY_SZ(ssl ? ssl->options.minDilithiumKeySz :
                     ctx->minDilithiumKeySz, DILITHIUM_MAX_KEY_SIZE, keySz,
@@ -1786,7 +1764,6 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             break;
     }
 
-#ifdef WOLF_PRIVATE_KEY_ID
     /* Store the type and key size as there may not be a private key set. */
     if (ssl != NULL) {
         ssl->buffers.keyType = keyType;
@@ -1796,7 +1773,6 @@ static int ProcessBufferCertPublicKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ctx->privateKeyType = keyType;
         ctx->privateKeySz = keySz;
     }
-#endif
 
     return ret;
 }
