@@ -488,7 +488,7 @@ static int parse_private_key(const byte* priv, word32 privSz,
 
     /* At this point, it is still a PKCS8 private key. */
     if ((ret = ToTraditionalInline(priv, &idx, privSz)) < 0) {
-        return ret;
+        /* ignore error, did not have PKCS8 header */
     }
 
     /* Now it is a octet_string(concat(priv,pub)) */

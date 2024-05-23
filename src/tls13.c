@@ -10088,10 +10088,13 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                  * with their size as 16-bit integeter prior in memory. Hence,
                  * we can decode both lengths here now. */
                 word32 tmpIdx = args->idx;
-                ato32(input + tmpIdx, &args->sigSz);
+                word16 tmpSz = 0;
+                ato16(input + tmpIdx, &tmpSz);
+                args->sigSz = tmpSz;
 
                 tmpIdx += OPAQUE16_LEN + args->sigSz;
-                ato32(input + tmpIdx, &args->altSignatureSz);
+                ato16(input + tmpIdx, &tmpSz);
+                args->altSignatureSz = tmpSz;
 
                 if (args->sz != (args->sigSz + args->altSignatureSz +
                                     OPAQUE16_LEN + OPAQUE16_LEN)) {
