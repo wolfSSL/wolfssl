@@ -420,16 +420,17 @@ struct Aes {
         Aes tweak;
     };
 
-    #ifndef WC_AESXTS_TYPE_DEFINED
-        typedef struct XtsAes XtsAes;
-        #define WC_AESXTS_TYPE_DEFINED
-    #endif
-
     #ifdef WOLFSSL_AESXTS_STREAM
         struct XtsAesStreamData {
             byte tweak_block[AES_BLOCK_SIZE];
             word32 bytes_crypted_with_this_tweak;
         };
+    #endif
+
+    #ifndef WC_AESXTS_TYPE_DEFINED
+        typedef struct XtsAes XtsAes;
+        typedef struct XtsAesStreamData XtsAesStreamData;
+        #define WC_AESXTS_TYPE_DEFINED
     #endif
 
 #endif
