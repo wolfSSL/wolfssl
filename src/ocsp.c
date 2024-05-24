@@ -730,6 +730,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     WOLFSSL_CERT_MANAGER* cm = NULL;
     int ret = -1;
     DerBuffer* derCert = NULL;
+
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert *cert = NULL;
 #else
@@ -1211,6 +1212,41 @@ int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
 }
 #endif /* !NO_BIO */
 
+/* workaround to provide some similar functionaly as i2d_OCSP_CERTID,
+ * as it seems not to be implemented in WolfSSL in the same way as in OpenSSL.
+ * wolfSSL_i2d_OCSP_CERTID in its given implementation always returns 0, when
+ * proper cert_id and valid address in *data are provided. This happens, because
+ * id->rawCertIdSize is always 0 at this stage (HAProxy OCSP load workflow), as
+ * it's not filled by wolfSSL_OCSP_cert_to_id(), called by haproxy before.
+ */
+#if defined(WOLFSSL_HAPROXY)
+
+/* Apparently 128 is max len of CertID defined in rfc2560 (X.509 Internet Public
+ * Key Infrastructure Online Certificate Status Protocol - OCSP)
+ * CertID          ::=     SEQUENCE {
+       hashAlgorithm       AlgorithmIdentifier, -->  word32 hashAlgoOID in OcspEntry
+       issuerNameHash      OCTET STRING, -- Hash of Issuer's DN --> limited by OCSP_DIGEST_SIZE=32
+       issuerKeyHash       OCTET STRING, -- Hash of Issuers public key --> limited by OCSP_DIGEST_SIZE=32
+       serialNumber        CertificateSerialNumber --> limited by EXTERNAL_SERIAL_SIZE=32
+ * }
+ */
+#define OCSP_MAX_CERTID_ASN1_LENGTH 128
+int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** encoded_cert_id)
+{
+	if (id == NULL)
+		return WOLFSSL_FAILURE;
+
+	if (!sizeof(id->issuerHash) || (sizeof(id->issuerHash) > OCSP_MAX_CERTID_ASN1_LENGTH))
+		return WOLFSSL_FAILURE;
+
+	if (!encoded_cert_id)
+		return sizeof(id->issuerHash);
+
+	XMEMCPY(*encoded_cert_id, id->issuerHash, sizeof(id->issuerHash));
+
+	return sizeof(id->issuerHash);
+}
+#else
 int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
 {
     if (id == NULL || data == NULL)
@@ -1230,6 +1266,8 @@ int wolfSSL_i2d_OCSP_CERTID(WOLFSSL_OCSP_CERTID* id, unsigned char** data)
 
     return id->rawCertIdSize;
 }
+
+#endif  /* WOLFSSL_HAPROXY */
 
 WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
                                              const unsigned char** derIn,
@@ -1294,9 +1332,11 @@ int wolfSSL_OCSP_id_cmp(WOLFSSL_OCSP_CERTID *a, WOLFSSL_OCSP_CERTID *b)
     if (a == NULL || b == NULL)
         return WOLFSSL_FATAL_ERROR;
 
-    ret = a->hashAlgoOID != b->hashAlgoOID;
-    if (ret == 0)
-        ret = XMEMCMP(a->issuerHash, b->issuerHash, OCSP_DIGEST_SIZE);
+    /* commented this one, as hashAlgoOID is not set by WOLFSSL_OCSP_CERTID
+     * ret = a->hashAlgoOID != b->hashAlgoOID;
+     * if (ret == 0)
+     */
+    ret = XMEMCMP(a->issuerHash, b->issuerHash, OCSP_DIGEST_SIZE);
     if (ret == 0)
         ret = XMEMCMP(a->issuerKeyHash, b->issuerKeyHash, OCSP_DIGEST_SIZE);
     if (ret == 0) {
