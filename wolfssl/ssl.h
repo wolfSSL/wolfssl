@@ -538,47 +538,6 @@ struct WOLFSSL_BIO_METHOD {
 typedef long (*wolf_bio_info_cb)(WOLFSSL_BIO *bio, int event, const char *parg,
                                  int iarg, long larg, long return_value);
 
-struct WOLFSSL_BIO {
-    WOLFSSL_BUF_MEM* mem_buf;
-    WOLFSSL_BIO_METHOD* method;
-    WOLFSSL_BIO* prev;          /* previous in chain */
-    WOLFSSL_BIO* next;          /* next in chain */
-    WOLFSSL_BIO* pair;          /* BIO paired with */
-    void*        heap;          /* user heap hint */
-    void*        ptr;           /* WOLFSSL, file descriptor, MD, or mem buf */
-    void*        usrCtx;        /* user set pointer */
-    char*        ip;            /* IP address for wolfIO_TcpConnect */
-    word16       port;          /* Port for wolfIO_TcpConnect */
-    char*        infoArg;       /* BIO callback argument */
-    wolf_bio_info_cb infoCb;    /* BIO callback */
-    int          wrSz;          /* write buffer size (mem) */
-    int          wrSzReset;     /* First buffer size (mem) - read ONLY data */
-    int          wrIdx;         /* current index for write buffer */
-    int          rdIdx;         /* current read index */
-    int          readRq;        /* read request */
-    int          num;           /* socket num or length */
-    int          eof;           /* eof flag */
-    int          flags;
-    byte         type;          /* method type */
-    byte         init:1;        /* bio has been initialized */
-    byte         shutdown:1;    /* close flag */
-
-#ifdef WORD64_AVAILABLE
-    word64 bytes_read;
-    word64 bytes_written;
-#else
-    word32 bytes_read;
-    word32 bytes_written;
-#endif
-
-#ifdef HAVE_EX_DATA
-    WOLFSSL_CRYPTO_EX_DATA ex_data;
-#endif
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-    wolfSSL_Ref  ref;
-#endif
-};
-
 typedef struct WOLFSSL_COMP_METHOD {
     int type;            /* stunnel dereference */
 } WOLFSSL_COMP_METHOD;
@@ -1841,7 +1800,7 @@ WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_fd(int fd, int close_flag);
 
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_bio(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
-WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_dgram(void);
+WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_datagram(void);
 
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_connect(const char *str);
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_accept(const char *port);
@@ -1884,7 +1843,14 @@ WOLFSSL_API int wolfSSL_BIO_set_mem_buf(WOLFSSL_BIO* bio, WOLFSSL_BUF_MEM* bufMe
                                         int closeFlag);
 #endif
 WOLFSSL_API int wolfSSL_BIO_get_len(WOLFSSL_BIO *bio);
-#endif
+
+#ifdef WOLFSSL_HAVE_BIO_ADDR
+WOLFSSL_API WOLFSSL_BIO_ADDR *wolfSSL_BIO_ADDR_new(void);
+WOLFSSL_API void wolfSSL_BIO_ADDR_free(WOLFSSL_BIO_ADDR *addr);
+WOLFSSL_API void wolfSSL_BIO_ADDR_clear(WOLFSSL_BIO_ADDR *addr);
+#endif /* WOLFSSL_HAVE_BIO_ADDR */
+
+#endif /* !NO_BIO */
 
 WOLFSSL_API void        wolfSSL_RAND_screen(void);
 WOLFSSL_API const char* wolfSSL_RAND_file_name(char* fname, unsigned long len);

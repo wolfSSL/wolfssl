@@ -25503,6 +25503,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DUPLICATE_TLS_EXT_E:
         return "Duplicate TLS extension in message.";
 
+    case SOCKET_NOT_CONNECTED_E:
+        return "Socket has no associated peer.";
+
     default :
         return "unknown error number";
     }
