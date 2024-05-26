@@ -1113,6 +1113,31 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
     return sent;
 }
 
+#ifdef WOLFSSL_HAVE_BIO_ADDR
+
+int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int rdFlags)
+{
+    int recvd;
+    socklen_t addr_len = (socklen_t)sizeof(*addr);
+
+    recvd = (int)recvfrom(sd, buf, (size_t)sz, rdFlags, addr ? &addr->sa : NULL, addr ? &addr_len : 0);
+    recvd = TranslateReturnCode(recvd, (int)sd);
+
+    return recvd;
+}
+
+int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wrFlags)
+{
+    int sent;
+
+    sent = (int)sendto(sd, buf, (size_t)sz, wrFlags, addr ? &addr->sa : NULL, addr ? wolfSSL_BIO_ADDR_size(addr) : 0);
+    sent = TranslateReturnCode(sent, (int)sd);
+
+    return sent;
+}
+
+#endif /* WOLFSSL_HAVE_BIO_ADDR */
+
 #endif /* USE_WOLFSSL_IO */
 
 

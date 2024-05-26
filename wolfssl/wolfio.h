@@ -463,6 +463,32 @@ WOLFSSL_API int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port);
 WOLFSSL_API  int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags);
 WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
 
+#ifdef WOLFSSL_HAVE_BIO_ADDR
+
+#ifndef WOLFSSL_NO_BIO_ADDR_UN
+#include <sys/un.h>
+#endif
+
+union WOLFSSL_BIO_ADDR {
+    struct sockaddr sa;
+#ifndef WOLFSSL_NO_BIO_ADDR_IN
+    struct sockaddr_in sa_in;
+#endif
+#ifdef WOLFSSL_IPV6
+    struct sockaddr_in6 sa_in6;
+#endif
+#ifndef WOLFSSL_NO_BIO_ADDR_UN
+    struct sockaddr_un sa_un;
+#endif
+};
+
+typedef union WOLFSSL_BIO_ADDR WOLFSSL_BIO_ADDR;
+
+WOLFSSL_API  int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wrFlags);
+WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int rdFlags);
+
+#endif /* WOLFSSL_HAVE_BIO_ADDR */
+
 #endif /* USE_WOLFSSL_IO || HAVE_HTTP_CLIENT */
 
 #ifndef WOLFSSL_NO_SOCK
