@@ -968,12 +968,11 @@ static WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
     byte output[SP800_56C_MAX_OUT];
     word32 i;
     int ret;
+    /* vectors from
+     * https://csrc.nist.gov/projects/cryptographic-standards-and-guidelines/example-values
+     *
+     * (KeyManagement) */
     struct sp800_56c_test_vector vctors[] = {
-        /* vectors from
-         * https://csrc.nist.gov/projects/
-         * cryptographic-standards-and-guidelines/example-values
-         *
-         * (KeyManagement) */
 #if !defined(NO_SHA)
         /* SHA-1 */
         INIT_SP80056C_TEST_VECTOR(
