@@ -1389,4 +1389,123 @@ int wc_SRTP_KDF_kdr_to_idx(word32 kdr)
 }
 #endif /* WC_SRTP_KDF */
 
+#ifdef WC_KDF_NIST_SP_800_56C
+static int wc_SP80056C_KDF_iteration(const byte* z, word32 zSz,
+    word32 counter, const byte* fixedInfo, word32 fixedInfoSz,
+    enum wc_HashType hashType, byte* output)
+{
+    byte counterBuf[4];
+    wc_HashAlg hash;
+    int ret;
+
+    ret = wc_HashInit(&hash, hashType);
+    if (ret != 0)
+        return ret;
+    c32toa(counter, counterBuf);
+    ret = wc_HashUpdate(&hash, hashType, counterBuf, 4);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, z, zSz);
+    }
+    if (ret == 0 && fixedInfoSz > 0) {
+        ret = wc_HashUpdate(&hash, hashType, fixedInfo, fixedInfoSz);
+    }
+    if (ret == 0) {
+        ret = wc_HashFinal(&hash, hashType, output);
+    }
+    wc_HashFree(&hash, hashType);
+    return ret;
+}
+
+/**
+ * \brief Performs the single-step key derivation function (KDF) as specified in
+ * SP800-56C option 1.
+ *
+ * \param [in] z The input keying material.
+ * \param [in] zSz The size of the input keying material.
+ * \param [in] fixedInfo The fixed information to be included in the KDF.
+ * \param [in] fixedInfoSz The size of the fixed information.
+ * \param [in] derivedSecretSz The desired size of the derived secret.
+ * \param [in] hashType The hash algorithm to be used in the KDF.
+ * \param [out] output The buffer to store the derived secret.
+ * \param [in] outputSz The size of the output buffer.
+ *
+ * \return 0 if the KDF operation is successful.
+ * \return BAD_FUNC_ARG if the input parameters are invalid.
+ * \return negative error code if the KDF operation fails.
+ */
+int wc_SP80056C_KDF_single(const byte* z, word32 zSz,
+    const byte* fixedInfo, word32 fixedInfoSz, word32 derivedSecretSz,
+    enum wc_HashType hashType, byte* output, word32 outputSz)
+{
+    byte hashTempBuf[WC_MAX_DIGEST_SIZE];
+    int ret = BAD_FUNC_ARG;
+    word32 counter, outIdx;
+    word32 inputSz;
+    byte* hashOut;
+    int hashOutSz;
+    word32 reps;
+
+    if (output == NULL || outputSz < derivedSecretSz)
+        return BAD_FUNC_ARG;
+    if (z == NULL || zSz == 0 || (fixedInfoSz > 0 && fixedInfo == NULL))
+        return BAD_FUNC_ARG;
+    if (derivedSecretSz == 0)
+        return BAD_FUNC_ARG;
+
+    hashOutSz = wc_HashGetDigestSize(hashType);
+    if (hashOutSz == HASH_TYPE_E)
+        return BAD_FUNC_ARG;
+
+    /* According to SP800_56C reps shall not be greater than 2**32-1. This is
+     * not possible using word32 integers. The code checks for overflow. */
+    reps = derivedSecretSz / hashOutSz;
+    if (derivedSecretSz % hashOutSz) {
+        if (reps + 1 < reps)
+            return BAD_FUNC_ARG;
+        reps++;
+    }
+
+    /* According to SP800_56C, table 1, the max input size (max_H_inputBits)
+     * depends on the HASH algo. The smaller value in the table is (2**64-1)/8.
+     * This is larger than the possible length using word32 integers. The code
+     * checks for overflow. */
+    inputSz = zSz;
+    if (inputSz + 4 < inputSz)
+        return BAD_FUNC_ARG;
+    inputSz += 4;
+    if (inputSz + fixedInfoSz < inputSz)
+        return BAD_FUNC_ARG;
+
+    outIdx = 0;
+    for (counter = 1; counter <= reps; counter++) {
+        /* If the user provided a buffer output size bigger than the
+         * derivedSecretSz then the copy in hashTempBuf can be avoided.
+         * Nevertheless, the code conservatively does the copy anyway as the
+         * data is sensitive and the user may forget zeroing outputsz bytes
+         * instead of derivedSecretsz bytes. */
+        if (outIdx + hashOutSz <= derivedSecretSz) {
+            hashOut = output + outIdx;
+        }
+        else {
+            hashOut = hashTempBuf;
+        }
+        ret = wc_SP80056C_KDF_iteration(z, zSz, counter,
+            fixedInfo, fixedInfoSz, hashType, hashOut);
+        if (hashOut == hashTempBuf) {
+            XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
+            ForceZero(hashTempBuf, sizeof(hashTempBuf));
+        }
+        if (ret != 0)
+            break;
+        outIdx += hashOutSz;
+    }
+
+    if (ret != 0) {
+        ForceZero(output, derivedSecretSz);
+    }
+
+    return ret;
+}
+#endif /* WC_KDF_NIST_SP_800_56C */
+
 #endif /* NO_KDF */
