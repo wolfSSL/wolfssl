@@ -13,4 +13,5 @@ EXTRA_DIST += examples/configs/user_settings_stm32.h
 EXTRA_DIST += examples/configs/user_settings_template.h
 EXTRA_DIST += examples/configs/user_settings_tls12.h
 EXTRA_DIST += examples/configs/user_settings_wolfboot_keytools.h
+EXTRA_DIST += examples/configs/user_settings_wolfssh.h
 EXTRA_DIST += examples/configs/user_settings_wolftpm.h
