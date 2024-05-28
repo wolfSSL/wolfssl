@@ -1380,6 +1380,7 @@ int wc_FreeRng(WC_RNG* rng)
 #ifndef USE_WINDOWS_API
     if(rng->seed.fd != 0 && rng->seed.fd != -1) {
         close(rng->seed.fd);
+        rng->seed.fd = -1;
     }
 #endif
 
