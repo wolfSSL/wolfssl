@@ -780,6 +780,14 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
     #define WOLFSSL_TLS_FEATURE_SUM 92
 #endif
 
+#ifndef WOLFSSL_MAX_ALT_NAMES
+#define WOLFSSL_MAX_ALT_NAMES 128
+#endif
+
+#ifndef WOLFSSL_MAX_NAME_CONSTRAINTS
+#define WOLFSSL_MAX_NAME_CONSTRAINTS 128
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* NIDs */
 #define NID_undef 0

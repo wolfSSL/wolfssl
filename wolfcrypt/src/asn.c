@@ -18944,6 +18944,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
     word32 idx = 0;
     int length = 0;
     int ret = 0;
+    word32 numNames = 0;
 
     WOLFSSL_ENTER("DecodeAltNames");
 
@@ -18974,6 +18975,13 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
     }
 
     while ((ret == 0) && (idx < sz)) {
+        numNames++;
+        if (numNames > WOLFSSL_MAX_ALT_NAMES) {
+            WOLFSSL_MSG("\tToo many subject alternative names");
+            ret = ASN_ALT_NAME_E;
+            break;
+        }
+
         ASNGetData dataASN[altNameASN_Length];
 
         /* Clear dynamic data items. */
@@ -20086,13 +20094,16 @@ static int DecodeSubtreeGeneralName(const byte* input, word32 sz, byte tag,
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
  * @param [in, out] head   Linked list of subtree names.
+ * @param [in]      limit  If > 0, limit on number of tree 
+ *                         entries to  process, exceeding 
+ *                         is an error.
  * @param [in]      heap   Dynamic memory hint.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  ASN_PARSE_E when SEQUENCE is not found as expected.
  */
 static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
-                         void* heap)
+                         word32 limit, void* heap)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
@@ -20170,6 +20181,7 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
     DECL_ASNGETDATA(dataASN, subTreeASN_Length);
     word32 idx = 0;
     int ret = 0;
+    word32 cnt = 0;
 
     (void)heap;
 
@@ -20179,6 +20191,14 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
     while ((ret == 0) && (idx < (word32)sz)) {
         byte minVal = 0;
         byte maxVal = 0;
+        if (limit > 0) {
+            cnt++;
+            if (cnt > limit) {
+                WOLFSSL_MSG("too many name constraints");
+                ret = ASN_NAME_INVALID_E;
+                break;
+            }
+        }
 
         /* Clear dynamic data and set choice for GeneralName and location to
          * store minimum and maximum.
@@ -20277,7 +20297,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
         }
 
         if (DecodeSubtree(input + idx, (word32)length, subtree,
-                cert->heap) < 0) {
+                WOLFSSL_MAX_NAME_CONSTRAINTS, cert->heap) < 0) {
             WOLFSSL_MSG("\terror parsing subtree");
             return ASN_PARSE_E;
         }
@@ -20304,7 +20324,8 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
             ret = DecodeSubtree(
                     dataASN[NAMECONSTRAINTSASN_IDX_PERMIT].data.ref.data,
                     dataASN[NAMECONSTRAINTSASN_IDX_PERMIT].data.ref.length,
-                    &cert->permittedNames, cert->heap);
+                    &cert->permittedNames, WOLFSSL_MAX_NAME_CONSTRAINTS, 
+                    cert->heap);
         }
     }
     if (ret == 0) {
@@ -20313,7 +20334,8 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
             ret = DecodeSubtree(
                     dataASN[NAMECONSTRAINTSASN_IDX_EXCLUDE].data.ref.data,
                     dataASN[NAMECONSTRAINTSASN_IDX_EXCLUDE].data.ref.length,
-                    &cert->excludedNames, cert->heap);
+                    &cert->excludedNames, WOLFSSL_MAX_NAME_CONSTRAINTS, 
+                    cert->heap);
         }
     }
 
