@@ -8070,6 +8070,19 @@ AC_ARG_ENABLE([staticmemory],
     [ ENABLED_STATICMEMORY=no ]
     )
 
+for v in `echo $ENABLED_STATICMEMORY | tr "," " "`
+do
+  case $v in
+  small)
+    ENABLED_STATICMEMORY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEAN_STATIC_MEMORY"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for staticmemory.])
+    break;;
+  esac
+done
+
 if test "x$ENABLED_STATICMEMORY" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"

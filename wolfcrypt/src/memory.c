@@ -610,7 +610,8 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
 #endif
 
     /* divide into chunks of memory and add them to available list */
-    while (ava >= (heap->sizeList[0] + padSz + memSz)) {
+    while (ava >= (word32)(heap->sizeList[0] + padSz + memSz)) {
+    #ifndef WOLFSSL_LEAN_STATIC_MEMORY
         /* creating only IO buffers from memory passed in, max TLS is 16k */
         if (flag & WOLFMEM_IO_POOL || flag & WOLFMEM_IO_POOL_FIXED) {
             if ((ret = wc_create_memory_buckets(pt, ava,
@@ -629,11 +630,13 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
             pt  += ret;
             ava -= ret;
         }
-        else {
+        else
+    #endif
+        {
             int i;
             /* start at largest and move to smaller buckets */
             for (i = (WOLFMEM_MAX_BUCKETS - 1); i >= 0; i--) {
-                if ((heap->sizeList[i] + padSz + memSz) <= ava) {
+                if ((word32)(heap->sizeList[i] + padSz + memSz) <= ava) {
                     if ((ret = wc_create_memory_buckets(pt, ava,
                                     heap->sizeList[i], heap->distList[i],
                                     &(heap->ava[i]))) < 0) {
@@ -650,6 +653,7 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
         }
     }
 
+    (void)flag;
     return 1;
 }
 
@@ -751,6 +755,7 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
 #endif
     *pHint = hint;
 
+    (void)maxSz;
     return 0;
 }
 
@@ -1054,7 +1059,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         else
     #endif
         {
-        #ifndef WOLFSSL_LEANPSK
+        #ifndef WOLFSSL_LEAN_STATIC_MEMORY
             /* check if using IO pool flag */
             if (mem->flag & WOLFMEM_IO_POOL &&
                                              (type == DYNAMIC_TYPE_OUT_BUFFER ||
@@ -1353,6 +1358,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         }
     #endif
 
+    #ifndef WOLFSSL_LEAN_STATIC_MEMORY
         /* case of using fixed IO buffers or IO pool */
         if (((mem->flag & WOLFMEM_IO_POOL)||(mem->flag & WOLFMEM_IO_POOL_FIXED))
                                           && (type == DYNAMIC_TYPE_OUT_BUFFER ||
@@ -1365,7 +1371,9 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
             }
             res = pt->buffer;
         }
-        else {
+        else
+    #endif
+        {
         /* general memory */
             for (i = 0; i < WOLFMEM_MAX_BUCKETS; i++) {
                 if ((word32)size <= mem->sizeList[i]) {
