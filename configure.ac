@@ -8077,6 +8077,10 @@ do
     ENABLED_STATICMEMORY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEAN_STATIC_MEMORY"
     ;;
+  debug)
+    ENABLED_STATICMEMORY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEBUG_MEMORY_CALLBACK"
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for staticmemory.])
     break;;

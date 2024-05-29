@@ -1865,6 +1865,38 @@ static int client_srtp_test(WOLFSSL *ssl, func_args *args)
 }
 #endif /* WOLFSSL_SRTP */
 
+#ifdef WOLFSSL_DEBUG_MEMORY_CALLBACK
+static void ExampleDebugMemoryCb(size_t sz, int bucketSz, byte st, int type) {
+    switch (st) {
+        case WOLFSSL_DEBUG_MEMORY_ALLOC:
+            if (type == DYNAMIC_TYPE_IN_BUFFER) {
+                printf("IN BUFFER: ");
+            }
+
+            if (type == DYNAMIC_TYPE_OUT_BUFFER) {
+                printf("OUT BUFFER: ");
+            }
+
+            printf("Alloc'd %d bytes using bucket size %d\n", (int)sz,
+                bucketSz);
+            break;
+
+        case WOLFSSL_DEBUG_MEMORY_FAIL:
+            printf("Failed when trying to allocate %d bytes\n", (int)sz);
+            break;
+
+        case WOLFSSL_DEBUG_MEMORY_FREE:
+            printf("Free'ing : %d\n", (int)sz);
+            break;
+
+        case WOLFSSL_DEBUG_MEMORY_INIT:
+            printf("Creating memory bucket of size : %d\n", bucketSz);
+            break;
+    }
+}
+#endif
+
+
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
@@ -3045,6 +3077,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("unable to load static memory");
     }
 
+#ifdef WOLFSSL_DEBUG_MEMORY_CALLBACK
+    wolfSSL_SetDebugMemoryCb(ExampleDebugMemoryCb);
+#endif
     ctx = wolfSSL_CTX_new_ex(method(heap), heap);
     if (ctx == NULL)
         err_sys("unable to get ctx");

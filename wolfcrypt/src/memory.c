@@ -531,9 +531,9 @@ static DebugMemoryCb DebugCb = NULL;
 
 /* Used to set a debug memory callback. Helpful in cases where
  * printf is not available. */
-void wolfSSL_SetDebugCallback(DebugMemoryCb in)
+void wolfSSL_SetDebugMemoryCb(DebugMemoryCb cb)
 {
-    DebugCb = in;
+    DebugCb = cb;
 }
 #endif
 
