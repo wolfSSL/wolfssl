@@ -8073,6 +8073,10 @@ AC_ARG_ENABLE([staticmemory],
 for v in `echo $ENABLED_STATICMEMORY | tr "," " "`
 do
   case $v in
+  yes)
+    ;;
+  no)
+    ;;
   small)
     ENABLED_STATICMEMORY=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEAN_STATIC_MEMORY"
