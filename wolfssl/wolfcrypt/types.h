@@ -824,6 +824,10 @@ typedef struct w64wrapper {
                         return ret;
                     }
                 #define XSNPRINTF _xsnprintf_
+            #elif defined(FREESCALE_MQX)
+                /* see wc_port.h for fio.h and nio.h includes.  MQX does not
+                   have stdio.h available, so it needs its own section. */
+                #define XSNPRINTF snprintf
             #elif defined(WOLF_C89)
                 #include <stdio.h>
                 #define XSPRINTF sprintf
