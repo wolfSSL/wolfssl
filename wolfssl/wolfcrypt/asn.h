@@ -2138,11 +2138,11 @@ WOLFSSL_LOCAL int EncodePolicyOID(byte *out, word32 *outSz,
 WOLFSSL_API int CheckCertSignature(const byte*,word32,void*,void* cm);
 WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
         void* heap, const byte* pubKey, word32 pubKeySz, int pubKeyOID);
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_SMALL_CERT_VERIFY)
 WOLFSSL_API int wc_CheckCertSigPubKey(const byte* cert, word32 certSz,
                                       void* heap, const byte* pubKey,
                                       word32 pubKeySz, int pubKeyOID);
-#endif
+#endif /* OPENSSL_EXTRA || WOLFSSL_SMALL_CERT_VERIFY */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
 WOLFSSL_LOCAL int wc_ConfirmAltSignature(
     const byte* buf, word32 bufSz,
