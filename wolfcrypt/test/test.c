@@ -31085,6 +31085,10 @@ static wc_test_ret_t ecc_mulmod_test(ecc_key* key1)
         ret = WC_TEST_RET_ENC_EC(ret);
         goto done;
     }
+    if (mp_cmp_d(key3->pubkey.z, 1) != MP_EQ) {
+        ret = WC_TEST_RET_ENC_EC(ret);
+        goto done;
+    }
 #endif
 
 done:
