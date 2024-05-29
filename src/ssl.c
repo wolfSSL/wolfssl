@@ -23273,7 +23273,7 @@ wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
 
 #endif /* OPENSSL_EXTRA */
 
-#ifndef NO_CERT
+#ifndef NO_CERTS
 #define WOLFSSL_X509_INCLUDED
 #include "src/x509.c"
 #endif

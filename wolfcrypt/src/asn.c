@@ -3534,7 +3534,7 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     ((defined(HAVE_ED25519) || defined(HAVE_ED448)) && \
      (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || \
       defined(OPENSSL_EXTRA))) || \
-    (defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_CERT)) || \
+    (defined(WC_ENABLE_ASYM_KEY_EXPORT) && !defined(NO_CERTS)) || \
     (!defined(NO_DSA) && !defined(HAVE_SELFTEST) && defined(WOLFSSL_KEY_GEN)) || \
     (!defined(NO_DH) && defined(WOLFSSL_DH_EXTRA))
 

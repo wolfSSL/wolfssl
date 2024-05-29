@@ -14583,7 +14583,7 @@ void wolfSSL_X509_ATTRIBUTE_free(WOLFSSL_X509_ATTRIBUTE* attr)
 }
 #endif
 
-#endif /* !NO_CERT */
+#endif /* !NO_CERTS */
 
 #endif /* !WOLFCRYPT_ONLY */
 
