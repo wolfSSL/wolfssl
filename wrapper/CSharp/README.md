@@ -45,7 +45,7 @@ sudo make install
 ```
 cd wrapper/CSharp
 
-msc wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
+mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
     wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs
 ```
 

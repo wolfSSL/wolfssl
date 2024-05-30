@@ -290,6 +290,17 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_use_psk_identity_hint(IntPtr ctx, StringBuilder identity);
 
+        /********************************
+         * SNI
+         */
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate int sni_delegate(IntPtr ssl, IntPtr ret, IntPtr exArg);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void wolfSSL_CTX_set_servername_arg(IntPtr ctx, IntPtr arg);
 
         /********************************
          * SSL Structure
