@@ -26112,6 +26112,7 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
 
 #endif /* !NO_RSA && (WOLFSSL_CERT_GEN || WOLFSSL_KCAPI_RSA ||
             ((OPENSSL_EXTRA || WOLFSSL_KEY_GEN))) */
+#endif /* NO_CERTS */
 
 #if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
      defined(WOLFSSL_KCAPI_RSA) || defined(WOLFSSL_SE050)) && \
@@ -26282,6 +26283,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
 #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
 
+#ifndef NO_CERTS
 
 #ifdef WOLFSSL_CERT_GEN
 
