@@ -41283,6 +41283,7 @@ static int test_wolfSSL_X509_max_altnames(void)
     ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx,
             over_max_altnames_cert, NULL, WOLFSSL_LOAD_FLAG_NONE),
             WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
 #endif
 #endif
     return EXPECT_RESULT();
@@ -41308,6 +41309,7 @@ static int test_wolfSSL_X509_max_name_constraints(void)
 
     ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, over_max_nc,
             NULL, WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
 #endif
 
 #endif
