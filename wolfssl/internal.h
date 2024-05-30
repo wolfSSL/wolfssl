@@ -2207,9 +2207,9 @@ WOLFSSL_LOCAL void FreeAsyncCtx(WOLFSSL* ssl, byte freeAsync);
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz);
-WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
+WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str, word32 strLen);
 #ifndef NO_CERTS
-WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain, int* checkCN);
+WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen, int* checkCN);
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
 #endif
