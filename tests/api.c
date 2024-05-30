@@ -41520,11 +41520,11 @@ static int test_wolfSSL_X509_max_altnames(void)
         0xff, 0x9f, 0xea, 0x78, 0x6f, 0x11, 0x9d, 0xe6
     };
 
-    X509* x509 = NULL;
-    int certSize = (int)sizeof(too_many_altnames_cert) / sizeof(unsigned char);
+    WOLFSSL_X509* x509 = NULL;
+    int certSize = (int)(sizeof(too_many_altnames_cert) / sizeof(unsigned char));
 
     ExpectNull(x509 = wolfSSL_X509_load_certificate_buffer(
-        too_many_altnames_cert, certSize, SSL_FILETYPE_ASN1));
+        too_many_altnames_cert, certSize, WOLFSSL_FILETYPE_ASN1));
 #endif
 #endif
     return EXPECT_RESULT();
@@ -41534,15 +41534,19 @@ static int test_wolfSSL_X509_max_name_constraints(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_CLIENT)
+    !(defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER))
 
     /* Only test if max name constraints has not been modified */
 #if WOLFSSL_MAX_NAME_CONSTRAINTS == 128
     WOLFSSL_CTX* ctx = NULL;
     /* File contains a certificate with 130 name constraints */
     const char* malformed_ca_cert = "./certs/test/cert-too-many-name-constraints.pem";
-    
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
 
     ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, malformed_ca_cert, NULL,
             WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
