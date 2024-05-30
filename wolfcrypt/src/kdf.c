@@ -1390,9 +1390,9 @@ int wc_SRTP_KDF_kdr_to_idx(word32 kdr)
 #endif /* WC_SRTP_KDF */
 
 #ifdef WC_KDF_NIST_SP_800_56C
-static int wc_SP80056C_KDF_iteration(const byte* z, word32 zSz,
-    word32 counter, const byte* fixedInfo, word32 fixedInfoSz,
-    enum wc_HashType hashType, byte* output)
+static int wc_KDA_KDF_iteration(const byte* z, word32 zSz, word32 counter,
+    const byte* fixedInfo, word32 fixedInfoSz, enum wc_HashType hashType,
+    byte* output)
 {
     byte counterBuf[4];
     wc_HashAlg hash;
@@ -1433,17 +1433,14 @@ static int wc_SP80056C_KDF_iteration(const byte* z, word32 zSz,
  * \return BAD_FUNC_ARG if the input parameters are invalid.
  * \return negative error code if the KDF operation fails.
  */
-int wc_SP80056C_KDF_single(const byte* z, word32 zSz,
-    const byte* fixedInfo, word32 fixedInfoSz, word32 derivedSecretSz,
-    enum wc_HashType hashType, byte* output, word32 outputSz)
+int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
+    word32 fixedInfoSz, word32 derivedSecretSz, enum wc_HashType hashType,
+    byte* output, word32 outputSz)
 {
     byte hashTempBuf[WC_MAX_DIGEST_SIZE];
-    int ret = BAD_FUNC_ARG;
     word32 counter, outIdx;
-    word32 inputSz;
-    byte* hashOut;
     int hashOutSz;
-    word32 reps;
+    int ret;
 
     if (output == NULL || outputSz < derivedSecretSz)
         return BAD_FUNC_ARG;
@@ -1456,48 +1453,32 @@ int wc_SP80056C_KDF_single(const byte* z, word32 zSz,
     if (hashOutSz == HASH_TYPE_E)
         return BAD_FUNC_ARG;
 
-    /* According to SP800_56C reps shall not be greater than 2**32-1. This is
-     * not possible using word32 integers. The code checks for overflow. */
-    reps = derivedSecretSz / hashOutSz;
-    if (derivedSecretSz % hashOutSz) {
-        if (reps + 1 < reps)
-            return BAD_FUNC_ARG;
-        reps++;
-    }
-
     /* According to SP800_56C, table 1, the max input size (max_H_inputBits)
      * depends on the HASH algo. The smaller value in the table is (2**64-1)/8.
-     * This is larger than the possible length using word32 integers. The code
-     * checks for overflow. */
-    inputSz = zSz;
-    if (inputSz + 4 < inputSz)
-        return BAD_FUNC_ARG;
-    inputSz += 4;
-    if (inputSz + fixedInfoSz < inputSz)
-        return BAD_FUNC_ARG;
+     * This is larger than the possible length using word32 integers. */
 
+    counter = 1;
     outIdx = 0;
-    for (counter = 1; counter <= reps; counter++) {
-        /* If the user provided a buffer output size bigger than the
-         * derivedSecretSz then the copy in hashTempBuf can be avoided.
-         * Nevertheless, the code conservatively does the copy anyway as the
-         * data is sensitive and the user may forget zeroing outputsz bytes
-         * instead of derivedSecretsz bytes. */
-        if (outIdx + hashOutSz <= derivedSecretSz) {
-            hashOut = output + outIdx;
-        }
-        else {
-            hashOut = hashTempBuf;
-        }
-        ret = wc_SP80056C_KDF_iteration(z, zSz, counter,
-            fixedInfo, fixedInfoSz, hashType, hashOut);
-        if (hashOut == hashTempBuf) {
-            XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
-            ForceZero(hashTempBuf, sizeof(hashTempBuf));
-        }
+    ret = 0;
+
+    /* According to SP800_56C the number of iterations shall not be greater than
+     * 2**32-1. This is not possible using word32 integers.*/
+    while (outIdx + hashOutSz <= derivedSecretSz) {
+        ret = wc_KDA_KDF_iteration(z, zSz, counter, fixedInfo, fixedInfoSz,
+            hashType, output + outIdx);
         if (ret != 0)
             break;
+        counter++;
         outIdx += hashOutSz;
+    }
+
+    if (ret == 0 && outIdx < derivedSecretSz) {
+        ret = wc_KDA_KDF_iteration(z, zSz, counter, fixedInfo, fixedInfoSz,
+            hashType, hashTempBuf);
+        if (ret == 0) {
+            XMEMCPY(output + outIdx, hashTempBuf, derivedSecretSz - outIdx);
+        }
+        ForceZero(hashTempBuf, hashOutSz);
     }
 
     if (ret != 0) {

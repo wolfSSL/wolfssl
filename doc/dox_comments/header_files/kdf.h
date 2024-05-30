@@ -248,14 +248,14 @@ int wc_SRTP_KDF_kdr_to_idx(word32 kdr);
     unsigned char output[32];
     int ret;
 
-    ret = wc_SP80056C_KDF_single(z, sizeof(z), fixedInfo, sizeof(fixedInfo),
+    ret = wc_KDA_KDF_onestep(z, sizeof(z), fixedInfo, sizeof(fixedInfo),
         sizeof(output), WC_HASH_TYPE_SHA256, output, sizeof(output));
     if (ret != 0) {
-        WOLFSSL_MSG("wc_SP80056C_KDF_single failed");
+        WOLFSSL_MSG("wc_KDA_KDF_onestep failed");
     }
     \endcode
  */
-int wc_SP80056C_KDF_single(const byte* z, word32 zSz,
+int wc_KDA_KDF_onestep(const byte* z, word32 zSz,
     const byte* fixedInfo, word32 fixedInfoSz, word32 derivedSecretSz,
     enum wc_HashType hashType, byte* output, word32 outputSz);
 

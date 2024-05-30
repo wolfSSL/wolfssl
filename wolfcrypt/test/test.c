@@ -1226,11 +1226,26 @@ static WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
             "\x1b\x17\xe1\x67\xfc\x43\x7f\x84\x86\x9d\x85\x49\x53\x7b\x33\x38",
             WC_HASH_TYPE_SHA512),
 #endif
+        INIT_SP80056C_TEST_VECTOR(
+            "\x00\xcd\xea\x89\x62\x1c\xfa\x46\xb1\x32\xf9\xe4\xcf\xe2\x26\x1c"
+            "\xde\x2d\x43\x68\xeb\x56\x56\x63\x4c\x7c\xc9\x8c\x7a\x00\xcd\xe5"
+            "\x4e\xd1\x86\x6a\x0d\xd3\xe6\x12\x6c\x9d\x2f\x84\x5d\xaf\xf8\x2c"
+            "\xeb\x1d\xa0\x8f\x5d\x87\x52\x1b\xb0\xeb\xec\xa7\x79\x11\x16\x9c"
+            "\x20\xcc\x01\x38\xa6\x72\xb6\x95\x8b\xd7\x84\xe5\xd7\xfa\x83\x73"
+            "\x8a\xc6\x8f\x9b\x34\x23\xb4\x83\xf9\xbf\x53\x9e\x71\x14\x1e\x45"
+            "\xdb\xfb\x7a\xfe\xd1\x8b\x11\xc0\x02\x8b\x13\xf1\xf8\x60\xef\x43"
+            "\xc4\x80\xf4\xda\xcd\xa2\x08\x10\x59\xd3\x97\x8c\x99\x9d\x5d\x1a"
+            "\xde\x34\x54\xe4",
+            "\x12\x34\x56\x78\x9a\xbc\xde\xf0\x41\x4c\x49\x43\x45\x31\x32\x33"
+            "\x42\x4f\x42\x42\x59\x34\x35\x36",
+            "\x2d\x4a",
+            WC_HASH_TYPE_SHA512),
+
     };
 
     for (i = 0; i < sizeof(vctors) / sizeof(vctors[0]); i++) {
         v = &vctors[i];
-        ret = wc_SP80056C_KDF_single(v->z, v->zSz, v->fixedInfo, v->fixedInfoSz,
+        ret = wc_KDA_KDF_onestep(v->z, v->zSz, v->fixedInfo, v->fixedInfoSz,
             v->derivedKeySz, v->hashType, output,
             /* use derivedKeySz to force the function to use a temporary buff
                for the last block */
@@ -1242,17 +1257,17 @@ static WOLFSSL_TEST_SUBROUTINE wc_test_ret_t nist_sp80056c_kdf_test(void)
     }
 
     /* negative tests */
-    ret = wc_SP80056C_KDF_single(NULL, 0, (byte*)"fixed_info",
+    ret = wc_KDA_KDF_onestep(NULL, 0, (byte*)"fixed_info",
         sizeof("fixed_info"), 16, WC_HASH_TYPE_SHA256, output, 16);
     if (ret != BAD_FUNC_ARG)
         return WC_TEST_RET_ENC_NC;
-    ret = wc_SP80056C_KDF_single((byte*)"secret", sizeof("secret"), NULL, 1, 16,
+    ret = wc_KDA_KDF_onestep((byte*)"secret", sizeof("secret"), NULL, 1, 16,
         WC_HASH_TYPE_SHA256, output, 16);
     if (ret != BAD_FUNC_ARG)
         return WC_TEST_RET_ENC_NC;
 
     /* allow empty FixedInfo */
-    ret = wc_SP80056C_KDF_single((byte*)"secret", sizeof("secret"), NULL, 0, 16,
+    ret = wc_KDA_KDF_onestep((byte*)"secret", sizeof("secret"), NULL, 0, 16,
         WC_HASH_TYPE_SHA256, output, 16);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
