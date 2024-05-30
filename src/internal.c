@@ -7241,6 +7241,8 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl_hint = ((WOLFSSL_HEAP_HINT*)(ssl->heap));
         ctx_hint = ((WOLFSSL_HEAP_HINT*)(ctx->heap));
 
+        ssl_hint->memory = ctx_hint->memory;
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         /* lock and check IO count / handshake count */
         if (wc_LockMutex(&(ctx_hint->memory->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
@@ -7268,7 +7270,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
         ctx_hint->memory->curIO++;
         ctx_hint->memory->curHa++;
-        ssl_hint->memory = ctx_hint->memory;
         ssl_hint->haFlag = 1;
         wc_UnLockMutex(&(ctx_hint->memory->memory_mutex));
 
@@ -7304,6 +7305,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             }
             wc_UnLockMutex(&(ctx_hint->memory->memory_mutex));
         }
+    #endif /* !WOLFSSL_STATIC_MEMORY_LEAN */
     #ifdef WOLFSSL_HEAP_TEST
         }
     #endif
@@ -8382,14 +8384,17 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     /* avoid dereferencing a test value */
     if (ssl->heap != (void*)WOLFSSL_HEAP_TEST) {
     #endif
+        void* heap = ssl->ctx ? ssl->ctx->heap : ssl->heap;
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         WOLFSSL_HEAP_HINT* ssl_hint = (WOLFSSL_HEAP_HINT*)ssl->heap;
         WOLFSSL_HEAP*      ctx_heap;
-        void* heap = ssl->ctx ? ssl->ctx->heap : ssl->heap;
 
         ctx_heap = ssl_hint->memory;
+    #ifndef SINGLE_THREADED
         if (wc_LockMutex(&(ctx_heap->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
         }
+    #endif
         ctx_heap->curIO--;
         if (FreeFixedIO(ctx_heap, &(ssl_hint->outBuf)) != 1) {
             WOLFSSL_MSG("Error freeing fixed output buffer");
@@ -8397,15 +8402,20 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         if (FreeFixedIO(ctx_heap, &(ssl_hint->inBuf)) != 1) {
             WOLFSSL_MSG("Error freeing fixed output buffer");
         }
-        if (ssl_hint->haFlag && ctx_heap->curHa > 0) { /* check if handshake count has been decreased*/
+
+        /* check if handshake count has been decreased*/
+        if (ssl_hint->haFlag && ctx_heap->curHa > 0) {
             ctx_heap->curHa--;
         }
+    #ifndef SINGLE_THREADED
         wc_UnLockMutex(&(ctx_heap->memory_mutex));
+    #endif
 
         /* check if tracking stats */
         if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
             XFREE(ssl_hint->stats, heap, DYNAMIC_TYPE_SSL);
         }
+    #endif /* !WOLFSSL_STATIC_MEMORY_LEAN */
         XFREE(ssl->heap, heap, DYNAMIC_TYPE_SSL);
     #ifdef WOLFSSL_HEAP_TEST
     }
@@ -8673,14 +8683,20 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         WOLFSSL_HEAP*      ctx_heap;
 
         ctx_heap = ssl_hint->memory;
+    #ifndef SINGLE_THREADED
         if (wc_LockMutex(&(ctx_heap->memory_mutex)) != 0) {
             WOLFSSL_MSG("Bad memory_mutex lock");
         }
+    #endif
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         if (ctx_heap->curHa > 0) {
             ctx_heap->curHa--;
         }
         ssl_hint->haFlag = 0; /* set to zero since handshake has been dec */
+    #endif
+    #ifndef SINGLE_THREADED
         wc_UnLockMutex(&(ctx_heap->memory_mutex));
+    #endif
     #ifdef WOLFSSL_HEAP_TEST
     }
     #endif

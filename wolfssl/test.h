@@ -3102,7 +3102,7 @@ static WC_INLINE void FreeAtomicUser(WOLFSSL* ssl)
 
 #endif /* ATOMIC_USER */
 
-#ifdef WOLFSSL_STATIC_MEMORY
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
 static WC_INLINE int wolfSSL_PrintStats(WOLFSSL_MEM_STATS* stats)
 {
     word16 i;

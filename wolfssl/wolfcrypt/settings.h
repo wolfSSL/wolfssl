@@ -1036,7 +1036,7 @@ extern void uITRON4_free(void *p) ;
 
 
 #if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER) && \
-        !defined(NO_WOLFSSL_MEMORY)
+        !defined(NO_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     #include <stdlib.h>
     #define XMALLOC(s, h, type)  ((void)(h), (void)(type), malloc((s)))
     #define XFREE(p, h, type)    ((void)(h), (void)(type), free((p)))
@@ -1327,7 +1327,9 @@ extern void uITRON4_free(void *p) ;
     /* Copy data out of flash memory and into SRAM */
     #define XMEMCPY_P(pdest, psrc, size) memcpy_P((pdest), (psrc), (size))
 #else
+#ifndef FLASH_QUALIFIER
     #define FLASH_QUALIFIER
+#endif
 #endif
 
 #ifdef FREESCALE_MQX_5_0
@@ -2815,9 +2817,6 @@ extern void uITRON4_free(void *p) ;
         !defined(WOLFSSL_SP_MATH) && !defined(NO_BIG_INT)
          #error The static memory option is only supported for fast math or SP Math
     #endif
-    #ifdef WOLFSSL_SMALL_STACK
-        #error static memory does not support small stack please undefine
-    #endif
 #endif /* WOLFSSL_STATIC_MEMORY */
 
 #ifdef HAVE_AES_KEYWRAP
@@ -3258,8 +3257,10 @@ extern void uITRON4_free(void *p) ;
 
 /* Do not allow using small stack with no malloc */
 #if defined(WOLFSSL_NO_MALLOC) && \
-    (defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE))
-    #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
+    (defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
+    !defined(WOLFSSL_STATIC_MEMORY)
+    #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC) and \
+           without staticmemory (WOLFSSL_STATIC_MEMORY)
 #endif
 
 /* If malloc is disabled make sure it is also disabled in SP math */

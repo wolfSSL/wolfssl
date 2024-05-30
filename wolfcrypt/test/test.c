@@ -17406,6 +17406,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
         }
     }
 
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
     /* check that padding size returned is possible */
     if (wolfSSL_MemoryPaddingSz() < WOLFSSL_STATIC_ALIGN) {
         return WC_TEST_RET_ENC_NC; /* no room for wc_Memory struct */
@@ -17470,7 +17471,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
         return WC_TEST_RET_ENC_NC; /* should round to 0
                              since struct + bucket will not fit */
     }
+#endif
 
+    (void)pad;
     (void)dist; /* avoid static analysis warning of variable not used */
 #endif
 
