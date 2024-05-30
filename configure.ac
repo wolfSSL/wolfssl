@@ -9633,7 +9633,7 @@ echo "" >> $OPTION_FILE
 # note: cut requires an argument to exit with success.
 if colrm >/dev/null 2>&1 </dev/null; then
     TRIM="colrm 3"
-elif cut --version >/dev/null 2>&1 </dev/null; then
+elif echo "" | cut -c1 >/dev/null 2>&1 </dev/null; then
     TRIM="cut -c1-2"
 else
     AC_MSG_ERROR([Could not find colrm or cut to make options file])
