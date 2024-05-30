@@ -59,6 +59,8 @@ namespace wolfSSL.CSharp {
             private GCHandle rec_cb;
             private GCHandle snd_cb;
             private GCHandle psk_cb;
+            private GCHandle sni_cb;
+            private GCHandle sni_arg;
             private GCHandle vrf_cb;
             private IntPtr ctx;
 
@@ -87,6 +89,22 @@ namespace wolfSSL.CSharp {
             public GCHandle get_psk()
             {
                 return this.psk_cb;
+            }
+
+            public void set_sni(GCHandle input) {
+                this.sni_cb = input;
+            }
+
+            public GCHandle get_sni(GCHandle input) {
+                return this.sni_cb;
+            }
+
+            public void set_arg(GCHandle input) {
+                this.sni_arg= input;
+            }
+
+            public GCHandle get_arg(GCHandle input) {
+                return this.sni_arg;
             }
 
             public void set_vrf(GCHandle input)
@@ -144,6 +162,7 @@ namespace wolfSSL.CSharp {
         {
             private GCHandle fd_pin;
             private GCHandle psk_cb;
+            private GCHandle sni_cb;
             private GCHandle vrf_cb;
             private IntPtr ssl;
 
@@ -298,9 +317,9 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static void wolfSSL_CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb);
+        private extern static int wolfSSL_CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static void wolfSSL_CTX_set_servername_arg(IntPtr ctx, IntPtr arg);
+        private extern static int wolfSSL_CTX_set_servername_arg(IntPtr ctx, IntPtr arg);
 
         /********************************
          * SSL Structure
@@ -1095,6 +1114,46 @@ namespace wolfSSL.CSharp {
             }
         }
 
+        public static void CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb) {
+            try {
+                GCHandle gch = GCHandle.FromIntPtr(ctx);
+                ctx_handle handles = (ctx_handle)gch.Target;
+
+                handles.set_sni(GCHandle.Alloc(sni_cb));
+
+                wolfSSL_CTX_set_servername_callback(handles.get_ctx(), sni_cb);
+            } catch (Exception e) {
+                log(ERROR_LOG, "wolfssl servername callback error: " + e.ToString());
+            }
+        }
+
+        public static int CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb) {
+            try {
+                GCHandle gch = GCHandle.FromIntPtr(ctx);
+                ctx_handle handles = (ctx_handle)gch.Target;
+
+                handles.set_sni(GCHandle.Alloc(sni_cb));
+
+                return wolfSSL_CTX_set_tlsext_servername_callback(handles.get_ctx(), sni_cb);
+            } catch (Exception e) {
+                log(ERROR_LOG, "wolfssl tlsext servername callback error: " + e.ToString());
+                return FAILURE;
+            }
+        }
+
+        public static int CTX_set_servername_arg(IntPtr ctx, IntPtr arg) {
+            try {
+                GCHandle gch = GCHandle.FromIntPtr(ctx);
+                ctx_handle handles = (ctx_handle)gch.Target;
+
+                handles.set_arg(GCHandle.Alloc(arg));
+
+                return wolfSSL_CTX_set_servername_arg(handles.get_ctx(), arg);
+            } catch (Exception e) {
+                log(ERROR_LOG, "wolfssl arg servername callback error: " + e.ToString());
+                return FAILURE;
+            }
+        }
 
         /// <summary>
         /// Set identity hint to use
