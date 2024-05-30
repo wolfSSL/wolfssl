@@ -18975,14 +18975,14 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
     }
 
     while ((ret == 0) && (idx < sz)) {
+        ASNGetData dataASN[altNameASN_Length];
+
         numNames++;
         if (numNames > WOLFSSL_MAX_ALT_NAMES) {
             WOLFSSL_MSG("\tToo many subject alternative names");
             ret = ASN_ALT_NAME_E;
             break;
         }
-
-        ASNGetData dataASN[altNameASN_Length];
 
         /* Clear dynamic data items. */
         XMEMSET(dataASN, 0, sizeof(dataASN));
