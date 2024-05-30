@@ -41292,7 +41292,8 @@ static int test_wolfSSL_X509_max_altnames(void)
 static int test_wolfSSL_X509_max_name_constraints(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(IGNORE_NAME_CONSTRAINTS)
 
     /* Only test if max name constraints has not been modified */
 #if WOLFSSL_MAX_NAME_CONSTRAINTS == 128
