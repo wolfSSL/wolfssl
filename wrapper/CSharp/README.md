@@ -20,15 +20,17 @@ A Visual Studio solution `wolfSSL_CSharp.sln` is provided. This will allow you
 to build the wrapper library and examples. It includes the wolfSSL Visual Studio
 project directly.
 
-## Linux (using Mono)
+## Linux (Ubuntu) using mono
 
 Prerequisites for linux:
 
 ```
-apt install mono-tools-devel
+apt-get update
+apt-get upgrade
+apt-get install mono-complete
 ```
 
-Build wolfSSL and install:
+# Build wolfSSL and install
 
 ```
 ./autogen.sh
@@ -38,21 +40,21 @@ make check
 sudo make install
 ```
 
-Build and run the wrapper:
+# Build and run the wrapper
 
 ```
 cd wrapper/CSharp
 
-csc wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
+msc wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
     wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs
+```
 
-Run the example:
+# Run the example
 
 ```
-cp wolfSSL-TLS-Server.exe ../../certs
+cp wolfSSL_CSharp/wolfSSL.exe ../../certs
 cd ../../certs
-
-mono wolfSSL-TLS-Server.exe
+mono wolfSSL.exe
 
 Calling ctx Init from wolfSSL
 Finished init of ctx .... now load in cert and key
