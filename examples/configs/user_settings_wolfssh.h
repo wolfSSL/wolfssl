@@ -53,11 +53,15 @@ make
 extern "C" {
 #endif
 
+/* #define USE_LOW_RESOURCE */
+
 /* Platform */
-#if 0 /* Threading and filesystem required for wolfSSH tests \
-       * Can be set for wolfSSH library only use */
+#ifdef USE_LOW_RESOURCE
+    /* Threading and filesystem required for wolfSSH tests \
+     * Can be set for wolfSSH library only use */
     #define SINGLE_THREADED
     #define NO_FILESYSTEM
+    #define BENCH_EMBEDDED
 #endif
 
 /* Features */
@@ -67,8 +71,16 @@ extern "C" {
 #endif
 #define HAVE_HASHDRBG
 #define WOLFSSL_ASN_TEMPLATE
-#define WOLFSSL_BASE64_ENCODE
 #define WOLFSSL_PUBLIC_MP
+#ifndef USE_LOW_RESOURCE
+    #define WOLFSSL_BASE64_ENCODE
+#endif
+
+#ifndef WOLFCRYPT_ONLY
+    #define HAVE_TLS_EXTENSIONS
+    #define HAVE_SUPPORTED_CURVES
+    #define HAVE_ENCRYPT_THEN_MAC
+#endif
 
 /* Timing Resistance */
 #define TFM_TIMING_RESISTANT
@@ -76,22 +88,34 @@ extern "C" {
 #define WC_RSA_BLINDING
 
 /* Asymmetric */
-#undef NO_RSA
+#if 1 /* RSA */
+    #undef NO_RSA
+    #ifdef USE_LOW_RESOURCE
+        #define RSA_LOW_MEM
+    #endif
+#else
+    #define NO_RSA
+#endif
+
 #if 1 /* DH */
     #undef NO_DH
-    #define HAVE_DH_DEFAULT_PARAMS
-    #define HAVE_FFDHE_2048
+    #ifndef WOLFCRYPT_ONLY
+        #define HAVE_DH_DEFAULT_PARAMS
+        #define HAVE_FFDHE_2048
+    #endif
 #else
     #define NO_DH
 #endif
-#define HAVE_ECC
-#ifdef HAVE_ECC
-    #if 0 /* optional ECC SHAMIR speedup */
+#if 1 /* ECC */
+    #define HAVE_ECC
+    #ifndef USE_LOW_RESOURCE /* optional ECC SHAMIR speedup */
         #define ECC_SHAMIR
     #endif
     #define ECC_USER_CURVES
-    #define HAVE_ECC384
-    #define HAVE_ECC521
+    #ifndef USE_LOW_RESOURCE
+        #define HAVE_ECC384
+        #define HAVE_ECC521
+    #endif
 #endif
 
 /* Symmetric AES CBC/GCM */
@@ -100,13 +124,21 @@ extern "C" {
     #define HAVE_AESGCM
     #define GCM_SMALL
 #endif
+#ifdef USE_LOW_RESOURCE
+    #define WOLFSSL_AES_SMALL_TABLES
+#endif
 
-/* Hashing SHA-1, SHA2-256/384/512 */
-#undef NO_SHA
+/* Hashing SHA2-256/384/512 */
 #undef NO_SHA256
+#ifdef USE_LOW_RESOURCE
+    #define USE_SLOW_SHA256
+#endif
 #if 1
     #define WOLFSSL_SHA384
     #define WOLFSSL_SHA512
+    #ifdef USE_LOW_RESOURCE
+        #define USE_SLOW_SHA512
+    #endif
 #endif
 
 
@@ -120,10 +152,14 @@ extern "C" {
 #define WOLFSSL_SP_MATH
 #define WOLFSSL_SP_SMALL
 
-#if !defined(NO_RSA) || !defined(NO_RSA)
+#if !defined(NO_RSA) || !defined(NO_DH)
     #undef WOLFSSL_SP_NO_2048 /* 2048-bit */
-    #undef WOLFSSL_SP_NO_3072 /* 3072-bit */
-    #define WOLFSSL_SP_4096   /* 4096-bit */
+    #ifdef USE_LOW_RESOURCE
+        #define WOLFSSL_SP_NO_3072 /* 3072-bit */
+    #else
+        #undef WOLFSSL_SP_NO_3072 /* 3072-bit */
+        #define WOLFSSL_SP_4096   /* 4096-bit */
+    #endif
 
     #ifndef NO_RSA
         #define WOLFSSL_HAVE_SP_RSA
@@ -135,22 +171,17 @@ extern "C" {
 #ifdef HAVE_ECC
     #define WOLFSSL_HAVE_SP_ECC
 
-    #undef WOLFSSL_SP_NO_256
+    #undef WOLFSSL_SP_NO_256 /* 256-bit */
     #ifdef HAVE_ECC384
-        #define WOLFSSL_SP_384
+        #define WOLFSSL_SP_384 /* 384-bit */
     #endif
     #ifdef HAVE_ECC521
-        #define WOLFSSL_SP_521
+        #define WOLFSSL_SP_521 /* 521-bit */
     #endif
-#endif
-
-#ifndef WOLFCRYPT_ONLY
-    #define HAVE_TLS_EXTENSIONS
-    #define HAVE_SUPPORTED_CURVES
-    #define HAVE_ENCRYPT_THEN_MAC
 #endif
 
 /* Disable Algorithms */
+#define NO_SHA
 #define NO_DSA
 #define NO_DES3
 #define NO_MD4
