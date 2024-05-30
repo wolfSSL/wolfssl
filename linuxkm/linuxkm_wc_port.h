@@ -532,22 +532,31 @@
 
         const unsigned char *_ctype;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+        typeof(kmalloc_noprof) *kmalloc_noprof;
+        typeof(krealloc_noprof) *krealloc_noprof;
+        typeof(kzalloc_noprof) *kzalloc_noprof;
+        typeof(kvmalloc_node_noprof) *kvmalloc_node_noprof;
+        typeof(kmalloc_trace_noprof) *kmalloc_trace_noprof;
+#else /* <6.10.0 */
         typeof(kmalloc) *kmalloc;
-        typeof(kfree) *kfree;
-        typeof(ksize) *ksize;
         typeof(krealloc) *krealloc;
         #ifdef HAVE_KVMALLOC
         typeof(kvmalloc_node) *kvmalloc_node;
-        typeof(kvfree) *kvfree;
         #endif
-        typeof(is_vmalloc_addr) *is_vmalloc_addr;
-
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
             typeof(kmalloc_trace) *kmalloc_trace;
         #else
             typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
             typeof(kmalloc_order_trace) *kmalloc_order_trace;
         #endif
+#endif /* <6.10.0 */
+        #ifdef HAVE_KVMALLOC
+        typeof(kvfree) *kvfree;
+        #endif
+        typeof(kfree) *kfree;
+        typeof(ksize) *ksize;
+        typeof(is_vmalloc_addr) *is_vmalloc_addr;
 
         typeof(get_random_bytes) *get_random_bytes;
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -675,22 +684,35 @@
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+    /* see include/linux/alloc_tag.h and include/linux/slab.h */
+    #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
+    #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
+    #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
+    #define kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node_noprof)
+    #define kmalloc_trace_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace_noprof)
+#else /* <6.10.0 */
     #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
-    #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
-    #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
     #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
     #define kzalloc(size, flags) kmalloc(size, (flags) | __GFP_ZERO)
     #ifdef HAVE_KVMALLOC
         #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
-        #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
     #endif
-    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
         #define kmalloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace)
     #else
         #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
         #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
     #endif
+#endif /* <6.10.0 */
+
+    #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
+    #ifdef HAVE_KVMALLOC
+        #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
+    #endif
+    #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
+
+    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
 
     #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
