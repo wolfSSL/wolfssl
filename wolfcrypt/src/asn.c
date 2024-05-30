@@ -20094,8 +20094,8 @@ static int DecodeSubtreeGeneralName(const byte* input, word32 sz, byte tag,
  * @param [in]      input  Buffer holding data.
  * @param [in]      sz     Size of data in buffer.
  * @param [in, out] head   Linked list of subtree names.
- * @param [in]      limit  If > 0, limit on number of tree 
- *                         entries to  process, exceeding 
+ * @param [in]      limit  If > 0, limit on number of tree
+ *                         entries to  process, exceeding
  *                         is an error.
  * @param [in]      heap   Dynamic memory hint.
  * @return  0 on success.
@@ -20324,7 +20324,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
             ret = DecodeSubtree(
                     dataASN[NAMECONSTRAINTSASN_IDX_PERMIT].data.ref.data,
                     dataASN[NAMECONSTRAINTSASN_IDX_PERMIT].data.ref.length,
-                    &cert->permittedNames, WOLFSSL_MAX_NAME_CONSTRAINTS, 
+                    &cert->permittedNames, WOLFSSL_MAX_NAME_CONSTRAINTS,
                     cert->heap);
         }
     }
@@ -20334,7 +20334,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
             ret = DecodeSubtree(
                     dataASN[NAMECONSTRAINTSASN_IDX_EXCLUDE].data.ref.data,
                     dataASN[NAMECONSTRAINTSASN_IDX_EXCLUDE].data.ref.length,
-                    &cert->excludedNames, WOLFSSL_MAX_NAME_CONSTRAINTS, 
+                    &cert->excludedNames, WOLFSSL_MAX_NAME_CONSTRAINTS,
                     cert->heap);
         }
     }
