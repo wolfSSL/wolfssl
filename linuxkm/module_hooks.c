@@ -459,15 +459,18 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table._ctype = _ctype;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.krealloc_noprof = krealloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kzalloc_noprof = kzalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kvmalloc_node_noprof = kvmalloc_node_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_trace_noprof = kmalloc_trace_noprof;
+#else
     wolfssl_linuxkm_pie_redirect_table.kmalloc = kmalloc;
-    wolfssl_linuxkm_pie_redirect_table.kfree = kfree;
-    wolfssl_linuxkm_pie_redirect_table.ksize = ksize;
     wolfssl_linuxkm_pie_redirect_table.krealloc = krealloc;
 #ifdef HAVE_KVMALLOC
     wolfssl_linuxkm_pie_redirect_table.kvmalloc_node = kvmalloc_node;
-    wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
 #endif
-    wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
         wolfssl_linuxkm_pie_redirect_table.kmalloc_trace =
             kmalloc_trace;
@@ -477,6 +480,14 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
         wolfssl_linuxkm_pie_redirect_table.kmalloc_order_trace =
             kmalloc_order_trace;
     #endif
+#endif
+
+    wolfssl_linuxkm_pie_redirect_table.kfree = kfree;
+    wolfssl_linuxkm_pie_redirect_table.ksize = ksize;
+#ifdef HAVE_KVMALLOC
+    wolfssl_linuxkm_pie_redirect_table.kvfree = kvfree;
+#endif
+    wolfssl_linuxkm_pie_redirect_table.is_vmalloc_addr = is_vmalloc_addr;
 
     wolfssl_linuxkm_pie_redirect_table.get_random_bytes = get_random_bytes;
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
