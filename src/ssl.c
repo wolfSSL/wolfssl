@@ -2573,7 +2573,7 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats)
     }
     WOLFSSL_ENTER("wolfSSL_is_static_memory");
 
-#ifndef WOLFSSL_LEAN_STATIC_MEMORY
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
     /* fill out statistics if wanted and WOLFMEM_TRACK_STATS flag */
     if (mem_stats != NULL && ssl->heap != NULL) {
         WOLFSSL_HEAP_HINT* hint = ((WOLFSSL_HEAP_HINT*)(ssl->heap));
@@ -2596,7 +2596,7 @@ int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats)
     }
     WOLFSSL_ENTER("wolfSSL_CTX_is_static_memory");
 
-#ifndef WOLFSSL_LEAN_STATIC_MEMORY
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
     /* fill out statistics if wanted */
     if (mem_stats != NULL && ctx->heap != NULL) {
         WOLFSSL_HEAP* heap = ((WOLFSSL_HEAP_HINT*)(ctx->heap))->memory;

@@ -3259,7 +3259,8 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_NO_MALLOC) && \
     (defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_SMALL_STACK_CACHE)) && \
     !defined(WOLFSSL_STATIC_MEMORY)
-    #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC)
+    #error Small stack cannot be used with no malloc (WOLFSSL_NO_MALLOC) and \
+           without staticmemory (WOLFSSL_STATIC_MEMORY)
 #endif
 
 /* If malloc is disabled make sure it is also disabled in SP math */

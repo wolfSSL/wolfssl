@@ -214,11 +214,11 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     typedef struct wc_Memory wc_Memory; /* internal structure for mem bucket */
     typedef struct WOLFSSL_HEAP {
         wc_Memory* ava[WOLFMEM_MAX_BUCKETS];
-    #ifndef WOLFSSL_LEAN_STATIC_MEMORY
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         wc_Memory* io;                  /* list of buffers to use for IO */
     #endif
 
-    #ifdef WOLFSSL_LEAN_STATIC_MEMORY
+    #ifdef WOLFSSL_STATIC_MEMORY_LEAN
         word16   sizeList[WOLFMEM_MAX_BUCKETS];/* memory sizes in ava list */
         byte     distList[WOLFMEM_MAX_BUCKETS];/* general distribution */
     #else
@@ -232,7 +232,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
         word32     ioUse;
     #endif
 
-    #ifndef WOLFSSL_LEAN_STATIC_MEMORY
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         word32     alloc; /* total number of allocs */
         word32     frAlc; /* total number of frees  */
         int        flag;
@@ -248,7 +248,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     typedef struct WOLFSSL_HEAP_HINT {
         WOLFSSL_HEAP*           memory;
         WOLFSSL_MEM_CONN_STATS* stats;  /* hold individual connection stats */
-    #ifndef WOLFSSL_LEAN_STATIC_MEMORY
+    #ifndef WOLFSSL_STATIC_MEMORY_LEAN
         wc_Memory*  outBuf; /* set if using fixed io buffers */
         wc_Memory*  inBuf;
         byte        haFlag; /* flag used for checking handshake count */
@@ -261,7 +261,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
             unsigned int listSz, const unsigned int *sizeList,
             const unsigned int *distList, unsigned char* buf, unsigned int sz,
             int flag, int max);
-#ifdef WOLFSSL_DEBUG_MEMORY_CALLBACK
+#ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
     #define WOLFSSL_DEBUG_MEMORY_ALLOC 0
     #define WOLFSSL_DEBUG_MEMORY_FAIL  1
     #define WOLFSSL_DEBUG_MEMORY_FREE  2

@@ -66534,7 +66534,7 @@ static int test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
     ExpectNull((ssl3 = wolfSSL_new(ctx)));
 
     if (wolfSSL_is_static_memory(ssl1, &ssl_stats) == 1) {
-    #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_LEAN_STATIC_MEMORY)
+    #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
         wolfSSL_PrintStatsConn(&ssl_stats);
     #endif
         (void)ssl_stats;
@@ -66542,7 +66542,7 @@ static int test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
 
     /* display collected statistics */
     if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) == 1) {
-    #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_LEAN_STATIC_MEMORY)
+    #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
         wolfSSL_PrintStats(&mem_stats);
     #endif
         (void)mem_stats;
