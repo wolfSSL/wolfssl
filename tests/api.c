@@ -41627,6 +41627,62 @@ static int test_wolfSSL_X509_name_match3(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_max_altnames(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+
+    /* Only test if max alt names has not been modified */
+#if WOLFSSL_MAX_ALT_NAMES == 128
+
+    WOLFSSL_CTX* ctx = NULL;
+    /* File contains a certificate encoded with 130 subject alternative names */
+    const char* over_max_altnames_cert = \
+        "./certs/test/cert-over-max-altnames.pem";
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+
+    ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            over_max_altnames_cert, NULL, WOLFSSL_LOAD_FLAG_NONE),
+            WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_max_name_constraints(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(IGNORE_NAME_CONSTRAINTS)
+
+    /* Only test if max name constraints has not been modified */
+#if WOLFSSL_MAX_NAME_CONSTRAINTS == 128
+
+    WOLFSSL_CTX* ctx = NULL;
+    /* File contains a certificate with 130 name constraints */
+    const char* over_max_nc = "./certs/test/cert-over-max-nc.pem";
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+
+    ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, over_max_nc,
+            NULL, WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+#endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509(void)
 {
     EXPECT_DECLS;
@@ -66900,7 +66956,7 @@ static int test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
     ExpectNull((ssl3 = wolfSSL_new(ctx)));
 
     if (wolfSSL_is_static_memory(ssl1, &ssl_stats) == 1) {
-    #ifdef DEBUG_WOLFSSL
+    #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
         wolfSSL_PrintStatsConn(&ssl_stats);
     #endif
         (void)ssl_stats;
@@ -66908,7 +66964,7 @@ static int test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
 
     /* display collected statistics */
     if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) == 1) {
-    #ifdef DEBUG_WOLFSSL
+    #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
         wolfSSL_PrintStats(&mem_stats);
     #endif
         (void)mem_stats;
@@ -73207,6 +73263,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_name_match),
     TEST_DECL(test_wolfSSL_X509_name_match2),
     TEST_DECL(test_wolfSSL_X509_name_match3),
+    TEST_DECL(test_wolfSSL_X509_max_altnames),
+    TEST_DECL(test_wolfSSL_X509_max_name_constraints),
     TEST_DECL(test_wolfSSL_make_cert),
 
 #ifndef NO_BIO

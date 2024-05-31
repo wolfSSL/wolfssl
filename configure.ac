@@ -8070,6 +8070,27 @@ AC_ARG_ENABLE([staticmemory],
     [ ENABLED_STATICMEMORY=no ]
     )
 
+for v in `echo $ENABLED_STATICMEMORY | tr "," " "`
+do
+  case $v in
+  yes)
+    ;;
+  no)
+    ;;
+  small|lean)
+    ENABLED_STATICMEMORY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_LEAN"
+    ;;
+  debug)
+    ENABLED_STATICMEMORY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK"
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for staticmemory.])
+    break;;
+  esac
+done
+
 if test "x$ENABLED_STATICMEMORY" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STATIC_MEMORY"
@@ -9633,7 +9654,7 @@ echo "" >> $OPTION_FILE
 # note: cut requires an argument to exit with success.
 if colrm >/dev/null 2>&1 </dev/null; then
     TRIM="colrm 3"
-elif cut --version >/dev/null 2>&1 </dev/null; then
+elif echo "" | cut -c1 >/dev/null 2>&1 </dev/null; then
     TRIM="cut -c1-2"
 else
     AC_MSG_ERROR([Could not find colrm or cut to make options file])

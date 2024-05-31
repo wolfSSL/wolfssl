@@ -2573,6 +2573,7 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats)
     }
     WOLFSSL_ENTER("wolfSSL_is_static_memory");
 
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
     /* fill out statistics if wanted and WOLFMEM_TRACK_STATS flag */
     if (mem_stats != NULL && ssl->heap != NULL) {
         WOLFSSL_HEAP_HINT* hint = ((WOLFSSL_HEAP_HINT*)(ssl->heap));
@@ -2581,7 +2582,9 @@ int wolfSSL_is_static_memory(WOLFSSL* ssl, WOLFSSL_MEM_CONN_STATS* mem_stats)
             XMEMCPY(mem_stats, hint->stats, sizeof(WOLFSSL_MEM_CONN_STATS));
         }
     }
+#endif
 
+    (void)mem_stats;
     return (ssl->heap) ? 1 : 0;
 }
 
@@ -2593,6 +2596,7 @@ int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats)
     }
     WOLFSSL_ENTER("wolfSSL_CTX_is_static_memory");
 
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
     /* fill out statistics if wanted */
     if (mem_stats != NULL && ctx->heap != NULL) {
         WOLFSSL_HEAP* heap = ((WOLFSSL_HEAP_HINT*)(ctx->heap))->memory;
@@ -2600,7 +2604,9 @@ int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats)
             return MEMORY_E;
         }
     }
+#endif
 
+    (void)mem_stats;
     return (ctx->heap) ? 1 : 0;
 }
 
@@ -14091,14 +14097,14 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl)
     return wolfSSL_get_cipher_name_internal(ssl);
 }
 
-const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
-    const byte cipherSuite)
+const char* wolfSSL_get_cipher_name_from_suite(byte cipherSuite0,
+    byte cipherSuite)
 {
     return GetCipherNameInternal(cipherSuite0, cipherSuite);
 }
 
-const char* wolfSSL_get_cipher_name_iana_from_suite(const byte cipherSuite0,
-        const byte cipherSuite)
+const char* wolfSSL_get_cipher_name_iana_from_suite(byte cipherSuite0,
+        byte cipherSuite)
 {
     return GetCipherNameIana(cipherSuite0, cipherSuite);
 }
