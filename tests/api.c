@@ -56967,6 +56967,94 @@ static int test_wolfSSL_BIO_tls(void)
     return EXPECT_RESULT();
 }
 
+
+
+static int test_wolfSSL_BIO_datagram(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_BIO) && defined(WOLFSSL_HAVE_BIO_ADDR)
+    int ret;
+    int fd1 = -1, fd2 = -1;
+    WOLFSSL_BIO *bio1 = NULL, *bio2 = NULL;
+    WOLFSSL_BIO_ADDR *bio_addr1, *bio_addr2;
+    struct sockaddr_in sin1, sin2;
+    socklen_t slen;
+
+    if (EXPECT_SUCCESS()) {
+        fd1 = socket(AF_INET, SOCK_DGRAM, 17 /* UDP */);
+        ExpectIntGE(fd1, 0);
+    }
+    if (EXPECT_SUCCESS()) {
+        fd2 = socket(AF_INET, SOCK_DGRAM, 17 /* UDP */);
+        ExpectIntGE(fd2, 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio1 = wolfSSL_BIO_new_dgram(fd1, 1 /* closeF */);
+        ExpectNotNull(bio1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio2 = wolfSSL_BIO_new_dgram(fd2, 1 /* closeF */);
+        ExpectNotNull(bio2);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        sin1.sin_family = AF_INET;
+        sin1.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        sin1.sin_port = 0;
+        slen = (socklen_t)sizeof(sin1);
+        ExpectIntEQ(bind(fd1, (const struct sockaddr *)&sin1, slen), 0);
+        perror("bind");
+        ExpectIntEQ(getsockname(fd1, (struct sockaddr *)&sin1, &slen), 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        sin2.sin_family = AF_INET;
+        sin2.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        sin2.sin_port = 0;
+        slen = (socklen_t)sizeof(sin2);
+        ExpectIntEQ(bind(fd2, (const struct sockaddr *)&sin2, slen), 0);
+        ExpectIntEQ(getsockname(fd2, (struct sockaddr *)&sin2, &slen), 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio_addr1 = wolfSSL_BIO_ADDR_new();
+        ExpectNotNull(bio_addr1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio_addr2 = wolfSSL_BIO_ADDR_new();
+        ExpectNotNull(bio_addr1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
+        ret = (int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 1, bio_addr2);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(&bio_addr1->sa_in, &sin1, sizeof(sin1));
+        ret = (int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_PEER, 1, bio_addr1);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+
+    if (bio1) {
+        ret = wolfSSL_BIO_free(bio1);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+
+    if (bio2) {
+        ret = wolfSSL_BIO_free(bio2);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+
+
 #if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     defined(HAVE_HTTP_CLIENT)
 static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
@@ -83961,6 +84049,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as server Asserts in thread. */
     TEST_DECL(test_wolfSSL_BIO_accept),
     TEST_DECL(test_wolfSSL_BIO_tls),
+    TEST_DECL(test_wolfSSL_BIO_datagram),
 #endif
 
 #if defined(HAVE_PK_CALLBACKS) && !defined(WOLFSSL_NO_TLS12)
