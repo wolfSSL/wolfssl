@@ -7605,9 +7605,6 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
                        "err = %d", ret);
         return MEMORY_E;
     }
-#ifdef HAVE_MAX_FRAGMENT
-    ssl->session->maxFragmentSz = ssl->max_fragment;
-#endif /* HAVE_MAX_FRAGMENT */
 #ifdef HAVE_SESSION_TICKET
     ssl->options.noTicketTls12 = ctx->noTicketTls12;
 #endif

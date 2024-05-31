@@ -754,7 +754,7 @@ uint8_t wolfSSL_SESSION_get_max_fragment_length(WOLFSSL_SESSION* session)
         return 0;
     }
 
-    return session->maxFragmentSz;
+    return session->mfl;
 }
 
 
