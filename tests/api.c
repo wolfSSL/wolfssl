@@ -53099,37 +53099,37 @@ static int test_CheckCertSignature(void)
     int   certSz;
 #endif
 
-    ExpectIntEQ(BAD_FUNC_ARG, CheckCertSignature(NULL, 0, NULL, NULL));
+    ExpectIntEQ(BAD_FUNC_ARG, wc_CheckCertSignature(NULL, 0, NULL, NULL));
     ExpectNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
-    ExpectIntEQ(BAD_FUNC_ARG, CheckCertSignature(NULL, 0, NULL, cm));
+    ExpectIntEQ(BAD_FUNC_ARG, wc_CheckCertSignature(NULL, 0, NULL, cm));
 
 #ifndef NO_RSA
 #ifdef USE_CERT_BUFFERS_1024
-    ExpectIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(server_cert_der_1024,
+    ExpectIntEQ(ASN_NO_SIGNER_E, wc_CheckCertSignature(server_cert_der_1024,
                 sizeof_server_cert_der_1024, NULL, cm));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCABuffer(cm,
                 ca_cert_der_1024, sizeof_ca_cert_der_1024,
                 WOLFSSL_FILETYPE_ASN1));
-    ExpectIntEQ(0, CheckCertSignature(server_cert_der_1024,
+    ExpectIntEQ(0, wc_CheckCertSignature(server_cert_der_1024,
                 sizeof_server_cert_der_1024, NULL, cm));
 #elif defined(USE_CERT_BUFFERS_2048)
-    ExpectIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(server_cert_der_2048,
+    ExpectIntEQ(ASN_NO_SIGNER_E, wc_CheckCertSignature(server_cert_der_2048,
                 sizeof_server_cert_der_2048, NULL, cm));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCABuffer(cm,
                 ca_cert_der_2048, sizeof_ca_cert_der_2048,
                 WOLFSSL_FILETYPE_ASN1));
-    ExpectIntEQ(0, CheckCertSignature(server_cert_der_2048,
+    ExpectIntEQ(0, wc_CheckCertSignature(server_cert_der_2048,
                 sizeof_server_cert_der_2048, NULL, cm));
 #endif
 #endif
 
 #if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
-    ExpectIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(serv_ecc_der_256,
+    ExpectIntEQ(ASN_NO_SIGNER_E, wc_CheckCertSignature(serv_ecc_der_256,
                 sizeof_serv_ecc_der_256, NULL, cm));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCABuffer(cm,
                 ca_ecc_cert_der_256, sizeof_ca_ecc_cert_der_256,
                 WOLFSSL_FILETYPE_ASN1));
-    ExpectIntEQ(0, CheckCertSignature(serv_ecc_der_256, sizeof_serv_ecc_der_256,
+    ExpectIntEQ(0, wc_CheckCertSignature(serv_ecc_der_256, sizeof_serv_ecc_der_256,
                 NULL, cm));
 #endif
 
@@ -53144,10 +53144,10 @@ static int test_CheckCertSignature(void)
         XFCLOSE(fp);
         fp = XBADFILE;
     }
-    ExpectIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(cert, certSz, NULL, cm));
+    ExpectIntEQ(ASN_NO_SIGNER_E, wc_CheckCertSignature(cert, certSz, NULL, cm));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
                 "./certs/ca-cert.pem", NULL));
-    ExpectIntEQ(0, CheckCertSignature(cert, certSz, NULL, cm));
+    ExpectIntEQ(0, wc_CheckCertSignature(cert, certSz, NULL, cm));
 #endif
 #ifdef HAVE_ECC
     ExpectTrue((fp = XFOPEN("./certs/server-ecc.der", "rb")) != XBADFILE);
@@ -53156,10 +53156,10 @@ static int test_CheckCertSignature(void)
         XFCLOSE(fp);
         fp = XBADFILE;
     }
-    ExpectIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(cert, certSz, NULL, cm));
+    ExpectIntEQ(ASN_NO_SIGNER_E, wc_CheckCertSignature(cert, certSz, NULL, cm));
     ExpectIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
                 "./certs/ca-ecc-cert.pem", NULL));
-    ExpectIntEQ(0, CheckCertSignature(cert, certSz, NULL, cm));
+    ExpectIntEQ(0, wc_CheckCertSignature(cert, certSz, NULL, cm));
 #endif
 #endif
 

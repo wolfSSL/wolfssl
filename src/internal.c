@@ -14057,7 +14057,7 @@ PRAGMA_GCC_DIAG_POP
         }
 
         /* perform cert parsing and signature check */
-        sigRet = CheckCertSignature(cert->buffer, cert->length,
+        sigRet = wc_CheckCertSignature(cert->buffer, cert->length,
                                          ssl->heap, SSL_CM(ssl));
         /* fail on errors here after the ParseCertRelative call, so dCert is populated */
 

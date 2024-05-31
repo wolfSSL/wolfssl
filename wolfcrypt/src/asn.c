@@ -23239,9 +23239,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#ifdef OPENSSL_EXTRA
-/* Call CheckCertSignature_ex using a public key buffer for verification
- */
+/* Call CheckCertSignature_ex using a public key buffer for verification */
 int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
         const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
@@ -23249,6 +23247,7 @@ int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
             pubKey, pubKeySz, pubKeyOID, 0);
 }
 
+/* Call CheckCertSignature_ex using a public key and oid */
 int wc_CheckCertSigPubKey(const byte* cert, word32 certSz, void* heap,
         const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
@@ -23264,15 +23263,12 @@ int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void* heap,
             pubKey, pubKeySz, pubKeyOID, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
-#endif /* OPENSSL_EXTRA */
-#ifdef WOLFSSL_SMALL_CERT_VERIFY
-/* Call CheckCertSignature_ex using a certificate manager (cm)
- */
-int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
+
+/* Call CheckCertSignature_ex using a certificate manager (cm) */
+int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 {
     return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0, 0);
 }
-#endif /* WOLFSSL_SMALL_CERT_VERIFY */
 #endif /* WOLFSSL_SMALL_CERT_VERIFY || OPENSSL_EXTRA */
 
 #if (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) || \
