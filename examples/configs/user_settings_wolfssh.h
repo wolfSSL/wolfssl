@@ -88,16 +88,22 @@ extern "C" {
 #define WC_RSA_BLINDING
 
 /* Asymmetric */
-#if 1 /* RSA */
+#if 1 /* RSA - PKCS1v1.5 */
     #undef NO_RSA
+    #define WC_NO_RSA_OAEP /* SSH does not use OAEP */
+
     #ifdef USE_LOW_RESOURCE
-        #define RSA_LOW_MEM
+        /* currently CalcRsaInverses uses RsaKey members so cannot enable */
+        /* #define RSA_LOW_MEM */
     #endif
 #else
     #define NO_RSA
 #endif
 
 #if 1 /* DH */
+    /* RFC 4253 requires "DH w/SHA-1"
+     * RFC 9142 requires "diffie-hellman-group14-sha256"
+     */
     #undef NO_DH
     #ifndef WOLFCRYPT_ONLY
         #define HAVE_DH_DEFAULT_PARAMS
@@ -128,12 +134,14 @@ extern "C" {
     #define WOLFSSL_AES_SMALL_TABLES
 #endif
 
-/* Hashing SHA2-256/384/512 */
+/* Hashing SHA-1/SHA2-256 */
+#undef NO_SHA
 #undef NO_SHA256
 #ifdef USE_LOW_RESOURCE
+    #define USE_SLOW_SHA
     #define USE_SLOW_SHA256
 #endif
-#if 1
+#if 0
     #define WOLFSSL_SHA384
     #define WOLFSSL_SHA512
     #ifdef USE_LOW_RESOURCE
@@ -181,7 +189,6 @@ extern "C" {
 #endif
 
 /* Disable Algorithms */
-#define NO_SHA
 #define NO_DSA
 #define NO_DES3
 #define NO_MD4
