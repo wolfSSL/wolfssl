@@ -33467,6 +33467,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
     X509_NAME* name = NULL;
 
     const char* expNormal  = "C=US, CN=wolfssl.com";
+    const char* expEqSpace = "C = US, CN = wolfssl.com";
     const char* expReverse = "CN=wolfssl.com, C=US";
 
     const char* expNotEscaped = "C= US,+\"\\ , CN=#wolfssl.com<>;";
@@ -33521,6 +33522,17 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
         ExpectIntEQ(memSz, XSTRLEN(expNormal));
         ExpectIntEQ(XSTRNCMP((char*)mem, expNormal, XSTRLEN(expNormal)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test with XN_FLAG_ONELINE which should enable XN_FLAG_SPC_EQ for
+           spaces aroun '=' */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, XN_FLAG_ONELINE),
+            WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expEqSpace));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expEqSpace, XSTRLEN(expEqSpace)), 0);
         BIO_free(membio);
         membio = NULL;
 

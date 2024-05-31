@@ -13051,6 +13051,7 @@ static int wolfSSL_EscapeString_RFC2253(char* in, word32 inSz,
  *                                RFC22523 currently implemented.
  *              XN_FLAG_DN_REV  - print name reversed. Automatically done by
  *                                XN_FLAG_RFC2253.
+ *              XN_FLAG_SPC_EQ  - spaces before and after '=' character
  *
  * Returns WOLFSSL_SUCCESS (1) on success, WOLFSSL_FAILURE (0) on failure.
  */
@@ -13058,6 +13059,8 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 int indent, unsigned long flags)
 {
     int i, count = 0, nameStrSz = 0, escapeSz = 0;
+    int eqSpace  = 0;
+    char eqStr[4];
     char* tmp = NULL;
     char* nameStr = NULL;
     const char *buf = NULL;
@@ -13069,6 +13072,15 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
 
     if ((name == NULL) || (name->sz == 0) || (bio == NULL))
         return WOLFSSL_FAILURE;
+
+    XMEMSET(eqStr, 0, sizeof(eqStr));
+    if (flags & XN_FLAG_SPC_EQ) {
+        eqSpace = 2;
+        XSTRNCPY(eqStr, " = ", 4);
+    }
+    else {
+        XSTRNCPY(eqStr, "=", 4);
+    }
 
     for (i = 0; i < indent; i++) {
         if (wolfSSL_BIO_write(bio, " ", 1) != 1)
@@ -13114,14 +13126,15 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         if (len == 0 || buf == NULL)
             return WOLFSSL_FAILURE;
 
-        tmpSz = nameStrSz + len + 4; /* + 4 for '=', comma space and '\0'*/
+        /* + 4 for '=', comma space and '\0'*/
+        tmpSz = nameStrSz + len + 4 + eqSpace;
         tmp = (char*)XMALLOC(tmpSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL) {
             return WOLFSSL_FAILURE;
         }
 
         if (i < count - 1) {
-            if (XSNPRINTF(tmp, (size_t)tmpSz, "%s=%s, ", buf, nameStr)
+            if (XSNPRINTF(tmp, (size_t)tmpSz, "%s%s%s, ", buf, eqStr, nameStr)
                 >= tmpSz)
             {
                 WOLFSSL_MSG("buffer overrun");
@@ -13129,17 +13142,17 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
                 return WOLFSSL_FAILURE;
             }
 
-            tmpSz = len + nameStrSz + 3; /* 3 for '=', comma space */
+            tmpSz = len + nameStrSz + 3 + eqSpace; /* 3 for '=', comma space */
         }
         else {
-            if (XSNPRINTF(tmp, (size_t)tmpSz, "%s=%s", buf, nameStr)
+            if (XSNPRINTF(tmp, (size_t)tmpSz, "%s%s%s", buf, eqStr, nameStr)
                 >= tmpSz)
             {
                 WOLFSSL_MSG("buffer overrun");
                 XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
-            tmpSz = len + nameStrSz + 1; /* 1 for '=' */
+            tmpSz = len + nameStrSz + 1 + eqSpace; /* 1 for '=' */
             if (bio->type != WOLFSSL_BIO_FILE && bio->type != WOLFSSL_BIO_MEMORY)
                 ++tmpSz; /* include the terminating null when not writing to a
                           * file.
