@@ -2889,6 +2889,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 if ((bio->type == WOLFSSL_BIO_SOCKET) && (bio->num > 0))
                     CloseSocket(bio->num);
             #endif
+            #ifdef WOLFSSL_HAVE_BIO_ADDR
+                if (bio->peer_addr != NULL)
+                    wolfSSL_BIO_ADDR_free(bio->peer_addr);
+            #endif
             }
 
         #ifndef NO_FILESYSTEM

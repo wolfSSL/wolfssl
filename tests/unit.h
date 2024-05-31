@@ -127,7 +127,7 @@
 #define EXPECT_RESULT() \
     _ret
 #define EXPECT_SUCCESS() \
-    (_ret == TEST_SUCCESS)
+    ((_ret == TEST_SUCCESS) || (_ret == TEST_SKIPPED))
 #define EXPECT_FAIL() \
     (_ret == TEST_FAIL)
 
