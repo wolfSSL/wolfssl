@@ -23225,6 +23225,7 @@ int CheckCertSignaturePubKey(const byte* cert, word32 certSz, void* heap,
             pubKey, pubKeySz, pubKeyOID, 0);
 }
 
+/* Call CheckCertSignature_ex using a public key and oid */
 int wc_CheckCertSigPubKey(const byte* cert, word32 certSz, void* heap,
         const byte* pubKey, word32 pubKeySz, int pubKeyOID)
 {
@@ -23241,9 +23242,8 @@ int CheckCSRSignaturePubKey(const byte* cert, word32 certSz, void* heap,
 }
 #endif /* WOLFSSL_CERT_REQ */
 
-/* Call CheckCertSignature_ex using a certificate manager (cm)
- */
-int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
+/* Call CheckCertSignature_ex using a certificate manager (cm) */
+int wc_CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 {
     return CheckCertSignature_ex(cert, certSz, heap, cm, NULL, 0, 0, 0);
 }
