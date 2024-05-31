@@ -780,6 +780,20 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
     #define WOLFSSL_TLS_FEATURE_SUM 92
 #endif
 
+/* Maximum number of allowed subject alternative names in a certificate.
+ * Any certificate containing more than this number of subject
+ * alternative names will cause an error when attempting to parse. */
+#ifndef WOLFSSL_MAX_ALT_NAMES
+#define WOLFSSL_MAX_ALT_NAMES 128
+#endif
+
+/* Maximum number of allowed name constraints in a certificate.
+ * Any certificate containing more than this number of name constraints
+ * will cause an error when attempting to parse. */
+#ifndef WOLFSSL_MAX_NAME_CONSTRAINTS
+#define WOLFSSL_MAX_NAME_CONSTRAINTS 128
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* NIDs */
 #define NID_undef 0

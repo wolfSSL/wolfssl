@@ -41261,6 +41261,62 @@ static int test_wolfSSL_X509_bad_altname(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_max_altnames(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+
+    /* Only test if max alt names has not been modified */
+#if WOLFSSL_MAX_ALT_NAMES == 128
+
+    WOLFSSL_CTX* ctx = NULL;
+    /* File contains a certificate encoded with 130 subject alternative names */
+    const char* over_max_altnames_cert = \
+        "./certs/test/cert-over-max-altnames.pem";
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+
+    ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            over_max_altnames_cert, NULL, WOLFSSL_LOAD_FLAG_NONE),
+            WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+#endif
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_max_name_constraints(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(IGNORE_NAME_CONSTRAINTS)
+
+    /* Only test if max name constraints has not been modified */
+#if WOLFSSL_MAX_NAME_CONSTRAINTS == 128
+
+    WOLFSSL_CTX* ctx = NULL;
+    /* File contains a certificate with 130 name constraints */
+    const char* over_max_nc = "./certs/test/cert-over-max-nc.pem";
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+
+    ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, over_max_nc,
+            NULL, WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+#endif
+
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_X509(void)
 {
     EXPECT_DECLS;
@@ -72838,6 +72894,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_check_ca),
     TEST_DECL(test_wolfSSL_X509_check_ip_asc),
     TEST_DECL(test_wolfSSL_X509_bad_altname),
+    TEST_DECL(test_wolfSSL_X509_max_altnames),
+    TEST_DECL(test_wolfSSL_X509_max_name_constraints),
     TEST_DECL(test_wolfSSL_make_cert),
 
 #ifndef NO_BIO
