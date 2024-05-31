@@ -166,6 +166,11 @@ WOLFSSL_API int wc_SRTP_KDF_kdr_to_idx(word32 kdr);
 
 #endif /* WC_SRTP_KDF */
 
+#ifdef WC_KDF_NIST_SP_800_56C
+WOLFSSL_API int wc_KDA_KDF_onestep(const byte* z, word32 zSz,
+    const byte* fixedInfo, word32 fixedInfoSz, word32 derivedSecretSz,
+    enum wc_HashType hashType, byte* output, word32 outputSz);
+#endif
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
