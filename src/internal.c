@@ -12417,9 +12417,6 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
                 str++;
                 strLen--;
 
-                if (s == '.')
-                    return 0;
-
                 /* p is next char in pattern after '*', or '*' if '*' is the
                  * last char in the pattern (in which case patternLen is 1) */
                 if ( ((s == p) && (patternLen > 0))) {
@@ -12434,6 +12431,9 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
                 if (strLen == 0) {
                     break;
                 }
+
+                if (s == '.')
+                    return 0;
             }
         }
         else {
