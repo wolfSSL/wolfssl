@@ -61767,6 +61767,7 @@ static int test_wolfSSL_EC_POINT(void)
     EC_POINT* Gxy = NULL;
     EC_POINT* new_point = NULL;
     EC_POINT* set_point = NULL;
+    EC_POINT* get_point = NULL;
     EC_POINT* infinity = NULL;
     BIGNUM* k = NULL;
     BIGNUM* Gx = NULL;
@@ -61784,6 +61785,14 @@ static int test_wolfSSL_EC_POINT(void)
                         "77037D812DEB33A0F4A13945D898C296";
     const char* kGy   = "4FE342E2FE1A7F9B8EE7EB4A7C0F9E16"
                         "2BCE33576B315ECECBB6406837BF51F5";
+    const char* uncompG
+                      = "046B17D1F2E12C4247F8BCE6E563A440F2"
+                        "77037D812DEB33A0F4A13945D898C296"
+                        "4FE342E2FE1A7F9B8EE7EB4A7C0F9E16"
+                        "2BCE33576B315ECECBB6406837BF51F5";
+    const char* compG
+                      = "036B17D1F2E12C4247F8BCE6E563A440F2"
+                        "77037D812DEB33A0F4A13945D898C296";
 
 #ifndef HAVE_SELFTEST
     EC_POINT *tmp = NULL;
@@ -61792,10 +61801,6 @@ static int test_wolfSSL_EC_POINT(void)
     unsigned char* buf = NULL;
     unsigned char bufInf[1] = { 0x00 };
 
-    const char* uncompG   = "046B17D1F2E12C4247F8BCE6E563A440F2"
-                              "77037D812DEB33A0F4A13945D898C296"
-                              "4FE342E2FE1A7F9B8EE7EB4A7C0F9E16"
-                              "2BCE33576B315ECECBB6406837BF51F5";
     const unsigned char binUncompG[] = {
         0x04, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
         0xe6, 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d,
@@ -61813,8 +61818,6 @@ static int test_wolfSSL_EC_POINT(void)
         0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
     };
 
-    const char* compG   = "036B17D1F2E12C4247F8BCE6E563A440F2"
-                            "77037D812DEB33A0F4A13945D898C296";
 #ifdef HAVE_COMP_KEY
     const unsigned char binCompG[] = {
         0x03, 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc,
@@ -62039,7 +62042,6 @@ static int test_wolfSSL_EC_POINT(void)
 #endif
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
-#ifndef HAVE_SELFTEST
     /* Test point to hex */
     ExpectNull(EC_POINT_point2hex(NULL, NULL, POINT_CONVERSION_UNCOMPRESSED,
         ctx));
@@ -62056,13 +62058,22 @@ static int test_wolfSSL_EC_POINT(void)
     hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_UNCOMPRESSED, ctx);
     ExpectNotNull(hexStr);
     ExpectStrEQ(hexStr, uncompG);
+    AssertNotNull(get_point = EC_POINT_hex2point(group, hexStr, NULL, ctx));
+    AssertIntEQ(EC_POINT_cmp(group, Gxy, get_point, ctx), 0);
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
     hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_COMPRESSED, ctx);
     ExpectNotNull(hexStr);
     ExpectStrEQ(hexStr, compG);
+    #ifdef HAVE_COMP_KEY
+    AssertNotNull(get_point = EC_POINT_hex2point
+                                            (group, hexStr, get_point, ctx));
+    AssertIntEQ(EC_POINT_cmp(group, Gxy, get_point, ctx), 0);
+    #endif
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+    EC_POINT_free(get_point);
 
+#ifndef HAVE_SELFTEST
     /* Test point to oct */
     ExpectIntEQ(EC_POINT_point2oct(NULL, NULL, POINT_CONVERSION_UNCOMPRESSED,
         NULL, 0, ctx), 0);

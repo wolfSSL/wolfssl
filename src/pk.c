@@ -32,6 +32,12 @@
 
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
+    #ifdef HAVE_SELFTEST
+        /* point compression types. */
+        #define ECC_POINT_COMP_EVEN 0x02
+        #define ECC_POINT_COMP_ODD  0x03
+        #define ECC_POINT_UNCOMP    0x04
+    #endif
 #endif
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
@@ -9870,7 +9876,6 @@ void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *point)
 #endif
 }
 
-#ifndef HAVE_SELFTEST
 /* Convert EC point to hex string that as either uncompressed or compressed.
  *
  * ECC point compression types were not included in selftest ecc.h
@@ -9983,7 +9988,100 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
     return hex;
 }
 
-#endif /* HAVE_SELFTEST */
+static size_t hex_to_bytes(const char *hex, unsigned char *output, size_t sz)
+{
+    word32 i;
+    for (i = 0; i < sz; i++) {
+        signed char ch1, ch2;
+        ch1 = HexCharToByte(hex[i * 2]);
+        ch2 = HexCharToByte(hex[i * 2 + 1]);
+        if ((ch1 < 0) || (ch2 < 0)) {
+            WOLFSSL_MSG("hex_to_bytes: syntax error");
+            return 0;
+        }
+        output[i] = (unsigned char)((ch1 << 4) + ch2);
+    }
+    return sz;
+}
+
+WOLFSSL_EC_POINT* wolfSSL_EC_POINT_hex2point(const EC_GROUP *group,
+            const char *hex, WOLFSSL_EC_POINT*p, WOLFSSL_BN_CTX *ctx)
+{
+    /* for uncompressed mode */
+    size_t str_sz;
+    BIGNUM *Gx  = NULL;
+    BIGNUM *Gy  = NULL;
+    char   strGx[MAX_ECC_BYTES * 2 + 1];
+
+    /* for compressed mode */
+    int    key_sz;
+    byte   *octGx = (byte *)strGx; /* octGx[MAX_ECC_BYTES] */
+
+    int p_alloc = 0;
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_hex2point");
+
+    if (group == NULL || hex == NULL || ctx == NULL)
+        return NULL;
+
+    if (p == NULL) {
+        if ((p = wolfSSL_EC_POINT_new(group)) == NULL) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_new");
+            goto err;
+        }
+        p_alloc = 1;
+    }
+
+    key_sz = (wolfSSL_EC_GROUP_get_degree(group) + 7) / 8;
+    if (hex[0] ==  '0' && hex[1] == '4') { /* uncompressed mode */
+        str_sz = key_sz * 2;
+
+        XMEMSET(strGx, 0x0, str_sz + 1);
+        XMEMCPY(strGx, hex + 2, str_sz);
+
+        if (wolfSSL_BN_hex2bn(&Gx, strGx) == 0)
+            goto err;
+
+        if (wolfSSL_BN_hex2bn(&Gy, hex + 2 + str_sz) == 0)
+            goto err;
+
+        ret = wolfSSL_EC_POINT_set_affine_coordinates_GFp
+                                            (group, p, Gx, Gy, ctx);
+
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("wolfSSL_EC_POINT_set_affine_coordinates_GFp");
+            goto err;
+        }
+    }
+    else if (hex[0] == '0' && (hex[1] == '2' || hex[1] == '3')) {
+        size_t sz = XSTRLEN(hex + 2) / 2;
+        /* compressed mode */
+        octGx[0] = ECC_POINT_COMP_ODD;
+        if (hex_to_bytes(hex + 2, octGx + 1, sz) != sz) {
+            goto err;
+        }
+        if (wolfSSL_ECPoint_d2i(octGx, key_sz + 1, group, p)
+                                            != WOLFSSL_SUCCESS) {
+            goto err;
+        }
+    }
+    else
+        goto err;
+
+    wolfSSL_BN_free(Gx);
+    wolfSSL_BN_free(Gy);
+    return p;
+
+err:
+    wolfSSL_BN_free(Gx);
+    wolfSSL_BN_free(Gy);
+    if (p_alloc) {
+        EC_POINT_free(p);
+    }
+    return NULL;
+
+}
 
 /* Encode the EC point as an uncompressed point in DER.
  *
