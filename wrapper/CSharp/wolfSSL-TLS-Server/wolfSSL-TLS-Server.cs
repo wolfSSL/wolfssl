@@ -19,9 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -50,6 +47,26 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.Cleanup();
     }
 
+    /// <summary>
+    /// Checks if the SNI option was enabled via command line.
+    /// Must be enabled with ./configure --enable-sni when configuring
+    /// wolfSSL.
+    /// <param name="args">Parameters passed via command line</param>
+    /// </summary>
+    private static bool haveSNI(string[] args) 
+    {
+        if (args != null && args.Length == 2 && args[0] == "-S") 
+        {
+            Console.WriteLine("SNI IS: ON");
+            return true;
+        } 
+        else {
+            Console.WriteLine("SNI IS: OFF");
+            return false;
+        }
+    }
+
+
 
     public static void Main(string[] args)
     {
@@ -69,7 +86,6 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.SetLogging(standard_log);
 
         wolfssl.Init();
-
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.usev23_server());
@@ -101,6 +117,20 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
+        if (haveSNI(args)) 
+        {
+            string sniHostNameString = args[1].Trim();
+            sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
+
+            ushort size = (ushort)sniHostNameString.Length;
+
+           if (wolfssl.CTX_UseSNI(ctx, (byte)wolfssl.WOLFSSL_SNI_HOST_NAME, sniHostName, size) != wolfssl.SUCCESS) 
+           {
+               Console.WriteLine("UseSNI failed");
+               wolfssl.CTX_free(ctx);
+               return;
+           }
+        }
 
         StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
         wolfssl.get_ciphers(ciphers, 4096);

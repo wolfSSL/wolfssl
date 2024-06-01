@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -60,11 +59,32 @@ public class wolfSSL_TLS_Client
         return preverify;
     }
 
+    /// <summary>
+    /// Checks if the SNI option was enabled via command line.
+    /// Must be enabled with ./configure --enable-sni when configuring
+    /// wolfSSL.
+    /// <param name="args">Parameters passed via command line</param>
+    /// </summary>
+    private static bool haveSNI(string[] args) 
+    {
+        if (args != null && args.Length == 2 && args[0] == "-S") 
+        {
+            Console.WriteLine("SNI IS: ON");
+            return true;
+        } 
+        else {
+            Console.WriteLine("SNI IS: OFF");
+            return false;
+        }
+    }
+
+
     public static void Main(string[] args)
     {
         IntPtr ctx;
         IntPtr ssl;
         Socket tcp;
+        IntPtr sniHostName;
 
         /* These paths should be changed for use */
         string caCert = @"ca-cert.pem";
@@ -78,7 +98,6 @@ public class wolfSSL_TLS_Client
 
         wolfssl.Init();
 
-
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.usev23_client());
         if (ctx == IntPtr.Zero)
@@ -88,7 +107,6 @@ public class wolfSSL_TLS_Client
         }
         Console.WriteLine("Finished init of ctx .... now load in CA");
 
-
         if (!File.Exists(caCert))
         {
             Console.WriteLine("Could not find CA cert file");
@@ -96,11 +114,27 @@ public class wolfSSL_TLS_Client
             return;
         }
 
-
         if (wolfssl.CTX_load_verify_locations(ctx, caCert, null)
             != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error loading CA cert");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
+
+        if (haveSNI(args)) 
+        {
+            string sniHostNameString = args[1].Trim();
+            sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
+
+            ushort size = (ushort)sniHostNameString.Length;
+
+           if (wolfssl.CTX_UseSNI(ctx, (byte)wolfssl.WOLFSSL_SNI_HOST_NAME, sniHostName, size) != wolfssl.SUCCESS) 
+           {
+               Console.WriteLine("UseSNI failed");
+               wolfssl.CTX_free(ctx);
+               return;
+           }
         }
 
         StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
