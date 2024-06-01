@@ -1520,9 +1520,9 @@ int esp_sha_hw_unlock(WC_ESP32SHA* ctx)
     }
 
 #if defined(ESP_MONITOR_HW_TASK_LOCK) && defined(WOLFSSL_ESP32_HW_LOCK_DEBUG)
-    SP_LOGI(TAG, "3) esp_sha_hw_unlock Lock depth @ %d = %d "
+   ESP_LOGI(TAG, "3) esp_sha_hw_unlock Lock depth @ %d = %d "
                  "for WC_ESP32SHA @ %0x\n",
-                 __LINE__, ctx->lockDepth, (unsigned)ctx);
+                 __LINE__, ctx->lockDepth, (uintptr_t)ctx);
 #endif
 
     if (0 != ctx->lockDepth) {
