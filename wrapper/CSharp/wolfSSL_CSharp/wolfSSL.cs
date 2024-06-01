@@ -147,6 +147,10 @@ namespace wolfSSL.CSharp {
                 {
                     this.psk_cb.Free();
                 }
+                if (!Object.Equals(this.sni_cb, default(GCHandle)))
+                {
+                    this.sni_cb.Free();
+                }
                 if (!Object.Equals(this.vrf_cb, default(GCHandle)))
                 {
                     this.vrf_cb.Free();
@@ -216,6 +220,10 @@ namespace wolfSSL.CSharp {
                 if (!Object.Equals(this.psk_cb, default(GCHandle)))
                 {
                     this.psk_cb.Free();
+                }
+                if (!Object.Equals(this.sni_cb, default(GCHandle)))
+                {
+                    this.sni_cb.Free();
                 }
                 if (!Object.Equals(this.vrf_cb, default(GCHandle)))
                 {
@@ -320,6 +328,10 @@ namespace wolfSSL.CSharp {
         private extern static int wolfSSL_CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_set_servername_arg(IntPtr ctx, IntPtr arg);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_CTX_UseSNI(IntPtr ctx, byte type, IntPtr data, ushort size);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_UseSNI(IntPtr ssl, byte type, IntPtr data, ushort size);
 
         /********************************
          * SSL Structure
@@ -1114,7 +1126,8 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static void CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb) {
+        public static void CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb) 
+        {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ctx);
                 ctx_handle handles = (ctx_handle)gch.Target;
@@ -1127,7 +1140,8 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static int CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb) {
+        public static int CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb) 
+        {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ctx);
                 ctx_handle handles = (ctx_handle)gch.Target;
@@ -1141,7 +1155,8 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static int CTX_set_servername_arg(IntPtr ctx, IntPtr arg) {
+        public static int CTX_set_servername_arg(IntPtr ctx, IntPtr arg) 
+        {
             try {
                 GCHandle gch = GCHandle.FromIntPtr(ctx);
                 ctx_handle handles = (ctx_handle)gch.Target;
@@ -1151,6 +1166,32 @@ namespace wolfSSL.CSharp {
                 return wolfSSL_CTX_set_servername_arg(handles.get_ctx(), arg);
             } catch (Exception e) {
                 log(ERROR_LOG, "wolfssl arg servername callback error: " + e.ToString());
+                return FAILURE;
+            }
+        }
+
+        public static int CTX_UseSNI(IntPtr ctx, byte type, IntPtr data, ushort size) 
+        {
+            try {
+                GCHandle gch = GCHandle.FromIntPtr(ctx);
+                ctx_handle handles = (ctx_handle)gch.Target;
+
+                return  wolfSSL_CTX_UseSNI(handles.get_ctx(), type, data, size);
+            } catch (Exception e) {
+                log(ERROR_LOG, "wolfssl ctx use sni error: " + e.ToString());
+                return FAILURE;
+            }
+        }
+
+        public static int UseSNI(IntPtr ssl, byte type, IntPtr data, ushort size) 
+        {
+            try {
+                GCHandle gch = GCHandle.FromIntPtr(ssl);
+                ssl_handle handles = (ssl_handle)gch.Target;
+
+                return  wolfSSL_UseSNI(handles.get_ssl(), type, data, size);
+            } catch (Exception e) {
+                log(ERROR_LOG, "wolfssl use sni error: " + e.ToString());
                 return FAILURE;
             }
         }
