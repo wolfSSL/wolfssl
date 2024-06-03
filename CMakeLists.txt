@@ -284,6 +284,8 @@ if(NOT WOLFSSL_SINGLE_THREADED)
             "-DHAVE_PTHREAD"
             "-D_POSIX_THREADS")
     endif()
+else()
+    list(APPEND WOLFSSL_DEFINITIONS "-DSINGLE_THREADED")
 endif()
 
 # DTLS-SRTP
@@ -2437,7 +2439,7 @@ if(WOLFSSL_EXAMPLES)
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/examples/echoserver)
 
-    if(NOT WIN32)
+    if(NOT WIN32 AND NOT WOLFSSL_SINGLE_THREADED)
         # Build TLS benchmark example
         add_executable(tls_bench
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c)
