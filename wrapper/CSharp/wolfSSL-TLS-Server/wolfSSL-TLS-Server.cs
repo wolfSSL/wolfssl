@@ -66,7 +66,19 @@ public class wolfSSL_TLS_CSHarp
         }
     }
 
+    /// <summary>
+    /// Example of a SNI function call back
+    /// </summary>
+    /// <param name="ssl">pointer to ssl structure</param>
+    /// <param name="ret">alert code</param>
+    /// <param name="exArg">context arg, can be set with the function wolfssl.CTX_set_servername_arg</param>
+    /// <returns></returns>
+    public static int my_sni_server_cb(IntPtr ssl, IntPtr ret, IntPtr exArg) {
+        /* Trivial callback just for testing */
+        Console.WriteLine("my sni server callback");
 
+        return wolfssl.SUCCESS;
+    }
 
     public static void Main(string[] args)
     {
@@ -74,6 +86,7 @@ public class wolfSSL_TLS_CSHarp
         IntPtr ssl;
         Socket fd;
         IntPtr sniHostName;
+        IntPtr arg_sni;
 
         /* These paths should be changed for use */
         string fileCert = @"server-cert.pem";
@@ -118,21 +131,6 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        if (haveSNI(args)) 
-        {
-            string sniHostNameString = args[1].Trim();
-            sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
-
-            ushort size = (ushort)sniHostNameString.Length;
-
-           if (wolfssl.CTX_UseSNI(ctx, (byte)wolfssl.WOLFSSL_SNI_HOST_NAME, sniHostName, size) != wolfssl.SUCCESS) 
-           {
-               Console.WriteLine("UseSNI failed");
-               wolfssl.CTX_free(ctx);
-               return;
-           }
-        }
-
         StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
         wolfssl.get_ciphers(ciphers, 4096);
         Console.WriteLine("Ciphers : " + ciphers.ToString());
@@ -153,6 +151,34 @@ public class wolfSSL_TLS_CSHarp
             Console.WriteLine("Error in creating ssl object");
             wolfssl.CTX_free(ctx);
             return;
+        }
+
+        if (haveSNI(args)) 
+        {
+           string sniHostNameString = args[1].Trim();
+           sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
+
+           ushort size = (ushort)sniHostNameString.Length;
+
+           // Allocating memory and setting SNI arg
+           int test_value = 32;
+           arg_sni = Marshal.AllocHGlobal(sizeof(int));
+           Marshal.WriteInt32(arg_sni, test_value);
+           if (wolfssl.CTX_set_servername_arg(ctx, arg_sni) == wolfssl.FAILURE) {
+               Console.WriteLine("wolfssl.CTX_set_servername_arg failed");
+               wolfssl.CTX_free(ctx);
+               return;
+           }
+
+           // Setting SNI delegate
+           wolfssl.sni_delegate sni_cb  = new wolfssl.sni_delegate(my_sni_server_cb);
+           wolfssl.CTX_set_servername_callback(ctx, sni_cb);
+
+           if (wolfssl.CTX_set_tlsext_servername_callback(ssl, sni_cb) == wolfssl.FAILURE) {
+               Console.WriteLine("wolfssl.CTX_set_tlsext_servername_callback failed");
+               wolfssl.CTX_free(ctx);
+               return;
+           }
         }
 
         Console.WriteLine("Connection made wolfSSL_accept ");
@@ -201,6 +227,7 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.shutdown(ssl);
         fd.Close();
         tcp.Stop();
+
         clean(ssl, ctx);
     }
 }
