@@ -93,8 +93,7 @@ extern "C" {
     #define WC_NO_RSA_OAEP /* SSH does not use OAEP */
 
     #ifdef USE_LOW_RESOURCE
-        /* currently CalcRsaInverses uses RsaKey members so cannot enable */
-        /* #define RSA_LOW_MEM */
+        #define RSA_LOW_MEM
     #endif
 #else
     #define NO_RSA
