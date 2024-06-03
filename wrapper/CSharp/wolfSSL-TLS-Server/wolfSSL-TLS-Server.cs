@@ -85,7 +85,6 @@ public class wolfSSL_TLS_CSHarp
         IntPtr ctx;
         IntPtr ssl;
         Socket fd;
-        IntPtr sniHostName;
         IntPtr arg_sni;
 
         /* These paths should be changed for use */
@@ -155,11 +154,6 @@ public class wolfSSL_TLS_CSHarp
 
         if (haveSNI(args)) 
         {
-           string sniHostNameString = args[1].Trim();
-           sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
-
-           ushort size = (ushort)sniHostNameString.Length;
-
            // Allocating memory and setting SNI arg
            int test_value = 32;
            arg_sni = Marshal.AllocHGlobal(sizeof(int));
