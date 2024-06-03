@@ -19712,6 +19712,104 @@ static int test_wc_RsaPublicKeyDecodeRaw(void)
 } /* END test_wc_RsaPublicKeyDecodeRaw */
 
 
+/*
+ * Testing wc_RsaPrivateKeyDecodeRaw()
+ */
+static int test_wc_RsaPrivateKeyDecodeRaw(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY) \
+    && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+    RsaKey key;
+    const byte n = 33;
+    const byte e = 3;
+    const byte d = 7;
+    const byte u = 2;
+    const byte p = 3;
+    const byte q = 11;
+    const byte dp = 1;
+    const byte dq = 7;
+
+    ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), NULL, 0,
+                NULL, 0, &key), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                NULL, 0, &key), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), NULL, 0,
+                &dq, sizeof(dq), &key), 0);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), 0);
+
+    /* Pass in bad args. */
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(NULL, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, 0,
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                NULL, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, 0, &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), NULL, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, 0, &u, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                NULL, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, 0, &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), NULL, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, sizeof(u),
+                &p, sizeof(p), &q, 0, &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, 0,
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), NULL, sizeof(u),
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+    ExpectIntEQ(wc_RsaPrivateKeyDecodeRaw(&n, sizeof(n),
+                &e, sizeof(e), &d, sizeof(d), &u, 0,
+                &p, sizeof(p), &q, sizeof(q), &dp, sizeof(dp),
+                &dq, sizeof(dq), &key), BAD_FUNC_ARG);
+#endif
+
+    DoExpectIntEQ(wc_FreeRsaKey(&key), 0);
+#endif
+    return EXPECT_RESULT();
+} /* END  test_wc_RsaPrivateKeyDecodeRaw */
+
+
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     /* In FIPS builds, wc_MakeRsaKey() will return an error if it cannot find
      * a probable prime in 5*(modLen/2) attempts. In non-FIPS builds, it keeps
@@ -72426,6 +72524,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_RsaPrivateKeyDecode),
     TEST_DECL(test_wc_RsaPublicKeyDecode),
     TEST_DECL(test_wc_RsaPublicKeyDecodeRaw),
+    TEST_DECL(test_wc_RsaPrivateKeyDecodeRaw),
     TEST_DECL(test_wc_MakeRsaKey),
     TEST_DECL(test_wc_CheckProbablePrime),
     TEST_DECL(test_wc_RsaPSS_Verify),

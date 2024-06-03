@@ -454,6 +454,12 @@ WOLFSSL_LOCAL int wc_hash2mgf(enum wc_HashType hType);
 WOLFSSL_LOCAL int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
     int checkSmallCt);
 
+WOLFSSL_API int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
+        const byte* e, word32 eSz, const byte* d, word32 dSz,
+        const byte* u, word32 uSz, const byte* p, word32 pSz,
+        const byte* q, word32 qSz, const byte* dP, word32 dPSz,
+        const byte* dQ, word32 dQSz, RsaKey* key);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

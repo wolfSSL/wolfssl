@@ -5148,4 +5148,105 @@ int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs, word32 cpuMHz)
 #endif /* WC_RSA_NONBLOCK_TIME */
 #endif /* WC_RSA_NONBLOCK */
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
+
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+/*
+ * Calculate  y = d mod(x-1)
+ */
+static int CalcDX(mp_int* y, mp_int* x, mp_int* d)
+{
+    mp_int m;
+    int err;
+
+    err = mp_init(&m);
+    if (err == MP_OKAY) {
+        err = mp_sub_d(x, 1, &m);
+        if (err == MP_OKAY)
+            err = mp_mod(d, &m, y);
+        mp_forcezero(&m);
+    }
+
+    return err;
+}
+#endif
+
+int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
+        const byte* e, word32 eSz, const byte* d, word32 dSz,
+        const byte* u, word32 uSz, const byte* p, word32 pSz,
+        const byte* q, word32 qSz, const byte* dP, word32 dPSz,
+        const byte* dQ, word32 dQSz, RsaKey* key)
+{
+    int err = MP_OKAY;
+
+    if (n == NULL || nSz == 0 || e == NULL || eSz == 0
+            || d == NULL || dSz == 0 || p == NULL || pSz == 0
+            || q == NULL || qSz == 0 || key == NULL) {
+        err = BAD_FUNC_ARG;
+    }
+
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    if (err == MP_OKAY) {
+        if ((u == NULL || uSz == 0)
+                || (dP != NULL && dPSz == 0)
+                || (dQ != NULL && dQSz == 0)) {
+            err = BAD_FUNC_ARG;
+        }
+    }
+#else
+    (void)u;
+    (void)uSz;
+    (void)dP;
+    (void)dPSz;
+    (void)dQ;
+    (void)dQSz;
+#endif
+
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&key->n, n, nSz);
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&key->e, e, eSz);
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&key->d, d, dSz);
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&key->p, p, pSz);
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&key->q, q, qSz);
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+    if (err == MP_OKAY)
+        err = mp_read_unsigned_bin(&key->u, u, uSz);
+    if (err == MP_OKAY) {
+        if (dP != NULL)
+            err = mp_read_unsigned_bin(&key->dP, dP, dPSz);
+        else
+            err = CalcDX(&key->dP, &key->p, &key->d);
+    }
+    if (err == MP_OKAY) {
+        if (dQ != NULL)
+            err = mp_read_unsigned_bin(&key->dQ, dQ, dQSz);
+        else
+            err = CalcDX(&key->dQ, &key->q, &key->d);
+    }
+#endif
+
+    if (err == MP_OKAY) {
+        key->type = RSA_PRIVATE;
+    }
+    else {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
+        mp_clear(&key->d);
+        mp_clear(&key->p);
+        mp_clear(&key->q);
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
+        mp_clear(&key->u);
+        mp_clear(&key->dP);
+        mp_clear(&key->dQ);
+#endif
+    }
+
+    return err;
+}
+#endif /* WOLFSSL_RSA_PUBLIC_ONLY */
+
 #endif /* NO_RSA */
