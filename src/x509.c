@@ -13343,6 +13343,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
                     unsigned int flags, char **peername)
 {
     int         ret;
+    size_t      i;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert *dCert;
 #else
@@ -13382,6 +13383,22 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
     ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL);
     if (ret != 0) {
         goto out;
+    }
+
+    /* Replicate openssl behavior for checklen */
+    if (chklen == 0) {
+        chklen = (size_t)(XSTRLEN(chk));
+    }
+    else {
+        for (i = 0; i < (chklen > 1 ? chklen - 1 : chklen); i++) {
+            if (chk[i] == '\0') {
+                ret = -1;
+                goto out;
+            }
+        }
+    }
+    if (chklen > 1 && (chk[chklen - 1] == '\0')) {
+        chklen--;
     }
 
     ret = CheckHostName(dCert, (char *)chk, chklen);
