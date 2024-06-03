@@ -2324,7 +2324,8 @@ foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
     endif()
 endforeach()
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/wolfssl/options.h.in ${OPTION_FILE})
+# If new build options are added please update the cmake/options.h.in
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/options.h.in ${OPTION_FILE})
 
 set_target_properties(wolfssl
     PROPERTIES
