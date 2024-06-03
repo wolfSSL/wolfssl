@@ -13343,7 +13343,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
                     unsigned int flags, char **peername)
 {
     int         ret;
-    word32      i;
+    size_t      i;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert *dCert;
 #else
