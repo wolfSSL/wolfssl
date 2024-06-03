@@ -76,6 +76,7 @@ jobs:
           'examples/configs/user_settings_min_ecc.h',
           'examples/configs/user_settings_wolfboot_keytools.h',
           'examples/configs/user_settings_wolftpm.h',
+          'examples/configs/user_settings_wolfssh.h',
           'examples/configs/user_settings_tls12.h',
         ]
     name: make user_setting.h (testwolfcrypt only)

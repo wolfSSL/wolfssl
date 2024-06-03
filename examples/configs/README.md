@@ -15,6 +15,7 @@ Example wolfSSL configuration file templates for use when autoconf is not availa
 * `user_settings_stm32.h`: Example configuration file generated from the wolfSSL STM32 Cube pack.
 * `user_settings_tls12`: Example for TLS v1.2 client only, ECC only, AES GCM only, SHA2-256 only.
 * `user_settings_wolfboot_keytools.h`: This from wolfBoot tools/keytools and is ECC, RSA, ED25519 and ChaCha20.
+* `user_settings_wolfssh.h`: Minimum options for building wolfSSH. See comment at top for ./configure used to generate.
 * `user_settings_wolftpm.h`: Minimum options for building wolfTPM. See comment at top for ./configure used to generate.
 
 ## Usage
