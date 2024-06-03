@@ -460,7 +460,6 @@ namespace wolfSSL.CSharp {
         public static readonly int SUCCESS = 1;
         public static readonly int FAILURE = 0;
         public static readonly int WOLFSSL_SNI_HOST_NAME = 0;
-        public static readonly int WOLFSSL_SNI_HOST_NAME_OUTER = 0;
 
 
         private static IntPtr unwrap_ctx(IntPtr ctx)

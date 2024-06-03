@@ -73,6 +73,7 @@ public class wolfSSL_TLS_CSHarp
         IntPtr ctx;
         IntPtr ssl;
         Socket fd;
+        IntPtr sniHostName;
 
         /* These paths should be changed for use */
         string fileCert = @"server-cert.pem";
