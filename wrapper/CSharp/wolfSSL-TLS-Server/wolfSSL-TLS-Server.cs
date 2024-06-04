@@ -77,7 +77,7 @@ public class wolfSSL_TLS_CSHarp
         /* Trivial callback just for testing */
         Console.WriteLine("my sni server callback");
 
-        return wolfssl.SUCCESS;
+        return 0;
     }
 
     public static void Main(string[] args)
@@ -167,12 +167,6 @@ public class wolfSSL_TLS_CSHarp
            // Setting SNI delegate
            wolfssl.sni_delegate sni_cb  = new wolfssl.sni_delegate(my_sni_server_cb);
            wolfssl.CTX_set_servername_callback(ctx, sni_cb);
-
-           if (wolfssl.CTX_set_tlsext_servername_callback(ssl, sni_cb) == wolfssl.FAILURE) {
-               Console.WriteLine("wolfssl.CTX_set_tlsext_servername_callback failed");
-               wolfssl.CTX_free(ctx);
-               return;
-           }
         }
 
         Console.WriteLine("Connection made wolfSSL_accept ");

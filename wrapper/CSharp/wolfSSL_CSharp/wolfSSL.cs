@@ -325,8 +325,6 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static void wolfSSL_CTX_set_servername_callback(IntPtr ctx, sni_delegate sni_cb);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb);
-        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_set_servername_arg(IntPtr ctx, IntPtr arg);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_CTX_UseSNI(IntPtr ctx, byte type, IntPtr data, ushort size);
@@ -1138,21 +1136,6 @@ namespace wolfSSL.CSharp {
                 wolfSSL_CTX_set_servername_callback(handles.get_ctx(), sni_cb);
             } catch (Exception e) {
                 log(ERROR_LOG, "wolfssl servername callback error: " + e.ToString());
-            }
-        }
-
-        public static int CTX_set_tlsext_servername_callback(IntPtr ctx, sni_delegate sni_cb) 
-        {
-            try {
-                GCHandle gch = GCHandle.FromIntPtr(ctx);
-                ctx_handle handles = (ctx_handle)gch.Target;
-
-                handles.set_sni(GCHandle.Alloc(sni_cb));
-
-                return wolfSSL_CTX_set_tlsext_servername_callback(handles.get_ctx(), sni_cb);
-            } catch (Exception e) {
-                log(ERROR_LOG, "wolfssl tlsext servername callback error: " + e.ToString());
-                return FAILURE;
             }
         }
 

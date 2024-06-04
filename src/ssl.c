@@ -20156,16 +20156,9 @@ VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
     return NULL;
 }
 
-
 #ifdef HAVE_SNI
-
-void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
-    if (ctx)
-        ctx->sniRecvCb = cb;
-}
-
+/* this is a compatibily function, consider using
+ * wolfSSL_CTX_set_servername_callback */
 int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
                                                CallbackSniRecv cb)
 {
@@ -20177,18 +20170,7 @@ int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
     return WOLFSSL_FAILURE;
 }
 
-int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
-    if (ctx) {
-        ctx->sniRecvCbArg = arg;
-        return WOLFSSL_SUCCESS;
-    }
-    return WOLFSSL_FAILURE;
-}
-
 #endif /* HAVE_SNI */
-
 
 #ifndef NO_BIO
 void wolfSSL_ERR_load_BIO_strings(void) {
@@ -20224,6 +20206,27 @@ void wolfSSL_THREADID_set_numeric(void* id, unsigned long val)
         * HAVE_LIGHTY || WOLFSSL_HAPROXY || WOLFSSL_OPENSSH ||
         * HAVE_SBLIM_SFCB)) */
 
+#ifdef HAVE_SNI
+
+void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx, CallbackSniRecv cb)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_callback");
+    if (ctx)
+        ctx->sniRecvCb = cb;
+}
+
+
+int wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
+    if (ctx) {
+        ctx->sniRecvCbArg = arg;
+        return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
+}
+
+#endif /* HAVE_SNI */
 
 #if defined(OPENSSL_EXTRA)
 

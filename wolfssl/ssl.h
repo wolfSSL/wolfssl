@@ -4872,14 +4872,17 @@ typedef int (*CallbackSniRecv)(WOLFSSL *ssl, int *ret, void* exArg);
 
 WOLFSSL_API void wolfSSL_CTX_set_servername_callback(WOLFSSL_CTX* ctx,
         CallbackSniRecv cb);
-WOLFSSL_API int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
-        CallbackSniRecv cb);
 
 WOLFSSL_API int  wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg);
 #endif
 
-#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) \
-    || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY)
+
+#ifdef HAVE_SNI
+WOLFSSL_API int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
+        CallbackSniRecv cb);
+#endif
 
 WOLFSSL_API void wolfSSL_ERR_remove_thread_state(void* pid);
 
