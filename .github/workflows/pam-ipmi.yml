@@ -3,7 +3,7 @@ name: pam-ipmi Tests
 # START OF COMMON SECTION
 on:
   push:
-    #branches: [ 'master', 'main', 'release/**' ]
+    branches: [ 'master', 'main', 'release/**' ]
   pull_request:
     branches: [ '*' ]
 
@@ -42,7 +42,7 @@ jobs:
       fail-fast: false
       matrix:
         git_ref: [ e4b13e6725abb178f62ee897fe1c0e81b06a9431 ]
-    name: ${{ matrix.ref }}
+    name: ${{ matrix.git_ref }}
     runs-on: ubuntu-latest
     needs: build_wolfssl
     steps:
@@ -71,9 +71,16 @@ jobs:
         with:
           repository: openbmc/pam-ipmi
           path: pam-ipmi
+          ref: ${{ matrix.git_ref }}
 
       - name: Build pam-ipmi
         working-directory: pam-ipmi
         run: |
+          patch -p1 < ../osp/pam-ipmi/*-${{ matrix.git_ref }}.patch
           PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig meson setup build
           ninja -C build
+
+      - name: Confirm built with wolfSSL
+        working-directory: pam-ipmi
+        run: |
+          ldd ./build/src/pam_ipmisave/pam_ipmisave.so | grep wolfssl
