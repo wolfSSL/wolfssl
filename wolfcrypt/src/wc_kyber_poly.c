@@ -34,6 +34,9 @@
 
 #ifdef WOLFSSL_WC_KYBER
 
+/* Declared in wc_kyber.c to stop compiler optimizer from simplifying. */
+extern volatile sword16 kyber_opt_blocker;
+
 #ifdef USE_INTEL_SPEEDUP
 static word32 cpuid_flags = 0;
 #endif
@@ -2773,6 +2776,8 @@ void kyber_decompress_5(sword16* p, const unsigned char* b)
 /* Convert bit from byte to 0 or (KYBER_Q + 1) / 2.
  *
  * Constant time implementation.
+ * XOR in kyber_opt_blocker to ensure optimizer doesn't know what will be ANDed
+ * with KYBER_Q_1_HALF and can't optimize to non-constant time code.
  *
  * @param  [out]  p    Polynomial to hold converted value.
  * @param  [in]   msg  Message to get bit from byte from.
@@ -2780,7 +2785,8 @@ void kyber_decompress_5(sword16* p, const unsigned char* b)
  * @param  [in]   j    Index of bit in byte.
  */
 #define FROM_MSG_BIT(p, msg, i, j) \
-    p[8 * (i) + (j)] = ((sword16)0 - (sword16)(((msg)[i] >> (j)) & 1)) & KYBER_Q_1_HALF
+    (p)[8 * (i) + (j)] = (((sword16)0 - (sword16)(((msg)[i] >> (j)) & 1)) ^ \
+                          kyber_opt_blocker) & KYBER_Q_1_HALF
 
 /* Convert message to polynomial.
  *
