@@ -80,6 +80,19 @@ public class wolfSSL_TLS_CSHarp
         return 0;
     }
 
+    public static string setPath(string file) {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return @"../../certs/" + file;
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return @"../../../../certs/" + file;
+        } else
+        {
+            return "";
+        }
+    }
+
     public static void Main(string[] args)
     {
         IntPtr ctx;
@@ -88,8 +101,13 @@ public class wolfSSL_TLS_CSHarp
         IntPtr arg_sni;
 
         /* These paths should be changed for use */
-        string fileCert = @"../../certs/server-cert.pem";
-        string fileKey = @"../../certs/server-key.pem";
+        string fileCert = setPath("server-cert.pem");
+        string fileKey = setPath("server-key.pem");
+        if (fileCert == "" || fileKey == "") {
+            Console.WriteLine("Platform not supported.");
+            return;
+        }
+
         StringBuilder dhparam = new StringBuilder("dh2048.pem");
 
         StringBuilder buff = new StringBuilder(1024);
