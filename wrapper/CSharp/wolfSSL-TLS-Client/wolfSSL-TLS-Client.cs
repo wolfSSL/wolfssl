@@ -65,20 +65,30 @@ public class wolfSSL_TLS_Client
     /// wolfSSL.
     /// <param name="args">Parameters passed via command line</param>
     /// </summary>
-    private static bool haveSNI(string[] args)
+    private static int haveSNI(string[] args)
     {
-        bool sniON = false;
         for (int i = 0; i < args.Length; i++) {
             if (args[i] == "-S") {
-                sniON = true;
-                break;
+                Console.WriteLine("SNI IS ON");
+                return i+1;
             }
         }
-        Console.WriteLine("SNI IS: " + sniON);
-        return sniON;
+        Console.WriteLine("SNI IS OFF");
+        return -1;
     }
 
-
+    public static string setPath() {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return @"../../certs/ca-cert.pem";
+        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
+        {
+            return @"../../../../certs/ca-cert.pem";
+        } else 
+        {
+            return "";
+        }
+    }
 
     public static void Main(string[] args)
     {
@@ -88,7 +98,12 @@ public class wolfSSL_TLS_Client
         IntPtr sniHostName;
 
         /* These paths should be changed for use */
-        string caCert = @"../../certs/ca-cert.pem";
+        string caCert = setPath();
+        if (caCert == "") {
+            Console.WriteLine("Platform not supported.");
+            return; 
+        }
+
         StringBuilder dhparam = new StringBuilder("dh2048.pem");
 
         StringBuilder buff = new StringBuilder(1024);
@@ -108,6 +123,7 @@ public class wolfSSL_TLS_Client
         }
         Console.WriteLine("Finished init of ctx .... now load in CA");
 
+
         if (!File.Exists(caCert))
         {
             Console.WriteLine("Could not find CA cert file");
@@ -123,9 +139,10 @@ public class wolfSSL_TLS_Client
             return;
         }
 
-        if (haveSNI(args)) 
+        int sniArg = haveSNI(args);
+        if (sniArg >= 0) 
         {
-            string sniHostNameString = args[1].Trim();
+            string sniHostNameString = args[sniArg].Trim();
             sniHostName = Marshal.StringToHGlobalAnsi(sniHostNameString);
 
             ushort size = (ushort)sniHostNameString.Length;
