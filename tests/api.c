@@ -72699,7 +72699,7 @@ static int test_wolfSSL_SendUserCanceled(void)
         struct test_memio_ctx test_ctx;
         WOLFSSL_ALERT_HISTORY h;
 
-        printf("Testing %s", params[i].tls_version);
+        printf("Testing %s\n", params[i].tls_version);
 
         XMEMSET(&h, 0, sizeof(h));
         XMEMSET(&test_ctx, 0, sizeof(test_ctx));
@@ -72719,8 +72719,8 @@ static int test_wolfSSL_SendUserCanceled(void)
         /* Last alert will be close notify because user_canceled should be
          * followed by a close_notify */
         ExpectIntEQ(wolfSSL_get_alert_history(ssl_c, &h), WOLFSSL_SUCCESS);
-        AssertIntEQ(h.last_rx.code, close_notify);
-        AssertIntEQ(h.last_rx.level, alert_warning);
+        ExpectIntEQ(h.last_rx.code, close_notify);
+        ExpectIntEQ(h.last_rx.level, alert_warning);
 
         wolfSSL_free(ssl_c);
         wolfSSL_free(ssl_s);
