@@ -42,40 +42,44 @@ sudo make install
 
 ### Build and run the wrapper
 
+From the wolfssl root directory:
+
 ```
 cd wrapper/CSharp
 ```
 
-Building the server:
+Compile server:
+
 ```
 mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
-wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs && \
-cp wolfSSL_CSharp/wolfSSL.exe ../../certs/server.exe
+wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs -OUT:server.exe
 ```
 
-Building the client:
+Compile client:
+
 ```
 mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
-wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs && \
-cp wolfSSL_CSharp/wolfSSL.exe ../../certs/client.exe
+wolfSSL-TLS-Client/wolfSSL-TLS-Client.cs -OUT:client.exe
 ```
 
 ### Run the example
 
-In one terminal instance run:
+In one terminal instance run the server:
+
 ```
-cd ../../certs
 mono server.exe
 ```
 
-And in another terminal instance run:
+And in another terminal instance run the client:
+
 ```
-cd ../../certs
 mono client.exe
 ```
 
 ### Enabling SNI
+
 To enable SNI, just pass the `-S` argument with the specified hostname:
+
 ```
 mono client.exe -S hostname 
 ```

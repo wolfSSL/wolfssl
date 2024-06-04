@@ -88,8 +88,8 @@ public class wolfSSL_TLS_CSHarp
         IntPtr arg_sni;
 
         /* These paths should be changed for use */
-        string fileCert = @"server-cert.pem";
-        string fileKey = @"server-key.pem";
+        string fileCert = @"../../certs/server-cert.pem";
+        string fileKey = @"../../certs/server-key.pem";
         StringBuilder dhparam = new StringBuilder("dh2048.pem");
 
         StringBuilder buff = new StringBuilder(1024);

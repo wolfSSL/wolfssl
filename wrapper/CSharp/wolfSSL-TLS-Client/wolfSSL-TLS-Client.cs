@@ -88,7 +88,7 @@ public class wolfSSL_TLS_Client
         IntPtr sniHostName;
 
         /* These paths should be changed for use */
-        string caCert = @"ca-cert.pem";
+        string caCert = @"../../certs/ca-cert.pem";
         StringBuilder dhparam = new StringBuilder("dh2048.pem");
 
         StringBuilder buff = new StringBuilder(1024);
