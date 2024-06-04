@@ -751,6 +751,7 @@ long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
 /* return the max fragment size set when handshake was negotiated */
 uint8_t wolfSSL_SESSION_get_max_fragment_length(WOLFSSL_SESSION* session)
 {
+    session = ClientSessionToSession(session);
     if (session == NULL) {
         return 0;
     }
@@ -3907,6 +3908,10 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
         }
     }
     ticBuff = NULL;
+
+#ifdef HAVE_MAX_FRAGMENT
+    output->mfl = input->mfl;
+#endif
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
