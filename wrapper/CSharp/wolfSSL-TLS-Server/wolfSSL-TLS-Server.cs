@@ -53,17 +53,17 @@ public class wolfSSL_TLS_CSHarp
     /// wolfSSL.
     /// <param name="args">Parameters passed via command line</param>
     /// </summary>
-    private static bool haveSNI(string[] args) 
+    private static bool haveSNI(string[] args)
     {
-        if (args != null && args.Length == 2 && args[0] == "-S") 
-        {
-            Console.WriteLine("SNI IS: ON");
-            return true;
-        } 
-        else {
-            Console.WriteLine("SNI IS: OFF");
-            return false;
+        bool sniON = false;
+        for (int i = 0; i < args.Length; i++) {
+            if (args[i] == "-S") {
+                sniON = true;
+                break;
+            }
         }
+        Console.WriteLine("SNI IS: " + sniON);
+        return sniON;
     }
 
     /// <summary>

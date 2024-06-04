@@ -30,7 +30,7 @@ apt-get upgrade
 apt-get install mono-complete
 ```
 
-# Build wolfSSL and install
+### Build wolfSSL and install
 
 ```
 ./autogen.sh
@@ -40,24 +40,42 @@ make check
 sudo make install
 ```
 
-# Build and run the wrapper
+### Build and run the wrapper
 
 ```
 cd wrapper/CSharp
+```
 
+Building the server:
+```
 mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
-    wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs
+wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs && \
+cp wolfSSL_CSharp/wolfSSL.exe ../../certs/server.exe
 ```
 
-# Run the example
-
+Building the client:
 ```
-cp wolfSSL_CSharp/wolfSSL.exe ../../certs
+mcs wolfSSL_CSharp/wolfSSL.cs wolfSSL_CSharp/X509.cs \
+wolfSSL-TLS-Server/wolfSSL-TLS-Server.cs && \
+cp wolfSSL_CSharp/wolfSSL.exe ../../certs/client.exe
+```
+
+### Run the example
+
+In one terminal instance run:
+```
 cd ../../certs
-mono wolfSSL.exe
+mono server.exe
+```
 
-Calling ctx Init from wolfSSL
-Finished init of ctx .... now load in cert and key
-Ciphers : TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384:TLS13-CHACHA20-POLY1305-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-CHACHA20-POLY1305:DHE-RSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305-OLD:ECDHE-ECDSA-CHACHA20-POLY1305-OLD:DHE-RSA-CHACHA20-POLY1305-OLD
-Started TCP and waiting for a connection
+And in another terminal instance run:
+```
+cd ../../certs
+mono client.exe
+```
+
+### Enabling SNI
+To enable SNI, just pass the `-S` argument with the specified hostname:
+```
+mono client.exe -S hostname 
 ```
