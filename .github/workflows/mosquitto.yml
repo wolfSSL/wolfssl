@@ -1,7 +1,16 @@
 name: mosquitto Tests
 
+# START OF COMMON SECTION
 on:
-  workflow_call:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
 
 jobs:
   build_wolfssl:
@@ -19,43 +28,17 @@ jobs:
           install: true
 
       - name: Upload built lib
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wolf-install-mosquitto
           path: build-dir
-          retention-days: 1
+          retention-days: 5
 
   mosquitto_check:
     strategy:
       fail-fast: false
       matrix:
-        # List of releases to test
-        include:
-          - ref: v2.0.15
-            ignore-tests: >-
-              ./01-connect-zero-length-id.py 06-bridge-reconnect-local-out.py
-              ./08-ssl-connect-cert-auth-crl.py
-              ./08-ssl-connect-cert-auth-revoked.py
-              ./08-ssl-connect-cert-auth.py
-              ./08-ssl-connect-identity.py
-              ./08-ssl-connect-no-auth.py
-              ./08-ssl-connect-no-identity.py
-              ./08-ssl-hup-disconnect.py
-              ./14-dynsec-acl.py
-              ./14-dynsec-anon-group.py
-              ./14-dynsec-auth.py
-              ./14-dynsec-client-invalid.py
-              ./14-dynsec-client.py
-              ./14-dynsec-default-access.py
-              ./14-dynsec-disable-client.py
-              ./14-dynsec-group-invalid.py
-              ./14-dynsec-group.py
-              ./14-dynsec-modify-client.py
-              ./14-dynsec-modify-group.py
-              ./14-dynsec-modify-role.py
-              ./14-dynsec-plugin-invalid.py
-              ./14-dynsec-role-invalid.py
-              ./14-dynsec-role.py
+        ref: [ 2.0.18 ]
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
@@ -63,13 +46,13 @@ jobs:
     needs: build_wolfssl
     steps:
       - name: Download lib
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wolf-install-mosquitto
           path: build-dir
 
       - name: Checkout OSP
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: wolfssl/osp
           path: osp
@@ -79,29 +62,22 @@ jobs:
             export DEBIAN_FRONTEND=noninteractive
             sudo apt-get update
             sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make
+            sudo pip install --upgrade psutil
 
       - name: Checkout mosquitto
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: eclipse/mosquitto
-          ref: v2.0.15
+          ref: v${{ matrix.ref }}
           path: mosquitto
-
-      # Do this before configuring so that it only detects the updated list of
-      # tests
-      - if: ${{ matrix.ignore-tests }}
-        name: Remove tests that we want to ignore
-        working-directory: ./mosquitto/test/broker
-        run: |
-          rm ${{ matrix.ignore-tests }}
 
       - name: Configure and build mosquitto
         run: |
             cd $GITHUB_WORKSPACE/mosquitto/
-            patch -p1 < $GITHUB_WORKSPACE/osp/mosquitto/2.0.15.patch
-            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no
+            patch -p1 < $GITHUB_WORKSPACE/osp/mosquitto/${{ matrix.ref }}.patch
+            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir -j
 
       - name: Run mosquitto tests, skipping ignored tests
         working-directory: ./mosquitto
         run: |
-          make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no ptest
+          make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest -j

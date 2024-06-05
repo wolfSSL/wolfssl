@@ -1228,7 +1228,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
                                                                   (char *)(arg))
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO || WOLFSSL_HAPROXY */
 
-#define SSL_CTX_set_dh_auto(ctx, arg)   wolfSSL_CTX_set_dh_auto;
+#define SSL_CTX_set_dh_auto             wolfSSL_CTX_set_dh_auto
 #define SSL_CTX_set_tmp_dh              wolfSSL_CTX_set_tmp_dh
 
 #define TLSEXT_STATUSTYPE_ocsp  1
