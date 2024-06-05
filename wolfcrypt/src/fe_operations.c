@@ -45,7 +45,7 @@
 #elif defined(WOLFSSL_ARMASM)
 /* Assembly code in fe_armv[78]_x25519.* */
 #elif defined(CURVED25519_128BIT)
-#include "fe_x25519_128.i"
+#include "fe_x25519_128.h"
 #else
 
 #if defined(HAVE_CURVE25519) || \
