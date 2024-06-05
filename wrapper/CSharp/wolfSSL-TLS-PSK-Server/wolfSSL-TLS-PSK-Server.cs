@@ -80,9 +80,14 @@ public class wolfSSL_TLS_PSK_Server
         wolfssl.psk_delegate psk_cb = new wolfssl.psk_delegate(my_psk_server_cb);
 
         /* These paths should be changed according to use */
-        string fileCert = @"server-cert.pem";
-        string fileKey = @"server-key.pem";
-        StringBuilder dhparam = new StringBuilder("dh2048.pem");
+        string fileCert = wolfssl.setPath("server-cert.pem");
+        string fileKey = wolfssl.setPath("server-key.pem");
+        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+
+        if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
+            Console.WriteLine("Platform not supported");
+            return;
+        }
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
@@ -101,6 +106,12 @@ public class wolfSSL_TLS_PSK_Server
         if (!File.Exists(fileCert) || !File.Exists(fileKey))
         {
             Console.WriteLine("Could not find cert or key file");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
+
+        if (!File.Exists(dhparam.ToString())) {
+            Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
             return;
         }

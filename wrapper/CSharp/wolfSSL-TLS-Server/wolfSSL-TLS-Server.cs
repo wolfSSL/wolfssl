@@ -19,9 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
-
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -50,17 +47,55 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.Cleanup();
     }
 
+    /// <summary>
+    /// Checks if the SNI option was enabled via command line.
+    /// Must be enabled with ./configure --enable-sni when configuring
+    /// wolfSSL.
+    /// <param name="args">Parameters passed via command line</param>
+    /// </summary>
+    private static bool haveSNI(string[] args)
+    {
+        bool sniON = false;
+        for (int i = 0; i < args.Length; i++) {
+            if (args[i] == "-S") {
+                sniON = true;
+                break;
+            }
+        }
+        Console.WriteLine("SNI IS: " + sniON);
+        return sniON;
+    }
+
+    /// <summary>
+    /// Example of a SNI function call back
+    /// </summary>
+    /// <param name="ssl">pointer to ssl structure</param>
+    /// <param name="ret">alert code</param>
+    /// <param name="exArg">context arg, can be set with the function wolfssl.CTX_set_servername_arg</param>
+    /// <returns></returns>
+    public static int my_sni_server_cb(IntPtr ssl, IntPtr ret, IntPtr exArg) {
+        /* Trivial callback just for testing */
+        Console.WriteLine("my sni server callback");
+
+        return 0;
+    }
 
     public static void Main(string[] args)
     {
         IntPtr ctx;
         IntPtr ssl;
         Socket fd;
+        IntPtr arg_sni;
 
         /* These paths should be changed for use */
-        string fileCert = @"server-cert.pem";
-        string fileKey = @"server-key.pem";
-        StringBuilder dhparam = new StringBuilder("dh2048.pem");
+        string fileCert = wolfssl.setPath("server-cert.pem");
+        string fileKey = wolfssl.setPath("server-key.pem");
+        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+
+        if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
+            Console.WriteLine("Platform not supported.");
+            return;
+        }
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
@@ -69,7 +104,6 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.SetLogging(standard_log);
 
         wolfssl.Init();
-
 
         Console.WriteLine("Calling ctx Init from wolfSSL");
         ctx = wolfssl.CTX_new(wolfssl.usev23_server());
@@ -87,6 +121,12 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
+        if (!File.Exists(dhparam.ToString())) {
+            Console.WriteLine("Could not find dh file");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
+
         if (wolfssl.CTX_use_certificate_file(ctx, fileCert, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting cert file");
@@ -100,7 +140,6 @@ public class wolfSSL_TLS_CSHarp
             wolfssl.CTX_free(ctx);
             return;
         }
-
 
         StringBuilder ciphers = new StringBuilder(new String(' ', 4096));
         wolfssl.get_ciphers(ciphers, 4096);
@@ -124,6 +163,23 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
+        if (haveSNI(args)) 
+        {
+           // Allocating memory and setting SNI arg
+           int test_value = 32;
+           arg_sni = Marshal.AllocHGlobal(sizeof(int));
+           Marshal.WriteInt32(arg_sni, test_value);
+           if (wolfssl.CTX_set_servername_arg(ctx, arg_sni) == wolfssl.FAILURE) {
+               Console.WriteLine("wolfssl.CTX_set_servername_arg failed");
+               wolfssl.CTX_free(ctx);
+               return;
+           }
+
+           // Setting SNI delegate
+           wolfssl.sni_delegate sni_cb  = new wolfssl.sni_delegate(my_sni_server_cb);
+           wolfssl.CTX_set_servername_callback(ctx, sni_cb);
+        }
+
         Console.WriteLine("Connection made wolfSSL_accept ");
         if (wolfssl.set_fd(ssl, fd) != wolfssl.SUCCESS)
         {
@@ -134,7 +190,14 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
+        if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Error in setting dh2048Pem");
+            Console.WriteLine(wolfssl.get_error(ssl));
+            tcp.Stop();
+            clean(ssl, ctx);
+            return;
+        }
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {
@@ -170,6 +233,7 @@ public class wolfSSL_TLS_CSHarp
         wolfssl.shutdown(ssl);
         fd.Close();
         tcp.Stop();
+
         clean(ssl, ctx);
     }
 }
