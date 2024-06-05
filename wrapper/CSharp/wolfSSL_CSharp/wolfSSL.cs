@@ -485,6 +485,26 @@ namespace wolfSSL.CSharp {
             }
         }
 
+        /// <summary>
+        /// Utility function used to access the certificates
+        /// based on the platform.
+        /// <returns>return the platform specific path to the certificate</returns>
+        /// </summary>
+        public static string setPath(string file) {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                Console.WriteLine("Linux - " + file);
+                return @"../../certs/" + file;
+            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                Console.WriteLine("Windows - " + file);
+                return @"../../../../certs/" + file;
+            } else
+            {
+                return "";
+            }
+        }
+
 
         /// <summary>
         /// Call back to allow receiving TLS information

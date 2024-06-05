@@ -77,19 +77,6 @@ public class wolfSSL_TLS_Client
         return -1;
     }
 
-    public static string setPath() {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return @"../../certs/ca-cert.pem";
-        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
-        {
-            return @"../../../../certs/ca-cert.pem";
-        } else 
-        {
-            return "";
-        }
-    }
-
     public static void Main(string[] args)
     {
         IntPtr ctx;
@@ -98,13 +85,13 @@ public class wolfSSL_TLS_Client
         IntPtr sniHostName;
 
         /* These paths should be changed for use */
-        string caCert = setPath();
-        if (caCert == "") {
+        string caCert = wolfssl.setPath("ca-cert.pem");
+        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+
+        if (caCert == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported.");
             return; 
         }
-
-        StringBuilder dhparam = new StringBuilder("dh2048.pem");
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
@@ -127,6 +114,12 @@ public class wolfSSL_TLS_Client
         if (!File.Exists(caCert))
         {
             Console.WriteLine("Could not find CA cert file");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
+
+        if (!File.Exists(dhparam.ToString())) {
+            Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
             return;
         }

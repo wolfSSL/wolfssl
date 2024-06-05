@@ -80,19 +80,6 @@ public class wolfSSL_TLS_CSHarp
         return 0;
     }
 
-    public static string setPath(string file) {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return @"../../certs/" + file;
-        } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return @"../../../../certs/" + file;
-        } else
-        {
-            return "";
-        }
-    }
-
     public static void Main(string[] args)
     {
         IntPtr ctx;
@@ -101,14 +88,14 @@ public class wolfSSL_TLS_CSHarp
         IntPtr arg_sni;
 
         /* These paths should be changed for use */
-        string fileCert = setPath("server-cert.pem");
-        string fileKey = setPath("server-key.pem");
-        if (fileCert == "" || fileKey == "") {
+        string fileCert = wolfssl.setPath("server-cert.pem");
+        string fileKey = wolfssl.setPath("server-key.pem");
+        StringBuilder dh2048Pem = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+
+        if (fileCert == "" || fileKey == "" || dh2048Pem.Length == 0) {
             Console.WriteLine("Platform not supported.");
             return;
         }
-
-        StringBuilder dhparam = new StringBuilder("dh2048.pem");
 
         StringBuilder buff = new StringBuilder(1024);
         StringBuilder reply = new StringBuilder("Hello, this is the wolfSSL C# wrapper");
@@ -130,6 +117,12 @@ public class wolfSSL_TLS_CSHarp
         if (!File.Exists(fileCert) || !File.Exists(fileKey))
         {
             Console.WriteLine("Could not find cert or key file");
+            wolfssl.CTX_free(ctx);
+            return;
+        }
+
+        if (!File.Exists(dhparam.ToString())) {
+            Console.WriteLine("Could not find dh file");
             wolfssl.CTX_free(ctx);
             return;
         }
@@ -197,7 +190,14 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM);
+        if (wolfssl.SetTmpDH_file(ssl, dh2048Pem, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
+        {
+            Console.WriteLine("Error in setting dh2048Pem");
+            Console.WriteLine(wolfssl.get_error(ssl));
+            tcp.Stop();
+            clean(ssl, ctx);
+            return;
+        }
 
         if (wolfssl.accept(ssl) != wolfssl.SUCCESS)
         {
