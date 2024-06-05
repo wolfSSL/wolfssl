@@ -24894,6 +24894,11 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
 #endif /* WOLFSSL_DTLS13 */
             {
                 AddRecordHeader(output, ALERT_SIZE, alert, ssl, CUR_ORDER);
+#ifdef WOLFSSL_DTLS
+                /* AddRecordHeader doesn't increment the seq number */
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, CUR_ORDER);
+#endif
             }
 
         output += RECORD_HEADER_SZ;

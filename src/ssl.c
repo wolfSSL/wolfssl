@@ -3973,6 +3973,25 @@ int wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags)
 }
 #endif
 
+int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
+{
+    int ret = WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_recv");
+
+    if (ssl != NULL) {
+        ssl->error = SendAlert(ssl, alert_warning, user_canceled);
+        if (ssl->error < 0) {
+            WOLFSSL_ERROR(ssl->error);
+        }
+        else {
+            ret = wolfSSL_shutdown(ssl);
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_SendUserCanceled", ret);
+
+    return ret;
+}
 
 /* WOLFSSL_SUCCESS on ok */
 WOLFSSL_ABI

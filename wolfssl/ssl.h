@@ -1249,6 +1249,7 @@ WOLFSSL_API unsigned int wolfSSL_SESSION_get_max_early_data(const WOLFSSL_SESSIO
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_CTX_free(WOLFSSL_CTX* ctx);
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_free(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_shutdown(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_SendUserCanceled(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_send(WOLFSSL* ssl, const void* data, int sz, int flags);
 WOLFSSL_API int  wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags);
 
@@ -2576,7 +2577,8 @@ enum { /* ssl Constants */
     WOLFSSL_FAILURE         =  0,   /* for some functions */
     WOLFSSL_SUCCESS         =  1,
 
-/* WOLFSSL_SHUTDOWN_NOT_DONE is returned by wolfSSL_shutdown when the other end
+/* WOLFSSL_SHUTDOWN_NOT_DONE is returned by wolfSSL_shutdown and
+ * wolfSSL_SendUserCanceled when the other end
  * of the connection has yet to send its close notify alert as part of the
  * bidirectional shutdown. To complete the shutdown, either keep calling
  * wolfSSL_shutdown until it returns WOLFSSL_SUCCESS or call wolfSSL_read until
