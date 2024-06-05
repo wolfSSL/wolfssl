@@ -14366,6 +14366,143 @@ int TLSX_ParseVersion(WOLFSSL* ssl, const byte* input, word16 length,
     return ret;
 }
 #endif
+/* Jump Table to check minimum size values for client case in TLSX_Parse */
+#ifndef NO_WOLFSSL_SERVER
+static word16 TLSX_GetMinSize_Client(word16* type)
+{
+    switch (*type) {
+        case TLSXT_SERVER_NAME:
+            return WOLFSSL_SNI_MIN_SIZE_CLIENT;
+        case TLSXT_EARLY_DATA:
+            return WOLFSSL_EDI_MIN_SIZE_CLIENT;
+        case TLSXT_MAX_FRAGMENT_LENGTH:
+            return WOLFSSL_MFL_MIN_SIZE_CLIENT;
+        case TLSXT_TRUSTED_CA_KEYS:
+            return WOLFSSL_TCA_MIN_SIZE_CLIENT;
+        case TLSXT_TRUNCATED_HMAC:
+            return WOLFSSL_THM_MIN_SIZE_CLIENT;
+        case TLSXT_STATUS_REQUEST:
+            return WOLFSSL_CSR_MIN_SIZE_CLIENT;
+        case TLSXT_SUPPORTED_GROUPS:
+            return WOLFSSL_EC_MIN_SIZE_CLIENT;
+        case TLSXT_EC_POINT_FORMATS:
+            return WOLFSSL_PF_MIN_SIZE_CLIENT;
+        case TLSXT_SIGNATURE_ALGORITHMS:
+            return WOLFSSL_SA_MIN_SIZE_CLIENT;
+        case TLSXT_USE_SRTP:
+            return WOLFSSL_SRTP_MIN_SIZE_CLIENT;
+        case TLSXT_APPLICATION_LAYER_PROTOCOL:
+            return WOLFSSL_ALPN_MIN_SIZE_CLIENT;
+        case TLSXT_STATUS_REQUEST_V2:
+            return WOLFSSL_CSR2_MIN_SIZE_CLIENT;
+        case TLSXT_CLIENT_CERTIFICATE:
+            return WOLFSSL_CCT_MIN_SIZE_CLIENT;
+        case TLSXT_SERVER_CERTIFICATE:
+            return WOLFSSL_SCT_MIN_SIZE_CLIENT;
+        case TLSXT_ENCRYPT_THEN_MAC:
+            return WOLFSSL_ETM_MIN_SIZE_CLIENT;
+        case TLSXT_SESSION_TICKET:
+            return WOLFSSL_STK_MIN_SIZE_CLIENT;
+        case TLSXT_PRE_SHARED_KEY:
+            return WOLFSSL_PSK_MIN_SIZE_CLIENT;
+        case TLSXT_COOKIE:
+            return WOLFSSL_CKE_MIN_SIZE_CLIENT;
+        case TLSXT_PSK_KEY_EXCHANGE_MODES:
+            return WOLFSSL_PKM_MIN_SIZE_CLIENT;
+        case TLSXT_CERTIFICATE_AUTHORITIES:
+            return WOLFSSL_CAN_MIN_SIZE_CLIENT;
+        case TLSXT_POST_HANDSHAKE_AUTH:
+            return WOLFSSL_PHA_MIN_SIZE_CLIENT;
+        case TLSXT_SIGNATURE_ALGORITHMS_CERT:
+            return WOLFSSL_SA_MIN_SIZE_CLIENT;
+        case TLSXT_KEY_SHARE:
+            return WOLFSSL_KS_MIN_SIZE_CLIENT;
+        case TLSXT_CONNECTION_ID:
+            return WOLFSSL_CID_MIN_SIZE_CLIENT;
+        case TLSXT_RENEGOTIATION_INFO:
+            return WOLFSSL_SCR_MIN_SIZE_CLIENT;
+        case TLSXT_KEY_QUIC_TP_PARAMS_DRAFT:
+            return WOLFSSL_QTP_MIN_SIZE_CLIENT;
+        case TLSXT_ECH:
+            return WOLFSSL_ECH_MIN_SIZE_CLIENT;
+        default:
+            return 0;
+    }
+}
+    #define TLSX_GET_MIN_SIZE_CLIENT TLSX_GetMinSize_Client
+#else
+    #define TLSX_GET_MIN_SIZE_CLIENT(...) 0
+#endif
+
+
+#ifndef NO_WOLFSSL_CLIENT
+/* Jump Table to check minimum size values for server case in TLSX_Parse */
+static word16 TLSX_GetMinSize_Server(const word16 *type)
+{
+    switch (*type) {
+        case TLSXT_SERVER_NAME:
+            return WOLFSSL_SNI_MIN_SIZE_SERVER;
+        case TLSXT_EARLY_DATA:
+            return WOLFSSL_EDI_MIN_SIZE_SERVER;
+        case TLSXT_MAX_FRAGMENT_LENGTH:
+            return WOLFSSL_MFL_MIN_SIZE_SERVER;
+        case TLSXT_TRUSTED_CA_KEYS:
+            return WOLFSSL_TCA_MIN_SIZE_SERVER;
+        case TLSXT_TRUNCATED_HMAC:
+            return WOLFSSL_THM_MIN_SIZE_SERVER;
+        case TLSXT_STATUS_REQUEST:
+            return WOLFSSL_CSR_MIN_SIZE_SERVER;
+        case TLSXT_SUPPORTED_GROUPS:
+            return WOLFSSL_EC_MIN_SIZE_SERVER;
+        case TLSXT_EC_POINT_FORMATS:
+            return WOLFSSL_PF_MIN_SIZE_SERVER;
+        case TLSXT_SIGNATURE_ALGORITHMS:
+            return WOLFSSL_SA_MIN_SIZE_SERVER;
+        case TLSXT_USE_SRTP:
+            return WOLFSSL_SRTP_MIN_SIZE_SERVER;
+        case TLSXT_APPLICATION_LAYER_PROTOCOL:
+            return WOLFSSL_ALPN_MIN_SIZE_SERVER;
+        case TLSXT_STATUS_REQUEST_V2:
+            return WOLFSSL_CSR2_MIN_SIZE_SERVER;
+        case TLSXT_CLIENT_CERTIFICATE:
+            return WOLFSSL_CCT_MIN_SIZE_SERVER;
+        case TLSXT_SERVER_CERTIFICATE:
+            return WOLFSSL_SCT_MIN_SIZE_SERVER;
+        case TLSXT_ENCRYPT_THEN_MAC:
+            return WOLFSSL_ETM_MIN_SIZE_SERVER;
+        case TLSXT_SESSION_TICKET:
+            return WOLFSSL_STK_MIN_SIZE_SERVER;
+        case TLSXT_PRE_SHARED_KEY:
+            return WOLFSSL_PSK_MIN_SIZE_SERVER;
+        case TLSXT_COOKIE:
+            return WOLFSSL_CKE_MIN_SIZE_SERVER;
+        case TLSXT_PSK_KEY_EXCHANGE_MODES:
+            return WOLFSSL_PKM_MIN_SIZE_SERVER;
+        case TLSXT_CERTIFICATE_AUTHORITIES:
+            return WOLFSSL_CAN_MIN_SIZE_SERVER;
+        case TLSXT_POST_HANDSHAKE_AUTH:
+            return WOLFSSL_PHA_MIN_SIZE_SERVER;
+        case TLSXT_SIGNATURE_ALGORITHMS_CERT:
+            return WOLFSSL_SA_MIN_SIZE_SERVER;
+        case TLSXT_KEY_SHARE:
+            return WOLFSSL_KS_MIN_SIZE_SERVER;
+        case TLSXT_CONNECTION_ID:
+            return WOLFSSL_CID_MIN_SIZE_SERVER;
+        case TLSXT_RENEGOTIATION_INFO:
+            return WOLFSSL_SCR_MIN_SIZE_SERVER;
+        case TLSXT_KEY_QUIC_TP_PARAMS_DRAFT:
+            return WOLFSSL_QTP_MIN_SIZE_SERVER;
+        case TLSXT_ECH:
+            return WOLFSSL_ECH_MIN_SIZE_SERVER;
+        default:
+            return 0;
+    }
+}
+    #define TLSX_GET_MIN_SIZE_SERVER TLSX_GetMinSize_Server
+#else
+    #define TLSX_GET_MIN_SIZE_SERVER(...) 0
+#endif
+
 
 /** Parses a buffer of TLS extensions. */
 int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
@@ -14428,6 +14565,29 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 
         if (length - offset < size)
             return BUFFER_ERROR;
+
+        /* Check minimum size required for TLSX, even if disabled */
+        switch (msgType) {
+            #ifndef NO_WOLFSSL_SERVER
+            case client_hello:
+                if (size < TLSX_GET_MIN_SIZE_CLIENT(&type)){
+                    WOLFSSL_MSG("Minimum TLSX Size Requirement not Satisfied");
+                    return BUFFER_ERROR;
+                }
+            break;
+            #endif
+            #ifndef NO_WOLFSSL_CLIENT
+            case server_hello:
+            case hello_retry_request:
+                if (size < TLSX_GET_MIN_SIZE_SERVER(&type)){
+                    WOLFSSL_MSG("Minimum TLSX Size Requirement not Satisfied");
+                    return BUFFER_ERROR;
+                }
+            break;
+            #endif
+            default:
+            break;
+        }
 
         switch (type) {
 #ifdef HAVE_SNI
