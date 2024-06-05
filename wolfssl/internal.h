@@ -2794,7 +2794,7 @@ struct WOLFSSL_BIO {
 #endif
 };
 
-#ifdef WOLFSSL_HAVE_BIO_ADDR
+#if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(OPENSSL_EXTRA)
 WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
 #endif
 

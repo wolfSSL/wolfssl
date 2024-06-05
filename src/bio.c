@@ -851,6 +851,11 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
             bio->peer_addr = (WOLFSSL_BIO_ADDR *)parg;
             ret = WOLFSSL_SUCCESS;
             break;
+
+        case BIO_CTRL_DGRAM_QUERY_MTU:
+            return 0; /* not implemented */
+            break;
+
 #endif /* WOLFSSL_HAVE_BIO_ADDR */
 
         default:
