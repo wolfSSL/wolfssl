@@ -439,6 +439,10 @@
         #ifdef WOLFSSL_IPV6
             typedef struct sockaddr_in6 SOCKADDR_IN6;
         #endif
+        #if defined(HAVE_SYS_UN_H) && !defined(WOLFSSL_NO_SOCKADDR_UN)
+            #include <sys/un.h>
+            typedef struct sockaddr_un SOCKADDR_UN;
+        #endif
         typedef struct hostent          HOSTENT;
     #endif /* HAVE_SOCKADDR */
 
@@ -465,27 +469,30 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
 
 #ifdef WOLFSSL_HAVE_BIO_ADDR
 
+#ifdef WOLFSSL_NO_SOCK
+#error WOLFSSL_HAVE_BIO_ADDR and WOLFSSL_NO_SOCK are mutually incompatible.
+#endif
+
 #ifndef WOLFSSL_NO_BIO_ADDR_UN
-#include <sys/un.h>
 #endif
 
 union WOLFSSL_BIO_ADDR {
-    struct sockaddr sa;
-#ifndef WOLFSSL_NO_BIO_ADDR_IN
-    struct sockaddr_in sa_in;
-#endif
+    SOCKADDR sa;
+    SOCKADDR_IN sa_in;
 #ifdef WOLFSSL_IPV6
-    struct sockaddr_in6 sa_in6;
+    SOCKADDR_IN6 sa_in6;
 #endif
-#ifndef WOLFSSL_NO_BIO_ADDR_UN
-    struct sockaddr_un sa_un;
+#if defined(HAVE_SYS_UN_H) && !defined(WOLFSSL_NO_SOCKADDR_UN)
+    SOCKADDR_UN sa_un;
 #endif
 };
 
 typedef union WOLFSSL_BIO_ADDR WOLFSSL_BIO_ADDR;
 
+#if defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA)
 WOLFSSL_API  int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wrFlags);
 WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int rdFlags);
+#endif
 
 #endif /* WOLFSSL_HAVE_BIO_ADDR */
 

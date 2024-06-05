@@ -56968,25 +56968,35 @@ static int test_wolfSSL_BIO_tls(void)
 }
 
 
-
 static int test_wolfSSL_BIO_datagram(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_BIO) && defined(WOLFSSL_HAVE_BIO_ADDR)
+#if !defined(NO_BIO) && defined(WOLFSSL_DTLS) && defined(WOLFSSL_HAVE_BIO_ADDR) && defined(OPENSSL_EXTRA)
     int ret;
-    int fd1 = -1, fd2 = -1;
+    SOCKET_T fd1 = 0, fd2 = 0; /* SOCKET_T is unsigned on Windows */
     WOLFSSL_BIO *bio1 = NULL, *bio2 = NULL;
-    WOLFSSL_BIO_ADDR *bio_addr1, *bio_addr2;
-    struct sockaddr_in sin1, sin2;
+    WOLFSSL_BIO_ADDR *bio_addr1 = NULL, *bio_addr2 = NULL;
+    SOCKADDR_IN sin1, sin2;
     socklen_t slen;
+    static const char test_msg[] = "I am a datagram, short and stout.";
+    char test_msg_recvd[sizeof(test_msg) + 10];
+#ifdef USE_WINDOWS_API
+    static const DWORD timeout = 250; /* ms */
+#else
+    static const struct timeval timeout = { 0, 250000 };
+#endif
+
+#ifdef USE_WINDOWS_API
+    WSAStartup();
+#endif
 
     if (EXPECT_SUCCESS()) {
         fd1 = socket(AF_INET, SOCK_DGRAM, 17 /* UDP */);
-        ExpectIntGE(fd1, 0);
+        ExpectIntGT(fd1, 0);
     }
     if (EXPECT_SUCCESS()) {
         fd2 = socket(AF_INET, SOCK_DGRAM, 17 /* UDP */);
-        ExpectIntGE(fd2, 0);
+        ExpectIntGT(fd2, 0);
     }
 
     if (EXPECT_SUCCESS()) {
@@ -57005,7 +57015,7 @@ static int test_wolfSSL_BIO_datagram(void)
         sin1.sin_port = 0;
         slen = (socklen_t)sizeof(sin1);
         ExpectIntEQ(bind(fd1, (const struct sockaddr *)&sin1, slen), 0);
-        perror("bind");
+        ExpectIntEQ(setsockopt(fd1, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout)), 0);
         ExpectIntEQ(getsockname(fd1, (struct sockaddr *)&sin1, &slen), 0);
     }
 
@@ -57015,8 +57025,52 @@ static int test_wolfSSL_BIO_datagram(void)
         sin2.sin_port = 0;
         slen = (socklen_t)sizeof(sin2);
         ExpectIntEQ(bind(fd2, (const struct sockaddr *)&sin2, slen), 0);
+        ExpectIntEQ(setsockopt(fd2, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout)), 0);
         ExpectIntEQ(getsockname(fd2, (struct sockaddr *)&sin2, &slen), 0);
     }
+
+    if (EXPECT_SUCCESS()) {
+        bio_addr2 = wolfSSL_BIO_ADDR_new();
+        ExpectNotNull(bio_addr2);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0, bio_addr2), WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS())
+            bio_addr2 = NULL;
+    }
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+    /* bio2 should now have bio1's addr stored as its peer_addr, because the
+     * BIOs aren't "connected" yet.  use it to send a reply.
+     */
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), WOLFSSL_BIO_ERROR);
+
+#ifdef USE_WINDOWS_API
+    ExpectIntEQ(WSAGetLastError(), WSAEWOULDBLOCK);
+#else
+    ExpectIntEQ(errno, EAGAIN);
+#endif
+
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), WOLFSSL_BIO_ERROR);
+#ifdef USE_WINDOWS_API
+    ExpectIntEQ(WSAGetLastError(), WSAEWOULDBLOCK);
+#else
+    ExpectIntEQ(errno, EAGAIN);
+#endif
+
+    /* now "connect" the sockets. */
 
     if (EXPECT_SUCCESS()) {
         bio_addr1 = wolfSSL_BIO_ADDR_new();
@@ -57025,34 +57079,87 @@ static int test_wolfSSL_BIO_datagram(void)
 
     if (EXPECT_SUCCESS()) {
         bio_addr2 = wolfSSL_BIO_ADDR_new();
-        ExpectNotNull(bio_addr1);
+        ExpectNotNull(bio_addr2);
     }
+
+    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin2, (socklen_t)sizeof(sin2)), 0);
+    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
 
     if (EXPECT_SUCCESS()) {
         XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
-        ret = (int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 1, bio_addr2);
-        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0, bio_addr2), WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS())
+            bio_addr2 = NULL;
     }
 
     if (EXPECT_SUCCESS()) {
         XMEMCPY(&bio_addr1->sa_in, &sin1, sizeof(sin1));
-        ret = (int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_PEER, 1, bio_addr1);
-        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0, bio_addr1), WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS())
+            bio_addr1 = NULL;
     }
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+#ifdef __linux__
+    /* now "disconnect" the sockets and attempt transmits expected to fail. */
+
+    sin1.sin_family = AF_UNSPEC;
+    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
+    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
+    sin1.sin_family = AF_INET;
+
+    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0, NULL), WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS()) {
+        bio_addr2 = wolfSSL_BIO_ADDR_new();
+        ExpectNotNull(bio_addr2);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        sin2.sin_addr.s_addr = htonl(0xc0a8c0a8); /* 192.168.192.168 -- invalid for loopback interface. */
+        XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0, bio_addr2), WOLFSSL_SUCCESS);
+        if (EXPECT_SUCCESS())
+            bio_addr2 = NULL;
+    }
+
+    test_msg_recvd[0] = 0;
+    errno = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), -1);
+    ExpectIntEQ(errno, EINVAL);
+
+#endif /* __linux__ */
+
 
     if (bio1) {
         ret = wolfSSL_BIO_free(bio1);
         ExpectIntEQ(ret, WOLFSSL_SUCCESS);
-    }
-
+    } else if (fd1 > 0)
+        CloseSocket(fd1);
     if (bio2) {
         ret = wolfSSL_BIO_free(bio2);
         ExpectIntEQ(ret, WOLFSSL_SUCCESS);
-    }
-#endif
+    } else if (fd2 > 0)
+        CloseSocket(fd2);
+    if (bio_addr1)
+        wolfSSL_BIO_ADDR_free(bio_addr1);
+    if (bio_addr2)
+        wolfSSL_BIO_ADDR_free(bio_addr2);
+
+#endif /* !NO_BIO && WOLFSSL_DTLS && WOLFSSL_HAVE_BIO_ADDR && OPENSSL_EXTRA */
+
     return EXPECT_RESULT();
 }
-
 
 
 #if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
