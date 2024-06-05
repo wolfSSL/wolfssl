@@ -90,9 +90,9 @@ public class wolfSSL_TLS_CSHarp
         /* These paths should be changed for use */
         string fileCert = wolfssl.setPath("server-cert.pem");
         string fileKey = wolfssl.setPath("server-key.pem");
-        StringBuilder dh2048Pem = new StringBuilder(wolfssl.setPath("dh2048.pem"));
+        StringBuilder dhparam = new StringBuilder(wolfssl.setPath("dh2048.pem"));
 
-        if (fileCert == "" || fileKey == "" || dh2048Pem.Length == 0) {
+        if (fileCert == "" || fileKey == "" || dhparam.Length == 0) {
             Console.WriteLine("Platform not supported.");
             return;
         }
@@ -190,7 +190,7 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
-        if (wolfssl.SetTmpDH_file(ssl, dh2048Pem, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
+        if (wolfssl.SetTmpDH_file(ssl, dhparam, wolfssl.SSL_FILETYPE_PEM) != wolfssl.SUCCESS)
         {
             Console.WriteLine("Error in setting dh2048Pem");
             Console.WriteLine(wolfssl.get_error(ssl));
