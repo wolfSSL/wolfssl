@@ -5156,16 +5156,26 @@ int wc_RsaSetNonBlockTime(RsaKey* key, word32 maxBlockUs, word32 cpuMHz)
  */
 static int CalcDX(mp_int* y, mp_int* x, mp_int* d)
 {
-    mp_int m;
     int err;
+#ifndef WOLFSSL_SMALL_STACK
+    mp_int  m[1];
+#else
+    mp_int* m = (mp_int*)XMALLOC(sizeof(mp_int), NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+    if (m == NULL)
+        return MEMORY_E;
+#endif
 
-    err = mp_init(&m);
+    err = mp_init(m);
     if (err == MP_OKAY) {
-        err = mp_sub_d(x, 1, &m);
+        err = mp_sub_d(x, 1, m);
         if (err == MP_OKAY)
-            err = mp_mod(d, &m, y);
-        mp_forcezero(&m);
+            err = mp_mod(d, m, y);
+        mp_forcezero(m);
     }
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(m, NULL, DYNAMIC_TYPE_WOLF_BIGINT);
+#endif
 
     return err;
 }
