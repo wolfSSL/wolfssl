@@ -1,6 +1,6 @@
-/* fe_x25519_128.i
+/* fe_x25519_128.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,7 +21,7 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./x25519/fe_x25519_128_gen.rb > ../wolfssl/wolfcrypt/src/fe_x25519_128.i
+ *   ruby ./x25519/fe_x25519_128_gen.rb > ../wolfssl/wolfcrypt/src/fe_x25519_128.h
  */
 
 void fe_init(void)
