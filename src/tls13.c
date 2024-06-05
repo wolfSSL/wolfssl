@@ -5298,6 +5298,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     return ret;
             }
 #endif /* WOLFSSL_DTLS13 */
+
+#ifndef WOLFSSL_NO_TLS12
+            return DoServerHello(ssl, input, inOutIdx, helloSz);
+#else
+            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
+            return VERSION_ERROR;
+#endif
         }
     }
 
