@@ -749,7 +749,7 @@ long wolfSSL_CTX_set_session_cache_mode(WOLFSSL_CTX* ctx, long mode)
 #ifdef OPENSSL_EXTRA
 #ifdef HAVE_MAX_FRAGMENT
 /* return the max fragment size set when handshake was negotiated */
-uint8_t wolfSSL_SESSION_get_max_fragment_length(WOLFSSL_SESSION* session)
+unsigned char wolfSSL_SESSION_get_max_fragment_length(WOLFSSL_SESSION* session)
 {
     session = ClientSessionToSession(session);
     if (session == NULL) {

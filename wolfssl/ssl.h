@@ -1682,7 +1682,8 @@ WOLFSSL_API void wolfSSL_set_connect_state(WOLFSSL* ssl);
 WOLFSSL_API void wolfSSL_set_accept_state(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_session_reused(WOLFSSL* ssl);
 #ifdef OPENSSL_EXTRA
-WOLFSSL_API uint8_t wolfSSL_SESSION_get_max_fragment_length(
+/* using unsigned char instead of uint8_t here to avoid stdint include */
+WOLFSSL_API unsigned char wolfSSL_SESSION_get_max_fragment_length(
                                                       WOLFSSL_SESSION* session);
 #endif
 WOLFSSL_API int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
