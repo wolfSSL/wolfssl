@@ -5298,13 +5298,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     return ret;
             }
 #endif /* WOLFSSL_DTLS13 */
-
-#ifndef WOLFSSL_NO_TLS12
-            return DoServerHello(ssl, input, inOutIdx, helloSz);
-#else
-            SendAlert(ssl, alert_fatal, wolfssl_alert_protocol_version);
-            return VERSION_ERROR;
-#endif
         }
     }
 
@@ -5330,8 +5323,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* restore message type */
     *extMsgType = args->extMsgType;
 
-    if (args->totalExtSz > 0) {
-        /* Parse and handle extensions. */
+    /* Parse and handle extensions, unless lower than TLS1.3. In that case,
+     * extensions will be parsed in DoServerHello. */
+    if (args->totalExtSz > 0 && IsAtLeastTLSv1_3(ssl->version)) {
         ret = TLSX_Parse(ssl, input + args->idx, args->totalExtSz,
             *extMsgType, NULL);
         if (ret != 0) {
@@ -5350,7 +5344,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ssl->msgsReceived.got_hello_retry_request = 1;
             ssl->msgsReceived.got_server_hello = 0;
         }
+    }
 
+    if (args->totalExtSz > 0) {
         args->idx += args->totalExtSz;
     }
 
@@ -5359,7 +5355,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */
 
-    *inOutIdx = args->idx;
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        *inOutIdx = args->idx;
+    }
 
     ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
@@ -5403,7 +5401,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else
             ssl->chVersion.minor = TLSv1_2_MINOR;
         /* Complete TLS v1.2 processing of ServerHello. */
-        ret = CompleteServerHello(ssl);
+        ret = DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
         WOLFSSL_MSG("Client using higher version, fatal error");
         WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
