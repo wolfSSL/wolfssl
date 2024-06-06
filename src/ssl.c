@@ -116,7 +116,6 @@
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
     #include <wolfssl/wolfcrypt/curve448.h>
-    #if defined(HAVE_PQC)
     #if defined(HAVE_FALCON)
         #include <wolfssl/wolfcrypt/falcon.h>
     #endif /* HAVE_FALCON */
@@ -126,7 +125,6 @@
     #if defined(HAVE_SPHINCS)
         #include <wolfssl/wolfcrypt/sphincs.h>
     #endif /* HAVE_SPHINCS */
-    #endif /* HAVE_PQC */
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #ifdef HAVE_OCSP
             #include <wolfssl/openssl/ocsp.h>
@@ -3269,11 +3267,11 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_FFDHE_6144:
         case WOLFSSL_FFDHE_8192:
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
         case WOLFSSL_KYBER_LEVEL1:
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
-    #ifdef HAVE_LIBOQS
+    #if defined(WOLFSSL_WC_KYBER) || defined(HAVE_LIBOQS)
         case WOLFSSL_P256_KYBER_LEVEL1:
         case WOLFSSL_P384_KYBER_LEVEL3:
         case WOLFSSL_P521_KYBER_LEVEL5:
@@ -5370,7 +5368,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_ED448 */
-            #if defined(HAVE_PQC)
             #if defined(HAVE_FALCON)
             case FALCON_LEVEL1k:
                 if (cm->minFalconKeySz < 0 ||
@@ -5410,7 +5407,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_DILITHIUM */
-            #endif /* HAVE_PQC */
 
             default:
                 WOLFSSL_MSG("\tNo key size check done on CA");
@@ -6124,14 +6120,14 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
         type = DYNAMIC_TYPE_ECC;
     }
 #endif
-#if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+#if defined(HAVE_DILITHIUM)
     if ((keyOID == DILITHIUM_LEVEL2k) ||
         (keyOID == DILITHIUM_LEVEL3k) ||
         (keyOID == DILITHIUM_LEVEL5k)) {
         type = DYNAMIC_TYPE_DILITHIUM;
     }
 #endif
-#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+#if defined(HAVE_FALCON)
     if ((keyOID == FALCON_LEVEL1k) ||
         (keyOID == FALCON_LEVEL5k)) {
         type = DYNAMIC_TYPE_FALCON;
@@ -6156,7 +6152,7 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
             ret = wc_CryptoCb_EccCheckPrivKey((ecc_key*)pkey, pubKey, pubSz);
         }
         #endif
-        #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+        #if defined(HAVE_DILITHIUM)
         if ((keyOID == DILITHIUM_LEVEL2k) ||
             (keyOID == DILITHIUM_LEVEL3k) ||
             (keyOID == DILITHIUM_LEVEL5k)) {
@@ -6165,7 +6161,7 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
                                         pubKey, pubSz);
         }
         #endif
-        #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        #if defined(HAVE_FALCON)
         if ((keyOID == FALCON_LEVEL1k) ||
             (keyOID == FALCON_LEVEL5k)) {
             ret = wc_CryptoCb_PqcSignatureCheckPrivKey(pkey,
@@ -6195,14 +6191,14 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
             wc_ecc_free((ecc_key*)pkey);
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+    #if defined(HAVE_DILITHIUM)
         if ((keyOID == DILITHIUM_LEVEL2k) ||
             (keyOID == DILITHIUM_LEVEL3k) ||
             (keyOID == DILITHIUM_LEVEL5k)) {
             wc_dilithium_free((dilithium_key*)pkey);
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+    #if defined(HAVE_FALCON)
         if ((keyOID == FALCON_LEVEL1k) ||
             (keyOID == FALCON_LEVEL5k)) {
             wc_falcon_free((falcon_key*)pkey);
@@ -6919,7 +6915,6 @@ static int d2iTryAltDhKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
-#ifdef HAVE_PQC
 #ifdef HAVE_FALCON
 static int d2iTryFalconKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     long memSz, int priv)
@@ -7025,16 +7020,16 @@ static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     /* Test if Dilithium key. Try all levels. */
     if (priv) {
         isDilithium = ((wc_dilithium_set_level(dilithium, 2) == 0) &&
-                       (wc_dilithium_import_private_only(mem,
+                       (wc_dilithium_import_private(mem,
                           (word32)memSz, dilithium) == 0));
         if (!isDilithium) {
             isDilithium = ((wc_dilithium_set_level(dilithium, 3) == 0) &&
-                           (wc_dilithium_import_private_only(mem,
+                           (wc_dilithium_import_private(mem,
                               (word32)memSz, dilithium) == 0));
         }
         if (!isDilithium) {
             isDilithium = ((wc_dilithium_set_level(dilithium, 5) == 0) &&
-                           (wc_dilithium_import_private_only(mem,
+                           (wc_dilithium_import_private(mem,
                               (word32)memSz, dilithium) == 0));
         }
     }
@@ -7082,7 +7077,6 @@ static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
     return 1;
 }
 #endif /* HAVE_DILITHIUM */
-#endif /* HAVE_PQC */
 
 static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     const unsigned char** in, long inSz, int priv)
@@ -7138,7 +7132,6 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
 #endif /* !HAVE_FIPS || HAVE_FIPS_VERSION > 2 */
 #endif /* !NO_DH &&  OPENSSL_EXTRA && WOLFSSL_DH_EXTRA */
 
-#ifdef HAVE_PQC
 #ifdef HAVE_FALCON
     if (d2iTryFalconKey(&pkey, *in, inSz, priv) >= 0) {
         ;
@@ -7151,7 +7144,6 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     }
     else
 #endif /* HAVE_DILITHIUM */
-#endif /* HAVE_PQC */
     {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
     }
@@ -14263,7 +14255,7 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     if (ssl == NULL)
         return NULL;
 
-#if defined(WOLFSSL_TLS13) && defined(HAVE_PQC)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_HAVE_KYBER)
     /* Check for post-quantum groups. Return now because we do not want the ECC
      * check to override this result in the case of a hybrid. */
     if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -14288,20 +14280,26 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
     #ifdef WOLFSSL_KYBER512
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
+        case WOLFSSL_P256_KYBER_LEVEL1:
+            return "P256_KYBER_LEVEL1";
     #endif
     #ifdef WOLFSSL_KYBER768
         case WOLFSSL_KYBER_LEVEL3:
             return "KYBER_LEVEL3";
+        case WOLFSSL_P384_KYBER_LEVEL3:
+            return "P384_KYBER_LEVEL3";
     #endif
     #ifdef WOLFSSL_KYBER1024
         case WOLFSSL_KYBER_LEVEL5:
             return "KYBER_LEVEL5";
+        case WOLFSSL_P521_KYBER_LEVEL5:
+            return "P521_KYBER_LEVEL5";
     #endif
 #endif
         }
     }
+#endif /* WOLFSSL_TLS13 && WOLFSSL_HAVE_KYBER */
 
-#endif /* WOLFSSL_TLS13 && HAVE_PQC */
 #ifdef HAVE_FFDHE
     if (ssl->namedGroup != 0) {
         cName = wolfssl_ffdhe_name(ssl->namedGroup);
@@ -17197,7 +17195,6 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifdef HAVE_ED25519
         { NID_ED25519, ED25519k,  oidKeyType, "ED25519", "ED25519"},
     #endif
-    #ifdef HAVE_PQC
     #ifdef HAVE_FALCON
         { CTC_FALCON_LEVEL1, FALCON_LEVEL1k,  oidKeyType, "Falcon Level 1",
                                                           "Falcon Level 1"},
@@ -17212,7 +17209,6 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
         { CTC_DILITHIUM_LEVEL5, DILITHIUM_LEVEL5k,  oidKeyType,
           "Dilithium Level 5", "Dilithium Level 5"},
     #endif /* HAVE_DILITHIUM */
-    #endif /* HAVE_PQC */
 
         /* oidCurveType */
     #ifdef HAVE_ECC
@@ -21475,11 +21471,11 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 #ifdef HAVE_CURVE448
     {CURVE_NAME("X448"),    NID_X448, WOLFSSL_ECC_X448},
 #endif
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     {CURVE_NAME("KYBER_LEVEL1"), WOLFSSL_KYBER_LEVEL1, WOLFSSL_KYBER_LEVEL1},
     {CURVE_NAME("KYBER_LEVEL3"), WOLFSSL_KYBER_LEVEL3, WOLFSSL_KYBER_LEVEL1},
     {CURVE_NAME("KYBER_LEVEL5"), WOLFSSL_KYBER_LEVEL5, WOLFSSL_KYBER_LEVEL1},
-#ifdef HAVE_LIBOQS
+#if defined(WOLFSSL_WC_KYBER) || defined(HAVE_LIBOQS)
     {CURVE_NAME("P256_KYBER_LEVEL1"), WOLFSSL_P256_KYBER_LEVEL1, WOLFSSL_P256_KYBER_LEVEL1},
     {CURVE_NAME("P384_KYBER_LEVEL3"), WOLFSSL_P384_KYBER_LEVEL3, WOLFSSL_P256_KYBER_LEVEL1},
     {CURVE_NAME("P521_KYBER_LEVEL5"), WOLFSSL_P521_KYBER_LEVEL5, WOLFSSL_P256_KYBER_LEVEL1},

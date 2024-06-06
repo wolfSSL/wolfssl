@@ -3349,7 +3349,9 @@ extern void uITRON4_free(void *p) ;
 #ifdef HAVE_LIBOQS
 #define HAVE_PQC
 #define HAVE_FALCON
-#define HAVE_DILITHIUM
+#ifndef HAVE_DILITHIUM
+    #define HAVE_DILITHIUM
+#endif
 #ifndef WOLFSSL_NO_SPHINCS
     #define HAVE_SPHINCS
 #endif
@@ -3371,6 +3373,7 @@ extern void uITRON4_free(void *p) ;
 
 #if (defined(HAVE_LIBOQS) ||                                            \
      defined(WOLFSSL_WC_KYBER) ||                                       \
+     defined(WOLFSSL_WC_DILITHIUM) ||                                   \
      defined(HAVE_LIBXMSS) ||                                           \
      defined(HAVE_LIBLMS) ||                                            \
      defined(WOLFSSL_DUAL_ALG_CERTS)) &&                                \

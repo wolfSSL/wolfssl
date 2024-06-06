@@ -785,7 +785,7 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
 }
 #endif /* HAVE_ED25519 */
 
-#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_KYBER)
 int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
 {
     int devId = INVALID_DEVID;
@@ -794,11 +794,9 @@ int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
         return devId;
 
     /* get devId */
-#if defined(WOLFSSL_HAVE_KYBER)
     if (type == WC_PQC_KEM_TYPE_KYBER) {
         devId = ((KyberKey*) key)->devId;
     }
-#endif
 
     return devId;
 }
@@ -906,9 +904,9 @@ int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* HAVE_PQC && WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_KYBER */
 
-#if defined(HAVE_PQC) && (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM))
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
 int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
 {
     int devId = INVALID_DEVID;
@@ -1068,7 +1066,7 @@ int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* HAVE_PQC && (HAVE_FALCON || HAVE_DILITHIUM) */
+#endif /* HAVE_FALCON || HAVE_DILITHIUM */
 
 #ifndef NO_AES
 #ifdef HAVE_AESGCM

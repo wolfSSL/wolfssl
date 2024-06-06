@@ -948,7 +948,7 @@ enum Misc_ASN {
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
 #ifdef HAVE_SPHINCS
     MAX_ENCODED_SIG_SZ  = 51200,
-#elif defined(HAVE_PQC)
+#elif defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_ENCODED_SIG_SZ  = 5120,
 #elif !defined(NO_RSA)
 #ifdef WOLFSSL_HAPROXY
@@ -983,7 +983,7 @@ enum Misc_ASN {
     MAX_DSA_PRIVKEY_SZ  = (DSA_INTS * MAX_DSA_INT_SZ) + MAX_SEQ_SZ +
                           MAX_VERSION_SZ, /* Maximum size of a DSA Private
                                       key taken from DsaKeyIntsToDer. */
-#if defined(HAVE_PQC)
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_PQC_PUBLIC_KEY_SZ = 2592, /* Maximum size of a Dilithium public key. */
 #endif
     MAX_RSA_E_SZ        =  16,     /* Max RSA public e size */
@@ -1032,7 +1032,7 @@ enum Misc_ASN {
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
-#if defined(HAVE_PQC)
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_PUBLIC_KEY_SZ   = MAX_PQC_PUBLIC_KEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
 #else
     MAX_PUBLIC_KEY_SZ   = MAX_DSA_PUBKEY_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
@@ -1497,9 +1497,13 @@ struct SignatureCtx {
     #ifdef HAVE_ED448
         struct ed448_key* ed448;
     #endif
-    #ifdef HAVE_PQC
+    #if defined(HAVE_FALCON)
         struct falcon_key* falcon;
+    #endif
+    #if defined(HAVE_DILITHIUM)
         struct dilithium_key* dilithium;
+    #endif
+    #if defined(HAVE_SPHINCS)
         struct sphincs_key* sphincs;
     #endif
         void* ptr;
@@ -2375,8 +2379,11 @@ WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
 WOLFSSL_LOCAL int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     byte* output, word32 outLen, int keyType, int withHeader);
-WOLFSSL_LOCAL int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
-    byte* pubKey, word32* pubKeyLen, int keyType);
+WOLFSSL_LOCAL int DecodeAsymKeyPublic_Assign(const byte* input,
+    word32* inOutIdx, word32 inSz, const byte** pubKey, word32* pubKeyLen,
+    int keyType);
+WOLFSSL_LOCAL int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx,
+    word32 inSz, byte* pubKey, word32* pubKeyLen, int keyType);
 
 #ifndef NO_CERTS
 
@@ -2683,9 +2690,10 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
     || (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)) \
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
-    || (defined(HAVE_PQC) && defined(HAVE_FALCON)) \
-    || (defined(HAVE_PQC) && defined(HAVE_DILITHIUM)) \
-    || (defined(HAVE_PQC) && defined(HAVE_SPHINCS)))
+    || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))
+WOLFSSL_LOCAL int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx,
+    word32 inSz, const byte** privKey, word32* privKeyLen, const byte** pubKey,
+    word32* pubKeyLen, int keyType);
 WOLFSSL_LOCAL int DecodeAsymKey(const byte* input, word32* inOutIdx,
     word32 inSz, byte* privKey, word32* privKeyLen, byte* pubKey,
     word32* pubKeyLen, int keyType);

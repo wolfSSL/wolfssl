@@ -799,8 +799,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || \
-                            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -809,8 +808,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || \
-                            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 

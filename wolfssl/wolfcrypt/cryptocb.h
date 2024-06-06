@@ -71,7 +71,7 @@
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     #include <wolfssl/wolfcrypt/kyber.h>
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
@@ -79,10 +79,10 @@
     #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 #endif
-#if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+#if defined(HAVE_DILITHIUM)
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
-#if defined(HAVE_PQC) && defined(HAVE_FALCON)
+#if defined(HAVE_FALCON)
     #include <wolfssl/wolfcrypt/falcon.h>
 #endif
 
@@ -216,7 +216,7 @@ typedef struct wc_CryptoInfo {
                 byte         contextLen;
             } ed25519verify;
         #endif
-        #if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_KYBER)
+        #if defined(WOLFSSL_HAVE_KYBER)
             struct {
                 WC_RNG*     rng;
                 int         size;
@@ -241,8 +241,7 @@ typedef struct wc_CryptoInfo {
                 int         type; /* enum wc_PqcKemType */
             } pqc_decaps;
         #endif
-        #if defined(HAVE_PQC) && \
-            (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM))
+        #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
             struct {
                 WC_RNG*     rng;
                 int         size;
@@ -525,7 +524,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
     const byte* context, byte contextLen);
 #endif /* HAVE_ED25519 */
 
-#if defined(HAVE_PQC) && defined(WOLFSSL_HAVE_KYBER)
+#if defined(WOLFSSL_HAVE_KYBER)
 WOLFSSL_LOCAL int wc_CryptoCb_PqcKemGetDevId(int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_MakePqcKemKey(WC_RNG* rng, int type,
@@ -538,9 +537,9 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcEncapsulate(byte* ciphertext,
 WOLFSSL_LOCAL int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext,
     word32 ciphertextLen, byte* sharedSecret, word32 sharedSecretLen,
     int type, void* key);
-#endif /* HAVE_PQC && WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_KYBER */
 
-#if defined(HAVE_PQC) && (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM))
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSigGetDevId(int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type,
@@ -554,7 +553,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen,
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz);
-#endif /* HAVE_PQC && (HAVE_FALCON || HAVE_DILITHIUM) */
+#endif /* HAVE_FALCON || HAVE_DILITHIUM */
 
 #ifndef NO_AES
 #ifdef HAVE_AESGCM
