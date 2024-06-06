@@ -5023,7 +5023,6 @@ typedef struct Dsh13Args {
 int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        word32 helloSz, byte* extMsgType)
 {
-    word32 inOutIdxCopy;
     int ret;
     byte suite[2];
     byte tls12minor;
@@ -5356,8 +5355,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */
 
-    inOutIdxCopy = *inOutIdx;
-    *inOutIdx = args->idx;
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        *inOutIdx = args->idx;
+    }
 
     ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
@@ -5401,9 +5401,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else
             ssl->chVersion.minor = TLSv1_2_MINOR;
         /* Complete TLS v1.2 processing of ServerHello. */
-        ret = DoServerHello(ssl, input, &inOutIdxCopy, helloSz);
+        ret = DoServerHello(ssl, input, inOutIdx, helloSz);
 #else
-        (void)inOutIdxCopy;
         WOLFSSL_MSG("Client using higher version, fatal error");
         WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
         ret = VERSION_ERROR;
