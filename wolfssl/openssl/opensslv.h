@@ -25,6 +25,7 @@
 #define WOLFSSL_OPENSSLV_H_
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/version.h>
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 

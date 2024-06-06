@@ -1966,7 +1966,7 @@ int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
  * @return  NULL on failure.
  */
 unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md, const void* key,
-    int key_len, const unsigned char* data, int len, unsigned char* md,
+    int key_len, const unsigned char* data, size_t len, unsigned char* md,
     unsigned int* md_len)
 {
     unsigned char* ret = NULL;

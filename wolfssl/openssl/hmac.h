@@ -45,7 +45,7 @@
 
 WOLFSSL_API unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md,
                                const void* key, int key_len,
-                               const unsigned char* d, int n, unsigned char* md,
+                               const unsigned char* d, size_t n, unsigned char* md,
                                unsigned int* md_len);
 
 WOLFSSL_API WOLFSSL_HMAC_CTX* wolfSSL_HMAC_CTX_new(void);
@@ -69,7 +69,7 @@ WOLFSSL_API const WOLFSSL_EVP_MD *wolfSSL_HMAC_CTX_get_md(const WOLFSSL_HMAC_CTX
 
 typedef struct WOLFSSL_HMAC_CTX HMAC_CTX;
 
-#define HMAC(a,b,c,d,e,f,g) wolfSSL_HMAC((a),(b),(c),(d),(e),(f),(g))
+#define HMAC wolfSSL_HMAC
 
 #define HMAC_CTX_new wolfSSL_HMAC_CTX_new
 #define HMAC_CTX_init wolfSSL_HMAC_CTX_Init
