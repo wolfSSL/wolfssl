@@ -2785,8 +2785,8 @@ void kyber_decompress_5(sword16* p, const unsigned char* b)
  * @param  [in]   j    Index of bit in byte.
  */
 #define FROM_MSG_BIT(p, msg, i, j) \
-    (p)[8 * (i) + (j)] = (((sword16)0 - (sword16)(((msg)[i] >> (j)) & 1)) ^ \
-                          kyber_opt_blocker) & KYBER_Q_1_HALF
+    ((p)[8 * (i) + (j)] = (((sword16)0 - (sword16)(((msg)[i] >> (j)) & 1)) ^ \
+                          kyber_opt_blocker) & KYBER_Q_1_HALF)
 
 /* Convert message to polynomial.
  *
