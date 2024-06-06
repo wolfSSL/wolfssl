@@ -439,7 +439,7 @@ add_option(WOLFSSL_ALPN
     "no" "yes;no")
 
 if(WOLFSSL_ALPN)
-        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ALPN" "-DHAVE_TLS_EXTENSIONS")
+    list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ALPN" "-DHAVE_TLS_EXTENSIONS")
 endif()
 
 # altcertchains
@@ -2238,32 +2238,6 @@ endif()
 
 file(REMOVE ${OPTION_FILE})
 
-file(APPEND ${OPTION_FILE} "/* wolfssl options.h\n")
-file(APPEND ${OPTION_FILE} " * generated from configure options\n")
-file(APPEND ${OPTION_FILE} " *\n")
-file(APPEND ${OPTION_FILE} " * Copyright (C) 2006-2023 wolfSSL Inc.\n")
-file(APPEND ${OPTION_FILE} " *\n")
-file(APPEND ${OPTION_FILE} " * This file is part of wolfSSL. (formerly known as CyaSSL)\n")
-file(APPEND ${OPTION_FILE} " *\n")
-file(APPEND ${OPTION_FILE} " */\n\n")
-file(APPEND ${OPTION_FILE} "#ifndef WOLFSSL_OPTIONS_H\n")
-file(APPEND ${OPTION_FILE} "#define WOLFSSL_OPTIONS_H\n\n\n")
-file(APPEND ${OPTION_FILE} "#ifdef __cplusplus\n")
-file(APPEND ${OPTION_FILE} "extern \"C\" {\n")
-file(APPEND ${OPTION_FILE} "#endif\n\n")
-
-add_to_options_file("${WOLFSSL_DEFINITIONS}" "${OPTION_FILE}")
-# CMAKE_C_FLAGS is just a string of space-separated flags to pass to the C
-# compiler. We need to replace those spaces with semicolons in order to treat it
-# as a CMake list.
-string(REPLACE " " ";" CMAKE_C_FLAGS_LIST "${CMAKE_C_FLAGS}")
-add_to_options_file("${CMAKE_C_FLAGS_LIST}" "${OPTION_FILE}")
-
-file(APPEND ${OPTION_FILE} "\n#ifdef __cplusplus\n")
-file(APPEND ${OPTION_FILE} "}\n")
-file(APPEND ${OPTION_FILE} "#endif\n\n\n")
-file(APPEND ${OPTION_FILE} "#endif /* WOLFSSL_OPTIONS_H */\n\n")
-
 ####################################################
 # Library Target
 ####################################################
@@ -2340,6 +2314,20 @@ if(WOLFSSL_ARIA)
 
     message(STATUS "ARIA Check: WOLFSSL_LINK_LIBS    = ${WOLFSSL_LINK_LIBS}")
 endif()
+
+foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
+    string(REGEX MATCH "^(-D)?([^=]+)(=(.*))?$" DEF_MATCH ${DEF})
+    if (DEFINED CMAKE_MATCH_4)
+        set(${CMAKE_MATCH_2} ${CMAKE_MATCH_4})
+        # message("set(${CMAKE_MATCH_2} ${CMAKE_MATCH_4})")
+    else()
+        set(${CMAKE_MATCH_2} 1)
+        # message("set(${CMAKE_MATCH_2} 1)")
+    endif()
+endforeach()
+
+# If new build options are added please update the cmake/options.h.in
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/options.h.in ${OPTION_FILE})
 
 set_target_properties(wolfssl
     PROPERTIES
