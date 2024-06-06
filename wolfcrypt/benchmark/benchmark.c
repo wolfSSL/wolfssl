@@ -1972,6 +1972,9 @@ static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
 static int encrypt_only = 0;
+#ifdef HAVE_AES_CBC
+static int cipher_same_buffer = 0;
+#endif
 
 #ifdef MULTI_VALUE_STATISTICS
 static int minimum_runs = 0;
@@ -4138,6 +4141,8 @@ static void bench_aescbc_internal(int useDeviceID,
                                   const byte* iv, const char* encLabel,
                                   const char* decLabel)
 {
+    const byte* in = bench_cipher;
+    byte* out = bench_plain;
     int    ret = 0, i, count = 0, times, pending = 0;
     WC_DECLARE_ARRAY(enc, Aes, BENCH_MAX_PENDING,
                      sizeof(Aes), HEAP_HINT);
@@ -4162,6 +4167,10 @@ static void bench_aescbc_internal(int useDeviceID,
         }
     }
 
+    if (cipher_same_buffer) {
+        in = bench_plain;
+    }
+
     bench_stats_start(&count, &start);
     do {
         for (times = 0; times < numBlocks || pending > 0; ) {
@@ -4171,8 +4180,7 @@ static void bench_aescbc_internal(int useDeviceID,
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, numBlocks, &pending)) {
-                    ret = wc_AesCbcEncrypt(enc[i], bench_plain, bench_cipher,
-                        bench_size);
+                    ret = wc_AesCbcEncrypt(enc[i], out, in, bench_size);
 
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(enc[i]),
                                             0, &times, &pending)) {
@@ -4221,8 +4229,7 @@ exit_aes_enc:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, numBlocks, &pending)) {
-                    ret = wc_AesCbcDecrypt(enc[i], bench_cipher, bench_plain,
-                        bench_size);
+                    ret = wc_AesCbcDecrypt(enc[i], out, in, bench_size);
 
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(enc[i]),
                                             0, &times, &pending)) {
@@ -4859,6 +4866,8 @@ exit_aes_dec:
 #endif
 
 #endif /* HAVE_AES_DECRYPT */
+
+    (void)decLabel;
 
 exit:
 

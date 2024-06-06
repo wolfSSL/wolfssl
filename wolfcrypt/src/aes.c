@@ -95,7 +95,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_ARMASM
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     /* case of possibly not using hardware acceleration for AES but using key
@@ -966,6 +966,9 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #endif
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_AES)
 /* implemented in wolfcrypt/src/port/psa/psa_aes.c */
+
+#elif defined(WOLFSSL_RISCV_ASM)
+/* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
 
 #else
 
@@ -4317,6 +4320,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 
 #endif /* NEED_AES_TABLES */
 
+#ifndef WOLFSSL_RISCV_ASM
     /* Software AES - SetKey */
     static WARN_UNUSED_RESULT int wc_AesSetKeyLocal(
         Aes* aes, const byte* userKey, word32 keylen, const byte* iv, int dir,
@@ -4630,6 +4634,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir, 1);
 
     } /* wc_AesSetKey() */
+#endif
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
         /* AES-CTR and AES-DIRECT need to use this for key setup */
@@ -6171,7 +6176,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #endif /* NEED_AES_CTR_SOFT */
 
 #endif /* WOLFSSL_AES_COUNTER */
-#endif /* !WOLFSSL_ARMASM */
+#endif /* !WOLFSSL_ARMASM && ! WOLFSSL_RISCV_ASM */
 
 
 /*
@@ -6220,6 +6225,9 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #ifdef WOLFSSL_ARMASM
     /* implementation is located in wolfcrypt/src/port/arm/armv8-aes.c */
+
+#elif defined(WOLFSSL_RISCV_ASM)
+    /* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
 
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/afalg/afalg_aes.c */
@@ -10478,6 +10486,9 @@ int wc_AesCcmCheckTagSize(int sz)
 #ifdef WOLFSSL_ARMASM
     /* implementation located in wolfcrypt/src/port/arm/armv8-aes.c */
 
+#elif defined(WOLFSSL_RISCV_ASM)
+    /* implementation located in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
+
 #elif defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
 
@@ -11374,6 +11385,9 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
 #elif defined(WOLFSSL_DEVCRYPTO_AES)
     /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
+
+#elif defined(WOLFSSL_RISCV_ASM)
+    /* implemented in wolfcrypt/src/port/riscv/riscv-64-aes.c */
 
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
 
@@ -12613,12 +12627,21 @@ static WARN_UNUSED_RESULT int _AesXtsHelper(
     }
 
     xorbuf(out, in, totalSz);
+#ifndef WOLFSSL_RISCV_ASM
     if (dir == AES_ENCRYPTION) {
         return _AesEcbEncrypt(aes, out, out, totalSz);
     }
     else {
         return _AesEcbDecrypt(aes, out, out, totalSz);
     }
+#else
+    if (dir == AES_ENCRYPTION) {
+        return wc_AesEcbEncrypt(aes, out, out, totalSz);
+    }
+    else {
+        return wc_AesEcbDecrypt(aes, out, out, totalSz);
+    }
+#endif
 }
 #endif /* HAVE_AES_ECB */
 
