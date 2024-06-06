@@ -59,6 +59,11 @@
 
 /******************************************************************************/
 
+/* Declare variable to make compiler not optimize code in kyber_from_msg(). */
+volatile sword16 kyber_opt_blocker = 0;
+
+/******************************************************************************/
+
 /**
  * Initialize the Kyber key.
  *
