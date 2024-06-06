@@ -146,7 +146,6 @@
 #endif
 #include <wolfssl/error-ssl.h>
 
-#include <stdint.h>
 #include <stdlib.h>
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/test.h>
@@ -11244,8 +11243,8 @@ static int test_wolfSSL_UseMaxFragment(void)
   #endif
     WOLFSSL     *ssl = NULL;
   #ifdef OPENSSL_EXTRA
-    int (*UseMaxFragment)(SSL *s, uint8_t mode);
-    int (*CTX_UseMaxFragment)(SSL_CTX *c, uint8_t mode);
+    int (*UseMaxFragment)(SSL *s, unsigned char mode);
+    int (*CTX_UseMaxFragment)(SSL_CTX *c, unsigned char mode);
   #else
     int (*UseMaxFragment)(WOLFSSL *s, unsigned char mode);
     int (*CTX_UseMaxFragment)(WOLFSSL_CTX *c, unsigned char mode);
@@ -45815,13 +45814,13 @@ static int test_othername_and_SID_ext(void) {
     /* SID extension. SID data format explained here:
      * https://blog.qdsecurity.se/2022/05/27/manually-injecting-a-sid-in-a-certificate/
      */
-    uint8_t SidExtension[] = {
+    byte SidExtension[] = {
     48, 64, 160, 62, 6,  10, 43, 6,  1,  4,  1,  130, 55, 25, 2,  1,  160,
     48, 4,  46,  83, 45, 49, 45, 53, 45, 50, 49, 45,  50, 56, 52, 51, 57,
     48, 55, 52,  49, 56, 45, 51, 57, 50, 54, 50, 55,  55, 52, 50, 49, 45,
     51, 56, 49,  53, 57, 57, 51, 57, 55, 50, 45, 52,  54, 48, 49};
 
-    uint8_t expectedAltName[] = {
+    byte expectedAltName[] = {
     0x30, 0x27, 0xA0, 0x25, 0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x82,
     0x37, 0x14, 0x02, 0x03, 0xA0, 0x17, 0x0C, 0x15, 0x6F, 0x74, 0x68, 0x65,
     0x72, 0x6E, 0x61, 0x6D, 0x65, 0x40, 0x77, 0x6F, 0x6C, 0x66, 0x73, 0x73,
@@ -71563,7 +71562,7 @@ static int test_read_write_hs(void)
     WOLFSSL_CTX *ctx_s = NULL, *ctx_c = NULL;
     WOLFSSL *ssl_s = NULL, *ssl_c = NULL;
     struct test_memio_ctx test_ctx;
-    uint8_t test_buffer[16];
+    byte test_buffer[16];
     unsigned int test;
 
     /* test == 0 : client writes, server reads */
