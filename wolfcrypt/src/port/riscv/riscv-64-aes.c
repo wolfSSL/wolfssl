@@ -1471,7 +1471,7 @@ static void wc_aes_ctr_encrypt_asm(Aes* aes, byte* out, const byte* in,
  * @param [in]  sz   Number of bytes to encrypt.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when aes, out or in is NULL.
- * @return  BAD_FUNC_ARG when key size in AES object is not supported. 
+ * @return  BAD_FUNC_ARG when key size in AES object is not supported.
  */
 int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
@@ -4231,7 +4231,7 @@ static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
  * @param [in]  sz   Number of bytes to encrypt.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when aes, out or in is NULL.
- * @return  BAD_FUNC_ARG when key size in AES object is not supported. 
+ * @return  BAD_FUNC_ARG when key size in AES object is not supported.
  */
 int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {

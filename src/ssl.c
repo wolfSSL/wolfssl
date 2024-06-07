@@ -23701,9 +23701,18 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
         const char ap[] = "/.rnd";
 
         WOLFSSL_MSG("Environment variable RANDFILE not set");
+
         if ((rt = XGETENV("HOME")) == NULL) {
+            #ifdef XALTHOMEVARNAME
+            if ((rt = XGETENV(XALTHOMEVARNAME)) == NULL) {
+                WOLFSSL_MSG("Environment variable HOME and " XALTHOMEVARNAME
+                            " not set");
+                return NULL;
+            }
+            #else
             WOLFSSL_MSG("Environment variable HOME not set");
             return NULL;
+            #endif
         }
 
         if (len > XSTRLEN(rt) + XSTRLEN(ap)) {
@@ -23713,7 +23722,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
             return fname;
         }
         else {
-            WOLFSSL_MSG("HOME too large for buffer");
+            WOLFSSL_MSG("Path too large for buffer");
             return NULL;
         }
     }

@@ -716,12 +716,16 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
         #if defined(USE_WINDOWS_API)
+            #include <io.h>
             #include <sys/stat.h>
             #ifndef XSTAT
                 #define XSTAT       _stat
             #endif
             #define XS_ISREG(s) (s & _S_IFREG)
             #define SEPARATOR_CHAR ';'
+            #define XWRITE      _write
+            #define XREAD       _read
+            #define XALTHOMEVARNAME "USERPROFILE"
 
         #elif defined(ARDUINO)
             #ifndef XSTAT

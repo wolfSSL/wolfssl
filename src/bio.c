@@ -312,7 +312,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                     ret = (int)XFREAD(buf, 1, (size_t)len, (XFILE)bio->ptr);
                 }
                 else {
-                #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) && \
+                #if defined(XREAD) && !defined(NO_WOLFSSL_DIR) && \
                     !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
                     ret = (int)XREAD(bio->num, buf, (size_t)len);
                 #else
@@ -682,7 +682,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                     ret = (int)XFWRITE(data, 1, (size_t)len, (XFILE)bio->ptr);
                 }
                 else {
-                #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR) && \
+                #if defined(XWRITE) && !defined(NO_WOLFSSL_DIR) && \
                     !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
                     ret = (int)XWRITE(bio->num, data, (size_t)len);
                 #else
@@ -1617,7 +1617,12 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
             XFCLOSE((XFILE)bio->ptr);
         }
 
-        bio->ptr = XFOPEN(name, "w");
+        /* 'b' flag is ignored on POSIX targets, but on Windows it assures
+         * inhibition of LF<->CRLF rewriting, so that there is consistency
+         * between the size and contents of the representation in memory and on
+         * disk.
+         */
+        bio->ptr = XFOPEN(name, "wb");
         if (((XFILE)bio->ptr) == XBADFILE) {
             return WOLFSSL_FAILURE;
         }
