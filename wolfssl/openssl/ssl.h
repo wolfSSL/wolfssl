@@ -1530,7 +1530,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define OPENSSL_STRING    WOLFSSL_STRING
 #define OPENSSL_CSTRING   WOLFSSL_STRING
 
-#define TLSEXT_TYPE_application_layer_protocol_negotiation    16
+#define TLSEXT_TYPE_application_layer_protocol_negotiation \
+    TLSXT_APPLICATION_LAYER_PROTOCOL
 
 #define OPENSSL_NPN_UNSUPPORTED 0
 #define OPENSSL_NPN_NEGOTIATED  1

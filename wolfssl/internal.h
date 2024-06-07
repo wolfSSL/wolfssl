@@ -2820,74 +2820,108 @@ typedef struct Options Options;
 /** TLS Extensions - RFC 6066 */
 #ifdef HAVE_TLS_EXTENSIONS
 
+#define TLSXT_SERVER_NAME                0x0000 /* a.k.a. SNI  */
+#define TLSXT_MAX_FRAGMENT_LENGTH        0x0001
+#define TLSXT_TRUSTED_CA_KEYS            0x0003
+#define TLSXT_TRUNCATED_HMAC             0x0004
+#define TLSXT_STATUS_REQUEST             0x0005 /* a.k.a. OCSP stapling   */
+#define TLSXT_SUPPORTED_GROUPS           0x000a /* a.k.a. Supported Curves */
+#define TLSXT_EC_POINT_FORMATS           0x000b
+#define TLSXT_SIGNATURE_ALGORITHMS       0x000d /* HELLO_EXT_SIG_ALGO */
+#define TLSXT_USE_SRTP                   0x000e /* 14 */
+#define TLSXT_APPLICATION_LAYER_PROTOCOL 0x0010 /* a.k.a. ALPN */
+#define TLSXT_STATUS_REQUEST_V2          0x0011 /* a.k.a. OCSP stapling v2 */
+#define TLSXT_CLIENT_CERTIFICATE         0x0013 /* RFC8446 */
+#define TLSXT_SERVER_CERTIFICATE         0x0014 /* RFC8446 */
+#define TLSXT_ENCRYPT_THEN_MAC           0x0016 /* RFC 7366 */
+#define TLSXT_EXTENDED_MASTER_SECRET     0x0017 /* HELLO_EXT_EXTMS */
+#define TLSXT_SESSION_TICKET             0x0023
+#define TLSXT_PRE_SHARED_KEY             0x0029
+#define TLSXT_EARLY_DATA                 0x002a
+#define TLSXT_SUPPORTED_VERSIONS         0x002b
+#define TLSXT_COOKIE                     0x002c
+#define TLSXT_PSK_KEY_EXCHANGE_MODES     0x002d
+#define TLSXT_CERTIFICATE_AUTHORITIES    0x002f
+#define TLSXT_POST_HANDSHAKE_AUTH        0x0031
+#define TLSXT_SIGNATURE_ALGORITHMS_CERT  0x0032
+#define TLSXT_KEY_SHARE                  0x0033
+#define TLSXT_CONNECTION_ID              0x0036
+#define TLSXT_KEY_QUIC_TP_PARAMS         0x0039 /* RFC 9001, ch. 8.2 */
+#define TLSXT_ECH                        0xfe0d /* from */
+                                                /* draft-ietf-tls-esni-13 */
+/* The 0xFF section is experimental/custom/personal use */
+#define TLSXT_CKS                        0xff92 /* X9.146 */
+#define TLSXT_RENEGOTIATION_INFO         0xff01
+#define TLSXT_KEY_QUIC_TP_PARAMS_DRAFT   0xffa5 /* from */
+                                                /* draft-ietf-quic-tls-27 */
+
 typedef enum {
 #ifdef HAVE_SNI
-    TLSX_SERVER_NAME                = 0x0000, /* a.k.a. SNI  */
+    TLSX_SERVER_NAME                = TLSXT_SERVER_NAME,
 #endif
-    TLSX_MAX_FRAGMENT_LENGTH        = 0x0001,
-    TLSX_TRUSTED_CA_KEYS            = 0x0003,
-    TLSX_TRUNCATED_HMAC             = 0x0004,
-    TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
-    TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
-    TLSX_EC_POINT_FORMATS           = 0x000b,
+    TLSX_MAX_FRAGMENT_LENGTH        = TLSXT_MAX_FRAGMENT_LENGTH,
+    TLSX_TRUSTED_CA_KEYS            = TLSXT_TRUSTED_CA_KEYS,
+    TLSX_TRUNCATED_HMAC             = TLSXT_TRUNCATED_HMAC,
+    TLSX_STATUS_REQUEST             = TLSXT_STATUS_REQUEST,
+    TLSX_SUPPORTED_GROUPS           = TLSXT_SUPPORTED_GROUPS,
+    TLSX_EC_POINT_FORMATS           = TLSXT_EC_POINT_FORMATS,
 #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-    TLSX_SIGNATURE_ALGORITHMS       = 0x000d, /* HELLO_EXT_SIG_ALGO */
+    TLSX_SIGNATURE_ALGORITHMS       = TLSXT_SIGNATURE_ALGORITHMS,
 #endif
 #ifdef WOLFSSL_SRTP
-    TLSX_USE_SRTP                   = 0x000e, /* 14 */
+    TLSX_USE_SRTP                   = TLSXT_USE_SRTP,
 #endif
-    TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
-    TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
+    TLSX_APPLICATION_LAYER_PROTOCOL = TLSXT_APPLICATION_LAYER_PROTOCOL,
+    TLSX_STATUS_REQUEST_V2          = TLSXT_STATUS_REQUEST_V2,
 #ifdef HAVE_RPK
-    TLSX_CLIENT_CERTIFICATE_TYPE    = 0x0013, /* RFC8446 */
-    TLSX_SERVER_CERTIFICATE_TYPE    = 0x0014, /* RFC8446 */
+    TLSX_CLIENT_CERTIFICATE_TYPE    = TLSXT_CLIENT_CERTIFICATE,
+    TLSX_SERVER_CERTIFICATE_TYPE    = TLSXT_SERVER_CERTIFICATE,
 #endif
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
-    TLSX_ENCRYPT_THEN_MAC           = 0x0016, /* RFC 7366 */
+    TLSX_ENCRYPT_THEN_MAC           = TLSXT_ENCRYPT_THEN_MAC,
 #endif
-    TLSX_EXTENDED_MASTER_SECRET     = 0x0017, /* HELLO_EXT_EXTMS */
-    TLSX_SESSION_TICKET             = 0x0023,
+    TLSX_EXTENDED_MASTER_SECRET     = TLSXT_EXTENDED_MASTER_SECRET,
+    TLSX_SESSION_TICKET             = TLSXT_SESSION_TICKET,
 #ifdef WOLFSSL_TLS13
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    TLSX_PRE_SHARED_KEY             = 0x0029,
+    TLSX_PRE_SHARED_KEY             = TLSXT_PRE_SHARED_KEY,
     #endif
     #ifdef WOLFSSL_EARLY_DATA
-    TLSX_EARLY_DATA                 = 0x002a,
+    TLSX_EARLY_DATA                 = TLSXT_EARLY_DATA,
     #endif
-    TLSX_SUPPORTED_VERSIONS         = 0x002b,
+    TLSX_SUPPORTED_VERSIONS         = TLSXT_SUPPORTED_VERSIONS,
     #ifdef WOLFSSL_SEND_HRR_COOKIE
-    TLSX_COOKIE                     = 0x002c,
+    TLSX_COOKIE                     = TLSXT_COOKIE,
     #endif
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    TLSX_PSK_KEY_EXCHANGE_MODES     = 0x002d,
+    TLSX_PSK_KEY_EXCHANGE_MODES     = TLSXT_PSK_KEY_EXCHANGE_MODES,
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
-    TLSX_CERTIFICATE_AUTHORITIES    = 0x002f,
+    TLSX_CERTIFICATE_AUTHORITIES    = TLSXT_CERTIFICATE_AUTHORITIES,
     #endif
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    TLSX_POST_HANDSHAKE_AUTH        = 0x0031,
+    TLSX_POST_HANDSHAKE_AUTH        = TLSXT_POST_HANDSHAKE_AUTH,
     #endif
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
-    TLSX_SIGNATURE_ALGORITHMS_CERT  = 0x0032,
+    TLSX_SIGNATURE_ALGORITHMS_CERT  = TLSXT_SIGNATURE_ALGORITHMS_CERT,
     #endif
-    TLSX_KEY_SHARE                  = 0x0033,
+    TLSX_KEY_SHARE                  = TLSXT_KEY_SHARE,
     #if defined(WOLFSSL_DTLS_CID)
-    TLSX_CONNECTION_ID              = 0x0036,
+    TLSX_CONNECTION_ID              = TLSXT_CONNECTION_ID,
     #endif /* defined(WOLFSSL_DTLS_CID) */
     #ifdef WOLFSSL_QUIC
-    TLSX_KEY_QUIC_TP_PARAMS         = 0x0039, /* RFC 9001, ch. 8.2 */
+    TLSX_KEY_QUIC_TP_PARAMS         = TLSXT_KEY_QUIC_TP_PARAMS,
     #endif
-    #ifdef WOLFSSL_DUAL_ALG_CERTS
-    TLSX_CKS                        = 0xff92, /* X9.146; ff indicates personal
-                                               * use and 92 is hex for 146. */
+    #ifdef HAVE_ECH
+    TLSX_ECH                        = TLSXT_ECH,
     #endif
 #endif
-    TLSX_RENEGOTIATION_INFO         = 0xff01,
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
+    TLSX_CKS                        = TLSXT_CKS,
+#endif
+    TLSX_RENEGOTIATION_INFO         = TLSXT_RENEGOTIATION_INFO,
 #ifdef WOLFSSL_QUIC
-    TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = 0xffa5, /* from draft-ietf-quic-tls-27 */
-#endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    TLSX_ECH                        = 0xfe0d, /* from draft-ietf-tls-esni-13 */
+    TLSX_KEY_QUIC_TP_PARAMS_DRAFT   = TLSXT_KEY_QUIC_TP_PARAMS_DRAFT,
 #endif
 } TLSX_Type;
 
