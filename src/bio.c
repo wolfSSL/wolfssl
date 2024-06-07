@@ -364,7 +364,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                         bio->peer_addr = wolfSSL_BIO_ADDR_new();
                     else
                         wolfSSL_BIO_ADDR_clear(bio->peer_addr);
-                    ret = wolfIO_RecvFrom(bio->num, bio->peer_addr, (char*)buf, len, 0);
+                    if (bio->peer_addr == NULL)
+                        ret = wolfIO_RecvFrom(bio->num, bio->peer_addr, (char*)buf, len, 0);
+                    else
+                        ret = MEMORY_E;
                 }
             #else
                 ret = NOT_COMPILED_IN;
