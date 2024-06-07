@@ -1,0 +1,79 @@
+name: libvncserver Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          install: true
+          # Don't run tests as this config is tested in many other places
+          check: false
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-libvncserver
+          path: build-dir
+          retention-days: 5
+
+  build_libvncserver:
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [ 0.9.13 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-libvncserver
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout libvncserver
+        uses: actions/checkout@v4
+        with:
+          repository: LibVNC/libvncserver
+          path: libvncserver
+          ref: LibVNCServer-${{ matrix.ref }}
+
+      - name: Build libvncserver
+        working-directory: libvncserver
+        run: |
+          patch -p1 < ../osp/libvncserver/${{ matrix.ref }}.patch
+          PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig \
+            cmake -B build -DWITH_GNUTLS=OFF -DWITH_OPENSSL=OFF -DWITH_GCRYPT=OFF -DWITH_WOLFSSL=ON .
+          make -j -C build VERBOSE=1
+          ldd build/libvncclient.so | grep wolfssl
+          ldd build/libvncserver.so | grep wolfssl
+
+      - name: Run libvncserver tests
+        working-directory: libvncserver
+        run: make -C build test
