@@ -53763,6 +53763,74 @@ static int test_MakeCertWithPathLen(void)
     return EXPECT_RESULT();
 }
 
+static int test_MakeCertWith0Ser(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_CERT_REQ) && !defined(NO_ASN_TIME) && \
+    defined(WOLFSSL_CERT_GEN) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_ASN_TEMPLATE)
+    Cert cert;
+    DecodedCert decodedCert;
+    byte der[FOURK_BUF];
+    int derSize = 0;
+    WC_RNG rng;
+    ecc_key key;
+    int ret;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&key, 0, sizeof(ecc_key));
+    XMEMSET(&cert, 0, sizeof(Cert));
+    XMEMSET(&decodedCert, 0, sizeof(DecodedCert));
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+    ExpectIntEQ(wc_ecc_init(&key), 0);
+    ExpectIntEQ(wc_ecc_make_key(&rng, 32, &key), 0);
+    ExpectIntEQ(wc_InitCert(&cert), 0);
+
+    (void)XSTRNCPY(cert.subject.country, "US", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.state, "state", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.org, "yourOrgNameHere", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.unit, "yourUnitNameHere", CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.commonName, "www.yourDomain.com",
+        CTC_NAME_SIZE);
+    (void)XSTRNCPY(cert.subject.email, "yourEmail@yourDomain.com",
+        CTC_NAME_SIZE);
+
+    cert.selfSigned = 1;
+    cert.isCA       = 1;
+    cert.sigType    = CTC_SHA256wECDSA;
+
+#ifdef WOLFSSL_CERT_EXT
+    cert.keyUsage |= KEYUSE_KEY_CERT_SIGN;
+#endif
+
+    /* set serial number to 0 */
+    cert.serialSz  = 1;
+    cert.serial[0] = 0;
+
+    ExpectIntGE(wc_MakeCert(&cert, der, FOURK_BUF, NULL, &key, &rng), 0);
+    ExpectIntGE(derSize = wc_SignCert(cert.bodySz, cert.sigType, der,
+        FOURK_BUF, NULL, &key, &rng), 0);
+
+    wc_InitDecodedCert(&decodedCert, der, (word32)derSize, NULL);
+
+#if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON)
+    ExpectIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL),
+        ASN_PARSE_E);
+#else
+    ExpectIntEQ(wc_ParseCert(&decodedCert, CERT_TYPE, NO_VERIFY, NULL), 0);
+#endif
+
+    wc_FreeDecodedCert(&decodedCert);
+    ret = wc_ecc_free(&key);
+    ExpectIntEQ(ret, 0);
+    ret = wc_FreeRng(&rng);
+    ExpectIntEQ(ret, 0);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_MakeCertWithCaFalse(void)
 {
     EXPECT_DECLS;
@@ -73183,6 +73251,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_ParseCert),
     TEST_DECL(test_wc_ParseCert_Error),
     TEST_DECL(test_MakeCertWithPathLen),
+    TEST_DECL(test_MakeCertWith0Ser),
     TEST_DECL(test_MakeCertWithCaFalse),
     TEST_DECL(test_wc_SetKeyUsage),
     TEST_DECL(test_wc_SetAuthKeyIdFromPublicKey_ex),

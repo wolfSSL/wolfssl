@@ -21875,6 +21875,19 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         /* Set fields extracted from data. */
         cert->version = version;
         cert->serialSz = (int)serialSz;
+
+    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_PYTHON)
+        /* RFC 5280 section 4.1.2.2 states that non-conforming CAs may issue
+         * a negative or zero serial number and should be handled gracefully.
+         * Since it is a non-conforming CA that issues a serial of 0 then we
+         * treat it as an error here. */
+        if (cert->serialSz == 1 && cert->serial[0] == 0) {
+            WOLFSSL_MSG("Error serial number of 0, use WOLFSSL_NO_ASN_STRICT "
+                "if wanted");
+            ret = ASN_PARSE_E;
+        }
+    #endif
+
         cert->signatureOID = dataASN[X509CERTASN_IDX_TBS_ALGOID_OID].data.oid.sum;
         cert->keyOID = dataASN[X509CERTASN_IDX_TBS_SPUBKEYINFO_ALGO_OID].data.oid.sum;
         cert->certBegin = dataASN[X509CERTASN_IDX_TBS_SEQ].offset;
