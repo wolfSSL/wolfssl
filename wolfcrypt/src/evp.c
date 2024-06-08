@@ -8481,7 +8481,7 @@ void wolfSSL_EVP_init(void)
         }
 
         if (ret < 0) {
-            if (ret == AES_GCM_AUTH_E) {
+            if (ret == WC_NO_ERR_TRACE(AES_GCM_AUTH_E)) {
                 WOLFSSL_MSG("wolfSSL_EVP_Cipher failure: bad AES-GCM tag.");
             }
             WOLFSSL_MSG("wolfSSL_EVP_Cipher failure");
@@ -8559,7 +8559,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
             if (key->pkcs8HeaderSz) {
                 ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, NULL, (word32)derSz,
                     RSAk, NULL, 0);
-                if (ret == LENGTH_ONLY_E)
+                if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E))
                     ret = 0;
             }
         #endif
@@ -8933,7 +8933,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
         ret = wc_DhParamsToDer(dhkey,NULL,&derSz);
     }
 
-    if (derSz == 0 || ret != LENGTH_ONLY_E) {
+    if (derSz == 0 || ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
        WOLFSSL_MSG("Failed to get size of DH Key");
        return WOLFSSL_FAILURE;
     }
@@ -9076,7 +9076,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 #ifdef HAVE_PKCS8
         if (key->pkcs8HeaderSz) {
             /* when key has pkcs8 header the pkey should too */
-            if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
+            if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
@@ -9221,7 +9221,7 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void)
 
 int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     WOLFSSL_ENTER("wolfSSL_EVP_MD_pkey_type");
 
@@ -9244,6 +9244,9 @@ int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
         else if (XSTRCMP(type, "SHA512") == 0) {
             ret = NID_sha512WithRSAEncryption;
         }
+    }
+    else {
+        ret = BAD_FUNC_ARG;
     }
 
     WOLFSSL_LEAVE("wolfSSL_EVP_MD_pkey_type", ret);
@@ -12448,7 +12451,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             (word32)(BASE64_DECODE_BLOCK_SIZE - ctx->remaining), (word32)inl);
 
         for ( i = 0; cpySz > 0 && inLen > 0; i++) {
-            if (Base64_SkipNewline(in, &inLen, &j) == ASN_INPUT_E) {
+            if (Base64_SkipNewline(in, &inLen, &j) == WC_NO_ERR_TRACE(ASN_INPUT_E)) {
                 return -1;  /* detected an illegal char in input */
             }
             c = in[j++];
@@ -12488,7 +12491,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
      */
     while (inLen > 3) {
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12502,7 +12505,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         }
         inLen--;
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12513,7 +12516,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         e[1] = in[j++];
         inLen--;
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12524,7 +12527,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         e[2] = in[j++];
         inLen--;
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12631,8 +12634,10 @@ int  wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
         inLen = (word32)ctx->remaining;
         if ((res = Base64_SkipNewline(ctx->data, &inLen, &j)) != 0) {
             *outl = 0;
-            if (res == BUFFER_E) /* means no valid data to decode in buffer */
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
+                /* means no valid data to decode in buffer */
                 return  1; /* returns as success with no output */
+            }
             else
                 return -1;
         }

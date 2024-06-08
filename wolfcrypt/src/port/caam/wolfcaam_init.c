@@ -79,7 +79,7 @@ int wc_caamSetResource(IODevice ioDev)
 /* used to route crypto operations through crypto callback */
 static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
     (void)ctx;
     (void)devId;

@@ -169,7 +169,7 @@ int wc_SignatureVerifyHash(
             if (ret >= 0)
                 ret = wc_ecc_verify_hash(sig, sig_len, hash_data, hash_len,
                     &is_valid_sig, (ecc_key*)key);
-            } while (ret == WC_PENDING_E);
+            } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
             if (ret != 0 || is_valid_sig != 1) {
                 ret = SIG_VERIFY_E;
             }
@@ -226,7 +226,7 @@ int wc_SignatureVerifyHash(
                 #endif
                 if (ret >= 0)
                         ret = wc_RsaSSL_VerifyInline(plain_data, sig_len, &plain_ptr, (RsaKey*)key);
-                } while (ret == WC_PENDING_E);
+                } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
                 if (ret >= 0 && plain_ptr) {
                     if ((word32)ret == hash_len &&
                             XMEMCMP(plain_ptr, hash_data, hash_len) == 0) {
@@ -395,7 +395,7 @@ int wc_SignatureGenerateHash_ex(
             if (ret >= 0)
                 ret = wc_ecc_sign_hash(hash_data, hash_len, sig, sig_len,
                     rng, (ecc_key*)key);
-            } while (ret == WC_PENDING_E);
+            } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
 #else
             ret = SIG_TYPE_E;
 #endif
@@ -426,7 +426,7 @@ int wc_SignatureGenerateHash_ex(
                 if (ret >= 0)
                     ret = wc_RsaSSL_Sign(hash_data, hash_len, sig, *sig_len,
                         (RsaKey*)key, rng);
-            } while (ret == WC_PENDING_E);
+            } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     #endif /* WOLFSSL_CRYPTOCELL */
             if (ret >= 0) {
                 *sig_len = (word32)ret;

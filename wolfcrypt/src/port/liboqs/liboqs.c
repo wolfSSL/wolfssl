@@ -119,14 +119,14 @@ int wolfSSL_liboqsRngMutexLock(WC_RNG* rng)
 
 int wolfSSL_liboqsRngMutexUnlock(void)
 {
-    int ret = BAD_MUTEX_E;
-
     liboqsCurrentRNG = &liboqsDefaultRNG;
 
     if (liboqs_init) {
-        ret = wc_UnLockMutex(&liboqsRNGMutex);
+        return wc_UnLockMutex(&liboqsRNGMutex);
     }
-    return ret;
+    else {
+        return BAD_MUTEX_E;
+    }
 }
 
 #endif /* HAVE_LIBOQS */

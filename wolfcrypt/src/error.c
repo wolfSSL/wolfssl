@@ -34,6 +34,11 @@
 #endif
 
 #ifndef NO_ERROR_STRINGS
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
+#include <wolfssl/debug-untrace-error-codes.h>
+#endif
+
 WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
@@ -630,6 +635,10 @@ const char* wc_GetErrorString(int error)
 
     }
 }
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+#include <wolfssl/debug-trace-error-codes.h>
+#endif
 
 void wc_ErrorString(int error, char* buffer)
 {

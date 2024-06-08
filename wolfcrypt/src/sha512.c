@@ -1126,7 +1126,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     #endif
     {
         int ret = wc_CryptoCb_Sha512Hash(sha512, data, len, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -1358,7 +1358,7 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
     {
         byte localHash[WC_SHA512_DIGEST_SIZE];
         ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, localHash);
-        if (ret != CRYPTOCB_UNAVAILABLE) {
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             XMEMCPY(hash, localHash, digestSz);
             return ret;
         }
@@ -1631,7 +1631,7 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
     #endif
     {
         int ret = wc_CryptoCb_Sha384Hash(sha384, data, len, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -1683,7 +1683,7 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
     #endif
     {
         ret = wc_CryptoCb_Sha384Hash(sha384, NULL, 0, hash);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }

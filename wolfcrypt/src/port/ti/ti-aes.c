@@ -465,7 +465,7 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, &M, &L);
-    if (ret == BAD_FUNC_ARG) {
+    if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         return ret;
     }
 
@@ -565,7 +565,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, &M, &L);
-    if (ret == BAD_FUNC_ARG) {
+    if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         return ret;
     }
 

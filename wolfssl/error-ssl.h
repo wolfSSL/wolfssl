@@ -30,6 +30,10 @@
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
+    #include <wolfssl/debug-untrace-error-codes.h>
+#endif
+
 enum wolfSSL_ErrorCodes {
     INPUT_CASE_ERROR             = -301,   /* process input state error */
     PREFIX_ERROR                 = -302,   /* bad index to key rounds  */
@@ -211,6 +215,9 @@ enum wolfSSL_ErrorCodes {
 WOLFSSL_LOCAL
 void SetErrorString(int err, char* buff);
 
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+    #include <wolfssl/debug-trace-error-codes.h>
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

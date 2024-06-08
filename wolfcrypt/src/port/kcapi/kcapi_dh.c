@@ -52,7 +52,7 @@ static int KcapiDh_SetParams(DhKey* key)
     word32 len;
 
     ret = wc_DhParamsToDer(key, NULL, &len);
-    if (ret == LENGTH_ONLY_E) {
+    if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
         ret = 0;
         pkcs3 = (unsigned char*)XMALLOC(len, key->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);

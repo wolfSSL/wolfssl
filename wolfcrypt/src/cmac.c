@@ -134,7 +134,7 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
 
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, NULL, 0, NULL, NULL,
                 type, unused);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -202,7 +202,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, in, inSz,
                 NULL, NULL, 0, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -270,7 +270,7 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
     #endif
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, 0, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -340,7 +340,7 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
 
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, in, inSz, out, outSz,
                 WC_CMAC_AES, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
 
          /* Clear CRYPTOCB_UNAVAILABLE return code */

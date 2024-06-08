@@ -208,25 +208,26 @@ void wolfSSL_X509_STORE_CTX_trusted_stack(WOLFSSL_X509_STORE_CTX *ctx, WOLF_STAC
 int GetX509Error(int e)
 {
     switch (e) {
-        case ASN_BEFORE_DATE_E:
+        case WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E):
             return WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID;
-        case ASN_AFTER_DATE_E:
+        case WC_NO_ERR_TRACE(ASN_AFTER_DATE_E):
             return WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
-        case ASN_NO_SIGNER_E: /* get issuer error if no CA found locally */
+        case WC_NO_ERR_TRACE(ASN_NO_SIGNER_E):
+            /* get issuer error if no CA found locally */
             return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
-        case ASN_SELF_SIGNED_E:
+        case WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E):
             return WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
-        case ASN_PATHLEN_INV_E:
-        case ASN_PATHLEN_SIZE_E:
+        case WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E):
+        case WC_NO_ERR_TRACE(ASN_PATHLEN_SIZE_E):
             return WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED;
-        case ASN_SIG_OID_E:
-        case ASN_SIG_CONFIRM_E:
-        case ASN_SIG_HASH_E:
-        case ASN_SIG_KEY_E:
+        case WC_NO_ERR_TRACE(ASN_SIG_OID_E):
+        case WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E):
+        case WC_NO_ERR_TRACE(ASN_SIG_HASH_E):
+        case WC_NO_ERR_TRACE(ASN_SIG_KEY_E):
             return WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE;
-        case CRL_CERT_REVOKED:
+        case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
             return WOLFSSL_X509_V_ERR_CERT_REVOKED;
-        case CRL_MISSING:
+        case WC_NO_ERR_TRACE(CRL_MISSING):
             return X509_V_ERR_UNABLE_TO_GET_CRL;
         case 0:
         case 1:
@@ -270,7 +271,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         SetupStoreCtxError(ctx, ret);
 
     #ifndef NO_ASN_TIME
-        if (ret != ASN_BEFORE_DATE_E && ret != ASN_AFTER_DATE_E) {
+        if (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
+            ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
             /* wolfSSL_CertManagerVerifyBuffer only returns ASN_AFTER_DATE_E or
              ASN_BEFORE_DATE_E if there are no additional errors found in the
              cert. Therefore, check if the cert is expired or not yet valid

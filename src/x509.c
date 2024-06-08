@@ -3362,7 +3362,7 @@ static unsigned long X509NameHash(WOLFSSL_X509_NAME* name,
                 ((unsigned long)digest[1] <<  8) |
                 ((unsigned long)digest[0]));
     }
-    else if (rc == HASH_TYPE_E) {
+    else if (rc == WC_NO_ERR_TRACE(HASH_TYPE_E)) {
         WOLFSSL_ERROR_MSG("Hash function not compiled in");
     }
     else {

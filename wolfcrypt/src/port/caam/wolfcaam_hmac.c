@@ -59,7 +59,7 @@ int wc_CAAM_Hmac(Hmac* hmac, int macType, const byte* msg, int msgSz,
                     hmac->keyLen);
         if (ret != 0) {
             WOLFSSL_MSG("Error with set key");
-            if (ret == HASH_TYPE_E) {
+            if (ret == WC_NO_ERR_TRACE(HASH_TYPE_E)) {
                 ret = CRYPTOCB_UNAVAILABLE; /* that hash type is not supported*/
             }
         }

@@ -4681,7 +4681,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
     #endif
     {
         err = wc_CryptoCb_Ecdh(private_key, public_key, out, outlen);
-        if (err != CRYPTOCB_UNAVAILABLE)
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return err;
         /* fall-through when unavailable */
     }
@@ -5069,7 +5069,7 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
         err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen);
     }
 
-    if (err == WC_PENDING_E) {
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         private_key->state++;
     }
 
@@ -5162,7 +5162,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     RESTORE_VECTOR_REGISTERS();
 
     /* if async pending then return and skip done cleanup below */
-    if (err == WC_PENDING_E) {
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         return err;
     }
 
@@ -5679,7 +5679,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     #endif
     {
         err = wc_CryptoCb_MakeEccKey(rng, keysize, key, curve_id);
-        if (err != CRYPTOCB_UNAVAILABLE)
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return err;
         /* fall-through when unavailable */
     }
@@ -6691,7 +6691,7 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
     }
 
     /* if async pending then return and skip done cleanup below */
-    if (err == WC_PENDING_E) {
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         key->state++;
         return err;
     }
@@ -6733,7 +6733,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     #endif
     {
         err = wc_CryptoCb_EccSign(in, inlen, out, outlen, rng, key);
-        if (err != CRYPTOCB_UNAVAILABLE)
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return err;
         /* fall-through when unavailable */
     }
@@ -6923,7 +6923,7 @@ static int ecc_sign_hash_sw(ecc_key* key, ecc_key* pubkey, WC_RNG* rng,
 
             err = wc_ecc_gen_k(rng, key->dp->size, b, curve->order);
         }
-        while (err == MP_ZERO_E);
+        while (err == WC_NO_ERR_TRACE(MP_ZERO_E));
         loop_check = 0;
     }
 #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -7284,7 +7284,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
 #if defined(WOLFSSL_HAVE_SP_ECC)
    err = ecc_sign_hash_sp(in, inlen, rng, key, r, s);
-   if (err != WC_KEY_SIZE_E) {
+   if (err != WC_NO_ERR_TRACE(WC_KEY_SIZE_E)) {
        return err;
    }
 #else
@@ -8472,7 +8472,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     #endif
     {
         err = wc_CryptoCb_EccVerify(sig, siglen, hash, hashlen, res, key);
-        if (err != CRYPTOCB_UNAVAILABLE)
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return err;
         /* fall-through when unavailable */
     }
@@ -8580,7 +8580,7 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* if async pending then return and skip done cleanup below */
-    if (err == WC_PENDING_E) {
+    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
         if (!isPrivateKeyOnly) /* do not advance state if doing make pub key */
             key->state++;
         return err;
@@ -9222,7 +9222,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
   }
 
   err = ecc_verify_hash_sp(r, s, hash, hashlen, res, key);
-  if (err != NOT_COMPILED_IN) {
+  if (err != WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
       if (curveLoaded) {
            wc_ecc_curve_free(curve);
            FREE_CURVE_SPECS();
@@ -11608,7 +11608,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
     if (err == MP_OKAY) {
         err = wc_ecc_check_key(key);
-        if (err == IS_POINT_E && (mp_iszero(key->pubkey.x) ||
+        if (err == WC_NO_ERR_TRACE(IS_POINT_E) && (mp_iszero(key->pubkey.x) ||
                                   mp_iszero(key->pubkey.y))) {
             err = BAD_FUNC_ARG;
         }
@@ -14184,7 +14184,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                                                                      &sharedSz);
     #endif
     }
-    while (ret == WC_PENDING_E);
+    while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
 
     if (ret == 0) {
     #ifdef WOLFSSL_ECIES_ISO18033
@@ -14603,7 +14603,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret +
                                                           pubKeySz, &sharedSz);
         #endif
-        } while (ret == WC_PENDING_E);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     }
     if (ret == 0) {
     #ifdef WOLFSSL_ECIES_ISO18033
@@ -15236,57 +15236,57 @@ static int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 
 #ifdef WOLFSSL_SMALL_STACK
   if (t1) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(t1);
     XFREE(t1, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (C) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(C);
     XFREE(C, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (Q) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(Q);
     XFREE(Q, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (S) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(S);
     XFREE(S, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (Z) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(Z);
     XFREE(Z, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (M) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(M);
     XFREE(M, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (T) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(T);
     XFREE(T, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (R) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(R);
     XFREE(R, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (N) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(N);
     XFREE(N, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
   if (two) {
-    if (res != MP_INIT_E)
+    if (res != WC_NO_ERR_TRACE(MP_INIT_E))
       mp_clear(two);
     XFREE(two, NULL, DYNAMIC_TYPE_ECC_BUFFER);
   }
 #else
-  if (res != MP_INIT_E) {
+  if (res != WC_NO_ERR_TRACE(MP_INIT_E)) {
     mp_clear(t1);
     mp_clear(C);
     mp_clear(Q);

@@ -974,7 +974,8 @@ static int wolfssl_a2i_asn1_integer_clear_to_eol(char* str, int len, int* cont)
     nLen = 1;
     for (i = 0; i < len; i++) {
         /* Check if character is a hexadecimal character. */
-        if (Base16_Decode((const byte*)str + i, 1, &num, &nLen) == ASN_INPUT_E)
+        if (Base16_Decode((const byte*)str + i, 1, &num, &nLen) ==
+            WC_NO_ERR_TRACE(ASN_INPUT_E))
         {
             /* Found end of hexadecimal characters, return count. */
             len = i;

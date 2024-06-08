@@ -1499,7 +1499,8 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
 
     /* Base64 encode signedData bundle */
     if (ret > 0) {
-        if (Base64_Encode(p7out, (word32)len, NULL, &sigBase64Len) != LENGTH_ONLY_E) {
+        if (Base64_Encode(p7out, (word32)len, NULL, &sigBase64Len) !=
+            WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             ret = 0;
         }
         else {

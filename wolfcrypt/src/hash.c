@@ -145,7 +145,7 @@ enum wc_HashType wc_HashTypeConvert(int hashType)
 
 int wc_HashGetOID(enum wc_HashType hash_type)
 {
-    int oid = HASH_TYPE_E; /* Default to hash type error */
+    int oid = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
     switch(hash_type)
     {
         case WC_HASH_TYPE_MD2:
@@ -317,7 +317,7 @@ enum wc_HashType wc_OidGetHash(int oid)
 /* Get Hash digest size */
 int wc_HashGetDigestSize(enum wc_HashType hash_type)
 {
-    int dig_size = HASH_TYPE_E; /* Default to hash type error */
+    int dig_size = WC_NO_ERR_TRACE(HASH_TYPE_E);
     switch(hash_type)
     {
         case WC_HASH_TYPE_MD2:
@@ -436,7 +436,7 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
 /* Get Hash block size */
 int wc_HashGetBlockSize(enum wc_HashType hash_type)
 {
-    int block_size = HASH_TYPE_E; /* Default to hash type error */
+    int block_size = WC_NO_ERR_TRACE(HASH_TYPE_E);
     switch (hash_type)
     {
         case WC_HASH_TYPE_MD2:
@@ -555,7 +555,7 @@ int wc_HashGetBlockSize(enum wc_HashType hash_type)
 int wc_Hash_ex(enum wc_HashType hash_type, const byte* data,
     word32 data_len, byte* hash, word32 hash_len, void* heap, int devId)
 {
-    int ret = HASH_TYPE_E; /* Default to hash type error */
+    int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
     int dig_size;
 
     /* Validate hash buffer size */
@@ -689,7 +689,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
 int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
     int devId)
 {
-    int ret = HASH_TYPE_E; /* Default to hash type error */
+    int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
 
     if (hash == NULL)
         return BAD_FUNC_ARG;
@@ -801,7 +801,7 @@ int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type)
 int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
                   word32 dataSz)
 {
-    int ret = HASH_TYPE_E; /* Default to hash type error */
+    int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
 
     if (hash == NULL || (data == NULL && dataSz > 0))
         return BAD_FUNC_ARG;
@@ -904,7 +904,7 @@ int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type, const byte* data,
 
 int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
 {
-    int ret = HASH_TYPE_E; /* Default to hash type error */
+    int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
 
     if (hash == NULL || out == NULL)
         return BAD_FUNC_ARG;
@@ -1007,7 +1007,7 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
 
 int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
 {
-    int ret = HASH_TYPE_E; /* Default to hash type error */
+    int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
 
     if (hash == NULL)
         return BAD_FUNC_ARG;
@@ -1124,7 +1124,7 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
 #ifdef WOLFSSL_HASH_FLAGS
 int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
 {
-    int ret = HASH_TYPE_E; /* Default to hash type error */
+    int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
 
     if (hash == NULL)
         return BAD_FUNC_ARG;
@@ -1203,7 +1203,7 @@ int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type, word32 flags)
 }
 int wc_HashGetFlags(wc_HashAlg* hash, enum wc_HashType type, word32* flags)
 {
-    int ret = HASH_TYPE_E; /* Default to hash type error */
+    int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
 
     if (hash == NULL)
         return BAD_FUNC_ARG;

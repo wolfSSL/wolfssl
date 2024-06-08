@@ -31,3 +31,9 @@ noinst_HEADERS+=         wolfssl/options.h
 else
 nobase_include_HEADERS+= wolfssl/options.h
 endif
+
+wolfssl/debug-trace-error-codes.h wolfssl/debug-untrace-error-codes.h: wolfssl/wolfcrypt/error-crypt.h wolfssl/error-ssl.h
+	@support/gen-debug-trace-error-codes.sh
+
+DISTCLEANFILES += wolfssl/debug-trace-error-codes.h \
+                  wolfssl/debug-untrace-error-codes.h

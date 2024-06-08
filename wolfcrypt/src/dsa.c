@@ -930,33 +930,39 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (k) {
-        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
+        if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+            (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_forcezero(k);
         XFREE(k, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (kInv) {
-        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
+        if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+            (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_forcezero(kInv);
         XFREE(kInv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (r) {
-        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
+        if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+            (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_clear(r);
         XFREE(r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (s) {
-        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
+        if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+            (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_clear(s);
         XFREE(s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (H) {
-        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
+        if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+            (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_clear(H);
         XFREE(H, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #ifndef WOLFSSL_MP_INVMOD_CONSTANT_TIME
     if (b) {
-        if ((ret != MP_INIT_E) && (ret != MEMORY_E))
+        if ((ret != WC_NO_ERR_TRACE(MP_INIT_E)) &&
+            (ret != WC_NO_ERR_TRACE(MEMORY_E)))
             mp_forcezero(b);
         XFREE(b, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
@@ -966,7 +972,7 @@ int wc_DsaSign_ex(const byte* digest, word32 digestSz, byte* out, DsaKey* key,
         XFREE(buffer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else /* !WOLFSSL_SMALL_STACK */
-    if (ret != MP_INIT_E) {
+    if (ret != WC_NO_ERR_TRACE(MP_INIT_E)) {
         ForceZero(buffer, halfSz);
         mp_forcezero(kInv);
         mp_forcezero(k);
@@ -1106,37 +1112,37 @@ int wc_DsaVerify_ex(const byte* digest, word32 digestSz, const byte* sig,
 
 #ifdef WOLFSSL_SMALL_STACK
     if (s) {
-        if (ret != MP_INIT_E)
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(s);
         XFREE(s, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (r) {
-        if (ret != MP_INIT_E)
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(r);
         XFREE(r, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (u1) {
-        if (ret != MP_INIT_E)
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(u1);
         XFREE(u1, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (u2) {
-        if (ret != MP_INIT_E)
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(u2);
         XFREE(u2, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (w) {
-        if (ret != MP_INIT_E)
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(w);
         XFREE(w, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (v) {
-        if (ret != MP_INIT_E)
+        if (ret != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(v);
         XFREE(v, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #else
-    if (ret != MP_INIT_E) {
+    if (ret != WC_NO_ERR_TRACE(MP_INIT_E)) {
         mp_clear(s);
         mp_clear(r);
         mp_clear(u1);

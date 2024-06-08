@@ -1602,7 +1602,7 @@
     #ifdef WOLF_CRYPTO_CB
         if (des->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_Des3Encrypt(des, out, in, sz);
-            if (ret != CRYPTOCB_UNAVAILABLE)
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
         }
@@ -1653,7 +1653,7 @@
     #ifdef WOLF_CRYPTO_CB
         if (des->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_Des3Decrypt(des, out, in, sz);
-            if (ret != CRYPTOCB_UNAVAILABLE)
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
         }

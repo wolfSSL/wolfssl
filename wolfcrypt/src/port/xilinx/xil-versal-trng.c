@@ -134,7 +134,7 @@ int wc_VersalTrngInit(byte* nonce, word32 nonceSz)
             .PersStrPresent = XTRNGPSV_FALSE
     };
 #endif
-    int ret = WC_HW_E;
+    int ret = WC_NO_ERR_TRACE(WC_HW_E);
     XTrngpsv_Config *cfg;
     sword32 xret = 0;
     if (trng.State == XTRNGPSV_HEALTHY) {
@@ -142,22 +142,29 @@ int wc_VersalTrngInit(byte* nonce, word32 nonceSz)
     }
     cfg = XTrngpsv_LookupConfig(WOLFSSL_PSV_TRNG_DEV_ID);
     if (!cfg) {
+        ret = WC_HW_E;
         WOLFSSL_MSG("Could not lookup TRNG config");
         goto out;
     }
     xret = XTrngpsv_CfgInitialize(&trng, cfg, cfg->BaseAddress);
-    if (xret)
+    if (xret) {
+        ret = WC_HW_E;
         goto out;
+    }
     xret = versal_trng_selftest();
-    if (xret)
+    if (xret) {
+        ret = WC_HW_E;
         goto out;
+    }
 #if !defined(HAVE_HASHDRBG)
     if (nonce)
         usercfg_add_nonce(&user_cfg, nonce, nonceSz);
 #endif
     xret = XTrngpsv_Instantiate(&trng, &user_cfg);
-    if (xret)
+    if (xret) {
+        ret = WC_HW_E;
         goto out;
+    }
 
     ret = 0;
 

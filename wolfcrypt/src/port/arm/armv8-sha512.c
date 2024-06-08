@@ -628,7 +628,7 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash,
 #ifdef WOLF_CRYPTO_CB
     if (sha512->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Sha512Hash(sha512, NULL, 0, hash);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }

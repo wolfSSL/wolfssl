@@ -260,9 +260,9 @@ static CryptoCb* wc_CryptoCb_FindDeviceByIndex(int startIdx)
 
 static WC_INLINE int wc_CryptoCb_TranslateErrorCode(int ret)
 {
-    if (ret == NOT_COMPILED_IN) {
+    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
         /* backwards compatibility for older NOT_COMPILED_IN syntax */
-        ret = CRYPTOCB_UNAVAILABLE;
+        ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     }
     return ret;
 }
@@ -344,8 +344,8 @@ int wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx)
             /* Success.  Update dev->ctx */
             dev->ctx = info.cmd.ctx;
         }
-        else if ((rc == CRYPTOCB_UNAVAILABLE) ||
-                 (rc == NOT_COMPILED_IN)) {
+        else if ((rc == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) ||
+                 (rc == WC_NO_ERR_TRACE(NOT_COMPILED_IN))) {
             /* Not implemented.  Return success*/
             rc = 0;
         }
@@ -391,7 +391,7 @@ void wc_CryptoCb_UnRegisterDevice(int devId)
 int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -421,7 +421,7 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
 #ifdef WOLFSSL_KEY_GEN
 int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -449,7 +449,7 @@ int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
     word32 pubKeySz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -474,7 +474,7 @@ int wc_CryptoCb_RsaCheckPrivKey(RsaKey* key, const byte* pubKey,
 
 int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -500,7 +500,7 @@ int wc_CryptoCb_RsaGetSize(const RsaKey* key, int* keySize)
 #ifdef HAVE_ECC
 int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -527,7 +527,7 @@ int wc_CryptoCb_MakeEccKey(WC_RNG* rng, int keySize, ecc_key* key, int curveId)
 int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
     byte* out, word32* outlen)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (private_key == NULL)
@@ -554,7 +554,7 @@ int wc_CryptoCb_Ecdh(ecc_key* private_key, ecc_key* public_key,
 int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
     word32 *outlen, WC_RNG* rng, ecc_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -583,7 +583,7 @@ int wc_CryptoCb_EccSign(const byte* in, word32 inlen, byte* out,
 int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
     const byte* hash, word32 hashlen, int* res, ecc_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -612,7 +612,7 @@ int wc_CryptoCb_EccVerify(const byte* sig, word32 siglen,
 int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
     word32 pubKeySz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -640,7 +640,7 @@ int wc_CryptoCb_EccCheckPrivKey(ecc_key* key, const byte* pubKey,
 int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
     curve25519_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -666,7 +666,7 @@ int wc_CryptoCb_Curve25519Gen(WC_RNG* rng, int keySize,
 int wc_CryptoCb_Curve25519(curve25519_key* private_key,
     curve25519_key* public_key, byte* out, word32* outlen, int endian)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (private_key == NULL)
@@ -696,7 +696,7 @@ int wc_CryptoCb_Curve25519(curve25519_key* private_key,
 int wc_CryptoCb_Ed25519Gen(WC_RNG* rng, int keySize,
     ed25519_key* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -723,7 +723,7 @@ int wc_CryptoCb_Ed25519Sign(const byte* in, word32 inLen, byte* out,
                             word32 *outLen, ed25519_key* key, byte type,
                             const byte* context, byte contextLen)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -755,7 +755,7 @@ int wc_CryptoCb_Ed25519Verify(const byte* sig, word32 sigLen,
     const byte* msg, word32 msgLen, int* res, ed25519_key* key, byte type,
     const byte* context, byte contextLen)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (key == NULL)
@@ -805,7 +805,7 @@ int wc_CryptoCb_PqcKemGetDevId(int type, void* key)
 
 int wc_CryptoCb_MakePqcKemKey(WC_RNG* rng, int type, int keySize, void* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
 
@@ -839,7 +839,7 @@ int wc_CryptoCb_PqcEncapsulate(byte* ciphertext, word32 ciphertextLen,
     byte* sharedSecret, word32 sharedSecretLen, WC_RNG* rng, int type,
     void* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
 
@@ -875,7 +875,7 @@ int wc_CryptoCb_PqcEncapsulate(byte* ciphertext, word32 ciphertextLen,
 int wc_CryptoCb_PqcDecapsulate(const byte* ciphertext, word32 ciphertextLen,
     byte* sharedSecret, word32 sharedSecretLen, int type, void* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
 
@@ -934,7 +934,7 @@ int wc_CryptoCb_PqcSigGetDevId(int type, void* key)
 int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
     void* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
 
@@ -967,7 +967,7 @@ int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
 int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
     WC_RNG* rng, int type, void* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
 
@@ -1003,7 +1003,7 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
 int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
     word32 msglen, int* res, int type, void* key)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
 
@@ -1039,7 +1039,7 @@ int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
 int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
     CryptoCb* dev;
 
@@ -1078,7 +1078,7 @@ int wc_CryptoCb_AesGcmEncrypt(Aes* aes, byte* out,
                                byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1119,7 +1119,7 @@ int wc_CryptoCb_AesGcmDecrypt(Aes* aes, byte* out,
                                const byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1162,7 +1162,7 @@ int wc_CryptoCb_AesCcmEncrypt(Aes* aes, byte* out,
                                byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1203,7 +1203,7 @@ int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
                                const byte* authTag, word32 authTagSz,
                                const byte* authIn, word32 authInSz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1243,7 +1243,7 @@ int wc_CryptoCb_AesCcmDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1275,7 +1275,7 @@ int wc_CryptoCb_AesCbcEncrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1308,7 +1308,7 @@ int wc_CryptoCb_AesCbcDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1341,7 +1341,7 @@ int wc_CryptoCb_AesCtrEncrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1373,7 +1373,7 @@ int wc_CryptoCb_AesEcbEncrypt(Aes* aes, byte* out,
 int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1408,7 +1408,7 @@ int wc_CryptoCb_AesEcbDecrypt(Aes* aes, byte* out,
 int wc_CryptoCb_Des3Encrypt(Des3* des3, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1440,7 +1440,7 @@ int wc_CryptoCb_Des3Encrypt(Des3* des3, byte* out,
 int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
                                const byte* in, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1474,7 +1474,7 @@ int wc_CryptoCb_Des3Decrypt(Des3* des3, byte* out,
 int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1507,7 +1507,7 @@ int wc_CryptoCb_ShaHash(wc_Sha* sha, const byte* in,
 int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1540,7 +1540,7 @@ int wc_CryptoCb_Sha256Hash(wc_Sha256* sha256, const byte* in,
 int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1576,7 +1576,7 @@ int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
     word32 inSz, byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1612,7 +1612,7 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
 int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
     byte* digest)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     if (hmac == NULL)
@@ -1640,7 +1640,7 @@ int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
 #ifndef WC_NO_RNG
 int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1668,7 +1668,7 @@ int wc_CryptoCb_RandomBlock(WC_RNG* rng, byte* out, word32 sz)
 
 int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */
@@ -1692,7 +1692,7 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
         const byte* in, word32 inSz, byte* out, word32* outSz, int type,
         void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
 
     /* locate registered callback */

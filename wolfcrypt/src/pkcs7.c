@@ -284,7 +284,7 @@ static int wc_PKCS7_AddDataToStream(PKCS7* pkcs7, byte* in, word32 inSz,
     if (rdSz >= inSz) {
         /* no more input to read, reset input index and request more data */
         pkcs7->stream->idx = 0;
-        return WC_PKCS7_WANT_READ_E;
+        return WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
     }
 
     /* try to store input data into stream buffer */
@@ -324,7 +324,7 @@ static int wc_PKCS7_AddDataToStream(PKCS7* pkcs7, byte* in, word32 inSz,
     /* if not enough data was read in then request more */
     if (pkcs7->stream->length < expected) {
         pkcs7->stream->idx = 0;
-        return WC_PKCS7_WANT_READ_E;
+        return WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E);
     }
 
     /* adjust pointer to read from stored buffer */
@@ -379,8 +379,8 @@ static int wc_PKCS7_SetMaxStream(PKCS7* pkcs7, byte* in, word32 defSz)
     #ifdef ASN_BER_TO_DER
         if (length == 0 && ret == 0) {
             idx = 0;
-            if ((ret = wc_BerToDer(pt, maxIdx, NULL,
-                            (word32*)&length)) != LENGTH_ONLY_E) {
+            if ((ret = wc_BerToDer(pt, maxIdx, NULL, (word32*)&length))
+                != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
                 return ret;
             }
         }
@@ -1787,7 +1787,8 @@ static int wc_PKCS7_ImportRSA(PKCS7* pkcs7, RsaKey* privKey)
         #endif
             }
         #ifdef WOLF_CRYPTO_CB
-            else if (ret == ASN_PARSE_E && pkcs7->devId != INVALID_DEVID) {
+            else if (ret == WC_NO_ERR_TRACE(ASN_PARSE_E) &&
+                     pkcs7->devId != INVALID_DEVID) {
                 /* if using crypto callbacks, try public key decode */
                 idx = 0;
                 ret = wc_RsaPublicKeyDecode(pkcs7->privateKey, &idx, privKey,
@@ -1839,7 +1840,7 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
                                      privKey, pkcs7->rng);
             }
     #ifdef WOLFSSL_ASYNC_CRYPT
-        } while (ret == WC_PENDING_E);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     #endif
     }
 
@@ -1876,7 +1877,8 @@ static int wc_PKCS7_ImportECC(PKCS7* pkcs7, ecc_key* privKey)
                 }
             }
         #ifdef WOLF_CRYPTO_CB
-            else if (ret == ASN_PARSE_E && pkcs7->devId != INVALID_DEVID) {
+            else if (ret == WC_NO_ERR_TRACE(ASN_PARSE_E) &&
+                     pkcs7->devId != INVALID_DEVID) {
                 /* if using crypto callbacks, try public key decode */
                 idx = 0;
                 ret = wc_EccPublicKeyDecode(pkcs7->privateKey, &idx, privKey,
@@ -1929,7 +1931,7 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
                                        &outSz, pkcs7->rng, privKey);
             }
     #ifdef WOLFSSL_ASYNC_CRYPT
-        } while (ret == WC_PENDING_E);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     #endif
         if (ret == 0)
             ret = (int)outSz;
@@ -2470,7 +2472,7 @@ static int wc_PKCS7_EncodeContentStreamHelper(PKCS7* pkcs7, int cipherType,
     Aes* aes, byte* encContentOut, byte* contentData, int contentDataSz,
     byte* out, word32* outIdx, ESD* esd)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     byte   encContentOutOct[MAX_OCTET_STR_SZ];
     word32 encContentOutOctSz = 0;
 
@@ -2500,7 +2502,8 @@ static int wc_PKCS7_EncodeContentStreamHelper(PKCS7* pkcs7, int cipherType,
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* async encrypt not available here, so block till done */
-        if (ret == WC_PENDING_E && cipherType != WC_CIPHER_NONE) {
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) &&
+            cipherType != WC_CIPHER_NONE) {
             ret = wc_AsyncWait(ret, &aes->asyncDev, WC_ASYNC_FLAG_NONE);
         }
     #endif
@@ -4048,7 +4051,7 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
                     key);
             }
     #ifdef WOLFSSL_ASYNC_CRYPT
-        } while (ret == WC_PENDING_E);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     #endif
         FreeDecodedCert(dCert);
         wc_FreeRsaKey(key);
@@ -4175,7 +4178,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
                 ret = wc_ecc_verify_hash(sig, (word32)sigSz, hash, hashSz, &res, key);
             }
     #ifdef WOLFSSL_ASYNC_CRYPT
-        } while (ret == WC_PENDING_E);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     #endif
 
         FreeDecodedCert(dCert);
@@ -5103,7 +5106,7 @@ static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
                 /* check if expected data is available in stream */
                 ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &msg, idx);
-                if (ret == WC_PKCS7_WANT_READ_E) {
+                if (ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
                     break;  /* ask user more input */
                 }
 
@@ -5130,7 +5133,7 @@ static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
                 /* check if expected data is available in stream */
                 ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &msg, idx);
-                if (ret == WC_PKCS7_WANT_READ_E) {
+                if (ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
                     break;  /* ask user more input */
                 }
 
@@ -5167,7 +5170,7 @@ static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
 
                 ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &msg, idx);
-                if (ret == WC_PKCS7_WANT_READ_E) {
+                if (ret == WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
                     break;
                 }
 
@@ -5374,7 +5377,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 word32 len = 0;
 
                 ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
-                if (ret != LENGTH_ONLY_E)
+                if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
                     return ret;
                 pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap,
                                                         DYNAMIC_TYPE_PKCS7);
@@ -6503,7 +6506,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
         #ifndef NO_PKCS7_STREAM
             /* make sure that terminating zero's follow */
-            if ((ret == PKCS7_SIGNEEDS_CHECK || ret >= 0) &&
+            if ((ret == WC_NO_ERR_TRACE(PKCS7_SIGNEEDS_CHECK) || ret >= 0) &&
                     pkcs7->stream->indefLen == 1) {
                 int i;
                 for (i = 0; i < 3 * ASN_INDEF_END_SZ; i++) {
@@ -6531,7 +6534,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             ret = BAD_FUNC_ARG;
     }
 
-    if (ret != 0 && ret != WC_PKCS7_WANT_READ_E) {
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
     #ifndef NO_PKCS7_STREAM
         wc_PKCS7_ResetStream(pkcs7);
     #endif
@@ -7909,7 +7912,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
                               encryptedKeySz, pubKey, &rng);
         }
 #ifdef WOLFSSL_ASYNC_CRYPT
-    } while (ret == WC_PENDING_E);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
 #endif
     wc_FreeRsaKey(pubKey);
     wc_FreeRng(&rng);
@@ -10271,7 +10274,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             #endif
                 }
             #ifdef WOLFSSL_ASYNC_CRYPT
-                } while (keySz == WC_PENDING_E);
+                } while (keySz == WC_NO_ERR_TRACE(WC_PENDING_E));
             #endif
                 #ifdef WC_RSA_BLINDING
                     wc_FreeRng(&rng);
@@ -11433,7 +11436,7 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
                 PRIVATE_KEY_UNLOCK();
                 ret = wc_ecc_export_x963(kari->senderKey, NULL, &tmpKeySz);
                 PRIVATE_KEY_LOCK();
-                if (ret != LENGTH_ONLY_E) {
+                if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
                     return ret;
                 }
 
@@ -11860,7 +11863,7 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
                 len = 0;
 
                 ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
-                if (ret != LENGTH_ONLY_E)
+                if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
                     return ret;
                 pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 if (pkcs7->der == NULL)
@@ -12445,7 +12448,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
     }
 
 #ifndef NO_PKCS7_STREAM
-    if (ret < 0 && ret != WC_PKCS7_WANT_READ_E) {
+    if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
         wc_PKCS7_ResetStream(pkcs7);
         wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_START);
         if (pkcs7->cachedEncryptedContent != NULL) {
@@ -13635,7 +13638,7 @@ authenv_atrbend:
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (ret != 0 && ret != WC_PKCS7_WANT_READ_E) {
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
         if (decryptedKey != NULL) {
             ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
         }
@@ -13643,7 +13646,7 @@ authenv_atrbend:
     }
 #endif
 #ifndef NO_PKCS7_STREAM
-    if (ret != 0 && ret != WC_PKCS7_WANT_READ_E) {
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
         wc_PKCS7_ResetStream(pkcs7);
     }
 #endif

@@ -144,7 +144,7 @@ static int xstat2err(int st)
 
 int CheckCertOCSP_ex(WOLFSSL_OCSP* ocsp, DecodedCert* cert, WOLFSSL* ssl)
 {
-    int ret = OCSP_LOOKUP_FAIL;
+    int ret = WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL);
 
 #ifdef WOLFSSL_SMALL_STACK
     OcspRequest* ocspRequest;
@@ -227,7 +227,7 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
                   OcspEntry* entry, CertStatus** status, buffer* responseBuffer,
                   void* heap)
 {
-    int ret = OCSP_INVALID_STATUS;
+    int ret = WC_NO_ERR_TRACE(OCSP_INVALID_STATUS);
 
     WOLFSSL_ENTER("GetOcspStatus");
 
@@ -410,10 +410,10 @@ end:
     if (ret == 0 && validated == 1) {
         WOLFSSL_MSG("New OcspResponse validated");
     }
-    else if (ret == OCSP_CERT_REVOKED) {
+    else if (ret == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED)) {
         WOLFSSL_MSG("OCSP revoked");
     }
-    else if (ret == OCSP_CERT_UNKNOWN) {
+    else if (ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN)) {
         WOLFSSL_MSG("OCSP unknown");
     }
     else {
@@ -466,7 +466,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
     ret = GetOcspStatus(ocsp, ocspRequest, entry, &status, responseBuffer,
                         heap);
-    if (ret != OCSP_INVALID_STATUS)
+    if (ret != WC_NO_ERR_TRACE(OCSP_INVALID_STATUS))
         return ret;
 
     if (responseBuffer) {
@@ -1025,7 +1025,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     resp->maxIdx = (word32)len;
 
     ret = OcspResponseDecode(resp, NULL, NULL, 1);
-    if (ret != 0 && ret != ASN_OCSP_CONFIRM_E) {
+    if (ret != 0 && ret != WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E)) {
         /* for just converting from a DER to an internal structure the CA may
          * not yet be known to this function for signature verification */
         wolfSSL_OCSP_RESPONSE_free(resp);

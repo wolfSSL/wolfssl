@@ -294,6 +294,22 @@ WOLFSSL_API void wc_ErrorString(int err, char* buff);
 WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
 #endif
 
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && !defined(BUILDING_WOLFSSL)
+    #undef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+#endif
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+    #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
+    #ifndef WC_ERR_TRACE
+        #define WC_ERR_TRACE(label)                           \
+            ( fprintf(stderr,                                 \
+                      "ERR TRACE: %s L %d " #label " (%d)\n", \
+                      __FILE__, __LINE__, label), label)
+    #endif
+    #include <wolfssl/debug-trace-error-codes.h>
+#else
+    #define WC_NO_ERR_TRACE(label) (label)
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
