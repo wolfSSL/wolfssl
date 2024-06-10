@@ -883,7 +883,7 @@ static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
  */
 static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
 {
-    int ret;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     wc_HashAlg hash;
     enum wc_HashType hashType = (enum wc_HashType)hmac->macType;
     int digestSz = wc_HashGetDigestSize(hashType);
@@ -9745,7 +9745,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
 
     if (extension && extension->resp == 1) {
         /* Outside of the async case this path should not be taken. */
-        int ret;
+        int ret = WC_NO_ERR_TRACE(INCOMPLETE_DATA);
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* in async case make sure key generation is finalized */
         KeyShareEntry* serverKSE = (KeyShareEntry*)extension->data;

@@ -327,7 +327,7 @@ static int sakke_load_base_point(SakkeKey* key)
 static int sakke_mulmod_base(SakkeKey* key, const mp_int* n, ecc_point* res,
         int map)
 {
-    int err;
+    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
 #ifdef WOLFSSL_SP_1024
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&
@@ -357,7 +357,7 @@ static int sakke_mulmod_base(SakkeKey* key, const mp_int* n, ecc_point* res,
 static int sakke_mulmod_base_add(SakkeKey* key, const mp_int* n,
         const ecc_point* a, ecc_point* res, int map)
 {
-    int err;
+    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
 #ifdef WOLFSSL_SP_1024
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&
@@ -448,7 +448,7 @@ static int sakke_mulmod_base_add(SakkeKey* key, const mp_int* n, ecc_point* a,
 static int sakke_mulmod_point(SakkeKey* key, const mp_int* n,
         const ecc_point* p, byte* table, ecc_point* res, int map)
 {
-    int err;
+    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
 #ifdef WOLFSSL_SP_1024
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&
@@ -1363,7 +1363,7 @@ int wc_GenerateSakkeRskTable(const SakkeKey* key, const ecc_point* rsk,
 static int sakke_pairing(const SakkeKey* key, const ecc_point* p,
     const ecc_point* q, mp_int* r, const byte* table, word32 len)
 {
-    int err;
+    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
 #ifdef WOLFSSL_SP_1024
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&
@@ -2539,7 +2539,7 @@ int wc_GetSakkeAuthSize(SakkeKey* key, word16* authSz)
 static int sakke_modexp(const SakkeKey* key, const mp_int* b, mp_int* e,
         mp_int* r)
 {
-    int err;
+    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
 #ifdef WOLFSSL_SP_1024
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&

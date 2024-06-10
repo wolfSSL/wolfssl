@@ -385,7 +385,7 @@ static const wc_XmssString wc_xmss_alg[] = {
 static int wc_xmss_str_to_params(const char *s, word32* oid,
     const XmssParams** params)
 {
-    int ret;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 #if WOLFSSL_XMSS_MIN_HEIGHT <= 20
     unsigned int i;
 
@@ -614,7 +614,7 @@ static const wc_XmssString wc_xmssmt_alg[] = {
 static int wc_xmssmt_str_to_params(const char *s, word32* oid,
     const XmssParams** params)
 {
-    int ret;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 #if WOLFSSL_XMSS_MAX_HEIGHT >= 20
     unsigned int i;
 

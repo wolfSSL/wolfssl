@@ -12549,7 +12549,7 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
 int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameLen)
 {
     int checkCN;
-    int ret;
+    int ret = WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH);
 
     if (CheckForAltNames(dCert, domainName, (word32)domainNameLen,
                                             &checkCN) != 1) {

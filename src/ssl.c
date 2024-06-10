@@ -3532,7 +3532,7 @@ int wolfSSL_ALPN_FreePeerProtocol(WOLFSSL* ssl, char **list)
 /* user is forcing ability to use secure renegotiation, we discourage it */
 int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
 {
-    int ret;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 #if defined(NO_TLS)
     (void)ssl;
 #else
