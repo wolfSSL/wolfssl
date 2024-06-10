@@ -1040,7 +1040,7 @@ typedef struct ConnectionID {
 #ifdef _MSC_VER
 #pragma warning(disable: 4200)
 #endif
-    byte id[];
+    byte id[WOLFSSL_FLEXIBLE_ARRAY_SIZE];
 } ConnectionID;
 
 typedef struct CIDInfo {
