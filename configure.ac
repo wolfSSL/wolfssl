@@ -300,6 +300,22 @@ AC_ARG_ENABLE([fips],
     [ENABLED_FIPS=$enableval],
     [ENABLED_FIPS="no"])
 
+# wolfProvider Options
+AC_ARG_ENABLE([wolfprovider],
+    [AS_HELP_STRING([--enable-wolfprovider],[Enable wolfProvider options (default: disabled)])],
+    [ ENABLED_WOLFPROVIDER=$enableval ],
+    [ ENABLED_WOLFPROVIDER=no ]
+    )
+if test "x$ENABLED_WOLFPROVIDER" != "xno"
+then
+    enable_all_crypto=yes
+    enable_opensslcoexist=yes
+    enable_sha=yes
+    enable_eccminsz=192
+    with_max_ecc_bits=1024
+    AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NO_PADDING -DWOLFSSL_PUBLIC_MP -DHAVE_PUBLIC_FFDHE -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192 -DWOLFSSL_PSS_LONG_SALT -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
+fi
+
 # wolfEngine Options
 AC_ARG_ENABLE([engine],
     [AS_HELP_STRING([--enable-engine],[Enable wolfEngine options (default: disabled)])],
@@ -3832,12 +3848,10 @@ fi
 # ECC Minimum Key Size
 AC_ARG_WITH([eccminsz],
     [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
-    [
-        ENABLED_ECCMINSZ=$withval
-        AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$withval"
-    ],
+    [ ENABLED_ECCMINSZ=$withval ],
     [ ENABLED_ECCMINSZ=224 ]
 )
+AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$ENABLED_ECCMINSZ"
 
 # Compressed Key
 AC_ARG_ENABLE([compkey],
