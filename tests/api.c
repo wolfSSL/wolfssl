@@ -68530,8 +68530,8 @@ static int test_wrong_cs_downgrade(void)
     test_ctx.c_len = sizeof(test_wrong_cs_downgrade_sh);
 
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
-    ExpectIntNE(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
-        WOLFSSL_ERROR_WANT_READ);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WOLFSSL_FATAL_ERROR),
+        MATCH_SUITE_ERROR);
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
