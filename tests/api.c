@@ -63241,7 +63241,7 @@ static int test_stubs_are_stubs(void)
 
     /* when implemented this should take WOLFSSL object insted, right now
      * always returns 0 */
-    CHECKZERO_RET(SSL_get_current_expansion, ctx, ctxN);
+    ExpectIntEQ(SSL_get_current_expansion(NULL), 0);
 
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
