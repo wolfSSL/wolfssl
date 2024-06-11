@@ -200,6 +200,17 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
+AC_ARG_ENABLE([debug-trace-errcodes],
+    [ AS_HELP_STRING([--enable-debug-trace-errcodes],[Print trace messages when library errors are thrown.]) ],
+    [ ENABLED_DEBUG_TRACE_ERRCODES=$enableval ],
+    [ ENABLED_DEBUG_TRACE_ERRCODES=no ]
+    )
+
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEBUG_TRACE_ERROR_CODES"
+fi
+
 # Start without certificates enabled and enable if a certificate algorithm is
 # enabled
 ENABLED_CERTS="no"
@@ -9787,6 +9798,11 @@ echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
+
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" = "yes"
+then
+    support/gen-debug-trace-error-codes.sh || AC_MSG_ERROR([Header generation for debug-trace-errcodes failed.])
+fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_LINUXKM" = "no"
 then

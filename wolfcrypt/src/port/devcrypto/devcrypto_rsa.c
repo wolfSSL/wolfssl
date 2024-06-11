@@ -322,7 +322,7 @@ static int _PublicOperation(const byte* in, word32 inlen, byte* out,
 int wc_DevCrypto_RsaDecrypt(const byte* in, word32 inlen,
         byte* out, word32 outlen, RsaKey* key, int type)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (type) {
         case RSA_PUBLIC_DECRYPT:
@@ -331,6 +331,9 @@ int wc_DevCrypto_RsaDecrypt(const byte* in, word32 inlen,
 
         case RSA_PRIVATE_DECRYPT:
             ret = _PrivateOperation(in, inlen, out, outlen, key);
+            break;
+        default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -341,7 +344,7 @@ int wc_DevCrypto_RsaDecrypt(const byte* in, word32 inlen,
 int wc_DevCrypto_RsaEncrypt(const byte* in, word32 inlen, byte* out,
         word32* outlen, RsaKey *key, int type)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (type) {
         case RSA_PUBLIC_ENCRYPT:
@@ -350,6 +353,9 @@ int wc_DevCrypto_RsaEncrypt(const byte* in, word32 inlen, byte* out,
 
         case RSA_PRIVATE_ENCRYPT:
             ret = _PrivateOperation(in, inlen, out, *outlen, key);
+            break;
+        default:
+            ret = BAD_FUNC_ARG;
             break;
     }
     if (ret == 0) {

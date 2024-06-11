@@ -3561,7 +3561,8 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
         void* ctx = wolfSSL_GetEncryptKeysCtx(ssl);
         ret = ssl->ctx->EncryptKeysCb(ssl, ctx);
     }
-    if (!ssl->ctx->EncryptKeysCb || ret == PROTOCOLCB_UNAVAILABLE)
+    if (!ssl->ctx->EncryptKeysCb ||
+        ret == WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE))
 #endif
     {
         ret = SetKeys(wc_encrypt, wc_decrypt, keys, &ssl->specs, ssl->options.side,

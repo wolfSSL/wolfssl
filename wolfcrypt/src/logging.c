@@ -126,7 +126,10 @@ THREAD_LS_T void *StackSizeCheck_stackOffsetPointer = 0;
 
 /* Set these to default values initially. */
 static wolfSSL_Logging_cb log_function = NULL;
-static int loggingEnabled = 0;
+#ifndef WOLFSSL_LOGGINGENABLED_DEFAULT
+#define WOLFSSL_LOGGINGENABLED_DEFAULT 0
+#endif
+static int loggingEnabled = WOLFSSL_LOGGINGENABLED_DEFAULT;
 THREAD_LS_T const char* log_prefix = NULL;
 
 #if defined(WOLFSSL_APACHE_MYNEWT)
@@ -714,7 +717,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
 
     while (1) {
         int ret = wc_PeekErrorNode(0, file, NULL, line);
-        if (ret == BAD_STATE_E) {
+        if (ret == WC_NO_ERR_TRACE(BAD_STATE_E)) {
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
@@ -744,7 +747,7 @@ unsigned long wc_GetErrorNodeErr(void)
 
     ret = wc_PullErrorNode(NULL, NULL, NULL);
     if (ret < 0) {
-        if (ret == BAD_STATE_E) {
+        if (ret == WC_NO_ERR_TRACE(BAD_STATE_E)) {
             ret = 0; /* no errors in queue */
         }
         else {
@@ -1230,7 +1233,9 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     idx = getErrorNodeCurrentIdx();
     while (1) {
         int ret = peekErrorNode(idx, file, NULL, line);
-        if (ret == BAD_MUTEX_E || ret == BAD_FUNC_ARG || ret == BAD_STATE_E) {
+        if (ret == WC_NO_ERR_TRACE(BAD_MUTEX_E) ||
+            ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
+            ret == WC_NO_ERR_TRACE(BAD_STATE_E)) {
             ERRQ_UNLOCK();
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
@@ -1263,7 +1268,7 @@ unsigned long wc_GetErrorNodeErr(void)
 
     ret = pullErrorNode(NULL, NULL, NULL);
     if (ret < 0) {
-        if (ret == BAD_STATE_E) {
+        if (ret == WC_NO_ERR_TRACE(BAD_STATE_E)) {
             ret = 0; /* no errors in queue */
         }
         else {
@@ -1483,7 +1488,7 @@ void WOLFSSL_ERROR(int error)
 #endif
 {
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (error != WC_PENDING_E)
+    if (error != WC_NO_ERR_TRACE(WC_PENDING_E))
 #endif
     {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -1501,7 +1506,8 @@ void WOLFSSL_ERROR(int error)
             #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
             /* If running in compatibility mode do not add want read and
                want right to error queue */
-            if (error != WANT_READ && error != WANT_WRITE) {
+            if (error != WC_NO_ERR_TRACE(WANT_READ) &&
+                error != WC_NO_ERR_TRACE(WANT_WRITE)) {
             #endif
             if (error < 0)
                 error = error - (2 * error); /* get absolute value */

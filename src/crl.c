@@ -503,7 +503,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     /* Loading <issuer-hash>.rN form CRL file if find at the folder,        */
     /* and try again checking Cert in the CRL list.                         */
     /* When not set the folder or not use hash_dir, do nothing.             */
-    if ((foundEntry == 0) && (ret != OCSP_WANT_READ)) {
+    if ((foundEntry == 0) && (ret != WC_NO_ERR_TRACE(OCSP_WANT_READ))) {
         if (crl->cm != NULL && crl->cm->x509_store_p != NULL) {
             ret = LoadCertByIssuer(crl->cm->x509_store_p,
                           (WOLFSSL_X509_NAME*)issuerName, X509_LU_CRL);
@@ -517,7 +517,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 #endif
     if (foundEntry == 0) {
         WOLFSSL_MSG("Couldn't find CRL for status check");
-        if (ret != CRL_CERT_DATE_ERR) {
+        if (ret != WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR)) {
             ret = CRL_MISSING;
         }
 
@@ -655,13 +655,15 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
     InitDecodedCRL(dcrl, crl->heap);
     ret = ParseCRL(crl->currentEntry->certs, dcrl, myBuffer, (word32)sz,
                    verify, crl->cm);
-    if (ret != 0 && !(ret == ASN_CRL_NO_SIGNER_E && verify == NO_VERIFY)) {
+    if (ret != 0 && !(ret == WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E)
+                      && verify == NO_VERIFY)) {
         WOLFSSL_MSG("ParseCRL error");
         CRL_Entry_free(crl->currentEntry, crl->heap);
         crl->currentEntry = NULL;
     }
     else {
-        ret = AddCRL(crl, dcrl, myBuffer, ret != ASN_CRL_NO_SIGNER_E);
+        ret = AddCRL(crl, dcrl, myBuffer,
+                     ret != WC_NO_ERR_TRACE(ASN_CRL_NO_SIGNER_E));
         if (ret != 0) {
             WOLFSSL_MSG("AddCRL error");
             crl->currentEntry = NULL;

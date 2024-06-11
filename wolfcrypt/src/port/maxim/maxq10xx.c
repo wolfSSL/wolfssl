@@ -1450,7 +1450,7 @@ int wolfSSL_MAXQ10XX_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     }
 #endif /* WOLFSSL_MAXQ108X */
 
-    if (rc != 0 && rc != CRYPTOCB_UNAVAILABLE) {
+    if (rc != 0 && rc != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
         rc = WC_HW_E;
     }
 

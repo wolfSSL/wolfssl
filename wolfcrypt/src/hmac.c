@@ -711,7 +711,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 #ifdef WOLF_CRYPTO_CB
     if (hmac->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, msg, length, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0; /* reset error code */
@@ -820,7 +820,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 #ifdef WOLF_CRYPTO_CB
     if (hmac->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Hmac(hmac, hmac->macType, NULL, 0, hash);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }

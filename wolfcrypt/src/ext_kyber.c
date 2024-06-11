@@ -329,7 +329,7 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     {
         ret = wc_CryptoCb_MakePqcKemKey(rng, WC_PQC_KEM_TYPE_KYBER,
                                         key->type, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0;
@@ -440,7 +440,7 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     ) {
         ret = wc_CryptoCb_PqcEncapsulate(ct, ctlen, ss, KYBER_SS_SZ, rng,
                                          WC_PQC_KEM_TYPE_KYBER, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0;
@@ -549,7 +549,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     ) {
         ret = wc_CryptoCb_PqcDecapsulate(ct, ctlen, ss, KYBER_SS_SZ,
                                          WC_PQC_KEM_TYPE_KYBER, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0;

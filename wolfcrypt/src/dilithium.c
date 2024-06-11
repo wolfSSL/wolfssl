@@ -75,7 +75,7 @@ int wc_dilithium_sign_msg(const byte* in, word32 inLen,
     {
         ret = wc_CryptoCb_PqcSign(in, inLen, out, outLen, rng,
                                   WC_PQC_SIG_TYPE_DILITHIUM, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0;
@@ -179,7 +179,7 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     {
         ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, res,
                                     WC_PQC_SIG_TYPE_DILITHIUM, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0;

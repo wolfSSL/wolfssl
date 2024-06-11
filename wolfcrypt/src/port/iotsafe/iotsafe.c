@@ -620,7 +620,7 @@ static int iotsafe_gen_keypair(byte *wr_slot, unsigned long id_size,
                                ecc_key *key)
 {
     char *resp;
-    int ret = WC_HW_E;
+    int ret = WC_NO_ERR_TRACE(WC_HW_E);
     iotsafe_cmd_start(csim_cmd, IOTSAFE_CLASS, IOTSAFE_INS_GEN_KEYPAIR, 0, 0);
     iotsafe_cmd_add_tlv(csim_cmd, IOTSAFE_TAG_PRIVKEY_ID, id_size, wr_slot);
     iotsafe_cmd_complete(csim_cmd);
@@ -822,7 +822,7 @@ static int iotsafe_sign_hash(byte *privkey_idx, uint16_t id_size,
 {
     byte mode_of_operation = IOTSAFE_MOO_SIGN_ONLY;
     uint16_t hash_algo_be = XHTONS(hash_algo);
-    int ret = WC_HW_E;
+    int ret = WC_NO_ERR_TRACE(WC_HW_E);
     char *resp;
     char R[2 * IOTSAFE_ECC_KSIZE + 1];
     char S[2 * IOTSAFE_ECC_KSIZE + 1];

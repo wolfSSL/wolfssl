@@ -980,7 +980,7 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
             workingOutputLen = *outputLen - totalLen;
 
         /* only error we break on, other 2 we need to keep finding length */
-        if (ret == BAD_FUNC_ARG)
+        if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             return BAD_FUNC_ARG;
 
         workingConfig = workingConfig->next;
@@ -3532,12 +3532,14 @@ int wolfSSL_ALPN_FreePeerProtocol(WOLFSSL* ssl, char **list)
 /* user is forcing ability to use secure renegotiation, we discourage it */
 int wolfSSL_UseSecureRenegotiation(WOLFSSL* ssl)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 #if defined(NO_TLS)
     (void)ssl;
 #else
     if (ssl)
         ret = TLSX_UseSecureRenegotiation(&ssl->extensions, ssl->heap);
+    else
+        ret = BAD_FUNC_ARG;
 
     if (ret == WOLFSSL_SUCCESS) {
         TLSX* extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
@@ -4039,13 +4041,14 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         /* call wolfSSL_shutdown again for bidirectional shutdown */
         if (ssl->options.sentNotify && !ssl->options.closeNotify) {
             ret = ProcessReply(ssl);
-            if ((ret == ZERO_RETURN) || (ret == SOCKET_ERROR_E)) {
+            if ((ret == ZERO_RETURN) ||
+                (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))) {
                 /* simulate OpenSSL behavior */
                 ssl->options.shutdownDone = 1;
                 /* Clear error */
                 ssl->error = WOLFSSL_ERROR_NONE;
                 ret = WOLFSSL_SUCCESS;
-            } else if (ret == MEMORY_E) {
+            } else if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
                 ret = WOLFSSL_FATAL_ERROR;
             } else if (ssl->error == WOLFSSL_ERROR_NONE) {
                 ret = WOLFSSL_SHUTDOWN_NOT_DONE;
@@ -4103,7 +4106,7 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
     else if (ssl->error == ZERO_RETURN || ssl->options.shutdownDone)
         return WOLFSSL_ERROR_ZERO_RETURN;       /* convert to OpenSSL type */
 #ifdef OPENSSL_EXTRA
-    else if (ssl->error == SOCKET_PEER_CLOSED_E)
+    else if (ssl->error == WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E))
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
 #endif
     return ssl->error;
@@ -6259,7 +6262,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
         ret = check_cert_key_dev(der->keyOID, buff, size, der->publicKey,
                                  der->pubKeySize, isKeyLabel, isKeyId, heap,
                                  devId);
-        if (ret != CRYPTOCB_UNAVAILABLE) {
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             ret = (ret == 0) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
         }
     }
@@ -6268,7 +6271,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
         ret = CRYPTOCB_UNAVAILABLE;
     }
 
-    if (ret == CRYPTOCB_UNAVAILABLE)
+    if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
 #endif /* WOLF_PRIVATE_KEY_ID */
     {
         ret = wc_CheckPrivateKeyCert(buff, size, der, 0);
@@ -6319,7 +6322,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
                                          heap, altDevId);
             }
             XFREE(decodedPubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            if (ret != CRYPTOCB_UNAVAILABLE) {
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                 ret = (ret == 0) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
             }
         }
@@ -6328,7 +6331,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
             ret = CRYPTOCB_UNAVAILABLE;
         }
 
-        if (ret == CRYPTOCB_UNAVAILABLE)
+        if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
 #endif /* WOLF_PRIVATE_KEY_ID */
         {
             ret = wc_CheckPrivateKeyCert(buff, size, der, 1);
@@ -7416,7 +7419,7 @@ static WOLFSSL_EVP_PKEY* _d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** out,
             (void)idx; /* not used */
         }
         else {
-            if (ret != ASN_PARSE_E) {
+            if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
                 WOLFSSL_MSG("Unexpected error with trying to remove PKCS8 "
                     "header");
                 return NULL;
@@ -9463,7 +9466,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 #endif
 #ifdef WOLFSSL_EXTRA_ALERTS
                     if (ssl->error == NO_PEER_KEY ||
-                        ssl->error == PSK_KEY_ERROR) {
+                        ssl->error == WC_NO_ERR_TRACE(PSK_KEY_ERROR)) {
                         SendAlert(ssl, alert_fatal, handshake_failure);
                     }
 #endif
@@ -13182,7 +13185,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     #ifdef WOLFSSL_HAVE_ERROR_QUEUE
         int ret = wc_PullErrorNode(file, NULL, line);
         if (ret < 0) {
-            if (ret == BAD_STATE_E) return 0; /* no errors in queue */
+            if (ret == WC_NO_ERR_TRACE(BAD_STATE_E))
+                return 0; /* no errors in queue */
             WOLFSSL_MSG("Issue getting error node");
             WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line", ret);
             ret = 0 - ret; /* return absolute value of error */
@@ -13294,7 +13298,8 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         ret = wc_PullErrorNode(file, data, line);
         if (ret < 0) {
-            if (ret == BAD_STATE_E) return 0; /* no errors in queue */
+            if (ret == WC_NO_ERR_TRACE(BAD_STATE_E))
+                return 0; /* no errors in queue */
             WOLFSSL_MSG("Error with pulling error node!");
             WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
             ret = 0 - ret; /* return absolute value of error */
@@ -15262,9 +15267,9 @@ int wolfSSL_ERR_GET_LIB(unsigned long err)
 
     value = (err & 0xFFFFFFL);
     switch (value) {
-    case -SSL_R_HTTP_REQUEST:
+    case -WC_NO_ERR_TRACE(PARSE_ERROR):
         return ERR_LIB_SSL;
-    case -ASN_NO_PEM_HEADER:
+    case -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER):
     case PEM_R_NO_START_LINE:
     case PEM_R_PROBLEMS_GETTING_PASSWORD:
     case PEM_R_BAD_PASSWORD_READ:
@@ -17837,7 +17842,7 @@ int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
     /* Null output buffer return size needed in outLen */
     if(!buf) {
         if(Base64_Encode(chain->certs[idx].buffer, chain->certs[idx].length,
-                    NULL, &szNeeded) != LENGTH_ONLY_E)
+                    NULL, &szNeeded) != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
             return WOLFSSL_FAILURE;
         *outLen = szNeeded + headerLen + footerLen;
         return LENGTH_ONLY_E;
@@ -18866,7 +18871,7 @@ void* wolfSSL_GetHKDFExtractCtx(WOLFSSL* ssl)
         if (o->nid > 0)
             return o->nid;
         if ((ret = GetObjectId(o->obj, &idx, &oid, o->grp, o->objSz)) < 0) {
-            if (ret == ASN_OBJECT_ID_E) {
+            if (ret == WC_NO_ERR_TRACE(ASN_OBJECT_ID_E)) {
                 /* Put ASN object tag in front and try again */
                 int len = SetObjectId(o->objSz, NULL) + o->objSz;
                 byte* buf = (byte*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -20460,12 +20465,12 @@ int wolfSSL_AsyncPoll(WOLFSSL* ssl, WOLF_EVENT_FLAG flags)
 static int peek_ignore_err(int err)
 {
   switch(err) {
-    case -WANT_READ:
-    case -WANT_WRITE:
-    case -ZERO_RETURN:
+    case -WC_NO_ERR_TRACE(WANT_READ):
+    case -WC_NO_ERR_TRACE(WANT_WRITE):
+    case -WC_NO_ERR_TRACE(ZERO_RETURN):
     case -WOLFSSL_ERROR_ZERO_RETURN:
-    case -SOCKET_PEER_CLOSED_E:
-    case -SOCKET_ERROR_E:
+    case -WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E):
+    case -WC_NO_ERR_TRACE(SOCKET_ERROR_E):
       return 1;
     default:
       return 0;
@@ -20480,15 +20485,15 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
     WOLFSSL_ENTER("wolfSSL_ERR_peek_error_line_data");
     err = wc_PeekErrorNodeLineData(file, line, data, flags, peek_ignore_err);
 
-    if (err == -ASN_NO_PEM_HEADER)
+    if (err == -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER))
         return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
 #ifdef OPENSSL_ALL
     /* PARSE_ERROR is returned if an HTTP request is detected. */
-    else if (err == -SSL_R_HTTP_REQUEST)
+    else if (err == -WC_NO_ERR_TRACE(PARSE_ERROR))
         return (ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST;
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-    else if (err == ASN1_R_HEADER_TOO_LONG)
+    else if (err == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG))
         return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
 #endif
   return err;

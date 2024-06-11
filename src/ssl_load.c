@@ -353,7 +353,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
                    chain.buffer, &idx, (word32)maxSz);
             }
             /* PEM may have trailing data that can be ignored. */
-            if ((ret == ASN_NO_PEM_HEADER) && gotOne) {
+            if ((ret == WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER)) && gotOne) {
                 WOLFSSL_MSG("We got one good cert, so stuff at end ok");
                 ret = 0;
                 break;
@@ -2363,7 +2363,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
             ret = ProcessUserChain(ctx, ssl, buff, sz, format, type, used, info,
                 verify);
             /* Additional chain is optional */
-            if (ret == ASN_NO_PEM_HEADER) {
+            if (ret == WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER)) {
                 unsigned long pemErr = 0;
                 CLEAR_ASN_NO_PEM_HEADER_ERROR(pemErr);
                 ret = 0;
@@ -2459,7 +2459,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         ret = ProcessBuffer(ctx, buff + used, sz - used, WOLFSSL_FILETYPE_PEM,
             type, ssl, &consumed, 0, verify);
         /* Memory allocation failure is fatal. */
-        if (ret == MEMORY_E) {
+        if (ret == WC_NO_ERR_TRACE(MEMORY_E)) {
             gotOne = 0;
         }
         /* Other error parsing. */
@@ -2658,7 +2658,7 @@ static int wolfssl_ctx_load_path_file(WOLFSSL_CTX* ctx, const char* name,
         /* When ignoring errors or loading PEM only and no PEM. don't fail. */
         if ((flags & WOLFSSL_LOAD_FLAG_IGNORE_ERR) ||
                 ((flags & WOLFSSL_LOAD_FLAG_PEM_CA_ONLY) &&
-                 (ret == ASN_NO_PEM_HEADER))) {
+                 (ret == WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER)))) {
             unsigned long err = 0;
             CLEAR_ASN_NO_PEM_HEADER_ERROR(err);
         #if defined(WOLFSSL_QT)
@@ -2745,7 +2745,7 @@ static int wolfssl_ctx_load_path(WOLFSSL_CTX* ctx, const char* path,
             ret = fileRet;
         #if defined(WOLFSSL_QT) || defined(WOLFSSL_IGNORE_BAD_CERT_PATH)
             /* Ignore bad path error when flag set. */
-            if ((ret == BAD_PATH_ERROR) &&
+            if ((ret == WC_NO_ERR_TRACE(BAD_PATH_ERROR)) &&
                     (flags & WOLFSSL_LOAD_FLAG_IGNORE_BAD_PATH_ERR)) {
                /* QSslSocket always loads certs in system folder
                 * when it is initialized.

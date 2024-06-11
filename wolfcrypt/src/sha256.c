@@ -1499,7 +1499,7 @@ static int InitSha256(wc_Sha256* sha256)
         #endif
         {
             int ret = wc_CryptoCb_Sha256Hash(sha256, data, len, NULL);
-            if (ret != CRYPTOCB_UNAVAILABLE)
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
         }
@@ -1700,7 +1700,7 @@ static int InitSha256(wc_Sha256* sha256)
         #endif
         {
             ret = wc_CryptoCb_Sha256Hash(sha256, NULL, 0, hash);
-            if (ret != CRYPTOCB_UNAVAILABLE)
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
         }

@@ -1804,7 +1804,7 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
             rsa->pkcs8HeaderSz = (word16)idx;
         }
         /* When decoding and not PKCS#8, return will be ASN_PARSE_E. */
-        else if (res != ASN_PARSE_E) {
+        else if (res != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
             /* Something went wrong while decoding. */
             WOLFSSL_ERROR_MSG("Unexpected error with trying to remove PKCS#8 "
                               "header");
@@ -3384,7 +3384,7 @@ WOLFSSL_RSA* wolfSSL_RSA_generate_key(int bits, unsigned long e,
         ret = wolfssl_rsa_generate_key_native(rsa, bits, bn, NULL);
     #ifdef HAVE_FIPS
         /* Keep trying if failed to find a prime. */
-        if (ret == PRIME_GEN_E) {
+        if (ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
             continue;
         }
     #endif
@@ -3435,7 +3435,7 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* e,
             int gen_ret = wolfssl_rsa_generate_key_native(rsa, bits, e, cb);
         #ifdef HAVE_FIPS
             /* Keep trying again if public key value didn't work. */
-            if (gen_ret == PRIME_GEN_E) {
+            if (gen_ret == WC_NO_ERR_TRACE(PRIME_GEN_E)) {
                 continue;
             }
         #endif
@@ -5630,7 +5630,7 @@ int wolfSSL_i2d_DSAparams(const WOLFSSL_DSA* dsa,
     if (ret == 0) {
         key = (DsaKey*)dsa->internal;
         ret = wc_DsaKeyToParamsDer_ex(key, NULL, &derLen);
-        if (ret == LENGTH_ONLY_E) {
+        if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             ret = 0;
         }
     }
@@ -7466,7 +7466,7 @@ int wolfSSL_i2d_DHparams(const WOLFSSL_DH *dh, unsigned char **out)
             *out += len;
         }
         /* An error occurred unless only length returned. */
-        else if (ret != LENGTH_ONLY_E) {
+        else if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             err = 1;
         }
     }
@@ -7771,7 +7771,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
         /* Use wolfSSL API to get length of DER encode DH parameters. */
         key = (DhKey*)dh->internal;
         ret = wc_DhParamsToDer(key, NULL, &derSz);
-        if (ret != LENGTH_ONLY_E) {
+        if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             WOLFSSL_ERROR_MSG("Failed to get size of DH params");
             err = 1;
         }
@@ -10124,7 +10124,8 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
         int ret = wc_ecc_export_point_der(group->curve_idx,
             (ecc_point*)point->internal, out, len);
         /* Check return. When out is NULL, return will be length only error. */
-        if ((ret != MP_OKAY) && ((out != NULL) || (ret != LENGTH_ONLY_E))) {
+        if ((ret != MP_OKAY) && ((out != NULL) ||
+                                 (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)))) {
             WOLFSSL_MSG("wolfSSL_ECPoint_i2d wc_ecc_export_point_der failed");
             res = 0;
         }
@@ -12259,7 +12260,7 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
             res = 1;
         }
         /* Error out on parsing error. */
-        else if (ret != ASN_PARSE_E) {
+        else if (ret != WC_NO_ERR_TRACE(ASN_PARSE_E)) {
             WOLFSSL_MSG("Unexpected error with trying to remove PKCS8 header");
             res = -1;
         }
@@ -16259,7 +16260,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
 
     if (res == 1) {
         /* Guestimate key size and PEM size. */
-        if (pem_pkcs8_encode(pkey, NULL, &keySz) != LENGTH_ONLY_E) {
+        if (pem_pkcs8_encode(pkey, NULL, &keySz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             res = 0;
         }
     }

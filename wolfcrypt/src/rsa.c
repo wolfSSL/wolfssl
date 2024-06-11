@@ -627,13 +627,13 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* Do blocking async calls here, caller does not support WC_PENDING_E */
     do {
-        if (ret == WC_PENDING_E)
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
             ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
         if (ret >= 0)
 #endif
             ret = wc_RsaSSL_Sign((const byte*)msg, msgLen, sig, sigLen, key, rng);
 #ifdef WOLFSSL_ASYNC_CRYPT
-    } while (ret == WC_PENDING_E);
+    } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
 #endif
 
     if (ret > 0) {
@@ -641,13 +641,13 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 #ifdef WOLFSSL_ASYNC_CRYPT
         /* Do blocking async calls here, caller does not support WC_PENDING_E */
         do {
-            if (ret == WC_PENDING_E)
+            if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                 ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
             if (ret >= 0)
 #endif
                 ret = wc_RsaSSL_VerifyInline(sig, sigLen, &plain, key);
 #ifdef WOLFSSL_ASYNC_CRYPT
-        } while (ret == WC_PENDING_E);
+        } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
 #endif
     }
 
@@ -1784,7 +1784,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
                     byte **output, byte padValue)
 {
-    int    ret = BAD_FUNC_ARG;
+    int    ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     word16 i;
 
     if (output == NULL || pkcsBlockLen < 2 || pkcsBlockLen > 0xFFFF) {
@@ -2773,7 +2773,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 
 #ifdef WOLFSSL_HAVE_SP_RSA
     ret = RsaFunction_SP(in, inLen, out, outLen, type, key, rng);
-    if (ret != WC_KEY_SIZE_E)
+    if (ret != WC_NO_ERR_TRACE(WC_KEY_SIZE_E))
         return ret;
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
@@ -2927,7 +2927,7 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
             key->dataLen = *outSz;
 
             ret = wc_RsaFunction(in, inLen, out, &key->dataLen, type, key, rng);
-            if (ret >= 0 || ret == WC_PENDING_E) {
+            if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 key->state = (type == RSA_PRIVATE_ENCRYPT ||
                     type == RSA_PUBLIC_ENCRYPT) ? RSA_STATE_ENCRYPT_RES:
                                                   RSA_STATE_DECRYPT_RES;
@@ -3125,12 +3125,12 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     {
         ret = wc_CryptoCb_Rsa(in, inLen, out, outLen, type, key, rng);
         #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable and try using software */
         #endif
         #ifdef WOLF_CRYPTO_CB_ONLY_RSA
-        if (ret == CRYPTOCB_UNAVAILABLE) {
+        if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             return NO_VALID_DEVID;
         }
         return ret;
@@ -3182,7 +3182,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
         && ret != FP_WOULDBLOCK
     #endif
     ) {
-        if (ret == MP_EXPTMOD_E) {
+        if (ret == WC_NO_ERR_TRACE(MP_EXPTMOD_E)) {
             /* This can happen due to incorrectly set FP_MAX_BITS or missing XREALLOC */
             WOLFSSL_MSG("RSA_FUNCTION MP_EXPTMOD_E: memory/config problem");
         }
@@ -3319,7 +3319,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                 /* SCE supports 1024 and 2048 bits */
                 ret = wc_CryptoCb_Rsa(in, inLen, out,
                                     &outLen, rsa_type, key, rng);
-                if (ret != CRYPTOCB_UNAVAILABLE)
+                if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                     return ret;
                 /* fall-through when unavailable */
                 ret = 0; /* reset error code and try using software */
@@ -3344,7 +3344,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         ret = wc_RsaFunction(out, (word32)sz, out, &key->dataLen, rsa_type, key,
                              rng);
 
-        if (ret >= 0 || ret == WC_PENDING_E) {
+        if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             key->state = RSA_STATE_ENCRYPT_RES;
         }
         if (ret < 0) {
@@ -3404,7 +3404,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                             byte* label, word32 labelSz, int saltLen,
                             WC_RNG* rng)
 {
-    int ret = RSA_WRONG_TYPE_E;
+    int ret = WC_NO_ERR_TRACE(RSA_WRONG_TYPE_E);
     byte* pad = NULL;
 
     if (in == NULL || inLen == 0 || out == NULL || key == NULL) {
@@ -3476,7 +3476,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                 if (key->devId != INVALID_DEVID) {
                     ret = wc_CryptoCb_Rsa(in, inLen, out,
                                         &outLen, rsa_type, key, rng);
-                    if (ret != CRYPTOCB_UNAVAILABLE)
+                    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                       return ret;
                     /* fall-through when unavailable */
                     ret = 0; /* reset error code and try using software */
@@ -3525,7 +3525,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
                                               rng, pad_type != WC_RSA_OAEP_PAD);
 #endif
 
-        if (ret >= 0 || ret == WC_PENDING_E) {
+        if (ret >= 0 || ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             key->state = RSA_STATE_DECRYPT_UNPAD;
         }
         if (ret < 0) {
@@ -4238,7 +4238,7 @@ int wc_RsaEncryptSize(const RsaKey* key)
 
 #ifdef WOLF_CRYPTO_CB
     if (ret == 0 && key->devId != INVALID_DEVID) {
-        if (wc_CryptoCb_RsaGetSize(key, &ret) == CRYPTOCB_UNAVAILABLE) {
+        if (wc_CryptoCb_RsaGetSize(key, &ret) == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             ret = 2048/8; /* hardware handles, use 2048-bit as default */
         }
     }
@@ -4305,7 +4305,7 @@ int wc_RsaExportKey(RsaKey* key,
                     byte* d, word32* dSz, byte* p, word32* pSz,
                     byte* q, word32* qSz)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key && e && eSz && n && nSz && d && dSz && p && pSz && q && qSz)
         ret = 0;
@@ -4766,12 +4766,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     {
         err = wc_CryptoCb_MakeRsaKey(key, size, e, rng);
         #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-        if (err != CRYPTOCB_UNAVAILABLE)
+        if (err != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             goto out;
         /* fall-through when unavailable */
         #endif
         #ifdef WOLF_CRYPTO_CB_ONLY_RSA
-        if (err == CRYPTOCB_UNAVAILABLE)
+        if (err == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             err = NO_VALID_DEVID;
             goto out;
         }

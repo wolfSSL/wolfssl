@@ -1354,7 +1354,7 @@ int wc_ed448_check_key(ed448_key* key)
                     break;
                 }
             }
-            if (ret == PUBLIC_KEY_E) {
+            if (ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) {
                 /* Check against 0xFE. */
                 if (key->p[ED448_PUB_KEY_SIZE/2] < 0xfe) {
                     ret = 0;
@@ -1368,7 +1368,8 @@ int wc_ed448_check_key(ed448_key* key)
                         }
                     }
                     /* Check last byte. */
-                    if ((ret == PUBLIC_KEY_E) && (key->p[0] < 0xff)) {
+                    if ((ret == WC_NO_ERR_TRACE(PUBLIC_KEY_E)) &&
+                        (key->p[0] < 0xff)) {
                         ret = 0;
                     }
                 }

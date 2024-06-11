@@ -1470,7 +1470,7 @@ int wc_Entropy_Get(int bits, unsigned char* entropy, word32 len)
     Entropy_StopThread();
 #endif
 
-    if (ret != BAD_MUTEX_E) {
+    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
@@ -1502,7 +1502,7 @@ int wc_Entropy_OnDemandTest(void)
         ret = Entropy_HealthTest_Startup();
     }
 
-    if (ret != BAD_MUTEX_E) {
+    if (ret != WC_NO_ERR_TRACE(BAD_MUTEX_E)) {
         /* Unlock mutex now we are done. */
         wc_UnLockMutex(&entropy_mutex);
     }
@@ -1868,7 +1868,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     #endif
     {
         ret = wc_CryptoCb_RandomBlock(rng, output, sz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -2676,7 +2676,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif
     {
         ret = wc_CryptoCb_RandomSeed(os, output, sz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -3476,7 +3476,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
 
             /* driver could be waiting for entropy */
-            if (ret != RAN_BLOCK_E && ret != 0) {
+            if (ret != WC_NO_ERR_TRACE(RAN_BLOCK_E) && ret != 0) {
                 return ret;
             }
 #ifndef WOLFSSL_IMXRT1170_CAAM
@@ -3909,14 +3909,14 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
-        int ret = WC_HW_E;
+        int ret = WC_NO_ERR_TRACE(WC_HW_E);
 
         #ifndef WOLF_CRYPTO_CB_FIND
         if (os->devId != INVALID_DEVID)
         #endif
         {
             ret = wc_CryptoCb_RandomSeed(os, output, sz);
-            if (ret == CRYPTOCB_UNAVAILABLE) {
+            if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                 ret = WC_HW_E;
             }
         }
@@ -3954,7 +3954,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #endif
         {
             ret = wc_CryptoCb_RandomSeed(os, output, sz);
-            if (ret != CRYPTOCB_UNAVAILABLE)
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
             ret = 0; /* reset error code */

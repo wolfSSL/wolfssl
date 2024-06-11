@@ -107,14 +107,14 @@ int DtlsIgnoreError(int err)
 {
     /* Whitelist of errors not to ignore */
     switch (err) {
-    case MEMORY_E:
-    case MEMORY_ERROR:
-    case ASYNC_INIT_E:
-    case ASYNC_OP_E:
-    case SOCKET_ERROR_E:
-    case WANT_READ:
-    case WANT_WRITE:
-    case COOKIE_ERROR:
+    case WC_NO_ERR_TRACE(MEMORY_E):
+    case WC_NO_ERR_TRACE(MEMORY_ERROR):
+    case WC_NO_ERR_TRACE(ASYNC_INIT_E):
+    case WC_NO_ERR_TRACE(ASYNC_OP_E):
+    case WC_NO_ERR_TRACE(SOCKET_ERROR_E):
+    case WC_NO_ERR_TRACE(WANT_READ):
+    case WC_NO_ERR_TRACE(WANT_WRITE):
+    case WC_NO_ERR_TRACE(COOKIE_ERROR):
         return 0;
     default:
         return 1;
@@ -267,7 +267,7 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
             return BUFFER_E;
         ret = TlsCheckCookie(ssl, ch->cookieExt.elements + OPAQUE16_LEN,
                 (word16)(ch->cookieExt.size - OPAQUE16_LEN));
-        if (ret < 0 && ret != HRR_COOKIE_ERROR)
+        if (ret < 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
             return ret;
         *cookieGood = ret > 0;
         ret = 0;

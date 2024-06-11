@@ -659,7 +659,7 @@ typedef union {
 static
 int _HashInit(byte hashId, _hash* hash)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hashId) {
     #ifndef NO_SHA
@@ -684,6 +684,9 @@ int _HashInit(byte hashId, _hash* hash)
             ret = wc_InitSha512(&hash->sha512);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
     return ret;
@@ -693,7 +696,7 @@ static
 int _HashUpdate(byte hashId, _hash* hash,
         const byte* data, word32 dataSz)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hashId) {
     #ifndef NO_SHA
@@ -718,6 +721,9 @@ int _HashUpdate(byte hashId, _hash* hash,
             ret = wc_Sha512Update(&hash->sha512, data, dataSz);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
     return ret;
@@ -726,7 +732,7 @@ int _HashUpdate(byte hashId, _hash* hash,
 static
 int _HashFinal(byte hashId, _hash* hash, byte* digest)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hashId) {
     #ifndef NO_SHA
@@ -751,6 +757,9 @@ int _HashFinal(byte hashId, _hash* hash, byte* digest)
             ret = wc_Sha512Final(&hash->sha512, digest);
             break;
     #endif /* WOLFSSL_SHA512 */
+        default:
+            ret = BAD_FUNC_ARG;
+            break;
     }
 
     return ret;
@@ -1450,7 +1459,7 @@ int wc_KDA_KDF_onestep(const byte* z, word32 zSz, const byte* fixedInfo,
         return BAD_FUNC_ARG;
 
     hashOutSz = wc_HashGetDigestSize(hashType);
-    if (hashOutSz == HASH_TYPE_E)
+    if (hashOutSz == WC_NO_ERR_TRACE(HASH_TYPE_E))
         return BAD_FUNC_ARG;
 
     /* According to SP800_56C, table 1, the max input size (max_H_inputBits)

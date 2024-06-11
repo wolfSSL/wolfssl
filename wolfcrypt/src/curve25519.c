@@ -238,7 +238,7 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
 #ifdef WOLF_CRYPTO_CB
     if (key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Curve25519Gen(rng, keysize, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -299,7 +299,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
     if (private_key->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_Curve25519(private_key, public_key, out, outlen,
             endian);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }

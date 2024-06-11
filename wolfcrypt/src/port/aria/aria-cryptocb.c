@@ -447,7 +447,7 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
 
     int wc_AriaCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     {
-        int ret = CRYPTOCB_UNAVAILABLE; /* return this to bypass HW and use SW */
+        int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE); /* return this to bypass HW and use SW */
         (void)ctx;
 
         if (info == NULL)
@@ -544,15 +544,18 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                     ret = wc_AriaInitSha(&(info->hash.sha256->hSession), MC_ALGID_SHA256);
                 }
 
-                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
+                if ((ret == 0) ||
+                    (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))) {
                     ret = wc_AriaShaUpdate(info->hash.sha256->hSession,
                                         (byte *) info->hash.in, info->hash.inSz);
                 }
-                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
+                if ((ret == 0) ||
+                    (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))) {
                     MC_UINT digestSz = 32;
                     ret = wc_AriaShaFinal(info->hash.sha256->hSession,
                                         info->hash.digest, &digestSz);
-                    if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
+                    if ((ret == 0) ||
+                        (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)))
                         ret = wc_AriaFree(&(info->hash.sha256->hSession),NULL);
                 }
                 if (ret != 0)
@@ -571,16 +574,21 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                     ret = wc_AriaInitSha(&(info->hash.sha384->hSession), MC_ALGID_SHA384);
                 }
 
-                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
+                if ((ret == 0) ||
+                    (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))) {
                     ret = wc_AriaShaUpdate(info->hash.sha384->hSession,
                                         (byte *) info->hash.in, info->hash.inSz);
                 }
-                if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE)) {
+                if ((ret == 0) ||
+                    (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))) {
                     MC_UINT digestSz = 48;
                     ret = wc_AriaShaFinal(info->hash.sha384->hSession,
                                         info->hash.digest, &digestSz);
-                    if ((ret == 0) || (ret == CRYPTOCB_UNAVAILABLE))
+                    if ((ret == 0) ||
+                        (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)))
+                    {
                         ret = wc_AriaFree(&(info->hash.sha384->hSession),NULL);
+                    }
                 }
                 if (ret != 0) ret = CRYPTOCB_UNAVAILABLE;
                 /* reset devId */

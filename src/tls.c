@@ -212,7 +212,8 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             ret = ssl->ctx->TlsFinishedCb(ssl, side, handshake_hash, hashSz,
                                           (byte*)hashes, ctx);
         }
-        if (!ssl->ctx->TlsFinishedCb || ret == PROTOCOLCB_UNAVAILABLE)
+        if (!ssl->ctx->TlsFinishedCb ||
+            ret == WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE))
 #endif
         {
             PRIVATE_KEY_UNLOCK();
@@ -488,7 +489,8 @@ int DeriveTlsKeys(WOLFSSL* ssl)
             void* ctx = wolfSSL_GetGenSessionKeyCtx(ssl);
             ret = ssl->ctx->GenSessionKeyCb(ssl, ctx);
         }
-        if (!ssl->ctx->GenSessionKeyCb || ret == PROTOCOLCB_UNAVAILABLE)
+        if (!ssl->ctx->GenSessionKeyCb ||
+            ret == WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE))
 #endif
         ret = _DeriveTlsKeys(key_dig, (word32)key_dig_len,
                          ssl->arrays->masterSecret, SECRET_LEN,
@@ -668,7 +670,8 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
             void* ctx = wolfSSL_GetGenMasterSecretCtx(ssl);
             ret = ssl->ctx->GenMasterCb(ssl, ctx);
         }
-        if (!ssl->ctx->GenMasterCb || ret == PROTOCOLCB_UNAVAILABLE)
+        if (!ssl->ctx->GenMasterCb ||
+            ret == WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE))
 #endif
         {
             ret = _MakeTlsMasterSecret(ssl->arrays->masterSecret,
@@ -782,7 +785,7 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
  */
 static int Hmac_HashUpdate(Hmac* hmac, const byte* data, word32 sz)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hmac->macType) {
     #ifndef NO_SHA
@@ -816,6 +819,7 @@ static int Hmac_HashUpdate(Hmac* hmac, const byte* data, word32 sz)
     #endif /* WOLFSSL_SM3 */
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -830,7 +834,7 @@ static int Hmac_HashUpdate(Hmac* hmac, const byte* data, word32 sz)
  */
 static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     switch (hmac->macType) {
     #ifndef NO_SHA
@@ -864,6 +868,7 @@ static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
     #endif /* WOLFSSL_SM3 */
 
         default:
+            ret = BAD_FUNC_ARG;
             break;
     }
 
@@ -878,7 +883,7 @@ static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
  */
 static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     wc_HashAlg hash;
     enum wc_HashType hashType = (enum wc_HashType)hmac->macType;
     int digestSz = wc_HashGetDigestSize(hashType);
@@ -887,6 +892,10 @@ static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
     if ((digestSz >= 0) && (blockSz >= 0)) {
         ret = wc_HashInit(&hash, hashType);
     }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
     if (ret == 0) {
         ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->opad,
             (word32)blockSz);
@@ -3388,7 +3397,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
                 /* Let's not error out the connection if we can't verify our
                  * cert */
-                if (ret == ASN_SELF_SIGNED_E || ret == ASN_NO_SIGNER_E)
+                if (ret == WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E) ||
+                    ret == WC_NO_ERR_TRACE(ASN_NO_SIGNER_E))
                     ret = 0;
                 return ret;
             }
@@ -4090,7 +4100,7 @@ static void TLSX_PointFormat_FreeAll(PointFormat* list, void* heap)
 static int TLSX_SupportedCurve_Append(SupportedCurve* list, word16 name,
                                                                      void* heap)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     while (list) {
         if (list->name == name) {
@@ -4111,7 +4121,7 @@ static int TLSX_SupportedCurve_Append(SupportedCurve* list, word16 name,
 
 static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     while (list) {
         if (list->format == format) {
@@ -4398,7 +4408,7 @@ int TLSX_SupportedCurve_Parse(const WOLFSSL* ssl, const byte* input,
         ret = TLSX_UseSupportedCurve(extensions, name, ssl->heap);
         /* If it is BAD_FUNC_ARG then it is a group we do not support, but
          * that is fine. */
-        if (ret != WOLFSSL_SUCCESS && ret != BAD_FUNC_ARG) {
+        if (ret != WOLFSSL_SUCCESS && ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
             return ret;
         }
     }
@@ -5303,7 +5313,7 @@ static word16 TLSX_SecureRenegotiation_Write(SecureRenegotiation* data,
 static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                                           word16 length, byte isRequest)
 {
-    int ret = SECURE_RENEGOTIATION_E;
+    int ret = WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E);
 
     if (length >= OPAQUE8_LEN) {
         if (isRequest) {
@@ -5313,7 +5323,7 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
                 if (ret == WOLFSSL_SUCCESS)
                     ret = 0;
             }
-            if (ret != 0 && ret != SECURE_RENEGOTIATION_E) {
+            if (ret != 0 && ret != WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E)) {
             }
             else if (ssl->secure_renegotiation == NULL) {
             }
@@ -5383,6 +5393,12 @@ static int TLSX_SecureRenegotiation_Parse(WOLFSSL* ssl, const byte* input,
             }
         #endif
         }
+        else {
+            ret = SECURE_RENEGOTIATION_E;
+        }
+    }
+    else {
+        ret = SECURE_RENEGOTIATION_E;
     }
 
     if (ret != 0) {
@@ -5576,7 +5592,7 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
                 WOLFSSL_MSG("Process client ticket rejected, not using");
                 ssl->options.rejectTicket = 1;
                 ret = 0;  /* not fatal */
-            } else if (ret == VERSION_ERROR) {
+            } else if (ret == WC_NO_ERR_TRACE(VERSION_ERROR)) {
                 WOLFSSL_MSG("Process client ticket rejected, bad TLS version");
                 ssl->options.rejectTicket = 1;
                 ret = 0;  /* not fatal */
@@ -5878,7 +5894,7 @@ static void TLSX_UseSRTP_Free(TlsxSrtp *srtp, void* heap)
 static int TLSX_UseSRTP_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     byte isRequest)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     word16 profile_len = 0;
     word16 profile_value = 0;
     word16 offset = 0;
@@ -7251,7 +7267,7 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
                     kse->pubKey, &kse->pubKeyLen /* public */
                 );
             #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_PENDING_E) {
+                if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                     return ret;
                 }
             #endif
@@ -7564,7 +7580,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
         #if defined(WOLFSSL_RENESAS_TSIP_TLS)
             ret = tsip_Tls13GenEccKeyPair(ssl, kse);
-            if (ret != CRYPTOCB_UNAVAILABLE) {
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
                 return ret;
             }
         #endif
@@ -7581,7 +7597,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 if (ret == 0) {
             #ifdef WOLFSSL_ASYNC_CRYPT
                     /* Detect when private key generation is done */
-                    if (ssl->error == WC_PENDING_E &&
+                    if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E) &&
                             eccKey->type == ECC_PRIVATEKEY) {
                         ret = 0; /* ECC Key Generation is done */
                     }
@@ -7596,7 +7612,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                     }
                 }
             #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_PENDING_E)
+                if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return ret;
             #endif
             }
@@ -7759,7 +7775,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     findEccPqc(&ecc_group, &oqs_group, kse->group);
     ret = kyber_id2type(oqs_group, &type);
-    if (ret == NOT_COMPILED_IN) {
+    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
         WOLFSSL_MSG("Invalid Kyber algorithm specified.");
         ret = BAD_FUNC_ARG;
     }
@@ -8120,7 +8136,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             NULL, 0
         );
     #ifdef WOLFSSL_ASYNC_CRYPT
-        if (ret == WC_PENDING_E) {
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             return ret;
         }
     #endif
@@ -8392,7 +8408,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         }
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_Tls13GenSharedSecret(ssl, keyShareEntry);
-        if (ret != CRYPTOCB_UNAVAILABLE) {
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
             return ret;
         }
         ret = 0;
@@ -8434,7 +8450,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
             ssl->options.side
         );
     #ifdef WOLFSSL_ASYNC_CRYPT
-        if (ret == WC_PENDING_E)
+        if (ret == WC_NO_ERR_TRACE(WC_PENDING_E))
             return ret;
     #endif
     }
@@ -8915,7 +8931,7 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* only perform find and clear TLSX if not returning from async */
-        if (ssl->error != WC_PENDING_E)
+        if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
     #endif
         {
             /* Check the selected group was supported by ClientHello extensions. */
@@ -9386,7 +9402,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             int id;
             findEccPqc(NULL, &namedGroup, namedGroup);
             ret = kyber_id2type(namedGroup, &id);
-            if (ret == NOT_COMPILED_IN) {
+            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
                 return 0;
             }
 
@@ -9557,7 +9573,7 @@ int TLSX_KeyShare_SetSupported(const WOLFSSL* ssl, TLSX** extensions)
         kse = (KeyShareEntry*)extension->data;
         /* We should not be computing keys if we are only going to advertise
          * our choice here. */
-        if (kse != NULL && kse->lastRet == WC_PENDING_E) {
+        if (kse != NULL && kse->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
             return BAD_KEY_SHARE_DATA;
         }
@@ -9729,16 +9745,20 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
 
     if (extension && extension->resp == 1) {
         /* Outside of the async case this path should not be taken. */
-        int ret = INCOMPLETE_DATA;
+        int ret = WC_NO_ERR_TRACE(INCOMPLETE_DATA);
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* in async case make sure key generation is finalized */
         KeyShareEntry* serverKSE = (KeyShareEntry*)extension->data;
-        if (serverKSE && serverKSE->lastRet == WC_PENDING_E) {
+        if (serverKSE && serverKSE->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST_COMPLETE)
                 *searched = 1;
             ret = TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
         }
+        else
     #endif
+        {
+            ret = INCOMPLETE_DATA;
+        }
         return ret;
     }
 
@@ -9813,7 +9833,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
             serverKSE = (KeyShareEntry*)extension->data;
             if (serverKSE != NULL) {
                 /* in async case make sure key generation is finalized */
-                if (serverKSE->lastRet == WC_PENDING_E)
+                if (serverKSE->lastRet == WC_NO_ERR_TRACE(WC_PENDING_E))
                     return TLSX_KeyShare_GenKey((WOLFSSL*)ssl, serverKSE);
                 else if (serverKSE->lastRet == 0)
                     return 0;
@@ -9925,7 +9945,7 @@ int TLSX_KeyShare_DeriveSecret(WOLFSSL *ssl)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfSSL_AsyncPop(ssl, NULL);
     /* Check for error */
-    if (ret != WC_NO_PENDING_E && ret < 0) {
+    if (ret != WC_NO_ERR_TRACE(WC_NO_PENDING_E) && ret < 0) {
         return ret;
     }
 #endif
@@ -11740,7 +11760,7 @@ static int TLSX_ECH_Write(WOLFSSL_ECH* ech, byte* writeBuf, word16* offset)
         /* get size then write */
         ret = GetEchConfigsEx(ech->echConfig, NULL, &configsLen);
 
-        if (ret != LENGTH_ONLY_E)
+        if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
             return ret;
 
         ret = GetEchConfigsEx(ech->echConfig, writeBuf, &configsLen);
@@ -11877,7 +11897,7 @@ static int TLSX_ECH_GetSize(WOLFSSL_ECH* ech)
         /* get the size of the raw configs */
         ret = GetEchConfigsEx(ech->echConfig, NULL, &size);
 
-        if (ret != LENGTH_ONLY_E)
+        if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
             return ret;
     }
     else if (ech->type == ECH_TYPE_INNER)
@@ -11960,7 +11980,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
     if (ret == 0)
         ret = GetEchConfig(echConfig, NULL, &rawConfigLen);
 
-    if (ret == LENGTH_ONLY_E)
+    if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E))
         ret = 0;
 
     /* create info */
@@ -13443,7 +13463,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     ssl->arrays->psk_keySz == 0 ||
                 #endif
                          (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN &&
-                     (int)ssl->arrays->psk_keySz != USE_HW_PSK)) {
+                     (int)ssl->arrays->psk_keySz != WC_NO_ERR_TRACE(USE_HW_PSK))) {
                 #ifndef OPENSSL_EXTRA
                     ret = PSK_KEY_ERROR;
                 #endif

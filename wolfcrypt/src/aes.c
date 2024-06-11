@@ -727,7 +727,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
                 return MEMORY_E;
 #endif
 
-            if (AES_set_encrypt_key_AESNI(userKey,bits,temp_key) == BAD_FUNC_ARG) {
+            if (AES_set_encrypt_key_AESNI(userKey,bits,temp_key)
+                == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
 #ifdef WOLFSSL_SMALL_STACK
                 XFREE(temp_key, aes->heap, DYNAMIC_TYPE_AES);
 #endif
@@ -5514,7 +5515,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         #endif
         {
             int crypto_cb_ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
-            if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return crypto_cb_ret;
             /* fall-through when unavailable */
         }
@@ -5683,7 +5684,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         #endif
         {
             int crypto_cb_ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
-            if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return crypto_cb_ret;
             /* fall-through when unavailable */
         }
@@ -6073,7 +6074,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             #endif
             {
                 int crypto_cb_ret = wc_CryptoCb_AesCtrEncrypt(aes, out, in, sz);
-                if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+                if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                     return crypto_cb_ret;
                 /* fall-through when unavailable */
             }
@@ -8324,7 +8325,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         int crypto_cb_ret =
             wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, authTag,
                                       authTagSz, authIn, authInSz);
-        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return crypto_cb_ret;
         /* fall-through when unavailable */
     }
@@ -8867,7 +8868,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 {
     int ret;
 #ifdef WOLFSSL_AESNI
-    int res = AES_GCM_AUTH_E;
+    int res = WC_NO_ERR_TRACE(AES_GCM_AUTH_E);
 #endif
 
     /* argument checks */
@@ -8888,7 +8889,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         int crypto_cb_ret =
             wc_CryptoCb_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
                                       authTag, authTagSz, authIn, authInSz);
-        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return crypto_cb_ret;
         /* fall-through when unavailable */
     }
@@ -10773,7 +10774,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         int crypto_cb_ret =
             wc_CryptoCb_AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz,
                                       authTag, authTagSz, authIn, authInSz);
-        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return crypto_cb_ret;
         /* fall-through when unavailable */
     }
@@ -10915,7 +10916,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         int crypto_cb_ret =
             wc_CryptoCb_AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
             authTag, authTagSz, authIn, authInSz);
-        if (crypto_cb_ret != CRYPTOCB_UNAVAILABLE)
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return crypto_cb_ret;
         /* fall-through when unavailable */
     }
@@ -11423,7 +11424,7 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
     #endif
     {
         ret = wc_CryptoCb_AesEcbEncrypt(aes, out, in, sz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         ret = 0;
         /* fall-through when unavailable */
@@ -11475,7 +11476,7 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
     #endif
     {
         ret = wc_CryptoCb_AesEcbDecrypt(aes, out, in, sz);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         ret = 0;
         /* fall-through when unavailable */

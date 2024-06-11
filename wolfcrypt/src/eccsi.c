@@ -1447,7 +1447,7 @@ static int eccsi_mulmod_point_add(EccsiKey* key, const mp_int* n,
         ecc_point* point, ecc_point* a, ecc_point* res, mp_digit mp, int map)
 {
 #if defined(WOLFSSL_HAVE_SP_ECC) && !defined(WOLFSSL_SP_NO_256)
-    int err = NOT_COMPILED_IN;
+    int err = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
     if ((key->ecc.idx != ECC_CUSTOM_IDX) &&
             (ecc_sets[key->ecc.idx].id == ECC_SECP256R1)) {

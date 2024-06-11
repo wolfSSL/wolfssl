@@ -89,7 +89,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaSignCb(WOLFSSL* ssl,
                                 const unsigned char* keyDer, unsigned int keySz,
                                 void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     WOLFSSL_ENTER("Renesas_cmn_RsaSignCb");
 
     /* This is just a stub function that provides no logic */
@@ -108,7 +108,7 @@ WOLFSSL_LOCAL int Renesas_cmn_RsaSignCheckCb(WOLFSSL* ssl,
                                 const unsigned char* keyDer, unsigned int keySz,
                                 void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     WOLFSSL_ENTER("Renesas_cmn_RsaSignCheckCb");
 
     #if defined(WOLFSSL_RENESAS_TSIP)
@@ -127,7 +127,7 @@ WOLFSSL_LOCAL int Renesas_cmn_EccSignCb(WOLFSSL* ssl,
                                 const unsigned char* keyDer, unsigned int keySz,
                                 void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     WOLFSSL_ENTER("Renesas_cmn_EccSignCb");
 
     /* This is just a stub function that provides no logic */
@@ -147,7 +147,7 @@ WOLFSSL_LOCAL int Renesas_cmn_EccSignCb(WOLFSSL* ssl,
  */
 static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
-    int ret = NOT_COMPILED_IN; /* return this to bypass HW and use SW */
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN); /* return this to bypass HW and use SW */
 
     WOLFSSL_ENTER("Renesas_cmn_CryptoDevCb");
 
@@ -367,7 +367,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 cbInfo->keyflgs_crypt.bits.rsapub1024_installedkey_set ) {
 
                 ret = wc_fspsm_MakeRsaKey(info->pk.rsa.key, 0, cbInfo);
-                if (ret == CRYPTOCB_UNAVAILABLE)
+                if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                     return ret;
 
                 if (info->pk.rsa.type == RSA_PRIVATE_DECRYPT ||
@@ -882,7 +882,7 @@ WOLFSSL_LOCAL int Renesas_cmn_generatePremasterSecret(WOLFSSL* ssl,
  */
 WOLFSSL_LOCAL int Renesas_cmn_genMasterSecret(struct WOLFSSL* ssl, void* ctx)
 {
-    int ret = WOLFSSL_NOT_IMPLEMENTED;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_NOT_IMPLEMENTED);
 
     (void) ret;
     (void) ctx;

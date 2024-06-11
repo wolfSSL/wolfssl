@@ -385,10 +385,11 @@ static const wc_XmssString wc_xmss_alg[] = {
 static int wc_xmss_str_to_params(const char *s, word32* oid,
     const XmssParams** params)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 #if WOLFSSL_XMSS_MIN_HEIGHT <= 20
     unsigned int i;
 
+    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
     for (i = 0; i < WC_XMSS_ALG_LEN; i++) {
          if (XSTRCMP(s, wc_xmss_alg[i].str) == 0) {
              *oid = wc_xmss_alg[i].oid;
@@ -401,6 +402,7 @@ static int wc_xmss_str_to_params(const char *s, word32* oid,
     (void)s;
     (void)oid;
     (void)params;
+    ret = NOT_COMPILED_IN;
 #endif
 
     return ret;
@@ -612,10 +614,11 @@ static const wc_XmssString wc_xmssmt_alg[] = {
 static int wc_xmssmt_str_to_params(const char *s, word32* oid,
     const XmssParams** params)
 {
-    int ret = NOT_COMPILED_IN;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 #if WOLFSSL_XMSS_MAX_HEIGHT >= 20
     unsigned int i;
 
+    ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
     for (i = 0; i < WC_XMSSMT_ALG_LEN; i++) {
          if (XSTRCMP(s, wc_xmssmt_alg[i].str) == 0) {
              *oid = wc_xmssmt_alg[i].oid;
@@ -628,6 +631,7 @@ static int wc_xmssmt_str_to_params(const char *s, word32* oid,
     (void)s;
     (void)oid;
     (void)params;
+    ret = NOT_COMPILED_IN;
 #endif
 
     return ret;
@@ -756,7 +760,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
             #else
                 ret = wc_xmssmt_sign(state, msg, msgLen, key->sk, sig);
             #endif
-                if (ret == KEY_EXHAUSTED_E) {
+                if (ret == WC_NO_ERR_TRACE(KEY_EXHAUSTED_E)) {
                     /* Signature space exhausted. */
                     key->state = WC_XMSS_STATE_NOSIGS;
                     WOLFSSL_MSG("error: no XMSS signatures remaining");

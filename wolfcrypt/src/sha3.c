@@ -851,7 +851,7 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         /* QAT only supports SHA3_256 */
         if (p == WC_SHA3_256_COUNT) {
             ret = IntelQaSymSha3(&sha3->asyncDev, NULL, data, len);
-            if (ret != NOT_COMPILED_IN)
+            if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                 return ret;
             /* fall-through when unavailable */
         }
@@ -887,7 +887,7 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
         /* QAT SHA-3 only supported on v2 (8970 or later cards) */
         if (len == WC_SHA3_256_DIGEST_SIZE) {
             ret = IntelQaSymSha3(&sha3->asyncDev, hash, NULL, len);
-            if (ret != NOT_COMPILED_IN)
+            if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                 return ret;
             /* fall-through when unavailable */
         }

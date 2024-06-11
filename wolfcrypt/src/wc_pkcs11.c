@@ -1355,7 +1355,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                 int keyType;
 
                 ret = Pkcs11HmacTypes(hmac->macType, &mechType, &keyType);
-                if (ret == NOT_COMPILED_IN)
+                if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                     break;
 
                 if (ret == 0)
@@ -1367,7 +1367,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                                                 (unsigned char*)hmac->id,
                                                 hmac->idLen, hmac->label,
                                                 hmac->labelLen, CKA_SIGN);
-                    if (ret == WC_HW_E) {
+                    if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                         ret = Pkcs11CreateSecretKey(&privKey, &session,
                                                    CKK_GENERIC_SECRET,
                                                    (unsigned char*)hmac->keyRaw,
@@ -1414,7 +1414,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                     }
                 }
          #endif
-                if (ret == 0 || ret == NOT_COMPILED_IN) {
+                if (ret == 0 || ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
                     /* Try ECDSA mechanism next. */
                     ret2 = Pkcs11MechAvail(&session, CKM_ECDSA);
                     if (ret2 == 0) {
@@ -1428,7 +1428,7 @@ int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear, void* key)
                         }
                     }
                     /* OK for this to fail if set for ECDH. */
-                    if (ret == NOT_COMPILED_IN)
+                    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                         ret = ret2;
                 }
                 if (ret == 0 && clear)
@@ -2514,7 +2514,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         PRIVATE_KEY_UNLOCK();
         ret = wc_ecc_export_x963(info->pk.ecdh.public_key, NULL, &pointLen);
         PRIVATE_KEY_LOCK();
-        if (ret == LENGTH_ONLY_E) {
+        if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             point = (unsigned char*)XMALLOC(pointLen,
                                                  info->pk.ecdh.public_key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
@@ -3604,7 +3604,7 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
             ret = Pkcs11CreateSecretKey(&key, session, keyType,
                                     (unsigned char*)hmac->keyRaw, hmac->keyLen,
                                     NULL, 0, NULL, 0, CKA_SIGN);
-            if (ret == WC_HW_E) {
+            if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                 ret = Pkcs11CreateSecretKey(&key, session, CKK_GENERIC_SECRET,
                                     (unsigned char*)hmac->keyRaw, hmac->keyLen,
                                     NULL, 0, NULL, 0, CKA_SIGN);
@@ -3614,7 +3614,7 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
         else if (ret == 0 && hmac->labelLen != 0) {
             ret = Pkcs11FindKeyByLabel(&key, CKO_SECRET_KEY, keyType, session,
                                        hmac->label, hmac->labelLen);
-            if (ret == WC_HW_E) {
+            if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                 ret = Pkcs11FindKeyByLabel(&key, CKO_SECRET_KEY,
                                            CKK_GENERIC_SECRET, session,
                                            hmac->label, hmac->labelLen);
@@ -3623,7 +3623,7 @@ static int Pkcs11Hmac(Pkcs11Session* session, wc_CryptoInfo* info)
         else if (ret == 0) {
             ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY, keyType, session,
                                     hmac->id, hmac->idLen);
-            if (ret == WC_HW_E) {
+            if (ret == WC_NO_ERR_TRACE(WC_HW_E)) {
                 ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY,
                                         CKK_GENERIC_SECRET, session, hmac->id,
                                         hmac->idLen);

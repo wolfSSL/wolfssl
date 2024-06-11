@@ -674,7 +674,7 @@ int IntelQaPoll(IntelQaDev* dev)
     }
 
     {
-        if (dev->ret != WC_PENDING_E) {
+        if (dev->ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
             /* perform cleanup */
             IntelQaFreeFunc freeFunc = dev->freeFunc;
             QLOG("IntelQaOpFree: Dev %p, FreeFunc %p\n", dev, freeFunc);

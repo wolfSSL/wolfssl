@@ -403,7 +403,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
     /* get the encoded length */
     if (bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
         if (Base64_Encode_NoNl((const byte*)data, inLen, NULL,
-                    &sz) != LENGTH_ONLY_E) {
+                    &sz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             WOLFSSL_MSG("Error with base64 get length");
             return WOLFSSL_FATAL_ERROR;
         }
