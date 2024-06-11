@@ -24918,6 +24918,7 @@ static int test_wc_ecc_export_x963_ex(void)
     XMEMSET(&key, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(out, 0, outlen);
+    PRIVATE_KEY_UNLOCK();
 
     ExpectIntEQ(wc_ecc_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
@@ -24958,6 +24959,7 @@ static int test_wc_ecc_export_x963_ex(void)
     ExpectIntEQ(wc_ecc_export_x963_ex(&key, out, &outlen, NOCOMP),
         ECC_BAD_ARG_E);
 #endif
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);
@@ -25049,6 +25051,7 @@ static int test_wc_ecc_import_private_key(void)
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(privKey, 0, privKeySz);
     XMEMSET(x963Key, 0, x963KeySz);
+    PRIVATE_KEY_UNLOCK();
 
     ExpectIntEQ(wc_ecc_init(&key), 0);
     ExpectIntEQ(wc_ecc_init(&keyImp), 0);
@@ -25071,6 +25074,7 @@ static int test_wc_ecc_import_private_key(void)
         x963KeySz, NULL), BAD_FUNC_ARG);
     ExpectIntEQ(wc_ecc_import_private_key(NULL, privKeySz, x963Key, x963KeySz,
         &keyImp), BAD_FUNC_ARG);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&keyImp);
@@ -25101,6 +25105,7 @@ static int test_wc_ecc_export_private_only(void)
     XMEMSET(&key, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(out, 0, outlen);
+    PRIVATE_KEY_UNLOCK();
 
     ExpectIntEQ(wc_ecc_init(&key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
@@ -25115,6 +25120,7 @@ static int test_wc_ecc_export_private_only(void)
     ExpectIntEQ(wc_ecc_export_private_only(NULL, out, &outlen), BAD_FUNC_ARG);
     ExpectIntEQ(wc_ecc_export_private_only(&key, NULL, &outlen), BAD_FUNC_ARG);
     ExpectIntEQ(wc_ecc_export_private_only(&key, out, NULL), BAD_FUNC_ARG);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);
@@ -25712,6 +25718,7 @@ static int test_wc_ecc_shared_secret_ssh(void)
     XMEMSET(&key2, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     XMEMSET(secret, 0, secretLen);
+    PRIVATE_KEY_UNLOCK();
 
     /* Make keys */
     ExpectIntEQ(wc_ecc_init(&key), 0);
@@ -25751,6 +25758,7 @@ static int test_wc_ecc_shared_secret_ssh(void)
     key.type = ECC_PUBLICKEY;
     ExpectIntEQ(wc_ecc_shared_secret_ssh(&key, &key2.pubkey, secret,
         &secretLen), ECC_BAD_ARG_E);
+    PRIVATE_KEY_LOCK();
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
     wc_ecc_free(&key);
@@ -26678,6 +26686,7 @@ static int test_wc_EccPrivateKeyToDer(void)
 
     XMEMSET(&eccKey, 0, sizeof(ecc_key));
     XMEMSET(&rng, 0, sizeof(WC_RNG));
+    PRIVATE_KEY_UNLOCK();
 
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_ecc_init(&eccKey), 0);
@@ -26718,6 +26727,7 @@ static int test_wc_EccPrivateKeyToDer(void)
         EVP_PKEY_free(pkey); /* EC_KEY should be free'd by free'ing pkey */
     }
 #endif
+    PRIVATE_KEY_LOCK();
 #endif
     return EXPECT_RESULT();
 } /* End test_wc_EccPrivateKeyToDer*/

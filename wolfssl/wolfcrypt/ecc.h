@@ -297,7 +297,7 @@ typedef byte   ecc_oid_t;
 
 /* ECC set type defined a GF(p) curve */
 #ifndef WOLFSSL_ECC_CURVE_STATIC
-typedef struct ecc_set_type {
+struct ecc_set_type {
     int size;             /* The size of the curve in octets */
     int id;               /* id of this curve */
     const char* name;     /* name of this curve */
@@ -311,13 +311,13 @@ typedef struct ecc_set_type {
     word32      oidSz;
     word32      oidSum;    /* sum of encoded OID bytes */
     int         cofactor;
-} ecc_set_type;
+};
 #else
 #define MAX_ECC_NAME 16
 #define MAX_ECC_STRING ((MAX_ECC_BYTES * 2) + 2)
     /* The values are stored as text strings. */
 
-typedef struct ecc_set_type {
+struct ecc_set_type {
     int size;             /* The size of the curve in octets */
     int id;               /* id of this curve */
     char name[MAX_ECC_NAME];     /* name of this curve */
@@ -331,7 +331,7 @@ typedef struct ecc_set_type {
     word32      oidSz;
     word32      oidSum;    /* sum of encoded OID bytes */
     int         cofactor;
-} ecc_set_type;
+};
 #endif
 
 
@@ -441,10 +441,19 @@ typedef struct alt_fp_int {
     #define WC_ECCKEY_TYPE_DEFINED
 #endif
 
+#ifndef WC_ECCPOINT_TYPE_DEFINED
+    typedef struct ecc_point ecc_point;
+    #define WC_ECCPOINT_TYPE_DEFINED
+#endif
+
+#ifndef WC_ECCSET_TYPE_DEFINED
+    typedef struct ecc_set_type ecc_set_type;
+    #define WC_ECCSET_TYPE_DEFINED
+#endif
 
 /* A point on an ECC curve, stored in Jacobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
-typedef struct {
+struct ecc_point {
 #ifndef ALT_ECC_SIZE
     mp_int x[1];        /* The x coordinate */
     mp_int y[1];        /* The y coordinate */
@@ -458,7 +467,7 @@ typedef struct {
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
     ecc_key* key;
 #endif
-} ecc_point;
+};
 
 /* ECC Flags */
 enum {

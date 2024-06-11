@@ -401,6 +401,9 @@ struct Aes {
 
 #ifndef WC_AES_TYPE_DEFINED
     typedef struct Aes Aes;
+    #ifdef HAVE_AESGCM
+        typedef struct Gmac Gmac;
+    #endif
     #define WC_AES_TYPE_DEFINED
 #endif
 
@@ -457,9 +460,9 @@ struct Aes {
 #endif
 
 #ifdef HAVE_AESGCM
-typedef struct Gmac {
+struct Gmac {
     Aes aes;
-} Gmac;
+};
 #endif /* HAVE_AESGCM */
 #endif /* HAVE_FIPS */
 
