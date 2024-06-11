@@ -18,7 +18,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 #
 
-#
+$(info ***********  wolfssl component ************)
+
+ #
 # Component Makefile
 #
 #
@@ -53,8 +55,41 @@ CFLAGS +=-DWOLFSSL_USER_SETTINGS
 # In the wolfSSL GitHub examples for Espressif:
 #   https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples
 # When this wolfssl component.mk makefile is in [project]/components/wolfssl
-# The root is 7 directories up from here:
+# The root is 7 directories up from here (the location of of this component.mk):
 WOLFSSL_ROOT := ../../../../../../..
+
+# To set the location of a different location, it is best to use relative paths.
+#
+# Set WOLFSSL_ROOT to a relative path from the current component directory.
+# For example, if the wolfssl_client is copied from the examples to test:
+#
+# cp -r /IDE/Espressif/ESP-IDF/examples/wolfssl_client/* /mnt/c/test/demo
+#
+# we run make in   /mnt/c/test/demo
+# component is in  /mnt/c/test/demo/components/wolfssl
+# wolfssl is in    /mnt/c/workspace/wolfssl-master
+#
+# "/mnt/c" is 4 directories up:
+#             2 for `./test/demo` from where we run `make`, plus
+#             2 more from the location of `component.mk` located
+#               in `[currect directory]/components/wolfssl`.
+#
+# Thus we need 4 parent reference to find the relative path to wolfSSL:
+# WOLFSSL_ROOT := ../../../../workspace/wolfssl-master
+
+# Optional CFLAGS (make works without these; for reference only)
+# CFLAGS += -I$(WOLFSSL_ROOT)/wolfssl
+# CFLAGS += -I$(WOLFSSL_ROOT)/wolfssl/wolfcrypt
+# CFLAGS += -I$(WOLFSSL_ROOT)/wolfssl/wolfcrypt/port/Espressif
+
+abs_WOLFSSL_ROOT := $(shell realpath $(WOLFSSL_ROOT))
+
+# print-wolfssl-path-value:
+#	@echo "WOLFSSL_ROOT defined: $(WOLFSSL_ROOT)"
+#	@echo "WOLFSSL_ROOT actual:  $(abs_WOLFSSL_ROOT)"
+
+$(info WOLFSSL_ROOT defined: $(WOLFSSL_ROOT))
+$(info WOLFSSL_ROOT actual:  $(abs_WOLFSSL_ROOT))
 
 # NOTE: The wolfSSL include directory (e.g. user_settings.h) is
 # located HERE in THIS project, and *not* in the wolfSSL root.
@@ -64,7 +99,6 @@ COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/.
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl/wolfcrypt
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl/wolfcrypt/port/Espressif
-COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)wolfssl/wolfcrypt/port/Espressif
 # COMPONENT_ADD_INCLUDEDIRS += $ENV(IDF_PATH)/components/freertos/include/freertos
 # COMPONENT_ADD_INCLUDEDIRS += "$ENV(IDF_PATH)/soc/esp32s3/include/soc"
 
@@ -144,7 +178,7 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ed25519.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ed448.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/error.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/evp.o
-# COMPONENT_OBJS += $(WOLFSSL_ROOT)wolfcrypt/src/ext_kyber.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_kyber.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_lms.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ext_xmss.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/falcon.o
@@ -246,5 +280,7 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp_sdk_wifi_lib.
 ##
 ## wolfcrypt
 ##
-# COMPONENT_PRIV_INCLUDEDIRS += $(PROJECT_PATH)/components/wolfssl/include
-COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)wolfcrypt/src
+## COMPONENT_PRIV_INCLUDEDIRS += $(PROJECT_PATH)/components/wolfssl/include
+## COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/src
+
+$(info ********** end wolfssl component **********)
