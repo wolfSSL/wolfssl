@@ -197,6 +197,12 @@ static word32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
     if (len <= 0) {
         return 0;
     }
+
+    /* We check if the buf is at least RECORD_HEADER_SZ */
+    if (sz < RECORD_HEADER_SZ) {
+        return -1;
+    }
+
     if (qr->rec_hdr_remain == 0) {
         /* start a new TLS record */
         rlen = (qr->len <= (word32)MAX_RECORD_SIZE) ?
@@ -774,6 +780,11 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
         n = 0;
         if (ssl->quic.input_head) {
             n = quic_record_transfer(ssl->quic.input_head, buf, sz);
+
+            /* record too small to be fit into a RecordLayerHeader struct. */
+            if (n == -1) {
+                return -1;
+            }
             if (quic_record_done(ssl->quic.input_head)) {
                 QuicRecord* qr = ssl->quic.input_head;
                 ssl->quic.input_head = qr->next;
