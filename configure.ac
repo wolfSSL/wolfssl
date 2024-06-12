@@ -1129,7 +1129,7 @@ AC_ARG_WITH([liboqs],
     [
         AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([LIBOQS requires --enable-experimental.]) ])
         AC_MSG_CHECKING([for liboqs])
-        LIBS="$LIBS -loqs"
+        LIBS="$LIBS -loqs -lpthread"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])
 
