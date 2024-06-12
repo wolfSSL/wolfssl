@@ -50,6 +50,16 @@ $(info ***********  wolfssl component ************)
 # define it here:
 CFLAGS +=-DWOLFSSL_USER_SETTINGS
 
+# Note that 4 source files created by autogen are excluded here.
+#
+# See these files commented out, below. Adjust as needed for your application:
+#
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/async.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/selftest.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfcrypt_first.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfcrypt_last.o
+
+
 # NOTICE: the WOLFSSL_ROOT setting MUST be relative!
 # See https://docs.espressif.com/projects/esp8266-rtos-sdk/en/latest/api-guides/build-system.html?highlight=must+relative#optional-component-specific-variables
 # In the wolfSSL GitHub examples for Espressif:
@@ -154,7 +164,7 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/aes.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/arc4.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/asm.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/asn.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/async.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/async.o # autogen exclusion
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/blake2b.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/blake2s.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/camellia.o
@@ -210,7 +220,7 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/rc2.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/ripemd.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/rsa.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/sakke.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/selftest.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/selftest.o # autogen exclusion
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/sha.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/sha256.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/sha3.o
@@ -247,8 +257,8 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wc_lms.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wc_pkcs11.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wc_port.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wc_xmss.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfcrypt_first.o
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfcrypt_last.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfcrypt_first.o # autogen exclusion
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfcrypt_last.o  # autogen exclusion
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfevent.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/wolfmath.o
 
