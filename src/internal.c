@@ -7053,7 +7053,7 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
 int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
   HS_Hashes** destination)
 {
-    int ret = 0;
+    int ret;
     HS_Hashes* tmpHashes;
 
     if (source == NULL)
@@ -7063,7 +7063,11 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
     tmpHashes = ssl->hsHashes;
     ssl->hsHashes = NULL;
 
-    InitHandshakeHashes(ssl);
+    ret = InitHandshakeHashes(ssl);
+    if (ret != 0) {
+        WOLFSSL_MSG_EX("InitHandshakeHashes failed. err = %d", ret);
+        return ret;
+    }
 
     *destination = ssl->hsHashes;
     ssl->hsHashes = tmpHashes;
@@ -7071,50 +7075,50 @@ int InitHandshakeHashesAndCopy(WOLFSSL* ssl, HS_Hashes* source,
   /* now copy the source contents to the destination */
 #ifndef NO_OLD_TLS
     #ifndef NO_SHA
-        ret = wc_ShaCopy(&source->hashSha, &(*destination)->hashSha);
+    ret = wc_ShaCopy(&source->hashSha, &(*destination)->hashSha);
     #endif
     #ifndef NO_MD5
-        if (ret == 0)
-            ret = wc_Md5Copy(&source->hashMd5, &(*destination)->hashMd5);
+    if (ret == 0)
+        ret = wc_Md5Copy(&source->hashMd5, &(*destination)->hashMd5);
     #endif
     #endif /* !NO_OLD_TLS */
     #ifndef NO_SHA256
-        if (ret == 0)
-            ret = wc_Sha256Copy(&source->hashSha256,
-                &(*destination)->hashSha256);
+    if (ret == 0)
+        ret = wc_Sha256Copy(&source->hashSha256,
+            &(*destination)->hashSha256);
     #endif
     #ifdef WOLFSSL_SHA384
-        if (ret == 0)
-            ret = wc_Sha384Copy(&source->hashSha384,
-                &(*destination)->hashSha384);
+    if (ret == 0)
+        ret = wc_Sha384Copy(&source->hashSha384,
+            &(*destination)->hashSha384);
     #endif
     #ifdef WOLFSSL_SHA512
-        if (ret == 0)
-            ret = wc_Sha512Copy(&source->hashSha512,
-                &(*destination)->hashSha512);
+    if (ret == 0)
+        ret = wc_Sha512Copy(&source->hashSha512,
+            &(*destination)->hashSha512);
     #endif
     #ifdef WOLFSSL_SM3
-        if (ret == 0)
-            ret = wc_Sm3Copy(&source->hashSm3,
-                &(*destination)->hashSm3);
+    if (ret == 0)
+        ret = wc_Sm3Copy(&source->hashSm3,
+            &(*destination)->hashSm3);
     #endif
     #if (defined(HAVE_ED25519) || defined(HAVE_ED448) || \
          (defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3))) && \
         !defined(WOLFSSL_NO_CLIENT_AUTH)
-        if (ret == 0 && source->messages != NULL) {
-            (*destination)->messages = (byte*)XMALLOC(source->length, ssl->heap,
-                DYNAMIC_TYPE_HASHES);
-            (*destination)->length = source->length;
-            (*destination)->prevLen = source->prevLen;
+    if (ret == 0 && source->messages != NULL) {
+        (*destination)->messages = (byte*)XMALLOC(source->length, ssl->heap,
+            DYNAMIC_TYPE_HASHES);
+        (*destination)->length = source->length;
+        (*destination)->prevLen = source->prevLen;
 
-            if ((*destination)->messages == NULL) {
-                ret = MEMORY_E;
-            }
-            else {
-                XMEMCPY((*destination)->messages, source->messages,
-                    source->length);
-            }
+        if ((*destination)->messages == NULL) {
+            ret = MEMORY_E;
         }
+        else {
+            XMEMCPY((*destination)->messages, source->messages,
+                source->length);
+        }
+    }
     #endif
 
     return ret;
