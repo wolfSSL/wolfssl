@@ -811,6 +811,8 @@ then
     fi
 
     # this set is also enabled by enable-all-crypto:
+    test "$enable_haproxy" = "" && enable_haproxy=yes
+    test "$enable_quic" = "" && enable_quic=yes
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
     test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
@@ -5983,9 +5985,9 @@ AC_ARG_ENABLE([secure-renegotiation],
     [ ENABLED_SECURE_RENEGOTIATION=no ]
     )
 
-if test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_HAPROXY" = "xyes" && test "x$ENABLED_SECURE_RENEGOTIATION" = "xno"
 then
-    ENABLED_SECURE_RENEGOTIATION=yes
+    ENABLED_RENEGOTIATION_INDICATION=yes
 fi
 
 if test "x$ENABLED_SECURE_RENEGOTIATION" = "xyes"
