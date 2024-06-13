@@ -70,4 +70,4 @@ jobs:
 
       - name: Run socat tests
         working-directory: ./socat-1.8.0.0
-        run: ./test.sh --expect-fail 146,216,309,310,386,402,459,460
+        run: SOCAT=$GITHUB_WORKSPACE/socat-1.8.0.0/socat ./test.sh --expect-fail 146,216,309,310,386,402,459,460
