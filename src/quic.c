@@ -188,7 +188,7 @@ static word32 add_rec_header(byte* output, word32 length, byte type)
     return RECORD_HEADER_SZ;
 }
 
-static word32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
+static sword32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
 {
     word32 len = qr->end - qr->start;
     word32 offset = 0;
@@ -224,7 +224,7 @@ static word32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
         qr->start += len;
         qr->rec_hdr_remain -= len;
     }
-    return len + offset;
+    return (sword32)(len + offset);
 }
 
 
@@ -772,7 +772,7 @@ cleanup:
 /* Called internally when SSL wants a certain amount of input. */
 int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
-    word32 n = 0;
+    sword32 n = 0;
     int transferred = 0;
 
     WOLFSSL_ENTER("wolfSSL_quic_receive");
@@ -802,7 +802,7 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
             ssl->error = transferred = WANT_READ;
             goto cleanup;
         }
-        sz -= n;
+        sz -= (word32)n;
         buf += n;
         transferred += (int)n;
     }
