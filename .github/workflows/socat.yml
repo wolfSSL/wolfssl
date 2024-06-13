@@ -3,7 +3,7 @@ name: socat Tests
 # START OF COMMON SECTION
 on:
   push:
-    branches: [ 'master' ]
+    branches: [ 'master', 'main', 'release/**' ]
   pull_request:
     branches: [ '*' ]
 
@@ -13,23 +13,41 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
+  build_wolfssl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-maxfragment --enable-opensslall --enable-opensslextra --enable-dtls --enable-oldtls --enable-tlsv10 --enable-ipv6 'CPPFLAGS=-DWOLFSSL_NO_DTLS_SIZE_CHECK -DOPENSSL_COMPATIBLE_DEFAULTS'
+          install: true
+
+    - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-socat
+          path: build-dir
+          retention-days: 3
+
+
   socat_check:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 30
+    needs: build_wolfssl
     steps:
       - name: Install prereqs
         run:
           sudo apt-get install build-essential autoconf libtool pkg-config clang libc++-dev
 
-      - name: Build wolfSSL
-        uses: wolfSSL/actions-build-autotools-project@v1
+      - name: Download lib
+        uses: actions/download-artifact@v4
         with:
-          path: wolfssl
-          configure: --enable-maxfragment --enable-opensslall --enable-opensslextra --enable-dtls --enable-oldtls --enable-tlsv10 --enable-ipv6 'CPPFLAGS=-DWOLFSSL_NO_DTLS_SIZE_CHECK -DOPENSSL_COMPATIBLE_DEFAULTS'
-          install: true
+          name: wolf-install-socat
+          path: build-dir
 
       - name: Download socat
         run: curl -O http://www.dest-unreach.org/socat/download/socat-1.8.0.0.tar.gz && tar xvf socat-1.8.0.0.tar.gz
@@ -45,7 +63,7 @@ jobs:
         run: |
           patch -p1 < ../osp/socat/1.8.0.0/socat-1.8.0.0.patch
           autoreconf -vfi
-          ./configure --with-wolfssl=/usr/local
+          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
           make
 
       - name: Run socat tests
