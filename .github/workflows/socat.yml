@@ -14,16 +14,18 @@ concurrency:
 
 jobs:
   build_wolfssl:
+    name: Build wolfSSL
     runs-on: ubuntu-latest
     timeout-minutes: 4
-    - name: Build wolfSSL
+    steps:
+      - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
           configure: --enable-maxfragment --enable-opensslall --enable-opensslextra --enable-dtls --enable-oldtls --enable-tlsv10 --enable-ipv6 'CPPFLAGS=-DWOLFSSL_NO_DTLS_SIZE_CHECK -DOPENSSL_COMPATIBLE_DEFAULTS'
           install: true
 
-    - name: Upload built lib
+      - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-socat
