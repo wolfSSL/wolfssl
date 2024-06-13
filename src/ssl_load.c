@@ -2872,9 +2872,22 @@ WOLFSSL_ABI
 int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
                                      const char* path)
 {
-    /* Load using default flags/options. */
+    /* We want to keep trying to load more CA certs even if one cert in the
+     * directory is bad and can't be used (e.g. if one is expired), and we
+     * want to return success if any were successfully loaded (mimicking
+     * OpenSSL SSL_CTX_load_verify_locations() semantics), so we use
+     * WOLFSSL_LOAD_FLAG_IGNORE_ERR.  OpenSSL (as of v3.3.2) actually
+     * returns success even if no certs are loaded (e.g. because the
+     * supplied "path" doesn't exist or access is prohibited), and only
+     * returns failure if the "file" is non-null and fails to load.
+     *
+     * Note that if a file is supplied and can't be successfully loaded, the
+     * overall call fails and the path is never even evaluated.  This is
+     * consistent with OpenSSL behavior.
+     */
+
     int ret = wolfSSL_CTX_load_verify_locations_ex(ctx, file, path,
-        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS);
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS | WOLFSSL_LOAD_FLAG_IGNORE_ERR);
 
     /* Return 1 on success or 0 on failure. */
     return WS_RETURN_CODE(ret, 0);
