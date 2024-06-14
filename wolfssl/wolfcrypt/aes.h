@@ -420,16 +420,17 @@ struct Aes {
         Aes tweak;
     };
 
-    #ifndef WC_AESXTS_TYPE_DEFINED
-        typedef struct XtsAes XtsAes;
-        #define WC_AESXTS_TYPE_DEFINED
-    #endif
-
     #ifdef WOLFSSL_AESXTS_STREAM
         struct XtsAesStreamData {
             byte tweak_block[AES_BLOCK_SIZE];
             word32 bytes_crypted_with_this_tweak;
         };
+    #endif
+
+    #ifndef WC_AESXTS_TYPE_DEFINED
+        typedef struct XtsAes XtsAes;
+        typedef struct XtsAesStreamData XtsAesStreamData;
+        #define WC_AESXTS_TYPE_DEFINED
     #endif
 
 #endif
@@ -456,9 +457,15 @@ struct Aes {
 #endif
 
 #ifdef HAVE_AESGCM
-typedef struct Gmac {
+struct Gmac {
     Aes aes;
-} Gmac;
+};
+
+#ifndef WC_AESGCM_TYPE_DEFINED
+    typedef struct Gmac Gmac;
+    #define WC_AESGCM_TYPE_DEFINED
+#endif
+
 #endif /* HAVE_AESGCM */
 #endif /* HAVE_FIPS */
 
