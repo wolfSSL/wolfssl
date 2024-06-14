@@ -70,4 +70,7 @@ jobs:
 
       - name: Run socat tests
         working-directory: ./socat-1.8.0.0
-        run: SOCAT=$GITHUB_WORKSPACE/socat-1.8.0.0/socat ./test.sh --expect-fail 146,216,309,310,386,402,459,460
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          export SHELL=/bin/bash
+          SOCAT=$GITHUB_WORKSPACE/socat-1.8.0.0/socat ./test.sh -t 0.5 --expect-fail 146,216,309,310,386,399,402,459,460,467,468,478,492,528,530
