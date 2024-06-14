@@ -8356,6 +8356,14 @@ int tlsShowSecrets(WOLFSSL* ssl, void* secret, int secretSz,
 
 #ifdef OPENSSL_EXTRA
 
+static inline int IncrementUnlessNull(char** ptr) {
+    if (*ptr == NULL) {
+        return 0;
+    }
+    *ptr += 1;
+    return 1;
+}
+
 /*
  * check if the list has TLS13 and pre-TLS13 suites
  * @param list cipher suite list that user want to set
@@ -8433,7 +8441,7 @@ static int CheckcipherList(const char* list)
             return 0;
         }
     }
-    while (next++); /* ++ needed to skip ':' */
+    while (IncrementUnlessNull(&next)); /* increment needed to skip ':' */
 
     if (findTLSv13Suites == 0 && findbeforeSuites == 1) {
         ret = 1;/* only before TLSv13 suites */

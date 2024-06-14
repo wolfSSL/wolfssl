@@ -26546,6 +26546,14 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
     return ret;
 }
 
+static inline int IncrementUnlessNull(const char** ptr) {
+    if (*ptr == NULL) {
+        return 0;
+    }
+    *ptr += 1;
+    return 1;
+}
+
 /**
 Set the enabled cipher suites.
 
@@ -26940,7 +26948,7 @@ static int ParseCipherList(Suites* suites,
             }
         }
     }
-    while (next++); /* ++ needed to skip ':' */
+    while (IncrementUnlessNull(&next)); /* increment needed to skip ':' */
 
     if (ret) {
         int keySz = 0;
