@@ -1,0 +1,91 @@
+name: cyrus-sasl Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          install: true
+          # Don't run tests as this config is tested in many other places
+          check: false
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-sasl
+          path: build-dir
+          retention-days: 5
+
+  sasl_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 2.1.28 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    needs: build_wolfssl
+    steps:
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install krb5-kdc krb5-otp libkrb5-dev \
+            libsocket-wrapper libnss-wrapper krb5-admin-server libdb5.3-dev
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-sasl
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout sasl
+        uses: actions/checkout@v4
+        with:
+          repository: cyrusimap/cyrus-sasl
+          ref: cyrus-sasl-${{ matrix.ref }}
+          path: sasl
+
+      - name: Build cyrus-sasl
+        working-directory: sasl
+        run: |
+          patch -p1 < $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/${{ matrix.ref }}.patch
+          autoreconf -ivf
+          ./configure --with-openssl=no --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-dblib=berkeley --disable-shared
+          # Need to run 'make' twice with '--disable-shared' for some reason
+          make -j || make -j
+
+      - name: Run testsuite
+        working-directory: sasl
+        run: |
+          make -j -C utils testsuite saslpasswd2
+          $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/run-tests.sh
