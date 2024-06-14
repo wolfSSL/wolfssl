@@ -13659,6 +13659,7 @@ WOLFSSL_ECDSA_SIG* wolfSSL_d2i_ECDSA_SIG(WOLFSSL_ECDSA_SIG** sig,
 int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
 {
     word32 len = 0;
+    int    update_p = 1;
 
     /* Validate parameter. */
     if (sig != NULL) {
@@ -13678,6 +13679,17 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
         /* Add in the length of the SEQUENCE. */
         len += (word32)1 + ASN_LEN_SIZE(len);
 
+        #ifdef WOLFSSL_I2D_ECDSA_SIG_ALLOC
+        if ((pp != NULL) && (*pp == NULL)) {
+            *pp = (unsigned char *)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
+            if (*pp != NULL) {
+                WOLFSSL_MSG("malloc error");
+                return 0;
+            }
+            update_p = 0;
+        }
+        #endif
+
         /* Encode only if there is a buffer to encode into. */
         if ((pp != NULL) && (*pp != NULL)) {
             /* Encode using the internal representations of r and s. */
@@ -13686,7 +13698,7 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
                 /* No bytes encoded. */
                 len = 0;
             }
-            else {
+            else if (update_p) {
                 /* Update pointer to after encoding. */
                 *pp += len;
             }
