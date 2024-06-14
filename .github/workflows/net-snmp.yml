@@ -1,0 +1,77 @@
+name: net-snmp Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-net-snmp
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-net-snmp
+          path: build-dir
+          retention-days: 5
+
+  net-snmp_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        include:
+          - ref: 5.9.3
+            test_opts: -e 'agentxperl'
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-net-snmp
+          path: build-dir
+    
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Build net-snmp
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: net-snmp/net-snmp
+          ref: v${{ matrix.ref }}
+          path: net-snmp
+          patch-file: $GITHUB_WORKSPACE/osp/net-snmp/${{ matrix.ref }}.patch
+          configure: --disable-shared --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          check: false
+
+      - name: Run net-snmp tests
+        working-directory: net-snmp
+        run: |
+          autoconf --version | grep -P '2\.\d\d' -o > dist/autoconf-version
+          make -j test TESTOPTS="${{ matrix.test_opts }}"
