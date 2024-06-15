@@ -11030,63 +11030,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         wolfSSL_set_bio_1(ssl, NULL, wr, WOLFSSL_BIO_FLAG_WRITE);
     }
 
-#if 0
-    void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
-    {
-        WOLFSSL_ENTER("wolfSSL_set_bio");
-
-        if (ssl == NULL) {
-            WOLFSSL_MSG("Bad argument, ssl was NULL");
-            return;
-        }
-
-        /* free any existing WOLFSSL_BIOs in use but don't free those in
-         * a chain */
-        if (ssl->biord != NULL) {
-            if (ssl->biord != ssl->biowr) {
-                if (ssl->biowr != NULL && ssl->biowr->prev != NULL)
-                    wolfSSL_BIO_free(ssl->biowr);
-                ssl->biowr = NULL;
-            }
-            if (ssl->biord->prev != NULL)
-                wolfSSL_BIO_free(ssl->biord);
-            ssl->biord = NULL;
-        }
-        else if (ssl->biowr != NULL) {
-            if (ssl->biowr->prev != NULL)
-                wolfSSL_BIO_free(ssl->biowr);
-            ssl->biowr = NULL;
-        }
-
-        /* set flag obviously */
-        if (rd && !(rd->flags & WOLFSSL_BIO_FLAG_READ))
-            rd->flags |= WOLFSSL_BIO_FLAG_READ;
-        if (wr && !(wr->flags & WOLFSSL_BIO_FLAG_WRITE))
-            wr->flags |= WOLFSSL_BIO_FLAG_WRITE;
-
-        ssl->biord = rd;
-        ssl->biowr = wr;
-
-        /* set SSL to use BIO callbacks instead */
-        if (((ssl->cbioFlag & WOLFSSL_CBIO_RECV) == 0)) {
-            ssl->CBIORecv = BioReceive;
-        }
-        if (((ssl->cbioFlag & WOLFSSL_CBIO_SEND) == 0)) {
-            ssl->CBIOSend = BioSend;
-        }
-
-        /* User programs should always retry reading from these BIOs */
-        if (rd) {
-            /* User writes to rd */
-            BIO_set_retry_write(rd);
-        }
-        if (wr) {
-            /* User reads from wr */
-            BIO_set_retry_read(wr);
-        }
-    }
-#endif /* 0 */
-
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA */
 
