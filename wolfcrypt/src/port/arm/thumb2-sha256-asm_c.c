@@ -101,7 +101,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "STRD	r10, r11, [sp, #88]\n\t"
         /* Start of loop processing a block */
         "\n"
-    "L_SHA256_transform_len_begin:\n\t"
+    "L_SHA256_transform_len_begin%=:\n\t"
         /* Load, Reverse and Store W - 64 bytes */
         "LDR	r4, [%[data]]\n\t"
         "LDR	r5, [%[data], #4]\n\t"
@@ -149,7 +149,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "MOV	r12, #0x3\n\t"
         /* Start of 16 rounds */
         "\n"
-    "L_SHA256_transform_len_start:\n\t"
+    "L_SHA256_transform_len_start%=:\n\t"
         /* Round 0 */
         "LDR	r5, [%[sha256], #16]\n\t"
         "LDR	r6, [%[sha256], #20]\n\t"
@@ -905,9 +905,9 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "ADD	r3, r3, #0x40\n\t"
         "SUBS	r12, r12, #0x1\n\t"
 #ifdef __GNUC__
-        "BNE	L_SHA256_transform_len_start\n\t"
+        "BNE	L_SHA256_transform_len_start%=\n\t"
 #else
-        "BNE.W	L_SHA256_transform_len_start\n\t"
+        "BNE.W	L_SHA256_transform_len_start%=\n\t"
 #endif
         /* Round 0 */
         "LDR	r5, [%[sha256], #16]\n\t"
@@ -1450,9 +1450,9 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
         "SUB	r3, r3, #0xc0\n\t"
         "ADD	%[data], %[data], #0x40\n\t"
 #ifdef __GNUC__
-        "BNE	L_SHA256_transform_len_begin\n\t"
+        "BNE	L_SHA256_transform_len_begin%=\n\t"
 #else
-        "BNE.W	L_SHA256_transform_len_begin\n\t"
+        "BNE.W	L_SHA256_transform_len_begin%=\n\t"
 #endif
         "ADD	sp, sp, #0xc0\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
