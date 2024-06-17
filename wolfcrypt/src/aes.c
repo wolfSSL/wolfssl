@@ -10643,6 +10643,11 @@ static WARN_UNUSED_RESULT int roll_auth(
     word32 remainder;
     int ret;
 
+    /* Sanity check on authIn to prevent segfault in xorbuf() where
+     * variable 'in' is dereferenced as the mask 'm' in misc.c */
+    if (in == NULL)
+        return BAD_FUNC_ARG;
+
     /* encode the length in */
     if (inSz <= 0xFEFF) {
         authLenSz = 2;
