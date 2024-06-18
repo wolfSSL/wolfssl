@@ -3086,12 +3086,6 @@ extern void uITRON4_free(void *p) ;
     #define OPENSSL_EXTRA_X509_SMALL
 #endif /* OPENSSL_EXTRA */
 
-/* compatibility for EVP_CipherUpdate with AES-GCM */
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    #undef  WOLFSSL_AESGCM_STREAM
-    #define WOLFSSL_AESGCM_STREAM
-#endif
-
 /* support for converting DER to PEM */
 #if (defined(WOLFSSL_KEY_GEN) && !defined(WOLFSSL_NO_DER_TO_PEM)) || \
     defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA)
