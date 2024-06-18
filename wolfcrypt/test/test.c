@@ -21820,11 +21820,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     #endif /* WOLFSSL_EKU_OID */
     #endif /* WOLFSSL_CERT_EXT */
 
+    #ifndef WOLFSSL_NO_ASN_STRICT
         req->version = 2; /* test bad version fails */
         derSz = wc_MakeCertReq(req, der, FOURK_BUF, key, NULL);
         if (derSz >= 0) {
             ERROR_OUT(-7976, exit_rsa);
         }
+    #endif
 
         req->version = 0;
         derSz = wc_MakeCertReq(req, der, FOURK_BUF, key, NULL);

@@ -31162,12 +31162,14 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     DerCert der[1];
 #endif
 
+#ifndef WOLFSSL_NO_ASN_STRICT
     /* check that the cert. req. version matches rfc2986 sect. 4.1 */
     if (cert->version != 0) {
         WOLFSSL_MSG("Only version 0 for CSR supported");
         WOLFSSL_ERROR_VERBOSE(ASN_VERSION_E);
         return ASN_VERSION_E;
     }
+#endif
 
     if (eccKey)
         cert->keyType = ECC_KEY;
@@ -31256,12 +31258,14 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
     (void)dilithiumKey;
     (void)sphincsKey;
 
+#ifndef WOLFSSL_NO_ASN_STRICT
     /* check that the cert. req. version matches rfc2986 sect. 4.1 */
     if (cert->version != 0) {
         WOLFSSL_MSG("Only version 0 for CSR supported");
         WOLFSSL_ERROR_VERBOSE(ASN_VERSION_E);
         return ASN_VERSION_E;
     }
+#endif
 
     CALLOC_ASNSETDATA(dataASN, certReqBodyASN_Length, ret, cert->heap);
 
