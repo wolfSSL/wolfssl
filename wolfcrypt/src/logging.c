@@ -279,11 +279,8 @@ void WOLFSSL_TIME(int count)
 #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
-static void wolfssl_log(
-    const int logLevel,
-    const char *file_name,
-    int line_number,
-    const char *const logMessage)
+static void wolfssl_log(const int logLevel, const char* const file_name,
+                        int line_number, const char* const logMessage)
 {
     (void)file_name;
     (void)line_number;
