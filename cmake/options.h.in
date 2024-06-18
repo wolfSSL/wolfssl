@@ -366,6 +366,8 @@ extern "C" {
 #cmakedefine WOLFSSL_HAVE_KYBER
 #undef WOLFSSL_WC_KYBER
 #cmakedefine WOLFSSL_WC_KYBER
+#undef NO_WOLFSSL_STUB
+#cmakedefine NO_WOLFSSL_STUB
 
 #ifdef __cplusplus
 }

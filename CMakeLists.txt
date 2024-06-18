@@ -538,6 +538,15 @@ if (WOLFSSL_OPENSSLALL)
       "-DWOLFSSL_ERROR_CODE_OPENSSL" "-DWOLFSSL_CERT_NAME_ALL")
 endif()
 
+add_option(WOLFSSL_NO_STUB
+    "Removes OpenSSL compatibility stub functions (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_NO_STUB)
+    list(APPEND WOLFSSL_DEFINITIONS
+      "-DNO_WOLFSSL_STUB")
+endif()
+
 # TODO: - IPv6 test apps
 
 set(WOLFSSL_SLOW_MATH "yes")
@@ -1534,6 +1543,15 @@ add_option(WOLFSSL_SNI ${WOLFSSL_SNI_HELP_STRING} ${SNI_DEFAULT} "yes;no")
 
 set(WOLFSSL_TLSX_HELP_STRING "Enable all TLS Extensions (default: disabled)")
 add_option(WOLFSSL_TLSX ${WOLFSSL_TLSX_HELP_STRING} "no" "yes;no")
+
+add_option(WOLFSSL_EX_DATA
+    "Enable app data (default: disabled)"
+    "no" "yes;no")
+
+if (WOLFSSL_EX_DATA)
+    list(APPEND WOLFSSL_DEFINITIONS
+      "-DHAVE_EX_DATA")
+endif()
 
 # Supported elliptic curves extensions
 add_option("WOLFSSL_SUPPORTED_CURVES"
