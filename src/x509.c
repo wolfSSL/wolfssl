@@ -12972,6 +12972,14 @@ static int get_dn_attr_by_nid(int n, const char** buf)
             str = "UID";
             len = 3;
             break;
+        case NID_serialNumber:
+            str = "serialNumber";
+            len = 12;
+            break;
+        case NID_title:
+            str = "title";
+            len = 5;
+            break;
         default:
             WOLFSSL_MSG("Attribute type not found");
             str = NULL;
