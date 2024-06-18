@@ -63464,6 +63464,16 @@ static int test_wolfSSL_ECDSA_SIG(void)
     ExpectIntEQ((p == outSig + 8), 1);
     ExpectIntEQ(XMEMCMP(sigData, outSig, 8), 0);
 
+    p = NULL;
+    ExpectIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, &p), 8);
+#ifndef WOLFSSL_I2D_ECDSA_SIG_ALLOC
+    ExpectNull(p);
+#else
+    ExpectNotNull(p);
+    ExpectIntEQ(XMEMCMP(p, outSig, 8), 0);
+    XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
+
     wolfSSL_ECDSA_SIG_free(sig);
 #endif
     return EXPECT_RESULT();
