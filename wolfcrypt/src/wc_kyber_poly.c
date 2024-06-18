@@ -28,6 +28,35 @@
  * polynomials.
  */
 
+/* Possible Kyber options:
+ *
+ * WOLFSSL_WC_KYBER                                           Default: OFF
+ *   Enables this code, wolfSSL implementation, to be built.
+ *
+ * WOLFSSL_KYBER512                                           Default: OFF
+ *   Enables the KYBER512 parameter implementations.
+ * WOLFSSL_KYBER768                                           Default: OFF
+ *   Enables the KYBER768 parameter implementations.
+ * WOLFSSL_KYBER1024                                          Default: OFF
+ *   Enables the KYBER1024 parameter implementations.
+ *
+ * USE_INTEL_SPEEDUP                                          Default: OFF
+ *   Compiles in Intel x64 specific implementations that are faster.
+ * WOLFSSL_KYBER_NO_LARGE_CODE                                Default: OFF
+ *   Compiles smaller, fast code size with a speed trade-off.
+ * WOLFSSL_KYBER_SMALL                                        Default: OFF
+ *   Compiles to small code size with a speed trade-off.
+ * WOLFSSL_SMALL_STACK                                        Default: OFF
+ *   Use less stack by dynamically allocating local variables.
+ *
+ * WOLFSSL_KYBER_NTT_UNROLL                                   Defualt: OFF
+ *   Enable an alternative NTT implementation that may be faster on some
+ *   platforms and is smaller in code size.
+ * WOLFSSL_KYBER_INVNTT_UNROLL                                Default: OFF
+ *   Enables an alternative inverse NTT implementation that may be faster on
+ *   some platforms and is smaller in code size.
+ */
+
 #include <wolfssl/wolfcrypt/wc_kyber.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -164,7 +193,7 @@ static void kyber_ntt(sword16* r)
     for (j = 0; j < KYBER_N; ++j) {
         r[j] = KYBER_BARRETT_RED(r[j]);
     }
-#else
+#elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
     unsigned int len;
     unsigned int k = 1;
     unsigned int j;
@@ -194,6 +223,256 @@ static void kyber_ntt(sword16* r)
     /* Reduce coefficients with quick algorithm. */
     for (j = 0; j < KYBER_N; ++j) {
         r[j] = KYBER_BARRETT_RED(r[j]);
+    }
+#elif defined(WOLFSSL_KYBER_NTT_UNROLL)
+    unsigned int k = 1;
+    unsigned int j;
+    unsigned int start;
+    sword16 zeta = zetas[k++];
+
+    for (j = 0; j < KYBER_N / 2; ++j) {
+        sword32 p = (sword32)zeta * r[j + KYBER_N / 2];
+        sword16 t = KYBER_MONT_RED(p);
+        sword16 rj = r[j];
+        r[j + KYBER_N / 2] = rj - t;
+        r[j] = rj + t;
+    }
+    for (start = 0; start < KYBER_N; start += 2 * 64) {
+        zeta = zetas[k++];
+        for (j = 0; j < 64; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 64];
+            sword16 t = KYBER_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 64] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    for (start = 0; start < KYBER_N; start += 2 * 32) {
+        zeta = zetas[k++];
+        for (j = 0; j < 32; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 32];
+            sword16 t = KYBER_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 32] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    for (start = 0; start < KYBER_N; start += 2 * 16) {
+        zeta = zetas[k++];
+        for (j = 0; j < 16; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 16];
+            sword16 t = KYBER_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 16] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    for (start = 0; start < KYBER_N; start += 2 * 8) {
+        zeta = zetas[k++];
+        for (j = 0; j < 8; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 8];
+            sword16 t = KYBER_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 8] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    for (start = 0; start < KYBER_N; start += 2 * 4) {
+        zeta = zetas[k++];
+        for (j = 0; j < 4; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 4];
+            sword16 t = KYBER_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 4] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    for (start = 0; start < KYBER_N; start += 2 * 2) {
+        zeta = zetas[k++];
+        for (j = 0; j < 2; ++j) {
+            sword32 p = (sword32)zeta * r[start + j + 2];
+            sword16 t = KYBER_MONT_RED(p);
+            sword16 rj = r[start + j];
+            r[start + j + 2] = rj - t;
+            r[start + j] = rj + t;
+        }
+    }
+    /* Reduce coefficients with quick algorithm. */
+    for (j = 0; j < KYBER_N; ++j) {
+        r[j] = KYBER_BARRETT_RED(r[j]);
+    }
+#else
+    unsigned int j;
+    sword16 t0;
+    sword16 t1;
+    sword16 t2;
+    sword16 t3;
+
+    sword16 zeta128 = zetas[1];
+    sword16 zeta64_0 = zetas[2];
+    sword16 zeta64_1 = zetas[3];
+    for (j = 0; j < KYBER_N / 8; j++) {
+        sword16 r0 = r[j +   0];
+        sword16 r1 = r[j +  32];
+        sword16 r2 = r[j +  64];
+        sword16 r3 = r[j +  96];
+        sword16 r4 = r[j + 128];
+        sword16 r5 = r[j + 160];
+        sword16 r6 = r[j + 192];
+        sword16 r7 = r[j + 224];
+
+        t0 = KYBER_MONT_RED((sword32)zeta128 * r4);
+        t1 = KYBER_MONT_RED((sword32)zeta128 * r5);
+        t2 = KYBER_MONT_RED((sword32)zeta128 * r6);
+        t3 = KYBER_MONT_RED((sword32)zeta128 * r7);
+        r4 = r0 - t0;
+        r5 = r1 - t1;
+        r6 = r2 - t2;
+        r7 = r3 - t3;
+        r0 += t0;
+        r1 += t1;
+        r2 += t2;
+        r3 += t3;
+
+        t0 = KYBER_MONT_RED((sword32)zeta64_0 * r2);
+        t1 = KYBER_MONT_RED((sword32)zeta64_0 * r3);
+        t2 = KYBER_MONT_RED((sword32)zeta64_1 * r6);
+        t3 = KYBER_MONT_RED((sword32)zeta64_1 * r7);
+        r2 = r0 - t0;
+        r3 = r1 - t1;
+        r6 = r4 - t2;
+        r7 = r5 - t3;
+        r0 += t0;
+        r1 += t1;
+        r4 += t2;
+        r5 += t3;
+
+        r[j +   0] = r0;
+        r[j +  32] = r1;
+        r[j +  64] = r2;
+        r[j +  96] = r3;
+        r[j + 128] = r4;
+        r[j + 160] = r5;
+        r[j + 192] = r6;
+        r[j + 224] = r7;
+    }
+
+    for (j = 0; j < KYBER_N; j += 64) {
+        int i;
+        sword16 zeta32   = zetas[ 4 + j / 64 + 0];
+        sword16 zeta16_0 = zetas[ 8 + j / 32 + 0];
+        sword16 zeta16_1 = zetas[ 8 + j / 32 + 1];
+        sword16 zeta8_0  = zetas[16 + j / 16 + 0];
+        sword16 zeta8_1  = zetas[16 + j / 16 + 1];
+        sword16 zeta8_2  = zetas[16 + j / 16 + 2];
+        sword16 zeta8_3  = zetas[16 + j / 16 + 3];
+        for (i = 0; i < 8; i++) {
+            sword16 r0 = r[j + i +  0];
+            sword16 r1 = r[j + i +  8];
+            sword16 r2 = r[j + i + 16];
+            sword16 r3 = r[j + i + 24];
+            sword16 r4 = r[j + i + 32];
+            sword16 r5 = r[j + i + 40];
+            sword16 r6 = r[j + i + 48];
+            sword16 r7 = r[j + i + 56];
+
+            t0 = KYBER_MONT_RED((sword32)zeta32 * r4);
+            t1 = KYBER_MONT_RED((sword32)zeta32 * r5);
+            t2 = KYBER_MONT_RED((sword32)zeta32 * r6);
+            t3 = KYBER_MONT_RED((sword32)zeta32 * r7);
+            r4 = r0 - t0;
+            r5 = r1 - t1;
+            r6 = r2 - t2;
+            r7 = r3 - t3;
+            r0 += t0;
+            r1 += t1;
+            r2 += t2;
+            r3 += t3;
+
+            t0 = KYBER_MONT_RED((sword32)zeta16_0 * r2);
+            t1 = KYBER_MONT_RED((sword32)zeta16_0 * r3);
+            t2 = KYBER_MONT_RED((sword32)zeta16_1 * r6);
+            t3 = KYBER_MONT_RED((sword32)zeta16_1 * r7);
+            r2 = r0 - t0;
+            r3 = r1 - t1;
+            r6 = r4 - t2;
+            r7 = r5 - t3;
+            r0 += t0;
+            r1 += t1;
+            r4 += t2;
+            r5 += t3;
+
+            t0 = KYBER_MONT_RED((sword32)zeta8_0 * r1);
+            t1 = KYBER_MONT_RED((sword32)zeta8_1 * r3);
+            t2 = KYBER_MONT_RED((sword32)zeta8_2 * r5);
+            t3 = KYBER_MONT_RED((sword32)zeta8_3 * r7);
+            r1 = r0 - t0;
+            r3 = r2 - t1;
+            r5 = r4 - t2;
+            r7 = r6 - t3;
+            r0 += t0;
+            r2 += t1;
+            r4 += t2;
+            r6 += t3;
+
+            r[j + i +  0] = r0;
+            r[j + i +  8] = r1;
+            r[j + i + 16] = r2;
+            r[j + i + 24] = r3;
+            r[j + i + 32] = r4;
+            r[j + i + 40] = r5;
+            r[j + i + 48] = r6;
+            r[j + i + 56] = r7;
+        }
+    }
+
+    for (j = 0; j < KYBER_N; j += 8) {
+        sword16 zeta4  = zetas[32 + j / 8 + 0];
+        sword16 zeta2_0 = zetas[64 + j / 4 + 0];
+        sword16 zeta2_1 = zetas[64 + j / 4 + 1];
+        sword16 r0 = r[j + 0];
+        sword16 r1 = r[j + 1];
+        sword16 r2 = r[j + 2];
+        sword16 r3 = r[j + 3];
+        sword16 r4 = r[j + 4];
+        sword16 r5 = r[j + 5];
+        sword16 r6 = r[j + 6];
+        sword16 r7 = r[j + 7];
+
+        t0 = KYBER_MONT_RED((sword32)zeta4 * r4);
+        t1 = KYBER_MONT_RED((sword32)zeta4 * r5);
+        t2 = KYBER_MONT_RED((sword32)zeta4 * r6);
+        t3 = KYBER_MONT_RED((sword32)zeta4 * r7);
+        r4 = r0 - t0;
+        r5 = r1 - t1;
+        r6 = r2 - t2;
+        r7 = r3 - t3;
+        r0 += t0;
+        r1 += t1;
+        r2 += t2;
+        r3 += t3;
+
+        t0 = KYBER_MONT_RED((sword32)zeta2_0 * r2);
+        t1 = KYBER_MONT_RED((sword32)zeta2_0 * r3);
+        t2 = KYBER_MONT_RED((sword32)zeta2_1 * r6);
+        t3 = KYBER_MONT_RED((sword32)zeta2_1 * r7);
+        r2 = r0 - t0;
+        r3 = r1 - t1;
+        r6 = r4 - t2;
+        r7 = r5 - t3;
+        r0 += t0;
+        r1 += t1;
+        r4 += t2;
+        r5 += t3;
+
+        r[j + 0] = KYBER_BARRETT_RED(r0);
+        r[j + 1] = KYBER_BARRETT_RED(r1);
+        r[j + 2] = KYBER_BARRETT_RED(r2);
+        r[j + 3] = KYBER_BARRETT_RED(r3);
+        r[j + 4] = KYBER_BARRETT_RED(r4);
+        r[j + 5] = KYBER_BARRETT_RED(r5);
+        r[j + 6] = KYBER_BARRETT_RED(r6);
+        r[j + 7] = KYBER_BARRETT_RED(r7);
     }
 #endif
 }
@@ -233,7 +512,49 @@ static void kyber_invntt(sword16* r)
         sword32 p = (sword32)zeta * r[j];
         r[j] = KYBER_MONT_RED(p);
     }
-#else
+#elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    unsigned int len;
+    unsigned int k;
+    unsigned int j;
+    sword16 zeta;
+    sword16 zeta2;
+
+    k = 0;
+    for (len = 2; len <= KYBER_N / 4; len <<= 1) {
+        unsigned int start;
+        for (start = 0; start < KYBER_N; start = j + len) {
+            zeta = zetas_inv[k++];
+            for (j = start; j < start + len; ++j) {
+                sword32 p;
+                sword16 rj = r[j];
+                sword16 rjl = r[j + len];
+                sword16 t = rj + rjl;
+                r[j] = KYBER_BARRETT_RED(t);
+                rjl = rj - rjl;
+                p = (sword32)zeta * rjl;
+                r[j + len] = KYBER_MONT_RED(p);
+            }
+        }
+    }
+
+    zeta = zetas_inv[126];
+    zeta2 = zetas_inv[127];
+    for (j = 0; j < KYBER_N / 2; ++j) {
+        sword32 p;
+        sword16 rj = r[j];
+        sword16 rjl = r[j + KYBER_N / 2];
+        sword16 t = rj + rjl;
+        rjl = rj - rjl;
+        p = (sword32)zeta * rjl;
+        r[j] = t;
+        r[j + KYBER_N / 2] = KYBER_MONT_RED(p);
+
+        p = (sword32)zeta2 * r[j];
+        r[j] = KYBER_MONT_RED(p);
+        p = (sword32)zeta2 * r[j + KYBER_N / 2];
+        r[j + KYBER_N / 2] = KYBER_MONT_RED(p);
+    }
+#elif defined(WOLFSSL_KYBER_INVNTT_UNROLL)
     unsigned int k;
     unsigned int j;
     unsigned int start;
@@ -338,6 +659,230 @@ static void kyber_invntt(sword16* r)
         p = (sword32)zeta2 * r[j + KYBER_N / 2];
         r[j + KYBER_N / 2] = KYBER_MONT_RED(p);
     }
+#else
+    unsigned int j;
+    sword16 t0;
+    sword16 t1;
+    sword16 t2;
+    sword16 t3;
+    sword16 zeta64_0;
+    sword16 zeta64_1;
+    sword16 zeta128;
+    sword16 zeta256;
+    sword32 p;
+
+    for (j = 0; j < KYBER_N; j += 8) {
+        sword16 zeta2_0 = zetas_inv[ 0 + j / 4 + 0];
+        sword16 zeta2_1 = zetas_inv[ 0 + j / 4 + 1];
+        sword16 zeta4   = zetas_inv[64 + j / 8 + 0];
+        sword16 r0 = r[j + 0];
+        sword16 r1 = r[j + 1];
+        sword16 r2 = r[j + 2];
+        sword16 r3 = r[j + 3];
+        sword16 r4 = r[j + 4];
+        sword16 r5 = r[j + 5];
+        sword16 r6 = r[j + 6];
+        sword16 r7 = r[j + 7];
+
+        p = (sword32)zeta2_0 * (sword16)(r0 - r2);
+        t0 = KYBER_MONT_RED(p);
+        p = (sword32)zeta2_0 * (sword16)(r1 - r3);
+        t1 = KYBER_MONT_RED(p);
+        p = (sword32)zeta2_1 * (sword16)(r4 - r6);
+        t2 = KYBER_MONT_RED(p);
+        p = (sword32)zeta2_1 * (sword16)(r5 - r7);
+        t3 = KYBER_MONT_RED(p);
+        r0 += r2;
+        r1 += r3;
+        r4 += r6;
+        r5 += r7;
+        r2 = t0;
+        r3 = t1;
+        r6 = t2;
+        r7 = t3;
+
+        p = (sword32)zeta4 * (sword16)(r0 - r4);
+        t0 = KYBER_MONT_RED(p);
+        p = (sword32)zeta4 * (sword16)(r1 - r5);
+        t1 = KYBER_MONT_RED(p);
+        p = (sword32)zeta4 * (sword16)(r2 - r6);
+        t2 = KYBER_MONT_RED(p);
+        p = (sword32)zeta4 * (sword16)(r3 - r7);
+        t3 = KYBER_MONT_RED(p);
+        r0 += r4;
+        r1 += r5;
+        r2 += r6;
+        r3 += r7;
+        r4 = t0;
+        r5 = t1;
+        r6 = t2;
+        r7 = t3;
+
+        r[j + 0] = r0;
+        r[j + 1] = r1;
+        r[j + 2] = r2;
+        r[j + 3] = r3;
+        r[j + 4] = r4;
+        r[j + 5] = r5;
+        r[j + 6] = r6;
+        r[j + 7] = r7;
+    }
+
+    for (j = 0; j < KYBER_N; j += 64) {
+        int i;
+        sword16 zeta8_0  = zetas_inv[ 96 + j / 16 + 0];
+        sword16 zeta8_1  = zetas_inv[ 96 + j / 16 + 1];
+        sword16 zeta8_2  = zetas_inv[ 96 + j / 16 + 2];
+        sword16 zeta8_3  = zetas_inv[ 96 + j / 16 + 3];
+        sword16 zeta16_0 = zetas_inv[112 + j / 32 + 0];
+        sword16 zeta16_1 = zetas_inv[112 + j / 32 + 1];
+        sword16 zeta32   = zetas_inv[120 + j / 64 + 0];
+        for (i = 0; i < 8; i++) {
+            sword16 r0 = r[j + i +  0];
+            sword16 r1 = r[j + i +  8];
+            sword16 r2 = r[j + i + 16];
+            sword16 r3 = r[j + i + 24];
+            sword16 r4 = r[j + i + 32];
+            sword16 r5 = r[j + i + 40];
+            sword16 r6 = r[j + i + 48];
+            sword16 r7 = r[j + i + 56];
+
+            p = (sword32)zeta8_0 * (sword16)(r0 - r1);
+            t0 = KYBER_MONT_RED(p);
+            p = (sword32)zeta8_1 * (sword16)(r2 - r3);
+            t1 = KYBER_MONT_RED(p);
+            p = (sword32)zeta8_2 * (sword16)(r4 - r5);
+            t2 = KYBER_MONT_RED(p);
+            p = (sword32)zeta8_3 * (sword16)(r6 - r7);
+            t3 = KYBER_MONT_RED(p);
+            r0 = KYBER_BARRETT_RED(r0 + r1);
+            r2 = KYBER_BARRETT_RED(r2 + r3);
+            r4 = KYBER_BARRETT_RED(r4 + r5);
+            r6 = KYBER_BARRETT_RED(r6 + r7);
+            r1 = t0;
+            r3 = t1;
+            r5 = t2;
+            r7 = t3;
+
+            p = (sword32)zeta16_0 * (sword16)(r0 - r2);
+            t0 = KYBER_MONT_RED(p);
+            p = (sword32)zeta16_0 * (sword16)(r1 - r3);
+            t1 = KYBER_MONT_RED(p);
+            p = (sword32)zeta16_1 * (sword16)(r4 - r6);
+            t2 = KYBER_MONT_RED(p);
+            p = (sword32)zeta16_1 * (sword16)(r5 - r7);
+            t3 = KYBER_MONT_RED(p);
+            r0 += r2;
+            r1 += r3;
+            r4 += r6;
+            r5 += r7;
+            r2 = t0;
+            r3 = t1;
+            r6 = t2;
+            r7 = t3;
+
+            p = (sword32)zeta32 * (sword16)(r0 - r4);
+            t0 = KYBER_MONT_RED(p);
+            p = (sword32)zeta32 * (sword16)(r1 - r5);
+            t1 = KYBER_MONT_RED(p);
+            p = (sword32)zeta32 * (sword16)(r2 - r6);
+            t2 = KYBER_MONT_RED(p);
+            p = (sword32)zeta32 * (sword16)(r3 - r7);
+            t3 = KYBER_MONT_RED(p);
+            r0 += r4;
+            r1 += r5;
+            r2 += r6;
+            r3 += r7;
+            r4 = t0;
+            r5 = t1;
+            r6 = t2;
+            r7 = t3;
+
+            r[j + i +  0] = r0;
+            r[j + i +  8] = r1;
+            r[j + i + 16] = r2;
+            r[j + i + 24] = r3;
+            r[j + i + 32] = r4;
+            r[j + i + 40] = r5;
+            r[j + i + 48] = r6;
+            r[j + i + 56] = r7;
+        }
+    }
+
+    zeta64_0 = zetas_inv[124];
+    zeta64_1 = zetas_inv[125];
+    zeta128  = zetas_inv[126];
+    zeta256  = zetas_inv[127];
+    for (j = 0; j < KYBER_N / 8; j++) {
+        sword16 r0 = r[j +   0];
+        sword16 r1 = r[j +  32];
+        sword16 r2 = r[j +  64];
+        sword16 r3 = r[j +  96];
+        sword16 r4 = r[j + 128];
+        sword16 r5 = r[j + 160];
+        sword16 r6 = r[j + 192];
+        sword16 r7 = r[j + 224];
+
+        p = (sword32)zeta64_0 * (sword16)(r0 - r2);
+        t0 = KYBER_MONT_RED(p);
+        p = (sword32)zeta64_0 * (sword16)(r1 - r3);
+        t1 = KYBER_MONT_RED(p);
+        p = (sword32)zeta64_1 * (sword16)(r4 - r6);
+        t2 = KYBER_MONT_RED(p);
+        p = (sword32)zeta64_1 * (sword16)(r5 - r7);
+        t3 = KYBER_MONT_RED(p);
+        r0 = KYBER_BARRETT_RED(r0 + r2);
+        r1 = KYBER_BARRETT_RED(r1 + r3);
+        r4 = KYBER_BARRETT_RED(r4 + r6);
+        r5 = KYBER_BARRETT_RED(r5 + r7);
+        r2 = t0;
+        r3 = t1;
+        r6 = t2;
+        r7 = t3;
+
+        p = (sword32)zeta128 * (sword16)(r0 - r4);
+        t0 = KYBER_MONT_RED(p);
+        p = (sword32)zeta128 * (sword16)(r1 - r5);
+        t1 = KYBER_MONT_RED(p);
+        p = (sword32)zeta128 * (sword16)(r2 - r6);
+        t2 = KYBER_MONT_RED(p);
+        p = (sword32)zeta128 * (sword16)(r3 - r7);
+        t3 = KYBER_MONT_RED(p);
+        r0 += r4;
+        r1 += r5;
+        r2 += r6;
+        r3 += r7;
+        r4 = t0;
+        r5 = t1;
+        r6 = t2;
+        r7 = t3;
+
+        p = (sword32)zeta256 * r0;
+        r0 = KYBER_MONT_RED(p);
+        p = (sword32)zeta256 * r1;
+        r1 = KYBER_MONT_RED(p);
+        p = (sword32)zeta256 * r2;
+        r2 = KYBER_MONT_RED(p);
+        p = (sword32)zeta256 * r3;
+        r3 = KYBER_MONT_RED(p);
+        p = (sword32)zeta256 * r4;
+        r4 = KYBER_MONT_RED(p);
+        p = (sword32)zeta256 * r5;
+        r5 = KYBER_MONT_RED(p);
+        p = (sword32)zeta256 * r6;
+        r6 = KYBER_MONT_RED(p);
+        p = (sword32)zeta256 * r7;
+        r7 = KYBER_MONT_RED(p);
+
+        r[j +   0] = r0;
+        r[j +  32] = r1;
+        r[j +  64] = r2;
+        r[j +  96] = r3;
+        r[j + 128] = r4;
+        r[j + 160] = r5;
+        r[j + 192] = r6;
+        r[j + 224] = r7;
+    }
 #endif
 }
 
@@ -390,12 +935,23 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
     }
-#else
+#elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
         kyber_basemul(r + i + 4, a + i + 4, b + i + 4,  zeta[1]);
         kyber_basemul(r + i + 6, a + i + 6, b + i + 6, -zeta[1]);
+    }
+#else
+    for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
+        kyber_basemul(r + i +  0, a + i +  0, b + i +  0,  zeta[0]);
+        kyber_basemul(r + i +  2, a + i +  2, b + i +  2, -zeta[0]);
+        kyber_basemul(r + i +  4, a + i +  4, b + i +  4,  zeta[1]);
+        kyber_basemul(r + i +  6, a + i +  6, b + i +  6, -zeta[1]);
+        kyber_basemul(r + i +  8, a + i +  8, b + i +  8,  zeta[2]);
+        kyber_basemul(r + i + 10, a + i + 10, b + i + 10, -zeta[2]);
+        kyber_basemul(r + i + 12, a + i + 12, b + i + 12,  zeta[3]);
+        kyber_basemul(r + i + 14, a + i + 14, b + i + 14, -zeta[3]);
     }
 #endif
 }
@@ -425,7 +981,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 2] += t2[0];
         r[i + 3] += t2[1];
     }
-#else
+#elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         sword16 t0[2];
         sword16 t2[2];
@@ -445,6 +1001,43 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 5] += t4[1];
         r[i + 6] += t6[0];
         r[i + 7] += t6[1];
+    }
+#else
+    for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
+        sword16 t0[2];
+        sword16 t2[2];
+        sword16 t4[2];
+        sword16 t6[2];
+        sword16 t8[2];
+        sword16 t10[2];
+        sword16 t12[2];
+        sword16 t14[2];
+
+        kyber_basemul(t0, a + i + 0, b + i + 0,  zeta[0]);
+        kyber_basemul(t2, a + i + 2, b + i + 2, -zeta[0]);
+        kyber_basemul(t4, a + i + 4, b + i + 4,  zeta[1]);
+        kyber_basemul(t6, a + i + 6, b + i + 6, -zeta[1]);
+        kyber_basemul(t8, a + i + 8, b + i + 8,  zeta[2]);
+        kyber_basemul(t10, a + i + 10, b + i + 10, -zeta[2]);
+        kyber_basemul(t12, a + i + 12, b + i + 12,  zeta[3]);
+        kyber_basemul(t14, a + i + 14, b + i + 14, -zeta[3]);
+
+        r[i + 0] += t0[0];
+        r[i + 1] += t0[1];
+        r[i + 2] += t2[0];
+        r[i + 3] += t2[1];
+        r[i + 4] += t4[0];
+        r[i + 5] += t4[1];
+        r[i + 6] += t6[0];
+        r[i + 7] += t6[1];
+        r[i + 8] += t8[0];
+        r[i + 9] += t8[1];
+        r[i + 10] += t10[0];
+        r[i + 11] += t10[1];
+        r[i + 12] += t12[0];
+        r[i + 13] += t12[1];
+        r[i + 14] += t14[0];
+        r[i + 15] += t14[1];
     }
 #endif
 }
