@@ -181,6 +181,25 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
 #endif
     WOLFSSL_API void WOLFSSL_MSG(const char* msg);
+#ifdef WOLFSSL_DEBUG_CODEPOINTS
+    WOLFSSL_API void WOLFSSL_MSG2(
+        const char *file, int line, const char* msg);
+    WOLFSSL_API void WOLFSSL_ENTER2(
+        const char *file, int line, const char* msg);
+    WOLFSSL_API void WOLFSSL_LEAVE2(
+        const char *file, int line, const char* msg, int ret);
+    #define WOLFSSL_MSG(msg) WOLFSSL_MSG2(__FILE__, __LINE__, msg)
+    #define WOLFSSL_ENTER(msg) WOLFSSL_ENTER2(__FILE__, __LINE__, msg)
+    #define WOLFSSL_LEAVE(msg, ret) WOLFSSL_LEAVE2(__FILE__, __LINE__, msg, ret)
+    #ifdef XVSNPRINTF
+        WOLFSSL_API void WOLFSSL_MSG_EX2(
+            const char *file, int line, const char* fmt, ...);
+        #define WOLFSSL_MSG_EX(fmt, args...) \
+                WOLFSSL_MSG_EX2(__FILE__, __LINE__, fmt, ## args)
+    #else
+        #define WOLFSSL_MSG_EX2(...) WC_DO_NOTHING
+    #endif
+#endif
     WOLFSSL_API void WOLFSSL_BUFFER(const byte* buffer, word32 length);
 
 #else

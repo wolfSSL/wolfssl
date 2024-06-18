@@ -200,6 +200,17 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CCASFLAGS="$DEBUG_CFLAGS $AM_CCASFLAGS"],
       [AM_CCASFLAGS="$AM_CCASFLAGS -DNDEBUG"])
 
+AC_ARG_ENABLE([debug-code-points],
+    [ AS_HELP_STRING([--enable-debug-code-points],[Include source file and line number in --enable-verbose messages.]) ],
+    [ ENABLED_DEBUG_CODEPOINTS=$enableval ],
+    [ ENABLED_DEBUG_CODEPOINTS=no ]
+    )
+
+if test "$ENABLED_DEBUG_CODEPOINTS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEBUG_CODEPOINTS"
+fi
+
 AC_ARG_ENABLE([debug-trace-errcodes],
     [ AS_HELP_STRING([--enable-debug-trace-errcodes],[Print trace messages when library errors are thrown.]) ],
     [ ENABLED_DEBUG_TRACE_ERRCODES=$enableval ],
