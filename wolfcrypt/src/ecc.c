@@ -4061,7 +4061,7 @@ int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     if ((k != NULL) && (R != NULL) && (mp_iszero(k))) {
         mp_zero(R->x);
         mp_zero(R->y);
-        mp_zero(R->z);
+        mp_set(R->z, 1);
         return MP_OKAY;
     }
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
