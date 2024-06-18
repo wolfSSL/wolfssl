@@ -16093,14 +16093,10 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 OcspResponse response[1];
             #endif
 
-            do {
-                if (ssl->status_request_v2) {
-                    ssl->status_request_v2 = 0;
-                    break;
-                }
-
+            if (!ssl->status_request_v2)
                 return BUFFER_ERROR;
-            } while(0);
+
+            ssl->status_request_v2 = 0;
 
             #ifdef WOLFSSL_SMALL_STACK
                 status = (CertStatus*)XMALLOC(sizeof(CertStatus), ssl->heap,
