@@ -218,7 +218,7 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "ADD	r10, %[ks], %[rounds], LSL #4\n\t"
         "MOV	r11, %[rounds]\n\t"
         "\n"
-    "L_AES_invert_key_loop:\n\t"
+    "L_AES_invert_key_loop%=:\n\t"
         "LDM	%[ks], {r2, r3, r4, r5}\n\t"
         "LDM	r10, {r6, r7, r8, r9}\n\t"
         "STM	r10, {r2, r3, r4, r5}\n\t"
@@ -226,15 +226,15 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "SUBS	r11, r11, #0x2\n\t"
         "SUB	r10, r10, #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_AES_invert_key_loop\n\t"
+        "BNE	L_AES_invert_key_loop%=\n\t"
 #else
-        "BNE.N	L_AES_invert_key_loop\n\t"
+        "BNE.N	L_AES_invert_key_loop%=\n\t"
 #endif
         "SUB	%[ks], %[ks], %[rounds], LSL #3\n\t"
         "ADD	%[ks], %[ks], #0x10\n\t"
         "SUB	r11, %[rounds], #0x1\n\t"
         "\n"
-    "L_AES_invert_key_mix_loop:\n\t"
+    "L_AES_invert_key_mix_loop%=:\n\t"
         "LDM	%[ks], {r2, r3, r4, r5}\n\t"
         "UBFX	r6, r2, #0, #8\n\t"
         "UBFX	r7, r2, #8, #8\n\t"
@@ -302,9 +302,9 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
         "STR	r8, [%[ks]], #4\n\t"
         "SUBS	r11, r11, #0x1\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_invert_key_mix_loop\n\t"
+        "BNE	L_AES_invert_key_mix_loop%=\n\t"
 #else
-        "BNE.W	L_AES_invert_key_mix_loop\n\t"
+        "BNE.W	L_AES_invert_key_mix_loop%=\n\t"
 #endif
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [ks] "+r" (ks), [rounds] "+r" (rounds),
@@ -347,15 +347,15 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "MOV	lr, %[L_AES_Thumb2_rcon]\n\t"
         "CMP	%[len], #0x80\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_set_encrypt_key_start_128\n\t"
+        "BEQ	L_AES_set_encrypt_key_start_128%=\n\t"
 #else
-        "BEQ.W	L_AES_set_encrypt_key_start_128\n\t"
+        "BEQ.W	L_AES_set_encrypt_key_start_128%=\n\t"
 #endif
         "CMP	%[len], #0xc0\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_set_encrypt_key_start_192\n\t"
+        "BEQ	L_AES_set_encrypt_key_start_192%=\n\t"
 #else
-        "BEQ.W	L_AES_set_encrypt_key_start_192\n\t"
+        "BEQ.W	L_AES_set_encrypt_key_start_192%=\n\t"
 #endif
         "LDR	r4, [%[key]]\n\t"
         "LDR	r5, [%[key], #4]\n\t"
@@ -378,7 +378,7 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "SUB	%[ks], %[ks], #0x10\n\t"
         "MOV	r12, #0x6\n\t"
         "\n"
-    "L_AES_set_encrypt_key_loop_256:\n\t"
+    "L_AES_set_encrypt_key_loop_256%=:\n\t"
         "UBFX	r4, r7, #0, #8\n\t"
         "UBFX	r5, r7, #8, #8\n\t"
         "UBFX	r6, r7, #16, #8\n\t"
@@ -422,9 +422,9 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "SUB	%[ks], %[ks], #0x10\n\t"
         "SUBS	r12, r12, #0x1\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_AES_set_encrypt_key_loop_256\n\t"
+        "BNE	L_AES_set_encrypt_key_loop_256%=\n\t"
 #else
-        "BNE.N	L_AES_set_encrypt_key_loop_256\n\t"
+        "BNE.N	L_AES_set_encrypt_key_loop_256%=\n\t"
 #endif
         "UBFX	r4, r7, #0, #8\n\t"
         "UBFX	r5, r7, #8, #8\n\t"
@@ -448,12 +448,12 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "STM	%[ks], {r4, r5, r6, r7}\n\t"
         "SUB	%[ks], %[ks], #0x10\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_set_encrypt_key_end\n\t"
+        "B	L_AES_set_encrypt_key_end%=\n\t"
 #else
-        "B.N	L_AES_set_encrypt_key_end\n\t"
+        "B.N	L_AES_set_encrypt_key_end%=\n\t"
 #endif
         "\n"
-    "L_AES_set_encrypt_key_start_192:\n\t"
+    "L_AES_set_encrypt_key_start_192%=:\n\t"
         "LDR	r4, [%[key]]\n\t"
         "LDR	r5, [%[key], #4]\n\t"
         "LDR	r6, [%[key], #8]\n\t"
@@ -471,7 +471,7 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "MOV	r7, r9\n\t"
         "MOV	r12, #0x7\n\t"
         "\n"
-    "L_AES_set_encrypt_key_loop_192:\n\t"
+    "L_AES_set_encrypt_key_loop_192%=:\n\t"
         "UBFX	r4, r9, #0, #8\n\t"
         "UBFX	r5, r9, #8, #8\n\t"
         "UBFX	r6, r9, #16, #8\n\t"
@@ -495,9 +495,9 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "STM	%[ks], {r4, r5, r6, r7, r8, r9}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_AES_set_encrypt_key_loop_192\n\t"
+        "BNE	L_AES_set_encrypt_key_loop_192%=\n\t"
 #else
-        "BNE.N	L_AES_set_encrypt_key_loop_192\n\t"
+        "BNE.N	L_AES_set_encrypt_key_loop_192%=\n\t"
 #endif
         "UBFX	r4, r9, #0, #8\n\t"
         "UBFX	r5, r9, #8, #8\n\t"
@@ -519,12 +519,12 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "EOR	r7, r7, r6\n\t"
         "STM	%[ks], {r4, r5, r6, r7}\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_set_encrypt_key_end\n\t"
+        "B	L_AES_set_encrypt_key_end%=\n\t"
 #else
-        "B.N	L_AES_set_encrypt_key_end\n\t"
+        "B.N	L_AES_set_encrypt_key_end%=\n\t"
 #endif
         "\n"
-    "L_AES_set_encrypt_key_start_128:\n\t"
+    "L_AES_set_encrypt_key_start_128%=:\n\t"
         "LDR	r4, [%[key]]\n\t"
         "LDR	r5, [%[key], #4]\n\t"
         "LDR	r6, [%[key], #8]\n\t"
@@ -536,7 +536,7 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "STM	%[ks], {r4, r5, r6, r7}\n\t"
         "MOV	r12, #0xa\n\t"
         "\n"
-    "L_AES_set_encrypt_key_loop_128:\n\t"
+    "L_AES_set_encrypt_key_loop_128%=:\n\t"
         "UBFX	r4, r7, #0, #8\n\t"
         "UBFX	r5, r7, #8, #8\n\t"
         "UBFX	r6, r7, #16, #8\n\t"
@@ -558,12 +558,12 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
         "STM	%[ks], {r4, r5, r6, r7}\n\t"
         "SUBS	r12, r12, #0x1\n\t"
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "BNE	L_AES_set_encrypt_key_loop_128\n\t"
+        "BNE	L_AES_set_encrypt_key_loop_128%=\n\t"
 #else
-        "BNE.N	L_AES_set_encrypt_key_loop_128\n\t"
+        "BNE.N	L_AES_set_encrypt_key_loop_128%=\n\t"
 #endif
         "\n"
-    "L_AES_set_encrypt_key_end:\n\t"
+    "L_AES_set_encrypt_key_end%=:\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks),
           [L_AES_Thumb2_te] "+r" (L_AES_Thumb2_te_c), [L_AES_Thumb2_rcon] "+r" (L_AES_Thumb2_rcon_c)
@@ -593,7 +593,7 @@ void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks)
 
     __asm__ __volatile__ (
         "\n"
-    "L_AES_encrypt_block_nr:\n\t"
+    "L_AES_encrypt_block_nr%=:\n\t"
         "UBFX	r8, r5, #16, #8\n\t"
         "LSR	r11, r4, #24\n\t"
         "UBFX	lr, r6, #8, #8\n\t"
@@ -696,9 +696,9 @@ void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks)
         "EOR	r7, r7, r11\n\t"
         "SUBS	%[nr], %[nr], #0x1\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_encrypt_block_nr\n\t"
+        "BNE	L_AES_encrypt_block_nr%=\n\t"
 #else
-        "BNE.W	L_AES_encrypt_block_nr\n\t"
+        "BNE.W	L_AES_encrypt_block_nr%=\n\t"
 #endif
         "UBFX	r8, r5, #16, #8\n\t"
         "LSR	r11, r4, #24\n\t"
@@ -838,18 +838,18 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "PUSH	{%[ks]}\n\t"
         "CMP	r12, #0xa\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_ECB_encrypt_start_block_128\n\t"
+        "BEQ	L_AES_ECB_encrypt_start_block_128%=\n\t"
 #else
-        "BEQ.W	L_AES_ECB_encrypt_start_block_128\n\t"
+        "BEQ.W	L_AES_ECB_encrypt_start_block_128%=\n\t"
 #endif
         "CMP	r12, #0xc\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_ECB_encrypt_start_block_192\n\t"
+        "BEQ	L_AES_ECB_encrypt_start_block_192%=\n\t"
 #else
-        "BEQ.W	L_AES_ECB_encrypt_start_block_192\n\t"
+        "BEQ.W	L_AES_ECB_encrypt_start_block_192%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_encrypt_loop_block_256:\n\t"
+    "L_AES_ECB_encrypt_loop_block_256%=:\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
         "LDR	r6, [lr, #8]\n\t"
@@ -881,19 +881,19 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_ECB_encrypt_loop_block_256\n\t"
+        "BNE	L_AES_ECB_encrypt_loop_block_256%=\n\t"
 #else
-        "BNE.W	L_AES_ECB_encrypt_loop_block_256\n\t"
+        "BNE.W	L_AES_ECB_encrypt_loop_block_256%=\n\t"
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_ECB_encrypt_end\n\t"
+        "B	L_AES_ECB_encrypt_end%=\n\t"
 #else
-        "B.N	L_AES_ECB_encrypt_end\n\t"
+        "B.N	L_AES_ECB_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_encrypt_start_block_192:\n\t"
+    "L_AES_ECB_encrypt_start_block_192%=:\n\t"
         "\n"
-    "L_AES_ECB_encrypt_loop_block_192:\n\t"
+    "L_AES_ECB_encrypt_loop_block_192%=:\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
         "LDR	r6, [lr, #8]\n\t"
@@ -925,19 +925,19 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_ECB_encrypt_loop_block_192\n\t"
+        "BNE	L_AES_ECB_encrypt_loop_block_192%=\n\t"
 #else
-        "BNE.W	L_AES_ECB_encrypt_loop_block_192\n\t"
+        "BNE.W	L_AES_ECB_encrypt_loop_block_192%=\n\t"
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_ECB_encrypt_end\n\t"
+        "B	L_AES_ECB_encrypt_end%=\n\t"
 #else
-        "B.N	L_AES_ECB_encrypt_end\n\t"
+        "B.N	L_AES_ECB_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_encrypt_start_block_128:\n\t"
+    "L_AES_ECB_encrypt_start_block_128%=:\n\t"
         "\n"
-    "L_AES_ECB_encrypt_loop_block_128:\n\t"
+    "L_AES_ECB_encrypt_loop_block_128%=:\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
         "LDR	r6, [lr, #8]\n\t"
@@ -969,12 +969,12 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_ECB_encrypt_loop_block_128\n\t"
+        "BNE	L_AES_ECB_encrypt_loop_block_128%=\n\t"
 #else
-        "BNE.W	L_AES_ECB_encrypt_loop_block_128\n\t"
+        "BNE.W	L_AES_ECB_encrypt_loop_block_128%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_encrypt_end:\n\t"
+    "L_AES_ECB_encrypt_end%=:\n\t"
         "POP	{%[ks]}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr),
@@ -1029,18 +1029,18 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "PUSH	{%[ks], r9}\n\t"
         "CMP	r8, #0xa\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CBC_encrypt_start_block_128\n\t"
+        "BEQ	L_AES_CBC_encrypt_start_block_128%=\n\t"
 #else
-        "BEQ.W	L_AES_CBC_encrypt_start_block_128\n\t"
+        "BEQ.W	L_AES_CBC_encrypt_start_block_128%=\n\t"
 #endif
         "CMP	r8, #0xc\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CBC_encrypt_start_block_192\n\t"
+        "BEQ	L_AES_CBC_encrypt_start_block_192%=\n\t"
 #else
-        "BEQ.W	L_AES_CBC_encrypt_start_block_192\n\t"
+        "BEQ.W	L_AES_CBC_encrypt_start_block_192%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_encrypt_loop_block_256:\n\t"
+    "L_AES_CBC_encrypt_loop_block_256%=:\n\t"
         "LDR	r8, [lr]\n\t"
         "LDR	r9, [lr, #4]\n\t"
         "LDR	r10, [lr, #8]\n\t"
@@ -1076,19 +1076,19 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CBC_encrypt_loop_block_256\n\t"
+        "BNE	L_AES_CBC_encrypt_loop_block_256%=\n\t"
 #else
-        "BNE.W	L_AES_CBC_encrypt_loop_block_256\n\t"
+        "BNE.W	L_AES_CBC_encrypt_loop_block_256%=\n\t"
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_CBC_encrypt_end\n\t"
+        "B	L_AES_CBC_encrypt_end%=\n\t"
 #else
-        "B.N	L_AES_CBC_encrypt_end\n\t"
+        "B.N	L_AES_CBC_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_encrypt_start_block_192:\n\t"
+    "L_AES_CBC_encrypt_start_block_192%=:\n\t"
         "\n"
-    "L_AES_CBC_encrypt_loop_block_192:\n\t"
+    "L_AES_CBC_encrypt_loop_block_192%=:\n\t"
         "LDR	r8, [lr]\n\t"
         "LDR	r9, [lr, #4]\n\t"
         "LDR	r10, [lr, #8]\n\t"
@@ -1124,19 +1124,19 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CBC_encrypt_loop_block_192\n\t"
+        "BNE	L_AES_CBC_encrypt_loop_block_192%=\n\t"
 #else
-        "BNE.W	L_AES_CBC_encrypt_loop_block_192\n\t"
+        "BNE.W	L_AES_CBC_encrypt_loop_block_192%=\n\t"
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_CBC_encrypt_end\n\t"
+        "B	L_AES_CBC_encrypt_end%=\n\t"
 #else
-        "B.N	L_AES_CBC_encrypt_end\n\t"
+        "B.N	L_AES_CBC_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_encrypt_start_block_128:\n\t"
+    "L_AES_CBC_encrypt_start_block_128%=:\n\t"
         "\n"
-    "L_AES_CBC_encrypt_loop_block_128:\n\t"
+    "L_AES_CBC_encrypt_loop_block_128%=:\n\t"
         "LDR	r8, [lr]\n\t"
         "LDR	r9, [lr, #4]\n\t"
         "LDR	r10, [lr, #8]\n\t"
@@ -1172,12 +1172,12 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CBC_encrypt_loop_block_128\n\t"
+        "BNE	L_AES_CBC_encrypt_loop_block_128%=\n\t"
 #else
-        "BNE.W	L_AES_CBC_encrypt_loop_block_128\n\t"
+        "BNE.W	L_AES_CBC_encrypt_loop_block_128%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_encrypt_end:\n\t"
+    "L_AES_CBC_encrypt_end%=:\n\t"
         "POP	{%[ks], r9}\n\t"
         "STM	r9, {r4, r5, r6, r7}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -1241,18 +1241,18 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "PUSH	{%[ks], r8}\n\t"
         "CMP	r12, #0xa\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CTR_encrypt_start_block_128\n\t"
+        "BEQ	L_AES_CTR_encrypt_start_block_128%=\n\t"
 #else
-        "BEQ.W	L_AES_CTR_encrypt_start_block_128\n\t"
+        "BEQ.W	L_AES_CTR_encrypt_start_block_128%=\n\t"
 #endif
         "CMP	r12, #0xc\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CTR_encrypt_start_block_192\n\t"
+        "BEQ	L_AES_CTR_encrypt_start_block_192%=\n\t"
 #else
-        "BEQ.W	L_AES_CTR_encrypt_start_block_192\n\t"
+        "BEQ.W	L_AES_CTR_encrypt_start_block_192%=\n\t"
 #endif
         "\n"
-    "L_AES_CTR_encrypt_loop_block_256:\n\t"
+    "L_AES_CTR_encrypt_loop_block_256%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADDS	r11, r7, #0x1\n\t"
@@ -1292,19 +1292,19 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CTR_encrypt_loop_block_256\n\t"
+        "BNE	L_AES_CTR_encrypt_loop_block_256%=\n\t"
 #else
-        "BNE.W	L_AES_CTR_encrypt_loop_block_256\n\t"
+        "BNE.W	L_AES_CTR_encrypt_loop_block_256%=\n\t"
 #endif
 #ifdef __GNUC__
-        "B	L_AES_CTR_encrypt_end\n\t"
+        "B	L_AES_CTR_encrypt_end%=\n\t"
 #else
-        "B.W	L_AES_CTR_encrypt_end\n\t"
+        "B.W	L_AES_CTR_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_CTR_encrypt_start_block_192:\n\t"
+    "L_AES_CTR_encrypt_start_block_192%=:\n\t"
         "\n"
-    "L_AES_CTR_encrypt_loop_block_192:\n\t"
+    "L_AES_CTR_encrypt_loop_block_192%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADDS	r11, r7, #0x1\n\t"
@@ -1344,19 +1344,19 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CTR_encrypt_loop_block_192\n\t"
+        "BNE	L_AES_CTR_encrypt_loop_block_192%=\n\t"
 #else
-        "BNE.W	L_AES_CTR_encrypt_loop_block_192\n\t"
+        "BNE.W	L_AES_CTR_encrypt_loop_block_192%=\n\t"
 #endif
 #ifdef __GNUC__
-        "B	L_AES_CTR_encrypt_end\n\t"
+        "B	L_AES_CTR_encrypt_end%=\n\t"
 #else
-        "B.W	L_AES_CTR_encrypt_end\n\t"
+        "B.W	L_AES_CTR_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_CTR_encrypt_start_block_128:\n\t"
+    "L_AES_CTR_encrypt_start_block_128%=:\n\t"
         "\n"
-    "L_AES_CTR_encrypt_loop_block_128:\n\t"
+    "L_AES_CTR_encrypt_loop_block_128%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADDS	r11, r7, #0x1\n\t"
@@ -1396,12 +1396,12 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CTR_encrypt_loop_block_128\n\t"
+        "BNE	L_AES_CTR_encrypt_loop_block_128%=\n\t"
 #else
-        "BNE.W	L_AES_CTR_encrypt_loop_block_128\n\t"
+        "BNE.W	L_AES_CTR_encrypt_loop_block_128%=\n\t"
 #endif
         "\n"
-    "L_AES_CTR_encrypt_end:\n\t"
+    "L_AES_CTR_encrypt_end%=:\n\t"
         "POP	{%[ks], r8}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
@@ -1445,7 +1445,7 @@ void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4)
 
     __asm__ __volatile__ (
         "\n"
-    "L_AES_decrypt_block_nr:\n\t"
+    "L_AES_decrypt_block_nr%=:\n\t"
         "UBFX	r8, r7, #16, #8\n\t"
         "LSR	r11, r4, #24\n\t"
         "UBFX	r12, r6, #8, #8\n\t"
@@ -1548,9 +1548,9 @@ void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4)
         "EOR	r7, r7, r11\n\t"
         "SUBS	%[nr], %[nr], #0x1\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_decrypt_block_nr\n\t"
+        "BNE	L_AES_decrypt_block_nr%=\n\t"
 #else
-        "BNE.W	L_AES_decrypt_block_nr\n\t"
+        "BNE.W	L_AES_decrypt_block_nr%=\n\t"
 #endif
         "UBFX	r8, r7, #16, #8\n\t"
         "LSR	r11, r4, #24\n\t"
@@ -1725,18 +1725,18 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "MOV	r2, %[L_AES_Thumb2_td4]\n\t"
         "CMP	r8, #0xa\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_ECB_decrypt_start_block_128\n\t"
+        "BEQ	L_AES_ECB_decrypt_start_block_128%=\n\t"
 #else
-        "BEQ.W	L_AES_ECB_decrypt_start_block_128\n\t"
+        "BEQ.W	L_AES_ECB_decrypt_start_block_128%=\n\t"
 #endif
         "CMP	r8, #0xc\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_ECB_decrypt_start_block_192\n\t"
+        "BEQ	L_AES_ECB_decrypt_start_block_192%=\n\t"
 #else
-        "BEQ.W	L_AES_ECB_decrypt_start_block_192\n\t"
+        "BEQ.W	L_AES_ECB_decrypt_start_block_192%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_decrypt_loop_block_256:\n\t"
+    "L_AES_ECB_decrypt_loop_block_256%=:\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
         "LDR	r6, [lr, #8]\n\t"
@@ -1767,19 +1767,19 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_ECB_decrypt_loop_block_256\n\t"
+        "BNE	L_AES_ECB_decrypt_loop_block_256%=\n\t"
 #else
-        "BNE.W	L_AES_ECB_decrypt_loop_block_256\n\t"
+        "BNE.W	L_AES_ECB_decrypt_loop_block_256%=\n\t"
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_ECB_decrypt_end\n\t"
+        "B	L_AES_ECB_decrypt_end%=\n\t"
 #else
-        "B.N	L_AES_ECB_decrypt_end\n\t"
+        "B.N	L_AES_ECB_decrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_decrypt_start_block_192:\n\t"
+    "L_AES_ECB_decrypt_start_block_192%=:\n\t"
         "\n"
-    "L_AES_ECB_decrypt_loop_block_192:\n\t"
+    "L_AES_ECB_decrypt_loop_block_192%=:\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
         "LDR	r6, [lr, #8]\n\t"
@@ -1810,19 +1810,19 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_ECB_decrypt_loop_block_192\n\t"
+        "BNE	L_AES_ECB_decrypt_loop_block_192%=\n\t"
 #else
-        "BNE.W	L_AES_ECB_decrypt_loop_block_192\n\t"
+        "BNE.W	L_AES_ECB_decrypt_loop_block_192%=\n\t"
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_ECB_decrypt_end\n\t"
+        "B	L_AES_ECB_decrypt_end%=\n\t"
 #else
-        "B.N	L_AES_ECB_decrypt_end\n\t"
+        "B.N	L_AES_ECB_decrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_decrypt_start_block_128:\n\t"
+    "L_AES_ECB_decrypt_start_block_128%=:\n\t"
         "\n"
-    "L_AES_ECB_decrypt_loop_block_128:\n\t"
+    "L_AES_ECB_decrypt_loop_block_128%=:\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
         "LDR	r6, [lr, #8]\n\t"
@@ -1853,12 +1853,12 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_ECB_decrypt_loop_block_128\n\t"
+        "BNE	L_AES_ECB_decrypt_loop_block_128%=\n\t"
 #else
-        "BNE.W	L_AES_ECB_decrypt_loop_block_128\n\t"
+        "BNE.W	L_AES_ECB_decrypt_loop_block_128%=\n\t"
 #endif
         "\n"
-    "L_AES_ECB_decrypt_end:\n\t"
+    "L_AES_ECB_decrypt_end%=:\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr),
           [L_AES_Thumb2_td_ecb] "+r" (L_AES_Thumb2_td_ecb_c), [L_AES_Thumb2_td4] "+r" (L_AES_Thumb2_td4_c)
@@ -1914,18 +1914,18 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "PUSH	{%[ks], r4}\n\t"
         "CMP	r8, #0xa\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CBC_decrypt_loop_block_128\n\t"
+        "BEQ	L_AES_CBC_decrypt_loop_block_128%=\n\t"
 #else
-        "BEQ.W	L_AES_CBC_decrypt_loop_block_128\n\t"
+        "BEQ.W	L_AES_CBC_decrypt_loop_block_128%=\n\t"
 #endif
         "CMP	r8, #0xc\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CBC_decrypt_loop_block_192\n\t"
+        "BEQ	L_AES_CBC_decrypt_loop_block_192%=\n\t"
 #else
-        "BEQ.W	L_AES_CBC_decrypt_loop_block_192\n\t"
+        "BEQ.W	L_AES_CBC_decrypt_loop_block_192%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_decrypt_loop_block_256:\n\t"
+    "L_AES_CBC_decrypt_loop_block_256%=:\n\t"
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
@@ -1966,9 +1966,9 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CBC_decrypt_end_odd\n\t"
+        "BEQ	L_AES_CBC_decrypt_end_odd%=\n\t"
 #else
-        "BEQ.W	L_AES_CBC_decrypt_end_odd\n\t"
+        "BEQ.W	L_AES_CBC_decrypt_end_odd%=\n\t"
 #endif
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
@@ -2011,17 +2011,17 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CBC_decrypt_loop_block_256\n\t"
+        "BNE	L_AES_CBC_decrypt_loop_block_256%=\n\t"
 #else
-        "BNE.W	L_AES_CBC_decrypt_loop_block_256\n\t"
+        "BNE.W	L_AES_CBC_decrypt_loop_block_256%=\n\t"
 #endif
 #ifdef __GNUC__
-        "B	L_AES_CBC_decrypt_end\n\t"
+        "B	L_AES_CBC_decrypt_end%=\n\t"
 #else
-        "B.W	L_AES_CBC_decrypt_end\n\t"
+        "B.W	L_AES_CBC_decrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_decrypt_loop_block_192:\n\t"
+    "L_AES_CBC_decrypt_loop_block_192%=:\n\t"
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
@@ -2062,9 +2062,9 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CBC_decrypt_end_odd\n\t"
+        "BEQ	L_AES_CBC_decrypt_end_odd%=\n\t"
 #else
-        "BEQ.W	L_AES_CBC_decrypt_end_odd\n\t"
+        "BEQ.W	L_AES_CBC_decrypt_end_odd%=\n\t"
 #endif
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
@@ -2107,17 +2107,17 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CBC_decrypt_loop_block_192\n\t"
+        "BNE	L_AES_CBC_decrypt_loop_block_192%=\n\t"
 #else
-        "BNE.W	L_AES_CBC_decrypt_loop_block_192\n\t"
+        "BNE.W	L_AES_CBC_decrypt_loop_block_192%=\n\t"
 #endif
 #ifdef __GNUC__
-        "B	L_AES_CBC_decrypt_end\n\t"
+        "B	L_AES_CBC_decrypt_end%=\n\t"
 #else
-        "B.W	L_AES_CBC_decrypt_end\n\t"
+        "B.W	L_AES_CBC_decrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_decrypt_loop_block_128:\n\t"
+    "L_AES_CBC_decrypt_loop_block_128%=:\n\t"
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
         "LDR	r5, [lr, #4]\n\t"
@@ -2158,9 +2158,9 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_CBC_decrypt_end_odd\n\t"
+        "BEQ	L_AES_CBC_decrypt_end_odd%=\n\t"
 #else
-        "BEQ.W	L_AES_CBC_decrypt_end_odd\n\t"
+        "BEQ.W	L_AES_CBC_decrypt_end_odd%=\n\t"
 #endif
         "PUSH	{r1, r12, lr}\n\t"
         "LDR	r4, [lr]\n\t"
@@ -2203,24 +2203,24 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_CBC_decrypt_loop_block_128\n\t"
+        "BNE	L_AES_CBC_decrypt_loop_block_128%=\n\t"
 #else
-        "BNE.W	L_AES_CBC_decrypt_loop_block_128\n\t"
+        "BNE.W	L_AES_CBC_decrypt_loop_block_128%=\n\t"
 #endif
 #if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
-        "B	L_AES_CBC_decrypt_end\n\t"
+        "B	L_AES_CBC_decrypt_end%=\n\t"
 #else
-        "B.N	L_AES_CBC_decrypt_end\n\t"
+        "B.N	L_AES_CBC_decrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_CBC_decrypt_end_odd:\n\t"
+    "L_AES_CBC_decrypt_end_odd%=:\n\t"
         "LDR	r4, [sp, #4]\n\t"
         "LDRD	r8, r9, [r4, #16]\n\t"
         "LDRD	r10, r11, [r4, #24]\n\t"
         "STRD	r8, r9, [r4]\n\t"
         "STRD	r10, r11, [r4, #8]\n\t"
         "\n"
-    "L_AES_CBC_decrypt_end:\n\t"
+    "L_AES_CBC_decrypt_end%=:\n\t"
         "POP	{%[ks], r4}\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv),
@@ -2271,7 +2271,7 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m, const unsigned cha
     __asm__ __volatile__ (
         "MOV	lr, %[L_GCM_gmult_len_r]\n\t"
         "\n"
-    "L_GCM_gmult_len_start_block:\n\t"
+    "L_GCM_gmult_len_start_block%=:\n\t"
         "PUSH	{r3}\n\t"
         "LDR	r12, [r0, #12]\n\t"
         "LDR	%[len], [r2, #12]\n\t"
@@ -2817,9 +2817,9 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m, const unsigned cha
         "SUBS	%[len], %[len], #0x10\n\t"
         "ADD	%[data], %[data], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_GCM_gmult_len_start_block\n\t"
+        "BNE	L_GCM_gmult_len_start_block%=\n\t"
 #else
-        "BNE.W	L_GCM_gmult_len_start_block\n\t"
+        "BNE.W	L_GCM_gmult_len_start_block%=\n\t"
 #endif
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
         : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len),
@@ -2875,18 +2875,18 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "PUSH	{%[ks], r8}\n\t"
         "CMP	r12, #0xa\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_GCM_encrypt_start_block_128\n\t"
+        "BEQ	L_AES_GCM_encrypt_start_block_128%=\n\t"
 #else
-        "BEQ.W	L_AES_GCM_encrypt_start_block_128\n\t"
+        "BEQ.W	L_AES_GCM_encrypt_start_block_128%=\n\t"
 #endif
         "CMP	r12, #0xc\n\t"
 #ifdef __GNUC__
-        "BEQ	L_AES_GCM_encrypt_start_block_192\n\t"
+        "BEQ	L_AES_GCM_encrypt_start_block_192%=\n\t"
 #else
-        "BEQ.W	L_AES_GCM_encrypt_start_block_192\n\t"
+        "BEQ.W	L_AES_GCM_encrypt_start_block_192%=\n\t"
 #endif
         "\n"
-    "L_AES_GCM_encrypt_loop_block_256:\n\t"
+    "L_AES_GCM_encrypt_loop_block_256%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADD	r7, r7, #0x1\n\t"
@@ -2923,19 +2923,19 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_GCM_encrypt_loop_block_256\n\t"
+        "BNE	L_AES_GCM_encrypt_loop_block_256%=\n\t"
 #else
-        "BNE.W	L_AES_GCM_encrypt_loop_block_256\n\t"
+        "BNE.W	L_AES_GCM_encrypt_loop_block_256%=\n\t"
 #endif
 #ifdef __GNUC__
-        "B	L_AES_GCM_encrypt_end\n\t"
+        "B	L_AES_GCM_encrypt_end%=\n\t"
 #else
-        "B.W	L_AES_GCM_encrypt_end\n\t"
+        "B.W	L_AES_GCM_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_GCM_encrypt_start_block_192:\n\t"
+    "L_AES_GCM_encrypt_start_block_192%=:\n\t"
         "\n"
-    "L_AES_GCM_encrypt_loop_block_192:\n\t"
+    "L_AES_GCM_encrypt_loop_block_192%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADD	r7, r7, #0x1\n\t"
@@ -2972,19 +2972,19 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_GCM_encrypt_loop_block_192\n\t"
+        "BNE	L_AES_GCM_encrypt_loop_block_192%=\n\t"
 #else
-        "BNE.W	L_AES_GCM_encrypt_loop_block_192\n\t"
+        "BNE.W	L_AES_GCM_encrypt_loop_block_192%=\n\t"
 #endif
 #ifdef __GNUC__
-        "B	L_AES_GCM_encrypt_end\n\t"
+        "B	L_AES_GCM_encrypt_end%=\n\t"
 #else
-        "B.W	L_AES_GCM_encrypt_end\n\t"
+        "B.W	L_AES_GCM_encrypt_end%=\n\t"
 #endif
         "\n"
-    "L_AES_GCM_encrypt_start_block_128:\n\t"
+    "L_AES_GCM_encrypt_start_block_128%=:\n\t"
         "\n"
-    "L_AES_GCM_encrypt_loop_block_128:\n\t"
+    "L_AES_GCM_encrypt_loop_block_128%=:\n\t"
         "PUSH	{r1, %[len], lr}\n\t"
         "LDR	lr, [sp, #16]\n\t"
         "ADD	r7, r7, #0x1\n\t"
@@ -3021,12 +3021,12 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
         "ADD	lr, lr, #0x10\n\t"
         "ADD	%[out], %[out], #0x10\n\t"
 #ifdef __GNUC__
-        "BNE	L_AES_GCM_encrypt_loop_block_128\n\t"
+        "BNE	L_AES_GCM_encrypt_loop_block_128%=\n\t"
 #else
-        "BNE.W	L_AES_GCM_encrypt_loop_block_128\n\t"
+        "BNE.W	L_AES_GCM_encrypt_loop_block_128%=\n\t"
 #endif
         "\n"
-    "L_AES_GCM_encrypt_end:\n\t"
+    "L_AES_GCM_encrypt_end%=:\n\t"
         "POP	{%[ks], r8}\n\t"
         "REV	r4, r4\n\t"
         "REV	r5, r5\n\t"
