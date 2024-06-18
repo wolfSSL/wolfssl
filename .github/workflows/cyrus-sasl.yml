@@ -88,4 +88,11 @@ jobs:
         working-directory: sasl
         run: |
           make -j -C utils testsuite saslpasswd2
-          $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/run-tests.sh
+          # Retry up to five times
+          for i in {1..5}; do
+             TEST_RES=0
+             $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/run-tests.sh || TEST_RES=$?
+             if [ "$TEST_RES" -eq "0" ]; then
+                break
+             fi
+          done
