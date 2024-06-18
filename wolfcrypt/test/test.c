@@ -32071,6 +32071,7 @@ done:
 
 static int test_sm2_create_digest(void)
 {
+#ifndef WOLFSSL_SM3
     const byte msg[] = "message to sign";
     const byte id[] = "0123456789";
     const byte badId[] = "0123556789";
@@ -32090,7 +32091,32 @@ static int test_sm2_create_digest(void)
         "89933faf7a4798f48c5b9b4cd3a7693d54c9e05449946eb489c0dd50a5294805";
     const char d[] =
         "b3e66c2dbfb50c6ff6830c1fac4b51293a2562f9e667052b03df2d4b43c1f34a";
+    int hash_type = WC_HASH_TYPE_SHA256;
     byte digest[WC_SHA256_DIGEST_SIZE];
+#else
+    ecc_key key;
+    int ret;
+    const byte msg[] = { 0x6D, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x20,
+                         0x64, 0x69, 0x67, 0x65, 0x73, 0x74, 0x00 };
+    const byte id[] =  { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+                         0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+                         0x00 };
+    const byte badId[] = "0123556789";
+    const char qx[] =
+        "09F9DF311E5421A150DD7D161E4BC5C672179FAD1833FC076BB08FF356F35020";
+    const char qy[] =
+        "CCEA490CE26775A52DC6EA718CC1AA600AED05FBF35E084A6632F6072DA9AD13";
+    const char d[] =
+        "3945208F7B2144B13F36E38AC6D39F95889393692860B51A42FB81EF4DF7C5B8";
+    byte expected[] = {
+        0xf0, 0xb4, 0x3e, 0x94, 0xba, 0x45, 0xac, 0xca,
+        0xac, 0xe6, 0x92, 0xed, 0x53, 0x43, 0x82, 0xeb,
+        0x17, 0xe6, 0xab, 0x5a, 0x19, 0xce, 0x7b, 0x31,
+        0xf4, 0x48, 0x6f, 0xdf, 0xc0, 0xd2, 0x86, 0x40
+    };
+    int hash_type = WC_HASH_TYPE_SM3;
+    byte digest[WC_SM3_DIGEST_SIZE];
+#endif
 
     ret = wc_ecc_init_ex(&key, HEAP_HINT, devId);
     if (ret != 0)
@@ -32101,8 +32127,8 @@ static int test_sm2_create_digest(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
     ret = wc_ecc_sm2_create_digest(id, (int)XSTRLEN((const char*)id),
-        msg, (int)XSTRLEN((const char*)msg), WC_HASH_TYPE_SHA256, digest,
-        WC_SHA256_DIGEST_SIZE, &key);
+        msg, (int)XSTRLEN((const char*)msg), hash_type, digest, sizeof(digest),
+        &key);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
@@ -32110,8 +32136,8 @@ static int test_sm2_create_digest(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
 
     ret = wc_ecc_sm2_create_digest(badId, (int)XSTRLEN((const char*)badId),
-        msg, (int)XSTRLEN((const char*)msg), WC_HASH_TYPE_SHA256, digest,
-        WC_SHA256_DIGEST_SIZE, &key);
+        msg, (int)XSTRLEN((const char*)msg), hash_type, digest, sizeof(digest),
+        &key);
     if (ret != 0)
         goto done;
 
