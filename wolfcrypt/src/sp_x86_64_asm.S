@@ -1,6 +1,6 @@
 /* sp_x86_64_asm.S */
 /*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -59047,15 +59047,23 @@ _sp_256_mod_inv_avx2_4:
         movq	8(%rsi), %r11
         movq	16(%rsi), %r12
         movq	24(%rsi), %r13
-        vmovupd	0+L_sp256_mod_inv_avx2_4_order(%rip), %ymm6
-        vmovupd	32+L_sp256_mod_inv_avx2_4_order(%rip), %ymm7
-        vmovupd	0+L_sp256_mod_inv_avx2_4_one(%rip), %ymm8
-        vmovupd	0+L_sp256_mod_inv_avx2_4_mask01111(%rip), %ymm9
-        vmovupd	0+L_sp256_mod_inv_avx2_4_all_one(%rip), %ymm10
-        vmovupd	0+L_sp256_mod_inv_avx2_4_down_one_dword(%rip), %ymm11
-        vmovupd	0+L_sp256_mod_inv_avx2_4_neg(%rip), %ymm12
-        vmovupd	0+L_sp256_mod_inv_avx2_4_up_one_dword(%rip), %ymm13
-        vmovupd	0+L_sp256_mod_inv_avx2_4_mask26(%rip), %ymm14
+        leaq	L_sp256_mod_inv_avx2_4_order(%rip), %rbx
+        vmovupd	(%rbx), %ymm6
+        vmovupd	32(%rbx), %ymm7
+        leaq	L_sp256_mod_inv_avx2_4_one(%rip), %rbx
+        vmovupd	(%rbx), %ymm8
+        leaq	L_sp256_mod_inv_avx2_4_mask01111(%rip), %rbx
+        vmovupd	(%rbx), %ymm9
+        leaq	L_sp256_mod_inv_avx2_4_all_one(%rip), %rbx
+        vmovupd	(%rbx), %ymm10
+        leaq	L_sp256_mod_inv_avx2_4_down_one_dword(%rip), %rbx
+        vmovupd	(%rbx), %ymm11
+        leaq	L_sp256_mod_inv_avx2_4_neg(%rip), %rbx
+        vmovupd	(%rbx), %ymm12
+        leaq	L_sp256_mod_inv_avx2_4_up_one_dword(%rip), %rbx
+        vmovupd	(%rbx), %ymm13
+        leaq	L_sp256_mod_inv_avx2_4_mask26(%rip), %rbx
+        vmovupd	(%rbx), %ymm14
         vpxor	%xmm0, %xmm0, %xmm0
         vpxor	%xmm1, %xmm1, %xmm1
         vmovdqu	%ymm8, %ymm2
