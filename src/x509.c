@@ -7559,7 +7559,7 @@ int wc_GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
         /* Remove the altsigval extension. */
         XFREE(x->altSigValDer, x->heap, DYNAMIC_TYPE_X509_EXT);
         x->altSigValDer = NULL;
-        x->altSigValDer = 0;
+        x->altSigValLen = 0;
         /* Remove sigOID so it won't be encoded. */
         x->sigOID = 0;
         /* We now have a PreTBS. Encode it. */
