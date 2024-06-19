@@ -2963,6 +2963,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef HAVE_SNI
         #define HAVE_SNI
     #endif
+    #ifndef WOLFSSL_RSA_KEY_CHECK
+        #define WOLFSSL_RSA_KEY_CHECK
+    #endif
 #endif
 
 /* Make sure setting OPENSSL_ALL also sets OPENSSL_EXTRA. */
