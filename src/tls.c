@@ -48,7 +48,7 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     #include <wolfssl/wolfcrypt/kyber.h>
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
@@ -4032,7 +4032,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 #ifdef HAVE_SUPPORTED_CURVES
 
 #if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && !defined(HAVE_CURVE448) \
-                       && !defined(HAVE_FFDHE) && !defined(HAVE_PQC)
+                       && !defined(HAVE_FFDHE) && !defined(WOLFSSL_HAVE_KYBER)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography or liboqs groups. \
        Use --enable-ecc and/or --enable-liboqs in the configure script or \
        define HAVE_ECC. Alternatively use FFDHE for DH cipher suites.
@@ -7671,7 +7671,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     return ret;
 }
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 static int kyber_id2type(int id, int *type)
 {
     int ret = 0;
@@ -7874,7 +7874,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     return ret;
 }
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
 /* Generate a secret/key using the key share entry.
  *
@@ -7891,7 +7891,7 @@ int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
         ret = TLSX_KeyShare_GenX25519Key(ssl, kse);
     else if (kse->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_GenX448Key(ssl, kse);
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     else if (WOLFSSL_NAMED_GROUP_IS_PQC(kse->group))
         ret = TLSX_KeyShare_GenPqcKey(ssl, kse);
 #endif
@@ -7929,7 +7929,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             wc_curve448_free((curve448_key*)current->key);
 #endif
         }
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
         else if (WOLFSSL_NAMED_GROUP_IS_PQC(current->group)) {
             if (current->key != NULL) {
                 ForceZero((byte*)current->key, current->keyLen);
@@ -8484,7 +8484,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     return ret;
 }
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 /* Process the Kyber key share extension on the client side.
  *
  * ssl            The SSL/TLS object.
@@ -8653,7 +8653,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     wc_KyberKey_Free(kem);
     return ret;
 }
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
 /* Process the key share extension on the client side.
  *
@@ -8679,7 +8679,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = TLSX_KeyShare_ProcessX25519(ssl, keyShareEntry);
     else if (keyShareEntry->group == WOLFSSL_ECC_X448)
         ret = TLSX_KeyShare_ProcessX448(ssl, keyShareEntry);
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     else if (WOLFSSL_NAMED_GROUP_IS_PQC(keyShareEntry->group))
         ret = TLSX_KeyShare_ProcessPqc(ssl, keyShareEntry);
 #endif
@@ -8730,7 +8730,7 @@ static int TLSX_KeyShareEntry_Parse(const WOLFSSL* ssl, const byte* input,
     if (keLen > length - offset)
         return BUFFER_ERROR;
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     if (WOLFSSL_NAMED_GROUP_IS_PQC(group) &&
         ssl->options.side == WOLFSSL_SERVER_END) {
         /* For KEMs, the public key is not stored. Casting away const because
@@ -8909,7 +8909,7 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
         /* Not in list sent if there isn't a private key. */
         if (keyShareEntry == NULL || (keyShareEntry->key == NULL
-        #if !defined(NO_DH) || defined(HAVE_PQC)
+        #if !defined(NO_DH) || defined(WOLFSSL_HAVE_KYBER)
             && keyShareEntry->privKey == NULL
         #endif
         )) {
@@ -9001,7 +9001,7 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
     return 0;
 }
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     KeyShareEntry* keyShareEntry, byte* data, word16 len)
 {
@@ -9162,7 +9162,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     wc_KyberKey_Free(kem);
     return ret;
 }
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
 /* Use the data to create a new key share object in the extensions.
  *
@@ -9211,7 +9211,7 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     }
 
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     if (WOLFSSL_NAMED_GROUP_IS_PQC(group) &&
         ssl->options.side == WOLFSSL_SERVER_END) {
         ret = server_generate_pqc_ciphertext((WOLFSSL*)ssl, keyShareEntry, data,
@@ -9378,16 +9378,19 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             break;
         #endif
     #endif
-    #ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     #ifdef WOLFSSL_WC_KYBER
         #ifdef WOLFSSL_KYBER512
             case WOLFSSL_KYBER_LEVEL1:
+            case WOLFSSL_P256_KYBER_LEVEL1:
         #endif
         #ifdef WOLFSSL_KYBER768
             case WOLFSSL_KYBER_LEVEL3:
+            case WOLFSSL_P384_KYBER_LEVEL3:
         #endif
         #ifdef WOLFSSL_KYBER1024
             case WOLFSSL_KYBER_LEVEL5:
+            case WOLFSSL_P521_KYBER_LEVEL5:
         #endif
                 break;
     #elif defined(HAVE_LIBOQS)
@@ -9415,7 +9418,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_KYBER_LEVEL1:
             break;
     #endif
-    #endif /* HAVE_PQC */
+#endif
         default:
             return 0;
     }
@@ -9464,12 +9467,15 @@ static const word16 preferredGroup[] = {
 #ifdef WOLFSSL_WC_KYBER
     #ifdef WOLFSSL_KYBER512
     WOLFSSL_KYBER_LEVEL1,
+    WOLFSSL_P256_KYBER_LEVEL1,
     #endif
     #ifdef WOLFSSL_KYBER768
     WOLFSSL_KYBER_LEVEL3,
+    WOLFSSL_P384_KYBER_LEVEL3,
     #endif
     #ifdef WOLFSSL_KYBER1024
     WOLFSSL_KYBER_LEVEL5,
+    WOLFSSL_P521_KYBER_LEVEL5,
     #endif
 #elif defined(HAVE_LIBOQS)
     /* These require a runtime call to TLSX_KeyShare_IsSupported to use */
@@ -9787,7 +9793,7 @@ int TLSX_KeyShare_Choose(const WOLFSSL *ssl, TLSX* extensions,
         if (!WOLFSSL_NAMED_GROUP_IS_FFHDE(clientKSE->group)) {
             /* Check max value supported. */
             if (clientKSE->group > WOLFSSL_ECC_MAX) {
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
                 if (!WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group))
 #endif
                     continue;
@@ -9852,7 +9858,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
         return ret;
 
     if (clientKSE->key == NULL) {
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
         if (WOLFSSL_NAMED_GROUP_IS_PQC(clientKSE->group)) {
             /* Going to need the public key (AKA ciphertext). */
             serverKSE->pubKey = clientKSE->pubKey;
@@ -13076,21 +13082,30 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         #endif
 #endif
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 #ifdef WOLFSSL_WC_KYBER
 #ifdef WOLFSSL_KYBER512
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_KYBER_LEVEL1,
                                      ssl->heap);
 #endif
 #ifdef WOLFSSL_KYBER768
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL3,
                                      ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_KYBER_LEVEL3,
+                                     ssl->heap);
 #endif
 #ifdef WOLFSSL_KYBER768
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL5,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_LEVEL5,
                                      ssl->heap);
 #endif
 #elif defined(HAVE_LIBOQS)
@@ -13113,7 +13128,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 #elif defined(HAVE_PQM4)
     ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1, ssl->heap);
 #endif /* HAVE_LIBOQS */
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
     (void)ssl;
     (void)extensions;

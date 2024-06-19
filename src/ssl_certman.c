@@ -141,14 +141,12 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     #ifdef HAVE_ECC
         cm->minEccKeySz = MIN_ECCKEY_SZ;
     #endif
-    #ifdef HAVE_PQC
     #ifdef HAVE_FALCON
         cm->minFalconKeySz = MIN_FALCONKEY_SZ;
     #endif /* HAVE_FALCON */
     #ifdef HAVE_DILITHIUM
         cm->minDilithiumKeySz = MIN_DILITHIUMKEY_SZ;
     #endif /* HAVE_DILITHIUM */
-    #endif /* HAVE_PQC */
 
         /* Set heap hint to use in certificate manager operations. */
         cm->heap = heap;

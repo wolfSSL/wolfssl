@@ -10191,13 +10191,13 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
     #ifndef NO_DSA
         DsaKey* dsa = NULL;
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+    #if defined(HAVE_FALCON)
         falcon_key* falcon = NULL;
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+    #if defined(HAVE_DILITHIUM)
         dilithium_key* dilithium = NULL;
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+    #if defined(HAVE_SPHINCS)
         sphincs_key* sphincs = NULL;
     #endif
         WC_RNG rng;
@@ -10326,7 +10326,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             key = (void*)dsa;
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+    #if defined(HAVE_FALCON)
         if ((x509->pubKeyOID == FALCON_LEVEL1k) ||
             (x509->pubKeyOID == FALCON_LEVEL5k)) {
             falcon = (falcon_key*)XMALLOC(sizeof(falcon_key), NULL,
@@ -10365,7 +10365,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             key = (void*)falcon;
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+    #if defined(HAVE_DILITHIUM)
         if ((x509->pubKeyOID == DILITHIUM_LEVEL2k) ||
             (x509->pubKeyOID == DILITHIUM_LEVEL3k) ||
             (x509->pubKeyOID == DILITHIUM_LEVEL5k)) {
@@ -10409,7 +10409,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             key = (void*)dilithium;
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+    #if defined(HAVE_SPHINCS)
         if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||
             (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) ||
             (x509->pubKeyOID == SPHINCS_FAST_LEVEL5k) ||
@@ -10568,14 +10568,14 @@ cleanup:
             XFREE(dsa, NULL, DYNAMIC_TYPE_DSA);
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+    #if defined(HAVE_FALCON)
         if ((x509->pubKeyOID == FALCON_LEVEL1k) ||
             (x509->pubKeyOID == FALCON_LEVEL5k)) {
             wc_falcon_free(falcon);
             XFREE(falcon, NULL, DYNAMIC_TYPE_FALCON);
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+    #if defined(HAVE_DILITHIUM)
         if ((x509->pubKeyOID == DILITHIUM_LEVEL2k) ||
             (x509->pubKeyOID == DILITHIUM_LEVEL3k) ||
             (x509->pubKeyOID == DILITHIUM_LEVEL5k)) {
@@ -10583,7 +10583,7 @@ cleanup:
             XFREE(dilithium, NULL, DYNAMIC_TYPE_DILITHIUM);
         }
     #endif
-    #if defined(HAVE_PQC) && defined(HAVE_SPHINCS)
+    #if defined(HAVE_SPHINCS)
         if ((x509->pubKeyOID == SPHINCS_FAST_LEVEL1k) ||
             (x509->pubKeyOID == SPHINCS_FAST_LEVEL3k) ||
             (x509->pubKeyOID == SPHINCS_FAST_LEVEL5k) ||

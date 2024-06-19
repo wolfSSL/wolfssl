@@ -189,7 +189,7 @@ static const byte
 
 #ifndef NO_CERTS
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_PQC)
+    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
 
 static WC_INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash);
 
@@ -7751,7 +7751,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 
 #ifndef NO_CERTS
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_PQC)
+    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -7796,8 +7796,7 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[1] = hashAlgo;
             break;
 #endif
-#ifdef HAVE_PQC
-        #ifdef HAVE_FALCON
+#ifdef HAVE_FALCON
         case falcon_level1_sa_algo:
             output[0] = FALCON_LEVEL1_SA_MAJOR;
             output[1] = FALCON_LEVEL1_SA_MINOR;
@@ -7806,8 +7805,8 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[0] = FALCON_LEVEL5_SA_MAJOR;
             output[1] = FALCON_LEVEL5_SA_MINOR;
             break;
-        #endif
-        #ifdef HAVE_DILITHIUM
+#endif
+#ifdef HAVE_DILITHIUM
         case dilithium_level2_sa_algo:
             output[0] = DILITHIUM_LEVEL2_SA_MAJOR;
             output[1] = DILITHIUM_LEVEL2_SA_MINOR;
@@ -7820,7 +7819,6 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[0] = DILITHIUM_LEVEL5_SA_MAJOR;
             output[1] = DILITHIUM_LEVEL5_SA_MINOR;
             break;
-        #endif
 #endif
         default:
             break;
@@ -7964,7 +7962,7 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             else
                 ret = INVALID_PARAMETER;
             break;
-#ifdef HAVE_PQC
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
         case PQC_SA_MAJOR:
 #if defined(HAVE_FALCON)
             if (input[1] == FALCON_LEVEL1_SA_MINOR) {
@@ -8747,7 +8745,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 }
 
 #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-     defined(HAVE_ED448) || defined(HAVE_PQC)) && \
+     defined(HAVE_ED448) || defined(HAVE_FALCON) || \
+     defined(HAVE_DILITHIUM)) && \
     (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH))
 typedef struct Scv13Args {
     byte*  output; /* not allocated */
@@ -8987,8 +8986,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             else if (ssl->hsType == DYNAMIC_TYPE_ED448)
                 args->sigAlgo = ed448_sa_algo;
         #endif
-        #if defined(HAVE_PQC)
-            #if defined(HAVE_FALCON)
+        #if defined(HAVE_FALCON)
             else if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 falcon_key* fkey = (falcon_key*)ssl->hsKey;
                 byte level = 0;
@@ -9005,8 +9003,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ERROR_OUT(ALGO_ID_E, exit_scv);
                 }
             }
-            #endif /* HAVE_FALCON */
-            #if defined(HAVE_DILITHIUM)
+        #endif /* HAVE_FALCON */
+        #if defined(HAVE_DILITHIUM)
             else if (ssl->hsType == DYNAMIC_TYPE_DILITHIUM) {
                 dilithium_key* fkey = (dilithium_key*)ssl->hsKey;
                 byte level = 0;
@@ -9026,8 +9024,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ERROR_OUT(ALGO_ID_E, exit_scv);
                 }
             }
-            #endif /* HAVE_DILITHIUM */
-        #endif /* HAVE_PQC */
+        #endif /* HAVE_DILITHIUM */
             else {
                 ERROR_OUT(ALGO_ID_E, exit_scv);
             }
@@ -9183,18 +9180,16 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
 
         #endif /* HAVE_ED448 */
-        #if defined(HAVE_PQC)
-            #if defined(HAVE_FALCON)
+        #if defined(HAVE_FALCON)
             if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 args->sigLen = FALCON_MAX_SIG_SIZE;
             }
-            #endif /* HAVE_FALCON */
-            #if defined(HAVE_DILITHIUM)
+        #endif /* HAVE_FALCON */
+        #if defined(HAVE_DILITHIUM)
             if (ssl->hsType == DYNAMIC_TYPE_DILITHIUM) {
                 args->sigLen = DILITHIUM_MAX_SIG_SIZE;
             }
-            #endif /* HAVE_DILITHIUM */
-        #endif /* HAVE_PQC */
+        #endif /* HAVE_DILITHIUM */
 
         #ifdef WOLFSSL_DUAL_ALG_CERTS
             if (ssl->sigSpec != NULL &&
@@ -9300,24 +9295,22 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->length = (word16)args->sigLen;
             }
         #endif
-        #if defined(HAVE_PQC)
-            #if defined(HAVE_FALCON)
+        #if defined(HAVE_FALCON)
             if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
                 ret = wc_falcon_sign_msg(args->sigData, args->sigDataSz,
                                          sigOut, &args->sigLen,
                                          (falcon_key*)ssl->hsKey, ssl->rng);
                 args->length = (word16)args->sigLen;
             }
-            #endif /* HAVE_FALCON */
-            #if defined(HAVE_DILITHIUM)
+        #endif /* HAVE_FALCON */
+        #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
             if (ssl->hsType == DYNAMIC_TYPE_DILITHIUM) {
                 ret = wc_dilithium_sign_msg(args->sigData, args->sigDataSz,
                                          sigOut, &args->sigLen,
                                          (dilithium_key*)ssl->hsKey, ssl->rng);
                 args->length = (word16)args->sigLen;
             }
-            #endif /* HAVE_DILITHIUM */
-        #endif /* HAVE_PQC */
+        #endif /* HAVE_DILITHIUM */
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 ret = RsaSign(ssl, rsaSigBuf->buffer, (word32)rsaSigBuf->length,
@@ -9375,8 +9368,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     }
                 }
             #endif /* !NO_RSA */
-            #if defined(HAVE_PQC)
-                #if defined(HAVE_FALCON)
+            #if defined(HAVE_FALCON)
                 if (ssl->hsAltType == DYNAMIC_TYPE_FALCON) {
                     ret = wc_falcon_sign_msg(args->altSigData,
                                              args->altSigDataSz, sigOut,
@@ -9384,8 +9376,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                              (falcon_key*)ssl->hsAltKey,
                                              ssl->rng);
                 }
-                #endif /* HAVE_FALCON */
-                #if defined(HAVE_DILITHIUM)
+            #endif /* HAVE_FALCON */
+            #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
                 if (ssl->hsAltType == DYNAMIC_TYPE_DILITHIUM) {
                     ret = wc_dilithium_sign_msg(args->altSigData,
                                                 args->altSigDataSz, sigOut,
@@ -9393,8 +9385,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                                                 (dilithium_key*)ssl->hsAltKey,
                                                 ssl->rng);
                 }
-                #endif /* HAVE_DILITHIUM */
-            #endif /* HAVE_PQC */
+            #endif /* HAVE_DILITHIUM */
 
                 /* Check for error */
                 if (ret != 0) {
@@ -10051,7 +10042,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                                       ssl->peerEccDsaKeyPresent;
             }
         #endif
-        #ifdef HAVE_PQC
+        #ifdef HAVE_FALCON
             if (ssl->options.peerSigAlgo == falcon_level1_sa_algo) {
                 WOLFSSL_MSG("Peer sent Falcon Level 1 sig");
                 validSigAlgo = (ssl->peerFalconKey != NULL) &&
@@ -10062,6 +10053,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 validSigAlgo = (ssl->peerFalconKey != NULL) &&
                                ssl->peerFalconKeyPresent;
             }
+        #endif
+        #ifdef HAVE_DILITHIUM
             if (ssl->options.peerSigAlgo == dilithium_level2_sa_algo) {
                 WOLFSSL_MSG("Peer sent Dilithium Level 2 sig");
                 validSigAlgo = (ssl->peerDilithiumKey != NULL) &&
@@ -10326,7 +10319,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
             }
         #endif
-        #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+        #if defined(HAVE_FALCON)
             if (((ssl->options.peerSigAlgo == falcon_level1_sa_algo) ||
                  (ssl->options.peerSigAlgo == falcon_level5_sa_algo)) &&
                 (ssl->peerFalconKeyPresent)) {
@@ -10346,8 +10339,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ssl->peerFalconKeyPresent = 0;
                 }
             }
-        #endif /* HAVE_PQC && HAVE_FALCON */
-        #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+        #endif /* HAVE_FALCON */
+        #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
             if (((ssl->options.peerSigAlgo == dilithium_level2_sa_algo) ||
                  (ssl->options.peerSigAlgo == dilithium_level3_sa_algo) ||
                  (ssl->options.peerSigAlgo == dilithium_level5_sa_algo)) &&
@@ -10368,7 +10361,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ssl->peerDilithiumKeyPresent = 0;
                 }
             }
-        #endif /* HAVE_PQC && HAVE_DILITHIUM */
+        #endif /* HAVE_DILITHIUM */
 
             /* Check for error */
             if (ret != 0) {
@@ -10428,7 +10421,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     }
                 }
             #endif /* HAVE_ECC */
-            #if defined(HAVE_PQC) && defined(HAVE_FALCON)
+            #if defined(HAVE_FALCON)
                 if (((args->altSigAlgo == falcon_level1_sa_algo) ||
                      (args->altSigAlgo == falcon_level5_sa_algo)) &&
                     (ssl->peerFalconKeyPresent)) {
@@ -10448,8 +10441,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                         ssl->peerFalconKeyPresent = 0;
                     }
                 }
-            #endif /* HAVE_PQC && HAVE_FALCON */
-            #if defined(HAVE_PQC) && defined(HAVE_DILITHIUM)
+            #endif /* HAVE_FALCON */
+            #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
                 if (((args->altSigAlgo == dilithium_level2_sa_algo) ||
                      (args->altSigAlgo == dilithium_level3_sa_algo) ||
                      (args->altSigAlgo == dilithium_level5_sa_algo)) &&
@@ -10470,7 +10463,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                         ssl->peerDilithiumKeyPresent = 0;
                     }
                 }
-            #endif /* HAVE_PQC && HAVE_DILITHIUM */
+            #endif /* HAVE_DILITHIUM */
 
                 /* Check for error */
                 if (ret != 0) {
@@ -12513,7 +12506,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
-    defined(HAVE_ED448) || defined(HAVE_PQC)
+    defined(HAVE_ED448) || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     case certificate_verify:
         WOLFSSL_MSG("processing certificate verify");
         ret = DoTls13CertificateVerify(ssl, input, inOutIdx, size);
@@ -13150,8 +13143,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case FIRST_REPLY_THIRD:
         #if (!defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
              defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-             defined(HAVE_PQC))) && (!defined(NO_WOLFSSL_SERVER) || \
-             !defined(WOLFSSL_NO_CLIENT_AUTH))
+             defined(HAVE_FALCON) || defined(HAVE_DILITHIUM))) && \
+             (!defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
                 if (ssl->error != 0) {
@@ -13369,7 +13362,7 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
     }
 #endif
 
-#ifdef HAVE_PQC
+#if defined(WOLFSSL_HAVE_KYBER)
     if (WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
 
         if (ssl->ctx != NULL && ssl->ctx->method != NULL &&
@@ -13378,10 +13371,11 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
         }
 
         if (ssl->options.side == WOLFSSL_SERVER_END) {
-            /* If I am the server of a KEM connection, do not do keygen because I'm
-             * going to encapsulate with the client's public key. Note that I might
-             * be the client and ssl->option.side has not been properly set yet. In
-             * that case the KeyGen operation will be deferred to connection time. */
+            /* If I am the server of a KEM connection, do not do keygen because
+             * I'm going to encapsulate with the client's public key. Note that
+             * I might be the client and ssl->option.side has not been properly
+             * set yet. In that case the KeyGen operation will be deferred to
+             * connection time. */
             return WOLFSSL_SUCCESS;
         }
     }
@@ -14292,7 +14286,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
         case TLS13_CERT_SENT :
 #if !defined(NO_CERTS) && (!defined(NO_RSA) || defined(HAVE_ECC) || \
-     defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_PQC))
+     defined(HAVE_ED25519) || defined(HAVE_ED448) || defined(HAVE_FALCON) || \
+     defined(HAVE_DILITHIUM))
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 if ((ssl->error = SendTls13CertificateVerify(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);

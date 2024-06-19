@@ -1183,8 +1183,7 @@ AC_ARG_WITH([liboqs],
 
 # KYBER
 # Used:
-#  - SHA3, Shake128 and Shake256, or
-#  - SHA256, SHA512, AES-CTR
+#  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([kyber],
     [AS_HELP_STRING([--enable-kyber],[Enable KYBER (requires --enable-experimental) (default: disabled)])],
     [ ENABLED_KYBER=$enableval ],
@@ -1249,6 +1248,100 @@ then
     fi
 fi
 
+# Dilithium
+#  - SHA3, Shake128, Shake256 and AES-CTR
+AC_ARG_ENABLE([dilithium],
+    [AS_HELP_STRING([--enable-dilithium],[Enable DILITHIUM (requires --enable-experimental) (default: disabled)])],
+    [ ENABLED_DILITHIUM=$enableval ],
+    [ ENABLED_DILITHIUM=no ]
+    )
+
+ENABLED_DILITHIUM_OPTS=$ENABLED_DILITHIUM
+ENABLED_DILITHIUM_MAKE_KEY=no
+ENABLED_DILITHIUM_SIGN=no
+ENABLED_DILITHIUM_VERIFY=no
+for v in `echo $ENABLED_DILITHIUM_OPTS | tr "," " "`
+do
+  case $v in
+  yes)
+    ENABLED_MLDSA44=yes
+    ENABLED_MLDSA65=yes
+    ENABLED_MLDSA87=yes
+    ENABLED_DILITHIUM_MAKE_KEY=yes
+    ENABLED_DILITHIUM_SIGN=yes
+    ENABLED_DILITHIUM_VERIFY=yes
+    ;;
+  no)
+    ;;
+  all)
+    ENABLED_DILITHIUM_MAKE_KEY=yes
+    ENABLED_DILITHIUM_SIGN=yes
+    ENABLED_DILITHIUM_VERIFY=yes
+    ;;
+  make)
+    ENABLED_DILITHIUM_MAKE_KEY=yes
+    ;;
+  sign)
+    ENABLED_DILITHIUM_SIGN=yes
+    ;;
+  verify)
+    ENABLED_DILITHIUM_VERIFY=yes
+    ;;
+  verify-only)
+    ENABLED_DILITHIUM_MAKE_KEY=no
+    ENABLED_DILITHIUM_SIGN=no
+    ENABLED_DILITHIUM_VERIFY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_VERIFY_ONLY"
+    ;;
+  small)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_SMALL"
+    ;;
+  44)
+    ENABLED_MLDSA44=yes
+    ;;
+  65)
+    ENABLED_MLDSA65=yes
+    ;;
+  87)
+    ENABLED_MLDSA87=yes
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for DILITHIUM [all,make,sign,verify,verify-only,small,44,65,87]: $ENABLED_DILITHIUM.])
+    break;;
+  esac
+done
+
+if test "$ENABLED_DILITHIUM" != "no"
+then
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([DILITHIUM requires --enable-experimental.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_DILITHIUM"
+
+    if test "$ENABLED_MLDSA44" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_44"
+    fi
+    if test "$ENABLED_MLDSA65" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_65"
+    fi
+    if test "$ENABLED_MLDSA87" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_DSA_87"
+    fi
+    if test "$ENABLED_DILITHIUM_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_MAKE_KEY"
+    fi
+    if test "$ENABLED_DILITHIUM_SIGN" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_SIGN"
+    fi
+    if test "$ENABLED_DILITHIUM_VERIFY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DILITHIUM_NO_VERIFY"
+    fi
+
+    if test "$ENABLED_LIBOQS" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_DILITHIUM"
+        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+    fi
+fi
 
 # XMSS
 AC_ARG_ENABLE([xmss],
@@ -9530,6 +9623,7 @@ AM_CONDITIONAL([BUILD_CURVE448_SMALL],[test "x$ENABLED_CURVE448_SMALL" = "xyes" 
 AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -10030,6 +10124,7 @@ echo "   * XMSS_ROOT:                  $XMSS_ROOT"
 fi
 echo "   * KYBER:                      $ENABLED_KYBER"
 echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
+echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"

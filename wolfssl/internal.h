@@ -122,8 +122,10 @@
 #ifdef HAVE_CURVE448
     #include <wolfssl/wolfcrypt/curve448.h>
 #endif
-#ifdef HAVE_PQC
+#ifdef HAVE_FALCON
     #include <wolfssl/wolfcrypt/falcon.h>
+#endif
+#ifdef HAVE_DILITHIUM
     #include <wolfssl/wolfcrypt/dilithium.h>
 #endif
 #ifdef HAVE_HKDF
@@ -1554,7 +1556,7 @@ enum Misc {
     MAXEARLYDATASZ_LEN = 4,     /* maxEarlyDataSz size in ticket */
 #endif
 #endif
-#ifdef HAVE_PQC
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     ENCRYPT_LEN     = 5120,     /* Allow 5k byte buffer for dilithium and
                                  * hybridization with other algs. */
 #else
@@ -1803,7 +1805,7 @@ enum Misc {
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
-#if defined(HAVE_PQC)
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     MAX_CERT_VERIFY_SZ = 6000,            /* For Dilithium */
 #elif defined(WOLFSSL_CERT_EXT)
     MAX_CERT_VERIFY_SZ = 2048,            /* For larger extensions */
@@ -1855,13 +1857,13 @@ enum Misc {
 
 #define WOLFSSL_NAMED_GROUP_IS_FFHDE(group) \
     (MIN_FFHDE_GROUP <= (group) && (group) <= MAX_FFHDE_GROUP)
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
 #define WOLFSSL_NAMED_GROUP_IS_PQC(group) \
     ((WOLFSSL_PQC_SIMPLE_MIN <= (group) && (group) <= WOLFSSL_PQC_SIMPLE_MAX) || \
      (WOLFSSL_PQC_HYBRID_MIN <= (group) && (group) <= WOLFSSL_PQC_HYBRID_MAX))
 #else
 #define WOLFSSL_NAMED_GROUP_IS_PQC(group)    ((void)(group), 0)
-#endif /* HAVE_PQC */
+#endif /* WOLFSSL_HAVE_KYBER */
 
 /* minimum Downgrade Minor version */
 #ifndef WOLFSSL_MIN_DOWNGRADE
@@ -1891,7 +1893,7 @@ enum Misc {
 
 /* number of items in the signature algo list */
 #ifndef WOLFSSL_MAX_SIGALGO
-#ifdef HAVE_PQC
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     /* If we are building with post-quantum algorithms, we likely want to
      * inter-op with OQS's OpenSSL and they send a lot more sigalgs.
      */
@@ -1920,10 +1922,12 @@ enum Misc {
 #endif
 #define MIN_ECCKEY_SZ (WOLFSSL_MIN_ECC_BITS / 8)
 
-#ifdef HAVE_PQC
+#ifdef HAVE_FALCON
 #ifndef MIN_FALCONKEY_SZ
     #define MIN_FALCONKEY_SZ    1281
 #endif
+#endif
+#ifdef HAVE_DILITHIUM
 #ifndef MIN_DILITHIUMKEY_SZ
     #define MIN_DILITHIUMKEY_SZ    2528
 #endif
@@ -1968,7 +1972,7 @@ enum Misc {
 #endif
 
 #ifndef MAX_X509_SIZE
-    #if defined(HAVE_PQC)
+    #if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
         #define MAX_X509_SIZE   (8*1024) /* max static x509 buffer size; dilithium is big */
     #elif defined(WOLFSSL_HAPROXY)
         #define MAX_X509_SIZE   3072 /* max static x509 buffer size */
@@ -2637,8 +2641,10 @@ struct WOLFSSL_CERT_MANAGER {
                                         /* with CTX free.                    */
 #endif
     wolfSSL_Ref     ref;
-#ifdef HAVE_PQC
+#ifdef HAVE_FALCON
     short           minFalconKeySz;     /* minimum allowed Falcon key size */
+#endif
+#ifdef HAVE_DILITHIUM
     short           minDilithiumKeySz;  /* minimum allowed Dilithium key size */
 #endif
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
@@ -3417,7 +3423,7 @@ typedef struct KeyShareEntry {
     word32                keyLen;    /* Key size (bytes)                  */
     byte*                 pubKey;    /* Public key                        */
     word32                pubKeyLen; /* Public key length                 */
-#if !defined(NO_DH) || defined(HAVE_PQC)
+#if !defined(NO_DH) || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     byte*                 privKey;   /* Private key - DH and PQ KEMs only */
     word32                privKeyLen;/* Only for PQ KEMs. */
 #endif
@@ -3750,8 +3756,10 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
-#ifdef HAVE_PQC
+#ifdef HAVE_FALCON
     short       minFalconKeySz;   /* minimum Falcon key size */
+#endif
+#ifdef HAVE_DILITHIUM
     short       minDilithiumKeySz;/* minimum Dilithium key size */
 #endif
     unsigned long     mask;             /* store SSL_OP_ flags */
@@ -4910,8 +4918,10 @@ struct Options {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
     short           minEccKeySz;      /* minimum ECC key size */
 #endif
-#if defined(HAVE_PQC)
+#if defined(HAVE_FALCON)
     short           minFalconKeySz;   /* minimum Falcon key size */
+#endif
+#if defined(HAVE_DILITHIUM)
     short           minDilithiumKeySz;/* minimum Dilithium key size */
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -5105,9 +5115,9 @@ struct WOLFSSL_X509 {
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    defined(HAVE_PQC)
+    defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
     word32       pkCurveOID;
-#endif /* HAVE_ECC || HAVE_PQC */
+#endif
 #ifndef NO_CERTS
     DerBuffer*   derCert;                            /* may need  */
 #endif
@@ -5700,9 +5710,11 @@ struct WOLFSSL {
     curve448_key*   peerX448Key;
     byte            peerX448KeyPresent;
 #endif
-#ifdef HAVE_PQC
+#ifdef HAVE_FALCON
     falcon_key*     peerFalconKey;
     byte            peerFalconKeyPresent;
+#endif
+#ifdef HAVE_DILITHIUM
     dilithium_key*  peerDilithiumKey;
     byte            peerDilithiumKeyPresent;
 #endif
