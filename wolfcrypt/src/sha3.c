@@ -823,10 +823,11 @@ static int wc_InitSha3(wc_Sha3* sha3, int type, void* heap, int devId)
 #elif defined(WOLF_CRYPTO_CB)
     sha3->devId = devId;
     sha3->type = type;
-#else
+
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
     (void)devId;
     (void)type;
-#endif /* WOLFSSL_ASYNC_CRYPT */
 
     return ret;
 }
