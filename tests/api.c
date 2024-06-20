@@ -11311,6 +11311,31 @@ static int test_wolfSSL_UseMaxFragment(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+    /* check negotiated max fragment size */
+    {
+        WOLFSSL *ssl_c = NULL;
+        WOLFSSL *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+        WOLFSSL_CTX *ctx_c = NULL;
+        WOLFSSL_CTX *ctx_s = NULL;
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+        ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_8),
+            WOLFSSL_SUCCESS);
+        ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+        ExpectIntEQ(SSL_SESSION_get_max_fragment_length(
+            wolfSSL_get_session(ssl_c)), WOLFSSL_MFL_2_8);
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_CTX_free(ctx_s);
+    }
+#endif
 #endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 #endif
     return EXPECT_RESULT();
@@ -35030,6 +35055,7 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
     X509_NAME* name = NULL;
 
     const char* expNormal  = "C=US, CN=wolfssl.com";
+    const char* expEqSpace = "C = US, CN = wolfssl.com";
     const char* expReverse = "CN=wolfssl.com, C=US";
 
     const char* expNotEscaped = "C= US,+\"\\ , CN=#wolfssl.com<>;";
@@ -35084,6 +35110,17 @@ static int test_wolfSSL_X509_NAME_print_ex(void)
         ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
         ExpectIntEQ(memSz, XSTRLEN(expNormal));
         ExpectIntEQ(XSTRNCMP((char*)mem, expNormal, XSTRLEN(expNormal)), 0);
+        BIO_free(membio);
+        membio = NULL;
+
+        /* Test with XN_FLAG_ONELINE which should enable XN_FLAG_SPC_EQ for
+           spaces aroun '=' */
+        ExpectNotNull(membio = BIO_new(BIO_s_mem()));
+        ExpectIntEQ(X509_NAME_print_ex(membio, name, 0, XN_FLAG_ONELINE),
+            WOLFSSL_SUCCESS);
+        ExpectIntGE((memSz = BIO_get_mem_data(membio, &mem)), 0);
+        ExpectIntEQ(memSz, XSTRLEN(expEqSpace));
+        ExpectIntEQ(XSTRNCMP((char*)mem, expEqSpace, XSTRLEN(expEqSpace)), 0);
         BIO_free(membio);
         membio = NULL;
 
@@ -49863,6 +49900,7 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Both should have been allocated */
     ExpectIntEQ(clientSessRemCountMalloc, 1);
     ExpectIntEQ(serverSessRemCountMalloc, 1);
+
     /* This should not be called yet. Session wasn't evicted from cache yet. */
     ExpectIntEQ(clientSessRemCountFree, 0);
 #if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
@@ -49889,7 +49927,6 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     ExpectIntEQ(SSL_CTX_remove_session(serverSessCtx, serverSess), 0);
     ExpectNull(SSL_SESSION_get_ex_data(serverSess, serverSessRemIdx));
     ExpectIntEQ(serverSessRemCountFree, 1);
-
     /* Need to free the references that we kept */
     SSL_CTX_free(serverSessCtx);
     SSL_SESSION_free(serverSess);
@@ -65220,8 +65257,15 @@ static int test_stubs_are_stubs(void)
     CHECKZERO_RET(wolfSSL_CTX_sess_misses, ctx, ctxN);
     CHECKZERO_RET(wolfSSL_CTX_sess_timeouts, ctx, ctxN);
 
+    /* when implemented this should take WOLFSSL object insted, right now
+     * always returns 0 */
+    ExpectIntEQ(SSL_get_current_expansion(NULL), 0);
+
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+
+    ExpectStrEQ(SSL_COMP_get_name(NULL), "not supported");
+    ExpectIntEQ(SSL_get_current_expansion(), 0);
 #endif /* OPENSSL_EXTRA && !NO_WOLFSSL_STUB && (!NO_WOLFSSL_CLIENT ||
         * !NO_WOLFSSL_SERVER) */
     return EXPECT_RESULT();
@@ -69055,6 +69099,7 @@ static int test_wolfSSL_dtls_stateless_maxfrag(void)
     /* CH without cookie shouldn't change state */
     ExpectIntEQ(ssl_s->max_fragment, max_fragment);
     ExpectIntNE(test_ctx.c_len, 0);
+
     /* consume HRR from buffer */
     test_ctx.c_len = 0;
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);

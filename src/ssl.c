@@ -14961,6 +14961,17 @@ int wolfSSL_COMP_add_compression_method(int method, void* data)
 }
 #endif
 
+#ifndef NO_WOLFSSL_STUB
+const char* wolfSSL_COMP_get_name(const void* comp)
+{
+    static const char ret[] = "not supported";
+
+    (void)comp;
+    WOLFSSL_STUB("wolfSSL_COMP_get_name");
+    return ret;
+}
+#endif
+
 /*  wolfSSL_set_dynlock_create_callback
  *  CRYPTO_set_dynlock_create_callback has been deprecated since openSSL 1.0.1.
  *  This function exists for compatibility purposes because wolfSSL satisfies

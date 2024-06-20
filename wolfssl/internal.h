@@ -4475,6 +4475,10 @@ struct WOLFSSL_SESSION {
 #ifdef HAVE_EX_DATA
     WOLFSSL_CRYPTO_EX_DATA ex_data;
 #endif
+#ifdef HAVE_MAX_FRAGMENT
+    byte               mfl; /* max fragment length negotiated i.e.
+                             * WOLFSSL_MFL_2_8  (6) */
+#endif
     byte               isSetup:1;
 };
 

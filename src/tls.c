@@ -2997,6 +2997,9 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             WOLFSSL_ERROR_VERBOSE(UNKNOWN_MAX_FRAG_LEN_E);
             return UNKNOWN_MAX_FRAG_LEN_E;
     }
+    if (ssl->session != NULL) {
+        ssl->session->mfl = *input;
+    }
 
 #ifndef NO_WOLFSSL_SERVER
     if (isRequest) {

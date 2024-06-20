@@ -1682,6 +1682,11 @@ WOLFSSL_API int  wolfSSL_set_session_id_context(WOLFSSL* ssl, const unsigned cha
 WOLFSSL_API void wolfSSL_set_connect_state(WOLFSSL* ssl);
 WOLFSSL_API void wolfSSL_set_accept_state(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_session_reused(WOLFSSL* ssl);
+#ifdef OPENSSL_EXTRA
+/* using unsigned char instead of uint8_t here to avoid stdint include */
+WOLFSSL_API unsigned char wolfSSL_SESSION_get_max_fragment_length(
+                                                      WOLFSSL_SESSION* session);
+#endif
 WOLFSSL_API int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_dup(WOLFSSL_SESSION* session);
 WOLFSSL_API WOLFSSL_SESSION* wolfSSL_SESSION_new(void);
@@ -3917,6 +3922,7 @@ WOLFSSL_API int wolfSSL_ALPN_FreePeerProtocol(WOLFSSL* ssl, char **list);
 
 /* Fragment lengths */
 enum {
+    WOLFSSL_MFL_DISABLED = 0,
     WOLFSSL_MFL_2_9  = 1, /*  512 bytes */
     WOLFSSL_MFL_2_10 = 2, /* 1024 bytes */
     WOLFSSL_MFL_2_11 = 3, /* 2048 bytes */
@@ -5201,6 +5207,7 @@ WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
 WOLFSSL_API int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp);
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength));
 WOLFSSL_API WOLF_STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void);
+WOLFSSL_API const char* wolfSSL_COMP_get_name(const void* comp);
 WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str, const char *file, const char *dir);
 WOLFSSL_API int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x);
 WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p);

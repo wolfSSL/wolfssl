@@ -367,6 +367,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_dup                 wolfSSL_SESSION_dup
 #define SSL_SESSION_free                wolfSSL_SESSION_free
 #define SSL_SESSION_set_cipher          wolfSSL_SESSION_set_cipher
+#define SSL_SESSION_get_max_fragment_length \
+                                        wolfSSL_SESSION_get_max_fragment_length
 #define SSL_is_init_finished            wolfSSL_is_init_finished
 
 #define SSL_SESSION_set1_id             wolfSSL_SESSION_set1_id
@@ -834,6 +836,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define COMP_rle                        wolfSSL_COMP_rle
 #define SSL_COMP_add_compression_method wolfSSL_COMP_add_compression_method
 
+#define SSL_get_current_compression(ssl) 0
+#define SSL_get_current_expansion(ssl) 0
+#define SSL_COMP_get_name               wolfSSL_COMP_get_name
+
 #define SSL_get_ex_new_index            wolfSSL_get_ex_new_index
 #define RSA_get_ex_new_index            wolfSSL_get_ex_new_index
 
@@ -1227,6 +1233,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #define TLSEXT_STATUSTYPE_ocsp  1
 
+#define TLSEXT_max_fragment_length_DISABLED WOLFSSL_MFL_DISABLED
 #define TLSEXT_max_fragment_length_512   WOLFSSL_MFL_2_9
 #define TLSEXT_max_fragment_length_1024  WOLFSSL_MFL_2_10
 #define TLSEXT_max_fragment_length_2048  WOLFSSL_MFL_2_11
