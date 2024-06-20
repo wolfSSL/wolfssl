@@ -8236,7 +8236,8 @@ int wolfSSL_X509_CRL_get_signature(WOLFSSL_X509_CRL* crl,
 {
     WOLFSSL_ENTER("wolfSSL_X509_CRL_get_signature");
 
-    if (crl == NULL || crl->crlList == NULL || bufSz == NULL)
+    if (crl == NULL || crl->crlList == NULL ||
+        crl->crlList->signature == NULL || bufSz == NULL)
         return BAD_FUNC_ARG;
 
     if (buf != NULL)
@@ -12971,6 +12972,14 @@ static int get_dn_attr_by_nid(int n, const char** buf)
         case NID_userId:
             str = "UID";
             len = 3;
+            break;
+        case NID_serialNumber:
+            str = "serialNumber";
+            len = 12;
+            break;
+        case NID_title:
+            str = "title";
+            len = 5;
             break;
         default:
             WOLFSSL_MSG("Attribute type not found");
