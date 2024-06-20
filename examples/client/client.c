@@ -1162,6 +1162,7 @@ static const char* client_usage_msg[][78] = {
         "-D          Override Date Errors example\n",                   /* 18 */
         "-e          List Every cipher suite available, \n",            /* 19 */
         "-g          Send server HTTP GET\n",                           /* 20 */
+#ifdef WOLFSSL_DTLS
 #ifndef WOLFSSL_DTLS13
         "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
             " (default)\n",                                             /* 21 */
@@ -1169,6 +1170,7 @@ static const char* client_usage_msg[][78] = {
         "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2"
             " (default), -v 4 for DTLSv1.3\n",                          /* 21 */
 #endif /* !WOLFSSL_DTLS13 */
+#endif
 #ifdef WOLFSSL_SCTP
         "-G          Use SCTP DTLS,"
                 " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",  /* 22 */
@@ -1387,6 +1389,7 @@ static const char* client_usage_msg[][78] = {
         "-D          日付エラー用コールバック例の上書きを行う\n",       /* 18 */
         "-e          利用可能な全ての暗号スイートをリスト, \n",         /* 19 */
         "-g          サーバーへ HTTP GET を送信\n",                     /* 20 */
+#ifdef WOLFSSL_DTLS
         "-u          UDP DTLSを使用する。\n"
 #ifndef WOLFSSL_DTLS13
         "           -v 2 を追加指定するとDTLSv1, "
@@ -1396,6 +1399,7 @@ static const char* client_usage_msg[][78] = {
                     "-v 3 を追加指定すると DTLSv1.2 (既定値),\n"
         "           -v 4 を追加指定すると DTLSv1.3\n",                    /* 21 */
 #endif /* !WOLFSSL_DTLS13 */
+#endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_SCTP
         "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
                 " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",   /* 22 */

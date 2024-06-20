@@ -23860,6 +23860,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
     byte*  output  = NULL;
     word32 idx     = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 length  = ENUM_LEN;
+    word32 headerSz= idx;
     int    sendSz  = 0;
     int    ret     = 0;
     int    i       = 0;
@@ -23879,88 +23880,42 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
         default:
             return 0;
     }
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        headerSz = idx = DTLS_RECORD_HEADER_SZ + DTLS_HANDSHAKE_HEADER_SZ;
+        sendSz  = idx + length;
 
+    } else
+#endif
     sendSz = (int)(idx + length);
 
     if (ssl->keys.encryptionOn)
         sendSz += MAX_MSG_EXTRA;
 
-    /* Set this in case CheckAvailableSize returns a WANT_WRITE so that state
-     * is not advanced yet */
-    ssl->options.buildingMsg = 1;
+    output =(byte*)XMALLOC(sendSz, ssl->heap, DYNAMIC_TYPE_OCSP);
+    if (output == NULL)
+        return MEMORY_E;
 
-    if ((ret = CheckAvailableSize(ssl, sendSz)) == 0) {
-        output = GetOutputBuffer(ssl);
+    AddHeaders(output, length, certificate_status, ssl);
 
-        AddHeaders(output, length, certificate_status, ssl);
+    output[idx++] = type;
 
-        output[idx++] = type;
-
-        if (type == WOLFSSL_CSR2_OCSP_MULTI) {
-            c32to24(length - (ENUM_LEN + OPAQUE24_LEN), output + idx);
-            idx += OPAQUE24_LEN;
-        }
-
-        for (i = 0; i < count; i++) {
-            c32to24(status[i].length, output + idx);
-            idx += OPAQUE24_LEN;
-
-            XMEMCPY(output + idx, status[i].buffer, status[i].length);
-            idx += status[i].length;
-        }
-
-        if (IsEncryptionOn(ssl, 1)) {
-            byte* input;
-            int   inputSz = (int)idx; /* build msg adds rec hdr */
-            int   recordHeaderSz = RECORD_HEADER_SZ;
-
-            if (ssl->options.dtls)
-                recordHeaderSz += DTLS_RECORD_EXTRA;
-            inputSz -= recordHeaderSz;
-            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-            if (input == NULL)
-                return MEMORY_E;
-
-            XMEMCPY(input, output + recordHeaderSz, inputSz);
-            #ifdef WOLFSSL_DTLS
-                ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz, certificate_status);
-            #endif
-            if (ret == 0)
-                sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
-                                      handshake, 1, 0, 0, CUR_ORDER);
-            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-
-            if (sendSz < 0)
-                ret = sendSz;
-        }
-        else {
-            #ifdef WOLFSSL_DTLS
-                if (ret == 0 && IsDtlsNotSctpMode(ssl))
-                    ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz, certificate_status);
-                if (ret == 0 && ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
-            ret = HashOutput(ssl, output, sendSz, 0);
-        }
-
-    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
-        if (ret == 0 && ssl->hsInfoOn)
-            AddPacketName(ssl, "CertificateStatus");
-        if (ret == 0 && ssl->toInfoOn) {
-            ret = AddPacketInfo(ssl, "CertificateStatus", handshake, output,
-                    sendSz, WRITE_PROTO, 0, ssl->heap);
-            if (ret != 0)
-                return ret;
-        }
-    #endif
-
-        if (ret == 0) {
-            ssl->options.buildingMsg = 0;
-            ssl->buffers.outputBuffer.length += sendSz;
-            if (!ssl->options.groupMessages)
-                ret = SendBuffered(ssl);
-        }
+    if (type == WOLFSSL_CSR2_OCSP_MULTI) {
+        c32to24(length - (ENUM_LEN + OPAQUE24_LEN), output + idx);
+        idx += OPAQUE24_LEN;
     }
+
+    for (i = 0; i < count; i++) {
+        c32to24(status[i].length, output + idx);
+        idx += OPAQUE24_LEN;
+
+        XMEMCPY(output + idx, status[i].buffer, status[i].length);
+        idx += status[i].length;
+    }
+    /* Send Message. Handled message fragmentation in the function if needed */
+    ret = SendHandshakeMsg(ssl, output, (sendSz - headerSz), certificate_status,
+                "Certificate Status");
+    XFREE(output, ssl->heap, DYNAMIC_TYPE_OCSP);
 
     WOLFSSL_LEAVE("BuildCertificateStatus", ret);
     return ret;
