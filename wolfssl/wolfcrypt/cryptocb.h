@@ -399,6 +399,9 @@ typedef struct wc_CryptoInfo {
         #ifdef WOLFSSL_SHA512
             wc_Sha512* sha512;
         #endif
+        #ifdef WOLFSSL_SHA3
+            wc_Sha3* sha3;
+        #endif
             void* ctx;
 #if HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
@@ -619,6 +622,11 @@ WOLFSSL_LOCAL int wc_CryptoCb_Sha384Hash(wc_Sha384* sha384, const byte* in,
 #endif
 #ifdef WOLFSSL_SHA512
 WOLFSSL_LOCAL int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
+    word32 inSz, byte* digest);
+#endif
+
+#ifdef WOLFSSL_SHA3
+WOLFSSL_LOCAL int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
     word32 inSz, byte* digest);
 #endif
 
