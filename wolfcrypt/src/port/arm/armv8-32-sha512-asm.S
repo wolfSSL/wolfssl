@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA512
 #ifdef WOLFSSL_ARMASM_NO_NEON
@@ -9366,7 +9366,7 @@ L_SHA512_transform_neon_len_start:
 	.size	Transform_Sha512_Len,.-Transform_Sha512_Len
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 */
-#endif /* !__aarch64__ && !__thumb__ */
+#endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

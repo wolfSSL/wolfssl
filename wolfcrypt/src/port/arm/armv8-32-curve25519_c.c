@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -41,7 +41,7 @@
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
@@ -8995,9 +8995,9 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
 #endif /* HAVE_CURVE25519 || HAVE_ED25519 */
-#endif /* !__aarch64__ && !__thumb__ */
+#endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
-#endif /* !defined(__aarch64__) && defined(__arm__) */
+#endif /* !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__) */
 #endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
