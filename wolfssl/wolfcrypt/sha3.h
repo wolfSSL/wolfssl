@@ -124,6 +124,11 @@ struct wc_Sha3 {
 
     void*  heap;
 
+#ifdef WOLF_CRYPTO_CB
+    int    devId;
+    int    type; /* enum wc_HashType */
+#endif
+
 #ifdef WC_C_DYNAMIC_FALLBACK
     void (*sha3_block)(word64 *s);
     void (*sha3_block_n)(word64 *s, const byte* data, word32 n,

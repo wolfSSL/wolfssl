@@ -43,6 +43,9 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -802,7 +805,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
  * devId  Device identifier for asynchronous operation.
  * returns 0 on success.
  */
-static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
+static int wc_InitSha3(wc_Sha3* sha3, int type, void* heap, int devId)
 {
     int ret = 0;
 
@@ -817,9 +820,14 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     ret = wolfAsync_DevCtxInit(&sha3->asyncDev,
                         WOLFSSL_ASYNC_MARKER_SHA3, sha3->heap, devId);
-#else
-    (void)devId;
+#elif defined(WOLF_CRYPTO_CB)
+    sha3->devId = devId;
+    sha3->type = type;
+
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+    (void)devId;
+    (void)type;
 
     return ret;
 }
@@ -845,6 +853,17 @@ static int wc_Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         return 0;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha3->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Sha3Hash(sha3, sha3->type, data, len, NULL);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     if (sha3->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA3) {
     #if defined(HAVE_INTEL_QA) && defined(QAT_V2)
@@ -880,6 +899,17 @@ static int wc_Sha3Final(wc_Sha3* sha3, byte* hash, byte p, byte len)
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha3->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Sha3Hash(sha3, sha3->type, NULL, 0, hash);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     if (sha3->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA3) {
     #if defined(HAVE_INTEL_QA) && defined(QAT_V2)
@@ -981,7 +1011,7 @@ static int wc_Sha3GetHash(wc_Sha3* sha3, byte* hash, byte p, byte len)
  */
 int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId)
 {
-    return wc_InitSha3(sha3, heap, devId);
+    return wc_InitSha3(sha3, WC_HASH_TYPE_SHA3_224, heap, devId);
 }
 
 /* Update the SHA3-224 hash state with message data.
@@ -1053,7 +1083,7 @@ int wc_Sha3_224_Copy(wc_Sha3* src, wc_Sha3* dst)
  */
 int wc_InitSha3_256(wc_Sha3* sha3, void* heap, int devId)
 {
-    return wc_InitSha3(sha3, heap, devId);
+    return wc_InitSha3(sha3, WC_HASH_TYPE_SHA3_256, heap, devId);
 }
 
 /* Update the SHA3-256 hash state with message data.
@@ -1125,7 +1155,7 @@ int wc_Sha3_256_Copy(wc_Sha3* src, wc_Sha3* dst)
  */
 int wc_InitSha3_384(wc_Sha3* sha3, void* heap, int devId)
 {
-    return wc_InitSha3(sha3, heap, devId);
+    return wc_InitSha3(sha3, WC_HASH_TYPE_SHA3_384, heap, devId);
 }
 
 /* Update the SHA3-384 hash state with message data.
@@ -1197,7 +1227,7 @@ int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
  */
 int wc_InitSha3_512(wc_Sha3* sha3, void* heap, int devId)
 {
-    return wc_InitSha3(sha3, heap, devId);
+    return wc_InitSha3(sha3, WC_HASH_TYPE_SHA3_512, heap, devId);
 }
 
 /* Update the SHA3-512 hash state with message data.
@@ -1286,7 +1316,7 @@ int wc_Sha3_GetFlags(wc_Sha3* sha3, word32* flags)
  */
 int wc_InitShake128(wc_Shake* shake, void* heap, int devId)
 {
-    return wc_InitSha3(shake, heap, devId);
+    return wc_InitSha3(shake, WC_HASH_TYPE_SHAKE128, heap, devId);
 }
 
 /* Update the SHAKE128 hash state with message data.
@@ -1430,7 +1460,7 @@ int wc_Shake128_Copy(wc_Shake* src, wc_Shake* dst)
  */
 int wc_InitShake256(wc_Shake* shake, void* heap, int devId)
 {
-    return wc_InitSha3(shake, heap, devId);
+    return wc_InitSha3(shake, WC_HASH_TYPE_SHAKE256, heap, devId);
 }
 
 /* Update the SHAKE256 hash state with message data.

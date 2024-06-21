@@ -1606,6 +1606,40 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
 }
 #endif /* WOLFSSL_SHA512 */
 
+#ifdef WOLFSSL_SHA3
+int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
+    word32 inSz, byte* digest)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    if (sha3) {
+        dev = wc_CryptoCb_FindDevice(sha3->devId, WC_ALGO_TYPE_HASH);
+    }
+    else
+    {
+        /* locate first callback and try using it */
+        dev = wc_CryptoCb_FindDeviceByIndex(0);
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_HASH;
+        cryptoInfo.hash.type = type;
+        cryptoInfo.hash.sha3 = sha3;
+        cryptoInfo.hash.in = in;
+        cryptoInfo.hash.inSz = inSz;
+        cryptoInfo.hash.digest = digest;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* WOLFSSL_SHA3 */
+
 #ifndef NO_HMAC
 int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,
     byte* digest)

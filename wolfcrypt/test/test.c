@@ -54802,6 +54802,97 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         else
     #endif
+    #ifdef WOLFSSL_SHA3
+        if (info->hash.type == WC_HASH_TYPE_SHA3_224) {
+            if (info->hash.sha3 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha3->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha3_224_Update(
+                    info->hash.sha3,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha3_224_Final(
+                    info->hash.sha3,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha3->devId = devIdArg;
+        }
+        else if (info->hash.type == WC_HASH_TYPE_SHA3_256) {
+            if (info->hash.sha3 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha3->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha3_256_Update(
+                    info->hash.sha3,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha3_256_Final(
+                    info->hash.sha3,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha3->devId = devIdArg;
+        }
+        else if (info->hash.type == WC_HASH_TYPE_SHA3_384) {
+            if (info->hash.sha3 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha3->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha3_384_Update(
+                    info->hash.sha3,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha3_384_Final(
+                    info->hash.sha3,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha3->devId = devIdArg;
+        }
+        else if (info->hash.type == WC_HASH_TYPE_SHA3_512) {
+            if (info->hash.sha3 == NULL)
+                return NOT_COMPILED_IN;
+
+            /* set devId to invalid, so software is used */
+            info->hash.sha3->devId = INVALID_DEVID;
+
+            if (info->hash.in != NULL) {
+                ret = wc_Sha3_512_Update(
+                    info->hash.sha3,
+                    info->hash.in,
+                    info->hash.inSz);
+            }
+            if (info->hash.digest != NULL) {
+                ret = wc_Sha3_512_Final(
+                    info->hash.sha3,
+                    info->hash.digest);
+            }
+
+            /* reset devId */
+            info->hash.sha3->devId = devIdArg;
+        }
+        else
+    #endif
         {
         }
     }
@@ -54998,6 +55089,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 #ifdef WOLFSSL_SHA512
     if (ret == 0)
         ret = sha512_test();
+#ifdef WOLFSSL_SHA3
+    if (ret == 0)
+        ret = sha3_test();
+#endif
 #endif
 #ifndef NO_HMAC
     #ifndef NO_SHA
@@ -55007,6 +55102,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
     #ifndef NO_SHA256
     if (ret == 0)
         ret = hmac_sha256_test();
+    #endif
+    #ifdef WOLFSSL_SHA3
+    if (ret == 0)
+        ret = hmac_sha3_test();
     #endif
 #endif
 #ifndef NO_PWDBASED
