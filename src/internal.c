@@ -11131,7 +11131,7 @@ static int MsgCheckBoundary(const WOLFSSL* ssl, byte type,
  * @param ssl   The current connection
  * @param type  The enum HandShakeType of the current message
  * @param msgSz Size of the current message
- * @return
+ * @return int (less than 0 on fail, 0 on success)
  */
 int EarlySanityCheckMsgReceived(WOLFSSL* ssl, byte type, word32 msgSz)
 {
