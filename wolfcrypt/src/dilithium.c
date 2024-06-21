@@ -5427,6 +5427,10 @@ static int oqs_dilithium_make_key(dilithium_key* key, WC_RNG* rng)
         key->pubKeySet = 1;
     }
 
+    if (oqssig != NULL) {
+        OQS_SIG_free(oqssig);
+    }
+
     return ret;
 }
 #endif /* WOLFSSL_DILITHIUM_NO_MAKE_KEY */
