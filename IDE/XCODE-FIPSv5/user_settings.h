@@ -432,7 +432,7 @@ extern "C" {
 #undef WOLFSSL_SHA3
 #if 1
     #define WOLFSSL_SHA3
-    #define Sha3 wc_Sha3
+    #define NO_OLD_WC_NAMES
 #endif
 
 /* MD5 */
