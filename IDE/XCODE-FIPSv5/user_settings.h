@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -33,20 +33,60 @@ extern "C" {
 #undef  WOLFSSL_GENERAL_ALIGNMENT
 #define WOLFSSL_GENERAL_ALIGNMENT   4
 
+/* Multi-threaded support */
 #undef  SINGLE_THREADED
-//#define SINGLE_THREADED
+#if 0
+    #define SINGLE_THREADED
+#else
+    #define ERROR_QUEUE_PER_THREAD /* if applicable otherwise comment out */
+#endif
 
-#undef  WOLFSSL_SMALL_STACK
-//#define WOLFSSL_SMALL_STACK
+#ifdef SINGLE_THREADED
+    #undef  NO_THREAD_LS
+    #define NO_THREAD_LS
+#endif
 
 #undef  WOLFSSL_USER_IO
 //#define WOLFSSL_USER_IO
 
-#undef IPHONE
-#define IPHONE
-
 #undef NO_WRITE_TEMP_FILES
 #define NO_WRITE_TEMP_FILES
+
+/* FIPS 140-3 OE specific section(s) */
+
+/* Uncomment for Android devices */
+#undef ANDROID_V454
+/* #define ANDROID_V454 */
+#ifdef ANDROID_V454
+    #if 1
+        /* To have all printouts go to the app view on the device use: */
+        extern int appendToTextView(const char* fmt, ...);
+        #undef printf
+        #define printf(format, ...) appendToTextView(format, ## __VA_ARGS__)
+    #else
+        #include <android/log.h>
+        #define WOLFLOGV(...) __android_log_print(ANDROID_LOG_VERBOSE, "wolfCrypt_android", __VA_ARGS__)
+        #undef printf
+        #define printf WOLFLOGV
+    #endif
+#endif
+
+/* Uncomment for WINCE 6.0 devices. NOTE: _WIN32_WCE defined by system */
+#if 0
+    #define NO_WOLFSSL_DIR
+    #define WOLFSSL_NO_ATOMICS
+    #define WC_NO_ASYNC_THREADING
+    #define USE_WINDOWS_API
+    #define WOLFSSL_SMALL_STACK
+#endif
+
+/* Uncomment for iOS devices with PAA */
+#undef IPHONE
+/* #define IPHONE */
+
+#ifdef IPHONE
+    #define YES_WPAA
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
@@ -55,31 +95,48 @@ extern "C" {
 #define SIZEOF_LONG_LONG 8
 
 #undef USE_FAST_MATH
-#if 1
+#if 0
     #define USE_FAST_MATH
 
     #undef  TFM_TIMING_RESISTANT
     #define TFM_TIMING_RESISTANT
 
     #undef TFM_NO_ASM
-    #define TFM_NO_ASM
+    //#define TFM_NO_ASM
 
     /* Optimizations */
     //#define TFM_ARM
+
+    /* Maximum math bits (Max RSA key bits * 2) */
+    #undef  FP_MAX_BITS
+    #define FP_MAX_BITS 16384
+#else
+    #define WOLFSSL_SP_MATH_ALL
+    #define WOLFSSL_SP_INT_NEGATIVE
+    /* Maximum math bits (largest supported key bits) */
+    #undef SP_INT_BITS
+    #define SP_INT_BITS 8192
 #endif
 
 /* Wolf Single Precision Math */
 #undef WOLFSSL_SP
 #if 1 /* SP Assembly Speedups (wPAA) */
-    #define SP_INT_BITS 8192
     #define WOLFSSL_SP
-    #define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    //#define WOLFSSL_SP_SMALL      /* use smaller version of code */
+    #define WOLFSSL_SP_1024
+    #define WOLFSSL_SP_4096 /* Explicitly enable 4096-bit support (2048/3072 on by default) */
+    #define WOLFSSL_SP_384 /* Explicitly enable 384-bit support (others on by default) */
+    #define WOLFSSL_SP_521 /* Explicitly enable 521-bit support (others on by default) */
     #define WOLFSSL_HAVE_SP_RSA
     #define WOLFSSL_HAVE_SP_DH
     #define WOLFSSL_HAVE_SP_ECC
-    /* Customer indicated no desire for PAA, leave out */
-    //#define WOLFSSL_ARMASM
-    //#define WOLFSSL_SP_ARM64_ASM
+    /* If no PAA, leave out */
+  #if defined(IPHONE) && defined(YES_WPAA)
+    #define WOLFSSL_SP_ASM
+    #define WOLFSSL_ARMASM
+    #define WOLFSSL_SP_ARM64
+    #define WOLFSSL_SP_ARM64_ASM
+  #endif
 #endif
 
 /* ------------------------------------------------------------------------- */
@@ -87,7 +144,8 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 #undef  HAVE_FIPS
 #if 1
-    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE 7E1F475996F8BBAB1903D108A9B0AD8D679C5DF6C1598D05924BCAF42A673040
+
+    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE E10668763A70618419DF0D90190AE23B47D07BBF613F4CD73A54339B0F672203
     #define HAVE_FIPS
 
     #undef  HAVE_FIPS_VERSION
@@ -99,16 +157,8 @@ extern "C" {
     #undef WOLFSSL_WOLFSSH
     #define WOLFSSL_WOLFSSH
 
-    #undef WOLFSSL_ECDSA_SET_K
-    #define WOLFSSL_ECDSA_SET_K
-
     #undef WC_RNG_SEED_CB
     #define WC_RNG_SEED_CB
-
-    #ifdef SINGLE_THREADED
-        #undef  NO_THREAD_LS
-        #define NO_THREAD_LS
-    #endif
 
     #if 0
         #undef NO_ATTRIBUTE_CONSTRUCTOR
@@ -124,18 +174,13 @@ extern "C" {
 /* RSA */
 #undef NO_RSA
 #if 1
-    #ifdef USE_FAST_MATH
-        /* Maximum math bits (Max RSA key bits * 2) */
-        #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     16384
-    #endif
 
     /* half as much memory but twice as slow */
     #undef  RSA_LOW_MEM
     //#define RSA_LOW_MEM
 
     /* Enables blinding mode, to prevent timing attacks */
-    #if 0
+    #if 1
         #undef  WC_RSA_BLINDING
         #define WC_RSA_BLINDING
     #else
@@ -147,6 +192,12 @@ extern "C" {
     #if 1
         #undef WC_RSA_PSS
         #define WC_RSA_PSS
+
+        #undef WOLFSSL_PSS_LONG_SALT
+        #define WOLFSSL_PSS_LONG_SALT
+
+        #undef WOLFSSL_PSS_SALT_LEN_DISCOVER
+        #define WOLFSSL_PSS_SALT_LEN_DISCOVER
     #endif
 
     #if 1
@@ -163,15 +214,16 @@ extern "C" {
 
     /* Manually define enabled curves */
     #undef  ECC_USER_CURVES
-    //#define ECC_USER_CURVES
+    #define ECC_USER_CURVES
 
     #ifdef ECC_USER_CURVES
         /* Manual Curve Selection */
-        //#define HAVE_ECC192
-        //#define HAVE_ECC224
+        #define HAVE_ECC192
+        #define HAVE_ECC224
         #undef NO_ECC256
-        //#define HAVE_ECC384
-        //#define HAVE_ECC521
+        #define HAVE_ECC256
+        #define HAVE_ECC384
+        #define HAVE_ECC521
     #endif
 
     /* Fixed point cache (speeds repeated operations against same private key) */
@@ -205,13 +257,16 @@ extern "C" {
         #define WOLFSSL_VALIDATE_ECC_IMPORT /* Validate import */
 
         #undef WOLFSSL_VALIDATE_ECC_KEYGEN
-        #define WOLFSSL_VALIDATE_ECC_KEYGEN
+        #define WOLFSSL_VALIDATE_ECC_KEYGEN /* Validate generated keys */
+
+        #undef WOLFSSL_ECDSA_SET_K
+        #define WOLFSSL_ECDSA_SET_K
 
     #endif
 
     /* Compressed Key Support */
     #undef  HAVE_COMP_KEY
-    //#define HAVE_COMP_KEY
+    #define HAVE_COMP_KEY
 
     /* Use alternate ECC size for ECC math */
     #ifdef USE_FAST_MATH
@@ -241,6 +296,7 @@ extern "C" {
 #if 1
     /* Use table for DH instead of -lm (math) lib dependency */
     #if 1
+        #define HAVE_DH_DEFAULT_PARAMS
         #define WOLFSSL_DH_CONST
         #define HAVE_FFDHE_2048
         #define HAVE_FFDHE_3072
@@ -267,8 +323,9 @@ extern "C" {
     #undef  HAVE_AESGCM
     #define HAVE_AESGCM
 
-    /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
-    #define GCM_TABLE
+    /* GCM Method (slowest to fastest): GCM_SMALL, GCM_WORD32, GCM_TABLE or
+     *                                  GCM_TABLE_4BIT */
+    #define GCM_TABLE_4BIT
 
     #undef  WOLFSSL_AES_DIRECT
     #define WOLFSSL_AES_DIRECT
@@ -282,8 +339,9 @@ extern "C" {
     #undef  HAVE_AESCCM
     #define HAVE_AESCCM
 
-    #undef HAVE_AES_KEYWRAP
-    #define HAVE_AES_KEYWRAP
+    #undef WOLFSSL_AES_OFB
+    #define WOLFSSL_AES_OFB
+
 #else
     #define NO_AES
 #endif
@@ -374,6 +432,7 @@ extern "C" {
 #undef WOLFSSL_SHA3
 #if 1
     #define WOLFSSL_SHA3
+    #define NO_OLD_WC_NAMES
 #endif
 
 /* MD5 */
@@ -384,10 +443,11 @@ extern "C" {
     #define NO_MD5
 #endif
 
-/* HKDF */
+/* HKDF / PRF */
 #undef HAVE_HKDF
 #if 1
     #define HAVE_HKDF
+    #define WOLFSSL_HAVE_PRF
 #endif
 
 /* CMAC */
@@ -567,8 +627,14 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Enable Features */
 /* ------------------------------------------------------------------------- */
+#undef WOLFSSL_ASN_TEMPLATE
+#define WOLFSSL_ASN_TEMPLATE
+
+#undef WOLFSSL_ASN_PRINT
+#define WOLFSSL_ASN_PRINT
+
 #undef WOLFSSL_TLS13
-#if 0
+#if 1
     #define WOLFSSL_TLS13
 #endif
 
@@ -577,18 +643,14 @@ extern "C" {
     #define WOLFSSL_KEY_GEN
 #endif
 
-#if defined(HAVE_FIPS) && !defined(WOLFSSL_KEY_GEN)
-    #define WOLFSSL_OLD_PRIME_CHECK
-#endif
-
 #undef  KEEP_PEER_CERT
 //#define KEEP_PEER_CERT
 
-#undef  HAVE_COMP_KEY
-//#define HAVE_COMP_KEY
-
 #undef  HAVE_TLS_EXTENSIONS
 #define HAVE_TLS_EXTENSIONS
+
+#undef HAVE_EXTENDED_MASTER
+#define HAVE_EXTENDED_MASTER
 
 #undef  HAVE_SUPPORTED_CURVES
 #define HAVE_SUPPORTED_CURVES
@@ -596,15 +658,15 @@ extern "C" {
 #undef  WOLFSSL_BASE64_ENCODE
 #define WOLFSSL_BASE64_ENCODE
 
+#undef WOLFSSL_NO_HASH_RAW
+#define WOLFSSL_NO_HASH_RAW
+
 /* TLS Session Cache */
-#if 0
+#if 1
     #define SMALL_SESSION_CACHE
 #else
     #define NO_SESSION_CACHE
 #endif
-
-#undef OPENSSL_EXTRA
-#define OPENSSL_EXTRA
 
 #undef WOLFSSL_DER_LOAD
 #define WOLFSSL_DER_LOAD
@@ -626,6 +688,55 @@ extern "C" {
 
 #undef HAVE_SECRET_CALLBACK
 #define HAVE_SECRET_CALLBACK
+
+/* wolfEngine */
+#if 0
+    #define OPENSSL_COEXIST
+
+    /* HKDF for engine */
+    #undef HAVE_HKDF
+    #if 1
+        #define HAVE_HKDF
+        #define HAVE_X963_KDF
+    #endif
+
+    #undef WOLFSSL_PUBLIC_MP
+    #define WOLFSSL_PUBLIC_MP
+
+    #undef NO_OLD_RNGNAME
+    #define NO_OLD_RNGNAME
+
+    #undef NO_OLD_WC_NAMES
+    #define NO_OLD_WC_NAMES
+
+    #undef NO_OLD_SSL_NAMES
+    #define NO_OLD_SSL_NAMES
+
+    #undef NO_OLD_SHA_NAMES
+    #define NO_OLD_SHA_NAMES
+
+    #undef NO_OLD_MD5_NAME
+    #define NO_OLD_MD5_NAME
+
+    #undef NO_OLD_SHA256_NAMES
+    #define NO_OLD_SHA256_NAMES
+#endif
+
+#undef WOLFSSL_SYS_CA_CERTS
+//#define WOLFSSL_SYS_CA_CERTS
+
+#undef LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS
+#define LIBWOLFSSL_GLOBAL_EXTRA_CFLAGS
+
+#undef HAVE_SERVER_RENEGOTIATION_INFO
+#define HAVE_SERVER_RENEGOTIATION_INFO
+
+#undef WOLFSSL_PEM_TO_DER
+#define WOLFSSL_PEM_TO_DER
+
+#undef WOLFSSL_PUB_PEM_TO_DER
+#define WOLFSSL_PUB_PEM_TO_DER
+
 /* ------------------------------------------------------------------------- */
 /* Disable Features */
 /* ------------------------------------------------------------------------- */
@@ -642,7 +753,7 @@ extern "C" {
 //#define NO_CRYPT_BENCHMARK
 
 #undef  WOLFCRYPT_ONLY
-#define WOLFCRYPT_ONLY
+//#define WOLFCRYPT_ONLY
 
 /* In-lining of misc.c functions */
 /* If defined, must include wolfcrypt/src/misc.c in build */
@@ -692,21 +803,98 @@ extern "C" {
 #undef  NO_SIG_WRAPPER
 //#define NO_SIG_WRAPPER
 
+#undef NO_DO178
+#define NO_DO178
+
+#undef WOLFSSL_NO_SHAKE128
+#define WOLFSSL_NO_SHAKE128
+
+#undef WOLFSSL_NO_SHAKE256
+#define WOLFSSL_NO_SHAKE256
+
 /* wolfSSL engineering ACVP algo and operational testing only (Default: Off) */
-#if 1
+#if 0
+    #undef NO_EARLY_BAIL
+    #define NO_EARLY_BAIL
+
     #undef WOLFSSL_PUBLIC_MP
     #define WOLFSSL_PUBLIC_MP
 
+    #undef OPTEST_LOGGING_ENABLED
+    //#define OPTEST_LOGGING_ENABLED
+
+    #undef OPTEST_INVALID_LOGGING_ENABLED
+    //#define OPTEST_INVALID_LOGGING_ENABLED
+
+    #undef NO_MAIN_OPTEST_DRIVER
+    #define NO_MAIN_OPTEST_DRIVER
+
+    #undef DEBUG_FIPS_VERBOSE
+    #define DEBUG_FIPS_VERBOSE
+
     #undef HAVE_FORCE_FIPS_FAILURE
     #define HAVE_FORCE_FIPS_FAILURE
+
+    #undef NO_WRITE_TEMP_FILES
+    #define NO_WRITE_TEMPT_FILES
 #endif
 
 #ifdef __cplusplus
 }
 #endif
 
+/* Customer Specific Section */
+/* #define CUSTOMER_1_IOS */
+#ifdef CUSTOMER_1_IOS
+
+    /* not certified, disable for full FIPS compliance, will attempt to include
+     * in UPDT submission and/or next FS submission */
+    #undef HAVE_AES_KEYWRAP
+    #define HAVE_AES_KEYWRAP
+
+    #undef HAVE_PKCS7
+    #define HAVE_PKCS7
+
+    #undef HAVE_SNI
+    #define HAVE_SNI
+
+    #undef HAVE_THREAD_LS
+    #define HAVE_THREAD_LS
+
+    /* Not certifiable but external to module boundary and out of scope */
+    #undef WOLFCRYPT_HAVE_ECCSI
+    #define WOLFCRYPT_HAVE_ECCSI
+
+    /* Not certifiable but external to module boundary and out of scope */
+    #undef WOLFCRYPT_HAVE_SAKKE
+    #define WOLFCRYPT_HAVE_SAKKE
+
+    #undef WOLFSSL_DTLS
+    #define WOLFSSL_DTLS
+
+    #undef WOLFSSL_DTLS_MTU
+    #define WOLFSSL_DTLS_MTU
+
+    /* OpenSSL Compatibility (NOTE: Incompatible with wolfEngine and
+       OPENSSL_COEXIST) */
+    #ifndef OPENSSL_COEXIST
+        #undef OPENSSL_EXTRA
+        #if 1
+            #define OPENSSL_EXTRA
+            /* Larger footprint but enable ALL compatibility not just a subset */
+            #if 1
+                #define OPENSSL_ALL
+            #endif
+        #endif
+    #endif
+#endif /* CUSTOMER_1_IOS */
+
+#define CUSTOMER_1_ANDROID
+#ifdef CUSTOMER_1_ANDROID
+/* TODO */
+
+#endif
+
+
 
 #endif /* WOLFSSL_USER_SETTINGS_H */
-
-
-
