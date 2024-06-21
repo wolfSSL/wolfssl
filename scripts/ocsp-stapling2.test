@@ -499,6 +499,22 @@ RESULT=$?
                  && exit 1
 printf '%s\n\n' "Test PASSED!"
 
+
+if ./examples/client/client -? 2>&1 | grep -q 'DTLS'; then
+printf '%s\n\n' "------------- TEST CASE DTLS-1 SHOULD PASS -------------------"
+# client test against our own server - GOOD CERTS
+./examples/server/server -c certs/ocsp/server3-cert.pem \
+                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
+                         -p $port5 -u -v 3 &
+server_pid5=$!
+sleep 0.2
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
+                         -p $port5
+RESULT=$?
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
+printf '%s\n\n' "Test PASSED!"
+fi
+
 printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"
 
 exit 0
