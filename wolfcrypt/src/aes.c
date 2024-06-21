@@ -10913,7 +10913,6 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (authIn == NULL && authInSz > 0)
         return BAD_FUNC_ARG;
 
-
     /* sanity check on tag size */
     if (wc_AesCcmCheckTagSize((int)authTagSz) != 0) {
         return BAD_FUNC_ARG;
