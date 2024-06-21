@@ -242,8 +242,8 @@ struct RsaKey {
     char label[RSA_MAX_LABEL_LEN];
     int  labelLen;
 #endif
-#if defined(WOLFSSL_ASYNC_CRYPT) || !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
-    !defined(WOLFSSL_NO_MALLOC)
+#if !defined(WOLFSSL_NO_MALLOC) && (defined(WOLFSSL_ASYNC_CRYPT) || \
+    (!defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE)))
     byte   dataIsAlloc;
 #endif
 #ifdef WC_RSA_NONBLOCK
@@ -441,14 +441,13 @@ WOLFSSL_API int wc_RsaExportKey(RsaKey* key,
                                           int nlen, int* isPrime);
 #endif
 
-WOLFSSL_LOCAL int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
-        word32 pkcsBlockLen, byte padValue, WC_RNG* rng, int padType,
-        enum wc_HashType hType, int mgf, byte* optLabel, word32 labelLen,
-        int saltLen, int bits, void* heap);
-WOLFSSL_LOCAL int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
-                                   byte padValue, int padType, enum wc_HashType hType,
-                                   int mgf, byte* optLabel, word32 labelLen, int saltLen,
-                                   int bits, void* heap);
+WOLFSSL_API int wc_RsaPad_ex(const byte* input, word32 inputLen,
+    byte* pkcsBlock, word32 pkcsBlockLen, byte padValue,
+    WC_RNG* rng, int padType, enum wc_HashType hType, int mgf,
+    byte* optLabel, word32 labelLen, int saltLen, int bits, void* heap);
+WOLFSSL_API int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen,
+    byte** out, byte padValue, int padType, enum wc_HashType hType, int mgf,
+    byte* optLabel, word32 labelLen, int saltLen, int bits, void* heap);
 
 WOLFSSL_LOCAL int wc_hash2mgf(enum wc_HashType hType);
 WOLFSSL_LOCAL int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
