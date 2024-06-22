@@ -8798,7 +8798,7 @@ const WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_VERIFY_PARAM_lookup(const char *na
     const WOLFSSL_X509_VERIFY_PARAM *param = &x509_verify_param_builtins[0],
         *param_end = &x509_verify_param_builtins[XELEM_CNT(x509_verify_param_builtins)];
     while (param < param_end) {
-        if (! XSTRCMP(name, param->name))
+        if (XSTRCMP(name, param->name) == 0)
             return param;
         ++param;
     }

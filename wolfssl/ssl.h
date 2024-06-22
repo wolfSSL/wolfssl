@@ -67,6 +67,15 @@
     #undef OCSP_RESPONSE
 #endif
 
+#ifdef OPENSSL_ALL
+    #ifndef WOLFSSL_HAVE_BIO_ADDR
+    #define WOLFSSL_HAVE_BIO_ADDR
+    #endif
+    #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_DTLS_MTU)
+    #define WOLFSSL_DTLS_MTU
+    #endif
+#endif
+
 #ifdef OPENSSL_COEXIST
     /* mode to allow wolfSSL and OpenSSL to exist together */
     #ifdef TEST_OPENSSL_COEXIST
@@ -1074,6 +1083,8 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(
     WOLFSSL_CTX* ctx, const char* file, const char* path, word32 flags);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_load_verify_locations(
     WOLFSSL_CTX* ctx, const char* file, const char* path);
+WOLFSSL_API WOLFSSL_API int wolfSSL_CTX_load_verify_locations_compat(
+    WOLFSSL_CTX* ctx, const char* file, const char* path);
 #ifndef _WIN32
 WOLFSSL_API const char** wolfSSL_get_system_CA_dirs(word32* num);
 #endif /* !_WIN32 */
@@ -1459,8 +1470,11 @@ WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL* ssl);
 #endif
 #if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
                                                            defined(WOLFSSL_DTLS)
-WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, unsigned short);
-WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL* ssl, unsigned short);
+WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX* ctx, unsigned short mtu);
+WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL* ssl, unsigned short mtu);
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+WOLFSSL_API int  wolfSSL_set_mtu_compat(WOLFSSL* ssl, unsigned short mtu);
+#endif
 #endif
 
 #ifdef WOLFSSL_SRTP
@@ -1824,12 +1838,9 @@ WOLFSSL_API int  wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b);
 WOLFSSL_API int  wolfSSL_BIO_nread0(WOLFSSL_BIO *bio, char **buf);
 WOLFSSL_API int  wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num);
 WOLFSSL_API int  wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num);
-#ifdef WORD64_AVAILABLE
+#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_BIO_NO_FLOW_STATS)
 WOLFSSL_API word64 wolfSSL_BIO_number_read(WOLFSSL_BIO *bio);
 WOLFSSL_API word64 wolfSSL_BIO_number_written(WOLFSSL_BIO *bio);
-#else
-WOLFSSL_API word32 wolfSSL_BIO_number_read(WOLFSSL_BIO *bio);
-WOLFSSL_API word32 wolfSSL_BIO_number_written(WOLFSSL_BIO *bio);
 #endif
 WOLFSSL_API int  wolfSSL_BIO_reset(WOLFSSL_BIO *bio);
 
@@ -5218,7 +5229,6 @@ WOLFSSL_API int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
 WOLFSSL_API int wolfSSL_i2d_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT *a, unsigned char **pp);
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength));
 WOLFSSL_API WOLF_STACK_OF(SSL_COMP) *SSL_COMP_get_compression_methods(void);
-WOLFSSL_API const char* wolfSSL_COMP_get_name(const void* comp);
 WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str, const char *file, const char *dir);
 WOLFSSL_API int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x);
 WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const WOLF_STACK_OF(WOLFSSL_CIPHER)* p);

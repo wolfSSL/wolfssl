@@ -1954,6 +1954,15 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
     return WOLFSSL_SUCCESS;
 }
 
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+int wolfSSL_set_mtu_compat(WOLFSSL* ssl, unsigned short mtu) {
+    if (wolfSSL_dtls_set_mtu(ssl, mtu) == 0)
+        return SSL_SUCCESS;
+    else
+        return SSL_FAILURE;
+}
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA */
+
 #endif /* WOLFSSL_DTLS && (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) */
 
 #ifdef WOLFSSL_SRTP
@@ -7340,6 +7349,8 @@ int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
 
 int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey, unsigned char** der)
 {
+    if (x509_PubKey == NULL)
+        return WOLFSSL_FATAL_ERROR;
     return wolfSSL_i2d_PublicKey(x509_PubKey->pkey, der);
 }
 
@@ -10954,7 +10965,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
-    static void wolfSSL_set_bio_1(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr, int flags)
+    static void ssl_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr, int flags)
     {
         WOLFSSL_ENTER("wolfSSL_set_bio");
 
@@ -11017,17 +11028,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
     {
-        wolfSSL_set_bio_1(ssl, rd, wr, WOLFSSL_BIO_FLAG_READ | WOLFSSL_BIO_FLAG_WRITE);
+        ssl_set_bio(ssl, rd, wr, WOLFSSL_BIO_FLAG_READ | WOLFSSL_BIO_FLAG_WRITE);
     }
 
     void wolfSSL_set_rbio(WOLFSSL* ssl, WOLFSSL_BIO* rd)
     {
-        wolfSSL_set_bio_1(ssl, rd, NULL, WOLFSSL_BIO_FLAG_READ);
+        ssl_set_bio(ssl, rd, NULL, WOLFSSL_BIO_FLAG_READ);
     }
 
     void wolfSSL_set_wbio(WOLFSSL* ssl, WOLFSSL_BIO* wr)
     {
-        wolfSSL_set_bio_1(ssl, NULL, wr, WOLFSSL_BIO_FLAG_WRITE);
+        ssl_set_bio(ssl, NULL, wr, WOLFSSL_BIO_FLAG_WRITE);
     }
 
 #endif /* !NO_BIO */
@@ -14982,12 +14993,6 @@ int wolfSSL_COMP_add_compression_method(int method, void* data)
     return 0;
 }
 
-const char *wolfSSL_COMP_get_name(const WOLFSSL_COMP_METHOD *comp)
-{
-    (void)comp;
-    return NULL;
-}
-
 const WOLFSSL_COMP_METHOD* wolfSSL_get_current_compression(const WOLFSSL *ssl) {
     (void)ssl;
     return NULL;
@@ -14998,10 +15003,7 @@ const WOLFSSL_COMP_METHOD* wolfSSL_get_current_expansion(const WOLFSSL *ssl) {
     return NULL;
 }
 
-#endif /* NO_WOLFSSL_STUB */
-
-#ifndef NO_WOLFSSL_STUB
-const char* wolfSSL_COMP_get_name(const void* comp)
+const char* wolfSSL_COMP_get_name(const WOLFSSL_COMP_METHOD *comp)
 {
     static const char ret[] = "not supported";
 

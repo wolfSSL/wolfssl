@@ -473,9 +473,6 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
 #error WOLFSSL_HAVE_BIO_ADDR and WOLFSSL_NO_SOCK are mutually incompatible.
 #endif
 
-#ifndef WOLFSSL_NO_BIO_ADDR_UN
-#endif
-
 union WOLFSSL_BIO_ADDR {
     SOCKADDR sa;
     SOCKADDR_IN sa_in;
