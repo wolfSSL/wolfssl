@@ -268,13 +268,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #ifndef NO_FILESYSTEM
     #define SSL_CTX_use_certificate_file      wolfSSL_CTX_use_certificate_file
     #define SSL_CTX_use_PrivateKey_file       wolfSSL_CTX_use_PrivateKey_file
-#ifdef WOLFSSL_APACHE_HTTPD
-    #define SSL_CTX_load_verify_locations(ctx,file,path) \
-        wolfSSL_CTX_load_verify_locations_ex(ctx,file,path,\
-                                                   WOLFSSL_LOAD_FLAG_IGNORE_ERR)
-#else
-    #define SSL_CTX_load_verify_locations     wolfSSL_CTX_load_verify_locations
-#endif
+    #define SSL_CTX_load_verify_locations     wolfSSL_CTX_load_verify_locations_compat
     #define SSL_CTX_set_default_verify_paths wolfSSL_CTX_set_default_verify_paths
     #define SSL_CTX_use_certificate_chain_file wolfSSL_CTX_use_certificate_chain_file
     #define SSL_CTX_use_RSAPrivateKey_file    wolfSSL_CTX_use_RSAPrivateKey_file
@@ -851,10 +845,6 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_get_current_compression     wolfSSL_get_current_compression
 #define SSL_get_current_expansion       wolfSSL_get_current_expansion
 
-#define SSL_get_current_compression(ssl) 0
-#define SSL_get_current_expansion(ssl) 0
-#define SSL_COMP_get_name               wolfSSL_COMP_get_name
-
 #define SSL_get_ex_new_index            wolfSSL_get_ex_new_index
 #define RSA_get_ex_new_index            wolfSSL_get_ex_new_index
 
@@ -1164,8 +1154,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define DTLSv1_get_timeout(ssl, timeleft)   wolfSSL_DTLSv1_get_timeout((ssl), (WOLFSSL_TIMEVAL*)(timeleft))
 #define DTLSv1_handle_timeout               wolfSSL_DTLSv1_handle_timeout
 #define DTLSv1_set_initial_timeout_duration wolfSSL_DTLSv1_set_initial_timeout_duration
-
-#define SSL_set_mtu(ssl, mtu) ((wolfSSL_dtls_set_mtu(ssl, mtu) == 0) ? SSL_SUCCESS : SSL_FAILURE)
+#define SSL_set_mtu                         wolfSSL_set_mtu_compat
 
 /* DTLS SRTP */
 #ifdef WOLFSSL_SRTP

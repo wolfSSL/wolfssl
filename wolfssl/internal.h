@@ -2771,19 +2771,17 @@ struct WOLFSSL_BIO {
                                  * struct WOLFSSL_DTLS_CTX, when set, sendto and
                                  * recvfrom leave the peer_addr unchanged. */
 #ifdef WOLFSSL_HAVE_BIO_ADDR
-    union WOLFSSL_BIO_ADDR *peer_addr; /* for datagram BIOs, the socket address stored
-                                 * with BIO_CTRL_DGRAM_CONNECT,
-                                 * BIO_CTRL_DGRAM_SET_CONNECTED, or
-                                 * BIO_CTRL_DGRAM_SET_PEER, or stored when a
-                                 * packet was received on an unconnected BIO. */
+    union WOLFSSL_BIO_ADDR peer_addr; /* for datagram BIOs, the socket address stored
+                                       * with BIO_CTRL_DGRAM_CONNECT,
+                                       * BIO_CTRL_DGRAM_SET_CONNECTED, or
+                                       * BIO_CTRL_DGRAM_SET_PEER, or stored when a
+                                       * packet was received on an unconnected BIO. */
 #endif
 
-#ifdef WORD64_AVAILABLE
-    word64 bytes_read;
-    word64 bytes_written;
-#else
-    word32 bytes_read;
-    word32 bytes_written;
+#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_BIO_NO_FLOW_STATS)
+    #define WOLFSSL_BIO_HAVE_FLOW_STATS
+    word64       bytes_read;
+    word64       bytes_written;
 #endif
 
 #ifdef HAVE_EX_DATA
