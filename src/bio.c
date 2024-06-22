@@ -367,9 +367,9 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             #endif
                 break;
 
-#ifdef WOLFSSL_HAVE_BIO_ADDR
             case WOLFSSL_BIO_DGRAM:
-            #ifdef USE_WOLFSSL_IO
+            #if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(WOLFSSL_DTLS) && \
+                defined(USE_WOLFSSL_IO)
                 /* BIO requires built-in socket support
                  *  (cannot be used with WOLFSSL_USER_IO) */
                 bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
@@ -392,7 +392,6 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                 ret = NOT_COMPILED_IN;
             #endif
                 break;
-#endif
 
             } /* switch */
         }
@@ -795,9 +794,9 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             #endif
                 break;
 
-#ifdef WOLFSSL_HAVE_BIO_ADDR
             case WOLFSSL_BIO_DGRAM:
-            #ifdef USE_WOLFSSL_IO
+                #if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(WOLFSSL_DTLS) && \
+                    defined(USE_WOLFSSL_IO)
                 /* BIO requires built-in socket support
                  *  (cannot be used with WOLFSSL_USER_IO) */
                 bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
@@ -820,7 +819,6 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                 ret = NOT_COMPILED_IN;
             #endif
                 break;
-#endif
 
             } /* switch */
         }
@@ -2334,6 +2332,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
     }
 
 
+#if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(WOLFSSL_DTLS)
     WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_datagram(void)
     {
         static WOLFSSL_BIO_METHOD meth =
@@ -2357,6 +2356,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
         return bio;
     }
+#endif
 
 
     /**
