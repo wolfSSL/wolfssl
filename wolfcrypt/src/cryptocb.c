@@ -1606,7 +1606,7 @@ int wc_CryptoCb_Sha512Hash(wc_Sha512* sha512, const byte* in,
 }
 #endif /* WOLFSSL_SHA512 */
 
-#ifdef WOLFSSL_SHA3
+#if defined(WOLFSSL_SHA3) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0))
 int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
     word32 inSz, byte* digest)
 {
@@ -1638,7 +1638,7 @@ int wc_CryptoCb_Sha3Hash(wc_Sha3* sha3, int type, const byte* in,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* WOLFSSL_SHA3 */
+#endif /* WOLFSSL_SHA3 && (!HAVE_FIPS || FIPS_VERSION_GE(6, 0)) */
 
 #ifndef NO_HMAC
 int wc_CryptoCb_Hmac(Hmac* hmac, int macType, const byte* in, word32 inSz,

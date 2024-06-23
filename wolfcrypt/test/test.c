@@ -54802,7 +54802,7 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         else
     #endif
-    #ifdef WOLFSSL_SHA3
+    #if defined(WOLFSSL_SHA3) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0))
         if (info->hash.type == WC_HASH_TYPE_SHA3_224) {
             if (info->hash.sha3 == NULL)
                 return NOT_COMPILED_IN;
