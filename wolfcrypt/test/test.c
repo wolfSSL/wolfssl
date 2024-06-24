@@ -41653,9 +41653,9 @@ static wc_test_ret_t dilithium_param_test(int param, WC_RNG* rng)
 {
     wc_test_ret_t ret;
     dilithium_key* key;
+    byte* sig = NULL;
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
     word32 sigLen;
-    byte* sig = NULL;
     byte msg[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     int res = 0;
