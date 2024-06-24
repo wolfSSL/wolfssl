@@ -21,34 +21,39 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_RENESAS_FSPSM_TLS) \
-    || defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) \
-    || defined(WOLFSSL_RENESAS_TSIP_TLS) \
-    || defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+#if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+    defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) || \
+    defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 
 #if defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
     defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
-  #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
-  #define cmn_hw_lock    wc_fspsm_hw_lock
-  #define cmn_hw_unlock  wc_fspsm_hw_unlock
-#elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
-    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
-  #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
-  #define cmn_hw_lock    tsip_hw_lock
-  #define cmn_hw_unlock  tsip_hw_unlock
 
-  #define FSPSM_ST       TsipUserCtx;
-  #define MAX_FSPSM_CBINDEX 5
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-fspsm-crypt.h>
+    #define cmn_hw_lock    wc_fspsm_hw_lock
+    #define cmn_hw_unlock  wc_fspsm_hw_unlock
+
+#elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
+      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+
+    #include <wolfssl/wolfcrypt/port/Renesas/renesas-tsip-crypt.h>
+    #define cmn_hw_lock    tsip_hw_lock
+    #define cmn_hw_unlock  tsip_hw_unlock
+
+    #define FSPSM_ST       TsipUserCtx;
+    #define MAX_FSPSM_CBINDEX 5
 #endif
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#ifndef WOLFSSL_RENESAS_TSIP_CRYPTONLY
 #include <wolfssl/internal.h>
+#endif
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/port/renesas/renesas_cmn.h>
+#include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 
 uint32_t   g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
 static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
@@ -59,7 +64,7 @@ static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
     defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 FSPSM_ST    *gCbCtx[MAX_FSPSM_CBINDEX];
 #elif defined(WOLFSSL_RENESAS_TSIP_TLS) || \
-            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 #define FSPSM_ST       TsipUserCtx;
 #define MAX_FSPSM_CBINDEX 5
 TsipUserCtx *gCbCtx[MAX_FSPSM_CBINDEX];
@@ -426,7 +431,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
  */
 int Renesas_cmn_usable(const WOLFSSL* ssl, byte session_key_generated)
 {
-    int ret;
+    int ret = 0;
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_usable(ssl, session_key_generated);

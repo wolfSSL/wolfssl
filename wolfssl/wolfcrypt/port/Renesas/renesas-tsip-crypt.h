@@ -372,7 +372,7 @@ WOLFSSL_API int tsip_use_PrivateKey_buffer_TLS(struct WOLFSSL* ssl,
 #endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
-WOLFSSL_API int tsip_use_PubicKey_buffer_crypt(TsipUserCtx *uc,
+WOLFSSL_API int tsip_use_PublicKey_buffer_crypt(TsipUserCtx *uc,
                                 const char* keyBuf, int keyBufLen, int keyType);
 WOLFSSL_API int tsip_use_PrivateKey_buffer_crypt(TsipUserCtx *uc,
                                 const char* keyBuf, int keyBufLen, int keyType);
