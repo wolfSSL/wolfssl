@@ -4103,18 +4103,6 @@ AC_ARG_ENABLE([ed448-stream],
     [ ENABLED_ED448_STREAM=no ]
     )
 
-if test "$ENABLED_ED448_STREAM" != "no"
-then
-    if test "$ENABLED_ED448" = "no"
-    then
-        AC_MSG_ERROR([ED448 verify streaming enabled but ED448 is disabled])
-    else
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
-        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
-    fi
-fi
-
-
 # FP ECC, Fixed Point cache ECC
 AC_ARG_ENABLE([fpecc],
     [AS_HELP_STRING([--enable-fpecc],[Enable Fixed Point cache ECC (default: disabled)])],
@@ -5613,6 +5601,18 @@ then
 
     ENABLED_CERTS=yes
 fi
+
+if test "$ENABLED_ED448_STREAM" != "no"
+then
+    if test "$ENABLED_ED448" = "no"
+    then
+        AC_MSG_ERROR([ED448 verify streaming enabled but ED448 is disabled])
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
+        AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ED448_STREAMING_VERIFY"
+    fi
+fi
+
 
 # SRTP-KDF
 if test "$ENABLED_SRTP" = "yes"
