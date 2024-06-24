@@ -992,7 +992,7 @@ socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr) {
     case AF_INET6:
         return sizeof(addr->sa_in6);
 #endif
-#ifndef WOLFSSL_NO_BIO_ADDR_UN
+#if defined(HAVE_SYS_UN_H) && !defined(WOLFSSL_NO_SOCKADDR_UN)
     case AF_UNIX:
         return sizeof(addr->sa_un);
 #endif
