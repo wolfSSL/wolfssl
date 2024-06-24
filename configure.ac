@@ -8774,7 +8774,10 @@ AM_CFLAGS=$NEW_AM_CFLAGS])
 
 case $host_cpu in
   *arm*)
-    if test "$host_alias" = "thumb" || test "$ARM_TARGET" = "thumb"; then
+    if test "$host_alias" = "thumb" && test "$ARM_TARGET" != "thumb"; then
+        ARM_TARGET="thumb"
+    fi
+    if test "$ARM_TARGET" = "thumb"; then
       AM_CFLAGS="$AM_CFLAGS -mthumb -march=armv6"
     else
       if test "$host_alias" = "cortex" || test "$ARM_TARGET" = "cortex"; then
@@ -9588,6 +9591,7 @@ AM_CONDITIONAL([BUILD_AESGCM],[test "x$ENABLED_AESGCM" = "xyes" || test "x$ENABL
 AM_CONDITIONAL([BUILD_AESCCM],[test "x$ENABLED_AESCCM" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_AESXTS],[test "x$ENABLED_AESXTS" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM],[test "x$ENABLED_ARMASM" = "xyes"])
+AM_CONDITIONAL([BUILD_ARMASM_THUMB],[test "$ARM_TARGET" = "thumb"])
 AM_CONDITIONAL([BUILD_ARMASM_INLINE],[test "x$ENABLED_ARMASM_INLINE" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_CRYPTO],[test "x$ENABLED_ARMASM_CRYPTO" = "xyes"])
 AM_CONDITIONAL([BUILD_ARMASM_NEON],[test "x$ENABLED_ARMASM_NEON" = "xyes"])
