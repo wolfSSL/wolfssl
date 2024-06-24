@@ -27554,12 +27554,12 @@ static int test_wc_dilithium(void)
     !defined(WOLFSSL_DILITHIUM_NO_SIGN)
     WC_RNG rng;
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_SIGN
     byte* privKey = NULL;
+#ifndef WOLFSSL_DILITHIUM_NO_SIGN
     word32 privKeyLen = DILITHIUM_MAX_KEY_SIZE;
 #endif
-#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     byte* pubKey = NULL;
+#ifndef WOLFSSL_DILITHIUM_NO_VERIFY
     word32 pubKeyLen = DILITHIUM_MAX_PUB_KEY_SIZE;
 #endif
 
