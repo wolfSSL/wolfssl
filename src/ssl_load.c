@@ -962,6 +962,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     DerBuffer* der, int* keyFormat, void* heap, byte* keyType, int* keySize)
 {
     int ret;
+    word32 idx;
     dilithium_key* key;
 
     /* Allocate a Dilithium key to parse into. */
@@ -996,7 +997,8 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
     if (ret == 0) {
         /* Decode as a Dilithium private key. */
-        ret = wc_dilithium_import_private(der->buffer, der->length, key);
+        idx = 0;
+        ret = wc_Dilithium_PrivateKeyDecode(der->buffer, &idx, key, der->length);
         if (ret == 0) {
             /* Get the minimum Dilithium key size from SSL or SSL context
              * object. */
