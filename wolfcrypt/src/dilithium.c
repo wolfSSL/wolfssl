@@ -7126,6 +7126,29 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
             &pubKey, &pubKeyLen, keytype);
     }
+
+    if ((pubKey == NULL) && (pubKeyLen == 0)) {
+        /* Check if the public key is included in the private key. */
+        if ((key->level == 2) &&
+            (privKeyLen == DILITHIUM_LEVEL2_PRV_KEY_SIZE)) {
+            pubKey = privKey + DILITHIUM_LEVEL2_KEY_SIZE;
+            pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
+            privKeyLen -= DILITHIUM_LEVEL2_PUB_KEY_SIZE;
+        }
+        else if ((key->level == 3) &&
+                 (privKeyLen != DILITHIUM_LEVEL3_PRV_KEY_SIZE)) {
+            pubKey = privKey + DILITHIUM_LEVEL3_KEY_SIZE;
+            pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
+            privKeyLen -= DILITHIUM_LEVEL3_PUB_KEY_SIZE;
+        }
+        else if ((key->level == 5) &&
+                 (privKeyLen != DILITHIUM_LEVEL5_PRV_KEY_SIZE)) {
+            pubKey = privKey + DILITHIUM_LEVEL5_KEY_SIZE;
+            pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+            privKeyLen -= DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+        }
+    }
+
     if (ret == 0) {
         /* Check whether public key data was found. */
         if (pubKeyLen == 0) {
@@ -7169,6 +7192,18 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
         ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Try to import the key directly. */
+        ret = wc_dilithium_import_public(input, inSz, key);
+    }
+    if (ret == 0) {
+        return 0;
+    }
+    else {
+        /* Not successful, decode it first. */
+        ret = 0;
     }
 
     if (ret == 0) {

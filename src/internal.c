@@ -28443,9 +28443,10 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is a Dilithium private key. */
-        ret = wc_dilithium_import_private(ssl->buffers.key->buffer,
-                                          ssl->buffers.key->length,
-                                          (dilithium_key*)ssl->hsKey);
+        ret = wc_Dilithium_PrivateKeyDecode(ssl->buffers.key->buffer,
+                                            &idx,
+                                            (dilithium_key*)ssl->hsKey,
+                                            ssl->buffers.key->length);
         if (ret == 0) {
             WOLFSSL_MSG("Using Dilithium private key");
 
@@ -28870,9 +28871,10 @@ int DecodeAltPrivateKey(WOLFSSL *ssl, word32* length)
         /* Set start of data to beginning of buffer. */
         idx = 0;
         /* Decode the key assuming it is a Dilithium private key. */
-        ret = wc_dilithium_import_private(ssl->buffers.altKey->buffer,
-                                          ssl->buffers.altKey->length,
-                                          (dilithium_key*)ssl->hsAltKey);
+        ret = wc_Dilithium_PrivateKeyDecode(ssl->buffers.altKey->buffer,
+                                            &idx,
+                                            (dilithium_key*)ssl->hsAltKey,
+                                            ssl->buffers.altKey->length);
         if (ret == 0) {
             WOLFSSL_MSG("Using Dilithium private key");
 
