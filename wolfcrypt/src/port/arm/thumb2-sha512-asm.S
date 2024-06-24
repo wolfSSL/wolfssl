@@ -39,7 +39,7 @@
 	.text
 	.type	L_SHA512_transform_len_k, %object
 	.size	L_SHA512_transform_len_k, 640
-	.align	4
+	.align	8
 L_SHA512_transform_len_k:
 	.word	0xd728ae22
 	.word	0x428a2f98

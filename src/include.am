@@ -269,6 +269,15 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha3-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
+if BUILD_ARMASM
+if BUILD_ARMASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha3-asm_c.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha3-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha3-asm.S
+endif !BUILD_ARMASM_INLINE
+endif BUILD_ARMASM
 if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
@@ -413,6 +422,15 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha3-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
+if BUILD_ARMASM
+if BUILD_ARMASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha3-asm_c.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha3-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha3-asm.S
+endif !BUILD_ARMASM_INLINE
+endif BUILD_ARMASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S
 endif
@@ -748,6 +766,15 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha3-asm.S
 endif !BUILD_ARMASM_INLINE
 endif BUILD_ARMASM_NEON
+if BUILD_ARMASM
+if BUILD_ARMASM_INLINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha3-asm_c.c
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c
+else
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-sha3-asm.S
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-sha3-asm.S
+endif !BUILD_ARMASM_INLINE
+endif BUILD_ARMASM
 if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/sha3_asm.S

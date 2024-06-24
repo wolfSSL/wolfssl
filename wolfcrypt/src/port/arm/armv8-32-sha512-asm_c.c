@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -41,7 +41,7 @@
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
@@ -9159,9 +9159,9 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 */
-#endif /* !__aarch64__ && !__thumb__ */
+#endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
-#endif /* !defined(__aarch64__) && defined(__arm__) */
+#endif /* !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__) */
 #endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */
