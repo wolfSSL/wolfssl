@@ -69353,6 +69353,7 @@ static int send_new_session_ticket(WOLFSSL *ssl, byte nonceLength, byte filler)
     sz = BuildTls13Message(ssl, buf, 2048, buf+5, idx - 5,
         handshake, 0, 0, 0);
     test_ctx = (struct test_memio_ctx*)wolfSSL_GetIOWriteCtx(ssl);
+    AssertNotNull(test_ctx);
     ret = test_memio_write_cb(ssl, (char*)buf, sz, test_ctx);
     return !(ret == sz);
 }
@@ -70904,7 +70905,7 @@ static int test_tls13_rpk_handshake(void)
     char certType_s[MAX_CLIENT_CERT_TYPE_CNT];
     int typeCnt_c;
     int typeCnt_s;
-    int tp;
+    int tp = 0;
 #if defined(WOLFSSL_ALWAYS_VERIFY_CB)
     int isServer;
 #endif
