@@ -909,15 +909,17 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
         }
 
         case BIO_CTRL_DGRAM_SET_CONNECTED:
-            if (parg == NULL)
+            if (parg == NULL) {
                 wolfSSL_BIO_ADDR_clear(&bio->peer_addr);
-            else {
+                bio->connected = 0;
+            } else {
                 socklen_t addr_size = wolfSSL_BIO_ADDR_size((WOLFSSL_BIO_ADDR *)parg);
                 if (addr_size == 0) {
                     ret = WOLFSSL_FAILURE;
                     break;
                 }
                 XMEMCPY(&bio->peer_addr, parg, addr_size);
+                bio->connected = 1;
             }
             ret = WOLFSSL_SUCCESS;
             break;
