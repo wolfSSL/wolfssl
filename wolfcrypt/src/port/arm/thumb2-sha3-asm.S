@@ -34,6 +34,7 @@
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
+#ifdef WOLFSSL_SHA3
 	.text
 	.type	L_sha3_thumb2_rt, %object
 	.size	L_sha3_thumb2_rt, 192
@@ -1165,6 +1166,7 @@ L_sha3_thumb2_begin:
 	POP	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	/* Cycle Count = 1505 */
 	.size	BlockSha3,.-BlockSha3
+#endif /* WOLFSSL_SHA3 */
 #endif /* !__aarch64__ && __thumb__ */
 #endif /* WOLFSSL_ARMASM */
 

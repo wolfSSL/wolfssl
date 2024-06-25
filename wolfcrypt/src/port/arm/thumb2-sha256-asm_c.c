@@ -28,18 +28,11 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && defined(__thumb__)
-#include <stdint.h>
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFSSL_ARMASM_INLINE
-
-#ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
@@ -1472,7 +1465,4 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
 #endif /* !NO_SHA256 */
 #endif /* !__aarch64__ && __thumb__ */
 #endif /* WOLFSSL_ARMASM */
-#endif /* !defined(__aarch64__) && defined(__thumb__) */
-#endif /* WOLFSSL_ARMASM */
-
 #endif /* WOLFSSL_ARMASM_INLINE */

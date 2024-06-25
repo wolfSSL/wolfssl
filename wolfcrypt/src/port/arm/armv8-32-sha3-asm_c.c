@@ -51,22 +51,9 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
+#ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_ARMASM_NO_NEON
 static const uint64_t L_sha3_arm2_neon_rt[] = {
-    0x0000000000000001UL, 0x0000000000008082UL,
-    0x800000000000808aUL, 0x8000000080008000UL,
-    0x000000000000808bUL, 0x0000000080000001UL,
-    0x8000000080008081UL, 0x8000000000008009UL,
-    0x000000000000008aUL, 0x0000000000000088UL,
-    0x0000000080008009UL, 0x000000008000000aUL,
-    0x000000008000808bUL, 0x800000000000008bUL,
-    0x8000000000008089UL, 0x8000000000008003UL,
-    0x8000000000008002UL, 0x8000000000000080UL,
-    0x000000000000800aUL, 0x800000008000000aUL,
-    0x8000000080008081UL, 0x8000000000008080UL,
-    0x0000000080000001UL, 0x8000000080008008UL,
-};
-
-static const uint64_t L_sha3_arm2_rt[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
     0x000000000000808bUL, 0x0000000080000001UL,
@@ -83,12 +70,10 @@ static const uint64_t L_sha3_arm2_rt[] = {
 
 #include <wolfssl/wolfcrypt/sha3.h>
 
-#ifndef WOLFSSL_ARMASM_NO_NEON
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
     register uint64_t* L_sha3_arm2_neon_rt_c asm ("r1") = (uint64_t*)&L_sha3_arm2_neon_rt;
-    register uint64_t* L_sha3_arm2_rt_c asm ("r2") = (uint64_t*)&L_sha3_arm2_rt;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
@@ -348,16 +333,31 @@ void BlockSha3(word64* state_p)
         "vst1.8	{d20-d23}, [%[state]]!\n\t"
         "vst1.8	{d24}, [%[state]]\n\t"
         "add	sp, sp, #16\n\t"
-        : [state] "+r" (state), [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c), [L_sha3_arm2_rt] "+r" (L_sha3_arm2_rt_c)
+        : [state] "+r" (state), [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c)
         :
-        : "memory", "r3", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31", "cc"
+        : "memory", "r2", "r3", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31", "cc"
     );
 }
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
+#ifdef WOLFSSL_ARMASM_NO_NEON
+static const uint64_t L_sha3_arm2_rt[] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL,
+};
+
 #include <wolfssl/wolfcrypt/sha3.h>
 
-#ifdef WOLFSSL_ARMASM_NO_NEON
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
@@ -2348,6 +2348,7 @@ void BlockSha3(word64* state_p)
 }
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
+#endif /* WOLFSSL_SHA3 */
 #endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 #endif /* !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__) */
