@@ -260,7 +260,7 @@ typedef struct TsipUserCtx {
     /* sign/verify hash type :
      * md5, sha1 or sha256
      */
-    int sing_hash_type;
+    int sign_hash_type;
 
     /* flags shows status if tsip keys are installed */
     union {

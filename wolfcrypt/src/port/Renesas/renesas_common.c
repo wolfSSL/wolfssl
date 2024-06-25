@@ -172,8 +172,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                                     info->algo_type, cbInfo->session_key_set);
 #endif
 
-#if defined(WOLFSSL_RENESAS_TSIP) \
-    || defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+#if defined(WOLFSSL_RENESAS_TSIP) || \
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
     ret = CRYPTOCB_UNAVAILABLE;
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
@@ -273,8 +273,8 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
         #endif /* HAVE_ECC */
     }
-#elif defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
-        defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+#elif defined(WOLFSSL_RENESAS_FSPSM_TLS) || \
+      defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
 
     if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
 

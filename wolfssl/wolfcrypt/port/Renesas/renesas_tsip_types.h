@@ -60,8 +60,10 @@ typedef wolfssl_TSIP_Hash wc_Sha256;
 
 typedef enum {
     TSIP_RSA2048,
+    TSIP_RSA3072,
     TSIP_RSA4096,
     TSIP_ECCP256,
+    TSIP_ECCP384,
 } TSIP_KEY_TYPE;
 
 

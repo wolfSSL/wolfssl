@@ -209,11 +209,11 @@ WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
     }
 
     if (ret == 0) {
-       if (tuc->sing_hash_type == md5_mac)
+       if (tuc->sign_hash_type == md5_mac)
            tsip_hash_type = R_TSIP_RSA_HASH_MD5;
-       else if (tuc->sing_hash_type == sha_mac)
+       else if (tuc->sign_hash_type == sha_mac)
            tsip_hash_type = R_TSIP_RSA_HASH_SHA1;
-       else if (tuc->sing_hash_type == sha256_mac)
+       else if (tuc->sign_hash_type == sha256_mac)
            tsip_hash_type = R_TSIP_RSA_HASH_SHA256;
        else
            ret = CRYPTOCB_UNAVAILABLE;
