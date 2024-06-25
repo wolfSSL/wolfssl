@@ -7126,8 +7126,7 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
             &pubKey, &pubKeyLen, keytype);
     }
-
-    if ((pubKey == NULL) && (pubKeyLen == 0)) {
+    if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
         if ((key->level == 2) &&
             (privKeyLen == DILITHIUM_LEVEL2_PRV_KEY_SIZE)) {
@@ -7197,39 +7196,34 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
     if (ret == 0) {
         /* Try to import the key directly. */
         ret = wc_dilithium_import_public(input, inSz, key);
-    }
-    if (ret == 0) {
-        return 0;
-    }
-    else {
-        /* Not successful, decode it first. */
-        ret = 0;
-    }
+        if (ret != 0) {
+            /* Start again. */
+            ret = 0;
 
-    if (ret == 0) {
-        /* Get OID sum for level. */
-        if (key->level == 2) {
-            keytype = DILITHIUM_LEVEL2k;
+            /* Get OID sum for level. */
+            if (key->level == 2) {
+                keytype = DILITHIUM_LEVEL2k;
+            }
+            else if (key->level == 3) {
+                keytype = DILITHIUM_LEVEL3k;
+            }
+            else if (key->level == 5) {
+                keytype = DILITHIUM_LEVEL5k;
+            }
+            else {
+                /* Level not set. */
+                ret = BAD_FUNC_ARG;
+            }
+            if (ret == 0) {
+                /* Decode the asymmetric key and get out public key data. */
+                ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
+                    &pubKeyLen, keytype);
+            }
+            if (ret == 0) {
+                /* Import public key data. */
+                ret = wc_dilithium_import_public(pubKey, pubKeyLen, key);
+            }
         }
-        else if (key->level == 3) {
-            keytype = DILITHIUM_LEVEL3k;
-        }
-        else if (key->level == 5) {
-            keytype = DILITHIUM_LEVEL5k;
-        }
-        else {
-            /* Level not set. */
-            ret = BAD_FUNC_ARG;
-        }
-    }
-    if (ret == 0) {
-        /* Decode the asymmetric key and get out public key data. */
-        ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
-            &pubKeyLen, keytype);
-    }
-    if (ret == 0) {
-        /* Import public key data. */
-        ret = wc_dilithium_import_public(pubKey, pubKeyLen, key);
     }
     return ret;
 }
