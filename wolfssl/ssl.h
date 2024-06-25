@@ -1083,7 +1083,7 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(
     WOLFSSL_CTX* ctx, const char* file, const char* path, word32 flags);
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_CTX_load_verify_locations(
     WOLFSSL_CTX* ctx, const char* file, const char* path);
-WOLFSSL_API WOLFSSL_API int wolfSSL_CTX_load_verify_locations_compat(
+WOLFSSL_API int wolfSSL_CTX_load_verify_locations_compat(
     WOLFSSL_CTX* ctx, const char* file, const char* path);
 #ifndef _WIN32
 WOLFSSL_API const char** wolfSSL_get_system_CA_dirs(word32* num);
