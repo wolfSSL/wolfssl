@@ -2056,6 +2056,8 @@ static void kyber_cbd_eta3(sword16* p, const byte* r)
 {
     unsigned int i;
 
+#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_KYBER_NO_LARGE_CODE) || \
+    defined(BIG_ENDIAN_ORDER)
 #ifndef WORD64_AVAILABLE
     /* Calculate four integer coefficients at a time. */
     for (i = 0; i < KYBER_N; i += 4) {
@@ -2129,7 +2131,59 @@ static void kyber_cbd_eta3(sword16* p, const byte* r)
         /* Move over used bytes. */
         r += 6;
     }
-#endif
+#endif /* WORD64_AVAILABLE */
+#else
+    /* Calculate eight integer coefficients at a time. */
+    for (i = 0; i < KYBER_N; i += 16) {
+        const word32* r32 = (const word32*)r;
+        /* Take the next 12 bytes, little endian, as 24 bit values. */
+        word32 t0 =   r32[0]                          & 0xffffff;
+        word32 t1 = ((r32[0] >> 24) | (r32[1] <<  8)) & 0xffffff;
+        word32 t2 = ((r32[1] >> 16) | (r32[2] << 16)) & 0xffffff;
+        word32 t3 =   r32[2] >>  8                              ;
+        word32 d0;
+        word32 d1;
+        word32 d2;
+        word32 d3;
+
+        /* Add second and third bits to first. */
+        d0  = (t0 >> 0) & 0x00249249;
+        d0 += (t0 >> 1) & 0x00249249;
+        d0 += (t0 >> 2) & 0x00249249;
+        d1  = (t1 >> 0) & 0x00249249;
+        d1 += (t1 >> 1) & 0x00249249;
+        d1 += (t1 >> 2) & 0x00249249;
+        d2  = (t2 >> 0) & 0x00249249;
+        d2 += (t2 >> 1) & 0x00249249;
+        d2 += (t2 >> 2) & 0x00249249;
+        d3  = (t3 >> 0) & 0x00249249;
+        d3 += (t3 >> 1) & 0x00249249;
+        d3 += (t3 >> 2) & 0x00249249;
+        /* Values 0, 1, 2 or 3 in consecutive 3 bits.
+         * 0 - 1/8, 1 - 3/8, 2 - 3/8, 3 - 1/8. */
+
+        p[i +  0] = ETA3_SUB(d0, 0);
+        p[i +  1] = ETA3_SUB(d0, 1);
+        p[i +  2] = ETA3_SUB(d0, 2);
+        p[i +  3] = ETA3_SUB(d0, 3);
+        p[i +  4] = ETA3_SUB(d1, 0);
+        p[i +  5] = ETA3_SUB(d1, 1);
+        p[i +  6] = ETA3_SUB(d1, 2);
+        p[i +  7] = ETA3_SUB(d1, 3);
+        p[i +  8] = ETA3_SUB(d2, 0);
+        p[i +  9] = ETA3_SUB(d2, 1);
+        p[i + 10] = ETA3_SUB(d2, 2);
+        p[i + 11] = ETA3_SUB(d2, 3);
+        p[i + 12] = ETA3_SUB(d3, 0);
+        p[i + 13] = ETA3_SUB(d3, 1);
+        p[i + 14] = ETA3_SUB(d3, 2);
+        p[i + 15] = ETA3_SUB(d3, 3);
+        /* -3-1/64, -2-6/64, -1-15/64, 0-20/64, 1-15/64, 2-6/64, 3-1/64 */
+
+        /* Move over used bytes. */
+        r += 12;
+    }
+#endif /* WOLFSSL_SMALL_STACK || WOLFSSL_KYBER_NO_LARGE_CODE || BIG_ENDIAN_ORDER        */
 }
 #endif
 
@@ -2677,6 +2731,8 @@ static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int kp)
 
     /* Each polynomial. */
     for (i = 0; i < kp; i++) {
+#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_KYBER_NO_LARGE_CODE) || \
+    defined(BIG_ENDIAN_ORDER)
         /* Each 4 polynomial coefficients. */
         for (j = 0; j < KYBER_N; j += 4) {
         #ifdef WOLFSSL_KYBER_SMALL
@@ -2710,6 +2766,44 @@ static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int kp)
             /* Move over set bytes. */
             r += 5;
         }
+#else
+        /* Each 16 polynomial coefficients. */
+        for (j = 0; j < KYBER_N; j += 16) {
+            /* Compress four polynomial values to 10 bits each. */
+            sword16 t0  = TO_COMP_WORD_10(v, i, j, 0);
+            sword16 t1  = TO_COMP_WORD_10(v, i, j, 1);
+            sword16 t2  = TO_COMP_WORD_10(v, i, j, 2);
+            sword16 t3  = TO_COMP_WORD_10(v, i, j, 3);
+            sword16 t4  = TO_COMP_WORD_10(v, i, j, 4);
+            sword16 t5  = TO_COMP_WORD_10(v, i, j, 5);
+            sword16 t6  = TO_COMP_WORD_10(v, i, j, 6);
+            sword16 t7  = TO_COMP_WORD_10(v, i, j, 7);
+            sword16 t8  = TO_COMP_WORD_10(v, i, j, 8);
+            sword16 t9  = TO_COMP_WORD_10(v, i, j, 9);
+            sword16 t10 = TO_COMP_WORD_10(v, i, j, 10);
+            sword16 t11 = TO_COMP_WORD_10(v, i, j, 11);
+            sword16 t12 = TO_COMP_WORD_10(v, i, j, 12);
+            sword16 t13 = TO_COMP_WORD_10(v, i, j, 13);
+            sword16 t14 = TO_COMP_WORD_10(v, i, j, 14);
+            sword16 t15 = TO_COMP_WORD_10(v, i, j, 15);
+
+            word32* r32 = (word32*)r;
+            /* Pack sixteen 10-bit values into byte array. */
+            r32[0] =  t0        | ((word32)t1  << 10) | ((word32)t2  << 20) |
+                                  ((word32)t3  << 30);
+            r32[1] = (t3  >> 2) | ((word32)t4  <<  8) | ((word32)t5  << 18) |
+                                  ((word32)t6  << 28);
+            r32[2] = (t6  >> 4) | ((word32)t7  <<  6) | ((word32)t8  << 16) |
+                                  ((word32)t9  << 26);
+            r32[3] = (t9  >> 6) | ((word32)t10 <<  4) | ((word32)t11 << 14) |
+                                  ((word32)t12 << 24);
+            r32[4] = (t12 >> 8) | ((word32)t13 <<  2) | ((word32)t14 << 12) |
+                                  ((word32)t15 << 22);
+
+            /* Move over set bytes. */
+            r += 20;
+        }
+#endif
     }
 }
 
