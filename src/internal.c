@@ -36661,8 +36661,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
-            if (ret != WOLFSSL_SUCCESS)
+            if (ret != WOLFSSL_SUCCESS) {
+                ret = SECURE_RENEGOTIATION_E;
                 goto out;
+            } else {
+                ret = 0;
+            }
 
             extension = TLSX_Find(ssl->extensions, TLSX_RENEGOTIATION_INFO);
             if (extension) {
