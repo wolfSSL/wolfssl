@@ -5276,35 +5276,49 @@ static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             /* got partial octet string data */
             /* accumulate partial octet string to buffer */
             if (keepContent) {
-
-                /* store current content buffer temporarily */
-                tempBuf = pkcs7->stream->content;
-                pkcs7->stream->content = NULL;
-
-                /* grow content buffer */
-                contBufSz = pkcs7->stream->accumContSz;
-                pkcs7->stream->accumContSz += pkcs7->stream->expected;
-
-                pkcs7->stream->content =
-                                (byte*)XMALLOC(pkcs7->stream->accumContSz,
-                                            pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-
-                if (pkcs7->stream->content == NULL) {
-                    WOLFSSL_MSG("failed to grow content buffer.");
-                    XFREE(tempBuf, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    tempBuf = NULL;
-                    ret = MEMORY_E;
-                    break;
+                if (pkcs7->streamOutCb) {
+                    ret = wc_HashUpdate(&pkcs7->stream->hashAlg,
+                        pkcs7->stream->hashType,
+                        msg + *idx, pkcs7->stream->expected);
+                    if (ret != 0)
+                        break;
+                    pkcs7->streamOutCb(pkcs7, msg + *idx,
+                        pkcs7->stream->expected, pkcs7->streamCtx);
                 }
                 else {
-                    /* accumulate content */
-                    if (tempBuf != NULL && contBufSz != 0) {
-                        XMEMCPY(pkcs7->stream->content, tempBuf, contBufSz);
+                    /* store current content buffer temporarily */
+                    tempBuf = pkcs7->stream->content;
+                    pkcs7->stream->content = NULL;
+
+                    /* grow content buffer */
+                    contBufSz = pkcs7->stream->accumContSz;
+                    pkcs7->stream->accumContSz += pkcs7->stream->expected;
+
+                    pkcs7->stream->content =
+                                    (byte*)XMALLOC(pkcs7->stream->accumContSz,
+                                               pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+
+                    if (pkcs7->stream->content == NULL) {
+                        WOLFSSL_MSG("failed to grow content buffer.");
+                            if (tempBuf != NULL) {
+                        XFREE(tempBuf, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                        tempBuf = NULL;
+                            }
+                        ret = MEMORY_E;
+                        break;
                     }
-                    XMEMCPY(pkcs7->stream->content + contBufSz, msg + *idx,
-                                                    pkcs7->stream->expected);
-                    XFREE(tempBuf, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-                    tempBuf = NULL;
+                    else {
+                        /* accumulate content */
+                        if (tempBuf != NULL && contBufSz != 0) {
+                            XMEMCPY(pkcs7->stream->content, tempBuf, contBufSz);
+                        }
+                        XMEMCPY(pkcs7->stream->content + contBufSz, msg + *idx,
+                                                       pkcs7->stream->expected);
+                        if (tempBuf != NULL) {
+                            XFREE(tempBuf, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                            tempBuf = NULL;
+                        }
+                    }
                 }
             }
 
@@ -5924,6 +5938,14 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE3);
 
         #ifndef NO_PKCS7_STREAM
+            /* setup hash struct for creating hash of content if needed */
+            if (pkcs7->streamOutCb) {
+                ret = wc_HashInit_ex(&pkcs7->stream->hashAlg,
+                    pkcs7->stream->hashType, pkcs7->heap, pkcs7->devId);
+                if (ret != 0)
+                    break;
+            }
+
         /* free pkcs7->stream->content buffer */
         XFREE(pkcs7->stream->content, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->stream->content = NULL;
@@ -6586,8 +6608,25 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
                 pkcs7->contentSz = (word32)contentSz;
 
                 if (ret == 0) {
-                    ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig, (word32)sigSz,
-                                                   signedAttrib, (word32)signedAttribSz,
+                #ifndef NO_PKCS7_STREAM
+                    byte streamHash[WC_MAX_DIGEST_SIZE];
+
+                    /* get final hash if having done hash updates while
+                     * streaming out the content */
+                    if (pkcs7->streamOutCb) {
+                        ret = wc_HashFinal(&pkcs7->stream->hashAlg,
+                            pkcs7->stream->hashType, streamHash);
+                        hashBuf = streamHash;
+                        hashSz  = wc_HashGetDigestSize(pkcs7->stream->hashType);
+
+                        wc_HashFree(&pkcs7->stream->hashAlg,
+                            pkcs7->stream->hashType);
+                        if (ret != 0)
+                            break;
+                    }
+                #endif
+                    ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig,
+                            (word32)sigSz, signedAttrib, (word32)signedAttribSz,
                                                    hashBuf, hashSz);
                 }
             }
