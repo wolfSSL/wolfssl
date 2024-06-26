@@ -185,8 +185,8 @@ enum wolfSSL_ErrorCodes {
     DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
     DTLS_TOO_MANY_FRAGMENTS_E    = -455,   /* Received too many fragments */
     QUIC_WRONG_ENC_LEVEL         = -456,   /* QUIC data received on wrong encryption level */
+
     DUPLICATE_TLS_EXT_E          = -457,   /* Duplicate TLS extension in msg. */
-    SOCKET_NOT_CONNECTED_E       = -458,   /* Socket has no associated peer. */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

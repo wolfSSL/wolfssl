@@ -353,14 +353,9 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                  *  (cannot be used with WOLFSSL_USER_IO) */
                 bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
                 ret = wolfIO_Recv(bio->num, (char*)buf, len, 0);
-                if (ret < 0) {
-#ifdef USE_WINDOWS_API
-                    if (WSAGetLastError() == WSAEWOULDBLOCK)
-                        bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#else
-                    if (errno == EAGAIN)
-                        bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#endif
+                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
+                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                    ret = WOLFSSL_BIO_ERROR;
                 }
             #else
                 ret = NOT_COMPILED_IN;
@@ -379,14 +374,9 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                     wolfSSL_BIO_ADDR_clear(&bio->peer_addr);
                     ret = wolfIO_RecvFrom(bio->num, &bio->peer_addr, (char*)buf, len, 0);
                 }
-                if ((ret < 0) && (ret != WC_NO_ERR_TRACE(MEMORY_E))) {
-#ifdef USE_WINDOWS_API
-                    if (WSAGetLastError() == WSAEWOULDBLOCK)
-                        bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#else
-                    if (errno == EAGAIN)
-                        bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#endif
+                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
+                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                    ret = WOLFSSL_BIO_ERROR;
                 }
             #else
                 ret = NOT_COMPILED_IN;
@@ -782,13 +772,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                  *  (cannot be used with WOLFSSL_USER_IO) */
                 bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
                 ret = wolfIO_Send(bio->num, (char*)data, len, 0);
-#ifdef USE_WINDOWS_API
-                if (WSAGetLastError() == WSAEWOULDBLOCK)
+                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
                     bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#else
-                if (errno == EAGAIN)
-                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#endif
+                    ret = WOLFSSL_BIO_ERROR;
+                }
             #else
                 ret = NOT_COMPILED_IN;
             #endif
@@ -806,14 +793,9 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                     ret = SOCKET_ERROR_E;
                 else
                     ret = wolfIO_SendTo(bio->num, &bio->peer_addr, (char*)data, len, 0);
-                if (ret < 0) {
-#ifdef USE_WINDOWS_API
-                    if (WSAGetLastError() == WSAEWOULDBLOCK)
-                        bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#else
-                    if (errno == EAGAIN)
-                        bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
-#endif
+                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
+                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                    ret = WOLFSSL_BIO_ERROR;
                 }
             #else
                 ret = NOT_COMPILED_IN;

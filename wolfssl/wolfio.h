@@ -205,6 +205,7 @@
     #endif
     #define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
     #define SOCKET_EAGAIN      WSAETIMEDOUT
+    #define SOCKET_ETIMEDOUT   WSAETIMEDOUT
     #define SOCKET_ECONNRESET  WSAECONNRESET
     #define SOCKET_EINTR       WSAEINTR
     #define SOCKET_EPIPE       WSAEPIPE
@@ -301,6 +302,7 @@
 #elif defined(WOLFSSL_LWIP_NATIVE)
     #define SOCKET_EWOULDBLOCK ERR_WOULDBLOCK
     #define SOCKET_EAGAIN      ERR_WOULDBLOCK
+    #define SOCKET_TIMEDOUT    ERR_TIMEOUT
     #define SOCKET_ECONNRESET  ERR_RST
     #define SOCKET_EINTR       ERR_CLSD
     #define SOCKET_EPIPE       ERR_CLSD
@@ -318,6 +320,7 @@
 #else
     #define SOCKET_EWOULDBLOCK EWOULDBLOCK
     #define SOCKET_EAGAIN      EAGAIN
+    #define SOCKET_ETIMEDOUT   ETIMEDOUT
     #define SOCKET_ECONNRESET  ECONNRESET
     #define SOCKET_EINTR       EINTR
     #define SOCKET_EPIPE       EPIPE
@@ -495,6 +498,7 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
                                     FNS_CLOSE(s, &err); \
                                 } while(0)
     #endif
+    #define StartTCP() WC_DO_NOTHING
 #else
     #ifndef CloseSocket
         #define CloseSocket(s) close(s)

@@ -172,7 +172,7 @@ static WC_INLINE int wolfSSL_LastError(int err)
 #elif defined(EBSNET)
     return xn_getlasterror();
 #elif defined(WOLFSSL_LINUXKM) || defined(WOLFSSL_EMNET)
-    return err; /* Return provided error value */
+    return -err; /* Return provided error value */
 #elif defined(FUSION_RTOS)
     #include <fclerrno.h>
     return FCL_GET_ERRNO;
@@ -989,6 +989,21 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
     recvd = (int)RECV_FUNCTION(sd, buf, (size_t)sz, rdFlags);
     recvd = TranslateReturnCode(recvd, (int)sd);
 
+    if (recvd < 0) {
+        int last_err = wolfSSL_LastError(recvd);
+        if ((last_err == SOCKET_EWOULDBLOCK)
+#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
+            || (last_err == SOCKET_EAGAIN)
+#endif
+#ifdef SOCKET_ETIMEDOUT
+            || (last_err == SOCKET_ETIMEDOUT)
+#endif
+            )
+        {
+            return SOCKET_NODATA;
+        }
+    }
+
     return recvd;
 }
 
@@ -998,6 +1013,21 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
 
     sent = (int)SEND_FUNCTION(sd, buf, (size_t)sz, wrFlags);
     sent = TranslateReturnCode(sent, (int)sd);
+
+    if (sent < 0) {
+        int last_err = wolfSSL_LastError(sent);
+        if ((last_err == SOCKET_EWOULDBLOCK)
+#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
+            || (last_err == SOCKET_EAGAIN)
+#endif
+#ifdef SOCKET_ETIMEDOUT
+            || (last_err == SOCKET_ETIMEDOUT)
+#endif
+            )
+        {
+            return SOCKET_NODATA;
+        }
+    }
 
     return sent;
 }
@@ -1009,8 +1039,25 @@ int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int 
     int recvd;
     socklen_t addr_len = (socklen_t)sizeof(*addr);
 
-    recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz, rdFlags, addr ? &addr->sa : NULL, addr ? &addr_len : 0);
+    recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz, rdFlags,
+                                        addr ? &addr->sa : NULL,
+                                        addr ? &addr_len : 0);
     recvd = TranslateReturnCode(recvd, (int)sd);
+
+    if (recvd < 0) {
+        int last_err = wolfSSL_LastError(recvd);
+        if ((last_err == SOCKET_EWOULDBLOCK)
+#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
+            || (last_err == SOCKET_EAGAIN)
+#endif
+#ifdef SOCKET_ETIMEDOUT
+            || (last_err == SOCKET_ETIMEDOUT)
+#endif
+            )
+        {
+            return SOCKET_NODATA;
+        }
+    }
 
     return recvd;
 }
@@ -1019,8 +1066,25 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
 {
     int sent;
 
-    sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, (size_t)sz, wrFlags, addr ? &addr->sa : NULL, addr ? wolfSSL_BIO_ADDR_size(addr) : 0);
+    sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, (size_t)sz, wrFlags,
+                                     addr ? &addr->sa : NULL,
+                                     addr ? wolfSSL_BIO_ADDR_size(addr) : 0);
     sent = TranslateReturnCode(sent, (int)sd);
+
+    if (sent < 0) {
+        int last_err = wolfSSL_LastError(sent);
+        if ((last_err == SOCKET_EWOULDBLOCK)
+#if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
+            || (last_err == SOCKET_EAGAIN)
+#endif
+#ifdef SOCKET_ETIMEDOUT
+            || (last_err == SOCKET_ETIMEDOUT)
+#endif
+            )
+        {
+            return SOCKET_NODATA;
+        }
+    }
 
     return sent;
 }
