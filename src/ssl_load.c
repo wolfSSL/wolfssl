@@ -2891,7 +2891,6 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
  * @return  1 on success.
  * @return  0 on failure.
  */
-WOLFSSL_API
 int wolfSSL_CTX_load_verify_locations_compat(WOLFSSL_CTX* ctx, const char* file,
                                      const char* path)
 {

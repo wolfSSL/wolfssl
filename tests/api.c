@@ -56986,9 +56986,7 @@ static int test_wolfSSL_BIO_datagram(void)
     static const struct timeval timeout = { 0, 250000 };
 #endif
 
-#ifdef USE_WINDOWS_API
-    WSAStartup();
-#endif
+    StartTCP();
 
     if (EXPECT_SUCCESS()) {
         fd1 = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
