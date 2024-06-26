@@ -194,8 +194,7 @@ WOLFSSL_API int tsip_use_PublicKey_buffer_crypt(TsipUserCtx *uc,
 
     WOLFSSL_ENTER("tsip_use_PublicKey_buffer_crypt");
 
-    if (uc == NULL
-    || keyBuf == NULL || keyBufLen == 0) {
+    if (uc == NULL || keyBuf == NULL || keyBufLen == 0) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -1685,7 +1684,7 @@ WOLFSSL_LOCAL int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
             }
         }
         else {
-            if (!tuc->ClientEccP256PrivKey_set) {
+            if (!tuc->ClientEccPrivKey_set) {
                 ret = NO_PRIVATE_KEY;
             }
         }
@@ -1726,7 +1725,7 @@ WOLFSSL_LOCAL int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
             }
             else {
                 err = R_TSIP_Tls13CertificateVerifyGenerate(
-                            (uint32_t*)&(tuc->EcdsaP256PrivateKeyIdx),
+                            (uint32_t*)&(tuc->EcdsaPrivateKeyIdx),
                             TSIP_TLS13_SIGNATURE_SCHEME_ECDSA_SECP256R1_SHA256,
                                                 hash,
                                                 message + HANDSHAKE_HEADER_SZ,
@@ -1762,7 +1761,7 @@ WOLFSSL_LOCAL int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
         }
         else {
 #if defined(WOLFSSL_CHECK_SIG_FAULTS)
-            if (!tuc->ClientEccP256PubKey_set) {
+            if (!tuc->ClientEccPubKey_set) {
                 ret = NO_PRIVATE_KEY;
             }
 #endif /* WOLFSSL_CHECK_SIG_FAULTS */
@@ -1831,7 +1830,7 @@ WOLFSSL_LOCAL int tsip_Tls13SendCertVerify(WOLFSSL* ssl)
 
                 err = R_TSIP_EcdsaP256SignatureVerification(
                             &ecdsa_sig, &ecdsa_hash,
-                            &tuc->EcdsaP256PublicKeyIdx);
+                            &tuc->EcdsaPublicKeyIdx);
                 WOLFSSL_MSG("Perform self-verify for ecc signature");
 #endif /* WOLFSSL_CHECK_SIG_FAULTS */
             }
@@ -2018,7 +2017,7 @@ static int tsip_ServerKeyExVerify(
         WOLFSSL_MSG("Failed to lock tsip hw");
     }
 
-    XFREE(peerkey, 0, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(peerkey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     WOLFSSL_LEAVE("tsip_ServerKeyExVerify", ret);
     return ret;
@@ -2091,7 +2090,7 @@ int wc_tsip_EccVerify(
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    /* concatenate r and s parts of the signature so that TSIP can handle it*/
+    /* concatenate r and s parts of the signature so that TSIP can handle it */
     /* r */
     if (sig[offset] == 0x20) {
         XMEMCPY(sigforSCE, &sig[offset+1], rs_size);
@@ -2292,8 +2291,10 @@ static byte _tls2tsipdef(byte cipher)
  * The target key should be set with tsip_use_PrivateKey_buffer in advance.
  * Acceptable key types are:
  *   TSIP_KEY_TYPE_RSA2048     rsa 2048 bit key
- *   TSIP_KEY_TYPE_RSA4096     rsa 4096 bit key(Not supported as of now)
+ *   TSIP_KEY_TYPE_RSA3072     rsa 3072 bit key
+ *   TSIP_KEY_TYPE_RSA4096     rsa 4096 bit key
  *   TSIP_KEY_TYPE_ECDSAP256   ecdsa p256r1 key
+ *   TSIP_KEY_TYPE_ECDSAP384   ecdsa p384r1 key
  */
 static int tsipImportPrivateKey(TsipUserCtx* tuc, int keyType)
 {
@@ -2349,12 +2350,12 @@ static int tsipImportPrivateKey(TsipUserCtx* tuc, int keyType)
             #if defined(HAVE_ECC)
             case TSIP_KEY_TYPE_ECDSAP256:
 
-                tuc->ClientEccP256PrivKey_set = 0;
+                tuc->ClientEccPrivKey_set = 0;
                 err = R_TSIP_GenerateEccP256PrivateKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPrivKey,
-                                    &(tuc->EcdsaP256PrivateKeyIdx));
+                                    &(tuc->EcdsaPrivateKeyIdx));
                 if (err == TSIP_SUCCESS) {
-                    tuc->ClientEccP256PrivKey_set = 1;
+                    tuc->ClientEccPrivKey_set = 1;
                 }
                 else {
                     ret = WC_HW_E;
@@ -2382,8 +2383,10 @@ static int tsipImportPrivateKey(TsipUserCtx* tuc, int keyType)
  * The target key should be set with tsip_use_PublicKey_buffer in advance.
  * Acceptable key types are:
  *   TSIP_KEY_TYPE_RSA2048     rsa 2048 bit key
- *   TSIP_KEY_TYPE_RSA4096     rsa 4096 bit key(Not supported as of now)
+ *   TSIP_KEY_TYPE_RSA3072     rsa 3072 bit key
+ *   TSIP_KEY_TYPE_RSA4096     rsa 4096 bit key
  *   TSIP_KEY_TYPE_ECDSAP256   ecdsa p256r1 key
+ *   TSIP_KEY_TYPE_ECDSAP384   ecdsa p384r1 key
  */
 WOLFSSL_LOCAL int tsipImportPublicKey(TsipUserCtx* tuc, int keyType)
 {
@@ -2414,7 +2417,7 @@ WOLFSSL_LOCAL int tsipImportPublicKey(TsipUserCtx* tuc, int keyType)
     }
 
     if ((ret = tsip_hw_lock()) == 0) {
-        switch(keyType) {
+        switch (keyType) {
 
         #if !defined(NO_RSA)
             case TSIP_KEY_TYPE_RSA2048:
@@ -2425,11 +2428,11 @@ WOLFSSL_LOCAL int tsipImportPublicKey(TsipUserCtx* tuc, int keyType)
                     XFREE(tuc->rsa2048pub_keyIdx, NULL,
                                     DYNAMIC_TYPE_RSA_BUFFER);
                 }
-
+                tuc->keyflgs_crypt.bits.rsapub2048_key_set = 0;
                 tuc->rsa2048pub_keyIdx =
-                (tsip_rsa2048_public_key_index_t*)XMALLOC(
-                    sizeof(tsip_rsa2048_public_key_index_t), NULL,
-                                    DYNAMIC_TYPE_RSA_BUFFER);
+                    (tsip_rsa2048_public_key_index_t*)XMALLOC(
+                        sizeof(tsip_rsa2048_public_key_index_t), NULL,
+                        DYNAMIC_TYPE_RSA_BUFFER);
                 if (tuc->rsa2048pub_keyIdx == NULL) {
                     return MEMORY_E;
                 }
@@ -2453,25 +2456,47 @@ WOLFSSL_LOCAL int tsipImportPublicKey(TsipUserCtx* tuc, int keyType)
                     ret = WC_HW_E;
                 }
                 break;
-        #endif
 
-        #if !defined(NO_RSA)
             case TSIP_KEY_TYPE_RSA4096:
                 /* not supported as of TSIPv1.15 */
                 ret = CRYPTOCB_UNAVAILABLE;
                 break;
-        #endif
+        #endif /* !NO_RSA */
 
-        #if defined(HAVE_ECC) && \
-            defined(WOLFSSL_RENESAS_TSIP_TLS)
+        #if defined(HAVE_ECC)
             case TSIP_KEY_TYPE_ECDSAP256:
-
-                tuc->ClientEccP256PubKey_set = 0;
-                err = R_TSIP_GenerateEccP256PublicKeyIndex(
+            case TSIP_KEY_TYPE_ECDSAP384:
+            #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+                tuc->ClientEccPubKey_set = 0;
+            #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+                tuc->keyflgs_crypt.bits.eccpub_key_set = 0;
+            #endif
+                if (keyType == TSIP_KEY_TYPE_ECDSAP256) {
+                    err = R_TSIP_GenerateEccP256PublicKeyIndex(
                                     provisioning_key, iv, (uint8_t*)encPubKey,
-                                    &(tuc->EcdsaP256PublicKeyIdx));
+                            #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+                                    &(tuc->EcdsaPublicKeyIdx)
+                            #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+                                    &tuc->eccpub_keyIdx
+                            #endif
+                    );
+                }
+                else if (keyType == TSIP_KEY_TYPE_ECDSAP384) {
+                    err = R_TSIP_GenerateEccP384PublicKeyIndex(
+                                    provisioning_key, iv, (uint8_t*)encPubKey,
+                            #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+                                    &(tuc->EcdsaPublicKeyIdx)
+                            #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+                                    &tuc->eccpub_keyIdx
+                            #endif
+                    );
+                }
                 if (err == TSIP_SUCCESS) {
-                    tuc->ClientEccP256PubKey_set = 1;
+                #if defined(WOLFSSL_RENESAS_TSIP_TLS)
+                    tuc->ClientEccPubKey_set = 1;
+                #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+                    tuc->keyflgs_crypt.bits.eccpub_key_set = 1;
+                #endif
                 }
                 else {
                     ret = WC_HW_E;
@@ -2779,7 +2804,8 @@ void tsip_inform_user_keys_ex(
     word32    encrypted_user_tls_key_type)
 {
     WOLFSSL_ENTER("tsip_inform_user_keys_ex");
-    ForceZero(&g_user_key_info, sizeof(g_user_key_info));
+
+    XMEMSET(&g_user_key_info, 0, sizeof(g_user_key_info));
     g_user_key_info.encrypted_provisioning_key = NULL;
     g_user_key_info.iv = NULL;
 
@@ -3637,7 +3663,6 @@ WOLFSSL_LOCAL int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
         ret = tsipImportPrivateKey(tuc, tuc->wrappedKeyType);
     }
 
-
     if (ret == 0) {
         if (ssl->options.hashAlgo == md5_mac)
             tsip_hash_type = R_TSIP_RSA_HASH_MD5;
@@ -3664,15 +3689,13 @@ WOLFSSL_LOCAL int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 
     switch (tuc->wrappedKeyType) {
         case TSIP_KEY_TYPE_RSA1024:
-            if (tuc->keyflgs_crypt.bits.rsapri1024_key_set != 1)
-            {
-                WOLFSSL_MSG("tsip rsa private key 2048 not set");
+            if (tuc->keyflgs_crypt.bits.rsapri1024_key_set != 1) {
+                WOLFSSL_MSG("tsip rsa private key 1024 not set");
                     ret = CRYPTOCB_UNAVAILABLE;
             }
             break;
         case TSIP_KEY_TYPE_RSA2048:
-            if (tuc->keyflgs_crypt.bits.rsapri2048_key_set != 1)
-            {
+            if (tuc->keyflgs_crypt.bits.rsapri2048_key_set != 1) {
                 WOLFSSL_MSG("tsip rsa private key 2048 not set");
                     ret = CRYPTOCB_UNAVAILABLE;
             }
@@ -3682,7 +3705,6 @@ WOLFSSL_LOCAL int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
             ret = CRYPTOCB_UNAVAILABLE;
             break;
     }
-
 #endif
 
     if (ret == 0) {
@@ -3849,7 +3871,8 @@ WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
 }
 #endif /* !NO_RSA && TSIP_TLS */
 
-#if defined(HAVE_ECC) && defined(WOLFSSL_RENESAS_TSIP_TLS)
+#if defined(HAVE_ECC)
+#if defined(WOLFSSL_RENESAS_TSIP_TLS)
 /*   Perform signing with the client's ECC private key on hash value of messages
  *   exchanged with server.
  *
@@ -3869,7 +3892,7 @@ WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
-    tsip_rsa_byte_data_t hashData, sigData;
+    tsip_ecdsa_byte_data_t hashData, sigData;
     byte  offsetForWork;
     byte* out = NULL;
     byte* sig = NULL;
@@ -3908,7 +3931,7 @@ WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
         if ((ret = tsip_hw_lock()) == 0) {
             switch (tuc->wrappedKeyType) {
 
-                #if defined(HAVE_ECC)
+                #if !defined(NO_ECC256)
                 case TSIP_KEY_TYPE_ECDSAP256:
                     offsetForWork = R_TSIP_ECDSA_DATA_BYTE_SIZE + 32;
                     if (*(info->pk.eccsign.outlen) <
@@ -3921,7 +3944,7 @@ WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
                                                             offsetForWork;
                     err = R_TSIP_EcdsaP256SignatureGenerate(
                                                 &hashData, &sigData,
-                                                &tuc->EcdsaP256PrivateKeyIdx);
+                                                &tuc->EcdsaPrivateKeyIdx);
                     if (err != TSIP_SUCCESS) {
                         ret = WC_HW_E;
                         break;
@@ -3959,16 +3982,6 @@ WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     break;
                 #endif
 
-                #if defined(HAVE_ECC192)
-                case TSIP_KEY_TYPE_ECDSAP192:
-                    ret = CRYPTOCB_UNAVAILABLE;
-                    break;
-                #endif
-                #if defined(HAVE_ECC224)
-                case TSIP_KEY_TYPE_ECDSAP224:
-                    ret = CRYPTOCB_UNAVAILABLE;
-                    break;
-                #endif
                 #if defined(HAVE_ECC384)
                 case TSIP_KEY_TYPE_ECDSAP384:
                     ret = CRYPTOCB_UNAVAILABLE;
@@ -3989,7 +4002,82 @@ WOLFSSL_LOCAL int tsip_SignEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     WOLFSSL_LEAVE("tsip_SignEcdsa", ret);
     return ret;
 }
-#endif /* HAVE_ECC && TSIP_TLS */
+#endif /* WOLFSSL_RENESAS_TSIP_TLS */
+
+#if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+/*   Perform verify with the wrapped public key, provided hash and signature r+s
+ *
+ * parameters
+ *   info->pk.eccverify.in    : the buffer holding hash value of messages
+ *   info->pk.eccverify.inlen : hash data size
+ *   info->pk.eccverify.out   : the buffer where the signature data is output to
+ *   info->pk.eccverify.outlen: the length of the buffer pk.eccsign.out
+ *   tuc:  the pointer to the TsipUserCtx structure
+ * returns
+ *   0 on success, CRYPTOCB_UNAVAILABLE on unsupported key type specified.
+ */
+WOLFSSL_LOCAL int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
+{
+    int ret = 0;
+    e_tsip_err_t    err = TSIP_SUCCESS;
+    tsip_ecdsa_byte_data_t hashData, sigData;
+
+    WOLFSSL_ENTER("tsip_VerifyEcdsa");
+
+    if (info == NULL || tuc == NULL) {
+        ret = CRYPTOCB_UNAVAILABLE;
+    }
+
+    if (ret == 0) {
+        /* import public key_index from wrapped key */
+        ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
+    }
+
+    if (ret == 0) {
+        hashData.pdata       = (uint8_t*)info->pk.eccverify.hash;
+        hashData.data_length = info->pk.eccverify.hashlen;
+        hashData.data_type  = tuc->keyflgs_crypt.bits.message_type;
+        sigData.pdata       = (uint8_t*)info->pk.eccverify.sig;
+        sigData.data_length = info->pk.eccverify.siglen;
+
+        if ((ret = tsip_hw_lock()) == 0) {
+            switch (tuc->wrappedKeyType) {
+            #if !defined(NO_ECC256)
+                case TSIP_KEY_TYPE_ECDSAP256:
+                    err = R_TSIP_EcdsaP256SignatureVerification(&sigData,
+                        &hashData, &tuc->eccpub_keyIdx);
+                    if (err != TSIP_SUCCESS) {
+                        ret = WC_HW_E;
+                    }
+                    break;
+                #endif
+
+                #if defined(HAVE_ECC384)
+                case TSIP_KEY_TYPE_ECDSAP384:
+                    err = R_TSIP_EcdsaP384SignatureVerification(&sigData,
+                        &hashData, &tuc->eccpub_keyIdx);
+                    if (err != TSIP_SUCCESS) {
+                        ret = WC_HW_E;
+                    }
+                    break;
+                #endif
+
+                default:
+                    WOLFSSL_MSG("ECDSA public key size not available");
+                    ret = CRYPTOCB_UNAVAILABLE;
+                    break;
+            }
+            tsip_hw_unlock();
+        }
+        else {
+            WOLFSSL_MSG("mutex locking error");
+        }
+    }
+    WOLFSSL_LEAVE("tsip_VerifyEcdsa", ret);
+    return ret;
+}
+#endif /* WOLFSSL_RENESAS_TSIP_CRYPTONLY */
+#endif /* HAVE_ECC */
 
 
 #ifdef WOLFSSL_RENESAS_TSIP_CRYPT_DEBUG

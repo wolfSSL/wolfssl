@@ -82,7 +82,7 @@ WOLFSSL_LOCAL int Renesas_cmn_TlsFinished(WOLFSSL* ssl, const byte *side,
 WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx);
 #endif /* WOLFSSL_RENESAS_TSIP_CRYPTONLY */
 
-int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx);
+int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx);
 void wc_CryptoCb_CleanupRenesasCmn(int* id);
 
 #endif /* __RENESAS_CMN_H__ */

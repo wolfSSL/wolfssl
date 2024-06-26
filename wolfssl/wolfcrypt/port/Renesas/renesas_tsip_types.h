@@ -25,6 +25,7 @@
 
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #if (!defined(NO_SHA) || !defined(NO_SHA256)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH)
@@ -59,11 +60,12 @@ typedef wolfssl_TSIP_Hash wc_Sha256;
 
 
 typedef enum {
-    TSIP_RSA2048,
-    TSIP_RSA3072,
-    TSIP_RSA4096,
-    TSIP_ECCP256,
-    TSIP_ECCP384,
+    TSIP_RSA1024 = 1,
+    TSIP_RSA2048 = 2,
+    TSIP_RSA3072 = 3,
+    TSIP_RSA4096 = 4,
+    TSIP_ECCP256 = 5,
+    TSIP_ECCP384 = 6,
 } TSIP_KEY_TYPE;
 
 
