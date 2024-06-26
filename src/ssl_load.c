@@ -5293,6 +5293,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         pAlloc = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         gAlloc = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((pAlloc == NULL) || (gAlloc == NULL)) {
+            /* Memory will be freed below in the (ret != 1) block */
             ret = MEMORY_E;
         }
     }
