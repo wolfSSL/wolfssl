@@ -2704,7 +2704,7 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         }
 
         /* Copy down d mod q-1 if available. */
-        if ((ret == 1) && (rsa->dmp1 != NULL) &&
+        if ((ret == 1) && (rsa->dmq1 != NULL) &&
                 (wolfssl_bn_get_value(rsa->dmq1, &key->dQ) != 1)) {
             WOLFSSL_ERROR_MSG("rsa dQ key error");
             ret = -1;
@@ -3564,7 +3564,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa, unsigned char *em,
     if (ret == 1) {
         /* Get length of RSA key - encrypted message length. */
         emLen = wolfSSL_RSA_size(rsa);
-        if (ret <= 0) {
+        if (emLen <= 0) {
             WOLFSSL_ERROR_MSG("wolfSSL_RSA_size error");
             ret = 0;
         }
@@ -8730,7 +8730,7 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
     if (ret == 0) {
         /* Get the public key into the array. */
         pubSz  = wolfSSL_BN_bn2bin(otherPub, pub);
-        if (privSz <= 0) {
+        if (pubSz <= 0) {
             ret = -1;
         }
     }
