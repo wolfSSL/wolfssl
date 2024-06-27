@@ -121,7 +121,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     wolfSSL_d2i_X509_NAME(&crle->issuer, (unsigned char**)&dcrl->issuer,
                           dcrl->issuerSz);
     if (crle->issuer == NULL) {
-        return WOLFSSL_FAILURE;
+        return -1;
     }
 #endif
 #ifdef CRL_STATIC_REVOKED_LIST

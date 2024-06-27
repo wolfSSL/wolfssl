@@ -13495,6 +13495,9 @@ int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
                 store->current_cert = x509;
                 *x509Free = 1;
             }
+            else {
+                goto mem_error;
+            }
         }
 #endif
 #ifdef SESSION_CERTS

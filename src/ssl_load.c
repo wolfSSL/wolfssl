@@ -5202,6 +5202,8 @@ static int wolfssl_set_tmp_dh(WOLFSSL* ssl, unsigned char* p, int pSz,
 
     /* Allocate space for cipher suites. */
     if ((ret == 1) && (AllocateSuites(ssl) != 0)) {
+        ssl->buffers.serverDH_P.buffer = NULL;
+        ssl->buffers.serverDH_G.buffer = NULL;
         ret = 0;
     }
     if (ret == 1) {
@@ -5249,8 +5251,6 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         pAlloc = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         gAlloc = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((pAlloc == NULL) || (gAlloc == NULL)) {
-            XFREE(pAlloc, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            XFREE(gAlloc, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
             ret = MEMORY_E;
         }
     }
