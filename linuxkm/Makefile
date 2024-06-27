@@ -65,9 +65,9 @@ libwolfssl.ko:
 	@if test ! -h $(SRC_TOP)/Kbuild; then ln -s $(MODULE_TOP)/Kbuild $(SRC_TOP)/Kbuild; fi
         # after commit 9a0ebe5011 (6.10), sources must be in $(obj).  work around this by making links to all needed sources:
 	@mkdir -p linuxkm
-	@cp --no-dereference --symbolic-link --update=none '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)'/linuxkm/
-	@cp --no-dereference --symbolic-link --update=none --recursive '$(SRC_TOP)'/wolfcrypt '$(MODULE_TOP)'/
-	@cp --no-dereference --symbolic-link --update=none --recursive '$(SRC_TOP)'/src '$(MODULE_TOP)'/
+	@cp --no-dereference --symbolic-link --no-clobber '$(MODULE_TOP)'/*.[ch] '$(MODULE_TOP)'/linuxkm/
+	@cp --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)'/wolfcrypt '$(MODULE_TOP)'/
+	@cp --no-dereference --symbolic-link --no-clobber --recursive '$(SRC_TOP)'/src '$(MODULE_TOP)'/
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 	+$(MAKE) -C $(KERNEL_ROOT) M=$(MODULE_TOP) $(KBUILD_EXTRA_FLAGS) CC_FLAGS_FTRACE=
 else
