@@ -17917,9 +17917,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
         #endif
         if (b)
             XFREE(b, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if ((b == NULL)
+        if (b == NULL
         #ifndef WOLFSSL_NO_REALLOC
-                || (c == NULL)
+                || c == NULL
         #endif
         ) {
             return WC_TEST_RET_ENC_ERRNO;
