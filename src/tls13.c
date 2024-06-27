@@ -9691,6 +9691,7 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
 }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
+#ifndef NO_RSA
 /* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
  * RSA public key. Convert it into a usable public key. */
 static int decodeRsaKey(WOLFSSL* ssl)
@@ -9714,7 +9715,9 @@ static int decodeRsaKey(WOLFSSL* ssl)
 
     return 0;
 }
+#endif /* !NO_RSA */
 
+#ifdef HAVE_ECC
 /* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
  * ECC public key. Convert it into a usable public key. */
 static int decodeEccKey(WOLFSSL* ssl)
@@ -9738,7 +9741,9 @@ static int decodeEccKey(WOLFSSL* ssl)
 
     return 0;
 }
+#endif /* HAVE_ECC */
 
+#ifdef HAVE_DILITHIUM
 /* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
  * dilithium public key. Convert it into a usable public key. */
 static int decodeDilithiumKey(WOLFSSL* ssl, int level)
@@ -9767,7 +9772,9 @@ static int decodeDilithiumKey(WOLFSSL* ssl, int level)
 
     return 0;
 }
+#endif /* HAVE_DILITHIUM */
 
+#ifdef HAVE_FALCON
 /* ssl->peerCert->sapkiDer is the alternative public key. Hopefully it is a
  * falcon public key. Convert it into a usable public key. */
 static int decodeFalconKey(WOLFSSL* ssl, int level)
@@ -9795,6 +9802,7 @@ static int decodeFalconKey(WOLFSSL* ssl, int level)
 
     return 0;
 }
+#endif /* HAVE_FALCON */
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 /* handle processing TLS v1.3 certificate_verify (15) */
@@ -9947,12 +9955,17 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     sa = args->altSigAlgo;
 
                 switch(sa) {
+            #ifndef NO_RSA
                 case rsa_pss_sa_algo:
                     ret = decodeRsaKey(ssl);
                     break;
+            #endif
+            #ifdef HAVE_ECC
                 case ecc_dsa_sa_algo:
                     ret = decodeEccKey(ssl);
                     break;
+            #endif
+            #ifdef HAVE_DILITHIUM
                 case dilithium_level2_sa_algo:
                     ret = decodeDilithiumKey(ssl, 2);
                     break;
@@ -9962,12 +9975,15 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 case dilithium_level5_sa_algo:
                     ret = decodeDilithiumKey(ssl, 5);
                     break;
+            #endif
+            #ifdef HAVE_FALCON
                 case falcon_level1_sa_algo:
                     ret = decodeFalconKey(ssl, 1);
                     break;
                 case falcon_level5_sa_algo:
                     ret = decodeFalconKey(ssl, 5);
                     break;
+            #endif
                 default:
                     ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
                 }
@@ -9978,17 +9994,22 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if (*ssl->sigSpec == WOLFSSL_CKS_SIGSPEC_ALTERNATIVE) {
                     /* Now swap in the alternative by removing the native.
                      * sa contains the alternative signature type. */
+                #ifndef NO_RSA
                     if (ssl->peerRsaKeyPresent && sa != rsa_pss_sa_algo) {
                         FreeKey(ssl, DYNAMIC_TYPE_RSA,
                                 (void**)&ssl->peerRsaKey);
                         ssl->peerRsaKeyPresent = 0;
                     }
+                #endif
+                #ifdef HAVE_ECC
                     else if (ssl->peerEccDsaKeyPresent &&
                              sa != ecc_dsa_sa_algo) {
                         FreeKey(ssl, DYNAMIC_TYPE_ECC,
                                 (void**)&ssl->peerEccDsaKey);
                         ssl->peerEccDsaKeyPresent = 0;
                     }
+                #endif
+                #ifdef HAVE_DILITHIUM
                     else if (ssl->peerDilithiumKeyPresent &&
                              sa != dilithium_level2_sa_algo &&
                              sa != dilithium_level3_sa_algo &&
@@ -9997,6 +10018,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                 (void**)&ssl->peerDilithiumKey);
                         ssl->peerDilithiumKeyPresent = 0;
                     }
+                #endif
+                #ifdef HAVE_FALCON
                     else if (ssl->peerFalconKeyPresent &&
                              sa != falcon_level1_sa_algo &&
                              sa != falcon_level5_sa_algo) {
@@ -10004,6 +10027,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                 (void**)&ssl->peerFalconKey);
                         ssl->peerFalconKeyPresent = 0;
                     }
+                #endif
                     else {
                         ERROR_OUT(PEER_KEY_ERROR, exit_dcv);
                     }

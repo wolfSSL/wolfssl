@@ -988,6 +988,11 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
     RsaKey caKey;
     ecc_key altCaKey;
     word32 idx = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&caKey, 0, sizeof(RsaKey));
+    XMEMSET(&altCaKey, 0, sizeof(ecc_key));
+
     ExpectNotNull(outBuf = (byte*)XMALLOC(outSz, NULL,
                   DYNAMIC_TYPE_TMP_BUFFER));
     ExpectIntEQ(wc_InitRng(&rng), 0);
@@ -1057,7 +1062,9 @@ static int do_dual_alg_root_certgen(byte **out, char *caKeyFile,
                 altSigValSz), 0);
 
     /* Finally, generate the new certificate. */
-    XMEMSET(outBuf, 0, outSz);
+    if (outBuf != NULL) {
+        XMEMSET(outBuf, 0, outSz);
+    }
     ExpectIntGT(outSz = wc_MakeSelfCert(&newCert, outBuf, outSz, &caKey, &rng),
                 0);
     *out = outBuf;
@@ -1100,6 +1107,12 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     RsaKey serverKey;
     ecc_key altCaKey;
     word32 idx = 0;
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+    XMEMSET(&caKey, 0, sizeof(RsaKey));
+    XMEMSET(&serverKey, 0, sizeof(RsaKey));
+    XMEMSET(&altCaKey, 0, sizeof(ecc_key));
+
     ExpectNotNull(outBuf = (byte*)XMALLOC(outSz, NULL,
                   DYNAMIC_TYPE_TMP_BUFFER));
     ExpectIntEQ(wc_InitRng(&rng), 0);
@@ -1181,7 +1194,9 @@ static int do_dual_alg_server_certgen(byte **out, char *caKeyFile,
     ExpectIntEQ(wc_SetCustomExtension(&newCert, 0, "2.5.29.74",
                  altSigValBuf, altSigValSz), 0);
     /* Finally, generate the new certificate. */
-    XMEMSET(outBuf, 0, outSz);
+    if (outBuf != NULL) {
+        XMEMSET(outBuf, 0, outSz);
+    }
     ExpectIntGT(wc_MakeCert(&newCert, outBuf, outSz, &serverKey, NULL, &rng),
                 0);
     ExpectIntGT(outSz = wc_SignCert(newCert.bodySz, newCert.sigType, outBuf,
@@ -1259,18 +1274,25 @@ static int test_dual_alg_support(void)
     ExpectIntEQ(load_file(keyFile, &serverKey, &serverKeySz), 0);
 
     /* Base normal case. */
-    rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile, altPrivFile);
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile,
+            altPrivFile);
+    }
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
-    serverSz = do_dual_alg_server_certgen(&server, keyFile, sapkiFile,
-                                        altPrivFile, keyFile, root, rootSz);
+    if (EXPECT_SUCCESS()) {
+        serverSz = do_dual_alg_server_certgen(&server, keyFile, sapkiFile,
+            altPrivFile, keyFile, root, rootSz);
+    }
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
     ExpectIntEQ(do_dual_alg_tls13_connection(root, rootSz,
                 server, serverSz, serverKey, (word32)serverKeySz, 0),
                 TEST_SUCCESS);
     XFREE(root, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    root = NULL;
     XFREE(server, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    server = NULL;
 
     /* Now we try a negative case. Note that we use wrongPrivFile to generate
      * the alternative signature and then set negative_test to true for the
@@ -1278,11 +1300,16 @@ static int test_dual_alg_support(void)
      * because the signature won't verify. The exception is if
      * WOLFSSL_TRUST_PEER_CERT is defined. In that case, no verfication happens
      * and this is no longer a negative test. */
-    rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile, wrongPrivFile);
+    if (EXPECT_SUCCESS()) {
+        rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile,
+            wrongPrivFile);
+    }
     ExpectNotNull(root);
     ExpectIntGT(rootSz, 0);
-    serverSz = do_dual_alg_server_certgen(&server, keyFile, sapkiFile,
-                                          wrongPrivFile, keyFile, root, rootSz);
+    if (EXPECT_SUCCESS()) {
+        serverSz = do_dual_alg_server_certgen(&server, keyFile, sapkiFile,
+            wrongPrivFile, keyFile, root, rootSz);
+    }
     ExpectNotNull(server);
     ExpectIntGT(serverSz, 0);
 #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -27976,7 +28003,9 @@ static int test_wc_dilithium_verify(void)
 #if !defined(WOLFSSL_NO_ML_DSA_44)
     ExpectIntEQ(wc_dilithium_import_public(ml_dsa_44_pub_key,
         (word32)sizeof(ml_dsa_44_pub_key), key), 0);
-    XMEMCPY(sig, ml_dsa_44_good_sig, sizeof(ml_dsa_44_good_sig));
+    if (sig != NULL) {
+        XMEMCPY(sig, ml_dsa_44_good_sig, sizeof(ml_dsa_44_good_sig));
+    }
     sigLen = (word32)sizeof(ml_dsa_44_good_sig);
 #else
 #ifdef WOLFSSL_DILITHIUM_NO_MAKE_KEY
@@ -28086,49 +28115,53 @@ static int test_wc_dilithium_verify(void)
     wc_dilithium_free(importKey);
 
 #ifndef WOLFSSL_NO_ML_DSA_44
-    if (sig[sigLen - 5] == 0) {
-        /* Unused hints meant to be 0. */
-        sig[sigLen - 5] = 0xff;
+    if (sig != NULL) {
+        if (sig[sigLen - 5] == 0) {
+            /* Unused hints meant to be 0. */
+            sig[sigLen - 5] = 0xff;
+            res = 1;
+            ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res,
+                key), SIG_VERIFY_E);
+            ExpectIntEQ(res, 0);
+            sig[sigLen - 5] = 0x00;
+        }
+
+        /* Last count of hints must be less than PARAMS_ML_DSA_44_OMEGA == 80 */
+        b = sig[sigLen - 1];
+        sig[sigLen - 1] = 0xff;
         res = 1;
         ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
             SIG_VERIFY_E);
         ExpectIntEQ(res, 0);
-        sig[sigLen - 5] = 0x00;
-    }
+        sig[sigLen - 1] = b;
 
-    /* Last count of hints must be less than PARAMS_ML_DSA_44_OMEGA == 80 */
-    b = sig[sigLen - 1];
-    sig[sigLen - 1] = 0xff;
-    res = 1;
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
-        SIG_VERIFY_E);
-    ExpectIntEQ(res, 0);
-    sig[sigLen - 1] = b;
+        if (sig[sigLen - 4] > 1) {
+            /* Index must be less than previous. */
+            b = sig[sigLen - 84];
+            sig[sigLen - 84] = 0xff;
+            res = 1;
+            ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res,
+                key), SIG_VERIFY_E);
+            ExpectIntEQ(res, 0);
+            sig[sigLen - 84] = b;
+        }
 
-    if (sig[sigLen - 4] > 1) {
-        /* Index must be less than previous. */
-        b = sig[sigLen - 84];
-        sig[sigLen - 84] = 0xff;
+        /* Mess up commit hash. */
+        sig[0] ^= 0x80;
         res = 1;
         ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
-            SIG_VERIFY_E);
+            0);
         ExpectIntEQ(res, 0);
-        sig[sigLen - 84] = b;
+        sig[0] ^= 0x80;
+
+        /* Mess up z. */
+        sig[100] ^= 0x80;
+        res = 1;
+        ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
+            0);
+        ExpectIntEQ(res, 0);
+        sig[100] ^= 0x80;
     }
-
-    /* Mess up commit hash. */
-    sig[0] ^= 0x80;
-    res = 1;
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key), 0);
-    ExpectIntEQ(res, 0);
-    sig[0] ^= 0x80;
-
-    /* Mess up z. */
-    sig[100] ^= 0x80;
-    res = 1;
-    ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key), 0);
-    ExpectIntEQ(res, 0);
-    sig[100] ^= 0x80;
 #endif
 
     wc_dilithium_free(key);
@@ -28220,35 +28253,43 @@ static int test_wc_dilithium_check_key(void)
         &privCheckKeyLen, pubCheckKey, &pubCheckKeyLen), 0);
 
     /* Modify hash. */
-    pubCheckKey[0] ^= 0x80;
-    ExpectIntEQ(wc_dilithium_import_key(NULL, 0, NULL, 0, NULL), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey, 0, NULL, 0, NULL),
-        BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(NULL, 0, pubCheckKey, 0, NULL),
-        BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(NULL, 0, NULL, 0, checkKey),
-        BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(NULL        ,
-        privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        0              , pubCheckKey, pubCheckKeyLen, checkKey), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        privCheckKeyLen, NULL       , pubCheckKeyLen, checkKey), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        privCheckKeyLen, pubCheckKey, 0             , checkKey), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        privCheckKeyLen, pubCheckKey, pubCheckKeyLen, NULL     ), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey), 0);
-    ExpectIntEQ(wc_dilithium_check_key(checkKey), PUBLIC_KEY_E);
-    privCheckKey[0] ^= 0x80;
+    if (pubCheckKey != NULL) {
+        pubCheckKey[0] ^= 0x80;
+        ExpectIntEQ(wc_dilithium_import_key(NULL, 0, NULL, 0, NULL),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(privCheckKey, 0, NULL, 0, NULL),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(NULL, 0, pubCheckKey, 0, NULL),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(NULL, 0, NULL, 0, checkKey),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(NULL        ,
+            privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
+            0              , pubCheckKey, pubCheckKeyLen, checkKey),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
+            privCheckKeyLen, NULL       , pubCheckKeyLen, checkKey),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
+            privCheckKeyLen, pubCheckKey, 0             , checkKey),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
+            privCheckKeyLen, pubCheckKey, pubCheckKeyLen, NULL     ),
+            BAD_FUNC_ARG);
+        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
+            privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey), 0);
+        ExpectIntEQ(wc_dilithium_check_key(checkKey), PUBLIC_KEY_E);
+        pubCheckKey[0] ^= 0x80;
 
-    /* Modify encoded t1. */
-    pubCheckKey[48] ^= 0x80;
-    ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
-        privCheckKeyLen,pubCheckKey, pubCheckKeyLen, checkKey), 0);
-    ExpectIntEQ(wc_dilithium_check_key(checkKey), PUBLIC_KEY_E);
-    privCheckKey[48] ^= 0x80;
+        /* Modify encoded t1. */
+        pubCheckKey[48] ^= 0x80;
+        ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
+            privCheckKeyLen,pubCheckKey, pubCheckKeyLen, checkKey), 0);
+        ExpectIntEQ(wc_dilithium_check_key(checkKey), PUBLIC_KEY_E);
+        pubCheckKey[48] ^= 0x80;
+    }
 
     wc_dilithium_free(checkKey);
     wc_FreeRng(&rng);
@@ -60765,7 +60806,8 @@ static int test_wolfSSL_X509_STORE_set_get_crl_provider(X509_STORE_CTX* ctx,
         if (crl != NULL) {
             char* crl_issuer = X509_NAME_oneline(
                     X509_CRL_get_issuer(crl), NULL, 0);
-            if (XSTRCMP(cert_issuer, crl_issuer) == 0) {
+            if ((crl_issuer != NULL) &&
+                   (XSTRCMP(cert_issuer, crl_issuer) == 0)) {
                 *crl_out = X509_CRL_dup(crl);
                 if (*crl_out != NULL)
                     ret = 1;
@@ -60910,7 +60952,10 @@ static int test_wolfSSL_dup_CA_list(void)
     for (i = 0; i < 3; i++) {
         name = X509_NAME_new();
         ExpectNotNull(name);
-        AssertIntEQ(sk_X509_NAME_push(originalStack, name), WOLFSSL_SUCCESS);
+        ExpectIntEQ(sk_X509_NAME_push(originalStack, name), WOLFSSL_SUCCESS);
+        if (EXPECT_FAIL()) {
+            X509_NAME_free(name);
+        }
     }
 
     copyStack = SSL_dup_CA_list(originalStack);
@@ -60918,7 +60963,7 @@ static int test_wolfSSL_dup_CA_list(void)
     originalCount = sk_X509_NAME_num(originalStack);
     copyCount = sk_X509_NAME_num(copyStack);
 
-    AssertIntEQ(originalCount, copyCount);
+    ExpectIntEQ(originalCount, copyCount);
     sk_X509_NAME_pop_free(originalStack, X509_NAME_free);
     sk_X509_NAME_pop_free(copyStack, X509_NAME_free);
 
@@ -64092,17 +64137,17 @@ static int test_wolfSSL_EC_POINT(void)
     hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_UNCOMPRESSED, ctx);
     ExpectNotNull(hexStr);
     ExpectStrEQ(hexStr, uncompG);
-    AssertNotNull(get_point = EC_POINT_hex2point(group, hexStr, NULL, ctx));
-    AssertIntEQ(EC_POINT_cmp(group, Gxy, get_point, ctx), 0);
+    ExpectNotNull(get_point = EC_POINT_hex2point(group, hexStr, NULL, ctx));
+    ExpectIntEQ(EC_POINT_cmp(group, Gxy, get_point, ctx), 0);
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
 
     hexStr = EC_POINT_point2hex(group, Gxy, POINT_CONVERSION_COMPRESSED, ctx);
     ExpectNotNull(hexStr);
     ExpectStrEQ(hexStr, compG);
     #ifdef HAVE_COMP_KEY
-    AssertNotNull(get_point = EC_POINT_hex2point
+    ExpectNotNull(get_point = EC_POINT_hex2point
                                             (group, hexStr, get_point, ctx));
-    AssertIntEQ(EC_POINT_cmp(group, Gxy, get_point, ctx), 0);
+    ExpectIntEQ(EC_POINT_cmp(group, Gxy, get_point, ctx), 0);
     #endif
     XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
     EC_POINT_free(get_point);
@@ -70554,7 +70599,7 @@ static int test_override_alt_cert_chain(void)
 #define svrRpkCertFile     "./certs/rpk/server-cert-rpk.der"
 #define clntRpkCertFile    "./certs/rpk/client-cert-rpk.der"
 
-#if defined(WOLFSSL_ALWAYS_VERIFY_CB)
+#if defined(WOLFSSL_ALWAYS_VERIFY_CB) && defined(WOLFSSL_TLS13)
 static int MyRpkVerifyCb(int mode, WOLFSSL_X509_STORE_CTX* strctx)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -70563,7 +70608,7 @@ static int MyRpkVerifyCb(int mode, WOLFSSL_X509_STORE_CTX* strctx)
     WOLFSSL_ENTER("MyRpkVerifyCb");
     return ret;
 }
-#endif /* WOLFSSL_ALWAYS_VERIFY_CB */
+#endif /* WOLFSSL_ALWAYS_VERIFY_CB && WOLFSSL_TLS13 */
 
 static WC_INLINE int test_rpk_memio_setup(
     struct test_memio_ctx *ctx,
@@ -70668,7 +70713,7 @@ static int test_rpk_set_xxx_cert_type(void)
     WOLFSSL* ssl = NULL;
     int tp;
 
-    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+    ctx = wolfSSL_CTX_new(wolfTLS_client_method());
     ExpectNotNull(ctx);
 
     ssl = wolfSSL_new(ctx);
@@ -70895,8 +70940,10 @@ static int test_rpk_set_xxx_cert_type(void)
 static int test_tls13_rpk_handshake(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_RPK)
+#if defined(HAVE_RPK) && (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
+#ifdef WOLFSSL_TLS13
     int ret = 0;
+#endif
     WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
     WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
     struct test_memio_ctx test_ctx;
@@ -70906,7 +70953,7 @@ static int test_tls13_rpk_handshake(void)
     int typeCnt_c;
     int typeCnt_s;
     int tp = 0;
-#if defined(WOLFSSL_ALWAYS_VERIFY_CB)
+#if defined(WOLFSSL_ALWAYS_VERIFY_CB) && defined(WOLFSSL_TLS13)
     int isServer;
 #endif
 
@@ -70916,6 +70963,7 @@ static int test_tls13_rpk_handshake(void)
     (void)certType_c;
     (void)certType_s;
 
+#ifndef WOLFSSL_NO_TLS12
     /*  TLS1.2
      *  Both client and server load x509 cert and start handshaking.
      *  Check no negotiation occurred.
@@ -70973,7 +71021,9 @@ static int test_tls13_rpk_handshake(void)
     wolfSSL_CTX_free(ctx_s);
     ssl_c = ssl_s = NULL;
     ctx_c = ctx_s = NULL;
+#endif
 
+#ifdef WOLFSSL_TLS13
     /*  Both client and server load x509 cert and start handshaking.
      *  Check no negotiation occurred.
      */
@@ -71097,8 +71147,10 @@ static int test_tls13_rpk_handshake(void)
     wolfSSL_CTX_free(ctx_s);
     ssl_c = ssl_s = NULL;
     ctx_c = ctx_s = NULL;
+#endif
 
 
+#ifndef WOLFSSL_NO_TLS12
     /*  TLS1.2
      *  Both client and server load RPK cert and start handshaking.
      *  Confirm negotiated cert types match as expected.
@@ -71164,8 +71216,10 @@ static int test_tls13_rpk_handshake(void)
     wolfSSL_CTX_free(ctx_s);
     ssl_c = ssl_s = NULL;
     ctx_c = ctx_s = NULL;
+#endif
 
 
+#ifdef WOLFSSL_TLS13
     /*  Both client and server load x509 cert.
      *  Have client call set_client_cert_type with both RPK and x509.
      *  This doesn't makes client add client cert type extension to ClientHello,
@@ -71563,8 +71617,9 @@ static int test_tls13_rpk_handshake(void)
     ssl_c = ssl_s = NULL;
     ctx_c = ctx_s = NULL;
 #endif /* WOLFSSL_ALWAYS_VERIFY_CB */
+#endif /* WOLFSSL_TLS13 */
 
-#endif /* HAVE_RPK */
+#endif /* HAVE_RPK && (!WOLFSSL_NO_TLS12 || WOLFSSL_TLS13) */
     return EXPECT_RESULT();
 }
 

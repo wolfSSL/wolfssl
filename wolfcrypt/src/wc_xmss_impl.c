@@ -4055,6 +4055,7 @@ int wc_xmss_sigsleft(const XmssParams* params, unsigned char* sk)
     int ret = 0;
     wc_Idx idx;
 
+    WC_IDX_ZERO(idx);
     /* Read index from the secret key. */
     WC_IDX_DECODE(idx, params->idx_len, sk, ret);
     /* Check validity of index. */

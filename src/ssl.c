@@ -5437,6 +5437,25 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         if (!signer)
             ret = MEMORY_ERROR;
     }
+
+#ifdef WOLFSSL_DUAL_ALG_CERTS
+    if (ret == 0 && signer != NULL) {
+        if (cert->extSapkiSet && cert->sapkiLen > 0) {
+            /* Allocated space for alternative public key. */
+            signer->sapkiDer = (byte*)XMALLOC(cert->sapkiLen, cm->heap,
+                                              DYNAMIC_TYPE_PUBLIC_KEY);
+            if (signer->sapkiDer == NULL) {
+                ret = MEMORY_E;
+            }
+            else {
+                XMEMCPY(signer->sapkiDer, cert->sapkiDer, cert->sapkiLen);
+                signer->sapkiLen = cert->sapkiLen;
+                signer->sapkiOID = cert->sapkiOID;
+            }
+        }
+    }
+#endif /* WOLFSSL_DUAL_ALG_CERTS */
+
 #if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
     if (ret == 0 && signer != NULL)
         ret = CalcHashId(cert->serial, cert->serialSz, signer->serialHash);
@@ -5453,22 +5472,6 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
             signer->publicKey      = cert->publicKey;
             signer->pubKeySize     = cert->pubKeySize;
         }
-
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-        if (cert->extSapkiSet && cert->sapkiLen > 0) {
-            /* Allocated space for alternative public key. */
-            signer->sapkiDer = (byte*)XMALLOC(cert->sapkiLen, cm->heap,
-                                              DYNAMIC_TYPE_PUBLIC_KEY);
-            if (signer->sapkiDer == NULL) {
-                ret = MEMORY_E;
-            }
-            else {
-                XMEMCPY(signer->sapkiDer, cert->sapkiDer, cert->sapkiLen);
-                signer->sapkiLen = cert->sapkiLen;
-                signer->sapkiOID = cert->sapkiOID;
-            }
-        }
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
 
         if (cert->subjectCNStored) {
             signer->nameLen        = cert->subjectCNLen;
