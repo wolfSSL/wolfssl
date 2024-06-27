@@ -155,6 +155,7 @@ public class wolfSSL_TLS_CSHarp
 
         Console.WriteLine("Started TCP and waiting for a connection");
         fd = tcp.AcceptSocket();
+
         ssl = wolfssl.new_ssl(ctx);
         if (ssl == IntPtr.Zero)
         {
@@ -208,6 +209,16 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
 
+        /* get and print sni used by the client */
+        if (haveSNI(args)) {
+            IntPtr data = IntPtr.Zero;
+
+            ushort size = wolfssl.SNI_GetRequest(ssl, 0, ref data);
+            string dataStr = Marshal.PtrToStringAnsi(data);
+            Console.WriteLine("(SNI_GetRequest) Size of SNI used by client: " + size);
+            Console.WriteLine("(SNI_GetRequest) SNI used by client: " + dataStr);
+        }
+
         /* print out results of TLS/SSL accept */
         Console.WriteLine("SSL version is " + wolfssl.get_version(ssl));
         Console.WriteLine("SSL cipher suite is " + wolfssl.get_current_cipher(ssl));
@@ -221,6 +232,26 @@ public class wolfSSL_TLS_CSHarp
             return;
         }
         Console.WriteLine(buff);
+
+        /* get and print sni used by the client and also their message */
+        if (haveSNI(args)) {
+            IntPtr result = Marshal.AllocHGlobal(32);
+            IntPtr inOutSz = Marshal.AllocHGlobal(sizeof(int));
+            Marshal.WriteInt32(inOutSz, 32);
+
+            int ret = wolfssl.SNI_GetFromBuffer(buff, 1024, 0, result, inOutSz); 
+            
+            if (ret != wolfssl.SUCCESS) {
+                Console.WriteLine("Error on reading SNI from buffer, ret value = " + ret);
+                tcp.Stop();
+                clean(ssl, ctx);
+                return;
+            }
+
+            string dataStr = Marshal.PtrToStringAnsi(result);
+            Console.WriteLine("(SNI_GetFromBuffer) SNI used by client: " + dataStr);
+        }
+
 
         if (wolfssl.write(ssl, reply, reply.Length) != reply.Length)
         {
