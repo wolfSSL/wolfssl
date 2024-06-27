@@ -224,7 +224,7 @@ public class wolfSSL_TLS_CSHarp
         Console.WriteLine("SSL cipher suite is " + wolfssl.get_current_cipher(ssl));
 
         /* read and print out the message then reply */
-        if (wolfssl.read(ssl, buff, 1023) < 0)
+        if (wolfssl.read(ssl, buff, 1024) < 0)
         {
             Console.WriteLine("Error in read");
             tcp.Stop();
@@ -233,13 +233,24 @@ public class wolfSSL_TLS_CSHarp
         }
         Console.WriteLine(buff);
 
-        /* get and print sni used by the client and also their message */
+        /* get and print sni from a sample buffer, can be used by using the raw client hello */
         if (haveSNI(args)) {
             IntPtr result = Marshal.AllocHGlobal(32);
             IntPtr inOutSz = Marshal.AllocHGlobal(sizeof(int));
             Marshal.WriteInt32(inOutSz, 32);
+            byte [] buffer = { /* www.paypal.com */
+                0x16, 0x03, 0x03, 0x00, 0x64, 0x01, 0x00, 0x00, 0x60, 0x03, 0x03, 0x5c,
+                0xc4, 0xb3, 0x8c, 0x87, 0xef, 0xa4, 0x09, 0xe0, 0x02, 0xab, 0x86, 0xca,
+                0x76, 0xf0, 0x9e, 0x01, 0x65, 0xf6, 0xa6, 0x06, 0x13, 0x1d, 0x0f, 0xa5,
+                0x79, 0xb0, 0xd4, 0x77, 0x22, 0xeb, 0x1a, 0x00, 0x00, 0x16, 0x00, 0x6b,
+                0x00, 0x67, 0x00, 0x39, 0x00, 0x33, 0x00, 0x3d, 0x00, 0x3c, 0x00, 0x35,
+                0x00, 0x2f, 0x00, 0x05, 0x00, 0x04, 0x00, 0x0a, 0x01, 0x00, 0x00, 0x21,
+                0x00, 0x00, 0x00, 0x13, 0x00, 0x11, 0x00, 0x00, 0x0e, 0x77, 0x77, 0x77,
+                0x2e, 0x70, 0x61, 0x79, 0x70, 0x61, 0x6c, 0x2e, 0x63, 0x6f, 0x6d, 0x00,
+                0x0d, 0x00, 0x06, 0x00, 0x04, 0x04, 0x01, 0x02, 0x01
+            };
 
-            int ret = wolfssl.SNI_GetFromBuffer(buff, 1024, 0, result, inOutSz); 
+            int ret = wolfssl.SNI_GetFromBuffer(buffer, 1024, 0, result, inOutSz); 
             
             if (ret != wolfssl.SUCCESS) {
                 Console.WriteLine("Error on reading SNI from buffer, ret value = " + ret);
@@ -248,10 +259,10 @@ public class wolfSSL_TLS_CSHarp
                 return;
             }
 
-            string dataStr = Marshal.PtrToStringAnsi(result);
-            Console.WriteLine("(SNI_GetFromBuffer) SNI used by client: " + dataStr);
-        }
+            string resultStr = Marshal.PtrToStringAnsi(result);
+            Console.WriteLine("(SNI_GetFromBuffer) SNI used by client: " + resultStr);
 
+        }
 
         if (wolfssl.write(ssl, reply, reply.Length) != reply.Length)
         {

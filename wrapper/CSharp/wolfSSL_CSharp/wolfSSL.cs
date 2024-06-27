@@ -333,7 +333,7 @@ namespace wolfSSL.CSharp {
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static ushort wolfSSL_SNI_GetRequest(IntPtr ssl, byte type, ref IntPtr data);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_SNI_GetFromBuffer(StringBuilder clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz);
+        private extern static int wolfSSL_SNI_GetFromBuffer(byte[] clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz);
 
         /********************************
          * SSL Structure
@@ -1217,7 +1217,7 @@ namespace wolfSSL.CSharp {
             }
         }
 
-        public static int SNI_GetFromBuffer(StringBuilder clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz) 
+        public static int SNI_GetFromBuffer(byte []clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz) 
         {
             try {
                 return wolfSSL_SNI_GetFromBuffer(clientHello, helloSz, type, sni, inOutSz);
