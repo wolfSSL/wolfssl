@@ -215,6 +215,17 @@
 #ifdef HAVE_EX_DATA
         session->ownExData = save_ownExData;
 #endif
+
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET) &&                  \
+    defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                    \
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+        if ((session->ticketNonce.data != NULL) &&
+            (session->ticketNonce.data != session->ticketNonce.dataStatic))
+        {
+            XFREE(session->ticketNonce.data, NULL, DYNAMIC_TYPE_SESSION_TICK);
+            session->ticketNonce.data = NULL;
+        }
+#endif
     }
 
 WOLFSSL_ABI
