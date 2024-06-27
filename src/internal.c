@@ -27368,7 +27368,45 @@ static byte MinHashAlgo(WOLFSSL* ssl)
     return sha_mac;
 }
 
+/* Check if a given peer hashSigAlgo is supported in our ssl->suites or
+ * ssl->ctx->suites.
+ *
+ * Returns 1 on match.
+ * Returns 0 otherwise.
+ * */
+static int SupportedHashSigAlgo(WOLFSSL* ssl, const byte * hashSigAlgo)
+{
+    const Suites * suites = NULL;
+    word32         i = 0;
+
+    if (ssl == NULL || hashSigAlgo == NULL) {
+        return 0;
+    }
+
+    suites = WOLFSSL_SUITES(ssl);
+
+    if (suites == NULL || suites->hashSigAlgoSz == 0) {
+        return 0;
+    }
+
+    for (i = 0; (i+1) < suites->hashSigAlgoSz; i += HELLO_EXT_SIGALGO_SZ) {
+        if (XMEMCMP(&suites->hashSigAlgo[i], hashSigAlgo,
+                    HELLO_EXT_SIGALGO_SZ) == 0) {
+            /* Match found. */
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
+{
+    return PickHashSigAlgo_ex(ssl, hashSigAlgo, hashSigAlgoSz, 0);
+}
+
+int PickHashSigAlgo_ex(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
+                       int matchSuites)
 {
     word32 i;
     int ret = WC_NO_ERR_TRACE(MATCH_SUITE_ERROR);
@@ -27408,6 +27446,14 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         /* Keep looking if signature algorithm isn't supported by cert. */
         if (!MatchSigAlgo(ssl, sigAlgo))
             continue;
+
+        if (matchSuites) {
+            /* Keep looking if peer algorithm isn't supported in our ssl->suites
+             * or ssl->ctx->suites. */
+            if (!SupportedHashSigAlgo(ssl, &hashSigAlgo[i])) {
+                continue;
+            }
+        }
 
     #ifdef HAVE_ED25519
         if (ssl->pkCurveOID == ECC_ED25519_OID) {
@@ -35913,8 +35959,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ret = SetCipherSpecs(ssl);
         if (ret != 0)
             return ret;
-        ret = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
-                                         peerSuites->hashSigAlgoSz);
+        ret = PickHashSigAlgo_ex(ssl, peerSuites->hashSigAlgo,
+                                 peerSuites->hashSigAlgoSz, 1);
         if (ret != 0)
             return ret;
 
