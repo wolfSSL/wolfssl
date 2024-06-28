@@ -20338,7 +20338,7 @@ int wolfSSL_version(WOLFSSL* ssl)
     return WOLFSSL_FAILURE;
 }
 
-WOLFSSL_CTX* wolfSSL_get_SSL_CTX(WOLFSSL* ssl)
+WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_SSL_CTX");
     return ssl->ctx;
