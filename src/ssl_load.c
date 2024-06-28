@@ -942,7 +942,8 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 }
 #endif
 
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
 /* See if DER data is an Dilithium private key.
  *
  * Checks size meets minimum Falcon key size.
@@ -1151,7 +1152,8 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
             keyType, keySz);
     }
 #endif /* HAVE_FALCON */
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
     /* Try Falcon if key format is Dilithium level 2k, 3k or 5k or yet unknown.
      */
     if ((ret == 0) && ((*keyFormat == 0) || (*keyFormat == DILITHIUM_LEVEL2k) ||

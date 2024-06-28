@@ -28394,7 +28394,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
         }
     }
 #endif /* HAVE_FALCON */
-#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
+#if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_ASN1)
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
     #endif

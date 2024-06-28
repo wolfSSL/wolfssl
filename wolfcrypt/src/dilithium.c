@@ -7074,8 +7074,7 @@ int wc_dilithium_export_key(dilithium_key* key, byte* priv, word32 *privSz,
 
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
 
-#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) && \
-    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 
 /* Decode the DER encoded Dilithium key.
  *
@@ -7135,13 +7134,13 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             privKeyLen -= DILITHIUM_LEVEL2_PUB_KEY_SIZE;
         }
         else if ((key->level == 3) &&
-                 (privKeyLen != DILITHIUM_LEVEL3_PRV_KEY_SIZE)) {
+                 (privKeyLen == DILITHIUM_LEVEL3_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL3_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
             privKeyLen -= DILITHIUM_LEVEL3_PUB_KEY_SIZE;
         }
         else if ((key->level == 5) &&
-                 (privKeyLen != DILITHIUM_LEVEL5_PRV_KEY_SIZE)) {
+                 (privKeyLen == DILITHIUM_LEVEL5_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL5_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
             privKeyLen -= DILITHIUM_LEVEL5_PUB_KEY_SIZE;
@@ -7150,16 +7149,24 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (ret == 0) {
         /* Check whether public key data was found. */
-        if (pubKeyLen == 0) {
+#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
+        if (pubKeyLen == 0)
+#endif
+        {
             /* No public key data, only import private key data. */
             ret = wc_dilithium_import_private(privKey, privKeyLen, key);
         }
+#if defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
         else {
             /* Import private and public key data. */
             ret = wc_dilithium_import_key(privKey, privKeyLen, pubKey,
                 pubKeyLen, key);
         }
+#endif
     }
+
+    (void)pubKey;
+    (void)pubKeyLen;
 
     return ret;
 }
