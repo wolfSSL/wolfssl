@@ -6840,10 +6840,9 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         }
 
         if (key->sign_k != NULL) {
-            /* currently limiting to SHA256 for auto create */
             if (mp_init(key->sign_k) != MP_OKAY ||
                 wc_ecc_gen_deterministic_k(in, inlen,
-                        WC_HASH_TYPE_SHA256, ecc_get_k(key), key->sign_k,
+                        WC_HASH_TYPE_NONE, ecc_get_k(key), key->sign_k,
                         curve->order, key->heap) != 0) {
                 mp_free(key->sign_k);
                 XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
@@ -6861,8 +6860,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         }
     #else
         key->sign_k_set = 0;
-        /* currently limiting to SHA256 for auto create */
-        if (wc_ecc_gen_deterministic_k(in, inlen, WC_HASH_TYPE_SHA256,
+        if (wc_ecc_gen_deterministic_k(in, inlen, WC_HASH_TYPE_NONE,
                 ecc_get_k(key), key->sign_k, curve->order, key->heap) != 0) {
             err = ECC_PRIV_KEY_E;
         }
@@ -7519,7 +7517,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         enum wc_HashType hashType, mp_int* priv, mp_int* k, mp_int* order,
         void* heap)
 {
-    int ret = 0, qbits = 0;
+    int ret = 0;
 #ifndef WOLFSSL_SMALL_STACK
     byte h1[MAX_ECC_BYTES];
     byte V[WC_MAX_DIGEST_SIZE];
@@ -7533,7 +7531,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     byte *x  = NULL;
     mp_int *z1 = NULL;
 #endif
-    word32 xSz, VSz, KSz, h1len, qLen;
+    word32 qbits = 0, xSz, VSz, KSz, h1len, qLen;
     byte intOct;
 
     if (hash == NULL || k == NULL || order == NULL) {
@@ -7545,9 +7543,17 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         return BAD_FUNC_ARG;
     }
 
-    if (hashSz != WC_SHA256_DIGEST_SIZE) {
-        WOLFSSL_MSG("Currently only SHA256 digest is supported");
-        return BAD_FUNC_ARG;
+    /* if none is provided then detect has type based on hash size */
+    if (hashType == WC_HASH_TYPE_NONE) {
+        if (hashSz >= 64) {
+            hashType = WC_HASH_TYPE_SHA512;
+        }
+        else if (hashSz >= 48) {
+            hashType = WC_HASH_TYPE_SHA384;
+        }
+        else {
+            hashType = WC_HASH_TYPE_SHA256;
+        }
     }
 
     if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
@@ -7615,6 +7621,12 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         wc_MemZero_Add("wc_ecc_gen_deterministic_k x", x, qLen);
     #endif
         qbits = mp_count_bits(order);
+
+         /* hash truncate if too long */
+        if (((WOLFSSL_BIT_SIZE) * hashSz) > qbits) {
+            /* calculate truncated hash size using bits rounded up byte */
+            hashSz = (qbits + ((WOLFSSL_BIT_SIZE) - 1)) / (WOLFSSL_BIT_SIZE);
+        }
         ret = mp_read_unsigned_bin(z1, hash, hashSz);
     }
 
@@ -7636,7 +7648,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = BUFFER_E;
             }
             else {
-                ret = mp_to_unsigned_bin_len(z1, h1, h1len);
+                ret = mp_to_unsigned_bin_len(z1, h1, (int)h1len);
             }
         }
         else
@@ -7705,7 +7717,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = mp_read_unsigned_bin(k, x, xSz);
             }
 
-            if ((ret == 0) && ((int)(xSz * WOLFSSL_BIT_SIZE) != qbits)) {
+            if ((ret == 0) && ((xSz * WOLFSSL_BIT_SIZE) != qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
                  *  k = bits2int(T) in section 3.2 h.3 */
                 mp_rshb(k, ((int)xSz * WOLFSSL_BIT_SIZE) - qbits);
