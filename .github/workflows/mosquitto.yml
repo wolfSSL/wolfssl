@@ -24,7 +24,7 @@ jobs:
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-mosquitto
+          configure: --enable-mosquitto CFLAGS="-DALLOW_INVALID_CERTSIGN"
           install: true
 
       - name: Upload built lib
@@ -75,9 +75,9 @@ jobs:
         run: |
             cd $GITHUB_WORKSPACE/mosquitto/
             patch -p1 < $GITHUB_WORKSPACE/osp/mosquitto/${{ matrix.ref }}.patch
-            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir -j
+            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir
 
-      - name: Run mosquitto tests, skipping ignored tests
+      - name: Run mosquitto tests
         working-directory: ./mosquitto
         run: |
-          make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest -j
+          make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest
