@@ -24,7 +24,7 @@ jobs:
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
           path: wolfssl
-          configure: --enable-mosquitto
+          configure: --enable-mosquitto CFLAGS="-DALLOW_INVALID_CERTSIGN -DWOLFSSL_CRL_ALLOW_MISSING_CDP"
           install: true
 
       - name: Upload built lib
