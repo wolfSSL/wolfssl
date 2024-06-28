@@ -27400,13 +27400,8 @@ static int SupportedHashSigAlgo(WOLFSSL* ssl, const byte * hashSigAlgo)
     return 0;
 }
 
-int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
-{
-    return PickHashSigAlgo_ex(ssl, hashSigAlgo, hashSigAlgoSz, 0);
-}
-
-int PickHashSigAlgo_ex(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
-                       int matchSuites)
+int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
+                    int matchSuites)
 {
     word32 i;
     int ret = WC_NO_ERR_TRACE(MATCH_SUITE_ERROR);
@@ -30074,7 +30069,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             if ((len > size) || ((*inOutIdx - begin) + len > size))
                 return BUFFER_ERROR;
 
-            if (PickHashSigAlgo(ssl, input + *inOutIdx, len) != 0 &&
+            if (PickHashSigAlgo(ssl, input + *inOutIdx, len, 0) != 0 &&
                                              ssl->buffers.certificate &&
                                              ssl->buffers.certificate->buffer) {
             #ifdef HAVE_PK_CALLBACKS
@@ -35959,8 +35954,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ret = SetCipherSpecs(ssl);
         if (ret != 0)
             return ret;
-        ret = PickHashSigAlgo_ex(ssl, peerSuites->hashSigAlgo,
-                                 peerSuites->hashSigAlgoSz, 1);
+        ret = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
+                              peerSuites->hashSigAlgoSz, 1);
         if (ret != 0)
             return ret;
 
@@ -36323,7 +36318,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ret = SetCipherSpecs(ssl);
                 if (ret == 0) {
                     ret = PickHashSigAlgo(ssl, clSuites->hashSigAlgo,
-                                               clSuites->hashSigAlgoSz);
+                                          clSuites->hashSigAlgoSz, 0);
                 }
             }
             else if (ret == 0) {
