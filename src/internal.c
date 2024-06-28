@@ -38846,6 +38846,10 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
     WOLFSSL_ENTER("DefTicketEncCb");
 
+    if ((!enc) && (inLen != sizeof(InternalTicket))) {
+        return BUFFER_E;
+    }
+
     /* Check we have setup the RNG, name and primary key. */
     if (keyCtx->expirary[0] == 0) {
 #ifndef SINGLE_THREADED
