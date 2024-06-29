@@ -201,6 +201,9 @@
     #include <sys/filio.h>
 #endif
 
+#define SOCKET_RECEIVING 1
+#define SOCKET_SENDING 2
+
 #ifdef USE_WINDOWS_API
     /* no epipe yet */
     #ifndef WSAEPIPE
@@ -228,6 +231,7 @@
         /* RTCS old I/O doesn't have an EWOULDBLOCK */
         #define SOCKET_EWOULDBLOCK  EAGAIN
         #define SOCKET_EAGAIN       EAGAIN
+        #define SOCKET_ETIMEDOUT    RTCSERR_TCP_TIMED_OUT
         #define SOCKET_ECONNRESET   RTCSERR_TCP_CONN_RESET
         #define SOCKET_EINTR        EINTR
         #define SOCKET_EPIPE        EPIPE
@@ -236,6 +240,7 @@
     #else
         #define SOCKET_EWOULDBLOCK  NIO_EWOULDBLOCK
         #define SOCKET_EAGAIN       NIO_EAGAIN
+        #define SOCKET_ETIMEDOUT    NIO_ETIMEDOUT
         #define SOCKET_ECONNRESET   NIO_ECONNRESET
         #define SOCKET_EINTR        NIO_EINTR
         #define SOCKET_EPIPE        NIO_EPIPE
@@ -253,6 +258,7 @@
 #elif defined(WOLFSSL_PICOTCP)
     #define SOCKET_EWOULDBLOCK  PICO_ERR_EAGAIN
     #define SOCKET_EAGAIN       PICO_ERR_EAGAIN
+    #define SOCKET_ETIMEDOUT    PICO_ERR_ETIMEDOUT
     #define SOCKET_ECONNRESET   PICO_ERR_ECONNRESET
     #define SOCKET_EINTR        PICO_ERR_EINTR
     #define SOCKET_EPIPE        PICO_ERR_EIO
@@ -261,6 +267,7 @@
 #elif defined(FREERTOS_TCP)
     #define SOCKET_EWOULDBLOCK FREERTOS_EWOULDBLOCK
     #define SOCKET_EAGAIN       FREERTOS_EWOULDBLOCK
+    #define SOCKET_ETIMEDOUT    (-pdFREERTOS_ERRNO_ETIMEDOUT)
     #define SOCKET_ECONNRESET   FREERTOS_SOCKET_ERROR
     #define SOCKET_EINTR        FREERTOS_SOCKET_ERROR
     #define SOCKET_EPIPE        FREERTOS_SOCKET_ERROR
