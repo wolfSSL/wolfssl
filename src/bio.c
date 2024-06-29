@@ -353,8 +353,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                  *  (cannot be used with WOLFSSL_USER_IO) */
                 bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
                 ret = wolfIO_Recv(bio->num, (char*)buf, len, 0);
-                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
+                if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
                     bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
                     ret = WOLFSSL_BIO_ERROR;
                 }
             #else
@@ -374,8 +376,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                     wolfSSL_BIO_ADDR_clear(&bio->peer_addr);
                     ret = wolfIO_RecvFrom(bio->num, &bio->peer_addr, (char*)buf, len, 0);
                 }
-                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
+                if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
                     bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
                     ret = WOLFSSL_BIO_ERROR;
                 }
             #else
@@ -772,8 +776,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                  *  (cannot be used with WOLFSSL_USER_IO) */
                 bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
                 ret = wolfIO_Send(bio->num, (char*)data, len, 0);
-                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
+                if (ret == WOLFSSL_CBIO_ERR_WANT_WRITE) {
                     bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
                     ret = WOLFSSL_BIO_ERROR;
                 }
             #else
@@ -793,8 +799,10 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                     ret = SOCKET_ERROR_E;
                 else
                     ret = wolfIO_SendTo(bio->num, &bio->peer_addr, (char*)data, len, 0);
-                if (ret == WC_NO_ERR_TRACE(SOCKET_NODATA)) {
+                if (ret == WOLFSSL_CBIO_ERR_WANT_WRITE) {
                     bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
                     ret = WOLFSSL_BIO_ERROR;
                 }
             #else
