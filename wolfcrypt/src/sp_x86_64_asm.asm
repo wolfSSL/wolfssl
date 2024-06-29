@@ -9712,14 +9712,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_16 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -10869,14 +10869,14 @@ sp_2048_get_from_table_16 PROC
         movdqu	OWORD PTR [rcx+32], xmm6
         movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 8-15
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_2048_get_from_table_16 ENDP
@@ -13169,14 +13169,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_32 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -17774,14 +17774,14 @@ sp_2048_get_from_table_32 PROC
         movdqu	OWORD PTR [rcx+32], xmm6
         movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 24-31
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_2048_get_from_table_32 ENDP
@@ -31837,14 +31837,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_24 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -33582,14 +33582,14 @@ sp_3072_get_from_table_24 PROC
         movdqu	OWORD PTR [rcx+32], xmm6
         movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 16-23
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_3072_get_from_table_24 ENDP
@@ -36853,14 +36853,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_48 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -38650,14 +38650,14 @@ sp_3072_get_from_table_48 PROC
         movdqu	OWORD PTR [rcx+32], xmm6
         movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 40-47
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_3072_get_from_table_48 ENDP
@@ -49224,14 +49224,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_4096_get_from_table_64 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -51621,14 +51621,14 @@ sp_4096_get_from_table_64 PROC
         movdqu	OWORD PTR [rcx+32], xmm6
         movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 56-63
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_4096_get_from_table_64 ENDP
