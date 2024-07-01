@@ -29155,7 +29155,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     sigSz = sizeof(sig);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, wc_HashGetDigestSize(hashType),
@@ -29180,7 +29180,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash(sig, sigSz,
@@ -29207,7 +29207,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     sigSz = sizeof(sig);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, wc_HashGetDigestSize(hashType),
@@ -29232,7 +29232,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash(sig, sigSz,
@@ -29259,7 +29259,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     sigSz = sizeof(sig);
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash(hash, wc_HashGetDigestSize(hashType),
@@ -29284,7 +29284,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash(sig, sigSz,
@@ -29409,7 +29409,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
@@ -29430,7 +29430,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash_ex(r, s,
@@ -29456,7 +29456,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
@@ -29477,7 +29477,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash_ex(r, s,
@@ -29503,7 +29503,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
@@ -29524,7 +29524,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash_ex(r, s,
@@ -29669,7 +29669,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
@@ -29690,7 +29690,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash_ex(r, s,
@@ -29716,7 +29716,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
@@ -29737,7 +29737,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash_ex(r, s,
@@ -29763,7 +29763,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
@@ -29784,7 +29784,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     #endif
         if (ret == 0)
             ret = wc_ecc_verify_hash_ex(r, s,
