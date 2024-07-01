@@ -257,12 +257,12 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
          * Can handle only RSA PkCS#1v1.5 padding scheme here.
          */
         if (info->pk.rsa.type == RSA_PRIVATE_ENCRYPT) {
-            ret = tsip_SignRsaPkcs(info, ctx);
+            ret = tsip_SignRsaPkcs(info, cbInfo);
         }
         #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
         /* RSA Verify */
         if (info->pk.rsa.type == RSA_PUBLIC_DECRYPT) {
-            ret = wc_tsip_RsaVerifyPkcs(info, ctx);
+            ret = wc_tsip_RsaVerifyPkcs(info, cbInfo);
         }
         #endif
     #endif /* !NO_RSA */
@@ -270,12 +270,12 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #if defined(HAVE_ECC)
         #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
-            ret = tsip_SignEcdsa(info, ctx);
+            ret = tsip_SignEcdsa(info, cbInfo);
         }
         #endif
         #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
         if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
-            ret = tsip_VerifyEcdsa(info, ctx);
+            ret = tsip_VerifyEcdsa(info, cbInfo);
         }
         #endif
     #endif /* HAVE_ECC */
@@ -814,7 +814,7 @@ WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx)
     WOLFSSL_ENTER("Renesas_cmn_generateSessionKey");
     if (Renesas_cmn_usable(ssl, 0)) {
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-        ret = wc_tsip_generateSessionKey(ssl, (TsipUserCtx*)ctx, cbInfo->devId);
+        ret = wc_tsip_generateSessionKey(ssl, cbInfo, cbInfo->devId);
 #elif defined(WOLFSSL_RENESAS_FSPSM_TLS)
         ret = wc_fspsm_generateSessionKey(ssl, ctx, cbInfo->devId);
 #endif
