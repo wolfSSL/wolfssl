@@ -11339,7 +11339,8 @@ static int test_wolfSSL_UseMaxFragment(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MAX_FRAGMENT) && \
+    defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)
     /* check negotiated max fragment size */
     {
         WOLFSSL *ssl_c = NULL;
@@ -11354,8 +11355,10 @@ static int test_wolfSSL_UseMaxFragment(void)
         ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c, WOLFSSL_MFL_2_8),
             WOLFSSL_SUCCESS);
         ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#ifndef NO_SESSION_CACHE
         ExpectIntEQ(SSL_SESSION_get_max_fragment_length(
             wolfSSL_get_session(ssl_c)), WOLFSSL_MFL_2_8);
+#endif
 
         wolfSSL_free(ssl_c);
         wolfSSL_free(ssl_s);
@@ -34035,21 +34038,21 @@ static int test_wolfSSL_ASN1_UNIVERSALSTRING_to_string(void)
 static int test_wolfSSL_ASN1_GENERALIZEDTIME_free(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME)
     WOLFSSL_ASN1_GENERALIZEDTIME* asn1_gtime = NULL;
 
     ExpectNotNull(asn1_gtime = ASN1_GENERALIZEDTIME_new());
     if (asn1_gtime != NULL)
         XMEMCPY(asn1_gtime->data, "20180504123500Z", ASN_GENERALIZED_TIME_SIZE);
     ASN1_GENERALIZEDTIME_free(asn1_gtime);
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !NO_ASN_TIME */
     return EXPECT_RESULT();
 }
 
 static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_BIO)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) && !defined(NO_BIO)
     WOLFSSL_ASN1_GENERALIZEDTIME* gtime = NULL;
     BIO* bio = NULL;
     unsigned char buf[24];
@@ -34087,7 +34090,7 @@ static int test_wolfSSL_ASN1_GENERALIZEDTIME_print(void)
     BIO_free(bio);
 
     wolfSSL_ASN1_GENERALIZEDTIME_free(gtime);
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !NO_ASN_TIME && !NO_BIO */
     return EXPECT_RESULT();
 }
 
