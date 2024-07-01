@@ -32,8 +32,6 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 #ifndef WOLFSSL_ARMASM_INLINE
-#ifdef WOLFSSL_SHA3
-#ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.type	L_sha3_arm2_neon_rt, %object
 	.size	L_sha3_arm2_neon_rt, 192
@@ -87,6 +85,60 @@ L_sha3_arm2_neon_rt:
 	.word	0x0
 	.word	0x80008008
 	.word	0x80000000
+	.text
+	.type	L_sha3_arm2_rt, %object
+	.size	L_sha3_arm2_rt, 192
+	.align	4
+L_sha3_arm2_rt:
+	.word	0x1
+	.word	0x0
+	.word	0x8082
+	.word	0x0
+	.word	0x808a
+	.word	0x80000000
+	.word	0x80008000
+	.word	0x80000000
+	.word	0x808b
+	.word	0x0
+	.word	0x80000001
+	.word	0x0
+	.word	0x80008081
+	.word	0x80000000
+	.word	0x8009
+	.word	0x80000000
+	.word	0x8a
+	.word	0x0
+	.word	0x88
+	.word	0x0
+	.word	0x80008009
+	.word	0x0
+	.word	0x8000000a
+	.word	0x0
+	.word	0x8000808b
+	.word	0x0
+	.word	0x8b
+	.word	0x80000000
+	.word	0x8089
+	.word	0x80000000
+	.word	0x8003
+	.word	0x80000000
+	.word	0x8002
+	.word	0x80000000
+	.word	0x80
+	.word	0x80000000
+	.word	0x800a
+	.word	0x0
+	.word	0x8000000a
+	.word	0x80000000
+	.word	0x80008081
+	.word	0x80000000
+	.word	0x8080
+	.word	0x80000000
+	.word	0x80000001
+	.word	0x0
+	.word	0x80008008
+	.word	0x80000000
+#ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.align	4
 	.globl	BlockSha3
@@ -356,59 +408,6 @@ L_sha3_arm32_neon_begin:
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
 	.text
-	.type	L_sha3_arm2_rt, %object
-	.size	L_sha3_arm2_rt, 192
-	.align	4
-L_sha3_arm2_rt:
-	.word	0x1
-	.word	0x0
-	.word	0x8082
-	.word	0x0
-	.word	0x808a
-	.word	0x80000000
-	.word	0x80008000
-	.word	0x80000000
-	.word	0x808b
-	.word	0x0
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8009
-	.word	0x80000000
-	.word	0x8a
-	.word	0x0
-	.word	0x88
-	.word	0x0
-	.word	0x80008009
-	.word	0x0
-	.word	0x8000000a
-	.word	0x0
-	.word	0x8000808b
-	.word	0x0
-	.word	0x8b
-	.word	0x80000000
-	.word	0x8089
-	.word	0x80000000
-	.word	0x8003
-	.word	0x80000000
-	.word	0x8002
-	.word	0x80000000
-	.word	0x80
-	.word	0x80000000
-	.word	0x800a
-	.word	0x0
-	.word	0x8000000a
-	.word	0x80000000
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8080
-	.word	0x80000000
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008008
-	.word	0x80000000
-	.text
 	.align	4
 	.globl	BlockSha3
 	.type	BlockSha3, %function
@@ -423,25 +422,25 @@ L_sha3_arm32_begin:
 	# Calc b[4]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #32]
-	ldr	r5, [r0, #40]
+	ldr	r5, [r0, #36]
 #else
 	ldrd	r4, r5, [r0, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #72]
-	ldr	r7, [r0, #80]
+	ldr	r7, [r0, #76]
 #else
 	ldrd	r6, r7, [r0, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #112]
-	ldr	r9, [r0, #120]
+	ldr	r9, [r0, #116]
 #else
 	ldrd	r8, r9, [r0, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #152]
-	ldr	r11, [r0, #160]
+	ldr	r11, [r0, #156]
 #else
 	ldrd	r10, r11, [r0, #152]
 #endif
@@ -457,32 +456,32 @@ L_sha3_arm32_begin:
 	eor	r3, r3, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r2, [sp, #32]
-	str	r3, [sp, #40]
+	str	r3, [sp, #36]
 #else
 	strd	r2, r3, [sp, #32]
 #endif
 	# Calc b[1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #16]
+	ldr	r5, [r0, #12]
 #else
 	ldrd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #48]
-	ldr	r7, [r0, #56]
+	ldr	r7, [r0, #52]
 #else
 	ldrd	r6, r7, [r0, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #88]
-	ldr	r9, [r0, #96]
+	ldr	r9, [r0, #92]
 #else
 	ldrd	r8, r9, [r0, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #128]
-	ldr	r11, [r0, #136]
+	ldr	r11, [r0, #132]
 #else
 	ldrd	r10, r11, [r0, #128]
 #endif
@@ -498,7 +497,7 @@ L_sha3_arm32_begin:
 	eor	r5, r5, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [sp, #8]
-	str	r5, [sp, #16]
+	str	r5, [sp, #12]
 #else
 	strd	r4, r5, [sp, #8]
 #endif
@@ -510,25 +509,25 @@ L_sha3_arm32_begin:
 	# Calc b[0] and XOR t[0] into s[x*5+0]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0]
-	ldr	r5, [r0, #8]
+	ldr	r5, [r0, #4]
 #else
 	ldrd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #40]
-	ldr	r7, [r0, #48]
+	ldr	r7, [r0, #44]
 #else
 	ldrd	r6, r7, [r0, #40]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #80]
-	ldr	r9, [r0, #88]
+	ldr	r9, [r0, #84]
 #else
 	ldrd	r8, r9, [r0, #80]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #120]
-	ldr	r11, [r0, #128]
+	ldr	r11, [r0, #124]
 #else
 	ldrd	r10, r11, [r0, #120]
 #endif
@@ -548,31 +547,31 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [r0]
-	str	r5, [r0, #8]
+	str	r5, [r0, #4]
 #else
 	strd	r4, r5, [r0]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [r0, #40]
-	str	r7, [r0, #48]
+	str	r7, [r0, #44]
 #else
 	strd	r6, r7, [r0, #40]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [r0, #80]
-	str	r9, [r0, #88]
+	str	r9, [r0, #84]
 #else
 	strd	r8, r9, [r0, #80]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [r0, #120]
-	str	r11, [r0, #128]
+	str	r11, [r0, #124]
 #else
 	strd	r10, r11, [r0, #120]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #160]
-	ldr	r11, [r0, #168]
+	ldr	r11, [r0, #164]
 #else
 	ldrd	r10, r11, [r0, #160]
 #endif
@@ -582,7 +581,7 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [r0, #160]
-	str	r11, [r0, #168]
+	str	r11, [r0, #164]
 #else
 	strd	r10, r11, [r0, #160]
 #endif
@@ -591,25 +590,25 @@ L_sha3_arm32_begin:
 	# Calc b[3]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #32]
+	ldr	r5, [r0, #28]
 #else
 	ldrd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #64]
-	ldr	r7, [r0, #72]
+	ldr	r7, [r0, #68]
 #else
 	ldrd	r6, r7, [r0, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #104]
-	ldr	r9, [r0, #112]
+	ldr	r9, [r0, #108]
 #else
 	ldrd	r8, r9, [r0, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #144]
-	ldr	r11, [r0, #152]
+	ldr	r11, [r0, #148]
 #else
 	ldrd	r10, r11, [r0, #144]
 #endif
@@ -625,14 +624,14 @@ L_sha3_arm32_begin:
 	eor	r5, r5, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [sp, #24]
-	str	r5, [sp, #32]
+	str	r5, [sp, #28]
 #else
 	strd	r4, r5, [sp, #24]
 #endif
 	# Calc t[2]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp, #8]
-	ldr	r3, [sp, #16]
+	ldr	r3, [sp, #12]
 #else
 	ldrd	r2, r3, [sp, #8]
 #endif
@@ -643,25 +642,25 @@ L_sha3_arm32_begin:
 	# Calc b[2] and XOR t[2] into s[x*5+2]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #16]
-	ldr	r5, [r0, #24]
+	ldr	r5, [r0, #20]
 #else
 	ldrd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #56]
-	ldr	r7, [r0, #64]
+	ldr	r7, [r0, #60]
 #else
 	ldrd	r6, r7, [r0, #56]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #96]
-	ldr	r9, [r0, #104]
+	ldr	r9, [r0, #100]
 #else
 	ldrd	r8, r9, [r0, #96]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #136]
-	ldr	r11, [r0, #144]
+	ldr	r11, [r0, #140]
 #else
 	ldrd	r10, r11, [r0, #136]
 #endif
@@ -681,31 +680,31 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [r0, #16]
-	str	r5, [r0, #24]
+	str	r5, [r0, #20]
 #else
 	strd	r4, r5, [r0, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [r0, #56]
-	str	r7, [r0, #64]
+	str	r7, [r0, #60]
 #else
 	strd	r6, r7, [r0, #56]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [r0, #96]
-	str	r9, [r0, #104]
+	str	r9, [r0, #100]
 #else
 	strd	r8, r9, [r0, #96]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [r0, #136]
-	str	r11, [r0, #144]
+	str	r11, [r0, #140]
 #else
 	strd	r10, r11, [r0, #136]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #176]
-	ldr	r11, [r0, #184]
+	ldr	r11, [r0, #180]
 #else
 	ldrd	r10, r11, [r0, #176]
 #endif
@@ -715,7 +714,7 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [r0, #176]
-	str	r11, [r0, #184]
+	str	r11, [r0, #180]
 #else
 	strd	r10, r11, [r0, #176]
 #endif
@@ -724,7 +723,7 @@ L_sha3_arm32_begin:
 	# Calc t[1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp]
-	ldr	r3, [sp, #8]
+	ldr	r3, [sp, #4]
 #else
 	ldrd	r2, r3, [sp]
 #endif
@@ -735,25 +734,25 @@ L_sha3_arm32_begin:
 	# XOR t[1] into s[x*5+1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #8]
-	ldr	r5, [r0, #16]
+	ldr	r5, [r0, #12]
 #else
 	ldrd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #48]
-	ldr	r7, [r0, #56]
+	ldr	r7, [r0, #52]
 #else
 	ldrd	r6, r7, [r0, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #88]
-	ldr	r9, [r0, #96]
+	ldr	r9, [r0, #92]
 #else
 	ldrd	r8, r9, [r0, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #128]
-	ldr	r11, [r0, #136]
+	ldr	r11, [r0, #132]
 #else
 	ldrd	r10, r11, [r0, #128]
 #endif
@@ -771,25 +770,25 @@ L_sha3_arm32_begin:
 	eor	lr, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [r0, #8]
-	str	r5, [r0, #16]
+	str	r5, [r0, #12]
 #else
 	strd	r4, r5, [r0, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [r0, #48]
-	str	r7, [r0, #56]
+	str	r7, [r0, #52]
 #else
 	strd	r6, r7, [r0, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [r0, #88]
-	str	r9, [r0, #96]
+	str	r9, [r0, #92]
 #else
 	strd	r8, r9, [r0, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [r0, #128]
-	str	r11, [r0, #136]
+	str	r11, [r0, #132]
 #else
 	strd	r10, r11, [r0, #128]
 #endif
@@ -798,13 +797,13 @@ L_sha3_arm32_begin:
 	# Calc t[3]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp, #16]
-	ldr	r3, [sp, #24]
+	ldr	r3, [sp, #20]
 #else
 	ldrd	r2, r3, [sp, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #32]
-	ldr	r5, [sp, #40]
+	ldr	r5, [sp, #36]
 #else
 	ldrd	r4, r5, [sp, #32]
 #endif
@@ -815,25 +814,25 @@ L_sha3_arm32_begin:
 	# XOR t[3] into s[x*5+3]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #24]
-	ldr	r5, [r0, #32]
+	ldr	r5, [r0, #28]
 #else
 	ldrd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #64]
-	ldr	r7, [r0, #72]
+	ldr	r7, [r0, #68]
 #else
 	ldrd	r6, r7, [r0, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #104]
-	ldr	r9, [r0, #112]
+	ldr	r9, [r0, #108]
 #else
 	ldrd	r8, r9, [r0, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #144]
-	ldr	r11, [r0, #152]
+	ldr	r11, [r0, #148]
 #else
 	ldrd	r10, r11, [r0, #144]
 #endif
@@ -851,25 +850,25 @@ L_sha3_arm32_begin:
 	eor	lr, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [r0, #24]
-	str	r5, [r0, #32]
+	str	r5, [r0, #28]
 #else
 	strd	r4, r5, [r0, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [r0, #64]
-	str	r7, [r0, #72]
+	str	r7, [r0, #68]
 #else
 	strd	r6, r7, [r0, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [r0, #104]
-	str	r9, [r0, #112]
+	str	r9, [r0, #108]
 #else
 	strd	r8, r9, [r0, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [r0, #144]
-	str	r11, [r0, #152]
+	str	r11, [r0, #148]
 #else
 	strd	r10, r11, [r0, #144]
 #endif
@@ -878,13 +877,13 @@ L_sha3_arm32_begin:
 	# Calc t[4]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp, #24]
-	ldr	r3, [sp, #32]
+	ldr	r3, [sp, #28]
 #else
 	ldrd	r2, r3, [sp, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp]
-	ldr	r5, [sp, #8]
+	ldr	r5, [sp, #4]
 #else
 	ldrd	r4, r5, [sp]
 #endif
@@ -895,25 +894,25 @@ L_sha3_arm32_begin:
 	# XOR t[4] into s[x*5+4]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #32]
-	ldr	r5, [r0, #40]
+	ldr	r5, [r0, #36]
 #else
 	ldrd	r4, r5, [r0, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #72]
-	ldr	r7, [r0, #80]
+	ldr	r7, [r0, #76]
 #else
 	ldrd	r6, r7, [r0, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #112]
-	ldr	r9, [r0, #120]
+	ldr	r9, [r0, #116]
 #else
 	ldrd	r8, r9, [r0, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #152]
-	ldr	r11, [r0, #160]
+	ldr	r11, [r0, #156]
 #else
 	ldrd	r10, r11, [r0, #152]
 #endif
@@ -931,25 +930,25 @@ L_sha3_arm32_begin:
 	eor	lr, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [r0, #32]
-	str	r5, [r0, #40]
+	str	r5, [r0, #36]
 #else
 	strd	r4, r5, [r0, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [r0, #72]
-	str	r7, [r0, #80]
+	str	r7, [r0, #76]
 #else
 	strd	r6, r7, [r0, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [r0, #112]
-	str	r9, [r0, #120]
+	str	r9, [r0, #116]
 #else
 	strd	r8, r9, [r0, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [r0, #152]
-	str	r11, [r0, #160]
+	str	r11, [r0, #156]
 #else
 	strd	r10, r11, [r0, #152]
 #endif
@@ -959,31 +958,31 @@ L_sha3_arm32_begin:
 	# Row 0
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0]
-	ldr	r3, [r0, #8]
+	ldr	r3, [r0, #4]
 #else
 	ldrd	r2, r3, [r0]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #48]
-	ldr	r5, [r0, #56]
+	ldr	r5, [r0, #52]
 #else
 	ldrd	r4, r5, [r0, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #96]
-	ldr	r7, [r0, #104]
+	ldr	r7, [r0, #100]
 #else
 	ldrd	r6, r7, [r0, #96]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #144]
-	ldr	r9, [r0, #152]
+	ldr	r9, [r0, #148]
 #else
 	ldrd	r8, r9, [r0, #144]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #192]
-	ldr	r11, [r0, #200]
+	ldr	r11, [r0, #196]
 #else
 	ldrd	r10, r11, [r0, #192]
 #endif
@@ -1053,31 +1052,31 @@ L_sha3_arm32_begin:
 	# Row 1
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0, #24]
-	ldr	r3, [r0, #32]
+	ldr	r3, [r0, #28]
 #else
 	ldrd	r2, r3, [r0, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #72]
-	ldr	r5, [r0, #80]
+	ldr	r5, [r0, #76]
 #else
 	ldrd	r4, r5, [r0, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #80]
-	ldr	r7, [r0, #88]
+	ldr	r7, [r0, #84]
 #else
 	ldrd	r6, r7, [r0, #80]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #128]
-	ldr	r9, [r0, #136]
+	ldr	r9, [r0, #132]
 #else
 	ldrd	r8, r9, [r0, #128]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #176]
-	ldr	r11, [r0, #184]
+	ldr	r11, [r0, #180]
 #else
 	ldrd	r10, r11, [r0, #176]
 #endif
@@ -1141,31 +1140,31 @@ L_sha3_arm32_begin:
 	# Row 2
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0, #8]
-	ldr	r3, [r0, #16]
+	ldr	r3, [r0, #12]
 #else
 	ldrd	r2, r3, [r0, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #56]
-	ldr	r5, [r0, #64]
+	ldr	r5, [r0, #60]
 #else
 	ldrd	r4, r5, [r0, #56]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #104]
-	ldr	r7, [r0, #112]
+	ldr	r7, [r0, #108]
 #else
 	ldrd	r6, r7, [r0, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #152]
-	ldr	r9, [r0, #160]
+	ldr	r9, [r0, #156]
 #else
 	ldrd	r8, r9, [r0, #152]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #160]
-	ldr	r11, [r0, #168]
+	ldr	r11, [r0, #164]
 #else
 	ldrd	r10, r11, [r0, #160]
 #endif
@@ -1227,31 +1226,31 @@ L_sha3_arm32_begin:
 	# Row 3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0, #32]
-	ldr	r3, [r0, #40]
+	ldr	r3, [r0, #36]
 #else
 	ldrd	r2, r3, [r0, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #40]
-	ldr	r5, [r0, #48]
+	ldr	r5, [r0, #44]
 #else
 	ldrd	r4, r5, [r0, #40]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #88]
-	ldr	r7, [r0, #96]
+	ldr	r7, [r0, #92]
 #else
 	ldrd	r6, r7, [r0, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #136]
-	ldr	r9, [r0, #144]
+	ldr	r9, [r0, #140]
 #else
 	ldrd	r8, r9, [r0, #136]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #184]
-	ldr	r11, [r0, #192]
+	ldr	r11, [r0, #188]
 #else
 	ldrd	r10, r11, [r0, #184]
 #endif
@@ -1315,31 +1314,31 @@ L_sha3_arm32_begin:
 	# Row 4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0, #16]
-	ldr	r3, [r0, #24]
+	ldr	r3, [r0, #20]
 #else
 	ldrd	r2, r3, [r0, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #64]
-	ldr	r5, [r0, #72]
+	ldr	r5, [r0, #68]
 #else
 	ldrd	r4, r5, [r0, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [r0, #112]
-	ldr	r7, [r0, #120]
+	ldr	r7, [r0, #116]
 #else
 	ldrd	r6, r7, [r0, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [r0, #120]
-	ldr	r9, [r0, #128]
+	ldr	r9, [r0, #124]
 #else
 	ldrd	r8, r9, [r0, #120]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [r0, #168]
-	ldr	r11, [r0, #176]
+	ldr	r11, [r0, #172]
 #else
 	ldrd	r10, r11, [r0, #168]
 #endif
@@ -1406,25 +1405,25 @@ L_sha3_arm32_begin:
 	# Calc b[4]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #32]
-	ldr	r5, [sp, #40]
+	ldr	r5, [sp, #36]
 #else
 	ldrd	r4, r5, [sp, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #72]
-	ldr	r7, [sp, #80]
+	ldr	r7, [sp, #76]
 #else
 	ldrd	r6, r7, [sp, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #112]
-	ldr	r9, [sp, #120]
+	ldr	r9, [sp, #116]
 #else
 	ldrd	r8, r9, [sp, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #152]
-	ldr	r11, [sp, #160]
+	ldr	r11, [sp, #156]
 #else
 	ldrd	r10, r11, [sp, #152]
 #endif
@@ -1440,32 +1439,32 @@ L_sha3_arm32_begin:
 	eor	r3, r3, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r2, [r0, #32]
-	str	r3, [r0, #40]
+	str	r3, [r0, #36]
 #else
 	strd	r2, r3, [r0, #32]
 #endif
 	# Calc b[1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #8]
-	ldr	r5, [sp, #16]
+	ldr	r5, [sp, #12]
 #else
 	ldrd	r4, r5, [sp, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #48]
-	ldr	r7, [sp, #56]
+	ldr	r7, [sp, #52]
 #else
 	ldrd	r6, r7, [sp, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #88]
-	ldr	r9, [sp, #96]
+	ldr	r9, [sp, #92]
 #else
 	ldrd	r8, r9, [sp, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #128]
-	ldr	r11, [sp, #136]
+	ldr	r11, [sp, #132]
 #else
 	ldrd	r10, r11, [sp, #128]
 #endif
@@ -1481,7 +1480,7 @@ L_sha3_arm32_begin:
 	eor	r5, r5, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [r0, #8]
-	str	r5, [r0, #16]
+	str	r5, [r0, #12]
 #else
 	strd	r4, r5, [r0, #8]
 #endif
@@ -1493,25 +1492,25 @@ L_sha3_arm32_begin:
 	# Calc b[0] and XOR t[0] into s[x*5+0]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp]
-	ldr	r5, [sp, #8]
+	ldr	r5, [sp, #4]
 #else
 	ldrd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #40]
-	ldr	r7, [sp, #48]
+	ldr	r7, [sp, #44]
 #else
 	ldrd	r6, r7, [sp, #40]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #80]
-	ldr	r9, [sp, #88]
+	ldr	r9, [sp, #84]
 #else
 	ldrd	r8, r9, [sp, #80]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #120]
-	ldr	r11, [sp, #128]
+	ldr	r11, [sp, #124]
 #else
 	ldrd	r10, r11, [sp, #120]
 #endif
@@ -1531,31 +1530,31 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [sp]
-	str	r5, [sp, #8]
+	str	r5, [sp, #4]
 #else
 	strd	r4, r5, [sp]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [sp, #40]
-	str	r7, [sp, #48]
+	str	r7, [sp, #44]
 #else
 	strd	r6, r7, [sp, #40]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [sp, #80]
-	str	r9, [sp, #88]
+	str	r9, [sp, #84]
 #else
 	strd	r8, r9, [sp, #80]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [sp, #120]
-	str	r11, [sp, #128]
+	str	r11, [sp, #124]
 #else
 	strd	r10, r11, [sp, #120]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #160]
-	ldr	r11, [sp, #168]
+	ldr	r11, [sp, #164]
 #else
 	ldrd	r10, r11, [sp, #160]
 #endif
@@ -1565,7 +1564,7 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [sp, #160]
-	str	r11, [sp, #168]
+	str	r11, [sp, #164]
 #else
 	strd	r10, r11, [sp, #160]
 #endif
@@ -1574,25 +1573,25 @@ L_sha3_arm32_begin:
 	# Calc b[3]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #24]
-	ldr	r5, [sp, #32]
+	ldr	r5, [sp, #28]
 #else
 	ldrd	r4, r5, [sp, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #64]
-	ldr	r7, [sp, #72]
+	ldr	r7, [sp, #68]
 #else
 	ldrd	r6, r7, [sp, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #104]
-	ldr	r9, [sp, #112]
+	ldr	r9, [sp, #108]
 #else
 	ldrd	r8, r9, [sp, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #144]
-	ldr	r11, [sp, #152]
+	ldr	r11, [sp, #148]
 #else
 	ldrd	r10, r11, [sp, #144]
 #endif
@@ -1608,14 +1607,14 @@ L_sha3_arm32_begin:
 	eor	r5, r5, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [r0, #24]
-	str	r5, [r0, #32]
+	str	r5, [r0, #28]
 #else
 	strd	r4, r5, [r0, #24]
 #endif
 	# Calc t[2]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0, #8]
-	ldr	r3, [r0, #16]
+	ldr	r3, [r0, #12]
 #else
 	ldrd	r2, r3, [r0, #8]
 #endif
@@ -1626,25 +1625,25 @@ L_sha3_arm32_begin:
 	# Calc b[2] and XOR t[2] into s[x*5+2]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #16]
-	ldr	r5, [sp, #24]
+	ldr	r5, [sp, #20]
 #else
 	ldrd	r4, r5, [sp, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #56]
-	ldr	r7, [sp, #64]
+	ldr	r7, [sp, #60]
 #else
 	ldrd	r6, r7, [sp, #56]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #96]
-	ldr	r9, [sp, #104]
+	ldr	r9, [sp, #100]
 #else
 	ldrd	r8, r9, [sp, #96]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #136]
-	ldr	r11, [sp, #144]
+	ldr	r11, [sp, #140]
 #else
 	ldrd	r10, r11, [sp, #136]
 #endif
@@ -1664,31 +1663,31 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [sp, #16]
-	str	r5, [sp, #24]
+	str	r5, [sp, #20]
 #else
 	strd	r4, r5, [sp, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [sp, #56]
-	str	r7, [sp, #64]
+	str	r7, [sp, #60]
 #else
 	strd	r6, r7, [sp, #56]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [sp, #96]
-	str	r9, [sp, #104]
+	str	r9, [sp, #100]
 #else
 	strd	r8, r9, [sp, #96]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [sp, #136]
-	str	r11, [sp, #144]
+	str	r11, [sp, #140]
 #else
 	strd	r10, r11, [sp, #136]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #176]
-	ldr	r11, [sp, #184]
+	ldr	r11, [sp, #180]
 #else
 	ldrd	r10, r11, [sp, #176]
 #endif
@@ -1698,7 +1697,7 @@ L_sha3_arm32_begin:
 	eor	r11, r11, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [sp, #176]
-	str	r11, [sp, #184]
+	str	r11, [sp, #180]
 #else
 	strd	r10, r11, [sp, #176]
 #endif
@@ -1707,7 +1706,7 @@ L_sha3_arm32_begin:
 	# Calc t[1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0]
-	ldr	r3, [r0, #8]
+	ldr	r3, [r0, #4]
 #else
 	ldrd	r2, r3, [r0]
 #endif
@@ -1718,25 +1717,25 @@ L_sha3_arm32_begin:
 	# XOR t[1] into s[x*5+1]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #8]
-	ldr	r5, [sp, #16]
+	ldr	r5, [sp, #12]
 #else
 	ldrd	r4, r5, [sp, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #48]
-	ldr	r7, [sp, #56]
+	ldr	r7, [sp, #52]
 #else
 	ldrd	r6, r7, [sp, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #88]
-	ldr	r9, [sp, #96]
+	ldr	r9, [sp, #92]
 #else
 	ldrd	r8, r9, [sp, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #128]
-	ldr	r11, [sp, #136]
+	ldr	r11, [sp, #132]
 #else
 	ldrd	r10, r11, [sp, #128]
 #endif
@@ -1754,25 +1753,25 @@ L_sha3_arm32_begin:
 	eor	lr, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [sp, #8]
-	str	r5, [sp, #16]
+	str	r5, [sp, #12]
 #else
 	strd	r4, r5, [sp, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [sp, #48]
-	str	r7, [sp, #56]
+	str	r7, [sp, #52]
 #else
 	strd	r6, r7, [sp, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [sp, #88]
-	str	r9, [sp, #96]
+	str	r9, [sp, #92]
 #else
 	strd	r8, r9, [sp, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [sp, #128]
-	str	r11, [sp, #136]
+	str	r11, [sp, #132]
 #else
 	strd	r10, r11, [sp, #128]
 #endif
@@ -1781,13 +1780,13 @@ L_sha3_arm32_begin:
 	# Calc t[3]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0, #16]
-	ldr	r3, [r0, #24]
+	ldr	r3, [r0, #20]
 #else
 	ldrd	r2, r3, [r0, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0, #32]
-	ldr	r5, [r0, #40]
+	ldr	r5, [r0, #36]
 #else
 	ldrd	r4, r5, [r0, #32]
 #endif
@@ -1798,25 +1797,25 @@ L_sha3_arm32_begin:
 	# XOR t[3] into s[x*5+3]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #24]
-	ldr	r5, [sp, #32]
+	ldr	r5, [sp, #28]
 #else
 	ldrd	r4, r5, [sp, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #64]
-	ldr	r7, [sp, #72]
+	ldr	r7, [sp, #68]
 #else
 	ldrd	r6, r7, [sp, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #104]
-	ldr	r9, [sp, #112]
+	ldr	r9, [sp, #108]
 #else
 	ldrd	r8, r9, [sp, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #144]
-	ldr	r11, [sp, #152]
+	ldr	r11, [sp, #148]
 #else
 	ldrd	r10, r11, [sp, #144]
 #endif
@@ -1834,25 +1833,25 @@ L_sha3_arm32_begin:
 	eor	lr, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [sp, #24]
-	str	r5, [sp, #32]
+	str	r5, [sp, #28]
 #else
 	strd	r4, r5, [sp, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [sp, #64]
-	str	r7, [sp, #72]
+	str	r7, [sp, #68]
 #else
 	strd	r6, r7, [sp, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [sp, #104]
-	str	r9, [sp, #112]
+	str	r9, [sp, #108]
 #else
 	strd	r8, r9, [sp, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [sp, #144]
-	str	r11, [sp, #152]
+	str	r11, [sp, #148]
 #else
 	strd	r10, r11, [sp, #144]
 #endif
@@ -1861,13 +1860,13 @@ L_sha3_arm32_begin:
 	# Calc t[4]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [r0, #24]
-	ldr	r3, [r0, #32]
+	ldr	r3, [r0, #28]
 #else
 	ldrd	r2, r3, [r0, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [r0]
-	ldr	r5, [r0, #8]
+	ldr	r5, [r0, #4]
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -1878,25 +1877,25 @@ L_sha3_arm32_begin:
 	# XOR t[4] into s[x*5+4]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #32]
-	ldr	r5, [sp, #40]
+	ldr	r5, [sp, #36]
 #else
 	ldrd	r4, r5, [sp, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #72]
-	ldr	r7, [sp, #80]
+	ldr	r7, [sp, #76]
 #else
 	ldrd	r6, r7, [sp, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #112]
-	ldr	r9, [sp, #120]
+	ldr	r9, [sp, #116]
 #else
 	ldrd	r8, r9, [sp, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #152]
-	ldr	r11, [sp, #160]
+	ldr	r11, [sp, #156]
 #else
 	ldrd	r10, r11, [sp, #152]
 #endif
@@ -1914,25 +1913,25 @@ L_sha3_arm32_begin:
 	eor	lr, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r4, [sp, #32]
-	str	r5, [sp, #40]
+	str	r5, [sp, #36]
 #else
 	strd	r4, r5, [sp, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r6, [sp, #72]
-	str	r7, [sp, #80]
+	str	r7, [sp, #76]
 #else
 	strd	r6, r7, [sp, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r8, [sp, #112]
-	str	r9, [sp, #120]
+	str	r9, [sp, #116]
 #else
 	strd	r8, r9, [sp, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	str	r10, [sp, #152]
-	str	r11, [sp, #160]
+	str	r11, [sp, #156]
 #else
 	strd	r10, r11, [sp, #152]
 #endif
@@ -1942,31 +1941,31 @@ L_sha3_arm32_begin:
 	# Row 0
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp]
-	ldr	r3, [sp, #8]
+	ldr	r3, [sp, #4]
 #else
 	ldrd	r2, r3, [sp]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #48]
-	ldr	r5, [sp, #56]
+	ldr	r5, [sp, #52]
 #else
 	ldrd	r4, r5, [sp, #48]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #96]
-	ldr	r7, [sp, #104]
+	ldr	r7, [sp, #100]
 #else
 	ldrd	r6, r7, [sp, #96]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #144]
-	ldr	r9, [sp, #152]
+	ldr	r9, [sp, #148]
 #else
 	ldrd	r8, r9, [sp, #144]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #192]
-	ldr	r11, [sp, #200]
+	ldr	r11, [sp, #196]
 #else
 	ldrd	r10, r11, [sp, #192]
 #endif
@@ -2036,31 +2035,31 @@ L_sha3_arm32_begin:
 	# Row 1
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp, #24]
-	ldr	r3, [sp, #32]
+	ldr	r3, [sp, #28]
 #else
 	ldrd	r2, r3, [sp, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #72]
-	ldr	r5, [sp, #80]
+	ldr	r5, [sp, #76]
 #else
 	ldrd	r4, r5, [sp, #72]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #80]
-	ldr	r7, [sp, #88]
+	ldr	r7, [sp, #84]
 #else
 	ldrd	r6, r7, [sp, #80]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #128]
-	ldr	r9, [sp, #136]
+	ldr	r9, [sp, #132]
 #else
 	ldrd	r8, r9, [sp, #128]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #176]
-	ldr	r11, [sp, #184]
+	ldr	r11, [sp, #180]
 #else
 	ldrd	r10, r11, [sp, #176]
 #endif
@@ -2124,31 +2123,31 @@ L_sha3_arm32_begin:
 	# Row 2
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp, #8]
-	ldr	r3, [sp, #16]
+	ldr	r3, [sp, #12]
 #else
 	ldrd	r2, r3, [sp, #8]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #56]
-	ldr	r5, [sp, #64]
+	ldr	r5, [sp, #60]
 #else
 	ldrd	r4, r5, [sp, #56]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #104]
-	ldr	r7, [sp, #112]
+	ldr	r7, [sp, #108]
 #else
 	ldrd	r6, r7, [sp, #104]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #152]
-	ldr	r9, [sp, #160]
+	ldr	r9, [sp, #156]
 #else
 	ldrd	r8, r9, [sp, #152]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #160]
-	ldr	r11, [sp, #168]
+	ldr	r11, [sp, #164]
 #else
 	ldrd	r10, r11, [sp, #160]
 #endif
@@ -2210,31 +2209,31 @@ L_sha3_arm32_begin:
 	# Row 3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp, #32]
-	ldr	r3, [sp, #40]
+	ldr	r3, [sp, #36]
 #else
 	ldrd	r2, r3, [sp, #32]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #40]
-	ldr	r5, [sp, #48]
+	ldr	r5, [sp, #44]
 #else
 	ldrd	r4, r5, [sp, #40]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #88]
-	ldr	r7, [sp, #96]
+	ldr	r7, [sp, #92]
 #else
 	ldrd	r6, r7, [sp, #88]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #136]
-	ldr	r9, [sp, #144]
+	ldr	r9, [sp, #140]
 #else
 	ldrd	r8, r9, [sp, #136]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #184]
-	ldr	r11, [sp, #192]
+	ldr	r11, [sp, #188]
 #else
 	ldrd	r10, r11, [sp, #184]
 #endif
@@ -2298,31 +2297,31 @@ L_sha3_arm32_begin:
 	# Row 4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r2, [sp, #16]
-	ldr	r3, [sp, #24]
+	ldr	r3, [sp, #20]
 #else
 	ldrd	r2, r3, [sp, #16]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r4, [sp, #64]
-	ldr	r5, [sp, #72]
+	ldr	r5, [sp, #68]
 #else
 	ldrd	r4, r5, [sp, #64]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r6, [sp, #112]
-	ldr	r7, [sp, #120]
+	ldr	r7, [sp, #116]
 #else
 	ldrd	r6, r7, [sp, #112]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r8, [sp, #120]
-	ldr	r9, [sp, #128]
+	ldr	r9, [sp, #124]
 #else
 	ldrd	r8, r9, [sp, #120]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	ldr	r10, [sp, #168]
-	ldr	r11, [sp, #176]
+	ldr	r11, [sp, #172]
 #else
 	ldrd	r10, r11, [sp, #168]
 #endif
@@ -2392,7 +2391,6 @@ L_sha3_arm32_begin:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	BlockSha3,.-BlockSha3
 #endif /* WOLFSSL_ARMASM_NO_NEON */
-#endif /* WOLFSSL_SHA3 */
 #endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
