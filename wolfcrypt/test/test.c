@@ -29407,14 +29407,11 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
         goto done;
     }
 
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
-                rng, key, r, s);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
+        r, s);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29428,15 +29425,11 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 
     /* Verificiation */
     verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash_ex(r, s,
-                hash, wc_HashGetDigestSize(hashType),
-                &verify, key);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
+        &verify, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29454,14 +29447,11 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
         goto done;
     }
 
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
-                rng, key, r, s);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
+        r, s);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29475,15 +29465,11 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 
     /* Verificiation */
     verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash_ex(r, s,
-                hash, wc_HashGetDigestSize(hashType),
-                &verify, key);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
+        &verify, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29501,14 +29487,11 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
         goto done;
     }
 
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
-                rng, key, r, s);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
+        r, s);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29522,15 +29505,11 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 
     /* Verificiation */
     verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash_ex(r, s,
-                hash, wc_HashGetDigestSize(hashType),
-                &verify, key);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_verify_hash_ex(r, s,
+        hash, wc_HashGetDigestSize(hashType), &verify, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29667,14 +29646,11 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
         goto done;
     }
 
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
-                rng, key, r, s);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
+        r, s);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29688,15 +29664,11 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 
      /* Verification */
     verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash_ex(r, s,
-                hash, wc_HashGetDigestSize(hashType),
-                &verify, key);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
+        &verify, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29714,14 +29686,11 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
         goto done;
     }
 
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
-                rng, key, r, s);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
+        r, s);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29735,15 +29704,11 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 
     /* Verification */
     verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash_ex(r, s,
-                hash, wc_HashGetDigestSize(hashType),
-                &verify, key);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
+        &verify, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29761,14 +29726,11 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
         goto done;
     }
 
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
-                rng, key, r, s);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
+        rng, key, r, s);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }
@@ -29782,15 +29744,11 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 
     /* Verification */
     verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash_ex(r, s,
-                hash, wc_HashGetDigestSize(hashType),
-                &verify, key);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
+        &verify, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         goto done;
     }

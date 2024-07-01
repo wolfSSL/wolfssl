@@ -6837,11 +6837,16 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         if (key->sign_k == NULL) {
             key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
                                                             DYNAMIC_TYPE_ECC);
+            if (key->sign_k != NULL) {
+                err = mp_init(key->sign_k);
+                if (err != MP_OKAY) {
+                    XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+                    key->sign_k = NULL;
+                }
+            }
         }
-
         if (key->sign_k != NULL) {
-            if (mp_init(key->sign_k) != MP_OKAY ||
-                wc_ecc_gen_deterministic_k(in, inlen,
+            if (wc_ecc_gen_deterministic_k(in, inlen,
                         WC_HASH_TYPE_NONE, ecc_get_k(key), key->sign_k,
                         curve->order, key->heap) != 0) {
                 mp_free(key->sign_k);
