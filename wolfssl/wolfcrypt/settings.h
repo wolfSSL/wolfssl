@@ -1087,7 +1087,8 @@ extern void uITRON4_free(void *p) ;
              *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
              * There's no pvPortRealloc available:  */
             #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n)))
-        #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA)
+        #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA) || \
+              defined(OPENSSL_ALL)
             /* FreeRTOS pvPortRealloc() implementation can be found here:
              * https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
             #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), pvPortRealloc((p), (n)))
