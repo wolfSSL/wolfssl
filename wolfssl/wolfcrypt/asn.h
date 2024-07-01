@@ -76,11 +76,11 @@ that can be serialized and deserialized in a cross-platform way.
 #endif
 
 enum {
-    ISSUER  = 0,
-    SUBJECT = 1,
+    ASN_ISSUER  = 0,
+    ASN_SUBJECT = 1,
 
-    BEFORE  = 0,
-    AFTER   = 1
+    ASN_BEFORE  = 0,
+    ASN_AFTER   = 1
 };
 
 /* ASN Tags   */
@@ -863,6 +863,10 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 
 #define NID_X9_62_prime_field 406        /* 1.2.840.10045.1.1 */
 #endif /* OPENSSL_EXTRA */
+
+#define NID_id_GostR3410_2001     811
+#define NID_id_GostR3410_2012_256 979
+#define NID_id_GostR3410_2012_512 980
 
 enum ECC_TYPES
 {

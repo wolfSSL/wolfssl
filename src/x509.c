@@ -8769,6 +8769,41 @@ int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
     return ret;
 }
 
+/* note WOLFSSL_X509_VERIFY_PARAM does not record purpose, trust, depth, or
+ * auth_level.
+ */
+static const WOLFSSL_X509_VERIFY_PARAM x509_verify_param_builtins[] = {
+    {
+     "ssl_client",              /* name */
+     0,                         /* check_time */
+     0,                         /* inherit_flags */
+     0,                         /* flags */
+     "",                        /* hostname */
+     0,                         /* hostFlags */
+     ""                         /* ipasc */
+    },
+    {
+     "ssl_server",              /* name */
+     0,                         /* check_time */
+     0,                         /* inherit_flags */
+     0,                         /* flags */
+     "",                        /* hostname */
+     0,                         /* hostFlags */
+     ""                         /* ipasc */
+    }
+};
+
+const WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_VERIFY_PARAM_lookup(const char *name)
+{
+    const WOLFSSL_X509_VERIFY_PARAM *param = &x509_verify_param_builtins[0],
+        *param_end = &x509_verify_param_builtins[XELEM_CNT(x509_verify_param_builtins)];
+    while (param < param_end) {
+        if (XSTRCMP(name, param->name) == 0)
+            return param;
+        ++param;
+    }
+    return NULL;
+}
 
 /* inherits properties of param "to" to param "from"
 *
@@ -8779,7 +8814,7 @@ int wolfSSL_X509_VERIFY_PARAM_clear_flags(WOLFSSL_X509_VERIFY_PARAM *param,
 * WOLFSSL_VPARAM_LOCKED           don't copy any values
 * WOLFSSL_VPARAM_ONCE             the current inherit_flags is zerroed
 */
-static int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
+int wolfSSL_X509_VERIFY_PARAM_inherit(WOLFSSL_X509_VERIFY_PARAM *to,
                                          const WOLFSSL_X509_VERIFY_PARAM *from)
 {
     int ret = WOLFSSL_FAILURE;
@@ -11113,7 +11148,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
         InitDecodedCert(cert, *in, (word32)length, NULL);
 
         /* Parse the X509 subject name */
-        if (GetName(cert, SUBJECT, (int)length) != 0) {
+        if (GetName(cert, ASN_SUBJECT, (int)length) != 0) {
             WOLFSSL_MSG("WOLFSSL_X509_NAME parse error");
             goto cleanup;
         }
@@ -13384,11 +13419,15 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
         return WOLFSSL_FAILURE;
     }
 
-    if (flags == WOLFSSL_NO_WILDCARDS) {
+    if (flags & WOLFSSL_NO_WILDCARDS) {
         WOLFSSL_MSG("X509_CHECK_FLAG_NO_WILDCARDS not yet implemented");
         return WOLFSSL_FAILURE;
     }
-    if (flags == WOLFSSL_NO_PARTIAL_WILDCARDS) {
+    if (flags & WOLFSSL_NO_PARTIAL_WILDCARDS) {
+        WOLFSSL_MSG("X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS not yet implemented");
+        return WOLFSSL_FAILURE;
+    }
+    if (flags & WOLFSSL_MULTI_LABEL_WILDCARDS) {
         WOLFSSL_MSG("X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS not yet implemented");
         return WOLFSSL_FAILURE;
     }
