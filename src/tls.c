@@ -4021,10 +4021,10 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
-                if (SSL_CM(ssl)->ocspEnabled) {
-                    csr2->request.ocsp[0].ssl = ssl;
+                if (SSL_CM(ssl)->ocspEnabled && csr2->requests >= 1) {
+                    csr2->request.ocsp[csr2->requests-1].ssl = ssl;
                     return CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                          &csr2->request.ocsp[0], NULL, NULL);
+                                          &csr2->request.ocsp[csr2->requests-1], NULL, NULL);
                 }
                 else {
                     WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
