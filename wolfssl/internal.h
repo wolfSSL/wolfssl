@@ -2180,7 +2180,7 @@ WOLFSSL_LOCAL int  DoServerHello(WOLFSSL* ssl, const byte* input, word32* inOutI
 WOLFSSL_LOCAL int  CompleteServerHello(WOLFSSL *ssl);
 WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL int  PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
-                                   word32 hashSigAlgoSz);
+                                   word32 hashSigAlgoSz, int matchSuites);
 #if defined(WOLF_PRIVATE_KEY_ID) && !defined(NO_CHECK_PRIVATE_KEY)
 WOLFSSL_LOCAL int  CreateDevPrivateKey(void** pkey, byte* data, word32 length,
                                        int hsType, int label, int id,
