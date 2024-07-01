@@ -1,0 +1,87 @@
+name: ntp Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          install: true
+          check: false
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-ntp
+          path: build-dir
+          retention-days: 5
+
+  ntp_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 4.2.8p15 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-ntp
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      # Avoid DoS'ing ntp site so cache the tar.gz
+      - name: Check if we have ntp
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: ntp-${{ matrix.ref }}.tar.gz
+          key: ntp-${{ matrix.ref }}.tar.gz
+
+      - name: Download ntp
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          wget https://downloads.nwtime.org/ntp/4.2.8/ntp-${{ matrix.ref }}.tar.gz
+
+      - name: Extract ntp
+        run: |
+          tar -xf ntp-${{ matrix.ref }}.tar.gz
+
+      - name: Build and test ntp
+        working-directory: ntp-${{ matrix.ref }}
+        run: |
+          patch -p1 < $GITHUB_WORKSPACE/osp/ntp/${{ matrix.ref }}/ntp-${{ matrix.ref }}.patch
+          ./bootstrap
+          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          make -j
+          make -j check
+ 
