@@ -29053,6 +29053,68 @@ static wc_test_ret_t ecc_test_vector(int keySize)
      defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
 #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
+
+static wc_test_ret_t ecdsa_test_deterministic_k_sig(ecc_key *key, int hashType,
+    const char* msg, WC_RNG* rng, const byte* expSig, size_t expSigSz)
+{
+    wc_test_ret_t ret;
+    int verify;
+    byte sig[ECC_MAX_SIG_SIZE];
+    word32 sigSz;
+    unsigned char hash[WC_MAX_DIGEST_SIZE];
+
+    ret = wc_Hash(hashType,
+        (byte*)msg, (word32)XSTRLEN(msg),
+        hash, sizeof(hash));
+    if (ret != 0) {
+        goto done;
+    }
+
+    /* Sign test */
+    sigSz = sizeof(sig);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_sign_hash(hash, wc_HashGetDigestSize(hashType),
+                sig, &sigSz, rng, key);
+    } while (ret == WC_PENDING_E);
+    if (ret != 0) {
+        goto done;
+    }
+    TEST_SLEEP();
+
+    /* Compare test vector */
+    if (sigSz != expSigSz) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+    if (XMEMCMP(sig, expSig, sigSz) != 0) {
+        ret = WC_TEST_RET_ENC_NC;
+        goto done;
+    }
+
+    /* Verificiation */
+    verify = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(sig, sigSz,
+                hash, wc_HashGetDigestSize(hashType), &verify, key);
+    } while (ret == WC_PENDING_E);
+    if (ret != 0) {
+        goto done;
+    }
+    if (verify != 1) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+done:
+    return ret;
+}
+
 static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 {
     wc_test_ret_t ret;
@@ -29061,11 +29123,8 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 #else
     ecc_key key[1];
 #endif
-    int key_inited = 0, hashType, verify;
-    byte sig[ECC_MAX_SIG_SIZE];
-    word32 sigSz;
-    WOLFSSL_SMALL_STACK_STATIC const unsigned char msg[] = "sample";
-    unsigned char hash[WC_MAX_DIGEST_SIZE];
+    int key_inited = 0;
+    WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
     WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
         "C9AFA9D845BA75166B5C215767B1D6934E50C3DB36E89B127B8A622B120F6721";
     WOLFSSL_SMALL_STACK_STATIC const char* QIUTx =
@@ -29144,160 +29203,30 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
 
 #ifndef NO_SHA256
     /* Test for SHA2-256 */
-    hashType = WC_HASH_TYPE_SHA256;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
+    ret = ecdsa_test_deterministic_k_sig(key, WC_HASH_TYPE_SHA256, msg, rng,
+        expSig256, sizeof(expSig256));
     if (ret != 0) {
         goto done;
-    }
-
-    /* Sign test */
-    sigSz = sizeof(sig);
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash(hash, wc_HashGetDigestSize(hashType),
-                sig, &sigSz, rng, key);
-    } while (ret == WC_PENDING_E);
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
-    /* Compare test vector */
-    if (sigSz != sizeof(expSig256)) {
-        ret = WC_TEST_RET_ENC_NC;
-        goto done;
-    }
-    if (XMEMCMP(sig, expSig256, sigSz) != 0) {
-        ret = WC_TEST_RET_ENC_NC;
-        goto done;
-    }
-
-    /* Verificiation */
-    verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash(sig, sigSz,
-                hash, wc_HashGetDigestSize(hashType), &verify, key);
-    } while (ret == WC_PENDING_E);
-    if (ret != 0) {
-        goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* !NO_SHA256 */
 
 #ifdef WOLFSSL_SHA384
     /* Test for SHA2-384 */
-    hashType = WC_HASH_TYPE_SHA384;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
+    ret = ecdsa_test_deterministic_k_sig(key, WC_HASH_TYPE_SHA384, msg, rng,
+        expSig384, sizeof(expSig384));
     if (ret != 0) {
         goto done;
-    }
-
-    /* Sign test */
-    sigSz = sizeof(sig);
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash(hash, wc_HashGetDigestSize(hashType),
-                sig, &sigSz, rng, key);
-    } while (ret == WC_PENDING_E);
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
-    /* Compare test vector */
-    if (sigSz != sizeof(expSig384)) {
-        ret = WC_TEST_RET_ENC_NC;
-        goto done;
-    }
-    if (XMEMCMP(sig, expSig384, sigSz) != 0) {
-        ret = WC_TEST_RET_ENC_NC;
-        goto done;
-    }
-
-    /* Verificiation */
-    verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash(sig, sigSz,
-                hash, wc_HashGetDigestSize(hashType), &verify, key);
-    } while (ret == WC_PENDING_E);
-    if (ret != 0) {
-        goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_SHA512
     /* Test for SHA2-512 */
-    hashType = WC_HASH_TYPE_SHA512;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
+    ret = ecdsa_test_deterministic_k_sig(key, WC_HASH_TYPE_SHA512, msg, rng,
+        expSig512, sizeof(expSig512));
     if (ret != 0) {
         goto done;
-    }
-
-    /* Sign test */
-    sigSz = sizeof(sig);
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_sign_hash(hash, wc_HashGetDigestSize(hashType),
-                sig, &sigSz, rng, key);
-    } while (ret == WC_PENDING_E);
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
-    /* Compare test vector */
-    if (sigSz != sizeof(expSig512)) {
-        ret = WC_TEST_RET_ENC_NC;
-        goto done;
-    }
-    if (XMEMCMP(sig, expSig512, sigSz) != 0) {
-        ret = WC_TEST_RET_ENC_NC;
-        goto done;
-    }
-
-    /* Verificiation */
-    verify = 0;
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        if (ret == 0)
-            ret = wc_ecc_verify_hash(sig, sigSz,
-                hash, wc_HashGetDigestSize(hashType), &verify, key);
-    } while (ret == WC_PENDING_E);
-    if (ret != 0) {
-        goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* WOLFSSL_SHA512 */
-
 
 done:
     if (key_inited)
@@ -29309,7 +29238,56 @@ done:
 }
 #endif /* NO_ECC256 || HAVE_ALL_CURVES */
 
+
 #ifdef WOLFSSL_PUBLIC_MP
+
+static wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key, int hashType,
+    const char* msg, WC_RNG* rng,
+    mp_int* r, mp_int* s,
+    mp_int* expR, mp_int* expS)
+{
+    wc_test_ret_t ret;
+    unsigned char hash[WC_MAX_DIGEST_SIZE];
+    int verify;
+
+    ret = wc_Hash(hashType,
+        (byte*)msg, (word32)XSTRLEN(msg),
+        hash, sizeof(hash));
+    if (ret != 0) {
+        goto done;
+    }
+
+    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
+        r, s);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
+        goto done;
+    }
+    TEST_SLEEP();
+
+    if (mp_cmp(r, expR) != MP_EQ && mp_cmp(s, expS) != MP_EQ) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    /* Verificiation */
+    verify = 0;
+    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
+        &verify, key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
+        goto done;
+    }
+    if (verify != 1) {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+done:
+    return ret;
+}
+
 #if (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 384
 /* KAT from RFC6979 */
 static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
@@ -29323,9 +29301,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
     mp_int r[1], s[1], expR[1], expS[1];
 #endif
     int key_inited = 0;
-    int hashType, verify;
-    WOLFSSL_SMALL_STACK_STATIC const unsigned char msg[] = "sample";
-    unsigned char hash[WC_MAX_DIGEST_SIZE];
+    WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
     WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
         "6B9D3DAD2E1B8C1C05B19875B6659F4DE23C3B667BF297BA9AA47740787137D8"
         "96D5724E4C70A825F872C9EA60D2EDF5";
@@ -29400,121 +29376,34 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 
 #ifndef NO_SHA256
     /* Test for SHA2-256 */
-    hashType = WC_HASH_TYPE_SHA256;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
-    if (ret != 0) {
-        goto done;
-    }
-
-    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
-        r, s);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
     mp_read_radix(expR, expRstr256, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr256, MP_RADIX_HEX);
-    if (mp_cmp(r, expR) != MP_EQ) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-
-    /* Verificiation */
-    verify = 0;
-    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
-        &verify, key);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA256, msg, rng,
+        r, s, expR, expS);
     if (ret != 0) {
         goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* NO_SHA256 */
 
 #ifdef WOLFSSL_SHA384
     /* Test for SHA2-384 */
-    hashType = WC_HASH_TYPE_SHA384;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
-    if (ret != 0) {
-        goto done;
-    }
-
-    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
-        r, s);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
     mp_read_radix(expR, expRstr384, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr384, MP_RADIX_HEX);
-    if (mp_cmp(r, expR) != MP_EQ) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-
-    /* Verificiation */
-    verify = 0;
-    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
-        &verify, key);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA384, msg, rng,
+        r, s, expR, expS);
     if (ret != 0) {
         goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_SHA512
     /* Test for SHA2-512 */
-    hashType = WC_HASH_TYPE_SHA512;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
-    if (ret != 0) {
-        goto done;
-    }
-
-    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
-        r, s);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
     mp_read_radix(expR, expRstr512, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr512, MP_RADIX_HEX);
-    if (mp_cmp(r, expR) != MP_EQ) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-
-    /* Verificiation */
-    verify = 0;
-    ret = wc_ecc_verify_hash_ex(r, s,
-        hash, wc_HashGetDigestSize(hashType), &verify, key);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA512, msg, rng,
+        r, s, expR, expS);
     if (ret != 0) {
         goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* WOLFSSL_SHA512 */
 
@@ -29551,11 +29440,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
     mp_int r[1], s[1], expR[1], expS[1];
 #endif
     int key_inited = 0;
-    int verify;
-    int hashType;
-    WOLFSSL_SMALL_STACK_STATIC const unsigned char msg[] = "sample";
-    unsigned char hash[WC_MAX_DIGEST_SIZE];
-
+    WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
     WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
        "0FAD06DAA62BA3B25D2FB40133DA757205DE67F5BB0018FEE8C86E1B68C7E75C"
        "AA896EB32F1F47C70855836A6D16FCC1466F6D8FBEC67DB89EC0C08B0E996B83"
@@ -29639,121 +29524,34 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 
 #ifndef NO_SHA256
     /* Test for SHA2-256 */
-    hashType = WC_HASH_TYPE_SHA256;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
-    if (ret != 0) {
-        goto done;
-    }
-
-    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
-        r, s);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
     mp_read_radix(expR, expRstr256, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr256, MP_RADIX_HEX);
-    if (mp_cmp(r, expR) != MP_EQ) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-
-     /* Verification */
-    verify = 0;
-    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
-        &verify, key);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA256, msg, rng,
+        r, s, expR, expS);
     if (ret != 0) {
         goto done;
     }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-#endif /* !NO_SHA256 */
+#endif /* NO_SHA256 */
 
 #ifdef WOLFSSL_SHA384
     /* Test for SHA2-384 */
-    hashType = WC_HASH_TYPE_SHA384;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
-    if (ret != 0) {
-        goto done;
-    }
-
-    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType), rng, key,
-        r, s);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
     mp_read_radix(expR, expRstr384, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr384, MP_RADIX_HEX);
-    if (mp_cmp(r, expR) != MP_EQ) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-
-    /* Verification */
-    verify = 0;
-    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
-        &verify, key);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA384, msg, rng,
+        r, s, expR, expS);
     if (ret != 0) {
         goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_SHA512
     /* Test for SHA2-512 */
-    hashType = WC_HASH_TYPE_SHA512;
-    ret = wc_Hash(hashType, msg,
-            (word32)XSTRLEN((const char*)msg), hash, sizeof(hash));
-    if (ret != 0) {
-        goto done;
-    }
-
-    ret = wc_ecc_sign_hash_ex(hash, wc_HashGetDigestSize(hashType),
-        rng, key, r, s);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
-    if (ret != 0) {
-        goto done;
-    }
-    TEST_SLEEP();
-
     mp_read_radix(expR, expRstr512, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr512, MP_RADIX_HEX);
-    if (mp_cmp(r, expR) != MP_EQ) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
-    }
-
-    /* Verification */
-    verify = 0;
-    ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
-        &verify, key);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_NONE);
-#endif
+    ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA512, msg, rng,
+        r, s, expR, expS);
     if (ret != 0) {
         goto done;
-    }
-    if (verify != 1) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 #endif /* WOLFSSL_SHA512 */
 
