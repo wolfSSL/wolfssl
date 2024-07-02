@@ -328,7 +328,12 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
 #endif
     InitOcspResponse(ocspResponse, newSingle, newStatus, response,
                      (word32)responseSz, ocsp->cm->heap);
-
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (ocspRequest != NULL && ocspRequest->ssl != NULL &&
+           TLSX_CSR2_IsMulti(((WOLFSSL*)ocspRequest->ssl)->extensions)) {
+        ocspResponse->pendingCAs = TLSX_CSR2_GetPendingSigners(((WOLFSSL*)ocspRequest->ssl)->extensions);
+    }
+#endif
     ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0);
     if (ret != 0) {
         ocsp->error = ret;
@@ -555,7 +560,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK
 static int CheckOcspResponderChain(OcspEntry* single, DecodedCert *cert,
-        void* vp) {
+        void* vp, Signer* pendingCAs) {
     /* Attempt to build a chain up to cert's issuer */
     WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
     Signer* ca = NULL;
@@ -574,8 +579,16 @@ static int CheckOcspResponderChain(OcspEntry* single, DecodedCert *cert,
 
     /* End loop if no more issuers found or if we have found a self
      * signed cert (ca == prev) */
-    for (ca = GetCAByName(cm, single->issuerHash); ca != NULL && ca != prev;
-            prev = ca, ca = GetCAByName(cm, ca->issuerNameHash)) {
+    ca = GetCAByName(cm, single->issuerHash);
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (ca == NULL && pendingCAs != NULL) {
+        ca = findSignerByName(pendingCAs, single->issuerHash);
+    }
+#else
+    (void)pendingCAs;
+#endif
+    for (; ca != NULL && ca != prev;
+            prev = ca) {
         if (XMEMCMP(cert->issuerHash, ca->issuerNameHash,
                 OCSP_DIGEST_SIZE) == 0) {
             WOLFSSL_MSG("\tOCSP Response signed by authorized "
@@ -584,6 +597,12 @@ static int CheckOcspResponderChain(OcspEntry* single, DecodedCert *cert,
             passed = 1;
             break;
         }
+        ca = GetCAByName(cm, ca->issuerNameHash);
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (ca == NULL && pendingCAs != NULL) {
+        ca = findSignerByName(pendingCAs, single->issuerHash);
+    }
+#endif
     }
     return passed;
 }
@@ -632,7 +651,7 @@ int CheckOcspResponder(OcspResponse *bs, DecodedCert *cert, void* vp)
             }
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHAIN_CHECK
             else if (vp != NULL) {
-                passed = CheckOcspResponderChain(single, cert, vp);
+                passed = CheckOcspResponderChain(single, cert, vp, bs->pendingCAs);
             }
 #endif
         }

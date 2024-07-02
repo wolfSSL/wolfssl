@@ -3579,10 +3579,20 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
+static void TLSX_CSR2_FreePendingSigners(Signer *s, void* heap)
+{
+    Signer* next;
+    while(s) {
+        next = s->next;
+        FreeSigner(s, heap);
+        s = next;
+    }
+}
 static void TLSX_CSR2_FreeAll(CertificateStatusRequestItemV2* csr2, void* heap)
 {
     CertificateStatusRequestItemV2* next;
 
+    TLSX_CSR2_FreePendingSigners(csr2->pendingSigners, heap);
     for (; csr2; csr2 = next) {
         next = csr2->next;
 
@@ -3853,6 +3863,83 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     return 0;
 }
 
+static CertificateStatusRequestItemV2* TLSX_CSR2_GetMulti(TLSX *extensions)
+{
+    TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST_V2);
+    CertificateStatusRequestItemV2* csr2 = extension ?
+        (CertificateStatusRequestItemV2*)extension->data : NULL;
+
+    for (; csr2; csr2 = csr2->next) {
+        if (csr2->status_type == WOLFSSL_CSR2_OCSP_MULTI)
+            return csr2;
+    }
+    return NULL;
+}
+
+int TLSX_CSR2_IsMulti(TLSX *extensions)
+{
+    return TLSX_CSR2_GetMulti(extensions) != NULL;
+}
+
+int TLSX_CSR2_AddPendingSigner(TLSX *extensions, Signer *s)
+{
+    CertificateStatusRequestItemV2* csr2;
+
+    csr2 = TLSX_CSR2_GetMulti(extensions);
+    if (!csr2)
+        return -1;
+
+    s->next = csr2->pendingSigners;
+    csr2->pendingSigners = s;
+    return 0;
+}
+
+Signer* TLSX_CSR2_GetPendingSigners(TLSX *extensions)
+{
+    CertificateStatusRequestItemV2* csr2;
+
+    csr2 = TLSX_CSR2_GetMulti(extensions);
+    if (!csr2)
+        return NULL;
+
+    return csr2->pendingSigners;
+}
+
+int TLSX_CSR2_ClearPendingCA(WOLFSSL *ssl)
+{
+    CertificateStatusRequestItemV2* csr2;
+
+    csr2 = TLSX_CSR2_GetMulti(ssl->extensions);
+    if (csr2 == NULL)
+        return 0;
+
+    TLSX_CSR2_FreePendingSigners(csr2->pendingSigners, SSL_CM(ssl)->heap);
+    csr2->pendingSigners = NULL;
+    return 0;
+}
+
+int TLSX_CSR2_MergePendingCA(WOLFSSL* ssl)
+{
+    CertificateStatusRequestItemV2* csr2;
+    Signer *s, *next;
+    int r = 0;
+
+    csr2 = TLSX_CSR2_GetMulti(ssl->extensions);
+    if (csr2 == NULL)
+        return 0;
+
+    s = csr2->pendingSigners;
+    while (s != NULL) {
+        next = s->next;
+        r = AddSigner(SSL_CM(ssl), s);
+        if (r != 0)
+            FreeSigner(s, SSL_CM(ssl)->heap);
+        s = next;
+    }
+    csr2->pendingSigners = NULL;
+    return r;
+}
+
 int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
                                                                      void* heap)
 {
@@ -3934,10 +4021,10 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
                 /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI:
-                if (SSL_CM(ssl)->ocspEnabled) {
-                    csr2->request.ocsp[0].ssl = ssl;
+                if (SSL_CM(ssl)->ocspEnabled && csr2->requests >= 1) {
+                    csr2->request.ocsp[csr2->requests-1].ssl = ssl;
                     return CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                          &csr2->request.ocsp[0], NULL, NULL);
+                                          &csr2->request.ocsp[csr2->requests-1], NULL, NULL);
                 }
                 else {
                     WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
