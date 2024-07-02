@@ -330,6 +330,10 @@ namespace wolfSSL.CSharp {
         private extern static int wolfSSL_CTX_UseSNI(IntPtr ctx, byte type, IntPtr data, ushort size);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_UseSNI(IntPtr ssl, byte type, IntPtr data, ushort size);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static ushort wolfSSL_SNI_GetRequest(IntPtr ssl, byte type, ref IntPtr data);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wolfSSL_SNI_GetFromBuffer(byte[] clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz);
 
         /********************************
          * SSL Structure
@@ -1196,6 +1200,29 @@ namespace wolfSSL.CSharp {
                 return  wolfSSL_UseSNI(handles.get_ssl(), type, data, size);
             } catch (Exception e) {
                 log(ERROR_LOG, "wolfssl use sni error: " + e.ToString());
+                return FAILURE;
+            }
+        }
+
+        public static ushort SNI_GetRequest(IntPtr ssl, byte type, ref IntPtr data) 
+        {
+            try {
+                GCHandle gch = GCHandle.FromIntPtr(ssl);
+                ssl_handle handles = (ssl_handle)gch.Target;
+
+                return  wolfSSL_SNI_GetRequest(handles.get_ssl(), type, ref data);
+            } catch (Exception e) {
+                log(ERROR_LOG, "wolfssl sni get request error: " + e.ToString());
+                return ushort.MaxValue;
+            }
+        }
+
+        public static int SNI_GetFromBuffer(byte []clientHello, uint helloSz, byte type, IntPtr sni, IntPtr inOutSz) 
+        {
+            try {
+                return wolfSSL_SNI_GetFromBuffer(clientHello, helloSz, type, sni, inOutSz);
+            } catch(Exception e) {
+                log(ERROR_LOG, "wolfssl sni get from buffer error: " + e.ToString());
                 return FAILURE;
             }
         }
