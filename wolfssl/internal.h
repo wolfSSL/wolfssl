@@ -3328,6 +3328,13 @@ typedef struct InternalTicket {
 #endif /* OPENSSL_EXTRA */
 } InternalTicket;
 
+#ifndef WOLFSSL_TICKET_ENC_CBC_HMAC
+    #define WOLFSSL_INTERNAL_TICKET_LEN     sizeof(InternalTicket)
+#else
+    #define WOLFSSL_INTERNAL_TICKET_LEN     \
+        (((sizeof(InternalTicket) + 15) / 16) * 16)
+#endif
+
 #ifndef WOLFSSL_TICKET_EXTRA_PADDING_SZ
 #define WOLFSSL_TICKET_EXTRA_PADDING_SZ 32
 #endif
