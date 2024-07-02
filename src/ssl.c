@@ -8354,6 +8354,7 @@ int tlsShowSecrets(WOLFSSL* ssl, void* secret, int secretSz,
 /*
  * check if the list has TLS13 and pre-TLS13 suites
  * @param list cipher suite list that user want to set
+ *         (caller required to check for NULL)
  * @return mixed: 0, only pre-TLS13: 1, only TLS13: 2
  */
 static int CheckcipherList(const char* list)
@@ -8376,6 +8377,9 @@ static int CheckcipherList(const char* list)
 
         current_length = (!next) ? (word32)XSTRLEN(current)
                                  : (word32)(next - current);
+        if (current_length == 0) {
+            break;
+        }
 
         if (current_length < length) {
             length = current_length;
@@ -8383,8 +8387,10 @@ static int CheckcipherList(const char* list)
         XMEMCPY(name, current, length);
         name[length] = 0;
 
-        if (XSTRCMP(name, "ALL") == 0 || XSTRCMP(name, "DEFAULT") == 0 ||
-                XSTRCMP(name, "HIGH") == 0) {
+        if (XSTRCMP(name, "ALL") == 0 ||
+            XSTRCMP(name, "DEFAULT") == 0 ||
+            XSTRCMP(name, "HIGH") == 0)
+        {
             findTLSv13Suites = 1;
             findbeforeSuites = 1;
             break;
@@ -8412,7 +8418,7 @@ static int CheckcipherList(const char* list)
                 subStrNext = XSTRSTR(subStr, "+");
 
                 if ((XSTRCMP(subStr, "ECDHE") == 0) ||
-                        (XSTRCMP(subStr, "RSA") == 0)) {
+                    (XSTRCMP(subStr, "RSA") == 0)) {
                     return 0;
                 }
 
@@ -8428,7 +8434,7 @@ static int CheckcipherList(const char* list)
             return 0;
         }
     }
-    while (next++); /* ++ needed to skip ':' */
+    while (next++); /* increment to skip ':' */
 
     if (findTLSv13Suites == 0 && findbeforeSuites == 1) {
         ret = 1;/* only before TLSv13 suites */

@@ -26539,8 +26539,11 @@ static int ParseCipherList(Suites* suites,
         return 0;
     }
 
-    if (next[0] == 0 || XSTRCMP(next, "ALL") == 0 ||
-        XSTRCMP(next, "DEFAULT") == 0 || XSTRCMP(next, "HIGH") == 0) {
+    if (next[0] == '\0' ||
+        XSTRCMP(next, "ALL") == 0 ||
+        XSTRCMP(next, "DEFAULT") == 0 ||
+        XSTRCMP(next, "HIGH") == 0)
+    {
         /* Add all ciphersuites except anonymous and null ciphers. Prefer RSA */
 #ifndef NO_RSA
         haveRSA = 1;
@@ -26552,7 +26555,8 @@ static int ParseCipherList(Suites* suites,
                 0,
 #endif
                 haveRSA, 1, 1, !haveRSA, 1, haveRSA, !haveRSA, 1, 1, 0, 0,
-                side);
+                side
+        );
         return 1; /* wolfSSL default */
     }
 
@@ -26572,6 +26576,8 @@ static int ParseCipherList(Suites* suites,
             if (length > currLen) {
                 length = currLen;
             }
+            if (currLen == 0)
+                break;
         }
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
@@ -26893,7 +26899,7 @@ static int ParseCipherList(Suites* suites,
             }
         }
     }
-    while (next++); /* ++ needed to skip ':' */
+    while (next++); /* increment to skip ':' */
 
     if (ret) {
         int keySz = 0;
