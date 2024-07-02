@@ -72168,6 +72168,34 @@ static int test_dtls_no_extensions(void)
     return EXPECT_RESULT();
 }
 
+static int test_tls_alert_no_server_hello(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL_CTX *ctx_c = NULL;
+    struct test_memio_ctx test_ctx;
+    unsigned char alert_msg[] = { 0x15, 0x03, 0x01, 0x00, 0x02, 0x02, 0x28 };
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ssl_c = NULL;
+    ctx_c = NULL;
+
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, NULL, &ssl_c, NULL,
+        wolfTLSv1_2_client_method, NULL), 0);
+
+    XMEMCPY(test_ctx.c_buff, alert_msg, sizeof(alert_msg));
+    test_ctx.c_len = sizeof(alert_msg);
+
+    ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), FATAL_ERROR);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_c);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_TLSX_CA_NAMES_bad_extension(void)
 {
     EXPECT_DECLS;
@@ -75755,6 +75783,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_ipv6_check),
     TEST_DECL(test_wolfSSL_SCR_after_resumption),
     TEST_DECL(test_dtls_no_extensions),
+    TEST_DECL(test_tls_alert_no_server_hello),
     TEST_DECL(test_TLSX_CA_NAMES_bad_extension),
     TEST_DECL(test_dtls_1_0_hvr_downgrade),
     TEST_DECL(test_session_ticket_no_id),
