@@ -126,7 +126,6 @@ struct wc_Sha3 {
 
 #ifdef WOLF_CRYPTO_CB
     int    devId;
-    int    type; /* enum wc_HashType */
 #endif
 
 #ifdef WC_C_DYNAMIC_FALLBACK
