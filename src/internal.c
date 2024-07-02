@@ -11449,7 +11449,20 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
             }
         }
 #endif /* WOLFSSL_DTLS13 */
-        else {
+        /* Don't care about protocol version being lower than expected on alerts
+         * sent back before version negotitation. */
+        else if (!(ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->options.connectState == CLIENT_HELLO_SENT &&
+                            rh->type == alert &&
+                            rh->pvMajor == ssl->version.major &&
+        #ifdef WOLFSSL_DTLS
+                            ((ssl->options.dtls && rh->pvMinor == DTLS_MINOR) ||
+                             (!ssl->options.dtls &&
+                              rh->pvMinor < ssl->version.minor))
+        #else
+                            rh->pvMinor < ssl->version.minor
+        #endif
+                   )) {
             WOLFSSL_MSG("SSL version error");
             WOLFSSL_ERROR_VERBOSE(VERSION_ERROR);
             return VERSION_ERROR;              /* only use requested version */
