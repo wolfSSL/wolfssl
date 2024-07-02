@@ -51,9 +51,22 @@
 #define __asm__        __asm
 #define __volatile__   volatile
 #endif /* __KEIL__ */
-#ifdef WOLFSSL_SHA3
-#ifndef WOLFSSL_ARMASM_NO_NEON
 static const uint64_t L_sha3_arm2_neon_rt[] = {
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL,
+};
+
+static const uint64_t L_sha3_arm2_rt[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
     0x000000000000808bUL, 0x0000000080000001UL,
@@ -70,10 +83,12 @@ static const uint64_t L_sha3_arm2_neon_rt[] = {
 
 #include <wolfssl/wolfcrypt/sha3.h>
 
+#ifndef WOLFSSL_ARMASM_NO_NEON
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
     register uint64_t* L_sha3_arm2_neon_rt_c asm ("r1") = (uint64_t*)&L_sha3_arm2_neon_rt;
+    register uint64_t* L_sha3_arm2_rt_c asm ("r2") = (uint64_t*)&L_sha3_arm2_rt;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
@@ -333,31 +348,16 @@ void BlockSha3(word64* state_p)
         "vst1.8	{d20-d23}, [%[state]]!\n\t"
         "vst1.8	{d24}, [%[state]]\n\t"
         "add	sp, sp, #16\n\t"
-        : [state] "+r" (state), [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c)
+        : [state] "+r" (state), [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c), [L_sha3_arm2_rt] "+r" (L_sha3_arm2_rt_c)
         :
-        : "memory", "r2", "r3", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31", "cc"
+        : "memory", "r3", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31", "cc"
     );
 }
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
-#ifdef WOLFSSL_ARMASM_NO_NEON
-static const uint64_t L_sha3_arm2_rt[] = {
-    0x0000000000000001UL, 0x0000000000008082UL,
-    0x800000000000808aUL, 0x8000000080008000UL,
-    0x000000000000808bUL, 0x0000000080000001UL,
-    0x8000000080008081UL, 0x8000000000008009UL,
-    0x000000000000008aUL, 0x0000000000000088UL,
-    0x0000000080008009UL, 0x000000008000000aUL,
-    0x000000008000808bUL, 0x800000000000008bUL,
-    0x8000000000008089UL, 0x8000000000008003UL,
-    0x8000000000008002UL, 0x8000000000000080UL,
-    0x000000000000800aUL, 0x800000008000000aUL,
-    0x8000000080008081UL, 0x8000000000008080UL,
-    0x0000000080000001UL, 0x8000000080008008UL,
-};
-
 #include <wolfssl/wolfcrypt/sha3.h>
 
+#ifdef WOLFSSL_ARMASM_NO_NEON
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
@@ -375,25 +375,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[4] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #32]\n\t"
-        "ldr	r5, [%[state], #40]\n\t"
+        "ldr	r5, [%[state], #36]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #72]\n\t"
-        "ldr	r7, [%[state], #80]\n\t"
+        "ldr	r7, [%[state], #76]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #112]\n\t"
-        "ldr	r9, [%[state], #120]\n\t"
+        "ldr	r9, [%[state], #116]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #152]\n\t"
-        "ldr	r11, [%[state], #160]\n\t"
+        "ldr	r11, [%[state], #156]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #152]\n\t"
 #endif
@@ -409,32 +409,32 @@ void BlockSha3(word64* state_p)
         "eor	r3, r3, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r2, [sp, #32]\n\t"
-        "str	r3, [sp, #40]\n\t"
+        "str	r3, [sp, #36]\n\t"
 #else
         "strd	r2, r3, [sp, #32]\n\t"
 #endif
         /* Calc b[1] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #8]\n\t"
-        "ldr	r5, [%[state], #16]\n\t"
+        "ldr	r5, [%[state], #12]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #48]\n\t"
-        "ldr	r7, [%[state], #56]\n\t"
+        "ldr	r7, [%[state], #52]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #88]\n\t"
-        "ldr	r9, [%[state], #96]\n\t"
+        "ldr	r9, [%[state], #92]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #128]\n\t"
-        "ldr	r11, [%[state], #136]\n\t"
+        "ldr	r11, [%[state], #132]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #128]\n\t"
 #endif
@@ -450,7 +450,7 @@ void BlockSha3(word64* state_p)
         "eor	r5, r5, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [sp, #8]\n\t"
-        "str	r5, [sp, #16]\n\t"
+        "str	r5, [sp, #12]\n\t"
 #else
         "strd	r4, r5, [sp, #8]\n\t"
 #endif
@@ -462,25 +462,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[0] and XOR t[0] into s[x*5+0] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state]]\n\t"
-        "ldr	r5, [%[state], #8]\n\t"
+        "ldr	r5, [%[state], #4]\n\t"
 #else
         "ldrd	r4, r5, [%[state]]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #40]\n\t"
-        "ldr	r7, [%[state], #48]\n\t"
+        "ldr	r7, [%[state], #44]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #40]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #80]\n\t"
-        "ldr	r9, [%[state], #88]\n\t"
+        "ldr	r9, [%[state], #84]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #80]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #120]\n\t"
-        "ldr	r11, [%[state], #128]\n\t"
+        "ldr	r11, [%[state], #124]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #120]\n\t"
 #endif
@@ -500,31 +500,31 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [%[state]]\n\t"
-        "str	r5, [%[state], #8]\n\t"
+        "str	r5, [%[state], #4]\n\t"
 #else
         "strd	r4, r5, [%[state]]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [%[state], #40]\n\t"
-        "str	r7, [%[state], #48]\n\t"
+        "str	r7, [%[state], #44]\n\t"
 #else
         "strd	r6, r7, [%[state], #40]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [%[state], #80]\n\t"
-        "str	r9, [%[state], #88]\n\t"
+        "str	r9, [%[state], #84]\n\t"
 #else
         "strd	r8, r9, [%[state], #80]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [%[state], #120]\n\t"
-        "str	r11, [%[state], #128]\n\t"
+        "str	r11, [%[state], #124]\n\t"
 #else
         "strd	r10, r11, [%[state], #120]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #160]\n\t"
-        "ldr	r11, [%[state], #168]\n\t"
+        "ldr	r11, [%[state], #164]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #160]\n\t"
 #endif
@@ -534,7 +534,7 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [%[state], #160]\n\t"
-        "str	r11, [%[state], #168]\n\t"
+        "str	r11, [%[state], #164]\n\t"
 #else
         "strd	r10, r11, [%[state], #160]\n\t"
 #endif
@@ -543,25 +543,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[3] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #24]\n\t"
-        "ldr	r5, [%[state], #32]\n\t"
+        "ldr	r5, [%[state], #28]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #64]\n\t"
-        "ldr	r7, [%[state], #72]\n\t"
+        "ldr	r7, [%[state], #68]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #104]\n\t"
-        "ldr	r9, [%[state], #112]\n\t"
+        "ldr	r9, [%[state], #108]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #144]\n\t"
-        "ldr	r11, [%[state], #152]\n\t"
+        "ldr	r11, [%[state], #148]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #144]\n\t"
 #endif
@@ -577,14 +577,14 @@ void BlockSha3(word64* state_p)
         "eor	r5, r5, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [sp, #24]\n\t"
-        "str	r5, [sp, #32]\n\t"
+        "str	r5, [sp, #28]\n\t"
 #else
         "strd	r4, r5, [sp, #24]\n\t"
 #endif
         /* Calc t[2] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp, #8]\n\t"
-        "ldr	r3, [sp, #16]\n\t"
+        "ldr	r3, [sp, #12]\n\t"
 #else
         "ldrd	r2, r3, [sp, #8]\n\t"
 #endif
@@ -595,25 +595,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[2] and XOR t[2] into s[x*5+2] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #16]\n\t"
-        "ldr	r5, [%[state], #24]\n\t"
+        "ldr	r5, [%[state], #20]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #56]\n\t"
-        "ldr	r7, [%[state], #64]\n\t"
+        "ldr	r7, [%[state], #60]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #56]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #96]\n\t"
-        "ldr	r9, [%[state], #104]\n\t"
+        "ldr	r9, [%[state], #100]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #96]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #136]\n\t"
-        "ldr	r11, [%[state], #144]\n\t"
+        "ldr	r11, [%[state], #140]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #136]\n\t"
 #endif
@@ -633,31 +633,31 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [%[state], #16]\n\t"
-        "str	r5, [%[state], #24]\n\t"
+        "str	r5, [%[state], #20]\n\t"
 #else
         "strd	r4, r5, [%[state], #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [%[state], #56]\n\t"
-        "str	r7, [%[state], #64]\n\t"
+        "str	r7, [%[state], #60]\n\t"
 #else
         "strd	r6, r7, [%[state], #56]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [%[state], #96]\n\t"
-        "str	r9, [%[state], #104]\n\t"
+        "str	r9, [%[state], #100]\n\t"
 #else
         "strd	r8, r9, [%[state], #96]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [%[state], #136]\n\t"
-        "str	r11, [%[state], #144]\n\t"
+        "str	r11, [%[state], #140]\n\t"
 #else
         "strd	r10, r11, [%[state], #136]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #176]\n\t"
-        "ldr	r11, [%[state], #184]\n\t"
+        "ldr	r11, [%[state], #180]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #176]\n\t"
 #endif
@@ -667,7 +667,7 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [%[state], #176]\n\t"
-        "str	r11, [%[state], #184]\n\t"
+        "str	r11, [%[state], #180]\n\t"
 #else
         "strd	r10, r11, [%[state], #176]\n\t"
 #endif
@@ -676,7 +676,7 @@ void BlockSha3(word64* state_p)
         /* Calc t[1] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp]\n\t"
-        "ldr	r3, [sp, #8]\n\t"
+        "ldr	r3, [sp, #4]\n\t"
 #else
         "ldrd	r2, r3, [sp]\n\t"
 #endif
@@ -687,25 +687,25 @@ void BlockSha3(word64* state_p)
         /* XOR t[1] into s[x*5+1] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #8]\n\t"
-        "ldr	r5, [%[state], #16]\n\t"
+        "ldr	r5, [%[state], #12]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #48]\n\t"
-        "ldr	r7, [%[state], #56]\n\t"
+        "ldr	r7, [%[state], #52]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #88]\n\t"
-        "ldr	r9, [%[state], #96]\n\t"
+        "ldr	r9, [%[state], #92]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #128]\n\t"
-        "ldr	r11, [%[state], #136]\n\t"
+        "ldr	r11, [%[state], #132]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #128]\n\t"
 #endif
@@ -723,25 +723,25 @@ void BlockSha3(word64* state_p)
         "eor	lr, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [%[state], #8]\n\t"
-        "str	r5, [%[state], #16]\n\t"
+        "str	r5, [%[state], #12]\n\t"
 #else
         "strd	r4, r5, [%[state], #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [%[state], #48]\n\t"
-        "str	r7, [%[state], #56]\n\t"
+        "str	r7, [%[state], #52]\n\t"
 #else
         "strd	r6, r7, [%[state], #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [%[state], #88]\n\t"
-        "str	r9, [%[state], #96]\n\t"
+        "str	r9, [%[state], #92]\n\t"
 #else
         "strd	r8, r9, [%[state], #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [%[state], #128]\n\t"
-        "str	r11, [%[state], #136]\n\t"
+        "str	r11, [%[state], #132]\n\t"
 #else
         "strd	r10, r11, [%[state], #128]\n\t"
 #endif
@@ -750,13 +750,13 @@ void BlockSha3(word64* state_p)
         /* Calc t[3] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp, #16]\n\t"
-        "ldr	r3, [sp, #24]\n\t"
+        "ldr	r3, [sp, #20]\n\t"
 #else
         "ldrd	r2, r3, [sp, #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #32]\n\t"
-        "ldr	r5, [sp, #40]\n\t"
+        "ldr	r5, [sp, #36]\n\t"
 #else
         "ldrd	r4, r5, [sp, #32]\n\t"
 #endif
@@ -767,25 +767,25 @@ void BlockSha3(word64* state_p)
         /* XOR t[3] into s[x*5+3] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #24]\n\t"
-        "ldr	r5, [%[state], #32]\n\t"
+        "ldr	r5, [%[state], #28]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #64]\n\t"
-        "ldr	r7, [%[state], #72]\n\t"
+        "ldr	r7, [%[state], #68]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #104]\n\t"
-        "ldr	r9, [%[state], #112]\n\t"
+        "ldr	r9, [%[state], #108]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #144]\n\t"
-        "ldr	r11, [%[state], #152]\n\t"
+        "ldr	r11, [%[state], #148]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #144]\n\t"
 #endif
@@ -803,25 +803,25 @@ void BlockSha3(word64* state_p)
         "eor	lr, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [%[state], #24]\n\t"
-        "str	r5, [%[state], #32]\n\t"
+        "str	r5, [%[state], #28]\n\t"
 #else
         "strd	r4, r5, [%[state], #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [%[state], #64]\n\t"
-        "str	r7, [%[state], #72]\n\t"
+        "str	r7, [%[state], #68]\n\t"
 #else
         "strd	r6, r7, [%[state], #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [%[state], #104]\n\t"
-        "str	r9, [%[state], #112]\n\t"
+        "str	r9, [%[state], #108]\n\t"
 #else
         "strd	r8, r9, [%[state], #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [%[state], #144]\n\t"
-        "str	r11, [%[state], #152]\n\t"
+        "str	r11, [%[state], #148]\n\t"
 #else
         "strd	r10, r11, [%[state], #144]\n\t"
 #endif
@@ -830,13 +830,13 @@ void BlockSha3(word64* state_p)
         /* Calc t[4] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp, #24]\n\t"
-        "ldr	r3, [sp, #32]\n\t"
+        "ldr	r3, [sp, #28]\n\t"
 #else
         "ldrd	r2, r3, [sp, #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp]\n\t"
-        "ldr	r5, [sp, #8]\n\t"
+        "ldr	r5, [sp, #4]\n\t"
 #else
         "ldrd	r4, r5, [sp]\n\t"
 #endif
@@ -847,25 +847,25 @@ void BlockSha3(word64* state_p)
         /* XOR t[4] into s[x*5+4] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #32]\n\t"
-        "ldr	r5, [%[state], #40]\n\t"
+        "ldr	r5, [%[state], #36]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #72]\n\t"
-        "ldr	r7, [%[state], #80]\n\t"
+        "ldr	r7, [%[state], #76]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #112]\n\t"
-        "ldr	r9, [%[state], #120]\n\t"
+        "ldr	r9, [%[state], #116]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #152]\n\t"
-        "ldr	r11, [%[state], #160]\n\t"
+        "ldr	r11, [%[state], #156]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #152]\n\t"
 #endif
@@ -883,25 +883,25 @@ void BlockSha3(word64* state_p)
         "eor	lr, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [%[state], #32]\n\t"
-        "str	r5, [%[state], #40]\n\t"
+        "str	r5, [%[state], #36]\n\t"
 #else
         "strd	r4, r5, [%[state], #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [%[state], #72]\n\t"
-        "str	r7, [%[state], #80]\n\t"
+        "str	r7, [%[state], #76]\n\t"
 #else
         "strd	r6, r7, [%[state], #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [%[state], #112]\n\t"
-        "str	r9, [%[state], #120]\n\t"
+        "str	r9, [%[state], #116]\n\t"
 #else
         "strd	r8, r9, [%[state], #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [%[state], #152]\n\t"
-        "str	r11, [%[state], #160]\n\t"
+        "str	r11, [%[state], #156]\n\t"
 #else
         "strd	r10, r11, [%[state], #152]\n\t"
 #endif
@@ -911,31 +911,31 @@ void BlockSha3(word64* state_p)
         /* Row 0 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state]]\n\t"
-        "ldr	r3, [%[state], #8]\n\t"
+        "ldr	r3, [%[state], #4]\n\t"
 #else
         "ldrd	r2, r3, [%[state]]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #48]\n\t"
-        "ldr	r5, [%[state], #56]\n\t"
+        "ldr	r5, [%[state], #52]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #96]\n\t"
-        "ldr	r7, [%[state], #104]\n\t"
+        "ldr	r7, [%[state], #100]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #96]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #144]\n\t"
-        "ldr	r9, [%[state], #152]\n\t"
+        "ldr	r9, [%[state], #148]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #144]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #192]\n\t"
-        "ldr	r11, [%[state], #200]\n\t"
+        "ldr	r11, [%[state], #196]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #192]\n\t"
 #endif
@@ -1005,31 +1005,31 @@ void BlockSha3(word64* state_p)
         /* Row 1 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state], #24]\n\t"
-        "ldr	r3, [%[state], #32]\n\t"
+        "ldr	r3, [%[state], #28]\n\t"
 #else
         "ldrd	r2, r3, [%[state], #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #72]\n\t"
-        "ldr	r5, [%[state], #80]\n\t"
+        "ldr	r5, [%[state], #76]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #80]\n\t"
-        "ldr	r7, [%[state], #88]\n\t"
+        "ldr	r7, [%[state], #84]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #80]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #128]\n\t"
-        "ldr	r9, [%[state], #136]\n\t"
+        "ldr	r9, [%[state], #132]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #128]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #176]\n\t"
-        "ldr	r11, [%[state], #184]\n\t"
+        "ldr	r11, [%[state], #180]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #176]\n\t"
 #endif
@@ -1093,31 +1093,31 @@ void BlockSha3(word64* state_p)
         /* Row 2 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state], #8]\n\t"
-        "ldr	r3, [%[state], #16]\n\t"
+        "ldr	r3, [%[state], #12]\n\t"
 #else
         "ldrd	r2, r3, [%[state], #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #56]\n\t"
-        "ldr	r5, [%[state], #64]\n\t"
+        "ldr	r5, [%[state], #60]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #56]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #104]\n\t"
-        "ldr	r7, [%[state], #112]\n\t"
+        "ldr	r7, [%[state], #108]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #152]\n\t"
-        "ldr	r9, [%[state], #160]\n\t"
+        "ldr	r9, [%[state], #156]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #152]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #160]\n\t"
-        "ldr	r11, [%[state], #168]\n\t"
+        "ldr	r11, [%[state], #164]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #160]\n\t"
 #endif
@@ -1179,31 +1179,31 @@ void BlockSha3(word64* state_p)
         /* Row 3 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state], #32]\n\t"
-        "ldr	r3, [%[state], #40]\n\t"
+        "ldr	r3, [%[state], #36]\n\t"
 #else
         "ldrd	r2, r3, [%[state], #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #40]\n\t"
-        "ldr	r5, [%[state], #48]\n\t"
+        "ldr	r5, [%[state], #44]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #40]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #88]\n\t"
-        "ldr	r7, [%[state], #96]\n\t"
+        "ldr	r7, [%[state], #92]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #136]\n\t"
-        "ldr	r9, [%[state], #144]\n\t"
+        "ldr	r9, [%[state], #140]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #136]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #184]\n\t"
-        "ldr	r11, [%[state], #192]\n\t"
+        "ldr	r11, [%[state], #188]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #184]\n\t"
 #endif
@@ -1267,31 +1267,31 @@ void BlockSha3(word64* state_p)
         /* Row 4 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state], #16]\n\t"
-        "ldr	r3, [%[state], #24]\n\t"
+        "ldr	r3, [%[state], #20]\n\t"
 #else
         "ldrd	r2, r3, [%[state], #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #64]\n\t"
-        "ldr	r5, [%[state], #72]\n\t"
+        "ldr	r5, [%[state], #68]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [%[state], #112]\n\t"
-        "ldr	r7, [%[state], #120]\n\t"
+        "ldr	r7, [%[state], #116]\n\t"
 #else
         "ldrd	r6, r7, [%[state], #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [%[state], #120]\n\t"
-        "ldr	r9, [%[state], #128]\n\t"
+        "ldr	r9, [%[state], #124]\n\t"
 #else
         "ldrd	r8, r9, [%[state], #120]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [%[state], #168]\n\t"
-        "ldr	r11, [%[state], #176]\n\t"
+        "ldr	r11, [%[state], #172]\n\t"
 #else
         "ldrd	r10, r11, [%[state], #168]\n\t"
 #endif
@@ -1358,25 +1358,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[4] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #32]\n\t"
-        "ldr	r5, [sp, #40]\n\t"
+        "ldr	r5, [sp, #36]\n\t"
 #else
         "ldrd	r4, r5, [sp, #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #72]\n\t"
-        "ldr	r7, [sp, #80]\n\t"
+        "ldr	r7, [sp, #76]\n\t"
 #else
         "ldrd	r6, r7, [sp, #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #112]\n\t"
-        "ldr	r9, [sp, #120]\n\t"
+        "ldr	r9, [sp, #116]\n\t"
 #else
         "ldrd	r8, r9, [sp, #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #152]\n\t"
-        "ldr	r11, [sp, #160]\n\t"
+        "ldr	r11, [sp, #156]\n\t"
 #else
         "ldrd	r10, r11, [sp, #152]\n\t"
 #endif
@@ -1392,32 +1392,32 @@ void BlockSha3(word64* state_p)
         "eor	r3, r3, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r2, [%[state], #32]\n\t"
-        "str	r3, [%[state], #40]\n\t"
+        "str	r3, [%[state], #36]\n\t"
 #else
         "strd	r2, r3, [%[state], #32]\n\t"
 #endif
         /* Calc b[1] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #8]\n\t"
-        "ldr	r5, [sp, #16]\n\t"
+        "ldr	r5, [sp, #12]\n\t"
 #else
         "ldrd	r4, r5, [sp, #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #48]\n\t"
-        "ldr	r7, [sp, #56]\n\t"
+        "ldr	r7, [sp, #52]\n\t"
 #else
         "ldrd	r6, r7, [sp, #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #88]\n\t"
-        "ldr	r9, [sp, #96]\n\t"
+        "ldr	r9, [sp, #92]\n\t"
 #else
         "ldrd	r8, r9, [sp, #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #128]\n\t"
-        "ldr	r11, [sp, #136]\n\t"
+        "ldr	r11, [sp, #132]\n\t"
 #else
         "ldrd	r10, r11, [sp, #128]\n\t"
 #endif
@@ -1433,7 +1433,7 @@ void BlockSha3(word64* state_p)
         "eor	r5, r5, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [%[state], #8]\n\t"
-        "str	r5, [%[state], #16]\n\t"
+        "str	r5, [%[state], #12]\n\t"
 #else
         "strd	r4, r5, [%[state], #8]\n\t"
 #endif
@@ -1445,25 +1445,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[0] and XOR t[0] into s[x*5+0] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp]\n\t"
-        "ldr	r5, [sp, #8]\n\t"
+        "ldr	r5, [sp, #4]\n\t"
 #else
         "ldrd	r4, r5, [sp]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #40]\n\t"
-        "ldr	r7, [sp, #48]\n\t"
+        "ldr	r7, [sp, #44]\n\t"
 #else
         "ldrd	r6, r7, [sp, #40]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #80]\n\t"
-        "ldr	r9, [sp, #88]\n\t"
+        "ldr	r9, [sp, #84]\n\t"
 #else
         "ldrd	r8, r9, [sp, #80]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #120]\n\t"
-        "ldr	r11, [sp, #128]\n\t"
+        "ldr	r11, [sp, #124]\n\t"
 #else
         "ldrd	r10, r11, [sp, #120]\n\t"
 #endif
@@ -1483,31 +1483,31 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [sp]\n\t"
-        "str	r5, [sp, #8]\n\t"
+        "str	r5, [sp, #4]\n\t"
 #else
         "strd	r4, r5, [sp]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [sp, #40]\n\t"
-        "str	r7, [sp, #48]\n\t"
+        "str	r7, [sp, #44]\n\t"
 #else
         "strd	r6, r7, [sp, #40]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [sp, #80]\n\t"
-        "str	r9, [sp, #88]\n\t"
+        "str	r9, [sp, #84]\n\t"
 #else
         "strd	r8, r9, [sp, #80]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [sp, #120]\n\t"
-        "str	r11, [sp, #128]\n\t"
+        "str	r11, [sp, #124]\n\t"
 #else
         "strd	r10, r11, [sp, #120]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #160]\n\t"
-        "ldr	r11, [sp, #168]\n\t"
+        "ldr	r11, [sp, #164]\n\t"
 #else
         "ldrd	r10, r11, [sp, #160]\n\t"
 #endif
@@ -1517,7 +1517,7 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [sp, #160]\n\t"
-        "str	r11, [sp, #168]\n\t"
+        "str	r11, [sp, #164]\n\t"
 #else
         "strd	r10, r11, [sp, #160]\n\t"
 #endif
@@ -1526,25 +1526,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[3] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #24]\n\t"
-        "ldr	r5, [sp, #32]\n\t"
+        "ldr	r5, [sp, #28]\n\t"
 #else
         "ldrd	r4, r5, [sp, #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #64]\n\t"
-        "ldr	r7, [sp, #72]\n\t"
+        "ldr	r7, [sp, #68]\n\t"
 #else
         "ldrd	r6, r7, [sp, #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #104]\n\t"
-        "ldr	r9, [sp, #112]\n\t"
+        "ldr	r9, [sp, #108]\n\t"
 #else
         "ldrd	r8, r9, [sp, #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #144]\n\t"
-        "ldr	r11, [sp, #152]\n\t"
+        "ldr	r11, [sp, #148]\n\t"
 #else
         "ldrd	r10, r11, [sp, #144]\n\t"
 #endif
@@ -1560,14 +1560,14 @@ void BlockSha3(word64* state_p)
         "eor	r5, r5, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [%[state], #24]\n\t"
-        "str	r5, [%[state], #32]\n\t"
+        "str	r5, [%[state], #28]\n\t"
 #else
         "strd	r4, r5, [%[state], #24]\n\t"
 #endif
         /* Calc t[2] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state], #8]\n\t"
-        "ldr	r3, [%[state], #16]\n\t"
+        "ldr	r3, [%[state], #12]\n\t"
 #else
         "ldrd	r2, r3, [%[state], #8]\n\t"
 #endif
@@ -1578,25 +1578,25 @@ void BlockSha3(word64* state_p)
         /* Calc b[2] and XOR t[2] into s[x*5+2] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #16]\n\t"
-        "ldr	r5, [sp, #24]\n\t"
+        "ldr	r5, [sp, #20]\n\t"
 #else
         "ldrd	r4, r5, [sp, #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #56]\n\t"
-        "ldr	r7, [sp, #64]\n\t"
+        "ldr	r7, [sp, #60]\n\t"
 #else
         "ldrd	r6, r7, [sp, #56]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #96]\n\t"
-        "ldr	r9, [sp, #104]\n\t"
+        "ldr	r9, [sp, #100]\n\t"
 #else
         "ldrd	r8, r9, [sp, #96]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #136]\n\t"
-        "ldr	r11, [sp, #144]\n\t"
+        "ldr	r11, [sp, #140]\n\t"
 #else
         "ldrd	r10, r11, [sp, #136]\n\t"
 #endif
@@ -1616,31 +1616,31 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [sp, #16]\n\t"
-        "str	r5, [sp, #24]\n\t"
+        "str	r5, [sp, #20]\n\t"
 #else
         "strd	r4, r5, [sp, #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [sp, #56]\n\t"
-        "str	r7, [sp, #64]\n\t"
+        "str	r7, [sp, #60]\n\t"
 #else
         "strd	r6, r7, [sp, #56]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [sp, #96]\n\t"
-        "str	r9, [sp, #104]\n\t"
+        "str	r9, [sp, #100]\n\t"
 #else
         "strd	r8, r9, [sp, #96]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [sp, #136]\n\t"
-        "str	r11, [sp, #144]\n\t"
+        "str	r11, [sp, #140]\n\t"
 #else
         "strd	r10, r11, [sp, #136]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #176]\n\t"
-        "ldr	r11, [sp, #184]\n\t"
+        "ldr	r11, [sp, #180]\n\t"
 #else
         "ldrd	r10, r11, [sp, #176]\n\t"
 #endif
@@ -1650,7 +1650,7 @@ void BlockSha3(word64* state_p)
         "eor	r11, r11, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [sp, #176]\n\t"
-        "str	r11, [sp, #184]\n\t"
+        "str	r11, [sp, #180]\n\t"
 #else
         "strd	r10, r11, [sp, #176]\n\t"
 #endif
@@ -1659,7 +1659,7 @@ void BlockSha3(word64* state_p)
         /* Calc t[1] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state]]\n\t"
-        "ldr	r3, [%[state], #8]\n\t"
+        "ldr	r3, [%[state], #4]\n\t"
 #else
         "ldrd	r2, r3, [%[state]]\n\t"
 #endif
@@ -1670,25 +1670,25 @@ void BlockSha3(word64* state_p)
         /* XOR t[1] into s[x*5+1] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #8]\n\t"
-        "ldr	r5, [sp, #16]\n\t"
+        "ldr	r5, [sp, #12]\n\t"
 #else
         "ldrd	r4, r5, [sp, #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #48]\n\t"
-        "ldr	r7, [sp, #56]\n\t"
+        "ldr	r7, [sp, #52]\n\t"
 #else
         "ldrd	r6, r7, [sp, #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #88]\n\t"
-        "ldr	r9, [sp, #96]\n\t"
+        "ldr	r9, [sp, #92]\n\t"
 #else
         "ldrd	r8, r9, [sp, #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #128]\n\t"
-        "ldr	r11, [sp, #136]\n\t"
+        "ldr	r11, [sp, #132]\n\t"
 #else
         "ldrd	r10, r11, [sp, #128]\n\t"
 #endif
@@ -1706,25 +1706,25 @@ void BlockSha3(word64* state_p)
         "eor	lr, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [sp, #8]\n\t"
-        "str	r5, [sp, #16]\n\t"
+        "str	r5, [sp, #12]\n\t"
 #else
         "strd	r4, r5, [sp, #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [sp, #48]\n\t"
-        "str	r7, [sp, #56]\n\t"
+        "str	r7, [sp, #52]\n\t"
 #else
         "strd	r6, r7, [sp, #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [sp, #88]\n\t"
-        "str	r9, [sp, #96]\n\t"
+        "str	r9, [sp, #92]\n\t"
 #else
         "strd	r8, r9, [sp, #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [sp, #128]\n\t"
-        "str	r11, [sp, #136]\n\t"
+        "str	r11, [sp, #132]\n\t"
 #else
         "strd	r10, r11, [sp, #128]\n\t"
 #endif
@@ -1733,13 +1733,13 @@ void BlockSha3(word64* state_p)
         /* Calc t[3] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state], #16]\n\t"
-        "ldr	r3, [%[state], #24]\n\t"
+        "ldr	r3, [%[state], #20]\n\t"
 #else
         "ldrd	r2, r3, [%[state], #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state], #32]\n\t"
-        "ldr	r5, [%[state], #40]\n\t"
+        "ldr	r5, [%[state], #36]\n\t"
 #else
         "ldrd	r4, r5, [%[state], #32]\n\t"
 #endif
@@ -1750,25 +1750,25 @@ void BlockSha3(word64* state_p)
         /* XOR t[3] into s[x*5+3] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #24]\n\t"
-        "ldr	r5, [sp, #32]\n\t"
+        "ldr	r5, [sp, #28]\n\t"
 #else
         "ldrd	r4, r5, [sp, #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #64]\n\t"
-        "ldr	r7, [sp, #72]\n\t"
+        "ldr	r7, [sp, #68]\n\t"
 #else
         "ldrd	r6, r7, [sp, #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #104]\n\t"
-        "ldr	r9, [sp, #112]\n\t"
+        "ldr	r9, [sp, #108]\n\t"
 #else
         "ldrd	r8, r9, [sp, #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #144]\n\t"
-        "ldr	r11, [sp, #152]\n\t"
+        "ldr	r11, [sp, #148]\n\t"
 #else
         "ldrd	r10, r11, [sp, #144]\n\t"
 #endif
@@ -1786,25 +1786,25 @@ void BlockSha3(word64* state_p)
         "eor	lr, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [sp, #24]\n\t"
-        "str	r5, [sp, #32]\n\t"
+        "str	r5, [sp, #28]\n\t"
 #else
         "strd	r4, r5, [sp, #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [sp, #64]\n\t"
-        "str	r7, [sp, #72]\n\t"
+        "str	r7, [sp, #68]\n\t"
 #else
         "strd	r6, r7, [sp, #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [sp, #104]\n\t"
-        "str	r9, [sp, #112]\n\t"
+        "str	r9, [sp, #108]\n\t"
 #else
         "strd	r8, r9, [sp, #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [sp, #144]\n\t"
-        "str	r11, [sp, #152]\n\t"
+        "str	r11, [sp, #148]\n\t"
 #else
         "strd	r10, r11, [sp, #144]\n\t"
 #endif
@@ -1813,13 +1813,13 @@ void BlockSha3(word64* state_p)
         /* Calc t[4] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [%[state], #24]\n\t"
-        "ldr	r3, [%[state], #32]\n\t"
+        "ldr	r3, [%[state], #28]\n\t"
 #else
         "ldrd	r2, r3, [%[state], #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [%[state]]\n\t"
-        "ldr	r5, [%[state], #8]\n\t"
+        "ldr	r5, [%[state], #4]\n\t"
 #else
         "ldrd	r4, r5, [%[state]]\n\t"
 #endif
@@ -1830,25 +1830,25 @@ void BlockSha3(word64* state_p)
         /* XOR t[4] into s[x*5+4] */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #32]\n\t"
-        "ldr	r5, [sp, #40]\n\t"
+        "ldr	r5, [sp, #36]\n\t"
 #else
         "ldrd	r4, r5, [sp, #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #72]\n\t"
-        "ldr	r7, [sp, #80]\n\t"
+        "ldr	r7, [sp, #76]\n\t"
 #else
         "ldrd	r6, r7, [sp, #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #112]\n\t"
-        "ldr	r9, [sp, #120]\n\t"
+        "ldr	r9, [sp, #116]\n\t"
 #else
         "ldrd	r8, r9, [sp, #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #152]\n\t"
-        "ldr	r11, [sp, #160]\n\t"
+        "ldr	r11, [sp, #156]\n\t"
 #else
         "ldrd	r10, r11, [sp, #152]\n\t"
 #endif
@@ -1866,25 +1866,25 @@ void BlockSha3(word64* state_p)
         "eor	lr, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r4, [sp, #32]\n\t"
-        "str	r5, [sp, #40]\n\t"
+        "str	r5, [sp, #36]\n\t"
 #else
         "strd	r4, r5, [sp, #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r6, [sp, #72]\n\t"
-        "str	r7, [sp, #80]\n\t"
+        "str	r7, [sp, #76]\n\t"
 #else
         "strd	r6, r7, [sp, #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r8, [sp, #112]\n\t"
-        "str	r9, [sp, #120]\n\t"
+        "str	r9, [sp, #116]\n\t"
 #else
         "strd	r8, r9, [sp, #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "str	r10, [sp, #152]\n\t"
-        "str	r11, [sp, #160]\n\t"
+        "str	r11, [sp, #156]\n\t"
 #else
         "strd	r10, r11, [sp, #152]\n\t"
 #endif
@@ -1894,31 +1894,31 @@ void BlockSha3(word64* state_p)
         /* Row 0 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp]\n\t"
-        "ldr	r3, [sp, #8]\n\t"
+        "ldr	r3, [sp, #4]\n\t"
 #else
         "ldrd	r2, r3, [sp]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #48]\n\t"
-        "ldr	r5, [sp, #56]\n\t"
+        "ldr	r5, [sp, #52]\n\t"
 #else
         "ldrd	r4, r5, [sp, #48]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #96]\n\t"
-        "ldr	r7, [sp, #104]\n\t"
+        "ldr	r7, [sp, #100]\n\t"
 #else
         "ldrd	r6, r7, [sp, #96]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #144]\n\t"
-        "ldr	r9, [sp, #152]\n\t"
+        "ldr	r9, [sp, #148]\n\t"
 #else
         "ldrd	r8, r9, [sp, #144]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #192]\n\t"
-        "ldr	r11, [sp, #200]\n\t"
+        "ldr	r11, [sp, #196]\n\t"
 #else
         "ldrd	r10, r11, [sp, #192]\n\t"
 #endif
@@ -1988,31 +1988,31 @@ void BlockSha3(word64* state_p)
         /* Row 1 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp, #24]\n\t"
-        "ldr	r3, [sp, #32]\n\t"
+        "ldr	r3, [sp, #28]\n\t"
 #else
         "ldrd	r2, r3, [sp, #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #72]\n\t"
-        "ldr	r5, [sp, #80]\n\t"
+        "ldr	r5, [sp, #76]\n\t"
 #else
         "ldrd	r4, r5, [sp, #72]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #80]\n\t"
-        "ldr	r7, [sp, #88]\n\t"
+        "ldr	r7, [sp, #84]\n\t"
 #else
         "ldrd	r6, r7, [sp, #80]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #128]\n\t"
-        "ldr	r9, [sp, #136]\n\t"
+        "ldr	r9, [sp, #132]\n\t"
 #else
         "ldrd	r8, r9, [sp, #128]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #176]\n\t"
-        "ldr	r11, [sp, #184]\n\t"
+        "ldr	r11, [sp, #180]\n\t"
 #else
         "ldrd	r10, r11, [sp, #176]\n\t"
 #endif
@@ -2076,31 +2076,31 @@ void BlockSha3(word64* state_p)
         /* Row 2 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp, #8]\n\t"
-        "ldr	r3, [sp, #16]\n\t"
+        "ldr	r3, [sp, #12]\n\t"
 #else
         "ldrd	r2, r3, [sp, #8]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #56]\n\t"
-        "ldr	r5, [sp, #64]\n\t"
+        "ldr	r5, [sp, #60]\n\t"
 #else
         "ldrd	r4, r5, [sp, #56]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #104]\n\t"
-        "ldr	r7, [sp, #112]\n\t"
+        "ldr	r7, [sp, #108]\n\t"
 #else
         "ldrd	r6, r7, [sp, #104]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #152]\n\t"
-        "ldr	r9, [sp, #160]\n\t"
+        "ldr	r9, [sp, #156]\n\t"
 #else
         "ldrd	r8, r9, [sp, #152]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #160]\n\t"
-        "ldr	r11, [sp, #168]\n\t"
+        "ldr	r11, [sp, #164]\n\t"
 #else
         "ldrd	r10, r11, [sp, #160]\n\t"
 #endif
@@ -2162,31 +2162,31 @@ void BlockSha3(word64* state_p)
         /* Row 3 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp, #32]\n\t"
-        "ldr	r3, [sp, #40]\n\t"
+        "ldr	r3, [sp, #36]\n\t"
 #else
         "ldrd	r2, r3, [sp, #32]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #40]\n\t"
-        "ldr	r5, [sp, #48]\n\t"
+        "ldr	r5, [sp, #44]\n\t"
 #else
         "ldrd	r4, r5, [sp, #40]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #88]\n\t"
-        "ldr	r7, [sp, #96]\n\t"
+        "ldr	r7, [sp, #92]\n\t"
 #else
         "ldrd	r6, r7, [sp, #88]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #136]\n\t"
-        "ldr	r9, [sp, #144]\n\t"
+        "ldr	r9, [sp, #140]\n\t"
 #else
         "ldrd	r8, r9, [sp, #136]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #184]\n\t"
-        "ldr	r11, [sp, #192]\n\t"
+        "ldr	r11, [sp, #188]\n\t"
 #else
         "ldrd	r10, r11, [sp, #184]\n\t"
 #endif
@@ -2250,31 +2250,31 @@ void BlockSha3(word64* state_p)
         /* Row 4 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r2, [sp, #16]\n\t"
-        "ldr	r3, [sp, #24]\n\t"
+        "ldr	r3, [sp, #20]\n\t"
 #else
         "ldrd	r2, r3, [sp, #16]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r4, [sp, #64]\n\t"
-        "ldr	r5, [sp, #72]\n\t"
+        "ldr	r5, [sp, #68]\n\t"
 #else
         "ldrd	r4, r5, [sp, #64]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r6, [sp, #112]\n\t"
-        "ldr	r7, [sp, #120]\n\t"
+        "ldr	r7, [sp, #116]\n\t"
 #else
         "ldrd	r6, r7, [sp, #112]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r8, [sp, #120]\n\t"
-        "ldr	r9, [sp, #128]\n\t"
+        "ldr	r9, [sp, #124]\n\t"
 #else
         "ldrd	r8, r9, [sp, #120]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	r10, [sp, #168]\n\t"
-        "ldr	r11, [sp, #176]\n\t"
+        "ldr	r11, [sp, #172]\n\t"
 #else
         "ldrd	r10, r11, [sp, #168]\n\t"
 #endif
@@ -2348,7 +2348,6 @@ void BlockSha3(word64* state_p)
 }
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
-#endif /* WOLFSSL_SHA3 */
 #endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 #endif /* !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__) */
