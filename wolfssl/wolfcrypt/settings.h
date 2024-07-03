@@ -3483,8 +3483,9 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_SHAKE256
 #endif
 
-/* SHAKE - Not allowed in FIPS */
-#if defined(WOLFSSL_SHA3) && (defined(HAVE_SELFTEST) || defined(HAVE_FIPS))
+/* SHAKE - Not allowed in FIPS v5.2 or older */
+#if defined(WOLFSSL_SHA3) && (defined(HAVE_SELFTEST) || \
+    (defined(HAVE_FIPS) && FIPS_VERSION_LE(5,2)))
     #undef  WOLFSSL_NO_SHAKE128
     #define WOLFSSL_NO_SHAKE128
     #undef  WOLFSSL_NO_SHAKE256
