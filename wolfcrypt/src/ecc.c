@@ -6847,7 +6847,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         }
         if (key->sign_k != NULL) {
             if (wc_ecc_gen_deterministic_k(in, inlen,
-                        WC_HASH_TYPE_NONE, ecc_get_k(key), key->sign_k,
+                        key->hashType, ecc_get_k(key), key->sign_k,
                         curve->order, key->heap) != 0) {
                 mp_free(key->sign_k);
                 XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
@@ -6865,7 +6865,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         }
     #else
         key->sign_k_set = 0;
-        if (wc_ecc_gen_deterministic_k(in, inlen, WC_HASH_TYPE_NONE,
+        if (wc_ecc_gen_deterministic_k(in, inlen, key->hashType,
                 ecc_get_k(key), key->sign_k, curve->order, key->heap) != 0) {
             err = ECC_PRIV_KEY_E;
         }
@@ -7561,6 +7561,14 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         }
     }
 
+    /* For deterministic k only SHA2-256, SHA2-384 and SHA2-512 are supported */
+    if ( hashType != WC_HASH_TYPE_SHA256 &&
+         hashType != WC_HASH_TYPE_SHA384 &&
+         hashType != WC_HASH_TYPE_SHA512) {
+        WOLFSSL_MSG("Invalid deterministic hash type");
+        return BAD_FUNC_ARG;
+    }
+
     if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
         WOLFSSL_MSG("private key larger than max expected!");
         return BAD_FUNC_ARG;
@@ -7775,15 +7783,22 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 /* Sets the deterministic flag for 'k' generation with sign.
  * returns 0 on success
  */
-int wc_ecc_set_deterministic(ecc_key* key, byte flag)
+int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag, int hashType)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
     key->deterministic = flag ? 1 : 0;
+    key->hashType = hashType;
     return 0;
 }
+
+int wc_ecc_set_deterministic(ecc_key* key, byte flag)
+{
+    return wc_ecc_set_deterministic_ex(key, flag, WC_HASH_TYPE_NONE);
+}
+
 #endif /* end sign_ex and deterministic sign */
 
 
