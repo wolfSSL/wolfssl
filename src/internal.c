@@ -27390,7 +27390,40 @@ static byte MinHashAlgo(WOLFSSL* ssl)
     return sha_mac;
 }
 
-int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
+/* Check if a given peer hashSigAlgo is supported in our ssl->suites or
+ * ssl->ctx->suites.
+ *
+ * Returns 1 on match.
+ * Returns 0 otherwise.
+ * */
+static int SupportedHashSigAlgo(WOLFSSL* ssl, const byte * hashSigAlgo)
+{
+    const Suites * suites = NULL;
+    word32         i = 0;
+
+    if (ssl == NULL || hashSigAlgo == NULL) {
+        return 0;
+    }
+
+    suites = WOLFSSL_SUITES(ssl);
+
+    if (suites == NULL || suites->hashSigAlgoSz == 0) {
+        return 0;
+    }
+
+    for (i = 0; (i+1) < suites->hashSigAlgoSz; i += HELLO_EXT_SIGALGO_SZ) {
+        if (XMEMCMP(&suites->hashSigAlgo[i], hashSigAlgo,
+                    HELLO_EXT_SIGALGO_SZ) == 0) {
+            /* Match found. */
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz,
+                    int matchSuites)
 {
     word32 i;
     int ret = WC_NO_ERR_TRACE(MATCH_SUITE_ERROR);
@@ -27430,6 +27463,14 @@ int PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
         /* Keep looking if signature algorithm isn't supported by cert. */
         if (!MatchSigAlgo(ssl, sigAlgo))
             continue;
+
+        if (matchSuites) {
+            /* Keep looking if peer algorithm isn't supported in our ssl->suites
+             * or ssl->ctx->suites. */
+            if (!SupportedHashSigAlgo(ssl, &hashSigAlgo[i])) {
+                continue;
+            }
+        }
 
     #ifdef HAVE_ED25519
         if (ssl->pkCurveOID == ECC_ED25519_OID) {
@@ -30051,7 +30092,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             if ((len > size) || ((*inOutIdx - begin) + len > size))
                 return BUFFER_ERROR;
 
-            if (PickHashSigAlgo(ssl, input + *inOutIdx, len) != 0 &&
+            if (PickHashSigAlgo(ssl, input + *inOutIdx, len, 0) != 0 &&
                                              ssl->buffers.certificate &&
                                              ssl->buffers.certificate->buffer) {
             #ifdef HAVE_PK_CALLBACKS
@@ -31084,6 +31125,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         if ((args->idx - args->begin) + ENUM_LEN + ENUM_LEN >
                                                                         size) {
                             ERROR_OUT(BUFFER_ERROR, exit_dske);
+                        }
+
+                        /* Check if hashSigAlgo in Server Key Exchange is supported
+                         * in our ssl->suites or ssl->ctx->suites. */
+                        if (!SupportedHashSigAlgo(ssl, &input[args->idx])) {
+                        #ifdef WOLFSSL_EXTRA_ALERTS
+                            SendAlert(ssl, alert_fatal, handshake_failure);
+                        #endif
+                            ERROR_OUT(MATCH_SUITE_ERROR, exit_dske);
                         }
 
                         DecodeSigAlg(&input[args->idx], &ssl->options.peerHashAlgo,
@@ -35937,7 +35987,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret != 0)
             return ret;
         ret = PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
-                                         peerSuites->hashSigAlgoSz);
+                              peerSuites->hashSigAlgoSz, 1);
         if (ret != 0)
             return ret;
 
@@ -36300,7 +36350,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ret = SetCipherSpecs(ssl);
                 if (ret == 0) {
                     ret = PickHashSigAlgo(ssl, clSuites->hashSigAlgo,
-                                               clSuites->hashSigAlgoSz);
+                                          clSuites->hashSigAlgoSz, 0);
                 }
             }
             else if (ret == 0) {
