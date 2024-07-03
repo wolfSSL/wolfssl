@@ -301,6 +301,184 @@ static void kyber_ntt(sword16* r)
     for (j = 0; j < KYBER_N; ++j) {
         r[j] = KYBER_BARRETT_RED(r[j]);
     }
+#elif defined(WOLFSSL_ARMASM) && defined(__thumb__)
+#define KYBER_NTT_2x2_B(a, b)                       \
+        "SMULBB     r10, r14, " #b "\n\t"           \
+        "SMULBT     " #b ", r14, " #b "\n\t"        \
+        "SMULTB     r11, r12, r10\n\t"              \
+        "SMLABB     r10, r12, r11, r10\n\t"         \
+        "SMULTB     r11, r12, " #b "\n\t"           \
+        "SMLABB     r11, r12, r11, " #b "\n\t"      \
+        "PKHTB      r10, r11, r10, ASR #16\n\t"     \
+        "SSUB16     " #b ", " #a ", r10\n\t"        \
+        "SADD16     " #a ", " #a ", r10\n\t"
+#define KYBER_NTT_2x2_T(a, b)                       \
+        "SMULTB     r10, r14, " #b "\n\t"           \
+        "SMULTT     " #b ", r14, " #b "\n\t"        \
+        "SMULTB     r11, r12, r10\n\t"              \
+        "SMLABB     r10, r12, r11, r10\n\t"         \
+        "SMULTB     r11, r12, " #b "\n\t"           \
+        "SMLABB     r11, r12, r11, " #b "\n\t"      \
+        "PKHTB      r10, r11, r10, ASR #16\n\t"     \
+        "SSUB16     " #b ", " #a ", r10\n\t"        \
+        "SADD16     " #a ", " #a ", r10\n\t"
+
+#define KYBER_BARRETT(a)                            \
+        "SMULWB     r10, r14, " #a "\n\t"           \
+        "SMULWT     r11, r14, " #a "\n\t"           \
+        "SMULBT     r10, r12, r10\n\t"              \
+        "SMULBT     r11, r12, r11\n\t"              \
+        "PKHBT      r10, r10, r11, LSL #16\n\t"     \
+        "SSUB16     " #a ", " #a ", r10\n\t"
+
+    __asm__ __volatile__ (
+        "SUB        sp, sp, #8\n\t"
+        "MOVW       r12, 0xd01\n\t"
+        "MOVT       r12, 0xcff\n\t"
+
+        "MOV        r2, #16\n\t"
+    "1:\n\t"
+        "STR        r2, [sp]\n\t"
+        "LDRH       r14, [%[zetas], #2]\n\t"
+        "LDR        r2, [%[r], #0]\n\t"
+        "LDR        r3, [%[r], #64]\n\t"
+        "LDR        r4, [%[r], #128]\n\t"
+        "LDR        r5, [%[r], #192]\n\t"
+        "LDR        r6, [%[r], #256]\n\t"
+        "LDR        r7, [%[r], #320]\n\t"
+        "LDR        r8, [%[r], #384]\n\t"
+        "LDR        r9, [%[r], #448]\n\t"
+        KYBER_NTT_2x2_B(r2, r6)
+        KYBER_NTT_2x2_B(r3, r7)
+        KYBER_NTT_2x2_B(r4, r8)
+        KYBER_NTT_2x2_B(r5, r9)
+        "LDR        r14, [%[zetas], #4]\n\t"
+        KYBER_NTT_2x2_B(r2, r4)
+        KYBER_NTT_2x2_B(r3, r5)
+        KYBER_NTT_2x2_T(r6, r8)
+        KYBER_NTT_2x2_T(r7, r9)
+        "LDR        r14, [%[zetas], #8]\n\t"
+        KYBER_NTT_2x2_B(r2, r3)
+        KYBER_NTT_2x2_T(r4, r5)
+        "LDR        r14, [%[zetas], #12]\n\t"
+        KYBER_NTT_2x2_B(r6, r7)
+        KYBER_NTT_2x2_T(r8, r9)
+        "STR        r2, [%[r], #0]\n\t"
+        "STR        r3, [%[r], #64]\n\t"
+        "STR        r4, [%[r], #128]\n\t"
+        "STR        r5, [%[r], #192]\n\t"
+        "STR        r6, [%[r], #256]\n\t"
+        "STR        r7, [%[r], #320]\n\t"
+        "STR        r8, [%[r], #384]\n\t"
+        "STR        r9, [%[r], #448]\n\t"
+        "LDR        r2, [sp]\n\t"
+        "SUBS       r2, r2, #1\n\t"
+        "ADD        %[r], %[r], #4\n\t"
+        "BNE        1b\n\t"
+        "SUB        %[r], %[r], #64\n\t"
+
+        "MOV        r3, #0\n\t"
+    "3:\n\t"
+        "STR        r3, [sp, #4]\n\t"
+        "ADD        r14, %[zetas], r3, LSR #4\n\t"
+        "MOV        r2, #4\n\t"
+        "LDR        r14, [r14, #16]\n\t"
+    "2:\n\t"
+        "STR        r2, [sp]\n\t"
+        "LDR        r2, [%[r], #0]\n\t"
+        "LDR        r3, [%[r], #16]\n\t"
+        "LDR        r4, [%[r], #32]\n\t"
+        "LDR        r5, [%[r], #48]\n\t"
+        "LDR        r6, [%[r], #64]\n\t"
+        "LDR        r7, [%[r], #80]\n\t"
+        "LDR        r8, [%[r], #96]\n\t"
+        "LDR        r9, [%[r], #112]\n\t"
+        KYBER_NTT_2x2_B(r2, r4)
+        KYBER_NTT_2x2_B(r3, r5)
+        KYBER_NTT_2x2_T(r6, r8)
+        KYBER_NTT_2x2_T(r7, r9)
+        "STR        r2, [%[r], #0]\n\t"
+        "STR        r3, [%[r], #16]\n\t"
+        "STR        r4, [%[r], #32]\n\t"
+        "STR        r5, [%[r], #48]\n\t"
+        "STR        r6, [%[r], #64]\n\t"
+        "STR        r7, [%[r], #80]\n\t"
+        "STR        r8, [%[r], #96]\n\t"
+        "STR        r9, [%[r], #112]\n\t"
+        "LDRD       r2, r3, [sp]\n\t"
+        "SUBS       r2, r2, #1\n\t"
+        "ADD        %[r], %[r], #4\n\t"
+        "BNE        2b\n\t"
+        "ADD        r3, r3, #64\n\t"
+        "RSBS       r2, r3, #256\n\t"
+        "ADD        %[r], %[r], #112\n\t"
+        "BNE        3b\n\t"
+        "SUB        %[r], %[r], #512\n\t"
+
+        "MOV        r3, #0\n\t"
+    "4:\n\t"
+        "ADD        r14, %[zetas], r3, LSR #3\n\t"
+        "STR        r3, [sp, #4]\n\t"
+        "LDRH       r14, [r14, #32]\n\t"
+        "LDR        r2, [%[r], #0]\n\t"
+        "LDR        r3, [%[r], #4]\n\t"
+        "LDR        r4, [%[r], #8]\n\t"
+        "LDR        r5, [%[r], #12]\n\t"
+        "LDR        r6, [%[r], #16]\n\t"
+        "LDR        r7, [%[r], #20]\n\t"
+        "LDR        r8, [%[r], #24]\n\t"
+        "LDR        r9, [%[r], #28]\n\t"
+        KYBER_NTT_2x2_B(r2, r6)
+        KYBER_NTT_2x2_B(r3, r7)
+        KYBER_NTT_2x2_B(r4, r8)
+        KYBER_NTT_2x2_B(r5, r9)
+        "LDR        r14, [sp, #4]\n\t"
+        "ADD        r14, %[zetas], r14, LSR #2\n\t"
+        "LDR        r14, [r14, #64]\n\t"
+        KYBER_NTT_2x2_B(r2, r4)
+        KYBER_NTT_2x2_B(r3, r5)
+        KYBER_NTT_2x2_T(r6, r8)
+        KYBER_NTT_2x2_T(r7, r9)
+        "LDR        r14, [sp, #4]\n\t"
+        "ADD        r14, %[zetas], r14, LSR #1\n\t"
+        "LDR        r14, [r14, #128]\n\t"
+        KYBER_NTT_2x2_B(r2, r3)
+        KYBER_NTT_2x2_T(r4, r5)
+        "LDR        r14, [sp, #4]\n\t"
+        "ADD        r14, %[zetas], r14, LSR #1\n\t"
+        "LDR        r14, [r14, #132]\n\t"
+        KYBER_NTT_2x2_B(r6, r7)
+        KYBER_NTT_2x2_T(r8, r9)
+        "MOVW       r14, 0xafc0\n\t"
+        "MOVT       r14, 0x13\n\t"
+        KYBER_BARRETT(r2)
+        KYBER_BARRETT(r3)
+        KYBER_BARRETT(r4)
+        KYBER_BARRETT(r5)
+        KYBER_BARRETT(r6)
+        KYBER_BARRETT(r7)
+        KYBER_BARRETT(r8)
+        KYBER_BARRETT(r9)
+        "STR        r2, [%[r], #0]\n\t"
+        "STR        r3, [%[r], #4]\n\t"
+        "STR        r4, [%[r], #8]\n\t"
+        "STR        r5, [%[r], #12]\n\t"
+        "STR        r6, [%[r], #16]\n\t"
+        "STR        r7, [%[r], #20]\n\t"
+        "STR        r8, [%[r], #24]\n\t"
+        "STR        r9, [%[r], #28]\n\t"
+        "LDR        r3, [sp, #4]\n\t"
+        "ADD        r3, r3, #16\n\t"
+        "RSBS       r2, r3, #256\n\t"
+        "ADD        %[r], %[r], #32\n\t"
+        "BNE        4b\n\t"
+
+        "ADD        sp, sp, #8\n\t"
+        : [r] "+r" (r)
+        : [zetas] "r" (zetas)
+        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
+          "r10", "r11", "r12", "r14"
+    );
 #else
     unsigned int j;
     sword16 t0;
@@ -659,6 +837,199 @@ static void kyber_invntt(sword16* r)
         p = (sword32)zeta2 * r[j + KYBER_N / 2];
         r[j + KYBER_N / 2] = KYBER_MONT_RED(p);
     }
+#elif defined(WOLFSSL_ARMASM) && defined(__thumb__)
+#define KYBER_INV_NTT_2x2_B(a, b)                   \
+        "SSUB16     r10, " #a ", " #b "\n\t"        \
+        "SADD16     " #a ", " #a ", " #b "\n\t"     \
+        "SMULBT     " #b ", r14, r10\n\t"           \
+        "SMULBB     r10, r14, r10\n\t"              \
+        "SMULTB     r11, r12, r10\n\t"              \
+        "SMLABB     r10, r12, r11, r10\n\t"         \
+        "SMULTB     r11, r12, " #b "\n\t"           \
+        "SMLABB     " #b ", r12, r11, " #b "\n\t"   \
+        "PKHTB      " #b ", " #b ", r10, ASR #16\n\t"
+#define KYBER_INV_NTT_2x2_T(a, b)                   \
+        "SSUB16     r10, " #a ", " #b "\n\t"        \
+        "SADD16     " #a ", " #a ", " #b "\n\t"     \
+        "SMULTT     " #b ", r14, r10\n\t"           \
+        "SMULTB     r10, r14, r10\n\t"              \
+        "SMULTB     r11, r12, r10\n\t"              \
+        "SMLABB     r10, r12, r11, r10\n\t"         \
+        "SMULTB     r11, r12, " #b "\n\t"           \
+        "SMLABB     " #b ", r12, r11, " #b "\n\t"   \
+        "PKHTB      " #b ", " #b ", r10, ASR #16\n\t"
+
+#define KYBER_INVNTT_MONT_RED(a)                    \
+        "SMULBB     r10, r14, " #a "\n\t"           \
+        "SMULBT     " #a ", r14, " #a "\n\t"        \
+        "SMULTB     r11, r12, r10\n\t"              \
+        "SMLABB     r10, r12, r11, r10\n\t"         \
+        "SMULTB     r11, r12, " #a "\n\t"           \
+        "SMLABB     " #a ", r12, r11, " #a "\n\t"   \
+        "PKHTB      " #a ", " #a ", r10, ASR #16\n\t"
+
+    __asm__ __volatile__ (
+        "SUB        sp, sp, #8\n\t"
+        "MOVW       r12, 0xd01\n\t"
+        "MOVT       r12, 0xcff\n\t"
+
+        "MOV        r3, #0\n\t"
+    "4:\n\t"
+        "ADD        r14, %[zetas_inv], r3, LSR #1\n\t"
+        "STR        r3, [sp, #4]\n\t"
+        "LDR        r2, [%[r], #0]\n\t"
+        "LDR        r3, [%[r], #4]\n\t"
+        "LDR        r4, [%[r], #8]\n\t"
+        "LDR        r5, [%[r], #12]\n\t"
+        "LDR        r6, [%[r], #16]\n\t"
+        "LDR        r7, [%[r], #20]\n\t"
+        "LDR        r8, [%[r], #24]\n\t"
+        "LDR        r9, [%[r], #28]\n\t"
+        "LDR        r14, [r14, #0]\n\t"
+        KYBER_INV_NTT_2x2_B(r2, r3)
+        KYBER_INV_NTT_2x2_T(r4, r5)
+        "LDR        r14, [sp, #4]\n\t"
+        "ADD        r14, %[zetas_inv], r14, LSR #1\n\t"
+        "LDR        r14, [r14, #4]\n\t"
+        KYBER_INV_NTT_2x2_B(r6, r7)
+        KYBER_INV_NTT_2x2_T(r8, r9)
+        "LDR        r14, [sp, #4]\n\t"
+        "ADD        r14, %[zetas_inv], r14, LSR #2\n\t"
+        "LDR        r14, [r14, #128]\n\t"
+        KYBER_INV_NTT_2x2_B(r2, r4)
+        KYBER_INV_NTT_2x2_B(r3, r5)
+        KYBER_INV_NTT_2x2_T(r6, r8)
+        KYBER_INV_NTT_2x2_T(r7, r9)
+        "LDR        r14, [sp, #4]\n\t"
+        "ADD        r14, %[zetas_inv], r14, LSR #3\n\t"
+        "LDRH       r14, [r14, #192]\n\t"
+        KYBER_INV_NTT_2x2_B(r2, r6)
+        KYBER_INV_NTT_2x2_B(r3, r7)
+        KYBER_INV_NTT_2x2_B(r4, r8)
+        KYBER_INV_NTT_2x2_B(r5, r9)
+        "MOVW       r14, 0xafc0\n\t"
+        "MOVT       r14, 0x13\n\t"
+        KYBER_BARRETT(r2)
+        KYBER_BARRETT(r3)
+        KYBER_BARRETT(r4)
+        KYBER_BARRETT(r5)
+        "MOVW       r14, 0xafc0\n\t"
+        "MOVT       r14, 0x13\n\t"
+        "STR        r2, [%[r], #0]\n\t"
+        "STR        r3, [%[r], #4]\n\t"
+        "STR        r4, [%[r], #8]\n\t"
+        "STR        r5, [%[r], #12]\n\t"
+        "STR        r6, [%[r], #16]\n\t"
+        "STR        r7, [%[r], #20]\n\t"
+        "STR        r8, [%[r], #24]\n\t"
+        "STR        r9, [%[r], #28]\n\t"
+        "LDR        r3, [sp, #4]\n\t"
+        "ADD        r3, r3, #16\n\t"
+        "RSBS       r2, r3, #256\n\t"
+        "ADD        %[r], %[r], #32\n\t"
+        "BNE        4b\n\t"
+        "SUB        %[r], %[r], #512\n\t"
+
+        "MOV        r3, #0\n\t"
+    "3:\n\t"
+        "STR        r3, [sp, #4]\n\t"
+        "ADD        r14, %[zetas_inv], r3, LSR #4\n\t"
+        "MOV        r2, #4\n\t"
+        "LDR        r14, [r14, #224]\n\t"
+    "2:\n\t"
+        "STR        r2, [sp]\n\t"
+        "LDR        r2, [%[r], #0]\n\t"
+        "LDR        r3, [%[r], #16]\n\t"
+        "LDR        r4, [%[r], #32]\n\t"
+        "LDR        r5, [%[r], #48]\n\t"
+        "LDR        r6, [%[r], #64]\n\t"
+        "LDR        r7, [%[r], #80]\n\t"
+        "LDR        r8, [%[r], #96]\n\t"
+        "LDR        r9, [%[r], #112]\n\t"
+        KYBER_INV_NTT_2x2_B(r2, r4)
+        KYBER_INV_NTT_2x2_B(r3, r5)
+        KYBER_INV_NTT_2x2_T(r6, r8)
+        KYBER_INV_NTT_2x2_T(r7, r9)
+        "STR        r2, [%[r], #0]\n\t"
+        "STR        r3, [%[r], #16]\n\t"
+        "STR        r4, [%[r], #32]\n\t"
+        "STR        r5, [%[r], #48]\n\t"
+        "STR        r6, [%[r], #64]\n\t"
+        "STR        r7, [%[r], #80]\n\t"
+        "STR        r8, [%[r], #96]\n\t"
+        "STR        r9, [%[r], #112]\n\t"
+        "LDRD       r2, r3, [sp]\n\t"
+        "SUBS       r2, r2, #1\n\t"
+        "ADD        %[r], %[r], #4\n\t"
+        "BNE        2b\n\t"
+        "ADD        r3, r3, #64\n\t"
+        "RSBS       r2, r3, #256\n\t"
+        "ADD        %[r], %[r], #112\n\t"
+        "BNE        3b\n\t"
+        "SUB        %[r], %[r], #512\n\t"
+
+        "MOV        r2, #16\n\t"
+    "1:\n\t"
+        "STR        r2, [sp]\n\t"
+        "LDR        r2, [%[r], #0]\n\t"
+        "LDR        r3, [%[r], #64]\n\t"
+        "LDR        r4, [%[r], #128]\n\t"
+        "LDR        r5, [%[r], #192]\n\t"
+        "LDR        r6, [%[r], #256]\n\t"
+        "LDR        r7, [%[r], #320]\n\t"
+        "LDR        r8, [%[r], #384]\n\t"
+        "LDR        r9, [%[r], #448]\n\t"
+        "LDR        r14, [%[zetas_inv], #240]\n\t"
+        KYBER_INV_NTT_2x2_B(r2, r3)
+        KYBER_INV_NTT_2x2_T(r4, r5)
+        "LDR        r14, [%[zetas_inv], #244]\n\t"
+        KYBER_INV_NTT_2x2_B(r6, r7)
+        KYBER_INV_NTT_2x2_T(r8, r9)
+        "LDR        r14, [%[zetas_inv], #248]\n\t"
+        KYBER_INV_NTT_2x2_B(r2, r4)
+        KYBER_INV_NTT_2x2_B(r3, r5)
+        KYBER_INV_NTT_2x2_T(r6, r8)
+        KYBER_INV_NTT_2x2_T(r7, r9)
+        "MOVW       r14, 0xafc0\n\t"
+        "MOVT       r14, 0x13\n\t"
+        KYBER_BARRETT(r2)
+        KYBER_BARRETT(r3)
+        KYBER_BARRETT(r6)
+        KYBER_BARRETT(r7)
+        "LDRH       r14, [%[zetas_inv], #252]\n\t"
+        KYBER_INV_NTT_2x2_B(r2, r6)
+        KYBER_INV_NTT_2x2_B(r3, r7)
+        KYBER_INV_NTT_2x2_B(r4, r8)
+        KYBER_INV_NTT_2x2_B(r5, r9)
+        "LDRH       r14, [%[zetas_inv], #254]\n\t"
+        KYBER_INVNTT_MONT_RED(r2)
+        KYBER_INVNTT_MONT_RED(r3)
+        KYBER_INVNTT_MONT_RED(r4)
+        KYBER_INVNTT_MONT_RED(r5)
+        KYBER_INVNTT_MONT_RED(r6)
+        KYBER_INVNTT_MONT_RED(r7)
+        KYBER_INVNTT_MONT_RED(r8)
+        KYBER_INVNTT_MONT_RED(r9)
+        "STR        r2, [%[r], #0]\n\t"
+        "STR        r3, [%[r], #64]\n\t"
+        "STR        r4, [%[r], #128]\n\t"
+        "STR        r5, [%[r], #192]\n\t"
+        "STR        r6, [%[r], #256]\n\t"
+        "STR        r7, [%[r], #320]\n\t"
+        "STR        r8, [%[r], #384]\n\t"
+        "STR        r9, [%[r], #448]\n\t"
+        "LDR        r2, [sp]\n\t"
+        "SUBS       r2, r2, #1\n\t"
+        "ADD        %[r], %[r], #4\n\t"
+        "BNE        1b\n\t"
+        "SUB        %[r], %[r], #64\n\t"
+
+        "ADD        sp, sp, #8\n\t"
+        : [r] "+r" (r)
+        : [zetas_inv] "r" (zetas_inv)
+        : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
+          "r10", "r11", "r12", "r14"
+    );
 #else
     unsigned int j;
     sword16 t0;
@@ -886,6 +1257,7 @@ static void kyber_invntt(sword16* r)
 #endif
 }
 
+#if !(defined(WOLFSSL_ARMASM) && defined(__thumb__))
 /* Multiplication of polynomials in Zq[X]/(X^2-zeta).
  *
  * Used for multiplication of elements in Rq in NTT domain.
@@ -918,6 +1290,7 @@ static void kyber_basemul(sword16* r, const sword16* a, const sword16* b,
     p1  += p2;
     r[1] = KYBER_MONT_RED(p1);
 }
+#endif
 
 /* Multiply two polynomials in NTT domain. r = a * b.
  *
@@ -927,15 +1300,74 @@ static void kyber_basemul(sword16* r, const sword16* a, const sword16* b,
  */
 static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 {
-    unsigned int i;
     const sword16* zeta = zetas + 64;
 
-#ifdef WOLFSSL_KYBER_SMALL
+#if defined(WOLFSSL_ARMASM) && defined(__thumb__)
+    __asm__ __volatile__ (
+        "MOVW       r8, 0xd01\n\t"
+        "MOVT       r8, 0xcff\n\t"
+        "MOV        r9, #0\n\t"
+    "1:\n\t"
+        "LDR        r4, [%[a], r9, LSL #2]\n\t"
+        "LDR        r5, [%[b], r9, LSL #2]\n\t"
+        "LDR        r10, [%[zeta], r9]\n\t"
+
+        "SMULTT     r6, r4, r5\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+        "SMULBT     r6, r10, r6\n\t"
+        "MOV        r6, r6\n\t"
+        "SMLABB     r6, r4, r5, r6\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+
+        "SMULBT     r7, r4, r5\n\t"
+        "MOV        r7, r7\n\t"
+        "SMLATB     r7, r4, r5, r7\n\t"
+        "SMULTB     r5, r8, r7\n\t"
+        "SMLABB     r7, r8, r5, r7\n\t"
+
+        "PKHTB      r7, r7, r6, ASR #16\n\t"
+        "STR        r7, [%[r], r9, LSL #2]\n\t"
+        "ADD        r9, r9, #1\n\t"
+
+        "LDR        r4, [%[a], r9, LSL #2]\n\t"
+        "LDR        r5, [%[b], r9, LSL #2]\n\t"
+        "NEG        r10, r10\n\t"
+
+        "SMULTT     r6, r4, r5\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+        "SMULBT     r6, r10, r6\n\t"
+        "MOV        r6, r6\n\t"
+        "SMLABB     r6, r4, r5, r6\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+
+        "SMULBT     r7, r4, r5\n\t"
+        "MOV        r7, r7\n\t"
+        "SMLATB     r7, r4, r5, r7\n\t"
+        "SMULTB     r5, r8, r7\n\t"
+        "SMLABB     r7, r8, r5, r7\n\t"
+
+        "PKHTB      r7, r7, r6, ASR #16\n\t"
+        "STR        r7, [%[r], r9, LSL #2]\n\t"
+        "ADD        r9, r9, #1\n\t"
+
+        "RSBS       r4, r9, #128\n\t"
+        "BNE        1b\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [zeta] "r" (zeta)
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
+    );
+#elif defined(WOLFSSL_KYBER_SMALL)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
@@ -943,6 +1375,7 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         kyber_basemul(r + i + 6, a + i + 6, b + i + 6, -zeta[1]);
     }
 #else
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         kyber_basemul(r + i +  0, a + i +  0, b + i +  0,  zeta[0]);
         kyber_basemul(r + i +  2, a + i +  2, b + i +  2, -zeta[0]);
@@ -965,10 +1398,72 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 static void kyber_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b)
 {
-    unsigned int i;
     const sword16* zeta = zetas + 64;
 
-#ifdef WOLFSSL_KYBER_SMALL
+#if defined(WOLFSSL_ARMASM) && defined(__thumb__)
+    __asm__ __volatile__ (
+        "MOVW       r8, 0xd01\n\t"
+        "MOVT       r8, 0xcff\n\t"
+        "MOV        r9, #0\n\t"
+    "1:\n\t"
+        "LDR        r4, [%[a], r9, LSL #2]\n\t"
+        "LDR        r5, [%[b], r9, LSL #2]\n\t"
+        "LDR        r10, [%[zeta], r9]\n\t"
+
+        "SMULTT     r6, r4, r5\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+        "SMULBT     r6, r10, r6\n\t"
+        "MOV        r6, r6\n\t"
+        "SMLABB     r6, r4, r5, r6\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+
+        "SMULBT     r7, r4, r5\n\t"
+        "MOV        r7, r7\n\t"
+        "SMLATB     r7, r4, r5, r7\n\t"
+        "SMULTB     r5, r8, r7\n\t"
+        "SMLABB     r7, r8, r5, r7\n\t"
+
+        "LDR        r4, [%[r], r9, LSL #2]\n\t"
+        "PKHTB      r7, r7, r6, ASR #16\n\t"
+        "SADD16     r4, r4, r7\n\t"
+        "STR        r4, [%[r], r9, LSL #2]\n\t"
+        "ADD        r9, r9, #1\n\t"
+
+        "LDR        r4, [%[a], r9, LSL #2]\n\t"
+        "LDR        r5, [%[b], r9, LSL #2]\n\t"
+        "NEG        r10, r10\n\t"
+
+        "SMULTT     r6, r4, r5\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+        "SMULBT     r6, r10, r6\n\t"
+        "MOV        r6, r6\n\t"
+        "SMLABB     r6, r4, r5, r6\n\t"
+        "SMULTB     r7, r8, r6\n\t"
+        "SMLABB     r6, r8, r7, r6\n\t"
+
+        "SMULBT     r7, r4, r5\n\t"
+        "MOV        r7, r7\n\t"
+        "SMLATB     r7, r4, r5, r7\n\t"
+        "SMULTB     r5, r8, r7\n\t"
+        "SMLABB     r7, r8, r5, r7\n\t"
+
+        "LDR        r4, [%[r], r9, LSL #2]\n\t"
+        "PKHTB      r7, r7, r6, ASR #16\n\t"
+        "SADD16     r4, r4, r7\n\t"
+        "STR        r4, [%[r], r9, LSL #2]\n\t"
+        "ADD        r9, r9, #1\n\t"
+
+        "RSBS       r4, r9, #128\n\t"
+        "BNE        1b\n\t"
+        :
+        : [r] "r" (r), [a] "r" (a), [b] "r" (b), [zeta] "r" (zeta)
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10"
+    );
+#elif defined(WOLFSSL_KYBER_SMALL)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
         sword16 t0[2];
         sword16 t2[2];
@@ -982,6 +1477,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 3] += t2[1];
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         sword16 t0[2];
         sword16 t2[2];
@@ -1003,6 +1499,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 7] += t6[1];
     }
 #else
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         sword16 t0[2];
         sword16 t2[2];
