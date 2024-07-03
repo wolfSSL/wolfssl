@@ -68692,8 +68692,13 @@ static int test_wolfSSL_CTX_StaticMemory_SSL(WOLFSSL_CTX* ctx)
 
     ExpectNotNull((ssl1 = wolfSSL_new(ctx)));
     ExpectNotNull((ssl2 = wolfSSL_new(ctx)));
+
+#ifndef WOLFSSL_STATIC_MEMORY_LEAN
     /* this should fail because kMaxCtxClients == 2 */
     ExpectNull((ssl3 = wolfSSL_new(ctx)));
+#else
+    (void)ssl3;
+#endif
 
     if (wolfSSL_is_static_memory(ssl1, &ssl_stats) == 1) {
     #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
