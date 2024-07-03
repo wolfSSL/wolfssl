@@ -31104,6 +31104,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             ERROR_OUT(BUFFER_ERROR, exit_dske);
                         }
 
+                        /* Check if hashSigAlgo in Server Key Exchange is supported
+                         * in our ssl->suites or ssl->ctx->suites. */
+                        if (!SupportedHashSigAlgo(ssl, &input[args->idx])) {
+                        #ifdef WOLFSSL_EXTRA_ALERTS
+                            SendAlert(ssl, alert_fatal, handshake_failure);
+                        #endif
+                            ERROR_OUT(MATCH_SUITE_ERROR, exit_dske);
+                        }
+
                         DecodeSigAlg(&input[args->idx], &ssl->options.peerHashAlgo,
                                      &sigAlgo);
                     #ifndef NO_RSA
