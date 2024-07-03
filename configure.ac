@@ -3979,9 +3979,16 @@ fi
 
 # ECC Minimum Key Size
 AC_ARG_WITH([eccminsz],
-    [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits)])],
+    [AS_HELP_STRING([--with-eccminsz=BITS],[Sets the ECC minimum key size (default: 224 bits non-FIPS / 192 bits with FIPS)])],
     [ ENABLED_ECCMINSZ=$withval ],
-    [ ENABLED_ECCMINSZ=224 ]
+    [
+        if test "x$ENABLED_FIPS" = "xno"
+        then
+            ENABLED_ECCMINSZ=224
+        else
+            ENABLED_ECCMINSZ=192
+        fi
+    ]
 )
 AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=$ENABLED_ECCMINSZ"
 
