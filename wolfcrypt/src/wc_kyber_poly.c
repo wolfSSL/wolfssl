@@ -173,8 +173,16 @@ const sword16 zetas_inv[KYBER_N / 2] = {
     3127, 3042, 1907, 1836, 1517,  359,  758, 1441
 };
 
+#define KYBER_BARRETT(a)                            \
+        "SMULWB     r10, r14, " #a "\n\t"           \
+        "SMULWT     r11, r14, " #a "\n\t"           \
+        "SMULBT     r10, r12, r10\n\t"              \
+        "SMULBT     r11, r12, r11\n\t"              \
+        "PKHBT      r10, r10, r11, LSL #16\n\t"     \
+        "SSUB16     " #a ", " #a ", r10\n\t"
 
-#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+
+#if !(defined(__thumb__) || (defined(__aarch64__)) && defined(WOLFSSL_ARMASM))
 /* Number-Theoretic Transform.
  *
  * @param  [in, out]  r  Polynomial to transform.
@@ -939,15 +947,16 @@ static void kyber_basemul(sword16* r, const sword16* a, const sword16* b,
  */
 static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 {
-    unsigned int i;
     const sword16* zeta = zetas + 64;
 
-#ifdef WOLFSSL_KYBER_SMALL
+#if defined(WOLFSSL_KYBER_SMALL)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
@@ -955,6 +964,7 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         kyber_basemul(r + i + 6, a + i + 6, b + i + 6, -zeta[1]);
     }
 #else
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         kyber_basemul(r + i +  0, a + i +  0, b + i +  0,  zeta[0]);
         kyber_basemul(r + i +  2, a + i +  2, b + i +  2, -zeta[0]);
@@ -977,10 +987,10 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 static void kyber_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* b)
 {
-    unsigned int i;
     const sword16* zeta = zetas + 64;
 
-#ifdef WOLFSSL_KYBER_SMALL
+#if defined(WOLFSSL_KYBER_SMALL)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
         sword16 t0[2];
         sword16 t2[2];
@@ -994,6 +1004,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 3] += t2[1];
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         sword16 t0[2];
         sword16 t2[2];
@@ -1015,6 +1026,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 7] += t6[1];
     }
 #else
+    unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         sword16 t0[2];
         sword16 t2[2];
@@ -2142,7 +2154,7 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 }
 #endif
 
-#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+#if !(defined(WOLFSSL_ARMASM) && (defined(__aarch64__) || defined(__thumb__)))
 /* Rejection sampling on uniform random bytes to generate uniform random
  * integers mod q.
  *
@@ -3338,7 +3350,7 @@ int kyber_cmp(const byte* a, const byte* b, int sz)
 
 /******************************************************************************/
 
-#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+#if !(defined(__thumb__) || (defined(__aarch64__)) && defined(WOLFSSL_ARMASM))
 
 /* Conditional subtraction of q to each coefficient of a polynomial.
  *
@@ -3355,9 +3367,13 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
     }
 }
 
-#else
+#elif defined(__aarch64__)
 
 #define kyber_csubq_c   kyber_csubq_neon
+
+#else
+
+#define kyber_csubq_c   kyber_thumb2_csubq
 
 #endif
 
