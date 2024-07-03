@@ -1329,6 +1329,10 @@ enum {
     #endif
 #endif
 
+#ifndef MAX_PSK_KEY_LEN
+    #define MAX_PSK_KEY_LEN 64
+#endif
+
 #ifndef MAX_EARLY_DATA_SZ
     /* maximum early data size */
     #define MAX_EARLY_DATA_SZ  4096
@@ -1421,7 +1425,7 @@ enum {
     #define ENCRYPT_BASE_BITS    (256 * 2)
 #else
     /* No secret from public key operation but PSK key plus length used. */
-    #define ENCRYPT_BASE_BITS  ((MAX_PSK_ID_LEN + 2) * 8)
+    #define ENCRYPT_BASE_BITS  ((MAX_PSK_KEY_LEN + 2) * 8)
 #endif
 
 #ifdef WOLFSSL_DTLS_CID
@@ -1561,7 +1565,7 @@ enum Misc {
                                  * hybridization with other algs. */
 #else
 #ifndef NO_PSK
-    ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8) + MAX_PSK_ID_LEN + 2,
+    ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8) + MAX_PSK_KEY_LEN + 2,
 #else
     ENCRYPT_LEN     = (ENCRYPT_BASE_BITS / 8),
 #endif
@@ -1828,7 +1832,6 @@ enum Misc {
     DTLS_TIMEOUT_MULTIPLIER =  2, /* default timeout multiplier for DTLS recv */
 
     NULL_TERM_LEN        =   1,  /* length of null '\0' termination character */
-    MAX_PSK_KEY_LEN      =  64,  /* max psk key supported */
     MIN_PSK_ID_LEN       =   6,  /* min length of identities */
     MIN_PSK_BINDERS_LEN  =  33,  /* min length of binders */
 
