@@ -16198,7 +16198,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ||  (response->single->status->status != CERT_GOOD))
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
 
-                    while (ret == 0) {
+                    if (ret == 0) {
                         request = (OcspRequest*)TLSX_CSR2_GetRequest(
                                 ssl->extensions, status_type, idx);
 
@@ -16211,7 +16211,6 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else {
                             if (idx == 0) /* server cert must be OK */
                                 endCertificateOK = 1;
-                            break;
                         }
                     }
 
