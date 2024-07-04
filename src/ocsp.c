@@ -802,7 +802,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
 
     InitDecodedCert(cert, subject->derCert->buffer,
                     subject->derCert->length, NULL);
-    if (ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm) != 0) {
+    if (ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm, NULL) != 0) {
         FreeDecodedCert(cert);
         goto out;
     }
@@ -892,7 +892,7 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
 
     InitDecodedCert(cert, bs->cert, bs->certSz, NULL);
     certInit = 1;
-    if (ParseCertRelative(cert, CERT_TYPE, VERIFY, st->cm) < 0)
+    if (ParseCertRelative(cert, CERT_TYPE, VERIFY, st->cm, NULL) < 0)
         goto out;
 
     if (!(flags & OCSP_NOCHECKS)) {

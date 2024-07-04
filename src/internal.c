@@ -14130,7 +14130,7 @@ PRAGMA_GCC_DIAG_POP
     }
 #endif
     /* Parse Certificate */
-    ret = ParseCertRelativeEx(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
+    ret = ParseCertRelative(args->dCert, certType, verify, SSL_CM(ssl), extraSigners);
 
 #if defined(HAVE_RPK)
     /* if cert type has negotiated with peer, confirm the cert received has
@@ -14961,6 +14961,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         s = MakeSigner(SSL_CM(ssl)->heap);
                         if (s == NULL) {
                             FreeDecodedCert(&dCertAdd);
+                            FreeDer(&derBuffer);
                             ret = MEMORY_E;
                             goto exit_ppc;
                         }
@@ -23254,7 +23255,7 @@ static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
 
     InitDecodedCert(cert, certData, length, ssl->heap);
     /* TODO: Setup async support here */
-    ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, SSL_CM(ssl));
+    ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, SSL_CM(ssl), NULL);
     if (ret != 0) {
         WOLFSSL_MSG("ParseCert failed");
     }

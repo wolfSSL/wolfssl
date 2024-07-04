@@ -6211,7 +6211,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
     size = cert->length;
     buff = cert->buffer;
     InitDecodedCert_ex(der, buff, size, heap, devId);
-    if (ParseCertRelative(der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+    if (ParseCertRelative(der, CERT_TYPE, NO_VERIFY, NULL, NULL) != 0) {
         FreeDecodedCert(der);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(der, heap, DYNAMIC_TYPE_DCERT);
@@ -13313,7 +13313,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         /* Create a DecodedCert object and copy fields into WOLFSSL_X509 object.
          */
         InitDecodedCert(cert, (byte*)in, (word32)len, NULL);
-        if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) == 0) {
+        if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL)) == 0) {
         /* Check if x509 was not previously initialized by wolfSSL_X509_new() */
             if (x509->dynamicMemory != TRUE)
                 InitX509(x509, 0, NULL);
@@ -17756,7 +17756,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
             InitDecodedCert(cert, chain->certs[idx].buffer,
                                   chain->certs[idx].length, NULL);
 
-            if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) != 0) {
+            if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL)) != 0) {
                 WOLFSSL_MSG("Failed to parse cert");
             }
             else {

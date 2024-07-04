@@ -698,7 +698,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
 
         /* Parse DER into decoded certificate fields and verify signature
          * against a known CA. */
-        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm);
+        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, NULL);
      }
 
 #ifdef HAVE_CRL
@@ -1817,7 +1817,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
             InitDecodedCert(cert, der, (word32)sz, NULL);
 
             /* Parse certificate and perform CRL checks. */
-            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm);
+            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("ParseCert failed");
             }
@@ -2289,7 +2289,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
             InitDecodedCert(cert, der, (word32)sz, NULL);
 
             /* Parse certificate and perform CRL checks. */
-            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm);
+            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("ParseCert failed");
             }

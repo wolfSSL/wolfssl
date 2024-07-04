@@ -22501,7 +22501,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     char* ptr;
 #endif
 
-    ret = ParseCertRelative(cert, type, verify, cm);
+    ret = ParseCertRelative(cert, type, verify, cm, NULL);
     if (ret < 0)
         return ret;
 
@@ -23399,7 +23399,7 @@ Signer* findSignerByName(Signer *list, byte *hash)
     return NULL;
 }
 
-int ParseCertRelativeEx(DecodedCert* cert, int type, int verify, void* cm, Signer *extraCAList)
+int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer *extraCAList)
 {
     int    ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -24054,11 +24054,6 @@ exit_pcr:
         return cert->criticalExt;
 
     return ret;
-}
-
-int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
-{
-    return ParseCertRelativeEx(cert, type, verify, cm, NULL);
 }
 
 int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
@@ -26681,7 +26676,7 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz,
             InitDecodedCert_ex((DecodedCert*)cert->decodedCert, der, derSz,
                     cert->heap, devId);
             ret = ParseCertRelative((DecodedCert*)cert->decodedCert,
-                    CERT_TYPE, 0, NULL);
+                    CERT_TYPE, 0, NULL, NULL);
             if (ret >= 0) {
                 cert->der = (byte*)der;
             }
@@ -32425,7 +32420,7 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz,
 #endif
 
     InitDecodedCert_ex(decoded, der, (word32)derSz, NULL, devId);
-    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0, NULL);
 
     if (ret < 0) {
         WOLFSSL_MSG("ParseCertRelative error");
@@ -32624,7 +32619,7 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz, int devId)
 #endif
 
     InitDecodedCert_ex(decoded, der, (word32)derSz, NULL, devId);
-    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0, NULL);
 
     if (ret < 0) {
         WOLFSSL_MSG("ParseCertRelative error");
@@ -36561,7 +36556,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             cert_inited = 1;
 
             /* Don't verify if we don't have access to Cert Manager. */
-            ret = ParseCertRelativeEx(cert, CERT_TYPE,
+            ret = ParseCertRelative(cert, CERT_TYPE,
                                     noVerify ? NO_VERIFY : VERIFY_OCSP_CERT,
                                     cm, resp->pendingCAs);
             if (ret < 0) {
@@ -36723,7 +36718,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         certInit = 1;
         /* Parse the certificate and don't verify if we don't have access to
          * Cert Manager. */
-        ret = ParseCertRelativeEx(cert, CERT_TYPE, noVerify ? NO_VERIFY : VERIFY,
+        ret = ParseCertRelative(cert, CERT_TYPE, noVerify ? NO_VERIFY : VERIFY,
                 cm, resp->pendingCAs);
         if (ret < 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
