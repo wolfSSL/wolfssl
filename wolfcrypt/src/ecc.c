@@ -7482,7 +7482,7 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
     Hmac hmac;
     int  ret, init;
 
-    ret = init = wc_HmacInit(&hmac, heap, 0);
+    ret = init = wc_HmacInit(&hmac, heap, INVALID_DEVID);
     if (ret == 0)
         ret = wc_HmacSetKey(&hmac, hashType, K, KSz);
 
@@ -7559,14 +7559,6 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         else {
             hashType = WC_HASH_TYPE_SHA256;
         }
-    }
-
-    /* For deterministic k only SHA2-256, SHA2-384 and SHA2-512 are supported */
-    if ( hashType != WC_HASH_TYPE_SHA256 &&
-         hashType != WC_HASH_TYPE_SHA384 &&
-         hashType != WC_HASH_TYPE_SHA512) {
-        WOLFSSL_MSG("Invalid deterministic hash type");
-        return BAD_FUNC_ARG;
     }
 
     if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
