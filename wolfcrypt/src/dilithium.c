@@ -1897,9 +1897,9 @@ static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
     ((b) < DILITHIUM_ETA_2_MOD)
 
 static const byte dilithium_coeff_eta2[] = {
-    -2, -1, 0, 1, 2,
-    -2, -1, 0, 1, 2,
-    -2, -1, 0, 1, 2
+    2, 1, 0, -1, -2,
+    2, 1, 0, -1, -2,
+    2, 1, 0, -1, -2
 };
 /* Convert random value 0..15 to a value in range of -2..2.
  *
@@ -2131,7 +2131,7 @@ static void dilithium_extract_coeffs(byte* z, unsigned int zLen, byte eta,
     min &= ~(unsigned int)7;
     /* Extract values from the squeezed data. */
     for (c = 0; c < min; c += 8) {
-        word64 z64 = *(word64*)z;
+        word64 z64 = *(word64*)(z + c);
         sword8 t;
 
         /* Do each nibble from lowest to highest 16 at a time. */
@@ -2156,7 +2156,7 @@ static void dilithium_extract_coeffs(byte* z, unsigned int zLen, byte eta,
     min &= ~(unsigned int)3;
     /* Extract values from the squeezed data. */
     for (c = 0; c < min; c += 4) {
-        word32 z32 = *(word32*)z;
+        word32 z32 = *(word32*)(z + c);
         sword8 t;
 
         /* Do each nibble from lowest to highest 8 at a time. */
@@ -2223,7 +2223,7 @@ static int dilithium_rej_bound_poly(wc_Shake* shake256, byte* seed, sword32* s,
     ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
     if (ret == 0) {
         /* Absorb the seed. */
-        ret = wc_Shake256_Absorb(shake256, seed, DILITHIUM_GEN_A_SEED_SZ);
+        ret = wc_Shake256_Absorb(shake256, seed, DILITHIUM_GEN_S_SEED_SZ);
     }
     if (ret == 0) {
         do {
@@ -2303,7 +2303,7 @@ static int dilithium_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
     seed[DILITHIUM_PRIV_SEED_SZ + 1] = 0;
     /* Step 1: Each polynomial in s1. */
     for (r = 0; (ret == 0) && (r < s1Len); r++) {
-        /* Set bottom 8-bits of r into buffer. */
+        /* Set bottom 8-bits of r into buffer - little endian. */
         seed[DILITHIUM_PRIV_SEED_SZ] = r;
 
         /* Step 2: Generate polynomial for s1. */
@@ -2313,7 +2313,7 @@ static int dilithium_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
     }
     /* Step 4: Each polynomial in s2. */
     for (r = 0; (ret == 0) && (r < s2Len); r++) {
-        /* Set bottom 8-bits of r + l into buffer. */
+        /* Set bottom 8-bits of r + l into buffer - little endian. */
         seed[DILITHIUM_PRIV_SEED_SZ] = r + s1Len;
         /* Step 5: Generate polynomial for s1. */
         ret = dilithium_rej_bound_poly(shake256, seed, s2, eta);
@@ -3018,7 +3018,7 @@ static void dilithium_use_hint_32(sword32* w1, const byte* h, byte omega,
         dilithium_decompose_q32(r, &r0, &r1);
         /* Check for hint. */
         if ((o < h[omega + i]) && (h[o] == (byte)j)) {
-            /* Add or subtrac hint based on sign of r0. */
+            /* Add or subtract hint based on sign of r0. */
             r1 += 1 - (2 * (((word32)r0) >> 31));
             /* Go to next hint offset. */
             o++;
@@ -4840,7 +4840,7 @@ static void dilithium_vec_make_pos(sword32* a, byte l)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int dilithium_make_key_from_seed(dilithium_key* key, byte* seed)
+static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 {
     int ret = 0;
     const wc_dilithium_params* params = key->params;
@@ -4999,7 +4999,7 @@ static int dilithium_make_key(dilithium_key* key, WC_RNG* rng)
     ret = wc_RNG_GenerateBlock(rng, seed, DILITHIUM_SEED_SZ);
     if (ret == 0) {
         /* Make key with random seed. */
-        ret = dilithium_make_key_from_seed(key, seed);
+        ret = wc_dilithium_make_key_from_seed(key, seed);
     }
 
     return ret;
@@ -5091,7 +5091,7 @@ static void dilithium_make_priv_vecs(dilithium_key* key, sword32* s1,
  *  33: return sigma
  *
  * @param [in, out] key     Dilithium key.
- * @param [in, out] rng     Random number generator.
+ * @param [in, out] seed    Random seed.
  * @param [in]      msg     Message data to sign.
  * @param [in]      msgLen  Length of message data in bytes.
  * @param [out]     sig     Buffer to hold signature.
@@ -5102,7 +5102,7 @@ static void dilithium_make_priv_vecs(dilithium_key* key, sword32* s1,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* rnd,
+static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
 {
     int ret = 0;
@@ -5228,7 +5228,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* rnd,
     }
     if (ret == 0) {
         /* Step 7: Copy random into buffer for hashing. */
-        XMEMCPY(data, rnd, DILITHIUM_RND_SZ);
+        XMEMCPY(data, seed, DILITHIUM_RND_SZ);
     }
     if (ret == 0) {
         /* Step 9: Compute private random using hash. */
@@ -5390,7 +5390,8 @@ static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng, const byte* msg,
     }
     if (ret == 0) {
         /* Sign with random seed. */
-        ret = dilithium_sign_msg_with_seed(key, rnd, msg, msgLen, sig, sigLen);
+        ret = dilithium_sign_msg_with_seed(key, rnd, msg, msgLen, sig,
+            sigLen);
     }
 
     return ret;
@@ -6025,6 +6026,34 @@ int wc_dilithium_make_key(dilithium_key* key, WC_RNG* rng)
 
     return ret;
 }
+
+int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (seed == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+#ifdef WOLFSSL_WC_DILITHIUM
+        /* Check the level or parameters have been set. */
+        if (key->params == NULL) {
+            ret = BAD_STATE_E;
+        }
+        else {
+            /* Make the key. */
+            ret = dilithium_make_key_from_seed(key, seed);
+        }
+#elif defined(HAVE_LIBOQS)
+        /* Make the key. */
+        ret = NOT_COMPILED_IN;
+#endif
+    }
+
+    return ret;
+}
 #endif
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
@@ -6072,6 +6101,42 @@ int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
         ret = dilithium_sign_msg(key, rng, msg, msgLen, sig, sigLen);
     #elif defined(HAVE_LIBOQS)
         ret = oqs_dilithium_sign_msg(msg, msgLen, sig, sigLen, key, rng);
+    #endif
+    }
+
+    return ret;
+}
+
+/* Sign the message using the dilithium private key.
+ *
+ *  msg         [in]      Message to sign.
+ *  msgLen      [in]      Length of the message in bytes.
+ *  sig         [out]     Buffer to write signature into.
+ *  sigLen      [in/out]  On in, size of buffer.
+ *                        On out, the length of the signature in bytes.
+ *  key         [in]      Dilithium key to use when signing
+ *  returns BAD_FUNC_ARG when a parameter is NULL or public key not set,
+ *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          0 otherwise.
+ */
+int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
+    word32 *sigLen, dilithium_key* key, byte* seed)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Sign message. */
+    #ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_sign_msg_with_seed(key, seed, msg, msgLen, sig, sigLen);
+    #elif defined(HAVE_LIBOQS)
+        ret = NOT_COMPILED_IN;
+        (void)msgLen;
+        (void)seed;
     #endif
     }
 
