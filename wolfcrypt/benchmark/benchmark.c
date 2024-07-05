@@ -1226,7 +1226,7 @@ static const char* bench_result_words1[][4] = {
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519) || defined(HAVE_CURVE448) || \
     defined(HAVE_CURVE448_SHARED_SECRET) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
 
 static const char* bench_desc_words[][15] = {
     /* 0           1          2         3        4        5         6            7            8          9        10        11       12          13       14 */
@@ -1692,7 +1692,7 @@ static const char* bench_result_words3[][5] = {
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
     defined(HAVE_ECC) || !defined(NO_DH) || \
     !defined(NO_RSA) || defined(HAVE_SCRYPT) || \
-    defined(WOLFSSL_HAVE_KYBER)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
     #define BENCH_ASYM
 #endif
 
@@ -1700,7 +1700,7 @@ static const char* bench_result_words3[][5] = {
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
 static const char* bench_result_words2[][5] = {
 #ifdef BENCH_MICROSECOND
     { "ops took", "μsec"     , "avg" , "ops/μsec", NULL },   /* 0 English
@@ -2654,7 +2654,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
     double start, int ret)
