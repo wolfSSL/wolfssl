@@ -24083,7 +24083,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
 
 #if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
     if (ret == 0 && signer != NULL)
-        ret = CalcHashId(cert->serial, cert->serialSz, signer->serialHash);
+        ret = CalcHashId(cert->serial, (word32)cert->serialSz, signer->serialHash);
 #endif
     if (ret == 0 && signer != NULL) {
     #ifdef WOLFSSL_SIGNER_DER_CERT
