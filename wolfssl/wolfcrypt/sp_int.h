@@ -695,9 +695,11 @@ typedef struct sp_ecc_ctx {
 #define sp_clamp(a)                                               \
     do {                                                          \
         int ii;                                                   \
-        for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
+        if ((a)->used > 0) {                                      \
+            for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
+            }                                                     \
+            (a)->used = (unsigned int)ii + 1;                     \
         }                                                         \
-        (a)->used = (unsigned int)ii + 1;                         \
     } while (0)
 
 /* Check the compiled and linked math implementation are the same.
