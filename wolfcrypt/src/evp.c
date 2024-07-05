@@ -3283,6 +3283,8 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
     if (pkey == NULL) return 0;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_bits");
     if ((bytes = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey)) ==0) return 0;
+    if (bytes < 0)
+        return 0;
     return bytes*8;
 }
 
