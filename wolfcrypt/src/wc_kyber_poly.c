@@ -2719,9 +2719,6 @@ static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int kp)
 {
     unsigned int i;
     unsigned int j;
-#ifdef WOLFSSL_KYBER_SMALL
-    unsigned int k;
-#endif
 
     for (i = 0; i < kp; i++) {
         /* Reduce each coefficient to mod q. */
@@ -2736,6 +2733,7 @@ static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int kp)
         /* Each 4 polynomial coefficients. */
         for (j = 0; j < KYBER_N; j += 4) {
         #ifdef WOLFSSL_KYBER_SMALL
+            unsigned int k;
             sword16 t[4];
             /* Compress four polynomial values to 10 bits each. */
             for (k = 0; k < 4; k++) {

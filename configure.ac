@@ -1213,6 +1213,9 @@ do
   1024)
     ENABLED_KYBER1024=yes
     ;;
+  ml-kem)
+    ENABLED_ML_KEM=yes
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for KYBER []: $ENABLED_KYBER.])
     break;;
@@ -1238,6 +1241,9 @@ then
     fi
     if test "$ENABLED_KYBER1024" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+    fi
+    if test "$ENABLED_ML_KEM" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ML_KEM"
     fi
 
     if test "$ENABLED_WC_KYBER" = "yes"

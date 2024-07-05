@@ -3593,17 +3593,17 @@ static void* benchmarks_do(void* args)
 #ifdef WOLFSSL_HAVE_KYBER
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER)) {
     #ifdef WOLFSSL_KYBER512
-        if (bench_pq_asym_algs & BENCH_KYBER512) {
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
             bench_kyber(KYBER512);
         }
     #endif
     #ifdef WOLFSSL_KYBER768
-        if (bench_pq_asym_algs & BENCH_KYBER768) {
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER768)) {
             bench_kyber(KYBER768);
         }
     #endif
     #ifdef WOLFSSL_KYBER1024
-        if (bench_pq_asym_algs & BENCH_KYBER1024) {
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER1024)) {
             bench_kyber(KYBER1024);
         }
     #endif

@@ -201,10 +201,10 @@ WOLFSSL_API int wc_KyberKey_EncapsulateWithRandom(KyberKey* key,
 WOLFSSL_API int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len);
 
-WOLFSSL_API int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in,
-    word32 len);
-WOLFSSL_API int wc_KyberKey_DecodePublicKey(KyberKey* key, unsigned char* in,
-    word32 len);
+WOLFSSL_API int wc_KyberKey_DecodePrivateKey(KyberKey* key,
+    const unsigned char* in, word32 len);
+WOLFSSL_API int wc_KyberKey_DecodePublicKey(KyberKey* key,
+    const unsigned char* in, word32 len);
 
 WOLFSSL_API int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len);
 WOLFSSL_API int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len);

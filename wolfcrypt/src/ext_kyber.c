@@ -608,7 +608,8 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in, word32 len)
+int wc_KyberKey_DecodePrivateKey(KyberKey* key, const unsigned char* in,
+    word32 len)
 {
     int ret = 0;
     word32 privLen = 0;
@@ -647,7 +648,8 @@ int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in, word32 len)
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePublicKey(KyberKey* key, unsigned char* in, word32 len)
+int wc_KyberKey_DecodePublicKey(KyberKey* key, const unsigned char* in,
+    word32 len)
 {
     int ret = 0;
     word32 pubLen = 0;
