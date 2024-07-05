@@ -2940,6 +2940,14 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     if (ret == 0) {
         /* modulus size in bytes */
         modSz /= WOLFSSL_BIT_SIZE;
+
+        if ((word32)modSz < groupSz) {
+            WOLFSSL_MSG("DH modSz was too small");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    if (ret == 0) {
         bufSz = (word32)modSz - groupSz;
 
         /* allocate ram */
