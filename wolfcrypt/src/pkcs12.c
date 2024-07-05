@@ -1126,7 +1126,7 @@ static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
     while (current != NULL) {
 
         InitDecodedCert(DeCert, current->buffer, current->bufferSz, heap);
-        if (ParseCertRelative(DeCert, CERT_TYPE, NO_VERIFY, NULL) == 0) {
+        if (ParseCertRelative(DeCert, CERT_TYPE, NO_VERIFY, NULL, NULL) == 0) {
             if (wc_CheckPrivateKeyCert(*pkey, *pkeySz, DeCert, 0) == 1) {
                 WOLFSSL_MSG("Key Pair found");
                 *cert = current->buffer;

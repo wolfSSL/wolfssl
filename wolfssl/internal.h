@@ -3194,11 +3194,17 @@ typedef struct CSRIv2 {
         OcspRequest ocsp[1 + MAX_CHAIN_DEPTH];
     } request;
     struct CSRIv2* next;
+    Signer *pendingSigners;
 } CertificateStatusRequestItemV2;
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
                          byte status_type, byte options, void* heap, int devId);
 #ifndef NO_CERTS
+WOLFSSL_LOCAL int TLSX_CSR2_IsMulti(TLSX *extensions);
+WOLFSSL_LOCAL int TLSX_CSR2_AddPendingSigner(TLSX *extensions, Signer *s);
+WOLFSSL_LOCAL Signer* TLSX_CSR2_GetPendingSigners(TLSX *extensions);
+WOLFSSL_LOCAL int TLSX_CSR2_ClearPendingCA(WOLFSSL *ssl);
+WOLFSSL_LOCAL int TLSX_CSR2_MergePendingCA(WOLFSSL* ssl);
 WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert,
                                                        byte isPeer, void* heap);
 #endif
@@ -4054,6 +4060,7 @@ int ProcessOldClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                           word32 inSz, word16 sz);
 
 #ifndef NO_CERTS
+    WOLFSSL_LOCAL int AddSigner(WOLFSSL_CERT_MANAGER* cm, Signer *s);
     WOLFSSL_LOCAL
     int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify);
     WOLFSSL_LOCAL

@@ -3612,7 +3612,7 @@ static WOLFSSL_X509* d2i_X509orX509REQ(WOLFSSL_X509** x509,
     #ifdef WOLFSSL_CERT_REQ
         cert->isCSR = (byte)req;
     #endif
-        if (ParseCertRelative(cert, type, 0, NULL) == 0) {
+        if (ParseCertRelative(cert, type, 0, NULL, NULL) == 0) {
             newX509 = wolfSSL_X509_new_ex(heap);
             if (newX509 != NULL) {
                 if (CopyDecodedToX509(newX509, cert) != 0) {
@@ -5254,7 +5254,7 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
     #endif
         {
             InitDecodedCert(cert, der->buffer, der->length, NULL);
-            ret = ParseCertRelative(cert, type, 0, NULL);
+            ret = ParseCertRelative(cert, type, 0, NULL, NULL);
             if (ret == 0) {
                 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                                              DYNAMIC_TYPE_X509);
@@ -13403,7 +13403,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
 #endif
 
     InitDecodedCert(dCert, x->derCert->buffer, x->derCert->length, NULL);
-    ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL);
+    ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL, NULL);
     if (ret != 0) {
         goto out;
     }
@@ -13474,7 +13474,7 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
 
     if (ret == WOLFSSL_SUCCESS) {
         InitDecodedCert(dCert, x->derCert->buffer, x->derCert->length, NULL);
-        ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL);
+        ret = ParseCertRelative(dCert, CERT_TYPE, 0, NULL, NULL);
         if (ret != 0) {
             ret = WOLFSSL_FAILURE;
         }
@@ -13613,7 +13613,7 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 
     /* Use existing CA retrieval APIs that use DecodedCert. */
     InitDecodedCert(cert, x->derCert->buffer, x->derCert->length, cm->heap);
-    if (ParseCertRelative(cert, CERT_TYPE, 0, NULL) == 0
+    if (ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL) == 0
             && !cert->selfSigned) {
     #ifndef NO_SKID
         if (cert->extAuthKeyIdSet)

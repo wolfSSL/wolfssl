@@ -5283,6 +5283,38 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 }
 #endif /* WOLFSSL_TRUST_PEER_CERT */
 
+int AddSigner(WOLFSSL_CERT_MANAGER* cm, Signer *s)
+{
+    byte*   subjectHash;
+    Signer* signers;
+    word32  row;
+
+    if (cm == NULL || s == NULL)
+        return BAD_FUNC_ARG;
+
+#ifndef NO_SKID
+    subjectHash = s->subjectKeyIdHash;
+#else
+    subjectHash = s->subjectNameHash;
+#endif
+
+    if (AlreadySigner(cm, subjectHash)) {
+        FreeSigner(s, cm->heap);
+        return 0;
+    }
+
+    row = HashSigner(subjectHash);
+
+    if (wc_LockMutex(&cm->caLock) != 0)
+        return BAD_MUTEX_E;
+
+    signers = cm->caTable[row];
+    s->next = signers;
+    cm->caTable[row] = s;
+
+    wc_UnLockMutex(&cm->caLock);
+    return 0;
+}
 
 /* owns der, internal now uses too */
 /* type flag ids from user or from chain received during verify
@@ -5437,76 +5469,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         if (!signer)
             ret = MEMORY_ERROR;
     }
-
-#ifdef WOLFSSL_DUAL_ALG_CERTS
     if (ret == 0 && signer != NULL) {
-        if (cert->extSapkiSet && cert->sapkiLen > 0) {
-            /* Allocated space for alternative public key. */
-            signer->sapkiDer = (byte*)XMALLOC(cert->sapkiLen, cm->heap,
-                                              DYNAMIC_TYPE_PUBLIC_KEY);
-            if (signer->sapkiDer == NULL) {
-                ret = MEMORY_E;
-            }
-            else {
-                XMEMCPY(signer->sapkiDer, cert->sapkiDer, cert->sapkiLen);
-                signer->sapkiLen = cert->sapkiLen;
-                signer->sapkiOID = cert->sapkiOID;
-            }
-        }
-    }
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
-
-#if defined(WOLFSSL_AKID_NAME) || defined(HAVE_CRL)
-    if (ret == 0 && signer != NULL)
-        ret = CalcHashId(cert->serial, cert->serialSz, signer->serialHash);
-#endif
-    if (ret == 0 && signer != NULL) {
-    #ifdef WOLFSSL_SIGNER_DER_CERT
-        ret = AllocDer(&signer->derCert, der->length, der->type, NULL);
-    }
-    if (ret == 0 && signer != NULL) {
-        XMEMCPY(signer->derCert->buffer, der->buffer, der->length);
-    #endif
-        signer->keyOID         = cert->keyOID;
-        if (cert->pubKeyStored) {
-            signer->publicKey      = cert->publicKey;
-            signer->pubKeySize     = cert->pubKeySize;
-        }
-
-        if (cert->subjectCNStored) {
-            signer->nameLen        = cert->subjectCNLen;
-            signer->name           = cert->subjectCN;
-        }
-        signer->maxPathLen     = cert->maxPathLen;
-        signer->selfSigned     = cert->selfSigned;
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        signer->permittedNames = cert->permittedNames;
-        signer->excludedNames  = cert->excludedNames;
-    #endif
-    #ifndef NO_SKID
-        XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
-                SIGNER_DIGEST_SIZE);
-    #endif
-        XMEMCPY(signer->subjectNameHash, cert->subjectHash,
-                SIGNER_DIGEST_SIZE);
-    #if defined(HAVE_OCSP) || defined(HAVE_CRL)
-        XMEMCPY(signer->issuerNameHash, cert->issuerHash,
-                SIGNER_DIGEST_SIZE);
-    #endif
-    #ifdef HAVE_OCSP
-        XMEMCPY(signer->subjectKeyHash, cert->subjectKeyHash,
-                KEYID_SIZE);
-    #endif
-        signer->keyUsage = cert->extKeyUsageSet ? cert->extKeyUsage
-                                                : 0xFFFF;
-        signer->next    = NULL; /* If Key Usage not set, all uses valid. */
-        cert->publicKey = 0;    /* in case lock fails don't free here.   */
-        cert->subjectCN = 0;
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        cert->permittedNames = NULL;
-        cert->excludedNames = NULL;
-    #endif
-        signer->type = (byte)type;
+        ret = FillSigner(signer, cert, type, der);
 
     #ifndef NO_SKID
         row = HashSigner(signer->subjectKeyIdHash);
@@ -5514,7 +5478,8 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         row = HashSigner(signer->subjectNameHash);
     #endif
 
-        if (wc_LockMutex(&cm->caLock) == 0) {
+
+        if (ret == 0 && wc_LockMutex(&cm->caLock) == 0) {
             signer->next = cm->caTable[row];
             cm->caTable[row] = signer;   /* takes ownership */
             wc_UnLockMutex(&cm->caLock);
@@ -6246,7 +6211,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
     size = cert->length;
     buff = cert->buffer;
     InitDecodedCert_ex(der, buff, size, heap, devId);
-    if (ParseCertRelative(der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
+    if (ParseCertRelative(der, CERT_TYPE, NO_VERIFY, NULL, NULL) != 0) {
         FreeDecodedCert(der);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(der, heap, DYNAMIC_TYPE_DCERT);
@@ -13354,7 +13319,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         /* Create a DecodedCert object and copy fields into WOLFSSL_X509 object.
          */
         InitDecodedCert(cert, (byte*)in, (word32)len, NULL);
-        if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) == 0) {
+        if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL)) == 0) {
         /* Check if x509 was not previously initialized by wolfSSL_X509_new() */
             if (x509->dynamicMemory != TRUE)
                 InitX509(x509, 0, NULL);
@@ -17797,7 +17762,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
             InitDecodedCert(cert, chain->certs[idx].buffer,
                                   chain->certs[idx].length, NULL);
 
-            if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL)) != 0) {
+            if ((ret = ParseCertRelative(cert, CERT_TYPE, 0, NULL, NULL)) != 0) {
                 WOLFSSL_MSG("Failed to parse cert");
             }
             else {
