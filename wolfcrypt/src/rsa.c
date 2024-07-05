@@ -673,13 +673,17 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
 
 int wc_CheckRsaKey(RsaKey* key)
 {
-    DECL_MP_INT_SIZE_DYN(tmp, mp_bitsused(&key->n), RSA_MAX_SIZE);
 #ifdef WOLFSSL_SMALL_STACK
     WC_RNG *rng = NULL;
 #else
     WC_RNG rng[1];
 #endif
     int ret = 0;
+    DECL_MP_INT_SIZE_DYN(tmp, (key)? mp_bitsused(&key->n) : 0, RSA_MAX_SIZE);
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_CAAM
     /* can not perform these checks on an encrypted key */
@@ -709,11 +713,6 @@ int wc_CheckRsaKey(RsaKey* key)
     if (ret == 0) {
         if (INIT_MP_INT_SIZE(tmp, mp_bitsused(&key->n)) != MP_OKAY)
             ret = MP_INIT_E;
-    }
-
-    if (ret == 0) {
-        if (key == NULL)
-            ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0)
