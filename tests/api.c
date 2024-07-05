@@ -65656,7 +65656,7 @@ static int test_EccSigFailure_cm(void)
     size_t cert_sz = 0;
 
     ExpectIntEQ(load_file(server_cert, &cert_buf, &cert_sz), 0);
-    if (cert_buf != NULL) {
+    if (cert_buf != NULL && cert_sz > 0) {
         /* corrupt DER - invert last byte, which is signature */
         cert_buf[cert_sz-1] = ~cert_buf[cert_sz-1];
 
