@@ -21,10 +21,13 @@
 #ifndef __RENESAS_CMN_H__
 #define __RENESAS_CMN_H__
 
-#ifndef WOLFSSL_RENESAS_TSIP_CRYPTONLY
+
 
 #include <wolfssl/ssl.h>
+
+#ifndef WOLFSSL_RENESAS_TSIP_CRYPTONLY
 #include <wolfssl/internal.h>
+
 
 /* Common Callbacks */
 WOLFSSL_LOCAL int Renesas_cmn_RsaSignCb(WOLFSSL* ssl,

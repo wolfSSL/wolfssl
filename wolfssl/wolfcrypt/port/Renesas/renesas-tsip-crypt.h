@@ -259,12 +259,6 @@ typedef struct TsipUserCtx {
     uint8_t     tsip_clientRandom[TSIP_TLS_CLIENTRANDOM_SZ];
     uint8_t     tsip_serverRandom[TSIP_TLS_SERVERRANDOM_SZ];
 
-    /* installed key handling */
-    tsip_aes_key_index_t user_aes256_key_index;
-    uint8_t user_aes256_key_set:1;
-    tsip_aes_key_index_t user_aes128_key_index;
-    uint8_t user_aes128_key_set:1;
-
     /* TSIP defined cipher suite number */
     uint32_t    tsip_cipher;
 
@@ -296,22 +290,26 @@ typedef struct TsipUserCtx {
     uint8_t session_key_set:1;
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
 
+    /* installed key handling */
+    tsip_aes_key_index_t user_aes256_key_index;
+    uint8_t user_aes256_key_set:1;
+    tsip_aes_key_index_t user_aes128_key_index;
+    uint8_t user_aes128_key_set:1;
+
 /* for tsip crypt only mode */
 #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
-    union {
-    #ifndef NO_RSA
-        tsip_rsa1024_private_key_index_t  rsa1024pri_keyIdx;
-        tsip_rsa1024_public_key_index_t   rsa1024pub_keyIdx;
-        tsip_rsa2048_private_key_index_t  rsa2048pri_keyIdx;
-        tsip_rsa2048_public_key_index_t   rsa2048pub_keyIdx;
+#ifndef NO_RSA
+    tsip_rsa1024_private_key_index_t* rsa1024pri_keyIdx;
+    tsip_rsa1024_public_key_index_t*  rsa1024pub_keyIdx;
+    tsip_rsa2048_private_key_index_t* rsa2048pri_keyIdx;
+    tsip_rsa2048_public_key_index_t*  rsa2048pub_keyIdx;
+#endif
+#ifdef HAVE_ECC
+    #ifdef HAVE_ECC_SIGN
+    tsip_ecc_private_key_index_t      eccpri_keyIdx;
     #endif
-    #ifdef HAVE_ECC
-        #ifdef HAVE_ECC_SIGN
-        tsip_ecc_private_key_index_t      eccpri_keyIdx;
-        #endif
-        tsip_ecc_public_key_index_t       eccpub_keyIdx;
-    #endif
-    };
+    tsip_ecc_public_key_index_t       eccpub_keyIdx;
+#endif
 
     /* sign/verify hash type :
      * md5, sha1 or sha256
@@ -323,7 +321,7 @@ typedef struct TsipUserCtx {
         uint32_t chr;
         struct tsip_keyflgs_cryt bits;
     } keyflgs_crypt;
-#endif
+#endif /* WOLFSSL_RENESAS_TSIP_CRYPTONLY */
 
 } TsipUserCtx;
 
@@ -420,7 +418,7 @@ WOLFSSL_API void tsip_inform_user_keys(
 /*----------------------------------------------------*/
 #ifdef HAVE_PK_CALLBACKS
 WOLFSSL_LOCAL int tsip_VerifyRsaPkcsCb(
-                        WOLFSSL* ssl,
+                        struct WOLFSSL* ssl,
                         unsigned char* sig, unsigned int sigSz,
                         unsigned char** out,
                         const unsigned char* keyDer, unsigned int keySz,

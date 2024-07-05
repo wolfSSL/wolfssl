@@ -416,11 +416,15 @@ WOLFSSL_LOCAL int tsip_Tls13GenEccKeyPair(WOLFSSL* ssl, KeyShareEntry* kse)
         }
     }
 
-    if (ret != 0) {
-        if (kse->key != NULL)
+    if ((ret != 0) && (ret != CRYPTOCB_UNAVAILABLE)) {
+        if (kse->key != NULL) {
             XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        if (kse->pubKey != NULL)
+            kse->key = NULL;
+        }
+        if (kse->pubKey != NULL) {
             XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            kse->pubKey = NULL;
+        }
     }
     WOLFSSL_LEAVE("tsip_Tls13GenEccKeyPair", ret);
     return ret;
