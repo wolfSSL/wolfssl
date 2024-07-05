@@ -48,13 +48,16 @@
  *   Compiles in only the verification and public key operations.
  * WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM                         Default: OFF
  *   Compiles verification implementation that uses smaller amounts of memory.
- * WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
+ * WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC                         Default: OFF
  *   Only works with WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM.
  *   Don't allocate memory with XMALLOC. Memory is pinned against key.
- * WOLFSSL_DILITHIUM_ASSIGN_KEY
+ * WOLFSSL_DILITHIUM_ASSIGN_KEY                               Default: OFF
  *   Key data is assigned into Dilithium key rather than copied.
  *   Life of key data passed in is tightly coupled to life of Dilithium key.
  *   Cannot be used when make key is enabled.
+ * WOLFSSL_DILITHIUM_SIGN_SMALL_MEM                           Default: OFF
+ *   Compiles signature implementation that uses smaller amounts of memory but
+ *   is considerably slower.
  *
  * WOLFSSL_DILITHIUM_ALIGNMENT                                Default: 8
  *   Use to indicate whether loading and storing of words needs to be aligned.
@@ -540,6 +543,105 @@ static void dilthium_vec_encode_eta_bits(const sword32* s, byte d, byte eta,
 #endif /* !WOLFSSL_DILITHIUM_NO_MAKE_KEY */
 
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || defined(WOLFSSL_DILITHIUM_CHECK_KEY)
+
+#if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
+/* Decode polynomial with range -2..2.
+ *
+ * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ *   ...
+ *   5: for i from 0 to l - 1 do
+ *   6:     s1[i] <- BitUnpack(yi, eta, eta)
+ *   7: end for
+ *   ...
+ *   OR
+ *   ...
+ *   8: for i from 0 to k - 1 do
+ *   9:     s2[i] <- BitUnpack(zi, eta, eta)
+ *  10: end for
+ *   ...
+ *  Where y and z are arrays of bit arrays.
+ *
+ * @param [in]  p    Buffer of data to decode.
+ * @param [in]  s    Vector of decoded polynomials.
+ */
+static void dilithium_decode_eta_2_bits(const byte* p, sword32* s)
+{
+    unsigned int j;
+
+    /* Step 6 or 9.
+     * 3 bits to encode each number.
+     * 8 numbers from 3 bytes. (8 * 3 bits = 3 * 8 bits) */
+    for (j = 0; j < DILITHIUM_N; j += 8) {
+        /* Get 3 bits and put in range of -2..2. */
+        s[j + 0] = 2 - ((p[0] >> 0) & 0x7                      );
+        s[j + 1] = 2 - ((p[0] >> 3) & 0x7                      );
+        s[j + 2] = 2 - ((p[0] >> 6)       | ((p[1] << 2) & 0x7));
+        s[j + 3] = 2 - ((p[1] >> 1) & 0x7                      );
+        s[j + 4] = 2 - ((p[1] >> 4) & 0x7                      );
+        s[j + 5] = 2 - ((p[1] >> 7)       | ((p[2] << 1) & 0x7));
+        s[j + 6] = 2 - ((p[2] >> 2) & 0x7                      );
+        s[j + 7] = 2 - ((p[2] >> 5) & 0x7                      );
+        /* Move to next place to decode from. */
+        p += DILITHIUM_ETA_2_BITS;
+    }
+}
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+/* Decode polynomial with range -4..4.
+ *
+ * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ *   ...
+ *   5: for i from 0 to l - 1 do
+ *   6:     s1[i] <- BitUnpack(yi, eta, eta)
+ *   7: end for
+ *   ...
+ *   OR
+ *   ...
+ *   8: for i from 0 to k - 1 do
+ *   9:     s2[i] <- BitUnpack(zi, eta, eta)
+ *  10: end for
+ *   ...
+ *  Where y and z are arrays of bit arrays.
+ *
+ * @param [in]  p    Buffer of data to decode.
+ * @param [in]  s    Vector of decoded polynomials.
+ */
+static void dilithium_decode_eta_4_bits(const byte* p, sword32* s)
+{
+    unsigned int j;
+
+#ifdef WOLFSSL_DILITHIUM_SMALL
+    /* Step 6 or 9.
+     * 4 bits to encode each number.
+     * 2 numbers from 1 bytes. (2 * 4 bits = 1 * 8 bits) */
+    for (j = 0; j < DILITHIUM_N / 2; j++) {
+        /* Get 4 bits and put in range of -4..4. */
+        s[j * 2 + 0] = 4 - (p[j] & 0xf);
+        s[j * 2 + 1] = 4 - (p[j] >> 4);
+    }
+#else
+    /* Step 6 or 9.
+     * 4 bits to encode each number.
+     * 8 numbers from 4 bytes. (8 * 4 bits = 4 * 8 bits) */
+    for (j = 0; j < DILITHIUM_N / 2; j += 4) {
+        /* Get 4 bits and put in range of -4..4. */
+        s[j * 2 + 0] = 4 - (p[j + 0] & 0xf);
+        s[j * 2 + 1] = 4 - (p[j + 0] >> 4);
+        s[j * 2 + 2] = 4 - (p[j + 1] & 0xf);
+        s[j * 2 + 3] = 4 - (p[j + 1] >> 4);
+        s[j * 2 + 4] = 4 - (p[j + 2] & 0xf);
+        s[j * 2 + 5] = 4 - (p[j + 2] >> 4);
+        s[j * 2 + 6] = 4 - (p[j + 3] & 0xf);
+        s[j * 2 + 7] = 4 - (p[j + 3] >> 4);
+    }
+#endif /* WOLFSSL_DILITHIUM_SMALL */
+}
+#endif
+
+#if defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     (defined(WC_DILITHIUM_CACHE_PRIV_VECTORS) || \
+      !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)))
 /* Decode vector of polynomials with range -ETA..ETA.
  *
  * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
@@ -565,29 +667,15 @@ static void dilithium_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
     byte d)
 {
     unsigned int i;
-    unsigned int j;
 
 #if !defined(WOLFSSL_NO_ML_DSA_44) || !defined(WOLFSSL_NO_ML_DSA_87)
     /* -2..2 */
     if (eta == DILITHIUM_ETA_2) {
         /* Step 5 or 8: For each polynomial of vector */
         for (i = 0; i < d; i++) {
-            /* Step 6 or 9.
-             * 3 bits to encode each number.
-             * 8 numbers from 3 bytes. (8 * 3 bits = 3 * 8 bits) */
-            for (j = 0; j < DILITHIUM_N; j += 8) {
-                /* Get 3 bits and put in range of -2..2. */
-                s[j + 0] = 2 - ((p[0] >> 0) & 0x7                      );
-                s[j + 1] = 2 - ((p[0] >> 3) & 0x7                      );
-                s[j + 2] = 2 - ((p[0] >> 6)       | ((p[1] << 2) & 0x7));
-                s[j + 3] = 2 - ((p[1] >> 1) & 0x7                      );
-                s[j + 4] = 2 - ((p[1] >> 4) & 0x7                      );
-                s[j + 5] = 2 - ((p[1] >> 7)       | ((p[2] << 1) & 0x7));
-                s[j + 6] = 2 - ((p[2] >> 2) & 0x7                      );
-                s[j + 7] = 2 - ((p[2] >> 5) & 0x7                      );
-                /* Move to next place to decode from. */
-                p += DILITHIUM_ETA_2_BITS;
-            }
+            dilithium_decode_eta_2_bits(p, s);
+            /* Move to next place to decode from. */
+            p += DILITHIUM_ETA_2_BITS * DILITHIUM_N / 8;
             /* Next polynomial. */
             s += DILITHIUM_N;
         }
@@ -599,31 +687,7 @@ static void dilithium_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
     if (eta == DILITHIUM_ETA_4) {
         /* Step 5 or 8: For each polynomial of vector */
         for (i = 0; i < d; i++) {
-        #ifdef WOLFSSL_DILITHIUM_SMALL
-            /* Step 6 or 9.
-             * 4 bits to encode each number.
-             * 2 numbers from 1 bytes. (2 * 4 bits = 1 * 8 bits) */
-            for (j = 0; j < DILITHIUM_N / 2; j++) {
-                /* Get 4 bits and put in range of -4..4. */
-                s[j * 2 + 0] = 4 - (p[j] & 0xf);
-                s[j * 2 + 1] = 4 - (p[j] >> 4);
-            }
-        #else
-            /* Step 6 or 9.
-             * 4 bits to encode each number.
-             * 8 numbers from 4 bytes. (8 * 4 bits = 4 * 8 bits) */
-            for (j = 0; j < DILITHIUM_N / 2; j += 4) {
-                /* Get 4 bits and put in range of -4..4. */
-                s[j * 2 + 0] = 4 - (p[j + 0] & 0xf);
-                s[j * 2 + 1] = 4 - (p[j + 0] >> 4);
-                s[j * 2 + 2] = 4 - (p[j + 1] & 0xf);
-                s[j * 2 + 3] = 4 - (p[j + 1] >> 4);
-                s[j * 2 + 4] = 4 - (p[j + 2] & 0xf);
-                s[j * 2 + 5] = 4 - (p[j + 2] >> 4);
-                s[j * 2 + 6] = 4 - (p[j + 3] & 0xf);
-                s[j * 2 + 7] = 4 - (p[j + 3] >> 4);
-            }
-        #endif
+            dilithium_decode_eta_4_bits(p, s);
             /* Move to next place to decode from. */
             p += DILITHIUM_N / 2;
             /* Next polynomial. */
@@ -635,6 +699,7 @@ static void dilithium_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
     {
     }
 }
+#endif
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN || WOLFSSL_DILITHIUM_CHECK_KEY */
 
 #ifndef WOLFSSL_DILITHIUM_NO_MAKE_KEY
@@ -763,6 +828,86 @@ static void dilithium_vec_encode_t0_t1(sword32* t, byte d, byte* t0, byte* t1)
  *
  * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
  *   ...
+ *   12:     t0[i] <- BitUnpack(wi, 2^(d-1) - 1, 2^(d-1)
+ *   ...
+ *
+ * @param [in]  t0  Encoded values of t0.
+ * @param [in]  d   Dimensions of vector t0.
+ * @param [out] t   Vector of polynomials.
+ */
+static void dilithium_decode_t0(const byte* t0, sword32* t)
+{
+    unsigned int j;
+
+    /* Step 12. Get 13 bits and convert to range (2^(d-1)-1)..2^(d-1). */
+    for (j = 0; j < DILITHIUM_N; j += 8) {
+        /* 13 bits used per number.
+         * 8 numbers from 13 bytes. (8 * 13 bits = 13 * 8 bits) */
+#if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
+        word32 t32_2 = ((const word32*)t0)[2];
+    #ifdef WC_64BIT_CPU
+        word64 t64 = *(const word64*)t0;
+        t[j + 0] = DILITHIUM_D_MAX_HALF - ( t64        & 0x1fff);
+        t[j + 1] = DILITHIUM_D_MAX_HALF - ((t64 >> 13) & 0x1fff);
+        t[j + 2] = DILITHIUM_D_MAX_HALF - ((t64 >> 26) & 0x1fff);
+        t[j + 3] = DILITHIUM_D_MAX_HALF - ((t64 >> 39) & 0x1fff);
+        t[j + 4] = DILITHIUM_D_MAX_HALF -
+                   ((t64 >> 52) | ((t32_2 & 0x0001) << 12));
+    #else
+        word32 t32_0 = ((const word32*)t0)[0];
+        word32 t32_1 = ((const word32*)t0)[1];
+        t[j + 0] = DILITHIUM_D_MAX_HALF -
+                    ( t32_0        & 0x1fff);
+        t[j + 1] = DILITHIUM_D_MAX_HALF -
+                    ((t32_0 >> 13) & 0x1fff);
+        t[j + 2] = DILITHIUM_D_MAX_HALF -
+                   (( t32_0 >> 26          ) | ((t32_1 & 0x007f) <<  6));
+        t[j + 3] = DILITHIUM_D_MAX_HALF -
+                    ((t32_1 >>  7) & 0x1fff);
+        t[j + 4] = DILITHIUM_D_MAX_HALF -
+                   (( t32_1 >> 20          ) | ((t32_2 & 0x0001) << 12));
+    #endif
+        t[j + 5] = DILITHIUM_D_MAX_HALF -
+                    ((t32_2 >>  1) & 0x1fff);
+        t[j + 6] = DILITHIUM_D_MAX_HALF -
+                    ((t32_2 >> 14) & 0x1fff);
+        t[j + 7] = DILITHIUM_D_MAX_HALF -
+                   (( t32_2 >> 27          ) | ((word32)t0[12] ) <<  5 );
+#else
+        t[j + 0] = DILITHIUM_D_MAX_HALF -
+                   ((t0[ 0]     ) | (((word16)(t0[ 1] & 0x1f)) <<  8));
+        t[j + 1] = DILITHIUM_D_MAX_HALF -
+                   ((t0[ 1] >> 5) | (((word16)(t0[ 2]       )) <<  3) |
+                                    (((word16)(t0[ 3] & 0x03)) << 11));
+        t[j + 2] = DILITHIUM_D_MAX_HALF -
+                   ((t0[ 3] >> 2) | (((word16)(t0[ 4] & 0x7f)) <<  6));
+        t[j + 3] = DILITHIUM_D_MAX_HALF -
+                   ((t0[ 4] >> 7) | (((word16)(t0[ 5]       )) <<  1) |
+                                    (((word16)(t0[ 6] & 0x0f)) <<  9));
+        t[j + 4] = DILITHIUM_D_MAX_HALF -
+                   ((t0[ 6] >> 4) | (((word16)(t0[ 7]       )) <<  4) |
+                                    (((word16)(t0[ 8] & 0x01)) << 12));
+        t[j + 5] = DILITHIUM_D_MAX_HALF -
+                   ((t0[ 8] >> 1) | (((word16)(t0[ 9] & 0x3f)) <<  7));
+        t[j + 6] = DILITHIUM_D_MAX_HALF -
+                   ((t0[ 9] >> 6) | (((word16)(t0[10]       )) <<  2) |
+                                    (((word16)(t0[11] & 0x07)) << 10));
+        t[j + 7] = DILITHIUM_D_MAX_HALF -
+                   ((t0[11] >> 3) | (((word16)(t0[12]       )) <<  5));
+#endif
+        /* Move to next place to decode from. */
+        t0 += DILITHIUM_D;
+    }
+}
+
+#if defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     (defined(WC_DILITHIUM_CACHE_PRIV_VECTORS) || \
+      !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)))
+/* Decode bottom D bits of t as t0.
+ *
+ * FIPS 204. 8.2: Algorithm 19 skDecode(sk)
+ *   ...
  *   11: for i from 0 to k - 1 do
  *   12:     t0[i] <- BitUnpack(wi, 2^(d-1) - 1, 2^(d-1)
  *   13: end for
@@ -778,70 +923,13 @@ static void dilithium_vec_decode_t0(const byte* t0, byte d, sword32* t)
 
     /* Step 11. For each polynomial of vector. */
     for (i = 0; i < d; i++) {
-        unsigned int j;
-        /* Step 12. Get 13 bits and convert to range (2^(d-1)-1)..2^(d-1). */
-        for (j = 0; j < DILITHIUM_N; j += 8) {
-            /* 13 bits used per number.
-             * 8 numbers from 13 bytes. (8 * 13 bits = 13 * 8 bits) */
-    #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
-            word32 t32_2 = ((const word32*)t0)[2];
-        #ifdef WC_64BIT_CPU
-            word64 t64 = *(const word64*)t0;
-            t[j + 0] = DILITHIUM_D_MAX_HALF - ( t64        & 0x1fff);
-            t[j + 1] = DILITHIUM_D_MAX_HALF - ((t64 >> 13) & 0x1fff);
-            t[j + 2] = DILITHIUM_D_MAX_HALF - ((t64 >> 26) & 0x1fff);
-            t[j + 3] = DILITHIUM_D_MAX_HALF - ((t64 >> 39) & 0x1fff);
-            t[j + 4] = DILITHIUM_D_MAX_HALF -
-                       ((t64 >> 52) | ((t32_2 & 0x0001) << 12));
-        #else
-            word32 t32_0 = ((const word32*)t0)[0];
-            word32 t32_1 = ((const word32*)t0)[1];
-            t[j + 0] = DILITHIUM_D_MAX_HALF -
-                        ( t32_0        & 0x1fff);
-            t[j + 1] = DILITHIUM_D_MAX_HALF -
-                        ((t32_0 >> 13) & 0x1fff);
-            t[j + 2] = DILITHIUM_D_MAX_HALF -
-                       (( t32_0 >> 26          ) | ((t32_1 & 0x007f) <<  6));
-            t[j + 3] = DILITHIUM_D_MAX_HALF -
-                        ((t32_1 >>  7) & 0x1fff);
-            t[j + 4] = DILITHIUM_D_MAX_HALF -
-                       (( t32_1 >> 20          ) | ((t32_2 & 0x0001) << 12));
-        #endif
-            t[j + 5] = DILITHIUM_D_MAX_HALF -
-                        ((t32_2 >>  1) & 0x1fff);
-            t[j + 6] = DILITHIUM_D_MAX_HALF -
-                        ((t32_2 >> 14) & 0x1fff);
-            t[j + 7] = DILITHIUM_D_MAX_HALF -
-                       (( t32_2 >> 27          ) | ((word32)t0[12] ) <<  5 );
-    #else
-            t[j + 0] = DILITHIUM_D_MAX_HALF -
-                       ((t0[ 0]     ) | (((word16)(t0[ 1] & 0x1f)) <<  8));
-            t[j + 1] = DILITHIUM_D_MAX_HALF -
-                       ((t0[ 1] >> 5) | (((word16)(t0[ 2]       )) <<  3) |
-                                        (((word16)(t0[ 3] & 0x03)) << 11));
-            t[j + 2] = DILITHIUM_D_MAX_HALF -
-                       ((t0[ 3] >> 2) | (((word16)(t0[ 4] & 0x7f)) <<  6));
-            t[j + 3] = DILITHIUM_D_MAX_HALF -
-                       ((t0[ 4] >> 7) | (((word16)(t0[ 5]       )) <<  1) |
-                                        (((word16)(t0[ 6] & 0x0f)) <<  9));
-            t[j + 4] = DILITHIUM_D_MAX_HALF -
-                       ((t0[ 6] >> 4) | (((word16)(t0[ 7]       )) <<  4) |
-                                        (((word16)(t0[ 8] & 0x01)) << 12));
-            t[j + 5] = DILITHIUM_D_MAX_HALF -
-                       ((t0[ 8] >> 1) | (((word16)(t0[ 9] & 0x3f)) <<  7));
-            t[j + 6] = DILITHIUM_D_MAX_HALF -
-                       ((t0[ 9] >> 6) | (((word16)(t0[10]       )) <<  2) |
-                                        (((word16)(t0[11] & 0x07)) << 10));
-            t[j + 7] = DILITHIUM_D_MAX_HALF -
-                       ((t0[11] >> 3) | (((word16)(t0[12]       )) <<  5));
-    #endif
-            /* Move to next place to decode from. */
-            t0 += DILITHIUM_D;
-        }
+        dilithium_decode_t0(t0, t);
+        t0 += DILITHIUM_D * DILITHIUM_N / 8;
         /* Next polynomial. */
         t += DILITHIUM_N;
     }
 }
+#endif
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN || WOLFSSL_DILITHIUM_CHECK_KEY */
 
 #if !defined(WOLFSSL_DILITHIUM_NO_VERIFY) || \
@@ -951,6 +1039,111 @@ static void dilithium_vec_decode_t1(const byte* t1, byte d, sword32* t)
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
+#ifndef WOLFSSL_NO_ML_DSA_44
+/* Encode z with range of -(GAMMA1-1)...GAMMA1
+ *
+ * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ *   ...
+ *   3:     sigma <- sigma || BitPack(z[i], GAMMA1 - 1, GAMMA1)
+ *   ...
+ *
+ * @param [in]  z     Polynomial to encode.
+ * @param [out] s     Buffer to encode into.
+ */
+static void dilithium_encode_gamma1_17_bits(const sword32* z, byte* s)
+{
+    unsigned int j;
+
+    /* Step 3. Get 18 bits as a number. */
+    for (j = 0; j < DILITHIUM_N; j += 4) {
+        word32 z0 = DILITHIUM_GAMMA1_17 - z[j + 0];
+        word32 z1 = DILITHIUM_GAMMA1_17 - z[j + 1];
+        word32 z2 = DILITHIUM_GAMMA1_17 - z[j + 2];
+        word32 z3 = DILITHIUM_GAMMA1_17 - z[j + 3];
+
+        /* 18 bits per number.
+         * 8 numbers become 9 bytes. (8 * 9 bits = 9 * 8 bits) */
+#if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
+    #ifdef WC_64BIT_CPU
+        word64* s64p = (word64*)s;
+        s64p[0] =           z0        | ((word64)z1 << 18) |
+                   ((word64)z2 << 36) | ((word64)z3 << 54);
+    #else
+        word32* s32p = (word32*)s;
+        s32p[0] =  z0        | (z1 << 18)             ;
+        s32p[1] = (z1 >> 14) | (z2 <<  4) | (z3 << 22);
+    #endif
+#else
+        s[0] =  z0                   ;
+        s[1] =  z0 >>  8             ;
+        s[2] = (z0 >> 16) | (z1 << 2);
+        s[3] =  z1 >>  6             ;
+        s[4] = (z1 >> 14) | (z2 << 4);
+        s[5] =  z2 >>  4             ;
+        s[6] = (z2 >> 12) | (z3 << 6);
+        s[7] =  z3 >>  2             ;
+#endif
+        s[8] =  z3 >> 10             ;
+        /* Move to next place to encode to. */
+        s += DILITHIUM_GAMMA1_17_ENC_BITS / 2;
+    }
+}
+#endif
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+/* Encode z with range of -(GAMMA1-1)...GAMMA1
+ *
+ * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ *   ...
+ *   3:     sigma <- sigma || BitPack(z[i], GAMMA1 - 1, GAMMA1)
+ *   ...
+ *
+ * @param [in]  z     Polynomial to encode.
+ * @param [out] s     Buffer to encode into.
+ */
+static void dilithium_encode_gamma1_19_bits(const sword32* z, byte* s)
+{
+    unsigned int j;
+
+    /* Step 3. Get 20 bits as a number. */
+    for (j = 0; j < DILITHIUM_N; j += 4) {
+        sword32 z0 = DILITHIUM_GAMMA1_19 - z[j + 0];
+        sword32 z1 = DILITHIUM_GAMMA1_19 - z[j + 1];
+        sword32 z2 = DILITHIUM_GAMMA1_19 - z[j + 2];
+        sword32 z3 = DILITHIUM_GAMMA1_19 - z[j + 3];
+
+        /* 20 bits per number.
+         * 4 numbers become 10 bytes. (4 * 20 bits = 10 * 8 bits) */
+#if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT <= 2)
+        word16* s16p = (word16*)s;
+    #ifdef WC_64BIT_CPU
+        word64* s64p = (word64*)s;
+        s64p[0] =           z0        | ((word64)z1 << 20) |
+                   ((word64)z2 << 40) | ((word64)z3 << 60);
+    #else
+        word32* s32p = (word32*)s;
+        s32p[0] =  z0        | (z1 << 20)             ;
+        s32p[1] = (z1 >> 12) | (z2 <<  8) | (z3 << 28);
+    #endif
+        s16p[4] = (z3 >>  4)                          ;
+#else
+        s[0] =  z0                   ;
+        s[1] = (z0 >>  8)            ;
+        s[2] = (z0 >> 16) | (z1 << 4);
+        s[3] = (z1 >>  4)            ;
+        s[4] = (z1 >> 12)            ;
+        s[5] =  z2                   ;
+        s[6] = (z2 >>  8)            ;
+        s[7] = (z2 >> 16) | (z3 << 4);
+        s[8] = (z3 >>  4)            ;
+        s[9] = (z3 >> 12)            ;
+#endif
+        /* Move to next place to encode to. */
+        s += DILITHIUM_GAMMA1_19_ENC_BITS / 2;
+    }
+}
+#endif
+
+#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
 /* Encode z with range of -(GAMMA1-1)...GAMMA1
  *
  * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
@@ -969,7 +1162,6 @@ static void dilithium_vec_encode_gamma1(const sword32* z, byte l, int bits,
     byte* s)
 {
     unsigned int i;
-    unsigned int j;
 
     (void)l;
 
@@ -977,39 +1169,9 @@ static void dilithium_vec_encode_gamma1(const sword32* z, byte l, int bits,
     if (bits == DILITHIUM_GAMMA1_BITS_17) {
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < PARAMS_ML_DSA_44_L; i++) {
-            /* Step 3. Get 18 bits as a number. */
-            for (j = 0; j < DILITHIUM_N; j += 4) {
-                word32 z0 = DILITHIUM_GAMMA1_17 - z[j + 0];
-                word32 z1 = DILITHIUM_GAMMA1_17 - z[j + 1];
-                word32 z2 = DILITHIUM_GAMMA1_17 - z[j + 2];
-                word32 z3 = DILITHIUM_GAMMA1_17 - z[j + 3];
-
-                /* 18 bits per number.
-                 * 8 numbers become 9 bytes. (8 * 9 bits = 9 * 8 bits) */
-        #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
-            #ifdef WC_64BIT_CPU
-                word64* s64p = (word64*)s;
-                s64p[0] =           z0        | ((word64)z1 << 18) |
-                           ((word64)z2 << 36) | ((word64)z3 << 54);
-            #else
-                word32* s32p = (word32*)s;
-                s32p[0] =  z0        | (z1 << 18)             ;
-                s32p[1] = (z1 >> 14) | (z2 <<  4) | (z3 << 22);
-            #endif
-        #else
-                s[0] =  z0                   ;
-                s[1] =  z0 >>  8             ;
-                s[2] = (z0 >> 16) | (z1 << 2);
-                s[3] =  z1 >>  6             ;
-                s[4] = (z1 >> 14) | (z2 << 4);
-                s[5] =  z2 >>  4             ;
-                s[6] = (z2 >> 12) | (z3 << 6);
-                s[7] =  z3 >>  2             ;
-        #endif
-                s[8] =  z3 >> 10             ;
-                /* Move to next place to encode to. */
-                s += DILITHIUM_GAMMA1_17_ENC_BITS / 2;
-            }
+            dilithium_encode_gamma1_17_bits(z, s);
+            /* Move to next place to encode to. */
+            s += DILITHIUM_GAMMA1_17_ENC_BITS / 2 * DILITHIUM_N / 4;
             /* Next polynomial. */
             z += DILITHIUM_N;
         }
@@ -1020,42 +1182,9 @@ static void dilithium_vec_encode_gamma1(const sword32* z, byte l, int bits,
     if (bits == DILITHIUM_GAMMA1_BITS_19) {
         /* Step 2. For each polynomial of vector. */
         for (i = 0; i < l; i++) {
-            /* Step 3. Get 20 bits as a number. */
-            for (j = 0; j < DILITHIUM_N; j += 4) {
-                sword32 z0 = DILITHIUM_GAMMA1_19 - z[j + 0];
-                sword32 z1 = DILITHIUM_GAMMA1_19 - z[j + 1];
-                sword32 z2 = DILITHIUM_GAMMA1_19 - z[j + 2];
-                sword32 z3 = DILITHIUM_GAMMA1_19 - z[j + 3];
-
-                /* 20 bits per number.
-                 * 4 numbers become 10 bytes. (4 * 20 bits = 10 * 8 bits) */
-        #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT <= 2)
-                word16* s16p = (word16*)s;
-            #ifdef WC_64BIT_CPU
-                word64* s64p = (word64*)s;
-                s64p[0] =           z0        | ((word64)z1 << 20) |
-                           ((word64)z2 << 40) | ((word64)z3 << 60);
-            #else
-                word32* s32p = (word32*)s;
-                s32p[0] =  z0        | (z1 << 20)             ;
-                s32p[1] = (z1 >> 12) | (z2 <<  8) | (z3 << 28);
-            #endif
-                s16p[4] = (z3 >>  4)                          ;
-        #else
-                s[0] =  z0                   ;
-                s[1] = (z0 >>  8)            ;
-                s[2] = (z0 >> 16) | (z1 << 4);
-                s[3] = (z1 >>  4)            ;
-                s[4] = (z1 >> 12)            ;
-                s[5] =  z2                   ;
-                s[6] = (z2 >>  8)            ;
-                s[7] = (z2 >> 16) | (z3 << 4);
-                s[8] = (z3 >>  4)            ;
-                s[9] = (z3 >> 12)            ;
-        #endif
-                /* Move to next place to encode to. */
-                s += DILITHIUM_GAMMA1_19_ENC_BITS / 2;
-            }
+            dilithium_encode_gamma1_19_bits(z, s);
+            /* Move to next place to encode to. */
+            s += DILITHIUM_GAMMA1_19_ENC_BITS / 2 * DILITHIUM_N / 4;
             /* Next polynomial. */
             z += DILITHIUM_N;
         }
@@ -1065,6 +1194,7 @@ static void dilithium_vec_encode_gamma1(const sword32* z, byte l, int bits,
     {
     }
 }
+#endif /* WOLFSSL_DILITHIUM_SIGN_SMALL_MEM */
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -1830,8 +1960,13 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
 #endif
 }
 
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_ONLY) || \
-    !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+    defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     (!defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) || \
+      defined(WC_DILITHIUM_CACHE_MATRIX_A)))
 /* Expand the seed to create matrix a.
  *
  * FIPS 204. 8.3: Algorithm 26 ExpandA(rho)
@@ -2349,8 +2484,8 @@ static int dilithium_expand_s(wc_Shake* shake256, byte* priv_seed, byte eta,
  * @return  0 on success.
  * @return  Negative on hash error.
  */
-static int dilithium_expand_mask(wc_Shake* shake256, byte* seed, word16 kappa,
-    byte gamma1_bits, sword32* y, byte l)
+static int dilithium_vec_expand_mask(wc_Shake* shake256, byte* seed,
+    word16 kappa, byte gamma1_bits, sword32* y, byte l)
 {
     int ret = 0;
     byte r;
@@ -2599,6 +2734,7 @@ static void dilithium_decompose_q32(sword32 r, sword32* r0, sword32* r1)
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
+#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
 /* Decompose vector of polynomials into high and low based on GAMMA2.
  *
  * @param [in]  r       Vector of polynomials to decompose.
@@ -2652,6 +2788,7 @@ static void dilithium_vec_decompose(const sword32* r, byte k, sword32 gamma2,
     {
     }
 }
+#endif
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -2660,6 +2797,38 @@ static void dilithium_vec_decompose(const sword32* r, byte k, sword32 gamma2,
  ******************************************************************************/
 
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+/* Check that the values of the polynomial are in range.
+ *
+ * Many places in FIPS 204. One example from Algorithm 2:
+ *   23:    if ||z||inf >= GAMMA1 - BETA or ..., then (z, h) = falsam
+ *
+ * @param [in] a   Polynomial.
+ * @param [in] hi  Largest value in range.
+ */
+static int dilithium_check_low(const sword32* a, sword32 hi)
+{
+    int ret = 1;
+    unsigned int j;
+    /* Calculate lowest range value. */
+    sword32 nhi = -hi;
+
+    /* For each value of polynomial. */
+    for (j = 0; j < DILITHIUM_N; j++) {
+        /* Check range is -(hi-1)..(hi-1). */
+        if ((a[j] <= nhi) || (a[j] >= hi)) {
+            /* Check failed. */
+            ret = 0;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+#if (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
 /* Check that the values of the vector are in range.
  *
  * Many places in FIPS 204. One example from Algorithm 2:
@@ -2669,24 +2838,16 @@ static void dilithium_vec_decompose(const sword32* r, byte k, sword32 gamma2,
  * @param [in] l   Dimension of vector.
  * @param [in] hi  Largest value in range.
  */
-static int dilithium_check_low(const sword32* a, byte l, sword32 hi)
+static int dilithium_vec_check_low(const sword32* a, byte l, sword32 hi)
 {
     int ret = 1;
     unsigned int i;
-    /* Calculate lowest range value. */
-    sword32 nhi = -hi;
 
     /* For each polynomial of vector. */
     for (i = 0; (ret == 1) && (i < l); i++) {
-        unsigned int j;
-        /* For each value of polynomial. */
-        for (j = 0; j < DILITHIUM_N; j++) {
-            /* Check range is -(hi-1)..(hi-1). */
-            if ((a[j] <= nhi) || (a[j] >= hi)) {
-                /* Check failed. */
-                ret = 0;
-                break;
-            }
+        ret = dilithium_check_low(a, hi);
+        if (ret == 0) {
+            break;
         }
         /* Next polynomial. */
         a += DILITHIUM_N;
@@ -2695,6 +2856,7 @@ static int dilithium_check_low(const sword32* a, byte l, sword32 hi)
     return ret;
 }
 #endif
+#endif
 
 /******************************************************************************
  * Hint operations
@@ -2702,6 +2864,153 @@ static int dilithium_check_low(const sword32* a, byte l, sword32 hi)
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
+#ifndef WOLFSSL_NO_ML_DSA_44
+/* Compute hints indicating whether adding ct0 to w alters high bits of w.
+ *
+ * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
+ *   ...
+ *  26: h <- MakeHint(-<<ct0>>, w - <<sc2>> + <<ct0>>)
+ *  27: if ... or the number of 1's in h is greater than OMEGA, then
+ *      (z, h) <- falsam
+ *   ...
+ *  32: sigma <- sigEncode(c_tilda, z mod+/- q, h)
+ *   ...
+ *
+ * FIPS 204. 8.4: Algorithm 33 MakeHint(z, r)
+ *   1: r1 <- HighBits(r)
+ *   2: v1 <- HightBits(r+z)
+ *   3: return [[r1 != v1]]
+ *
+ * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ *   ...
+ *   5: sigma <- sigma || HintBitPack(h)
+ *   ...
+ *
+ * FIPS 204. 8.1: Algorithm 14 HintBitPack(h)
+ *   ...
+ *   4:     for j from 0 to 255 do
+ *   5:         if h[i]j != 0 then
+ *   6:             y[Index] <- j
+ *   7:             Index <- Index + 1
+ *   8:         end if
+ *   9:     end for
+ *   ...
+ *
+ * @param [in]      s       Vector of polynomials that is sum of ct0 and w0.
+ * @param [in]      w1      Vector of polynomials that is high part of w.
+ * @param [out]     h       Encoded hints.
+ * @param [in, out] idxp    Index to write next hint into.
+ * return  Number of hints on success.
+ * return  Falsam of -1 when too many hints.
+ */
+static int dilithium_make_hint_88(const sword32* s, const sword32* w1, byte* h,
+    byte *idxp)
+{
+    unsigned int j;
+    byte idx = *idxp;
+
+    /* Alg 14, Step 3: For each value of polynomial. */
+    for (j = 0; j < DILITHIUM_N; j++) {
+        /* Alg 14, Step 4: Check whether hint is required.
+         * Did sum end up greater than low modulus or
+         * sum end up less than the negative of low modulus or
+         * sum is the negative of the low modulus and w1 is not zero,
+         * then w1 will be modified.
+         */
+        if ((s[j] > (sword32)DILITHIUM_Q_LOW_88) ||
+                (s[j] < -(sword32)DILITHIUM_Q_LOW_88) ||
+                ((s[j] == -(sword32)DILITHIUM_Q_LOW_88) &&
+                 (w1[j] != 0))) {
+            /* Alg 14, Step 6, 7: Put index as hint modifier. */
+            h[idx++] = (byte)j;
+            /* Alg 2, Step 27: If there are too many hints, return
+             *                 falsam of -1. */
+            if (idx > PARAMS_ML_DSA_44_OMEGA) {
+                return -1;
+            }
+        }
+    }
+
+    *idxp = idx;
+    return 0;
+}
+#endif
+#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+/* Compute hints indicating whether adding ct0 to w alters high bits of w.
+ *
+ * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
+ *   ...
+ *  26: h <- MakeHint(-<<ct0>>, w - <<sc2>> + <<ct0>>)
+ *  27: if ... or the number of 1's in h is greater than OMEGA, then
+ *      (z, h) <- falsam
+ *   ...
+ *  32: sigma <- sigEncode(c_tilda, z mod+/- q, h)
+ *   ...
+ *
+ * FIPS 204. 8.4: Algorithm 33 MakeHint(z, r)
+ *   1: r1 <- HighBits(r)
+ *   2: v1 <- HightBits(r+z)
+ *   3: return [[r1 != v1]]
+ *
+ * FIPS 204. 8.2: Algorithm 20 sigEncode(c_tilde, z, h)
+ *   ...
+ *   5: sigma <- sigma || HintBitPack(h)
+ *   ...
+ *
+ * FIPS 204. 8.1: Algorithm 14 HintBitPack(h)
+ *   ...
+ *   4:     for j from 0 to 255 do
+ *   5:         if h[i]j != 0 then
+ *   6:             y[Index] <- j
+ *   7:             Index <- Index + 1
+ *   8:         end if
+ *   9:     end for
+ *   ...
+ *
+ * @param [in]      s       Vector of polynomials that is sum of ct0 and w0.
+ * @param [in]      w1      Vector of polynomials that is high part of w.
+ * @param [in]      omega   Maximum number of hints allowed.
+ * @param [out]     h       Encoded hints.
+ * @param [in, out] idxp    Index to write next hint into.
+ * return  Number of hints on success.
+ * return  Falsam of -1 when too many hints.
+ */
+static int dilithium_make_hint_32(const sword32* s, const sword32* w1,
+    byte omega, byte* h, byte *idxp)
+{
+    unsigned int j;
+    byte idx = *idxp;
+
+    (void)omega;
+
+    /* Alg 14, Step 3: For each value of polynomial. */
+    for (j = 0; j < DILITHIUM_N; j++) {
+        /* Alg 14, Step 4: Check whether hint is required.
+         * Did sum end up greater than low modulus or
+         * sum end up less than the negative of low modulus or
+         * sum is the negative of the low modulus and w1 is not zero,
+         * then w1 will be modified.
+         */
+        if ((s[j] > (sword32)DILITHIUM_Q_LOW_32) ||
+                (s[j] < -(sword32)DILITHIUM_Q_LOW_32) ||
+                ((s[j] == -(sword32)DILITHIUM_Q_LOW_32) &&
+                 (w1[j] != 0))) {
+            /* Alg 14, Step 6, 7: Put index as hint modifier. */
+            h[idx++] = (byte)j;
+            /* Alg 2, Step 27: If there are too many hints, return
+             *                 falsam of -1. */
+            if (idx > omega) {
+                return -1;
+            }
+        }
+    }
+
+    *idxp = idx;
+    return 0;
+}
+#endif
+
+#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
 /* Compute hints indicating whether adding ct0 to w alters high bits of w.
  *
  * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
@@ -2750,7 +3059,6 @@ static int dilithium_make_hint(const sword32* s, const sword32* w1, byte k,
     word32 gamma2, byte omega, byte* h)
 {
     unsigned int i;
-    unsigned int j;
     byte idx = 0;
 
     (void)k;
@@ -2760,31 +3068,12 @@ static int dilithium_make_hint(const sword32* s, const sword32* w1, byte k,
     if (gamma2 == DILITHIUM_Q_LOW_88) {
         /* Alg 14, Step 2: For each polynomial of vector. */
         for (i = 0; i < PARAMS_ML_DSA_44_K; i++) {
-            /* Alg 14, Step 3: For each value of polynomial. */
-            for (j = 0; j < DILITHIUM_N; j++) {
-                /* Alg 14, Step 4: Check whether hint is required.
-                 * Did sum end up greater than low modulus or
-                 * sum end up less than the negative of low modulus or
-                 * sum is the negative of the low modulus and w1 is not zero,
-                 * then w1 will be modified.
-                 */
-                if ((s[j] > (sword32)DILITHIUM_Q_LOW_88) ||
-                        (s[j] < -(sword32)DILITHIUM_Q_LOW_88) ||
-                        ((s[j] == -(sword32)DILITHIUM_Q_LOW_88) &&
-                         (w1[j] != 0))) {
-                    /* Alg 14, Step 6, 7: Put index as hint modifier. */
-                    h[idx++] = (byte)j;
-                    /* Alg 2, Step 27: If there are too many hints, return
-                     *                 falsam of -1. */
-                    if (idx > PARAMS_ML_DSA_44_OMEGA) {
-                        return -1;
-                    }
-                }
+            if (dilithium_make_hint_88(s, w1, h, &idx) == -1) {
+                return -1;
             }
             /* Alg 14, Step 10: Store count of hints for polynomial at end of
              *                  list. */
-            h[omega + i] = idx;
-
+            h[PARAMS_ML_DSA_44_OMEGA + i] = idx;
             /* Next polynomial. */
             s  += DILITHIUM_N;
             w1 += DILITHIUM_N;
@@ -2796,31 +3085,12 @@ static int dilithium_make_hint(const sword32* s, const sword32* w1, byte k,
     if (gamma2 == DILITHIUM_Q_LOW_32) {
         /* Alg 14, Step 2: For each polynomial of vector. */
         for (i = 0; i < k; i++) {
-            /* Alg 14, Step 3: For each value of polynomial. */
-            for (j = 0; j < DILITHIUM_N; j++) {
-                /* Alg 14, Step 4: Check whether hint is required.
-                 * Did sum end up greater than low modulus or
-                 * sum end up less than the negative of low modulus or
-                 * sum is the negative of the low modulus and w1 is not zero,
-                 * then w1 will be modified.
-                 */
-                if ((s[j] > (sword32)DILITHIUM_Q_LOW_32) ||
-                        (s[j] < -(sword32)DILITHIUM_Q_LOW_32) ||
-                        ((s[j] == -(sword32)DILITHIUM_Q_LOW_32) &&
-                         (w1[j] != 0))) {
-                    /* Alg 14, Step 6, 7: Put index as hint modifier. */
-                    h[idx++] = (byte)j;
-                    /* Alg 2, Step 27: If there are too many hints, return
-                     *                 falsam of -1. */
-                    if (idx > omega) {
-                        return -1;
-                    }
-                }
+            if (dilithium_make_hint_32(s, w1, omega, h, &idx) == -1) {
+                return -1;
             }
             /* Alg 14, Step 10: Store count of hints for polynomial at end of
              *                  list. */
             h[omega + i] = idx;
-
             /* Next polynomial. */
             s  += DILITHIUM_N;
             w1 += DILITHIUM_N;
@@ -2835,6 +3105,7 @@ static int dilithium_make_hint(const sword32* s, const sword32* w1, byte k,
     XMEMSET(h + idx, 0, omega - idx);
     return idx;
 }
+#endif /* !WOLFSSL_DILITHIUM_SIGN_SMALL_MEM */
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -3595,6 +3866,11 @@ static void dilithium_ntt(sword32* r)
 #endif
 }
 
+#if !defined(WOLFSSL_DILITHIUM_NO_VERIFY) || \
+     defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     (defined(WC_DILITHIUM_CACHE_PRIV_VECTORS) || \
+      !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)))
 /* Number-Theoretic Transform.
  *
  * @param [in, out]  r  Vector of polynomials to transform.
@@ -3609,6 +3885,7 @@ static void dilithium_vec_ntt(sword32* r, byte l)
         r += DILITHIUM_N;
     }
 }
+#endif
 #endif
 
 #ifndef WOLFSSL_DILITHIUM_SMALL
@@ -3956,7 +4233,11 @@ static void dilithium_ntt_small(sword32* r)
 #endif
 }
 
-#ifndef WOLFSSL_DILITHIUM_VERIFY_ONLY
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+     defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     (defined(WC_DILITHIUM_CACHE_PRIV_VECTORS) || \
+      !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)))
 /* Number-Theoretic Transform with small initial values.
  *
  * @param [in, out]  r  Vector of polynomials to transform.
@@ -4409,8 +4690,12 @@ static void dilithium_invntt(sword32* r)
 }
 
 
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_ONLY) || \
-    !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+     defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
 /* Inverse Number-Theoretic Transform.
  *
  * @param [in, out]  r  Vector of polynomials to transform.
@@ -4427,8 +4712,12 @@ static void dilithium_vec_invntt(sword32* r, byte l)
 }
 #endif
 
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_ONLY) || \
-    !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+     defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
 /* Matrix multiplication.
  *
  * @param [out] r  Vector of polynomials that is result.
@@ -4600,6 +4889,56 @@ static void dilithium_matrix_mul(sword32* r, const sword32* m, const sword32* v,
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
     (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
      !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM))
+/* Polynomial multiplication.
+ *
+ * @param [out] r  Polynomial result.
+ * @param [in]  a  Polynomial
+ * @param [in]  b  Polynomial.
+ */
+static void dilithium_mul(sword32* r, sword32* a, sword32* b)
+{
+    unsigned int e;
+#ifdef WOLFSSL_DILITHIUM_SMALL
+    for (e = 0; e < DILITHIUM_N; e++) {
+        r[e] = dilithium_mont_red((sword64)a[e] * b[e]);
+    }
+#elif defined(WOLFSSL_DILITHIUM_NO_LARGE_CODE)
+    for (e = 0; e < DILITHIUM_N; e += 8) {
+        r[e+0] = dilithium_mont_red((sword64)a[e+0] * b[e+0]);
+        r[e+1] = dilithium_mont_red((sword64)a[e+1] * b[e+1]);
+        r[e+2] = dilithium_mont_red((sword64)a[e+2] * b[e+2]);
+        r[e+3] = dilithium_mont_red((sword64)a[e+3] * b[e+3]);
+        r[e+4] = dilithium_mont_red((sword64)a[e+4] * b[e+4]);
+        r[e+5] = dilithium_mont_red((sword64)a[e+5] * b[e+5]);
+        r[e+6] = dilithium_mont_red((sword64)a[e+6] * b[e+6]);
+        r[e+7] = dilithium_mont_red((sword64)a[e+7] * b[e+7]);
+    }
+#else
+    for (e = 0; e < DILITHIUM_N; e += 16) {
+        r[e+ 0] = dilithium_mont_red((sword64)a[e+ 0] * b[e+ 0]);
+        r[e+ 1] = dilithium_mont_red((sword64)a[e+ 1] * b[e+ 1]);
+        r[e+ 2] = dilithium_mont_red((sword64)a[e+ 2] * b[e+ 2]);
+        r[e+ 3] = dilithium_mont_red((sword64)a[e+ 3] * b[e+ 3]);
+        r[e+ 4] = dilithium_mont_red((sword64)a[e+ 4] * b[e+ 4]);
+        r[e+ 5] = dilithium_mont_red((sword64)a[e+ 5] * b[e+ 5]);
+        r[e+ 6] = dilithium_mont_red((sword64)a[e+ 6] * b[e+ 6]);
+        r[e+ 7] = dilithium_mont_red((sword64)a[e+ 7] * b[e+ 7]);
+        r[e+ 8] = dilithium_mont_red((sword64)a[e+ 8] * b[e+ 8]);
+        r[e+ 9] = dilithium_mont_red((sword64)a[e+ 9] * b[e+ 9]);
+        r[e+10] = dilithium_mont_red((sword64)a[e+10] * b[e+10]);
+        r[e+11] = dilithium_mont_red((sword64)a[e+11] * b[e+11]);
+        r[e+12] = dilithium_mont_red((sword64)a[e+12] * b[e+12]);
+        r[e+13] = dilithium_mont_red((sword64)a[e+13] * b[e+13]);
+        r[e+14] = dilithium_mont_red((sword64)a[e+14] * b[e+14]);
+        r[e+15] = dilithium_mont_red((sword64)a[e+15] * b[e+15]);
+    }
+#endif
+}
+
+#if (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM))
 /* Vector multiplication.
  *
  * @param [out] r  Vector of polynomials that is result.
@@ -4612,49 +4951,41 @@ static void dilithium_vec_mul(sword32* r, sword32* a, sword32* b, byte l)
     byte i;
 
     for (i = 0; i < l; i++) {
-        unsigned int e;
-#ifdef WOLFSSL_DILITHIUM_SMALL
-        for (e = 0; e < DILITHIUM_N; e++) {
-            r[e] = dilithium_mont_red((sword64)a[e] * b[e]);
-        }
-#elif defined(WOLFSSL_DILITHIUM_NO_LARGE_CODE)
-        for (e = 0; e < DILITHIUM_N; e += 8) {
-            r[e+0] = dilithium_mont_red((sword64)a[e+0] * b[e+0]);
-            r[e+1] = dilithium_mont_red((sword64)a[e+1] * b[e+1]);
-            r[e+2] = dilithium_mont_red((sword64)a[e+2] * b[e+2]);
-            r[e+3] = dilithium_mont_red((sword64)a[e+3] * b[e+3]);
-            r[e+4] = dilithium_mont_red((sword64)a[e+4] * b[e+4]);
-            r[e+5] = dilithium_mont_red((sword64)a[e+5] * b[e+5]);
-            r[e+6] = dilithium_mont_red((sword64)a[e+6] * b[e+6]);
-            r[e+7] = dilithium_mont_red((sword64)a[e+7] * b[e+7]);
-        }
-#else
-        for (e = 0; e < DILITHIUM_N; e += 16) {
-            r[e+ 0] = dilithium_mont_red((sword64)a[e+ 0] * b[e+ 0]);
-            r[e+ 1] = dilithium_mont_red((sword64)a[e+ 1] * b[e+ 1]);
-            r[e+ 2] = dilithium_mont_red((sword64)a[e+ 2] * b[e+ 2]);
-            r[e+ 3] = dilithium_mont_red((sword64)a[e+ 3] * b[e+ 3]);
-            r[e+ 4] = dilithium_mont_red((sword64)a[e+ 4] * b[e+ 4]);
-            r[e+ 5] = dilithium_mont_red((sword64)a[e+ 5] * b[e+ 5]);
-            r[e+ 6] = dilithium_mont_red((sword64)a[e+ 6] * b[e+ 6]);
-            r[e+ 7] = dilithium_mont_red((sword64)a[e+ 7] * b[e+ 7]);
-            r[e+ 8] = dilithium_mont_red((sword64)a[e+ 8] * b[e+ 8]);
-            r[e+ 9] = dilithium_mont_red((sword64)a[e+ 9] * b[e+ 9]);
-            r[e+10] = dilithium_mont_red((sword64)a[e+10] * b[e+10]);
-            r[e+11] = dilithium_mont_red((sword64)a[e+11] * b[e+11]);
-            r[e+12] = dilithium_mont_red((sword64)a[e+12] * b[e+12]);
-            r[e+13] = dilithium_mont_red((sword64)a[e+13] * b[e+13]);
-            r[e+14] = dilithium_mont_red((sword64)a[e+14] * b[e+14]);
-            r[e+15] = dilithium_mont_red((sword64)a[e+15] * b[e+15]);
-        }
-#endif
+        dilithium_mul(r, a, b);
         r += DILITHIUM_N;
         b += DILITHIUM_N;
     }
 }
 #endif
+#endif
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
+/* Modulo reduce values in polynomial. Range (-2^31)..(2^31-1).
+ *
+ * @param [in, out] a  Polynomial.
+ */
+static void dilithium_poly_red(sword32* a)
+{
+    word16 j;
+#ifdef WOLFSSL_DILITHIUM_SMALL
+    for (j = 0; j < DILITHIUM_N; j++) {
+        a[j] = dilithium_red(a[j]);
+    }
+#else
+    for (j = 0; j < DILITHIUM_N; j += 8) {
+        a[j+0] = dilithium_red(a[j+0]);
+        a[j+1] = dilithium_red(a[j+1]);
+        a[j+2] = dilithium_red(a[j+2]);
+        a[j+3] = dilithium_red(a[j+3]);
+        a[j+4] = dilithium_red(a[j+4]);
+        a[j+5] = dilithium_red(a[j+5]);
+        a[j+6] = dilithium_red(a[j+6]);
+        a[j+7] = dilithium_red(a[j+7]);
+    }
+#endif
+}
+
+#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
 /* Modulo reduce values in polynomials of vector. Range (-2^31)..(2^31-1).
  *
  * @param [in, out] a  Vector of polynomials.
@@ -4665,32 +4996,48 @@ static void dilithium_vec_red(sword32* a, byte l)
     byte i;
 
     for (i = 0; i < l; i++) {
-        word16 j;
-#ifdef WOLFSSL_DILITHIUM_SMALL
-        for (j = 0; j < DILITHIUM_N; j++) {
-            a[j] = dilithium_red(a[j]);
-        }
-#else
-        for (j = 0; j < DILITHIUM_N; j += 8) {
-            a[j+0] = dilithium_red(a[j+0]);
-            a[j+1] = dilithium_red(a[j+1]);
-            a[j+2] = dilithium_red(a[j+2]);
-            a[j+3] = dilithium_red(a[j+3]);
-            a[j+4] = dilithium_red(a[j+4]);
-            a[j+5] = dilithium_red(a[j+5]);
-            a[j+6] = dilithium_red(a[j+6]);
-            a[j+7] = dilithium_red(a[j+7]);
-        }
-#endif
+        dilithium_poly_red(a);
         a += DILITHIUM_N;
     }
 }
+#endif /*  WOLFSSL_DILITHIUM_SIGN_SMALL_MEM*/
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
 #if (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
      (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
       !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM))) || \
     defined(WOLFSSL_DILITHIUM_CHECK_KEY)
+/* Subtract polynomials a from r. r -= a.
+ *
+ * @param [out] r  Polynomial to subtract from.
+ * @param [in]  a  Polynomial to subtract.
+ */
+static void dilithium_sub(sword32* r, const sword32* a)
+{
+    word16 j;
+#ifdef WOLFSSL_DILITHIUM_SMALL
+    for (j = 0; j < DILITHIUM_N; j++) {
+        r[j] -= a[j];
+    }
+#else
+    for (j = 0; j < DILITHIUM_N; j += 8) {
+        r[j+0] -= a[j+0];
+        r[j+1] -= a[j+1];
+        r[j+2] -= a[j+2];
+        r[j+3] -= a[j+3];
+        r[j+4] -= a[j+4];
+        r[j+5] -= a[j+5];
+        r[j+6] -= a[j+6];
+        r[j+7] -= a[j+7];
+    }
+#endif
+}
+
+#if defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+   (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+    !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
 /* Subtract vector a from r. r -= a.
  *
  * @param [out] r  Vector of polynomials that is result.
@@ -4702,31 +5049,45 @@ static void dilithium_vec_sub(sword32* r, const sword32* a, byte l)
     byte i;
 
     for (i = 0; i < l; i++) {
-        word16 j;
-#ifdef WOLFSSL_DILITHIUM_SMALL
-        for (j = 0; j < DILITHIUM_N; j++) {
-            r[j] -= a[j];
-        }
-#else
-        for (j = 0; j < DILITHIUM_N; j += 8) {
-            r[j+0] -= a[j+0];
-            r[j+1] -= a[j+1];
-            r[j+2] -= a[j+2];
-            r[j+3] -= a[j+3];
-            r[j+4] -= a[j+4];
-            r[j+5] -= a[j+5];
-            r[j+6] -= a[j+6];
-            r[j+7] -= a[j+7];
-        }
-#endif
+        dilithium_sub(r, a);
         r += DILITHIUM_N;
         a += DILITHIUM_N;
     }
 }
 #endif
+#endif
 
 #ifndef WOLFSSL_DILITHIUM_VERIFY_ONLY
+/* Add polynomials a to r. r += a.
+ *
+ * @param [out] r  Polynomial to add to.
+ * @param [in]  a  Polynomial to add.
+ */
+static void dilithium_add(sword32* r, const sword32* a)
+{
+    word16 j;
+#ifdef WOLFSSL_DILITHIUM_SMALL
+    for (j = 0; j < DILITHIUM_N; j++) {
+        r[j] += a[j];
+    }
+#else
+    for (j = 0; j < DILITHIUM_N; j += 8) {
+        r[j+0] += a[j+0];
+        r[j+1] += a[j+1];
+        r[j+2] += a[j+2];
+        r[j+3] += a[j+3];
+        r[j+4] += a[j+4];
+        r[j+5] += a[j+5];
+        r[j+6] += a[j+6];
+        r[j+7] += a[j+7];
+    }
+#endif
+}
 
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+    defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
 /* Add vector a to r. r += a.
  *
  * @param [out] r  Vector of polynomials that is result.
@@ -4738,29 +5099,43 @@ static void dilithium_vec_add(sword32* r, const sword32* a, byte l)
     byte i;
 
     for (i = 0; i < l; i++) {
-        word16 j;
-#ifdef WOLFSSL_DILITHIUM_SMALL
-        for (j = 0; j < DILITHIUM_N; j++) {
-            r[j] += a[j];
-        }
-#else
-        for (j = 0; j < DILITHIUM_N; j += 8) {
-            r[j+0] += a[j+0];
-            r[j+1] += a[j+1];
-            r[j+2] += a[j+2];
-            r[j+3] += a[j+3];
-            r[j+4] += a[j+4];
-            r[j+5] += a[j+5];
-            r[j+6] += a[j+6];
-            r[j+7] += a[j+7];
-        }
-#endif
+        dilithium_add(r, a);
         r += DILITHIUM_N;
         a += DILITHIUM_N;
     }
 }
+#endif
 
-/* Make valus in polynomials of vector be in positive range.
+/* Make values in polynomial be in positive range.
+ *
+ * @param [in, out] a  Polynomial.
+ */
+static void dilithium_make_pos(sword32* a)
+{
+    word16 j;
+#ifdef WOLFSSL_DILITHIUM_SMALL
+    for (j = 0; j < DILITHIUM_N; j++) {
+        a[j] += (0 - (((word32)a[j]) >> 31)) & DILITHIUM_Q;
+    }
+#else
+    for (j = 0; j < DILITHIUM_N; j += 8) {
+        a[j+0] += (0 - (((word32)a[j+0]) >> 31)) & DILITHIUM_Q;
+        a[j+1] += (0 - (((word32)a[j+1]) >> 31)) & DILITHIUM_Q;
+        a[j+2] += (0 - (((word32)a[j+2]) >> 31)) & DILITHIUM_Q;
+        a[j+3] += (0 - (((word32)a[j+3]) >> 31)) & DILITHIUM_Q;
+        a[j+4] += (0 - (((word32)a[j+4]) >> 31)) & DILITHIUM_Q;
+        a[j+5] += (0 - (((word32)a[j+5]) >> 31)) & DILITHIUM_Q;
+        a[j+6] += (0 - (((word32)a[j+6]) >> 31)) & DILITHIUM_Q;
+        a[j+7] += (0 - (((word32)a[j+7]) >> 31)) & DILITHIUM_Q;
+    }
+#endif
+}
+
+#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+    defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
+/* Make values in polynomials of vector be in positive range.
  *
  * @param [in, out] a  Vector of polynomials.
  * @param [in]      l  Dimension of vector.
@@ -4770,26 +5145,11 @@ static void dilithium_vec_make_pos(sword32* a, byte l)
     byte i;
 
     for (i = 0; i < l; i++) {
-        word16 j;
-#ifdef WOLFSSL_DILITHIUM_SMALL
-        for (j = 0; j < DILITHIUM_N; j++) {
-            a[j] += (0 - (((word32)a[j]) >> 31)) & DILITHIUM_Q;
-        }
-#else
-        for (j = 0; j < DILITHIUM_N; j += 8) {
-            a[j+0] += (0 - (((word32)a[j+0]) >> 31)) & DILITHIUM_Q;
-            a[j+1] += (0 - (((word32)a[j+1]) >> 31)) & DILITHIUM_Q;
-            a[j+2] += (0 - (((word32)a[j+2]) >> 31)) & DILITHIUM_Q;
-            a[j+3] += (0 - (((word32)a[j+3]) >> 31)) & DILITHIUM_Q;
-            a[j+4] += (0 - (((word32)a[j+4]) >> 31)) & DILITHIUM_Q;
-            a[j+5] += (0 - (((word32)a[j+5]) >> 31)) & DILITHIUM_Q;
-            a[j+6] += (0 - (((word32)a[j+6]) >> 31)) & DILITHIUM_Q;
-            a[j+7] += (0 - (((word32)a[j+7]) >> 31)) & DILITHIUM_Q;
-        }
-#endif
+        dilithium_make_pos(a);
         a += DILITHIUM_N;
     }
 }
+#endif
 
 #endif /* !WOLFSSL_DILITHIUM_VERIFY_ONLY */
 
@@ -5008,6 +5368,8 @@ static int dilithium_make_key(dilithium_key* key, WC_RNG* rng)
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
+#if !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) || \
+    defined(WC_DILITHIUM_CACHE_PRIV_VECTORS)
 /* Decode, from private key, and NTT private key vectors s1, s2, and t0.
  *
  * FIPS 204. 6: Algorithm 2 MD-DSA.Sign(sk, M)
@@ -5049,6 +5411,7 @@ static void dilithium_make_priv_vecs(dilithium_key* key, sword32* s1,
     key->privVecsSet = 1;
 #endif
 }
+#endif
 
 /* Sign a message with the key and a seed.
  *
@@ -5105,6 +5468,7 @@ static void dilithium_make_priv_vecs(dilithium_key* key, sword32* s1,
 static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
 {
+#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
     int ret = 0;
     const wc_dilithium_params* params = key->params;
     byte* pub_seed = key->k;
@@ -5249,10 +5613,10 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             byte* commit = sig;
 
             /* Step 12: Compute vector y from private random seed and kappa. */
-            dilithium_expand_mask(&key->shake, priv_rand_seed, kappa,
+            dilithium_vec_expand_mask(&key->shake, priv_rand_seed, kappa,
                 params->gamma1_bits, y, params->l);
         #ifdef WOLFSSL_DILITHIUM_SIGN_CHECK_Y
-            valid = dilithium_check_low(y, params->l,
+            valid = dilithium_vec_check_low(y, params->l,
                 (1 << params->gamma1_bits) - params->beta);
             if (valid)
         #endif
@@ -5266,7 +5630,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 dilithium_vec_make_pos(w, params->k);
                 dilithium_vec_decompose(w, params->k, params->gamma2, w0, w1);
         #ifdef WOLFSSL_DILITHIUM_SIGN_CHECK_W0
-                valid = dilithium_check_low(w0, params->k,
+                valid = dilithium_vec_check_low(w0, params->k,
                     params->gamma2 - params->beta);
             }
             if (valid) {
@@ -5295,7 +5659,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                     dilithium_vec_red(w0, params->k);
                     /* Step 23: Check w0 - cs2 has low enough values. */
                     hi = params->gamma2 - params->beta;
-                    valid = dilithium_check_low(w0, params->k, hi);
+                    valid = dilithium_vec_check_low(w0, params->k, hi);
                     if (valid) {
                         /* Step 19: cs1 = NTT-1(c o s1) */
                         dilithium_vec_mul(z, c, s1, params->l);
@@ -5305,7 +5669,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                         dilithium_vec_red(z, params->l);
                         /* Step 23: Check z has low enough values. */
                         hi = (1 << params->gamma1_bits) - params->beta;
-                        valid = dilithium_check_low(z, params->l, hi);
+                        valid = dilithium_vec_check_low(z, params->l, hi);
                     }
                     if (valid) {
                         /* Step 25: ct0 = NTT-1(c o t0) */
@@ -5313,12 +5677,12 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                         dilithium_vec_invntt(ct0, params->k);
                         /* Step 27: Check ct0 has low enough values. */
                         hi = params->gamma2;
-                        valid = dilithium_check_low(ct0, params->k, hi);
+                        valid = dilithium_vec_check_low(ct0, params->k, hi);
                     }
                     if (valid) {
                         /* Step 26: ct0 = ct0 + w0 */
                         dilithium_vec_add(ct0, w0, params->k);
-                        dilithium_vec_red(ct0, params->l);
+                        dilithium_vec_red(ct0, params->k);
                         /* Step 26, 27: Make hint from ct0 and w1 and check
                          * number of hints is valid.
                          * Step 32: h is encoded into signature.
@@ -5352,6 +5716,346 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
 
     XFREE(y, NULL, DYNAMIC_TYPE_DILITHIUM);
     return ret;
+#else
+    int ret = 0;
+    const wc_dilithium_params* params = key->params;
+    byte* pub_seed = key->k;
+    byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    byte* tr = k + DILITHIUM_K_SZ;
+    const byte* s1p = tr + DILITHIUM_TR_SZ;
+    const byte* s2p = s1p + params->s1EncSz;
+    const byte* t0p = s2p + params->s2EncSz;
+    sword32* a = NULL;
+    sword32* s1 = NULL;
+    sword32* s2 = NULL;
+    sword32* t0 = NULL;
+    sword32* y = NULL;
+    sword32* y_ntt = NULL;
+    sword32* w0 = NULL;
+    sword32* w1 = NULL;
+    sword32* c = NULL;
+    sword32* z = NULL;
+    sword32* ct0 = NULL;
+    byte data[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
+    byte* mu = data + DILITHIUM_RND_SZ;
+    byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
+    byte* h = sig + params->lambda * 2 + params->zEncSz;
+
+    /* Check the signature buffer isn't too small. */
+    if ((ret == 0) && (*sigLen < params->sigSz)) {
+        ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        /* Return the size of the signature. */
+        *sigLen = params->sigSz;
+    }
+
+    /* Allocate memory for large intermediates. */
+    if (ret == 0) {
+        unsigned int allocSz;
+
+        /* y-l, w0-k, w1-k, c-1, s1-1, A-1 */
+        allocSz = params->s1Sz + params->s2Sz + params->s2Sz +
+            DILITHIUM_POLY_SIZE +  DILITHIUM_POLY_SIZE + DILITHIUM_POLY_SIZE;
+        y = (sword32*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        if (y == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            w0    = y  + params->s1Sz / sizeof(*y_ntt);
+            w1    = w0 + params->s2Sz / sizeof(*w0);
+            c     = w1 + params->s2Sz / sizeof(*w1);
+            s1    = c  + DILITHIUM_N;
+            a     = s1 + DILITHIUM_N;
+            s2    = s1;
+            t0    = s1;
+            ct0   = s1;
+            z     = s1;
+            y_ntt = s1;
+        }
+    }
+
+    if (ret == 0) {
+        /* Step 7: Copy random into buffer for hashing. */
+        XMEMCPY(data, seed, DILITHIUM_RND_SZ);
+
+        /* Step 6: Compute the hash of tr, public key hash, and message. */
+        ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
+            mu, DILITHIUM_MU_SZ);
+    }
+    if (ret == 0) {
+        /* Step 9: Compute private random using hash. */
+        ret = dilithium_hash256(&key->shake, k, DILITHIUM_K_SZ, data,
+            DILITHIUM_RND_SZ + DILITHIUM_MU_SZ, priv_rand_seed,
+            DILITHIUM_PRIV_RAND_SEED_SZ);
+    }
+    if (ret == 0) {
+        word16 kappa = 0;
+        int valid;
+
+        /* Step 11: Start rejection sampling loop */
+        do {
+            byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
+            sword32* w = w1;
+            byte* commit = sig;
+            byte r;
+            byte s;
+            byte aseed[DILITHIUM_GEN_A_SEED_SZ];
+            sword32 hi;
+            sword32* at = a;
+            sword32* wt = w;
+            sword32* w0t = w0;
+            sword32* w1t = w1;
+
+            valid = 1;
+            /* Step 12: Compute vector y from private random seed and kappa. */
+            dilithium_vec_expand_mask(&key->shake, priv_rand_seed, kappa,
+                params->gamma1_bits, y, params->l);
+        #ifdef WOLFSSL_DILITHIUM_SIGN_CHECK_Y
+            valid = dilithium_vec_check_low(y, params->l,
+                (1 << params->gamma1_bits) - params->beta);
+        #endif
+
+            /* Step 5: Create the matrix A from the public seed. */
+            /* Copy the seed into a buffer that has space for s and r. */
+            XMEMCPY(aseed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+            /* Alg 26. Step 1: Loop over first dimension of matrix. */
+            for (r = 0; (ret == 0) && valid && (r < params->k); r++) {
+                unsigned int e;
+                sword32* yt = y;
+
+                /* Put r/i into buffer to be hashed. */
+                aseed[DILITHIUM_PUB_SEED_SZ + 1] = r;
+                /* Alg 26. Step 2: Loop over second dimension of matrix. */
+                for (s = 0; (ret == 0) && (s < params->l); s++) {
+                    /* Put s into buffer to be hashed. */
+                    aseed[DILITHIUM_PUB_SEED_SZ + 0] = s;
+                    /* Alg 26. Step 3: Create polynomial from hashing seed. */
+                    ret = dilithium_rej_ntt_poly(&key->shake, aseed, at,
+                        NULL);
+                    if (ret != 0) {
+                        break;
+                    }
+                    XMEMCPY(y_ntt, yt, DILITHIUM_POLY_SIZE);
+                    dilithium_ntt(y_ntt);
+                    /* Matrix multiply. */
+                    if (s == 0) {
+                        for (e = 0; e < DILITHIUM_N; e++) {
+                            wt[e] = dilithium_mont_red((sword64)at[e] *
+                                    y_ntt[e]);
+                        }
+                    }
+                    else {
+                        for (e = 0; e < DILITHIUM_N; e++) {
+                            wt[e] += dilithium_mont_red((sword64)at[e] *
+                                     y_ntt[e]);
+                        }
+                    }
+                    /* Next polynomial. */
+                    yt += DILITHIUM_N;
+                }
+                dilithium_invntt(wt);
+                /* Step 14, Step 22: Make values positive and decompose. */
+                dilithium_make_pos(wt);
+            #ifndef WOLFSSL_NO_ML_DSA_44
+                if (params->gamma2 == DILITHIUM_Q_LOW_88) {
+                    /* For each value of polynomial. */
+                    for (e = 0; e < DILITHIUM_N; e++) {
+                        /* Decompose value into two vectors. */
+                        dilithium_decompose_q88(wt[e], &w0t[e], &w1t[e]);
+                    }
+                }
+            #endif
+            #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+                if (params->gamma2 == DILITHIUM_Q_LOW_32) {
+                    /* For each value of polynomial. */
+                    for (e = 0; e < DILITHIUM_N; e++) {
+                        /* Decompose value into two vectors. */
+                        dilithium_decompose_q32(wt[e], &w0t[e], &w1t[e]);
+                    }
+                }
+            #endif
+            #ifdef WOLFSSL_DILITHIUM_SIGN_CHECK_W0
+                valid = dilithium_vec_check_low(w0t,
+                    params->gamma2 - params->beta);
+            #endif
+                wt  += DILITHIUM_N;
+                w0t += DILITHIUM_N;
+                w1t += DILITHIUM_N;
+            }
+            if ((ret == 0) && valid) {
+                sword32* yt = y;
+                const byte* s1pt = s1p;
+                byte* ze = sig + params->lambda * 2;
+
+                /* Step 15: Encode w1. */
+                dilithium_vec_encode_w1(w1, params->k, params->gamma2, w1e);
+                /* Step 15: Hash mu and encoded w1.
+                 * Step 32: Hash is stored in signature. */
+                ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ,
+                    w1e, params->w1EncSz, commit, 2 * params->lambda);
+                if (ret == 0) {
+                    /* Step 17: Compute c from first 256 bits of commit. */
+                    ret = dilithium_sample_in_ball(&key->shake, commit,
+                        params->tau, c, NULL);
+                }
+                if (ret == 0) {
+                    /* Step 18: NTT(c). */
+                    dilithium_ntt_small(c);
+                }
+
+                for (s = 0; (ret == 0) && valid && (s < params->l); s++) {
+                #if !defined(WOLFSSL_NO_ML_DSA_44) || \
+                    !defined(WOLFSSL_NO_ML_DSA_87)
+                    /* -2..2 */
+                    if (params->eta == DILITHIUM_ETA_2) {
+                        dilithium_decode_eta_2_bits(s1pt, s1);
+                        s1pt += DILITHIUM_ETA_2_BITS * DILITHIUM_N / 8;
+                    }
+                #endif
+                #ifndef WOLFSSL_NO_ML_DSA_65
+                    /* -4..4 */
+                    if (params->eta == DILITHIUM_ETA_4) {
+                        dilithium_decode_eta_4_bits(s1pt, s1);
+                        s1pt += DILITHIUM_N / 2;
+                    }
+                #endif
+                    dilithium_ntt_small(s1);
+                    dilithium_mul(z, c, s1);
+                    /* Step 19: cs1 = NTT-1(c o s1) */
+                    dilithium_invntt(z);
+                    /* Step 21: z = y + cs1 */
+                    dilithium_add(z, yt);
+                    dilithium_poly_red(z);
+                    /* Step 23: Check z has low enough values. */
+                    hi = (1 << params->gamma1_bits) - params->beta;
+                    valid = dilithium_check_low(z, hi);
+                    if (valid) {
+                        /* Step 32: Encode z into signature.
+                         * Commit (c) and h already encoded into signature. */
+                    #if !defined(WOLFSSL_NO_ML_DSA_44)
+                        if (params->gamma1_bits == DILITHIUM_GAMMA1_BITS_17) {
+                            dilithium_encode_gamma1_17_bits(z, ze);
+                            /* Move to next place to encode to. */
+                            ze += DILITHIUM_GAMMA1_17_ENC_BITS / 2 *
+                                  DILITHIUM_N / 4;
+                        }
+                        else
+                    #endif
+                    #if !defined(WOLFSSL_NO_ML_DSA_65) || \
+                        !defined(WOLFSSL_NO_ML_DSA_87)
+                        if (params->gamma1_bits == DILITHIUM_GAMMA1_BITS_19) {
+                            dilithium_encode_gamma1_19_bits(z, ze);
+                            /* Move to next place to encode to. */
+                            ze += DILITHIUM_GAMMA1_19_ENC_BITS / 2 *
+                                  DILITHIUM_N / 4;
+                        }
+                    #endif
+                    }
+
+                    yt += DILITHIUM_N;
+                }
+            }
+            if ((ret == 0) && valid) {
+                const byte* t0pt = t0p;
+                const byte* s2pt = s2p;
+                sword32* cs2 = ct0;
+                w0t = w0;
+                w1t = w1;
+                byte idx = 0;
+
+                for (r = 0; valid && (r < params->k); r++) {
+                #if !defined(WOLFSSL_NO_ML_DSA_44) || \
+                    !defined(WOLFSSL_NO_ML_DSA_87)
+                    /* -2..2 */
+                    if (params->eta == DILITHIUM_ETA_2) {
+                        dilithium_decode_eta_2_bits(s2pt, s2);
+                        s2pt += DILITHIUM_ETA_2_BITS * DILITHIUM_N / 8;
+                    }
+                #endif
+                #ifndef WOLFSSL_NO_ML_DSA_65
+                    /* -4..4 */
+                    if (params->eta == DILITHIUM_ETA_4) {
+                        dilithium_decode_eta_4_bits(s2pt, s2);
+                        s2pt += DILITHIUM_N / 2;
+                    }
+                    #endif
+                    dilithium_ntt_small(s2);
+                    /* Step 20: cs2 = NTT-1(c o s2) */
+                    dilithium_mul(cs2, c, s2);
+                    dilithium_invntt(cs2);
+                    /* Step 22: w0 - cs2 */
+                    dilithium_sub(w0t, cs2);
+                    dilithium_poly_red(w0t);
+                    /* Step 23: Check w0 - cs2 has low enough values. */
+                    hi = params->gamma2 - params->beta;
+                    valid = dilithium_check_low(w0t, hi);
+                    if (valid) {
+                        dilithium_decode_t0(t0pt, t0);
+                        dilithium_ntt(t0);
+
+                        /* Step 25: ct0 = NTT-1(c o t0) */
+                        dilithium_mul(ct0, c, t0);
+                        dilithium_invntt(ct0);
+                        /* Step 27: Check ct0 has low enough values. */
+                        valid = dilithium_check_low(ct0, params->gamma2);
+                    }
+                    if (valid) {
+                        /* Step 26: ct0 = ct0 + w0 */
+                        dilithium_add(ct0, w0t);
+                        dilithium_poly_red(ct0);
+
+                        /* Step 26, 27: Make hint from ct0 and w1 and check
+                         * number of hints is valid.
+                         * Step 32: h is encoded into signature.
+                         */
+                    #ifndef WOLFSSL_NO_ML_DSA_44
+                        if (params->gamma2 == DILITHIUM_Q_LOW_88) {
+                            valid = (dilithium_make_hint_88(ct0, w1t, h,
+                                &idx) == 0);
+                            /* Alg 14, Step 10: Store count of hints for
+                             *                  polynomial at end of list. */
+                            h[PARAMS_ML_DSA_44_OMEGA + r] = idx;
+                        }
+                    #endif
+                    #if !defined(WOLFSSL_NO_ML_DSA_65) || \
+                        !defined(WOLFSSL_NO_ML_DSA_87)
+                        if (params->gamma2 == DILITHIUM_Q_LOW_32) {
+                            valid = (dilithium_make_hint_32(ct0, w1t,
+                                params->omega, h, &idx) == 0);
+                            /* Alg 14, Step 10: Store count of hints for
+                             *                  polynomial at end of list. */
+                            h[params->omega + r] = idx;
+                        }
+                    #endif
+                    }
+
+                    t0pt += DILITHIUM_D * DILITHIUM_N / 8;
+                    w0t += DILITHIUM_N;
+                    w1t += DILITHIUM_N;
+                }
+                /* Set remaining hints to zero. */
+                XMEMSET(h + idx, 0, params->omega - idx);
+            }
+
+            if (!valid) {
+                /* Too many attempts - something wrong with implementation. */
+                if ((kappa > (word16)(kappa + params->l))) {
+                    ret = BAD_COND_E;
+                }
+
+                /* Step 30: increment value to append to seed to unique value.
+                 */
+                kappa += params->l;
+            }
+        }
+        /* Step 11: Check we have a valid signature. */
+        while ((ret == 0) && (!valid));
+    }
+
+    XFREE(y, NULL, DYNAMIC_TYPE_DILITHIUM);
+    return ret;
+#endif
 }
 
 /* Sign a message with the key and a random number generator.
@@ -5447,10 +6151,10 @@ static void dilithium_make_pub_vec(dilithium_key* key, sword32* t1)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-#ifndef WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM
 static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     word32 msgLen, const byte* sig, word32 sigLen, int* res)
 {
+#ifndef WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM
     int ret = 0;
     const wc_dilithium_params* params = key->params;
     const byte* pub_seed = key->p;
@@ -5538,7 +6242,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         dilithium_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         /* Step 13: Check z is valid - values are low enough. */
         hi = (1 << params->gamma1_bits) - params->beta;
-        valid = dilithium_check_low(z, params->l, hi);
+        valid = dilithium_vec_check_low(z, params->l, hi);
     }
     if ((ret == 0) && valid) {
 #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
@@ -5603,11 +6307,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     *res = valid;
     XFREE(z, NULL, DYNAMIC_TYPE_DILITHIUM);
     return ret;
-}
 #else
-static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
-    word32 msgLen, const byte* sig, word32 sigLen, int* res)
-{
     int ret = 0;
     const wc_dilithium_params* params = key->params;
     const byte* pub_seed = key->p;
@@ -5674,7 +6374,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         dilithium_vec_decode_gamma1(ze, params->l, params->gamma1_bits, z);
         /* Step 13: Check z is valid - values are low enough. */
         hi = (1 << params->gamma1_bits) - params->beta;
-        valid = dilithium_check_low(z, params->l, hi);
+        valid = dilithium_vec_check_low(z, params->l, hi);
     }
     if ((ret == 0) && valid) {
         /* Step 10: NTT(z) */
@@ -5812,8 +6512,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     XFREE(z, NULL, DYNAMIC_TYPE_DILITHIUM);
 #endif
     return ret;
-}
 #endif /* !WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM */
+}
 
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
