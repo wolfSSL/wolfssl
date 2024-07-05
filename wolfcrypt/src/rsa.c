@@ -4017,7 +4017,10 @@ int wc_RsaPSS_CheckPadding_ex2(const byte* in, word32 inSz, byte* sig,
 
     /* Sig = Salt | Exp Hash */
     if (ret == 0) {
-        if (sigSz != inSz + (word32)saltLen) {
+        word32 totalSz;
+        if ((WC_SAFE_SUM_WORD32(inSz, (word32)saltLen, totalSz) == 0) ||
+            (sigSz != totalSz))
+        {
             ret = PSS_SALTLEN_E;
         }
     }
