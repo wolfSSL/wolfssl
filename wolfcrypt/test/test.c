@@ -22272,6 +22272,11 @@ static wc_test_ret_t dh_generate_test(WC_RNG *rng)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
 
+        /* should fail since modSz is 16 and group size is 20 */
+        ret = wc_DhGenerateParams(rng, 128, smallKey);
+        if (ret == 0)
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
+
         ret = wc_DhGenerateParams(rng, 2056, smallKey);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_gen_test);
@@ -49465,6 +49470,11 @@ static wc_test_ret_t pkcs7signed_run_vectors(
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
 
     XMEMSET(out, 0, outSz);
+
+    /* test inner pad size error with block size being 0 */
+    ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 0);
+    if (ret > 0)
+        ERROR_OUT(-1, out);
 
     ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
     if (ret < 0)

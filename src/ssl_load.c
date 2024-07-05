@@ -5264,7 +5264,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         ret = wolfssl_set_tmp_dh(ssl, pAlloc, pSz, gAlloc, gSz);
     }
 
-    if (ret != 1) {
+    if (ret != 1 && ssl != NULL) {
         /* Free the allocated buffers if not assigned into SSL. */
         XFREE(pAlloc, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(gAlloc, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -5496,7 +5496,7 @@ long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
         ret = wolfssl_set_tmp_dh(ssl, p, pSz, g, gSz);
     }
 
-    if (ret != 1) {
+    if (ret != 1 && ssl != NULL) {
         /* Free the allocated buffers if not assigned into SSL. */
         XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(g, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -5563,7 +5563,7 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
         ret = wolfssl_ctx_set_tmp_dh(ctx, p, pSz, g, gSz);
     }
 
-    if (ret != 1) {
+    if (ret != 1 && ctx != NULL) {
         /* Free the allocated buffers if not assigned into SSL. */
         XFREE(p, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(g, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
