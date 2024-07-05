@@ -8634,6 +8634,8 @@ int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
         return BAD_FUNC_ARG;
 
     padSz = wc_PKCS7_GetPadSize(inSz, blockSz);
+    if (padSz < 0)
+        return padSz;
 
     if (outSz < (inSz + padSz))
         return BAD_FUNC_ARG;

@@ -49471,6 +49471,11 @@ static wc_test_ret_t pkcs7signed_run_vectors(
 
     XMEMSET(out, 0, outSz);
 
+    /* test inner pad size error with block size being 0 */
+    ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 0);
+    if (ret > 0)
+        ERROR_OUT(-1, out);
+
     ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
