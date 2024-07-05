@@ -599,9 +599,9 @@ static int CheckOcspResponderChain(OcspEntry* single, DecodedCert *cert,
         }
         ca = GetCAByName(cm, ca->issuerNameHash);
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    if (ca == NULL && pendingCAs != NULL) {
-        ca = findSignerByName(pendingCAs, single->issuerHash);
-    }
+        if (ca == NULL && pendingCAs != NULL) {
+            ca = findSignerByName(pendingCAs, single->issuerHash);
+        }
 #endif
     }
     return passed;
