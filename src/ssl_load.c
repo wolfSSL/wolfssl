@@ -5496,7 +5496,7 @@ long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
         ret = wolfssl_set_tmp_dh(ssl, p, pSz, g, gSz);
     }
 
-    if (ret != 1) {
+    if (ret != 1 && ssl != NULL) {
         /* Free the allocated buffers if not assigned into SSL. */
         XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(g, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
