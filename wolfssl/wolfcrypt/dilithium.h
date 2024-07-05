@@ -591,10 +591,15 @@ struct dilithium_key {
 #ifndef WOLFSSL_DILITHIUM_VERIFY_ONLY
 WOLFSSL_API
 int wc_dilithium_make_key(dilithium_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed);
 
 WOLFSSL_API
 int wc_dilithium_sign_msg(const byte* in, word32 inLen, byte* out,
     word32 *outLen, dilithium_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_dilithium_sign_msg_with_seed(const byte* in, word32 inLen, byte* out,
+    word32 *outLen, dilithium_key* key, byte* seed);
 #endif
 WOLFSSL_API
 int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
