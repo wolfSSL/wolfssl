@@ -247,6 +247,11 @@ static int wolfssl_i2d_asn1_item(void** item, int type, byte* buf)
             len = 0;
     }
 
+    if (len < 0) {
+        len = 0; /* wolfSSL_i2d_ASN1_INTEGER can return a value less than 0
+                  * on error */
+    }
+
     return len;
 }
 
