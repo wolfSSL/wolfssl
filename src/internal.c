@@ -14955,44 +14955,65 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     if (ret == 0 && addToPendingCAs && !alreadySigner) {
-                        DecodedCert dCertAdd;
-                        DerBuffer *derBuffer;
+#ifdef WOLFSSL_SMALL_STACK
+                        DecodedCert *dCertAdd = NULL;
+#else
+                        DecodedCert dCertAdd[1];
+#endif
+                        int dCertAdd_inited = 0;
+                        DerBuffer *derBuffer = NULL;
                         buffer* cert = &args->certs[args->certIdx];
-                        Signer *s;
-                        InitDecodedCert(&dCertAdd, cert->buffer, cert->length, ssl->heap);
-                        ret = ParseCert(&dCertAdd, CA_TYPE, NO_VERIFY, SSL_CM(ssl));
+                        Signer *s = NULL;
+
+#ifdef WOLFSSL_SMALL_STACK
+                        dCertAdd = (DecodedCert *)
+                            XMALLOC(sizeof(*dCertAdd), ssl->heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+                        if (dCertAdd == NULL) {
+                            ret = MEMORY_E;
+                            goto exit_req_v2;
+                        }
+#endif
+                        InitDecodedCert(dCertAdd, cert->buffer, cert->length,
+                                        ssl->heap);
+                        dCertAdd_inited = 1;
+                        ret = ParseCert(dCertAdd, CA_TYPE, NO_VERIFY,
+                                        SSL_CM(ssl));
                         if (ret != 0) {
-                            FreeDecodedCert(&dCertAdd);
-                            goto exit_ppc;
+                            goto exit_req_v2;
                         }
                         ret = AllocDer(&derBuffer, cert->length, CA_TYPE, ssl->heap);
                         if (ret != 0 || derBuffer == NULL) {
-                            FreeDecodedCert(&dCertAdd);
-                            goto exit_ppc;
+                            goto exit_req_v2;
                         }
                         XMEMCPY(derBuffer->buffer, cert->buffer, cert->length);
                         s = MakeSigner(SSL_CM(ssl)->heap);
                         if (s == NULL) {
-                            FreeDecodedCert(&dCertAdd);
-                            FreeDer(&derBuffer);
                             ret = MEMORY_E;
-                            goto exit_ppc;
+                            goto exit_req_v2;
                         }
-                        ret = FillSigner(s, &dCertAdd, CA_TYPE, derBuffer);
-                        FreeDecodedCert(&dCertAdd);
-                        FreeDer(&derBuffer);
+                        ret = FillSigner(s, dCertAdd, CA_TYPE, derBuffer);
                         if (ret != 0) {
-                            FreeSigner(s, SSL_CM(ssl)->heap);
-                            goto exit_ppc;
+                            goto exit_req_v2;
                         }
                         skipAddCA = 1;
                         ret = TLSX_CSR2_AddPendingSigner(ssl->extensions, s);
-                        if (ret != 0) {
-                            FreeSigner(s, ssl->heap);
-                            goto exit_ppc;
-                        }
-                    }
+
+                    exit_req_v2:
+                        if (s && (ret != 0))
+                            FreeSigner(s, SSL_CM(ssl)->heap);
+                        if (derBuffer)
+                            FreeDer(&derBuffer);
+                        if (dCertAdd_inited)
+                            FreeDecodedCert(dCertAdd);
+#ifdef WOLFSSL_SMALL_STACK
+                        if (dCertAdd)
+                            XFREE(dCertAdd, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+                        if (ret != 0)
+                            goto exit_ppc;
+                    }
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
                     /* If valid CA then add to Certificate Manager */
                     if (ret == 0 && args->dCert->isCA &&
