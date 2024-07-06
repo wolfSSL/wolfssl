@@ -24067,7 +24067,7 @@ int FillSigner(Signer* signer, DecodedCert* cert, int type, DerBuffer *der)
     if (ret == 0 && signer != NULL) {
         if (cert->extSapkiSet && cert->sapkiLen > 0) {
             /* Allocated space for alternative public key. */
-            signer->sapkiDer = (byte*)XMALLOC(cert->sapkiLen, cm->heap,
+            signer->sapkiDer = (byte*)XMALLOC(cert->sapkiLen, cert->heap,
                                               DYNAMIC_TYPE_PUBLIC_KEY);
             if (signer->sapkiDer == NULL) {
                 ret = MEMORY_E;
