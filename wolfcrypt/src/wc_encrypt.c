@@ -545,9 +545,15 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
 
                 ret =  wc_PKCS12_PBKDF(key, unicodePasswd, idx, salt, saltSz,
                                     iterations, (int)derivedLen, typeH, 1);
+                if (ret < 0)
+                    break;
                 if (id != PBE_SHA1_RC4_128) {
-                    ret += wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
+                    i = ret;
+                    ret = wc_PKCS12_PBKDF(cbcIv, unicodePasswd, idx, salt,
                                     saltSz, iterations, 8, typeH, 2);
+                    if (ret < 0)
+                        break;
+                    ret += i;
                 }
                 break;
             }

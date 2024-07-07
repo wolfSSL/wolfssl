@@ -12910,10 +12910,6 @@ int wc_AesXtsEncryptInit(XtsAes* xaes, const byte* i, word32 iSz,
         return BAD_FUNC_ARG;
     }
 
-    if (iSz < AES_BLOCK_SIZE) {
-        return BAD_FUNC_ARG;
-    }
-
     XMEMCPY(stream->tweak_block, i, AES_BLOCK_SIZE);
     stream->bytes_crypted_with_this_tweak = 0;
 

@@ -1612,6 +1612,11 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
 
         /* read data if no \r\n or first time */
         if ((start == NULL) || (end == NULL)) {
+            if (httpBufSz < len + 1) {
+                return BUFFER_ERROR; /* can't happen, but Coverity thinks it
+                                      * can.
+                                      */
+            }
             result = wolfIO_Recv(sfd, (char*)httpBuf+len, httpBufSz-len-1, 0);
             if (result > 0) {
                 len += result;
