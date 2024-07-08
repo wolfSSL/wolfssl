@@ -14254,6 +14254,14 @@ void bench_sphincsKeySign(byte level, byte optim)
         return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
     }
 
+#elif (defined(WOLFSSL_MAX3266X_OLD) || defined(WOLFSSL_MAX3266X)) \
+            && defined(MAX3266X_RTC)
+
+    double current_time(int reset)
+    {
+        return wc_MXC_RTC_Time();
+    }
+
 #elif defined(FREESCALE_KSDK_BM)
 
     double current_time(int reset)

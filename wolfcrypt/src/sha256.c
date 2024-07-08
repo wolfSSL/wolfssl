@@ -122,7 +122,9 @@ on the specific device platform.
 
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
 
-
+#elif defined(MAX3266X_SHA)
+    /* Already brought in by sha256.h */
+    /* #include <wolfssl/wolfcrypt/port/maxim/max3266x.h> */
 #else
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -2487,7 +2489,8 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
     /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)
     /* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
-
+#elif defined(MAX3266X_SHA)
+    /* Implemented in wolfcrypt/src/port/maxim/max3266x.c */
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)

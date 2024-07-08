@@ -54,6 +54,10 @@
     #endif
 #endif
 
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
+#endif
+
 #ifdef WOLFSSL_LINUXKM
     #include "../../linuxkm/linuxkm_wc_port.h"
 #endif /* WOLFSSL_LINUXKM */
