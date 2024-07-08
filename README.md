@@ -85,7 +85,7 @@ NOTE: * --enable-heapmath is being deprecated and will be removed by end of 2024
 
 ## Vulnerabilities
 * [Medium] CVE-2024-1544
-Potential ECDSA nonce side channel attack in versions of wolfSSL before 5.6.6 with wc_ecc_sign_hash calls. Generating the ECDSA nonce k samples a random number r and then truncates this randomness with a modular reduction mod n where n is the order of the elliptic curve. Analyzing the division through a control*flow revealing side-channel reveals a bias in the most significant bits of k. Depending on the curve this is either a negligible bias or a significant bias large enough to reconstruct k with lattice reduction methods. Thanks to Luca Wilke, Florian Sieck and Thomas Eisenbarth (University of Lübeck) for reporting the vulnerability. Details will appear in the proceedings of CCS 24.
+Potential ECDSA nonce side channel attack in versions of wolfSSL before 5.6.6 with wc_ecc_sign_hash calls. Generating the ECDSA nonce k samples a random number r and then truncates this randomness with a modular reduction mod n where n is the order of the elliptic curve. Analyzing the division through a control-flow revealing side-channel reveals a bias in the most significant bits of k. Depending on the curve this is either a negligible bias or a significant bias large enough to reconstruct k with lattice reduction methods. Thanks to Luca Wilke, Florian Sieck and Thomas Eisenbarth (University of Lübeck) for reporting the vulnerability. Details will appear in the proceedings of CCS 24.
 Fixed https://github.com/wolfSSL/wolfssl/pull/7020
 
 
