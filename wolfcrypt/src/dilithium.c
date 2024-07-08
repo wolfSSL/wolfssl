@@ -2825,8 +2825,7 @@ static int dilithium_check_low(const sword32* a, sword32 hi)
     return ret;
 }
 
-#if (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
-     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
+#if !defined(WOLFSSL_DILITHIUM_NO_VERIFY) || \
     (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
      !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM))
 /* Check that the values of the vector are in range.

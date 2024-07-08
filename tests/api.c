@@ -34565,6 +34565,7 @@ static int test_wc_dilithium_make_key_from_seed(void)
     ExpectIntEQ(XMEMCMP(key->k, sk_87, sizeof(sk_87)), 0);
 #endif
 
+    wc_dilithium_free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
@@ -36710,6 +36711,7 @@ static int test_wc_dilithium_verify_kats(void)
     ExpectIntEQ(res, 1);
 #endif
 
+    wc_dilithium_free(key);
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return EXPECT_RESULT();
