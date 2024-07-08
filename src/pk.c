@@ -376,7 +376,7 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
             DYNAMIC_TYPE_ENCRYPTEDINFO);
         if (info == NULL) {
             WOLFSSL_MSG("malloc failed");
-            ret = 0;
+            ret = MEMORY_E;
         }
     }
     #endif

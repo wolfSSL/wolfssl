@@ -1228,7 +1228,12 @@ static int ProcessBufferPrivPkcs8Dec(EncryptedInfo* info, DerBuffer* der,
     }
 
     /* Ensure password is zeroized. */
-    ForceZero(password, (word32)passwordSz);
+#ifdef WOLFSSL_SMALL_STACK
+    if (password)
+#endif
+    {
+        ForceZero(password, (word32)passwordSz);
+    }
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of password memory. */
     XFREE(password, heap, DYNAMIC_TYPE_STRING);
