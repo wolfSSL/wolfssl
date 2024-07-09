@@ -79,6 +79,10 @@
  *   Enable caching of public key vectors on import.
  *   Enables WC_DILITHIUM_CACHE_MATRIX_A.
  *   Less work is required in sign operations.
+ * WC_DILITHIUM_FIXED_ARRAY                                   Default: OFF
+ *   Make the matrix and vectors of cached data fixed arrays that have
+ *   maximumal sizes for the configured parameters.
+ *   Useful in low dynamic memory situations.
  *
  * WOLFSSL_DILITHIUM_SIGN_CHECK_Y                             Default: OFF
  *   Check vector y is in required range as an early check on valid vector z.
@@ -5211,17 +5215,20 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if (key->a == NULL) {
         key->a = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         a = key->a;
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         key->s1 = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
         if (key->s1 == NULL) {
@@ -5232,6 +5239,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
             key->t0 = key->s2  + params->s2Sz / sizeof(*s2);
         }
     }
+#endif
     if (ret == 0) {
         s1 = key->s1;
         s2 = key->s2;
@@ -5499,17 +5507,20 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
         a = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
         if (a == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         a = key->a;
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         key->s1 = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
         if (key->s1 == NULL) {
@@ -5520,6 +5531,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             key->t0 = key->s2  + params->s2Sz / sizeof(*s2);
         }
     }
+#endif
     if (ret == 0) {
         s1 = key->s1;
         s2 = key->s2;
@@ -6184,23 +6196,27 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
         key->a = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         a = key->a;
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->t1 == NULL)) {
         key->t1 = (sword32*)XMALLOC(params->s2Sz, NULL, DYNAMIC_TYPE_DILITHIUM);
         if (key->t1 == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         t1 = key->t1;
     }
@@ -7024,6 +7040,7 @@ int wc_dilithium_set_level(dilithium_key* key, byte level)
     }
     if (ret == 0) {
         /* Clear any cached items. */
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     #ifdef WC_DILITHIUM_CACHE_MATRIX_A
         XFREE(key->a, NULL, WOLFSSL_WC_DILITHIUM);
         key->a = NULL;
@@ -7041,6 +7058,7 @@ int wc_dilithium_set_level(dilithium_key* key, byte level)
         key->t1 = NULL;
         key->pubVecSet = 0;
     #endif
+#endif
 #endif /* WOLFSSL_WC_DILITHIUM */
 
         /* Store level and indicate public and private key are not set. */
@@ -7087,6 +7105,7 @@ void wc_dilithium_free(dilithium_key* key)
 {
     if (key != NULL) {
 #ifdef WOLFSSL_WC_DILITHIUM
+#ifndef WC_DILITHIUM_FIXED_ARRAY
         /* Dispose of cached items. */
     #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
         XFREE(key->t1, NULL, WOLFSSL_WC_DILITHIUM);
@@ -7097,6 +7116,7 @@ void wc_dilithium_free(dilithium_key* key)
     #ifdef WC_DILITHIUM_CACHE_MATRIX_A
         XFREE(key->a, NULL, WOLFSSL_WC_DILITHIUM);
     #endif
+#endif
         /* Free the SHAKE-128/256 object. */
         wc_Shake256_Free(&key->shake);
 #endif
@@ -7549,7 +7569,8 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
         key->p = in;
     #endif
 
-    #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+#ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+    #ifndef WC_DILITHIUM_FIXED_ARRAY
         /* Allocate t1 if required. */
         if (key->t1 == NULL) {
             key->t1 = (sword32*)XMALLOC(key->params->s2Sz, NULL,
@@ -7558,12 +7579,14 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
                 ret = MEMORY_E;
             }
         }
+    #endif
     }
     if (ret == 0) {
         /* Compute t1 from public key data. */
         dilithium_make_pub_vec(key, key->t1);
-    #endif
-    #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#endif
+#ifdef WC_DILITHIUM_CACHE_MATRIX_A
+    #ifndef WC_DILITHIUM_FIXED_ARRAY
         /* Allocate matrix a if required. */
         if (key->a == NULL) {
             key->a = (sword32*)XMALLOC(key->params->aSz, NULL,
@@ -7572,6 +7595,7 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
                 ret = MEMORY_E;
             }
         }
+    #endif
     }
     if (ret == 0) {
         /* Compute matrix a from public key data. */
@@ -7582,7 +7606,7 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
         }
     }
     if (ret == 0) {
-    #endif
+#endif
         /* Public key is set. */
         key->pubKeySet = 1;
     }
@@ -7630,6 +7654,7 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
 
         /* Allocate and create cached values. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if (ret == 0) {
         /* Allocate matrix a if required. */
         if (key->a == NULL) {
@@ -7640,6 +7665,7 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
             }
         }
     }
+#endif
     if (ret == 0) {
         /* Compute matrix a from private key data. */
         ret = dilithium_expand_a(&key->shake, key->k, params->k, params->l,
@@ -7650,19 +7676,22 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         /* Allocate L vector s1, K vector s2 and K vector t0 if required. */
         key->s1 = (sword32*)XMALLOC(params->s1Sz + params->s2Sz + params->s2Sz,
             NULL, DYNAMIC_TYPE_DILITHIUM);
-         if (key->s1 == NULL) {
+        if (key->s1 == NULL) {
             ret = MEMORY_E;
         }
+        if (ret == 0) {
+            /* Set pointers into allocated memory. */
+            key->s2 = key->s1 + params->s1Sz / sizeof(*key->s1);
+            key->t0 = key->s2 + params->s2Sz / sizeof(*key->s2);
+        }
     }
+#endif
     if (ret == 0) {
-        /* Set pointers into allocated memory. */
-        key->s2 = key->s1 + params->s1Sz / sizeof(*key->s1);
-        key->t0 = key->s2 + params->s2Sz / sizeof(*key->s2);
-
         /* Compute vectors from private key. */
         dilithium_make_priv_vecs(key, key->s1, key->s2, key->t0);
     }

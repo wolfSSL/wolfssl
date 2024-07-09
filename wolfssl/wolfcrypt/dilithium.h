@@ -384,6 +384,9 @@
 /* Maximum count of elements of a vector with dimension L. */
 #define DILITHIUM_MAX_L_VECTOR_COUNT     \
     (PARAMS_ML_DSA_87_L * DILITHIUM_N)
+/* Maximum count of elements of a matrix with dimension KxL. */
+#define DILITHIUM_MAX_MATRIX_COUNT        \
+    (PARAMS_ML_DSA_87_K * PARAMS_ML_DSA_87_L * DILITHIUM_N)
 
 #elif !defined(WOLFSSL_NO_ML_DSA_65)
 
@@ -398,6 +401,9 @@
 /* Maximum count of elements of a vector with dimension L. */
 #define DILITHIUM_MAX_L_VECTOR_COUNT     \
     (PARAMS_ML_DSA_65_L * DILITHIUM_N)
+/* Maximum count of elements of a matrix with dimension KxL. */
+#define DILITHIUM_MAX_MATRIX_COUNT        \
+    (PARAMS_ML_DSA_65_K * PARAMS_ML_DSA_65_L * DILITHIUM_N)
 
 #else
 
@@ -412,6 +418,9 @@
 /* Maximum count of elements of a vector with dimension L. */
 #define DILITHIUM_MAX_L_VECTOR_COUNT     \
     (PARAMS_ML_DSA_44_L * DILITHIUM_N)
+/* Maximum count of elements of a matrix with dimension KxL. */
+#define DILITHIUM_MAX_MATRIX_COUNT        \
+    (PARAMS_ML_DSA_44_K * PARAMS_ML_DSA_44_L * DILITHIUM_N)
 
 #endif
 
@@ -553,6 +562,7 @@ struct dilithium_key {
 #ifdef WOLFSSL_WC_DILITHIUM
     const wc_dilithium_params* params;
     wc_Shake shake;
+#ifndef WC_DILITHIUM_FIXED_ARRAY
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
     sword32* a;
     byte aSet;
@@ -566,6 +576,22 @@ struct dilithium_key {
 #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
     sword32* t1;
     byte pubVecSet;
+#endif
+#else
+#ifdef WC_DILITHIUM_CACHE_MATRIX_A
+    sword32 a[DILITHIUM_MAX_MATRIX_COUNT];
+    byte aSet;
+#endif
+#ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
+    sword32 s1[DILITHIUM_MAX_L_VECTOR_COUNT];
+    sword32 s2[DILITHIUM_MAX_K_VECTOR_COUNT];
+    sword32 t0[DILITHIUM_MAX_K_VECTOR_COUNT];
+    byte privVecsSet;
+#endif
+#ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+    sword32 t1[DILITHIUM_MAX_K_VECTOR_COUNT];
+    byte pubVecSet;
+#endif
 #endif
 #if defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC) && \
     defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)
