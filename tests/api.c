@@ -1546,24 +1546,24 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
 
     const byte cipherList[] =
     {
-        /* TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA */ 0xC0, 0x16,
-        /* TLS_DHE_RSA_WITH_AES_256_CBC_SHA  */ 0xC0, 0x39,
-        /* TLS_DHE_RSA_WITH_AES_128_CBC_SHA  */ 0xC0, 0x33,
-        /* TLS_DH_anon_WITH_AES_128_CBC_SHA  */ 0xC0, 0x34,
-        /* TLS_RSA_WITH_AES_256_CBC_SHA      */ 0xC0, 0x35,
-        /* TLS_RSA_WITH_AES_128_CBC_SHA      */ 0xC0, 0x2F,
-        /* TLS_RSA_WITH_NULL_MD5             */ 0xC0, 0x01,
-        /* TLS_RSA_WITH_NULL_SHA             */ 0xC0, 0x02,
-        /* TLS_PSK_WITH_AES_256_CBC_SHA      */ 0xC0, 0x8d,
-        /* TLS_PSK_WITH_AES_128_CBC_SHA256   */ 0xC0, 0xae,
-        /* TLS_PSK_WITH_AES_256_CBC_SHA384   */ 0xC0, 0xaf,
-        /* TLS_PSK_WITH_AES_128_CBC_SHA      */ 0xC0, 0x8c,
-        /* TLS_PSK_WITH_NULL_SHA256          */ 0xC0, 0xb0,
-        /* TLS_PSK_WITH_NULL_SHA384          */ 0xC0, 0xb1,
-        /* TLS_PSK_WITH_NULL_SHA             */ 0xC0, 0x2c,
-        /* SSL_RSA_WITH_RC4_128_SHA          */ 0xC0, 0x05,
-        /* SSL_RSA_WITH_RC4_128_MD5          */ 0xC0, 0x04,
-        /* SSL_RSA_WITH_3DES_EDE_CBC_SHA     */ 0xC0, 0x0A,
+        /* TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA */ 0x00, 0x16,
+        /* TLS_DHE_RSA_WITH_AES_256_CBC_SHA  */ 0x00, 0x39,
+        /* TLS_DHE_RSA_WITH_AES_128_CBC_SHA  */ 0x00, 0x33,
+        /* TLS_DH_anon_WITH_AES_128_CBC_SHA  */ 0x00, 0x34,
+        /* TLS_RSA_WITH_AES_256_CBC_SHA      */ 0x00, 0x35,
+        /* TLS_RSA_WITH_AES_128_CBC_SHA      */ 0x00, 0x2F,
+        /* TLS_RSA_WITH_NULL_MD5             */ 0x00, 0x01,
+        /* TLS_RSA_WITH_NULL_SHA             */ 0x00, 0x02,
+        /* TLS_PSK_WITH_AES_256_CBC_SHA      */ 0x00, 0x8d,
+        /* TLS_PSK_WITH_AES_128_CBC_SHA256   */ 0x00, 0xae,
+        /* TLS_PSK_WITH_AES_256_CBC_SHA384   */ 0x00, 0xaf,
+        /* TLS_PSK_WITH_AES_128_CBC_SHA      */ 0x00, 0x8c,
+        /* TLS_PSK_WITH_NULL_SHA256          */ 0x00, 0xb0,
+        /* TLS_PSK_WITH_NULL_SHA384          */ 0x00, 0xb1,
+        /* TLS_PSK_WITH_NULL_SHA             */ 0x00, 0x2c,
+        /* SSL_RSA_WITH_RC4_128_SHA          */ 0x00, 0x05,
+        /* SSL_RSA_WITH_RC4_128_MD5          */ 0x00, 0x04,
+        /* SSL_RSA_WITH_3DES_EDE_CBC_SHA     */ 0x00, 0x0A,
 
         /* ECC suites, first byte is 0xC0 (ECC_BYTE) */
         /* TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA     */ 0xC0, 0x14,
@@ -1730,6 +1730,41 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_get_cipher_list_bytes(void)
+{
+    EXPECT_DECLS;
+#if (defined(WOLFSSL_GET_CIPHER_BYTES)&& \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)))
+    WOLFSSL_CTX* ctx = NULL;
+    byte *getCipherList = NULL;
+    word32 cipherListLen = 0;
+
+#ifndef NO_WOLFSSL_SERVER
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#else
+    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#endif
+
+    ExpectTrue(wolfSSL_get_cipher_list_bytes(NULL, (int *)(&cipherListLen)));
+    ExpectIntGT((int)cipherListLen, 0);
+    ExpectNotNull(getCipherList =
+        (byte *)XMALLOC(cipherListLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
+    ExpectTrue(wolfSSL_get_cipher_list_bytes(
+        getCipherList, (int *)(&cipherListLen)));
+
+    /* Intentionally minimal verification here. Only way to verify would
+     * be a comprehensive list of all possible ciphersuites, which would
+     * break and need to be updated for every addition to the list. That
+     * is a lot of maintinence overhead for this little used function so
+     * call this good enough. */
+
+    XFREE(getCipherList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_CTX_free(ctx);
+#endif /* (WOLFSSL_GET_CIPHER_BYTES && (!NO_WOLFSSL_CLIENT \
+        * || !NO_WOLFSSL_SERVER) */
+
+    return EXPECT_RESULT();
+}
 
 static int test_wolfSSL_CTX_use_certificate_file(void)
 {
@@ -83801,6 +83836,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_SSL_CIPHER_get_xxx),
     TEST_DECL(test_wolfSSL_ERR_strings),
     TEST_DECL(test_wolfSSL_CTX_set_cipher_list_bytes),
+    TEST_DECL(test_wolfSSL_get_cipher_list_bytes),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),
     TEST_DECL(test_wolfSSL_CTX_use_PrivateKey_file),

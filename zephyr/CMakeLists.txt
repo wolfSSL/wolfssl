@@ -22,6 +22,7 @@ if(CONFIG_WOLFSSL)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/zephyr_init.c)
 
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/crl.c)
+    zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/dtls.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/dtls13.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/internal.c)
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/src/keys.c)
