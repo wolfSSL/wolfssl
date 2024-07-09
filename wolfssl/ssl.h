@@ -3089,6 +3089,8 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
             #include <sys/socket.h>
         #elif defined(ARDUINO)
             /* TODO board specific */
+        #elif defined(NUCLEUS_PLUS_2_3)
+            #include "services/sys/uio.h"
         #elif !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_IAR_ARM)    && \
               !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_ROWLEY_ARM) && \
               !defined(WOLFSSL_EMBOS)   && !defined(WOLFSSL_FROSTED)    && \

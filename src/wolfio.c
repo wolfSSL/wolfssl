@@ -41,6 +41,11 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfio.h>
 
+#ifdef NUCLEUS_PLUS_2_3
+/* Holds last Nucleus networking error number */
+int Nucleus_Net_Errno;
+#endif
+
 #if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
     #ifndef USE_WINDOWS_API
         #if defined(WOLFSSL_LWIP) && !defined(WOLFSSL_APACHE_MYNEWT)
@@ -176,6 +181,8 @@ static WC_INLINE int wolfSSL_LastError(int err)
 #elif defined(FUSION_RTOS)
     #include <fclerrno.h>
     return FCL_GET_ERRNO;
+#elif defined(NUCLEUS_PLUS_2_3)
+    return Nucleus_Net_Errno;
 #else
     return errno;
 #endif
@@ -410,6 +417,110 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 #ifdef WOLFSSL_DTLS
 
 #include <wolfssl/wolfcrypt/sha.h>
+
+#if defined(NUCLEUS_PLUS_2_3)
+STATIC INT32 nucyassl_recv(INT sd, CHAR *buf, UINT16 sz, INT16 flags)
+{
+    int recvd;
+
+    /* Read data from socket */
+    recvd = NU_Recv(sd, buf, sz, flags);
+    if (recvd < 0) {
+        if (recvd == NU_NOT_CONNECTED) {
+            recvd = 0;
+        } else {
+            Nucleus_Net_Errno = recvd;
+            recvd = WOLFSSL_FATAL_ERROR;
+        }
+    } else {
+        Nucleus_Net_Errno = 0;
+    }
+
+    return (recvd);
+}
+
+
+STATIC int nucyassl_send(INT sd, CHAR *buf, UINT16 sz, INT16 flags)
+{
+    int sent;
+
+    /* Write data to socket */
+    sent = NU_Send(sd, buf, sz, flags);
+
+    if (sent < 0) {
+        Nucleus_Net_Errno = sent;
+        sent = WOLFSSL_FATAL_ERROR;
+    } else {
+        Nucleus_Net_Errno = 0;
+    }
+
+    return sent;
+}
+
+#define SELECT_FUNCTION     nucyassl_select
+
+int nucyassl_select(INT sd, UINT32 timeout)
+{
+    FD_SET readfs;
+    STATUS status;
+
+    /* Init fs data for socket */
+    NU_FD_Init(&readfs);
+    NU_FD_Set(sd, &readfs);
+
+    /* Wait for data to arrive */
+    status = NU_Select((sd + 1), &readfs, NU_NULL, NU_NULL,
+                            (timeout * NU_TICKS_PER_SECOND));
+
+    if (status < 0) {
+        Nucleus_Net_Errno = status;
+        status = WOLFSSL_FATAL_ERROR;
+    }
+
+    return status;
+}
+
+#define sockaddr_storage    addr_struct
+#define sockaddr            addr_struct
+
+STATIC INT32 nucyassl_recvfrom(INT sd, CHAR *buf, UINT16 sz, INT16 flags,
+                              SOCKADDR *peer, XSOCKLENT *peersz)
+{
+    int recvd;
+
+    memset(peer, 0, sizeof(struct addr_struct));
+
+    recvd = NU_Recv_From(sd, buf, sz, flags, (struct addr_struct *) peer,
+                            (INT16*) peersz);
+    if (recvd < 0) {
+        Nucleus_Net_Errno = recvd;
+        recvd = WOLFSSL_FATAL_ERROR;
+    } else {
+        Nucleus_Net_Errno = 0;
+    }
+
+    return recvd;
+
+}
+
+STATIC int nucyassl_sendto(INT sd, CHAR *buf, UINT16 sz, INT16 flags,
+                          const SOCKADDR *peer, INT16 peersz)
+{
+    int sent;
+
+    sent = NU_Send_To(sd, buf, sz, flags, (const struct addr_struct *) peer,
+                            peersz);
+
+    if (sent < 0) {
+        Nucleus_Net_Errno = sent;
+        sent = WOLFSSL_FATAL_ERROR;
+    } else {
+        Nucleus_Net_Errno = 0;
+    }
+
+    return sent;
+}
+#endif /* NUCLEUS_PLUS_2_3 */
 
 #ifndef DTLS_SENDTO_FUNCTION
     #define DTLS_SENDTO_FUNCTION sendto

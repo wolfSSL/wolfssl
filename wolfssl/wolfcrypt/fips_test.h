@@ -114,6 +114,13 @@ WOLFSSL_API int wc_RunCast_fips(int type);
 WOLFSSL_API int wc_GetCastStatus_fips(int type);
 WOLFSSL_API int wc_RunAllCast_fips(void);
 
+#ifdef NO_ATTRIBUTE_CONSTRUCTOR
+    /* NOTE: Must be called in OS initialization section outside user control
+     * and must prove during operational testing/code review with the lab that
+     * this is outside user-control if called by the OS */
+    void fipsEntry(void);
+#endif
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
