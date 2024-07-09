@@ -1258,7 +1258,7 @@ static int myUnknownExtCallback(const word16* oid, word32 oidSz, int crit,
    extCount ++;
    /* Accept all extensions. This is only a test. Normally we would be much more
     * careful about critical extensions. */
-   return 1;
+   return 0;
 }
 
 static int test_dual_alg_support(void)
