@@ -793,9 +793,13 @@ int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
 void wc_UnloadStaticMemory(WOLFSSL_HEAP_HINT* heap)
 {
     WOLFSSL_ENTER("wc_UnloadStaticMemory");
+#ifndef SINGLE_THREADED
     if (heap != NULL && heap->memory != NULL) {
         wc_FreeMutex(&heap->memory->memory_mutex);
     }
+#else
+    (void)heap;
+#endif
 }
 
 #ifndef WOLFSSL_STATIC_MEMORY_LEAN
