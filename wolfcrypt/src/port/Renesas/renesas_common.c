@@ -441,9 +441,12 @@ int Renesas_cmn_usable(const struct WOLFSSL* ssl, byte session_key_generated)
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         ret = tsip_usable(ssl, session_key_generated);
     #elif defined(WOLFSSL_RENESAS_FSPSM_TLS) ||\
-            defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
+          defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
         ret = wc_fspsm_usable(ssl, session_key_generated);
     #endif
+
+    (void)ssl;
+    (void)session_key_generated;
 
     return ret;
 }
@@ -492,7 +495,7 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
         || ssl == NULL
    #endif
     ) {
-        printf("Invalid devId\n");
+        WOLFSSL_MSG("Invalid devId\n");
         return INVALID_DEVID;
     }
     /* need exclusive control because of static variable */
