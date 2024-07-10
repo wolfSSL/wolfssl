@@ -2285,7 +2285,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         /* Bottom 7 bits are the number of bytes to calculate length with.
          * Note: 0 indicates indefinite length encoding *not* 0 bytes of length.
          */
-        word32 bytes = (word32)b & 0x7FU;
+        int bytes = (int)(b & 0x7F);
         int minLen;
 
         /* Calculate minimum length to be encoded with bytes. */
@@ -2297,10 +2297,11 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
             minLen = 0x80;
         }
         /* Only support up to the number of bytes that fit into return var. */
-        else if (bytes > sizeof(length)) {
+        else if (bytes > (int)sizeof(length)) {
             WOLFSSL_MSG("GetLength - overlong data length spec");
             return ASN_PARSE_E;
-        } else {
+        }
+        else {
             minLen = 1 << ((bytes - 1) * 8);
         }
 
