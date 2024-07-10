@@ -2033,6 +2033,8 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_NOSHA3_224
         #define WOLFSSL_NOSHA3_256
         #define WOLFSSL_NOSHA3_512
+        #define WOLFSSL_NO_SHAKE128
+        #define WOLFSSL_NO_SHAKE256
     #endif
     #ifdef WOLFSSL_AFALG_XILINX_AES
         #undef  WOLFSSL_AES_DIRECT
@@ -3476,22 +3478,28 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_RSA_KEY_CHECK
 #endif
 
-/* SHAKE - Not allowed in FIPS */
-#if defined(WOLFSSL_SHA3) && !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
-    #ifndef WOLFSSL_NO_SHAKE128
-        #undef  WOLFSSL_SHAKE128
-        #define WOLFSSL_SHAKE128
-    #endif
-    #ifndef WOLFSSL_NO_SHAKE256
-        #undef  WOLFSSL_SHAKE256
-        #define WOLFSSL_SHAKE256
-    #endif
-#else
+/* ED448 Requires Shake256 */
+#if defined(HAVE_ED448) && defined(WOLFSSL_SHA3)
+    #undef  WOLFSSL_SHAKE256
+    #define WOLFSSL_SHAKE256
+#endif
+
+/* SHAKE - Not allowed in FIPS v5.2 or older */
+#if defined(WOLFSSL_SHA3) && (defined(HAVE_SELFTEST) || \
+    (defined(HAVE_FIPS) && FIPS_VERSION_LE(5,2)))
     #undef  WOLFSSL_NO_SHAKE128
     #define WOLFSSL_NO_SHAKE128
     #undef  WOLFSSL_NO_SHAKE256
     #define WOLFSSL_NO_SHAKE256
 #endif
+/* SHAKE Disable */
+#ifdef WOLFSSL_NO_SHAKE128
+    #undef WOLFSSL_SHAKE128
+#endif
+#ifdef WOLFSSL_NO_SHAKE256
+    #undef WOLFSSL_SHAKE256
+#endif
+
 
 /* Encrypted Client Hello - requires HPKE */
 #if defined(HAVE_ECH) && !defined(HAVE_HPKE)
