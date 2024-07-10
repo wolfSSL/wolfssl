@@ -1227,8 +1227,13 @@ static int ProcessBufferPrivPkcs8Dec(EncryptedInfo* info, DerBuffer* der,
         der->length = (word32)ret;
     }
 
-    /* Ensure password is zeroized. */
-    ForceZero(password, (word32)passwordSz);
+#ifdef WOLFSSL_SMALL_STACK
+    if (password != NULL)
+#endif
+    {
+        /* Ensure password is zeroized. */
+        ForceZero(password, (word32)passwordSz);
+    }
 #ifdef WOLFSSL_SMALL_STACK
     /* Dispose of password memory. */
     XFREE(password, heap, DYNAMIC_TYPE_STRING);
@@ -5563,7 +5568,7 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
         ret = wolfssl_ctx_set_tmp_dh(ctx, p, pSz, g, gSz);
     }
 
-    if (ret != 1 && ctx != NULL) {
+    if ((ret != 1) && (ctx != NULL)) {
         /* Free the allocated buffers if not assigned into SSL. */
         XFREE(p, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(g, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);

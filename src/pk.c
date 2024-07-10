@@ -376,7 +376,7 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
             DYNAMIC_TYPE_ENCRYPTEDINFO);
         if (info == NULL) {
             WOLFSSL_MSG("malloc failed");
-            ret = 0;
+            ret = MEMORY_E;
         }
     }
     #endif
@@ -417,7 +417,8 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
         (*derSz) += (int)paddingSz;
 
         /* Encrypt DER buffer. */
-        ret = wc_BufferKeyEncrypt(info, der, (word32)*derSz, passwd, passwdSz, WC_MD5);
+        ret = wc_BufferKeyEncrypt(info, der, (word32)*derSz, passwd, passwdSz,
+            WC_MD5);
         if (ret != 0) {
             WOLFSSL_MSG("encrypt key failed");
         }
@@ -3273,6 +3274,7 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
 #endif
     int initTmpRng = 0;
     WC_RNG* rng = NULL;
+    long en;
 #endif
 
     (void)cb;
@@ -3286,10 +3288,12 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
         /* Something went wrong so return memory error. */
         ret = MEMORY_E;
     }
+    if ((ret == 0) && ((en = (long)wolfSSL_BN_get_word(e)) <= 0)) {
+        ret = BAD_FUNC_ARG;
+    }
     if (ret == 0) {
         /* Generate an RSA key. */
-        ret = wc_MakeRsaKey((RsaKey*)rsa->internal, bits,
-            (long)wolfSSL_BN_get_word(e), rng);
+        ret = wc_MakeRsaKey((RsaKey*)rsa->internal, bits, en, rng);
         if (ret != MP_OKAY) {
             WOLFSSL_ERROR_MSG("wc_MakeRsaKey failed");
         }
