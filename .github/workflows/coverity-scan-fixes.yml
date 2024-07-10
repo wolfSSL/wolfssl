@@ -1,12 +1,13 @@
 name: Coverity Scan master branch on a weekly basis
 
-#on:
-#  workflow_dispatch:
-#  schedule:
-#    - cron: "7 3 * * 3"
 on:
-  push:
-    branches: [ 'master', 'main', 'release/**' ]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0,12 * * *"
+#    - cron: "0 0 * * 1"
+#on:
+#  push:
+#    branches: [ 'master', 'main', 'release/**' ]
 
 jobs:
   coverity:
