@@ -830,6 +830,10 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
     return 0;
 }
 
+#if defined(WOLFSSL_CUSTOM_OID) 
+xxx
+#endif
+
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
 void wc_PKCS7_SetUnknownExtCallback(PKCS7* pkcs7, wc_UnknownExtCallback cb)
@@ -1083,7 +1087,10 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
     int devId;
     Pkcs7Cert* cert;
     Pkcs7Cert* lastCert;
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
     wc_UnknownExtCallback cb;
+#endif
 
     if (pkcs7 == NULL || (derCert == NULL && derCertSz != 0)) {
         return BAD_FUNC_ARG;
@@ -1092,13 +1099,18 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
     heap = pkcs7->heap;
     devId = pkcs7->devId;
     cert = pkcs7->certList;
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
     cb = pkcs7->unknownExtCallback;
-
+#endif
     ret = wc_PKCS7_Init(pkcs7, heap, devId);
     if (ret != 0)
         return ret;
 
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
     pkcs7->unknownExtCallback = cb;
+#endif
     pkcs7->certList = cert;
 
     if (derCert != NULL && derCertSz > 0) {
