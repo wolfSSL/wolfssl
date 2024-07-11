@@ -38073,6 +38073,7 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
     }
 
     dcrl->extAuthKeyIdSet = 1;
+
     /* Get the hash or hash of the hash if wrong size. */
     ret = GetHashId(input + idx, length, dcrl->extAuthKeyId,
         HashIdAlg(dcrl->signatureOID));
@@ -38098,6 +38099,8 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
             WOLFSSL_MSG("\tinfo: OPTIONAL item 0, not available");
         }
         else {
+            dcrl->extAuthKeyIdSet = 1;
+
             /* Get the hash or hash of the hash if wrong size. */
             ret = GetHashId(dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.data,
                 (int)dataASN[AUTHKEYIDASN_IDX_KEYID].data.ref.length,
