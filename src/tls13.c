@@ -8412,10 +8412,11 @@ static word32 NextCert(byte* data, word32 length, word32* idx)
  * idx     The start of the certificate data to write out.
  * fragSz  The maximum size of this fragment.
  * output  The buffer to write to.
+ * extIdx  The index number of the extension data with the certificate
  * returns the number of bytes written.
  */
 static word32 AddCertExt(WOLFSSL* ssl, byte* cert, word32 len, word16 extSz,
-                         word32 idx, word32 fragSz, byte* output)
+                         word32 idx, word32 fragSz, byte* output, word16 extIdx)
 {
     word32 i = 0;
     word32 copySz = min(len - idx, fragSz);
@@ -8436,7 +8437,7 @@ static word32 AddCertExt(WOLFSSL* ssl, byte* cert, word32 len, word16 extSz,
         }
     }
     else {
-        byte* certExts = ssl->buffers.certExts->buffer + idx + i - len;
+        byte* certExts = ssl->buffers.certExts[extIdx]->buffer + idx + i - len;
         /* Put out as much of the extensions' data as will fit in fragment. */
         if (copySz > fragSz - i)
             copySz = fragSz - i;
@@ -8458,13 +8459,23 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 {
     int    ret = 0;
     word32 certSz, certChainSz, headerSz, listSz, payloadSz;
-    word16 extSz = 0;
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    TLSX* ext;
+    CertificateStatusRequest* csr;
+    #define MAX_CERT_EXTENSIONS MAX_CHAIN_DEPTH
+#else
+    #define MAX_CERT_EXTENSIONS 1
+#endif
+    word16 extSz[1 + MAX_CERT_EXTENSIONS] = { OPAQUE16_LEN };
+    word16 extIdx = 0;
     word32 length, maxFragment;
+    word32 totalextSz = 0;
     word32 len = 0;
     word32 idx = 0;
     word32 offset = OPAQUE16_LEN;
     byte*  p = NULL;
     byte   certReqCtxLen = 0;
+
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     byte*  certReqCtx = NULL;
 #endif
@@ -8519,35 +8530,101 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         /* Cert Req Ctx Len | Cert Req Ctx | Cert List Len | Cert Data Len */
         headerSz = OPAQUE8_LEN + certReqCtxLen + CERT_HEADER_SZ +
                    CERT_HEADER_SZ;
+        XMEMSET(extSz, 0, sizeof(extSz));
 
-        ret = TLSX_GetResponseSize(ssl, certificate, &extSz);
+        length = 0;
+        listSz = 0;
+
+        ret = TLSX_GetResponseSize(ssl, certificate, &extSz[0]);
         if (ret < 0)
             return ret;
 
         /* Create extensions' data if none already present. */
-        if (extSz > OPAQUE16_LEN && ssl->buffers.certExts == NULL) {
-            ret = AllocDer(&ssl->buffers.certExts, extSz, CERT_TYPE, ssl->heap);
+        if (extSz[0] > OPAQUE16_LEN && ssl->buffers.certExts[0] == NULL) {
+            ret = AllocDer(&ssl->buffers.certExts[0], extSz[0],
+                CERT_TYPE, ssl->heap);
             if (ret < 0)
                 return ret;
 
-            extSz = 0;
-            ret = TLSX_WriteResponse(ssl, ssl->buffers.certExts->buffer,
-                                                           certificate, &extSz);
+            extSz[0] = 0;
+            ret = TLSX_WriteResponse(ssl, ssl->buffers.certExts[0]->buffer,
+                certificate, &extSz[0]);
             if (ret < 0)
                 return ret;
         }
+        /* set empty extension as default */
+        for (extIdx = 1; extIdx < (1 + MAX_CERT_EXTENSIONS); extIdx++)
+            extSz[extIdx] = OPAQUE16_LEN;
+
+        /* certificate extension size */
+        totalextSz += extSz[0];
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+        if (ssl->options.side == WOLFSSL_SERVER_END &&
+            ssl->buffers.certChainCnt > 0) {
+            ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+            csr = ext ? (CertificateStatusRequest*)ext->data : NULL;
+
+            if (csr) {
+                word32 ex_offset;
+
+                ex_offset = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN /* extesion type */
+                    + OPAQUE16_LEN /* extension length */;
+                for (extIdx = 1; extIdx <(word16)
+                                    (1 + ssl->buffers.certChainCnt); extIdx++) {
+
+                    extSz[extIdx] = TLSX_CSR_GetSize_ex(csr, 0, extIdx);
+                    if (extSz[extIdx] > OPAQUE16_LEN &&
+                        ssl->buffers.certExts[extIdx] == NULL) {
+
+                        ret = AllocDer(&ssl->buffers.certExts[extIdx],
+                                                    extSz[extIdx] + ex_offset,
+                            CERT_TYPE, ssl->heap);
+                        if (ret < 0)
+                            return ret;
+
+                        /* write extension type */
+                        c16toa(ext->type, ssl->buffers.certExts[extIdx]->buffer
+                            + OPAQUE16_LEN);
+                        /* writes extension data length. */
+                        c16toa(extSz[extIdx], ssl->buffers.certExts[extIdx]->buffer
+                             + HELLO_EXT_TYPE_SZ + OPAQUE16_LEN);
+                        /* write extension data */
+                        extSz[extIdx] = (word16)TLSX_CSR_Write_ex(csr,
+                            ssl->buffers.certExts[extIdx]->buffer + ex_offset, 0,
+                            extIdx);
+                        /* add extension offset */
+                        extSz[extIdx] += (word16)ex_offset;
+                        /* extension length */
+                        c16toa(extSz[extIdx] - OPAQUE16_LEN,
+                                        ssl->buffers.certExts[extIdx]->buffer);
+                    }
+                    totalextSz += extSz[extIdx];
+                }
+            }
+            else {
+                /* chain cert empty extension size */
+                totalextSz += OPAQUE16_LEN * ssl->buffers.certChainCnt;
+            }
+        } else if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                ssl->buffers.certChainCnt > 0)
+#endif
+        {
+            /* chain cert empty extension size */
+            totalextSz += OPAQUE16_LEN * ssl->buffers.certChainCnt;
+        }
 
         /* Length of message data with one certificate and extensions. */
-        length = headerSz + certSz + extSz;
+        length += headerSz + certSz + totalextSz;
         /* Length of list data with one certificate and extensions. */
-        listSz = CERT_HEADER_SZ + certSz + extSz;
+        listSz += CERT_HEADER_SZ + certSz + totalextSz;
 
         /* Send rest of chain if sending cert (chain has leading size/s). */
         if (certSz > 0 && ssl->buffers.certChainCnt > 0) {
             p = ssl->buffers.certChain->buffer;
             /* Chain length including extensions. */
-            certChainSz = ssl->buffers.certChain->length +
-                          OPAQUE16_LEN * ssl->buffers.certChainCnt;
+            certChainSz = ssl->buffers.certChain->length;
+
             length += certChainSz;
             listSz += certChainSz;
         }
@@ -8561,6 +8638,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         length -= (ssl->fragOffset + headerSz);
 
     maxFragment = (word32)wolfSSL_GetMaxFragSize(ssl, MAX_RECORD_SIZE);
+
+    extIdx = 0;
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;
@@ -8576,15 +8655,15 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
 
         if (ssl->fragOffset == 0) {
-            if (headerSz + certSz + extSz + certChainSz <=
+            if (headerSz + certSz + totalextSz + certChainSz <=
                                             maxFragment - HANDSHAKE_HEADER_SZ) {
-                fragSz = headerSz + certSz + extSz + certChainSz;
+                fragSz = headerSz + certSz + totalextSz + certChainSz;
             }
 #ifdef WOLFSSL_DTLS13
             else if (ssl->options.dtls){
                 /* short-circuit the fragmentation logic here. DTLS
                    fragmentation will be done in dtls13HandshakeSend() */
-                fragSz = headerSz + certSz + extSz + certChainSz;
+                fragSz = headerSz + certSz + totalextSz + certChainSz;
             }
 #endif /* WOLFSSL_DTLS13 */
             else {
@@ -8643,20 +8722,23 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         else
             AddTls13RecordHeader(output, fragSz, handshake, ssl);
 
-        if (certSz > 0 && ssl->fragOffset < certSz + extSz) {
-            /* Put in the leaf certificate with extensions. */
-            word32 copySz = AddCertExt(ssl, ssl->buffers.certificate->buffer,
-                            certSz, extSz, ssl->fragOffset, fragSz, output + i);
-            i += copySz;
-            ssl->fragOffset += copySz;
-            length -= copySz;
-            fragSz -= copySz;
-            if (ssl->fragOffset == certSz + extSz)
-                FreeDer(&ssl->buffers.certExts);
+        if (extIdx == 0) {
+            if (certSz > 0 && ssl->fragOffset < certSz + extSz[0]) {
+                /* Put in the leaf certificate with extensions. */
+                word32 copySz = AddCertExt(ssl, ssl->buffers.certificate->buffer,
+                                certSz, extSz[extIdx], ssl->fragOffset, fragSz,
+                                output + i, extIdx);
+                i += copySz;
+                ssl->fragOffset += copySz;
+                length -= copySz;
+                fragSz -= copySz;
+                if (ssl->fragOffset == certSz + extSz[extIdx])
+                    FreeDer(&ssl->buffers.certExts[extIdx]);
+            }
         }
         if (certChainSz > 0 && fragSz > 0) {
-            /* Put in the CA certificates with empty extensions. */
-            while (fragSz > 0) {
+             /* Put in the CA certificates with extensions. */
+             while (fragSz > 0) {
                 word32 l;
 
                 if (offset == len + OPAQUE16_LEN) {
@@ -8665,19 +8747,27 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                     /* Point to the start of current cert in chain buffer. */
                     p = ssl->buffers.certChain->buffer + idx;
                     len = NextCert(ssl->buffers.certChain->buffer,
-                                   ssl->buffers.certChain->length, &idx);
+                            ssl->buffers.certChain->length, &idx);
                     if (len == 0)
                         break;
+                    if (MAX_CERT_EXTENSIONS > extIdx)
+                        extIdx++;
                 }
-
-                /* Write out certificate and empty extension. */
-                l = AddCertExt(ssl, p, len, OPAQUE16_LEN, offset, fragSz,
-                                                                    output + i);
+                /* Write out certificate and extension. */
+                l = AddCertExt(ssl, p, len, extSz[extIdx], offset, fragSz,
+                                                       output + i, extIdx);
                 i += l;
                 ssl->fragOffset += l;
                 length -= l;
                 fragSz -= l;
                 offset += l;
+
+                if (extIdx != 0 && extIdx < MAX_CERT_EXTENSIONS &&
+                    ssl->buffers.certExts[extIdx] != NULL &&
+                                offset == len + extSz[extIdx])
+                    FreeDer(&ssl->buffers.certExts[extIdx]);
+                /* for next chain cert */
+                len += extSz[extIdx] - OPAQUE16_LEN;
             }
         }
 

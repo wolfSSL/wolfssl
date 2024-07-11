@@ -2621,6 +2621,8 @@ struct OcspRequest {
     void*  ssl;
 };
 
+struct WOLFSSL;
+
 WOLFSSL_LOCAL void InitOcspResponse(OcspResponse* resp, OcspEntry* single,
                      CertStatus* status, byte* source, word32 inSz, void* heap);
 WOLFSSL_LOCAL void FreeOcspResponse(OcspResponse* resp);

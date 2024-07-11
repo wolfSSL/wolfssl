@@ -7710,6 +7710,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->sigSpec = ctx->sigSpec;
     ssl->sigSpecSz = ctx->sigSpecSz;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
+#ifdef HAVE_OCSP
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    ssl->response_idx = 0;
+#endif
+#endif
     /* Returns 0 on success, not WOLFSSL_SUCCESS (1) */
     WOLFSSL_MSG_EX("InitSSL done. return 0 (success)");
     return 0;
@@ -13212,8 +13217,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
      (defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12))
-static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
-                      word32 status_length)
+static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+                      word32 status_length, int idx)
 {
     int ret = 0;
     OcspRequest* request;
@@ -13233,7 +13238,8 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     do {
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
             if (ssl->status_request) {
-                request = (OcspRequest*)TLSX_CSR_GetRequest(ssl->extensions);
+                request = (OcspRequest*)TLSX_CSR_GetRequest_ex(ssl->extensions,
+                                idx);
                 ssl->status_request = 0;
                 break;
             }
@@ -13304,6 +13310,12 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     WOLFSSL_LEAVE("ProcessCSR", ret);
     return ret;
+}
+
+static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+                      word32 status_length)
+{
+    return ProcessCSR_ex(ssl, input, inOutIdx, status_length, 0);
 }
 #endif
 
@@ -14367,6 +14379,40 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
     return ret;
 }
 
+#if defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) \
+        && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+static int ProcessPeerCersChainOCSPStausCheck(WOLFSSL* ssl)
+{
+    int ret = 0;
+    word32 i;
+    word32 idx = 0;
+    TLSX* ext =  TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    CertificateStatusRequest* csr;
+
+    if (ext == NULL) {
+        return 0;
+    }
+    csr = (CertificateStatusRequest*)ext->data;
+
+    for (i = 0; i < (csr->requests); i++) {
+        if (csr->responses[i].length != 0) {
+            ssl->status_request = 1;
+            idx = 0;
+            ret = ProcessCSR_ex(ssl,
+                    csr->responses[i].buffer,
+                    &idx, csr->responses[i].length, i);
+            if (ret < 0) {
+                WOLFSSL_ERROR_VERBOSE(ret);
+                break;
+            }
+        }
+    }
+
+    return ret;
+}
+
+#endif
+
 #ifdef HAVE_CRL
 static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
 {
@@ -14649,8 +14695,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     args->idx += extSz;
                     listSz -= extSz + OPAQUE16_LEN;
                     WOLFSSL_MSG_EX("\tParsing %d bytes of cert extensions",
-                            args->exts[args->totalCerts].length);
+                        args->exts[args->totalCerts].length);
                     #if !defined(NO_TLS)
+                    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+                    ssl->response_idx = args->totalCerts;
+                    #endif
                     ret = TLSX_Parse(ssl, args->exts[args->totalCerts].buffer,
                         (word16)args->exts[args->totalCerts].length,
                         certificate, NULL);
@@ -14843,6 +14892,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         else /* skips OCSP and force CRL check */
                     #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
+                    #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+                        if (ssl->options.tls1_3) {
+                            ret = TLSX_CSR_InitRequest(ssl->extensions,
+                                    args->dCert, ssl->heap);
+                        }
+                        else
+                    #endif
                         if (SSL_CM(ssl)->ocspEnabled &&
                                             SSL_CM(ssl)->ocspCheckAll) {
                             WOLFSSL_MSG("Doing Non Leaf OCSP check");
@@ -15330,18 +15386,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("\tHave status request");
                         #if defined(WOLFSSL_TLS13)
                             if (ssl->options.tls1_3) {
-                                TLSX* ext = TLSX_Find(ssl->extensions,
-                                                           TLSX_STATUS_REQUEST);
-                                if (ext != NULL) {
-                                    word32 idx = 0;
-                                    CertificateStatusRequest* csr =
-                                           (CertificateStatusRequest*)ext->data;
-                                    ret = ProcessCSR(ssl, csr->response.buffer,
-                                                    &idx, csr->response.length);
-                                    if (ret < 0) {
-                                        WOLFSSL_ERROR_VERBOSE(ret);
-                                        goto exit_ppc;
-                                    }
+                                ret = ProcessPeerCersChainOCSPStausCheck(ssl);
+                                if (ret < 0) {
+                                    WOLFSSL_ERROR_VERBOSE(ret);
+                                    goto exit_ppc;
                                 }
                             }
                         #endif
@@ -24184,7 +24232,6 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
                         if (idx > chain->length)
                             break;
-
                         ret = CreateOcspRequest(ssl, request, cert, der.buffer,
                                                 der.length, &ctxOwnsRequest);
                         if (ret == 0) {
