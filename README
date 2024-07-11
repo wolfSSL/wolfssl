@@ -161,6 +161,7 @@ Fixed in github pull request https://github.com/wolfSSL/wolfssl/pull/7702
 * Expanded OpenSSL compatibility layer and added EC_POINT_hex2point (PR 7191)
 
 ## Fixes
+* Fixed Kyber control-flow timing leak. Thanks to Antoon Purnal from PQShield for the report
 * Fixed the NXP MMCAU HW acceleration for SHA-256 (PR 7389)
 * Fixed AES-CFB1 encrypt/decrypt on size (8*x-1) bits (PR 7431)
 * Fixed use of %rip with SHA-256 x64 assembly (PR 7409)
