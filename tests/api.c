@@ -1730,6 +1730,7 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     return EXPECT_RESULT();
 }
 
+
 static int test_wolfSSL_CTX_use_certificate_file(void)
 {
     EXPECT_DECLS;

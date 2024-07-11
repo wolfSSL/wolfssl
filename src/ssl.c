@@ -1641,6 +1641,7 @@ int wolfSSL_get_ciphers(char* buf, int len)
     return WOLFSSL_SUCCESS;
 }
 
+
 #ifndef NO_ERROR_STRINGS
 /* places a list of all supported cipher suites in TLS_* format into "buf"
  * return WOLFSSL_SUCCESS on success */
