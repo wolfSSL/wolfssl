@@ -1730,42 +1730,6 @@ static int test_wolfSSL_CTX_set_cipher_list_bytes(void)
     return EXPECT_RESULT();
 }
 
-static int test_wolfSSL_get_cipher_list_bytes(void)
-{
-    EXPECT_DECLS;
-#if (defined(WOLFSSL_GET_CIPHER_BYTES)&& \
-    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)))
-    WOLFSSL_CTX* ctx = NULL;
-    byte *getCipherList = NULL;
-    word32 cipherListLen = 0;
-
-#ifndef NO_WOLFSSL_SERVER
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-#else
-    ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
-#endif
-
-    ExpectTrue(wolfSSL_get_cipher_list_bytes(NULL, (int *)(&cipherListLen)));
-    ExpectIntGT((int)cipherListLen, 0);
-    ExpectNotNull(getCipherList =
-        (byte *)XMALLOC(cipherListLen, NULL, DYNAMIC_TYPE_TMP_BUFFER));
-    ExpectTrue(wolfSSL_get_cipher_list_bytes(
-        getCipherList, (int *)(&cipherListLen)));
-
-    /* Intentionally minimal verification here. Only way to verify would
-     * be a comprehensive list of all possible ciphersuites, which would
-     * break and need to be updated for every addition to the list. That
-     * is a lot of maintinence overhead for this little used function so
-     * call this good enough. */
-
-    XFREE(getCipherList, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    wolfSSL_CTX_free(ctx);
-#endif /* (WOLFSSL_GET_CIPHER_BYTES && (!NO_WOLFSSL_CLIENT \
-        * || !NO_WOLFSSL_SERVER) */
-
-    return EXPECT_RESULT();
-}
-
 static int test_wolfSSL_CTX_use_certificate_file(void)
 {
     EXPECT_DECLS;
@@ -83836,7 +83800,6 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_SSL_CIPHER_get_xxx),
     TEST_DECL(test_wolfSSL_ERR_strings),
     TEST_DECL(test_wolfSSL_CTX_set_cipher_list_bytes),
-    TEST_DECL(test_wolfSSL_get_cipher_list_bytes),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_file),
     TEST_DECL(test_wolfSSL_CTX_use_certificate_buffer),
     TEST_DECL(test_wolfSSL_CTX_use_PrivateKey_file),

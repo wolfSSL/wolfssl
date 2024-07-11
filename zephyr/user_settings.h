@@ -158,7 +158,6 @@ extern "C" {
 
 #if defined(CONFIG_NET_SOCKETS_SOCKOPT_TLS)
     #define WOLFSSL_SET_CIPHER_BYTES
-    #define WOLFSSL_GET_CIPHER_BYTES
 #endif
 
 /* ------------------------------------------------------------------------- */

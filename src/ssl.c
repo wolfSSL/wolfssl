@@ -1641,35 +1641,6 @@ int wolfSSL_get_ciphers(char* buf, int len)
     return WOLFSSL_SUCCESS;
 }
 
-#ifdef WOLFSSL_GET_CIPHER_BYTES
-int wolfSSL_get_cipher_list_bytes(byte* buf, int *len)
-{
-    const CipherSuiteInfo* ciphers = GetCipherNames();
-    int ciphersSz = GetCipherNamesSize();
-    int i;
-
-    if (len == NULL)
-        return BAD_FUNC_ARG;
-
-    /* For NULL input buffer and non-NULL len, set len */
-    if (buf == NULL) {
-        *len = (ciphersSz * 2);
-        return WOLFSSL_SUCCESS;
-    }
-
-    if (*len < (ciphersSz * 2))
-        return BUFFER_E;
-
-    /* Add each member to the buffer */
-    for (i = 0; i < ciphersSz; i++) {
-        *buf++ = ciphers->cipherSuite0;
-        *buf++ = ciphers->cipherSuite;
-    }
-
-    return WOLFSSL_SUCCESS;
-}
-#endif
-
 #ifndef NO_ERROR_STRINGS
 /* places a list of all supported cipher suites in TLS_* format into "buf"
  * return WOLFSSL_SUCCESS on success */
