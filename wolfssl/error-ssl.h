@@ -115,7 +115,7 @@ enum wolfSSL_ErrorCodes {
     COOKIE_ERROR                 = -369,   /* dtls cookie error */
     SEQUENCE_ERROR               = -370,   /* dtls sequence error */
     SUITES_ERROR                 = -371,   /* suites pointer error */
-
+    MAX_CERT_EXTENSIONS_ERR      = -372,   /* max cert extension exceeded */
     OUT_OF_ORDER_E               = -373,   /* out of order message */
     BAD_KEA_TYPE_E               = -374,   /* bad KEA type found */
     SANITY_CIPHER_E              = -375,   /* sanity check on cipher error */
