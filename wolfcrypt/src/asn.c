@@ -2306,7 +2306,7 @@ int GetLength_ex(const byte* input, word32* inOutIdx, int* len, word32 maxIdx,
         }
 
         /* Check the number of bytes required are available. */
-        if ((idx + bytes) > maxIdx) {
+        if ((idx + (word32)bytes) > maxIdx) {
             WOLFSSL_MSG("GetLength - bad long length");
             return BUFFER_E;
         }
