@@ -70,6 +70,29 @@ config WOLFCRYPT_FIPS
 	  Enables FIPS support in wolfCrypt. Requires the wolfSSL FIPS ready
 	  download that includes fips.c/fips_test.c.
 
+config WOLFSSL_DTLS
+  bool "wolfSSL DTLS support"
+  help
+    Enable DTLS support
+
+config WOLFSSL_ALPN
+  bool "wolfSSL ALPN support"
+  help
+    Enable ALPN support
+
+config WOLFSSL_PSK
+  bool "wolfSSL PSK support"
+  help
+    Enable PSK support
+
+config WOLFSSL_MAX_FRAGMENT_LEN
+  int
+  default 3
+  range 1 6
+  help
+    Sets the maximum fragment length wolfSSL will use, values 1-6 correspond to enum values
+    WOLFSSL_MFL_* in ssl.h
+
 config WOLFCRYPT_ARMASM
 	bool "wolfCrypt ARM Assembly support"
 	depends on WOLFSSL_BUILTIN

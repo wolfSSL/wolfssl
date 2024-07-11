@@ -132,6 +132,13 @@
     #include <pthread.h>
 #endif
 
+#if defined(WOLFSSL_ZEPHYR)
+#if defined(CONFIG_BOARD_NATIVE_POSIX)
+#include "native_rtc.h"
+#define CONFIG_RTC
+#endif
+#endif
+
 /* prevent multiple mutex initializations */
 static volatile int initRefCount = 0;
 
@@ -3173,6 +3180,21 @@ time_t z_time(time_t * timer)
 
     #if defined(CONFIG_RTC) && \
         (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
+
+    #if defined(CONFIG_BOARD_NATIVE_POSIX)
+
+    /* When using native sim, get time from simulator rtc */
+    uint32_t nsec = 0;
+    uint64_t sec = 0;
+    native_rtc_gettime(RTC_CLOCK_PSEUDOHOSTREALTIME, &nsec, &sec);
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec;
+
+    #else
+
     /* Try to obtain the actual time from an RTC */
     static const struct device *rtc = DEVICE_DT_GET(DT_NODELABEL(rtc));
 
@@ -3191,6 +3213,7 @@ time_t z_time(time_t * timer)
             return epochTime;
         }
     }
+    #endif /* defined(CONFIG_BOARD_NATIVE_POSIX) */
     #endif
 
     /* Fallback to uptime since boot. This works for relative times, but

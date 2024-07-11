@@ -1211,6 +1211,9 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             #else
                 free(ptr);
             #endif
+            #ifdef WOLFSSL_DEBUG_MEMORY
+            fprintf(stderr, "Free: %p at %s:%d\n", ptr, func, line);
+            #endif
         #else
             WOLFSSL_MSG("Error trying to call free when turned off");
         #endif /* WOLFSSL_NO_MALLOC */
