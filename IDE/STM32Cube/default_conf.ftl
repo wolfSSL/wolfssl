@@ -535,7 +535,7 @@ extern ${variable.value} ${variable.name};
 #endif
 
 /* ------------------------------------------------------------------------- */
-/* Crypto Accelaration */
+/* Crypto Acceleration */
 /* ------------------------------------------------------------------------- */
 /* This enables inline assembly speedups for SHA2, SHA3, AES,
  * ChaCha20/Poly1305 and Ed/Curve25519. These settings work for Cortex M4/M7
@@ -547,6 +547,11 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_ARMASM_NO_HW_CRYPTO
     #define WOLFSSL_ARMASM_NO_NEON
     #define WOLFSSL_ARM_ARCH 7
+    /* Disable H/W offloading if accelerating S/W crypto */
+    #undef  NO_STM32_HASH
+    #define NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    #define NO_STM32_CRYPTO
 #endif
 
 /* ------------------------------------------------------------------------- */
