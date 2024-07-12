@@ -830,10 +830,6 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
     return 0;
 }
 
-#if defined(WOLFSSL_CUSTOM_OID) 
-xxx
-#endif
-
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
 void wc_PKCS7_SetUnknownExtCallback(PKCS7* pkcs7, wc_UnknownExtCallback cb)
