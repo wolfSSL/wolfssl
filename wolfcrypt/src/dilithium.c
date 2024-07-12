@@ -60,7 +60,11 @@
  *   is considerably slower.
  * WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC                   Default: OFF
  *   Compiles signature implementation that uses smaller amounts of memory but
- *   is considerably slower. Allocates vectors for decoded parameters.
+ *   is considerably slower. Allocates vectors and decodes private key data
+ *   into them upfront.
+ * WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A                 Default: OFF
+ *   Compiles signature implementation that uses smaller amounts of memory but
+ *   is slower. Allocates matrix A and calculates it upfront.
  *
  * WOLFSSL_DILITHIUM_ALIGNMENT                                Default: 8
  *   Use to indicate whether loading and storing of words needs to be aligned.
@@ -148,6 +152,13 @@
 #if defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC) && \
         !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)
     #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+#endif
+#if defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A) && \
+        !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)
+    #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+    #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
+        #error "PRECALC and PRECALC_A is equivalent to non small mem"
+    #endif
 #endif
 
 #ifdef WOLFSSL_WC_DILITHIUM
@@ -2746,7 +2757,8 @@ static void dilithium_decompose_q32(sword32 r, sword32* r0, sword32* r1)
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
-#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+#if !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) || \
+    defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
 /* Decompose vector of polynomials into high and low based on GAMMA2.
  *
  * @param [in]  r       Vector of polynomials to decompose.
@@ -5762,6 +5774,10 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     byte* mu = data + DILITHIUM_RND_SZ;
     byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
     byte* h = sig + params->lambda * 2 + params->zEncSz;
+#ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+    byte maxK = (byte)min(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A,
+        params->k);
+#endif
 
     /* Check the signature buffer isn't too small. */
     if ((ret == 0) && (*sigLen < params->sigSz)) {
@@ -5779,9 +5795,12 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         /* y-l, w0-k, w1-k, c-1, z-1, A-1 */
         allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
             DILITHIUM_POLY_SIZE +  DILITHIUM_POLY_SIZE + DILITHIUM_POLY_SIZE;
-#ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
+    #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
         allocSz += params->s1Sz + params->s2Sz + params->s2Sz;
 #endif
+    #elif defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
+        allocSz += maxK * params->l * DILITHIUM_POLY_SIZE;
+    #endif
         y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (y == NULL) {
             ret = MEMORY_E;
@@ -5793,16 +5812,22 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             z     = c  + DILITHIUM_N;
             a     = z  + DILITHIUM_N;
             ct0   = z;
-            y_ntt = z;
-        #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
+    #if defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
+            y_ntt = w0;
             s1    = z;
             s2    = z;
             t0    = z;
-        #else
+    #elif defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC)
+            y_ntt = z;
             s1    = a  + DILITHIUM_N;
             s2    = s1 + params->s1Sz / sizeof(*s1);
             t0    = s2 + params->s2Sz / sizeof(*s2);
-        #endif
+    #else
+            y_ntt = z;
+            s1    = z;
+            s2    = z;
+            t0    = z;
+    #endif
         }
     }
 
@@ -5825,23 +5850,37 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         dilithium_make_priv_vecs(key, s1, s2, t0);
     }
 #endif
+#ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+    if (ret == 0) {
+        /* Step 5: Create the matrix A from the public seed. */
+        ret = dilithium_expand_a(&key->shake, pub_seed, maxK, params->l, a);
+    }
+#endif
     if (ret == 0) {
         word16 kappa = 0;
         int valid;
 
         /* Step 11: Start rejection sampling loop */
         do {
+            byte aseed[DILITHIUM_GEN_A_SEED_SZ];
             byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
             sword32* w = w1;
             byte* commit = sig;
             byte r;
             byte s;
-            byte aseed[DILITHIUM_GEN_A_SEED_SZ];
             sword32 hi;
-            sword32* at = a;
             sword32* wt = w;
             sword32* w0t = w0;
             sword32* w1t = w1;
+            sword32* at = a;
+
+        #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+            w0t += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
+            w1t += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
+            wt += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
+            at += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * params->l *
+                DILITHIUM_N;
+        #endif
 
             valid = 1;
             /* Step 12: Compute vector y from private random seed and kappa. */
@@ -5852,13 +5891,33 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 (1 << params->gamma1_bits) - params->beta);
         #endif
 
+        #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+            /* Step 13: NTT-1(A o NTT(y)) */
+            XMEMCPY(y_ntt, y, params->s1Sz);
+            dilithium_vec_ntt(y_ntt, params->l);
+            dilithium_matrix_mul(w, a, y_ntt, maxK, params->l);
+            dilithium_vec_invntt(w, maxK);
+            /* Step 14, Step 22: Make values positive and decompose. */
+            dilithium_vec_make_pos(w, maxK);
+            dilithium_vec_decompose(w, maxK, params->gamma2, w0, w1);
+        #endif
             /* Step 5: Create the matrix A from the public seed. */
             /* Copy the seed into a buffer that has space for s and r. */
             XMEMCPY(aseed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+            r = WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A;
+        #else
+            r = 0;
+        #endif
             /* Alg 26. Step 1: Loop over first dimension of matrix. */
-            for (r = 0; (ret == 0) && valid && (r < params->k); r++) {
+            for (; (ret == 0) && valid && (r < params->k); r++) {
                 unsigned int e;
                 sword32* yt = y;
+            #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+                sword32* y_ntt_t = z;
+            #else
+                sword32* y_ntt_t = y_ntt;
+            #endif
 
                 /* Put r/i into buffer to be hashed. */
                 aseed[DILITHIUM_PUB_SEED_SZ + 1] = r;
@@ -5872,19 +5931,19 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                     if (ret != 0) {
                         break;
                     }
-                    XMEMCPY(y_ntt, yt, DILITHIUM_POLY_SIZE);
-                    dilithium_ntt(y_ntt);
+                    XMEMCPY(y_ntt_t, yt, DILITHIUM_POLY_SIZE);
+                    dilithium_ntt(y_ntt_t);
                     /* Matrix multiply. */
                     if (s == 0) {
                         for (e = 0; e < DILITHIUM_N; e++) {
                             wt[e] = dilithium_mont_red((sword64)at[e] *
-                                    y_ntt[e]);
+                                    y_ntt_t[e]);
                         }
                     }
                     else {
                         for (e = 0; e < DILITHIUM_N; e++) {
                             wt[e] += dilithium_mont_red((sword64)at[e] *
-                                     y_ntt[e]);
+                                     y_ntt_t[e]);
                         }
                     }
                     /* Next polynomial. */
