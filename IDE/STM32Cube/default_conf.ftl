@@ -534,6 +534,16 @@ extern ${variable.value} ${variable.name};
     #define NO_MD5
 #endif
 
+/* ------------------------------------------------------------------------- */
+/* Crypto Accelaration */
+/* ------------------------------------------------------------------------- */
+#if defined(WOLF_CONF_ARMASM) && WOLF_CONF_ARMASM == 1
+    #define WOLFSSL_ARMASM
+    #define WOLFSSL_ARMASM_INLINE
+    #define WOLFSSL_ARMASM_NO_HW_CRYPTO
+    #define WOLFSSL_ARMASM_NO_NEON
+    #define WOLFSSL_ARM_ARCH 7
+#endif
 
 /* ------------------------------------------------------------------------- */
 /* Benchmark / Test */
