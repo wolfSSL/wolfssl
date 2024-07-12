@@ -537,6 +537,10 @@ extern ${variable.value} ${variable.name};
 /* ------------------------------------------------------------------------- */
 /* Crypto Accelaration */
 /* ------------------------------------------------------------------------- */
+/* This enables inline assembly speedups for SHA2, SHA3, AES,
+ * ChaCha20/Poly1305 and Ed/Curve25519. These settings work for Cortex M4/M7
+ * and the source code is located in wolfcrypt/src/port/arm/
+ */
 #if defined(WOLF_CONF_ARMASM) && WOLF_CONF_ARMASM == 1
     #define WOLFSSL_ARMASM
     #define WOLFSSL_ARMASM_INLINE
