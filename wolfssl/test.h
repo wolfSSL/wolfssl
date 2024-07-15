@@ -1947,7 +1947,11 @@ static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
         key[i] = (unsigned char) b;
     }
 
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+    *ciphersuite = userCipher ? userCipher : "TLS13-AES256-GCM-SHA384";
+#else
     *ciphersuite = userCipher ? userCipher : "TLS13-AES128-GCM-SHA256";
+#endif
 
     ret = 32;   /* length of key in octets or 0 for error */
 
@@ -1986,7 +1990,11 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
         key[i] = (unsigned char) b;
     }
 
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+    *ciphersuite = userCipher ? userCipher : "TLS13-AES256-GCM-SHA384";
+#else
     *ciphersuite = userCipher ? userCipher : "TLS13-AES128-GCM-SHA256";
+#endif
 
     ret = 32;   /* length of key in octets or 0 for error */
 

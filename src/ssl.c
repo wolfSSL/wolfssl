@@ -19632,10 +19632,10 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
         if ((ctrl_opt & WOLFSSL_OP_CIPHER_SERVER_PREFERENCE)
                      == WOLFSSL_OP_CIPHER_SERVER_PREFERENCE) {
             WOLFSSL_MSG("Using Server's Cipher Preference.");
-            ctx->useClientOrder = FALSE;
+            ctx->useClientOrder = 0;
         } else {
             WOLFSSL_MSG("Using Client's Cipher Preference.");
-            ctx->useClientOrder = TRUE;
+            ctx->useClientOrder = 1;
         }
         #endif /* WOLFSSL_QT */
 

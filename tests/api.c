@@ -6495,15 +6495,10 @@ static int test_wolfSSL_EVP_CIPHER_CTX(void)
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) || \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
-    #ifdef WC_SHA512_DIGEST_SIZE
-        #define MD_MAX_SIZE WC_SHA512_DIGEST_SIZE
-    #else
-        #define MD_MAX_SIZE WC_SHA256_DIGEST_SIZE
-    #endif
-    byte server_side_msg1[MD_MAX_SIZE] = {0};/* msg sent by server */
-    byte server_side_msg2[MD_MAX_SIZE] = {0};/* msg received from client */
-    byte client_side_msg1[MD_MAX_SIZE] = {0};/* msg sent by client */
-    byte client_side_msg2[MD_MAX_SIZE] = {0};/* msg received from server */
+    byte server_side_msg1[WC_MAX_DIGEST_SIZE] = {0};/* msg sent by server */
+    byte server_side_msg2[WC_MAX_DIGEST_SIZE] = {0};/* msg received from client */
+    byte client_side_msg1[WC_MAX_DIGEST_SIZE] = {0};/* msg sent by client */
+    byte client_side_msg2[WC_MAX_DIGEST_SIZE] = {0};/* msg received from server */
 #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
 /* TODO: Expand and enable this when EVP_chacha20_poly1305 is supported */
@@ -7049,14 +7044,14 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
             TEST_SUCCESS);
     }
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
-    XMEMSET(server_side_msg2, 0, MD_MAX_SIZE);
+    XMEMSET(server_side_msg2, 0, WC_MAX_DIGEST_SIZE);
     msg_len = wolfSSL_get_peer_finished(test_ctx.s_ssl, server_side_msg2,
-        MD_MAX_SIZE);
+        WC_MAX_DIGEST_SIZE);
     ExpectIntGE(msg_len, 0);
 
-    XMEMSET(server_side_msg1, 0, MD_MAX_SIZE);
+    XMEMSET(server_side_msg1, 0, WC_MAX_DIGEST_SIZE);
     msg_len = wolfSSL_get_finished(test_ctx.s_ssl, server_side_msg1,
-        MD_MAX_SIZE);
+        WC_MAX_DIGEST_SIZE);
     ExpectIntGE(msg_len, 0);
 #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
@@ -7420,12 +7415,12 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
-    XMEMSET(server_side_msg2, 0, MD_MAX_SIZE);
-    msg_len = wolfSSL_get_peer_finished(ssl, server_side_msg2, MD_MAX_SIZE);
+    XMEMSET(server_side_msg2, 0, WC_MAX_DIGEST_SIZE);
+    msg_len = wolfSSL_get_peer_finished(ssl, server_side_msg2, WC_MAX_DIGEST_SIZE);
     AssertIntGE(msg_len, 0);
 
-    XMEMSET(server_side_msg1, 0, MD_MAX_SIZE);
-    msg_len = wolfSSL_get_finished(ssl, server_side_msg1, MD_MAX_SIZE);
+    XMEMSET(server_side_msg1, 0, WC_MAX_DIGEST_SIZE);
+    msg_len = wolfSSL_get_finished(ssl, server_side_msg1, WC_MAX_DIGEST_SIZE);
     AssertIntGE(msg_len, 0);
 #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
@@ -9044,12 +9039,12 @@ static int test_wolfSSL_get_finished_client_on_handshake(WOLFSSL_CTX* ctx,
 
     /* get_finished test */
     /* 1. get own sent message */
-    XMEMSET(client_side_msg1, 0, MD_MAX_SIZE);
-    msg_len = wolfSSL_get_finished(ssl, client_side_msg1, MD_MAX_SIZE);
+    XMEMSET(client_side_msg1, 0, WC_MAX_DIGEST_SIZE);
+    msg_len = wolfSSL_get_finished(ssl, client_side_msg1, WC_MAX_DIGEST_SIZE);
     ExpectIntGE(msg_len, 0);
     /* 2. get peer message */
-    XMEMSET(client_side_msg2, 0, MD_MAX_SIZE);
-    msg_len = wolfSSL_get_peer_finished(ssl, client_side_msg2, MD_MAX_SIZE);
+    XMEMSET(client_side_msg2, 0, WC_MAX_DIGEST_SIZE);
+    msg_len = wolfSSL_get_peer_finished(ssl, client_side_msg2, WC_MAX_DIGEST_SIZE);
     ExpectIntGE(msg_len, 0);
 
     return EXPECT_RESULT();
@@ -9072,8 +9067,8 @@ static int test_wolfSSL_get_finished(void)
         TEST_SUCCESS);
 
     /* test received msg vs sent msg */
-    ExpectIntEQ(0, XMEMCMP(client_side_msg1, server_side_msg2, MD_MAX_SIZE));
-    ExpectIntEQ(0, XMEMCMP(client_side_msg2, server_side_msg1, MD_MAX_SIZE));
+    ExpectIntEQ(0, XMEMCMP(client_side_msg1, server_side_msg2, WC_MAX_DIGEST_SIZE));
+    ExpectIntEQ(0, XMEMCMP(client_side_msg2, server_side_msg1, WC_MAX_DIGEST_SIZE));
 #endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES && WOLFSSL_HAVE_TLS_UNIQUE */
 
     return EXPECT_RESULT();
