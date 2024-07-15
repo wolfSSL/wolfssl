@@ -53007,8 +53007,9 @@ static int test_wolfSSL_PKCS8_d2i(void)
     return EXPECT_RESULT();
 }
 
-#if defined(ERROR_QUEUE_PER_THREAD) && !defined(NO_ERROR_QUEUE) && \
-    defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL)
+#if !defined(SINGLE_THREADED) && defined(ERROR_QUEUE_PER_THREAD) && \
+    !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_WOLFSSL)
 #define LOGGING_THREADS 5
 #define ERROR_COUNT 10
 /* copied from logging.c since this is not exposed otherwise */
@@ -53063,8 +53064,9 @@ static THREAD_RETURN WOLFSSL_THREAD test_logging(void* args)
 static int test_error_queue_per_thread(void)
 {
     int res = TEST_SKIPPED;
-#if defined(ERROR_QUEUE_PER_THREAD) && !defined(NO_ERROR_QUEUE) && \
-    defined(OPENSSL_EXTRA) && defined(DEBUG_WOLFSSL)
+#if !defined(SINGLE_THREADED) && defined(ERROR_QUEUE_PER_THREAD) && \
+    !defined(NO_ERROR_QUEUE) && defined(OPENSSL_EXTRA) && \
+    defined(DEBUG_WOLFSSL)
     THREAD_TYPE loggingThreads[LOGGING_THREADS];
     int i;
 
