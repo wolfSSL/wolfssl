@@ -531,22 +531,38 @@ void wc_Pkcs11_Finalize(Pkcs11Dev* dev)
 static int Pkcs11Slot_FindByTokenName(Pkcs11Dev* dev,
     const char* tokenName, size_t tokenNameSz)
 {
+    int           ret = -1;
     CK_RV         rv;
     CK_ULONG      slotCnt = 0;
     CK_TOKEN_INFO tinfo;
-    int           slotId = -1;
+    int           index = -1;
+    CK_SLOT_ID*   slot = NULL;
+
     rv = dev->func->C_GetSlotList(CK_TRUE, NULL, &slotCnt);
     if (rv == CKR_OK) {
-        for (slotId = 0; slotId < (int)slotCnt; slotId++) {
-            rv = dev->func->C_GetTokenInfo(slotId, &tinfo);
+        slot = (CK_SLOT_ID*)XMALLOC(slotCnt * sizeof(*slot), dev->heap,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+        if (slot == NULL)
+            goto out;
+        rv = dev->func->C_GetSlotList(CK_TRUE, slot, &slotCnt);
+        if (rv != CKR_OK)
+            goto out;
+        for (index = 0; index < (int)slotCnt; index++) {
+            rv = dev->func->C_GetTokenInfo(slot[index], &tinfo);
             PKCS11_RV("C_GetTokenInfo", rv);
             if (rv == CKR_OK &&
                 XMEMCMP(tinfo.label, tokenName, tokenNameSz) == 0) {
-                return slotId;
+                ret =  slot[index];
+                break;
             }
         }
     }
-    return -1;
+
+out:
+    if (slot != NULL) {
+        XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return ret;
 }
 
 /* lookup by slotId or tokenName */
