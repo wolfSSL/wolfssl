@@ -441,7 +441,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #define f3(x,y,z) (((x)&(y))|((z)&((x)|(y))))
     #define f4(x,y,z) ((x)^(y)^(z))
 
-    #ifdef WOLFSSL_NUCLEUS_1_2
+    #if defined(WOLFSSL_NUCLEUS_1_2) || defined(NUCLEUS_PLUS_2_3)
         /* nucleus.h also defines R1-R4 */
         #undef R1
         #undef R2

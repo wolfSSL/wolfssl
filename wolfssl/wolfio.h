@@ -168,6 +168,9 @@
             #include "socket.h"
         #elif defined(NETOS)
             #include <sockapi.h>
+        #elif defined(NUCLEUS_PLUS_2_3)
+            #define SO_TYPE     17  /* Socket type */
+            #define SO_RCVTIMEO 13  /* Recv Timeout */
         #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) \
                 && !defined(WOLFSSL_CONTIKI) && !defined(WOLFSSL_WICED) \
                 && !defined(WOLFSSL_GNRC) && !defined(WOLFSSL_RIOT_OS)
@@ -270,6 +273,14 @@
     #define SOCKET_EPIPE        NU_NOT_CONNECTED
     #define SOCKET_ECONNREFUSED NU_CONNECTION_REFUSED
     #define SOCKET_ECONNABORTED NU_NOT_CONNECTED
+#elif defined(NUCLEUS_PLUS_2_3)
+    #define SOCKET_EWOULDBLOCK  NU_WOULD_BLOCK
+    #define SOCKET_EAGAIN       NU_NO_DATA
+    #define SOCKET_ECONNRESET   NU_RESET
+    #define SOCKET_EINTR        0
+    #define SOCKET_EPIPE        0
+    #define SOCKET_ECONNREFUSED NU_CONNECTION_REFUSED
+    #define SOCKET_ECONNABORTED NU_CONNECTION_REFUSED
 #elif defined(WOLFSSL_DEOS)
     /* `sockaddr_storage` is not defined in DEOS. This workaround will
      * work for IPV4, but not IPV6
@@ -354,6 +365,11 @@
 #elif defined(WOLFSSL_NUCLEUS_1_2)
     #define SEND_FUNCTION NU_Send
     #define RECV_FUNCTION NU_Recv
+#elif defined(NUCLEUS_PLUS_2_3)
+    #define SEND_FUNCTION          nucyassl_send
+    #define RECV_FUNCTION          nucyassl_recv
+    #define DTLS_RECVFROM_FUNCTION nucyassl_recvfrom
+    #define DTLS_SENDTO_FUNCTION   nucyassl_sendto
 #elif defined(FUSION_RTOS)
     #define SEND_FUNCTION FNS_SEND
     #define RECV_FUNCTION FNS_RECV
@@ -398,6 +414,9 @@
     #ifndef XSOCKLENT
         #ifdef USE_WINDOWS_API
             #define XSOCKLENT int
+        #elif defined(NUCLEUS_PLUS_2_3)
+            typedef int socklen_t;
+            #define XSOCKLENT socklen_t
         #else
             #define XSOCKLENT socklen_t
         #endif
@@ -485,6 +504,10 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
     #ifdef WOLFSSL_DTLS
+        #ifdef NUCLEUS_PLUS_2_3
+            #define SELECT_FUNCTION nucyassl_select
+            WOLFSSL_LOCAL int nucyassl_select(INT sd, UINT32 timeout);
+        #endif
         WOLFSSL_API int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz,
                                          void *ctx);
         WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx);
