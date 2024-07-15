@@ -1353,23 +1353,9 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     int algId)
 {
     int ret;
-#if (defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_PWDBASED)) || \
-     defined(HAVE_PKCS8)
-    word32 p8AlgId = 0;
-#endif
 
     (void)info;
     (void)format;
-
-#ifdef HAVE_PKCS8
-    /* Try and remove PKCS8 header and get algorithm id. */
-    ret = ToTraditional_ex(der->buffer, der->length, &p8AlgId);
-    if (ret > 0) {
-        /* Header stripped inline. */
-        der->length = (word32)ret;
-        algId = p8AlgId;
-    }
-#endif
 
     /* Put the data into the SSL or SSL context object. */
     ret = ProcessBufferPrivKeyHandleDer(ctx, ssl, &der, type);
