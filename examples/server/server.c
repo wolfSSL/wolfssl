@@ -532,7 +532,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     return 0;
 }
 
-static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
+static void ServerRead(WOLFSSL* ssl, char* input, int inputLen, byte inLine)
 {
     int ret, err;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -540,7 +540,19 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
     /* Read data */
     do {
         err = 0; /* reset error */
-        ret = SSL_read(ssl, input, inputLen);
+        if (inLine) {
+            byte largeBuffer[4096];
+            byte* outputPtr = NULL;
+
+            ret = wolfSSL_read_inline(ssl, largeBuffer, sizeof(largeBuffer),
+                    (void**)&outputPtr, inputLen);
+            if (ret > 0) {
+                XMEMCPY(input, outputPtr, ret);
+            }
+        }
+        else {
+            ret = SSL_read(ssl, input, inputLen);
+        }
         if (ret < 0) {
             err = SSL_get_error(ssl, ret);
 
@@ -621,7 +633,8 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
     }
 }
 
-static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
+static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen,
+    byte inLine)
 {
     int ret, err;
     int len;
@@ -636,7 +649,16 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
 
     do {
         err = 0; /* reset error */
-        ret = SSL_write(ssl, output, len);
+        if (inLine) {
+            byte largeBuffer[4096];
+
+            XMEMCPY(largeBuffer, output, outputLen);
+            ret = wolfSSL_write_inline(ssl, largeBuffer, outputLen,
+                    sizeof(largeBuffer));
+        }
+        else {
+            ret = SSL_write(ssl, output, len);
+        }
         if (ret <= 0) {
             err = SSL_get_error(ssl, 0);
 
@@ -807,7 +829,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][65] = {
+static const char* server_usage_msg[][66] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -980,10 +1002,12 @@ static const char* server_usage_msg[][65] = {
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
+        "--inline-io         Does encrypt and decrypt inline with\n"
+        "                    wolfSSL_write and wolfSSL_read.\n",        /* 66 */
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 66 */
+                                                                        /* 67 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1174,11 +1198,13 @@ static const char* server_usage_msg[][65] = {
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
+        "--inline-io         Does encrypt and decrypt inline with\n"
+        "                    wolfSSL_write and wolfSSL_read.\n",        /* 66 */
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 66 */
+                                                                        /* 67 */
         NULL,
     },
 #endif
@@ -1457,6 +1483,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
         { "altPrivKey", 1, 267},
 #endif
+        { "inline-io", 0, 268},
         { 0, 0, 0 }
     };
 #endif
@@ -1626,6 +1653,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     char* altPrivKey = NULL;
     int exitWithRet = 0;
     int loadCertKeyIntoSSLObj = 0;
+    byte inLineIO = 0;
 
 #ifdef HAVE_ENCRYPT_THEN_MAC
     int disallowETM = 0;
@@ -2350,6 +2378,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             altPrivKey = myoptarg;
             break;
 #endif
+
+        case 268:
+            inLineIO = 1;
+            break;
 
         case -1:
             default:
@@ -3620,7 +3652,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
         if (echoData == 0 && throughput == 0) {
-            ServerRead(ssl, input, sizeof(input)-1);
+            ServerRead(ssl, input, sizeof(input)-1, inLineIO);
             err = SSL_get_error(ssl, 0);
         }
 
@@ -3739,11 +3771,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 write_msg = kHttpServerMsg;
                 write_msg_sz = (int)XSTRLEN(kHttpServerMsg);
             }
-            ServerWrite(ssl, write_msg, write_msg_sz);
+            ServerWrite(ssl, write_msg, write_msg_sz, inLineIO);
 
 #ifdef WOLFSSL_TLS13
             if (updateKeysIVs || postHandAuth)
-                ServerRead(ssl, input, sizeof(input)-1);
+                ServerRead(ssl, input, sizeof(input)-1, 0);
 #endif
         }
         else if (err == 0 || err == WOLFSSL_ERROR_ZERO_RETURN) {

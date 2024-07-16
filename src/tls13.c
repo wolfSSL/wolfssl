@@ -14647,7 +14647,7 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
             return WOLFSSL_FATAL_ERROR;
     }
     if (ssl->options.handShakeState == SERVER_FINISHED_COMPLETE) {
-        ret = ReceiveData(ssl, (byte*)data, sz, FALSE);
+        ret = ReceiveData(ssl, (byte**)&data, sz, FALSE);
         if (ret > 0)
             *outSz = ret;
         if (ssl->error == ZERO_RETURN) {

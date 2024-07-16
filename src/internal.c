@@ -10532,8 +10532,11 @@ retry:
 void ShrinkOutputBuffer(WOLFSSL* ssl)
 {
     WOLFSSL_MSG("Shrinking output buffer");
-    XFREE(ssl->buffers.outputBuffer.buffer - ssl->buffers.outputBuffer.offset,
-          ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+
+    if (ssl->buffers.outputBuffer.dynamicFlag != WOLFSSL_EXTERNAL_IO_BUFFER) {
+        XFREE(ssl->buffers.outputBuffer.buffer -
+          ssl->buffers.outputBuffer.offset, ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    }
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.outputBuffer.dynamicFlag = 0;
@@ -10563,10 +10566,12 @@ void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
                usedLength);
     }
 
-    ForceZero(ssl->buffers.inputBuffer.buffer,
-        ssl->buffers.inputBuffer.length);
-    XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
-          ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+    if (ssl->buffers.inputBuffer.dynamicFlag != WOLFSSL_EXTERNAL_IO_BUFFER) {
+        ForceZero(ssl->buffers.inputBuffer.buffer,
+            ssl->buffers.inputBuffer.length);
+        XFREE(ssl->buffers.inputBuffer.buffer - ssl->buffers.inputBuffer.offset,
+            ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+    }
     ssl->buffers.inputBuffer.buffer = ssl->buffers.inputBuffer.staticBuffer;
     ssl->buffers.inputBuffer.bufferSize  = STATIC_BUFFER_LEN;
     ssl->buffers.inputBuffer.dynamicFlag = 0;
@@ -10678,6 +10683,41 @@ byte* GetOutputBuffer(WOLFSSL* ssl)
 }
 
 
+/* sets the output buffer from an externally provided buffer */
+int SetOutputBuffer(WOLFSSL* ssl, byte* buf, int bufSz)
+{
+    if (ssl == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* data waiting to be sent, don't overwrite it */
+    if (ssl->buffers.outputBuffer.length > 0) {
+        return WANT_WRITE;
+    }
+
+    ssl->buffers.outputBuffer.dynamicFlag = WOLFSSL_EXTERNAL_IO_BUFFER;
+    ssl->buffers.outputBuffer.buffer     = buf;
+    ssl->buffers.outputBuffer.bufferSize = bufSz;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
+/* sets the input buffer from an externally provided buffer */
+int SetInputBuffer(WOLFSSL* ssl, byte* buf, int bufSz)
+{
+    if (ssl == NULL || buf == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ssl->buffers.inputBuffer.dynamicFlag = WOLFSSL_EXTERNAL_IO_BUFFER;
+    ssl->buffers.inputBuffer.buffer     = buf;
+    ssl->buffers.inputBuffer.bufferSize = bufSz;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
 /* Grow the output buffer */
 static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 {
@@ -10699,6 +10739,11 @@ static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
     while (align < hdrSz)
         align *= 2;
 #endif
+
+    if (ssl->buffers.outputBuffer.dynamicFlag == WOLFSSL_EXTERNAL_IO_BUFFER) {
+        WOLFSSL_MSG("External output buffer provided was too small");
+        return BAD_FUNC_ARG;
+    }
 
     if (! WC_SAFE_SUM_WORD32(ssl->buffers.outputBuffer.idx,
                              ssl->buffers.outputBuffer.length, newSz))
@@ -10778,6 +10823,11 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 
     if (usedLength < 0 || size < 0) {
         WOLFSSL_MSG("GrowInputBuffer() called with negative number");
+        return BAD_FUNC_ARG;
+    }
+
+    if (ssl->buffers.inputBuffer.dynamicFlag == WOLFSSL_EXTERNAL_IO_BUFFER) {
+        WOLFSSL_MSG("External input buffer provided was too small");
         return BAD_FUNC_ARG;
     }
 
@@ -22706,6 +22756,12 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
 #endif
 
+            /* move plan text data out of record headers way */
+            if (ssl->buffers.outputBuffer.dynamicFlag ==
+                WOLFSSL_EXTERNAL_IO_BUFFER) {
+                XMEMMOVE(output + args->headerSz + args->ivSz, input, inSz);
+            }
+
             args->size = (word16)(args->sz - args->headerSz);    /* include mac and digest */
             AddRecordHeader(output, args->size, (byte)type, ssl, epochOrder);
 
@@ -22715,7 +22771,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                                         min(args->ivSz, MAX_IV_SZ));
                 args->idx += min(args->ivSz, MAX_IV_SZ);
             }
-            XMEMCPY(output + args->idx, input, inSz);
+            if (ssl->buffers.outputBuffer.dynamicFlag !=
+                    WOLFSSL_EXTERNAL_IO_BUFFER) {
+                XMEMCPY(output + args->idx, input, inSz);
+            }
             args->idx += inSz;
 
             ssl->options.buildMsgState = BUILD_MSG_HASH;
@@ -24628,7 +24687,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 }
 
 /* process input data */
-int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
+int ReceiveData(WOLFSSL* ssl, byte** output, int sz, int peek)
 {
     int size;
 
@@ -24775,7 +24834,12 @@ startScr:
 
     size = min(sz, (int)ssl->buffers.clearOutputBuffer.length);
 
-    XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
+    if (ssl->buffers.inputBuffer.dynamicFlag == WOLFSSL_EXTERNAL_IO_BUFFER) {
+       *output = ssl->buffers.clearOutputBuffer.buffer;
+    }
+    else {
+        XMEMCPY(*output, ssl->buffers.clearOutputBuffer.buffer, size);
+    }
 
     if (peek == 0) {
         ssl->buffers.clearOutputBuffer.length -= size;
