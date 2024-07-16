@@ -7557,7 +7557,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         else if (hashSz == 48) {
             hashType = WC_HASH_TYPE_SHA384;
         }
-        else if (hashSz ==32) {
+        else if (hashSz == 32) {
             hashType = WC_HASH_TYPE_SHA256;
         }
         else {
