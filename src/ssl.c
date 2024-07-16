@@ -3026,7 +3026,7 @@ int  wolfSSL_read_inline(WOLFSSL* ssl, void* buf, int bufSz, void** data,
 
     /* ShrinkInputBuffer will reset the internal buffer back to the static
      * buffer and does not zero out or free 'buf' */
-    if (SetInputBuffer(ssl, buf, bufSz) != WOLFSSL_SUCCESS) {
+    if (SetInputBuffer(ssl, (byte*)buf, bufSz) != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
 
