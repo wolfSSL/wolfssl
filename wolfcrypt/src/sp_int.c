@@ -210,9 +210,10 @@ This library provides single precision (SP) integer math functions.
 
 
 /* Declare a variable that will be assigned a value on XMALLOC. */
-#define DECL_DYN_SP_INT_ARRAY(n, s, c)  \
-    sp_int* n##d = NULL;            \
-    sp_int* (n)[c] = { NULL, }
+#define DECL_DYN_SP_INT_ARRAY(n, s, c)               \
+    sp_int* n##d = NULL;                             \
+    sp_int* (n)[c];                                  \
+    void *n ## _dummy_var = XMEMSET(n, 0, sizeof(n))
 
 /* DECL_SP_INT_ARRAY: Declare array of 'sp_int'. */
 #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
@@ -240,6 +241,7 @@ This library provides single precision (SP) integer math functions.
  */
 #define ALLOC_DYN_SP_INT_ARRAY(n, s, c, err, h)                                \
 do {                                                                           \
+    (void)n ## _dummy_var;                                                     \
     if (((err) == MP_OKAY) && ((s) > SP_INT_DIGITS)) {                         \
         (err) = MP_VAL;                                                        \
     }                                                                          \
