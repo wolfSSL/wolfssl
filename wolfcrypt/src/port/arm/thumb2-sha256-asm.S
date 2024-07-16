@@ -925,7 +925,7 @@ L_SHA256_transform_len_start:
 	STR	r9, [sp, #60]
 	ADD	r3, r3, #0x40
 	SUBS	r12, r12, #0x1
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA256_transform_len_start
 #else
 	BNE.W	L_SHA256_transform_len_start
@@ -1470,7 +1470,7 @@ L_SHA256_transform_len_start:
 	SUBS	r2, r2, #0x40
 	SUB	r3, r3, #0xc0
 	ADD	r1, r1, #0x40
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA256_transform_len_begin
 #else
 	BNE.W	L_SHA256_transform_len_begin

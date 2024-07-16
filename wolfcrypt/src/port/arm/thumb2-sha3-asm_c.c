@@ -77,7 +77,11 @@ void BlockSha3(word64* state)
         "MOV	r1, %[L_sha3_thumb2_rt]\n\t"
         "MOV	r2, #0xc\n\t"
         "\n"
-    "L_sha3_thumb2_begin%=:\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_sha3_thumb2_begin:\n\t"
+#else
+    "L_sha3_thumb2_begin_%=:\n\t"
+#endif
         "STR	r2, [sp, #200]\n\t"
         /* Round even */
         /* Calc b[4] */
@@ -1137,10 +1141,12 @@ void BlockSha3(word64* state)
         "STR	lr, [%[state], #164]\n\t"
         "LDR	r2, [sp, #200]\n\t"
         "SUBS	r2, r2, #0x1\n\t"
-#ifdef __GNUC__
-        "BNE	L_sha3_thumb2_begin%=\n\t"
+#if defined(__GNUC__)
+        "BNE	L_sha3_thumb2_begin_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_sha3_thumb2_begin\n\t"
 #else
-        "BNE.W	L_sha3_thumb2_begin%=\n\t"
+        "BNE.W	L_sha3_thumb2_begin_%=\n\t"
 #endif
         "ADD	sp, sp, #0xcc\n\t"
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG

@@ -126,7 +126,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "STRD	r10, r11, [sp, #184]\n\t"
         /* Start of loop processing a block */
         "\n"
-    "L_SHA512_transform_len_begin%=:\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_SHA512_transform_len_begin:\n\t"
+#else
+    "L_SHA512_transform_len_begin_%=:\n\t"
+#endif
         /* Load, Reverse and Store W */
         "LDR	r4, [%[data]]\n\t"
         "LDR	r5, [%[data], #4]\n\t"
@@ -232,7 +236,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "MOV	r12, #0x4\n\t"
         /* Start of 16 rounds */
         "\n"
-    "L_SHA512_transform_len_start%=:\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+    "L_SHA512_transform_len_start:\n\t"
+#else
+    "L_SHA512_transform_len_start_%=:\n\t"
+#endif
         /* Round 0 */
         "LDRD	r4, r5, [%[sha512], #32]\n\t"
         "LSRS	r6, r4, #14\n\t"
@@ -2219,10 +2227,12 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "STRD	r4, r5, [sp, #120]\n\t"
         "ADD	r3, r3, #0x80\n\t"
         "SUBS	r12, r12, #0x1\n\t"
-#ifdef __GNUC__
-        "BNE	L_SHA512_transform_len_start%=\n\t"
+#if defined(__GNUC__)
+        "BNE	L_SHA512_transform_len_start_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_SHA512_transform_len_start\n\t"
 #else
-        "BNE.W	L_SHA512_transform_len_start%=\n\t"
+        "BNE.W	L_SHA512_transform_len_start_%=\n\t"
 #endif
         /* Round 0 */
         "LDRD	r4, r5, [%[sha512], #32]\n\t"
@@ -3556,10 +3566,12 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "SUBS	%[len], %[len], #0x80\n\t"
         "SUB	r3, r3, #0x200\n\t"
         "ADD	%[data], %[data], #0x80\n\t"
-#ifdef __GNUC__
-        "BNE	L_SHA512_transform_len_begin%=\n\t"
+#if defined(__GNUC__)
+        "BNE	L_SHA512_transform_len_begin_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
+        "BNE.W	L_SHA512_transform_len_begin\n\t"
 #else
-        "BNE.W	L_SHA512_transform_len_begin%=\n\t"
+        "BNE.W	L_SHA512_transform_len_begin_%=\n\t"
 #endif
         "EOR	r0, r0, r0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
