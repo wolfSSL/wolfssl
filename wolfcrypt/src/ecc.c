@@ -6837,13 +6837,17 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         if (key->sign_k == NULL) {
             key->sign_k = (mp_int*)XMALLOC(sizeof(mp_int), key->heap,
                                                             DYNAMIC_TYPE_ECC);
+            if (key->sign_k != NULL) {
+                err = mp_init(key->sign_k);
+                if (err != MP_OKAY) {
+                    XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
+                    key->sign_k = NULL;
+                }
+            }
         }
-
         if (key->sign_k != NULL) {
-            /* currently limiting to SHA256 for auto create */
-            if (mp_init(key->sign_k) != MP_OKAY ||
-                wc_ecc_gen_deterministic_k(in, inlen,
-                        WC_HASH_TYPE_SHA256, ecc_get_k(key), key->sign_k,
+            if (wc_ecc_gen_deterministic_k(in, inlen,
+                        key->hashType, ecc_get_k(key), key->sign_k,
                         curve->order, key->heap) != 0) {
                 mp_free(key->sign_k);
                 XFREE(key->sign_k, key->heap, DYNAMIC_TYPE_ECC);
@@ -6861,8 +6865,7 @@ static int deterministic_sign_helper(const byte* in, word32 inlen, ecc_key* key)
         }
     #else
         key->sign_k_set = 0;
-        /* currently limiting to SHA256 for auto create */
-        if (wc_ecc_gen_deterministic_k(in, inlen, WC_HASH_TYPE_SHA256,
+        if (wc_ecc_gen_deterministic_k(in, inlen, key->hashType,
                 ecc_get_k(key), key->sign_k, curve->order, key->heap) != 0) {
             err = ECC_PRIV_KEY_E;
         }
@@ -7479,7 +7482,7 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
     Hmac hmac;
     int  ret, init;
 
-    ret = init = wc_HmacInit(&hmac, heap, 0);
+    ret = init = wc_HmacInit(&hmac, heap, INVALID_DEVID);
     if (ret == 0)
         ret = wc_HmacSetKey(&hmac, hashType, K, KSz);
 
@@ -7519,7 +7522,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         enum wc_HashType hashType, mp_int* priv, mp_int* k, mp_int* order,
         void* heap)
 {
-    int ret = 0, qbits = 0;
+    int ret = 0;
 #ifndef WOLFSSL_SMALL_STACK
     byte h1[MAX_ECC_BYTES];
     byte V[WC_MAX_DIGEST_SIZE];
@@ -7535,6 +7538,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 #endif
     word32 xSz, VSz, KSz, h1len, qLen;
     byte intOct;
+    word32 qbits = 0;
 
     if (hash == NULL || k == NULL || order == NULL) {
         return BAD_FUNC_ARG;
@@ -7545,9 +7549,20 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         return BAD_FUNC_ARG;
     }
 
-    if (hashSz != WC_SHA256_DIGEST_SIZE) {
-        WOLFSSL_MSG("Currently only SHA256 digest is supported");
-        return BAD_FUNC_ARG;
+    /* if none is provided then detect has type based on hash size */
+    if (hashType == WC_HASH_TYPE_NONE) {
+        if (hashSz == 64) {
+            hashType = WC_HASH_TYPE_SHA512;
+        }
+        else if (hashSz == 48) {
+            hashType = WC_HASH_TYPE_SHA384;
+        }
+        else if (hashSz == 32) {
+            hashType = WC_HASH_TYPE_SHA256;
+        }
+        else {
+            return BAD_FUNC_ARG;
+        }
     }
 
     if (mp_unsigned_bin_size(priv) > MAX_ECC_BYTES) {
@@ -7615,6 +7630,12 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         wc_MemZero_Add("wc_ecc_gen_deterministic_k x", x, qLen);
     #endif
         qbits = mp_count_bits(order);
+
+         /* hash truncate if too long */
+        if (((WOLFSSL_BIT_SIZE) * hashSz) > qbits) {
+            /* calculate truncated hash size using bits rounded up byte */
+            hashSz = (qbits + ((WOLFSSL_BIT_SIZE) - 1)) / (WOLFSSL_BIT_SIZE);
+        }
         ret = mp_read_unsigned_bin(z1, hash, hashSz);
     }
 
@@ -7636,7 +7657,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = BUFFER_E;
             }
             else {
-                ret = mp_to_unsigned_bin_len(z1, h1, h1len);
+                ret = mp_to_unsigned_bin_len(z1, h1, (int)h1len);
             }
         }
         else
@@ -7705,7 +7726,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = mp_read_unsigned_bin(k, x, xSz);
             }
 
-            if ((ret == 0) && ((int)(xSz * WOLFSSL_BIT_SIZE) != qbits)) {
+            if ((ret == 0) && ((xSz * WOLFSSL_BIT_SIZE) != qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
                  *  k = bits2int(T) in section 3.2 h.3 */
                 mp_rshb(k, ((int)xSz * WOLFSSL_BIT_SIZE) - qbits);
@@ -7758,15 +7779,22 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 /* Sets the deterministic flag for 'k' generation with sign.
  * returns 0 on success
  */
-int wc_ecc_set_deterministic(ecc_key* key, byte flag)
+int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag, int hashType)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
     key->deterministic = flag ? 1 : 0;
+    key->hashType = hashType;
     return 0;
 }
+
+int wc_ecc_set_deterministic(ecc_key* key, byte flag)
+{
+    return wc_ecc_set_deterministic_ex(key, flag, WC_HASH_TYPE_NONE);
+}
+
 #endif /* end sign_ex and deterministic sign */
 
 
