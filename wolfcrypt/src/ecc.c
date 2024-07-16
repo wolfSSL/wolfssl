@@ -7536,8 +7536,9 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
     byte *x  = NULL;
     mp_int *z1 = NULL;
 #endif
-    word32 qbits = 0, xSz, VSz, KSz, h1len, qLen;
+    word32 xSz, VSz, KSz, h1len, qLen;
     byte intOct;
+    word32 qbits = 0;
 
     if (hash == NULL || k == NULL || order == NULL) {
         return BAD_FUNC_ARG;
@@ -7550,14 +7551,17 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* if none is provided then detect has type based on hash size */
     if (hashType == WC_HASH_TYPE_NONE) {
-        if (hashSz >= 64) {
+        if (hashSz == 64) {
             hashType = WC_HASH_TYPE_SHA512;
         }
-        else if (hashSz >= 48) {
+        else if (hashSz == 48) {
             hashType = WC_HASH_TYPE_SHA384;
         }
-        else {
+        else if (hashSz ==32) {
             hashType = WC_HASH_TYPE_SHA256;
+        }
+        else {
+            return BAD_FUNC_ARG;
         }
     }
 
