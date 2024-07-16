@@ -602,6 +602,9 @@ struct dilithium_key {
     sword32 w[DILITHIUM_N];
     sword32 t1[DILITHIUM_N];
     byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
+#ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+    sword64 t64[DILITHIUM_N];
+#endif
     byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
     byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
 #endif /* WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC &&
