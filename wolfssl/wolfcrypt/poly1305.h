@@ -132,9 +132,12 @@ WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional,
     word32 addSz, const byte* input, word32 sz, byte* tag, word32 tagSz);
 
 #if defined(__aarch64__ ) && defined(WOLFSSL_ARMASM)
-void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
+#define poly1305_blocks     poly1305_blocks_aarch64
+#define poly1305_block      poly1305_block_aarch64
+
+void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
                             size_t bytes);
-void poly1305_block(Poly1305* ctx, const unsigned char *m);
+void poly1305_block_aarch64(Poly1305* ctx, const unsigned char *m);
 #endif
 
 #ifdef __cplusplus
