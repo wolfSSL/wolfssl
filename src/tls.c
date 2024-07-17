@@ -8705,7 +8705,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
         if (ret == 0) {
-            ret = wc_ecc_set_rng(keyShareEntry->key, ssl->rng);
+            ret = wc_ecc_set_rng((ecc_key *)keyShareEntry->key, ssl->rng);
             if (ret != 0) {
                 WOLFSSL_MSG("Failure to set the ECC private key RNG.");
             }
@@ -8714,8 +8714,8 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 
         if (ret == 0) {
             PRIVATE_KEY_UNLOCK();
-            ret = wc_ecc_shared_secret(keyShareEntry->key, &eccpubkey,
-                sharedSecret, &outlen);
+            ret = wc_ecc_shared_secret((ecc_key *)keyShareEntry->key,
+                &eccpubkey, sharedSecret, &outlen);
             PRIVATE_KEY_LOCK();
             if (outlen != sharedSecretLen - ssSz) {
                 WOLFSSL_MSG("ECC shared secret derivation error.");
@@ -9193,14 +9193,14 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION != 2))) && \
     !defined(HAVE_SELFTEST)
         if (ret == 0) {
-            ret = wc_ecc_set_rng(ecc_kse->key, ssl->rng);
+            ret = wc_ecc_set_rng((ecc_key *)ecc_kse->key, ssl->rng);
         }
 #endif
 
         if (ret == 0) {
             outlen = ecc_kse->keyLen;
             PRIVATE_KEY_UNLOCK();
-            ret = wc_ecc_shared_secret(ecc_kse->key, &eccpubkey,
+            ret = wc_ecc_shared_secret((ecc_key *)ecc_kse->key, &eccpubkey,
                                        sharedSecret,
                                        &outlen);
             PRIVATE_KEY_LOCK();

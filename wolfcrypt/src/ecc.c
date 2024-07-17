@@ -7538,7 +7538,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 #endif
     word32 xSz, VSz, KSz, h1len, qLen;
     byte intOct;
-    word32 qbits = 0;
+    int qbits = 0;
 
     if (hash == NULL || k == NULL || order == NULL) {
         return BAD_FUNC_ARG;
@@ -7630,11 +7630,15 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         wc_MemZero_Add("wc_ecc_gen_deterministic_k x", x, qLen);
     #endif
         qbits = mp_count_bits(order);
+        if (qbits < 0)
+            ret = MP_VAL;
+    }
 
+    if (ret == 0) {
          /* hash truncate if too long */
-        if (((WOLFSSL_BIT_SIZE) * hashSz) > qbits) {
+        if (((WOLFSSL_BIT_SIZE) * hashSz) > (word32)qbits) {
             /* calculate truncated hash size using bits rounded up byte */
-            hashSz = (qbits + ((WOLFSSL_BIT_SIZE) - 1)) / (WOLFSSL_BIT_SIZE);
+            hashSz = ((word32)qbits + (WOLFSSL_BIT_SIZE - 1)) / WOLFSSL_BIT_SIZE;
         }
         ret = mp_read_unsigned_bin(z1, hash, hashSz);
     }
@@ -7726,7 +7730,7 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
                 ret = mp_read_unsigned_bin(k, x, xSz);
             }
 
-            if ((ret == 0) && ((xSz * WOLFSSL_BIT_SIZE) != qbits)) {
+            if ((ret == 0) && ((xSz * WOLFSSL_BIT_SIZE) != (word32)qbits)) {
                 /* handle odd case where shift of 'k' is needed with RFC 6979
                  *  k = bits2int(T) in section 3.2 h.3 */
                 mp_rshb(k, ((int)xSz * WOLFSSL_BIT_SIZE) - qbits);
@@ -7779,7 +7783,8 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 /* Sets the deterministic flag for 'k' generation with sign.
  * returns 0 on success
  */
-int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag, int hashType)
+int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag,
+                                enum wc_HashType hashType)
 {
     if (key == NULL) {
         return BAD_FUNC_ARG;
@@ -7887,7 +7892,9 @@ int wc_ecc_free(ecc_key* key)
         return 0;
     }
 
-#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP)
+#if defined(WOLFSSL_ECDSA_SET_K) || defined(WOLFSSL_ECDSA_SET_K_ONE_LOOP) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
+    defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
 #ifndef WOLFSSL_NO_MALLOC
     if (key->sign_k != NULL)
 #endif

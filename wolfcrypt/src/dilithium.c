@@ -2035,7 +2035,7 @@ static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
 #define DILITHIUM_COEFF_S_VALID_ETA2(b) \
     ((b) < DILITHIUM_ETA_2_MOD)
 
-static const byte dilithium_coeff_eta2[] = {
+static const char dilithium_coeff_eta2[] = {
     2, 1, 0, -1, -2,
     2, 1, 0, -1, -2,
     2, 1, 0, -1, -2

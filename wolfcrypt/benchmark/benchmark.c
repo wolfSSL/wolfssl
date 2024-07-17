@@ -9586,7 +9586,7 @@ static int lms_read_key_mem(byte* priv, word32 privSz, void* context)
 }
 static byte lms_priv[HSS_MAX_PRIVATE_KEY_LEN];
 
-static void bench_lms_keygen(int parm, byte* pub)
+static void bench_lms_keygen(enum wc_LmsParm parm, byte* pub)
 {
     WC_RNG      rng;
     LmsKey      key;
@@ -9698,7 +9698,7 @@ exit_lms_keygen:
     wc_FreeRng(&rng);
 }
 
-static void bench_lms_sign_verify(int parm, byte* pub)
+static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
 {
     LmsKey       key;
     int          ret = 0;
@@ -9762,6 +9762,31 @@ static void bench_lms_sign_verify(int parm, byte* pub)
     case WC_LMS_PARM_L1_H15_W4:
     case WC_LMS_PARM_L2_H10_W8:
     case WC_LMS_PARM_L3_H5_W2:
+    case WC_LMS_PARM_L1_H5_W1:
+    case WC_LMS_PARM_L1_H5_W2:
+    case WC_LMS_PARM_L1_H5_W4:
+    case WC_LMS_PARM_L1_H5_W8:
+    case WC_LMS_PARM_L1_H10_W2:
+    case WC_LMS_PARM_L1_H10_W4:
+    case WC_LMS_PARM_L1_H10_W8:
+    case WC_LMS_PARM_L1_H15_W8:
+    case WC_LMS_PARM_L1_H20_W2:
+    case WC_LMS_PARM_L1_H20_W4:
+    case WC_LMS_PARM_L1_H20_W8:
+    case WC_LMS_PARM_L2_H5_W2:
+    case WC_LMS_PARM_L2_H5_W4:
+    case WC_LMS_PARM_L2_H5_W8:
+    case WC_LMS_PARM_L2_H15_W2:
+    case WC_LMS_PARM_L2_H15_W4:
+    case WC_LMS_PARM_L2_H15_W8:
+    case WC_LMS_PARM_L2_H20_W2:
+    case WC_LMS_PARM_L2_H20_W4:
+    case WC_LMS_PARM_L2_H20_W8:
+    case WC_LMS_PARM_L3_H10_W8:
+    case WC_LMS_PARM_L4_H5_W2:
+    case WC_LMS_PARM_L4_H5_W4:
+    case WC_LMS_PARM_L4_H10_W4:
+    case WC_LMS_PARM_L4_H10_W8:
     default:
         XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
         break;
@@ -9853,7 +9878,7 @@ static void bench_lms_sign_verify(int parm, byte* pub)
 
     loaded = 1;
 
-    sig = XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = (byte *)XMALLOC(sigSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
         printf("bench_lms_sign_verify malloc failed\n");
         goto exit_lms_sign_verify;
