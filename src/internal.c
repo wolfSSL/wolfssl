@@ -4643,11 +4643,20 @@ void FreeX509(WOLFSSL_X509* x509)
         x509->altNames = NULL;
     }
 
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-    XFREE(x509->sapkiDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-    XFREE(x509->altSigAlgDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-    XFREE(x509->altSigValDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
+    #ifdef WOLFSSL_DUAL_ALG_CERTS
+    if (x509->sapkiDer) {
+        XFREE(x509->sapkiDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->sapkiDer = NULL;
+    }
+    if (x509->altSigAlgDer) {
+        XFREE(x509->altSigAlgDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->altSigAlgDer = NULL;
+    }
+    if (x509->altSigValDer) {
+        XFREE(x509->altSigValDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->altSigValDer= NULL;
+    }
+    #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
         wolfSSL_RefFree(&x509->ref);
@@ -11472,7 +11481,7 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         }
 #endif /* WOLFSSL_DTLS13 */
         /* Don't care about protocol version being lower than expected on alerts
-         * sent back before version negotitation. */
+         * sent back before version negotiation. */
         else if (!(ssl->options.side == WOLFSSL_CLIENT_END &&
                             ssl->options.connectState == CLIENT_HELLO_SENT &&
                             rh->type == alert &&

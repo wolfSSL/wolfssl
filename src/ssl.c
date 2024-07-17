@@ -20228,7 +20228,7 @@ VerifyCallback wolfSSL_CTX_get_verify_callback(WOLFSSL_CTX* ctx)
 }
 
 #ifdef HAVE_SNI
-/* this is a compatibily function, consider using
+/* this is a compatibility function, consider using
  * wolfSSL_CTX_set_servername_callback */
 int wolfSSL_CTX_set_tlsext_servername_callback(WOLFSSL_CTX* ctx,
                                                CallbackSniRecv cb)
