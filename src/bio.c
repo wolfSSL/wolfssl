@@ -391,7 +391,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         }
 
 #ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
-        if ((ret > 0) && (! inhibit_flow_increment)) {
+        if ((ret > 0) && (!inhibit_flow_increment)) {
             bio->bytes_read += (word32)ret;
         }
 #endif
@@ -902,7 +902,8 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
             if (parg == NULL) {
                 wolfSSL_BIO_ADDR_clear(&bio->peer_addr);
                 bio->connected = 0;
-            } else {
+            }
+            else {
                 socklen_t addr_size = wolfSSL_BIO_ADDR_size((WOLFSSL_BIO_ADDR *)parg);
                 if (addr_size == 0) {
                     ret = WOLFSSL_FAILURE;

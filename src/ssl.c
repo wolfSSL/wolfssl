@@ -7347,13 +7347,6 @@ int wolfSSL_i2d_PUBKEY(const WOLFSSL_EVP_PKEY *key, unsigned char **der)
     return wolfSSL_i2d_PublicKey(key, der);
 }
 
-int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey, unsigned char** der)
-{
-    if (x509_PubKey == NULL)
-        return WOLFSSL_FATAL_ERROR;
-    return wolfSSL_i2d_PublicKey(x509_PubKey->pkey, der);
-}
-
 #endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_ASN && !NO_PWDBASED */
 
 static WOLFSSL_EVP_PKEY* _d2i_PublicKey(int type, WOLFSSL_EVP_PKEY** out,

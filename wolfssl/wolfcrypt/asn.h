@@ -83,6 +83,21 @@ enum {
     ASN_AFTER   = 1
 };
 
+#ifndef NO_ASN_OLD_TYPE_NAMES
+    #ifndef ISSUER
+        #define ISSUER ASN_ISSUER
+    #endif
+    #ifndef SUBJECT
+        #define SUBJECT ASN_SUBJECT
+    #endif
+    #ifndef BEFORE
+        #define BEFORE ASN_BEFORE
+    #endif
+    #ifndef AFTER
+        #define AFTER ASN_AFTER
+    #endif
+#endif
+
 /* ASN Tags   */
 enum ASN_Tags {
     ASN_EOC               = 0x00,

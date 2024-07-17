@@ -1461,7 +1461,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #ifdef HAVE_IO_TIMEOUT
     if ((ret != 0) && (to_sec > 0)) {
 #ifdef USE_WINDOWS_API
-        if ((ret == SOCKET_ERROR) && (wolfSSL_LastError(ret, *sockfd) == SOCKET_EWOULDBLOCK))
+        if ((ret == SOCKET_ERROR) &&
+            (wolfSSL_LastError(ret, *sockfd) == SOCKET_EWOULDBLOCK))
 #else
         if (errno == EINPROGRESS)
 #endif

@@ -9592,6 +9592,17 @@ error:
 
 #endif /* OPENSSL_ALL || WOLFSSL_APACHE_HTTPD || WOLFSSL_HAPROXY || WOLFSSL_WPAS */
 
+#if !defined(NO_CERTS) && !defined(NO_ASN) && !defined(NO_PWDBASED)
+
+int wolfSSL_i2d_X509_PUBKEY(WOLFSSL_X509_PUBKEY* x509_PubKey, unsigned char** der)
+{
+    if (x509_PubKey == NULL)
+        return WOLFSSL_FATAL_ERROR;
+    return wolfSSL_i2d_PublicKey(x509_PubKey->pkey, der);
+}
+
+#endif /* !NO_CERTS && !NO_ASN && !NO_PWDBASED */
+
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
