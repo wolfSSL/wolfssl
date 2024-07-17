@@ -2743,6 +2743,58 @@ typedef struct WOLFSSL_DTLS_PEERSEQ {
 #endif
 } WOLFSSL_DTLS_PEERSEQ;
 
+struct WOLFSSL_BIO {
+    WOLFSSL_BUF_MEM* mem_buf;
+    WOLFSSL_BIO_METHOD* method;
+    WOLFSSL_BIO* prev;          /* previous in chain */
+    WOLFSSL_BIO* next;          /* next in chain */
+    WOLFSSL_BIO* pair;          /* BIO paired with */
+    void*        heap;          /* user heap hint */
+    void*        ptr;           /* WOLFSSL, file descriptor, MD, or mem buf */
+    void*        usrCtx;        /* user set pointer */
+    char*        ip;            /* IP address for wolfIO_TcpConnect */
+    word16       port;          /* Port for wolfIO_TcpConnect */
+    char*        infoArg;       /* BIO callback argument */
+    wolf_bio_info_cb infoCb;    /* BIO callback */
+    int          wrSz;          /* write buffer size (mem) */
+    int          wrSzReset;     /* First buffer size (mem) - read ONLY data */
+    int          wrIdx;         /* current index for write buffer */
+    int          rdIdx;         /* current read index */
+    int          readRq;        /* read request */
+    int          num;           /* socket num or length */
+    int          eof;           /* eof flag */
+    int          flags;
+    byte         type;          /* method type */
+    byte         init:1;        /* bio has been initialized */
+    byte         shutdown:1;    /* close flag */
+    byte         connected:1;   /* connected state, for datagram BIOs -- as for
+                                 * struct WOLFSSL_DTLS_CTX, when set, sendto and
+                                 * recvfrom leave the peer_addr unchanged. */
+#ifdef WOLFSSL_HAVE_BIO_ADDR
+    union WOLFSSL_BIO_ADDR peer_addr; /* for datagram BIOs, the socket address stored
+                                       * with BIO_CTRL_DGRAM_CONNECT,
+                                       * BIO_CTRL_DGRAM_SET_CONNECTED, or
+                                       * BIO_CTRL_DGRAM_SET_PEER, or stored when a
+                                       * packet was received on an unconnected BIO. */
+#endif
+
+#if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_BIO_NO_FLOW_STATS)
+    #define WOLFSSL_BIO_HAVE_FLOW_STATS
+    word64       bytes_read;
+    word64       bytes_written;
+#endif
+
+#ifdef HAVE_EX_DATA
+    WOLFSSL_CRYPTO_EX_DATA ex_data;
+#endif
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+    wolfSSL_Ref  ref;
+#endif
+};
+
+#if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(OPENSSL_EXTRA)
+WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
+#endif
 
 #define MAX_WRITE_IV_SZ 16 /* max size of client/server write_IV */
 

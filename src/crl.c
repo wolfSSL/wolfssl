@@ -426,7 +426,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         #endif
             {
             #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
-                if (!XVALIDATE_DATE(crle->nextDate,crle->nextDateFormat, AFTER)) {
+                if (!XVALIDATE_DATE(crle->nextDate,crle->nextDateFormat, ASN_AFTER)) {
                     WOLFSSL_MSG("CRL next date is no longer valid");
                     nextDateValid = 0;
                 }

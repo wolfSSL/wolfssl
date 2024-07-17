@@ -12636,7 +12636,7 @@ void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
         name->dynamicName = 0;
     }
 
-    if (nameType == SUBJECT) {
+    if (nameType == ASN_SUBJECT) {
         XSTRNCPY(name->name, dCert->subject, ASN_NAME_MAX);
         name->name[ASN_NAME_MAX - 1] = '\0';
         name->sz = (int)XSTRLEN(name->name) + 1;
@@ -12821,7 +12821,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     x509->version = dCert->version + 1;
 
-    CopyDecodedName(&x509->issuer, dCert, ISSUER);
+    CopyDecodedName(&x509->issuer, dCert, ASN_ISSUER);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (dCert->issuerName != NULL) {
         wolfSSL_X509_set_issuer_name(x509,
@@ -12829,7 +12829,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         x509->issuer.x509 = x509;
     }
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-    CopyDecodedName(&x509->subject, dCert, SUBJECT);
+    CopyDecodedName(&x509->subject, dCert, ASN_SUBJECT);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (dCert->subjectName != NULL) {
         wolfSSL_X509_set_subject_name(x509,
@@ -30286,7 +30286,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
                 InitDecodedCert(cert, input + *inOutIdx, dnSz, ssl->heap);
 
-                ret = GetName(cert, SUBJECT, dnSz);
+                ret = GetName(cert, ASN_SUBJECT, dnSz);
 
                 if (ret == 0) {
                     if ((name = wolfSSL_X509_NAME_new_ex(cert->heap)) == NULL)
@@ -30294,7 +30294,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 }
 
                 if (ret == 0) {
-                    CopyDecodedName(name, cert, SUBJECT);
+                    CopyDecodedName(name, cert, ASN_SUBJECT);
                 }
 
                 if (ret == 0) {

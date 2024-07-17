@@ -56967,6 +56967,182 @@ static int test_wolfSSL_BIO_tls(void)
     return EXPECT_RESULT();
 }
 
+
+static int test_wolfSSL_BIO_datagram(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_BIO) && defined(WOLFSSL_DTLS) && defined(WOLFSSL_HAVE_BIO_ADDR) && defined(OPENSSL_EXTRA)
+    int ret;
+    SOCKET_T fd1 = SOCKET_INVALID, fd2 = SOCKET_INVALID;
+    WOLFSSL_BIO *bio1 = NULL, *bio2 = NULL;
+    WOLFSSL_BIO_ADDR *bio_addr1 = NULL, *bio_addr2 = NULL;
+    SOCKADDR_IN sin1, sin2;
+    socklen_t slen;
+    static const char test_msg[] = "I am a datagram, short and stout.";
+    char test_msg_recvd[sizeof(test_msg) + 10];
+#ifdef USE_WINDOWS_API
+    static const DWORD timeout = 250; /* ms */
+#else
+    static const struct timeval timeout = { 0, 250000 };
+#endif
+
+    StartTCP();
+
+    if (EXPECT_SUCCESS()) {
+        fd1 = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        ExpectIntNE(fd1, SOCKET_INVALID);
+    }
+    if (EXPECT_SUCCESS()) {
+        fd2 = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        ExpectIntNE(fd2, SOCKET_INVALID);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio1 = wolfSSL_BIO_new_dgram(fd1, 1 /* closeF */);
+        ExpectNotNull(bio1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio2 = wolfSSL_BIO_new_dgram(fd2, 1 /* closeF */);
+        ExpectNotNull(bio2);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        sin1.sin_family = AF_INET;
+        sin1.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        sin1.sin_port = 0;
+        slen = (socklen_t)sizeof(sin1);
+        ExpectIntEQ(bind(fd1, (const struct sockaddr *)&sin1, slen), 0);
+        ExpectIntEQ(setsockopt(fd1, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout)), 0);
+        ExpectIntEQ(getsockname(fd1, (struct sockaddr *)&sin1, &slen), 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        sin2.sin_family = AF_INET;
+        sin2.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        sin2.sin_port = 0;
+        slen = (socklen_t)sizeof(sin2);
+        ExpectIntEQ(bind(fd2, (const struct sockaddr *)&sin2, slen), 0);
+        ExpectIntEQ(setsockopt(fd2, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout, sizeof(timeout)), 0);
+        ExpectIntEQ(getsockname(fd2, (struct sockaddr *)&sin2, &slen), 0);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio_addr1 = wolfSSL_BIO_ADDR_new();
+        ExpectNotNull(bio_addr1);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        bio_addr2 = wolfSSL_BIO_ADDR_new();
+        ExpectNotNull(bio_addr2);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        /* for OpenSSL compatibility, direct copying of sockaddrs into BIO_ADDRs must work right. */
+        XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0, bio_addr2), WOLFSSL_SUCCESS);
+        wolfSSL_BIO_ADDR_clear(bio_addr2);
+    }
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+    ExpectIntEQ(wolfSSL_BIO_number_written(bio1), sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_number_read(bio2), sizeof(test_msg));
+#endif
+
+    /* bio2 should now have bio1's addr stored as its peer_addr, because the
+     * BIOs aren't "connected" yet.  use it to send a reply.
+     */
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), WOLFSSL_BIO_ERROR);
+    ExpectIntNE(BIO_should_retry(bio1), 0);
+
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), WOLFSSL_BIO_ERROR);
+    ExpectIntNE(BIO_should_retry(bio2), 0);
+
+    /* now "connect" the sockets. */
+
+    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin2, (socklen_t)sizeof(sin2)), 0);
+    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0, bio_addr2), WOLFSSL_SUCCESS);
+        wolfSSL_BIO_ADDR_clear(bio_addr2);
+    }
+
+    if (EXPECT_SUCCESS()) {
+        XMEMCPY(&bio_addr1->sa_in, &sin1, sizeof(sin1));
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0, bio_addr1), WOLFSSL_SUCCESS);
+        wolfSSL_BIO_ADDR_clear(bio_addr1);
+    }
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio2, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio1, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+    test_msg_recvd[0] = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), (int)sizeof(test_msg));
+    ExpectIntEQ(wolfSSL_BIO_read(bio2, test_msg_recvd, sizeof(test_msg_recvd)), (int)sizeof(test_msg));
+    ExpectIntEQ(XMEMCMP(test_msg_recvd, test_msg, sizeof(test_msg)), 0);
+
+#ifdef __linux__
+    /* now "disconnect" the sockets and attempt transmits expected to fail. */
+
+    sin1.sin_family = AF_UNSPEC;
+    ExpectIntEQ(connect(fd1, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
+    ExpectIntEQ(connect(fd2, (const struct sockaddr *)&sin1, (socklen_t)sizeof(sin1)), 0);
+    sin1.sin_family = AF_INET;
+
+    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_CONNECTED, 0, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio2, BIO_CTRL_DGRAM_SET_CONNECTED, 0, NULL), WOLFSSL_SUCCESS);
+
+    if (EXPECT_SUCCESS()) {
+        sin2.sin_addr.s_addr = htonl(0xc0a8c0a8); /* 192.168.192.168 -- invalid for loopback interface. */
+        XMEMCPY(&bio_addr2->sa_in, &sin2, sizeof(sin2));
+        ExpectIntEQ((int)wolfSSL_BIO_ctrl(bio1, BIO_CTRL_DGRAM_SET_PEER, 0, bio_addr2), WOLFSSL_SUCCESS);
+        wolfSSL_BIO_ADDR_clear(bio_addr2);
+    }
+
+    test_msg_recvd[0] = 0;
+    errno = 0;
+    ExpectIntEQ(wolfSSL_BIO_write(bio1, test_msg, sizeof(test_msg)), -1);
+    ExpectTrue((errno == EINVAL) || (errno == ENETUNREACH));
+
+#endif /* __linux__ */
+
+
+    if (bio1) {
+        ret = wolfSSL_BIO_free(bio1);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    } else if (fd1 != SOCKET_INVALID)
+        CloseSocket(fd1);
+    if (bio2) {
+        ret = wolfSSL_BIO_free(bio2);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    } else if (fd2 != SOCKET_INVALID)
+        CloseSocket(fd2);
+    if (bio_addr1)
+        wolfSSL_BIO_ADDR_free(bio_addr1);
+    if (bio_addr2)
+        wolfSSL_BIO_ADDR_free(bio_addr2);
+
+#endif /* !NO_BIO && WOLFSSL_DTLS && WOLFSSL_HAVE_BIO_ADDR && OPENSSL_EXTRA */
+
+    return EXPECT_RESULT();
+}
+
+
 #if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     defined(HAVE_HTTP_CLIENT)
 static THREAD_RETURN WOLFSSL_THREAD test_wolfSSL_BIO_accept_client(void* args)
@@ -73529,13 +73705,13 @@ static int test_stubs_are_stubs(void)
 
     /* when implemented this should take WOLFSSL object insted, right now
      * always returns 0 */
-    ExpectIntEQ(SSL_get_current_expansion(NULL), 0);
+    ExpectPtrEq(SSL_get_current_expansion(NULL), NULL);
 
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
 
     ExpectStrEQ(SSL_COMP_get_name(NULL), "not supported");
-    ExpectIntEQ(SSL_get_current_expansion(), 0);
+    ExpectPtrEq(SSL_get_current_expansion(NULL), NULL);
 #endif /* OPENSSL_EXTRA && !NO_WOLFSSL_STUB && (!NO_WOLFSSL_CLIENT ||
         * !NO_WOLFSSL_SERVER) */
     return EXPECT_RESULT();
@@ -83961,6 +84137,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as server Asserts in thread. */
     TEST_DECL(test_wolfSSL_BIO_accept),
     TEST_DECL(test_wolfSSL_BIO_tls),
+    TEST_DECL(test_wolfSSL_BIO_datagram),
 #endif
 
 #if defined(HAVE_PK_CALLBACKS) && !defined(WOLFSSL_NO_TLS12)

@@ -61,6 +61,7 @@
 #define BIO_s_file                      wolfSSL_BIO_s_file
 #define BIO_s_bio                       wolfSSL_BIO_s_bio
 #define BIO_s_socket                    wolfSSL_BIO_s_socket
+#define BIO_s_datagram                  wolfSSL_BIO_s_datagram
 #define BIO_s_accept                    wolfSSL_BIO_s_socket
 #define BIO_set_fd                      wolfSSL_BIO_set_fd
 #define BIO_set_close                   wolfSSL_BIO_set_close
@@ -168,7 +169,10 @@
 #define BIO_C_SET_WRITE_BUF_SIZE        136
 #define BIO_C_MAKE_BIO_PAIR             138
 
-#define BIO_CTRL_DGRAM_QUERY_MTU   40
+#define BIO_CTRL_DGRAM_CONNECT       31
+#define BIO_CTRL_DGRAM_SET_CONNECTED 32
+#define BIO_CTRL_DGRAM_QUERY_MTU     40
+#define BIO_CTRL_DGRAM_SET_PEER      44
 
 #define BIO_FP_TEXT                0x00
 #define BIO_NOCLOSE                0x00

@@ -136,70 +136,65 @@ Possible IO enable options:
 
 #if defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT)
 
-/* Translates return codes returned from
- * send() and recv() if need be.
- */
-static WC_INLINE int TranslateReturnCode(int old, int sd)
+static WC_INLINE int wolfSSL_LastError(int err, SOCKET_T sd)
 {
     (void)sd;
 
-#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-    if (old == 0) {
-        errno = SOCKET_EWOULDBLOCK;
-        return -1;  /* convert to BSD style wouldblock as error */
-    }
-
-    if (old < 0) {
-        errno = RTCS_geterror(sd);
-        if (errno == RTCSERR_TCP_CONN_CLOSING)
-            return 0;   /* convert to BSD style closing */
-        if (errno == RTCSERR_TCP_CONN_RLSD)
-            errno = SOCKET_ECONNRESET;
-        if (errno == RTCSERR_TCP_TIMED_OUT)
-            errno = SOCKET_EAGAIN;
-    }
-#elif defined(WOLFSSL_EMNET)
-    if (old < 0) { /* SOCKET_ERROR */
-        /* Get the real socket error */
-        IP_SOCK_getsockopt(sd, SOL_SOCKET, SO_ERROR, &old, (int)sizeof(old));
-    }
-#endif
-
-    return old;
-}
-
-static WC_INLINE int wolfSSL_LastError(int err)
-{
-    (void)err; /* Suppress unused arg */
+    if (err > 0)
+        return 0;
 
 #ifdef USE_WINDOWS_API
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
 #elif defined(WOLFSSL_LINUXKM) || defined(WOLFSSL_EMNET)
-    return err; /* Return provided error value */
+    return -err; /* Return provided error value with corrected sign. */
 #elif defined(FUSION_RTOS)
     #include <fclerrno.h>
     return FCL_GET_ERRNO;
 #elif defined(NUCLEUS_PLUS_2_3)
     return Nucleus_Net_Errno;
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    if ((err == 0) || (err == -SOCKET_EWOULDBLOCK)) {
+        return SOCKET_EWOULDBLOCK; /* convert to BSD style wouldblock */
+    } else {
+        err = RTCS_geterror(sd);
+        if ((err == RTCSERR_TCP_CONN_CLOSING) ||
+            (err == RTCSERR_TCP_CONN_RLSD))
+        {
+            err = SOCKET_ECONNRESET;
+        }
+        return err;
+    }
+#elif defined(WOLFSSL_EMNET)
+    /* Get the real socket error */
+    IP_SOCK_getsockopt(sd, SOL_SOCKET, SO_ERROR, &err, (int)sizeof(old));
+    return err;
 #else
     return errno;
 #endif
 }
 
-static int TranslateIoError(int err)
+/* Translates return codes returned from
+ * send(), recv(), and other network I/O calls.
+ */
+static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
 {
 #ifdef  _WIN32
     size_t errstr_offset;
     char errstr[WOLFSSL_STRERROR_BUFFER_SIZE];
 #endif /* _WIN32 */
 
-
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
     if (err > 0)
         return err;
+#else
+    if (err >= 0)
+        return err;
+#endif
 
-    err = wolfSSL_LastError(err);
+    err = wolfSSL_LastError(err, sd);
+
 #if SOCKET_EWOULDBLOCK != SOCKET_EAGAIN
     if ((err == SOCKET_EWOULDBLOCK) || (err == SOCKET_EAGAIN))
 #else
@@ -207,8 +202,26 @@ static int TranslateIoError(int err)
 #endif
     {
         WOLFSSL_MSG("\tWould block");
-        return WOLFSSL_CBIO_ERR_WANT_READ;
+        if (direction == SOCKET_SENDING)
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        else if (direction == SOCKET_RECEIVING)
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        else
+            return WOLFSSL_CBIO_ERR_GENERAL;
     }
+
+#ifdef SOCKET_ETIMEDOUT
+    else if (err == SOCKET_ETIMEDOUT) {
+        WOLFSSL_MSG("\tTimed out");
+        if (direction == SOCKET_SENDING)
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        else if (direction == SOCKET_RECEIVING)
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        else
+            return WOLFSSL_CBIO_ERR_TIMEOUT;
+    }
+#endif
+
     else if (err == SOCKET_ECONNRESET) {
         WOLFSSL_MSG("\tConnection reset");
         return WOLFSSL_CBIO_ERR_CONN_RST;
@@ -288,7 +301,7 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
                 return WOLFSSL_CBIO_ERR_CONN_CLOSE;
             }
         #ifdef USE_WOLFSSL_IO
-            recvd = TranslateIoError(recvd);
+            recvd = TranslateIoReturnCode(recvd, ssl->biord->num, SOCKET_RECEIVING);
         #endif
             return recvd;
         }
@@ -333,7 +346,7 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     if (sent <= 0) {
         if (ssl->biowr->type == WOLFSSL_BIO_SOCKET) {
         #ifdef USE_WOLFSSL_IO
-            sent = TranslateIoError(sent);
+            sent = TranslateIoReturnCode(sent, ssl->biowr->num, SOCKET_SENDING);
         #endif
             return sent;
         }
@@ -377,7 +390,6 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     recvd = wolfIO_Recv(sd, buf, sz, ssl->rflags);
     if (recvd < 0) {
         WOLFSSL_MSG("Embed Receive error");
-        return TranslateIoError(recvd);
     }
     else if (recvd == 0) {
         WOLFSSL_MSG("Embed receive connection closed");
@@ -407,7 +419,6 @@ int EmbedSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = wolfIO_Send(sd, buf, sz, ssl->wflags);
     if (sent < 0) {
         WOLFSSL_MSG("Embed Send error");
-        return TranslateIoError(sent);
     }
 
     return sent;
@@ -746,11 +757,10 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 peerSz = (XSOCKLENT)dtlsCtx->peer.bufSz;
         }
 
-        recvd = TranslateReturnCode(recvd, sd);
+        recvd = TranslateIoReturnCode(recvd, sd, SOCKET_RECEIVING);
 
         if (recvd < 0) {
             WOLFSSL_MSG("Embed Receive From error");
-            recvd = TranslateIoError(recvd);
             if (recvd == WOLFSSL_CBIO_ERR_WANT_READ &&
                 !wolfSSL_dtls_get_using_nonblock(ssl)) {
                 recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
@@ -835,11 +845,10 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, (size_t)sz, ssl->wflags,
             (const SOCKADDR*)peer, peerSz);
 
-    sent = TranslateReturnCode(sent, sd);
+    sent = TranslateIoReturnCode(sent, sd, SOCKET_SENDING);
 
     if (sent < 0) {
         WOLFSSL_MSG("Embed Send To error");
-        return TranslateIoError(sent);
     }
 
     return sent;
@@ -861,16 +870,14 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz, ssl->rflags, NULL, NULL);
 
-    recvd = TranslateReturnCode(recvd, sd);
+    recvd = TranslateIoReturnCode(recvd, sd, SOCKET_RECEIVING);
 
     if (recvd < 0) {
         WOLFSSL_MSG("Embed Receive From error");
-        recvd = TranslateIoError(recvd);
         if (recvd == WOLFSSL_CBIO_ERR_WANT_READ &&
             !wolfSSL_dtls_get_using_nonblock(ssl)) {
             recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
         }
-        return recvd;
     }
 
     return recvd;
@@ -1098,7 +1105,7 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
     int recvd;
 
     recvd = (int)RECV_FUNCTION(sd, buf, (size_t)sz, rdFlags);
-    recvd = TranslateReturnCode(recvd, (int)sd);
+    recvd = TranslateIoReturnCode(recvd, sd, SOCKET_RECEIVING);
 
     return recvd;
 }
@@ -1108,10 +1115,40 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
     int sent;
 
     sent = (int)SEND_FUNCTION(sd, buf, (size_t)sz, wrFlags);
-    sent = TranslateReturnCode(sent, (int)sd);
+    sent = TranslateIoReturnCode(sent, sd, SOCKET_SENDING);
 
     return sent;
 }
+
+#if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(WOLFSSL_DTLS) && defined(OPENSSL_EXTRA)
+
+int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int rdFlags)
+{
+    int recvd;
+    socklen_t addr_len = (socklen_t)sizeof(*addr);
+
+    recvd = (int)DTLS_RECVFROM_FUNCTION(sd, buf, (size_t)sz, rdFlags,
+                                            addr ? &addr->sa : NULL,
+                                            addr ? &addr_len : 0);
+    recvd = TranslateIoReturnCode(recvd, sd, SOCKET_RECEIVING);
+
+    return recvd;
+}
+
+int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wrFlags)
+{
+    int sent;
+    socklen_t addr_len = addr ? wolfSSL_BIO_ADDR_size(addr) : 0;
+
+    sent = (int)DTLS_SENDTO_FUNCTION(sd, buf, (size_t)sz, wrFlags,
+                                         addr ? &addr->sa : NULL,
+                                         addr_len);
+    sent = TranslateIoReturnCode(sent, sd, SOCKET_SENDING);
+
+    return sent;
+}
+
+#endif /* WOLFSSL_HAVE_BIO_ADDR && WOLFSSL_DTLS && OPENSSL_EXTRA */
 
 #endif /* USE_WOLFSSL_IO */
 
@@ -1424,7 +1461,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #ifdef HAVE_IO_TIMEOUT
     if ((ret != 0) && (to_sec > 0)) {
 #ifdef USE_WINDOWS_API
-        if ((ret == SOCKET_ERROR) && (wolfSSL_LastError(ret) == WSAEWOULDBLOCK))
+        if ((ret == SOCKET_ERROR) &&
+            (wolfSSL_LastError(ret, *sockfd) == SOCKET_EWOULDBLOCK))
 #else
         if (errno == EINPROGRESS)
 #endif
@@ -1735,9 +1773,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                 start[len] = 0;
             }
             else {
-                result = TranslateReturnCode(result, sfd);
-                result = wolfSSL_LastError(result);
-                if (result == SOCKET_EWOULDBLOCK || result == SOCKET_EAGAIN) {
+                if (result == WOLFSSL_CBIO_ERR_WANT_READ) {
                     return OCSP_WANT_READ;
                 }
 

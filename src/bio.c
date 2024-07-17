@@ -290,6 +290,9 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     }
 
     while (bio != NULL && ret >= 0) {
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+        int inhibit_flow_increment = 0;
+#endif
         /* check for custom read */
         if (bio->method && bio->method->readCb) {
             ret = bio->method->readCb(bio, (char*)buf, len);
@@ -302,6 +305,9 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
                 break;
             case WOLFSSL_BIO_BIO: /* read BIOs */
                 ret = wolfSSL_BIO_BIO_read(bio, buf, len);
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+                inhibit_flow_increment = 1;
+#endif
                 break;
             case WOLFSSL_BIO_MEMORY:
                 ret = wolfSSL_BIO_MEMORY_read(bio, buf, len);
@@ -345,13 +351,50 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             #ifdef USE_WOLFSSL_IO
                 /* BIO requires built-in socket support
                  *  (cannot be used with WOLFSSL_USER_IO) */
+                bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
                 ret = wolfIO_Recv(bio->num, (char*)buf, len, 0);
+                if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
+                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
+                    ret = WOLFSSL_BIO_ERROR;
+                }
             #else
                 ret = NOT_COMPILED_IN;
             #endif
                 break;
+
+            case WOLFSSL_BIO_DGRAM:
+            #if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(WOLFSSL_DTLS) && \
+                defined(USE_WOLFSSL_IO)
+                /* BIO requires built-in socket support
+                 *  (cannot be used with WOLFSSL_USER_IO) */
+                bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
+                if (bio->connected)
+                    ret = wolfIO_Recv(bio->num, (char*)buf, len, 0);
+                else {
+                    wolfSSL_BIO_ADDR_clear(&bio->peer_addr);
+                    ret = wolfIO_RecvFrom(bio->num, &bio->peer_addr, (char*)buf, len, 0);
+                }
+                if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
+                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
+                    ret = WOLFSSL_BIO_ERROR;
+                }
+            #else
+                ret = NOT_COMPILED_IN;
+            #endif
+                break;
+
             } /* switch */
         }
+
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+        if ((ret > 0) && (!inhibit_flow_increment)) {
+            bio->bytes_read += (word32)ret;
+        }
+#endif
 
         /* case where front of list is done */
         if (bio == front) {
@@ -647,6 +690,9 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     }
 
     while (bio != NULL && ret >= 0) {
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+        int inhibit_flow_increment = 0;
+#endif
         /* check for custom write */
         if (bio->method && bio->method->writeCb) {
             ret = bio->method->writeCb(bio, (const char*)data, len);
@@ -672,6 +718,9 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             }
             case WOLFSSL_BIO_BIO: /* write bios */
                 ret = wolfSSL_BIO_BIO_write(bio, data, len);
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+                inhibit_flow_increment = 1;
+#endif
                 break;
             case WOLFSSL_BIO_MEMORY:
                 ret = wolfSSL_BIO_MEMORY_write(bio, data, len);
@@ -725,13 +774,49 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             #ifdef USE_WOLFSSL_IO
                 /* BIO requires built-in socket support
                  *  (cannot be used with WOLFSSL_USER_IO) */
+                bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
                 ret = wolfIO_Send(bio->num, (char*)data, len, 0);
+                if (ret == WOLFSSL_CBIO_ERR_WANT_WRITE) {
+                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
+                    ret = WOLFSSL_BIO_ERROR;
+                }
             #else
                 ret = NOT_COMPILED_IN;
             #endif
                 break;
+
+            case WOLFSSL_BIO_DGRAM:
+                #if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(WOLFSSL_DTLS) && \
+                    defined(USE_WOLFSSL_IO)
+                /* BIO requires built-in socket support
+                 *  (cannot be used with WOLFSSL_USER_IO) */
+                bio->flags &= ~WOLFSSL_BIO_FLAG_RETRY;
+                if (bio->connected)
+                    ret = wolfIO_Send(bio->num, (char*)data, len, 0);
+                else if (bio->peer_addr.sa.sa_family == AF_UNSPEC)
+                    ret = SOCKET_ERROR_E;
+                else
+                    ret = wolfIO_SendTo(bio->num, &bio->peer_addr, (char*)data, len, 0);
+                if (ret == WOLFSSL_CBIO_ERR_WANT_WRITE) {
+                    bio->flags |= WOLFSSL_BIO_FLAG_RETRY;
+                }
+                if (ret < 0) {
+                    ret = WOLFSSL_BIO_ERROR;
+                }
+            #else
+                ret = NOT_COMPILED_IN;
+            #endif
+                break;
+
             } /* switch */
         }
+
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+        if ((ret > 0) && (! inhibit_flow_increment))
+            bio->bytes_written += (word32)ret;
+#endif
 
         /* advance to the next bio in list */
         bio = bio->next;
@@ -793,6 +878,49 @@ long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
         case BIO_CTRL_RESET:
             ret = (long)wolfSSL_BIO_reset(bio);
             break;
+
+#ifdef WOLFSSL_HAVE_BIO_ADDR
+        case BIO_CTRL_DGRAM_CONNECT:
+        case BIO_CTRL_DGRAM_SET_PEER:
+        {
+            socklen_t addr_size;
+            if (parg == NULL) {
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
+            addr_size = wolfSSL_BIO_ADDR_size((WOLFSSL_BIO_ADDR *)parg);
+            if (addr_size == 0) {
+                ret = WOLFSSL_FAILURE;
+                break;
+            }
+            XMEMCPY(&bio->peer_addr, parg, addr_size);
+            ret = WOLFSSL_SUCCESS;
+            break;
+        }
+
+        case BIO_CTRL_DGRAM_SET_CONNECTED:
+            if (parg == NULL) {
+                wolfSSL_BIO_ADDR_clear(&bio->peer_addr);
+                bio->connected = 0;
+            }
+            else {
+                socklen_t addr_size = wolfSSL_BIO_ADDR_size((WOLFSSL_BIO_ADDR *)parg);
+                if (addr_size == 0) {
+                    ret = WOLFSSL_FAILURE;
+                    break;
+                }
+                XMEMCPY(&bio->peer_addr, parg, addr_size);
+                bio->connected = 1;
+            }
+            ret = WOLFSSL_SUCCESS;
+            break;
+
+        case BIO_CTRL_DGRAM_QUERY_MTU:
+            ret = 0; /* not implemented */
+            break;
+
+#endif /* WOLFSSL_HAVE_BIO_ADDR */
+
         default:
             WOLFSSL_MSG("CMD not yet implemented");
             ret = WOLFSSL_FAILURE;
@@ -826,8 +954,51 @@ int wolfSSL_BIO_up_ref(WOLFSSL_BIO* bio)
 
     return WOLFSSL_FAILURE;
 }
-#endif
 
+#ifdef WOLFSSL_HAVE_BIO_ADDR
+WOLFSSL_BIO_ADDR *wolfSSL_BIO_ADDR_new(void) {
+    WOLFSSL_BIO_ADDR *addr =
+        (WOLFSSL_BIO_ADDR *)XMALLOC(sizeof(*addr), NULL, DYNAMIC_TYPE_BIO);
+    if (addr)
+        addr->sa.sa_family = AF_UNSPEC;
+    return addr;
+}
+
+void wolfSSL_BIO_ADDR_free(WOLFSSL_BIO_ADDR *addr) {
+    XFREE(addr, NULL, DYNAMIC_TYPE_BIO);
+}
+
+void wolfSSL_BIO_ADDR_clear(WOLFSSL_BIO_ADDR *addr) {
+    if (addr == NULL)
+        return;
+    XMEMSET(addr, 0, sizeof(*addr));
+    addr->sa.sa_family = AF_UNSPEC;
+}
+
+socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr) {
+    switch (addr->sa.sa_family) {
+#ifndef WOLFSSL_NO_BIO_ADDR_IN
+    case AF_INET:
+        return sizeof(addr->sa_in);
+#endif
+#ifdef WOLFSSL_IPV6
+    case AF_INET6:
+        return sizeof(addr->sa_in6);
+#endif
+#if defined(HAVE_SYS_UN_H) && !defined(WOLFSSL_NO_SOCKADDR_UN)
+    case AF_UNIX:
+        return sizeof(addr->sa_un);
+#endif
+    default:
+        /* must return zero if length can't be determined, to avoid buffer
+         * overruns in callers.
+         */
+        return 0;
+    }
+}
+#endif /* WOLFSSL_HAVE_BIO_ADDR */
+
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 /* helper function for wolfSSL_BIO_gets
  * size till a newline is hit
@@ -1387,6 +1558,9 @@ int wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num)
             sz = num;
         }
         bio->pair->rdIdx += sz;
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+        bio->pair->bytes_read += (word32)sz;
+#endif
 
         /* check if have read to the end of the buffer and need to reset */
         if (bio->pair->rdIdx == bio->pair->wrSz) {
@@ -1465,6 +1639,9 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
         }
         *buf = (char*)bio->ptr + bio->wrIdx;
         bio->wrIdx += sz;
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+        bio->bytes_written += (word32)sz;
+#endif
 
         /* if at the end of the buffer and space for wrap around then set
          * write index back to 0 */
@@ -1476,6 +1653,37 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
     return sz;
 }
 
+#ifdef WOLFSSL_BIO_HAVE_FLOW_STATS
+word64 wolfSSL_BIO_number_read(WOLFSSL_BIO *bio)
+{
+    word64 ret = 0;
+    if (bio == NULL) {
+        WOLFSSL_MSG("NULL argument passed in");
+        return 0;
+    }
+    while (bio) {
+        ret += bio->bytes_read;
+        bio = bio->next;
+    }
+
+    return ret;
+}
+
+word64 wolfSSL_BIO_number_written(WOLFSSL_BIO *bio)
+{
+    word64 ret = 0;
+    if (bio == NULL) {
+        WOLFSSL_MSG("NULL argument passed in");
+        return 0;
+    }
+    while (bio) {
+        ret += bio->bytes_written;
+        bio = bio->next;
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_BIO_HAVE_FLOW_STATS */
 
 /* Reset BIO to initial state */
 int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
@@ -1799,6 +2007,7 @@ long wolfSSL_BIO_set_nbio(WOLFSSL_BIO* bio, long on)
     if (bio) {
         switch (bio->type) {
             case WOLFSSL_BIO_SOCKET:
+            case WOLFSSL_BIO_DGRAM:
             #ifdef XFCNTL
                 {
                     int ret;
@@ -2114,6 +2323,34 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
         return bio;
     }
+
+
+#if defined(WOLFSSL_HAVE_BIO_ADDR) && defined(WOLFSSL_DTLS)
+    WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_datagram(void)
+    {
+        static WOLFSSL_BIO_METHOD meth =
+                WOLFSSL_BIO_METHOD_INIT(WOLFSSL_BIO_DGRAM);
+
+        WOLFSSL_ENTER("wolfSSL_BIO_s_datagram");
+
+        return &meth;
+    }
+
+
+    WOLFSSL_BIO* wolfSSL_BIO_new_dgram(int fd, int closeF)
+    {
+        WOLFSSL_BIO* bio = wolfSSL_BIO_new(wolfSSL_BIO_s_datagram());
+
+        WOLFSSL_ENTER("wolfSSL_BIO_new_dgram");
+        if (bio) {
+            bio->type  = WOLFSSL_BIO_DGRAM;
+            bio->shutdown = (byte)closeF;
+            bio->num   = fd;
+        }
+        return bio;
+    }
+#endif
+
 
     /**
      * Create new socket BIO object. This is a pure TCP connection with

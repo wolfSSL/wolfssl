@@ -1954,6 +1954,15 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
     return WOLFSSL_SUCCESS;
 }
 
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+int wolfSSL_set_mtu_compat(WOLFSSL* ssl, unsigned short mtu) {
+    if (wolfSSL_dtls_set_mtu(ssl, mtu) == 0)
+        return SSL_SUCCESS;
+    else
+        return SSL_FAILURE;
+}
+#endif /* OPENSSL_ALL || OPENSSL_EXTRA */
+
 #endif /* WOLFSSL_DTLS && (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) */
 
 #ifdef WOLFSSL_SRTP
@@ -10315,6 +10324,25 @@ int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
     }
 }
 
+#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+const char *wolfSSL_get0_peername(WOLFSSL *ssl) {
+    if (ssl == NULL) {
+        return NULL;
+    }
+
+    if (ssl->buffers.domainName.buffer)
+        return (const char *)ssl->buffers.domainName.buffer;
+    else if (ssl->session && ssl->session->peer)
+        return ssl->session->peer->subjectCN;
+    else if (ssl->peerCert.subjectCN[0])
+        return ssl->peerCert.subjectCN;
+    else {
+        ssl->error = NO_PEER_CERT;
+        return NULL;
+    }
+}
+
+#endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
 /* turn on wolfSSL zlib compression
    returns WOLFSSL_SUCCESS for success, else error (not built in)
@@ -10930,7 +10958,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
-    void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
+    static void ssl_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr, int flags)
     {
         WOLFSSL_ENTER("wolfSSL_set_bio");
 
@@ -10941,8 +10969,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         /* free any existing WOLFSSL_BIOs in use but don't free those in
          * a chain */
-        if (ssl->biord != NULL) {
-            if (ssl->biord != ssl->biowr) {
+        if ((flags & WOLFSSL_BIO_FLAG_READ) && (ssl->biord != NULL)) {
+            if ((flags & WOLFSSL_BIO_FLAG_WRITE) && (ssl->biord != ssl->biowr)) {
                 if (ssl->biowr != NULL && ssl->biowr->prev != NULL)
                     wolfSSL_BIO_free(ssl->biowr);
                 ssl->biowr = NULL;
@@ -10951,20 +10979,32 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 wolfSSL_BIO_free(ssl->biord);
             ssl->biord = NULL;
         }
+        else if ((flags & WOLFSSL_BIO_FLAG_WRITE) && (ssl->biowr != NULL)) {
+            if (ssl->biowr->prev != NULL)
+                wolfSSL_BIO_free(ssl->biowr);
+            ssl->biowr = NULL;
+        }
+
         /* set flag obviously */
         if (rd && !(rd->flags & WOLFSSL_BIO_FLAG_READ))
             rd->flags |= WOLFSSL_BIO_FLAG_READ;
         if (wr && !(wr->flags & WOLFSSL_BIO_FLAG_WRITE))
             wr->flags |= WOLFSSL_BIO_FLAG_WRITE;
 
-        ssl->biord = rd;
-        ssl->biowr = wr;
+        if (flags & WOLFSSL_BIO_FLAG_READ)
+            ssl->biord = rd;
+        if (flags & WOLFSSL_BIO_FLAG_WRITE)
+            ssl->biowr = wr;
 
         /* set SSL to use BIO callbacks instead */
-        if (((ssl->cbioFlag & WOLFSSL_CBIO_RECV) == 0)) {
+        if ((flags & WOLFSSL_BIO_FLAG_READ) &&
+            (((ssl->cbioFlag & WOLFSSL_CBIO_RECV) == 0)))
+        {
             ssl->CBIORecv = BioReceive;
         }
-        if (((ssl->cbioFlag & WOLFSSL_CBIO_SEND) == 0)) {
+        if ((flags & WOLFSSL_BIO_FLAG_WRITE) &&
+            (((ssl->cbioFlag & WOLFSSL_CBIO_SEND) == 0)))
+        {
             ssl->CBIOSend = BioSend;
         }
 
@@ -10978,6 +11018,22 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             BIO_set_retry_read(wr);
         }
     }
+
+    void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
+    {
+        ssl_set_bio(ssl, rd, wr, WOLFSSL_BIO_FLAG_READ | WOLFSSL_BIO_FLAG_WRITE);
+    }
+
+    void wolfSSL_set_rbio(WOLFSSL* ssl, WOLFSSL_BIO* rd)
+    {
+        ssl_set_bio(ssl, rd, NULL, WOLFSSL_BIO_FLAG_READ);
+    }
+
+    void wolfSSL_set_wbio(WOLFSSL* ssl, WOLFSSL_BIO* wr)
+    {
+        ssl_set_bio(ssl, NULL, wr, WOLFSSL_BIO_FLAG_WRITE);
+    }
+
 #endif /* !NO_BIO */
 #endif /* OPENSSL_EXTRA */
 
@@ -14915,17 +14971,13 @@ WOLFSSL_COMP_METHOD* wolfSSL_COMP_zlib(void)
     WOLFSSL_STUB("COMP_zlib");
     return 0;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 WOLFSSL_COMP_METHOD* wolfSSL_COMP_rle(void)
 {
     WOLFSSL_STUB("COMP_rle");
     return 0;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_COMP_add_compression_method(int method, void* data)
 {
     (void)method;
@@ -14933,10 +14985,18 @@ int wolfSSL_COMP_add_compression_method(int method, void* data)
     WOLFSSL_STUB("COMP_add_compression_method");
     return 0;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
-const char* wolfSSL_COMP_get_name(const void* comp)
+const WOLFSSL_COMP_METHOD* wolfSSL_get_current_compression(const WOLFSSL *ssl) {
+    (void)ssl;
+    return NULL;
+}
+
+const WOLFSSL_COMP_METHOD* wolfSSL_get_current_expansion(const WOLFSSL *ssl) {
+    (void)ssl;
+    return NULL;
+}
+
+const char* wolfSSL_COMP_get_name(const WOLFSSL_COMP_METHOD *comp)
 {
     static const char ret[] = "not supported";
 

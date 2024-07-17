@@ -13775,7 +13775,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
  * @param [in, out] cert      Decoded certificate object.
  * @param [out]     full      Buffer to hold full name as a string.
  * @param [out]     hash      Buffer to hold hash of name.
- * @param [in]      nameType  ISSUER or SUBJECT.
+ * @param [in]      nameType  ASN_ISSUER or ASN_SUBJECT.
  * @param [in]      input     Buffer holding certificate name.
  * @param [in, out] inOutIdx  On in, start of certificate name.
  *                            On out, start of ASN.1 item after cert name.
@@ -13830,13 +13830,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 
 #if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
     /* store pointer to raw issuer */
-    if (nameType == ISSUER) {
+    if (nameType == ASN_ISSUER) {
         cert->issuerRaw = &input[srcIdx];
         cert->issuerRawLen = length;
     }
 #endif
 #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT)
-    if (nameType == SUBJECT) {
+    if (nameType == ASN_SUBJECT) {
         cert->subjectRaw = &input[srcIdx];
         cert->subjectRawLen = length;
     }
@@ -13917,14 +13917,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         #endif
 
             if (id == ASN_COMMON_NAME) {
-                if (nameType == SUBJECT) {
+                if (nameType == ASN_SUBJECT) {
                     cert->subjectCN = (char *)&input[srcIdx];
                     cert->subjectCNLen = strLen;
                     cert->subjectCNEnc = (char)b;
                 }
             #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)) && \
                 defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                else if (nameType == ISSUER) {
+                else if (nameType == ASN_ISSUER) {
                     cert->issuerCN = (char*)&input[srcIdx];
                     cert->issuerCNLen = strLen;
                     cert->issuerCNEnc = (char)b;
@@ -13943,7 +13943,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_NAME;
                 copyLen = sizeof(WOLFSSL_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectN = (char*)&input[srcIdx];
                         cert->subjectNLen = strLen;
                         cert->subjectNEnc = b;
@@ -13959,7 +13959,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_INITIALS;
                 copyLen = sizeof(WOLFSSL_INITIALS) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectI = (char*)&input[srcIdx];
                         cert->subjectILen = strLen;
                         cert->subjectIEnc = b;
@@ -13975,7 +13975,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_GIVEN_NAME;
                 copyLen = sizeof(WOLFSSL_GIVEN_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectGN = (char*)&input[srcIdx];
                         cert->subjectGNLen = strLen;
                         cert->subjectGNEnc = b;
@@ -13991,7 +13991,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_DNQUALIFIER;
                 copyLen = sizeof(WOLFSSL_DNQUALIFIER) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectDNQ = (char*)&input[srcIdx];
                         cert->subjectDNQLen = strLen;
                         cert->subjectDNQEnc = b;
@@ -14008,13 +14008,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_SUR_NAME;
                 copyLen = sizeof(WOLFSSL_SUR_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectSN = (char*)&input[srcIdx];
                         cert->subjectSNLen = strLen;
                         cert->subjectSNEnc = (char)b;
                     }
                 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerSN = (char*)&input[srcIdx];
                         cert->issuerSNLen = strLen;
                         cert->issuerSNEnc = (char)b;
@@ -14031,13 +14031,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_COUNTRY_NAME;
                 copyLen = sizeof(WOLFSSL_COUNTRY_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectC = (char*)&input[srcIdx];
                         cert->subjectCLen = strLen;
                         cert->subjectCEnc = (char)b;
                     }
                 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerC = (char*)&input[srcIdx];
                         cert->issuerCLen = strLen;
                         cert->issuerCEnc = (char)b;
@@ -14054,13 +14054,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_LOCALITY_NAME;
                 copyLen = sizeof(WOLFSSL_LOCALITY_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectL = (char*)&input[srcIdx];
                         cert->subjectLLen = strLen;
                         cert->subjectLEnc = (char)b;
                     }
                     #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerL = (char*)&input[srcIdx];
                         cert->issuerLLen = strLen;
                         cert->issuerLEnc = (char)b;
@@ -14077,13 +14077,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_STATE_NAME;
                 copyLen = sizeof(WOLFSSL_STATE_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectST = (char*)&input[srcIdx];
                         cert->subjectSTLen = strLen;
                         cert->subjectSTEnc = (char)b;
                     }
                 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerST = (char*)&input[srcIdx];
                         cert->issuerSTLen = strLen;
                         cert->issuerSTEnc = (char)b;
@@ -14100,13 +14100,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_ORG_NAME;
                 copyLen = sizeof(WOLFSSL_ORG_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectO = (char*)&input[srcIdx];
                         cert->subjectOLen = strLen;
                         cert->subjectOEnc = (char)b;
                     }
                 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerO = (char*)&input[srcIdx];
                         cert->issuerOLen = strLen;
                         cert->issuerOEnc = (char)b;
@@ -14123,13 +14123,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_ORGUNIT_NAME;
                 copyLen = sizeof(WOLFSSL_ORGUNIT_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectOU = (char*)&input[srcIdx];
                         cert->subjectOULen = strLen;
                         cert->subjectOUEnc = (char)b;
                     }
                 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerOU = (char*)&input[srcIdx];
                         cert->issuerOULen = strLen;
                         cert->issuerOUEnc = (char)b;
@@ -14146,13 +14146,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_SERIAL_NUMBER;
                 copyLen = sizeof(WOLFSSL_SERIAL_NUMBER) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectSND = (char*)&input[srcIdx];
                         cert->subjectSNDLen = strLen;
                         cert->subjectSNDEnc = (char)b;
                     }
                 #if defined(WOLFSSL_HAVE_ISSUER_NAMES)
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerSND = (char*)&input[srcIdx];
                         cert->issuerSNDLen = strLen;
                         cert->issuerSNDEnc = (char)b;
@@ -14169,7 +14169,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_USER_ID;
                 copyLen = sizeof(WOLFSSL_USER_ID) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectUID = (char*)&input[srcIdx];
                         cert->subjectUIDLen = strLen;
                         cert->subjectUIDEnc = (char)b;
@@ -14186,7 +14186,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_STREET_ADDR_NAME;
                 copyLen = sizeof(WOLFSSL_STREET_ADDR_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectStreet = (char*)&input[srcIdx];
                         cert->subjectStreetLen = strLen;
                         cert->subjectStreetEnc = (char)b;
@@ -14202,7 +14202,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_BUS_CAT;
                 copyLen = sizeof(WOLFSSL_BUS_CAT) - 1;
             #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                if (nameType == SUBJECT) {
+                if (nameType == ASN_SUBJECT) {
                     cert->subjectBC = (char*)&input[srcIdx];
                     cert->subjectBCLen = strLen;
                     cert->subjectBCEnc = (char)b;
@@ -14217,7 +14217,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_POSTAL_NAME;
                 copyLen = sizeof(WOLFSSL_POSTAL_NAME) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectPC = (char*)&input[srcIdx];
                         cert->subjectPCLen = strLen;
                         cert->subjectPCEnc = (char)b;
@@ -14256,7 +14256,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_JOI_C;
                 copyLen = sizeof(WOLFSSL_JOI_C) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectJC = (char*)&input[srcIdx];
                         cert->subjectJCLen = strLen;
                         cert->subjectJCEnc = (char)b;
@@ -14274,7 +14274,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copy = WOLFSSL_JOI_ST;
                 copyLen = sizeof(WOLFSSL_JOI_ST) - 1;
                 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectJS = (char*)&input[srcIdx];
                         cert->subjectJSLen = strLen;
                         cert->subjectJSEnc = (char)b;
@@ -14338,13 +14338,13 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 
                 #if !defined(IGNORE_NAME_CONSTRAINTS) || \
                      defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
-                    if (nameType == SUBJECT) {
+                    if (nameType == ASN_SUBJECT) {
                         cert->subjectEmail = (char*)&input[srcIdx];
                         cert->subjectEmailLen = strLen;
                     }
                 #if defined(WOLFSSL_HAVE_ISSUER_NAMES) && \
                     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT))
-                    else if (nameType == ISSUER) {
+                    else if (nameType == ASN_ISSUER) {
                         cert->issuerEmail = (char*)&input[srcIdx];
                         cert->issuerEmailLen = strLen;
                     }
@@ -14446,7 +14446,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
-    if (nameType == ISSUER) {
+    if (nameType == ASN_ISSUER) {
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
     (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
         dName->rawLen = min(cert->issuerRawLen, WC_ASN_NAME_MAX);
@@ -14505,14 +14505,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
     if (ret == 0) {
     #if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
         /* Store pointer and length to raw issuer. */
-        if (nameType == ISSUER) {
+        if (nameType == ASN_ISSUER) {
             cert->issuerRaw = &input[srcIdx];
             cert->issuerRawLen = len;
         }
     #endif
     #if !defined(IGNORE_NAME_CONSTRAINTS) || defined(WOLFSSL_CERT_EXT)
         /* Store pointer and length to raw subject. */
-        if (nameType == SUBJECT) {
+        if (nameType == ASN_SUBJECT) {
             cert->subjectRaw = &input[srcIdx];
             cert->subjectRawLen = len;
         }
@@ -14531,7 +14531,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                                &srcIdx, maxIdx);
             if (ret == 0) {
                 /* Put RDN data into certificate. */
-                ret = GetRDN(cert, full, &idx, &nid, nameType == SUBJECT,
+                ret = GetRDN(cert, full, &idx, &nid, nameType == ASN_SUBJECT,
                              dataASN);
             }
         #ifdef WOLFSSL_X509_NAME_AVAILABLE
@@ -14589,7 +14589,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
         /* Store X509_NAME in certificate. */
-        if (nameType == ISSUER) {
+        if (nameType == ASN_ISSUER) {
         #if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
              defined(HAVE_LIGHTY)) && \
             (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
@@ -14639,7 +14639,7 @@ enum {
  * Either the issuer or subject name.
  *
  * @param [in, out] cert      Decoded certificate object.
- * @param [in]      nameType  Type of name being decoded: ISSUER or SUBJECT.
+ * @param [in]      nameType  Type being decoded: ASN_ISSUER or ASN_SUBJECT.
  * @param [in]      maxIdx    Index of next item after certificate name.
  * @return  0 on success.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
@@ -14660,7 +14660,7 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
 
     WOLFSSL_MSG("Getting Name");
 
-    if (nameType == ISSUER) {
+    if (nameType == ASN_ISSUER) {
         full = cert->issuer;
         hash = cert->issuerHash;
     }
@@ -14718,7 +14718,7 @@ int GetName(DecodedCert* cert, int nameType, int maxIdx)
         cert->srcIdx = dataASN[CERTNAMEASN_IDX_NAME].offset;
 
         /* Get fields to fill in based on name type. */
-        if (nameType == ISSUER) {
+        if (nameType == ASN_ISSUER) {
             full = cert->issuer;
             hash = cert->issuerHash;
         }
@@ -15092,7 +15092,7 @@ static WC_INLINE int DateLessThan(const struct tm* a, const struct tm* b)
 /* Make sure before and after dates are valid */
 /* date = ASN.1 raw */
 /* format = ASN_UTC_TIME or ASN_GENERALIZED_TIME */
-/* dateType = AFTER or BEFORE */
+/* dateType = ASN_AFTER or ASN_BEFORE */
 int wc_ValidateDate(const byte* date, byte format, int dateType)
 {
     time_t ltime;
@@ -15122,14 +15122,14 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
 #endif
 
 #ifdef WOLFSSL_BEFORE_DATE_CLOCK_SKEW
-    if (dateType == BEFORE) {
+    if (dateType == ASN_BEFORE) {
         WOLFSSL_MSG("Skewing local time for before date check");
         ltime += WOLFSSL_BEFORE_DATE_CLOCK_SKEW;
     }
 #endif
 
 #ifdef WOLFSSL_AFTER_DATE_CLOCK_SKEW
-    if (dateType == AFTER) {
+    if (dateType == ASN_AFTER) {
         WOLFSSL_MSG("Skewing local time for after date check");
         ltime -= WOLFSSL_AFTER_DATE_CLOCK_SKEW;
     }
@@ -15163,13 +15163,13 @@ int wc_ValidateDate(const byte* date, byte format, int dateType)
         return 0;
     }
 
-    if (dateType == BEFORE) {
+    if (dateType == ASN_BEFORE) {
         if (DateLessThan(localTime, &certTime)) {
             WOLFSSL_MSG("Date BEFORE check failed");
             return 0;
         }
     }
-    else {  /* dateType == AFTER */
+    else {  /* dateType == ASN_AFTER */
         if (DateGreaterThan(localTime, &certTime)) {
             WOLFSSL_MSG("Date AFTER check failed");
             return 0;
@@ -15335,7 +15335,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
     byte   format;
     word32 startIdx = 0;
 
-    if (dateType == BEFORE)
+    if (dateType == ASN_BEFORE)
         cert->beforeDate = &cert->source[cert->srcIdx];
     else
         cert->afterDate = &cert->source[cert->srcIdx];
@@ -15349,7 +15349,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
     XMEMSET(date, 0, MAX_DATE_SIZE);
     XMEMCPY(date, datePtr, (size_t)length);
 
-    if (dateType == BEFORE)
+    if (dateType == ASN_BEFORE)
         cert->beforeDateLen = (int)(cert->srcIdx - startIdx);
     else
         cert->afterDateLen  = (int)(cert->srcIdx - startIdx);
@@ -15357,7 +15357,7 @@ static int GetDate(DecodedCert* cert, int dateType, int verify, int maxIdx)
 #ifndef NO_ASN_TIME_CHECK
     if (verify != NO_VERIFY && verify != VERIFY_SKIP_DATE &&
             !XVALIDATE_DATE(date, format, dateType)) {
-        if (dateType == BEFORE) {
+        if (dateType == ASN_BEFORE) {
             WOLFSSL_ERROR_VERBOSE(ASN_BEFORE_DATE_E);
             return ASN_BEFORE_DATE_E;
         }
@@ -15383,10 +15383,10 @@ static int GetValidity(DecodedCert* cert, int verify, int maxIdx)
 
     maxIdx = (int)cert->srcIdx + length;
 
-    if (GetDate(cert, BEFORE, verify, maxIdx) < 0)
+    if (GetDate(cert, ASN_BEFORE, verify, maxIdx) < 0)
         badDate = ASN_BEFORE_DATE_E; /* continue parsing */
 
-    if (GetDate(cert, AFTER, verify, maxIdx) < 0)
+    if (GetDate(cert, ASN_AFTER, verify, maxIdx) < 0)
         return ASN_AFTER_DATE_E;
 
     if (badDate != 0)
@@ -15586,7 +15586,7 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
 
         WOLFSSL_MSG("Got Algo ID");
 
-        if ( (ret = GetName(cert, ISSUER, (int)cert->sigIndex)) < 0)
+        if ( (ret = GetName(cert, ASN_ISSUER, (int)cert->sigIndex)) < 0)
             return ret;
 
         if ( (ret = GetValidity(cert, verify, (int)cert->sigIndex)) < 0)
@@ -15595,7 +15595,7 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
     }
 #endif
 
-    if ( (ret = GetName(cert, SUBJECT, (int)cert->sigIndex)) < 0)
+    if ( (ret = GetName(cert, ASN_SUBJECT, (int)cert->sigIndex)) < 0)
         return ret;
 
     WOLFSSL_MSG("Got Subject Name");
@@ -15622,8 +15622,8 @@ int wc_GetPubX509(DecodedCert* cert, int verify, int* badDate)
  * @return  0 on success.
  * @return  ASN_TIME_E when date BER tag is nor UTC or GENERALIZED time.
  * @return  ASN_DATE_SZ_E when time data is not supported.
- * @return  ASN_BEFORE_DATE_E when BEFORE date is invalid.
- * @return  ASN_AFTER_DATE_E when AFTER date is invalid.
+ * @return  ASN_BEFORE_DATE_E when ASN_BEFORE date is invalid.
+ * @return  ASN_AFTER_DATE_E when ASN_AFTER date is invalid.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
@@ -21725,12 +21725,12 @@ enum {
 /* Check the data data.
  *
  * @param [in] dataASN   ASN template dynamic data item.
- * @param [in] dataType  BEFORE or AFTER date.
+ * @param [in] dataType  ASN_BEFORE or ASN_AFTER date.
  * @return  0 on success.
  * @return  ASN_TIME_E when BER tag is nor UTC or GENERALIZED time.
  * @return  ASN_DATE_SZ_E when time data is not supported.
- * @return  ASN_BEFORE_DATE_E when BEFORE date is invalid.
- * @return  ASN_AFTER_DATE_E when AFTER date is invalid.
+ * @return  ASN_BEFORE_DATE_E when ASN_BEFORE date is invalid.
+ * @return  ASN_AFTER_DATE_E when ASN_AFTER date is invalid.
  */
 static int CheckDate(ASNGetData *dataASN, int dateType)
 {
@@ -21748,10 +21748,10 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
     }
 
 #ifndef NO_ASN_TIME_CHECK
-    /* Check date is a valid string and BEFORE or AFTER now. */
+    /* Check date is a valid string and ASN_BEFORE or ASN_AFTER now. */
     if ((ret == 0) &&
             (!XVALIDATE_DATE(dataASN->data.ref.data, dataASN->tag, dateType))) {
-        if (dateType == BEFORE) {
+        if (dateType == ASN_BEFORE) {
             ret = ASN_BEFORE_DATE_E;
         }
         else {
@@ -21776,8 +21776,8 @@ static int CheckDate(ASNGetData *dataASN, int dateType)
  * @return  ASN_CRIT_EXT_E when a critical extension was not recognized.
  * @return  ASN_TIME_E when date BER tag is nor UTC or GENERALIZED time.
  * @return  ASN_DATE_SZ_E when time data is not supported.
- * @return  ASN_BEFORE_DATE_E when BEFORE date is invalid.
- * @return  ASN_AFTER_DATE_E when AFTER date is invalid.
+ * @return  ASN_BEFORE_DATE_E when ASN_BEFORE date is invalid.
+ * @return  ASN_AFTER_DATE_E when ASN_AFTER date is invalid.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
@@ -21898,27 +21898,27 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
 
         /* No bad date error - don't always care. */
         badDate = 0;
-        /* Find the item with the BEFORE date and check it. */
+        /* Find the item with the ASN_BEFORE date and check it. */
         i = (dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC].tag != 0)
                 ? X509CERTASN_IDX_TBS_VALIDITY_NOTB_UTC
                 : X509CERTASN_IDX_TBS_VALIDITY_NOTB_GT;
-        if ((CheckDate(&dataASN[i], BEFORE) < 0) && (verify != NO_VERIFY) &&
+        if ((CheckDate(&dataASN[i], ASN_BEFORE) < 0) && (verify != NO_VERIFY) &&
                 (verify != VERIFY_SKIP_DATE)) {
             badDate = ASN_BEFORE_DATE_E;
         }
-        /* Store reference to BEFOREdate. */
+        /* Store reference to ASN_BEFORE date. */
         cert->beforeDate = GetASNItem_Addr(dataASN[i], cert->source);
         cert->beforeDateLen = (int)GetASNItem_Length(dataASN[i], cert->source);
 
-        /* Find the item with the AFTER date and check it. */
+        /* Find the item with the ASN_AFTER date and check it. */
         i = (dataASN[X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC].tag != 0)
                 ? X509CERTASN_IDX_TBS_VALIDITY_NOTA_UTC
                 : X509CERTASN_IDX_TBS_VALIDITY_NOTA_GT;
-        if ((CheckDate(&dataASN[i], AFTER) < 0) && (verify != NO_VERIFY) &&
+        if ((CheckDate(&dataASN[i], ASN_AFTER) < 0) && (verify != NO_VERIFY) &&
                 (verify != VERIFY_SKIP_DATE)) {
             badDate = ASN_AFTER_DATE_E;
         }
-        /* Store reference to AFTER date. */
+        /* Store reference to ASN_AFTER date. */
         cert->afterDate = GetASNItem_Addr(dataASN[i], cert->source);
         cert->afterDateLen = (int)GetASNItem_Length(dataASN[i], cert->source);
 
@@ -22049,13 +22049,13 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
     if ((ret == 0) && (issuer != NULL)) {
         idx = 0;
         /* Put issuer into cert and calculate hash. */
-        ret = GetCertName(cert, cert->issuer, cert->issuerHash, ISSUER, issuer,
+        ret = GetCertName(cert, cert->issuer, cert->issuerHash, ASN_ISSUER, issuer,
             &idx, issuerSz);
     }
     if ((ret == 0) && (subject != NULL)) {
         idx = 0;
         /* Put subject into cert and calculate hash. */
-        ret = GetCertName(cert, cert->subject, cert->subjectHash, SUBJECT,
+        ret = GetCertName(cert, cert->subject, cert->subjectHash, ASN_SUBJECT,
             subject, &idx, subjectSz);
     }
     if (ret == 0) {
@@ -22117,8 +22117,8 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
  * @return  ASN_CRIT_EXT_E when a critical extension was not recognized.
  * @return  ASN_TIME_E when date BER tag is nor UTC or GENERALIZED time.
  * @return  ASN_DATE_SZ_E when time data is not supported.
- * @return  ASN_BEFORE_DATE_E when BEFORE date is invalid.
- * @return  ASN_AFTER_DATE_E when AFTER date is invalid.
+ * @return  ASN_BEFORE_DATE_E when ASN_BEFORE date is invalid.
+ * @return  ASN_AFTER_DATE_E when ASN_AFTER date is invalid.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
  *          is invalid.
  * @return  BUFFER_E when data in buffer is too small.
@@ -22463,7 +22463,7 @@ static int DecodeCertReq(DecodedCert* cert, int* criticalExt)
 
         /* Parse the subject name. */
         idx = dataASN[CERTREQASN_IDX_INFO_SUBJ_SEQ].offset;
-        ret = GetCertName(cert, cert->subject, cert->subjectHash, SUBJECT,
+        ret = GetCertName(cert, cert->subject, cert->subjectHash, ASN_SUBJECT,
                           cert->source, &idx,
                           dataASN[CERTREQASN_IDX_INFO_SPUBKEYINFO_SEQ].offset);
     }
@@ -35811,7 +35811,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-    if (!XVALIDATE_DATE(single->status->thisDate, single->status->thisDateFormat, BEFORE))
+    if (!XVALIDATE_DATE(single->status->thisDate, single->status->thisDateFormat, ASN_BEFORE))
         return ASN_BEFORE_DATE_E;
 #endif
 #endif
@@ -35847,7 +35847,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
 #ifndef NO_ASN_TIME_CHECK
 #ifndef WOLFSSL_NO_OCSP_DATE_CHECK
-        if (!XVALIDATE_DATE(single->status->nextDate, single->status->nextDateFormat, AFTER))
+        if (!XVALIDATE_DATE(single->status->nextDate, single->status->nextDateFormat, ASN_AFTER))
             return ASN_AFTER_DATE_E;
 #endif
 #endif
@@ -35955,8 +35955,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         /* Store the thisDate format - only one possible. */
         cs->thisDateFormat = ASN_GENERALIZED_TIME;
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
-        /* Check date is a valid string and BEFORE now. */
-        if (!XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, BEFORE)) {
+        /* Check date is a valid string and ASN_BEFORE now. */
+        if (!XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE)) {
             ret = ASN_BEFORE_DATE_E;
         }
     }
@@ -35978,8 +35978,8 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         /* Store the nextDate format - only one possible. */
         cs->nextDateFormat = ASN_GENERALIZED_TIME;
     #if !defined(NO_ASN_TIME_CHECK) && !defined(WOLFSSL_NO_OCSP_DATE_CHECK)
-        /* Check date is a valid string and AFTER now. */
-        if (!XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, AFTER)) {
+        /* Check date is a valid string and ASN_AFTER now. */
+        if (!XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER)) {
             ret = ASN_AFTER_DATE_E;
         }
     }
@@ -38011,7 +38011,7 @@ static int ParseCRL_CertList(RevokedCert* rcert, DecodedCRL* dcrl,
     {
 #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_CRL_DATE_CHECK)
         if (verify != NO_VERIFY &&
-                !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+                !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
             WOLFSSL_MSG("CRL after date is no longer valid");
             WOLFSSL_ERROR_VERBOSE(CRL_CERT_DATE_ERR);
             return CRL_CERT_DATE_ERR;
@@ -38627,7 +38627,7 @@ end:
         if (dcrl->nextDateFormat != 0) {
             /* Next date was set, so validate it. */
             if (verify != NO_VERIFY &&
-                 !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, AFTER)) {
+                 !XVALIDATE_DATE(dcrl->nextDate, dcrl->nextDateFormat, ASN_AFTER)) {
                 WOLFSSL_MSG("CRL after date is no longer valid");
                 ret = CRL_CERT_DATE_ERR;
                 WOLFSSL_ERROR_VERBOSE(ret);
