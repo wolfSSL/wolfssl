@@ -55,8 +55,10 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
 
+#define INITIAL_DEVID 7890
+
 uint32_t   g_CAscm_Idx = (uint32_t)-1; /* index of CM table    */
-static int gdevId = 7890;           /* initial dev Id for Crypt Callback */
+static int gdevId = INITIAL_DEVID;     /* initial dev Id for Crypt Callback */
 
 #ifdef WOLF_CRYPTO_CB
 /* store callback ctx by devId */
@@ -460,8 +462,8 @@ int Renesas_cmn_usable(const struct WOLFSSL* ssl, byte session_key_generated)
  */
 WOLFSSL_LOCAL void *Renesas_cmn_GetCbCtxBydevId(int devId)
 {
-    if (devId >= 7890 && devId <= (MAX_FSPSM_CBINDEX + 7890))
-        return gCbCtx[devId - 7890];
+    if (devId >= INITIAL_DEVID && devId <= (MAX_FSPSM_CBINDEX + INITIAL_DEVID))
+        return gCbCtx[devId - INITIAL_DEVID];
     else
         return NULL;
 }
@@ -500,6 +502,10 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
     }
     /* need exclusive control because of static variable */
     if ((cmn_hw_lock()) == 0) {
+        /* sanity check for overflow */
+        if (gdevId < 0) {
+            gdevId = INITIAL_DEVID;
+        }
         cbInfo->devId = gdevId++;
         cmn_hw_unlock();
     }
@@ -521,12 +527,8 @@ int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx)
     if (ssl)
         wolfSSL_SetDevId(ssl, cbInfo->devId);
    #endif
-    /* sanity check for overflow */
-    if (gdevId < 0) {
-        gdevId = 7890;
-    }
 
-    gCbCtx[cbInfo->devId - 7890] = (void*)cbInfo;
+    gCbCtx[cbInfo->devId - INITIAL_DEVID] = (void*)cbInfo;
 
     return cbInfo->devId;
 }
