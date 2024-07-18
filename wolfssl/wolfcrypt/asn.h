@@ -799,7 +799,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
  * Any certificate containing more than this number of subject
  * alternative names will cause an error when attempting to parse. */
 #ifndef WOLFSSL_MAX_ALT_NAMES
-#define WOLFSSL_MAX_ALT_NAMES 128
+#define WOLFSSL_MAX_ALT_NAMES 1024
 #endif
 
 /* Maximum number of allowed name constraints in a certificate.
