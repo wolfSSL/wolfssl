@@ -245,7 +245,7 @@
      */
     #define WOLFSSL_RENESAS_TSIP_TLS
 
-	#if !defined(NO_RENESAS_TSIP_CRYPT)
+    #if !defined(NO_RENESAS_TSIP_CRYPT)
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
         #if defined(WOLFSSL_RENESAS_TSIP_TLS)

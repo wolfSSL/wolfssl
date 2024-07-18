@@ -59,7 +59,7 @@ extern "C" {
 typedef enum {
     WOLFSSL_TSIP_NOERROR = 0,
     WOLFSSL_TSIP_ILLEGAL_CIPHERSUITE = 0xffffffff,
-}wolfssl_tsip_error_number;
+} wolfssl_tsip_error_number;
 
 typedef enum {
     tsip_Key_SESSION = 1,
@@ -92,6 +92,8 @@ enum {
     TSIP_TLS_VERIFY_DATA_WD_SZ = 8,
     TSIP_TLS_MAX_SIGDATA_SZ    = 130,
     TSIP_TEMP_WORK_SIZE        = 128,
+
+    TSIP_MAX_ECC_BYTES         = 48,
 };
 
 typedef enum {
@@ -133,7 +135,7 @@ typedef struct MsgBag
 
 #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
 /* flags Crypt Only */
-struct tsip_keyflgs_cryt {
+struct tsip_keyflgs_crypt {
     uint32_t aes256_key_set:1;
     uint32_t aes128_key_set:1;
     uint32_t rsapri2048_key_set:1;
@@ -319,7 +321,7 @@ typedef struct TsipUserCtx {
     /* flags shows status if tsip keys are installed */
     union {
         uint32_t chr;
-        struct tsip_keyflgs_cryt bits;
+        struct tsip_keyflgs_crypt bits;
     } keyflgs_crypt;
 #endif /* WOLFSSL_RENESAS_TSIP_CRYPTONLY */
 

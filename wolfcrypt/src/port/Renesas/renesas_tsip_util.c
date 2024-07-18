@@ -2672,6 +2672,7 @@ WOLFSSL_LOCAL int tsip_Open(void)
         if (ret != TSIP_SUCCESS) {
             WOLFSSL_MSG("RENESAS TSIP Open failed");
         }
+
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
         if (ret == TSIP_SUCCESS && g_user_key_info.encrypted_user_tls_key) {
 
@@ -2698,11 +2699,13 @@ WOLFSSL_LOCAL int tsip_Open(void)
                 if (ret != TSIP_SUCCESS) {
                     WOLFSSL_MSG("R_TSIP_(Re)Open: NG");
                 }
-                    /* init vars */
+
+                /* init vars */
                 g_CAscm_Idx = (uint32_t)-1;
             }
         }
     #endif
+
 #elif defined(WOLFSSL_RENESAS_TSIP) && (WOLFSSL_RENESAS_TSIP_VER>=106)
 
         ret = R_TSIP_Open((uint32_t*)s_flash, s_inst1, s_inst2);
@@ -2732,7 +2735,8 @@ WOLFSSL_LOCAL int tsip_Open(void)
                 if (ret != TSIP_SUCCESS) {
                     WOLFSSL_MSG("R_TSIP_(Re)Open failed");
                 }
-                 /* init vars */
+
+                /* init vars */
                 g_CAscm_Idx = (uint32_t)-1;
             }
         }
@@ -4037,7 +4041,7 @@ WOLFSSL_LOCAL int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     tsip_ecdsa_byte_data_t hashData, sigData;
     /* hard coding largest digest size, since WC_MAX_DIGEST_SZ could be 32
      * if using SHA2-256 with ECDSA SECP384R1 */
-    uint8_t hash[48];
+    uint8_t hash[TSIP_MAX_ECC_BYTES];
 
     WOLFSSL_ENTER("tsip_VerifyEcdsa");
 
@@ -4053,6 +4057,7 @@ WOLFSSL_LOCAL int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
     }
 
     if (ret == 0) {
+        int curveSz = info->pk.eccverify.key->dp->size;
         hashData.pdata      = (uint8_t*)hash;
         hashData.data_type  = tuc->keyflgs_crypt.bits.message_type;
         sigData.pdata       = (uint8_t*)info->pk.eccverify.sig;
@@ -4063,8 +4068,9 @@ WOLFSSL_LOCAL int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
             #if !defined(NO_ECC256)
                 case TSIP_KEY_TYPE_ECDSAP256:
                     /* zero pad or truncate */
-                    hashData.data_length = tsip_HashPad(32, hash,
-                        info->pk.eccverify.hash, info->pk.eccverify.hashlen);
+                    hashData.data_length = tsip_HashPad(curveSz,
+                        hash, info->pk.eccverify.hash,
+                        info->pk.eccverify.hashlen);
 
                     err = R_TSIP_EcdsaP256SignatureVerification(&sigData,
                         &hashData, &tuc->eccpub_keyIdx);
@@ -4081,8 +4087,9 @@ WOLFSSL_LOCAL int tsip_VerifyEcdsa(wc_CryptoInfo* info, TsipUserCtx* tuc)
             #if defined(HAVE_ECC384)
                 case TSIP_KEY_TYPE_ECDSAP384:
                     /* zero pad or truncate */
-                    hashData.data_length = tsip_HashPad(48, hash,
-                        info->pk.eccverify.hash, info->pk.eccverify.hashlen);
+                    hashData.data_length = tsip_HashPad(curveSz,
+                        hash, info->pk.eccverify.hash,
+                        info->pk.eccverify.hashlen);
 
                     err = R_TSIP_EcdsaP384SignatureVerification(&sigData,
                         &hashData, &tuc->eccpub_keyIdx);

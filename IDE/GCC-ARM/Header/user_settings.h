@@ -250,10 +250,10 @@ extern "C" {
 /* AES */
 #undef NO_AES
 #if 1
-	#undef  HAVE_AES_CBC
-	#define HAVE_AES_CBC
+    #undef  HAVE_AES_CBC
+    #define HAVE_AES_CBC
 
-	#undef  HAVE_AESGCM
+    #undef  HAVE_AESGCM
     #define HAVE_AESGCM
 
     /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */

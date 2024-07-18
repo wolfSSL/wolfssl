@@ -705,7 +705,7 @@ Turn on timer debugging (used when CPU cycles not available)
     #define WOLFSSL_BASE16
 #else
     #if defined(USE_CERT_BUFFERS_2048)
-    	/* Be sure to include in app when using example certs: */
+        /* Be sure to include in app when using example certs: */
         /* #include <wolfssl/certs_test.h>                     */
         #define CTX_CA_CERT          ca_cert_der_2048
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
@@ -726,7 +726,7 @@ Turn on timer debugging (used when CPU cycles not available)
         #define CTX_CLIENT_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
 
     #elif defined(USE_CERT_BUFFERS_1024)
-    	/* Be sure to include in app when using example certs: */
+        /* Be sure to include in app when using example certs: */
         /* #include <wolfssl/certs_test.h>                     */
         #define CTX_CA_CERT          ca_cert_der_1024
         #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_1024

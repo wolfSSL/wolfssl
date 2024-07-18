@@ -31,7 +31,7 @@
 
     #define FSPSM_W_KEYVAR          renesas_sce_wrappedkey
     #define FSPSM_tls_flg_ST        sce_keyflgs_tls
-    #define FSPSM_key_flg_ST        sce_keyflgs_cryt
+    #define FSPSM_key_flg_ST        sce_keyflgs_crypt
     #define FSPSM_tag_ST            tagUser_SCEPKCbInfo
     #define FSPSM_ST                User_SCEPKCbInfo
     #define FSPSM_ST_PKC            SCE_PKCbInfo
@@ -171,7 +171,7 @@
     /* structure, type so on */
     #define FSPSM_W_KEYVAR          renesas_rsip_wrappedkey
     #define FSPSM_tls_flg_ST        rsip_keyflgs_tls
-    #define FSPSM_key_flg_ST        rsip_keyflgs_cryt
+    #define FSPSM_key_flg_ST        rsip_keyflgs_crypt
     #define FSPSM_tag_ST            tagUser_RSIPPKCbInfo
     #define FSPSM_ST                User_RSIPPKCbInfo
     #define FSPSM_ST_PKC            RSIP_PKCbInfo
