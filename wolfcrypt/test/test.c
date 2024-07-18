@@ -3829,23 +3829,26 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
 #endif /* NO_LARGE_HASH_TEST */
 
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
-    unsigned char data_hb[WC_SHA256_BLOCK_SIZE] = {
-        0x61, 0x62, 0x63, 0x80, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18
-    };
+    {
+        WOLFSSL_SMALL_STACK_STATIC const unsigned char
+            data_hb[WC_SHA256_BLOCK_SIZE] = {
+            0x61, 0x62, 0x63, 0x80, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x18
+        };
 
-    ret = wc_Sha256HashBlock(&sha, data_hb, hash);
-    if (ret != 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
-    }
-    if (XMEMCMP(hash, b.output, WC_SHA256_DIGEST_SIZE) != 0) {
-        ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+        ret = wc_Sha256HashBlock(&sha, data_hb, hash);
+        if (ret != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
+        }
+        if (XMEMCMP(hash, b.output, WC_SHA256_DIGEST_SIZE) != 0) {
+            ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
+        }
     }
 #endif
 
@@ -29059,8 +29062,9 @@ static wc_test_ret_t ecc_test_vector(int keySize)
     (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
 #if (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
 
-static wc_test_ret_t ecdsa_test_deterministic_k_sig(ecc_key *key, int hashType,
-    const char* msg, WC_RNG* rng, const byte* expSig, size_t expSigSz)
+static wc_test_ret_t ecdsa_test_deterministic_k_sig(ecc_key *key,
+    enum wc_HashType hashType, const char* msg, WC_RNG* rng, const byte* expSig,
+    size_t expSigSz)
 {
     wc_test_ret_t ret;
     int verify;
@@ -29246,8 +29250,8 @@ done:
 
 #ifdef WOLFSSL_PUBLIC_MP
 
-static wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key, int hashType,
-    const char* msg, WC_RNG* rng,
+static wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
+    enum wc_HashType hashType, const char* msg, WC_RNG* rng,
     mp_int* r, mp_int* s,
     mp_int* expR, mp_int* expS)
 {
@@ -29305,7 +29309,9 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
     ecc_key key[1];
     mp_int r[1], s[1], expR[1], expS[1];
 #endif
-    int key_inited = 0;
+    int key_inited = 0,
+        tmp_mp_ints_inited = 0;
+
     WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
     WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
         "6B9D3DAD2E1B8C1C05B19875B6659F4DE23C3B667BF297BA9AA47740787137D8"
@@ -29363,6 +29369,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
     if (ret != MP_OKAY) {
         goto done;
     }
+    tmp_mp_ints_inited = 1;
     ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
         goto done;
@@ -29415,6 +29422,12 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
 done:
     if (key_inited)
         wc_ecc_free(key);
+    if (tmp_mp_ints_inited) {
+        mp_free(r);
+        mp_free(s);
+        mp_free(expR);
+        mp_free(expS);
+    }
 #ifdef WOLFSSL_SMALL_STACK
     if (key != NULL)
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -29444,7 +29457,8 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
     ecc_key key[1];
     mp_int r[1], s[1], expR[1], expS[1];
 #endif
-    int key_inited = 0;
+    int key_inited = 0,
+        tmp_mp_ints_inited = 0;
     WOLFSSL_SMALL_STACK_STATIC const char* msg = "sample";
     WOLFSSL_SMALL_STACK_STATIC const char* dIUT =
        "0FAD06DAA62BA3B25D2FB40133DA757205DE67F5BB0018FEE8C86E1B68C7E75C"
@@ -29511,6 +29525,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
     if (ret != MP_OKAY) {
         goto done;
     }
+    tmp_mp_ints_inited = 1;
     ret = wc_ecc_init_ex(key, HEAP_HINT, devId);
     if (ret != 0) {
         return WC_TEST_RET_ENC_EC(ret);
@@ -29563,6 +29578,12 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
 done:
     if (key_inited)
         wc_ecc_free(key);
+    if (tmp_mp_ints_inited) {
+        mp_free(r);
+        mp_free(s);
+        mp_free(expR);
+        mp_free(expS);
+    }
 #ifdef WOLFSSL_SMALL_STACK
     if (key != NULL)
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
