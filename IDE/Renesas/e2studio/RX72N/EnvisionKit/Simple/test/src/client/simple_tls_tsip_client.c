@@ -265,11 +265,11 @@ void wolfSSL_TLS_client( )
 
     /* DER format ECC private key */
     if (ret == 0) {
-        err = wolfSSL_use_PrivateKey_buffer(ssl,
+        ret = wolfSSL_use_PrivateKey_buffer(ssl,
                                     ecc_clikey_der_256,
                                     sizeof_ecc_clikey_der_256,
                                     WOLFSSL_FILETYPE_ASN1);
-        if (err != SSL_SUCCESS) {
+        if (ret != SSL_SUCCESS) {
             printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
             ret = -1;
