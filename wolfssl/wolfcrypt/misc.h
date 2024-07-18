@@ -145,6 +145,7 @@ WOLFSSL_LOCAL word32 w64GetLow32(w64wrapper n);
 WOLFSSL_LOCAL word32 w64GetHigh32(w64wrapper n);
 WOLFSSL_LOCAL void w64SetLow32(w64wrapper *n, word32 low);
 WOLFSSL_LOCAL w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap);
+WOLFSSL_LOCAL w64wrapper w64Add(w64wrapper a, w64wrapper b, byte *wrap);
 WOLFSSL_LOCAL w64wrapper w64Sub32(w64wrapper a, word32 b, byte *wrap);
 WOLFSSL_LOCAL byte w64GT(w64wrapper a, w64wrapper b);
 WOLFSSL_LOCAL byte w64IsZero(w64wrapper a);
@@ -157,6 +158,7 @@ WOLFSSL_LOCAL w64wrapper w64Sub(w64wrapper a, w64wrapper b);
 WOLFSSL_LOCAL void w64Zero(w64wrapper *a);
 WOLFSSL_LOCAL w64wrapper w64ShiftRight(w64wrapper a, int shift);
 WOLFSSL_LOCAL w64wrapper w64ShiftLeft(w64wrapper a, int shift);
+WOLFSSL_LOCAL w64wrapper w64Mul(word32 a, word32 b);
 
 #else /* !NO_INLINE */
 

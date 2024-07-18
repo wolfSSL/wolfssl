@@ -29,6 +29,13 @@ and Daniel J. Bernstein
 */
 
 
+/*
+ * WOLFSSL_W64_WRAPPER Uses wrappers around word64 types for a system that does
+ *                     not have word64 available. As expected it reduces
+ *                     performance. Benchmarks collected July 2024 show
+ *                     303.004 MiB/s with and 1874.194 MiB/s without.
+ */
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -332,7 +339,11 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
     word32 r0,r1,r2,r3,r4;
     word32 s1,s2,s3,s4;
     word32 h0,h1,h2,h3,h4;
+#ifdef WOLFSSL_W64_WRAPPER
+    w64wrapper d0,d1,d2,d3,d4;
+#else
     word64 d0,d1,d2,d3,d4;
+#endif
     word32 c;
 
 
@@ -362,6 +373,41 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
         h4 += (U8TO32(m+12) >> 8) | hibit;
 
         /* h *= r */
+#ifdef WOLFSSL_W64_WRAPPER
+        {
+            w64wrapper tmp;
+
+            d0 = w64Mul(h0, r0); tmp = w64Mul(h1, s4);
+            d0 = w64Add(d0, tmp, NULL); tmp = w64Mul(h2, s3);
+            d0 = w64Add(d0, tmp, NULL); tmp = w64Mul(h3, s2);
+            d0 = w64Add(d0, tmp, NULL); tmp = w64Mul(h4, s1);
+            d0 = w64Add(d0, tmp, NULL);
+
+            d1 = w64Mul(h0, r1); tmp = w64Mul(h1, r0);
+            d1 = w64Add(d1, tmp, NULL); tmp = w64Mul(h2, s4);
+            d1 = w64Add(d1, tmp, NULL); tmp = w64Mul(h3, s3);
+            d1 = w64Add(d1, tmp, NULL); tmp = w64Mul(h4, s2);
+            d1 = w64Add(d1, tmp, NULL);
+
+            d2 = w64Mul(h0, r2); tmp = w64Mul(h1, r1);
+            d2 = w64Add(d2, tmp, NULL); tmp = w64Mul(h2, r0);
+            d2 = w64Add(d2, tmp, NULL); tmp = w64Mul(h3, s4);
+            d2 = w64Add(d2, tmp, NULL); tmp = w64Mul(h4, s3);
+            d2 = w64Add(d2, tmp, NULL);
+
+            d3 = w64Mul(h0, r3); tmp = w64Mul(h1, r2);
+            d3 = w64Add(d3, tmp, NULL); tmp = w64Mul(h2, r1);
+            d3 = w64Add(d3, tmp, NULL); tmp = w64Mul(h3, r0);
+            d3 = w64Add(d3, tmp, NULL); tmp = w64Mul(h4, s4);
+            d3 = w64Add(d3, tmp, NULL);
+
+            d4 = w64Mul(h0, r4); tmp = w64Mul(h1, r3);
+            d4 = w64Add(d4, tmp, NULL); tmp = w64Mul(h2, r2);
+            d4 = w64Add(d4, tmp, NULL); tmp = w64Mul(h3, r1);
+            d4 = w64Add(d4, tmp, NULL); tmp = w64Mul(h4, r0);
+            d4 = w64Add(d4, tmp, NULL);
+        }
+#else
         d0 = ((word64)h0 * r0) + ((word64)h1 * s4) + ((word64)h2 * s3) +
              ((word64)h3 * s2) + ((word64)h4 * s1);
         d1 = ((word64)h0 * r1) + ((word64)h1 * r0) + ((word64)h2 * s4) +
@@ -372,13 +418,26 @@ static int poly1305_blocks(Poly1305* ctx, const unsigned char *m,
              ((word64)h3 * r0) + ((word64)h4 * s4);
         d4 = ((word64)h0 * r4) + ((word64)h1 * r3) + ((word64)h2 * r2) +
              ((word64)h3 * r1) + ((word64)h4 * r0);
+#endif
 
         /* (partial) h %= p */
+#ifdef WOLFSSL_W64_WRAPPER
+        c = w64GetLow32(w64ShiftRight(d0, 26));h0 = w64GetLow32(d0) & 0x3ffffff;
+        d1 = w64Add32(d1, c, NULL);
+        c = w64GetLow32(w64ShiftRight(d1, 26));h1 = w64GetLow32(d1) & 0x3ffffff;
+        d2 = w64Add32(d2, c, NULL);
+        c = w64GetLow32(w64ShiftRight(d2, 26));h2 = w64GetLow32(d2) & 0x3ffffff;
+        d3 = w64Add32(d3, c, NULL);
+        c = w64GetLow32(w64ShiftRight(d3, 26));h3 = w64GetLow32(d3) & 0x3ffffff;
+        d4 = w64Add32(d4, c, NULL);
+        c = w64GetLow32(w64ShiftRight(d4, 26));h4 = w64GetLow32(d4) & 0x3ffffff;
+#else
                       c = (word32)(d0 >> 26); h0 = (word32)d0 & 0x3ffffff;
         d1 += c;      c = (word32)(d1 >> 26); h1 = (word32)d1 & 0x3ffffff;
         d2 += c;      c = (word32)(d2 >> 26); h2 = (word32)d2 & 0x3ffffff;
         d3 += c;      c = (word32)(d3 >> 26); h3 = (word32)d3 & 0x3ffffff;
         d4 += c;      c = (word32)(d4 >> 26); h4 = (word32)d4 & 0x3ffffff;
+#endif
         h0 += c * 5;  c =  (h0 >> 26); h0 =                h0 & 0x3ffffff;
         h1 += c;
 
@@ -517,7 +576,11 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     word32 h0,h1,h2,h3,h4,c;
     word32 g0,g1,g2,g3,g4;
+#ifdef WOLFSSL_W64_WRAPPER
+    w64wrapper f;
+#else
     word64 f;
+#endif
     word32 mask;
 
 #endif
@@ -656,10 +719,31 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
     h3 = ((h3 >> 18) | (h4 <<  8)) & 0xffffffff;
 
     /* mac = (h + pad) % (2^128) */
+#ifdef WOLFSSL_W64_WRAPPER
+    w64SetLow32(&f, h0);
+    f = w64Add32(f, ctx->pad[0], NULL);
+    h0 = w64GetLow32(f);
+
+    f = w64ShiftRight(f, 32);
+    f = w64Add32(f, h1, NULL);
+    f = w64Add32(f, ctx->pad[1], NULL);
+    h1 = w64GetLow32(f);
+
+    f = w64ShiftRight(f, 32);
+    f = w64Add32(f, h2, NULL);
+    f = w64Add32(f, ctx->pad[2], NULL);
+    h2 = w64GetLow32(f);
+
+    f = w64ShiftRight(f, 32);
+    f = w64Add32(f, h3, NULL);
+    f = w64Add32(f, ctx->pad[3], NULL);
+    h3 = w64GetLow32(f);
+#else
     f = (word64)h0 + ctx->pad[0]            ; h0 = (word32)f;
     f = (word64)h1 + ctx->pad[1] + (f >> 32); h1 = (word32)f;
     f = (word64)h2 + ctx->pad[2] + (f >> 32); h2 = (word32)f;
     f = (word64)h3 + ctx->pad[3] + (f >> 32); h3 = (word32)f;
+#endif
 
     U32TO8(mac + 0, h0);
     U32TO8(mac + 4, h1);

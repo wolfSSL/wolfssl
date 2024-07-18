@@ -796,6 +796,13 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
     return a;
 }
 
+WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(unsigned int a, unsigned int b)
+{
+    w64wrapper ret;
+    ret.n = (word64)a * (word64)b;
+    return ret;
+}
+
 #else
 
 WC_MISC_STATIC WC_INLINE void w64Increment(w64wrapper *n)
@@ -836,6 +843,24 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
         a.n[0]++;
         if (wrap != NULL && a.n[0] == 0)
                 *wrap = 1;
+    }
+
+    return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64Add(w64wrapper a, w64wrapper b,
+    byte *wrap)
+{
+    a.n[1] = a.n[1] + b.n[1];
+    if (a.n[1] < b.n[1]) {
+        a.n[0]++;
+        if (wrap != NULL && a.n[0] == 0)
+                *wrap = 1;
+    }
+
+    a.n[0] = a.n[0] + b.n[0];
+    if (a.n[0] < b.n[0]) {
+        *wrap = 1;
     }
 
     return a;
@@ -939,7 +964,7 @@ WC_MISC_STATIC WC_INLINE byte w64LT(w64wrapper a, w64wrapper b)
 WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftRight(w64wrapper a, int shift)
 {
      if (shift < 32) {
-         a.n[1] = (a.n[1] >> shift) || (a.n[0] << (32 - shift));
+         a.n[1] = (a.n[1] >> shift) | (a.n[0] << (32 - shift));
          a.n[0] >>= shift;
      }
      else {
@@ -951,7 +976,7 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftRight(w64wrapper a, int shift)
 WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
 {
      if (shift < 32) {
-         a.n[0] = (a.n[0] << shift) || (a.n[1] >> (32 - shift));
+         a.n[0] = (a.n[0] << shift) | (a.n[1] >> (32 - shift));
          a.n[1] <<= shift;
      }
      else {
@@ -959,6 +984,30 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
          a.n[1] = 0;
      }
      return a;
+}
+
+WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(word32 a, word32 b)
+{
+    w64wrapper ret;
+    word16 ltlA, ltlB, ltlC, ltlD;
+    word32 bigA, bigB, bigC, bigD;
+
+    ltlA = a & 0xFFFF;
+    ltlB = (a >> 16) & 0xFFFF;
+    ltlC = b & 0xFFFF;
+    ltlD = (b >> 16) & 0xFFFF;
+
+    bigA = ltlA * ltlC;
+    bigC = ltlB * ltlC;
+    bigD = ltlA * ltlD;
+    bigB = ltlB * ltlD;
+
+    ret = w64From32(0, bigB);
+    ret = w64ShiftLeft(ret, 16);
+    ret = w64Add32(ret, bigD, NULL);
+    ret = w64Add32(ret, bigC, NULL);
+    ret = w64ShiftLeft(ret, 16);
+    return w64Add32(ret, bigA, NULL);
 }
 
 #endif /* WORD64_AVAILABLE && !WOLFSSL_W64_WRAPPER_TEST */
