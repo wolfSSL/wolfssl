@@ -51497,7 +51497,7 @@ static int test_wolfSSL_X509_max_altnames(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
 
     /* Only test if max alt names has not been modified */
-#if WOLFSSL_MAX_ALT_NAMES == 1024
+#if WOLFSSL_MAX_ALT_NAMES <= 1024
 
     WOLFSSL_CTX* ctx = NULL;
     /* File contains a certificate encoded with 130 subject alternative names */
