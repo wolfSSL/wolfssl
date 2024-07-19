@@ -300,10 +300,16 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
 #ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WC_ERR_TRACE
+        #ifdef NO_STDIO_FILESYSTEM
+        #define WC_ERR_TRACE(label)                           \
+            ( printf("ERR TRACE: %s L %d " #label " (%d)\n",  \
+                      __FILE__, __LINE__, label), label)
+        #else
         #define WC_ERR_TRACE(label)                           \
             ( fprintf(stderr,                                 \
                       "ERR TRACE: %s L %d " #label " (%d)\n", \
                       __FILE__, __LINE__, label), label)
+        #endif
     #endif
     #include <wolfssl/debug-trace-error-codes.h>
 #else
