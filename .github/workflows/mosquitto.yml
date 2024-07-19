@@ -1,0 +1,83 @@
+name: mosquitto Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-mosquitto CFLAGS="-DALLOW_INVALID_CERTSIGN"
+          install: true
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-mosquitto
+          path: build-dir
+          retention-days: 5
+
+  mosquitto_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [ 2.0.18 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-mosquitto
+          path: build-dir
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Install dependencies
+        run: |
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt-get update
+            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make
+            sudo pip install --upgrade psutil
+
+      - name: Checkout mosquitto
+        uses: actions/checkout@v4
+        with:
+          repository: eclipse/mosquitto
+          ref: v${{ matrix.ref }}
+          path: mosquitto
+
+      - name: Configure and build mosquitto
+        run: |
+            cd $GITHUB_WORKSPACE/mosquitto/
+            patch -p1 < $GITHUB_WORKSPACE/osp/mosquitto/${{ matrix.ref }}.patch
+            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir
+
+      - name: Run mosquitto tests
+        working-directory: ./mosquitto
+        run: |
+          make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest

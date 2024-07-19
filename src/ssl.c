@@ -23300,6 +23300,18 @@ int wolfSSL_CTX_set_ecdh_auto(WOLFSSL_CTX* ctx, int onoff)
     return WOLFSSL_SUCCESS;
 }
 
+/* wolfSSL_CTX_set_dh_auto is provided as compatible API with
+ * SSL_CTX_set_dh_auto to enable auto dh selection functionality.
+ * Since this functionality is enabled by default in wolfSSL,
+ * this API exists as a stub.
+ */
+int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff)
+{
+    (void)ctx;
+    (void)onoff;
+    return WOLFSSL_SUCCESS;
+}
+
 /**
  * set security level (wolfSSL doesn't support security level)
  * @param ctx  a pointer to WOLFSSL_EVP_PKEY_CTX structure
