@@ -2543,6 +2543,7 @@ static int dilithium_vec_expand_mask(wc_Shake* shake256, byte* seed,
 #endif
 
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+
 /* Expand commit to a polynomial.
  *
  * FIPS 204. 8.3: Algorithm 23 SampleInBall(rho)
@@ -2559,40 +2560,22 @@ static int dilithium_vec_expand_mask(wc_Shake* shake256, byte* seed,
  *  11: end for
  *  12: return c
  *
- * @param [in]  shake256   SHAKE-256 object.
- * @param [in]  seed       Buffer containing seed to expand.
- * @param [in]  tau        Number of +/- 1s in polynomial.
- * @param [out] c          Commit polynomial.
- * @param [in]  key_block  Memory to use for block from key.
+ * @param [in]  shake256  SHAKE-256 object.
+ * @param [in]  seed      Buffer containing seed to expand.
+ * @param [in]  tau       Number of +/- 1s in polynomial.
+ * @param [out] c         Commit polynomial.
+ * @param [in]  block     Memory to use for block from key.
  * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Negative on hash error.
  */
-static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
-   byte tau, sword32* c, byte* key_block)
+static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
+   byte tau, sword32* c, byte* block)
 {
     int ret = 0;
     unsigned int k;
     unsigned int i;
     unsigned int s;
-#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)
-    byte* block = NULL;
-#else
-    byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
-#endif
     byte signs[DILITHIUM_SIGN_BYTES];
-
-    (void)key_block;
-
-#ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    block = key_block;
-#elif defined(WOLFSSL_SMALL_STACK)
-    block = (byte*)XMALLOC(DILITHIUM_GEN_C_BLOCK_BYTES, NULL,
-        DYNAMIC_TYPE_DILITHIUM);
-    if (block == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
 
     if (ret == 0) {
         /* Set polynomial to all zeros. */
@@ -2638,11 +2621,53 @@ static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
         s++;
     }
 
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC) && defined(WOLFSSL_SMALL_STACK)
+    return ret;
+}
+
+#if (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     (!defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) || \
+      !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)))
+/* Expand commit to a polynomial.
+ *
+ * @param [in]  shake256   SHAKE-256 object.
+ * @param [in]  seed       Buffer containing seed to expand.
+ * @param [in]  tau        Number of +/- 1s in polynomial.
+ * @param [out] c          Commit polynomial.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Negative on hash error.
+ */
+static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
+   byte tau, sword32* c)
+{
+    int ret = 0;
+#if defined(WOLFSSL_SMALL_STACK)
+    byte* block = NULL;
+#else
+    byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
+#endif
+
+#if defined(WOLFSSL_SMALL_STACK)
+    block = (byte*)XMALLOC(DILITHIUM_GEN_C_BLOCK_BYTES, NULL,
+        DYNAMIC_TYPE_DILITHIUM);
+    if (block == NULL) {
+        ret = MEMORY_E;
+    }
+#endif
+
+    if (ret == 0) {
+        ret = dilithium_sample_in_ball_ex(shake256, seed, tau, c, block);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK)
     XFREE(block, NULL, DYNAMIC_TYPE_DILITHIUM);
 #endif
     return ret;
 }
+#endif
+
 #endif
 
 /******************************************************************************
@@ -5887,7 +5912,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
                     ret = dilithium_sample_in_ball(&key->shake, commit,
-                        params->tau, c, NULL);
+                        params->tau, c);
                 }
                 if (ret == 0) {
                     sword32 hi;
@@ -5982,6 +6007,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
 #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
     sword64* t64 = NULL;
 #endif
+    byte* blocks = NULL;
     byte data[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
     byte* mu = data + DILITHIUM_RND_SZ;
     byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
@@ -6004,8 +6030,9 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     if (ret == 0) {
         unsigned int allocSz;
 
-        /* y-l, w0-k, w1-k, c-1, z-1, A-1 */
+        /* y-l, w0-k, w1-k, blocks, c-1, z-1, A-1 */
         allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
+            DILITHIUM_GEN_C_BLOCK_BYTES +
             DILITHIUM_POLY_SIZE +  DILITHIUM_POLY_SIZE + DILITHIUM_POLY_SIZE;
     #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
         allocSz += params->s1Sz + params->s2Sz + params->s2Sz;
@@ -6021,35 +6048,36 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             ret = MEMORY_E;
         }
         else {
-            w0    = y  + params->s1Sz / sizeof(*y_ntt);
-            w1    = w0 + params->s2Sz / sizeof(*w0);
-            c     = w1 + params->s2Sz / sizeof(*w1);
-            z     = c  + DILITHIUM_N;
-            a     = z  + DILITHIUM_N;
-            ct0   = z;
+            w0     = y  + params->s1Sz / sizeof(*y_ntt);
+            w1     = w0 + params->s2Sz / sizeof(*w0);
+            blocks = (byte*)(w1 + params->s2Sz / sizeof(*w1));
+            c      = (sword32*)(blocks + DILITHIUM_GEN_C_BLOCK_BYTES);
+            z      = c  + DILITHIUM_N;
+            a      = z  + DILITHIUM_N;
+            ct0    = z;
     #if defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
-            y_ntt = w0;
-            s1    = z;
-            s2    = z;
-            t0    = z;
+            y_ntt  = w0;
+            s1     = z;
+            s2     = z;
+            t0     = z;
         #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
-            t64   = (sword64*)(a + (1 + maxK * params->l) * DILITHIUM_N);
+            t64    = (sword64*)(a + (1 + maxK * params->l) * DILITHIUM_N);
         #endif
     #elif defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC)
-            y_ntt = z;
-            s1    = a  + DILITHIUM_N;
-            s2    = s1 + params->s1Sz / sizeof(*s1);
-            t0    = s2 + params->s2Sz / sizeof(*s2);
+            y_ntt  = z;
+            s1     = a  + DILITHIUM_N;
+            s2     = s1 + params->s1Sz / sizeof(*s1);
+            t0     = s2 + params->s2Sz / sizeof(*s2);
         #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
-            t64   = (sword64*)(t0 + params->s2Sz / sizeof(*t0));
+            t64    = (sword64*)(t0 + params->s2Sz / sizeof(*t0));
         #endif
     #else
-            y_ntt = z;
-            s1    = z;
-            s2    = z;
-            t0    = z;
+            y_ntt  = z;
+            s1     = z;
+            s2     = z;
+            t0     = z;
         #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
-            t64   = (sword64*)(a + DILITHIUM_N);
+            t64    = (sword64*)(a + DILITHIUM_N);
         #endif
     #endif
         }
@@ -6302,8 +6330,8 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                     w1e, params->w1EncSz, commit, 2 * params->lambda);
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
-                    ret = dilithium_sample_in_ball(&key->shake, commit,
-                        params->tau, c, NULL);
+                    ret = dilithium_sample_in_ball_ex(&key->shake, commit,
+                        params->tau, c, blocks);
                 }
                 if (ret == 0) {
                     /* Step 18: NTT(c). */
@@ -6708,9 +6736,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
             mu, DILITHIUM_MU_SZ);
     }
     if ((ret == 0) && valid) {
-         /* Step 9: Compute c from first 256 bits of commit. */
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
-             NULL);
+        /* Step 9: Compute c from first 256 bits of commit. */
+        ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c);
     }
     if ((ret == 0) && valid) {
         /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
@@ -6824,11 +6851,10 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
 
          /* Step 9: Compute c from first 256 bits of commit. */
 #ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
+         ret = dilithium_sample_in_ball_ex(&key->shake, commit, params->tau, c,
              key->block);
 #else
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
-             NULL);
+         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c);
 #endif
     }
     if ((ret == 0) && valid) {
