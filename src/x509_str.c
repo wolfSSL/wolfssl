@@ -225,6 +225,10 @@ int GetX509Error(int e)
         case WC_NO_ERR_TRACE(ASN_SIG_HASH_E):
         case WC_NO_ERR_TRACE(ASN_SIG_KEY_E):
             return WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE;
+        /* We can't disambiguate if its the before or after date that caused
+         * the error. Assume expired. */
+        case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
+            return X509_V_ERR_CRL_HAS_EXPIRED;
         case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
             return WOLFSSL_X509_V_ERR_CERT_REVOKED;
         case WC_NO_ERR_TRACE(CRL_MISSING):
@@ -1384,6 +1388,14 @@ WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_get0_param(
     if (ctx == NULL)
         return NULL;
     return ctx->param;
+}
+
+int wolfSSL_X509_STORE_set1_param(WOLFSSL_X509_STORE *ctx,
+        WOLFSSL_X509_VERIFY_PARAM *param)
+{
+    if (ctx == NULL)
+        return WOLFSSL_FAILURE;
+    return wolfSSL_X509_VERIFY_PARAM_set1(ctx->param, param);
 }
 #endif
 

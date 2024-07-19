@@ -1168,7 +1168,7 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
             }
             XMEMSET(boundary, 0, (word32)(boundLen+1));
             boundary[0] = boundary[1] = '-';
-            XSTRNCPY(&boundary[2], curParam->value, boundLen-2);
+            XSTRCPY(&boundary[2], curParam->value);
 
             /* Parse up to first boundary, ignore everything here. */
             lineLen = wolfSSL_BIO_gets(in, section, remainLen);

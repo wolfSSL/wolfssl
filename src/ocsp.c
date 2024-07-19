@@ -1143,6 +1143,9 @@ int wolfSSL_i2d_OCSP_REQUEST(OcspRequest* request, unsigned char** data)
 {
     int size;
 
+    if (request == NULL)
+        return BAD_FUNC_ARG;
+
     size = EncodeOcspRequest(request, NULL, 0);
     if (size <= 0 || data == NULL)
         return size;
@@ -1391,6 +1394,205 @@ WOLFSSL_OCSP_SINGLERESP* wolfSSL_OCSP_resp_get0(WOLFSSL_OCSP_BASICRESP *bs, int 
 
     return single;
 }
+
+/*******************************************************************************
+ * START OF WOLFSSL_OCSP_REQ_CTX API
+ ******************************************************************************/
+
+enum ocspReqStates {
+    ORS_INVALID = 0,
+    ORS_HEADER_ADDED,
+    ORS_REQ_DONE
+};
+
+WOLFSSL_OCSP_REQ_CTX* wolfSSL_OCSP_REQ_CTX_new(WOLFSSL_BIO *bio, int maxline)
+{
+    WOLFSSL_OCSP_REQ_CTX* ret = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_new");
+
+    if (maxline <= 0)
+        maxline = OCSP_MAX_REQUEST_SZ;
+
+    ret = (WOLFSSL_OCSP_REQ_CTX*)XMALLOC(sizeof(*ret), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (ret != NULL) {
+        XMEMSET(ret, 0, sizeof(*ret));
+        ret->buf = (byte*)XMALLOC(maxline, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (ret->buf == NULL)
+            goto error;
+        ret->resp = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
+        ret->bufLen = maxline;
+        ret->bio = bio;
+    }
+
+    return ret;
+error:
+    wolfSSL_OCSP_REQ_CTX_free(ret);
+    return NULL;
+}
+
+void wolfSSL_OCSP_REQ_CTX_free(WOLFSSL_OCSP_REQ_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_free");
+    if (ctx != NULL) {
+        if (ctx->buf != NULL)
+            XFREE(ctx->buf, NULL, DYNAMIC_TYPE_OPENSSL);
+        if (ctx->resp != NULL)
+            wolfSSL_BIO_free(ctx->resp);
+        XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
+WOLFSSL_OCSP_REQ_CTX* wolfSSL_OCSP_sendreq_new(WOLFSSL_BIO *bio,
+        const char *path, OcspRequest *req, int maxline)
+{
+    WOLFSSL_OCSP_REQ_CTX* ret = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_OCSP_sendreq_new");
+
+    ret = wolfSSL_OCSP_REQ_CTX_new(bio, maxline);
+    if (ret == NULL)
+        return NULL;
+
+    if (wolfSSL_OCSP_REQ_CTX_http(ret, "POST", path) != WOLFSSL_SUCCESS)
+        goto error;
+
+    if (req != NULL &&
+            wolfSSL_OCSP_REQ_CTX_set1_req(ret, req) != WOLFSSL_SUCCESS)
+        goto error;
+
+    return ret;
+error:
+    wolfSSL_OCSP_REQ_CTX_free(ret);
+    return NULL;
+}
+
+int wolfSSL_OCSP_REQ_CTX_add1_header(WOLFSSL_OCSP_REQ_CTX *ctx,
+                             const char *name, const char *value)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_add1_header");
+
+    if (name == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+    if (wolfSSL_BIO_puts(ctx->resp, name) <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_puts error");
+        return WOLFSSL_FAILURE;
+    }
+    if (value != NULL) {
+        if (wolfSSL_BIO_write(ctx->resp, ": ", 2) != 2) {
+            WOLFSSL_MSG("wolfSSL_BIO_write error");
+            return WOLFSSL_FAILURE;
+        }
+        if (wolfSSL_BIO_puts(ctx->resp, value) <= 0) {
+            WOLFSSL_MSG("wolfSSL_BIO_puts error");
+            return WOLFSSL_FAILURE;
+        }
+    }
+    if (wolfSSL_BIO_write(ctx->resp, "\r\n", 2) != 2) {
+        WOLFSSL_MSG("wolfSSL_BIO_write error");
+        return WOLFSSL_FAILURE;
+    }
+
+    ctx->state = ORS_HEADER_ADDED;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_OCSP_REQ_CTX_http(WOLFSSL_OCSP_REQ_CTX *ctx, const char *op,
+        const char *path)
+{
+    static const char http_hdr[] = "%s %s HTTP/1.0\r\n";
+
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_http");
+
+    if (ctx == NULL || op == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (path == NULL)
+        path = "/";
+
+    if (wolfSSL_BIO_printf(ctx->resp, http_hdr, op, path) <= 0) {
+        WOLFSSL_MSG("WOLFSSL_OCSP_REQ_CTX: wolfSSL_BIO_printf error");
+        return WOLFSSL_FAILURE;
+    }
+
+    ctx->state = ORS_HEADER_ADDED;
+
+    return WOLFSSL_SUCCESS;
+}
+
+int wolfSSL_OCSP_REQ_CTX_set1_req(WOLFSSL_OCSP_REQ_CTX *ctx, OcspRequest *req)
+{
+    static const char req_hdr[] =
+        "Content-Type: application/ocsp-request\r\n"
+        "Content-Length: %d\r\n\r\n";
+    /* Should be enough to hold Content-Length */
+    char req_hdr_buf[sizeof(req_hdr) + 10];
+    int req_hdr_buf_len;
+    int req_len = wolfSSL_i2d_OCSP_REQUEST(req, NULL);
+
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_set1_req");
+
+    if (ctx == NULL || req == NULL) {
+        WOLFSSL_MSG("Bad parameters");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (req_len <= 0) {
+        WOLFSSL_MSG("wolfSSL_OCSP_REQ_CTX_set1_req: request len error");
+        return WOLFSSL_FAILURE;
+    }
+
+    req_hdr_buf_len =
+            XSNPRINTF(req_hdr_buf, sizeof(req_hdr_buf), req_hdr, req_len);
+    if (req_hdr_buf_len >= (int)sizeof(req_hdr_buf)) {
+        WOLFSSL_MSG("wolfSSL_OCSP_REQ_CTX_set1_req: request too long");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_BIO_write(ctx->resp, req_hdr_buf, req_hdr_buf_len) <= 0) {
+        WOLFSSL_MSG("wolfSSL_OCSP_REQ_CTX_set1_req: wolfSSL_BIO_write error");
+        return WOLFSSL_FAILURE;
+    }
+
+    if (wolfSSL_i2d_OCSP_REQUEST_bio(ctx->resp, req) <= 0) {
+        WOLFSSL_MSG("wolfSSL_OCSP_REQ_CTX_set1_req: request i2d error");
+        return WOLFSSL_FAILURE;
+    }
+
+    ctx->state = ORS_REQ_DONE;
+
+    return WOLFSSL_SUCCESS;
+}
+
+
+int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_REQ_CTX_nbio");
+    (void)ctx;
+    // TODO implement
+    WOLFSSL_MSG("Error wolfSSL_OCSP_REQ_CTX_nbio not yet implemented");
+    return WOLFSSL_FAILURE;
+}
+
+int wolfSSL_OCSP_sendreq_nbio(OcspResponse **presp, WOLFSSL_OCSP_REQ_CTX *ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_OCSP_sendreq_nbio");
+    (void)presp;
+    (void)ctx;
+    // TODO implement
+    WOLFSSL_MSG("Error wolfSSL_OCSP_sendreq_nbio not yet implemented");
+    return WOLFSSL_FAILURE;
+}
+
+/*******************************************************************************
+ * END OF WOLFSSL_OCSP_REQ_CTX API
+ ******************************************************************************/
 
 #endif /* OPENSSL_ALL || APACHE_HTTPD || WOLFSSL_HAPROXY */
 
