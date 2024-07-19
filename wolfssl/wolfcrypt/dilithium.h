@@ -540,6 +540,8 @@ struct dilithium_key {
     byte prvKeySet;
     byte level; /* 2,3 or 5 */
 
+    void* heap; /* heap hint */
+
 #ifdef WOLF_CRYPTO_CB
     void* devCtx;
     int   devId;
