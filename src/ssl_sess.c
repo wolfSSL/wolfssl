@@ -1413,7 +1413,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticketLen = 0;
         }
         if (error == WOLFSSL_SUCCESS) {
-            XMEMCPY(output->ticket, tmpTicket, output->ticketLen);
+            XMEMCPY(output->ticket, tmpTicket, output->ticketLen); /* cppcheck-suppress uninitvar */
         }
     }
 #ifdef WOLFSSL_SMALL_STACK

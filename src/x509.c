@@ -3550,7 +3550,7 @@ char* wolfSSL_X509_get_name_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
         }
     }
 
-    XMEMCPY(in, tmpBuf, totalLen);
+    XMEMCPY(in, tmpBuf, totalLen); /* cppcheck-suppress uninitvar */
     in[totalLen] = '\0';
 
     return in;
