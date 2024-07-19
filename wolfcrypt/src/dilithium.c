@@ -8439,7 +8439,102 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
 #endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
+#endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
+
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+
+#if defined(WOLFSSL_DILITHIUM_NO_ASN1)
+#ifndef WOLFSSL_NO_ML_DSA_44
+static unsigned char dilithium_oid_44[] = {
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
+    0x0c, 0x04, 0x04
+};
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+static unsigned char dilithium_oid_65[] = {
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
+    0x0c, 0x06, 0x05
+};
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+static unsigned char dilithium_oid_87[] = {
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
+    0x0c, 0x08, 0x07
+};
+#endif
+
+static int dilitihium_get_der_length(const byte* input, word32* inOutIdx,
+    int *length, word32 inSz)
+{
+    int ret = 0;
+    word32 idx = *inOutIdx;
+    word32 len = 0;
+
+    if (idx >= inSz) {
+        ret = ASN_PARSE_E;
+    }
+    else if (input[idx] < 0x80) {
+        len = input[idx];
+        idx++;
+    }
+    else if ((input[idx] == 0x80) || (input[idx] >= 0x83)) {
+        ret = ASN_PARSE_E;
+    }
+    else if (input[idx] == 0x81) {
+        if (idx + 1 >= inSz) {
+            ret = ASN_PARSE_E;
+        }
+        else if (input[idx + 1] < 0x80) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            len = input[idx + 1];
+            idx += 2;
+        }
+    }
+    else if (input[idx] == 0x82) {
+        if (idx + 2 >= inSz) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            len = ((word16)input[idx + 1] << 8) + input[idx + 2];
+            idx += 3;
+            if (len < 0x100) {
+                ret = ASN_PARSE_E;
+            }
+        }
+    }
+
+    if ((ret == 0) && ((idx + len) > inSz)) {
+        ret = ASN_PARSE_E;
+    }
+
+    *length = (int)len;
+    *inOutIdx = idx;
+    return ret;
+}
+
+static int dilithium_check_type(const byte* input, word32* inOutIdx, byte type,
+    word32 inSz)
+{
+    int ret = 0;
+    word32 idx = *inOutIdx;
+
+    if (idx >= inSz) {
+        ret = ASN_PARSE_E;
+    }
+    else if (input[idx] != type){
+        ret = ASN_PARSE_E;
+    }
+    else {
+        idx++;
+    }
+
+    *inOutIdx = idx;
+    return ret;
+}
+
+#endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
 
 /* Decode the DER encoded Dilithium public key.
  *
@@ -8459,7 +8554,6 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
     int ret = 0;
     const byte* pubKey;
     word32 pubKeyLen = 0;
-    int keytype = 0;
 
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
@@ -8470,9 +8564,19 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         /* Try to import the key directly. */
         ret = wc_dilithium_import_public(input, inSz, key);
         if (ret != 0) {
+        #if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+            int keytype = 0;
+        #else
+            int length;
+            unsigned char* oid;
+            int oidLen;
+            word32 idx = 0;
+        #endif
+
             /* Start again. */
             ret = 0;
 
+    #if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
             /* Get OID sum for level. */
             if (key->level == 2) {
                 keytype = DILITHIUM_LEVEL2k;
@@ -8492,6 +8596,74 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
                     &pubKeyLen, keytype);
             }
+    #else
+            /* Get OID sum for level. */
+        #ifndef WOLFSSL_NO_ML_DSA_44
+            if (key->level == 2) {
+                oid = dilithium_oid_44;
+                oidLen = (int)sizeof(dilithium_oid_44);
+            }
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_65
+            else if (key->level == 3) {
+                oid = dilithium_oid_65;
+                oidLen = (int)sizeof(dilithium_oid_65);
+            }
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_87
+            else if (key->level == 5) {
+                oid = dilithium_oid_87;
+                oidLen = (int)sizeof(dilithium_oid_87);
+            }
+        #endif
+            else {
+                /* Level not set. */
+                ret = BAD_FUNC_ARG;
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x30, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x30, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x06, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                if ((length != oidLen) ||
+                        (XMEMCMP(input + idx, oid, oidLen) != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                idx += oidLen;
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x03, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                if (input[idx] != 0) {
+                    ret = ASN_PARSE_E;
+                }
+                idx++;
+                length--;
+            }
+            if (ret == 0) {
+                /* This is the raw point data compressed or uncompressed. */
+                pubKeyLen = (word32)length;
+                pubKey = input + idx;
+            }
+    #endif
             if (ret == 0) {
                 /* Import public key data. */
                 ret = wc_dilithium_import_public(pubKey, pubKeyLen, key);
@@ -8500,6 +8672,8 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
     }
     return ret;
 }
+
+#ifndef WOLFSSL_DILITHIUM_NO_ASN1
 
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 /* Encode the public part of a Dilithium key in DER.
@@ -8559,9 +8733,13 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 len,
 }
 #endif /* WC_ENABLE_ASYM_KEY_EXPORT */
 
+#endif /* !WOLFSSL_DILITHIUM_NO_ASN1 */
+
 #endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
 
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+
+#ifndef WOLFSSL_DILITHIUM_NO_ASN1
 
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
 /* Encode the private and public data of a Dilithium key in DER.
@@ -8635,8 +8813,8 @@ int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output, word32 len)
     return ret;
 }
 
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
-
 #endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
+
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
 #endif /* HAVE_DILITHIUM */
