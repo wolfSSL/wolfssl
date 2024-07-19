@@ -6952,9 +6952,8 @@ int wc_dilithium_init_ex(dilithium_key* key, void* heap, int devId)
         key->idLen = 0;
         key->labelLen = 0;
     #endif
+        key->heap = heap;
     }
-
-    key->heap = heap;
 
     return ret;
 }
