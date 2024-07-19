@@ -10663,11 +10663,15 @@ void bench_ecc(int useDeviceID, int curveId)
                      BENCH_MAX_PENDING, MAX_ECC_BYTES, HEAP_HINT);
 #endif
 
+#if !defined(NO_ASN) && defined(HAVE_ECC_SIGN)
     /* old scan-build misfires -Wmaybe-uninitialized on these. */
     XMEMSET(sig, 0, sizeof(sig));
     XMEMSET(digest, 0, sizeof(digest));
-    XMEMSET(shared, 0, sizeof(shared));
+#endif
 
+#ifdef HAVE_ECC_DHE
+    XMEMSET(shared, 0, sizeof(shared));
+#endif
     WC_CALLOC_ARRAY(genKey, ecc_key, BENCH_MAX_PENDING,
                      sizeof(ecc_key), HEAP_HINT);
 

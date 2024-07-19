@@ -40,19 +40,19 @@
     #include <stdarg.h>
     static void myPrintf(const char* fmt, ...)
     {
-	    int ret;
-	    char line[150];
-	    va_list ap;
+        int ret;
+        char line[150];
+        va_list ap;
 
-	    va_start(ap, fmt);
-	    ret = vsnprintf(line, sizeof(line), fmt, ap);
-	    line[sizeof(line)-1] = '\0';
+        va_start(ap, fmt);
+        ret = vsnprintf(line, sizeof(line), fmt, ap);
+        line[sizeof(line)-1] = '\0';
 
-	    DbgConsole_Printf("%s", line);
+        DbgConsole_Printf("%s", line);
 
-	    /* add CR on newlines */
-	    if (ret > 0 && line[ret-1] == '\n') {
-	        DbgConsole_Printf("\r");
+        /* add CR on newlines */
+        if (ret > 0 && line[ret-1] == '\n') {
+            DbgConsole_Printf("\r");
         }
     }
     #define XPRINTF myPrintf
@@ -70,9 +70,9 @@
 #define USE_FAST_MATH
 #ifdef USE_FAST_MATH
     /* big enough for even 4096 bit RSA key */
-	#define FP_MAX_BITS 8192
-	#define TFM_TIMING_RESISTANT
-	#define ECC_TIMING_RESISTANT
+    #define FP_MAX_BITS 8192
+    #define TFM_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
     #define ALT_ECC_SIZE
 #endif
 

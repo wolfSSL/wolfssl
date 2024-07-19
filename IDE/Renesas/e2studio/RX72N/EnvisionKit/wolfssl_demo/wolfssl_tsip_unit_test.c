@@ -107,7 +107,6 @@ typedef struct tagInfo
 
  void Clr_CallbackCtx(TsipUserCtx *g)
  {
-
      if (g->rsa1024pri_keyIdx != NULL)
          XFREE(g->rsa1024pri_keyIdx,
                              NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -139,7 +138,7 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
     byte plain[AES_BLOCK_SIZE];
     int  ret = 0;
 
-    WOLFSSL_SMALL_STACK_STATIC const byte msg[] = { 
+    WOLFSSL_SMALL_STACK_STATIC const byte msg[] = {
         /* "Now is the time for all " w/o trailing 0 */
         0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
         0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
@@ -154,7 +153,7 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
     if (prnt) {
         printf(" tsip_aes_cbc_test() ");
     }
-    
+
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
         ret = wc_AesSetKey(aes, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
@@ -196,7 +195,7 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
     if (prnt) {
         RESULT_STR(ret)
     }
-    
+
     return ret;
 }
 
@@ -205,7 +204,7 @@ static void tskAes128_Cbc_Test(void *pvParam)
 {
     int ret = 0;
     Info *p = (Info*)pvParam;
-    
+
     while (exit_loop == false) {
         ret = tsip_aes_cbc_test(0, &p->aes_key);
         vTaskDelay(10/portTICK_PERIOD_MS);
@@ -257,7 +256,7 @@ static int tsip_aes256_test(int prnt, tsip_aes_key_index_t* aes_key)
 
     if (prnt)
         printf(" tsip_aes256_test() ");
-    
+
     if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
         ret = -1;
         goto out;
@@ -315,7 +314,7 @@ out:
     if (prnt) {
         RESULT_STR(ret)
     }
-    
+
     return ret;
 }
 #ifdef FREERTOS
@@ -323,7 +322,7 @@ static void tskAes256_Cbc_Test(void *pvParam)
 {
     int ret = 0;
     Info *p = (Info*)pvParam;
-    
+
     while (exit_loop == false) {
         ret = tsip_aes256_test(0, &p->aes_key);
         vTaskDelay(10/portTICK_PERIOD_MS);
@@ -345,8 +344,8 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     Aes enc[1];
     Aes dec[1];
     TsipUserCtx userContext;
-    
-    
+
+
     /*
      * This is Test Case 16 from the document Galois/
      * Counter Mode of Operation (GCM) by McGrew and
@@ -416,7 +415,7 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     if (prnt) {
         printf(" tsip_aes256_gcm_test() ");
     }
-    
+
     ForceZero(resultT, sizeof(resultT));
     ForceZero(resultC, sizeof(resultC));
     ForceZero(resultP, sizeof(resultP));
@@ -443,8 +442,8 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     }
 
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p, sizeof(p), 
-                        (byte*)iv1, sizeof(iv1), resultT, sizeof(resultT), 
+    result = wc_tsip_AesGcmEncrypt(enc, resultC, p, sizeof(p),
+                        (byte*)iv1, sizeof(iv1), resultT, sizeof(resultT),
                         a, sizeof(a), &userContext);
 
     if (result != 0) {
@@ -461,7 +460,7 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     }
 
     result = wc_tsip_AesGcmDecrypt(dec, resultP, resultC, sizeof(c1),
-                        iv1, sizeof(iv1), resultT, sizeof(resultT), 
+                        iv1, sizeof(iv1), resultT, sizeof(resultT),
                         a, sizeof(a), &userContext);
     if (result != 0){
         ret = -8;
@@ -479,7 +478,7 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     wc_AesGcmSetKey(enc, k1, sizeof(k1));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     result = wc_tsip_AesGcmEncrypt(enc, resultC, p, sizeof(p), iv1, sizeof(iv1),
-                                resultT + 1, sizeof(resultT) - 1, 
+                                resultT + 1, sizeof(resultT) - 1,
                                 a, sizeof(a), &userContext);
     if (result != 0) {
         ret = -10;
@@ -487,7 +486,7 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     }
 
     result = wc_tsip_AesGcmDecrypt(enc, resultP, resultC, sizeof(p),
-                            iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1, 
+                            iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1,
                             a, sizeof(a), &userContext);
 
     if (result != 0) {
@@ -504,11 +503,11 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
   out:
     wc_AesFree(enc);
     wc_AesFree(dec);
-    
+
     if (prnt) {
         RESULT_STR(ret)
     }
-    
+
     return ret;
 }
 #ifdef FREERTOS
@@ -516,7 +515,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
 {
     int ret = 0;
     Info *p = (Info*)pvParam;
-    
+
     while (exit_loop == false) {
         ret = tsip_aesgcm256_test(0, &p->aes_key);
         vTaskDelay(10/portTICK_PERIOD_MS);
@@ -616,16 +615,16 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
         enc->ctx.keySize = enc->keylen;
     }
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p3, sizeof(p3), 
+    result = wc_tsip_AesGcmEncrypt(enc, resultC, p3, sizeof(p3),
                                         iv3, sizeof(iv3),
-                                        resultT, sizeof(t3), 
+                                        resultT, sizeof(t3),
                                         a3, sizeof(a3), &userContext);
     if (result != 0) {
         ret = -4;
         goto out;
     }
     result = wc_tsip_AesGcmDecrypt(enc, resultP, resultC, sizeof(c3),
-                                iv3, sizeof(iv3), resultT, sizeof(resultT), 
+                                iv3, sizeof(iv3), resultT, sizeof(resultT),
                                 a3, sizeof(a3), &userContext);
     if (result != 0) {
         ret = -5;
@@ -641,11 +640,11 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
   out:
     wc_AesFree(enc);
     wc_AesFree(dec);
-    
+
     if (prnt) {
         RESULT_STR(ret)
     }
-    
+
     return ret;
 }
 #ifdef FREERTOS
@@ -812,7 +811,7 @@ int tsip_crypt_sha_multitest()
     int num = 0;
     int i;
     BaseType_t xRet;
-    
+
 #ifndef NO_SHA
     num++;
 #endif
@@ -825,14 +824,14 @@ int tsip_crypt_sha_multitest()
 
     exit_semaph = xSemaphoreCreateCounting(num, 0);
     xRet = pdPASS;
-    
+
 #ifndef NO_SHA
-    xRet = xTaskCreate(tskSha_Test, "sha_test", 
+    xRet = xTaskCreate(tskSha_Test, "sha_test",
                             SMALL_STACK_SIZE, NULL, 3, NULL);
 #endif
 #ifndef NO_SHA256
     if (xRet == pdPASS)
-        xRet = xTaskCreate(tskSha256_Test, "sha256_test", 
+        xRet = xTaskCreate(tskSha256_Test, "sha256_test",
                             SMALL_STACK_SIZE, NULL, 3, NULL);
 #endif
 
@@ -849,15 +848,15 @@ int tsip_crypt_sha_multitest()
             }
         }
     }
-    
+
     vSemaphoreDelete(exit_semaph);
-    
+
     if ((xRet == pdPASS) &&
        (sha_multTst_rslt == 0 && sha256_multTst_rslt == 0))
         ret = 0;
     else
         ret = -1;
-    
+
     RESULT_STR(ret)
 
     return ret;
@@ -874,7 +873,7 @@ int tsip_crypt_AesCbc_multitest()
     Info info_aes256_1;
     Info info_aes256_2;
     BaseType_t xRet;
-    
+
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     num+=2;
 #endif
@@ -887,7 +886,7 @@ int tsip_crypt_AesCbc_multitest()
 
     exit_semaph = xSemaphoreCreateCounting(num, 0);
     xRet = pdPASS;
-    
+
 #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
     XMEMCPY(&info_aes1.aes_key, &g_user_aes128_key_index1,
                                             sizeof(tsip_aes_key_index_t));
@@ -916,7 +915,7 @@ int tsip_crypt_AesCbc_multitest()
         xRet = xTaskCreate(tskAes256_Cbc_Test, "aes256_cbc_test2",
                 SMALL_STACK_SIZE, &info_aes256_2, 3, NULL);
 #endif
-    
+
     if (xRet == pdPASS) {
     printf(" Waiting for completing tasks ...");
         vTaskDelay(10000/portTICK_PERIOD_MS);
@@ -930,7 +929,7 @@ int tsip_crypt_AesCbc_multitest()
             }
         }
     }
-    
+
     vSemaphoreDelete(exit_semaph);
 
     if ((xRet == pdPASS) &&
@@ -955,7 +954,7 @@ int tsip_crypt_AesGcm_multitest()
     Info info_aes256_1;
     Info info_aes256_2;
     BaseType_t xRet;
-    
+
 #if defined(WOLFSSL_AES_128)
     num+=2;
 #endif
@@ -1010,7 +1009,7 @@ int tsip_crypt_AesGcm_multitest()
             }
         }
     }
-    
+
     vSemaphoreDelete(exit_semaph);
 
     if ((xRet == pdPASS) &&
@@ -1032,7 +1031,7 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
     Info info_aes256cbc;
     Info info_aes256gcm;
     BaseType_t xRet;
-    
+
 #ifndef NO_SHA
     num++;
 #endif
@@ -1051,7 +1050,7 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
 
     exit_semaph = xSemaphoreCreateCounting(num, 0);
     xRet = pdPASS;
-    
+
 #ifndef NO_SHA
     xRet = xTaskCreate(tskSha_Test, "sha_test",
                                 SMALL_STACK_SIZE, NULL, 3, NULL);
@@ -1069,7 +1068,7 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
     XMEMCPY(&info_aes256gcm.aes_key, &g_user_aes256_key_index2,
                                                 sizeof(tsip_aes_key_index_t));
     if (xRet == pdPASS)
-        xRet = xTaskCreate(tskAes256_Gcm_Test, "aes256_gcm_test2", 
+        xRet = xTaskCreate(tskAes256_Gcm_Test, "aes256_gcm_test2",
                                     STACK_SIZE, &info_aes256gcm, 3, NULL);
 #endif
 
@@ -1086,9 +1085,9 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
             }
         }
     }
-    
+
     vSemaphoreDelete(exit_semaph);
-    
+
     if (xRet == pdPASS && sha_multTst_rslt == 0 &&
        (Aes256_Cbc_multTst_rslt == 0 && Aes256_Gcm_multTst_rslt == 0)) {
         ret = 0;
@@ -1096,7 +1095,7 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
     else {
         ret = -1;
     }
-    
+
     RESULT_STR(ret)
 
     return ret;
@@ -1158,11 +1157,10 @@ int tsip_crypt_test()
             ret = tsip_aesgcm256_test(1, &g_user_aes256_key_index1);
 
         }
-   #if defined(WOLFSSL_KEY_GEN)&& \
+   #if defined(WOLFSSL_KEY_GEN) && \
        defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 
         if (ret == 0) {
-
             Clr_CallbackCtx(&userContext);
 
             ret = wc_CryptoCb_CryptInitRenesasCmn(NULL, &userContext);
@@ -1172,11 +1170,10 @@ int tsip_crypt_test()
         }
 
         if (ret == 0) {
-
             printf(" tsip_rsa_SignVerify_test(1024)");
 
             userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
-            userContext.sing_hash_type = sha256_mac;
+            userContext.sign_hash_type = sha256_mac;
             userContext.keyflgs_crypt.bits.message_type = 0;
 
             ret = tsip_rsa_SignVerify_test(1, 1024);
@@ -1189,7 +1186,7 @@ int tsip_crypt_test()
             printf(" tsip_rsa_SignVerify_test(2048)");
 
             userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
-            userContext.sing_hash_type = sha256_mac;
+            userContext.sign_hash_type = sha256_mac;
             userContext.keyflgs_crypt.bits.message_type = 0;
 
             ret = tsip_rsa_SignVerify_test(1, 2048);

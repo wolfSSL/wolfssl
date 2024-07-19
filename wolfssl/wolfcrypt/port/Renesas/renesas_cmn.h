@@ -21,8 +21,13 @@
 #ifndef __RENESAS_CMN_H__
 #define __RENESAS_CMN_H__
 
+
+
 #include <wolfssl/ssl.h>
+
+#ifndef WOLFSSL_RENESAS_TSIP_CRYPTONLY
 #include <wolfssl/internal.h>
+
 
 /* Common Callbacks */
 WOLFSSL_LOCAL int Renesas_cmn_RsaSignCb(WOLFSSL* ssl,
@@ -69,8 +74,6 @@ WOLFSSL_LOCAL int Renesas_cmn_SigPkCbEccVerify(const unsigned char* sig, unsigne
 
 /* Common Methods */
 WOLFSSL_LOCAL void* Renesas_cmn_GetCbCtxBydevId(int devId);
-int wc_CryptoCb_CryptInitRenesasCmn(WOLFSSL* ssl, void* ctx);
-void wc_CryptoCb_CleanupRenesasCmn(int* id);
 int wc_Renesas_cmn_RootCertVerify(const byte* cert, word32 cert_len,
         word32 key_n_start, word32 key_n_len, word32 key_e_start,
         word32 key_e_len, word32 cm_row);
@@ -80,4 +83,9 @@ WOLFSSL_LOCAL int Renesas_cmn_TlsFinished(WOLFSSL* ssl, const byte *side,
                             const byte *handshake_hash, word32 hashSz,
                             byte *hashes, void* ctx);
 WOLFSSL_LOCAL int Renesas_cmn_generateSessionKey(WOLFSSL* ssl, void* ctx);
+#endif /* WOLFSSL_RENESAS_TSIP_CRYPTONLY */
+
+int wc_CryptoCb_CryptInitRenesasCmn(struct WOLFSSL* ssl, void* ctx);
+void wc_CryptoCb_CleanupRenesasCmn(int* id);
+
 #endif /* __RENESAS_CMN_H__ */

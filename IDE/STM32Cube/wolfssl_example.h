@@ -27,7 +27,7 @@
 #endif
 
 #ifndef WOLFSSL_USER_SETTINGS
-	#include <wolfssl/options.h>
+    #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
