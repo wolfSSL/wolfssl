@@ -601,14 +601,14 @@ static int testDevId = INVALID_DEVID;
 static int wolfssl_bio_s_fixed_mem_write(WOLFSSL_BIO* bio, const char* data,
     int len)
 {
-    if ((bio == NULL) || (bio->ptr == NULL) || (data == NULL)) {
+    if ((bio == NULL) || (bio->ptr.mem_buf_data == NULL) || (data == NULL)) {
         len = 0;
     }
     else {
         if (bio->wrSz - bio->wrIdx < len) {
             len = bio->wrSz - bio->wrIdx;
         }
-        XMEMCPY((char*)bio->ptr + bio->wrIdx, data, len);
+        XMEMCPY(bio->ptr.mem_buf_data + bio->wrIdx, data, len);
         bio->wrIdx += len;
     }
 
@@ -617,14 +617,14 @@ static int wolfssl_bio_s_fixed_mem_write(WOLFSSL_BIO* bio, const char* data,
 
 static int wolfssl_bio_s_fixed_mem_read(WOLFSSL_BIO* bio, char* data, int len)
 {
-    if ((bio == NULL) || (bio->ptr == NULL) || (data == NULL)) {
+    if ((bio == NULL) || (bio->ptr.mem_buf_data == NULL) || (data == NULL)) {
         len = 0;
     }
     else {
         if (bio->wrSz - bio->rdIdx < len) {
             len = bio->wrSz - bio->rdIdx;
         }
-        XMEMCPY(data, (char*)bio->ptr + bio->rdIdx, len);
+        XMEMCPY(data, bio->ptr.mem_buf_data + bio->rdIdx, len);
         bio->rdIdx += len;
     }
 

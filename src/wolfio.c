@@ -301,7 +301,8 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
                 return WOLFSSL_CBIO_ERR_CONN_CLOSE;
             }
         #ifdef USE_WOLFSSL_IO
-            recvd = TranslateIoReturnCode(recvd, ssl->biord->num, SOCKET_RECEIVING);
+            recvd = TranslateIoReturnCode(recvd, ssl->biord->num.fd,
+                                          SOCKET_RECEIVING);
         #endif
             return recvd;
         }
@@ -346,7 +347,8 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     if (sent <= 0) {
         if (ssl->biowr->type == WOLFSSL_BIO_SOCKET) {
         #ifdef USE_WOLFSSL_IO
-            sent = TranslateIoReturnCode(sent, ssl->biowr->num, SOCKET_SENDING);
+            sent = TranslateIoReturnCode(sent, ssl->biowr->num.fd,
+                                         SOCKET_SENDING);
         #endif
             return sent;
         }

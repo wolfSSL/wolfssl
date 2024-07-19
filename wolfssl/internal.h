@@ -2753,7 +2753,16 @@ struct WOLFSSL_BIO {
     WOLFSSL_BIO* next;          /* next in chain */
     WOLFSSL_BIO* pair;          /* BIO paired with */
     void*        heap;          /* user heap hint */
-    void*        ptr;           /* WOLFSSL, file descriptor, MD, or mem buf */
+    union {
+        byte*    mem_buf_data;
+#ifndef WOLFCRYPT_ONLY
+        WOLFSSL* ssl;
+        WOLFSSL_EVP_MD_CTX* md_ctx;
+#endif
+#ifndef NO_FILESYSTEM
+        XFILE    fh;
+#endif
+    } ptr;
     void*        usrCtx;        /* user set pointer */
     char*        ip;            /* IP address for wolfIO_TcpConnect */
     word16       port;          /* Port for wolfIO_TcpConnect */
@@ -2764,7 +2773,10 @@ struct WOLFSSL_BIO {
     int          wrIdx;         /* current index for write buffer */
     int          rdIdx;         /* current read index */
     int          readRq;        /* read request */
-    int          num;           /* socket num or length */
+    union {
+        SOCKET_T fd;
+        size_t   length;
+    } num;
     int          eof;           /* eof flag */
     int          flags;
     byte         type;          /* method type */

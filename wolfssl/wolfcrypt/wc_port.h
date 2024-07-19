@@ -859,6 +859,25 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSPRINTF   sprintf
 #endif
 
+#ifdef USE_WINDOWS_API
+    #ifndef SOCKET_T
+        #ifdef __MINGW64__
+            typedef size_t SOCKET_T;
+        #else
+            typedef unsigned int SOCKET_T;
+        #endif
+    #endif
+    #ifndef SOCKET_INVALID
+        #define SOCKET_INVALID INVALID_SOCKET
+    #endif
+#else
+    #ifndef SOCKET_T
+        typedef int SOCKET_T;
+    #endif
+    #ifndef SOCKET_INVALID
+        #define SOCKET_INVALID (-1)
+    #endif
+#endif
 
 /* MIN/MAX MACRO SECTION */
 /* Windows API defines its own min() macro. */
