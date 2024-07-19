@@ -7421,7 +7421,9 @@ int wc_dilithium_check_key(dilithium_key* key)
     }
 
     /* Dispose of allocated memory. */
-    XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    if (s1 != NULL) {
+        XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    }
 #else
     /* Validate parameter. */
     if (key == NULL) {
