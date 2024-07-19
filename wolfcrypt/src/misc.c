@@ -997,10 +997,10 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(word32 a, word32 b)
     ltlC = b & 0xFFFF;
     ltlD = (b >> 16) & 0xFFFF;
 
-    bigA = ltlA * ltlC;
-    bigC = ltlB * ltlC;
-    bigD = ltlA * ltlD;
-    bigB = ltlB * ltlD;
+    bigA = (word32)ltlA * (word32)ltlC;
+    bigC = (word32)ltlB * (word32)ltlC;
+    bigD = (word32)ltlA * (word32)ltlD;
+    bigB = (word32)ltlB * (word32)ltlD;
 
     ret = w64From32(0, bigB);
     ret = w64ShiftLeft(ret, 16);
