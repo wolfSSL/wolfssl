@@ -952,18 +952,18 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
         long fcur;
         long flen;
 
-        if (bio->ptr == NULL)
+        if (bio->ptr.fh == NULL)
             return NULL;
 
-        fcur = XFTELL((XFILE)bio->ptr);
+        fcur = XFTELL(bio->ptr.fh);
         if (fcur < 0)
             return NULL;
-        if(XFSEEK((XFILE)bio->ptr, 0, SEEK_END) != 0)
+        if(XFSEEK(bio->ptr.fh, 0, SEEK_END) != 0)
             return NULL;
-        flen = XFTELL((XFILE)bio->ptr);
+        flen = XFTELL(bio->ptr.fh);
         if (flen < 0)
             return NULL;
-        if (XFSEEK((XFILE)bio->ptr, fcur, SEEK_SET) != 0)
+        if (XFSEEK(bio->ptr.fh, fcur, SEEK_SET) != 0)
             return NULL;
 
         /* check calculated length */
