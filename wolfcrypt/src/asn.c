@@ -24526,6 +24526,10 @@ wcchar END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
     wcchar END_EC_PARAM     = "-----END EC PARAMETERS-----";
 #endif
 #endif
+#ifdef HAVE_PKCS7
+wcchar BEGIN_PKCS7          = "-----BEGIN PKCS7-----";
+wcchar END_PKCS7            = "-----END PKCS7-----";
+#endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
                                                                 !defined(NO_DSA)
     wcchar BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
@@ -24630,6 +24634,13 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
         case CERTREQ_TYPE:
             if (header) *header = BEGIN_CERT_REQ;
             if (footer) *footer = END_CERT_REQ;
+            ret = 0;
+            break;
+    #endif
+    #ifdef HAVE_PKCS7
+        case PKCS7_TYPE:
+            if (header) *header = BEGIN_PKCS7;
+            if (footer) *footer = END_PKCS7;
             ret = 0;
             break;
     #endif
@@ -25670,7 +25681,7 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
     }
 
     if (type != CERT_TYPE && type != CHAIN_CERT_TYPE && type != CA_TYPE &&
-            type != CERTREQ_TYPE) {
+            type != CERTREQ_TYPE && type != PKCS7_TYPE) {
         WOLFSSL_MSG("Bad cert type");
         return BAD_FUNC_ARG;
     }
