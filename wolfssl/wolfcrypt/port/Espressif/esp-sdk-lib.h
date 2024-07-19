@@ -116,7 +116,7 @@
     ** the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
     */
     #if defined(CONFIG_ESP_WIFI_SSID)
-        /* tyically from ESP32 with ESP-IDF v4 ot v5 */
+        /* tyically from ESP32 with ESP-IDF v4 or v5 */
         #define EXAMPLE_ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
     #elif defined(CONFIG_EXAMPLE_WIFI_SSID)
         /* typically from ESP8266 rtos-sdk/v3.4 */

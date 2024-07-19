@@ -1305,7 +1305,7 @@ static int test_dual_alg_support(void)
      * the alternative signature and then set negative_test to true for the
      * call to do_dual_alg_tls13_connection(). Its expecting a failed connection
      * because the signature won't verify. The exception is if
-     * WOLFSSL_TRUST_PEER_CERT is defined. In that case, no verfication happens
+     * WOLFSSL_TRUST_PEER_CERT is defined. In that case, no verification happens
      * and this is no longer a negative test. */
     if (EXPECT_SUCCESS()) {
         rootSz = do_dual_alg_root_certgen(&root, keyFile, sapkiFile,
@@ -45087,7 +45087,7 @@ static int test_wolfSSL_PEM_PrivateKey_ecc(void)
     ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
         WOLFSSL_SUCCESS);
     ExpectIntGT(BIO_pending(bio), 0);
-    /* No parmeters. */
+    /* No parameters. */
     ExpectIntEQ(BIO_pending(bio), 227);
     /* Check if the pubkey API writes only the public key */
 #ifdef WOLFSSL_KEY_GEN
@@ -73703,7 +73703,7 @@ static int test_stubs_are_stubs(void)
     CHECKZERO_RET(wolfSSL_CTX_sess_misses, ctx, ctxN);
     CHECKZERO_RET(wolfSSL_CTX_sess_timeouts, ctx, ctxN);
 
-    /* when implemented this should take WOLFSSL object insted, right now
+    /* when implemented this should take WOLFSSL object instead, right now
      * always returns 0 */
     ExpectPtrEq(SSL_get_current_expansion(NULL), NULL);
 
