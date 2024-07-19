@@ -4162,7 +4162,25 @@ WOLFSSL_API long wolfSSL_SSL_get_secure_renegotiation_support(WOLFSSL* ssl);
 #ifdef HAVE_SESSION_TICKET
 
 #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_WOLFSSL_SERVER)
-    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+    #ifdef WOLFSSL_TICKET_ENC_CBC_HMAC
+        #if defined(WOLFSSL_TICKET_ENC_HMAC_SHA512)
+            #define WOLFSSL_TICKET_ENC_HMAC     WC_HASH_TYPE_SHA512
+            #define WOLFSSL_TICKET_HMAC_KEY_SZ  64
+        #elif defined(WOLFSSL_TICKET_ENC_HMAC_SHA384)
+            #define WOLFSSL_TICKET_ENC_HMAC     WC_HASH_TYPE_SHA384
+            #define WOLFSSL_TICKET_HMAC_KEY_SZ  48
+        #else
+            #define WOLFSSL_TICKET_ENC_HMAC     WC_HASH_TYPE_SHA256
+            #define WOLFSSL_TICKET_HMAC_KEY_SZ  32
+        #endif
+        #ifdef WOLFSSL_TICKET_ENC_AES256_CBC
+            #define WOLFSSL_TICKET_KEY_SZ   \
+                (AES_256_KEY_SIZE + WOLFSSL_TICKET_HMAC_KEY_SZ)
+        #else
+            #define WOLFSSL_TICKET_KEY_SZ   \
+                (AES_128_KEY_SIZE + WOLFSSL_TICKET_HMAC_KEY_SZ)
+        #endif
+    #elif defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
         !defined(WOLFSSL_TICKET_ENC_AES128_GCM) && \
         !defined(WOLFSSL_TICKET_ENC_AES256_GCM)
         #define WOLFSSL_TICKET_KEY_SZ       CHACHA20_POLY1305_AEAD_KEYSIZE
@@ -4193,7 +4211,11 @@ WOLFSSL_API int wolfSSL_send_SessionTicket(WOLFSSL* ssl);
 
 #define WOLFSSL_TICKET_NAME_SZ 16
 #define WOLFSSL_TICKET_IV_SZ   16
-#define WOLFSSL_TICKET_MAC_SZ  32
+#ifndef WOLFSSL_TICKET_ENC_CBC_HMAC
+    #define WOLFSSL_TICKET_MAC_SZ  32
+#else
+    #define WOLFSSL_TICKET_MAC_SZ  WOLFSSL_TICKET_HMAC_KEY_SZ
+#endif
 
 enum TicketEncRet {
     WOLFSSL_TICKET_RET_FATAL  = -1,  /* fatal error, don't use ticket */

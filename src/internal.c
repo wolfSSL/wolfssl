@@ -37919,7 +37919,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             itHash = HashObject((byte*)it, sizeof(*it), &error);
             if (error == 0) {
                 ret = ssl->ctx->ticketEncCb(ssl, et->key_name, et->iv, et->mac,
-                        1, et->enc_ticket, sizeof(InternalTicket), &encLen,
+                        1, et->enc_ticket, WOLFSSL_INTERNAL_TICKET_LEN, &encLen,
                         SSL_TICKET_CTX(ssl));
             }
             else {
@@ -37934,7 +37934,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
             goto error;
         }
-        if (encLen < (int)sizeof(InternalTicket) ||
+        if (encLen < (int)WOLFSSL_INTERNAL_TICKET_LEN ||
                 encLen > (int)WOLFSSL_TICKET_ENC_SZ) {
             WOLFSSL_MSG("Bad user ticket encrypt size");
             ret = BAD_TICKET_KEY_CB_SZ;
@@ -38010,7 +38010,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_ENTER("DoDecryptTicket");
 
         if (len > SESSION_TICKET_LEN ||
-            len < (word32)(sizeof(InternalTicket) + WOLFSSL_TICKET_FIXED_SZ)) {
+            len < (word32)(WOLFSSL_INTERNAL_TICKET_LEN +
+                           WOLFSSL_TICKET_FIXED_SZ)) {
             WOLFSSL_ERROR_VERBOSE(BAD_TICKET_MSG_SZ);
             return WOLFSSL_TICKET_RET_REJECT;
         }
@@ -38058,7 +38059,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return WOLFSSL_TICKET_RET_REJECT;
             }
         }
-        if (outLen > (int)inLen || outLen < (int)sizeof(InternalTicket)) {
+        if (outLen > (int)inLen || outLen < (int)WOLFSSL_INTERNAL_TICKET_LEN) {
             WOLFSSL_MSG("Bad user ticket decrypt len");
             WOLFSSL_ERROR_VERBOSE(BAD_TICKET_KEY_CB_SZ);
             return BAD_TICKET_KEY_CB_SZ;
@@ -38752,7 +38753,123 @@ static void TicketEncCbCtx_Free(TicketEncCbCtx* keyCtx)
     wc_FreeRng(&keyCtx->rng);
 }
 
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
+#ifdef WOLFSSL_TICKET_ENC_CBC_HMAC
+/* Ticket encryption/decryption implementation.
+ *
+ * @param [in]   key     Key for encryption/decryption and HMAC.
+ * @param [in]   keyLen  Length of key in bytes.
+ * @param [in]   iv      IV/Nonce for encryption/decryption.
+ * @param [in]   aad     Additional authentication data.
+ * @param [in]   aadSz   Length of additional authentication data.
+ * @param [in]   in      Data to encrypt/decrypt.
+ * @param [in]   inLen   Length of encrypted data.
+ * @param [out]  out     Resulting data from encrypt/decrypt.
+ * @param [out]  outLen  Size of resulting data.
+ * @param [in]   tag     Authentication tag for encrypted data.
+ * @param [in]   heap    Dynamic memory allocation data hint.
+ * @param [in]   enc     1 when encrypting, 0 when decrypting.
+ * @return  0 on success.
+ * @return  Other value when encryption/decryption fails.
+ */
+static int TicketEncDec(byte* key, int keyLen, byte* iv, byte* aad, int aadSz,
+                        byte* in, int inLen, byte* out, int* outLen, byte* tag,
+                        void* heap, int enc)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    Aes*  aes;
+    Hmac* hmac;
+#else
+    Aes  aes[1];
+    Hmac hmac[1];
+#endif
+
+    (void)heap;
+
+#ifdef WOLFSSL_SMALL_STACK
+    aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (aes == NULL)
+        return MEMORY_E;
+    hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (hmac == NULL) {
+        XFREE(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    XMEMSET(aes, 0, sizeof(Aes));
+    XMEMSET(hmac, 0, sizeof(Hmac));
+
+    ret = wc_HmacInit(hmac, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(hmac, WOLFSSL_TICKET_ENC_HMAC, key + keyLen -
+            WOLFSSL_TICKET_HMAC_KEY_SZ, WOLFSSL_TICKET_HMAC_KEY_SZ);
+    }
+    if (ret == 0) {
+        ret = wc_HmacUpdate(hmac, aad, aadSz);
+    }
+
+    if (ret == 0) {
+        if (enc) {
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesSetKey(aes, key,
+                    keyLen - WOLFSSL_TICKET_HMAC_KEY_SZ, iv, AES_ENCRYPTION);
+            }
+            if (ret == 0) {
+                ret = wc_HmacUpdate(hmac, in, inLen);
+            }
+            if (ret == 0) {
+                ret = wc_AesCbcEncrypt(aes, in, out, inLen);
+            }
+            if (ret == 0) {
+                XMEMSET(tag, 0, WOLFSSL_TICKET_MAC_SZ);
+                ret = wc_HmacFinal(hmac, tag);
+            }
+            wc_AesFree(aes);
+        }
+        else {
+            unsigned char calcTag[WOLFSSL_TICKET_MAC_SZ];
+
+            ret = wc_AesInit(aes, NULL, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_AesSetKey(aes, key,
+                    keyLen - WOLFSSL_TICKET_HMAC_KEY_SZ, iv, AES_DECRYPTION);
+            }
+            if (ret == 0) {
+                ret = wc_AesCbcDecrypt(aes, in, out, inLen);
+            }
+            if (ret == 0) {
+                ret = wc_HmacUpdate(hmac, out, inLen);
+            }
+            if (ret == 0) {
+                XMEMSET(calcTag, 0, WOLFSSL_TICKET_MAC_SZ);
+                ret = wc_HmacFinal(hmac, calcTag);
+            }
+            if (ret == 0) {
+                int i;
+                calcTag[0] ^= tag[0];
+                for (i = 1; i < WOLFSSL_TICKET_MAC_SZ; i++) {
+                    calcTag[0] |= calcTag[i] ^ tag[i];
+                }
+                /* Return a negative value when no match. */
+                ret = -calcTag[0];
+            }
+            wc_AesFree(aes);
+        }
+    }
+    wc_HmacFree(hmac);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(hmac, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(aes, heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    *outLen = inLen;
+
+    return ret;
+}
+#elif defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && \
     !defined(WOLFSSL_TICKET_ENC_AES128_GCM) && \
     !defined(WOLFSSL_TICKET_ENC_AES256_GCM)
 /* Ticket encryption/decryption implementation.
@@ -39047,7 +39164,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
     WOLFSSL_ENTER("DefTicketEncCb");
 
-    if ((!enc) && (inLen != sizeof(InternalTicket))) {
+    if ((!enc) && (inLen != WOLFSSL_INTERNAL_TICKET_LEN)) {
         return BUFFER_E;
     }
 
