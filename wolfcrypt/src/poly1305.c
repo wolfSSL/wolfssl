@@ -739,7 +739,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     /* mac = (h + pad) % (2^128) */
 #ifdef WOLFSSL_W64_WRAPPER
-    w64SetLow32(&f, h0);
+    f = w64From32(0, h0);
     f = w64Add32(f, ctx->pad[0], NULL);
     h0 = w64GetLow32(f);
 

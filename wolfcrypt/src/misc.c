@@ -796,7 +796,7 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64ShiftLeft(w64wrapper a, int shift)
     return a;
 }
 
-WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(unsigned int a, unsigned int b)
+WC_MISC_STATIC WC_INLINE w64wrapper w64Mul(word32 a, word32 b)
 {
     w64wrapper ret;
     ret.n = (word64)a * (word64)b;
@@ -838,7 +838,7 @@ WC_MISC_STATIC WC_INLINE void w64SetLow32(w64wrapper *n, word32 low)
 
 WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
 {
-    a.n[1] = a.n[1] + b;
+    a.n[1] += b;
     if (a.n[1] < b) {
         a.n[0]++;
         if (wrap != NULL && a.n[0] == 0)
@@ -851,14 +851,14 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
 WC_MISC_STATIC WC_INLINE w64wrapper w64Add(w64wrapper a, w64wrapper b,
     byte *wrap)
 {
-    a.n[1] = a.n[1] + b.n[1];
+    a.n[1] += b.n[1];
     if (a.n[1] < b.n[1]) {
         a.n[0]++;
         if (wrap != NULL && a.n[0] == 0)
                 *wrap = 1;
     }
 
-    a.n[0] = a.n[0] + b.n[0];
+    a.n[0] += b.n[0];
     if (a.n[0] < b.n[0]) {
         *wrap = 1;
     }
