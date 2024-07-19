@@ -333,7 +333,7 @@ then
     test -z "$enable_all_crypto" && enable_all_crypto=yes
     test -z "$enable_opensslcoexist" && enable_opensslcoexist=yes
     test -z "$enable_sha" && enable_sha=yes
-    test -z "$enable_eccminsz" && enable_eccminsz=192
+    test -z "$with_eccminsz" && with_eccminsz=192
     test -z "$with_max_ecc_bits" && with_max_ecc_bits=1024
     AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NO_PADDING -DWOLFSSL_PUBLIC_MP -DHAVE_PUBLIC_FFDHE -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192 -DWOLFSSL_PSS_LONG_SALT -DWOLFSSL_PSS_SALT_LEN_DISCOVER"
 fi
@@ -344,6 +344,11 @@ AC_ARG_ENABLE([engine],
     [ ENABLED_WOLFENGINE=$enableval ],
     [ ENABLED_WOLFENGINE=no ]
     )
+
+if test "x$ENABLED_WOLFENGINE" != "xno"
+then
+    test -z "$with_eccminsz" && with_eccminsz=192
+fi
 
 AS_CASE([$ENABLED_WOLFENGINE],
     [no],[
@@ -9342,7 +9347,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
     AM_CFLAGS="$AM_CFLAGS -DWC_RSA_NO_PADDING"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP"
-    AM_CFLAGS="$AM_CFLAGS -DECC_MIN_KEY_SZ=192"
 fi
 
 if test "$ENABLED_WOLFENGINE" = "yes" && test "$ENABLED_FIPS" != "no"
