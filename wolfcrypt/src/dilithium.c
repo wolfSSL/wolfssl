@@ -1703,43 +1703,24 @@ static void dilithium_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
  * @param [in, out] shake128  SHAKE-128 object.
  * @param [in]      seed      Seed to hash to generate values.
  * @param [out]     a         Polynomial.
+ * @param [in]      h         Buffer to hold hashes.
  * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Negative on hash error.
  */
-static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
-    byte* key_h)
+static int dilithium_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
+    byte* h)
 {
-#ifdef WOLFSSL_DILITHIUM_SMALL
     int ret = 0;
+#ifdef WOLFSSL_DILITHIUM_SMALL
     int j = 0;
-#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)
-    byte* h = NULL;
-#else
-    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
+
+#if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
+    /* Reading 4 bytes for 3 so need to set 1 past for last read. */
+    h[DILITHIUM_GEN_A_BLOCK_BYTES] = 0;
 #endif
 
-    (void)key_h;
-
-#ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    h = key_h;
-#elif defined(WOLFSSL_SMALL_STACK)
-    h = (byte*)XMALLOC(DILITHIUM_REJ_NTT_POLY_H_SIZE, NULL,
-        DYNAMIC_TYPE_DILITHIUM);
-    if (h == NULL) {
-        ret = MEMORY_E;
-    }
-#endif /* WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC */
-
-    if (ret == 0) {
-    #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
-        /* Reading 4 bytes for 3 so need to set 1 past for last read. */
-        h[DILITHIUM_GEN_A_BLOCK_BYTES] = 0;
-    #endif
-
-        /* Initialize SHAKE-128 object for new hash. */
-        ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
-    }
+    /* Initialize SHAKE-128 object for new hash. */
+    ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
     if (ret == 0) {
         /* Absorb the seed. */
         ret = wc_Shake128_Absorb(shake128, seed, DILITHIUM_GEN_A_SEED_SZ);
@@ -1775,39 +1756,14 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
             }
         }
     }
-
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC) && defined(WOLFSSL_SMALL_STACK)
-    XFREE(h, NULL, DYNAMIC_TYPE_DILITHIUM);
-#endif
-    return ret;
 #else
-    int ret = 0;
     unsigned int j = 0;
     unsigned int c;
-#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)
-    byte* h = NULL;
-#else
-    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
-#endif
 
-    (void)key_h;
-
-#ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    h = key_h;
-#elif defined(WOLFSSL_SMALL_STACK)
-    h = (byte*)XMALLOC(DILITHIUM_REJ_NTT_POLY_H_SIZE, NULL,
-        DYNAMIC_TYPE_DILITHIUM);
-    if (h == NULL) {
-        ret = MEMORY_E;
-    }
-#endif /* WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC */
-
-    if (ret == 0) {
-        /* Generate enough SHAKE-128 output blocks to give high probability of
-         * being able to get 256 valid 3-byte, 23-bit values from it. */
-        ret = dilithium_squeeze128(shake128, seed, DILITHIUM_GEN_A_SEED_SZ, h,
-            DILITHIUM_GEN_A_NBLOCKS);
-    }
+    /* Generate enough SHAKE-128 output blocks to give high probability of
+     * being able to get 256 valid 3-byte, 23-bit values from it. */
+    ret = dilithium_squeeze128(shake128, seed, DILITHIUM_GEN_A_SEED_SZ, h,
+        DILITHIUM_GEN_A_NBLOCKS);
     if (ret == 0) {
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
         /* Reading 4 bytes for 3 so need to set 1 past for last read. */
@@ -1815,7 +1771,7 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
     #endif
 
         /* Use the first 256 triplets and know we won't exceed required. */
-#ifdef WOLFSSL_DILITHIUM_NO_LARGE_CODE
+    #ifdef WOLFSSL_DILITHIUM_NO_LARGE_CODE
         for (c = 0; c < (DILITHIUM_N - 1) * 3; c += 3) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
             /* Load 32-bit value and mask out 23 bits. */
@@ -1851,7 +1807,7 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
                 }
             }
         }
-#else
+    #else
         /* Do 15 bytes at a time: 255 * 3 / 15 = 51 */
         for (c = 0; c < DILITHIUM_N * 3; c += 24) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
@@ -1948,7 +1904,7 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
                 }
             }
         }
-#endif
+    #endif
         /* Keep generating more blocks and using triplets until we have enough.
          */
         while (j < DILITHIUM_N) {
@@ -1981,13 +1937,57 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
             }
         }
     }
+#endif
 
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC) && defined(WOLFSSL_SMALL_STACK)
-    XFREE(h, NULL, DYNAMIC_TYPE_DILITHIUM);
-#endif
     return ret;
-#endif
 }
+
+#if (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     (!defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) || \
+      !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)))
+/* Generate a random polynomial by rejection.
+ *
+ * @param [in, out] shake128  SHAKE-128 object.
+ * @param [in]      seed      Seed to hash to generate values.
+ * @param [out]     a         Polynomial.
+ * @param [in]      heap      Dynamic memory hint.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Negative on hash error.
+ */
+static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
+    void* heap)
+{
+    int ret;
+#if defined(WOLFSSL_SMALL_STACK)
+    byte* h = NULL;
+#else
+    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
+#endif
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK)
+    h = (byte*)XMALLOC(DILITHIUM_REJ_NTT_POLY_H_SIZE, heap,
+        DYNAMIC_TYPE_DILITHIUM);
+    if (h == NULL) {
+        ret = MEMORY_E;
+    }
+#endif
+
+    ret = dilithium_rej_ntt_poly_ex(shake128, seed, a, h);
+
+#if defined(WOLFSSL_SMALL_STACK)
+    XFREE(h, heap, DYNAMIC_TYPE_DILITHIUM);
+#endif
+
+    return ret;
+}
+#endif
 
 #if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
     defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
@@ -2012,11 +2012,12 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
  * @param [in]      k         First dimension of matrix a.
  * @param [in]      l         Second dimension of matrix a.
  * @param [out]     a         Matrix of polynomials.
+ * @param [in]      heap      Dynamic memory hint.
  * @return  0 on success.
  * @return  Negative on hash error.
  */
 static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
-    byte l, sword32* a)
+    byte l, sword32* a, void* heap)
 {
     int ret = 0;
     byte r;
@@ -2034,7 +2035,7 @@ static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
             /* Put s into buffer to be hashed. */
             seed[DILITHIUM_PUB_SEED_SZ + 0] = s;
             /* Step 3: Create polynomial from hashing seed. */
-            ret = dilithium_rej_ntt_poly(shake128, seed, a, NULL);
+            ret = dilithium_rej_ntt_poly(shake128, seed, a, heap);
             /* Next polynomial. */
             a += DILITHIUM_N;
         }
@@ -2631,16 +2632,17 @@ static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
       !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)))
 /* Expand commit to a polynomial.
  *
- * @param [in]  shake256   SHAKE-256 object.
- * @param [in]  seed       Buffer containing seed to expand.
- * @param [in]  tau        Number of +/- 1s in polynomial.
- * @param [out] c          Commit polynomial.
+ * @param [in]  shake256  SHAKE-256 object.
+ * @param [in]  seed      Buffer containing seed to expand.
+ * @param [in]  tau       Number of +/- 1s in polynomial.
+ * @param [out] c         Commit polynomial.
+ * @param [in]  heap      Dynamic memory hint.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Negative on hash error.
  */
 static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
-   byte tau, sword32* c)
+   byte tau, sword32* c, void* heap)
 {
     int ret = 0;
 #if defined(WOLFSSL_SMALL_STACK)
@@ -2649,8 +2651,10 @@ static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
     byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
 #endif
 
+    (void)heap;
+
 #if defined(WOLFSSL_SMALL_STACK)
-    block = (byte*)XMALLOC(DILITHIUM_GEN_C_BLOCK_BYTES, NULL,
+    block = (byte*)XMALLOC(DILITHIUM_GEN_C_BLOCK_BYTES, heap,
         DYNAMIC_TYPE_DILITHIUM);
     if (block == NULL) {
         ret = MEMORY_E;
@@ -2662,7 +2666,7 @@ static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
     }
 
 #if defined(WOLFSSL_SMALL_STACK)
-    XFREE(block, NULL, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(block, heap, DYNAMIC_TYPE_DILITHIUM);
 #endif
     return ret;
 }
@@ -5335,7 +5339,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 
         /* Step 3: Expand public seed into a matrix of polynomials. */
         ret = dilithium_expand_a(&key->shake, pub_seed, params->k, params->l,
-            a);
+            a, key->heap);
     }
     if (ret == 0) {
         byte* priv_seed = key->k + DILITHIUM_PUB_SEED_SZ;
@@ -5407,6 +5411,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
     sword64* t64 = NULL;
 #endif
+    byte* h = NULL;
     byte* pub_seed = key->k;
     unsigned int r;
     unsigned int s;
@@ -5417,19 +5422,20 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 
         /* s1-l, s2-k, t-k, a-1 */
         allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
-            DILITHIUM_POLY_SIZE;
+            DILITHIUM_REJ_NTT_POLY_H_SIZE + DILITHIUM_POLY_SIZE;
     #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
         /* t64 */
         allocSz += DILITHIUM_POLY_SIZE * 2;
     #endif
-        s1 = (sword32*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (s1 == NULL) {
             ret = MEMORY_E;
         }
         else {
             s2 = s1 + params->s1Sz / sizeof(*s1);
             t  = s2 + params->s2Sz / sizeof(*s2);
-            a  = t  + params->s2Sz / sizeof(*t);
+            h  = (byte*)(t  + params->s2Sz / sizeof(*t));
+            a  = (sword32*)(h + DILITHIUM_REJ_NTT_POLY_H_SIZE);
         #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
             t64 = (sword64*)(a + DILITHIUM_N);
         #endif
@@ -5485,7 +5491,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
                 /* Put s into buffer to be hashed. */
                 aseed[DILITHIUM_PUB_SEED_SZ + 0] = s;
                 /* Step 3: Expand public seed into a matrix of polynomials. */
-                ret = dilithium_rej_ntt_poly(&key->shake, aseed, a, NULL);
+                ret = dilithium_rej_ntt_poly_ex(&key->shake, aseed, a, h);
                 if (ret != 0) {
                     break;
                 }
@@ -5596,7 +5602,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
         key->pubKeySet = 1;
     }
 
-    XFREE(s1, NULL, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #endif
 }
@@ -5847,7 +5853,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         {
             /* Step 5: Create the matrix A from the public seed. */
             ret = dilithium_expand_a(&key->shake, pub_seed, params->k,
-                params->l, a);
+                params->l, a, key->heap);
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
             key->aSet = (ret == 0);
 #endif
@@ -5912,7 +5918,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
                     ret = dilithium_sample_in_ball(&key->shake, commit,
-                        params->tau, c);
+                        params->tau, c, key->heap);
                 }
                 if (ret == 0) {
                     sword32 hi;
@@ -6032,11 +6038,10 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
 
         /* y-l, w0-k, w1-k, blocks, c-1, z-1, A-1 */
         allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
-            DILITHIUM_GEN_C_BLOCK_BYTES +
+            DILITHIUM_REJ_NTT_POLY_H_SIZE +
             DILITHIUM_POLY_SIZE +  DILITHIUM_POLY_SIZE + DILITHIUM_POLY_SIZE;
     #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
         allocSz += params->s1Sz + params->s2Sz + params->s2Sz;
-#endif
     #elif defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
         allocSz += maxK * params->l * DILITHIUM_POLY_SIZE;
     #endif
@@ -6051,7 +6056,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             w0     = y  + params->s1Sz / sizeof(*y_ntt);
             w1     = w0 + params->s2Sz / sizeof(*w0);
             blocks = (byte*)(w1 + params->s2Sz / sizeof(*w1));
-            c      = (sword32*)(blocks + DILITHIUM_GEN_C_BLOCK_BYTES);
+            c      = (sword32*)(blocks + DILITHIUM_REJ_NTT_POLY_H_SIZE);
             z      = c  + DILITHIUM_N;
             a      = z  + DILITHIUM_N;
             ct0    = z;
@@ -6105,7 +6110,8 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
 #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
     if (ret == 0) {
         /* Step 5: Create the matrix A from the public seed. */
-        ret = dilithium_expand_a(&key->shake, pub_seed, maxK, params->l, a);
+        ret = dilithium_expand_a(&key->shake, pub_seed, maxK, params->l, a,
+            key->heap);
     }
 #endif
     if (ret == 0) {
@@ -6178,7 +6184,8 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                     /* Put s into buffer to be hashed. */
                     aseed[DILITHIUM_PUB_SEED_SZ + 0] = s;
                     /* Alg 26. Step 3: Create polynomial from hashing seed. */
-                    ret = dilithium_rej_ntt_poly(&key->shake, aseed, at, NULL);
+                    ret = dilithium_rej_ntt_poly_ex(&key->shake, aseed, at,
+                        blocks);
                     if (ret != 0) {
                         break;
                     }
@@ -6718,7 +6725,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         {
             /* Step 5: Expand pub seed to compute matrix A. */
             ret = dilithium_expand_a(&key->shake, pub_seed, params->k,
-                params->l, a);
+                params->l, a, key->heap);
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
             /* Whether we have cached A is dependent on success of operation. */
             key->aSet = (ret == 0);
@@ -6737,7 +6744,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     }
     if ((ret == 0) && valid) {
         /* Step 9: Compute c from first 256 bits of commit. */
-        ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c);
+        ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
+            key->heap);
     }
     if ((ret == 0) && valid) {
         /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
@@ -6854,7 +6862,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
          ret = dilithium_sample_in_ball_ex(&key->shake, commit, params->tau, c,
              key->block);
 #else
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c);
+         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
+             key->heap);
 #endif
     }
     if ((ret == 0) && valid) {
@@ -6922,9 +6931,9 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
                 seed[DILITHIUM_PUB_SEED_SZ + 0] = s;
                 /* Step 3: Create polynomial from hashing seed. */
             #ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-                ret = dilithium_rej_ntt_poly(&key->shake, seed, a, key->h);
+                ret = dilithium_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
             #else
-                ret = dilithium_rej_ntt_poly(&key->shake, seed, a, NULL);
+                ret = dilithium_rej_ntt_poly(&key->shake, seed, a, key->heap);
             #endif
 
                 /* Step 10: w = A o NTT(z) - NTT(c) o NTT(t1) */
@@ -7863,7 +7872,7 @@ int wc_dilithium_check_key(dilithium_key* key)
             const byte* pub_seed = key->p;
 
             ret = dilithium_expand_a(&key->shake, pub_seed, params->k,
-                params->l, a);
+                params->l, a, key->heap);
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
             key->aSet = (ret == 0);
 #endif
@@ -8099,7 +8108,7 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
     if (ret == 0) {
         /* Compute matrix a from public key data. */
         ret = dilithium_expand_a(&key->shake, key->p, key->params->k,
-            key->params->l, key->a);
+            key->params->l, key->a, key->heap);
         if (ret == 0) {
             key->aSet = 1;
         }
@@ -8168,7 +8177,7 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
     if (ret == 0) {
         /* Compute matrix a from private key data. */
         ret = dilithium_expand_a(&key->shake, key->k, params->k, params->l,
-            key->a);
+            key->a, key->heap);
         if (ret == 0) {
             key->aSet = 1;
         }
