@@ -147,8 +147,8 @@
 #elif defined(WOLFSSL_ZEPHYR)
     #include <version.h>
     #ifndef SINGLE_THREADED
-        #ifndef CONFIG_PTHREAD_IPC
-            #error "Need CONFIG_PTHREAD_IPC for threading"
+        #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
+            #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
         #endif
     #if KERNEL_VERSION_NUMBER >= 0x30100
         #include <zephyr/kernel.h>
