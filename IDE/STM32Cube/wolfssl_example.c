@@ -284,7 +284,7 @@ typedef struct {
 typedef struct {
     int ret;
 
-    osThreadId threadId;
+    osThreadId_t threadId;
 #ifdef CMSIS_OS2_H_
     osSemaphoreId_t mutex;
 #else
