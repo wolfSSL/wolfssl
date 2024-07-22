@@ -27,7 +27,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-#ifdef WOLFSSL_HAVE_KYBER
+#if defined(WOLFSSL_HAVE_KYBER) && !defined(WOLFSSL_WC_KYBER)
 #include <wolfssl/wolfcrypt/ext_kyber.h>
 
 #ifdef NO_INLINE
@@ -750,4 +750,4 @@ int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len)
     return ret;
 }
 
-#endif /* WOLFSSL_HAVE_KYBER */
+#endif /* WOLFSSL_HAVE_KYBER && !WOLFSSL_WC_KYBER */
