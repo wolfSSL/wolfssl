@@ -6858,6 +6858,7 @@ enum {
  *                             On out, start of encoded key.
  * @param [in]       sz        Size of data in buffer.
  * @param [out]      algId     Key's algorithm id from PKCS #8 header.
+ * @param [out]      eccOid    ECC curve OID.
  * @return  Length of key data on success.
  * @return  BAD_FUNC_ARG when input or inOutIdx is NULL.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
@@ -6867,8 +6868,8 @@ enum {
  * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
  *          non-zero length.
  */
-int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
-                           word32* algId)
+int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
+                            word32* algId, word32* eccOid)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx;
@@ -6918,8 +6919,14 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
 #endif /* WC_RSA_PSS && !NO_RSA */
 
     if (tag == ASN_OBJECT_ID) {
-        if (SkipObjectId(input, &idx, sz) < 0)
-            return ASN_PARSE_E;
+        if ((*algId == ECDSAk) && (eccOid != NULL)) {
+            if (GetObjectId(input, &idx, eccOid, oidCurveType, maxIdx) < 0)
+                return ASN_PARSE_E;
+        }
+        else {
+            if (SkipObjectId(input, &idx, sz) < 0)
+                return ASN_PARSE_E;
+        }
     }
 
     ret = GetOctetString(input, &idx, &length, sz);
@@ -6939,6 +6946,8 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     word32 oid = 9;
     byte version = 0;
     word32 idx;
+
+    (void)eccOid;
 
     /* Check validity of parameters. */
     if (input == NULL || inOutIdx == NULL) {
@@ -7013,6 +7022,11 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
                 if (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) {
                     ret = ASN_PARSE_E;
                 }
+                if (eccOid != NULL) {
+                    ASNGetData* oidCurve =
+                        &dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE];
+                    *eccOid = oidCurve->data.oid.sum;
+                }
                 break;
         #endif
         #ifdef HAVE_ED25519
@@ -7071,6 +7085,29 @@ int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
     return ret;
 #endif
 }
+
+/* Remove PKCS #8 header around an RSA, ECDSA, Ed25519, or Ed448.
+ *
+ * @param [in]       input     Buffer holding BER data.
+ * @param [in, out]  inOutIdx  On in, start of PKCS #8 encoding.
+ *                             On out, start of encoded key.
+ * @param [in]       sz        Size of data in buffer.
+ * @param [out]      algId     Key's algorithm id from PKCS #8 header.
+ * @return  Length of key data on success.
+ * @return  BAD_FUNC_ARG when input or inOutIdx is NULL.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_OBJECT_ID_E when the expected OBJECT_ID tag is not found.
+ * @return  ASN_EXPECT_0_E when the INTEGER has the MSB set or NULL has a
+ *          non-zero length.
+ */
+int ToTraditionalInline_ex(const byte* input, word32* inOutIdx, word32 sz,
+                           word32* algId)
+{
+    return ToTraditionalInline_ex2(input, inOutIdx, sz, algId, NULL);
+}
+
 
 /* TODO: test case  */
 int ToTraditionalInline(const byte* input, word32* inOutIdx, word32 sz)
@@ -33910,6 +33947,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     int curve_id = ECC_CURVE_DEF;
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(SM2)
     word32 algId = 0;
+    word32 eccOid = 0;
 #endif
 
     /* Validate parameters. */
@@ -33919,11 +33957,11 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 
 #if defined(HAVE_PKCS8) || defined(HAVE_PKCS12) || defined(SM2)
     /* if has pkcs8 header skip it */
-    if (ToTraditionalInline_ex(input, inOutIdx, inSz, &algId) < 0) {
+    if (ToTraditionalInline_ex2(input, inOutIdx, inSz, &algId, &eccOid) < 0) {
         /* ignore error, did not have pkcs8 header */
     }
     else {
-        curve_id = wc_ecc_get_oid(algId, NULL, NULL);
+        curve_id = wc_ecc_get_oid(eccOid, NULL, NULL);
     }
 #endif
 
