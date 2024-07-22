@@ -51147,6 +51147,9 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
+    /* clear buffer to avoid provoking uninitvar errors. */
+    XMEMSET(buffer, 0, sizeof(buffer));
+
     ret = mp_read_unsigned_bin(NULL, NULL, sizeof(buffer));
     if (ret != MP_VAL)
         return WC_TEST_RET_ENC_EC(ret);

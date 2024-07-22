@@ -894,7 +894,6 @@ then
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
-    test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
@@ -960,6 +959,7 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
+        test "$enable_cryptocb" = "" && enable_cryptocb=yes
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
@@ -1085,7 +1085,6 @@ then
     test "$enable_blake2s" = "" && enable_blake2s=yes
     test "$enable_md2" = "" && enable_md2=yes
     test "$enable_md4" = "" && enable_md4=yes
-    test "$enable_cryptocb" = "" && enable_cryptocb=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
     test "$enable_srtp_kdf" = "" && enable_srtp_kdf=yes
@@ -1107,6 +1106,7 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
+        test "$enable_cryptocb" = "" && enable_cryptocb=yes
         test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
         test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_pkcs7" = "" && enable_pkcs7=yes

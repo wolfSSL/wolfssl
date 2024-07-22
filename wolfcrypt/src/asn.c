@@ -33683,9 +33683,9 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     #else
     if (ret == 0) {
         /* Base X-ordinate */
-        DataToHexString(base + 1, curve->size, curve->Gx);
+        DataToHexString(base + 1, (word32)curve->size, curve->Gx);
         /* Base Y-ordinate */
-        DataToHexString(base + 1 + curve->size, curve->size, curve->Gy);
+        DataToHexString(base + 1 + curve->size, (word32)curve->size, curve->Gy);
         /* Prime */
         DataToHexString(dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.data,
                         dataASN[ECCSPECIFIEDASN_IDX_PRIME_P].data.ref.length,
