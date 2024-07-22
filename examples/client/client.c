@@ -3585,8 +3585,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    if (postHandAuth)
-        wolfSSL_CTX_allow_post_handshake_auth(ctx);
+    if (postHandAuth) {
+        if (wolfSSL_CTX_allow_post_handshake_auth(ctx) != 0) {
+            err_sys("unable to support post handshake auth");
+        }
+    }
 #endif
 
     if (benchmark) {
