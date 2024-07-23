@@ -1664,6 +1664,9 @@ typedef struct CertSignCtx  CertSignCtx;
     && defined(HAVE_OID_DECODING)
 typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
                                      const unsigned char* der, word32 derSz);
+typedef int (*wc_UnknownExtCallbackEx)(const word16* oid, word32 oidSz,
+                                       int crit, const unsigned char* der,
+                                       word32 derSz, void *ctx);
 #endif
 
 struct DecodedCert {
@@ -1997,6 +2000,8 @@ struct DecodedCert {
 #if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
     && defined(HAVE_OID_DECODING)
     wc_UnknownExtCallback unknownExtCallback;
+    wc_UnknownExtCallbackEx unknownExtCallbackEx;
+    void *unknownExtCallbackExCtx;
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     /* Subject Alternative Public Key Info */
@@ -2166,6 +2171,9 @@ WOLFSSL_ASN_API int  ParseCert(DecodedCert* cert, int type, int verify,
     && defined(HAVE_OID_DECODING)
 WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
+WOLFSSL_ASN_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
+                                               wc_UnknownExtCallbackEx cb,
+                                               void *ctx);
 #endif
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *out, word32 outSz, const byte *in,

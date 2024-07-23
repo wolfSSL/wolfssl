@@ -5358,6 +5358,14 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 #endif
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
+
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) && \
+    defined(HAVE_OID_DECODING)
+    if (cm->unknownExtCallback != NULL) {
+        wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
+    }
+#endif
+
     ret = ParseCert(cert, CA_TYPE, verify, cm);
     WOLFSSL_MSG("\tParsed new CA");
 
