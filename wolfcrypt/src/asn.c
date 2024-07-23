@@ -11994,7 +11994,7 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
 #endif
 
-    if (pubKey == NULL) {
+    if (pubKey == NULL || (output != NULL && outLen == 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -35317,7 +35317,7 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
 #endif
 
     /* Validate parameters. */
-    if (privKey == NULL || outLen == 0) {
+    if (privKey == NULL || (output != NULL && outLen == 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -35477,7 +35477,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
     byte   pubKey[CURVE25519_PUB_KEY_SIZE];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
-    if (key == NULL || output == NULL) {
+    if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
