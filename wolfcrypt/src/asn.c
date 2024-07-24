@@ -1210,7 +1210,7 @@ static int GetASN_ObjectId(const byte* input, word32 idx, int length)
     /* Last octet of a sub-identifier has bit 8 clear. Last octet must be last
      * of a subidentifier. Ensure last octet hasn't got top bit set.
      */
-    else if ((input[(int)idx + length - 1] & 0x80) != 0x00) {
+    else if ((input[(int)idx + length - 1] & 0x80) == 0x80) {
         WOLFSSL_MSG("OID last octet has top bit set");
         ret = ASN_PARSE_E;
     }
@@ -2436,7 +2436,7 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx,
             WOLFSSL_MSG("OID length less than 3");
             ret = ASN_PARSE_E;
         }
-        else if ((input[(int)idx + length - 1] & 0x80) != 0x00) {
+        else if ((input[(int)idx + length - 1] & 0x80) == 0x80) {
             /* Last octet of a sub-identifier has bit 8 clear. Last octet must be
             * last of a subidentifier. Ensure last octet hasn't got top bit set. */
             WOLFSSL_MSG("OID last octet has top bit set");
@@ -3490,7 +3490,7 @@ int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     }
 
     b = input[idx];
-    if (zeroBits && b != 0x00)
+    if (zeroBits && (b != 0x00))
         return ASN_EXPECT_0_E;
     if (b >= 0x08)
         return ASN_PARSE_E;
