@@ -1060,7 +1060,9 @@ int SuiteTest(int argc, char** argv)
 #if defined(HAVE_ECC) && !defined(NO_SHA256) && defined(WOLFSSL_CUSTOM_CURVES) && \
     defined(HAVE_ECC_KOBLITZ) && defined(HAVE_ECC_BRAINPOOL) && \
         /* Intel QuickAssist and Cavium Nitrox do not support custom curves */ \
-        !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM_V)
+        !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM_V) && \
+        /* only supported with newer ASN template code */ \
+        defined(WOLFSSL_ASN_TEMPLATE)
 
     /* TLS non-NIST curves (Koblitz / Brainpool) */
     XSTRLCPY(argv0[1], "tests/test-ecc-cust-curves.conf", sizeof(argv0[1]));
