@@ -8638,20 +8638,23 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 oid = dilithium_oid_44;
                 oidLen = (int)sizeof(dilithium_oid_44);
             }
+            else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_65
-            else if (key->level == 3) {
+            if (key->level == 3) {
                 oid = dilithium_oid_65;
                 oidLen = (int)sizeof(dilithium_oid_65);
             }
+            else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_87
-            else if (key->level == 5) {
+            if (key->level == 5) {
                 oid = dilithium_oid_87;
                 oidLen = (int)sizeof(dilithium_oid_87);
             }
+            else
         #endif
-            else {
+            {
                 /* Level not set. */
                 ret = BAD_FUNC_ARG;
             }
