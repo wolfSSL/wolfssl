@@ -5102,24 +5102,6 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
 
 #ifdef OPENSSL_EXTRA
 
-#ifdef XGETENV
-static char* wolfSSL_getenv_memcpy(const char* varName) {
-    char* ret = NULL;
-    char* env = NULL;
-    int len = 0;
-
-    if ((env = XGETENV(varName)) != NULL) {
-        len = (int)XSTRLEN(env);
-        ret = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (ret != NULL) {
-            XMEMCPY(ret, env, len);
-        }
-    }
-
-    return ret;
-}
-#endif
-
 /* Use the default paths to look for CA certificate.
  *
  * This is an OpenSSL compatibility layer function, but it doesn't mirror
@@ -5149,8 +5131,8 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_set_default_verify_paths");
 
 #ifdef XGETENV
-    certDir = wolfSSL_getenv_memcpy("SSL_CERT_DIR");
-    certFile = wolfSSL_getenv_memcpy("SSL_CERT_FILE");
+    certDir = wc_strdup(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
+    certFile = wc_strdup(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
     flags = WOLFSSL_LOAD_FLAG_PEM_CA_ONLY;
 
     if ((certDir != NULL) || (certFile != NULL)) {
@@ -5197,12 +5179,8 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     }
 
 #ifdef XGETENV
-    if (certFile != NULL) {
-        XFREE(certFile, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (certDir != NULL) {
-        XFREE(certDir, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(certFile, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(certDir, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     WOLFSSL_LEAVE("wolfSSL_CTX_set_default_verify_paths", ret);
 

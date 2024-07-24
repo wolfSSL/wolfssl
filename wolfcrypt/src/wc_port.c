@@ -1177,6 +1177,21 @@ int wc_strncasecmp(const char *s1, const char *s2, size_t n)
 }
 #endif /* USE_WOLF_STRNCASECMP */
 
+char* wc_strdup(const char *src, int memType) {
+    char *ret = NULL;
+    int len = 0;
+
+    if (src) {
+        len = (int)XSTRLEN(src);
+        ret = (char*)XMALLOC(len, NULL, memType);
+        if (ret != NULL) {
+            XMEMCPY(ret, src, len);
+        }
+    }
+
+    return ret;
+}
+
 #ifdef WOLFSSL_ATOMIC_OPS
 
 #ifdef HAVE_C___ATOMIC
