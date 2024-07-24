@@ -8308,7 +8308,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     int ret;
 
     /* argument checks */
-    if (aes == NULL || authTagSz > AES_BLOCK_SIZE || ivSz == 0) {
+    if (aes == NULL || authTagSz > AES_BLOCK_SIZE || ivSz == 0 ||
+        ((authTagSz > 0) && (authTag == NULL)) ||
+        ((authInSz > 0) && (authIn == NULL)))
+    {
         return BAD_FUNC_ARG;
     }
 
@@ -8437,8 +8440,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
      * in and out are don't cares, as this is is the GMAC case. */
     if (aes == NULL || iv == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
         authTag == NULL || authTagSz > AES_BLOCK_SIZE || authTagSz == 0 ||
-        ivSz == 0) {
-
+        ivSz == 0 || ((authInSz > 0) && (authIn == NULL)))
+    {
         return BAD_FUNC_ARG;
     }
 
