@@ -6920,7 +6920,7 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
 
     if (tag == ASN_OBJECT_ID) {
         if ((*algId == ECDSAk) && (eccOid != NULL)) {
-            if (GetObjectId(input, &idx, eccOid, oidCurveType, maxIdx) < 0)
+            if (GetObjectId(input, &idx, eccOid, oidCurveType, sz) < 0)
                 return ASN_PARSE_E;
         }
         else {
@@ -18590,6 +18590,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int length = 0;
+    word32 numNames = 0;
 
     WOLFSSL_ENTER("DecodeAltNames");
 
@@ -18622,8 +18623,13 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             return BUFFER_E;
         }
 
-        current_byte = input[idx++];
+        numNames++;
+        if (numNames > WOLFSSL_MAX_ALT_NAMES) {
+            WOLFSSL_MSG("\tToo many subject alternative names");
+            return ASN_ALT_NAME_E;
+        }
 
+        current_byte = input[idx++];
         length--;
 
         /* Save DNS Type names in the altNames list. */
@@ -20153,6 +20159,7 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 idx = 0;
     int ret = 0;
+    word32 cnt = 0;
 
     (void)heap;
 
@@ -20160,6 +20167,14 @@ static int DecodeSubtree(const byte* input, word32 sz, Base_entry** head,
         int seqLength, strLength;
         word32 nameIdx;
         byte b, bType;
+
+        if (limit > 0) {
+            cnt++;
+            if (cnt > limit) {
+                WOLFSSL_MSG("too many name constraints");
+                return ASN_NAME_INVALID_E;
+            }
+        }
 
         if (GetSequence(input, &idx, &seqLength, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
