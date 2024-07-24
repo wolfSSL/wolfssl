@@ -2430,6 +2430,19 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx,
     if ((ret == 0) && (GetLength_ex(input, &idx, &length, maxIdx, check) < 0)) {
         ret = ASN_PARSE_E;
     }
+    if (ret == 0 && tag == ASN_OBJECT_ID) {
+        if (length < 3) {
+            /* OID data must be at least 3 bytes. */
+            WOLFSSL_MSG("OID length less than 3");
+            ret = ASN_PARSE_E;
+        }
+        else if ((input[(int)idx + length - 1] & 0x80) != 0x00) {
+            /* Last octet of a sub-identifier has bit 8 clear. Last octet must be
+            * last of a subidentifier. Ensure last octet hasn't got top bit set. */
+            WOLFSSL_MSG("OID last octet has top bit set");
+            ret = ASN_PARSE_E;
+        }
+    }
     if (ret == 0) {
         /* Return the length of data and index after header. */
         *len      = length;
@@ -2691,14 +2704,15 @@ int GetASNInt(const byte* input, word32* inOutIdx, int* len,
         return ret;
 
     if (*len > 0) {
-
 #ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
         /* check for invalid padding on negative integer.
          * c.f. X.690 (ISO/IEC 8825-2:2003 (E)) 10.4.6; RFC 5280 4.1
          */
         if (*len > 1) {
-            if ((input[*inOutIdx] == 0xff) && (input[*inOutIdx + 1] & 0x80))
-                return ASN_PARSE_E;
+            if ((input[*inOutIdx] == 0xff) && (input[*inOutIdx + 1] & 0x80)) {
+                WOLFSSL_MSG("Bad INTEGER encoding of negative");
+                return ASN_EXPECT_0_E;
+            }
         }
 #endif
 
@@ -2708,8 +2722,10 @@ int GetASNInt(const byte* input, word32* inOutIdx, int* len,
             (*len)--;
 
 #ifndef WOLFSSL_ASN_INT_LEAD_0_ANY
-            if (*len > 0 && (input[*inOutIdx] & 0x80) == 0)
-                return ASN_PARSE_E;
+            if (*len > 0 && (input[*inOutIdx] & 0x80) == 0) {
+                WOLFSSL_MSG("INTEGER is negative");
+                return ASN_EXPECT_0_E;
+            }
 #endif
         }
     }
@@ -11572,9 +11588,11 @@ static int GetCertHeader(DecodedCert* cert)
                                                             cert->sigIndex) < 0)
         return ASN_PARSE_E;
 
-    if (wc_GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
-                                           &cert->serialSz, cert->sigIndex) < 0)
-        return ASN_PARSE_E;
+    ret = wc_GetSerialNumber(cert->source, &cert->srcIdx, cert->serial,
+        &cert->serialSz, cert->sigIndex);
+    if (ret < 0) {
+        return ret;
+    }
 
     return ret;
 }
