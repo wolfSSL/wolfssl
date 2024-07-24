@@ -23340,7 +23340,11 @@ static int test_wc_Ed25519PublicKeyToDer(void)
         ExpectIntEQ(wc_ed25519_init(&key), 0);
         ExpectIntEQ(wc_InitRng(&rng), 0);
         ExpectIntEQ(wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key), 0);
-        ExpectIntGT(wc_Ed25519PublicKeyToDer(&key, derBuf, 1024, 1), 0);
+        /* length only */
+        ExpectIntGT(wc_Ed25519PublicKeyToDer(&key, NULL, 0, 0), 0);
+        ExpectIntGT(wc_Ed25519PublicKeyToDer(&key, NULL, 0, 1), 0);
+        ExpectIntGT(wc_Ed25519PublicKeyToDer(&key, derBuf,
+                    (word32)sizeof(derBuf), 1), 0);
 
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
         wc_ed25519_free(&key);
@@ -24233,8 +24237,11 @@ static int test_wc_Ed448PublicKeyToDer(void)
         ExpectIntEQ(wc_ed448_init(&key), 0);
         ExpectIntEQ(wc_InitRng(&rng), 0);
         ExpectIntEQ(wc_ed448_make_key(&rng, ED448_KEY_SIZE, &key), 0);
-
-        ExpectIntGT(wc_Ed448PublicKeyToDer(&key, derBuf, 1024, 1), 0);
+        /* length only */
+        ExpectIntGT(wc_Ed448PublicKeyToDer(&key, NULL, 0, 0), 0);
+        ExpectIntGT(wc_Ed448PublicKeyToDer(&key, NULL, 0, 1), 0);
+        ExpectIntGT(wc_Ed448PublicKeyToDer(&key, derBuf,
+                    (word32)sizeof(derBuf), 1), 0);
 
         DoExpectIntEQ(wc_FreeRng(&rng), 0);
         wc_ed448_free(&key);
@@ -26863,6 +26870,7 @@ static int test_wc_Ed25519KeyToDer(void)
     ExpectIntEQ(wc_Ed25519KeyToDer(&ed25519Key, output, 0), BAD_FUNC_ARG);
     /* Good Cases */
     /* length only */
+    ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, NULL, 0), 0);
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, NULL, inLen), 0);
     ExpectIntGT(wc_Ed25519KeyToDer(&ed25519Key, output, inLen), 0);
 
@@ -26901,7 +26909,7 @@ static int test_wc_Ed25519PrivateKeyToDer(void)
         BAD_FUNC_ARG);
     /* Good Cases */
     /* length only */
-    ExpectIntGT(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, NULL, inLen), 0);
+    ExpectIntGT(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, NULL, 0), 0);
     ExpectIntGT(wc_Ed25519PrivateKeyToDer(&ed25519PrivKey, output, inLen), 0);
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -26937,7 +26945,7 @@ static int test_wc_Ed448KeyToDer(void)
     ExpectIntEQ(wc_Ed448KeyToDer(&ed448Key, output, 0), BAD_FUNC_ARG);
     /* Good Cases */
     /* length only */
-    ExpectIntGT(wc_Ed448KeyToDer(&ed448Key, NULL, inLen), 0);
+    ExpectIntGT(wc_Ed448KeyToDer(&ed448Key, NULL, 0), 0);
     ExpectIntGT(wc_Ed448KeyToDer(&ed448Key, output, inLen), 0);
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -26975,7 +26983,7 @@ static int test_wc_Ed448PrivateKeyToDer(void)
         BAD_FUNC_ARG);
     /* Good cases */
     /* length only */
-    ExpectIntGT(wc_Ed448PrivateKeyToDer(&ed448PrivKey, NULL, inLen), 0);
+    ExpectIntGT(wc_Ed448PrivateKeyToDer(&ed448PrivKey, NULL, 0), 0);
     ExpectIntGT(wc_Ed448PrivateKeyToDer(&ed448PrivKey, output, inLen), 0);
 
     DoExpectIntEQ(wc_FreeRng(&rng), 0);
@@ -27013,7 +27021,7 @@ static int test_wc_Curve448PrivateKeyToDer(void)
         BAD_FUNC_ARG);
     /* Good cases */
     /* length only */
-    ExpectIntGT(wc_Curve448PrivateKeyToDer(&curve448PrivKey, NULL, inLen), 0);
+    ExpectIntGT(wc_Curve448PrivateKeyToDer(&curve448PrivKey, NULL, 0), 0);
     ExpectIntGT(wc_Curve448PrivateKeyToDer(&curve448PrivKey, output, inLen), 0);
 
     /* Bad Cases */
@@ -27025,8 +27033,8 @@ static int test_wc_Curve448PrivateKeyToDer(void)
         BUFFER_E);
     /* Good cases */
     /* length only */
-    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, NULL, inLen, 0), 0);
-    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, NULL, inLen, 1), 0);
+    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, NULL, 0, 0), 0);
+    ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, NULL, 0, 1), 0);
     ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, output, inLen, 0), 0);
     ExpectIntGT(wc_Curve448PublicKeyToDer(&curve448PrivKey, output, inLen, 1), 0);
 
