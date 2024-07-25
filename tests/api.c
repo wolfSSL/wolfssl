@@ -52958,6 +52958,7 @@ static int test_wolfSSL_PKCS8_Compat(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC) && \
     !defined(NO_BIO)
     PKCS8_PRIV_KEY_INFO* pt = NULL;
+    PKCS8_PRIV_KEY_INFO* pt2 = NULL;
     BIO* bio = NULL;
     XFILE f = XBADFILE;
     int bytes;
@@ -52980,13 +52981,14 @@ static int test_wolfSSL_PKCS8_Compat(void)
     ExpectIntEQ(EVP_PKEY_type(pkey->type), EVP_PKEY_EC);
 
     /* gets PKCS8 pointer to pkey */
-    ExpectNotNull(EVP_PKEY2PKCS8(pkey));
+    ExpectNotNull(pt2 = EVP_PKEY2PKCS8(pkey));
 
     EVP_PKEY_free(pkey);
 #endif
 
     BIO_free(bio);
     PKCS8_PRIV_KEY_INFO_free(pt);
+    PKCS8_PRIV_KEY_INFO_free(pt2);
 #endif
     return EXPECT_RESULT();
 }
