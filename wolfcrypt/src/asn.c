@@ -35343,10 +35343,10 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
 
     /* validate parameters */
     if (privKey == NULL) {
-        return BUFFER_E;
+        return BAD_FUNC_ARG;
     }
     if (output != NULL && outLen == 0) {
-        return BAD_FUNC_ARG;
+        return BUFFER_E;
     }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
