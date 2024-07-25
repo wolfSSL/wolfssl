@@ -7283,7 +7283,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
 
 #ifndef NO_CERTS
 
-/* Load the DER encoded DH parameters/key into DH key.
+/* Load the DER encoded DH parameters into DH key.
  *
  * @param [in, out] dh      DH key to load parameters into.
  * @param [in]      der     Buffer holding DER encoded parameters data.
@@ -7294,7 +7294,7 @@ WOLFSSL_BIGNUM* wolfSSL_DH_8192_prime(WOLFSSL_BIGNUM* bn)
  * @return  0 on success.
  * @return  1 when decoding DER or setting the external key fails.
  */
-static int wolfssl_dh_load_key(WOLFSSL_DH* dh, const unsigned char* der,
+static int wolfssl_dh_load_params(WOLFSSL_DH* dh, const unsigned char* der,
     word32* idx, word32 derSz)
 {
     int err = 0;
@@ -7407,7 +7407,7 @@ WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH** dh, const unsigned char** pp,
         WOLFSSL_ERROR_MSG("wolfSSL_DH_new() failed");
         err = 1;
     }
-    if ((!err) && (wolfssl_dh_load_key(newDh, *pp, &idx,
+    if ((!err) && (wolfssl_dh_load_params(newDh, *pp, &idx,
             (word32)length) != 0)) {
         WOLFSSL_ERROR_MSG("Loading DH parameters failed");
         err = 1;
@@ -7567,7 +7567,7 @@ int wolfSSL_DH_LoadDer(WOLFSSL_DH* dh, const unsigned char* derBuf, int derSz)
         ret = -1;
     }
 
-    if ((ret == 1) && (wolfssl_dh_load_key(dh, derBuf, &idx,
+    if ((ret == 1) && (wolfssl_dh_load_params(dh, derBuf, &idx,
             (word32)derSz) != 0)) {
         WOLFSSL_ERROR_MSG("DH key decode failed");
         ret = -1;
