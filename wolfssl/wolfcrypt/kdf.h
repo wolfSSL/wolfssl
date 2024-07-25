@@ -119,6 +119,12 @@ WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
         const byte* h, word32 hSz,
         const byte* sessionId, word32 sessionIdSz);
 
+WOLFSSL_API int wc_SSH_KDF_NoPad(byte hashId, byte keyId,
+        byte* key, word32 keySz,
+       const byte* k, word32 kSz,
+        const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz);
+
 #endif /* WOLFSSL_WOLFSSH */
 
 #ifdef WC_SRTP_KDF

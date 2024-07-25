@@ -797,14 +797,14 @@ void _HashFree(byte hashId, _hash* hash)
 
 #define LENGTH_SZ 4
 
-int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
+static int wc_SSH_KDF_ex(byte hashId, byte keyId, byte* key, word32 keySz,
         const byte* k, word32 kSz, const byte* h, word32 hSz,
-        const byte* sessionId, word32 sessionIdSz)
+        const byte* sessionId, word32 sessionIdSz, int padK)
 {
     word32 blocks, remainder;
     _hash hash;
     enum wc_HashType enmhashId = (enum wc_HashType)hashId;
-    byte kPad = 0;
+    byte kPadSz = 0;
     byte pad = 0;
     byte kSzFlat[LENGTH_SZ];
     word32 digestSz;
@@ -824,8 +824,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     }
     digestSz = (word32)ret;
 
-    if (k[0] & 0x80) kPad = 1;
-    c32toa(kSz + kPad, kSzFlat);
+    kPadSz = (k[0] & 0x80) && padK;
+    c32toa(kSz + kPadSz, kSzFlat);
 
     blocks = keySz / digestSz;
     remainder = keySz % digestSz;
@@ -833,8 +833,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     ret = _HashInit(enmhashId, &hash);
     if (ret == 0)
         ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
-    if (ret == 0 && kPad)
-        ret = _HashUpdate(enmhashId, &hash, &pad, 1);
+    if (ret == 0)
+        ret = _HashUpdate(enmhashId, &hash, &pad, kPadSz);
     if (ret == 0)
         ret = _HashUpdate(enmhashId, &hash, k, kSz);
     if (ret == 0)
@@ -864,8 +864,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                 if (ret != 0) break;
                 ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
                 if (ret != 0) break;
-                if (kPad)
-                    ret = _HashUpdate(enmhashId, &hash, &pad, 1);
+                ret = _HashUpdate(enmhashId, &hash, &pad, kPadSz);
                 if (ret != 0) break;
                 ret = _HashUpdate(enmhashId, &hash, k, kSz);
                 if (ret != 0) break;
@@ -884,8 +883,8 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
                     ret = _HashInit(enmhashId, &hash);
                 if (ret == 0)
                     ret = _HashUpdate(enmhashId, &hash, kSzFlat, LENGTH_SZ);
-                if (ret == 0 && kPad)
-                    ret = _HashUpdate(enmhashId, &hash, &pad, 1);
+                if (ret == 0)
+                    ret = _HashUpdate(enmhashId, &hash, &pad, kPadSz);
                 if (ret == 0)
                     ret = _HashUpdate(enmhashId, &hash, k, kSz);
                 if (ret == 0)
@@ -903,6 +902,22 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
     _HashFree(enmhashId, &hash);
 
     return ret;
+}
+
+int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz)
+{
+    return wc_SSH_KDF_ex(hashId, keyId, key, keySz,
+            k, kSz, h, hSz, sessionId, sessionIdSz, 1);
+}
+
+int wc_SSH_KDF_NoPad(byte hashId, byte keyId, byte* key, word32 keySz,
+        const byte* k, word32 kSz, const byte* h, word32 hSz,
+        const byte* sessionId, word32 sessionIdSz)
+{
+    return wc_SSH_KDF_ex(hashId, keyId, key, keySz,
+            k, kSz, h, hSz, sessionId, sessionIdSz, 0);
 }
 
 #endif /* WOLFSSL_WOLFSSH */
