@@ -4672,10 +4672,34 @@ enum AcceptStateTls13 {
     TLS13_TICKET_SENT
 };
 
+#ifdef WOLFSSL_THREADED_CRYPT
+
+#include <pthread.h>
+
+typedef struct ThreadCrypt {
+    Ciphers encrypt;
+    bufferStatic buffer;
+    unsigned char nonce[AESGCM_NONCE_SZ];
+    unsigned char additional[AEAD_AUTH_DATA_SZ];
+    int init;
+    int offset;
+    int cryptLen;
+    int done;
+    int avail;
+    int stop;
+    WOLFSSL_THREAD_SIGNAL signal;
+    void*                 signalCtx;
+} ThreadCrypt;
+
+#endif
+
 /* buffers for struct WOLFSSL */
 typedef struct Buffers {
     bufferStatic    inputBuffer;
     bufferStatic    outputBuffer;
+#ifdef WOLFSSL_THREADED_CRYPT
+    ThreadCrypt     encrypt[WOLFSSL_THREADED_CRYPT_CNT];
+#endif
     buffer          domainName;            /* for client check */
     buffer          clearOutputBuffer;
     buffer          sig;                   /* signature data */
@@ -4886,7 +4910,6 @@ struct Options {
 #endif
     word16            dtlsUseNonblock:1;  /* are we using nonblocking socket */
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
-    word16            haveMcast:1;        /* using multicast ? */
 #ifdef WOLFSSL_SCTP
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
@@ -4966,6 +4989,9 @@ struct Options {
 #if defined(HAVE_DANE)
     word16            useDANE:1;
 #endif /* HAVE_DANE */
+#ifdef WOLFSSL_DTLS
+    byte              haveMcast;          /* using multicast ? */
+#endif
 #if defined(HAVE_RPK)
     RpkConfig         rpkConfig;
     RpkState          rpkState;
@@ -6308,6 +6334,9 @@ WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
 #endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
+#ifdef WOLFSSL_THREADED_CRYPT
+WOLFSSL_LOCAL int SendAsyncData(WOLFSSL* ssl);
+#endif
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType);
 #endif
@@ -6646,6 +6675,9 @@ enum encrypt_side {
     ENCRYPT_AND_DECRYPT_SIDE
 };
 
+WOLFSSL_LOCAL int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys,
+    CipherSpecs* specs, int side, void* heap, int devId, WC_RNG* rng,
+    int tls13);
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 
 /* Set*Internal and Set*External functions */

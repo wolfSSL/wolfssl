@@ -2887,73 +2887,61 @@ void InitCiphers(WOLFSSL* ssl)
 
 }
 
+static void FreeCiphersSide(Ciphers *cipher, void* heap)
+{
+#ifdef BUILD_ARC4
+    wc_Arc4Free(cipher->arc4);
+    XFREE(cipher->arc4, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef BUILD_DES3
+    wc_Des3Free(cipher->des3);
+    XFREE(cipher->des3, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#if defined(BUILD_AES) || defined(BUILD_AESGCM) || defined(HAVE_ARIA)
+    /* See: InitKeys() in keys.c on addition of BUILD_AESGCM check (enc->aes,
+     * dec->aes) */
+    wc_AesFree(cipher->aes);
+    XFREE(cipher->aes, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
+    wc_Sm4Free(cipher->sm4);
+    XFREE(cipher->sm4, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#if (defined(BUILD_AESGCM) || defined(BUILD_AESCCM) || defined(HAVE_ARIA)) && \
+    !defined(WOLFSSL_NO_TLS12)
+    XFREE(cipher->additional, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef CIPHER_NONCE
+    XFREE(cipher->nonce, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_ARIA
+    wc_AriaFreeCrypt(cipher->aria);
+    XFREE(cipher->aria, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_CAMELLIA
+    XFREE(cipher->cam, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#ifdef HAVE_CHACHA
+    if (cipher->chacha)
+        ForceZero(cipher->chacha, sizeof(ChaCha));
+    XFREE(cipher->chacha, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
+    wc_HmacFree(cipher->hmac);
+    XFREE(cipher->hmac, heap, DYNAMIC_TYPE_CIPHER);
+#endif
+}
 
 /* Free ciphers */
 void FreeCiphers(WOLFSSL* ssl)
 {
-    (void)ssl;
-#ifdef BUILD_ARC4
-    wc_Arc4Free(ssl->encrypt.arc4);
-    wc_Arc4Free(ssl->decrypt.arc4);
-    XFREE(ssl->encrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.arc4, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#ifdef BUILD_DES3
-    wc_Des3Free(ssl->encrypt.des3);
-    wc_Des3Free(ssl->decrypt.des3);
-    XFREE(ssl->encrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#if defined(BUILD_AES) || defined(BUILD_AESGCM) || defined(HAVE_ARIA)
-    /* See: InitKeys() in keys.c on addition of BUILD_AESGCM check (enc->aes, dec->aes) */
-    wc_AesFree(ssl->encrypt.aes);
-    wc_AesFree(ssl->decrypt.aes);
-    XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#if defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
-    wc_Sm4Free(ssl->encrypt.sm4);
-    wc_Sm4Free(ssl->decrypt.sm4);
-    XFREE(ssl->encrypt.sm4, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.sm4, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#if (defined(BUILD_AESGCM) || defined(BUILD_AESCCM) || defined(HAVE_ARIA)) && \
-    !defined(WOLFSSL_NO_TLS12)
-    XFREE(ssl->decrypt.additional, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->encrypt.additional, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#ifdef CIPHER_NONCE
-    XFREE(ssl->decrypt.nonce, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->encrypt.nonce, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#ifdef HAVE_ARIA
-    wc_AriaFreeCrypt(ssl->encrypt.aria);
-    wc_AriaFreeCrypt(ssl->decrypt.aria);
-    XFREE(ssl->encrypt.aria, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.aria, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#ifdef HAVE_CAMELLIA
-    XFREE(ssl->encrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.cam, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#ifdef HAVE_CHACHA
-    if (ssl->encrypt.chacha)
-        ForceZero(ssl->encrypt.chacha, sizeof(ChaCha));
-    if (ssl->decrypt.chacha)
-        ForceZero(ssl->decrypt.chacha, sizeof(ChaCha));
-    XFREE(ssl->encrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
+    FreeCiphersSide(&ssl->encrypt, ssl->heap);
+    FreeCiphersSide(&ssl->decrypt, ssl->heap);
+
 #if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
     if (ssl->auth.poly1305)
         ForceZero(ssl->auth.poly1305, sizeof(Poly1305));
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
-#endif
-#if defined(WOLFSSL_TLS13) && defined(HAVE_NULL_CIPHER)
-    wc_HmacFree(ssl->encrypt.hmac);
-    wc_HmacFree(ssl->decrypt.hmac);
-    XFREE(ssl->encrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
-    XFREE(ssl->decrypt.hmac, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -2979,7 +2967,6 @@ void FreeCiphers(WOLFSSL* ssl)
 #endif /* HAVE_CHACHA */
 #endif /* WOLFSSL_DTLS13 */
 }
-
 
 void InitCipherSpecs(CipherSpecs* cs)
 {
@@ -7346,6 +7333,15 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
 
+#ifdef WOLFSSL_THREADED_CRYPT
+    {
+        int i;
+        for (i = 0; i < WOLFSSL_THREADED_CRYPT_CNT; i++) {
+            ssl->buffers.encrypt[i].avail = 1;
+        }
+    }
+#endif
+
 #ifdef KEEP_PEER_CERT
     InitX509(&ssl->peerCert, 0, ssl->heap);
 #endif
@@ -8205,6 +8201,25 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ShrinkInputBuffer(ssl, FORCED_FREE);
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
+#ifdef WOLFSSL_THREADED_CRYPT
+    {
+        int i;
+        for (i = 0; i < WOLFSSL_THREADED_CRYPT_CNT; i++) {
+            bufferStatic* buff = &ssl->buffers.encrypt[i].buffer;
+
+            ssl->buffers.encrypt[i].stop = 1;
+            FreeCiphersSide(&ssl->buffers.encrypt[i].encrypt, ssl->heap);
+            if (buff->dynamicFlag) {
+                XFREE(buff->buffer - buff->offset, ssl->heap,
+                    DYNAMIC_TYPE_OUT_BUFFER);
+                buff->buffer      = buff->staticBuffer;
+                buff->bufferSize  = STATIC_BUFFER_LEN;
+                buff->offset      = 0;
+                buff->dynamicFlag = 0;
+            }
+        }
+    }
+#endif
 #if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
     if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
         ForceZero(ssl->buffers.tls13CookieSecret.buffer,
@@ -10700,6 +10715,69 @@ retry:
     return 0;
 }
 
+#ifdef WOLFSSL_THREADED_CRYPT
+static WC_INLINE int GrowAnOutputBuffer(WOLFSSL* ssl,
+    bufferStatic* outputBuffer, int size)
+{
+    byte* tmp;
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
+    byte  hdrSz = ssl->options.dtls ? DTLS_RECORD_HEADER_SZ :
+                                      RECORD_HEADER_SZ;
+    byte align = WOLFSSL_GENERAL_ALIGNMENT;
+#else
+    const byte align = WOLFSSL_GENERAL_ALIGNMENT;
+#endif
+
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
+    /* the encrypted data will be offset from the front of the buffer by
+       the header, if the user wants encrypted alignment they need
+       to define their alignment requirement */
+
+    while (align < hdrSz)
+        align *= 2;
+#endif
+
+    tmp = (byte*)XMALLOC(size + outputBuffer->length + align,
+                             ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    WOLFSSL_MSG("growing output buffer");
+
+    if (tmp == NULL)
+        return MEMORY_E;
+
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
+    if (align)
+        tmp += align - hdrSz;
+#endif
+
+#ifdef WOLFSSL_STATIC_MEMORY
+    /* can be from IO memory pool which does not need copy if same buffer */
+    if (outputBuffer->length && tmp == outputBuffer->buffer) {
+        outputBuffer->bufferSize = size + outputBuffer->length;
+        return 0;
+    }
+#endif
+
+    if (outputBuffer->length)
+        XMEMCPY(tmp, outputBuffer->buffer, outputBuffer->length);
+
+    if (outputBuffer->dynamicFlag) {
+        XFREE(outputBuffer->buffer - outputBuffer->offset, ssl->heap,
+              DYNAMIC_TYPE_OUT_BUFFER);
+    }
+
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
+    if (align)
+        outputBuffer->offset = align - hdrSz;
+    else
+#endif
+        outputBuffer->offset = 0;
+
+    outputBuffer->buffer = tmp;
+    outputBuffer->dynamicFlag = 1;
+    outputBuffer->bufferSize = size + outputBuffer->length;
+    return 0;
+}
+#endif
 
 /* returns the current location in the output buffer to start writing to */
 byte* GetOutputBuffer(WOLFSSL* ssl)
@@ -23005,6 +23083,29 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                         ssl->keys.dtls_prev_sequence_number_lo;
             }
     #endif
+
+#ifdef WOLFSSL_THREADED_CRYPT
+    if (asyncOkay) {
+        WOLFSSL_MSG("Not encrypting\n");
+        /* make sure build message state is reset */
+        ssl->options.buildMsgState = BUILD_MSG_BEGIN;
+
+        /* return sz on success */
+        if (ret == 0) {
+            ret = args->sz;
+        }
+        else {
+            WOLFSSL_ERROR_VERBOSE(ret);
+        }
+
+        /* Final cleanup */
+        FreeBuildMsgArgs(ssl, args);
+
+        return ret;
+    }
+    else
+#endif
+    {
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (ssl->options.startedETMWrite) {
                 ret = Encrypt(ssl, output + args->headerSz,
@@ -23026,6 +23127,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 ssl->keys.dtls_sequence_number_lo = dtls_sequence_number_lo;
             }
     #endif
+    }
             }
 
             if (ret != 0) {
@@ -24424,6 +24526,50 @@ static int CheckTLS13AEADSendLimit(WOLFSSL* ssl)
 }
 #endif /* WOLFSSL_TLS13 && !WOLFSSL_TLS13_IGNORE_AEAD_LIMITS */
 
+#ifdef WOLFSSL_THREADED_CRYPT
+int SendAsyncData(WOLFSSL* ssl)
+{
+    int i;
+
+    for (i = 0; i < WOLFSSL_THREADED_CRYPT_CNT; i++) {
+        ThreadCrypt* encrypt = &ssl->buffers.encrypt[i];
+
+        if (encrypt->done) {
+            int error;
+
+            GrowOutputBuffer(ssl, encrypt->buffer.length);
+            XMEMCPY(ssl->buffers.outputBuffer.buffer, encrypt->buffer.buffer,
+                encrypt->buffer.length);
+            ssl->buffers.outputBuffer.length = encrypt->buffer.length;
+            ssl->buffers.outputBuffer.idx = 0;
+            encrypt->done = 0;
+            encrypt->avail = 1;
+            if ((error = SendBuffered(ssl)) < 0) {
+                ssl->error = error;
+                WOLFSSL_ERROR(ssl->error);
+                /* store for next call if WANT_WRITE or user embedSend() that
+                   doesn't present like WANT_WRITE */
+                ssl->buffers.plainSz  = encrypt->buffer.length;
+                ssl->buffers.prevSent = encrypt->buffer.length;
+                if (ssl->error == SOCKET_ERROR_E && (ssl->options.connReset ||
+                                                     ssl->options.isClosed)) {
+                    return SOCKET_PEER_CLOSED_E;  /* peer reset or closed */
+                }
+                return ssl->error;
+            }
+
+            /* only one message per attempt */
+            if (ssl->options.partialWrite == 1) {
+                WOLFSSL_MSG("Partial Write on, only sending one record");
+                break;
+            }
+        }
+    }
+
+    return 0;
+}
+#endif
+
 /**
  * ssl_in_handshake():
  * Invoked in wolfSSL_read/wolfSSL_write to check if wolfSSL_negotiate() is
@@ -24478,18 +24624,20 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 #if defined(WOLFSSL_EARLY_DATA) && defined(WOLFSSL_EARLY_DATA_GROUP)
     int groupMsgs = 0;
 #endif
+    int error = ssl->error;
 
-    if (ssl->error == WANT_WRITE
+    if (error == WANT_WRITE
     #ifdef WOLFSSL_ASYNC_CRYPT
-        || ssl->error == WC_PENDING_E
+        || error == WC_PENDING_E
     #endif
     ) {
+        error = 0;
         ssl->error = 0;
     }
 
     /* don't allow write after decrypt or mac error */
-    if (ssl->error == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR) ||
-        ssl->error == WC_NO_ERR_TRACE(DECRYPT_ERROR)) {
+    if (error == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR) ||
+        error == WC_NO_ERR_TRACE(DECRYPT_ERROR)) {
         /* For DTLS allow these possible errors and allow the session
             to continue despite them */
         if (ssl->options.dtls) {
@@ -24532,7 +24680,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
                 return WOLFSSL_CBIO_ERR_WANT_WRITE;
             }
         #endif
-            return  err;
+            return err;
         }
     }
 
@@ -24543,15 +24691,16 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     #endif
         ) {
         WOLFSSL_MSG("output buffer was full, trying to send again");
-        if ( (ssl->error = SendBuffered(ssl)) < 0) {
-            WOLFSSL_ERROR(ssl->error);
-            if (ssl->error == WC_NO_ERR_TRACE(SOCKET_ERROR_E) &&
-                (ssl->options.connReset || ssl->options.isClosed)) {
-                ssl->error = SOCKET_PEER_CLOSED_E;
-                WOLFSSL_ERROR(ssl->error);
+        if ( (error = SendBuffered(ssl)) < 0) {
+            WOLFSSL_ERROR(error);
+            if (error == WC_NO_ERR_TRACE(SOCKET_ERROR_E) &&
+                    (ssl->options.connReset || ssl->options.isClosed)) {
+                error = SOCKET_PEER_CLOSED_E;
+                ssl->error = error;
+                WOLFSSL_ERROR(error);
                 return 0;  /* peer reset or closed */
             }
-            return ssl->error;
+            return (ssl->error = error);
         }
         else {
             /* advance sent to previous sent + plain size just sent */
@@ -24560,7 +24709,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
             if (sent > sz) {
                 WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
-                return ssl->error = BAD_FUNC_ARG;
+                return (ssl->error = BAD_FUNC_ARG);
             }
         }
     }
@@ -24571,6 +24720,14 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#ifdef WOLFSSL_THREADED_CRYPT
+    ret = SendAsyncData(ssl);
+    if (ret != 0) {
+        ssl->error = ret;
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
+
     for (;;) {
         byte* out;
         byte* sendBuffer = (byte*)data + sent;  /* may switch on comp */
@@ -24578,6 +24735,10 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         int   outputSz;
 #ifdef HAVE_LIBZ
         byte  comp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
+#endif
+#ifdef WOLFSSL_THREADED_CRYPT
+        int i;
+        ThreadCrypt* encrypt = NULL;
 #endif
 
 #if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS)
@@ -24643,9 +24804,10 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
         if (ssl->options.dtls && (buffSz < sz - sent)) {
-            ssl->error = DTLS_SIZE_ERROR;
-            WOLFSSL_ERROR(ssl->error);
-            return ssl->error;
+            error = DTLS_SIZE_ERROR;
+            ssl->error = error;
+            WOLFSSL_ERROR(error);
+            return error;
         }
 #endif
         outputSz = buffSz + COMP_EXTRA + DTLS_RECORD_HEADER_SZ;
@@ -24654,10 +24816,33 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
-            return ssl->error = ret;
+            return (ssl->error = ret);
 
         /* get output buffer */
+#ifndef WOLFSSL_THREADED_CRYPT
         out = GetOutputBuffer(ssl);
+#else
+        do {
+            for (i = 0; i < WOLFSSL_THREADED_CRYPT_CNT; i++) {
+                if (ssl->buffers.encrypt[i].avail) {
+                    encrypt = &ssl->buffers.encrypt[i];
+                    break;
+                }
+            }
+            if (encrypt == NULL) {
+                ret = SendAsyncData(ssl);
+                if (ret != 0) {
+                    ssl->error = ret;
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
+        }
+        while (encrypt == NULL);
+        encrypt->done = 0;
+        encrypt->avail = 0;
+        GrowAnOutputBuffer(ssl, &encrypt->buffer, outputSz);
+        out = encrypt->buffer.buffer;
+#endif
 
 #ifdef HAVE_LIBZ
         if (ssl->options.usingCompression) {
@@ -24701,21 +24886,70 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 #ifdef WOLFSSL_ASYNC_CRYPT
         FreeAsyncCtx(ssl, 0);
 #endif
+#ifdef WOLFSSL_THREADED_CRYPT
+        if (!encrypt->init) {
+            SetKeys(&encrypt->encrypt, NULL, &ssl->keys, &ssl->specs,
+                ssl->options.side, ssl->heap, ssl->devId, ssl->rng,
+                ssl->options.tls1_3);
+            encrypt->init = 1;
+        }
+        encrypt->buffer.length = sendSz;
+        encrypt->offset = RECORD_HEADER_SZ;
+        if (ssl->options.dtls) {
+            encrypt->offset += DTLS_RECORD_EXTRA;
+        }
+        encrypt->cryptLen = outputSz - encrypt->offset;
+    #ifdef HAVE_TRUNCATED_HMAC
+        if (ssl->truncated_hmac) {
+            encrypt->cryptLen -= min(TRUNCATED_HMAC_SZ, ssl->specs.hash_size);
+        }
+        else
+    #endif
+        {
+            encrypt->cryptLen -= ssl->specs.hash_size;
+        }
+
+#if !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+        XMEMCPY(encrypt->nonce, ssl->keys.aead_enc_imp_IV, AESGCM_IMP_IV_SZ);
+        XMEMCPY(encrypt->nonce + AESGCM_IMP_IV_SZ, ssl->keys.aead_exp_IV,
+            AESGCM_EXP_IV_SZ);
+#endif
+        XMEMSET(encrypt->additional, 0, AEAD_AUTH_DATA_SZ);
+        WriteSEQ(ssl, CUR_ORDER, encrypt->additional);
+        XMEMCPY(encrypt->additional + AEAD_TYPE_OFFSET, encrypt->buffer.buffer,
+            3);
+        c16toa(sendSz - encrypt->offset - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+            encrypt->additional + AEAD_LEN_OFFSET);
+
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls)
+            DtlsSEQIncrement(ssl, CUR_ORDER);
+    #endif
+
+        if (encrypt->signal != NULL) {
+            encrypt->signal(encrypt->signalCtx, ssl);
+        }
+        return sendSz;
+#else
         ssl->buffers.outputBuffer.length += sendSz;
 
-        if ( (ssl->error = SendBuffered(ssl)) < 0) {
-            WOLFSSL_ERROR(ssl->error);
+        if ( (error = SendBuffered(ssl)) < 0) {
+            ssl->error = error;
+            WOLFSSL_ERROR(error);
             /* store for next call if WANT_WRITE or user embedSend() that
                doesn't present like WANT_WRITE */
             ssl->buffers.plainSz  = buffSz;
             ssl->buffers.prevSent = sent;
-            if (ssl->error == WC_NO_ERR_TRACE(SOCKET_ERROR_E) &&
-                (ssl->options.connReset || ssl->options.isClosed)) {
+            if (error == WC_NO_ERR_TRACE(SOCKET_ERROR_E) &&
+                    (ssl->options.connReset || ssl->options.isClosed)) {
+                error = SOCKET_PEER_CLOSED_E;
                 ssl->error = SOCKET_PEER_CLOSED_E;
-                WOLFSSL_ERROR(ssl->error);
+                WOLFSSL_ERROR(error);
                 return 0;  /* peer reset or closed */
             }
-            return ssl->error;
+            return error;
         }
 
         sent += buffSz;
@@ -24725,6 +24959,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             WOLFSSL_MSG("Partial Write on, only sending one record");
             break;
         }
+#endif
     }
 
     return sent;
@@ -24734,11 +24969,13 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 {
     int size;
+    int error = ssl->error;
 
     WOLFSSL_ENTER("ReceiveData");
 
     /* reset error state */
-    if (ssl->error == WANT_READ || ssl->error == WOLFSSL_ERROR_WANT_READ) {
+    if (error == WANT_READ || error == WOLFSSL_ERROR_WANT_READ) {
+        error = 0;
         ssl->error = 0;
     }
 
@@ -24746,25 +24983,26 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     if (ssl->options.dtls) {
         /* In DTLS mode, we forgive some errors and allow the session
          * to continue despite them. */
-        if (ssl->error == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR) ||
-            ssl->error == WC_NO_ERR_TRACE(DECRYPT_ERROR) ||
-            ssl->error == WC_NO_ERR_TRACE(DTLS_SIZE_ERROR)) {
+        if (error == WC_NO_ERR_TRACE(VERIFY_MAC_ERROR) ||
+            error == WC_NO_ERR_TRACE(DECRYPT_ERROR) ||
+            error == WC_NO_ERR_TRACE(DTLS_SIZE_ERROR)) {
 
+            error = 0;
             ssl->error = 0;
         }
     }
 #endif /* WOLFSSL_DTLS */
 
-    if (ssl->error != 0 && ssl->error != WANT_WRITE
+    if (error != 0 && error != WANT_WRITE
 #ifdef WOLFSSL_ASYNC_CRYPT
-            && ssl->error != WC_PENDING_E
+            && error != WC_PENDING_E
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
-            && ssl->error != APP_DATA_READY
+            && error != APP_DATA_READY
 #endif
     ) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
-        return ssl->error;
+        return error;
     }
 
 #ifdef WOLFSSL_EARLY_DATA
@@ -24802,29 +25040,33 @@ startScr:
 #endif
 
     while (ssl->buffers.clearOutputBuffer.length == 0) {
-        if ( (ssl->error = ProcessReply(ssl)) < 0) {
-            if (ssl->error == ZERO_RETURN) {
+        if ( (error = ProcessReply(ssl)) < 0) {
+            if (error == ZERO_RETURN) {
+                ssl->error = error;
                 WOLFSSL_MSG("Zero return, no more data coming");
                 return 0; /* no more data coming */
             }
-            if (ssl->error == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
+            if (error == WC_NO_ERR_TRACE(SOCKET_ERROR_E)) {
                 if (ssl->options.connReset || ssl->options.isClosed) {
                     WOLFSSL_MSG("Peer reset or closed, connection done");
-                    ssl->error = SOCKET_PEER_CLOSED_E;
-                    WOLFSSL_ERROR(ssl->error);
+                    error = SOCKET_PEER_CLOSED_E;
+                    ssl->error = error;
+                    WOLFSSL_ERROR(error);
                     return 0; /* peer reset or closed */
                 }
             }
-            WOLFSSL_ERROR(ssl->error);
-            return ssl->error;
+            ssl->error = error;
+            WOLFSSL_ERROR(error);
+            return error;
         }
 
 #ifdef WOLFSSL_DTLS13
         if (ssl->options.dtls) {
             /* Dtls13DoScheduledWork(ssl) may return WANT_WRITE */
-            if ((ssl->error = Dtls13DoScheduledWork(ssl)) < 0) {
-                WOLFSSL_ERROR(ssl->error);
-                return ssl->error;
+            if ((error = Dtls13DoScheduledWork(ssl)) < 0) {
+                ssl->error = error;
+                WOLFSSL_ERROR(error);
+                return error;
             }
         }
 #endif /* WOLFSSL_DTLS13 */

@@ -2371,7 +2371,7 @@ static int SetPrefix(byte* sha_input, int idx)
 #endif
 
 
-static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
+int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                    int side, void* heap, int devId, WC_RNG* rng, int tls13)
 {
     (void)rng;
