@@ -2741,7 +2741,7 @@ L_curve25519_bits:
 	LDR	r1, [sp, #180]
 	SUBS	r1, r1, #0x1
 	STR	r1, [sp, #180]
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_bits
 #else
 	BGE.W	L_curve25519_bits
@@ -2750,7 +2750,7 @@ L_curve25519_bits:
 	STR	r1, [sp, #180]
 	SUBS	r2, r2, #0x4
 	STR	r2, [sp, #176]
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BGE	L_curve25519_words
 #else
 	BGE.W	L_curve25519_words
