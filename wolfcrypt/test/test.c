@@ -18078,7 +18078,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #endif
     static const char* certBadOid =
             CERT_ROOT "test" CERT_PATH_SEP "cert-bad-oid.der";
-#ifndef WOLFSSL_NO_ASN_STRICT
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_NO_ASN_STRICT)
     static const char* certBadUtf8 =
             CERT_ROOT "test" CERT_PATH_SEP "cert-bad-utf8.der";
 #endif
@@ -18383,7 +18383,7 @@ static wc_test_ret_t cert_bad_asn1_test(void)
         /* Subject name OID: 55 04 f4. Last byte with top bit set invalid. */
         ret = cert_load_bad(certBadOid, tmp, ASN_PARSE_E);
     }
-#ifndef WOLFSSL_NO_ASN_STRICT
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_NO_ASN_STRICT)
     if (ret == 0) {
         /* Issuer name UTF8STRING: df 52 4e 44. Top bit of second byte not set.
          */

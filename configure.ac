@@ -4762,10 +4762,10 @@ else
     fi
     if test "$ENABLED_ASN" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
+    elif test "$ENABLED_ASN" = "original"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ORIGINAL"
     else
-        if test "$ENABLED_ASN" != "original"; then
-            AC_MSG_ERROR([Invalid asn option. Valid are: template or original. Seen: $ENABLED_ASN.])
-        fi
+        AC_MSG_ERROR([Invalid asn option. Valid are: template or original. Seen: $ENABLED_ASN.])
     fi
 
     # turn off ASN if leanpsk on
