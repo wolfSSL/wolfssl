@@ -602,6 +602,9 @@ struct dilithium_key {
     sword32 w[DILITHIUM_N];
     sword32 t1[DILITHIUM_N];
     byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
+#ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+    sword64 t64[DILITHIUM_N];
+#endif
     byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
     byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
 #endif /* WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC &&
@@ -712,11 +715,13 @@ int wc_dilithium_export_key(dilithium_key* key, byte* priv, word32 *privSz,
 WOLFSSL_API int wc_Dilithium_PrivateKeyDecode(const byte* input,
     word32* inOutIdx, dilithium_key* key, word32 inSz);
 #endif
+#endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
 WOLFSSL_API int wc_Dilithium_PublicKeyDecode(const byte* input,
     word32* inOutIdx, dilithium_key* key, word32 inSz);
 #endif
 
+#ifndef WOLFSSL_DILITHIUM_NO_ASN1
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 WOLFSSL_API int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output,
     word32 inLen, int withAlg);
