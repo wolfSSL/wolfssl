@@ -1177,7 +1177,8 @@ int wc_strncasecmp(const char *s1, const char *s2, size_t n)
 }
 #endif /* USE_WOLF_STRNCASECMP */
 
-char* wc_strdup(const char *src, int memType) {
+#ifdef USE_WOLF_STRDUP
+char* wc_strdup_ex(const char *src, int memType) {
     char *ret = NULL;
     int len = 0;
 
@@ -1191,6 +1192,7 @@ char* wc_strdup(const char *src, int memType) {
 
     return ret;
 }
+#endif
 
 #ifdef WOLFSSL_ATOMIC_OPS
 

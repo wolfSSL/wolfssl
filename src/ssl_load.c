@@ -5131,8 +5131,8 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_set_default_verify_paths");
 
 #ifdef XGETENV
-    certDir = wc_strdup(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
-    certFile = wc_strdup(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
+    certDir = wc_strdup_ex(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
+    certFile = wc_strdup_ex(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
     flags = WOLFSSL_LOAD_FLAG_PEM_CA_ONLY;
 
     if ((certDir != NULL) || (certFile != NULL)) {
