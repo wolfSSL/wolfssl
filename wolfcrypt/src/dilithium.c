@@ -1944,11 +1944,11 @@ static int dilithium_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
 
 #if (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
      !defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM)) || \
+    defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
     (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
      !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)) || \
     (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
-     (!defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) || \
-      !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)))
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM))
 /* Generate a random polynomial by rejection.
  *
  * @param [in, out] shake128  SHAKE-128 object.
@@ -1989,7 +1989,8 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
 }
 #endif
 
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+#if (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM)) || \
     defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
     (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
      !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
@@ -2628,8 +2629,7 @@ static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
 #if (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
      !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)) || \
     (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
-     (!defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) || \
-      !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)))
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM))
 /* Expand commit to a polynomial.
  *
  * @param [in]  shake256  SHAKE-256 object.
@@ -6787,6 +6787,9 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
 #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
     sword64* t64 = NULL;
 #endif
+#ifndef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
+    byte*    block = NULL;
+#endif
     byte tr[DILITHIUM_TR_SZ];
     byte* mu = tr;
     byte* w1e = NULL;
@@ -6813,7 +6816,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         /* z, c, w, t1, w1e. */
         unsigned int allocSz;
 
-        allocSz  = params->s1Sz + 3 * DILITHIUM_POLY_SIZE + params->w1EncSz;
+        allocSz  = params->s1Sz + 3 * DILITHIUM_POLY_SIZE +
+            DILITHIUM_REJ_NTT_POLY_H_SIZE + params->w1EncSz;
     #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
         allocSz += DILITHIUM_POLY_SIZE * 2;
     #endif
@@ -6822,13 +6826,14 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
             ret = MEMORY_E;
         }
         else {
-            c   = z + params->s1Sz / sizeof(*t1);
-            w   = c + DILITHIUM_N;
-            t1  = w + DILITHIUM_N;
-            w1e = (byte*)(t1 + DILITHIUM_N);
-            a   = t1;
+            c     = z + params->s1Sz / sizeof(*t1);
+            w     = c + DILITHIUM_N;
+            t1    = w + DILITHIUM_N;
+            block = (byte*)(t1 + DILITHIUM_N);
+            w1e   = block + DILITHIUM_REJ_NTT_POLY_H_SIZE;
+            a     = t1;
         #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
-            t64 = (sword64*)(w1e + params->w1EncSz);
+            t64   = (sword64*)(w1e + params->w1EncSz);
         #endif
         }
     }
@@ -6862,8 +6867,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
          ret = dilithium_sample_in_ball_ex(&key->shake, commit, params->tau, c,
              key->block);
 #else
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
-             key->heap);
+         ret = dilithium_sample_in_ball_ex(&key->shake, commit, params->tau, c,
+             block);
 #endif
     }
     if ((ret == 0) && valid) {
@@ -6933,7 +6938,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
             #ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
                 ret = dilithium_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
             #else
-                ret = dilithium_rej_ntt_poly(&key->shake, seed, a, key->heap);
+                ret = dilithium_rej_ntt_poly_ex(&key->shake, seed, a, block);
             #endif
 
                 /* Step 10: w = A o NTT(z) - NTT(c) o NTT(t1) */
@@ -7052,7 +7057,7 @@ static int oqs_dilithium_make_key(dilithium_key* key, WC_RNG* rng)
     else if (key->level == WC_ML_DSA_65) {
         oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_65_ipd);
     }
-    else if (key->level == WC_ML_DSA_65) {
+    else if (key->level == WC_ML_DSA_87) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_87_ipd);
     }
     else {
@@ -7100,7 +7105,7 @@ static int oqs_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
         else if (key->level == WC_ML_DSA_65) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_65_ipd);
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->level == WC_ML_DSA_87) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_87_ipd);
         }
         else {
@@ -7124,7 +7129,7 @@ static int oqs_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
             *sigLen = DILITHIUM_LEVEL3_SIG_SIZE;
             ret = BUFFER_E;
         }
-        else if ((key->level == WC_ML_DSA_65) &&
+        else if ((key->level == WC_ML_DSA_87) &&
                  (*sigLen < DILITHIUM_LEVEL5_SIG_SIZE)) {
             *sigLen = DILITHIUM_LEVEL5_SIG_SIZE;
             ret = BUFFER_E;
