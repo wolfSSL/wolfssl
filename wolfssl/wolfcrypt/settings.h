@@ -2889,6 +2889,116 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_ASN_TEMPLATE
 #endif
 
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    #undef  WOLFSSL_ASN_ALL
+    #define WOLFSSL_ASN_ALL
+#endif
+
+/* Enable all parsing features for ASN */
+#ifdef WOLFSSL_ASN_ALL
+    /* Alternate Names */
+    #undef  WOLFSSL_ALT_NAMES
+    #define WOLFSSL_ALT_NAMES
+
+    /* Alternate Name: human readable form of IP address*/
+    #undef  WOLFSSL_IP_ALT_NAME
+    #define WOLFSSL_IP_ALT_NAME
+
+    /* Alternate name: human readable form of registered ID */
+    #undef  WOLFSSL_RID_ALT_NAME
+    #define WOLFSSL_RID_ALT_NAME
+
+    /* CA Issuer URI */
+    #undef  WOLFSSL_ASN_CA_ISSUER
+    #define WOLFSSL_ASN_CA_ISSUER
+
+    /* FPKI (Federal PKI) extensions */
+    #undef  WOLFSSL_FPKI
+    #define WOLFSSL_FPKI
+
+    /* Certificate policies */
+    #undef  WOLFSSL_SEP
+    #define WOLFSSL_SEP
+
+    /* Support for full AuthorityKeyIdentifier extension.
+     * Only supports copying full AKID from an existing certificate */
+    #undef  WOLFSSL_AKID_NAME
+    #define WOLFSSL_AKID_NAME
+
+    #undef  WOLFSSL_CERT_EXT
+    #define WOLFSSL_CERT_EXT
+
+    /* Support for SubjectDirectoryAttributes extension */
+    #undef  WOLFSSL_SUBJ_DIR_ATTR
+    #define WOLFSSL_SUBJ_DIR_ATTR
+
+    /* Support for SubjectInfoAccess extension */
+    #undef  WOLFSSL_SUBJ_INFO_ACC
+    #define WOLFSSL_SUBJ_INFO_ACC
+
+    #undef  WOLFSSL_CERT_NAME_ALL
+    #define WOLFSSL_CERT_NAME_ALL
+
+    #undef  WOLFSSL_HAVE_ISSUER_NAMES
+    #define WOLFSSL_HAVE_ISSUER_NAMES
+
+    #undef  WOLFSSL_MULTI_ATTRIB
+    #define WOLFSSL_MULTI_ATTRIB
+
+    #undef  ASN_BER_TO_DER
+    #define ASN_BER_TO_DER
+
+    #undef  WOLFSSL_CUSTOM_OID
+    #define WOLFSSL_CUSTOM_OID
+
+    #undef  HAVE_OID_ENCODING
+    #define HAVE_OID_ENCODING
+
+    #undef  HAVE_OID_DECODING
+    #define HAVE_OID_DECODING
+
+    #undef  HAVE_SMIME
+    #define HAVE_SMIME
+
+    #undef  WOLFSSL_ASN_TIME_STRING
+    #define WOLFSSL_ASN_TIME_STRING
+
+    #undef  WOLFSSL_ASN_PARSE_KEYUSAGE
+    #define WOLFSSL_ASN_PARSE_KEYUSAGE
+
+    #undef  WOLFSSL_OCSP_PARSE_STATUS
+    #define WOLFSSL_OCSP_PARSE_STATUS
+#endif
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #undef  WOLFSSL_ASN_TIME_STRING
+    #define WOLFSSL_ASN_TIME_STRING
+#endif
+
+#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) || \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+    #undef  WOLFSSL_ASN_PARSE_KEYUSAGE
+    #define WOLFSSL_ASN_PARSE_KEYUSAGE
+#endif
+
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY) || \
+     defined(WOLFSSL_APACHE_HTTPD))
+    #undef  WOLFSSL_OCSP_PARSE_STATUS
+    #define WOLFSSL_OCSP_PARSE_STATUS
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_CERT_GEN)
+    #undef  WOLFSSL_MULTI_ATTRIB
+    #define WOLFSSL_MULTI_ATTRIB
+#endif
+
+
+/* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
     #ifdef HAVE_CONFIG_H
         #include <config.h>

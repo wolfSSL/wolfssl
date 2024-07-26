@@ -668,8 +668,9 @@ int CheckOcspResponder(OcspResponse *bs, DecodedCert *cert, void* vp)
     return ret;
 }
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_APACHE_HTTPD) || defined(HAVE_LIGHTY)
+
+/* compatibility layer OCSP functions */
+#ifdef OPENSSL_EXTRA
 int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     WOLFSSL_OCSP_CERTID* id, int* status, int* reason,
     WOLFSSL_ASN1_TIME** revtime, WOLFSSL_ASN1_TIME** thisupd,
@@ -695,10 +696,15 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
 
     if (status != NULL)
         *status = single->status->status;
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
     if (thisupd != NULL)
         *thisupd = &single->status->thisDateParsed;
     if (nextupd != NULL)
         *nextupd = &single->status->nextDateParsed;
+#else
+    (void)thisupd;
+    (void)nextupd;
+#endif
 
     /* TODO: Not needed for Nginx or httpd */
     if (reason != NULL)
@@ -1191,9 +1197,7 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_CERTID_dup(WOLFSSL_OCSP_CERTID* id)
     }
     return certId;
 }
-#endif
 
-#if defined(OPENSSL_ALL) || defined(APACHE_HTTPD) || defined(WOLFSSL_HAPROXY)
 #ifndef NO_BIO
 int wolfSSL_i2d_OCSP_REQUEST_bio(WOLFSSL_BIO* out,
         WOLFSSL_OCSP_REQUEST *req)
@@ -1295,7 +1299,8 @@ WOLFSSL_OCSP_CERTID* wolfSSL_d2i_OCSP_CERTID(WOLFSSL_OCSP_CERTID** cidOut,
     return NULL;
 }
 
-const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(const WOLFSSL_OCSP_SINGLERESP *single)
+const WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_SINGLERESP_get0_id(
+    const WOLFSSL_OCSP_SINGLERESP *single)
 {
     return single;
 }
@@ -1392,9 +1397,6 @@ WOLFSSL_OCSP_SINGLERESP* wolfSSL_OCSP_resp_get0(WOLFSSL_OCSP_BASICRESP *bs, int 
     return single;
 }
 
-#endif /* OPENSSL_ALL || APACHE_HTTPD || WOLFSSL_HAPROXY */
-
-#ifdef OPENSSL_EXTRA
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_OCSP_REQUEST_add_ext(OcspRequest* req, WOLFSSL_X509_EXTENSION* ext,
         int idx)
@@ -1467,12 +1469,14 @@ int wolfSSL_OCSP_id_get0_info(WOLFSSL_ASN1_STRING **name,
 
         #if defined(WOLFSSL_QT) || defined(WOLFSSL_HAPROXY)
             /* Serial number starts at 0 index of ser->data */
-            XMEMCPY(&ser->data[i], cid->status->serial, (size_t)cid->status->serialSz);
+            XMEMCPY(&ser->data[i], cid->status->serial,
+                (size_t)cid->status->serialSz);
             ser->length = cid->status->serialSz;
         #else
             ser->data[i++] = ASN_INTEGER;
             i += SetLength(cid->status->serialSz, ser->data + i);
-            XMEMCPY(&ser->data[i], cid->status->serial, (size_t)cid->status->serialSz);
+            XMEMCPY(&ser->data[i], cid->status->serial,
+                (size_t)cid->status->serialSz);
             ser->length = i + cid->status->serialSz;
         #endif
 

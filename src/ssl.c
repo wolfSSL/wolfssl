@@ -22731,7 +22731,7 @@ void wolfSSL_ERR_remove_state(unsigned long id)
     }
 }
 
-#endif  /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_ALL
 

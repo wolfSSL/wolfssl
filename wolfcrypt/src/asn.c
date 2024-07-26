@@ -5706,8 +5706,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
 }
 #endif /* HAVE_OID_ENCODING */
 
-#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT) || \
-    defined(OPENSSL_ALL)
+#if defined(HAVE_OID_DECODING) || defined(WOLFSSL_ASN_PRINT)
 /* Encode dotted form of OID into byte array version.
  *
  * @param [in]      in     Byte array containing OID.
@@ -5754,7 +5753,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
 
     return 0;
 }
-#endif /* HAVE_OID_DECODING || WOLFSSL_ASN_PRINT || OPENSSL_ALL */
+#endif /* HAVE_OID_DECODING || WOLFSSL_ASN_PRINT */
 
 /* Decode the header of a BER/DER encoded OBJECT ID.
  *
@@ -11427,10 +11426,10 @@ void FreeAltNames(DNS_entry* altNames, void* heap)
         DNS_entry* tmp = altNames->next;
 
         XFREE(altNames->name, heap, DYNAMIC_TYPE_ALTNAME);
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+    #ifdef WOLFSSL_IP_ALT_NAME
         XFREE(altNames->ipString, heap, DYNAMIC_TYPE_ALTNAME);
     #endif
-    #if defined(OPENSSL_ALL)
+    #ifdef WOLFSSL_RID_ALT_NAME
         XFREE(altNames->ridString, heap, DYNAMIC_TYPE_ALTNAME);
     #endif
         XFREE(altNames,       heap, DYNAMIC_TYPE_ALTNAME);
@@ -11465,17 +11464,17 @@ DNS_entry* AltNameDup(DNS_entry* from, void* heap)
 
 
     ret->name = CopyString(from->name, from->len, heap, DYNAMIC_TYPE_ALTNAME);
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
     ret->ipString = CopyString(from->ipString, 0, heap, DYNAMIC_TYPE_ALTNAME);
 #endif
-#ifdef OPENSSL_ALL
+#ifdef WOLFSSL_RID_ALT_NAME
     ret->ridString = CopyString(from->ridString, 0, heap, DYNAMIC_TYPE_ALTNAME);
 #endif
     if (ret->name == NULL
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
             || (from->ipString != NULL && ret->ipString == NULL)
 #endif
-#ifdef OPENSSL_ALL
+#ifdef WOLFSSL_RID_ALT_NAME
             || (from->ridString != NULL && ret->ridString == NULL)
 #endif
             ) {
@@ -13324,7 +13323,7 @@ static const byte rdnChoice[] = {
 };
 #endif
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
 /* used to set the human readable string for the IP address with a ASN_IP_TYPE
  * DNS entry
  * return 0 on success
@@ -13388,9 +13387,9 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 
     return ret;
 }
-#endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
+#endif /* WOLFSSL_IP_ALT_NAME */
 
-#if defined(OPENSSL_ALL)
+#ifdef WOLFSSL_RID_ALT_NAME
 /* used to set the human readable string for the registeredID with an
  * ASN_RID_TYPE DNS entry
  * return 0 on success
@@ -13399,7 +13398,9 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 {
     int i, j, ret   = 0;
     int nameSz      = 0;
+#if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     int nid         = 0;
+#endif
     int tmpSize     = MAX_OID_SZ;
     word32 oid      = 0;
     word32 idx      = 0;
@@ -13419,40 +13420,46 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 
     ret = GetOID((const byte*)entry->name, &idx, &oid, oidIgnoreType,
                  entry->len);
+    if (ret == 0) {
+    #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
+        if ((nid = oid2nid(oid, oidCsrAttrType)) > 0) {
+            /* OID has known string value */
+            finalName = (char*)wolfSSL_OBJ_nid2ln(nid);
+        }
+        else
+    #endif
+        {
+            /* Decode OBJECT_ID into dotted form array. */
+            ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
+                    tmpName, (word32*)&tmpSize);
 
-    if (ret == 0 && (nid = oid2nid(oid, oidCsrAttrType)) > 0) {
-        /* OID has known string value */
-        finalName = (char*)wolfSSL_OBJ_nid2ln(nid);
-    }
-    else {
-        /* Decode OBJECT_ID into dotted form array. */
-        ret = DecodeObjectId((const byte*)(entry->name),(word32)entry->len,
-                tmpName, (word32*)&tmpSize);
+            if (ret == 0) {
+                j = 0;
+                /* Append each number of dotted form. */
+                for (i = 0; i < tmpSize; i++) {
+                    if (j >= MAX_OID_SZ) {
+                        return BUFFER_E;
+                    }
 
-        if (ret == 0) {
-            j = 0;
-            /* Append each number of dotted form. */
-            for (i = 0; i < tmpSize; i++) {
-                if (j >= MAX_OID_SZ) {
-                    return BUFFER_E;
-                }
+                    if (i < tmpSize - 1) {
+                        ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d.",
+                            tmpName[i]);
+                    }
+                    else {
+                        ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d",
+                            tmpName[i]);
+                    }
 
-                if (i < tmpSize - 1) {
-                    ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d.", tmpName[i]);
+                    if (ret >= 0) {
+                        j += ret;
+                    }
+                    else {
+                        return BUFFER_E;
+                    }
                 }
-                else {
-                    ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d", tmpName[i]);
-                }
-
-                if (ret >= 0) {
-                    j += ret;
-                }
-                else {
-                    return BUFFER_E;
-                }
+                ret = 0;
+                finalName = oidName;
             }
-            ret = 0;
-            finalName = oidName;
         }
     }
 
@@ -13473,7 +13480,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 
     return ret;
 }
-#endif /* OPENSSL_ALL && WOLFSSL_ASN_TEMPLATE */
+#endif /* WOLFSSL_RID_ALT_NAME */
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 
@@ -13553,27 +13560,27 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         XMEMCPY(dnsEntry->name, str, (size_t)strLen);
         dnsEntry->name[strLen] = '\0';
 
-#if defined(OPENSSL_ALL)
+#ifdef WOLFSSL_RID_ALT_NAME
         /* store registeredID as a string */
         if (type == ASN_RID_TYPE) {
-            if ((ret = GenerateDNSEntryRIDString(dnsEntry, cert->heap)) != 0) {
-                XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-            }
+            ret = GenerateDNSEntryRIDString(dnsEntry, cert->heap);
         }
 #endif
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
         /* store IP addresses as a string */
         if (type == ASN_IP_TYPE) {
-            if ((ret = GenerateDNSEntryIPString(dnsEntry, cert->heap)) != 0) {
-                XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
-                XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
-            }
+            ret = GenerateDNSEntryIPString(dnsEntry, cert->heap);
         }
+#endif
     }
     if (ret == 0) {
-#endif
         ret = AddDNSEntryToList(entries, dnsEntry);
+    }
+
+    /* failure cleanup */
+    if (ret != 0 && dnsEntry != NULL) {
+        XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
+        XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
     }
 
     return ret;
@@ -14506,7 +14513,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
             !defined(WOLFCRYPT_ONLY)
     if (nameType == ASN_ISSUER) {
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) && \
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)) &&\
     (defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT))
         dName->rawLen = min(cert->issuerRawLen, WC_ASN_NAME_MAX);
         XMEMCPY(dName->raw, cert->issuerRaw, dName->rawLen);
@@ -14907,8 +14914,7 @@ int ExtractDate(const unsigned char* date, unsigned char format,
 }
 
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#ifdef WOLFSSL_ASN_TIME_STRING
 int GetTimeString(byte* date, int format, char* buf, int len)
 {
     struct tm t;
@@ -14954,8 +14960,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 
     return 1;
 }
-#endif /* OPENSSL_ALL || WOLFSSL_MYSQL_COMPATIBLE ||
-        * OPENSSL_EXTRA || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif /* WOLFSSL_ASN_TIME_STRING */
 
 /* Check time struct for valid values. Returns 0 for success */
 static int ValidateGmtime(struct tm* inTime)
@@ -18040,7 +18045,9 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 #ifndef WOLFSSL_ASN_TEMPLATE
 static void AddAltName(DecodedCert* cert, DNS_entry* dnsEntry)
 {
-#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_ALT_NAMES_NO_REV)
+#if (defined(WOLFSSL_ASN_ALL) || defined(OPENSSL_EXTRA)) && \
+    !defined(WOLFSSL_ALT_NAMES_NO_REV)
+    /* logic to add alt name to end of list */
     dnsEntry->next = NULL;
     if (cert->altNames == NULL) {
         /* First on list */
@@ -18335,8 +18342,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
-    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
-                                            defined(WOLFSSL_IP_ALT_NAME)
+    #ifdef WOLFSSL_IP_ALT_NAME
     /* GeneralName choice: iPAddress */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
         ret = SetDNSEntry(cert, (const char*)(input + idx), len, ASN_IP_TYPE,
@@ -18345,9 +18351,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
-    #endif /* WOLFSSL_QT || OPENSSL_ALL */
-
-    #ifdef OPENSSL_ALL
+    #endif /* WOLFSSL_IP_ALT_NAME */
+    #ifdef WOLFSSL_RID_ALT_NAME
     /* GeneralName choice: registeredID */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
         ret = SetDNSEntry(cert, (const char*)(input + idx), len,
@@ -18356,7 +18361,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             idx += (word32)len;
         }
     }
-    #endif
+    #endif /* WOLFSSL_RID_ALT_NAME */
 #endif /* IGNORE_NAME_CONSTRAINTS */
 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_FPKI)
     /* GeneralName choice: otherName */
@@ -18833,7 +18838,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
         else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
             DNS_entry* ipAddr;
             int strLen;
@@ -18868,21 +18873,19 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             XMEMCPY(ipAddr->name, &input[idx], strLen);
             ipAddr->name[strLen] = '\0';
 
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
             if (GenerateDNSEntryIPString(ipAddr, cert->heap) != 0) {
                 WOLFSSL_MSG("\tOut of Memory for IP string");
                 XFREE(ipAddr->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 XFREE(ipAddr, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
-        #endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
             AddAltName(cert, ipAddr);
 
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* WOLFSSL_QT || OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
-#if defined(OPENSSL_ALL)
+#endif /* WOLFSSL_IP_ALT_NAME */
+#ifdef WOLFSSL_RID_ALT_NAME
         else if (current_byte == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
             DNS_entry* rid;
             int strLen;
@@ -18929,7 +18932,7 @@ static int DecodeAltNames(const byte* input, word32 sz, DecodedCert* cert)
             length -= strLen;
             idx    += (word32)strLen;
         }
-#endif /* OPENSSL_ALL */
+#endif /* WOLFSSL_RID_ALT_NAME */
 #endif /* IGNORE_NAME_CONSTRAINTS */
         else if (current_byte ==
                 (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
@@ -19531,15 +19534,11 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
 
         /* Set ocsp entry */
         if (b == GENERALNAME_URI && oid == AIA_OCSP_OID &&
-                cert->extAuthInfo == NULL)
-        {
+                cert->extAuthInfo == NULL) {
             cert->extAuthInfoSz = length;
             cert->extAuthInfo = input + idx;
-        #if !defined(OPENSSL_ALL) && !defined(WOLFSSL_QT)
-            break;
-        #endif
         }
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    #ifdef WOLFSSL_ASN_CA_ISSUER
         /* Set CaIssuers entry */
         else if ((b == GENERALNAME_URI) && oid == AIA_CA_ISSUER_OID &&
                 cert->extAuthInfoCaIssuer == NULL)
@@ -19547,7 +19546,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
             cert->extAuthInfoCaIssuerSz = length;
             cert->extAuthInfoCaIssuer = input + idx;
         }
-        #endif
+    #endif
         idx += (word32)length;
     }
 
@@ -19585,11 +19584,8 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
                 GetASN_GetConstRef(&dataASN[ACCESSDESCASN_IDX_LOC],
                         &cert->extAuthInfo, &sz32);
                 cert->extAuthInfoSz = (int)sz32;
-            #if !defined(OPENSSL_ALL) && !defined(WOLFSSL_QT)
-                break;
-            #endif
             }
-            #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+        #ifdef WOLFSSL_ASN_CA_ISSUER
             /* Check we have CA Issuer and URI. */
             else if ((dataASN[ACCESSDESCASN_IDX_METH].data.oid.sum ==
                         AIA_CA_ISSUER_OID) &&
@@ -19600,7 +19596,7 @@ static int DecodeAuthInfo(const byte* input, word32 sz, DecodedCert* cert)
                         &cert->extAuthInfoCaIssuer, &sz32);
                 cert->extAuthInfoCaIssuerSz = (int)sz32;
             }
-            #endif
+        #endif
             /* Otherwise skip. */
         }
     }
@@ -20416,8 +20412,7 @@ static int DecodeNameConstraints(const byte* input, word32 sz,
 }
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
-#if (defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_SEP)) || \
-    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef WOLFSSL_CERT_EXT
 
 /* Decode ITU-T X.690 OID format to a string representation
  * return string length */
@@ -20469,10 +20464,10 @@ int DecodePolicyOID(char *out, word32 outSz, const byte *in, word32 inSz)
 exit:
     return w;
 }
-#endif /* WOLFSSL_CERT_EXT && !WOLFSSL_SEP */
+#endif /* WOLFSSL_CERT_EXT */
 
-#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_QT)
-    #ifdef WOLFSSL_ASN_TEMPLATE
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
+#ifdef WOLFSSL_ASN_TEMPLATE
     /* ASN.1 template for PolicyInformation.
      * X.509: RFC 5280, 4.2.1.4 - Certificate Policies.
      */
@@ -20491,230 +20486,221 @@ exit:
 
     /* Number of items in ASN.1 template for PolicyInformation. */
     #define policyInfoASN_Length (sizeof(policyInfoASN) / sizeof(ASNItem))
-    #endif
+#endif
 
-    /* Reference: https://tools.ietf.org/html/rfc5280#section-4.2.1.4 */
-    static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
-    {
-    #ifndef WOLFSSL_ASN_TEMPLATE
-        word32 idx = 0;
-        word32 oldIdx;
-        int policy_length = 0;
-        int ret;
-        int total_length = 0;
-    #if !defined(WOLFSSL_SEP) && defined(WOLFSSL_CERT_EXT) && \
-        !defined(WOLFSSL_DUP_CERTPOL)
-        int i;
-    #endif
+/* Reference: https://tools.ietf.org/html/rfc5280#section-4.2.1.4 */
+static int DecodeCertPolicy(const byte* input, word32 sz, DecodedCert* cert)
+{
+#ifndef WOLFSSL_ASN_TEMPLATE
+    word32 idx = 0;
+    word32 oldIdx;
+    int policy_length = 0;
+    int ret;
+    int total_length = 0;
+#if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_DUP_CERTPOL)
+    int i;
+#endif
 
-        WOLFSSL_ENTER("DecodeCertPolicy");
+    WOLFSSL_ENTER("DecodeCertPolicy");
 
-    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
-        /* Check if cert is null before dereferencing below */
-        if (cert == NULL)
-            return BAD_FUNC_ARG;
-    #else
-        (void)cert;
-    #endif
+    /* Check if cert is null before dereferencing below */
+    if (cert == NULL)
+        return BAD_FUNC_ARG;
 
-    #if defined(WOLFSSL_CERT_EXT)
-         cert->extCertPoliciesNb = 0;
-    #endif
+#if defined(WOLFSSL_CERT_EXT)
+        cert->extCertPoliciesNb = 0;
+#endif
 
-        if (GetSequence(input, &idx, &total_length, sz) < 0) {
-            WOLFSSL_MSG("\tGet CertPolicy total seq failed");
+    if (GetSequence(input, &idx, &total_length, sz) < 0) {
+        WOLFSSL_MSG("\tGet CertPolicy total seq failed");
+        return ASN_PARSE_E;
+    }
+
+    /* Validate total length */
+    if (total_length > (int)(sz - idx)) {
+        WOLFSSL_MSG("\tCertPolicy length mismatch");
+        return ASN_PARSE_E;
+    }
+
+    /* Unwrap certificatePolicies */
+    do {
+        int length = 0;
+
+        if (GetSequence(input, &idx, &policy_length, sz) < 0) {
+            WOLFSSL_MSG("\tGet CertPolicy seq failed");
             return ASN_PARSE_E;
         }
 
-        /* Validate total length */
-        if (total_length > (int)(sz - idx)) {
-            WOLFSSL_MSG("\tCertPolicy length mismatch");
-            return ASN_PARSE_E;
-        }
+        oldIdx = idx;
+        ret = GetASNObjectId(input, &idx, &length, sz);
+        if (ret != 0)
+            return ret;
+        policy_length -= (int)(idx - oldIdx);
 
-        /* Unwrap certificatePolicies */
-        do {
-            int length = 0;
-
-            if (GetSequence(input, &idx, &policy_length, sz) < 0) {
-                WOLFSSL_MSG("\tGet CertPolicy seq failed");
+        if (length > 0) {
+            /* Verify length won't overrun buffer */
+            if (length > (int)(sz - idx)) {
+                WOLFSSL_MSG("\tCertPolicy length exceeds input buffer");
                 return ASN_PARSE_E;
             }
 
-            oldIdx = idx;
-            ret = GetASNObjectId(input, &idx, &length, sz);
-            if (ret != 0)
-                return ret;
-            policy_length -= (int)(idx - oldIdx);
-
-            if (length > 0) {
-                /* Verify length won't overrun buffer */
-                if (length > (int)(sz - idx)) {
-                    WOLFSSL_MSG("\tCertPolicy length exceeds input buffer");
-                    return ASN_PARSE_E;
-                }
-
-        #if defined(WOLFSSL_SEP)
+    #ifdef WOLFSSL_SEP
+            if (cert->deviceType == NULL) {
                 cert->deviceType = (byte*)XMALLOC((size_t)length, cert->heap,
-                                                         DYNAMIC_TYPE_X509_EXT);
+                                                        DYNAMIC_TYPE_X509_EXT);
                 if (cert->deviceType == NULL) {
                     WOLFSSL_MSG("\tCouldn't alloc memory for deviceType");
                     return MEMORY_E;
                 }
                 cert->deviceTypeSz = length;
                 XMEMCPY(cert->deviceType, input + idx, (size_t)length);
-                break;
-        #elif defined(WOLFSSL_CERT_EXT)
-                /* decode cert policy */
-                if (DecodePolicyOID(cert->extCertPolicies[
-                                       cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
-                                       input + idx, length) <= 0) {
-                    WOLFSSL_MSG("\tCouldn't decode CertPolicy");
-                    WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-                    return ASN_PARSE_E;
-                }
-            #ifndef WOLFSSL_DUP_CERTPOL
-                /* From RFC 5280 section 4.2.1.4 "A certificate policy OID MUST
-                 * NOT appear more than once in a certificate policies
-                 * extension". This is a sanity check for duplicates.
-                 * extCertPolicies should only have OID values, additional
-                 * qualifiers need to be stored in a separate array. */
-                for (i = 0; i < cert->extCertPoliciesNb; i++) {
-                    if (XMEMCMP(cert->extCertPolicies[i],
-                            cert->extCertPolicies[cert->extCertPoliciesNb],
-                            MAX_CERTPOL_SZ) == 0) {
-                            WOLFSSL_MSG("Duplicate policy OIDs not allowed");
-                            WOLFSSL_MSG("Use WOLFSSL_DUP_CERTPOL if wanted");
-                            WOLFSSL_ERROR_VERBOSE(CERTPOLICIES_E);
-                            return CERTPOLICIES_E;
-                    }
-                }
-            #endif /* !WOLFSSL_DUP_CERTPOL */
-                cert->extCertPoliciesNb++;
-        #else
-                WOLFSSL_LEAVE("DecodeCertPolicy : unsupported mode", 0);
-                return 0;
-        #endif
             }
-            idx += (word32)policy_length;
-        } while((int)idx < total_length
-    #if defined(WOLFSSL_CERT_EXT)
-            && cert->extCertPoliciesNb < MAX_CERTPOL_NB
-    #endif
-        );
-
-        WOLFSSL_LEAVE("DecodeCertPolicy", 0);
-        return 0;
-    #else /* WOLFSSL_ASN_TEMPLATE */
-        word32 idx = 0;
-        int ret = 0;
-        int total_length = 0;
-    #if !defined(WOLFSSL_SEP) && defined(WOLFSSL_CERT_EXT) && \
-        !defined(WOLFSSL_DUP_CERTPOL)
-        int i;
     #endif
 
-        WOLFSSL_ENTER("DecodeCertPolicy");
-        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
-        /* Check if cert is null before dereferencing below */
-        if (cert == NULL)
-            ret = BAD_FUNC_ARG;
-        #endif
-
-        if (ret == 0) {
-        #if defined(WOLFSSL_CERT_EXT)
-            cert->extCertPoliciesNb = 0;
-        #endif
-
-            /* Strip SEQUENCE OF and check using all data. */
-            if (GetASN_Sequence(input, &idx, &total_length, (word32)sz, 1) < 0)
-            {
-               ret = ASN_PARSE_E;
+    #ifdef WOLFSSL_CERT_EXT
+            /* decode cert policy */
+            if (DecodePolicyOID(cert->extCertPolicies[
+                                cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
+                                input + idx, length) <= 0) {
+                WOLFSSL_MSG("\tCouldn't decode CertPolicy");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                return ASN_PARSE_E;
             }
-        }
-
-        /* Unwrap certificatePolicies */
-        while ((ret == 0) && ((int)idx < total_length)
-        #if defined(WOLFSSL_CERT_EXT)
-            && (cert->extCertPoliciesNb < MAX_CERTPOL_NB)
-        #endif
-               ) {
-            ASNGetData dataASN[policyInfoASN_Length];
-            byte* data = NULL;
-            word32 length = 0;
-
-            /* Clear dynamic data and check OID is a cert policy type. */
-            XMEMSET(dataASN, 0, sizeof(dataASN));
-            GetASN_OID(&dataASN[POLICYINFOASN_IDX_ID], oidCertPolicyType);
-            ret = GetASN_Items(policyInfoASN, dataASN, policyInfoASN_Length, 1,
-                               input, &idx, (word32)sz);
-            if (ret == 0) {
-                /* Get the OID. */
-                GetASN_OIDData(&dataASN[POLICYINFOASN_IDX_ID], &data, &length);
-                if (length == 0) {
-                    ret = ASN_PARSE_E;
-                }
-            }
-            #if defined(WOLFSSL_SEP)
-            /* Store OID in device type. */
-            if (ret == 0) {
-                cert->deviceType = (byte*)XMALLOC(length, cert->heap,
-                                                  DYNAMIC_TYPE_X509_EXT);
-                if (cert->deviceType == NULL) {
-                    WOLFSSL_MSG("\tCouldn't alloc memory for deviceType");
-                    ret = MEMORY_E;
-                }
-            }
-            if (ret == 0) {
-                /* Store device type data and length. */
-                cert->deviceTypeSz = (int)length;
-                XMEMCPY(cert->deviceType, data, length);
-                break;
-            }
-            #elif defined(WOLFSSL_CERT_EXT)
-            if (ret == 0) {
-                /* Decode cert policy. */
-                if (DecodePolicyOID(
-                                 cert->extCertPolicies[cert->extCertPoliciesNb],
-                                 MAX_CERTPOL_SZ, data, length) <= 0) {
-                    WOLFSSL_MSG("\tCouldn't decode CertPolicy");
-                    WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
-                    ret = ASN_PARSE_E;
-                }
-            }
-            #ifndef WOLFSSL_DUP_CERTPOL
+        #ifndef WOLFSSL_DUP_CERTPOL
             /* From RFC 5280 section 4.2.1.4 "A certificate policy OID MUST
              * NOT appear more than once in a certificate policies
              * extension". This is a sanity check for duplicates.
              * extCertPolicies should only have OID values, additional
              * qualifiers need to be stored in a separate array. */
-            for (i = 0; (ret == 0) && (i < cert->extCertPoliciesNb); i++) {
+            for (i = 0; i < cert->extCertPoliciesNb; i++) {
                 if (XMEMCMP(cert->extCertPolicies[i],
                             cert->extCertPolicies[cert->extCertPoliciesNb],
                             MAX_CERTPOL_SZ) == 0) {
                     WOLFSSL_MSG("Duplicate policy OIDs not allowed");
                     WOLFSSL_MSG("Use WOLFSSL_DUP_CERTPOL if wanted");
                     WOLFSSL_ERROR_VERBOSE(CERTPOLICIES_E);
-                    ret = CERTPOLICIES_E;
+                    return CERTPOLICIES_E;
                 }
             }
-            #endif /* !defined(WOLFSSL_DUP_CERTPOL) */
-            if (ret == 0) {
-                /* Keep count of policies seen. */
-                cert->extCertPoliciesNb++;
-            }
-            #else
-                (void)data;
-                WOLFSSL_LEAVE("DecodeCertPolicy : unsupported mode", 0);
-                break;
-            #endif
+        #endif /* !WOLFSSL_DUP_CERTPOL */
+            cert->extCertPoliciesNb++;
+    #endif
         }
+        idx += (word32)policy_length;
+    } while((int)idx < total_length
+    #ifdef WOLFSSL_CERT_EXT
+        && cert->extCertPoliciesNb < MAX_CERTPOL_NB
+    #endif
+    );
 
-        WOLFSSL_LEAVE("DecodeCertPolicy", 0);
-        return ret;
-    #endif /* WOLFSSL_ASN_TEMPLATE */
+    WOLFSSL_LEAVE("DecodeCertPolicy", 0);
+    return 0;
+#else /* WOLFSSL_ASN_TEMPLATE */
+    word32 idx = 0;
+    int ret = 0;
+    int total_length = 0;
+#if defined(WOLFSSL_CERT_EXT) && !defined(WOLFSSL_DUP_CERTPOL)
+    int i;
+#endif
+
+    WOLFSSL_ENTER("DecodeCertPolicy");
+
+    /* Check if cert is null before dereferencing below */
+    if (cert == NULL) {
+        ret = BAD_FUNC_ARG;
     }
-#endif /* WOLFSSL_SEP */
+
+    if (ret == 0) {
+    #if defined(WOLFSSL_CERT_EXT)
+        cert->extCertPoliciesNb = 0;
+    #endif
+
+        /* Strip SEQUENCE OF and check using all data. */
+        if (GetASN_Sequence(input, &idx, &total_length, (word32)sz, 1) < 0)
+        {
+            ret = ASN_PARSE_E;
+        }
+    }
+
+    /* Unwrap certificatePolicies */
+    while ((ret == 0) && ((int)idx < total_length)
+    #if defined(WOLFSSL_CERT_EXT)
+        && (cert->extCertPoliciesNb < MAX_CERTPOL_NB)
+    #endif
+            ) {
+        ASNGetData dataASN[policyInfoASN_Length];
+        byte* data = NULL;
+        word32 length = 0;
+
+        /* Clear dynamic data and check OID is a cert policy type. */
+        XMEMSET(dataASN, 0, sizeof(dataASN));
+        GetASN_OID(&dataASN[POLICYINFOASN_IDX_ID], oidCertPolicyType);
+        ret = GetASN_Items(policyInfoASN, dataASN, policyInfoASN_Length, 1,
+                            input, &idx, (word32)sz);
+        if (ret == 0) {
+            /* Get the OID. */
+            GetASN_OIDData(&dataASN[POLICYINFOASN_IDX_ID], &data, &length);
+            if (length == 0) {
+                ret = ASN_PARSE_E;
+            }
+        }
+    #ifdef WOLFSSL_SEP
+        /* Store OID in device type. */
+        if (ret == 0 && cert->deviceType == NULL) {
+            cert->deviceType = (byte*)XMALLOC(length, cert->heap,
+                                                DYNAMIC_TYPE_X509_EXT);
+            if (cert->deviceType != NULL) {
+                /* Store device type data and length. */
+                cert->deviceTypeSz = (int)length;
+                XMEMCPY(cert->deviceType, data, length);
+            }
+            else {
+                WOLFSSL_MSG("\tCouldn't alloc memory for deviceType");
+                ret = MEMORY_E;
+            }
+        }
+    #endif /* WOLFSSL_SEP */
+
+    #ifdef WOLFSSL_CERT_EXT
+        if (ret == 0) {
+            /* Decode cert policy. */
+            if (DecodePolicyOID(
+                    cert->extCertPolicies[cert->extCertPoliciesNb],
+                    MAX_CERTPOL_SZ, data, length) <= 0) {
+                WOLFSSL_MSG("\tCouldn't decode CertPolicy");
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                ret = ASN_PARSE_E;
+            }
+        }
+        #ifndef WOLFSSL_DUP_CERTPOL
+        /* From RFC 5280 section 4.2.1.4 "A certificate policy OID MUST
+         * NOT appear more than once in a certificate policies
+         * extension". This is a sanity check for duplicates.
+         * extCertPolicies should only have OID values, additional
+         * qualifiers need to be stored in a separate array. */
+        for (i = 0; (ret == 0) && (i < cert->extCertPoliciesNb); i++) {
+            if (XMEMCMP(cert->extCertPolicies[i],
+                        cert->extCertPolicies[cert->extCertPoliciesNb],
+                        MAX_CERTPOL_SZ) == 0) {
+                WOLFSSL_MSG("Duplicate policy OIDs not allowed");
+                WOLFSSL_MSG("Use WOLFSSL_DUP_CERTPOL if wanted");
+                WOLFSSL_ERROR_VERBOSE(CERTPOLICIES_E);
+                ret = CERTPOLICIES_E;
+            }
+        }
+        #endif /* !WOLFSSL_DUP_CERTPOL */
+        if (ret == 0) {
+            /* Keep count of policies seen. */
+            cert->extCertPoliciesNb++;
+        }
+    #endif /* WOLFSSL_CERT_EXT */
+    }
+
+    WOLFSSL_LEAVE("DecodeCertPolicy", 0);
+    return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
+}
+#endif /* WOLFSSL_SEP || WOLFSSL_CERT_EXT  */
 
 #ifdef WOLFSSL_SUBJ_DIR_ATTR
 #ifdef WOLFSSL_ASN_TEMPLATE
@@ -21244,15 +21230,11 @@ static int DecodeExtensionType(const byte* input, word32 length, word32 oid,
 
         /* Certificate policies. */
         case CERT_POLICY_OID:
-        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
+        #ifdef WOLFSSL_SEP
             VERIFY_AND_SET_OID(cert->extCertPolicySet);
-            #if defined(OPENSSL_EXTRA) || \
-                defined(OPENSSL_EXTRA_X509_SMALL)
-                cert->extCertPolicyCrit = critical ? 1 : 0;
-            #endif
+            cert->extCertPolicyCrit = critical ? 1 : 0;
         #endif
-        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT) || \
-            defined(WOLFSSL_QT)
+        #if defined(WOLFSSL_SEP) || defined(WOLFSSL_CERT_EXT)
             if (DecodeCertPolicy(input, length, cert) < 0) {
                 ret = ASN_PARSE_E;
             }
@@ -24121,7 +24103,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
             /* If you end up here with error -188,
              * consider using WOLFSSL_ALT_CERT_CHAINS. */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
-            /* ret needs to be self-signer error for Qt compat */
+            /* ret needs to be self-signer error for openssl compatibility */
             if (cert->selfSigned) {
                 WOLFSSL_ERROR_VERBOSE(ASN_SELF_SIGNED_E);
                 return ASN_SELF_SIGNED_E;
@@ -28140,8 +28122,7 @@ int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
 }
 #endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
-#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) || \
-    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+#ifdef WOLFSSL_ASN_PARSE_KEYUSAGE
 
 /* Convert key usage string (comma delimited, null terminated) to word16
  * Returns 0 on success, negative on error */
@@ -28264,7 +28245,7 @@ int ParseExtKeyUsageStr(const char* value, byte* extKeyUsage, void* heap)
     return ret;
 }
 
-#endif /* (CERT_GEN && CERT_EXT) || (OPENSSL_ALL || OPENSSL_EXTRA) */
+#endif /* WOLFSSL_ASN_PARSE_KEYUSAGE */
 
 #ifdef WOLFSSL_CERT_GEN
 /* Encodes one attribute of the name (issuer/subject)
@@ -35899,7 +35880,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     if (idx >= size)
         return BUFFER_E;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
     single->status->thisDateAsn = source + idx;
     localIdx = 0;
     if (GetDateInfo(single->status->thisDateAsn, &localIdx, NULL,
@@ -35935,7 +35916,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         idx++;
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
         single->status->nextDateAsn = source + idx;
         localIdx = 0;
         if (GetDateInfo(single->status->nextDateAsn, &localIdx, NULL,
@@ -36071,8 +36052,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     }
     if (ret == 0) {
     #endif
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-        defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+    #ifdef WOLFSSL_OCSP_PARSE_STATUS
         /* Store ASN.1 version of thisDate. */
         cs->thisDateAsn = GetASNItem_Addr(
                 dataASN[SINGLERESPONSEASN_IDX_THISUPDATE_GT], source);
@@ -36095,8 +36075,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     if ((ret == 0) &&
             (dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT].tag != 0)) {
     #endif
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-        defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+    #ifdef WOLFSSL_OCSP_PARSE_STATUS
         /* Store ASN.1 version of thisDate. */
         cs->nextDateAsn = GetASNItem_Addr(
                 dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT], source);
@@ -37521,9 +37500,7 @@ void FreeOcspRequest(OcspRequest* req)
             XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->url = NULL;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_APACHE_HTTPD) || \
-    defined(HAVE_LIGHTY)
+#ifdef OPENSSL_EXTRA
         if (req->cid != NULL)
             wolfSSL_OCSP_CERTID_free((WOLFSSL_OCSP_CERTID*)req->cid);
         req->cid = NULL;

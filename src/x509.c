@@ -1067,7 +1067,9 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             case CERT_POLICY_OID:
                 if (!isSet)
                     break;
+            #ifdef WOLFSSL_SEP
                 ext->crit = x509->certPolicyCrit;
+            #endif
                 break;
 
             case KEY_USAGE_OID:
@@ -2504,7 +2506,8 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             else {
                 WOLFSSL_MSG("No Cert Policy set");
             }
-        #elif defined(WOLFSSL_SEP)
+        #endif /* WOLFSSL_CERT_EXT */
+        #ifdef WOLFSSL_SEP
             if (x509->certPolicySet) {
                 if (c != NULL) {
                     *c = x509->certPolicyCrit;
@@ -2520,8 +2523,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             else {
                 WOLFSSL_MSG("No Cert Policy set");
             }
-        #else
-            WOLFSSL_MSG("wolfSSL not built with WOLFSSL_SEP or WOLFSSL_CERT_EXT");
         #endif
             break;
         }
@@ -3711,7 +3712,7 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
     }
 
     ret = cert->altNamesNext->name;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
     /* return the IP address as a string */
     if (cert->altNamesNext->type == ASN_IP_TYPE) {
         ret = cert->altNamesNext->ipString;
@@ -5668,9 +5669,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                 case NID_key_usage: crit = x509->keyUsageCrit; break;
                 case NID_crl_distribution_points: crit= x509->CRLdistCrit; break;
                 case NID_ext_key_usage: crit= x509->extKeyUsageCrit; break;
-                #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
-                    case NID_certificate_policies: crit = x509->certPolicyCrit; break;
-                #endif /* WOLFSSL_SEP || WOLFSSL_QT */
+            #ifdef WOLFSSL_SEP
+                case NID_certificate_policies: crit = x509->certPolicyCrit; break;
+            #endif /* WOLFSSL_SEP */
             }
         }
 
@@ -5873,7 +5874,7 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                         break;
                     }
                 }
-            #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+            #ifdef WOLFSSL_IP_ALT_NAME
                 else if (entry->type == ASN_IP_TYPE) {
                     len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:%s",
                             entry->ipString);

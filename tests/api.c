@@ -4268,8 +4268,8 @@ static int test_wolfSSL_CertManagerCheckOCSPResponse(void)
 static int test_wolfSSL_CheckOCSPResponse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_OCSP) && !defined(NO_RSA) && !defined(NO_SHA) && \
-       defined(OPENSSL_ALL)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_SHA)
     const char* responseFile = "./certs/ocsp/test-response.der";
     const char* responseMultiFile = "./certs/ocsp/test-multi-response.der";
     const char* responseNoInternFile =
@@ -53340,7 +53340,7 @@ static int test_wolfSSL_X509_sign(void)
     ExpectIntEQ(wolfSSL_X509_add_altname(x509,
                 "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch",
                 ASN_DNS_TYPE), SSL_SUCCESS);
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
     {
         unsigned char ip4_type[] = {127,128,0,255};
         unsigned char ip6_type[] = {0xdd, 0xcc, 0xba, 0xab,
@@ -53373,7 +53373,7 @@ static int test_wolfSSL_X509_sign(void)
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_ALT_NAMES)
     ExpectIntEQ(X509_get_ext_count(x509), 1);
 #endif
-#if defined(WOLFSSL_ALT_NAMES) && (defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
+#if defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_IP_ALT_NAME)
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.128.0.255", 0), 1);
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "DDCC:BAAB:FFEE:9988:7766:5544:0033:2211", 0), 1);
 #endif
@@ -53389,7 +53389,7 @@ static int test_wolfSSL_X509_sign(void)
 #ifndef WOLFSSL_ALT_NAMES
     /* Valid case - size should be 781-786 with 16 byte serial number */
     ExpectTrue((781 + snSz <= ret) && (ret <= 781 + 5 + snSz));
-#elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#elif defined(WOLFSSL_IP_ALT_NAME)
     /* Valid case - size should be 955-960 with 16 byte serial number */
     ExpectTrue((939 + snSz <= ret) && (ret <= 939 + 5 + snSz));
 #else
@@ -64446,7 +64446,7 @@ static int test_wolfSSL_OCSP_id_cmp(void)
 static int test_wolfSSL_OCSP_SINGLERESP_get0_id(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA)
     WOLFSSL_OCSP_SINGLERESP single;
     const WOLFSSL_OCSP_CERTID* certId;
 
@@ -64463,7 +64463,8 @@ static int test_wolfSSL_OCSP_SINGLERESP_get0_id(void)
 static int test_wolfSSL_OCSP_single_get0_status(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_OCSP_PARSE_STATUS)
     WOLFSSL_OCSP_SINGLERESP single;
     CertStatus certStatus;
     WOLFSSL_ASN1_TIME* thisDate;
@@ -64498,7 +64499,7 @@ static int test_wolfSSL_OCSP_single_get0_status(void)
 static int test_wolfSSL_OCSP_resp_count(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA)
     WOLFSSL_OCSP_BASICRESP basicResp;
     WOLFSSL_OCSP_SINGLERESP singleRespOne;
     WOLFSSL_OCSP_SINGLERESP singleRespTwo;
@@ -64519,7 +64520,7 @@ static int test_wolfSSL_OCSP_resp_count(void)
 static int test_wolfSSL_OCSP_resp_get0(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA)
     WOLFSSL_OCSP_BASICRESP basicResp;
     WOLFSSL_OCSP_SINGLERESP singleRespOne;
     WOLFSSL_OCSP_SINGLERESP singleRespTwo;
