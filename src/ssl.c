@@ -23672,7 +23672,86 @@ wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
 
 #endif /* OPENSSL_EXTRA */
 
-#ifndef NO_CERTS
+#ifdef WOLFSSL_THREADED_CRYPT
+int wolfSSL_AsyncEncryptReady(WOLFSSL* ssl, int idx)
+{
+    ThreadCrypt* encrypt;
+
+    if (ssl == NULL) {
+        return 0;
+    }
+
+    encrypt = &ssl->buffers.encrypt[idx];
+    return (encrypt->avail == 0) && (encrypt->done == 0);
+}
+
+int wolfSSL_AsyncEncryptStop(WOLFSSL* ssl, int idx)
+{
+    ThreadCrypt* encrypt;
+
+    if (ssl == NULL) {
+        return 1;
+    }
+
+    encrypt = &ssl->buffers.encrypt[idx];
+    return encrypt->stop;
+}
+
+int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx)
+{
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    ThreadCrypt* encrypt = &ssl->buffers.encrypt[idx];
+
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+        unsigned char* out = encrypt->buffer.buffer + encrypt->offset;
+        unsigned char* input = encrypt->buffer.buffer + encrypt->offset;
+        word32 encSz = encrypt->buffer.length - encrypt->offset;
+
+        ret =
+#if !defined(NO_GCM_ENCRYPT_EXTRA) && \
+    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+              wc_AesGcmEncrypt_ex
+#else
+              wc_AesGcmEncrypt
+#endif
+              (encrypt->encrypt.aes,
+               out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
+               encSz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
+               encrypt->nonce, AESGCM_NONCE_SZ,
+               out + encSz - ssl->specs.aead_mac_size,
+               ssl->specs.aead_mac_size,
+               encrypt->additional, AEAD_AUTH_DATA_SZ);
+#if !defined(NO_PUBLIC_GCM_SET_IV) && \
+    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+        XMEMCPY(out, encrypt->nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
+#endif
+        encrypt->done = 1;
+    }
+
+    return ret;
+}
+
+int wolfSSL_AsyncEncryptSetSignal(WOLFSSL* ssl, int idx,
+    WOLFSSL_THREAD_SIGNAL signal, void* ctx)
+{
+    int ret = 0;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ssl->buffers.encrypt[idx].signal = signal;
+        ssl->buffers.encrypt[idx].signalCtx = ctx;
+    }
+
+    return ret;
+}
+#endif
+
+
+#ifndef NO_CERT
 #define WOLFSSL_X509_INCLUDED
 #include "src/x509.c"
 #endif

@@ -3364,6 +3364,21 @@ WOLFSSL_API void  wolfSSL_CTX_SetEncryptMacCb(WOLFSSL_CTX* ctx, CallbackEncryptM
 WOLFSSL_API void  wolfSSL_SetEncryptMacCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEncryptMacCtx(WOLFSSL* ssl);
 
+#ifdef WOLFSSL_THREADED_CRYPT
+    #ifndef WOLFSSL_THREADED_CRYPT_CNT
+        #define WOLFSSL_THREADED_CRYPT_CNT  16
+    #endif
+
+typedef void (*WOLFSSL_THREAD_SIGNAL)(void* ctx, WOLFSSL* ssl);
+
+WOLFSSL_API int wolfSSL_AsyncEncryptReady(WOLFSSL* ssl, int idx);
+WOLFSSL_API int wolfSSL_AsyncEncryptStop(WOLFSSL* ssl, int idx);
+WOLFSSL_API int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx);
+WOLFSSL_API int wolfSSL_AsyncEncryptSetSignal(WOLFSSL* ssl, int idx,
+   WOLFSSL_THREAD_SIGNAL signal, void* ctx);
+#endif
+
+
 typedef int (*CallbackVerifyDecrypt)(WOLFSSL* ssl,
        unsigned char* decOut, const unsigned char* decIn,
        unsigned int decSz, int content, int verify, unsigned int* padSz,
