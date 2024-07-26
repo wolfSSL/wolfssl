@@ -702,8 +702,10 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     if (nextupd != NULL)
         *nextupd = &single->status->nextDateParsed;
 #else
-    (void)thisupd;
-    (void)nextupd;
+    if (thisupd != NULL)
+        *thisupd = NULL;
+    if (nextupd != NULL)
+        *nextupd = NULL;
 #endif
 
     /* TODO: Not needed for Nginx or httpd */
@@ -1348,11 +1350,17 @@ int wolfSSL_OCSP_single_get0_status(WOLFSSL_OCSP_SINGLERESP *single,
     if (single == NULL)
         return WOLFSSL_FAILURE;
 
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
     if (thisupd != NULL)
         *thisupd = &single->status->thisDateParsed;
     if (nextupd != NULL)
         *nextupd = &single->status->nextDateParsed;
-
+#else
+    if (thisupd != NULL)
+        *thisupd = NULL;
+    if (nextupd != NULL)
+        *nextupd = NULL;
+#endif
     if (reason != NULL)
         *reason = 0;
     if (revtime != NULL)
