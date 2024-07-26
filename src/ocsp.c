@@ -284,7 +284,7 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
  * ocsp           Context object for OCSP status.
  * response       OCSP response message data.
  * responseSz     Length of OCSP response message data.
- * reponseBuffer  Buffer object to return the response with.
+ * responseBuffer Buffer object to return the response with.
  * status         The certificate status object.
  * entry          The OCSP entry for this certificate.
  * ocspRequest    Request corresponding to response.
@@ -880,10 +880,8 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
         return WOLFSSL_FAILURE;
 #endif
 
-#ifdef OPENSSL_EXTRA
     if (bs->verifyError != OCSP_VERIFY_ERROR_NONE)
         goto out;
-#endif
 
     if (flags & OCSP_TRUSTOTHER) {
         for (idx = 0; idx < wolfSSL_sk_X509_num(certs); idx++) {
