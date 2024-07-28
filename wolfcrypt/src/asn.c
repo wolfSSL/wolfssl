@@ -12012,8 +12012,12 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
 #endif
 
-    if (pubKey == NULL) {
+    /* validate parameters */
+    if (pubKey == NULL){
         return BAD_FUNC_ARG;
+    }
+    if (output != NULL && outLen == 0) {
+        return BUFFER_E;
     }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -35370,9 +35374,12 @@ int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     int sz;
 #endif
 
-    /* Validate parameters. */
-    if (privKey == NULL || outLen == 0) {
+    /* validate parameters */
+    if (privKey == NULL) {
         return BAD_FUNC_ARG;
+    }
+    if (output != NULL && outLen == 0) {
+        return BUFFER_E;
     }
 
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -35531,7 +35538,7 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
     byte   pubKey[CURVE25519_PUB_KEY_SIZE];
     word32 pubKeyLen = (word32)sizeof(pubKey);
 
-    if (key == NULL || output == NULL) {
+    if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
