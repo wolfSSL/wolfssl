@@ -4040,7 +4040,8 @@ int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
   return fp_montgomery_reduce_ex(a, m, mp, 1);
 }
 
-int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
+static int _read_unsigned_bin(fp_int *a, const unsigned char *b, int c,
+                                int ct)
 {
 #if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
   const word32 maxC = (a->size * sizeof(fp_digit));
@@ -4146,9 +4147,20 @@ int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
      }
   }
 #endif
-  fp_clamp (a);
+  if (! ct)
+      fp_clamp (a);
 
   return FP_OKAY;
+}
+
+int fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
+{
+    return _read_unsigned_bin(a, b, c, 0);
+}
+
+int fp_read_unsigned_bin_ct(fp_int *a, const unsigned char *b, int c)
+{
+    return _read_unsigned_bin(a, b, c, 1);
 }
 
 int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
@@ -4836,6 +4848,13 @@ int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
   return fp_read_unsigned_bin(a, b, c);
 }
 
+/* reads a unsigned char array, assumes the msb is stored first [big endian],
+ * and omits clamping (retains leading zeros).
+ */
+int mp_read_unsigned_bin_ct (mp_int * a, const unsigned char *b, int c)
+{
+  return fp_read_unsigned_bin_ct(a, b, c);
+}
 
 int mp_sub_d(fp_int *a, fp_digit b, fp_int *c)
 {
