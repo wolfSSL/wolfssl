@@ -779,6 +779,7 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define MP_VAL  FP_VAL  /* invalid */
 #define MP_MEM  FP_MEM  /* memory error */
 #define MP_NOT_INF FP_NOT_INF /* point not at infinity */
+#define MP_RANGE FP_NOT_INF
 #define MP_OKAY FP_OKAY /* ok result    */
 #define MP_NO   FP_NO   /* yes/no result */
 #define MP_YES  FP_YES  /* yes/no result */

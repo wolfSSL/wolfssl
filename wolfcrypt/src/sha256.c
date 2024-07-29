@@ -2496,7 +2496,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     ret = wc_Sha256Copy(sha256, tmpSha256);
     if (ret == 0) {
         ret = wc_Sha256Final(tmpSha256, hash);
-        wc_Sha256Free(tmpSha256); /* TODO move outside brackets? */
+        wc_Sha256Free(tmpSha256);
     }
 
 

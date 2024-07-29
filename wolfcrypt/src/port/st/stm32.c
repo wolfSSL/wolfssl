@@ -303,12 +303,11 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     int ret = 0;
     byte* local = (byte*)stmCtx->buffer;
     int wroteToFifo = 0;
-    const word32 fifoSz = (STM32_HASH_FIFO_SIZE * STM32_HASH_REG_SIZE);
     word32 chunkSz;
 
 #ifdef DEBUG_STM32_HASH
-    printf("STM Hash Update: algo %x, len %d, blockSz %d\n",
-        algo, len, blockSize);
+    printf("STM Hash Update: algo %x, len %d, buffLen %d, fifoBytes %d\n",
+        algo, len, stmCtx->buffLen, stmCtx->fifoBytes);
 #endif
     (void)blockSize;
 
@@ -323,40 +322,27 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     /* restore hash context or init as new hash */
     wc_Stm32_Hash_RestoreContext(stmCtx, algo);
 
-    chunkSz = fifoSz;
-#ifdef STM32_HASH_FIFO_WORKAROUND
-    /* if FIFO already has bytes written then fill remainder first */
-    if (stmCtx->fifoBytes > 0) {
-        chunkSz -= stmCtx->fifoBytes;
-        stmCtx->fifoBytes = 0;
-    }
-#endif
-
     /* write blocks to FIFO */
     while (len) {
-        word32 add = min(len, chunkSz - stmCtx->buffLen);
+        word32 add;
+
+        /* fill the FIFO plus one additional to flush the block */
+        chunkSz = ((STM32_HASH_FIFO_SIZE + 1) * STM32_HASH_REG_SIZE);
+        /* account for extra bytes in the FIFO (use mask 0x3F to get remain) */
+        chunkSz -= (stmCtx->fifoBytes &
+            ((STM32_HASH_FIFO_SIZE * STM32_HASH_REG_SIZE)-1));
+
+        add = min(len, chunkSz - stmCtx->buffLen);
         XMEMCPY(&local[stmCtx->buffLen], data, add);
 
         stmCtx->buffLen += add;
         data            += add;
         len             -= add;
 
-    #ifdef STM32_HASH_FIFO_WORKAROUND
-        /* We cannot leave the FIFO full and do save/restore
-         * the last must be large enough to flush block from FIFO */
-        if (stmCtx->buffLen + len <= fifoSz * 2) {
-            chunkSz = fifoSz + STM32_HASH_REG_SIZE;
-        }
-    #endif
-
         if (stmCtx->buffLen == chunkSz) {
             wc_Stm32_Hash_Data(stmCtx, stmCtx->buffLen);
             wroteToFifo = 1;
-        #ifdef STM32_HASH_FIFO_WORKAROUND
-            if (chunkSz > fifoSz)
-                stmCtx->fifoBytes = chunkSz - fifoSz;
-            chunkSz = fifoSz;
-        #endif
+            stmCtx->fifoBytes += chunkSz;
         }
     }
 
@@ -380,7 +366,8 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     int ret = 0;
 
 #ifdef DEBUG_STM32_HASH
-    printf("STM Hash Final: algo %x, digestSz %d\n", algo, digestSize);
+    printf("STM Hash Final: algo %x, digestSz %d, buffLen %d, fifoBytes %d\n",
+        algo, digestSize, stmCtx->buffLen, stmCtx->fifoBytes);
 #endif
 
     /* turn on hash clock */

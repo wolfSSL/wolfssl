@@ -148,11 +148,11 @@ extern ${variable.value} ${variable.name};
     #define HAL_CONSOLE_UART huart2
     #define NO_STM32_RNG
     #define WOLFSSL_GENSEED_FORTEST /* no HW RNG is available use test seed */
-#elif defined(STM32U575xx) || defined(STM32U585xx)
+#elif defined(STM32U575xx) || defined(STM32U585xx) || defined(STM32U5A9xx)
     #define HAL_CONSOLE_UART huart1
     #define WOLFSSL_STM32U5
     #define STM32_HAL_V2
-    #ifdef STM32U585xx
+    #if defined(STM32U585xx) || defined(STM32U5A9xx)
         #undef  NO_STM32_HASH
         #undef  NO_STM32_CRYPTO
         #define WOLFSSL_STM32_PKA
