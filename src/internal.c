@@ -23311,13 +23311,15 @@ int SendFinished(WOLFSSL* ssl)
  */
 static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
                              DecodedCert* cert, byte* certData, word32 length,
-                             byte *takeOwnership)
+                             byte *ctxOwnsRequest)
 {
-    byte ctxOwnsRequest = 0;
     int ret;
 
     if (request != NULL)
         XMEMSET(request, 0, sizeof(OcspRequest));
+
+    if (ctxOwnsRequest!= NULL)
+        *ctxOwnsRequest = 0;
 
     InitDecodedCert(cert, certData, length, ssl->heap);
     /* TODO: Setup async support here */
@@ -23334,7 +23336,8 @@ static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
             if (wc_LockMutex(ocspLock) == 0) {
                 if (ssl->ctx->certOcspRequest == NULL) {
                     ssl->ctx->certOcspRequest = request;
-                    ctxOwnsRequest = 1;
+                    if (ctxOwnsRequest!= NULL)
+                        *ctxOwnsRequest = 1;
                 }
                 wc_UnLockMutex(ocspLock);
             }
@@ -23342,8 +23345,6 @@ static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
     }
 
     FreeDecodedCert(cert);
-    if (takeOwnership != NULL)
-        *takeOwnership = ctxOwnsRequest;
 
     return ret;
 }
