@@ -1099,10 +1099,11 @@ static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
         char serialMsg[80];
 
         /* testsuite has multiple threads writing to stdout, get output
-           message ready to write once */
-        strLen = sprintf(serialMsg, " %s", words[3]);
+         * message ready to write once */
+        strLen = XSNPRINTF(serialMsg, sizeof(serialMsg), " %s", words[3]);
         for (i = 0; i < sz; i++)
-            sprintf(serialMsg + strLen + (i*3), ":%02x ", serial[i]);
+            strLen = XSNPRINTF(serialMsg + strLen, sizeof(serialMsg) - strLen,
+                ":%02x ", serial[i]);
         printf("%s\n", serialMsg);
     }
 

@@ -7040,7 +7040,6 @@ int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
 
     for (i = 0; i < length; ++i) {
         char hex_digits[4];
-#ifdef XSNPRINTF
         if (XSNPRINTF(hex_digits, sizeof(hex_digits), "%c%02X", i>0 ? ':' : ' ',
                   (unsigned int)sigalg->algorithm->obj[idx+i])
             >= (int)sizeof(hex_digits))
@@ -7048,10 +7047,6 @@ int wolfSSL_X509_signature_print(WOLFSSL_BIO *bp,
             WOLFSSL_MSG("buffer overrun");
             return WOLFSSL_FAILURE;
         }
-#else
-        XSPRINTF(hex_digits, "%c%02X", i>0 ? ':' : ' ',
-                 (unsigned int)sigalg->algorithm->obj[idx+i]);
-#endif
         if (wolfSSL_BIO_puts(bp, hex_digits) <= 0)
             return WOLFSSL_FAILURE;
     }
@@ -9005,14 +9000,13 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
     if (iplen == 4) {
         /* ipv4 www.xxx.yyy.zzz max 15 length + Null termination */
         buf = (char*)XMALLOC(16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
         if (!buf) {
             WOLFSSL_MSG("failed malloc");
             return ret;
         }
 
-        XSPRINTF(buf, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        buf[15] = '\0';
+        (void)XSNPRINTF(buf, 16, "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+        buf[15] = '\0'; /* null terminate */
     }
     else if (iplen == 16) {
         /* ipv6 normal address scheme
@@ -9041,47 +9035,46 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
         *   to re-construct IP address in ascii.
         */
         buf = (char*)XMALLOC(max_ipv6_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
         if (!buf) {
             WOLFSSL_MSG("failed malloc");
             return ret;
         }
         p = buf;
         for (i = 0; i < 16; i += 2) {
-           val = (((word32)(ip[i]<<8)) | (ip[i+1])) & 0xFFFF;
-           if (val == 0){
-               if (!write_zero) {
+            val = (((word32)(ip[i]<<8)) | (ip[i+1])) & 0xFFFF;
+            if (val == 0){
+                if (!write_zero) {
                     *p = ':';
-               }
-               p++;
-               *p = '\0';
-               write_zero = 1;
-           }
-           else {
-               if (i != 0)
-                *p++ = ':';
-               XSPRINTF(p, "%x", val);
-           }
-           /* sanity check */
-           if (XSTRLEN(buf) > max_ipv6_len) {
-               WOLFSSL_MSG("The target ip address exceeds buffer length(40)");
-               XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-               buf = NULL;
-               break;
-           }
-           /* move the pointer to the last */
-           /* XSTRLEN includes NULL because of XSPRINTF use */
-           p = buf + (XSTRLEN(buf));
+                }
+                p++;
+                *p = '\0';
+                write_zero = 1;
+            }
+            else {
+                if (i != 0) {
+                    *p++ = ':';
+                }
+                (void)XSNPRINTF(p, max_ipv6_len - (size_t)(p - buf), "%x", val);
+            }
+            /* sanity check */
+            if (XSTRLEN(buf) > max_ipv6_len) {
+                WOLFSSL_MSG("The target ip address exceeds buffer length(40)");
+                XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                buf = NULL;
+                break;
+            }
+            /* move the pointer to the last */
+            /* XSTRLEN includes NULL because of XSPRINTF use */
+            p = buf + (XSTRLEN(buf));
         }
         /* termination */
-        if(i == 16 && buf) {
+        if (i == 16 && buf) {
             p--;
             if ((*p) == ':') {
-            /* when the last character is :, the following segments are zero
-             * Therefore, adding : and null termination
-             */
-                 p++;
-                 *p++ = ':';
+                /* when the last character is :, the following segments are zero
+                 * Therefore, adding : and null termination */
+                p++;
+                *p++ = ':';
                 *p = '\0';
             }
         }
@@ -9092,7 +9085,7 @@ int wolfSSL_X509_VERIFY_PARAM_set1_ip(WOLFSSL_X509_VERIFY_PARAM* param,
     }
 
     if (buf) {
-         /* set address to ip asc */
+        /* set address to ip asc */
         ret = wolfSSL_X509_VERIFY_PARAM_set1_ip_asc(param, buf);
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
