@@ -3183,11 +3183,11 @@ static int dilithium_check_hint(const byte* h, byte k, byte omega)
     unsigned int i;
 
     /* Skip polynomial index while count is 0. */
-    while ((h[omega + o] == 0) && (o < k)) {
+    while ((o < k) && (h[omega + o] == 0)) {
         o++;
     }
     /* Check all possible hints. */
-    for (i = 1; i < omega; i++) {
+    for (i = 1; (o < k) && (i < omega); i++) {
         /* Done with polynomial if index equals count of hints. */
         if (i == h[omega + o]) {
             /* Next polynomial index while count is index. */
