@@ -33388,7 +33388,7 @@ static int test_wc_dilithium_der(void)
     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, der , DILITHIUM_MAX_DER_SIZE,
         0), BAD_FUNC_ARG);
     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , der , 0                     ,
-        0), BUFFER_E);
+        0), BUFFER_E    );
     /* Get length only. */
     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , NULL, 0                     ,
         0), pubLen);
@@ -33401,8 +33401,8 @@ static int test_wc_dilithium_der(void)
 
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, NULL,
         0                     ), BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , NULL,
-        0                     ), BAD_FUNC_ARG);
+    ExpectIntGT(wc_Dilithium_PrivateKeyToDer(key , NULL,
+        0                     ), 0);
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, der ,
         0                     ), BAD_FUNC_ARG);
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, NULL,
@@ -33410,15 +33410,15 @@ static int test_wc_dilithium_der(void)
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(NULL, der ,
         DILITHIUM_MAX_DER_SIZE), BAD_FUNC_ARG);
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , der ,
-        0                     ), BAD_FUNC_ARG);
+        0                     ), BUFFER_E);
     /* Get length only. */
     ExpectIntEQ(wc_Dilithium_PrivateKeyToDer(key , NULL,
         DILITHIUM_MAX_DER_SIZE), privDerLen);
 
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, NULL, 0                     ),
         BAD_FUNC_ARG);
-    ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, 0                     ),
-        BAD_FUNC_ARG);
+    ExpectIntGT(wc_Dilithium_KeyToDer(key , NULL, 0                     ),
+        0           );
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, der , 0                     ),
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, NULL, DILITHIUM_MAX_DER_SIZE),
@@ -33426,7 +33426,7 @@ static int test_wc_dilithium_der(void)
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, der , DILITHIUM_MAX_DER_SIZE),
         BAD_FUNC_ARG);
     ExpectIntEQ(wc_Dilithium_KeyToDer(key , der , 0                     ),
-        BAD_FUNC_ARG);
+        BUFFER_E    );
     /* Get length only. */
     ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE),
         keyDerLen);
