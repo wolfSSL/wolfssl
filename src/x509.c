@@ -14517,11 +14517,12 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
                 req->reqAttributes->type = STACK_TYPE_X509_REQ_ATTR;
             }
         }
-        ret = wolfSSL_sk_push(req->reqAttributes, attr);
-        if ((ret != WOLFSSL_SUCCESS) || (req->reqAttributes->type == STACK_TYPE_CIPHER)) {
-            /* CIPHER type makes a copy */
+        if (req->reqAttributes->type == STACK_TYPE_X509_REQ_ATTR)
+            ret = wolfSSL_sk_push(req->reqAttributes, attr);
+        else
+            ret = WOLFSSL_FAILURE;
+        if (ret != WOLFSSL_SUCCESS)
             wolfSSL_X509_ATTRIBUTE_free(attr);
-        }
     }
 
     return ret;
