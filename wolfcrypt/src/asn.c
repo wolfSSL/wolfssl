@@ -15071,19 +15071,13 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
         hour = ts->tm_hour;
         mini = ts->tm_min;
         sec  = ts->tm_sec;
-    #if defined(WOLF_C89)
         if (len < ASN_UTC_TIME_SIZE) {
             WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
             return BUFFER_E;
         }
-        ret = XSPRINTF((char*)buf,
-                        "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
-                        hour, mini, sec);
-    #else
         ret = XSNPRINTF((char*)buf, len,
                         "%02d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
-    #endif
     }
     else {
         /* GeneralizedTime */
@@ -15093,19 +15087,13 @@ int GetFormattedTime(void* currTime, byte* buf, word32 len)
         hour = ts->tm_hour;
         mini = ts->tm_min;
         sec  = ts->tm_sec;
-    #if defined(WOLF_C89)
         if (len < ASN_GENERALIZED_TIME_SIZE) {
             WOLFSSL_MSG("buffer for GetFormattedTime is too short.");
             return BUFFER_E;
         }
-        ret = XSPRINTF((char*)buf,
-                        "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
-                        hour, mini, sec);
-    #else
         ret = XSNPRINTF((char*)buf, len,
                         "%4d%02d%02d%02d%02d%02dZ", year, mon, day,
                         hour, mini, sec);
-    #endif
     }
 
     return ret;

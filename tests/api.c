@@ -58278,7 +58278,7 @@ static int test_wolfSSL_BIO_connect(void)
     server_args.signal = &ready;
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    ExpectIntGT(XSPRINTF(buff, "%d", ready.port), 0);
+    ExpectIntGT(XSNPRINTF(buff, sizeof(buff), "%d", ready.port), 0);
 
     /* Start the test proper */
     /* Setup the TCP BIO */
@@ -58325,7 +58325,7 @@ static int test_wolfSSL_BIO_connect(void)
     server_args.signal = &ready;
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    ExpectIntGT(XSPRINTF(buff, "%d", ready.port), 0);
+    ExpectIntGT(XSNPRINTF(buff, sizeof(buff), "%d", ready.port), 0);
 
     ExpectNotNull(sslBio = BIO_new_ssl_connect(ctx));
     ExpectIntEQ(BIO_set_conn_hostname(sslBio, (char*)wolfSSLIP), 1);
