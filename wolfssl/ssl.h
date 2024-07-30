@@ -4068,9 +4068,9 @@ enum {
     WOLFSSL_FFDHE_8192    = 260,
 
 #ifdef HAVE_PQC
-    /* These group numbers were taken from OQS's openssl fork, see:
-     * https://github.com/open-quantum-safe/openssl/blob/OQS-OpenSSL_1_1_1-stable/
-     * oqs-template/oqs-kem-info.md.
+    /* These group numbers were taken from OQS's openssl provider, see:
+     * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
+     * oqs-kem-info.md.
      *
      * The levels in the group name refer to the claimed NIST level of each
      * parameter set. The associated parameter set name is listed as a comment
@@ -4084,6 +4084,7 @@ enum {
      * algorithms have LEVEL2 and LEVEL4 because none of these submissions
      * included them. */
 
+#ifndef WOLFSSL_ML_KEM
     WOLFSSL_PQC_MIN               = 570,
     WOLFSSL_PQC_SIMPLE_MIN        = 570,
     WOLFSSL_KYBER_LEVEL1          = 570, /* KYBER_512 */
@@ -4097,7 +4098,22 @@ enum {
     WOLFSSL_P521_KYBER_LEVEL5     = 12093,
     WOLFSSL_PQC_HYBRID_MAX        = 12093,
     WOLFSSL_PQC_MAX               = 12093,
-#endif
+#else
+    WOLFSSL_PQC_MIN               = 583,
+    WOLFSSL_PQC_SIMPLE_MIN        = 583,
+    WOLFSSL_KYBER_LEVEL1          = 583, /* ML-KEM 512 */
+    WOLFSSL_KYBER_LEVEL3          = 584, /* ML-KEM 768 */
+    WOLFSSL_KYBER_LEVEL5          = 585, /* ML-KEM 1024 */
+    WOLFSSL_PQC_SIMPLE_MAX        = 585,
+
+    WOLFSSL_PQC_HYBRID_MIN        = 12103,
+    WOLFSSL_P256_KYBER_LEVEL1     = 12103,
+    WOLFSSL_P384_KYBER_LEVEL3     = 12104,
+    WOLFSSL_P521_KYBER_LEVEL5     = 12105,
+    WOLFSSL_PQC_HYBRID_MAX        = 12105,
+    WOLFSSL_PQC_MAX               = 12105,
+#endif /* WOLFSSL_ML_KEM */
+#endif /* HAVE_PQC */
 };
 
 enum {
