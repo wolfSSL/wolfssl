@@ -56,23 +56,7 @@ static WC_INLINE void memcpy16(byte* out, const byte* in)
     out64[1] = in64[1];
 }
 
-#ifdef WOLFSSL_RISCV_BASE_BIT_MANIPULATION
-
-/* Reverse bytes in 64-bit register. */
-#define REV8(rd, rs)                                        \
-    ASM_WORD((0b011010111000 << 20) | (0b101 << 12) |       \
-             (0b0010011 << 0) |                             \
-             (rs << 15) | (rd << 7))
-
-#endif /* WOLFSSL_RISCV_BASE_BIT_MANIPULATION */
-
 #ifdef WOLFSSL_RISCV_BIT_MANIPULATION
-
-/* rd = rs1[0..31] | rs2[0..31]. */
-#define PACK(rd, rs1, rs2)                                  \
-    ASM_WORD((0b0000100 << 25) | (0b100 << 12) |            \
-             (0b0110011 << 0) |                             \
-             (rs2 << 20) | (rs1 << 15) | (rd << 7))
 
 /* Reverse bits in each byte of 64-bit register. */
 #define BREV8(rd, rs)                                       \
@@ -90,31 +74,6 @@ static WC_INLINE void memcpy16(byte* out, const byte* in)
              (vs2 << 20) | (vd << 7))
 #endif
 
-/* vd = vs2 + [i,] */
-#define VADD_VI(vd, vs2, i)                         \
-    ASM_WORD((0b000000 << 26) | (0b1 << 25) |       \
-             (0b011 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (i << 15) | (vs2 << 20))
-/* vd = vs1 + vs2 */
-#define VADD_VV(vd, vs1, vs2)                       \
-    ASM_WORD((0b000000 << 26) | (0b1 << 25) |       \
-             (0b000 << 12) | (0b1010111 << 0) |     \
-             (vs2 << 20) | (vs1 << 15) | (vd << 7))
-/* vd = vs1 ^ vs2 */
-#define VXOR_VV(vd, vs1, vs2)                       \
-    ASM_WORD((0b001011 << 26) | (0b1 << 25) |       \
-             (0b000 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (vs1 << 15) | (vs2 << 20))
-/* vd = vs1 & vs2 */
-#define VAND_VV(vd, vs1, vs2)                       \
-    ASM_WORD((0b001001 << 26) | (0b1 << 25) |       \
-             (0b000 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (vs1 << 15) | (vs2 << 20))
-/* vd = vs1 | vs2 */
-#define VOR_VV(vd, vs1, vs2)                        \
-    ASM_WORD((0b001010 << 26) | (0b1 << 25) |       \
-             (0b000 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (vs1 << 15) | (vs2 << 20))
 
 /* vd = vs2 << uimm */
 #define VSLL_VI(vd, vs2, uimm)                      \
@@ -127,29 +86,6 @@ static WC_INLINE void memcpy16(byte* out, const byte* in)
              (0b011 << 12) | (0b1010111 << 0) |     \
              (vd << 7) | (uimm << 15) | (vs2 << 20))
 
-/* vd[shift..max] = vs2[0..max-shift] */
-#define VSLIDEUP_VI(vd, vs2, shift)                 \
-    ASM_WORD((0b001110 << 26) | (0b1 << 25) |       \
-             (0b011 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (shift << 15) | (vs2 << 20))
-
-/* vd[0..max-shift] = vs2[shift..max] */
-#define VSLIDEDOWN_VI(vd, vs2, shift)               \
-    ASM_WORD((0b001111 << 26) | (0b1 << 25) |       \
-             (0b011 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (shift << 15) | (vs2 << 20))
-
-/* vd[i] = vs1[vs2[i] */
-#define VRGATHER_VV(vd, vs1, vs2)                   \
-    ASM_WORD((0b001100 << 26) | (0b1 << 25) |       \
-             (0b000 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (vs1 << 15) | (vs2 << 20))
-
-/* Reverse order of bytes in words of vector regsiter. */
-#define VREV8(vd, vs2) \
-    ASM_WORD((0b010010 << 26) | (0b1 << 25) | (0b01001<< 15) | \
-             (0b010 << 12) | (0b1010111 << 0) | \
-             (vs2 << 20) | (vd << 7))
 
 /* Vector register set if equal: vd[i] = vs1[i] == vs2[i] ? 1 : 0 */
 #define VMSEQ_VV(vd, vs1, vs2)                      \
@@ -168,60 +104,6 @@ static WC_INLINE void memcpy16(byte* out, const byte* in)
              (0b10000 << 15) |                      \
              (0b010 << 12) | (0b1010111 << 0) |     \
              (vs2 << 20) | (rd << 7))
-
-/* 64-bit width when loading. */
-#define WIDTH_64  0b111
-/* 32-bit width when loading. */
-#define WIDTH_32  0b110
-
-/* Load n Vector registers with width-bit components. */
-#define VLRE_V(vd, rs1, cnt, width)                             \
-    ASM_WORD(0b0000111 | (width << 12) | (0b00101000 << 20) |   \
-        (0 << 28) | ((cnt - 1) << 29) | (vd << 7) | (rs1 << 15))
-/* Load 1 Vector register with 64-bit components. */
-#define VL1RE64_V(vd, rs1)  VLRE_V(vd, rs1, 1, WIDTH_64)
-/* Load 1 Vector register with 32-bit components. */
-#define VL1RE32_V(vd, rs1)  VLRE_V(vd, rs1, 1, WIDTH_32)
-/* Load 2 Vector register with 32-bit components. */
-#define VL2RE32_V(vd, rs1)  VLRE_V(vd, rs1, 2, WIDTH_32)
-/* Load 4 Vector register with 32-bit components. */
-#define VL4RE32_V(vd, rs1)  VLRE_V(vd, rs1, 4, WIDTH_32)
-/* Load 8 Vector register with 32-bit components. */
-#define VL8RE32_V(vd, rs1)  VLRE_V(vd, rs1, 8, WIDTH_32)
-
-/* Store n Vector register. */
-#define VSR_V(vs3, rs1, cnt)                                    \
-    ASM_WORD(0b0100111 | (0b00101000 << 20) | (0 << 28) |       \
-        ((cnt-1) << 29) | (vs3 << 7) | (rs1 << 15))
-/* Store 1 Vector register. */
-#define VS1R_V(vs3, rs1)    VSR_V(vs3, rs1, 1)
-/* Store 2 Vector register. */
-#define VS2R_V(vs3, rs1)    VSR_V(vs3, rs1, 2)
-/* Store 4 Vector register. */
-#define VS4R_V(vs3, rs1)    VSR_V(vs3, rs1, 4)
-/* Store 8 Vector register. */
-#define VS8R_V(vs3, rs1)    VSR_V(vs3, rs1, 8)
-
-/* Move from vector register to vector registor. */
-#define VMV_V_V(vd, vs1)                                        \
-    ASM_WORD((0b1010111 << 0) | (0b000 << 12) | (0b1 << 25) |   \
-        (0b010111 << 26) | (vd << 7) | (vs1 << 15))
-/* Splat register to each component of the vector registor. */
-#define VMV_V_X(vd, rs1)                                        \
-    ASM_WORD((0b1010111 << 0) | (0b100 << 12) | (0b1 << 25) |   \
-        (0b010111 << 26) | (vd << 7) | (rs1 << 15))
-/* Move n vector registers to vector registers. */
-#define VMVR_V(vd, vs2, n)                                      \
-    ASM_WORD((0b1010111 << 0) | (0b011 << 12) | (0b1 << 25) |   \
-        (0b100111 << 26) | (vd << 7) | ((n-1) << 15) |          \
-        (vs2 << 20))
-
-/* Set the options of vector instructions. */
-#define VSETIVLI(rd, n, vma, vta, vsew, vlmul) \
-    ASM_WORD((0b11 << 30) | (0b111 << 12) | (0b1010111 << 0) |  \
-             (rd << 7) | (n << 15) | (vma << 27) |              \
-             (vta << 26) | (vsew << 23) | (vlmul << 20))
-
 
 #if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
 
