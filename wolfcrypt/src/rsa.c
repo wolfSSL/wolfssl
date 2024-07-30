@@ -2555,7 +2555,13 @@ static int RsaFunctionPrivate(mp_int* tmp, RsaKey* key, WC_RNG* rng)
         }
     }
 #else
-    if (ret == 0) {
+    if (ret == 0 && (mp_iszero(&key->p) || mp_iszero(&key->q) ||
+            mp_iszero(&key->dP) || mp_iszero(&key->dQ))) {
+        if (mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY) {
+            ret = MP_EXPTMOD_E;
+        }
+    }
+    else if (ret == 0) {
         mp_int* tmpa = tmp;
 #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
         mp_int* tmpb = rnd;
