@@ -832,7 +832,7 @@ typedef struct w64wrapper {
                 #include <stdio.h>
                 #define XSPRINTF sprintf
                 /* snprintf not available for C89, so remap using macro */
-                #define XSNPRINTF(f, len, ...) sprintf(f, ...)
+                #define XSNPRINTF(f, len, ...) sprintf(f, __VA_ARGS__)
             #else
                 #include <stdio.h>
                 #define XSNPRINTF snprintf
