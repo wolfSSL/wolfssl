@@ -344,7 +344,7 @@ void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
     {
         wolfSSL_CTX_keylog_cb_func logCb = NULL;
         int msSz;
-        int hasVal;
+        int invalidCount;
         int i;
         const char* label = SSC_CR;
         int labelSz = sizeof(SSC_CR);
@@ -355,32 +355,34 @@ void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
         int ret;
         (void)ctx;
 
-        if (ssl == NULL || secret == NULL || *secretSz == 0)
+        if (ssl == NULL || secret == NULL || secretSz == NULL || *secretSz == 0)
             return BAD_FUNC_ARG;
         if (ssl->arrays == NULL)
             return BAD_FUNC_ARG;
 
-        /* get the user-callback func from CTX*/
+        /* get the user-callback func from CTX */
         logCb = ssl->ctx->keyLogCb;
-        if (logCb == NULL)
-            return 0;
+        if (logCb == NULL) {
+            return 0; /* no logging callback */
+        }
 
-        /* need to make sure the given master-secret has a meaningful value */
+        /* make sure the given master-secret has a meaningful value */
         msSz   = *secretSz;
-        hasVal = 0;
+        invalidCount = 0;
         for (i = 0; i < msSz; i++) {
-            if (*((byte*)secret) != 0) {
-                hasVal = 1;
-                break;
+            if (((byte*)secret)[i] == 0) {
+                invalidCount++;
             }
         }
-        if (hasVal == 0)
-            return 0; /* master-secret looks invalid */
+        if (invalidCount == *secretSz) {
+            WOLFSSL_MSG("master-secret is not valid");
+            return 0; /* ignore error */
+        }
 
         /* build up a hex-decoded keylog string
-           "CLIENT_RANDOM <hex-encoded client random> <hex-encoded master-secret>"
-           note that each keylog string does not have CR/LF.
-        */
+         * "CLIENT_RANDOM <hex-encoded client rand> <hex-encoded master-secret>"
+         * note that each keylog string does not have CR/LF.
+         */
         buffSz  = labelSz + (RAN_LEN * 2) + 1 + ((*secretSz) * 2) + 1;
         log     = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
         if (log == NULL)
@@ -410,8 +412,9 @@ void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
                     ret = 0;
                 }
             }
-            else
-                ret = MEMORY_E;
+            else {
+                ret = BUFFER_E;
+            }
         }
         /* Zero out Base16 encoded secret and other data. */
         ForceZero(log, buffSz);

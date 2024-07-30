@@ -23353,7 +23353,7 @@ void wolfSSL_CTX_set_keylog_callback(WOLFSSL_CTX* ctx,
     wolfSSL_CTX_keylog_cb_func cb)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_keylog_callback");
-  /* stores the callback into WOLFSSL_CTX */
+    /* stores the callback into WOLFSSL_CTX */
     if (ctx != NULL) {
         ctx->keyLogCb = cb;
     }
@@ -23364,8 +23364,7 @@ wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
     WOLFSSL_ENTER("wolfSSL_CTX_get_keylog_callback");
     if (ctx != NULL)
         return ctx->keyLogCb;
-    else
-        return NULL;
+    return NULL;
 }
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 

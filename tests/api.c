@@ -49570,20 +49570,19 @@ static THREAD_RETURN WOLFSSL_THREAD server_task_ech(void* args)
 #endif /* HAVE_ECH && WOLFSSL_TLS13 */
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
-static void keyLog_callback(const WOLFSSL* ssl, const char* line )
+static void keyLog_callback(const WOLFSSL* ssl, const char* line)
 {
+    XFILE fp;
+    const byte lf = '\n';
 
     AssertNotNull(ssl);
     AssertNotNull(line);
 
-    XFILE fp;
-    const byte  lf = '\n';
     fp = XFOPEN("./MyKeyLog.txt", "a");
-    XFWRITE( line, 1, strlen(line),fp);
-    XFWRITE( (void*)&lf,1,1,fp);
+    XFWRITE(line, 1, XSTRLEN(line), fp);
+    XFWRITE((void*)&lf, 1, 1, fp);
     XFFLUSH(fp);
     XFCLOSE(fp);
-
 }
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 static int test_wolfSSL_CTX_set_keylog_callback(void)
@@ -49631,12 +49630,14 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)
-/* This test is intended for checking whether keylog callback is called
- * in client during TLS handshake between the client and a server.
- */
+    /* This test is intended for checking whether keylog callback is called
+     * in client during TLS handshake between the client and a server.
+     */
     test_ssl_cbf server_cbf;
     test_ssl_cbf client_cbf;
     XFILE fp = XBADFILE;
+    char  buff[500];
+    int   found = 0;
 
     XMEMSET(&server_cbf, 0, sizeof(test_ssl_cbf));
     XMEMSET(&client_cbf, 0, sizeof(test_ssl_cbf));
@@ -49653,16 +49654,12 @@ static int test_wolfSSL_Tls12_Key_Logging_test(void)
 
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
         &server_cbf, NULL), TEST_SUCCESS);
-    XSLEEP_MS(100);
 
     /* check if the keylog file exists */
-
-    char  buff[300] = {0};
-    int  found = 0;
-
     ExpectTrue((fp = XFOPEN("./MyKeyLog.txt", "r")) != XBADFILE);
     XFFLUSH(fp); /* Just to make sure any buffers get flushed */
 
+    XMEMSET(buff, 0, sizeof(buff));
     while (EXPECT_SUCCESS() && XFGETS(buff, (int)sizeof(buff), fp) != NULL) {
         if (0 == strncmp(buff,"CLIENT_RANDOM ", sizeof("CLIENT_RANDOM ")-1)) {
             found = 1;
