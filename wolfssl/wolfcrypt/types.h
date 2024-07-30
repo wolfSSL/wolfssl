@@ -919,6 +919,15 @@ typedef struct w64wrapper {
         WOLFSSL_API int wc_strncasecmp(const char *s1, const char *s2, size_t n);
     #endif
 
+    #if !defined(XSTRDUP) && !defined(USE_WOLF_STRDUP)
+        #define USE_WOLF_STRDUP
+    #endif
+    #ifdef USE_WOLF_STRDUP
+        WOLFSSL_LOCAL char* wc_strdup_ex(const char *src, int memType);
+        #define wc_strdup(src) wc_strdup_ex(src, DYNAMIC_TYPE_TMP_BUFFER)
+        #define XSTRDUP(src) wc_strdup(src)
+    #endif
+
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         #ifndef XGETENV
             #ifdef NO_GETENV

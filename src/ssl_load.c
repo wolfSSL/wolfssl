@@ -5095,9 +5095,9 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
 {
     int ret;
 #ifdef XGETENV
-    char* certDir;
-    char* certFile;
-    word32 flags;
+    char* certDir = NULL;
+    char* certFile = NULL;
+    word32 flags = 0;
 #elif !defined(WOLFSSL_SYS_CA_CERTS)
     (void)ctx;
 #endif
@@ -5105,8 +5105,8 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_set_default_verify_paths");
 
 #ifdef XGETENV
-    certDir = XGETENV("SSL_CERT_DIR");
-    certFile = XGETENV("SSL_CERT_FILE");
+    certDir = wc_strdup_ex(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
+    certFile = wc_strdup_ex(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
     flags = WOLFSSL_LOAD_FLAG_PEM_CA_ONLY;
 
     if ((certDir != NULL) || (certFile != NULL)) {
@@ -5152,6 +5152,10 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     #endif
     }
 
+#ifdef XGETENV
+    XFREE(certFile, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(certDir, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     WOLFSSL_LEAVE("wolfSSL_CTX_set_default_verify_paths", ret);
 
     return ret;
@@ -5267,6 +5271,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         pAlloc = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         gAlloc = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((pAlloc == NULL) || (gAlloc == NULL)) {
+            /* Memory will be freed below in the (ret != 1) block */
             ret = MEMORY_E;
         }
     }
