@@ -84316,6 +84316,60 @@ static int test_wolfSSL_SendUserCanceled(void)
 #endif
     return EXPECT_RESULT();
 }
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_OCSP) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    !defined(WOLFSSL_NO_TLS12)
+static int test_ocsp_callback_fails_cb(void* ctx, const char* url, int urlSz,
+                        byte* ocspReqBuf, int ocspReqSz, byte** ocspRespBuf)
+{
+    (void)ctx;
+    (void)url;
+    (void)urlSz;
+    (void)ocspReqBuf;
+    (void)ocspReqSz;
+    (void)ocspRespBuf;
+    return -1;
+}
+static int test_ocsp_callback_fails(void)
+{
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    EXPECT_DECLS;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_c), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx_s), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(ssl_c, WOLFSSL_CSR_OCSP,0), WOLFSSL_SUCCESS);
+    /* override URL to avoid exing from SendCertificateStatus because of no AuthInfo on the certificate */
+    ExpectIntEQ(wolfSSL_CTX_SetOCSP_OverrideURL(ctx_s, "http://dummy.test"), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSP(ctx_s, WOLFSSL_OCSP_NO_NONCE    | WOLFSSL_OCSP_URL_OVERRIDE), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_s, caCertFile, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_SetOCSP_Cb(ssl_s, test_ocsp_callback_fails_cb, NULL, NULL), WOLFSSL_SUCCESS);
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), OCSP_INVALID_STATUS);
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_ocsp_callback_fails(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_OCSP) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) */
+
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -85556,6 +85610,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_UseOCSPStapling),
     TEST_DECL(test_wolfSSL_UseOCSPStaplingV2),
     TEST_DECL(test_self_signed_stapling),
+    TEST_DECL(test_ocsp_callback_fails),
 
     /* Multicast */
     TEST_DECL(test_wolfSSL_mcast),
