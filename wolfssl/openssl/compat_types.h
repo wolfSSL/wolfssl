@@ -50,6 +50,8 @@ typedef struct WOLFSSL_EVP_PKEY_CTX   WOLFSSL_EVP_PKEY_CTX;
 typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
 typedef struct WOLFSSL_ASN1_PCTX      WOLFSSL_ASN1_PCTX;
 
+typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 typedef WOLFSSL_EVP_MD         EVP_MD;
 typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;

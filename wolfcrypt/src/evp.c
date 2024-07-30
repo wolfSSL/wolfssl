@@ -2312,7 +2312,7 @@ int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
 {
     (void)digest;
     /* nothing to do */
-    return 0;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -4116,7 +4116,7 @@ int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)
 {
     (void)cipher;
     /* nothing to do */
-    return 0;
+    return WOLFSSL_SUCCESS;
 }
 
 

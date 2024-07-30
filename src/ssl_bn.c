@@ -492,7 +492,7 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* data, int len,
     WOLFSSL_ENTER("wolfSSL_BN_bin2bn");
 
     /* Validate parameters. */
-    if ((data == NULL) || (len < 0)) {
+    if (len < 0) {
         ret = NULL;
     }
     /* Allocate a new big number when ret is NULL. */
