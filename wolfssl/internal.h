@@ -1989,6 +1989,15 @@ enum Misc {
     #define MAX_CHAIN_DEPTH 9
 #endif
 
+/* Max certificate extensions in TLS1.3 */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    /* Number of extensions to set each OCSP response */
+    #define MAX_CERT_EXTENSIONS MAX_CHAIN_DEPTH
+#else
+    /* Only empty extensions */
+    #define MAX_CERT_EXTENSIONS 1
+#endif
+
 /* max size of a certificate message payload */
 /* assumes MAX_CHAIN_DEPTH number of certificates at 2kb per certificate */
 #ifndef MAX_CERTIFICATE_SZ
@@ -3259,7 +3268,8 @@ WOLFSSL_LOCAL int TLSX_CSR_Write_ex(CertificateStatusRequest* csr, byte* output,
 WOLFSSL_LOCAL void* TLSX_CSR_GetRequest_ex(TLSX* extensions, int idx);
 
 WOLFSSL_LOCAL int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
-                             DecodedCert* cert, byte* certData, word32 length);
+                             DecodedCert* cert, byte* certData, word32 length,
+                             byte *ctxOwnsRequest);
 #endif
 
 /** Certificate Status Request v2 - RFC 6961 */

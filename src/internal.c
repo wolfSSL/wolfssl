@@ -23357,7 +23357,7 @@ int SendFinished(WOLFSSL* ssl)
  *
  * Returns 0 on success
  */
-static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
+int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
                              DecodedCert* cert, byte* certData, word32 length,
                              byte *ctxOwnsRequest)
 {

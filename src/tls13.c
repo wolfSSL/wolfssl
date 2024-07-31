@@ -8403,6 +8403,74 @@ static word32 NextCert(byte* data, word32 length, word32* idx)
     return len;
 }
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+/* Write certificate status request into certificate to buffer.
+ *
+ * ssl       SSL/TLS object.
+ * extSz     word32 array.
+ *           Length of the certificate status request data for the certificate.
+ * extSz_num number of the CSR written
+ * extIdx    The index number of certificate status request data
+ *           for the certificate.
+ * returns   Total number of bytes written.
+ */
+static word32 WriteCSRToBuffer(WOLFSSL* ssl, word16* extSz, word16 extSz_num)
+{
+    int    ret = 0;
+    TLSX* ext;
+    CertificateStatusRequest* csr;
+    word32 ex_offset = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN /* extesion type */
+                    + OPAQUE16_LEN /* extension length */;
+    word32 totalSz = 0;
+    word32 tmpSz;
+    word32 extIdx;
+    DerBuffer* der;
+
+    ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    csr = ext ? (CertificateStatusRequest*)ext->data : NULL;
+
+    if (csr) {
+        for (extIdx = 0; extIdx < (word16)(extSz_num); extIdx++) {
+            tmpSz = TLSX_CSR_GetSize_ex(csr, 0, extIdx + 1);
+
+            if (tmpSz > (OPAQUE8_LEN + OPAQUE24_LEN) &&
+                ssl->buffers.certExts[extIdx + 1] == NULL) {
+                /* csr extension is not zero */
+                extSz[extIdx] = tmpSz;
+
+                ret = AllocDer(&ssl->buffers.certExts[extIdx + 1],
+                                                    extSz[extIdx] + ex_offset,
+                                                    CERT_TYPE, ssl->heap);
+                if (ret < 0)
+                    return ret;
+                der = ssl->buffers.certExts[extIdx+1];
+
+                /* write extension type */
+                c16toa(ext->type, der->buffer
+                                + OPAQUE16_LEN);
+                /* writes extension data length. */
+                c16toa(extSz[extIdx], der->buffer
+                            + HELLO_EXT_TYPE_SZ + OPAQUE16_LEN);
+                /* write extension data */
+                extSz[extIdx] = (word16)TLSX_CSR_Write_ex(csr,
+                        der->buffer + ex_offset, 0,
+                        extIdx + 1);
+                /* add extension offset */
+                extSz[extIdx] += (word16)ex_offset;
+                /* extension length */
+                c16toa(extSz[extIdx] - OPAQUE16_LEN,
+                            der->buffer);
+            }
+            totalSz += extSz[extIdx];
+        }
+    }
+    else {
+            /* chain cert empty extension size */
+            totalSz += OPAQUE16_LEN * ssl->buffers.certChainCnt;
+    }
+    return totalSz;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
 /* Add certificate data and empty extension to output up to the fragment size.
  *
  * ssl     SSL/TLS object.
@@ -8459,14 +8527,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 {
     int    ret = 0;
     word32 certSz, certChainSz, headerSz, listSz, payloadSz;
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-    TLSX* ext;
-    CertificateStatusRequest* csr;
-    #define MAX_CERT_EXTENSIONS MAX_CHAIN_DEPTH
-#else
-    #define MAX_CERT_EXTENSIONS 1
-#endif
-    word16 extSz[1 + MAX_CERT_EXTENSIONS] = { OPAQUE16_LEN };
+    word16 extSz[1 + MAX_CERT_EXTENSIONS];
     word16 extIdx = 0;
     word32 length, maxFragment;
     word32 totalextSz = 0;
@@ -8562,51 +8623,12 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
         if (ssl->options.side == WOLFSSL_SERVER_END &&
             ssl->buffers.certChainCnt > 0) {
-            ext = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
-            csr = ext ? (CertificateStatusRequest*)ext->data : NULL;
+            /* write CSR to the buffer */
+            totalextSz += WriteCSRToBuffer(ssl, &extSz[1],
+                                                ssl->buffers.certChainCnt);
 
-            if (csr) {
-                word32 ex_offset;
-
-                ex_offset = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN /* extesion type */
-                    + OPAQUE16_LEN /* extension length */;
-                for (extIdx = 1; extIdx <(word16)
-                                    (1 + ssl->buffers.certChainCnt); extIdx++) {
-
-                    extSz[extIdx] = TLSX_CSR_GetSize_ex(csr, 0, extIdx);
-                    if (extSz[extIdx] > OPAQUE16_LEN &&
-                        ssl->buffers.certExts[extIdx] == NULL) {
-
-                        ret = AllocDer(&ssl->buffers.certExts[extIdx],
-                                                    extSz[extIdx] + ex_offset,
-                            CERT_TYPE, ssl->heap);
-                        if (ret < 0)
-                            return ret;
-
-                        /* write extension type */
-                        c16toa(ext->type, ssl->buffers.certExts[extIdx]->buffer
-                            + OPAQUE16_LEN);
-                        /* writes extension data length. */
-                        c16toa(extSz[extIdx], ssl->buffers.certExts[extIdx]->buffer
-                             + HELLO_EXT_TYPE_SZ + OPAQUE16_LEN);
-                        /* write extension data */
-                        extSz[extIdx] = (word16)TLSX_CSR_Write_ex(csr,
-                            ssl->buffers.certExts[extIdx]->buffer + ex_offset, 0,
-                            extIdx);
-                        /* add extension offset */
-                        extSz[extIdx] += (word16)ex_offset;
-                        /* extension length */
-                        c16toa(extSz[extIdx] - OPAQUE16_LEN,
-                                        ssl->buffers.certExts[extIdx]->buffer);
-                    }
-                    totalextSz += extSz[extIdx];
-                }
-            }
-            else {
-                /* chain cert empty extension size */
-                totalextSz += OPAQUE16_LEN * ssl->buffers.certChainCnt;
-            }
-        } else if (ssl->options.side == WOLFSSL_CLIENT_END &&
+        }
+        else if (ssl->options.side == WOLFSSL_CLIENT_END &&
                 ssl->buffers.certChainCnt > 0)
 #endif
         {
