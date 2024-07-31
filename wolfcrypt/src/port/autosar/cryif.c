@@ -28,13 +28,15 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_AUTOSAR
+#ifndef NO_WOLFSSL_AUTOSAR_CRYIF
+
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/port/autosar/Csm.h>
 #include <wolfssl/wolfcrypt/port/autosar/CryIf.h>
 #include <wolfssl/wolfcrypt/port/autosar/Crypto.h>
 
-#ifdef WOLFSSL_AUTOSAR
-#ifndef NO_WOLFSSL_AUTOSAR_CRYIF
 
 #include <wolfssl/wolfcrypt/logging.h>
 
