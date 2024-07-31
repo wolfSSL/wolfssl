@@ -1660,8 +1660,7 @@ typedef struct TrustedPeerCert TrustedPeerCert;
 typedef struct SignatureCtx SignatureCtx;
 typedef struct CertSignCtx  CertSignCtx;
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
 typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
                                      const unsigned char* der, word32 derSz);
 typedef int (*wc_UnknownExtCallbackEx)(const word16* oid, word32 oidSz,
@@ -1887,7 +1886,7 @@ struct DecodedCert {
     /* WOLFSSL_X509_NAME structures (used void* to avoid including ssl.h) */
     void* issuerName;
     void* subjectName;
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #ifdef WOLFSSL_SEP
     int     deviceTypeSz;
     byte*   deviceType;
@@ -1997,8 +1996,7 @@ struct DecodedCert {
 #ifdef HAVE_RPK
     byte isRPK : 1;   /* indicate the cert is Raw-Public-Key cert in RFC7250 */
 #endif
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
     wc_UnknownExtCallbackEx unknownExtCallbackEx;
     void *unknownExtCallbackExCtx;
@@ -2141,15 +2139,16 @@ typedef enum MimeStatus
 } MimeStatus;
 #endif /* HAVE_SMIME */
 
-
 WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
 WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
 WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
     int hashAlg);
 WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
 
-WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
+#ifdef ASN_BER_TO_DER
+WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
+#endif
 WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
     byte* out, word32* outSz, word32* idx);
 
@@ -2167,11 +2166,10 @@ WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert* cert);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert* cert, int type, int verify,
                                void* cm);
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
-WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+WOLFSSL_API int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
-WOLFSSL_ASN_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
+WOLFSSL_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                                wc_UnknownExtCallbackEx cb,
                                                void *ctx);
 #endif

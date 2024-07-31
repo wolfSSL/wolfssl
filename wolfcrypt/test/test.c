@@ -711,9 +711,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void);
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prime_test(void);
 #endif
-#if defined(ASN_BER_TO_DER) && \
-    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-     defined(OPENSSL_EXTRA_X509_SMALL))
+#ifdef ASN_BER_TO_DER
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t berder_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t logging_test(void);
@@ -53957,9 +53955,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prime_test(void)
 #endif /* WOLFSSL_PUBLIC_MP */
 
 
-#if defined(ASN_BER_TO_DER) && \
-    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-     defined(OPENSSL_EXTRA_X509_SMALL))
+#ifdef ASN_BER_TO_DER
 /* wc_BerToDer is only public facing in the case of test cert or opensslextra */
 typedef struct berDerTestData {
     const byte *in;
@@ -54075,7 +54071,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t berder_test(void)
 
     return 0;
 }
-#endif
+#endif /* ASN_BER_TO_DER */
 
 #ifdef DEBUG_WOLFSSL
 static THREAD_LS_T int log_cnt = 0;

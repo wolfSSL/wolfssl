@@ -3660,7 +3660,7 @@ int StreamOctetString(const byte* inBuf, word32 inBufSz, byte* out, word32* outS
 
 /* Convert BER to DER */
 
-/* Pull informtation from the ASN.1 BER encoded item header */
+/* Pull information from the ASN.1 BER encoded item header */
 static int GetBerHeader(const byte* data, word32* idx, word32 maxIdx,
                         byte* pTag, word32* pLen, int* indef)
 {
@@ -6226,7 +6226,8 @@ static int RsaPssHashOidToMgf1(word32 oid, int* mgf)
     return ret;
 }
 
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_ASN_CRYPT)
+
 /* Convert a hash OID to a fake signature OID.
  *
  * @param  [in]   oid     Hash OID.
@@ -21407,8 +21408,7 @@ enum {
 #define certExtASN_Length (sizeof(certExtASN) / sizeof(ASNItem))
 #endif
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
 int wc_SetUnknownExtCallback(DecodedCert* cert,
                              wc_UnknownExtCallback cb) {
     if (cert == NULL) {
@@ -21429,7 +21429,7 @@ int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
     cert->unknownExtCallbackExCtx = ctx;
     return 0;
 }
-#endif
+#endif /* WC_ASN_UNKNOWN_EXT_CB */
 
 /*
  *  Processing the Certificate Extensions. This does not modify the current
@@ -21583,7 +21583,7 @@ end:
             /* Decode the extension by type. */
             ret = DecodeExtensionType(input + idx, length, oid, critical, cert,
                                       &isUnknownExt);
-#if defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
             if (isUnknownExt && (cert->unknownExtCallback != NULL ||
                                  cert->unknownExtCallbackEx != NULL)) {
                 word16 decOid[MAX_OID_SZ];
@@ -21612,8 +21612,9 @@ end:
                               cert->unknownExtCallbackExCtx);
                 }
             }
-#endif
+#else
             (void)isUnknownExt;
+#endif
 
             /* Move index on to next extension. */
             idx += length;
@@ -34482,7 +34483,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
+#ifdef HAVE_ECC_KEY_EXPORT
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
 int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
@@ -34913,7 +34914,7 @@ int wc_EccKeyToPKCS8(ecc_key* key, byte* output,
     return eccToPKCS8(key, output, outLen, 1);
 }
 #endif /* HAVE_PKCS8 */
-#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
+#endif /* HAVE_ECC_KEY_EXPORT */
 #endif /* HAVE_ECC */
 
 #ifdef WC_ENABLE_ASYM_KEY_IMPORT
