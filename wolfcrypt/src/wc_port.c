@@ -1180,10 +1180,10 @@ int wc_strncasecmp(const char *s1, const char *s2, size_t n)
 #ifdef USE_WOLF_STRDUP
 char* wc_strdup_ex(const char *src, int memType) {
     char *ret = NULL;
-    int len = 0;
+    word32 len = 0;
 
     if (src) {
-        len = (int)XSTRLEN(src);
+        len = (word32)XSTRLEN(src);
         ret = (char*)XMALLOC(len, NULL, memType);
         if (ret != NULL) {
             XMEMCPY(ret, src, len);
