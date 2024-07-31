@@ -3957,7 +3957,7 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
     (void)siglen;
 
     WOLFSSL_ENTER("EVP_SignFinal");
-    if (ctx == NULL)
+    if (ctx == NULL || sigret == NULL || siglen == NULL || pkey == NULL)
         return WOLFSSL_FAILURE;
 
     ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
@@ -3995,9 +3995,23 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         return WOLFSSL_SUCCESS;
     }
 #endif
-    case EVP_PKEY_EC:
-        WOLFSSL_MSG("not implemented");
-        FALL_THROUGH;
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC: {
+        WOLFSSL_ECDSA_SIG *ecdsaSig = wolfSSL_ECDSA_do_sign(md, (int)mdsize,
+                pkey->ecc);
+        if (ecdsaSig == NULL)
+            return WOLFSSL_FAILURE;
+        ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, NULL);
+        if (ret <= 0 || ret > (int)*siglen)
+            return WOLFSSL_FAILURE;
+        ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sigret);
+        wolfSSL_ECDSA_SIG_free(ecdsaSig);
+        if (ret <= 0 || ret > (int)*siglen)
+            return WOLFSSL_FAILURE;
+        *siglen = (size_t)ret;
+        return WOLFSSL_SUCCESS;
+    }
+#endif
     default:
         break;
     }
@@ -4055,7 +4069,8 @@ int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_VerifyFinal");
     ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
-    if (ret <= 0) return ret;
+    if (ret <= 0)
+        return ret;
 
     (void)sig;
     (void)siglen;
@@ -4072,9 +4087,19 @@ int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
                 (unsigned int)siglen, pkey->rsa);
     }
 #endif /* NO_RSA */
-
+#ifdef HAVE_ECC
+    case EVP_PKEY_EC: {
+        WOLFSSL_ECDSA_SIG *ecdsaSig = wolfSSL_d2i_ECDSA_SIG(
+            NULL, (const unsigned char **)&sig, (long)siglen);
+        if (ecdsaSig == NULL)
+            return WOLFSSL_FAILURE;
+        ret = wolfSSL_ECDSA_do_verify(md, (int)mdsize, ecdsaSig,
+            pkey->ecc);
+        wolfSSL_ECDSA_SIG_free(ecdsaSig);
+        return ret;
+    }
+#endif
     case EVP_PKEY_DSA:
-    case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         FALL_THROUGH;
     default:
@@ -9001,7 +9026,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     /* Get size of DER buffer only */
     if (havePublic && !havePrivate) {
         ret = wc_DhPubKeyToDer(dhkey, NULL, &derSz);
-    } else if (havePrivate && !havePublic) {
+    } else if (havePrivate) {
         ret = wc_DhPrivKeyToDer(dhkey, NULL, &derSz);
     } else {
         ret = wc_DhParamsToDer(dhkey,NULL,&derSz);
@@ -9021,7 +9046,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     /* Fill DER buffer */
     if (havePublic && !havePrivate) {
         ret = wc_DhPubKeyToDer(dhkey, derBuf, &derSz);
-    } else if (havePrivate && !havePublic) {
+    } else if (havePrivate) {
         ret = wc_DhPrivKeyToDer(dhkey, derBuf, &derSz);
     } else {
         ret = wc_DhParamsToDer(dhkey,derBuf,&derSz);
@@ -9720,7 +9745,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKCS82PKEY(const WOLFSSL_PKCS8_PRIV_KEY_INFO* p8)
 /* this function just casts and returns pointer */
 WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_EVP_PKEY2PKCS8(const WOLFSSL_EVP_PKEY* pkey)
 {
-    return (WOLFSSL_PKCS8_PRIV_KEY_INFO*)pkey;
+    if (pkey == NULL || pkey->pkey.ptr == NULL) {
+        return NULL;
+    }
+
+    return wolfSSL_d2i_PrivateKey_EVP(NULL, (unsigned char**)&pkey->pkey.ptr,
+        pkey->pkey_sz);
 }
 #endif
 
@@ -9873,10 +9903,24 @@ static const struct alias {
             const char *alias;
 } digest_alias_tbl[] =
 {
-    {"MD4", "ssl3-md4"},
-    {"MD5", "ssl3-md5"},
-    {"SHA1", "ssl3-sha1"},
+    {"MD4", "md4"},
+    {"MD5", "md5"},
+    {"SHA1", "sha1"},
     {"SHA1", "SHA"},
+    {"SHA224", "sha224"},
+    {"SHA256", "sha256"},
+    {"SHA384", "sha384"},
+    {"SHA512", "sha512"},
+    {"SHA512_224", "sha512_224"},
+    {"SHA3_224", "sha3_224"},
+    {"SHA3_256", "sha3_256"},
+    {"SHA3_384", "sha3_384"},
+    {"SHA3_512", "sha3_512"},
+    {"SM3", "sm3"},
+    {"BLAKE2B512", "blake2b512"},
+    {"BLAKE2S256", "blake2s256"},
+    {"SHAKE128", "shake128"},
+    {"SHAKE256", "shake256"},
     { NULL, NULL}
 };
 
@@ -10205,7 +10249,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
      * @param n message digest type name
      * @return alias name, otherwise NULL
      */
-    static const char* hasAliasName(const char* n)
+    static const char* getMdAliasName(const char* n)
     {
 
         const char* aliasnm = NULL;
@@ -10236,23 +10280,15 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     {
         struct do_all_md *md = (struct do_all_md*)arg;
 
-        const struct s_ent *ent;
-
         /* sanity check */
         if (md == NULL || nm == NULL || md->fn == NULL ||
             nm->type != WOLFSSL_OBJ_NAME_TYPE_MD_METH)
             return;
 
-        /* loop all md */
-        for (ent = md_tbl; ent->name != NULL; ent++){
-            /* check if the md has alias */
-            if(hasAliasName(ent->name) != NULL) {
-                md->fn(NULL, ent->name, ent->name, md->arg);
-            }
-            else {
-                md->fn(ent->name, ent->name, NULL, md->arg);
-            }
-        }
+        if (nm->alias)
+            md->fn(NULL, nm->name, nm->data, md->arg);
+        else
+            md->fn((const EVP_MD *)nm->data, nm->name, NULL, md->arg);
     }
 
     /* call md_do_all function to do all md algorithm via a callback function
@@ -10287,11 +10323,30 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         if (!fn)
             return;
 
-        objnm.type = type;
-
         switch(type) {
             case WOLFSSL_OBJ_NAME_TYPE_MD_METH:
-                fn(&objnm, arg);
+                {
+                    const struct s_ent *ent;
+                    /* loop all md */
+                    for (ent = md_tbl; ent->name != NULL; ent++){
+                        XMEMSET(&objnm, 0, sizeof(objnm));
+
+                        /* populate objnm with info about the md */
+                        objnm.type = WOLFSSL_OBJ_NAME_TYPE_MD_METH;
+                        objnm.name = ent->name;
+                        objnm.data = (const char*)
+                                wolfSSL_EVP_get_digestbyname(ent->name);
+                        fn(&objnm, arg);
+
+                        /* check if the md has alias and also call fn with it */
+                        objnm.name = getMdAliasName(ent->name);
+                        if (objnm.name != NULL) {
+                            objnm.alias |= WOLFSSL_OBJ_NAME_ALIAS;
+                            objnm.data = ent->name;
+                            fn(&objnm, arg);
+                        }
+                    }
+                }
                 break;
             case WOLFSSL_OBJ_NAME_TYPE_CIPHER_METH:
             case WOLFSSL_OBJ_NAME_TYPE_PKEY_METH:

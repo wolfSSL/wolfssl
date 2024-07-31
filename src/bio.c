@@ -1704,13 +1704,13 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
             if (XFSEEK(bio->ptr.fh, 0, XSEEK_SET) != 0)
                 return WOLFSSL_BIO_ERROR;
             else
-                return 0;
+                return WOLFSSL_SUCCESS;
         #endif
 
         case WOLFSSL_BIO_BIO:
             bio->rdIdx = 0;
             bio->wrIdx = 0;
-            return 0;
+            return WOLFSSL_SUCCESS;
 
         case WOLFSSL_BIO_MEMORY:
             bio->rdIdx = 0;
@@ -1729,7 +1729,7 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
                     bio->mem_buf->max = 0;
                 }
             }
-            return 0;
+            return WOLFSSL_SUCCESS;
 
 #ifndef WOLFCRYPT_ONLY
         case WOLFSSL_BIO_MD:
@@ -1740,7 +1740,7 @@ int wolfSSL_BIO_reset(WOLFSSL_BIO *bio)
                 wolfSSL_EVP_MD_CTX_init(bio->ptr.md_ctx);
                 wolfSSL_EVP_DigestInit(bio->ptr.md_ctx, md);
             }
-            return 0;
+            return WOLFSSL_SUCCESS;
 #endif /* WOLFCRYPT_ONLY */
 
         default:

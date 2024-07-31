@@ -48,6 +48,14 @@ typedef struct OcspEntry WOLFSSL_OCSP_SINGLERESP;
 typedef struct OcspRequest WOLFSSL_OCSP_ONEREQ;
 
 typedef struct OcspRequest WOLFSSL_OCSP_REQUEST;
+
+typedef struct {
+    WOLFSSL_BIO *bio;
+    WOLFSSL_BIO *resp;
+    byte* buf;
+    int bufLen;
+    int state;
+} WOLFSSL_OCSP_REQ_CTX;
 #endif
 
 WOLFSSL_LOCAL int  InitOCSP(WOLFSSL_OCSP* ocsp, WOLFSSL_CERT_MANAGER* cm);
@@ -132,6 +140,20 @@ WOLFSSL_API int wolfSSL_OCSP_resp_count(WOLFSSL_OCSP_BASICRESP *bs);
 WOLFSSL_API WOLFSSL_OCSP_SINGLERESP* wolfSSL_OCSP_resp_get0(
     WOLFSSL_OCSP_BASICRESP *bs, int idx);
 
+WOLFSSL_API WOLFSSL_OCSP_REQ_CTX* wolfSSL_OCSP_REQ_CTX_new(WOLFSSL_BIO *bio,
+        int maxline);
+WOLFSSL_API void wolfSSL_OCSP_REQ_CTX_free(WOLFSSL_OCSP_REQ_CTX *ctx);
+WOLFSSL_API WOLFSSL_OCSP_REQ_CTX *wolfSSL_OCSP_sendreq_new(WOLFSSL_BIO *bio,
+        const char *path, OcspRequest *req, int maxline);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_set1_req(WOLFSSL_OCSP_REQ_CTX *ctx,
+        OcspRequest *req);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_add1_header(WOLFSSL_OCSP_REQ_CTX *ctx,
+                             const char *name, const char *value);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_http(WOLFSSL_OCSP_REQ_CTX *ctx,
+        const char *op, const char *path);
+WOLFSSL_API int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx);
+WOLFSSL_API int wolfSSL_OCSP_sendreq_nbio(OcspResponse **presp,
+        WOLFSSL_OCSP_REQ_CTX *rctx);
 #endif
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API int wolfSSL_OCSP_REQUEST_add_ext(OcspRequest* req,
