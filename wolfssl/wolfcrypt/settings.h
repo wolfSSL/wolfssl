@@ -3023,13 +3023,15 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* ASN Unknown Extension Callback support */
-#if defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_DECODING)
+#if defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_DECODING) && \
+    defined(WOLFSSL_ASN_TEMPLATE)
     #undef  WC_ASN_UNKNOWN_EXT_CB
     #define WC_ASN_UNKNOWN_EXT_CB
-#endif
-
-#if defined(WC_ASN_UNKNOWN_EXT_CB) && !defined(WOLFSSL_ASN_TEMPLATE)
-    #error ASN unknown extension callback is only supported with ASN template
+#else
+    /* if user supplied build option and not using ASN template, raise error */
+    #if defined(WC_ASN_UNKNOWN_EXT_CB) && !defined(WOLFSSL_ASN_TEMPLATE)
+        #error ASN unknown extension callback is only supported with ASN template
+    #endif
 #endif
 
 
