@@ -2572,6 +2572,7 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
         }
 
         if (key->type == RSA_PRIVATE) {
+    #ifndef WOLFSSL_RSA_PUBLIC_ONLY
             if (ret == 1) {
                 /* Copy private exponent. */
                 ret = wolfssl_bn_set_value(&rsa->d, &key->d);
@@ -2593,7 +2594,8 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
                     WOLFSSL_ERROR_MSG("rsa q error");
                 }
             }
-        #ifndef RSA_LOW_MEM
+        #if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+            !defined(RSA_LOW_MEM)
             if (ret == 1) {
                 /* Copy d mod p-1. */
                 ret = wolfssl_bn_set_value(&rsa->dmp1, &key->dP);
@@ -2615,7 +2617,11 @@ int SetRsaExternal(WOLFSSL_RSA* rsa)
                     WOLFSSL_ERROR_MSG("rsa u error");
                 }
             }
-        #endif /* !RSA_LOW_MEM */
+        #endif
+    #else
+            WOLFSSL_ERROR_MSG("rsa private key not compiled in ");
+            ret = 0;
+    #endif /* !WOLFSSL_RSA_PUBLIC_ONLY */
         }
     }
     if (ret == 1) {
@@ -2670,6 +2676,7 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
         /* Enough numbers for public key */
         key->type = RSA_PUBLIC;
 
+#ifndef WOLFSSL_RSA_PUBLIC_ONLY
         /* Copy down private exponent if available. */
         if ((ret == 1) && (rsa->d != NULL)) {
             if (wolfssl_bn_get_value(rsa->d, &key->d) != 1) {
@@ -2696,7 +2703,7 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
             ret = -1;
         }
 
-    #ifndef RSA_LOW_MEM
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
         /* Copy down d mod p-1 if available. */
         if ((ret == 1) && (rsa->dmp1 != NULL) &&
                 (wolfssl_bn_get_value(rsa->dmp1, &key->dP) != 1)) {
@@ -2717,7 +2724,8 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
             WOLFSSL_ERROR_MSG("rsa u key error");
             ret = -1;
         }
-    #endif /* !RSA_LOW_MEM */
+#endif
+#endif
 
         if (ret == 1) {
             /* All available numbers have been set down. */
