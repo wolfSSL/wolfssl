@@ -3260,6 +3260,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     word32 pos = 0;
     DerBuffer* chain;
     int i = 0;
+    byte ctxOwnsRequest = 0;
 #endif
 #endif
 
@@ -3268,7 +3269,6 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     OcspRequest* request;
     TLSX* extension;
     CertificateStatusRequest* csr;
-    byte ctxOwnsRequest = 0;
 #endif
 
 #if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13) \
