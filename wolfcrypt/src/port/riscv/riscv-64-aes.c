@@ -75,18 +75,6 @@ static WC_INLINE void memcpy16(byte* out, const byte* in)
 #endif
 
 
-/* vd = vs2 << uimm */
-#define VSLL_VI(vd, vs2, uimm)                      \
-    ASM_WORD((0b100101 << 26) | (0b1 << 25) |       \
-             (0b011 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (uimm << 15) | (vs2 << 20))
-/* vd = vs2 >> uimm */
-#define VSRL_VI(vd, vs2, uimm)                      \
-    ASM_WORD((0b101000 << 26) | (0b1 << 25) |       \
-             (0b011 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (uimm << 15) | (vs2 << 20))
-
-
 /* Vector register set if equal: vd[i] = vs1[i] == vs2[i] ? 1 : 0 */
 #define VMSEQ_VV(vd, vs1, vs2)                      \
     ASM_WORD((0b011000 << 26) | (0b1 << 25) |       \

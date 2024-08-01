@@ -971,17 +971,21 @@ if BUILD_CHACHA
 if BUILD_ARMASM_NEON
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-chacha.c
 else
+if BUILD_RISCV_ASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-chacha.c
+else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha.c
+endif !BUILD_RISCV_ASM
 if !BUILD_X86_ASM
 if BUILD_INTELASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha_asm.S
-endif
-endif
-endif
+endif BUILD_INTELASM
+endif !BUILD_X86_ASM
+endif !BUILD_ARMASM_NEON
 if BUILD_POLY1305
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/chacha20_poly1305.c
-endif
-endif
+endif BUILD_POLY1305
+endif BUILD_CHACHA
 
 if !BUILD_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/misc.c

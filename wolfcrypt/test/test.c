@@ -7789,10 +7789,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha_test(void)
             return WC_TEST_RET_ENC_EC(ret);
 
         if (XMEMCMP(plain_big, input_big, CHACHA_BIG_TEST_SIZE))
-            return WC_TEST_RET_ENC_NC;
+            return WC_TEST_RET_ENC_I(i);
 
         if (XMEMCMP(cipher_big, cipher_big_result, CHACHA_BIG_TEST_SIZE))
-            return WC_TEST_RET_ENC_NC;
+            return WC_TEST_RET_ENC_I(i);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
