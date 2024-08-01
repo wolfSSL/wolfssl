@@ -14243,6 +14243,7 @@ void bench_sphincsKeySign(byte level, byte optim)
 
     double current_time(int reset)
     {
+        (void)reset;
         return wc_MXC_RTC_Time();
     }
 

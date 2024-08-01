@@ -42,13 +42,15 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if defined(USE_FAST_MATH)
-    #error  MXC Not Compatible with Fast Math
+#if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH)
+    #error  MXC Not Compatible with Fast Math or Heap Math
     #include <wolfssl/wolfcrypt/tfm.h>
     #define MXC_WORD_SIZE               DIGIT_BIT
 #elif defined(WOLFSSL_SP_MATH_ALL)
     #include <wolfssl/wolfcrypt/sp_int.h>
     #define MXC_WORD_SIZE               SP_WORD_SIZE
+#else
+    #error MXC HW port needs #define WOLFSSL_SP_MATH_ALL
 #endif
 
 #define MXC_MAA_MAX_SIZE (2048 / MXC_WORD_SIZE)
@@ -79,37 +81,45 @@ int wc_MXC_TPU_Shutdown(void)
 }
 
 
-/* Convert Error Codes Correctly */
-/* TODO: Convert to correct wolfCrypt Codes */
-/* TODO: Add wolfssl Message Statements to report HW issue on bad return */
+/* Convert Error Codes Correctly and Report HW error when */
+/* using #define MAX3266X_VERBOSE */
 int wc_MXC_error(int *ret)
 {
     switch(*ret){
         case E_SUCCESS:
             return 0;
 
-        case E_NULL_PTR:
-            return E_NULL_PTR;
-
         case E_INVALID: /* Process Failed */
-            return E_INVALID;
+            MAX3266X_MSG("HW Reported: E_INVALID Error");
+            *ret = WC_HW_E;
+            break;
+
+        case E_NULL_PTR:
+            MAX3266X_MSG("HW Reported: E_NULL_PTR Error");
+            *ret = BAD_FUNC_ARG;
+            break;
 
         case E_BAD_PARAM:
-            return BAD_FUNC_ARG;
+            MAX3266X_MSG("HW Reported: E_BAD_PARAM Error");
+            *ret = BAD_FUNC_ARG;
+            break;
 
         case E_BAD_STATE:
-            return E_BAD_STATE;
+            MAX3266X_MSG("HW Reported: E_BAD_STATE Error");
+            *ret = WC_HW_E;
+            break;
 
         default:
+            MAX3266X_MSG("HW Reported an Unknown Error");
             *ret = WC_HW_E; /* If something else return HW Error */
-            return *ret;
+            break;
     }
+    return *ret;
 }
 
 
 #if defined(MAX3266X_RNG)
 
-/* Use this RNG_FAILURE_E for RNG Errors*/
 int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
 {
     if (MXC_TPU_Init(MXC_SYS_PERIPH_CLOCK_TRNG) != 0) {
@@ -121,7 +131,7 @@ int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
     MAX3266X_MSG("TRNG Hardware Used");
     return 0;
 }
-#endif /* MAX3266x_RNG */
+#endif /* MAX3266X_RNG */
 
 #if defined(MAX3266X_AES)
 int wc_MXC_TPU_AesEncrypt(const unsigned char* in, const unsigned char* iv,
@@ -132,46 +142,46 @@ int wc_MXC_TPU_AesEncrypt(const unsigned char* in, const unsigned char* iv,
     int status;
     status = wolfSSL_CryptHwMutexLock();
     MAX3266X_MSG("AES HW Encryption");
-        if (status != 0) {
-            MAX3266X_MSG("Hardware Mutex Failure");
-            return status;
-        }
-        switch (keySize) {
-            case MXC_AES_KEY_128_LEN:
-                MXC_TPU_Cipher_Config(mode, MXC_TPU_CIPHER_AES128);
-                status = MXC_TPU_Cipher_AES_Encrypt((const char*)in,
-                            (const char*)iv, (const char*)enc_key,
-                            MXC_TPU_CIPHER_AES128, mode, data_size, (char*)out);
-                MAX3266X_MSG("AES HW Acceleration Used: 128 Bit");
-                break;
-            case MXC_AES_KEY_192_LEN:
-                MXC_TPU_Cipher_Config(mode, MXC_TPU_CIPHER_AES192);
-                status = MXC_TPU_Cipher_AES_Encrypt((const char*)in,
-                            (const char*)iv, (const char*)enc_key,
-                            MXC_TPU_CIPHER_AES192, mode, data_size, (char*)out);
-                MAX3266X_MSG("AES HW Acceleration Used: 192 Bit");
-                break;
-            case MXC_AES_KEY_256_LEN:
-                MXC_TPU_Cipher_Config(mode, MXC_TPU_CIPHER_AES256);
-                status = MXC_TPU_Cipher_AES_Encrypt((const char*)in,
-                            (const char*)iv, (const char*)enc_key,
-                            MXC_TPU_CIPHER_AES256, mode, data_size, (char*)out);
-                MAX3266X_MSG("AES HW Acceleration Used: 256 Bit");
-                break;
-            default:
-                MAX3266X_MSG("AES HW ERROR: Length Not Supported");
-                wolfSSL_CryptHwMutexUnLock();
-                return WC_HW_E;
+    if (status != 0) {
+        MAX3266X_MSG("Hardware Mutex Failure");
+        return status;
+    }
+    switch (keySize) {
+        case MXC_AES_KEY_128_LEN:
+            MXC_TPU_Cipher_Config(mode, MXC_TPU_CIPHER_AES128);
+            status = MXC_TPU_Cipher_AES_Encrypt((const char*)in,
+                        (const char*)iv, (const char*)enc_key,
+                        MXC_TPU_CIPHER_AES128, mode, data_size, (char*)out);
+            MAX3266X_MSG("AES HW Acceleration Used: 128 Bit");
             break;
+        case MXC_AES_KEY_192_LEN:
+            MXC_TPU_Cipher_Config(mode, MXC_TPU_CIPHER_AES192);
+            status = MXC_TPU_Cipher_AES_Encrypt((const char*)in,
+                        (const char*)iv, (const char*)enc_key,
+                        MXC_TPU_CIPHER_AES192, mode, data_size, (char*)out);
+            MAX3266X_MSG("AES HW Acceleration Used: 192 Bit");
+            break;
+        case MXC_AES_KEY_256_LEN:
+            MXC_TPU_Cipher_Config(mode, MXC_TPU_CIPHER_AES256);
+            status = MXC_TPU_Cipher_AES_Encrypt((const char*)in,
+                        (const char*)iv, (const char*)enc_key,
+                        MXC_TPU_CIPHER_AES256, mode, data_size, (char*)out);
+            MAX3266X_MSG("AES HW Acceleration Used: 256 Bit");
+            break;
+        default:
+            MAX3266X_MSG("AES HW ERROR: Length Not Supported");
+            wolfSSL_CryptHwMutexUnLock();
+            return WC_HW_E;
+        break;
     }
     wolfSSL_CryptHwMutexUnLock();
     if (status != 0) {
-        MAX3266X_MSG("AES HW Acceleration Error Occured");
+        MAX3266X_MSG("AES HW Acceleration Error Occurred");
         return WC_HW_E;
     }
     return 0;
 }
-
+#ifdef HAVE_AES_DECRYPT
 int wc_MXC_TPU_AesDecrypt(const unsigned char* in, const unsigned char* iv,
                             const unsigned char* dec_key,
                             MXC_TPU_MODE_TYPE mode, unsigned int data_size,
@@ -212,13 +222,13 @@ int wc_MXC_TPU_AesDecrypt(const unsigned char* in, const unsigned char* iv,
     }
     wolfSSL_CryptHwMutexUnLock();
     if (status != 0) {
-        MAX3266X_MSG("AES HW Acceleration Error Occured");
+        MAX3266X_MSG("AES HW Acceleration Error Occurred");
         return WC_HW_E;
     }
     return 0;
 }
-
-#endif
+#endif /* HAVE_AES_DECRYPT */
+#endif /* MAX3266X_AES */
 
 #if defined(MAX3266X_SHA)
 
@@ -296,11 +306,11 @@ int wc_MXC_TPU_SHA_GetHash(wc_MXC_Sha *hash, unsigned char* digest,
         MAX3266X_MSG("SHA HW Acceleration Used");
         wolfSSL_CryptHwMutexUnLock();
         if (wc_MXC_error(&status) != 0) {
-            MAX3266X_MSG("SHA HW Error Occured");
+            MAX3266X_MSG("SHA HW Error Occurred");
             return status;
         }
     }
-    /* Error Occured */
+    /* Error Occurred */
     return status;
 }
 
@@ -345,11 +355,21 @@ int wc_MXC_TPU_SHA_GetDigest(wc_MXC_Sha *hash, unsigned char* digest,
 {
     if (hash->msg == 0 && hash->size == 0 && digest != NULL) {
         switch(algo) {
+            #ifndef NO_SHA
+            case MXC_TPU_HASH_SHA1:
+                XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA1, WC_SHA_DIGEST_SIZE);
+                break;
+            #endif /* NO_SHA */
             #ifndef NO_SHA256
             case MXC_TPU_HASH_SHA256:
                 XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA256, WC_SHA256_DIGEST_SIZE);
                 break;
-            #endif
+            #endif /* NO_SHA256 */
+            #ifdef WOLFSSL_SHA224
+            case MXC_TPU_HASH_SHA224:
+                XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA224, WC_SHA224_DIGEST_SIZE);
+                break;
+            #endif /* WOLFSSL_SHA224 */
             default:
                 return BAD_FUNC_ARG;
         }
@@ -357,6 +377,97 @@ int wc_MXC_TPU_SHA_GetDigest(wc_MXC_Sha *hash, unsigned char* digest,
     }
     return 0; /* False */
 }
+
+#if !defined(NO_SHA)
+
+WOLFSSL_API int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
+{
+    if (sha == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)heap;
+    (void)devId;
+    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha);
+}
+
+WOLFSSL_API int wc_ShaUpdate(wc_Sha* sha, const unsigned char* data,
+                                        unsigned int len)
+{
+    return wc_MXC_TPU_SHA_Update(sha, data, len);
+}
+
+WOLFSSL_API int wc_ShaFinal(wc_Sha* sha, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha, hash,
+                                        MXC_TPU_HASH_SHA1);
+}
+
+WOLFSSL_API int wc_ShaGetHash(wc_Sha* sha, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha, hash,
+                                        MXC_TPU_HASH_SHA1);
+}
+
+WOLFSSL_API int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
+{
+    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+}
+
+WOLFSSL_API void wc_ShaFree(wc_Sha* sha)
+{
+    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha);
+    return;
+}
+
+#endif /* NO_SHA */
+
+#if defined(WOLFSSL_SHA224)
+
+WOLFSSL_API int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
+{
+    if (sha224 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)heap;
+    (void)devId;
+    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha224);
+}
+
+WOLFSSL_API int wc_InitSha224(wc_Sha224* sha224)
+{
+    return wc_InitSha224_ex(sha224, NULL, INVALID_DEVID);
+}
+
+WOLFSSL_API int wc_Sha224Update(wc_Sha224* sha224, const unsigned char* data,
+                                        unsigned int len)
+{
+    return wc_MXC_TPU_SHA_Update(sha224, data, len);
+}
+
+WOLFSSL_API int wc_Sha224Final(wc_Sha224* sha224, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha224, hash,
+                                        MXC_TPU_HASH_SHA224);
+}
+
+WOLFSSL_API int wc_Sha224GetHash(wc_Sha224* sha224, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha224, hash,
+                                        MXC_TPU_HASH_SHA224);
+}
+
+WOLFSSL_API int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst)
+{
+    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+}
+
+WOLFSSL_API void wc_Sha224Free(wc_Sha224* sha224)
+{
+    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha224);
+    return;
+}
+
+#endif /* WOLFSSL_SHA224 */
 
 #if !defined(NO_SHA256)
 
@@ -404,13 +515,13 @@ WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256)
     return;
 }
 
-#endif
+#endif /* NO_SHA256 */
 
 #endif /* MAX3266X_SHA */
 
 #if defined(MAX3266X_MATH)
 
-/* Sets mutex and initializes hardware according to need operation size */
+/* Sets mutex and initializes hardware according to needed operation size */
 int wc_MXC_MAA_init(unsigned int len)
 {
     int status;
@@ -511,17 +622,20 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
     /* Create an array to compare values to to check edge for error edge case */
     zero_tmp = (mp_digit*)XMALLOC(multiplier->size*sizeof(mp_digit), NULL,
                                     DYNAMIC_TYPE_TMP_BUFFER);
+    if(zero_tmp == NULL){
+        MAX3266X_MSG("NULL pointer found after XMALLOC call");
+        return WC_HW_E;
+    }
     XMEMSET(zero_tmp, 0x00, multiplier->size*sizeof(mp_digit));
 
     /* Check for invalid arguments befor padding */
-    switch((char)clc){
+    switch ((char)clc) {
         case WC_MXC_TPU_MAA_EXP:
             /* Cannot be 0 for a^e mod m operation */
             if (XMEMCMP(zero_tmp, exp, (exp->used*sizeof(mp_digit))) == 0) {
                 XFREE(zero_tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 MAX3266X_MSG("Cannot use Value 0 for Exp");
                 return BAD_FUNC_ARG;
-                break;
             }
 
             /* Padd out rest of data if used != length to ensure no */
@@ -545,13 +659,12 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
                 XFREE(zero_tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 MAX3266X_MSG("Cannot use Value 0 for Exp");
                 return BAD_FUNC_ARG;
-                break;
             }
 
-            /* Padd out rest of data if used != length to ensure no */
+            /* Pad out rest of data if used != length to ensure no */
             /* garbage is used in calculation */
             if ((multiplier->dp != NULL) && (multiplier->used < length)) {
-                MAX3266X_MSG("Zero Padding Multipler Buffer");
+                MAX3266X_MSG("Zero Padding Multiplier Buffer");
                 XMEMSET(multiplier->dp + multiplier->used, 0x00,
                     sizeof(int) * (length - multiplier->used));
             }
@@ -567,6 +680,8 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
             }
             break;
         default:
+            /* Free the zero array used to check values */
+            XFREE(zero_tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return BAD_FUNC_ARG; /* Invalid clc given */
     }
     /* Free the zero array used to check values */
@@ -586,7 +701,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
 
 
     /* General Control Over MAA Hardware to handle all needed Cases */
-int wc_MXC_MAA_math(mp_int* multipler, mp_int* multiplicand, mp_int* exp,
+int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
                                 mp_int* mod, mp_int* result,
                                 MXC_TPU_MAA_TYPE clc)
 {
@@ -595,7 +710,7 @@ int wc_MXC_MAA_math(mp_int* multipler, mp_int* multiplicand, mp_int* exp,
     mp_int* result_tmp_ptr;
     mp_int result_tmp;
     /* Check if result shares struct pointer */
-    if ((multipler == result) || (multiplicand == result) || (exp == result) ||
+    if ((multiplier == result) || (multiplicand == result) || (exp == result) ||
             (mod == result)) {
             MAX3266X_MSG("Creating Temp Result Buffer for Hardware");
             result_tmp_ptr = &result_tmp; /* Assign point to temp struct */
@@ -609,16 +724,16 @@ int wc_MXC_MAA_math(mp_int* multipler, mp_int* multiplicand, mp_int* exp,
     }
 
     if (clc == WC_MXC_TPU_MAA_EXP) {
-        length = wc_MXC_MAA_Largest(5, multipler->used, multiplicand->used,
+        length = wc_MXC_MAA_Largest(5, multiplier->used, multiplicand->used,
                                            exp->used, mod->used, result->used);
     }
     else {
-        length = wc_MXC_MAA_Largest(4, multipler->used, multiplicand->used,
+        length = wc_MXC_MAA_Largest(4, multiplier->used, multiplicand->used,
                                         mod->used, result->used);
     }
 
     /* Zero Pad everything if needed */
-    ret = wc_MXC_MAA_zeroPad(multipler, multiplicand, exp, mod, result_tmp_ptr,
+    ret = wc_MXC_MAA_zeroPad(multiplier, multiplicand, exp, mod, result_tmp_ptr,
                                 clc, length);
     if (ret != 0) {
         MAX3266X_MSG("Zero Padding Failed");
@@ -635,7 +750,7 @@ int wc_MXC_MAA_math(mp_int* multipler, mp_int* multiplicand, mp_int* exp,
 
     /* Start Math And Cast to expect types for SDK */
     MAX3266X_MSG("Starting Computation in MAA");
-    ret = MXC_TPU_MAA_Compute(clc, (char *)(multipler->dp),
+    ret = MXC_TPU_MAA_Compute(clc, (char *)(multiplier->dp),
                                     (char *)(multiplicand->dp),
                                     (char *)(exp->dp), (char *)(mod->dp),
                                     (int *)(result_tmp_ptr->dp),
@@ -655,7 +770,7 @@ int wc_MXC_MAA_math(mp_int* multipler, mp_int* multiplicand, mp_int* exp,
     }
 
     /* Copy tmp result if needed */
-    if ((multipler == result) || (multiplicand == result) || (exp == result) ||
+    if ((multiplier == result) || (multiplicand == result) || (exp == result) ||
             (mod == result)) {
         mp_copy(result_tmp_ptr, result);
         ForceZero(result_tmp_ptr, sizeof(result_tmp_ptr)); /* force zero */
@@ -679,51 +794,51 @@ int wc_MXC_MAA_expmod(mp_int* base, mp_int* exp, mp_int* mod,
                             WC_MXC_TPU_MAA_EXP);
 }
 
-int wc_MXC_MAA_sqrmod(mp_int* multipler, mp_int* mod, mp_int* result)
+int wc_MXC_MAA_sqrmod(mp_int* multiplier, mp_int* mod, mp_int* result)
 {
     mp_int multiplicand;
     XMEMSET(&multiplicand, 0, sizeof(mp_int));
     multiplicand.dp[0] = 0x01;
     multiplicand.used = mod->used;
     MAX3266X_MSG("Preparing sqrmod MAA HW Call");
-    return wc_MXC_MAA_math(multipler, &multiplicand, NULL, mod, result,
+    return wc_MXC_MAA_math(multiplier, &multiplicand, NULL, mod, result,
                             WC_MXC_TPU_MAA_SQ);
 }
 
-int wc_MXC_MAA_mulmod(mp_int* multipler, mp_int* multiplicand, mp_int* mod,
+int wc_MXC_MAA_mulmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
                             mp_int* result)
 {
     MAX3266X_MSG("Preparing mulmod MAA HW Call");
-    return wc_MXC_MAA_math(multipler, multiplicand, NULL, mod, result,
+    return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
                             WC_MXC_TPU_MAA_MUL);
 }
 
-int wc_MXC_MAA_sqrmulmod(mp_int* multipler, mp_int* multiplicand,
+int wc_MXC_MAA_sqrmulmod(mp_int* multiplier, mp_int* multiplicand,
                             mp_int* exp, mp_int* mod, mp_int* result)
 {
     MAX3266X_MSG("Preparing sqrmulmod MAA HW Call");
-    return wc_MXC_MAA_math(multipler, multiplicand, NULL, mod, result,
+    return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
                             WC_MXC_TPU_MAA_SQMUL);
 }
 
-int wc_MXC_MAA_addmod(mp_int* multipler, mp_int* multiplicand, mp_int* mod,
+int wc_MXC_MAA_addmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
                             mp_int* result)
 {
     MAX3266X_MSG("Preparing addmod MAA HW Call");
-    return wc_MXC_MAA_math(multipler, multiplicand, NULL, mod, result,
+    return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
                             WC_MXC_TPU_MAA_ADD);
 }
 
-int wc_MXC_MAA_submod(mp_int* multipler, mp_int* multiplicand, mp_int* mod,
+int wc_MXC_MAA_submod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
                             mp_int* result)
 {
     MAX3266X_MSG("Preparing submod MAA HW Call");
-    if ((mod->used < multipler->used) || (mod->used < multiplicand->used)) {
+    if ((mod->used < multiplier->used) || (mod->used < multiplicand->used)) {
             MAX3266X_MSG("HW Limitation: Defaulting back to software");
-            return mxc_submod(multipler, multiplicand, mod, result);
+            return mxc_submod(multiplier, multiplicand, mod, result);
     }
     else {
-        return wc_MXC_MAA_math(multipler, multiplicand, NULL, mod, result,
+        return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
                              WC_MXC_TPU_MAA_SUB);
     }
 }
@@ -807,7 +922,7 @@ int hw_exptmod(mp_int* base, mp_int* exp, mp_int* mod, mp_int* result)
 }
 
 
-/* No mod function avaliable with hardware, however preform a submod    */
+/* No mod function available with hardware, however preform a submod    */
 /* (a - 0) mod m will essentially preform the same operation as a mod m */
 int hw_mod(mp_int* a, mp_int* mod, mp_int* result)
 {
@@ -829,8 +944,7 @@ int hw_sqrmod(mp_int* base, mp_int* mod, mp_int* result)
     return wc_MXC_MAA_sqrmod(base, mod, result);
 }
 
-#endif
-
+#endif /* MAX3266X_MATH */
 
 #if defined(MAX3266X_RTC)
 /* Initialize the RTC */
@@ -880,6 +994,7 @@ void wc_MXC_RTC_GetRTCValue(int32_t (*rtcGetFunction)(uint32_t*),
 }
 
 /* Function to provide the current time as a double */
+/* Returns seconds and millisecond */
 double wc_MXC_RTC_Time(void)
 {
     int32_t err;
@@ -897,10 +1012,11 @@ double wc_MXC_RTC_Time(void)
     if (err != E_NO_ERROR) {
         return (double)err;
     }
+    /* Per the device documentation, subsecond register holds up to 1 second */
+    /* subsecond register is size 2^12, so divide by 4096 to get milliseconds */
     return ((double)rtc_seconds + ((double)rtc_subseconds / 4096));
 }
 
 #endif /* MAX3266X_RTC */
-
 
 #endif /* WOLFSSL_MAX32665 || WOLFSSL_MAX32666 */
