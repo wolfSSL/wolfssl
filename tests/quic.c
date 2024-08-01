@@ -41,6 +41,11 @@
 #include <wolfssl/error-ssl.h>
 #include <wolfssl/internal.h>
 
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+    #define DEFAULT_TLS_DIGEST_SZ WC_SHA384_DIGEST_SIZE
+#else
+    #define DEFAULT_TLS_DIGEST_SZ WC_SHA256_DIGEST_SIZE
+#endif
 
 #define testingFmt "   %s:"
 #define resultFmt  " %s\n"
@@ -1126,13 +1131,16 @@ static int test_quic_server_hello(int verbose) {
     QuicConversation_step(&conv, 0);
     /* check established/missing secrets */
     check_secrets(&tserver, wolfssl_encryption_initial, 0, 0);
-    check_secrets(&tserver, wolfssl_encryption_handshake, 32, 32);
-    check_secrets(&tserver, wolfssl_encryption_application, 32, 32);
+    check_secrets(&tserver, wolfssl_encryption_handshake,
+        DEFAULT_TLS_DIGEST_SZ, DEFAULT_TLS_DIGEST_SZ);
+    check_secrets(&tserver, wolfssl_encryption_application,
+        DEFAULT_TLS_DIGEST_SZ, DEFAULT_TLS_DIGEST_SZ);
     check_secrets(&tclient, wolfssl_encryption_handshake, 0, 0);
     /* feed the server data to the client */
     QuicConversation_step(&conv, 0);
     /* client has generated handshake secret */
-    check_secrets(&tclient, wolfssl_encryption_handshake, 32, 32);
+    check_secrets(&tclient, wolfssl_encryption_handshake,
+        DEFAULT_TLS_DIGEST_SZ, DEFAULT_TLS_DIGEST_SZ);
     /* continue the handshake till done */
     conv.started = 1;
     /* run till end */
@@ -1155,8 +1163,10 @@ static int test_quic_server_hello(int verbose) {
     /* the last client write (FINISHED) was at handshake level */
     AssertTrue(tclient.output.level == wolfssl_encryption_handshake);
     /* we have the app secrets */
-    check_secrets(&tclient, wolfssl_encryption_application, 32, 32);
-    check_secrets(&tserver, wolfssl_encryption_application, 32, 32);
+    check_secrets(&tclient, wolfssl_encryption_application,
+        DEFAULT_TLS_DIGEST_SZ, DEFAULT_TLS_DIGEST_SZ);
+    check_secrets(&tserver, wolfssl_encryption_application,
+        DEFAULT_TLS_DIGEST_SZ, DEFAULT_TLS_DIGEST_SZ);
     /* verify client and server have the same secrets established */
     assert_secrets_EQ(&tclient, &tserver, wolfssl_encryption_handshake);
     assert_secrets_EQ(&tclient, &tserver, wolfssl_encryption_application);
