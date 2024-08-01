@@ -2940,7 +2940,7 @@ extern void uITRON4_free(void *p) ;
     #undef  WOLFSSL_CERT_NAME_ALL
     #define WOLFSSL_CERT_NAME_ALL
 
-    /* Store pointers to issuer name components and their lengths and encodings. */
+    /* Store pointers to issuer name components (lengths and encodings) */
     #undef  WOLFSSL_HAVE_ISSUER_NAMES
     #define WOLFSSL_HAVE_ISSUER_NAMES
 
@@ -3030,7 +3030,8 @@ extern void uITRON4_free(void *p) ;
 #else
     /* if user supplied build option and not using ASN template, raise error */
     #if defined(WC_ASN_UNKNOWN_EXT_CB) && !defined(WOLFSSL_ASN_TEMPLATE)
-        #error ASN unknown extension callback is only supported with ASN template
+        #error ASN unknown extension callback is only supported \
+            with ASN template
     #endif
 #endif
 

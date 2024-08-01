@@ -1977,7 +1977,9 @@ static int    numBlocks  = NUM_BLOCKS;
 static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
+#ifdef HAVE_CHACHA
 static int encrypt_only = 0;
+#endif
 #ifdef HAVE_AES_CBC
 static int cipher_same_buffer = 0;
 #endif
@@ -14725,8 +14727,10 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
 #endif
         else if (string_matches(argv[1], "-dgst_full"))
             digest_stream = 0;
+#ifdef HAVE_CHACHA
         else if (string_matches(argv[1], "-enc_only"))
             encrypt_only = 1;
+#endif
 #ifndef NO_RSA
         else if (string_matches(argv[1], "-rsa_sign"))
             rsa_sign_verify = 1;

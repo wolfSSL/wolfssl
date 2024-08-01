@@ -57494,8 +57494,8 @@ static int test_GENERAL_NAME_set0_othername(void) {
     ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
     sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
     gns = NULL;
-    ExpectNotNull(gns = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL,
-        NULL));
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509_get_ext_d2i(x509,
+        NID_subject_alt_name, NULL, NULL));
 
     ExpectIntEQ(sk_GENERAL_NAME_num(gns), 3);
 
@@ -57658,8 +57658,8 @@ static int test_othername_and_SID_ext(void) {
                 0);
 
     /* Cleanup */
-    ExpectNotNull(gns = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL,
-                                         NULL));
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509_get_ext_d2i(x509,
+        NID_subject_alt_name, NULL, NULL));
     ExpectIntEQ(sk_GENERAL_NAME_num(gns), 1);
     ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
     ExpectIntEQ(gn->type, 0);
