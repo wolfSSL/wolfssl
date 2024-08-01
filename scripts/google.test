@@ -6,8 +6,8 @@ server=www.google.com
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
-if test -n "$WOLFSSL_NO_GOOGLE_TEST"; then
-    echo "WOLFSSL_NO_GOOGLE_TEST set, won't run"
+if ! test -n "$WOLFSSL_EXTERNAL_TEST"; then
+    echo "WOLFSSL_EXTERNAL_TEST not set, won't run"
     exit 77
 fi
 
