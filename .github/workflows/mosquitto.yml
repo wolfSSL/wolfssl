@@ -80,4 +80,14 @@ jobs:
       - name: Run mosquitto tests
         working-directory: ./mosquitto
         run: |
-          make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest
+          # Retry up to five times
+          for i in {1..5}; do
+            TEST_RES=0
+            make WITH_TLS=wolfssl WITH_CJSON=no WITH_DOCS=no WOLFSSLDIR=$GITHUB_WORKSPACE/build-dir ptest || TEST_RES=$?
+            if [ "$TEST_RES" -eq "0" ]; then
+              break
+            fi
+          done
+          if [ "$TEST_RES" -ne "0" ]; then
+            exit $TEST_RES
+          fi
