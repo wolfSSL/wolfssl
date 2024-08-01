@@ -6278,7 +6278,7 @@ static int RsaPssHashOidToSigOid(word32 oid, word32* sigOid)
 #endif
 
 #ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN tag for hashAlgorigthm. */
+/* ASN tag for hashAlgorithm. */
 #define ASN_TAG_RSA_PSS_HASH        (ASN_CONTEXT_SPECIFIC | 0)
 /* ASN tag for maskGenAlgorithm. */
 #define ASN_TAG_RSA_PSS_MGF         (ASN_CONTEXT_SPECIFIC | 1)
@@ -6326,7 +6326,7 @@ enum {
 /* Number of items in ASN.1 template for an algorithm identifier. */
 #define rsaPssParamsASN_Length (sizeof(rsaPssParamsASN) / sizeof(ASNItem))
 #else
-/* ASN tag for hashAlgorigthm. */
+/* ASN tag for hashAlgorithm. */
 #define ASN_TAG_RSA_PSS_HASH        (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)
 /* ASN tag for maskGenAlgorithm. */
 #define ASN_TAG_RSA_PSS_MGF         (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)
@@ -17748,6 +17748,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
 exit_cs:
 
+#else
+    /* Warning: The NO_ASN_CRYPT option skips signature checking! */
+    ret = 0; /* allow unchecked signature */
 #endif /* !NO_ASN_CRYPT */
 
     (void)keyOID;

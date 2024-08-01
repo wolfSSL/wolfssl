@@ -251,16 +251,14 @@ int unit_test(int argc, char** argv)
         SrpTest();
     }
 
-#ifndef NO_WOLFSSL_CIPHER_SUITE_TEST
-#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
-#ifndef SINGLE_THREADED
+#if !defined(NO_WOLFSSL_CIPHER_SUITE_TEST) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(SINGLE_THREADED)
     if ((ret = SuiteTest(argc, argv)) != 0) {
         fprintf(stderr, "suite test failed with %d\n", ret);
         goto exit;
     }
 #endif
-#endif
-#endif /* NO_WOLFSSL_CIPHER_SUITE_TEST */
 
 exit:
 #ifdef HAVE_WNR
