@@ -45,7 +45,7 @@ else
     dtls13=yes
 fi
 
-if [[ ("$tls13" == "no") && ("$dtsl13" == "no") ]]; then
+if [[ ("$tls13" == "no") && ("$dtls13" == "no") ]]; then
     echo 'skipping ocsp-stapling_tls13multi.test because TLS1.3 is not available.' 1>&2
     exit 77
 fi
@@ -56,11 +56,6 @@ if ! ./examples/client/client -V | grep -q 4; then
     exit 77
 else
     tls13=yes
-fi
-
-if ./examples/client/client '-#' | fgrep -q -e ' -DWOLFSSL_SNIFFER '; then
-    echo 'skipping oscp-stapling_tls13multi.test because WOLFSSL_SNIFFER defined.'
-    exit 77
 fi
 
 if openssl s_server -help 2>&1 | fgrep -q -i ipv6 && nc -h 2>&1 | fgrep -q -i ipv6; then
