@@ -35136,6 +35136,57 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* HAVE_ECC */
 
+#ifdef WOLFSSL_HAVE_KYBER
+    /* Returns 1 when the given group is a PQC group, 0 otherwise. */
+    int NamedGroupIsPqc(int group)
+    {
+        switch (group) {
+        #ifndef WOLFSSL_NO_ML_KEM
+            case WOLFSSL_ML_KEM_512:
+            case WOLFSSL_ML_KEM_768:
+            case WOLFSSL_ML_KEM_1024:
+        #endif
+        #ifdef WOLFSSL_KYBER_ORIGINAL
+            case WOLFSSL_KYBER_LEVEL1:
+            case WOLFSSL_KYBER_LEVEL3:
+            case WOLFSSL_KYBER_LEVEL5:
+        #endif
+                return 1;
+            default:
+                return 0;
+        }
+    }
+
+    /* Returns 1 when the given group is a PQC hybrid group, 0 otherwise. */
+    int NamedGroupIsPqcHybrid(int group)
+    {
+        switch (group) {
+        #ifndef WOLFSSL_NO_ML_KEM
+            case WOLFSSL_P256_ML_KEM_768:
+            case WOLFSSL_X25519_ML_KEM_768:
+            case WOLFSSL_P384_ML_KEM_1024:
+            case WOLFSSL_P256_ML_KEM_512:
+            case WOLFSSL_P384_ML_KEM_768:
+            case WOLFSSL_P521_ML_KEM_1024:
+            case WOLFSSL_X25519_ML_KEM_512:
+            case WOLFSSL_X448_ML_KEM_768:
+        #endif
+        #ifdef WOLFSSL_KYBER_ORIGINAL
+            case WOLFSSL_P256_KYBER_LEVEL3:
+            case WOLFSSL_X25519_KYBER_LEVEL3:
+            case WOLFSSL_P256_KYBER_LEVEL1:
+            case WOLFSSL_P384_KYBER_LEVEL3:
+            case WOLFSSL_P521_KYBER_LEVEL5:
+            case WOLFSSL_X25519_KYBER_LEVEL1:
+            case WOLFSSL_X448_KYBER_LEVEL3:
+        #endif
+                return 1;
+            default:
+                return 0;
+        }
+    }
+#endif /* WOLFSSL_HAVE_KYBER */
+
     int TranslateErrorToAlert(int err)
     {
         switch (err) {
