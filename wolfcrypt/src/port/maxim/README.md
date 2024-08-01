@@ -6,7 +6,7 @@ wolfSSL using Analog Devices MAXQ1065, MAX1080, MAX32665 or MAX32666
 wolfSSL can be configured to use the MAXQ1065 or MAX1080 cryptographic
 controllers. wolfSSL can also be configure to utilize the TPU
 (crypto accelerator), MAA (math accelerator), and TRNG available on select
-MAX32665 and MAX32666 microcontrollers.
+MAX32665 and MAX32666 microcontroller.
 
 Product datasheets, user guides and other resources can be found at
 Analog Devices website:
@@ -41,7 +41,7 @@ all other operations will use the default software implementations.
 The other prerequisite is that a change needs to be made to the Maxim SDK. This
 is to use the MAA Math Accelerator, this change only needs to be made if you are
 using `#define WOLFSSL_MAX3266X` or `define WOLFSSL_MAX3266X_OLD` by themselves
-or you are specifing `#define MAX3266X_MATH`.
+or you are specifying `#define MAX3266X_MATH`.
 
 In the SDK you will need to find the underlying function that
 `MXC_TPU_MAA_Compute()` from `tpu.h` compute calls in the newer SDK. In the
@@ -68,7 +68,7 @@ if you want to know more details on the issue.
 
 
 ## Supported Algos
-Using these defines will replace software implentations with a call to the
+Using these defines will replace software implementations with a call to the
 hardware.
 
 `#define MAX3266X_RNG`
@@ -95,7 +95,7 @@ like RSA and ECC key generation):
 
 ## Extra Information
 For more Verbose info you can use `#define DEBUG_WOLFSSL` in combination with
-`#define MAX3266X_VERBOSE` to see if errors are occuring during the hardware
+`#define MAX3266X_VERBOSE` to see if errors are occurring during the hardware
 setup/
 
 To reproduce benchmark numbers you can use `#define MAX3266X_RTC`.
@@ -104,7 +104,7 @@ Do note that this will only work with `#define WOLFSSL_MAX3266X` and not
 and not for any other application. Please implement your own rtc/time code for
 anything else.
 
-For more infromation about the TPU, MAA, and TRNG please refer to the
+For more information about the TPU, MAA, and TRNG please refer to the
 [MAX32665/MAX32666 User Guide: UG6971](https://www.analog.com/media/en/technical-documentation/user-guides/max32665max32666-user-guide.pdf)
 
 # MAXQ1065/MAX1080

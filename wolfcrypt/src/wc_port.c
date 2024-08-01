@@ -257,7 +257,7 @@ int wolfCrypt_Init(void)
 
     #if defined(MAX3266X_RTC)
         ret = wc_MXC_RTC_Init();
-        if (ret != 0){
+        if (ret != 0) {
             WOLFSSL_MSG("MXC RTC Init Failed");
             return WC_HW_E;
         }

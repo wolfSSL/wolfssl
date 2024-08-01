@@ -11508,6 +11508,48 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implemented in wolfcrypt/src/port/riscv/riscv-64-aes.c */
 
+#elif defined(MAX3266X_AES)
+
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int status;
+    word32 keySize;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
+    }
+
+    status = wc_MXC_TPU_AesEncrypt(in, aes->reg, aes->key, MXC_TPU_MODE_ECB,
+                                        sz, out, keySize);
+
+    return status;
+}
+
+#ifdef HAVE_AES_DECRYPT
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int status;
+    word32 keySize;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+        return BAD_FUNC_ARG;
+
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
+    }
+
+    status = wc_MXC_TPU_AesDecrypt(in, aes->reg, aes->key, MXC_TPU_MODE_ECB,
+                                        sz, out, keySize);
+
+    return status;
+}
+#endif /* HAVE_AES_DECRYPT */
+
 #elif defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
 
 /* Software AES - ECB */

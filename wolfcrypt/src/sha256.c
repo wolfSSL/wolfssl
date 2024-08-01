@@ -1965,6 +1965,9 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
     /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 
+#elif defined(MAX3266X_SHA)
+    /* implemented in wolfcrypt/src/port/maxim/max3266x.c */
+
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)
 
 /* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
@@ -2354,6 +2357,9 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
     /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
     /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
+
+#elif defined(MAX3266X_SHA)
+    /* implemented in wolfcrypt/src/port/maxim/max3266x.c */
 
 #else
 

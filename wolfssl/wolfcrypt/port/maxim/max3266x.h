@@ -224,6 +224,33 @@
         unsigned char   hash[WOLFSSL_MAX_HASH_SIZE];
     } wc_MXC_Sha;
 
+    #if !defined(NO_SHA)
+        typedef wc_MXC_Sha wc_Sha;
+        #define WC_SHA_TYPE_DEFINED
+
+        /* Define the SHA digest for an empty string */
+        /* as a constant byte array */
+        static const unsigned char MXC_EMPTY_DIGEST_SHA1[20] = {
+            0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
+            0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
+            0xaf, 0xd8, 0x07, 0x09};
+
+    #endif /* NO_SHA */
+
+    #if defined(WOLFSSL_SHA224)
+        typedef wc_MXC_Sha wc_Sha224;
+        #define WC_SHA224_TYPE_DEFINED
+
+        /* Define the SHA-224 digest for an empty string */
+        /* as a constant byte array */
+        static const unsigned char MXC_EMPTY_DIGEST_SHA224[28] = {
+                0xd1, 0x4a, 0x02, 0x8c, 0x2a, 0x3a, 0x2b, 0xc9,
+                0x47, 0x61, 0x02, 0xbb, 0x28, 0x82, 0x34, 0xc4,
+                0x15, 0xa2, 0xb0, 0x1f, 0x82, 0x8e, 0xa6, 0x2a,
+                0xc5, 0xb3, 0xe4, 0x2f};
+
+    #endif /* WOLFSSL_SHA224 */
+
     #if !defined(NO_SHA256)
         typedef wc_MXC_Sha wc_Sha256;
         #define WC_SHA256_TYPE_DEFINED
@@ -236,7 +263,7 @@
                 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
                 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55};
 
-    #endif
+    #endif /* NO_SHA256 */
 
 
     WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Init(wc_MXC_Sha *hash);
