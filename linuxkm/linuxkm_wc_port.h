@@ -533,7 +533,13 @@
 
         const unsigned char *_ctype;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+        typeof(kmalloc_noprof) *kmalloc_noprof;
+        typeof(krealloc_noprof) *krealloc_noprof;
+        typeof(kzalloc_noprof) *kzalloc_noprof;
+        typeof(__kvmalloc_node_noprof) *__kvmalloc_node_noprof;
+        typeof(__kmalloc_cache_noprof) *__kmalloc_cache_noprof;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
         typeof(kzalloc_noprof) *kzalloc_noprof;
@@ -685,7 +691,14 @@
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+    /* see include/linux/alloc_tag.h and include/linux/slab.h */
+    #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
+    #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
+    #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
+    #define __kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kvmalloc_node_noprof)
+    #define __kmalloc_cache_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kmalloc_cache_noprof)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
     #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
