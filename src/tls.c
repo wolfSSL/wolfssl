@@ -3531,6 +3531,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 return ret;
             }
             FreeDecodedCert(cert);
+            XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
             extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
             csr = extension ?
                 (CertificateStatusRequest*)extension->data : NULL;
@@ -3545,14 +3546,12 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                 FreeOcspRequest(request);
                 XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
             }
-            if (ret != 0) {
-                XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+            if (ret != 0)
                 return ret;
-            }
+
             if (csr->responses[0].buffer)
                 TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
         #if defined(HAVE_CSR_TLS13MULTI)
-            XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
             /* process OCSP request in certificate chain */
             if ((ret = ProcessChainOCSPRequest(ssl)) != 0) {
                 WOLFSSL_MSG("Process Cert Chain OCSP request failed");
