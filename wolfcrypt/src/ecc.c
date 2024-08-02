@@ -15437,9 +15437,8 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
     /* find matching OID sum (based on encoded value) */
     for (x = 0; ecc_sets[x].size != 0; x++) {
         if (ecc_sets[x].oidSum == oidSum) {
-            int ret;
         #ifdef HAVE_OID_ENCODING
-            ret = 0;
+            int ret = 0;
             /* check cache */
             oid_cache_t* o = &ecc_oid_cache[x];
             if (o->oidSz == 0) {
@@ -15457,6 +15456,7 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
             if (ret == 0) {
                 ret = ecc_sets[x].id;
             }
+            return ret;
         #else
             if (oidSz) {
                 *oidSz = ecc_sets[x].oidSz;
@@ -15464,9 +15464,8 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
             if (oid) {
                 *oid = ecc_sets[x].oid;
             }
-            ret = ecc_sets[x].id;
+            return ecc_sets[x].id;
         #endif
-            return ret;
         }
     }
 

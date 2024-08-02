@@ -36,21 +36,289 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
 
-#ifndef FOURK_BUF
-    #define FOURK_BUF 4096
-#endif
-#ifndef TWOK_BUF
-    #define TWOK_BUF 2048
-#endif
-#ifndef ONEK_BUF
-    #define ONEK_BUF 1024
-#endif
+#include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/hash.h>
+
 #if defined(WOLFSSL_STATIC_MEMORY)
     #include <wolfssl/wolfcrypt/memory.h>
+#endif
+#ifdef WOLFSSL_ASNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+#ifdef HAVE_ECC
+    #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
+    #ifdef WOLFSSL_SM2
+        #include <wolfssl/wolfcrypt/sm2.h>
+    #endif
+#endif
+#ifndef NO_ASN
+    #include <wolfssl/wolfcrypt/asn_public.h>
+#endif
+
+#include <stdlib.h>
+#include <wolfssl/ssl.h>  /* compatibility layer */
+#include <wolfssl/error-ssl.h>
+
+#include <wolfssl/test.h>
+#include <tests/unit.h>
+#include <tests/utils.h>
+
+/* for testing compatibility layer callbacks */
+#include "examples/server/server.h"
+
+#ifndef NO_MD5
+    #include <wolfssl/wolfcrypt/md5.h>
+#endif
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#ifndef NO_SHA256
+    #include <wolfssl/wolfcrypt/sha256.h>
+#endif
+#ifdef WOLFSSL_SHA512
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
+#ifdef WOLFSSL_SHA384
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
+#ifdef WOLFSSL_SHA3
+    #include <wolfssl/wolfcrypt/sha3.h>
+#endif
+#ifdef WOLFSSL_SM3
+    #include <wolfssl/wolfcrypt/sm3.h>
+#endif
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+    #ifdef HAVE_AES_DECRYPT
+        #include <wolfssl/wolfcrypt/wc_encrypt.h>
+    #endif
+#endif
+#ifdef WOLFSSL_SM4
+    #include <wolfssl/wolfcrypt/sm4.h>
+#endif
+#ifdef WOLFSSL_RIPEMD
+    #include <wolfssl/wolfcrypt/ripemd.h>
+#endif
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+    #include <wolfssl/wolfcrypt/wc_encrypt.h>
+#endif
+#ifdef WC_RC2
+    #include <wolfssl/wolfcrypt/rc2.h>
+#endif
+
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
+
+#ifdef HAVE_CHACHA
+    #include <wolfssl/wolfcrypt/chacha.h>
+#endif
+
+#ifdef HAVE_POLY1305
+    #include <wolfssl/wolfcrypt/poly1305.h>
+#endif
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#endif
+
+#ifdef HAVE_CAMELLIA
+    #include <wolfssl/wolfcrypt/camellia.h>
+#endif
+
+#ifndef NO_RC4
+    #include <wolfssl/wolfcrypt/arc4.h>
+#endif
+
+#ifdef HAVE_BLAKE2
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
+
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+
+#ifndef NO_SIG_WRAPPER
+    #include <wolfssl/wolfcrypt/signature.h>
+#endif
+
+#ifdef HAVE_AESCCM
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+
+#ifdef HAVE_PKCS7
+    #include <wolfssl/wolfcrypt/pkcs7.h>
+    #include <wolfssl/wolfcrypt/asn.h>
+    #ifdef HAVE_LIBZ
+        #include <wolfssl/wolfcrypt/compress.h>
+    #endif
+#endif
+
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
+
+#ifndef NO_DSA
+    #include <wolfssl/wolfcrypt/dsa.h>
+#endif
+
+#ifdef WOLFSSL_CMAC
+    #include <wolfssl/wolfcrypt/cmac.h>
+#endif
+
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+#ifdef HAVE_ED448
+    #include <wolfssl/wolfcrypt/ed448.h>
+#endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/wolfcrypt/curve448.h>
+#endif
+
+#ifdef WOLFSSL_HAVE_KYBER
+    #include <wolfssl/wolfcrypt/kyber.h>
+#ifdef WOLFSSL_WC_KYBER
+    #include <wolfssl/wolfcrypt/wc_kyber.h>
+#endif
+#endif
+#ifdef HAVE_DILITHIUM
+    #include <wolfssl/wolfcrypt/dilithium.h>
+#endif
+
+#ifdef HAVE_PKCS12
+    #include <wolfssl/wolfcrypt/pkcs12.h>
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(OPENSSL_ALL)
+    #include <wolfssl/openssl/ssl.h>
+    #ifndef NO_ASN
+        /* for ASN_COMMON_NAME DN_tags enum */
+        #include <wolfssl/wolfcrypt/asn.h>
+    #endif
+    #ifdef HAVE_OCSP
+        #include <wolfssl/openssl/ocsp.h>
+    #endif
+#endif
+#ifdef OPENSSL_EXTRA
+    #include <wolfssl/openssl/cmac.h>
+    #include <wolfssl/openssl/x509v3.h>
+    #include <wolfssl/openssl/asn1.h>
+    #include <wolfssl/openssl/crypto.h>
+    #include <wolfssl/openssl/pkcs12.h>
+    #include <wolfssl/openssl/evp.h>
+    #include <wolfssl/openssl/dh.h>
+    #include <wolfssl/openssl/bn.h>
+    #include <wolfssl/openssl/buffer.h>
+    #include <wolfssl/openssl/pem.h>
+    #include <wolfssl/openssl/ec.h>
+    #include <wolfssl/openssl/ecdh.h>
+    #include <wolfssl/openssl/engine.h>
+    #include <wolfssl/openssl/hmac.h>
+    #include <wolfssl/openssl/objects.h>
+    #include <wolfssl/openssl/rand.h>
+    #include <wolfssl/openssl/modes.h>
+    #include <wolfssl/openssl/fips_rand.h>
+    #include <wolfssl/openssl/kdf.h>
+#ifdef OPENSSL_ALL
+    #include <wolfssl/openssl/txt_db.h>
+    #include <wolfssl/openssl/lhash.h>
+#endif
+#ifndef NO_AES
+    #include <wolfssl/openssl/aes.h>
+#endif
+#ifndef NO_DES3
+    #include <wolfssl/openssl/des.h>
+#endif
+#ifndef NO_RC4
+    #include <wolfssl/openssl/rc4.h>
+#endif
+#ifdef HAVE_ECC
+    #include <wolfssl/openssl/ecdsa.h>
+#endif
+#ifdef HAVE_PKCS7
+    #include <wolfssl/openssl/pkcs7.h>
+#endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/openssl/ec25519.h>
+#endif
+#ifdef HAVE_ED25519
+    #include <wolfssl/openssl/ed25519.h>
+#endif
+#ifdef HAVE_CURVE448
+    #include <wolfssl/openssl/ec448.h>
+#endif
+#ifdef HAVE_ED448
+    #include <wolfssl/openssl/ed448.h>
+#endif
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) && \
+    !defined(NO_SHA256) && !defined(RC_NO_RNG)
+        #include <wolfssl/wolfcrypt/srp.h>
+#endif
+
+#if (defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)) || \
+    defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
+    defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
+    defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE) \
+    || !defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)
+    /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
+     * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
+     * number tracking */
+    #include "wolfssl/internal.h"
+#endif
+
+/* force enable test buffers */
+#ifndef USE_CERT_BUFFERS_2048
+    #define USE_CERT_BUFFERS_2048
+#endif
+#ifndef USE_CERT_BUFFERS_256
+    #define USE_CERT_BUFFERS_256
+#endif
+#include <wolfssl/certs_test.h>
+
+/* include misc.c here regardless of NO_INLINE, because misc.c implementations
+ * have default (hidden) visibility, and in the absence of visibility, it's
+ * benign to mask out the library implementation.
+ */
+#define WOLFSSL_MISC_INCLUDED
+#include <wolfcrypt/src/misc.c>
+
+
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    #define HAVE_IO_TESTS_DEPENDENCIES
+#endif
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(WOLFSSL_TIRTOS)
+    #define HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
+#endif
+
+#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
+    !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
+    !defined(WOLFSSL_NO_CLIENT_AUTH))
+    #define HAVE_CERT_CHAIN_VALIDATION
+#endif
+
+#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+    /* FIPS build has replaced ecc.h. */
+    #define wc_ecc_key_get_priv(key) (&((key)->k))
+    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
+#endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFCRYPT_ONLY)
-    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || \
-         defined(SESSION_CERTS)
+    #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) || defined(SESSION_CERTS)
         #ifdef OPENSSL_EXTRA
             #define TEST_TLS_STATIC_MEMSZ (400000)
         #else
@@ -61,15 +329,7 @@
     #endif
 #endif
 
-#endif /* WOLFSSL_STATIC_MEMORY */
-#ifndef HEAP_HINT
-    #define HEAP_HINT NULL
-#endif /* WOLFSSL_STAIC_MEMORY */
-#ifdef WOLFSSL_ASNC_CRYPT
-    #include <wolfssl/wolfcrypt/async.h>
-#endif
 #ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
     #ifndef ECC_ASN963_MAX_BUF_SZ
         #define ECC_ASN963_MAX_BUF_SZ 133
     #endif
@@ -137,137 +397,9 @@
     #if !defined(DER_SZ)
         #define DER_SZ(ks) ((ks) * 2 + 1)
     #endif
-    #ifdef WOLFSSL_SM2
-        #include <wolfssl/wolfcrypt/sm2.h>
-    #endif
-#endif
-#ifndef NO_ASN
-    #include <wolfssl/wolfcrypt/asn_public.h>
-#endif
-#include <wolfssl/error-ssl.h>
-
-#include <stdlib.h>
-#include <wolfssl/ssl.h>  /* compatibility layer */
-#include <wolfssl/test.h>
-#include <tests/unit.h>
-#include "examples/server/server.h"
-     /* for testing compatibility layer callbacks */
-
-#ifndef NO_MD5
-    #include <wolfssl/wolfcrypt/md5.h>
-#endif
-#ifndef NO_SHA
-    #include <wolfssl/wolfcrypt/sha.h>
-#endif
-#ifndef NO_SHA256
-    #include <wolfssl/wolfcrypt/sha256.h>
-#endif
-#ifdef WOLFSSL_SHA512
-    #include <wolfssl/wolfcrypt/sha512.h>
-#endif
-#ifdef WOLFSSL_SHA384
-    #include <wolfssl/wolfcrypt/sha512.h>
-#endif
-
-#ifdef WOLFSSL_SHA3
-    #include <wolfssl/wolfcrypt/sha3.h>
-    #ifndef HEAP_HINT
-        #define HEAP_HINT   NULL
-    #endif
-#endif
-
-#ifdef WOLFSSL_SM3
-    #include <wolfssl/wolfcrypt/sm3.h>
-#endif
-
-#ifndef NO_AES
-    #include <wolfssl/wolfcrypt/aes.h>
-    #ifdef HAVE_AES_DECRYPT
-        #include <wolfssl/wolfcrypt/wc_encrypt.h>
-    #endif
-#endif
-#ifdef WOLFSSL_SM4
-    #include <wolfssl/wolfcrypt/sm4.h>
-#endif
-#ifdef WOLFSSL_RIPEMD
-    #include <wolfssl/wolfcrypt/ripemd.h>
-#endif
-#ifndef NO_DES3
-    #include <wolfssl/wolfcrypt/des3.h>
-    #include <wolfssl/wolfcrypt/wc_encrypt.h>
-#endif
-#ifdef WC_RC2
-    #include <wolfssl/wolfcrypt/rc2.h>
-#endif
-
-#ifndef NO_HMAC
-    #include <wolfssl/wolfcrypt/hmac.h>
-#endif
-
-#ifdef HAVE_CHACHA
-    #include <wolfssl/wolfcrypt/chacha.h>
-#endif
-
-#ifdef HAVE_POLY1305
-    #include <wolfssl/wolfcrypt/poly1305.h>
-#endif
-
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
-#endif
-
-#ifdef HAVE_CAMELLIA
-    #include <wolfssl/wolfcrypt/camellia.h>
-#endif
-
-#ifndef NO_RC4
-    #include <wolfssl/wolfcrypt/arc4.h>
-#endif
-
-#ifdef HAVE_BLAKE2
-    #include <wolfssl/wolfcrypt/blake2.h>
-#endif
-
-#include <wolfssl/wolfcrypt/hash.h>
-#ifndef NO_RSA
-    #include <wolfssl/wolfcrypt/rsa.h>
-
-    #define FOURK_BUF 4096
-    #define GEN_BUF  294
-#endif
-
-#ifndef NO_SIG_WRAPPER
-    #include <wolfssl/wolfcrypt/signature.h>
-#endif
-
-
-#ifdef HAVE_AESCCM
-    #include <wolfssl/wolfcrypt/aes.h>
-#endif
-
-#ifdef HAVE_PKCS7
-    #include <wolfssl/wolfcrypt/pkcs7.h>
-    #include <wolfssl/wolfcrypt/asn.h>
-    #ifdef HAVE_LIBZ
-    #include <wolfssl/wolfcrypt/compress.h>
-    #endif
-#endif
-
-#ifdef WOLFSSL_SMALL_CERT_VERIFY
-    #include <wolfssl/wolfcrypt/asn.h>
-#endif
+#endif /* HAVE_ECC */
 
 #ifndef NO_DSA
-    #include <wolfssl/wolfcrypt/dsa.h>
-    #ifndef ONEK_BUF
-        #define ONEK_BUF 1024
-    #endif
-    #ifndef TWOK_BUF
-        #define TWOK_BUF 2048
-    #endif
-    #ifndef FOURK_BUF
-        #define FOURK_BUF 4096
-    #endif
     #ifndef DSA_SIG_SIZE
         #define DSA_SIG_SIZE 40
     #endif
@@ -276,142 +408,26 @@
     #endif
 #endif
 
-#ifdef WOLFSSL_CMAC
-    #include <wolfssl/wolfcrypt/cmac.h>
+#ifndef NO_RSA
+    #define GEN_BUF  294
 #endif
 
-#ifdef HAVE_ED25519
-    #include <wolfssl/wolfcrypt/ed25519.h>
+#ifndef ONEK_BUF
+    #define ONEK_BUF 1024
 #endif
-#ifdef HAVE_CURVE25519
-    #include <wolfssl/wolfcrypt/curve25519.h>
+#ifndef TWOK_BUF
+    #define TWOK_BUF 2048
 #endif
-#ifdef HAVE_ED448
-    #include <wolfssl/wolfcrypt/ed448.h>
-#endif
-#ifdef HAVE_CURVE448
-    #include <wolfssl/wolfcrypt/curve448.h>
+#ifndef FOURK_BUF
+    #define FOURK_BUF 4096
 #endif
 
-#ifdef WOLFSSL_HAVE_KYBER
-    #include <wolfssl/wolfcrypt/kyber.h>
-#ifdef WOLFSSL_WC_KYBER
-    #include <wolfssl/wolfcrypt/wc_kyber.h>
-#endif
-#endif
-#ifdef HAVE_DILITHIUM
-    #include <wolfssl/wolfcrypt/dilithium.h>
+#ifndef HEAP_HINT
+    #define HEAP_HINT NULL
 #endif
 
-#ifdef HAVE_PKCS12
-    #include <wolfssl/wolfcrypt/pkcs12.h>
-#endif
 
-#include <wolfssl/wolfcrypt/logging.h>
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_ALL))
-    #include <wolfssl/openssl/ssl.h>
-    #ifndef NO_ASN
-        /* for ASN_COMMON_NAME DN_tags enum */
-        #include <wolfssl/wolfcrypt/asn.h>
-    #endif
-    #ifdef HAVE_OCSP
-        #include <wolfssl/openssl/ocsp.h>
-    #endif
-#endif
-#ifdef OPENSSL_EXTRA
-    #include <wolfssl/openssl/cmac.h>
-    #include <wolfssl/openssl/x509v3.h>
-    #include <wolfssl/openssl/asn1.h>
-    #include <wolfssl/openssl/crypto.h>
-    #include <wolfssl/openssl/pkcs12.h>
-    #include <wolfssl/openssl/evp.h>
-    #include <wolfssl/openssl/dh.h>
-    #include <wolfssl/openssl/bn.h>
-    #include <wolfssl/openssl/buffer.h>
-    #include <wolfssl/openssl/pem.h>
-    #include <wolfssl/openssl/ec.h>
-    #include <wolfssl/openssl/ecdh.h>
-    #include <wolfssl/openssl/engine.h>
-    #include <wolfssl/openssl/hmac.h>
-    #include <wolfssl/openssl/objects.h>
-    #include <wolfssl/openssl/rand.h>
-    #include <wolfssl/openssl/modes.h>
-    #include <wolfssl/openssl/fips_rand.h>
-    #include <wolfssl/openssl/kdf.h>
-#ifdef OPENSSL_ALL
-    #include <wolfssl/openssl/txt_db.h>
-    #include <wolfssl/openssl/lhash.h>
-#endif
-#ifndef NO_AES
-    #include <wolfssl/openssl/aes.h>
-#endif
-#ifndef NO_DES3
-    #include <wolfssl/openssl/des.h>
-#endif
-#ifndef NO_RC4
-    #include <wolfssl/openssl/rc4.h>
-#endif
-#ifdef HAVE_ECC
-    #include <wolfssl/openssl/ecdsa.h>
-#endif
-#ifdef HAVE_PKCS7
-    #include <wolfssl/openssl/pkcs7.h>
-#endif
-#ifdef HAVE_CURVE25519
-    #include <wolfssl/openssl/ec25519.h>
-#endif
-#ifdef HAVE_ED25519
-    #include <wolfssl/openssl/ed25519.h>
-#endif
-#ifdef HAVE_CURVE448
-    #include <wolfssl/openssl/ec448.h>
-#endif
-#ifdef HAVE_ED448
-    #include <wolfssl/openssl/ed448.h>
-#endif
-#endif /* OPENSSL_EXTRA */
-
-#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
-    && !defined(NO_SHA256) && !defined(RC_NO_RNG)
-        #include <wolfssl/wolfcrypt/srp.h>
-#endif
-
-#if (defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)) || \
-    defined(HAVE_SESSION_TICKET) || (defined(OPENSSL_EXTRA) && \
-    defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)) || \
-    defined(WOLFSSL_TEST_STATIC_BUILD) || defined(WOLFSSL_DTLS) || \
-    defined(HAVE_ECH) || defined(HAVE_EX_DATA) || !defined(NO_SESSION_CACHE) \
-    || !defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13)
-    /* for testing SSL_get_peer_cert_chain, or SESSION_TICKET_HINT_DEFAULT,
-     * for setting authKeyIdSrc in WOLFSSL_X509, or testing DTLS sequence
-     * number tracking */
-#include "wolfssl/internal.h"
-#endif
-
-/* force enable test buffers */
-#ifndef USE_CERT_BUFFERS_2048
-    #define USE_CERT_BUFFERS_2048
-#endif
-#ifndef USE_CERT_BUFFERS_256
-    #define USE_CERT_BUFFERS_256
-#endif
-#include <wolfssl/certs_test.h>
-
-#include "tests/utils.h"
-
-/* include misc.c here regardless of NO_INLINE, because misc.c implementations
- * have default (hidden) visibility, and in the absence of visibility, it's
- * benign to mask out the library implementation.
- */
-#define WOLFSSL_MISC_INCLUDED
-#include <wolfcrypt/src/misc.c>
-
-#ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
-    /* FIPS build has replaced ecc.h. */
-    #define wc_ecc_key_get_priv(key) (&((key)->k))
-    #define WOLFSSL_HAVE_ECC_KEY_GET_PRIV
-#endif
 
 typedef struct testVector {
     const char* input;
@@ -580,17 +596,6 @@ static int testDevId = WOLFSSL_CAAM_DEVID;
 static int testDevId = INVALID_DEVID;
 #endif
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
-#define HAVE_IO_TESTS_DEPENDENCIES
-#endif
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
-    !defined(WOLFSSL_TIRTOS)
-#define HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
-#endif
 
 /*----------------------------------------------------------------------------*
  | BIO with fixed read/write size
@@ -4268,8 +4273,8 @@ static int test_wolfSSL_CertManagerCheckOCSPResponse(void)
 static int test_wolfSSL_CheckOCSPResponse(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_OCSP) && !defined(NO_RSA) && !defined(NO_SHA) && \
-       defined(OPENSSL_ALL)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA) && \
+    !defined(NO_RSA) && !defined(NO_SHA)
     const char* responseFile = "./certs/ocsp/test-response.der";
     const char* responseMultiFile = "./certs/ocsp/test-multi-response.der";
     const char* responseNoInternFile =
@@ -4508,6 +4513,7 @@ static int test_wolfSSL_OtherName(void)
     return EXPECT_RESULT();
 }
 
+#ifdef HAVE_CERT_CHAIN_VALIDATION
 static int test_wolfSSL_CertRsaPss(void)
 {
     EXPECT_DECLS;
@@ -4565,6 +4571,7 @@ static int test_wolfSSL_CertRsaPss(void)
 
     return EXPECT_RESULT();
 }
+#endif
 
 static int test_wolfSSL_CTX_load_verify_locations_ex(void)
 {
@@ -53337,7 +53344,7 @@ static int test_wolfSSL_X509_sign(void)
     ExpectIntEQ(wolfSSL_X509_add_altname(x509,
                 "Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch",
                 ASN_DNS_TYPE), SSL_SUCCESS);
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
     {
         unsigned char ip4_type[] = {127,128,0,255};
         unsigned char ip6_type[] = {0xdd, 0xcc, 0xba, 0xab,
@@ -53370,7 +53377,7 @@ static int test_wolfSSL_X509_sign(void)
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_ALT_NAMES)
     ExpectIntEQ(X509_get_ext_count(x509), 1);
 #endif
-#if defined(WOLFSSL_ALT_NAMES) && (defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME))
+#if defined(WOLFSSL_ALT_NAMES) && defined(WOLFSSL_IP_ALT_NAME)
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "127.128.0.255", 0), 1);
     ExpectIntEQ(wolfSSL_X509_check_ip_asc(x509, "DDCC:BAAB:FFEE:9988:7766:5544:0033:2211", 0), 1);
 #endif
@@ -53386,7 +53393,7 @@ static int test_wolfSSL_X509_sign(void)
 #ifndef WOLFSSL_ALT_NAMES
     /* Valid case - size should be 781-786 with 16 byte serial number */
     ExpectTrue((781 + snSz <= ret) && (ret <= 781 + 5 + snSz));
-#elif defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#elif defined(WOLFSSL_IP_ALT_NAME)
     /* Valid case - size should be 955-960 with 16 byte serial number */
     ExpectTrue((939 + snSz <= ret) && (ret <= 939 + 5 + snSz));
 #else
@@ -57484,8 +57491,8 @@ static int test_GENERAL_NAME_set0_othername(void) {
     ExpectIntGT(X509_sign(x509, priv, EVP_sha256()), 0);
     sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
     gns = NULL;
-    ExpectNotNull(gns = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL,
-        NULL));
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509_get_ext_d2i(x509,
+        NID_subject_alt_name, NULL, NULL));
 
     ExpectIntEQ(sk_GENERAL_NAME_num(gns), 3);
 
@@ -57648,8 +57655,8 @@ static int test_othername_and_SID_ext(void) {
                 0);
 
     /* Cleanup */
-    ExpectNotNull(gns = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL,
-                                         NULL));
+    ExpectNotNull(gns = (GENERAL_NAMES*)X509_get_ext_d2i(x509,
+        NID_subject_alt_name, NULL, NULL));
     ExpectIntEQ(sk_GENERAL_NAME_num(gns), 1);
     ExpectNotNull(gn = sk_GENERAL_NAME_value(gns, 0));
     ExpectIntEQ(gn->type, 0);
@@ -64443,7 +64450,7 @@ static int test_wolfSSL_OCSP_id_cmp(void)
 static int test_wolfSSL_OCSP_SINGLERESP_get0_id(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA)
     WOLFSSL_OCSP_SINGLERESP single;
     const WOLFSSL_OCSP_CERTID* certId;
 
@@ -64460,7 +64467,8 @@ static int test_wolfSSL_OCSP_SINGLERESP_get0_id(void)
 static int test_wolfSSL_OCSP_single_get0_status(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_OCSP_PARSE_STATUS)
     WOLFSSL_OCSP_SINGLERESP single;
     CertStatus certStatus;
     WOLFSSL_ASN1_TIME* thisDate;
@@ -64495,7 +64503,7 @@ static int test_wolfSSL_OCSP_single_get0_status(void)
 static int test_wolfSSL_OCSP_resp_count(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA)
     WOLFSSL_OCSP_BASICRESP basicResp;
     WOLFSSL_OCSP_SINGLERESP singleRespOne;
     WOLFSSL_OCSP_SINGLERESP singleRespTwo;
@@ -64516,7 +64524,7 @@ static int test_wolfSSL_OCSP_resp_count(void)
 static int test_wolfSSL_OCSP_resp_get0(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA)
     WOLFSSL_OCSP_BASICRESP basicResp;
     WOLFSSL_OCSP_SINGLERESP singleRespOne;
     WOLFSSL_OCSP_SINGLERESP singleRespTwo;
@@ -64720,7 +64728,8 @@ static int test_wc_CreateEncryptedPKCS8Key(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_PKCS8) && !defined(NO_PWDBASED) && defined(WOLFSSL_AES_256) \
- && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA)
+ && !defined(NO_AES_CBC) && !defined(NO_RSA) && !defined(NO_SHA) && \
+    !defined(NO_ASN_CRYPT)
     WC_RNG rng;
     byte* encKey = NULL;
     word32 encKeySz = 0;
@@ -67245,6 +67254,10 @@ static int test_RsaSigFailure_cm(void)
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
         ExpectIntEQ(verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_RSA),
            WOLFSSL_FATAL_ERROR);
+#elif defined(NO_ASN_CRYPT)
+        /* RSA verify is not called when ASN crypt support is disabled */
+        ExpectIntEQ(verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_RSA),
+           WOLFSSL_SUCCESS);
 #else
         ExpectIntEQ(verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_RSA),
            ASN_SIG_CONFIRM_E);
@@ -67278,6 +67291,10 @@ static int test_EccSigFailure_cm(void)
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
         ExpectIntEQ(verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_ECC),
            WOLFSSL_FATAL_ERROR);
+#elif defined(NO_ASN_CRYPT)
+        /* ECC verify is not called when ASN crypt support is disabled */
+        ExpectIntEQ(verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_ECC),
+           WOLFSSL_SUCCESS);
 #else
         ExpectIntEQ(verify_sig_cm(ca_cert, cert_buf, cert_sz, TESTING_ECC),
            ASN_SIG_CONFIRM_E);
@@ -76386,9 +76403,7 @@ static int test_wolfSSL_dtls_stateless(void)
 #endif /* WOLFSSL_DTLS13 && WOLFSSL_SEND_HRR_COOKIE &&
         * HAVE_IO_TESTS_DEPENDENCIES && !SINGLE_THREADED */
 
-#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-    !defined(WOLFSSL_NO_CLIENT_AUTH))
+#ifdef HAVE_CERT_CHAIN_VALIDATION
 static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
 {
     int ret;
@@ -85408,9 +85423,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_CertManagerCRL),
     TEST_DECL(test_wolfSSL_CertManagerCheckOCSPResponse),
     TEST_DECL(test_wolfSSL_CheckOCSPResponse),
-#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-                           !defined(WOLFSSL_NO_CLIENT_AUTH))
+#ifdef HAVE_CERT_CHAIN_VALIDATION
     TEST_DECL(test_various_pathlen_chains),
 #endif
 
@@ -85500,7 +85513,9 @@ TEST_CASE testCases[] = {
     /* Large number of memory allocations. */
     TEST_DECL(test_wolfSSL_CTX_load_system_CA_certs),
 
+#ifdef HAVE_CERT_CHAIN_VALIDATION
     TEST_DECL(test_wolfSSL_CertRsaPss),
+#endif
     TEST_DECL(test_wolfSSL_CTX_load_verify_locations_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_buffer_ex),
     TEST_DECL(test_wolfSSL_CTX_load_verify_chain_buffer_format),

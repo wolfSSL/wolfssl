@@ -1067,7 +1067,9 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
             case CERT_POLICY_OID:
                 if (!isSet)
                     break;
+            #ifdef WOLFSSL_SEP
                 ext->crit = x509->certPolicyCrit;
+            #endif
                 break;
 
             case KEY_USAGE_OID:
@@ -1424,6 +1426,11 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         break;
     default:
 #ifdef WOLFSSL_CUSTOM_OID
+    {
+        char *oid = NULL;
+        byte *val = NULL;
+        int err = 0;
+
         if ((ext->obj == NULL) || (ext->value.length == 0)) {
             WOLFSSL_MSG("Extension has insufficient information.");
             return WOLFSSL_FAILURE;
@@ -1436,12 +1443,10 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         }
 
         /* This is a viable custom extension. */
-        char *oid = XMALLOC(MAX_OID_STRING_SZ, x509->heap,
-                            DYNAMIC_TYPE_X509_EXT);
-        byte *val = XMALLOC(ext->value.length, x509->heap,
-                            DYNAMIC_TYPE_X509_EXT);
-        int err = 0;
-
+        oid = (char*)XMALLOC(MAX_OID_STRING_SZ, x509->heap,
+            DYNAMIC_TYPE_X509_EXT);
+        val = (byte*)XMALLOC(ext->value.length, x509->heap,
+            DYNAMIC_TYPE_X509_EXT);
         if ((oid == NULL) || (val == NULL)) {
             WOLFSSL_MSG("Memory allocation failure.\n");
             err = 1;
@@ -1466,12 +1471,13 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         x509->custom_exts[x509->customExtCount].val = val;
         x509->custom_exts[x509->customExtCount].valSz = ext->value.length;
         x509->customExtCount++;
+        break;
+    }
 #else
         WOLFSSL_MSG("Unsupported extension to add");
         return WOLFSSL_FAILURE;
 #endif /* WOLFSSL_CUSTOM_OID */
-        break;
-    }
+    } /* switch (nid) */
 
     return WOLFSSL_SUCCESS;
 }
@@ -2504,7 +2510,8 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             else {
                 WOLFSSL_MSG("No Cert Policy set");
             }
-        #elif defined(WOLFSSL_SEP)
+        #endif /* WOLFSSL_CERT_EXT */
+        #ifdef WOLFSSL_SEP
             if (x509->certPolicySet) {
                 if (c != NULL) {
                     *c = x509->certPolicyCrit;
@@ -2520,8 +2527,6 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             else {
                 WOLFSSL_MSG("No Cert Policy set");
             }
-        #else
-            WOLFSSL_MSG("wolfSSL not built with WOLFSSL_SEP or WOLFSSL_CERT_EXT");
         #endif
             break;
         }
@@ -3711,7 +3716,7 @@ char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
     }
 
     ret = cert->altNamesNext->name;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
     /* return the IP address as a string */
     if (cert->altNamesNext->type == ASN_IP_TYPE) {
         ret = cert->altNamesNext->ipString;
@@ -5668,9 +5673,9 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
                 case NID_key_usage: crit = x509->keyUsageCrit; break;
                 case NID_crl_distribution_points: crit= x509->CRLdistCrit; break;
                 case NID_ext_key_usage: crit= x509->extKeyUsageCrit; break;
-                #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
-                    case NID_certificate_policies: crit = x509->certPolicyCrit; break;
-                #endif /* WOLFSSL_SEP || WOLFSSL_QT */
+            #ifdef WOLFSSL_SEP
+                case NID_certificate_policies: crit = x509->certPolicyCrit; break;
+            #endif /* WOLFSSL_SEP */
             }
         }
 
@@ -5873,7 +5878,7 @@ static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
                         break;
                     }
                 }
-            #if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+            #ifdef WOLFSSL_IP_ALT_NAME
                 else if (entry->type == ASN_IP_TYPE) {
                     len = XSNPRINTF(scratch, MAX_WIDTH, "IP Address:%s",
                             entry->ipString);

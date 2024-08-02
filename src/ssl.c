@@ -5359,8 +5359,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) && \
-    defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
     if (cm->unknownExtCallback != NULL) {
         wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
     }
@@ -22731,7 +22730,7 @@ void wolfSSL_ERR_remove_state(unsigned long id)
     }
 }
 
-#endif  /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_ALL
 

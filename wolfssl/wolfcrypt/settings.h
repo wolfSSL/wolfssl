@@ -415,36 +415,31 @@
  * ---------------------------------------------------------------------------
  */
 #ifdef WOLFSSL_DUAL_ALG_CERTS
+    #ifdef NO_RSA
+        #error "Need RSA or else dual alg cert example will not work."
+    #endif
 
-#ifndef WOLFSSL_ASN_TEMPLATE
-    #error "Dual alg cert support requires the ASN.1 template feature."
-#endif
+    #ifndef HAVE_ECC
+        #error "Need ECDSA or else dual alg cert example will not work."
+    #endif
 
-#ifdef NO_RSA
-    #error "Need RSA or else dual alg cert example will not work."
-#endif
+    #undef WOLFSSL_CERT_GEN
+    #define WOLFSSL_CERT_GEN
 
-#ifndef HAVE_ECC
-    #error "Need ECDSA or else dual alg cert example will not work."
-#endif
+    #undef WOLFSSL_CUSTOM_OID
+    #define WOLFSSL_CUSTOM_OID
 
-#undef WOLFSSL_CERT_GEN
-#define WOLFSSL_CERT_GEN
+    #undef HAVE_OID_ENCODING
+    #define HAVE_OID_ENCODING
 
-#undef WOLFSSL_CUSTOM_OID
-#define WOLFSSL_CUSTOM_OID
+    #undef WOLFSSL_CERT_EXT
+    #define WOLFSSL_CERT_EXT
 
-#undef HAVE_OID_ENCODING
-#define HAVE_OID_ENCODING
+    #undef OPENSSL_EXTRA
+    #define OPENSSL_EXTRA
 
-#undef WOLFSSL_CERT_EXT
-#define WOLFSSL_CERT_EXT
-
-#undef OPENSSL_EXTRA
-#define OPENSSL_EXTRA
-
-#undef HAVE_OID_DECODING
-#define HAVE_OID_DECODING
+    #undef HAVE_OID_DECODING
+    #define HAVE_OID_DECODING
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
 
@@ -1648,6 +1643,7 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_STATIC_PSK
     /* Server side support to be added at a later date. */
     #define NO_WOLFSSL_SERVER
+
     /* Need WOLFSSL_PUBLIC_ASN to use ProcessPeerCert callback. */
     #define WOLFSSL_PUBLIC_ASN
 
@@ -2889,6 +2885,158 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_ASN_TEMPLATE
 #endif
 
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && !defined(WOLFSSL_ASN_TEMPLATE)
+    #error "Dual alg cert support requires the ASN.1 template feature."
+#endif
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    #undef  WOLFSSL_ASN_ALL
+    #define WOLFSSL_ASN_ALL
+#endif
+
+/* Enable all parsing features for ASN */
+#ifdef WOLFSSL_ASN_ALL
+    /* Alternate Names */
+    #undef  WOLFSSL_ALT_NAMES
+    #define WOLFSSL_ALT_NAMES
+
+    /* Alternate Name: human readable form of IP address*/
+    #undef  WOLFSSL_IP_ALT_NAME
+    #define WOLFSSL_IP_ALT_NAME
+
+    /* Alternate name: human readable form of registered ID */
+    #undef  WOLFSSL_RID_ALT_NAME
+    #define WOLFSSL_RID_ALT_NAME
+
+    /* CA Issuer URI */
+    #undef  WOLFSSL_ASN_CA_ISSUER
+    #define WOLFSSL_ASN_CA_ISSUER
+
+    /* FPKI (Federal PKI) extensions */
+    #undef  WOLFSSL_FPKI
+    #define WOLFSSL_FPKI
+
+    /* Certificate policies */
+    #undef  WOLFSSL_SEP
+    #define WOLFSSL_SEP
+
+    /* Support for full AuthorityKeyIdentifier extension.
+     * Only supports copying full AKID from an existing certificate */
+    #undef  WOLFSSL_AKID_NAME
+    #define WOLFSSL_AKID_NAME
+
+    /* Extended ASN.1 parsing support (typically used with cert gen) */
+    #undef  WOLFSSL_CERT_EXT
+    #define WOLFSSL_CERT_EXT
+
+    /* Support for SubjectDirectoryAttributes extension */
+    #undef  WOLFSSL_SUBJ_DIR_ATTR
+    #define WOLFSSL_SUBJ_DIR_ATTR
+
+    /* Support for SubjectInfoAccess extension */
+    #undef  WOLFSSL_SUBJ_INFO_ACC
+    #define WOLFSSL_SUBJ_INFO_ACC
+
+    #undef  WOLFSSL_CERT_NAME_ALL
+    #define WOLFSSL_CERT_NAME_ALL
+
+    /* Store pointers to issuer name components (lengths and encodings) */
+    #undef  WOLFSSL_HAVE_ISSUER_NAMES
+    #define WOLFSSL_HAVE_ISSUER_NAMES
+
+    /* Additional ASN.1 encoded name fields. See CTC_MAX_ATTRIB for max limit */
+    #undef  WOLFSSL_MULTI_ATTRIB
+    #define WOLFSSL_MULTI_ATTRIB
+
+    /* Parsing of indefinite length encoded ASN.1
+     * Optionally used by PKCS7/PKCS12 */
+    #undef  ASN_BER_TO_DER
+    #define ASN_BER_TO_DER
+
+    /* Enable custom OID support for subject and request extensions */
+    #undef  WOLFSSL_CUSTOM_OID
+    #define WOLFSSL_CUSTOM_OID
+
+    /* Support for full OID (not just sum) encoding */
+    #undef  HAVE_OID_ENCODING
+    #define HAVE_OID_ENCODING
+
+    /* Support for full OID (not just sum) decoding */
+    #undef  HAVE_OID_DECODING
+    #define HAVE_OID_DECODING
+
+    /* S/MIME - Secure Multipurpose Internet Mail Extension (used with PKCS7) */
+    #undef  HAVE_SMIME
+    #define HAVE_SMIME
+
+    /* Enable compatibility layer function for getting time string */
+    #undef  WOLFSSL_ASN_TIME_STRING
+    #define WOLFSSL_ASN_TIME_STRING
+
+    /* Support for parsing key usage */
+    #undef  WOLFSSL_ASN_PARSE_KEYUSAGE
+    #define WOLFSSL_ASN_PARSE_KEYUSAGE
+
+    /* Support for parsing OCSP status */
+    #undef  WOLFSSL_OCSP_PARSE_STATUS
+    #define WOLFSSL_OCSP_PARSE_STATUS
+
+    /* Extended Key Usage */
+    #undef  WOLFSSL_EKU_OID
+    #define WOLFSSL_EKU_OID
+#endif
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #undef  WOLFSSL_ASN_TIME_STRING
+    #define WOLFSSL_ASN_TIME_STRING
+#endif
+
+#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) || \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+    #undef  WOLFSSL_ASN_PARSE_KEYUSAGE
+    #define WOLFSSL_ASN_PARSE_KEYUSAGE
+#endif
+
+#if defined(HAVE_OCSP) && !defined(WOLFCRYPT_ONLY) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY) || \
+     defined(WOLFSSL_APACHE_HTTPD))
+    #undef  WOLFSSL_OCSP_PARSE_STATUS
+    #define WOLFSSL_OCSP_PARSE_STATUS
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_CERT_GEN)
+    #undef  WOLFSSL_MULTI_ATTRIB
+    #define WOLFSSL_MULTI_ATTRIB
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #undef  WOLFSSL_EKU_OID
+    #define WOLFSSL_EKU_OID
+#endif
+
+/* Disable time checking if no timer */
+#if defined(NO_ASN_TIME)
+    #define NO_ASN_TIME_CHECK
+#endif
+
+/* ASN Unknown Extension Callback support */
+#if defined(WOLFSSL_CUSTOM_OID) && defined(HAVE_OID_DECODING) && \
+    defined(WOLFSSL_ASN_TEMPLATE)
+    #undef  WC_ASN_UNKNOWN_EXT_CB
+    #define WC_ASN_UNKNOWN_EXT_CB
+#else
+    /* if user supplied build option and not using ASN template, raise error */
+    #if defined(WC_ASN_UNKNOWN_EXT_CB) && !defined(WOLFSSL_ASN_TEMPLATE)
+        #error ASN unknown extension callback is only supported \
+            with ASN template
+    #endif
+#endif
+
+
+/* Linux Kernel Module */
 #ifdef WOLFSSL_LINUXKM
     #ifdef HAVE_CONFIG_H
         #include <config.h>
@@ -3014,28 +3162,13 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_SESSION_ID_CTX
 #endif /* OPENSSL_EXTRA && !OPENSSL_COEXIST */
 
-/* ---------------------------------------------------------------------------
- * Special small OpenSSL compat layer for certs
- * ---------------------------------------------------------------------------
- */
 #ifdef OPENSSL_EXTRA_X509_SMALL
-    #undef WOLFSSL_EKU_OID
-    #define WOLFSSL_EKU_OID
-
-    #undef WOLFSSL_MULTI_ATTRIB
-    #define WOLFSSL_MULTI_ATTRIB
-
     #undef WOLFSSL_NO_OPENSSL_RAND_CB
     #define WOLFSSL_NO_OPENSSL_RAND_CB
-#endif /* OPENSSL_EXTRA_X509_SMALL */
+#endif
 
 #ifdef HAVE_SNI
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
-#endif
-
-/* Disable time checking if no timer */
-#if defined(NO_ASN_TIME)
-    #define NO_ASN_TIME_CHECK
 #endif
 
 /* both CURVE and ED small math should be enabled */

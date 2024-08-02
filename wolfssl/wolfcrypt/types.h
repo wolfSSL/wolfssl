@@ -832,7 +832,7 @@ typedef struct w64wrapper {
                 #include <stdio.h>
                 #define XSPRINTF sprintf
                 /* snprintf not available for C89, so remap using macro */
-                #define XSNPRINTF(f, len, ...) sprintf(f, ...)
+                #define XSNPRINTF(f, len, ...) sprintf(f, __VA_ARGS__)
             #else
                 #include <stdio.h>
                 #define XSNPRINTF snprintf
@@ -875,7 +875,8 @@ typedef struct w64wrapper {
         #endif /* !XSNPRINTF */
 
         #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
-            defined(HAVE_ALPN) || defined(WOLFSSL_SNIFFER)
+            defined(HAVE_ALPN) || defined(WOLFSSL_SNIFFER) || \
+            defined(WOLFSSL_ASN_PARSE_KEYUSAGE)
             /* use only Thread Safe version of strtok */
             #if defined(USE_WOLF_STRTOK)
                 #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
