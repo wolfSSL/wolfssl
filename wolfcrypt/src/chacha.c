@@ -38,6 +38,9 @@ Public domain.
 #if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
     /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
+#elif defined(WOLFSSL_RISCV_ASM)
+    /* implementation located in wolfcrypt/src/port/rsicv/riscv-64-chacha.c */
+
 #else
 #if defined(HAVE_CHACHA)
 

@@ -846,41 +846,41 @@ static WC_INLINE void Sha256Final(wc_Sha256* sha256, byte* hash)
 #elif defined(WOLFSSL_RISCV_BASE_BIT_MANIPULATION)
         "ld     t1, 0(%[digest])\n\t"
         "ld     t3, 8(%[digest])\n\t"
-        "ld     s1, 16(%[digest])\n\t"
-        "ld     s3, 24(%[digest])\n\t"
+        "ld     a5, 16(%[digest])\n\t"
+        "ld     a7, 24(%[digest])\n\t"
         REV8(REG_T1, REG_T1)
         REV8(REG_T3, REG_T3)
-        REV8(REG_S1, REG_S1)
-        REV8(REG_S3, REG_S3)
+        REV8(REG_A5, REG_A5)
+        REV8(REG_A7, REG_A7)
         "srli   t0, t1, 32\n\t"
         "srli   t2, t3, 32\n\t"
-        "srli   s0, s1, 32\n\t"
-        "srli   s2, s3, 32\n\t"
+        "srli   a4, a5, 32\n\t"
+        "srli   a6, a7, 32\n\t"
         "sw     t0, 0(%[hash])\n\t"
         "sw     t1, 4(%[hash])\n\t"
         "sw     t2, 8(%[hash])\n\t"
         "sw     t3, 12(%[hash])\n\t"
-        "sw     s0, 16(%[hash])\n\t"
-        "sw     s1, 20(%[hash])\n\t"
-        "sw     s2, 24(%[hash])\n\t"
-        "sw     s3, 28(%[hash])\n\t"
+        "sw     a4, 16(%[hash])\n\t"
+        "sw     a5, 20(%[hash])\n\t"
+        "sw     a6, 24(%[hash])\n\t"
+        "sw     a7, 28(%[hash])\n\t"
 #else
         LOAD_WORD_REV(t0, 0, %[digest], t2, t3, t4)
         LOAD_WORD_REV(t1, 4, %[digest], t2, t3, t4)
-        LOAD_WORD_REV(s0, 8, %[digest], t2, t3, t4)
-        LOAD_WORD_REV(s1, 12, %[digest], t2, t3, t4)
+        LOAD_WORD_REV(a4, 8, %[digest], t2, t3, t4)
+        LOAD_WORD_REV(a5, 12, %[digest], t2, t3, t4)
         "sw     t0, 0(%[hash])\n\t"
         "sw     t1, 4(%[hash])\n\t"
-        "sw     s0, 8(%[hash])\n\t"
-        "sw     s1, 12(%[hash])\n\t"
+        "sw     a4, 8(%[hash])\n\t"
+        "sw     a5, 12(%[hash])\n\t"
         LOAD_WORD_REV(t0, 16, %[digest], t2, t3, t4)
         LOAD_WORD_REV(t1, 20, %[digest], t2, t3, t4)
-        LOAD_WORD_REV(s0, 24, %[digest], t2, t3, t4)
-        LOAD_WORD_REV(s1, 28, %[digest], t2, t3, t4)
+        LOAD_WORD_REV(a4, 24, %[digest], t2, t3, t4)
+        LOAD_WORD_REV(a5, 28, %[digest], t2, t3, t4)
         "sw     t0, 16(%[hash])\n\t"
         "sw     t1, 20(%[hash])\n\t"
-        "sw     s0, 24(%[hash])\n\t"
-        "sw     s1, 28(%[hash])\n\t"
+        "sw     a4, 24(%[hash])\n\t"
+        "sw     a5, 28(%[hash])\n\t"
 #endif
         :
         : [digest] "r" (sha256->digest), [hash] "r" (hash)
@@ -889,7 +889,7 @@ static WC_INLINE void Sha256Final(wc_Sha256* sha256, byte* hash)
           , [rev_idx] "r" (rev_idx)
 #endif
         : "cc", "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
-          "s0", "s1", "s2", "s3"
+          "a4", "a5", "a6", "a7"
     );
 }
 

@@ -137,6 +137,12 @@
              (0b0010011 << 0) |                             \
              (rs << 15) | (rd << 7))
 
+#define RORIW(rd, rs, imm)                                  \
+    ASM_WORD((0b0110000 << 25) | (0b101 << 12) |            \
+             (0b0011011 << 0) |                             \
+             (imm << 20) | (rs << 15) | (rd << 7))
+
+
 /* rd = rs1[0..31] | rs2[0..31]. */
 #define PACK(rd, rs1, rs2)                                     \
     ASM_WORD((0b0000100 << 25) | (0b100 << 12) | 0b0110011 |   \
@@ -184,16 +190,36 @@
 /* Move from vector register to vector registor. */
 #define VMV_V_V(vd, vs1)                                        \
     ASM_WORD((0b1010111 << 0) | (0b000 << 12) | (0b1 << 25) |   \
-        (0b010111 << 26) | (vd << 7) | (vs1 << 15))
+        (0b010111 << 26) | ((vd) << 7) | ((vs1) << 15))
 /* Splat register to each component of the vector registor. */
 #define VMV_V_X(vd, rs1)                                        \
     ASM_WORD((0b1010111 << 0) | (0b100 << 12) | (0b1 << 25) |   \
-        (0b010111 << 26) | (vd << 7) | (rs1 << 15))
+        (0b010111 << 26) | ((vd) << 7) | ((rs1) << 15))
+/* Splat immediate to each component of the vector registor. */
+#define VMV_V_I(vd, imm)                                        \
+    ASM_WORD((0b1010111 << 0) | (0b011 << 12) | (0b1 << 25) |   \
+        (0b010111 << 26) | ((vd) << 7) | ((imm) << 15))
 /* Move n vector registers to vector registers. */
 #define VMVR_V(vd, vs2, n)                                      \
     ASM_WORD((0b1010111 << 0) | (0b011 << 12) | (0b1 << 25) |   \
-        (0b100111 << 26) | (vd << 7) | ((n-1) << 15) |          \
-        (vs2 << 20))
+        (0b100111 << 26) | ((vd) << 7) | ((n-1) << 15) |        \
+        ((vs2) << 20))
+
+
+/*
+ * Logic
+ */
+
+/* vd = vs2 << uimm */
+#define VSLL_VI(vd, vs2, uimm)                      \
+    ASM_WORD((0b100101 << 26) | (0b1 << 25) |       \
+             (0b011 << 12) | (0b1010111 << 0) |     \
+             (vd << 7) | (uimm << 15) | (vs2 << 20))
+/* vd = vs2 >> uimm */
+#define VSRL_VI(vd, vs2, uimm)                      \
+    ASM_WORD((0b101000 << 26) | (0b1 << 25) |       \
+             (0b011 << 12) | (0b1010111 << 0) |     \
+             (vd << 7) | (uimm << 15) | (vs2 << 20))
 
 
 /*
@@ -235,13 +261,13 @@
 #define VMV_X_S(rd, vs2)                            \
     ASM_WORD((0b010000 << 26) | (0b1 << 25) |       \
              (0b010 << 12) | (0b1010111 << 0) |     \
-             (rd << 7) | (vs2 << 20))
+             ((rd) << 7) | ((vs2) << 20))
 
 /* vd[0] = x[rs1] */
 #define VMV_S_X(vd, rs1)                            \
     ASM_WORD((0b010000 << 26) | (0b1 << 25) |       \
              (0b110 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (rs1 << 15))
+             ((vd) << 7) | ((rs1) << 15))
 
 /* vd[shift..max] = vs2[0..max-shift]
  * Sliding up doesn't change bottom part of destination.
@@ -249,7 +275,7 @@
 #define VSLIDEUP_VI(vd, vs2, shift)                 \
     ASM_WORD((0b001110 << 26) | (0b1 << 25) |       \
              (0b011 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (shift << 15) | (vs2 << 20))
+             ((vd) << 7) | ((shift) << 15) | ((vs2) << 20))
 
 /* vd[0..max-shift] = vs2[shift..max]
  * Sliding down change top part of destination.
@@ -257,13 +283,18 @@
 #define VSLIDEDOWN_VI(vd, vs2, shift)               \
     ASM_WORD((0b001111 << 26) | (0b1 << 25) |       \
              (0b011 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (shift << 15) | (vs2 << 20))
+             ((vd) << 7) | ((shift) << 15) | ((vs2) << 20))
 
 /* vd[i] = vs1[vs2[i]] */
 #define VRGATHER_VV(vd, vs1, vs2)                   \
     ASM_WORD((0b001100 << 26) | (0b1 << 25) |       \
              (0b000 << 12) | (0b1010111 << 0) |     \
-             (vd << 7) | (vs1 << 15) | (vs2 << 20))
+             ((vd) << 7) | ((vs1) << 15) | ((vs2) << 20))
+
+#define VID_V(vd)                                   \
+    ASM_WORD((0b010100 << 26) | (0b1 << 25) | (0b00000 << 20) |   \
+             (0b10001 << 15) | (0b010 << 12) |      \
+             (0b1010111 << 0) | ((vd) << 7))
 
 
 /*
@@ -281,14 +312,21 @@
     defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM)
 
 /*
- * Bit Manipulation
+ * Vector Bit Manipulation
  */
 
 /* Reverse order of bytes in words of vector regsiter. */
 #define VREV8(vd, vs2) \
     ASM_WORD((0b010010 << 26) | (0b1 << 25) | (0b01001<< 15) | \
-             (0b010 << 12) | (0b1010111 << 0) | \
+             (0b010 << 12) | (0b1010111 << 0) |                \
              (vs2 << 20) | (vd << 7))
+
+/* Reverse order of bytes in words of vector regsiter. */
+#define VROR_VI(vd, imm, vs2) \
+    ASM_WORD((0b01010 << 27) | (0b1 << 25) | (0b011 << 12) |    \
+             (0b1010111 << 0) | ((imm >> 5) << 26) |            \
+             (vs2 << 20) | ((imm & 0x1f) << 15) | (vd << 7))
+
 
 #endif /* WOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION ||
         * WOLFSSL_RISCV_VECTOR_CRYPTO_ASM */

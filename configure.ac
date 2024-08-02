@@ -3077,9 +3077,13 @@ do
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_CARRYLESS"
     ;;
   zkn|zkned)
-    # AES encrypt/decrpyt
+    # AES encrypt/decrpyt, SHA-2
     ENABLED_RISCV_ASM=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_SCALAR_CRYPTO_ASM"
+    ;;
+  zv)
+    ENABLED_RISCV_ASM=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR"
     ;;
   zvkg)
     # VGMUL, VHHSH
@@ -3097,12 +3101,12 @@ do
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION"
     ;;
   zvkned)
-    # Vector AES
+    # Vector AES, SHA-2
     ENABLED_RISCV_ASM=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_CRYPTO_ASM"
     ;;
   *)
-    AC_MSG_ERROR([Invalid RISC-V option [yes,zbkb,zbb,zbc,zbkc,zkn,zkned,zvkg,zvbc,zvbb,zvkb,zvkned]: $ENABLED_RISCV_ASM.])
+    AC_MSG_ERROR([Invalid RISC-V option [yes,zbkb,zbb,zbc,zbkc,zkn,zkned,zv,zvkg,zvbc,zvbb,zvkb,zvkned]: $ENABLED_RISCV_ASM.])
     break
     ;;
   esac
