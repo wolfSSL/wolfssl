@@ -41,7 +41,11 @@
 #include <wolfssl/wolfcrypt/cryptocb.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#ifdef USS_API
+#include <MXQ_API.h>
+#else
 #include <wolfssl/wolfcrypt/port/maxim/MXQ_API.h>
+#endif
 
 #ifndef WOLFSSL_HAVE_ECC_KEY_GET_PRIV
     /* FIPS build has replaced ecc.h. */
@@ -72,9 +76,17 @@ void dbg_dumphex(const char *identifier, const uint8_t* pdata, uint32_t plen);
 #endif
 
 #define PUBKEY_IMPORT_OBJID    0x1000
+
+#if defined (TEST_SETUP)
+#define ROOT_CA_CERT_OBJ_ID    0x1006
+#define DEVICE_CERT_OBJ_ID     0x1005
+#define DEVICE_KEY_PAIR_OBJ_ID 0x1007
+#else
 #define ROOT_CA_CERT_OBJ_ID    0x1003
 #define DEVICE_CERT_OBJ_ID     0x1002
 #define DEVICE_KEY_PAIR_OBJ_ID 0x1004
+#endif
+
 #define PSK_OBJ_ID             0x1236
 #define K_CHUNKSIZE            2032
 #define K_CIPHER_BLOCKSIZE     16
@@ -120,7 +132,7 @@ static int tls13_server_key_len           = -1;
 
 /* Please define MAXQ10XX_PRODUCTION_KEY in your build scripts once you have a
  * production key. */
-#if defined(MAXQ10XX_PRODUCTION_KEY) || !defined(DEBUG_WOLFSSL)
+#if defined(MAXQ10XX_PRODUCTION_KEY)
 #include "maxq10xx_key.h"
 #else
 /* TEST KEY. This must be changed for production environments!! */
@@ -568,12 +580,14 @@ static int aes_set_key(Aes* aes, const byte* userKey, word32 keylen)
         return BAD_FUNC_ARG;
     }
 
+    #if defined(MAXQ10XX_MUTEX)
     rc = maxq_CryptHwMutexTryLock();
     if (rc != 0) {
         WOLFSSL_ERROR_MSG("MAXQ: aes_set_key() lock could not be acquired");
         rc = NOT_COMPILED_IN;
         return rc;
     }
+    #endif
 
     if (aes->maxq_ctx.key_obj_id) {
         wc_MAXQ10XX_AesFree(aes);
@@ -694,12 +708,14 @@ static int ecc_set_key(ecc_key* key, const byte* userKey, word32 keycomplen)
         objtype = MXQ_OBJTYPE_KEYPAIR;
     }
 
+    #if defined(MAXQ10XX_MUTEX)
     rc = maxq_CryptHwMutexTryLock();
     if (rc != 0) {
         WOLFSSL_ERROR_MSG("MAXQ: ecc_set_key() lock could not be acquired");
         rc = NOT_COMPILED_IN;
         return rc;
     }
+    #endif
 
     if (key->maxq_ctx.key_obj_id) {
         wc_MAXQ10XX_EccFree(key);
@@ -1074,24 +1090,20 @@ static int maxq10xx_ecc_verify_local(
 #endif /* MAXQ_ECC */
 
 #ifdef MAXQ_RNG
-static int maxq10xx_random(byte* output, unsigned short sz)
+int maxq10xx_random(byte* output, unsigned short sz)
 {
-#if defined(WOLFSSL_MAXQ108X)
-    if (!tls13active) {
-        return NOT_COMPILED_IN;
-    }
-#endif
-
     if (output == NULL) {
         return BUFFER_E;
     }
 
+    #if defined(MAXQ10XX_MUTEX)
     int ret = maxq_CryptHwMutexTryLock();
     if (ret != 0) {
         WOLFSSL_ERROR_MSG("MAXQ: maxq10xx_random() lock could not be acquired");
         ret = NOT_COMPILED_IN;
         return ret;
     }
+    #endif
 
     if (MXQ_Get_Random_Ext(output, sz, 0)) {
         WOLFSSL_ERROR_MSG("MAXQ: MXQ_Get_Random_Ext() failed");
@@ -1222,6 +1234,7 @@ static int do_sha256(wc_CryptoInfo* info)
         return WC_HW_E;
     }
 
+    #if defined(MAXQ10XX_MUTEX)
     if (info->hash.sha256->maxq_ctx.hash_running == 0) {
         rc = maxq_CryptHwMutexTryLock();
         if (rc != 0) {
@@ -1229,6 +1242,7 @@ static int do_sha256(wc_CryptoInfo* info)
             return CRYPTOCB_UNAVAILABLE;
         }
     }
+    #endif
 
     if (info->hash.in != NULL) {
         /* wc_Sha256Update */
@@ -1981,12 +1995,14 @@ int maxq10xx_port_init(void)
     }
     #endif
 
+    #if defined(MAXQ10XX_MUTEX)
     ret = maxq_CryptHwMutexTryLock();
     if (ret) {
         WOLFSSL_ERROR_MSG("MAXQ: maxq10xx_port_init() -> device is busy "
                     "(switching to soft mode)");
         return 0;
     }
+    #endif
 
     mxq_rc = MXQ_Module_Init();
     if (mxq_rc) {
@@ -3290,7 +3306,7 @@ static int maxq10xx_perform_tls13_record_processing(WOLFSSL* ssl,
 {
     int rc;
     mxq_err_t mxq_rc;
-    mxq_u2 key_id;
+    mxq_u2 key_id = 0xFFFF;
 
     if (!tls13active) {
         return NOT_COMPILED_IN;

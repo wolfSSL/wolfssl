@@ -3913,6 +3913,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
     #define USE_TEST_GENSEED
 
+#elif defined(WOLFSSL_MAXQ108X) || defined(WOLFSSL_MAXQ1065)
+
+    /* getrandom() was added to the Linux kernel in version 3.17.
+     * Added to glibc in version 2.25. */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        (void)os;
+
+        return maxq10xx_random(output, sz);
+    }
+
 #elif defined(NO_DEV_RANDOM)
 
     /* Allow bare-metal targets to use cryptoCb as seed provider */
