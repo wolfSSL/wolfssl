@@ -16612,7 +16612,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     const byte* sigParams, word32 sigParamsSz,
     byte* rsaKeyIdx)
 {
-    int ret = 0;
+    int ret = ASN_SIG_CONFIRM_E; /* default to failure */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     CertAttribute* certatt = NULL;
 #endif
@@ -17749,8 +17749,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 exit_cs:
 
 #else
-    /* Warning: The NO_ASN_CRYPT option skips signature checking! */
-    ret = 0; /* allow unchecked signature */
+    /* For NO_ASN_CRYPT return "not compiled in" */
+    ret = NOT_COMPILED_IN;
 #endif /* !NO_ASN_CRYPT */
 
     (void)keyOID;
