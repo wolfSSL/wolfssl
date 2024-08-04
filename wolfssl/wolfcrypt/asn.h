@@ -2760,7 +2760,9 @@ enum PBESTypes {
 
     PBES2              = 13,       /* algo ID */
     PBES1_MD5_DES      = 3,
-    PBES1_SHA1_DES     = 10
+    PBES1_SHA1_DES     = 10,
+
+    PBE_NONE           = 999
 };
 
 enum PKCSTypes {
