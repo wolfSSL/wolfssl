@@ -3248,7 +3248,7 @@ static int TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
 }
 
 #if !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
-    defined(HAVE_CSR_TLS13MULTI)
+    defined(WOLFSSL_TLS_OCSP_MULTI)
 /* Process OCSP request certificate chain
  *
  * ssl       SSL/TLS object.
@@ -3551,7 +3551,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
             if (csr->responses[0].buffer)
                 TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
-        #if defined(HAVE_CSR_TLS13MULTI)
+        #if defined(WOLFSSL_TLS_OCSP_MULTI)
             /* process OCSP request in certificate chain */
             if ((ret = ProcessChainOCSPRequest(ssl)) != 0) {
                 WOLFSSL_MSG("Process Cert Chain OCSP request failed");

@@ -1221,7 +1221,7 @@ static const char* client_usage_msg[][78] = {
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n",     /* 41 */
         "            With 'm' at end indicates MUST staple\n",          /* 42 */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CSR_TLS13MULTI)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
         "            -W 1 tls13 multi. Perform multi OCSP stapling when"
         " using TLS13\n",                                               /* 43 */
 #endif
@@ -1453,7 +1453,7 @@ static const char* client_usage_msg[][78] = {
         "-W <num>    OCSP Staplingを使用する"
                                          " (1 v1, 2 v2, 3 v2 multi)\n", /* 41 */
         "            'm' を最後に指定すると必ず staple を使用する\n"       /* 42 */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_CSR_TLS13MULTI)
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
         "            -W 1 tls13 multi. "
         "TLS13 使用時に複数(Multi)の OCSP を実施します\n"                   /* 43 */
 #endif
