@@ -27,7 +27,7 @@ fi
 if ./examples/client/client -? 2>&1 | grep -q 'DTLSv1.3'; then
     dtls13=yes
 fi
-./examples/client/client '-?' 2>&1 | grep -- 'tls13 multi'
+./examples/client/client '-?' 2>&1 | grep -- 'Perform multi OCSP stapling for TLS13'
 if [ $? -eq 0 ]; then
     tls13multi=yes
 else

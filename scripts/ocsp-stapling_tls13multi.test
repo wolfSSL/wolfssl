@@ -5,14 +5,6 @@
 
 SCRIPT_DIR="$(dirname "$0")"
 
-./examples/client/client -? 2>&1 | grep -- 'tls13 multi'
-if [ $? -eq 0 ]; then
-    echo "Ocsp stapling multi under TLS13 will run"
-else
-    echo "Ocsp stapling multi under TLS13 won't run"
-    exit 77
-fi
-
 # if we can, isolate the network namespace to eliminate port collisions.
 if [[ -n "$NETWORK_UNSHARE_HELPER" ]]; then
      if [[ -z "$NETWORK_UNSHARE_HELPER_CALLED" ]]; then
