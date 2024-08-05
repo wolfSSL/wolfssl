@@ -27,11 +27,14 @@ jobs:
           configure: --enable-all 'CPPFLAGS=-DWOLFSSL_RSA_KEY_CHECK -DHAVE_EX_DATA_CLEANUP_HOOKS'
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-grpc
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   grpc_check:
@@ -65,7 +68,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-grpc
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
         uses: actions/checkout@v4
