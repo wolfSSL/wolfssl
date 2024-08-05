@@ -3533,10 +3533,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
         size = wolfSSL_get_server_random(ssl, rnd, size);
         if (size == 0) {
-            if (rnd) {
-                XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                rnd = NULL;
-            }
+            XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            rnd = NULL;
             err_sys_ex(runWithErrors, "error getting server random buffer");
         }
 

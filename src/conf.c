@@ -146,9 +146,7 @@ error:
         wolfSSL_TXT_DB_free(ret);
         ret = NULL;
     }
-    if (buf) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
