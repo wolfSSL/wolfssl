@@ -2335,7 +2335,7 @@ endif()
 
 foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
     string(REGEX MATCH "^(-D)?([^=]+)(=(.*))?$" DEF_MATCH ${DEF})
-    if (DEFINED CMAKE_MATCH_4)
+    if (NOT "${CMAKE_MATCH_4}" STREQUAL "")
         set(${CMAKE_MATCH_2} ${CMAKE_MATCH_4})
         # message("set(${CMAKE_MATCH_2} ${CMAKE_MATCH_4})")
     else()
