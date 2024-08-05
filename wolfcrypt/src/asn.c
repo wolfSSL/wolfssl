@@ -9177,7 +9177,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     word32 seqSz;
     word32 innerSz;
     int    ret;
-    int    version, id, blockSz = 0;
+    int    version, id = PBE_NONE, blockSz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte*  saltTmp = NULL;
     byte*  cbcIv   = NULL;
@@ -13550,7 +13550,6 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
         dnsEntry->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
                                                           DYNAMIC_TYPE_ALTNAME);
         if (dnsEntry->name == NULL) {
-            XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
             ret = MEMORY_E;
         }
     }
