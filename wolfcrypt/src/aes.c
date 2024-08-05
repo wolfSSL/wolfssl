@@ -5412,16 +5412,23 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         int status;
         byte *iv;
 
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-        if (sz % AES_BLOCK_SIZE) {
-            return BAD_LENGTH_E;
+        if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+            return BAD_FUNC_ARG;
         }
-#endif
-        if (sz == 0)
+
+        /* Always enforce a length check */
+        if (sz % AES_BLOCK_SIZE) {
+        #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+        #else
+            return BAD_FUNC_ARG;
+        }
+        #endif
+        if (sz == 0) {
             return 0;
+        }
 
         iv = (byte*)aes->reg;
-
         status = wc_AesGetKeySize(aes, &keySize);
         if (status != 0) {
             return status;
@@ -5430,12 +5437,10 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         status = wc_MXC_TPU_AesEncrypt(in, iv, (byte*)aes->key,
                                         MXC_TPU_MODE_CBC, sz, out,
                                         (unsigned int)keySize);
-
         /* store iv for next call */
         if (status == 0) {
             XMEMCPY(iv, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
         }
-
         return (status == 0) ? 0 : -1;
     }
 
@@ -5447,16 +5452,23 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         byte *iv;
         byte temp_block[AES_BLOCK_SIZE];
 
-#ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-        if (sz % AES_BLOCK_SIZE) {
-            return BAD_LENGTH_E;
+        if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+            return BAD_FUNC_ARG;
         }
-#endif
-        if (sz == 0)
+
+        /* Always enforce a length check */
+        if (sz % AES_BLOCK_SIZE) {
+        #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+            return BAD_LENGTH_E;
+        #else
+            return BAD_FUNC_ARG;
+        }
+        #endif
+        if (sz == 0) {
             return 0;
+        }
 
         iv = (byte*)aes->reg;
-
         status = wc_AesGetKeySize(aes, &keySize);
         if (status != 0) {
             return status;
@@ -5464,17 +5476,14 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         /* get IV for next call */
         XMEMCPY(temp_block, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-
         status = wc_MXC_TPU_AesDecrypt(in, iv, (byte*)aes->key,
                                         MXC_TPU_MODE_CBC, sz, out,
                                         keySize);
-
 
         /* store iv for next call */
         if (status == 0) {
             XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
         }
-
         return (status == 0) ? 0 : -1;
     }
     #endif /* HAVE_AES_DECRYPT */

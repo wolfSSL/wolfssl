@@ -360,16 +360,26 @@ int wc_MXC_TPU_SHA_GetDigest(wc_MXC_Sha *hash, unsigned char* digest,
                 XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA1, WC_SHA_DIGEST_SIZE);
                 break;
             #endif /* NO_SHA */
-            #ifndef NO_SHA256
-            case MXC_TPU_HASH_SHA256:
-                XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA256, WC_SHA256_DIGEST_SIZE);
-                break;
-            #endif /* NO_SHA256 */
             #ifdef WOLFSSL_SHA224
             case MXC_TPU_HASH_SHA224:
                 XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA224, WC_SHA224_DIGEST_SIZE);
                 break;
             #endif /* WOLFSSL_SHA224 */
+            #ifndef NO_SHA256
+            case MXC_TPU_HASH_SHA256:
+                XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA256, WC_SHA256_DIGEST_SIZE);
+                break;
+            #endif /* NO_SHA256 */
+            #ifdef WOLFSSL_SHA384
+            case MXC_TPU_HASH_SHA384:
+                XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA384, WC_SHA384_DIGEST_SIZE);
+                break;
+            #endif /* WOLFSSL_SHA384 */
+            #ifdef WOLFSSL_SHA512
+            case MXC_TPU_HASH_SHA512:
+                XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA512, WC_SHA512_DIGEST_SIZE);
+                break;
+            #endif /* WOLFSSL_SHA512 */
             default:
                 return BAD_FUNC_ARG;
         }
@@ -517,6 +527,102 @@ WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256)
 
 #endif /* NO_SHA256 */
 
+#if defined(WOLFSSL_SHA384)
+
+WOLFSSL_API int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
+{
+    if (sha384 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)heap;
+    (void)devId;
+    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha384);
+}
+
+WOLFSSL_API int wc_InitSha384(wc_Sha384* sha384)
+{
+    return wc_InitSha384_ex(sha384, NULL, INVALID_DEVID);
+}
+
+WOLFSSL_API int wc_Sha384Update(wc_Sha384* sha384, const unsigned char* data,
+                                        unsigned int len)
+{
+    return wc_MXC_TPU_SHA_Update(sha384, data, len);
+}
+
+WOLFSSL_API int wc_Sha384Final(wc_Sha384* sha384, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha384, hash,
+                                        MXC_TPU_HASH_SHA384);
+}
+
+WOLFSSL_API int wc_Sha384GetHash(wc_Sha384* sha384, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha384, hash,
+                                        MXC_TPU_HASH_SHA384);
+}
+
+WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
+{
+    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+}
+
+WOLFSSL_API void wc_Sha384Free(wc_Sha384* sha384)
+{
+    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha384);
+    return;
+}
+
+#endif /* WOLFSSL_SHA384 */
+
+#if defined(WOLFSSL_SHA512)
+
+WOLFSSL_API int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
+{
+    if (sha512 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    (void)heap;
+    (void)devId;
+    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha512);
+}
+
+WOLFSSL_API int wc_InitSha512(wc_Sha512* sha512)
+{
+    return wc_InitSha512_ex(sha512, NULL, INVALID_DEVID);
+}
+
+WOLFSSL_API int wc_Sha512Update(wc_Sha512* sha512, const unsigned char* data,
+                                        unsigned int len)
+{
+    return wc_MXC_TPU_SHA_Update(sha512, data, len);
+}
+
+WOLFSSL_API int wc_Sha512Final(wc_Sha512* sha512, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha512, hash,
+                                        MXC_TPU_HASH_SHA512);
+}
+
+WOLFSSL_API int wc_Sha512GetHash(wc_Sha512* sha512, unsigned char* hash)
+{
+    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha512, hash,
+                                        MXC_TPU_HASH_SHA512);
+}
+
+WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
+{
+    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+}
+
+WOLFSSL_API void wc_Sha512Free(wc_Sha512* sha512)
+{
+    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha512);
+    return;
+}
+
+#endif /* WOLFSSL_SHA512 */
+
 #endif /* MAX3266X_SHA */
 
 #if defined(MAX3266X_MATH)
@@ -615,7 +721,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
         return BAD_FUNC_ARG;
     }
     if ((result == NULL) || (multiplier == NULL) || (multiplicand == NULL) ||
-            ((exp == NULL) && (clc == WC_MXC_TPU_MAA_EXP)) || (mod == NULL)) {
+            ((exp == NULL) && (clc == MXC_TPU_MAA_EXP)) || (mod == NULL)) {
         return BAD_FUNC_ARG;
     }
 
@@ -630,7 +736,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
 
     /* Check for invalid arguments befor padding */
     switch ((char)clc) {
-        case WC_MXC_TPU_MAA_EXP:
+        case MXC_TPU_MAA_EXP:
             /* Cannot be 0 for a^e mod m operation */
             if (XMEMCMP(zero_tmp, exp, (exp->used*sizeof(mp_digit))) == 0) {
                 XFREE(zero_tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -638,9 +744,9 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
                 return BAD_FUNC_ARG;
             }
 
-            /* Padd out rest of data if used != length to ensure no */
+            /* Pad out rest of data if used != length to ensure no */
             /* garbage is used in calculation */
-            if ((exp != NULL) && (clc == WC_MXC_TPU_MAA_EXP)) {
+            if ((exp != NULL) && (clc == MXC_TPU_MAA_EXP)) {
                 if ((exp->dp != NULL) && (exp->used < length)) {
                     MAX3266X_MSG("Zero Padding Exp Buffer");
                     XMEMSET(exp->dp + exp->used, 0x00,
@@ -649,11 +755,11 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
             }
 
         /* Fall through to check mod is not 0 */
-        case WC_MXC_TPU_MAA_SQ:
-        case WC_MXC_TPU_MAA_MUL:
-        case WC_MXC_TPU_MAA_SQMUL:
-        case WC_MXC_TPU_MAA_ADD:
-        case WC_MXC_TPU_MAA_SUB:
+        case MXC_TPU_MAA_SQ:
+        case MXC_TPU_MAA_MUL:
+        case MXC_TPU_MAA_SQMUL:
+        case MXC_TPU_MAA_ADD:
+        case MXC_TPU_MAA_SUB:
             /* Cannot be 0 for mod m value */
             if (XMEMCMP(zero_tmp, mod, (exp->used*sizeof(mp_digit))) == 0) {
                 XFREE(zero_tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -723,7 +829,7 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
         return MP_VAL;
     }
 
-    if (clc == WC_MXC_TPU_MAA_EXP) {
+    if (clc == MXC_TPU_MAA_EXP) {
         length = wc_MXC_MAA_Largest(5, multiplier->used, multiplicand->used,
                                            exp->used, mod->used, result->used);
     }
@@ -791,7 +897,7 @@ int wc_MXC_MAA_expmod(mp_int* base, mp_int* exp, mp_int* mod,
     multiplicand.used = mod->used;
     MAX3266X_MSG("Preparing exptmod MAA HW Call");
     return wc_MXC_MAA_math(base, &multiplicand, exp, mod, result,
-                            WC_MXC_TPU_MAA_EXP);
+                            MXC_TPU_MAA_EXP);
 }
 
 int wc_MXC_MAA_sqrmod(mp_int* multiplier, mp_int* mod, mp_int* result)
@@ -802,7 +908,7 @@ int wc_MXC_MAA_sqrmod(mp_int* multiplier, mp_int* mod, mp_int* result)
     multiplicand.used = mod->used;
     MAX3266X_MSG("Preparing sqrmod MAA HW Call");
     return wc_MXC_MAA_math(multiplier, &multiplicand, NULL, mod, result,
-                            WC_MXC_TPU_MAA_SQ);
+                            MXC_TPU_MAA_SQ);
 }
 
 int wc_MXC_MAA_mulmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
@@ -810,7 +916,7 @@ int wc_MXC_MAA_mulmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
 {
     MAX3266X_MSG("Preparing mulmod MAA HW Call");
     return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
-                            WC_MXC_TPU_MAA_MUL);
+                            MXC_TPU_MAA_MUL);
 }
 
 int wc_MXC_MAA_sqrmulmod(mp_int* multiplier, mp_int* multiplicand,
@@ -818,7 +924,7 @@ int wc_MXC_MAA_sqrmulmod(mp_int* multiplier, mp_int* multiplicand,
 {
     MAX3266X_MSG("Preparing sqrmulmod MAA HW Call");
     return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
-                            WC_MXC_TPU_MAA_SQMUL);
+                            MXC_TPU_MAA_SQMUL);
 }
 
 int wc_MXC_MAA_addmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
@@ -826,7 +932,7 @@ int wc_MXC_MAA_addmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
 {
     MAX3266X_MSG("Preparing addmod MAA HW Call");
     return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
-                            WC_MXC_TPU_MAA_ADD);
+                            MXC_TPU_MAA_ADD);
 }
 
 int wc_MXC_MAA_submod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
@@ -839,7 +945,7 @@ int wc_MXC_MAA_submod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
     }
     else {
         return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
-                             WC_MXC_TPU_MAA_SUB);
+                             MXC_TPU_MAA_SUB);
     }
 }
 
