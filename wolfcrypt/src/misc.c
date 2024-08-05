@@ -716,6 +716,16 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
     return a;
 }
 
+WC_MISC_STATIC WC_INLINE w64wrapper w64Add(w64wrapper a, w64wrapper b,
+    byte *wrap)
+{
+    a.n = a.n + b.n;
+    if (a.n < b.n && wrap != NULL)
+        *wrap = 1;
+
+    return a;
+}
+
 WC_MISC_STATIC WC_INLINE w64wrapper w64Sub32(w64wrapper a, word32 b, byte *wrap)
 {
     if (a.n < b && wrap != NULL)
@@ -919,7 +929,7 @@ WC_MISC_STATIC WC_INLINE byte w64IsZero(w64wrapper a)
     return a.n[0] == 0 && a.n[1] == 0;
 }
 
-WC_MISC_STATIC WC_INLINE void c64toa(w64wrapper *a, byte *out)
+WC_MISC_STATIC WC_INLINE void c64toa(const w64wrapper *a, byte *out)
 {
 #ifdef BIG_ENDIAN_ORDER
     word32 *_out = (word32*)(out);
