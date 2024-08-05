@@ -47267,25 +47267,21 @@ static int test_wolfSSL_tmp_dh(void)
 
 #ifndef NO_WOLFSSL_SERVER
     ExpectNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
-#endif
-#ifndef NO_WOLFSSL_CLIENT
-    ExpectNotNull(ctx_c = SSL_CTX_new(wolfSSLv23_client_method()));
-#ifdef NO_WOLFSSL_SERVER
-    ctx = ctx_c;
-#endif
-#endif
     ExpectTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile,
         WOLFSSL_FILETYPE_PEM));
     ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
         WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl = SSL_new(ctx));
+#endif
 #ifndef NO_WOLFSSL_CLIENT
+    ExpectNotNull(ctx_c = SSL_CTX_new(wolfSSLv23_client_method()));
     ExpectTrue(SSL_CTX_use_certificate_file(ctx_c, svrCertFile,
         WOLFSSL_FILETYPE_PEM));
     ExpectTrue(SSL_CTX_use_PrivateKey_file(ctx_c, svrKeyFile,
         WOLFSSL_FILETYPE_PEM));
     ExpectNotNull(ssl_c = SSL_new(ctx_c));
 #ifdef NO_WOLFSSL_SERVER
+    ctx = ctx_c;
     ssl = ssl_c;
 #endif
 #endif
