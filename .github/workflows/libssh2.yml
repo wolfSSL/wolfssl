@@ -28,11 +28,14 @@ jobs:
           check: false # config is already tested in many other PRB's
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-libssh2
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   libssh2_check:
@@ -51,7 +54,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-libssh2
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Build and test libssh2
         uses: wolfSSL/actions-build-autotools-project@v1

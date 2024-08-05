@@ -52,11 +52,14 @@ jobs:
             ${{ env.wolf_debug_flags }} ${{ matrix.wolf_extra_config }}
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build_id }}
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   build_uml_linux:
@@ -178,7 +181,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.config.build_id }}
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Install dependencies
         run: |

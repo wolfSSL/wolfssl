@@ -27,11 +27,14 @@ jobs:
           configure: --enable-mosquitto CFLAGS="-DALLOW_INVALID_CERTSIGN"
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-mosquitto
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   mosquitto_check:
@@ -49,7 +52,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-mosquitto
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
         uses: actions/checkout@v4

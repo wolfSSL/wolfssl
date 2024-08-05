@@ -31,11 +31,14 @@ jobs:
           configure: --enable-krb CC='gcc -fsanitize=address'
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-krb5
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   krb5_check:
@@ -54,7 +57,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-krb5
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
         uses: actions/checkout@v4

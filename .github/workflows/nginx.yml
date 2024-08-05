@@ -33,11 +33,14 @@ jobs:
           configure: --enable-nginx ${{ env.wolf_debug_flags }}
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-nginx
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   nginx_check:
@@ -111,7 +114,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-nginx
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Install dependencies
         run: |

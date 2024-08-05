@@ -29,11 +29,14 @@ jobs:
           # Don't run tests as this config is tested in many other places
           check: false
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-libvncserver
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   build_libvncserver:
@@ -49,7 +52,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-libvncserver
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
         uses: actions/checkout@v4
