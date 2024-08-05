@@ -600,13 +600,6 @@ static WC_INLINE void Sha256Transform(wc_Sha256* sha256, const byte* data,
              (0b010 << 12) | (0b1110111 << 0) |     \
              (vd << 7) | (vs1 << 15) | (vs2 << 20))
 
-#ifndef WOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION
-/* Indecies to use with gather vector instruction to reverse bytes. */
-static const word32 rev_idx[4] = {
-    0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f
-};
-#endif /* !WOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION */
-
 #define RND4(w0, w1, w2, w3, k)                     \
     /* Four rounds of compression. */               \
     VADD_VV(REG_V7, w0, k)                          \
@@ -690,9 +683,6 @@ static void Sha256Transform(wc_Sha256* sha256, const byte* data,
 
         : [blocks] "+r" (blocks), [data] "+r" (data), [k] "+r" (k)
         : [digest] "r" (sha256->digest)
-#ifndef WOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION
-          , [rev_idx] "r" (rev_idx)
-#endif
         : "cc", "memory", "t0", "t1"
     );
 }
@@ -884,10 +874,6 @@ static WC_INLINE void Sha256Final(wc_Sha256* sha256, byte* hash)
 #endif
         :
         : [digest] "r" (sha256->digest), [hash] "r" (hash)
-#if defined(WOLFSSL_RISCV_VECTOR_CRYPTO_ASM) && \
-    !defined(WOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION)
-          , [rev_idx] "r" (rev_idx)
-#endif
         : "cc", "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
           "a4", "a5", "a6", "a7"
     );
