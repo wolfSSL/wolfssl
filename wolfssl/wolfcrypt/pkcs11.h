@@ -164,6 +164,13 @@ extern "C" {
 #define CKM_AES_CBC                           0x00001082UL
 #define CKM_AES_GCM                           0x00001087UL
 
+/* full data RSA PK callbacks */
+#define CKM_SHA1_RSA_PKCS_PSS                 0x0000000EUL
+#define CKM_SHA256_RSA_PKCS_PSS               0x00000043UL
+#define CKM_SHA384_RSA_PKCS_PSS               0x00000044UL
+#define CKM_SHA512_RSA_PKCS_PSS               0x00000045UL
+#define CKM_SHA224_RSA_PKCS_PSS               0x00000047UL
+
 #define CKG_MGF1_SHA1 0x00000001UL
 #define CKG_MGF1_SHA224 0x00000005UL
 #define CKG_MGF1_SHA256 0x00000002UL
