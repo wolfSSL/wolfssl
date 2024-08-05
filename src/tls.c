@@ -3133,7 +3133,7 @@ static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
     }
 
 #ifdef WOLFSSL_TLS13
-    for(i = 0; i < (1 + MAX_CHAIN_DEPTH);i++) {
+    for (i = 0; i < (1 + MAX_CHAIN_DEPTH); i++) {
         if (csr->responses[i].buffer != NULL) {
             XFREE(csr->responses[i].buffer, heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
