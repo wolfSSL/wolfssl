@@ -41,30 +41,26 @@ all other operations will use the default software implementations.
 The other prerequisite is that a change needs to be made to the Maxim SDK. This
 is to use the MAA Math Accelerator, this change only needs to be made if you are
 using `#define WOLFSSL_MAX3266X` or `define WOLFSSL_MAX3266X_OLD` by themselves
-or you are specifying `#define MAX3266X_MATH`.
+or you are specifying `#define MAX3266X_MATH`. This is only needed if you are
+not using the latest Maxim SDK.
 
 In the SDK you will need to find the underlying function that
 `MXC_TPU_MAA_Compute()` from `tpu.h` compute calls in the newer SDK. In the
 older SDK this function is called `MAA_Compute()` in `maa.h`. In the underlying
-function you will need to change this error check:
+function you will need to this:
 
 ```
-// Check that we're performing a valid operation
-if (clc >= 0x6) {
-    return E_INVALID;
-}
+MXC_SETFIELD(tpu->maa_ctrl, MXC_F_TPU_REVA_MAA_CTRL_CLC, clc);
 ```
 to
 ```
-// Check that we're performing a valid operation
-if (clc >= 0b1111) {
-    return E_INVALID;
-}
+MXC_SETFIELD(tpu->maa_ctrl, MXC_F_TPU_REVA_MAA_CTRL_CLC,
+                clc << MXC_F_TPU_REVA_MAA_CTRL_CLC_POS);
 ```
 
-This bug has been reported to Analog Devices
-[here](https://github.com/analogdevicesinc/msdk/issues/1089)
-if you want to know more details on the issue.
+This bug has been reported to Analog Devices and a PR has been made
+[here](https://github.com/analogdevicesinc/msdk/pull/1104)
+if you want to know more details on the issue, or use a patch.
 
 
 ## Supported Algos
@@ -81,17 +77,21 @@ hardware.
 
 `#define MAX3266X_SHA`:
 
+- SHA-1
+- SHA-224
 - SHA-256
+- SHA-384
+- SHA-512
 
 `#define MAX3266X_MATH` (Replaces math operation calls for algos
 like RSA and ECC key generation):
 
-- mod -     `a mod m = r`
-- addmod - `(a+b)mod m = r`
-- submod - `(a-b)mod m = r`
-- mulmod - `(a*b)mod m = r`
-- sqrmod - `(b^2)mod m = r`
-- exptmod - `(b^e)mod m = r`
+- mod:      `a mod m = r`
+- addmod:   `(a+b)mod m = r`
+- submod:   `(a-b)mod m = r`
+- mulmod:   `(a*b)mod m = r`
+- sqrmod:   `(b^2)mod m = r`
+- exptmod:  `(b^e)mod m = r`
 
 ## Extra Information
 For more Verbose info you can use `#define DEBUG_WOLFSSL` in combination with

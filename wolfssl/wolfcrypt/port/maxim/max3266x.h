@@ -53,7 +53,9 @@
 
     #if defined(MAX3266X_RNG)
         #include "trng.h"   /* Provides TRNG Drivers */
-        #define MXC_TPU_TRNG_Read       TRNG_Read
+        #define MXC_TPU_TRNG_Read           TRNG_Read
+        #warning "TRNG Health Test not available in older Maxim SDK"
+        #define MXC_TRNG_HealthTest(...)    0
     #endif
     #if defined(MAX3266X_AES)
         #include "cipher.h" /* Provides Drivers for AES */
@@ -95,12 +97,12 @@
                             /* ECDSA and RSA Acceleration                   */
         /* MAA Defines */
         #define MXC_TPU_MAA_TYPE     tpu_maa_clcsel_t
-        #define WC_MXC_TPU_MAA_EXP      0b0000
-        #define WC_MXC_TPU_MAA_SQ       0b0010
-        #define WC_MXC_TPU_MAA_MUL      0b0100
-        #define WC_MXC_TPU_MAA_SQMUL    0b0110
-        #define WC_MXC_TPU_MAA_ADD      0b1000
-        #define WC_MXC_TPU_MAA_SUB      0b1010
+        #define MXC_TPU_MAA_EXP      TPU_MAA_EXP
+        #define MXC_TPU_MAA_SQ       TPU_MAA_SQ
+        #define MXC_TPU_MAA_MUL      TPU_MAA_MUL
+        #define MXC_TPU_MAA_SQMUL    TPU_MAA_SQMUL
+        #define MXC_TPU_MAA_ADD      TPU_MAA_ADD
+        #define MXC_TPU_MAA_SUB      TPU_MAA_SUB
 
         /* MAA Functions */
         #define MXC_TPU_MAA_Compute      MAA_Compute
@@ -134,22 +136,12 @@
         #define MXC_TPU_CIPHER_TYPE     mxc_tpu_ciphersel_t
         #define MXC_TPU_MODE_TYPE       mxc_tpu_modesel_t
 
-
         /* SHA Defines */
         #define MXC_TPU_HASH_TYPE       mxc_tpu_hashfunsel_t
 
-
         /* MAA Defines */
-        /* Current SDK for TPU does not handle bit mask correctly */
-        /* with expected enum values, so calue need to be set */
-        /* manually to work with intended naming scheme */
         #define MXC_TPU_MAA_TYPE     mxc_tpu_maa_clcsel_t
-        #define WC_MXC_TPU_MAA_EXP      0b0000
-        #define WC_MXC_TPU_MAA_SQ       0b0010
-        #define WC_MXC_TPU_MAA_MUL      0b0100
-        #define WC_MXC_TPU_MAA_SQMUL    0b0110
-        #define WC_MXC_TPU_MAA_ADD      0b1000
-        #define WC_MXC_TPU_MAA_SUB      0b1010
+
 
     #endif
 
@@ -234,7 +226,6 @@
             0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
             0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
             0xaf, 0xd8, 0x07, 0x09};
-
     #endif /* NO_SHA */
 
     #if defined(WOLFSSL_SHA224)
@@ -248,7 +239,6 @@
                 0x47, 0x61, 0x02, 0xbb, 0x28, 0x82, 0x34, 0xc4,
                 0x15, 0xa2, 0xb0, 0x1f, 0x82, 0x8e, 0xa6, 0x2a,
                 0xc5, 0xb3, 0xe4, 0x2f};
-
     #endif /* WOLFSSL_SHA224 */
 
     #if !defined(NO_SHA256)
@@ -262,8 +252,51 @@
                 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
                 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
                 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55};
-
     #endif /* NO_SHA256 */
+
+    #if defined(WOLFSSL_SHA384)
+        typedef wc_MXC_Sha wc_Sha384;
+        #define WC_SHA384_TYPE_DEFINED
+
+        /* Define the SHA-384 digest for an empty string */
+        /* as a constant byte array */
+        static const unsigned char MXC_EMPTY_DIGEST_SHA384[48] = {
+            0x38, 0xb0, 0x60, 0xa7, 0x51, 0xac, 0x96, 0x38,
+            0x4c, 0xd9, 0x32, 0x7e, 0xb1, 0xb1, 0xe3, 0x6a,
+            0x21, 0xfd, 0xb7, 0x11, 0x14, 0xbe, 0x07, 0x43,
+            0x4c, 0x0c, 0xc7, 0xbf, 0x63, 0xf6, 0xe1, 0xda,
+            0x27, 0x4e, 0xde, 0xbf, 0xe7, 0x6f, 0x65, 0xfb,
+            0xd5, 0x1a, 0xd2, 0xf1, 0x48, 0x98, 0xb9, 0x5b};
+    #endif /* WOLFSSL_SHA384 */
+
+    #if defined(WOLFSSL_SHA512)
+        typedef wc_MXC_Sha wc_Sha512;
+        typedef wc_MXC_Sha wc_Sha512_224;
+        typedef wc_MXC_Sha wc_Sha512_256;
+        #define WC_SHA512_TYPE_DEFINED
+
+        /* Does not support these SHA512 Macros */
+        #ifndef WOLFSSL_NOSHA512_224
+            #warning "MAX3266X Port does not support SHA-512/224"
+            #define WOLFSSL_NOSHA512_224
+        #endif
+        #ifndef WOLFSSL_NOSHA512_256
+            #warning "MAX3266X Port does not support SHA-512/256"
+            #define WOLFSSL_NOSHA512_256
+        #endif
+
+        /* Define the SHA-512 digest for an empty string */
+        /* as a constant byte array */
+        static const unsigned char MXC_EMPTY_DIGEST_SHA512[64] = {
+            0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd,
+            0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d, 0x80, 0x07,
+            0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc,
+            0x83, 0xf4, 0xa9, 0x21, 0xd3, 0x6c, 0xe9, 0xce,
+            0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0,
+            0xff, 0x83, 0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f,
+            0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
+            0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e};
+    #endif /* WOLFSSL_SHA512 */
 
 
     WOLFSSL_LOCAL int wc_MXC_TPU_SHA_Init(wc_MXC_Sha *hash);

@@ -3839,7 +3839,17 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(MAX3266X_RNG)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
+        static int initDone = 0;
         (void)os;
+        if (initDone == 0) {
+            if(MXC_TRNG_HealthTest() != 0) {
+                #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG("TRNG HW Health Test Failed");
+                #endif
+                return WC_HW_E;
+            }
+            initDone = 1;
+        }
         return wc_MXC_TRNG_Random(output, sz);
     }
 
