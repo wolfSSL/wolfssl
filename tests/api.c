@@ -66309,6 +66309,19 @@ static int test_wolfssl_PKCS7(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_ALL) && defined(HAVE_PKCS7) && !defined(NO_BIO) && \
+    !defined(NO_FILESYSTEM) && !defined(NO_RSA) && defined(ASN_BER_TO_DER)
+static int PKCS7StreamOut(PKCS7* pkcs7, const byte* output,
+        word32 outputSz, void* ctx)
+{
+    (void)pkcs7;
+    (void)output;
+    (void)outputSz;
+    (void)ctx;
+    return 0;
+}
+#endif
+
 static int test_wolfSSL_PKCS7_sign(void)
 {
     EXPECT_DECLS;
@@ -66549,9 +66562,22 @@ static int test_wolfSSL_PKCS7_sign(void)
             }
         }
         ExpectIntEQ(ret, 0);
-        ExpectNotNull(out);
         wc_PKCS7_Free(p7Ver);
         p7Ver = NULL;
+
+    #ifdef ASN_BER_TO_DER
+        /* test for output callback with BER */
+        ExpectNotNull(p7Ver = wc_PKCS7_New(HEAP_HINT, testDevId));
+        if (p7Ver != NULL) {
+            p7Ver->content = data;
+            p7Ver->contentSz = sizeof(data);
+        }
+
+        wc_PKCS7_SetStreamMode(p7Ver, 0, NULL, PKCS7StreamOut, NULL);
+        ExpectIntEQ(wc_PKCS7_VerifySignedData(p7Ver, out, (word32)outLen), 0);
+        wc_PKCS7_Free(p7Ver);
+        p7Ver = NULL;
+    #endif
     #endif /* !NO_PKCS7_STREAM */
 
         XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
