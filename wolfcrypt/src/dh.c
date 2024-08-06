@@ -1028,7 +1028,7 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
         if (n < 5)
             return 0;
         else
-            return (word32)(2.4 * XPOW((double)n, 1.0/3.0) *
+            return (word32)((double)2.4 * XPOW((double)n, 1.0/3.0) *
                     XPOW(XLOG((double)n), 2.0/3.0) - 5);
     }
 #endif /* WOLFSSL_DH_CONST*/
