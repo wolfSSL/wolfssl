@@ -13086,6 +13086,14 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
         case HELLO_AGAIN_REPLY:
             /* Get the response/s from the server. */
             while (ssl->options.serverState < SERVER_FINISHED_COMPLETE) {
+#ifdef WOLFSSL_DTLS13
+                if (!IsAtLeastTLSv1_3(ssl->version)) {
+        #ifndef WOLFSSL_NO_TLS12
+                    if (ssl->options.downgrade)
+                        return wolfSSL_connect(ssl);
+        #endif
+                }
+#endif /* WOLFSSL_DTLS13 */
                 if ((ssl->error = ProcessReply(ssl)) < 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
