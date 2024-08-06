@@ -777,6 +777,11 @@ int mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c)
   return MP_OKAY;
 }
 
+int mp_read_unsigned_bin_ct(mp_int * a, const unsigned char *b, int c)
+{
+    return mp_read_unsigned_bin(a, b, c);
+}
+
 
 /* shift left by a certain bit count */
 int mp_mul_2d (mp_int * a, int b, mp_int * c)

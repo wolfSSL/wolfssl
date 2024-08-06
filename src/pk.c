@@ -2052,6 +2052,32 @@ WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,
     }
     return rsa;
 }
+
+WOLFSSL_RSA *wolfSSL_d2i_RSA_PUBKEY_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
+{
+    char* data = NULL;
+    int dataSz = 0;
+    int memAlloced = 0;
+    WOLFSSL_RSA* rsa = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_RSA_PUBKEY_bio");
+
+    if (bio == NULL)
+        return NULL;
+
+    if (wolfssl_read_bio(bio, &data, &dataSz, &memAlloced) != 0) {
+        if (memAlloced)
+            XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    rsa = wolfssl_rsa_d2i(out, (const unsigned char*)data, dataSz,
+            WOLFSSL_RSA_LOAD_PUBLIC);
+    if (memAlloced)
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return rsa;
+}
 #endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
@@ -8645,20 +8671,8 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 }
 
 
-/* Compute the shared key from the private key and peer's public key.
- *
- * Return code compliant with OpenSSL.
- * OpenSSL returns 0 when number of bits in p are smaller than minimum
- * supported.
- *
- * @param [out] key       Buffer to place shared key.
- * @param [in]  otherPub  Peer's public key.
- * @param [in]  dh        DH key containing private key.
- * @return  -1 on error.
- * @return  Size of shared secret in bytes on success.
- */
-int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
-    WOLFSSL_DH* dh)
+static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
+    WOLFSSL_DH* dh, int ct)
 {
     int            ret    = 0;
     word32         keySz  = 0;
@@ -8680,6 +8694,12 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         WOLFSSL_ERROR_MSG("Bad function arguments");
         ret = -1;
     }
+#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    if (ct) {
+        ret = -1;
+    }
+#endif
+
     /* Get the maximum size of computed DH key. */
     if ((ret == 0) && ((keySz = (word32)DH_size(dh)) == 0)) {
         WOLFSSL_ERROR_MSG("Bad DH_size");
@@ -8746,10 +8766,24 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
 
     PRIVATE_KEY_UNLOCK();
     /* Calculate shared secret from private and public keys. */
-    if ((ret == 0) && (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv,
-            (word32)privSz, pub, (word32)pubSz) < 0)) {
-        WOLFSSL_ERROR_MSG("wc_DhAgree failed");
-        ret = -1;
+    if (ret == 0) {
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
+        if (ct) {
+            if (wc_DhAgree_ct((DhKey*)dh->internal, key, &keySz, priv,
+                           (word32)privSz, pub, (word32)pubSz) < 0) {
+                WOLFSSL_ERROR_MSG("wc_DhAgree_ct failed");
+                ret = -1;
+            }
+        }
+        else
+#endif /* !HAVE_FIPS */
+        {
+            if (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv,
+                           (word32)privSz, pub, (word32)pubSz) < 0) {
+                WOLFSSL_ERROR_MSG("wc_DhAgree failed");
+                ret = -1;
+            }
+        }
     }
     if (ret == 0) {
         /* Return actual length. */
@@ -8773,6 +8807,45 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
 
     return ret;
 }
+
+/* Compute the shared key from the private key and peer's public key.
+ *
+ * Return code compliant with OpenSSL.
+ * OpenSSL returns 0 when number of bits in p are smaller than minimum
+ * supported.
+ *
+ * @param [out] key       Buffer to place shared key.
+ * @param [in]  otherPub  Peer's public key.
+ * @param [in]  dh        DH key containing private key.
+ * @return  -1 on error.
+ * @return  Size of shared secret in bytes on success.
+ */
+int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
+    WOLFSSL_DH* dh)
+{
+    return _DH_compute_key(key, otherPub, dh, 0);
+}
+
+/* Compute the shared key from the private key and peer's public key as in
+ * wolfSSL_DH_compute_key, but using constant time processing, with an output
+ * key length fixed at the nominal DH key size.  Leading zeros are retained.
+ *
+ * Return code compliant with OpenSSL.
+ * OpenSSL returns 0 when number of bits in p are smaller than minimum
+ * supported.
+ *
+ * @param [out] key       Buffer to place shared key.
+ * @param [in]  otherPub  Peer's public key.
+ * @param [in]  dh        DH key containing private key.
+ * @return  -1 on error.
+ * @return  Size of shared secret in bytes on success.
+ */
+int wolfSSL_DH_compute_key_padded(unsigned char* key,
+    const WOLFSSL_BIGNUM* otherPub, WOLFSSL_DH* dh)
+{
+    return _DH_compute_key(key, otherPub, dh, 1);
+}
+
 #endif /* !HAVE_FIPS || (HAVE_FIPS && !WOLFSSL_DH_EXTRA) ||
         * HAVE_FIPS_VERSION > 2 */
 
@@ -12330,6 +12403,56 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 
     return res;
 }
+
+
+#ifndef NO_BIO
+
+WOLFSSL_EC_KEY *wolfSSL_d2i_EC_PUBKEY_bio(WOLFSSL_BIO *bio,
+        WOLFSSL_EC_KEY **out)
+{
+    char* data = NULL;
+    int dataSz = 0;
+    int memAlloced = 0;
+    WOLFSSL_EC_KEY* ec = NULL;
+    int err = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_EC_PUBKEY_bio");
+
+    if (bio == NULL)
+        return NULL;
+
+    if (err == 0 && wolfssl_read_bio(bio, &data, &dataSz, &memAlloced) != 0) {
+        WOLFSSL_ERROR_MSG("wolfssl_read_bio failed");
+        err = 1;
+    }
+
+    if (err == 0 && (ec = wolfSSL_EC_KEY_new()) == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_EC_KEY_new failed");
+        err = 1;
+    }
+
+    /* Load the EC key with the public key from the DER encoding. */
+    if (err == 0 && wolfSSL_EC_KEY_LoadDer_ex(ec, (const unsigned char*)data,
+            dataSz, WOLFSSL_EC_KEY_LOAD_PUBLIC) != 1) {
+        WOLFSSL_ERROR_MSG("wolfSSL_EC_KEY_LoadDer_ex failed");
+        err = 1;
+    }
+
+    if (memAlloced)
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err) { /* on error */
+        wolfSSL_EC_KEY_free(ec);
+        ec = NULL;
+    }
+    else { /* on success */
+        if (out != NULL)
+            *out = ec;
+    }
+
+    return ec;
+}
+
+#endif /* !NO_BIO */
 
 /*
  * EC key PEM APIs

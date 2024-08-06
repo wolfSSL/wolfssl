@@ -17794,17 +17794,7 @@ int sp_unsigned_bin_size(const sp_int* a)
     return cnt;
 }
 
-/* Convert a number as an array of bytes in big-endian format to a
- * multi-precision number.
- *
- * @param  [out]  a     SP integer.
- * @param  [in]   in    Array of bytes.
- * @param  [in]   inSz  Number of data bytes in array.
- *
- * @return  MP_OKAY on success.
- * @return  MP_VAL when the number is too big to fit in an SP.
- */
-int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
+static int _read_unsigned_bin(sp_int* a, const byte* in, word32 inSz, int ct)
 {
     int err = MP_OKAY;
 
@@ -17888,10 +17878,41 @@ int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
     #endif /* LITTLE_ENDIAN_ORDER */
         }
 #endif
-        sp_clamp_ct(a);
+        if (!ct)
+            sp_clamp_ct(a);
     }
 
     return err;
+}
+
+/* Convert a number as an array of bytes in big-endian format to a
+ * multi-precision number.
+ *
+ * @param  [out]  a     SP integer.
+ * @param  [in]   in    Array of bytes.
+ * @param  [in]   inSz  Number of data bytes in array.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when the number is too big to fit in an SP.
+ */
+int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz)
+{
+    return _read_unsigned_bin(a, in, inSz, 0);
+}
+
+/* Convert a number as an array of bytes in big-endian format to a
+ * multi-precision number, retaining leading zeros (if any).
+ *
+ * @param  [out]  a     SP integer.
+ * @param  [in]   in    Array of bytes.
+ * @param  [in]   inSz  Number of data bytes in array.
+ *
+ * @return  MP_OKAY on success.
+ * @return  MP_VAL when the number is too big to fit in an SP.
+ */
+int sp_read_unsigned_bin_ct(sp_int* a, const byte* in, word32 inSz)
+{
+    return _read_unsigned_bin(a, in, inSz, 1);
 }
 
 /* Convert the multi-precision number to an array of bytes in big-endian format.
