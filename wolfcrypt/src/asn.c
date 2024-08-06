@@ -20804,6 +20804,11 @@ static int DecodeSubjDirAttr(const byte* input, word32 sz, DecodedCert* cert)
 
     WOLFSSL_ENTER("DecodeSubjDirAttr");
 
+#ifdef OPENSSL_ALL
+    cert->extSubjDirAttrSrc = input;
+    cert->extSubjDirAttrSz = sz;
+#endif /* OPENSSL_ALL */
+
     CALLOC_ASNGETDATA(dataASN, subjDirAttrASN_Length, ret, cert->heap);
 
     /* Strip outer SEQUENCE. */
