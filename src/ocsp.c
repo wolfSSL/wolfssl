@@ -374,10 +374,7 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
     }
 
     if (status != NULL) {
-        if (status->rawOcspResponse) {
-            XFREE(status->rawOcspResponse, ocsp->cm->heap,
-                  DYNAMIC_TYPE_OCSP_STATUS);
-        }
+        XFREE(status->rawOcspResponse, ocsp->cm->heap, DYNAMIC_TYPE_OCSP_STATUS);
 
         /* Replace existing certificate entry with updated */
         ocspResponse->single->status->next = status->next;
@@ -831,13 +828,11 @@ out:
             XFREE(certId, cm->heap, DYNAMIC_TYPE_OPENSSL);
             certId = NULL;
         }
-        if (certStatus)
-            XFREE(certStatus, cm->heap, DYNAMIC_TYPE_OPENSSL);
+        XFREE(certStatus, cm->heap, DYNAMIC_TYPE_OPENSSL);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (cert != NULL)
-        XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+    XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
 #endif
 
     if (cm != NULL)
@@ -1167,8 +1162,7 @@ WOLFSSL_OCSP_ONEREQ* wolfSSL_OCSP_request_add0_id(OcspRequest *req,
     XMEMCPY(req->issuerHash, cid->issuerHash, KEYID_SIZE);
     XMEMCPY(req->issuerKeyHash, cid->issuerKeyHash, KEYID_SIZE);
     if (cid->status->serialSz > req->serialSz) {
-        if (req->serial != NULL)
-            XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
+        XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
         req->serial = (byte*)XMALLOC((size_t)cid->status->serialSz,
                 req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         if (req->serial == NULL)

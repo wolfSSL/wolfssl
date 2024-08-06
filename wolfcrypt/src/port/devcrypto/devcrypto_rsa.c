@@ -547,21 +547,13 @@ int wc_DevCrypto_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #endif
     }
 
-    if (p != NULL)
-        XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (q != NULL)
-        XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dp != NULL)
-        XFREE(dp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dq != NULL)
-        XFREE(dq, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (c != NULL)
-        XFREE(c, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (n != NULL)
-        XFREE(n, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (d != NULL) {
-        XFREE(d, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dq, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(c, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(n, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(d, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     (void)rng;
     return ret;

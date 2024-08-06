@@ -4976,8 +4976,7 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     if (k == k_lcl)
         mp_clear(k);
 #ifdef WOLFSSL_SMALL_STACK
-    if (k_lcl != NULL)
-        XFREE(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 #endif
 
@@ -14857,9 +14856,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
 #ifdef WOLFSSL_SMALL_STACK
 #ifndef WOLFSSL_ECIES_OLD
-    if (peerKey != NULL) {
-        XFREE(peerKey, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
-    }
+    XFREE(peerKey, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
     XFREE(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     XFREE(keys, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);

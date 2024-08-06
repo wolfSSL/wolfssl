@@ -11550,8 +11550,7 @@ void FreeDecodedCert(DecodedCert* cert)
         wolfSSL_X509_NAME_free((WOLFSSL_X509_NAME*)cert->subjectName);
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
-    if (cert->sce_tsip_encRsaKeyIdx != NULL)
-        XFREE(cert->sce_tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
+    XFREE(cert->sce_tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
 #endif
     FreeSignatureCtx(&cert->sigCtx);
 }
@@ -27492,12 +27491,8 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     }
 
     /* Dispose of allocated data. */
-    if (extKuASN != NULL) {
-        XFREE(extKuASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (dataASN != NULL) {
-        XFREE(dataASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(extKuASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dataASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 #endif
@@ -37474,8 +37469,7 @@ void FreeOcspRequest(OcspRequest* req)
     WOLFSSL_ENTER("FreeOcspRequest");
 
     if (req) {
-        if (req->serial)
-            XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->serial = NULL;
 
 #ifdef OPENSSL_EXTRA
@@ -37488,8 +37482,7 @@ void FreeOcspRequest(OcspRequest* req)
         req->serialInt = NULL;
 #endif
 
-        if (req->url)
-            XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->url = NULL;
 
 #ifdef OPENSSL_EXTRA

@@ -6744,8 +6744,7 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
     if (mac != NULL)
         XMEMCPY(cookie->data + len, mac, macSz);
 
-    if (extension->data != NULL)
-        XFREE(extension->data, ssl->heap, DYNAMIC_TYPE_TLSX);
+    XFREE(extension->data, ssl->heap, DYNAMIC_TYPE_TLSX);
 
     extension->data = (void*)cookie;
     extension->resp = (byte)resp;
@@ -7953,10 +7952,8 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     wc_KyberKey_Free(kem);
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
-    if (pubKey != NULL)
-        XFREE(pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (privKey != NULL)
-        XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    XFREE(pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
 
     return ret;
 }
@@ -8731,9 +8728,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ssl->arrays->preMasterSz = (word32) sharedSecretLen;
     }
 
-    if (sharedSecret != NULL) {
-        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    }
+    XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
 
     wc_ecc_free(&eccpubkey);
     wc_KyberKey_Free(kem);
@@ -9220,9 +9215,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        if (keyShareEntry->ke != NULL) {
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        }
+        XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
 
         keyShareEntry->ke = sharedSecret;
         keyShareEntry->keLen = outlen + ssSz;
@@ -9240,10 +9233,8 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     }
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
-    if (sharedSecret != NULL)
-        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    if (ciphertext != NULL)
-        XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
+    XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
+    XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
     wc_ecc_free(&eccpubkey);
     wc_KyberKey_Free(kem);
     return ret;
@@ -9308,9 +9299,7 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     else
 #endif
     if (data != NULL) {
-        if (keyShareEntry->ke != NULL) {
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        }
+        XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->ke = data;
         keyShareEntry->keLen = len;
     }

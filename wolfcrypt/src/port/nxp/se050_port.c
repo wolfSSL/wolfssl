@@ -738,9 +738,7 @@ int se050_rsa_use_key_id(struct RsaKey* key, word32 keyId)
             status = kStatus_SSS_Fail;
         }
     }
-    if (derBuf != NULL) {
-        XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (status == kStatus_SSS_Success) {
         key->keyId = keyId;
@@ -884,9 +882,7 @@ int se050_rsa_create_key(struct RsaKey* key, int size, long e)
             status = kStatus_SSS_Fail;
         }
     }
-    if (derBuf != NULL) {
-        XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(derBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (status == kStatus_SSS_Success) {
         key->keyId = keyId;

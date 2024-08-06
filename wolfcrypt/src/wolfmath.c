@@ -358,9 +358,7 @@ void wc_bigint_zero(WC_BIGINT* a)
 void wc_bigint_free(WC_BIGINT* a)
 {
     if (a) {
-        if (a->buf) {
-          XFREE(a->buf, a->heap, DYNAMIC_TYPE_WOLF_BIGINT);
-        }
+        XFREE(a->buf, a->heap, DYNAMIC_TYPE_WOLF_BIGINT);
         a->buf = NULL;
         a->len = 0;
     }

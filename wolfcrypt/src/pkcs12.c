@@ -195,12 +195,8 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
     }
 
 #ifdef ASN_BER_TO_DER
-    if (pkcs12->der != NULL) {
-        XFREE(pkcs12->der, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-    }
-    if (pkcs12->safeDer != NULL) {
-        XFREE(pkcs12->safeDer, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-    }
+    XFREE(pkcs12->der, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+    XFREE(pkcs12->safeDer, pkcs12->heap, DYNAMIC_TYPE_PKCS);
 #endif
 
     XFREE(pkcs12, heap, DYNAMIC_TYPE_PKCS);
@@ -527,8 +523,7 @@ exit_gsd:
     /* failure cleanup */
     if (ret != 0) {
         if (mac) {
-            if (mac->digest)
-                XFREE(mac->digest, pkcs12->heap, DYNAMIC_TYPE_DIGEST);
+            XFREE(mac->digest, pkcs12->heap, DYNAMIC_TYPE_DIGEST);
             XFREE(mac, pkcs12->heap, DYNAMIC_TYPE_PKCS);
         }
     }

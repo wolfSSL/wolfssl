@@ -1382,9 +1382,7 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
                 ret = FWRITE_ERROR;
             }
         }
-        if (mem != NULL) {
-            XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         /* Unlock CA table. */
         wc_UnLockMutex(&cm->caLock);

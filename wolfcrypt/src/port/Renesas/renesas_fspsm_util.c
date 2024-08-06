@@ -853,10 +853,8 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             cbInfo->keyflgs_tls.bits.session_key_set = 1;
         }
 
-        if (key_client_aes)
-            XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
-        if (key_server_aes)
-            XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
 
         /* unlock hw */
         wc_fspsm_hw_unlock();

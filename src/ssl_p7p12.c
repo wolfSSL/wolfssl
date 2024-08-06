@@ -714,9 +714,7 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
                 }
             }
 
-            if (mem != NULL) {
-                XFREE(mem, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            }
+            XFREE(mem, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
     #ifdef HAVE_SMIME
@@ -1034,19 +1032,11 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
 
 error:
 #ifdef WOLFSSL_SMALL_STACK
-    if (outputHead) {
-        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (outputFoot) {
-        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    if (output) {
-        XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (pem) {
-        XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
 
@@ -1692,8 +1682,7 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
     }
 
     /* cleanup */
-    if (mem != NULL)
-        XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret < 0 && localPkcs12 != NULL) {
         wc_PKCS12_free(localPkcs12);
         localPkcs12 = NULL;

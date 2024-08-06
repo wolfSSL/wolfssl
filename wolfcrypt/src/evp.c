@@ -12304,9 +12304,7 @@ struct WOLFSSL_EVP_ENCODE_CTX* wolfSSL_EVP_ENCODE_CTX_new(void)
 void wolfSSL_EVP_ENCODE_CTX_free(WOLFSSL_EVP_ENCODE_CTX* ctx)
 {
     WOLFSSL_ENTER("wolfSSL_EVP_ENCODE_CTX_free");
-    if (ctx != NULL) {
-        XFREE(ctx, ctx->heap, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(ctx, ctx->heap, DYNAMIC_TYPE_OPENSSL);
 }
 #endif /* WOLFSSL_BASE64_ENCODE || WOLFSSL_BASE64_DECODE */
 #if defined(WOLFSSL_BASE64_ENCODE)

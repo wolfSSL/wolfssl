@@ -834,9 +834,7 @@ exit_chain:
                                  (const char*)data, len, 0, ret);
     }
 
-    if (frmt != NULL) {
-        XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
 #ifdef WOLFSSL_BASE64_ENCODE
     if (retB64 > 0 && ret > 0)
@@ -2969,9 +2967,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 bio->pair->pair = NULL;
             }
 
-            if (bio->ip != NULL) {
-                XFREE(bio->ip, bio->heap, DYNAMIC_TYPE_OPENSSL);
-            }
+            XFREE(bio->ip, bio->heap, DYNAMIC_TYPE_OPENSSL);
 
             if (bio->shutdown) {
                 if (bio->type == WOLFSSL_BIO_SSL && bio->ptr.ssl)
