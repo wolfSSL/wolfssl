@@ -791,8 +791,7 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
     return ret ? ret : str;
 
 expand_cleanup:
-    if (ret)
-        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
     return NULL;
 }
 
@@ -959,8 +958,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
 cleanup:
     if (in)
         wolfSSL_BIO_free(in);
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (eline)
         *eline = line;
     return ret;

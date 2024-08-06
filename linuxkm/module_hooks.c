@@ -803,16 +803,11 @@ static int updateFipsHash(void)
 
     if (tfm != NULL)
         crypto_free_shash(tfm);
-    if (desc != NULL)
-        XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (hash != NULL)
-        XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (base16_hash != NULL)
-        XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binCoreKey != NULL)
-        XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binVerify != NULL)
-        XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

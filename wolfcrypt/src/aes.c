@@ -12170,8 +12170,7 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
   out:
 #ifdef WOLFSSL_SMALL_STACK
-    if (aes != NULL)
-        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
 
     return ret;
@@ -12289,8 +12288,7 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
   out:
 #ifdef WOLFSSL_SMALL_STACK
-    if (aes)
-        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
 
     return ret;

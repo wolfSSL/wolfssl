@@ -7619,14 +7619,10 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* bail out if any error has been hit at this point */
     if (ret != 0) {
-        if (x != NULL)
-            XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        if (K != NULL)
-            XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
-        if (V != NULL)
-            XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
-        if (h1 != NULL)
-            XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
         return ret;
     }
 #endif
@@ -7779,16 +7775,11 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     ForceZero(x, MAX_ECC_BYTES);
 #ifdef WOLFSSL_SMALL_STACK
-    if (z1 != NULL)
-        XFREE(z1, heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (x != NULL)
-        XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
-    if (K != NULL)
-        XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (V != NULL)
-        XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (h1 != NULL)
-        XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(z1, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(x, MAX_ECC_BYTES);
 #endif

@@ -367,8 +367,7 @@ WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
 
     ret = fspsm_ServerKeyExVerify(2, ssl, sigforSCE, 64, ctx);
 
-    if (sigforSCE)
-        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
+    XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
 
     if (ret == WOLFSSL_SUCCESS) {
         *result = 1;

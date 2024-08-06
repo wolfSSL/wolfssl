@@ -5914,8 +5914,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
     if (tmp == NULL) {
         WOLFSSL_MSG("malloc failed");
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
-        if (cipherInfo != NULL)
-            XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
+        XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return 0;
     }
 
@@ -5926,13 +5925,11 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         WOLFSSL_MSG("wc_DerToPemEx failed");
         XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
         XFREE(tmp, NULL, DYNAMIC_TYPE_PEM);
-        if (cipherInfo != NULL)
-            XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
+        XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
         return 0;
     }
     XFREE(derBuf, NULL, DYNAMIC_TYPE_DER);
-    if (cipherInfo != NULL)
-        XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
+    XFREE(cipherInfo, NULL, DYNAMIC_TYPE_STRING);
 
     *pem = (byte*)XMALLOC((size_t)((*pLen)+1), NULL, DYNAMIC_TYPE_KEY);
     if (*pem == NULL) {

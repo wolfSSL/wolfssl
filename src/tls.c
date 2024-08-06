@@ -6594,8 +6594,7 @@ static void TLSX_Cookie_FreeAll(Cookie* cookie, void* heap)
 {
     (void)heap;
 
-    if (cookie != NULL)
-        XFREE(cookie, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(cookie, heap, DYNAMIC_TYPE_TLSX);
 }
 
 /* Get the size of the encoded Cookie extension.
@@ -12106,8 +12105,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
         ech->hpke = NULL;
     }
 
-    if (info != NULL)
-        XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

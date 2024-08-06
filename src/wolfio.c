@@ -2125,8 +2125,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
 /* in default callback ctx is heap hint */
 void EmbedOcspRespFree(void* ctx, byte *resp)
 {
-    if (resp)
-        XFREE(resp, ctx, DYNAMIC_TYPE_OCSP);
+    XFREE(resp, ctx, DYNAMIC_TYPE_OCSP);
 
     (void)ctx;
 }

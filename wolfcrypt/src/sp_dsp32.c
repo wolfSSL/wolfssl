@@ -4530,8 +4530,7 @@ int wolfSSL_DSP_ECC_Verify_256(remote_handle64 h, int32 *u1, int hashLen, int32*
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (d != NULL)
-        XFREE(d, heap, DYNAMIC_TYPE_ECC);
+    XFREE(d, heap, DYNAMIC_TYPE_ECC);
 #endif
     sp_ecc_point_free(p1, 0, heap);
     sp_ecc_point_free(p2, 0, heap);

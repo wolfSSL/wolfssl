@@ -13557,8 +13557,7 @@ mem_error:
     if (x509 != NULL)
         wolfSSL_X509_free(x509);
 #endif
-    if (domain != NULL)
-        XFREE(domain, heap, DYNAMIC_TYPE_STRING);
+    XFREE(domain, heap, DYNAMIC_TYPE_STRING);
     return MEMORY_E;
 }
 

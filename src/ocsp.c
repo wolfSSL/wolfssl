@@ -318,9 +318,9 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
                                                        DYNAMIC_TYPE_OCSP_REQUEST);
 
     if (newStatus == NULL || newSingle == NULL || ocspResponse == NULL) {
-        if (newStatus) XFREE(newStatus, NULL, DYNAMIC_TYPE_OCSP_STATUS);
-        if (newSingle) XFREE(newSingle, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-        if (ocspResponse) XFREE(ocspResponse, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
+        XFREE(newStatus, NULL, DYNAMIC_TYPE_OCSP_STATUS);
+        XFREE(newSingle, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        XFREE(ocspResponse, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
 
         WOLFSSL_LEAVE("CheckCertOCSP", MEMORY_ERROR);
         return MEMORY_E;
@@ -493,8 +493,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
                 ret = wolfSSL_get_ocsp_response(ssl, &response);
                 ret = CheckOcspResponse(ocsp, response, ret, responseBuffer,
                                         status, entry, NULL, heap);
-                if (response != NULL)
-                    XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
+                XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
                 break;
             case SSL_TLSEXT_ERR_NOACK:
                 ret = OCSP_LOOKUP_FAIL;

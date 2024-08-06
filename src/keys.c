@@ -3876,12 +3876,12 @@ int DeriveKeys(WOLFSSL* ssl)
 
     if (shaOutput == NULL || md5Input == NULL || shaInput == NULL ||
         keyData   == NULL || md5      == NULL || sha      == NULL) {
-        if (shaOutput) XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5Input)  XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (shaInput)  XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (keyData)   XFREE(keyData,   NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5)       XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha)       XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5Input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(shaInput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyData, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return MEMORY_E;
     }
@@ -4013,11 +4013,11 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
 
     if (shaOutput == NULL || md5Input == NULL || shaInput == NULL ||
                              md5      == NULL || sha      == NULL) {
-        if (shaOutput) XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5Input)  XFREE(md5Input,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (shaInput)  XFREE(shaInput,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5)       XFREE(md5,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha)       XFREE(sha,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(shaOutput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5Input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(shaInput, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(md5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sha, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return MEMORY_E;
     }

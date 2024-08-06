@@ -11070,10 +11070,8 @@ exit:
         wc_ecc_free(userB);
         XFREE(userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (msg)
-        XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (out)
-        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(msg, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #else
     wc_ecc_free(userB);
     wc_ecc_free(userA);
@@ -12482,11 +12480,9 @@ void bench_sakke(void)
 
 exit:
 
-    if (iTable)
-        XFREE(iTable, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(iTable, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (table)
-        XFREE(table, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(table, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     WC_FREE_VAR(genKey, HEAP_HINT);
 }

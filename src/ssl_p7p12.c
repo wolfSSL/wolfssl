@@ -428,8 +428,7 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
 
     ret = WOLFSSL_SUCCESS;
 cleanup:
-    if (output)
-        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -1387,10 +1386,8 @@ error:
     XFREE(boundary, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
-    if (canonSection != NULL)
-        XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
-    if (canonLine != NULL)
-        XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
     if (bcont) {
         wolfSSL_BIO_free(*bcont);
         *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
@@ -2064,8 +2061,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             }
         }
     #endif /* HAVE_ECC */
-        if (pk != NULL)
-            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
         if (ret != 0) { /* if is in fail state and no PKEY then fail */
             wolfSSL_X509_free(*cert); *cert = NULL;
             if (ca != NULL) {

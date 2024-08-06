@@ -7793,8 +7793,7 @@ err_exit:
     }
 #endif
 _exit:
-    if (fileBuffer != NULL)
-        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+    XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
 
     return newx509;
 }
@@ -8710,8 +8709,7 @@ WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void)
 
 void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM *param)
 {
-    if (param != NULL)
-        XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 
@@ -9779,8 +9777,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             XMEMCPY(out, der + idx, length);
         }
 
-        if (der != NULL)
-            XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
 
         return length;
     }
@@ -10782,8 +10779,7 @@ cleanup:
         }
 
     out:
-        if (der)
-            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -11511,8 +11507,7 @@ err:
         return newx509;
 
     err_exit:
-        if (pem != NULL)
-            XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
         if (der != NULL)
             FreeDer(&der);
 
@@ -12579,8 +12574,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
     return WOLFSSL_SUCCESS;
 
 error:
-    if (pem)
-        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
 #endif /* WOLFSSL_CERT_GEN */

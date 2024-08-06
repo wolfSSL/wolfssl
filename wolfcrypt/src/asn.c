@@ -17796,8 +17796,7 @@ int wc_ConfirmAltSignature(
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (sigCtx != NULL)
-        XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
+    XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
 #endif
     return ret;
 }
@@ -23114,8 +23113,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 
     FreeSignatureCtx(sigCtx);
 #ifdef WOLFSSL_SMALL_STACK
-    if (sigCtx != NULL)
-        XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
+    XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
 #endif
     return ret;
 #else /* WOLFSSL_ASN_TEMPLATE */
@@ -28606,10 +28604,8 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
         }
     }
 
-    if (namesASN != NULL)
-        XFREE(namesASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dataASN != NULL)
-        XFREE(dataASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(namesASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dataASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;
     return ret;
 #endif
@@ -39137,12 +39133,9 @@ error:
     if (ret != 0)
         wc_MIME_free_hdrs(curHdr);
     wc_MIME_free_hdrs(nextHdr);
-    if (nameAttr != NULL)
-        XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
-    if (bodyVal != NULL)
-        XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
-    if (nextParam != NULL)
-        XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
 
     return ret;
 }

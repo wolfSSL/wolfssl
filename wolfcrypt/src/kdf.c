@@ -157,9 +157,9 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
     hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
     if (previous == NULL || current == NULL || hmac == NULL) {
-        if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
-        if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
-        if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
+        XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(current, heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(hmac, heap, DYNAMIC_TYPE_HMAC);
         return MEMORY_E;
     }
 #endif

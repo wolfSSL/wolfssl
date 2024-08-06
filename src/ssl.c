@@ -21316,8 +21316,7 @@ void wolfSSL_WOLFSSL_STRING_free(WOLFSSL_STRING s)
 {
     WOLFSSL_ENTER("wolfSSL_WOLFSSL_STRING_free");
 
-    if (s != NULL)
-        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 void wolfSSL_sk_WOLFSSL_STRING_free(WOLF_STACK_OF(WOLFSSL_STRING)* sk)
@@ -24217,8 +24216,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     if (initTmpRng)
         wc_FreeRng(tmpRNG);
 #ifdef WOLFSSL_SMALL_STACK
-    if (tmpRNG)
-        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;

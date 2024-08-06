@@ -588,16 +588,11 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
 #ifdef WOLFSSL_SMALL_STACK
   out:
 
-    if (Ai != NULL)
-        XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (B != NULL)
-        XFREE(B,  heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (B1 != NULL)
-        XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (i1 != NULL)
-        XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (res != NULL)
-        XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(Ai, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(B, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(B1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(i1, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(res, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     if (dynamic)
@@ -859,12 +854,9 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
     ret = wc_PBKDF2(output, passwd, passLen, blocks, (int)blocksSz, 1, dkLen,
                     WC_SHA256);
 end:
-    if (blocks != NULL)
-        XFREE(blocks, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (v != NULL)
-        XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (y != NULL)
-        XFREE(y, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(blocks, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(v, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(y, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
