@@ -57,7 +57,7 @@
 
 #if defined(USE_INTEL_POLY1305_SPEEDUP)
 #elif (defined(WC_HAS_SIZEOF_INT128_64BIT) || defined(WC_HAS_MSVC_64BIT) ||  \
-       defined(WC_HAS_GCC_4_4_64BIT))
+       defined(WC_HAS_GCC_4_4_64BIT)) && !defined(WOLFSSL_W64_WRAPPER_TEST)
 #define POLY130564
 #else
 #define POLY130532
