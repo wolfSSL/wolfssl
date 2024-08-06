@@ -4560,7 +4560,9 @@ void FreeX509(WOLFSSL_X509* x509)
     XFREE(x509->sig.buffer, x509->heap, DYNAMIC_TYPE_SIGNATURE);
     x509->sig.buffer = NULL;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-        XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        if (x509->authKeyIdSrc != NULL) {
+            XFREE(x509->authKeyIdSrc, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        }
         else {
             XFREE(x509->authKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         }
