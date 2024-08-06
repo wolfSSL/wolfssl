@@ -709,7 +709,7 @@ WC_MISC_STATIC WC_INLINE void w64SetLow32(w64wrapper *n, word32 low) {
 
 WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
 {
-    a.n = a.n + b;
+    a.n += b;
     if (a.n < b && wrap != NULL)
         *wrap = 1;
 
@@ -719,7 +719,7 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64Add32(w64wrapper a, word32 b, byte *wrap)
 WC_MISC_STATIC WC_INLINE w64wrapper w64Add(w64wrapper a, w64wrapper b,
     byte *wrap)
 {
-    a.n = a.n + b.n;
+    a.n += b.n;
     if (a.n < b.n && wrap != NULL)
         *wrap = 1;
 
@@ -869,7 +869,7 @@ WC_MISC_STATIC WC_INLINE w64wrapper w64Add(w64wrapper a, w64wrapper b,
     }
 
     a.n[0] += b.n[0];
-    if (a.n[0] < b.n[0]) {
+    if (wrap != NULL && a.n[0] < b.n[0]) {
         *wrap = 1;
     }
 
