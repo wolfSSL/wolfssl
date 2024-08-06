@@ -677,10 +677,8 @@ static void ssl_Free_SnifferWorker(SnifferWorker* worker)
 {
     wm_SemFree(&worker->sem);
 
-    if (worker->head) {
-        XFREE(worker->head, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        worker->head = NULL;
-    }
+    XFREE(worker->head, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    worker->head = NULL;
 }
 
 static int SnifferWorkerPacketAdd(SnifferWorker* worker, int lastRet,
