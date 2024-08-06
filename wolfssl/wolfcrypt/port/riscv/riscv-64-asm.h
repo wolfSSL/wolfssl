@@ -165,6 +165,12 @@
         (0 << 28) | ((cnt - 1) << 29) | (vd << 7) | (rs1 << 15))
 /* Load 1 Vector register with 64-bit components. */
 #define VL1RE64_V(vd, rs1)  VLRE_V(vd, rs1, 1, WIDTH_64)
+/* Load 2 Vector register with 64-bit components. */
+#define VL2RE64_V(vd, rs1)  VLRE_V(vd, rs1, 2, WIDTH_64)
+/* Load 4 Vector register with 64-bit components. */
+#define VL4RE64_V(vd, rs1)  VLRE_V(vd, rs1, 4, WIDTH_64)
+/* Load 8 Vector register with 64-bit components. */
+#define VL8RE64_V(vd, rs1)  VLRE_V(vd, rs1, 8, WIDTH_64)
 /* Load 1 Vector register with 32-bit components. */
 #define VL1RE32_V(vd, rs1)  VLRE_V(vd, rs1, 1, WIDTH_32)
 /* Load 2 Vector register with 32-bit components. */
