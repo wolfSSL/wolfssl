@@ -6573,9 +6573,7 @@ static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             return WOLFSSL_FAILURE;
         }
 
-        if (sig != NULL) {
-            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     }
 
@@ -8331,9 +8329,7 @@ static int X509CRLPrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
             return WOLFSSL_FAILURE;
         }
 
-        if (sig != NULL) {
-            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     }
 

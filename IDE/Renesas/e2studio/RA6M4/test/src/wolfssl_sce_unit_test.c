@@ -691,18 +691,10 @@ out:
         wc_FreeRsaKey(key);
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (in != NULL) {
-        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (in2 != NULL) {
-        XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (out != NULL) {
-        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (out2 != NULL) {
-        XFREE(out2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     
     return ret;
 }
@@ -778,15 +770,9 @@ static int sce_rsa_SignVerify_test(int prnt, int keySize)
         wc_FreeRsaKey(key);
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (in != NULL) {
-        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (in2 != NULL) {
-        XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (out != NULL) {
-        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     
     return ret;
 }

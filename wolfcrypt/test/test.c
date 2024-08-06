@@ -31442,9 +31442,7 @@ done:
 
     wc_ecc_free(key);
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if (key != NULL) {
-        XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -33041,9 +33039,7 @@ static wc_test_ret_t ecc_test_nonblock_ecdsa(int curveId, word32 curveSz,
                   sigSz, curveSz, curveId);
     }
 
-    if (sig != NULL) {
-        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_SIGNATURE);
-    }
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_SIGNATURE);
 
     return ret;
 }
@@ -33762,13 +33758,9 @@ static wc_test_ret_t ecc_encrypt_kat(WC_RNG *rng)
         wc_ecc_free(userA);
 #endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    if (userB != NULL) {
-        XFREE(userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(userB, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #ifdef WOLFSSL_ECIES_OLD
-    if (userA != NULL) {
-        XFREE(userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(userA, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #endif
 
@@ -54794,12 +54786,8 @@ exit_onlycb:
         wc_ecc_free(key);
         XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (pub != NULL) {
-        XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (out != NULL) {
-        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #ifdef OPENSSL_EXTRA
     if (check) {
         FREE(check, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

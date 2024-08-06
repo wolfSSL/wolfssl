@@ -13952,9 +13952,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
         /* / <hashvalue>.(r)N\0                                         */
         /*|1|     8    |1|1|1|1|           => 13                        */
         len = (int)XSTRLEN(entry->dir_name) + 13;
-        if (filename != NULL) {
-            XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
-        }
+        XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
 
         filename = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
         if (filename == NULL) {
@@ -41182,9 +41180,7 @@ void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry)
         wolfSSL_sk_BY_DIR_HASH_free(entry->hashes);
     }
 
-    if (entry->dir_name != NULL) {
-        XFREE(entry->dir_name, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(entry->dir_name, NULL, DYNAMIC_TYPE_OPENSSL);
 
     XFREE(entry, NULL, DYNAMIC_TYPE_OPENSSL);
 }

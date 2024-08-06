@@ -1228,9 +1228,7 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
                                                derSz, (keySz * 8), NULL, 0);
             }
 
-            if (derBuf != NULL) {
-                XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            }
+            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
@@ -1392,9 +1390,7 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                derSz, (keySz * 8), NULL, 0);
             }
 
-            if (derBuf != NULL) {
-                XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            }
+            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
             status = sss_key_object_get_handle(&newKey, keyId);
@@ -1579,9 +1575,7 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
-        if (derBuf != NULL) {
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (status == kStatus_SSS_Success) {
@@ -1746,9 +1740,7 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
             status = sss_key_object_get_handle(&newKey, keyId);
         }
 
-        if (derBuf != NULL) {
-            XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (status == kStatus_SSS_Success) {

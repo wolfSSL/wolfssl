@@ -9526,12 +9526,8 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
             }
 
         #ifdef WOLFSSL_SMALL_STACK
-            if (t1 != NULL) {
-                XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
-            }
-            if (t2 != NULL) {
-                XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
-            }
+            XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
+            XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
 
             wc_ecc_curve_free(curve);
@@ -10797,12 +10793,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             mp_clear(t1);
         }
     #ifdef WOLFSSL_SMALL_STACK
-        if (t1 != NULL) {
-            XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (t2 != NULL) {
-            XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
 
         wc_ecc_curve_free(curve);

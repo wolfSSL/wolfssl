@@ -5974,9 +5974,7 @@ static TlsxSrtp* TLSX_UseSRTP_New(word16 ids, void* heap)
 
 static void TLSX_UseSRTP_Free(TlsxSrtp *srtp, void* heap)
 {
-    if (srtp != NULL) {
-        XFREE(srtp, heap, DYNAMIC_TYPE_TLSX);
-    }
+    XFREE(srtp, heap, DYNAMIC_TYPE_TLSX);
     (void)heap;
 }
 

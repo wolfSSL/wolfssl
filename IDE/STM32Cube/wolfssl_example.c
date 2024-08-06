@@ -1700,9 +1700,7 @@ done:
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (tbuf != NULL) {
-        XFREE(tbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(tbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -1795,9 +1793,7 @@ done:
         wolfSSL_CTX_free(ctx);
     }
 #ifdef WOLFSSL_SMALL_STACK
-    if (tbuf != NULL) {
-        XFREE(tbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(tbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;

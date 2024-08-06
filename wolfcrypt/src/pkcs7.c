@@ -1265,12 +1265,8 @@ static void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib, void* heap)
     current = attrib;
     while (current != NULL) {
         PKCS7DecodedAttrib* next = current->next;
-        if (current->oid != NULL)  {
-            XFREE(current->oid, heap, DYNAMIC_TYPE_PKCS7);
-        }
-        if (current->value != NULL) {
-            XFREE(current->value, heap, DYNAMIC_TYPE_PKCS7);
-        }
+        XFREE(current->oid, heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(current->value, heap, DYNAMIC_TYPE_PKCS7);
         XFREE(current, heap, DYNAMIC_TYPE_PKCS7);
         current = next;
     }

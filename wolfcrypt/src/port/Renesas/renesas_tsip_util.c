@@ -2428,10 +2428,7 @@ WOLFSSL_LOCAL int tsipImportPublicKey(TsipUserCtx* tuc, int keyType)
             #if defined(WOLFSSL_RENESAS_TSIP_TLS)
                 tuc->ClientRsa2048PubKey_set = 0;
             #elif defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
-                if (tuc->rsa2048pub_keyIdx != NULL) {
-                    XFREE(tuc->rsa2048pub_keyIdx, NULL,
-                                    DYNAMIC_TYPE_RSA_BUFFER);
-                }
+                XFREE(tuc->rsa2048pub_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                 tuc->keyflgs_crypt.bits.rsapub2048_key_set = 0;
                 tuc->rsa2048pub_keyIdx =
                     (tsip_rsa2048_public_key_index_t*)XMALLOC(
@@ -3548,9 +3545,7 @@ int wc_tsip_tls_CertVerify(
         if (ret != TSIP_SUCCESS) {
             WOLFSSL_MSG(" R_TSIP_TlsCertificateVerification failed");
         }
-        if (sigforSCE) {
-            XFREE(sigforSCE, NULL, DYNAMIC_TYPE_ECC);
-        }
+        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_ECC);
         tsip_hw_unlock();
     }
     else {

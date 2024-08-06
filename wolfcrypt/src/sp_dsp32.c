@@ -296,9 +296,7 @@ static int sp_256_mod_mul_norm_10(sp_digit* r, const sp_digit* a, const sp_digit
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (td != NULL) {
-        XFREE(td, NULL, DYNAMIC_TYPE_ECC);
-    }
+    XFREE(td, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -2592,9 +2590,7 @@ static int sp_256_ecc_mulmod_stripe_10(sp_point* r, const sp_point* g,
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (t != NULL) {
-        XFREE(t, heap, DYNAMIC_TYPE_ECC);
-    }
+    XFREE(t, heap, DYNAMIC_TYPE_ECC);
 #endif
     sp_ecc_point_free(p, 0, heap);
     sp_ecc_point_free(rt, 0, heap);
@@ -4233,9 +4229,7 @@ static int sp_256_div_10(const sp_digit* a, const sp_digit* d, sp_digit* m,
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (td != NULL) {
-        XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(td, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return err;
@@ -4630,9 +4624,7 @@ int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (tmp != NULL) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
 #endif
     sp_ecc_point_free(q, 0, NULL);
     sp_ecc_point_free(p, 0, NULL);
@@ -4695,9 +4687,7 @@ int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (tmp != NULL) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
 #endif
     sp_ecc_point_free(p, 0, NULL);
 
@@ -4753,9 +4743,7 @@ int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (tmp != NULL) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
-    }
+    XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
 #endif
     sp_ecc_point_free(p, 0, NULL);
 
@@ -4830,9 +4818,7 @@ static int sp_256_mont_sqrt_10(sp_digit* y)
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
-    }
+    XFREE(d, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;
@@ -4905,9 +4891,7 @@ int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
     }
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    if (d != NULL) {
-        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
-    }
+    XFREE(d, NULL, DYNAMIC_TYPE_ECC);
 #endif
 
     return err;

@@ -2679,9 +2679,7 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS && salt != NULL && saltSz > 0) {
-        if (ctx->pkey->hkdfSalt != NULL) {
-            XFREE(ctx->pkey->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
-        }
+        XFREE(ctx->pkey->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
         ctx->pkey->hkdfSalt = (byte*)XMALLOC((size_t)saltSz, NULL,
             DYNAMIC_TYPE_SALT);
         if (ctx->pkey->hkdfSalt == NULL) {
@@ -2716,9 +2714,7 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_key(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        if (ctx->pkey->hkdfKey != NULL) {
-            XFREE(ctx->pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
-        }
+        XFREE(ctx->pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
         ctx->pkey->hkdfKey = (byte*)XMALLOC((size_t)keySz, NULL,
             DYNAMIC_TYPE_KEY);
         if (ctx->pkey->hkdfKey == NULL) {

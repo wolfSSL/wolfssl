@@ -88,13 +88,8 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
 
         if (ret == TSIP_SUCCESS) {
             if (size == 1024) {
-                if (info->rsa1024pri_keyIdx != NULL) {
-                    XFREE(info->rsa1024pri_keyIdx, NULL,
-                                                DYNAMIC_TYPE_RSA_BUFFER);
-                }
-                if (info->rsa1024pub_keyIdx != NULL) {
-                    XFREE(info->rsa1024pub_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
-                }
+                XFREE(info->rsa1024pri_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+                XFREE(info->rsa1024pub_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                 info->rsa1024pri_keyIdx =
                 (tsip_rsa1024_private_key_index_t*)XMALLOC(
                     sizeof(tsip_rsa1024_private_key_index_t), NULL,
@@ -128,14 +123,8 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
                 info->keyflgs_crypt.bits.rsapub1024_key_set = 1;
             }
             else if (size == 2048) {
-                if (info->rsa2048pri_keyIdx != NULL) {
-                    XFREE(info->rsa2048pri_keyIdx, NULL,
-                                    DYNAMIC_TYPE_RSA_BUFFER);
-                }
-                if (info->rsa2048pub_keyIdx != NULL) {
-                    XFREE(info->rsa2048pub_keyIdx, NULL,
-                                    DYNAMIC_TYPE_RSA_BUFFER);
-                }
+                XFREE(info->rsa2048pri_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
+                XFREE(info->rsa2048pub_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
                 info->rsa2048pri_keyIdx =
                 (tsip_rsa2048_private_key_index_t*)XMALLOC(
                     sizeof(tsip_rsa2048_private_key_index_t), NULL,

@@ -414,9 +414,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (cmac) {
-        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
-    }
+    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif
@@ -495,9 +493,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
                               INVALID_DEVID);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (cmac) {
-        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
-    }
+    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif

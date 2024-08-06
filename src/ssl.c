@@ -1034,9 +1034,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_Init failed");
             WOLFSSL_LEAVE("wolfSSL_CTX_new_ex", 0);
-            if (method != NULL) {
-                XFREE(method, heap, DYNAMIC_TYPE_METHOD);
-            }
+            XFREE(method, heap, DYNAMIC_TYPE_METHOD);
             return NULL;
         }
     }

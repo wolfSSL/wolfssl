@@ -13694,9 +13694,7 @@ static WARN_UNUSED_RESULT int S2V(
                 }
             }
         #ifdef WOLFSSL_SMALL_STACK
-            if (cmac != NULL) {
-                XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
-            }
+            XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
         #elif defined(WOLFSSL_CHECK_MEM_ZERO)
             wc_MemZero_Check(cmac, sizeof(Cmac));
         #endif

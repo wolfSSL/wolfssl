@@ -7799,9 +7799,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
         *out = der;
         der = NULL;
     }
-    if (der != NULL) {
-        XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

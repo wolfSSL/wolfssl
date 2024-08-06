@@ -186,18 +186,10 @@ int mp_mul(mp_int *A, mp_int *B, mp_int *C)
             }
         }
 
-        if (ptrA) {
-            XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrB) {
-            XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrN) {
-            XFREE(ptrN, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrC) {
-            XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrN, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
     }
     else {
 #ifdef WOLFSSL_SP_MATH
@@ -280,15 +272,9 @@ int mp_mod(mp_int *a, mp_int *b, mp_int *c)
             res = MP_MEM;
         }
 
-        if (ptrA) {
-            XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrB) {
-            XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrC) {
-            XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
@@ -372,15 +358,9 @@ int mp_invmod(mp_int *a, mp_int *b, mp_int *c)
             res = MP_MEM;
         }
 
-        if (ptrA) {
-            XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrB) {
-            XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrC) {
-            XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
@@ -491,18 +471,10 @@ int mp_mulmod(mp_int *a, mp_int *b, mp_int *c, mp_int *d)
             res = MP_MEM;
         }
 
-        if (ptrA) {
-            XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrB) {
-            XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrC) {
-            XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrD) {
-            XFREE(ptrD, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrC, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrD, NULL, DYNAMIC_TYPE_BIGINT);
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
@@ -591,18 +563,10 @@ int ltc_mp_exptmod(mp_int *G, mp_int *X, mp_int *P, mp_int *Y, int useConstTime)
             res = MP_MEM;
         }
 
-        if (ptrY) {
-            XFREE(ptrY, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrP) {
-            XFREE(ptrP, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrX) {
-            XFREE(ptrX, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrG) {
-            XFREE(ptrG, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(ptrY, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrP, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrX, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrG, NULL, DYNAMIC_TYPE_BIGINT);
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)
@@ -687,12 +651,8 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
             }
         }
 
-        if (ptrB) {
-            XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (ptrA) {
-            XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(ptrB, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(ptrA, NULL, DYNAMIC_TYPE_BIGINT);
     }
     else {
 #if defined(FREESCALE_LTC_TFM_RSA_4096_ENABLE)

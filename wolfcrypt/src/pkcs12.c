@@ -165,9 +165,7 @@ static void freeSafe(AuthenticatedSafe* safe, void* heap)
         safe->CI = ci->next;
         XFREE(ci, heap, DYNAMIC_TYPE_PKCS);
     }
-    if (safe->data != NULL) {
-        XFREE(safe->data, heap, DYNAMIC_TYPE_PKCS);
-    }
+    XFREE(safe->data, heap, DYNAMIC_TYPE_PKCS);
     XFREE(safe, heap, DYNAMIC_TYPE_PKCS);
 
     (void)heap;
@@ -191,12 +189,8 @@ void wc_PKCS12_free(WC_PKCS12* pkcs12)
 
     /* free mac data */
     if (pkcs12->signData != NULL) {
-        if (pkcs12->signData->digest != NULL) {
-            XFREE(pkcs12->signData->digest, heap, DYNAMIC_TYPE_DIGEST);
-        }
-        if (pkcs12->signData->salt != NULL) {
-            XFREE(pkcs12->signData->salt, heap, DYNAMIC_TYPE_SALT);
-        }
+        XFREE(pkcs12->signData->digest, heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(pkcs12->signData->salt, heap, DYNAMIC_TYPE_SALT);
         XFREE(pkcs12->signData, heap, DYNAMIC_TYPE_PKCS);
     }
 
@@ -856,9 +850,7 @@ int wc_d2i_PKCS12_fp(const char* file, WC_PKCS12** pkcs12)
         wc_PKCS12_free(*pkcs12);
         *pkcs12 = NULL;
     }
-    if (buf != NULL) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     WOLFSSL_LEAVE("wc_d2i_PKCS12_fp", ret);
 
@@ -1099,9 +1091,7 @@ void wc_FreeCertList(WC_DerCertList* list, void* heap)
 
     while (current != NULL) {
         next = current->next;
-        if (current->buffer != NULL) {
-            XFREE(current->buffer, heap, DYNAMIC_TYPE_PKCS);
-        }
+        XFREE(current->buffer, heap, DYNAMIC_TYPE_PKCS);
         XFREE(current, heap, DYNAMIC_TYPE_PKCS);
         current = next;
     }

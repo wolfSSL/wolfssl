@@ -1069,9 +1069,7 @@ WOLFSSL_LOCAL int wc_fspsm_tls_CertVerify(
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG(" R_XXX_TlsCertificateVerification() failed");
         }
-        if (sigforSCE) {
-          XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
-        }
+        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
         wc_fspsm_hw_unlock();
     }
     else {

@@ -3008,9 +3008,7 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
         wc_FreeRsaKey(pub);
     }
     #ifdef WOLFSSL_SMALL_STACK
-        if (pub != NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
-        }
+        XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
     #endif
 
     return ret;
@@ -3155,9 +3153,7 @@ static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
         wc_ecc_free(pub);
     }
     #ifdef WOLFSSL_SMALL_STACK
-        if (pub != NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
-        }
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
     #endif
 
     return ret;

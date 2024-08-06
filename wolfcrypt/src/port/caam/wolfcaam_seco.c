@@ -1215,9 +1215,7 @@ word32 wc_SECO_WrapKey(word32 keyId, byte* in, word32 inSz, byte* iv,
         }
     }
 
-    if (wrappedKey != NULL) {
-        XFREE(wrappedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(wrappedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (wc_TranslateHSMError(0, err) != Success) {
         return 0;
