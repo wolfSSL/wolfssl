@@ -94,8 +94,7 @@ void wolfSSL_PKCS7_free(PKCS7* pkcs7)
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
 
     if (p7 != NULL) {
-        if (p7->data != NULL)
-            XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
+        XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
         wc_PKCS7_Free(&p7->pkcs7);
         if (p7->certs)
             wolfSSL_sk_pop_free(p7->certs, NULL);

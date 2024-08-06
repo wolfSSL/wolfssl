@@ -982,13 +982,11 @@ void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
         if (val->name) {
             /* Not a section. Don't free section as it is a shared pointer. */
             XFREE(val->name, NULL, DYNAMIC_TYPE_OPENSSL);
-            if (val->value)
-                XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
         }
         else {
             /* Section so val->value is a stack */
-            if (val->section)
-                XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Only free the stack structures. The contained conf values
              * will be freed in wolfSSL_NCONF_free */
             sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE)*)val->value;

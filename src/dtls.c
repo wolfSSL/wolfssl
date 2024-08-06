@@ -1150,10 +1150,8 @@ void TLSX_ConnectionID_Free(byte* ext, void* heap)
     info = DtlsCidGetInfoFromExt(ext);
     if (info == NULL)
         return;
-    if (info->rx != NULL)
-        XFREE(info->rx, heap, DYNAMIC_TYPE_TLSX);
-    if (info->tx != NULL)
-        XFREE(info->tx, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(info->rx, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(info->tx, heap, DYNAMIC_TYPE_TLSX);
     XFREE(info, heap, DYNAMIC_TYPE_TLSX);
     DtlsCidUnsetInfoFromExt(ext);
     XFREE(ext, heap, DYNAMIC_TYPE_TLSX);

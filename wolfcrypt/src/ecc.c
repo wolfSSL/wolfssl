@@ -3653,17 +3653,12 @@ static void ecc_key_tmp_final(ecc_key* key, void* heap)
    FREE_MP_INT_SIZE(key->t1, heap, DYNAMIC_TYPE_ECC);
 #else
 #ifdef ALT_ECC_SIZE
-   if (key->z != NULL)
-      XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
-   if (key->y != NULL)
-      XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
-   if (key->x != NULL)
-      XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
 #endif
-   if (key->t2 != NULL)
-      XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
-   if (key->t1 != NULL)
-      XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
 #endif
 }
 #endif /* WOLFSSL_SMALL_STACK_CACHE */

@@ -2576,8 +2576,7 @@ static void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
         XFREE(working_config->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(working_config->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-        if (working_config->raw != NULL)
-            XFREE(working_config->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(working_config->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         if (working_config->receiverPrivkey != NULL) {
             wc_HpkeFreeKey(NULL, working_config->kemId,
@@ -8921,8 +8920,7 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
             DtlsMsgDestroyFragBucket(item->fragBucketList, heap);
             item->fragBucketList = next;
         }
-        if (item->raw != NULL)
-            XFREE(item->raw, heap, DYNAMIC_TYPE_DTLS_FRAG);
+        XFREE(item->raw, heap, DYNAMIC_TYPE_DTLS_FRAG);
         XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 }

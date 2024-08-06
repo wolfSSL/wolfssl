@@ -2682,8 +2682,7 @@ static void TLSX_TCA_Free(TCA* tca, void* heap)
     (void)heap;
 
     if (tca) {
-        if (tca->id)
-            XFREE(tca->id, heap, DYNAMIC_TYPE_TLSX);
+        XFREE(tca->id, heap, DYNAMIC_TYPE_TLSX);
         XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
     }
 }
@@ -12261,13 +12260,11 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 /* free the ech struct and the dynamic buffer it uses */
 static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
 {
-    if (ech->innerClientHello != NULL)
-        XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ech->ephemeralKey != NULL)
         wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
             ech->hpke->heap);
-    if (ech->hpke != NULL)
-        XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;

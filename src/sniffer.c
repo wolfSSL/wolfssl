@@ -851,8 +851,7 @@ static void FreeSnifferSession(SnifferSession* session)
         XFREE(session->hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
 #ifdef WOLFSSL_TLS13
-        if (session->cliKeyShare)
-            XFREE(session->cliKeyShare, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(session->cliKeyShare, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #ifdef HAVE_MAX_FRAGMENT
         if (session->tlsFragBuf) {

@@ -37718,8 +37718,7 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
         tmp = next;
     }
 #ifdef OPENSSL_EXTRA
-    if (dcrl->issuer != NULL)
-        XFREE(dcrl->issuer, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(dcrl->issuer, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif
 }
 

@@ -107,21 +107,13 @@ typedef struct tagInfo
 
  void Clr_CallbackCtx(TsipUserCtx *g)
  {
-     if (g->rsa1024pri_keyIdx != NULL)
-         XFREE(g->rsa1024pri_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa1024pri_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-     if (g->rsa1024pub_keyIdx != NULL)
-         XFREE(g->rsa1024pub_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa1024pub_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-     if (g->rsa2048pri_keyIdx != NULL)
-         XFREE(g->rsa2048pri_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa2048pri_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-     if (g->rsa2048pub_keyIdx != NULL)
-         XFREE(g->rsa2048pub_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa2048pub_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
      XMEMSET(g, 0, sizeof(TsipUserCtx));
  }
 

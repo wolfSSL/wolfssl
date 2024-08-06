@@ -90,8 +90,7 @@ static void FreeOcspEntry(OcspEntry* entry, void* heap)
     for (status = entry->status; status; status = next) {
         next = status->next;
 
-        if (status->rawOcspResponse)
-            XFREE(status->rawOcspResponse, heap, DYNAMIC_TYPE_OCSP_STATUS);
+        XFREE(status->rawOcspResponse, heap, DYNAMIC_TYPE_OCSP_STATUS);
 
 #ifdef OPENSSL_EXTRA
         if (status->serialInt) {
@@ -927,8 +926,7 @@ void wolfSSL_OCSP_RESPONSE_free(OcspResponse* response)
         XFREE(response->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
     }
 
-    if (response->source != NULL)
-        XFREE(response->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(response->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     XFREE(response, NULL, DYNAMIC_TYPE_OCSP_REQUEST);
 }
