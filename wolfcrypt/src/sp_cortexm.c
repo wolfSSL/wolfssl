@@ -4780,7 +4780,11 @@ static sp_int32 sp_2048_cmp_32(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_2048_cmp_32_words\n\t"
+#else
+        "bcs	L_sp_2048_cmp_32_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #124]\n\t"
@@ -7549,7 +7553,11 @@ static sp_int32 sp_2048_cmp_64(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_2048_cmp_64_words\n\t"
+#else
+        "bcs	L_sp_2048_cmp_64_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #252]\n\t"
@@ -16277,7 +16285,11 @@ static sp_int32 sp_3072_cmp_48(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_3072_cmp_48_words\n\t"
+#else
+        "bcs	L_sp_3072_cmp_48_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #188]\n\t"
@@ -19806,7 +19818,11 @@ static sp_int32 sp_3072_cmp_96(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_3072_cmp_96_words\n\t"
+#else
+        "bcs	L_sp_3072_cmp_96_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #380]\n\t"
@@ -27837,7 +27853,11 @@ static sp_int32 sp_4096_cmp_128(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_4096_cmp_128_words\n\t"
+#else
+        "bcs	L_sp_4096_cmp_128_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #508]\n\t"
@@ -34655,7 +34675,11 @@ static sp_int32 sp_256_cmp_8(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_256_cmp_8_words\n\t"
+#else
+        "bcs	L_sp_256_cmp_8_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #28]\n\t"
@@ -45288,7 +45312,11 @@ static sp_int32 sp_384_cmp_12(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_384_cmp_12_words\n\t"
+#else
+        "bcs	L_sp_384_cmp_12_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #44]\n\t"
@@ -57343,7 +57371,11 @@ static sp_int32 sp_521_cmp_17(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_521_cmp_17_words\n\t"
+#else
+        "bcs	L_sp_521_cmp_17_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #64]\n\t"
@@ -70364,7 +70396,11 @@ static sp_int32 sp_1024_cmp_32(const sp_digit* a, const sp_digit* b)
         "IT	ne\n\t"
         "movne	r3, r7\n\t"
         "SUBS	r6, r6, #0x4\n\t"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "bcs	L_sp_1024_cmp_32_words\n\t"
+#else
+        "bcs	L_sp_1024_cmp_32_words_%=\n\t"
+#endif
         "EOR	r2, r2, r3\n\t"
 #else
         "LDR	r4, [%[a], #124]\n\t"
