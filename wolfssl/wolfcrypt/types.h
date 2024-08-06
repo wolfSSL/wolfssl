@@ -437,7 +437,13 @@ typedef struct w64wrapper {
     /* idea to add global alloc override by Moises Guimaraes  */
     /* default to libc stuff */
     /* XREALLOC is used once in normal math lib, not in fast math lib */
-    /* XFREE on some embedded systems doesn't like free(0) so test  */
+    /* XFREE on some embedded systems doesn't like free(0) so test for NULL
+     * explicitly.
+     *
+     * For example:
+     *   #define XFREE(p, h, t) \
+     *      {void* xp = (p); if (xp != NULL) free(xp, h, t);}
+     */
     #if defined(HAVE_IO_POOL)
         WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
         WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
