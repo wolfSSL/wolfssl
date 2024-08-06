@@ -76,10 +76,8 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 #endif
 
 #ifdef OPENSSL_EXTRA
-        if (ctx->param != NULL) {
-            XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
-            ctx->param = NULL;
-        }
+        XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
 #endif
 
         XFREE(ctx, ctx->heap, DYNAMIC_TYPE_X509_CTX);
@@ -186,10 +184,8 @@ void wolfSSL_X509_STORE_CTX_cleanup(WOLFSSL_X509_STORE_CTX* ctx)
 {
     if (ctx != NULL) {
 
-        if (ctx->param != NULL) {
-            XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
-            ctx->param = NULL;
-        }
+        XFREE(ctx->param, ctx->heap, DYNAMIC_TYPE_OPENSSL);
+        ctx->param = NULL;
 
         wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL);
     }
@@ -851,10 +847,8 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
             }
 #endif
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-            if (store->param != NULL) {
-                XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
-                store->param = NULL;
-            }
+            XFREE(store->param, NULL, DYNAMIC_TYPE_OPENSSL);
+            store->param = NULL;
 
             if (store->lookup.dirs != NULL) {
 #if defined(OPENSSL_ALL) && !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)

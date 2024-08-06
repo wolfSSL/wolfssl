@@ -670,10 +670,8 @@ void wc_Sha512Free(wc_Sha512* sha512)
         return;
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-    if (sha512->W != NULL) {
-        XFREE(sha512->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        sha512->W = NULL;
-    }
+    XFREE(sha512->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sha512->W = NULL;
 #endif
 }
 
@@ -801,10 +799,8 @@ void wc_Sha384Free(wc_Sha384* sha384)
         return;
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
-    if (sha384->W != NULL) {
-        XFREE(sha384->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        sha384->W = NULL;
-    }
+    XFREE(sha384->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sha384->W = NULL;
 #endif
 }
 

@@ -10202,15 +10202,11 @@ exit_xmss_sign_verify:
     bench_stats_asym_finish(params, (int)sigSz, "verify", 0, count, start, ret);
 
     /* Cleanup everything. */
-    if (sig != NULL) {
-        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        sig = NULL;
-    }
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = NULL;
 
-    if (sk != NULL) {
-        XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        sk = NULL;
-    }
+    XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sk = NULL;
 
     if (freeRng) {
         wc_FreeRng(&rng);

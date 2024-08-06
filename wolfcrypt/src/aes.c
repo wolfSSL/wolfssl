@@ -11307,10 +11307,8 @@ void wc_AesFree(Aes* aes)
 #endif
 #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
     !defined(WOLFSSL_AESNI)
-    if (aes->streamData != NULL) {
-        XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
-        aes->streamData = NULL;
-    }
+    XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
+    aes->streamData = NULL;
 #endif
 
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_CRYPT)

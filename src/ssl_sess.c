@@ -1329,16 +1329,12 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticketLenAlloc = 0;
         }
 #ifdef WOLFSSL_TLS13
-        if (preallocNonce != NULL) {
-            XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-            preallocNonce = NULL;
-        }
+        XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+        preallocNonce = NULL;
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_SMALL_STACK
-        if (tmpTicket != NULL) {
-            XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            tmpTicket = NULL;
-        }
+        XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        tmpTicket = NULL;
 #endif
 #endif
     }

@@ -20906,10 +20906,8 @@ exit_rsa:
 #endif
 
 #ifndef WOLFSSL_NO_MALLOC
-    if (der != NULL) {
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        der = NULL;
-    }
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    der = NULL;
 #endif
 
     return ret;
@@ -42534,20 +42532,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t xmss_test(void)
     }
 
     /* Cleanup everything. */
-    if (sig != NULL) {
-        XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        sig = NULL;
-    }
+    XFREE(sig, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sig = NULL;
 
-    if (sk != NULL) {
-        XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        sk = NULL;
-    }
+    XFREE(sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    sk = NULL;
 
-    if (old_sk != NULL) {
-        XFREE(old_sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        old_sk = NULL;
-    }
+    XFREE(old_sk, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    old_sk = NULL;
 
     wc_XmssKey_Free(&signingKey);
     wc_FreeRng(&rng);

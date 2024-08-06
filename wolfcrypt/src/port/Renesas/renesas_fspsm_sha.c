@@ -100,10 +100,8 @@ static void FSPSM_HashFree(wolfssl_FSPSM_Hash* hash)
         return;
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    if (hash->msg != NULL) {
-        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hash->msg = NULL;
-    }
+    XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    hash->msg = NULL;
 #endif
 
 }

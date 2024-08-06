@@ -1340,10 +1340,8 @@ int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid, unsigned int size)
     if (cidInfo == NULL)
         return WOLFSSL_FAILURE;
 
-    if (cidInfo->rx != NULL) {
-        XFREE(cidInfo->rx, ssl->heap, DYNAMIC_TYPE_TLSX);
-        cidInfo->rx = NULL;
-    }
+    XFREE(cidInfo->rx, ssl->heap, DYNAMIC_TYPE_TLSX);
+    cidInfo->rx = NULL;
 
     /* empty CID */
     if (size == 0)
