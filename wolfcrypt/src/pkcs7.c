@@ -5208,6 +5208,7 @@ static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
             /* got partial octet string data */
             /* accumulate partial octet string to buffer */
             if (keepContent) {
+            #ifdef ASN_BER_TO_DER
                 if (pkcs7->streamOutCb) {
                     ret = wc_HashUpdate(&pkcs7->stream->hashAlg,
                         pkcs7->stream->hashType,
@@ -5217,7 +5218,9 @@ static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
                     pkcs7->streamOutCb(pkcs7, msg + *idx,
                         pkcs7->stream->expected, pkcs7->streamCtx);
                 }
-                else {
+                else
+            #endif
+                {
                     /* store current content buffer temporarily */
                     tempBuf = pkcs7->stream->content;
                     pkcs7->stream->content = NULL;
@@ -5227,7 +5230,8 @@ static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
                     pkcs7->stream->accumContSz += pkcs7->stream->expected;
 
                     pkcs7->stream->content =
-                                    (byte*)XMALLOC(pkcs7->stream->accumContSz,                                                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                                    (byte*)XMALLOC(pkcs7->stream->accumContSz,
+                                    pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
                     if (pkcs7->stream->content == NULL) {
                         WOLFSSL_MSG("failed to grow content buffer.");
@@ -5866,6 +5870,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_VERIFY_STAGE3);
 
         #ifndef NO_PKCS7_STREAM
+        #ifdef ASN_BER_TO_DER
             /* setup hash struct for creating hash of content if needed */
             if (pkcs7->streamOutCb) {
                 ret = wc_HashInit_ex(&pkcs7->stream->hashAlg,
@@ -5873,6 +5878,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 if (ret != 0)
                     break;
             }
+        #endif /* ASN_BER_TO_DER */
 
         /* free pkcs7->stream->content buffer */
         if (pkcs7->stream->content != NULL) {
@@ -6537,7 +6543,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
                 pkcs7->contentSz = (word32)contentSz;
 
                 if (ret == 0) {
-                #ifndef NO_PKCS7_STREAM
+                #if !defined(NO_PKCS7_STREAM) && defined(ASN_BER_TO_DER)
                     byte streamHash[WC_MAX_DIGEST_SIZE];
 
                     /* get final hash if having done hash updates while
