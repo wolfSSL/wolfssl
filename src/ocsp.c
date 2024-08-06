@@ -824,13 +824,16 @@ out:
     if (ret != 0) {
         if (derCert != NULL)
             FreeDer(&derCert);
-        XFREE(certId, cm->heap, DYNAMIC_TYPE_OPENSSL);
-        certId = NULL;
-        XFREE(certStatus, cm->heap, DYNAMIC_TYPE_OPENSSL);
+        if (cm != NULL) {
+            XFREE(certId, cm->heap, DYNAMIC_TYPE_OPENSSL);
+            certId = NULL;
+            XFREE(certStatus, cm->heap, DYNAMIC_TYPE_OPENSSL);
+        }
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
+    if (cm != NULL)
+        XFREE(cert, cm->heap, DYNAMIC_TYPE_DCERT);
 #endif
 
     if (cm != NULL)
