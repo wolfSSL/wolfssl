@@ -151,6 +151,9 @@ WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
 WOLFSSL_API int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        const byte* priv, word32 privSz, const byte* otherPub,
                        word32 pubSz);
+WOLFSSL_API int wc_DhAgree_ct(DhKey* key, byte* agree, word32* agreeSz,
+                       const byte* priv, word32 privSz, const byte* otherPub,
+                       word32 pubSz);
 
 WOLFSSL_API int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
                            word32 inSz); /* wc_DhKeyDecode is in asn.c */
