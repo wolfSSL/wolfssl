@@ -13566,7 +13566,9 @@ WOLFSSL_STACK* wolfSSL_sk_new_node(void* heap)
 /* free's node but does not free internal data such as in->data.x509 */
 void wolfSSL_sk_free_node(WOLFSSL_STACK* in)
 {
-    XFREE(in, in->heap, DYNAMIC_TYPE_OPENSSL);
+    if (in != NULL) {
+        XFREE(in, in->heap, DYNAMIC_TYPE_OPENSSL);
+    }
 }
 
 /* pushes node "in" onto "stack" and returns pointer to the new stack on success
