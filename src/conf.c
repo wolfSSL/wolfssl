@@ -133,7 +133,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
             XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
             goto error;
         }
-        if (wolfSSL_sk_push(ret->data, strBuf) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_sk_push(ret->data, strBuf) <= 0) {
             WOLFSSL_MSG("wolfSSL_sk_push error");
             XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
             goto error;
@@ -226,7 +226,7 @@ int wolfSSL_TXT_DB_insert(WOLFSSL_TXT_DB *db, WOLFSSL_STRING *row)
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_sk_push(db->data, row) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_push(db->data, row) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_push error");
         return WOLFSSL_FAILURE;
     }
@@ -450,11 +450,11 @@ int wolfSSL_CONF_add_string(WOLFSSL_CONF *conf,
     sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *)section->value;
     value->section = section->section;
 
-    if (wolfSSL_sk_CONF_VALUE_push(sk, value) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_CONF_VALUE_push(sk, value) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
         return WOLFSSL_FAILURE;
     }
-    if (wolfSSL_sk_CONF_VALUE_push(conf->data, value) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_CONF_VALUE_push(conf->data, value) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
         wolfssl_sk_pop_type(sk, STACK_TYPE_CONF_VALUE);
         return WOLFSSL_FAILURE;
@@ -497,7 +497,7 @@ WOLFSSL_CONF_VALUE *wolfSSL_CONF_new_section(WOLFSSL_CONF *conf,
 
     ret->value = (char*)sk;
 
-    if (wolfSSL_sk_CONF_VALUE_push(conf->data, ret) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_CONF_VALUE_push(conf->data, ret) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
         goto error;
     }
