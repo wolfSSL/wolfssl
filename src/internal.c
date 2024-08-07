@@ -13222,7 +13222,12 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0;
     OcspRequest* request;
-
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    TLSX* ext =  TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    CertificateStatusRequest* csr;
+#else
+    (void)idx;
+#endif
     #ifdef WOLFSSL_SMALL_STACK
         CertStatus* status;
         OcspEntry* single;
@@ -13234,7 +13239,14 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     #endif
 
     WOLFSSL_ENTER("ProcessCSR");
-
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    if (ext) {
+        /* status request */
+        csr = (CertificateStatusRequest*)ext->data;
+        if (csr && !csr->ssl)
+            csr->ssl = ssl;
+    }
+#endif
     do {
         #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
             if (ssl->status_request) {
@@ -14381,7 +14393,7 @@ static int ProcessPeerCertCheckKey(WOLFSSL* ssl, ProcPeerCertArgs* args)
 
 #if defined(HAVE_OCSP) && defined(WOLFSSL_TLS13) \
         && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-static int ProcessPeerCersChainOCSPStausCheck(WOLFSSL* ssl)
+static int ProcessPeerCertsChainOCSPStausCheck(WOLFSSL* ssl)
 {
     int ret = 0;
     word32 i;
@@ -14389,12 +14401,20 @@ static int ProcessPeerCersChainOCSPStausCheck(WOLFSSL* ssl)
     TLSX* ext =  TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr;
 
-    if (ext == NULL) {
+    if (ext) {
+        csr = (CertificateStatusRequest*)ext->data;
+        if (csr == NULL) {
+            return 0;
+        }
+    } else
         return 0;
-    }
-    csr = (CertificateStatusRequest*)ext->data;
 
-    for (i = 0; i < (csr->requests); i++) {
+    for (i = 0; i < csr->requests; i++) {
+        /* error when leaf cert doesn't have certificate status */
+        if (i ==0 && csr->responses[i].length == 0) {
+            WOLFSSL_MSG("Leaf cert doesn't have certificate status.");
+            return BAD_CERTIFICATE_STATUS_ERROR;
+        }
         if (csr->responses[i].length != 0) {
             ssl->status_request = 1;
             idx = 0;
@@ -14405,6 +14425,9 @@ static int ProcessPeerCersChainOCSPStausCheck(WOLFSSL* ssl)
                 WOLFSSL_ERROR_VERBOSE(ret);
                 break;
             }
+        }
+        else {
+            WOLFSSL_MSG("Intermediate cert doesn't have certificate status.");
         }
     }
 
@@ -14892,8 +14915,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         else /* skips OCSP and force CRL check */
                     #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
-                    #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-                        if (ssl->options.tls1_3) {
+                    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+                        if (IsAtLeastTLSv1_3(ssl->version)) {
                             ret = TLSX_CSR_InitRequest(ssl->extensions,
                                     args->dCert, ssl->heap);
                         }
@@ -15386,7 +15409,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("\tHave status request");
                         #if defined(WOLFSSL_TLS13)
                             if (ssl->options.tls1_3) {
-                                ret = ProcessPeerCersChainOCSPStausCheck(ssl);
+                                ret = ProcessPeerCertsChainOCSPStausCheck(ssl);
                                 if (ret < 0) {
                                     WOLFSSL_ERROR_VERBOSE(ret);
                                     goto exit_ppc;

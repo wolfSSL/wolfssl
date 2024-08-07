@@ -8407,14 +8407,17 @@ static word32 NextCert(byte* data, word32 length, word32* idx)
 /* Write certificate status request into certificate to buffer.
  *
  * ssl       SSL/TLS object.
+ * certExts  DerBuffer array. buffers written
  * extSz     word32 array.
  *           Length of the certificate status request data for the certificate.
  * extSz_num number of the CSR written
  * extIdx    The index number of certificate status request data
  *           for the certificate.
+ * offset    index offset
  * returns   Total number of bytes written.
  */
-static word32 WriteCSRToBuffer(WOLFSSL* ssl, word16* extSz, word16 extSz_num)
+static word32 WriteCSRToChainBuffer(WOLFSSL* ssl, DerBuffer** certExts,
+                                word16* extSz,  word16 extSz_num, word16 offset)
 {
     int    ret = 0;
     TLSX* ext;
@@ -8431,19 +8434,18 @@ static word32 WriteCSRToBuffer(WOLFSSL* ssl, word16* extSz, word16 extSz_num)
 
     if (csr) {
         for (extIdx = 0; extIdx < (word16)(extSz_num); extIdx++) {
-            tmpSz = TLSX_CSR_GetSize_ex(csr, 0, extIdx + 1);
+            tmpSz = TLSX_CSR_GetSize_ex(csr, 0, extIdx + offset);
 
             if (tmpSz > (OPAQUE8_LEN + OPAQUE24_LEN) &&
-                ssl->buffers.certExts[extIdx + 1] == NULL) {
+                certExts[extIdx] == NULL) {
                 /* csr extension is not zero */
                 extSz[extIdx] = tmpSz;
 
-                ret = AllocDer(&ssl->buffers.certExts[extIdx + 1],
-                                                    extSz[extIdx] + ex_offset,
+                ret = AllocDer(&certExts[extIdx], extSz[extIdx] + ex_offset,
                                                     CERT_TYPE, ssl->heap);
                 if (ret < 0)
                     return ret;
-                der = ssl->buffers.certExts[extIdx+1];
+                der = certExts[extIdx];
 
                 /* write extension type */
                 c16toa(ext->type, der->buffer
@@ -8454,7 +8456,7 @@ static word32 WriteCSRToBuffer(WOLFSSL* ssl, word16* extSz, word16 extSz_num)
                 /* write extension data */
                 extSz[extIdx] = (word16)TLSX_CSR_Write_ex(csr,
                         der->buffer + ex_offset, 0,
-                        extIdx + 1);
+                        extIdx + offset);
                 /* add extension offset */
                 extSz[extIdx] += (word16)ex_offset;
                 /* extension length */
@@ -8624,8 +8626,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         if (ssl->options.side == WOLFSSL_SERVER_END &&
             ssl->buffers.certChainCnt > 0) {
             /* write CSR to the buffer */
-            totalextSz += WriteCSRToBuffer(ssl, &extSz[1],
-                                                ssl->buffers.certChainCnt);
+            totalextSz += WriteCSRToChainBuffer(ssl, &ssl->buffers.certExts[1],
+                                    &extSz[1], ssl->buffers.certChainCnt, 1);
 
         }
         else if (ssl->options.side == WOLFSSL_CLIENT_END &&
