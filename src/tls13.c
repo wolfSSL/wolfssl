@@ -8422,7 +8422,7 @@ static word32 WriteCSRToChainBuffer(WOLFSSL* ssl, DerBuffer** certExts,
     int    ret = 0;
     TLSX* ext;
     CertificateStatusRequest* csr;
-    word32 ex_offset = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN /* extesion type */
+    word32 ex_offset = HELLO_EXT_TYPE_SZ + OPAQUE16_LEN /* extension type */
                     + OPAQUE16_LEN /* extension length */;
     word32 totalSz = 0;
     word32 tmpSz;
