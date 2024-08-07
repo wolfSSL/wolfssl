@@ -137,10 +137,24 @@ WOLFSSL_API WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(
 WOLFSSL_API void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ex);
 WOLFSSL_API char* wolfSSL_i2s_ASN1_STRING(WOLFSSL_v3_ext_method *method,
                                           const WOLFSSL_ASN1_STRING *s);
+WOLFSSL_API int wolfSSL_i2d_ASN1_GENERALSTRING(WOLFSSL_ASN1_STRING* s,
+        unsigned char **pp);
+WOLFSSL_API int wolfSSL_i2d_ASN1_SEQUENCE(WOLFSSL_ASN1_STRING* s,
+        unsigned char **pp);
+WOLFSSL_API int wolfSSL_i2d_ASN1_OCTET_STRING(WOLFSSL_ASN1_STRING* s,
+        unsigned char **pp);
+WOLFSSL_API int wolfSSL_i2d_ASN1_UTF8STRING(WOLFSSL_ASN1_STRING* s,
+        unsigned char **pp);
+WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_d2i_ASN1_GENERALSTRING(
+        WOLFSSL_ASN1_STRING** out, const byte** src, long len);
+WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_d2i_ASN1_OCTET_STRING(
+        WOLFSSL_ASN1_STRING** out, const byte** src, long len);
+WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_d2i_ASN1_UTF8STRING(
+        WOLFSSL_ASN1_STRING** out, const byte** src, long len);
 WOLFSSL_API int wolfSSL_X509V3_EXT_print(WOLFSSL_BIO *out,
         WOLFSSL_X509_EXTENSION *ext, unsigned long flag, int indent);
-WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf, WOLFSSL_X509V3_CTX *ctx,
-        const char *section, WOLFSSL_X509 *cert);
+WOLFSSL_API int wolfSSL_X509V3_EXT_add_nconf(WOLFSSL_CONF *conf,
+        WOLFSSL_X509V3_CTX *ctx, const char *section, WOLFSSL_X509 *cert);
 WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 
 #define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free

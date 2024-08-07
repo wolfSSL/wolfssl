@@ -723,6 +723,7 @@ typedef struct w64wrapper {
             #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
 
         #define XSTRLEN(s1)       strlen((s1))
+        #define XSTRCPY(s1,s2)    strcpy((s1),(s2))
         #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
         /* strstr, strncmp, strcmp, and strncat only used by wolfSSL proper,
          * not required for wolfCrypt only */

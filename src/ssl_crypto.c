@@ -45,8 +45,7 @@
 void wolfSSL_MD4_Init(WOLFSSL_MD4_CTX* md4)
 {
     /* Ensure WOLFSSL_MD4_CTX is big enough for wolfCrypt Md4. */
-    typedef char ok[sizeof(md4->buffer) >= sizeof(Md4) ? 1 : -1];
-    (void)sizeof(ok);
+    WOLFSSL_ASSERT_SIZEOF_GE(md4->buffer, Md4);
 
     WOLFSSL_ENTER("MD4_Init");
 
@@ -97,8 +96,7 @@ void wolfSSL_MD4_Final(unsigned char* digest, WOLFSSL_MD4_CTX* md4)
 int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5)
 {
     /* Ensure WOLFSSL_MD5_CTX is big enough for wolfCrypt wc_Md5. */
-    typedef char md5_test[sizeof(WOLFSSL_MD5_CTX) >= sizeof(wc_Md5) ? 1 : -1];
-    (void)sizeof(md5_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_MD5_CTX, wc_Md5);
 
     WOLFSSL_ENTER("MD5_Init");
 
@@ -212,8 +210,7 @@ unsigned char* wolfSSL_MD5(const unsigned char* data, size_t len,
 int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX* sha)
 {
     /* Ensure WOLFSSL_SHA_CTX is big enough for wolfCrypt wc_Sha. */
-    typedef char sha_test[sizeof(WOLFSSL_SHA_CTX) >= sizeof(wc_Sha) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(WOLFSSL_SHA_CTX, wc_Sha);
 
     WOLFSSL_ENTER("SHA_Init");
 
@@ -362,8 +359,7 @@ int wolfSSL_SHA1_Transform(WOLFSSL_SHA_CTX* sha, const unsigned char* data)
 int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha224)
 {
     /* Ensure WOLFSSL_SHA224_CTX is big enough for wolfCrypt wc_Sha224. */
-    typedef char sha_test[sizeof(SHA224_CTX) >= sizeof(wc_Sha224) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA224_CTX, wc_Sha224);
 
     WOLFSSL_ENTER("SHA224_Init");
 
@@ -422,8 +418,7 @@ int wolfSSL_SHA224_Final(byte* output, WOLFSSL_SHA224_CTX* sha224)
 int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
 {
     /* Ensure WOLFSSL_SHA256_CTX is big enough for wolfCrypt wc_Sha256. */
-    typedef char sha_test[sizeof(SHA256_CTX) >= sizeof(wc_Sha256) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA256_CTX, wc_Sha256);
 
     WOLFSSL_ENTER("SHA256_Init");
 
@@ -512,8 +507,7 @@ int wolfSSL_SHA256_Transform(WOLFSSL_SHA256_CTX* sha256,
 int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha384)
 {
     /* Ensure WOLFSSL_SHA384_CTX is big enough for wolfCrypt wc_Sha384. */
-    typedef char sha_test[sizeof(SHA384_CTX) >= sizeof(wc_Sha384) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA384_CTX, wc_Sha384);
 
     WOLFSSL_ENTER("SHA384_Init");
 
@@ -572,8 +566,7 @@ int wolfSSL_SHA384_Final(byte* output, WOLFSSL_SHA384_CTX* sha384)
 int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha512)
 {
     /* Ensure WOLFSSL_SHA512_CTX is big enough for wolfCrypt wc_Sha512. */
-    typedef char sha_test[sizeof(SHA512_CTX) >= sizeof(wc_Sha512) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA512_CTX, wc_Sha512);
 
     WOLFSSL_ENTER("SHA512_Init");
 
@@ -809,8 +802,7 @@ int wolfSSL_SHA512_256_Transform(WOLFSSL_SHA512_CTX* sha512,
 int wolfSSL_SHA3_224_Init(WOLFSSL_SHA3_224_CTX* sha3_224)
 {
     /* Ensure WOLFSSL_SHA3_224_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_224_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA3_224_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_224_Init");
 
@@ -869,8 +861,7 @@ int wolfSSL_SHA3_224_Final(byte* output, WOLFSSL_SHA3_224_CTX* sha3)
 int wolfSSL_SHA3_256_Init(WOLFSSL_SHA3_256_CTX* sha3_256)
 {
     /* Ensure WOLFSSL_SHA3_256_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_256_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA3_256_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_256_Init");
 
@@ -929,8 +920,7 @@ int wolfSSL_SHA3_256_Final(byte* output, WOLFSSL_SHA3_256_CTX* sha3)
 int wolfSSL_SHA3_384_Init(WOLFSSL_SHA3_384_CTX* sha3_384)
 {
     /* Ensure WOLFSSL_SHA3_384_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_384_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA3_384_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_384_Init");
 
@@ -989,8 +979,7 @@ int wolfSSL_SHA3_384_Final(byte* output, WOLFSSL_SHA3_384_CTX* sha3)
 int wolfSSL_SHA3_512_Init(WOLFSSL_SHA3_512_CTX* sha3_512)
 {
     /* Ensure WOLFSSL_SHA3_512_CTX is big enough for wolfCrypt wc_Sha3. */
-    typedef char sha_test[sizeof(SHA3_512_CTX) >= sizeof(wc_Sha3) ? 1 : -1];
-    (void)sizeof(sha_test);
+    WOLFSSL_ASSERT_SIZEOF_GE(SHA3_512_CTX, wc_Sha3);
 
     WOLFSSL_ENTER("SHA3_512_Init");
 

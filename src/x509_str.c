@@ -221,6 +221,10 @@ int GetX509Error(int e)
         case WC_NO_ERR_TRACE(ASN_SIG_HASH_E):
         case WC_NO_ERR_TRACE(ASN_SIG_KEY_E):
             return WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE;
+        /* We can't disambiguate if its the before or after date that caused
+         * the error. Assume expired. */
+        case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
+            return X509_V_ERR_CRL_HAS_EXPIRED;
         case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
             return WOLFSSL_X509_V_ERR_CERT_REVOKED;
         case WC_NO_ERR_TRACE(CRL_MISSING):
@@ -537,7 +541,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                      * signed and that a issuer was found */
                     if (issuer != NULL && wolfSSL_X509_NAME_cmp(&x509->issuer,
                                 &x509->subject) != 0) {
-                        if (wolfSSL_sk_X509_push(sk, issuer) != WOLFSSL_SUCCESS) {
+                        if (wolfSSL_sk_X509_push(sk, issuer) <= 0) {
                             WOLFSSL_MSG("Unable to load CA x509 into stack");
                             error = 1;
                         }
@@ -569,7 +573,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                 break;
             }
 
-            if (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_sk_X509_push(sk, x509) <= 0) {
                 WOLFSSL_MSG("Unable to load x509 into stack");
                 wolfSSL_X509_free(x509);
                 error = 1;
@@ -688,12 +692,12 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(
             if (certToFilterName != NULL) {
                 if (wolfSSL_X509_NAME_cmp(certToFilterName, name) == 0) {
                     filteredCert = wolfSSL_X509_dup(certToFilter->data.x509);
-                    if (filteredCert == NULL) {
+                    if (filteredCert == NULL ||
+                            wolfSSL_sk_X509_push(filteredCerts, filteredCert)
+                                <= 0) {
                         err = 1;
+                        wolfSSL_X509_free(filteredCert);
                         break;
-                    }
-                    else {
-                        wolfSSL_sk_X509_push(filteredCerts, filteredCert);
                     }
                 }
             }
@@ -1248,7 +1252,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_GetCerts(WOLFSSL_X509_STORE_CTX* s)
 
         if (CopyDecodedToX509(x509, dCert) == 0) {
 
-            if (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_sk_X509_push(sk, x509) <= 0) {
                 WOLFSSL_MSG("Unable to load x509 into stack");
                 wolfSSL_X509_free(x509);
                 goto error;
@@ -1327,7 +1331,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
             goto err_cleanup;
         }
-        if (wolfSSL_sk_X509_OBJECT_push(ret, obj) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_sk_X509_OBJECT_push(ret, obj) <= 0) {
             WOLFSSL_MSG("wolfSSL_sk_X509_OBJECT_push error");
             wolfSSL_X509_OBJECT_free(obj);
             goto err_cleanup;
@@ -1345,7 +1349,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
             goto err_cleanup;
         }
-        if (wolfSSL_sk_X509_OBJECT_push(ret, obj) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_sk_X509_OBJECT_push(ret, obj) <= 0) {
             WOLFSSL_MSG("wolfSSL_sk_X509_OBJECT_push error");
             wolfSSL_X509_OBJECT_free(obj);
             goto err_cleanup;
@@ -1379,6 +1383,16 @@ WOLFSSL_X509_VERIFY_PARAM *wolfSSL_X509_STORE_get0_param(
         return NULL;
     return ctx->param;
 }
+
+#ifdef OPENSSL_EXTRA
+int wolfSSL_X509_STORE_set1_param(WOLFSSL_X509_STORE *ctx,
+        WOLFSSL_X509_VERIFY_PARAM *param)
+{
+    if (ctx == NULL)
+        return WOLFSSL_FAILURE;
+    return wolfSSL_X509_VERIFY_PARAM_set1(ctx->param, param);
+}
+#endif
 #endif
 
 /*******************************************************************************

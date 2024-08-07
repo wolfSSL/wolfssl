@@ -27,12 +27,16 @@
 #ifdef HAVE_OCSP
 #include <wolfssl/ocsp.h>
 
-#define OCSP_REQUEST              OcspRequest
-#define OCSP_RESPONSE             OcspResponse
-#define OCSP_BASICRESP            WOLFSSL_OCSP_BASICRESP
-#define OCSP_SINGLERESP           WOLFSSL_OCSP_SINGLERESP
-#define OCSP_CERTID               WOLFSSL_OCSP_CERTID
-#define OCSP_ONEREQ               WOLFSSL_OCSP_ONEREQ
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX) ||\
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
+typedef OcspRequest                      OCSP_REQUEST;
+typedef OcspResponse                     OCSP_RESPONSE;
+typedef WOLFSSL_OCSP_BASICRESP           OCSP_BASICRESP;
+typedef WOLFSSL_OCSP_SINGLERESP          OCSP_SINGLERESP;
+typedef WOLFSSL_OCSP_CERTID              OCSP_CERTID;
+typedef WOLFSSL_OCSP_ONEREQ              OCSP_ONEREQ;
+typedef WOLFSSL_OCSP_REQ_CTX             OCSP_REQ_CTX;
+#endif
 
 #define OCSP_REVOKED_STATUS_NOSTATUS     (-1)
 
@@ -84,6 +88,15 @@
 #define OCSP_single_get0_status   wolfSSL_OCSP_single_get0_status
 #define OCSP_resp_count           wolfSSL_OCSP_resp_count
 #define OCSP_resp_get0            wolfSSL_OCSP_resp_get0
+
+#define OCSP_REQ_CTX_new          wolfSSL_OCSP_REQ_CTX_new
+#define OCSP_REQ_CTX_free         wolfSSL_OCSP_REQ_CTX_free
+#define OCSP_sendreq_new          wolfSSL_OCSP_sendreq_new
+#define OCSP_REQ_CTX_set1_req     wolfSSL_OCSP_REQ_CTX_set1_req
+#define OCSP_REQ_CTX_add1_header  wolfSSL_OCSP_REQ_CTX_add1_header
+#define OCSP_REQ_CTX_http         wolfSSL_OCSP_REQ_CTX_http
+#define OCSP_REQ_CTX_nbio         wolfSSL_OCSP_REQ_CTX_nbio
+#define OCSP_sendreq_nbio         wolfSSL_OCSP_sendreq_nbio
 
 #endif /* HAVE_OCSP */
 

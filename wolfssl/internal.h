@@ -2045,7 +2045,7 @@ enum Misc {
 #define WOLFSSL_ASSERT_EQ(x, y) WOLFSSL_ASSERT_TEST(x, y, ==)
 
 #define WOLFSSL_ASSERT_SIZEOF_TEST(x, y, op) \
-    WOLFSSL_ASSERT_TEST(sizeof((x)), sizeof((y)), op)
+    WOLFSSL_ASSERT_TEST(sizeof(x), sizeof(y), op)
 
 #define WOLFSSL_ASSERT_SIZEOF_GE(x, y) WOLFSSL_ASSERT_SIZEOF_TEST(x, y, >=)
 
@@ -5218,6 +5218,7 @@ struct WOLFSSL_X509 {
     byte*            authKeyId; /* Points into authKeyIdSrc */
     byte*            authKeyIdSrc;
     byte*            subjKeyId;
+    WOLFSSL_ASN1_STRING* subjKeyIdStr;
     byte*            extKeyUsageSrc;
 #ifdef OPENSSL_ALL
     byte*            subjAltNameSrc;
@@ -6932,8 +6933,12 @@ WOLFSSL_LOCAL int CreateCookieExt(const WOLFSSL* ssl, byte* hash,
 WOLFSSL_LOCAL int TranslateErrorToAlert(int err);
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL)
-void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk, WOLF_STACK_TYPE type);
-WOLFSSL_STACK* wolfssl_sk_new_type(WOLF_STACK_TYPE type);
+WOLFSSL_LOCAL void* wolfssl_sk_pop_type(WOLFSSL_STACK* sk,
+                                        WOLF_STACK_TYPE type);
+WOLFSSL_LOCAL WOLFSSL_STACK* wolfssl_sk_new_type(WOLF_STACK_TYPE type);
+
+WOLFSSL_LOCAL int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj,
+        const byte* der, word32 len, int addHdr);
 #endif
 
 #ifdef __cplusplus
