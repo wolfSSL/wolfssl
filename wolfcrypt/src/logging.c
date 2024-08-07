@@ -471,26 +471,48 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
 
     while (buflen > 0) {
         int bufidx = 0;
-        XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "\t");
+        if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "\t")
+            >= (int)sizeof(line) - bufidx)
+        {
+            return;
+        }
         bufidx++;
 
         for (i = 0; i < LINE_LEN; i++) {
             if (i < buflen) {
-                XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "%02x ", buffer[i]);
+                if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "%02x ",
+                              buffer[i]) >= (int)sizeof(line) - bufidx)
+                {
+                    return;
+                }
             }
             else {
-                XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "   ");
+                if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "   ")
+                    >= (int)sizeof(line) - bufidx)
+                {
+                    return;
+                }
             }
             bufidx += 3;
         }
 
-        XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "| ");
+        if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "| ")
+            >= (int)sizeof(line) - bufidx)
+        {
+            return;
+        }
         bufidx++;
 
         for (i = 0; i < LINE_LEN; i++) {
             if (i < buflen) {
-                XSNPRINTF(&line[bufidx], sizeof(line)-bufidx,
-                     "%c", 31 < buffer[i] && buffer[i] < 127 ? buffer[i] : '.');
+                if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx,
+                              "%c", 31 < buffer[i] && buffer[i] < 127
+                              ? buffer[i]
+                              : '.')
+                    >= (int)sizeof(line) - bufidx)
+                {
+                    return;
+                }
                 bufidx++;
             }
         }
@@ -506,7 +528,11 @@ void WOLFSSL_ENTER(const char* msg)
 {
     if (loggingEnabled) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
-        XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Entering %s", msg);
+        if (XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Entering %s", msg)
+            >= (int)sizeof(buffer))
+        {
+            buffer[sizeof(buffer) - 1] = 0;
+        }
         wolfssl_log(ENTER_LOG, NULL, 0, buffer);
     }
 }
@@ -516,7 +542,11 @@ void WOLFSSL_ENTER2(const char *file, int line, const char* msg)
 {
     if (loggingEnabled) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
-        XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Entering %s", msg);
+        if (XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Entering %s", msg)
+            >= (int)sizeof(buffer))
+        {
+            buffer[sizeof(buffer) - 1] = 0;
+        }
         wolfssl_log(ENTER_LOG, file, line, buffer);
     }
 }
@@ -527,8 +557,12 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
 {
     if (loggingEnabled) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
-        XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Leaving %s, return %d",
-                msg, ret);
+        if (XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Leaving %s, return %d",
+                      msg, ret)
+            >= (int)sizeof(buffer))
+        {
+            buffer[sizeof(buffer) - 1] = 0;
+        }
         wolfssl_log(LEAVE_LOG, NULL, 0, buffer);
     }
 }
@@ -538,8 +572,12 @@ void WOLFSSL_LEAVE2(const char *file, int line, const char* msg, int ret)
 {
     if (loggingEnabled) {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
-        XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Leaving %s, return %d",
-                msg, ret);
+        if (XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Leaving %s, return %d",
+                      msg, ret)
+            >= (int)sizeof(buffer))
+        {
+            buffer[sizeof(buffer) - 1] = 0;
+        }
         wolfssl_log(LEAVE_LOG, file, line, buffer);
     }
 }

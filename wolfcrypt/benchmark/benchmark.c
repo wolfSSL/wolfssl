@@ -1663,18 +1663,6 @@ static const char* bench_result_words3[][5] = {
                                           const char *desc_extra);
 #endif
 
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
-        !defined(HAVE_STACK_SIZE)
-#ifdef __cplusplus
-    extern "C" {
-#endif
-    WOLFSSL_API int wolfSSL_Debugging_ON(void);
-    WOLFSSL_API void wolfSSL_Debugging_OFF(void);
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
-#endif
-
 #if !defined(WC_NO_RNG) && \
         ((!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) \
         || !defined(NO_DH) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_ECC) \
