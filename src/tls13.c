@@ -8616,7 +8616,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                 return ret;
         }
         /* set empty extension as default */
-        for (extIdx = 1; extIdx < (1 + MAX_CERT_EXTENSIONS); extIdx++)
+        for (extIdx = 1; extIdx < (word16)(1 + MAX_CERT_EXTENSIONS); extIdx++)
             extSz[extIdx] = OPAQUE16_LEN;
 
         /* certificate extension size */
