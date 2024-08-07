@@ -286,9 +286,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     }
 
     /* Free dynamic memory allocated in function. */
-    if (a != NULL) {
-        XFREE(a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -892,9 +890,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 
 #ifndef USE_INTEL_SPEEDUP
     /* Dispose of dynamic memory allocated in function. */
-    if (cmp != NULL) {
-        XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;

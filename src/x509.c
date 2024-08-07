@@ -6391,9 +6391,7 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
         }
     }
 
-    if (buf != NULL) {
-        XFREE(buf, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(buf, x509->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -6573,9 +6571,7 @@ static int X509PrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
             return WOLFSSL_FAILURE;
         }
 
-        if (sig != NULL) {
-            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     }
 
@@ -7191,8 +7187,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     while (ret == WOLFSSL_SUCCESS);
 
 end:
-    if (pem != NULL)
-        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+    XFREE(pem, 0, DYNAMIC_TYPE_PEM);
     XFCLOSE(fp);
     return WS_RETURN_CODE(ret, (int)WOLFSSL_FAILURE);
 #else
@@ -7793,8 +7788,7 @@ err_exit:
     }
 #endif
 _exit:
-    if (fileBuffer != NULL)
-        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+    XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
 
     return newx509;
 }
@@ -7969,9 +7963,7 @@ WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_bio(WOLFSSL_BIO *bp,
         }
     }
 
-    if (der != NULL) {
-        XFREE(der, 0, DYNAMIC_TYPE_DER);
-    }
+    XFREE(der, 0, DYNAMIC_TYPE_DER);
 
     return crl;
 }
@@ -8332,9 +8324,7 @@ static int X509CRLPrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509_CRL* crl,
             return WOLFSSL_FAILURE;
         }
 
-        if (sig != NULL) {
-            XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     }
 
@@ -8710,8 +8700,7 @@ WOLFSSL_X509_VERIFY_PARAM* wolfSSL_X509_VERIFY_PARAM_new(void)
 
 void wolfSSL_X509_VERIFY_PARAM_free(WOLFSSL_X509_VERIFY_PARAM *param)
 {
-    if (param != NULL)
-        XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(param, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 
@@ -9779,8 +9768,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
             XMEMCPY(out, der + idx, length);
         }
 
-        if (der != NULL)
-            XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
+        XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
 
         return length;
     }
@@ -10782,8 +10770,7 @@ cleanup:
         }
 
     out:
-        if (der)
-            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
         return ret;
     }
@@ -11412,9 +11399,7 @@ cleanup:
         }
 
 err:
-        if(pem != NULL) {
-            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
-        }
+        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
         if(der != NULL) {
             FreeDer(&der);
         }
@@ -11511,8 +11496,7 @@ err:
         return newx509;
 
     err_exit:
-        if (pem != NULL)
-            XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
         if (der != NULL)
             FreeDer(&der);
 
@@ -11777,8 +11761,7 @@ err:
     #endif
         return WOLFSSL_SUCCESS;
 err:
-        if (pem)
-            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
     #ifdef HAVE_CRL
         if (der)
             FreeDer(&der);
@@ -12579,8 +12562,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
     return WOLFSSL_SUCCESS;
 
 error:
-    if (pem)
-        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
 #endif /* WOLFSSL_CERT_GEN */
@@ -13525,8 +13507,7 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (dCert != NULL)
-        XFREE(dCert, x->heap, DYNAMIC_TYPE_DCERT);
+    XFREE(dCert, x->heap, DYNAMIC_TYPE_DCERT);
 #endif
 
     return ret;

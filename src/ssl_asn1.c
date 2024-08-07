@@ -3002,9 +3002,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *bio, WOLFSSL_ASN1_STRING *str,
 void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
 {
     WOLFSSL_ENTER("wolfSSL_ASN1_GENERALIZEDTIME_free");
-    if (asn1Time != NULL) {
-        XFREE(asn1Time, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(asn1Time, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 #ifndef NO_BIO

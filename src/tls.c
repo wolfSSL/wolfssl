@@ -2682,8 +2682,7 @@ static void TLSX_TCA_Free(TCA* tca, void* heap)
     (void)heap;
 
     if (tca) {
-        if (tca->id)
-            XFREE(tca->id, heap, DYNAMIC_TYPE_TLSX);
+        XFREE(tca->id, heap, DYNAMIC_TYPE_TLSX);
         XFREE(tca, heap, DYNAMIC_TYPE_TLSX);
     }
 }
@@ -5975,9 +5974,7 @@ static TlsxSrtp* TLSX_UseSRTP_New(word16 ids, void* heap)
 
 static void TLSX_UseSRTP_Free(TlsxSrtp *srtp, void* heap)
 {
-    if (srtp != NULL) {
-        XFREE(srtp, heap, DYNAMIC_TYPE_TLSX);
-    }
+    XFREE(srtp, heap, DYNAMIC_TYPE_TLSX);
     (void)heap;
 }
 
@@ -6594,8 +6591,7 @@ static void TLSX_Cookie_FreeAll(Cookie* cookie, void* heap)
 {
     (void)heap;
 
-    if (cookie != NULL)
-        XFREE(cookie, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(cookie, heap, DYNAMIC_TYPE_TLSX);
 }
 
 /* Get the size of the encoded Cookie extension.
@@ -6748,8 +6744,7 @@ int TLSX_Cookie_Use(const WOLFSSL* ssl, const byte* data, word16 len, byte* mac,
     if (mac != NULL)
         XMEMCPY(cookie->data + len, mac, macSz);
 
-    if (extension->data != NULL)
-        XFREE(extension->data, ssl->heap, DYNAMIC_TYPE_TLSX);
+    XFREE(extension->data, ssl->heap, DYNAMIC_TYPE_TLSX);
 
     extension->data = (void*)cookie;
     extension->resp = (byte)resp;
@@ -7392,21 +7387,15 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
      * The DhKey will be setup again in TLSX_KeyShare_ProcessDh */
     if (dhKey != NULL)
         wc_FreeDhKey(dhKey);
-    if (kse->key != NULL) {
-        XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_DH);
-        kse->key = NULL;
-    }
+    XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_DH);
+    kse->key = NULL;
 
     if (ret != 0) {
         /* Cleanup on error, otherwise data owned by key share entry */
-        if (kse->privKey != NULL) {
-            XFREE(kse->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-            kse->privKey = NULL;
-        }
-        if (kse->pubKey != NULL) {
-            XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            kse->pubKey = NULL;
-        }
+        XFREE(kse->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        kse->privKey = NULL;
+        XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        kse->pubKey = NULL;
     }
 #else
     (void)ssl;
@@ -7488,16 +7477,12 @@ static int TLSX_KeyShare_GenX25519Key(WOLFSSL *ssl, KeyShareEntry* kse)
 
     if (ret != 0) {
         /* Data owned by key share entry otherwise. */
-        if (kse->pubKey != NULL) {
-            XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            kse->pubKey = NULL;
-        }
+        XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        kse->pubKey = NULL;
         if (key != NULL)
             wc_curve25519_free(key);
-        if (kse->key != NULL) {
-            XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-            kse->key = NULL;
-        }
+        XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        kse->key = NULL;
     }
 #else
     (void)ssl;
@@ -7576,16 +7561,12 @@ static int TLSX_KeyShare_GenX448Key(WOLFSSL *ssl, KeyShareEntry* kse)
 
     if (ret != 0) {
         /* Data owned by key share entry otherwise. */
-        if (kse->pubKey != NULL) {
-            XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            kse->pubKey = NULL;
-        }
+        XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        kse->pubKey = NULL;
         if (key != NULL)
             wc_curve448_free(key);
-        if (kse->key != NULL) {
-            XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-            kse->key = NULL;
-        }
+        XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        kse->key = NULL;
     }
 #else
     (void)ssl;
@@ -7739,16 +7720,12 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     if (ret != 0) {
         /* Cleanup on error, otherwise data owned by key share entry */
-        if (kse->pubKey != NULL) {
-            XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            kse->pubKey = NULL;
-        }
+        XFREE(kse->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        kse->pubKey = NULL;
         if (eccKey != NULL)
             wc_ecc_free(eccKey);
-        if (kse->key != NULL) {
-            XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-            kse->key = NULL;
-        }
+        XFREE(kse->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        kse->key = NULL;
     }
 #else
     (void)ssl;
@@ -7957,10 +7934,8 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     wc_KyberKey_Free(kem);
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
-    if (pubKey != NULL)
-        XFREE(pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    if (privKey != NULL)
-        XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    XFREE(pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
 
     return ret;
 }
@@ -8024,10 +7999,8 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             if (current->key != NULL) {
                 ForceZero((byte*)current->key, current->keyLen);
             }
-            if (current->pubKey != NULL) {
-                XFREE(current->pubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                current->pubKey = NULL;
-            }
+            XFREE(current->pubKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            current->pubKey = NULL;
             if (current->privKey != NULL) {
                 ForceZero(current->privKey, current->privKeyLen);
                 XFREE(current->privKey, heap, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -8246,18 +8219,12 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     /* done with key share, release resources */
     if (dhKey)
         wc_FreeDhKey(dhKey);
-    if (keyShareEntry->key) {
-        XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_DH);
-        keyShareEntry->key = NULL;
-    }
-    if (keyShareEntry->privKey != NULL) {
-        XFREE(keyShareEntry->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        keyShareEntry->privKey = NULL;
-    }
-    if (keyShareEntry->pubKey != NULL) {
-        XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        keyShareEntry->pubKey = NULL;
-    }
+    XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_DH);
+    keyShareEntry->key = NULL;
+    XFREE(keyShareEntry->privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    keyShareEntry->privKey = NULL;
+    XFREE(keyShareEntry->pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    keyShareEntry->pubKey = NULL;
     XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     keyShareEntry->ke = NULL;
 #else
@@ -8335,10 +8302,8 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
     wc_curve25519_free(peerX25519Key);
     XFREE(peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
     wc_curve25519_free((curve25519_key*)keyShareEntry->key);
-    if (keyShareEntry->key != NULL) {
-        XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        keyShareEntry->key = NULL;
-    }
+    XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    keyShareEntry->key = NULL;
 #else
     (void)ssl;
     (void)keyShareEntry;
@@ -8415,10 +8380,8 @@ static int TLSX_KeyShare_ProcessX448(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     wc_curve448_free(peerX448Key);
     XFREE(peerX448Key, ssl->heap, DYNAMIC_TYPE_TLSX);
     wc_curve448_free((curve448_key*)keyShareEntry->key);
-    if (keyShareEntry->key != NULL) {
-        XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        keyShareEntry->key = NULL;
-    }
+    XFREE(keyShareEntry->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    keyShareEntry->key = NULL;
 #else
     (void)ssl;
     (void)keyShareEntry;
@@ -8735,9 +8698,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ssl->arrays->preMasterSz = (word32) sharedSecretLen;
     }
 
-    if (sharedSecret != NULL) {
-        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    }
+    XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
 
     wc_ecc_free(&eccpubkey);
     wc_KyberKey_Free(kem);
@@ -9224,9 +9185,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        if (keyShareEntry->ke != NULL) {
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        }
+        XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
 
         keyShareEntry->ke = sharedSecret;
         keyShareEntry->keLen = outlen + ssSz;
@@ -9244,10 +9203,8 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     }
 
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
-    if (sharedSecret != NULL)
-        XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-    if (ciphertext != NULL)
-        XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
+    XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
+    XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
     wc_ecc_free(&eccpubkey);
     wc_KyberKey_Free(kem);
     return ret;
@@ -9312,9 +9269,7 @@ int TLSX_KeyShare_Use(const WOLFSSL* ssl, word16 group, word16 len, byte* data,
     else
 #endif
     if (data != NULL) {
-        if (keyShareEntry->ke != NULL) {
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        }
+        XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->ke = data;
         keyShareEntry->keLen = len;
     }
@@ -12106,8 +12061,7 @@ static int TLSX_ExtractEch(WOLFSSL_ECH* ech, WOLFSSL_EchConfig* echConfig,
         ech->hpke = NULL;
     }
 
-    if (info != NULL)
-        XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(info, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -12263,13 +12217,11 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 /* free the ech struct and the dynamic buffer it uses */
 static void TLSX_ECH_Free(WOLFSSL_ECH* ech, void* heap)
 {
-    if (ech->innerClientHello != NULL)
-        XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ech->innerClientHello, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ech->ephemeralKey != NULL)
         wc_HpkeFreeKey(ech->hpke, ech->hpke->kem, ech->ephemeralKey,
             ech->hpke->heap);
-    if (ech->hpke != NULL)
-        XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(ech->hpke, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     XFREE(ech, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;

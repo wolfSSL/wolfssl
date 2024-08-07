@@ -2576,8 +2576,7 @@ static void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap)
         XFREE(working_config->cipherSuites, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(working_config->publicName, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-        if (working_config->raw != NULL)
-            XFREE(working_config->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(working_config->raw, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         if (working_config->receiverPrivkey != NULL) {
             wc_HpkeFreeKey(NULL, working_config->kemId,
@@ -2624,10 +2623,8 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     XFREE(ctx->method, heapAtCTXInit, DYNAMIC_TYPE_METHOD);
     ctx->method = NULL;
 
-    if (ctx->suites) {
-        XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
-        ctx->suites = NULL;
-    }
+    XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
+    ctx->suites = NULL;
 
 #ifndef NO_DH
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -2726,10 +2723,8 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         XFREE((void*)ctx->alpn_cli_protos, ctx->heap, DYNAMIC_TYPE_OPENSSL);
         ctx->alpn_cli_protos = NULL;
     }
-    if (ctx->param) {
-        XFREE(ctx->param, heapAtCTXInit, DYNAMIC_TYPE_OPENSSL);
-        ctx->param = NULL;
-    }
+    XFREE(ctx->param, heapAtCTXInit, DYNAMIC_TYPE_OPENSSL);
+    ctx->param = NULL;
 
     if (ctx->x509_store.param) {
         XFREE(ctx->x509_store.param, heapAtCTXInit, DYNAMIC_TYPE_OPENSSL);
@@ -4575,23 +4570,15 @@ void FreeX509(WOLFSSL_X509* x509)
         x509->authKeyId = NULL;
         XFREE(x509->subjKeyId, x509->heap, DYNAMIC_TYPE_X509_EXT);
         x509->subjKeyId = NULL;
-        if (x509->authInfo != NULL) {
-            XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            x509->authInfo = NULL;
-        }
-        if (x509->rawCRLInfo != NULL) {
-            XFREE(x509->rawCRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            x509->rawCRLInfo = NULL;
-        }
-        if (x509->CRLInfo != NULL) {
-            XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
-            x509->CRLInfo = NULL;
-        }
+        XFREE(x509->authInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->authInfo = NULL;
+        XFREE(x509->rawCRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->rawCRLInfo = NULL;
+        XFREE(x509->CRLInfo, x509->heap, DYNAMIC_TYPE_X509_EXT);
+        x509->CRLInfo = NULL;
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
             defined(WOLFSSL_QT)
-        if (x509->authInfoCaIssuer != NULL) {
-            XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        }
+        XFREE(x509->authInfoCaIssuer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         if (x509->ext_sk != NULL) {
             wolfSSL_sk_X509_EXTENSION_pop_free(x509->ext_sk, NULL);
         }
@@ -4647,14 +4634,10 @@ void FreeX509(WOLFSSL_X509* x509)
     }
 
     #ifdef WOLFSSL_DUAL_ALG_CERTS
-    if (x509->sapkiDer) {
-        XFREE(x509->sapkiDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        x509->sapkiDer = NULL;
-    }
-    if (x509->altSigAlgDer) {
-        XFREE(x509->altSigAlgDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        x509->altSigAlgDer = NULL;
-    }
+    XFREE(x509->sapkiDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    x509->sapkiDer = NULL;
+    XFREE(x509->altSigAlgDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
+    x509->altSigAlgDer = NULL;
     if (x509->altSigValDer) {
         XFREE(x509->altSigValDer, x509->heap, DYNAMIC_TYPE_X509_EXT);
         x509->altSigValDer= NULL;
@@ -8376,9 +8359,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif
 #ifdef OPENSSL_EXTRA
-    if (ssl->param) {
-        XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     while (ssl->certReqCtx != NULL) {
@@ -8921,8 +8902,7 @@ void DtlsMsgDelete(DtlsMsg* item, void* heap)
             DtlsMsgDestroyFragBucket(item->fragBucketList, heap);
             item->fragBucketList = next;
         }
-        if (item->raw != NULL)
-            XFREE(item->raw, heap, DYNAMIC_TYPE_DTLS_FRAG);
+        XFREE(item->raw, heap, DYNAMIC_TYPE_DTLS_FRAG);
         XFREE(item, heap, DYNAMIC_TYPE_DTLS_MSG);
     }
 }
@@ -13263,12 +13243,9 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                     DYNAMIC_TYPE_OCSP_REQUEST);
 
         if (status == NULL || single == NULL || response == NULL) {
-            if (status)
-                XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
-            if (single)
-                XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
-            if (response)
-                XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+            XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+            XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
 
             return MEMORY_ERROR;
         }
@@ -13557,8 +13534,7 @@ mem_error:
     if (x509 != NULL)
         wolfSSL_X509_free(x509);
 #endif
-    if (domain != NULL)
-        XFREE(domain, heap, DYNAMIC_TYPE_STRING);
+    XFREE(domain, heap, DYNAMIC_TYPE_STRING);
     return MEMORY_E;
 }
 
@@ -13837,15 +13813,11 @@ static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 
     (void)ssl;
 
-    if (args->certs) {
-        XFREE(args->certs, ssl->heap, DYNAMIC_TYPE_DER);
-        args->certs = NULL;
-    }
+    XFREE(args->certs, ssl->heap, DYNAMIC_TYPE_DER);
+    args->certs = NULL;
 #ifdef WOLFSSL_TLS13
-    if (args->exts) {
-        XFREE(args->exts, ssl->heap, DYNAMIC_TYPE_CERT_EXT);
-        args->exts = NULL;
-    }
+    XFREE(args->exts, ssl->heap, DYNAMIC_TYPE_CERT_EXT);
+    args->exts = NULL;
 #endif
     if (args->dCert) {
         if (args->dCertInit) {
@@ -13955,9 +13927,7 @@ int LoadCertByIssuer(WOLFSSL_X509_STORE* store, X509_NAME* issuer, int type)
         /* / <hashvalue>.(r)N\0                                         */
         /*|1|     8    |1|1|1|1|           => 13                        */
         len = (int)XSTRLEN(entry->dir_name) + 13;
-        if (filename != NULL) {
-            XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
-        }
+        XFREE(filename, NULL, DYNAMIC_TYPE_OPENSSL);
 
         filename = (char*)XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
         if (filename == NULL) {
@@ -15038,8 +15008,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (dCertAdd_inited)
                             FreeDecodedCert(dCertAdd);
 #ifdef WOLFSSL_SMALL_STACK
-                        if (dCertAdd)
-                            XFREE(dCertAdd, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        XFREE(dCertAdd, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
                         if (ret != 0)
                             goto exit_ppc;
@@ -16227,12 +16196,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                              DYNAMIC_TYPE_OCSP_REQUEST);
 
                 if (status == NULL || single == NULL || response == NULL) {
-                    if (status)
-                        XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
-                    if (single)
-                        XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
-                    if (response)
-                        XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                    XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+                    XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+                    XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
 
                     return MEMORY_ERROR;
                 }
@@ -30513,10 +30479,8 @@ static void FreeDskeArgs(WOLFSSL* ssl, void* pArgs)
 
 #if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                                           defined(HAVE_CURVE448)
-    if (args->verifySig) {
-        XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-        args->verifySig = NULL;
-    }
+    XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
+    args->verifySig = NULL;
 #endif
 }
 
@@ -31852,14 +31816,10 @@ static void FreeSckeArgs(WOLFSSL* ssl, void* pArgs)
 
     (void)ssl;
 
-    if (args->encSecret) {
-        XFREE(args->encSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
-        args->encSecret = NULL;
-    }
-    if (args->input) {
-        XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-        args->input = NULL;
-    }
+    XFREE(args->encSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
+    args->encSecret = NULL;
+    XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+    args->input = NULL;
 }
 
 /* handle generation client_key_exchange (16) */
@@ -33124,15 +33084,11 @@ static void FreeScvArgs(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
 
 #ifndef NO_RSA
-    if (args->verifySig) {
-        XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-        args->verifySig = NULL;
-    }
+    XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
+    args->verifySig = NULL;
 #endif
-    if (args->input) {
-        XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
-        args->input = NULL;
-    }
+    XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+    args->input = NULL;
 }
 
 /* handle generation of certificate_verify (15) */
@@ -34251,16 +34207,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         (void)ssl;
 
     #if defined(HAVE_ECC) || defined(HAVE_CURVE25519) || defined(HAVE_CURVE448)
-        if (args->exportBuf) {
-            XFREE(args->exportBuf, ssl->heap, DYNAMIC_TYPE_DER);
-            args->exportBuf = NULL;
-        }
+        XFREE(args->exportBuf, ssl->heap, DYNAMIC_TYPE_DER);
+        args->exportBuf = NULL;
     #endif
     #ifndef NO_RSA
-        if (args->verifySig) {
-            XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
-            args->verifySig = NULL;
-        }
+        XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
+        args->verifySig = NULL;
     #endif
         (void)args;
     }
@@ -37157,8 +37109,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->clSuites = NULL;
 #endif
 #ifdef WOLFSSL_SMALL_STACK
-        if (clSuites != NULL)
-            XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+        XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
 #endif
         WOLFSSL_LEAVE("DoClientHello", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
@@ -41185,9 +41136,7 @@ void wolfSSL_BY_DIR_entry_free(WOLFSSL_BY_DIR_entry* entry)
         wolfSSL_sk_BY_DIR_HASH_free(entry->hashes);
     }
 
-    if (entry->dir_name != NULL) {
-        XFREE(entry->dir_name, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
+    XFREE(entry->dir_name, NULL, DYNAMIC_TYPE_OPENSSL);
 
     XFREE(entry, NULL, DYNAMIC_TYPE_OPENSSL);
 }

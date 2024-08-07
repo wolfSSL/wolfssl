@@ -559,9 +559,7 @@ static int Pkcs11Slot_FindByTokenName(Pkcs11Dev* dev,
     }
 
 out:
-    if (slot != NULL) {
-        XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -629,9 +627,7 @@ static int Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         token->userPinLogin = 0;
     }
 
-    if (slot != NULL) {
-        XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(slot, dev->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1154,8 +1150,7 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
         }
     }
 
-    if (ecPoint != NULL)
-        XFREE(ecPoint, public_key->heap, DYNAMIC_TYPE_ECC);
+    XFREE(ecPoint, public_key->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -1732,10 +1727,8 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
     if (ret == 0)
         ret = wc_RsaPublicKeyDecodeRaw(mod, modSz, exp, expSz, key);
 
-    if (exp != NULL)
-        XFREE(exp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (mod != NULL)
-        XFREE(mod, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(exp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(mod, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -2238,8 +2231,7 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         }
     }
 
-    if (ecPoint != NULL)
-        XFREE(ecPoint, eccKey->heap, DYNAMIC_TYPE_ECC);
+    XFREE(ecPoint, eccKey->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -2322,8 +2314,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
         key->type = ECC_PUBLICKEY;
     }
 
-    if (point != NULL)
-        XFREE(point, key->heap, DYNAMIC_TYPE_ECC);
+    XFREE(point, key->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -3008,9 +2999,7 @@ static int wc_Pkcs11CheckPrivKey_Rsa(RsaKey* priv,
         wc_FreeRsaKey(pub);
     }
     #ifdef WOLFSSL_SMALL_STACK
-        if (pub != NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
-        }
+        XFREE(pub, NULL, DYNAMIC_TYPE_RSA);
     #endif
 
     return ret;
@@ -3155,9 +3144,7 @@ static int wc_Pkcs11CheckPrivKey_Ecc(ecc_key* priv,
         wc_ecc_free(pub);
     }
     #ifdef WOLFSSL_SMALL_STACK
-        if (pub != NULL) {
-            XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
-        }
+        XFREE(pub, NULL, DYNAMIC_TYPE_ECC);
     #endif
 
     return ret;

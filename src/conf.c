@@ -146,9 +146,7 @@ error:
         wolfSSL_TXT_DB_free(ret);
         ret = NULL;
     }
-    if (buf) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -793,8 +791,7 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
     return ret ? ret : str;
 
 expand_cleanup:
-    if (ret)
-        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
     return NULL;
 }
 
@@ -961,8 +958,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
 cleanup:
     if (in)
         wolfSSL_BIO_free(in);
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (eline)
         *eline = line;
     return ret;
@@ -986,13 +982,11 @@ void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
         if (val->name) {
             /* Not a section. Don't free section as it is a shared pointer. */
             XFREE(val->name, NULL, DYNAMIC_TYPE_OPENSSL);
-            if (val->value)
-                XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
         }
         else {
             /* Section so val->value is a stack */
-            if (val->section)
-                XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Only free the stack structures. The contained conf values
              * will be freed in wolfSSL_NCONF_free */
             sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE)*)val->value;

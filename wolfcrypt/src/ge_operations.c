@@ -9470,18 +9470,12 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
   out:
 
-  if (aslide != NULL)
-      XFREE(aslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (bslide != NULL)
-      XFREE(bslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (Ai != NULL)
-      XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (t != NULL)
-      XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (u != NULL)
-      XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-  if (A2 != NULL)
-      XFREE(A2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(aslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(bslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(Ai, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(A2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
   return ret;
 #else

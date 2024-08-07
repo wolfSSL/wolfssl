@@ -3653,17 +3653,12 @@ static void ecc_key_tmp_final(ecc_key* key, void* heap)
    FREE_MP_INT_SIZE(key->t1, heap, DYNAMIC_TYPE_ECC);
 #else
 #ifdef ALT_ECC_SIZE
-   if (key->z != NULL)
-      XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
-   if (key->y != NULL)
-      XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
-   if (key->x != NULL)
-      XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->z, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->y, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->x, heap, DYNAMIC_TYPE_ECC);
 #endif
-   if (key->t2 != NULL)
-      XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
-   if (key->t1 != NULL)
-      XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->t2, heap, DYNAMIC_TYPE_ECC);
+   XFREE(key->t1, heap, DYNAMIC_TYPE_ECC);
 #endif
 }
 #endif /* WOLFSSL_SMALL_STACK_CACHE */
@@ -4981,8 +4976,7 @@ int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
     if (k == k_lcl)
         mp_clear(k);
 #ifdef WOLFSSL_SMALL_STACK
-    if (k_lcl != NULL)
-        XFREE(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(k_lcl, private_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 #endif
 
@@ -7619,14 +7613,10 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     /* bail out if any error has been hit at this point */
     if (ret != 0) {
-        if (x != NULL)
-            XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
-        if (K != NULL)
-            XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
-        if (V != NULL)
-            XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
-        if (h1 != NULL)
-            XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
+        XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
+        XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
         return ret;
     }
 #endif
@@ -7779,16 +7769,11 @@ int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
 
     ForceZero(x, MAX_ECC_BYTES);
 #ifdef WOLFSSL_SMALL_STACK
-    if (z1 != NULL)
-        XFREE(z1, heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (x != NULL)
-        XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
-    if (K != NULL)
-        XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (V != NULL)
-        XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
-    if (h1 != NULL)
-        XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(z1, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(x, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+    XFREE(K, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(V, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(h1, heap, DYNAMIC_TYPE_DIGEST);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(x, MAX_ECC_BYTES);
 #endif
@@ -9540,12 +9525,8 @@ int wc_ecc_import_point_der_ex(const byte* in, word32 inLen,
             }
 
         #ifdef WOLFSSL_SMALL_STACK
-            if (t1 != NULL) {
-                XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
-            }
-            if (t2 != NULL) {
-                XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
-            }
+            XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
+            XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
         #endif
 
             wc_ecc_curve_free(curve);
@@ -10811,12 +10792,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
             mp_clear(t1);
         }
     #ifdef WOLFSSL_SMALL_STACK
-        if (t1 != NULL) {
-            XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
-        }
-        if (t2 != NULL) {
-            XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
-        }
+        XFREE(t1, NULL, DYNAMIC_TYPE_BIGINT);
+        XFREE(t2, NULL, DYNAMIC_TYPE_BIGINT);
     #endif
 
         wc_ecc_curve_free(curve);
@@ -14879,9 +14856,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 #endif
 #ifdef WOLFSSL_SMALL_STACK
 #ifndef WOLFSSL_ECIES_OLD
-    if (peerKey != NULL) {
-        XFREE(peerKey, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
-    }
+    XFREE(peerKey, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
     XFREE(sharedSecret, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);
     XFREE(keys, ctx->heap, DYNAMIC_TYPE_ECC_BUFFER);

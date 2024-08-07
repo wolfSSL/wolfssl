@@ -811,9 +811,7 @@ static void Dtls13MaybeSaveClientHello(WOLFSSL* ssl)
         while (r != NULL) {
             if (r->handshakeType == client_hello) {
                 Dtls13RtxRecordUnlink(ssl, prev_next, r);
-                if (ssl->dtls13ClientHello != NULL)
-                    XFREE(ssl->dtls13ClientHello, ssl->heap,
-                        DYNAMIC_TYPE_DTLS_MSG);
+                XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
                 ssl->dtls13ClientHello = r->data;
                 ssl->dtls13ClientHelloSz = r->length;
                 r->data = NULL;

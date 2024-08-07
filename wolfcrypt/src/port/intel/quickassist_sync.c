@@ -359,21 +359,15 @@ void IntelQaHardwareStop(void)
                 status);
     }
 
-    if (g_cyInstMap) {
-        XFREE(g_cyInstMap, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyInstMap = NULL;
-    }
+    XFREE(g_cyInstMap, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyInstMap = NULL;
 
-    if (g_cyInstanceInfo) {
-        XFREE(g_cyInstanceInfo, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyInstanceInfo = NULL;
-    }
+    XFREE(g_cyInstanceInfo, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyInstanceInfo = NULL;
 
 #ifdef QAT_USE_POLLING_CHECK
-    if (g_cyPolling) {
-        XFREE(g_cyPolling, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyPolling = NULL;
-    }
+    XFREE(g_cyPolling, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyPolling = NULL;
     if (g_PollLock) {
         for (i=0; i<g_numInstances; i++) {
             pthread_mutex_destroy(&g_PollLock[i]);
@@ -881,31 +875,20 @@ static void IntelQaSymCipherFree(IntelQaDev* dev)
     CpaBufferList* pDstBuffer = &dev->op.cipher.bufferList;
 
     if (opData) {
-        if (opData->pAdditionalAuthData) {
-            XFREE(opData->pAdditionalAuthData, dev->heap,
-                    DYNAMIC_TYPE_ASYNC_NUMA);
-            opData->pAdditionalAuthData = NULL;
-        }
-        if (opData->pIv) {
-            XFREE(opData->pIv, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-            opData->pIv = NULL;
-        }
+        XFREE(opData->pAdditionalAuthData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        opData->pAdditionalAuthData = NULL;
+        XFREE(opData->pIv, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        opData->pIv = NULL;
         XMEMSET(opData, 0, sizeof(CpaCySymOpData));
     }
     if (pDstBuffer) {
         if (pDstBuffer->pBuffers) {
-            if (pDstBuffer->pBuffers->pData) {
-                XFREE(pDstBuffer->pBuffers->pData, dev->heap,
-                        DYNAMIC_TYPE_ASYNC_NUMA);
-                pDstBuffer->pBuffers->pData = NULL;
-            }
+            XFREE(pDstBuffer->pBuffers->pData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+            pDstBuffer->pBuffers->pData = NULL;
             XMEMSET(pDstBuffer->pBuffers, 0, sizeof(CpaFlatBuffer));
         }
-        if (pDstBuffer->pPrivateMetaData) {
-            XFREE(pDstBuffer->pPrivateMetaData, dev->heap,
-                    DYNAMIC_TYPE_ASYNC_NUMA);
-            pDstBuffer->pPrivateMetaData = NULL;
-        }
+        XFREE(pDstBuffer->pPrivateMetaData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        pDstBuffer->pPrivateMetaData = NULL;
         XMEMSET(pDstBuffer, 0, sizeof(CpaBufferList));
     }
 

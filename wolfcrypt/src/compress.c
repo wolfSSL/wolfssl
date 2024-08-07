@@ -310,10 +310,8 @@ int wc_DeCompressDynamic(byte** out, int maxSz, int memoryType,
     if (inflateEnd(&stream) != Z_OK)
         result = DECOMPRESS_E;
 
-    if (tmp != NULL) {
-        XFREE(tmp, heap, memoryType);
-        tmp = NULL;
-    }
+    XFREE(tmp, heap, memoryType);
+    tmp = NULL;
 
     return result;
 }

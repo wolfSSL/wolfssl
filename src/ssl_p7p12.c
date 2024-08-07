@@ -94,8 +94,7 @@ void wolfSSL_PKCS7_free(PKCS7* pkcs7)
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
 
     if (p7 != NULL) {
-        if (p7->data != NULL)
-            XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
+        XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
         wc_PKCS7_Free(&p7->pkcs7);
         if (p7->certs)
             wolfSSL_sk_pop_free(p7->certs, NULL);
@@ -428,8 +427,7 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
 
     ret = WOLFSSL_SUCCESS;
 cleanup:
-    if (output)
-        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -627,9 +625,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
         }
     }
 
-    if (canonLine != NULL) {
-        XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
-    }
+    XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(line, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -718,9 +714,7 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
                 }
             }
 
-            if (mem != NULL) {
-                XFREE(mem, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            }
+            XFREE(mem, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
     #ifdef HAVE_SMIME
@@ -746,9 +740,7 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
     }
 
     if (ret == 1) {
-        if (p7->data != NULL) {
-            XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
-        }
+        XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
         p7->data = (byte*)XMALLOC(memSz, NULL, DYNAMIC_TYPE_PKCS7);
         if (p7->data == NULL) {
             ret = 0;
@@ -1040,19 +1032,11 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
 
 error:
 #ifdef WOLFSSL_SMALL_STACK
-    if (outputHead) {
-        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (outputFoot) {
-        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    if (output) {
-        XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (pem) {
-        XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
 
@@ -1387,10 +1371,8 @@ error:
     XFREE(boundary, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
-    if (canonSection != NULL)
-        XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
-    if (canonLine != NULL)
-        XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
     if (bcont) {
         wolfSSL_BIO_free(*bcont);
         *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
@@ -1607,12 +1589,8 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
         }
     }
 
-    if (p7out != NULL) {
-        XFREE(p7out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (sigBase64 != NULL) {
-        XFREE(sigBase64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(p7out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sigBase64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret > 0) {
         return WOLFSSL_SUCCESS;
@@ -1704,8 +1682,7 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
     }
 
     /* cleanup */
-    if (mem != NULL)
-        XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret < 0 && localPkcs12 != NULL) {
         wc_PKCS12_free(localPkcs12);
         localPkcs12 = NULL;
@@ -1740,9 +1717,7 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
             }
         }
 
-        if (certDer != NULL) {
-            XFREE(certDer, NULL, DYNAMIC_TYPE_PKCS);
-        }
+        XFREE(certDer, NULL, DYNAMIC_TYPE_PKCS);
     }
 
     return ret;
@@ -1904,12 +1879,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         *ca = (WOLF_STACK_OF(WOLFSSL_X509)*)XMALLOC(
             sizeof(WOLF_STACK_OF(WOLFSSL_X509)), heap, DYNAMIC_TYPE_X509);
         if (*ca == NULL) {
-            if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            }
-            if (certData != NULL) {
-                XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
-            }
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
             /* Free up WC_DerCertList and move on */
             while (current != NULL) {
                 WC_DerCertList* next = current->next;
@@ -1943,12 +1914,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     FreeDecodedCert(DeCert);
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
-                    if (pk != NULL) {
-                        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    }
-                    if (certData != NULL) {
-                        XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
-                    }
+                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
                     /* Free up WC_DerCertList */
                     while (current != NULL) {
                         WC_DerCertList* next = current->next;
@@ -1966,12 +1933,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     WOLFSSL_MSG("Failed to push x509 onto stack");
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
-                    if (pk != NULL) {
-                        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    }
-                    if (certData != NULL) {
-                        XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
-                    }
+                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
 
                     /* Free up WC_DerCertList */
                     while (current != NULL) {
@@ -1997,9 +1960,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         *cert = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
             DYNAMIC_TYPE_X509);
         if (*cert == NULL) {
-            if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            }
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             if (ca != NULL) {
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
@@ -2015,9 +1976,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         if (CopyDecodedToX509(*cert, DeCert) != 0) {
             WOLFSSL_MSG("Failed to copy decoded cert");
             FreeDecodedCert(DeCert);
-            if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            }
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             if (ca != NULL) {
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
@@ -2064,8 +2023,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             }
         }
     #endif /* HAVE_ECC */
-        if (pk != NULL)
-            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
         if (ret != 0) { /* if is in fail state and no PKEY then fail */
             wolfSSL_X509_free(*cert); *cert = NULL;
             if (ca != NULL) {

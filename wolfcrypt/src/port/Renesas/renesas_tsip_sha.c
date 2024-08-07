@@ -287,10 +287,8 @@ static void TSIPHashFree(wolfssl_TSIP_Hash* hash)
     if (hash == NULL)
         return;
 
-    if (hash->msg != NULL) {
-        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hash->msg = NULL;
-    }
+    XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    hash->msg = NULL;
 }
 
 static int TSIPHashInit(wolfssl_TSIP_Hash* hash, void* heap, int devId,

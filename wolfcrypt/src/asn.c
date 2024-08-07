@@ -4025,9 +4025,7 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
     }
 end:
 #ifdef WOLFSSL_SMALL_STACK
-    if (indefItems != NULL) {
-        XFREE(indefItems, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(indefItems, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     return ret;
 }
@@ -8616,9 +8614,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (saltTmp != NULL) {
-        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     WOLFSSL_LEAVE("wc_EncryptPKCS8Key", ret);
@@ -11554,8 +11550,7 @@ void FreeDecodedCert(DecodedCert* cert)
         wolfSSL_X509_NAME_free((WOLFSSL_X509_NAME*)cert->subjectName);
 #endif /* WOLFSSL_X509_NAME_AVAILABLE */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
-    if (cert->sce_tsip_encRsaKeyIdx != NULL)
-        XFREE(cert->sce_tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
+    XFREE(cert->sce_tsip_encRsaKeyIdx, cert->heap, DYNAMIC_TYPE_RSA);
 #endif
     FreeSignatureCtx(&cert->sigCtx);
 }
@@ -16323,15 +16318,11 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
     if (sigCtx == NULL)
         return;
 
-    if (sigCtx->digest) {
-        XFREE(sigCtx->digest, sigCtx->heap, DYNAMIC_TYPE_DIGEST);
-        sigCtx->digest = NULL;
-    }
+    XFREE(sigCtx->digest, sigCtx->heap, DYNAMIC_TYPE_DIGEST);
+    sigCtx->digest = NULL;
 #if !(defined(NO_RSA) && defined(NO_DSA))
-    if (sigCtx->sigCpy) {
-        XFREE(sigCtx->sigCpy, sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
-        sigCtx->sigCpy = NULL;
-    }
+    XFREE(sigCtx->sigCpy, sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
+    sigCtx->sigCpy = NULL;
 #endif
 #ifndef NO_ASN_CRYPT
     if (sigCtx->key.ptr) {
@@ -17796,8 +17787,7 @@ int wc_ConfirmAltSignature(
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (sigCtx != NULL)
-        XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
+    XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
 #endif
     return ret;
 }
@@ -23119,8 +23109,7 @@ static int CheckCertSignature_ex(const byte* cert, word32 certSz, void* heap,
 
     FreeSignatureCtx(sigCtx);
 #ifdef WOLFSSL_SMALL_STACK
-    if (sigCtx != NULL)
-        XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
+    XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
 #endif
     return ret;
 #else /* WOLFSSL_ASN_TEMPLATE */
@@ -24328,13 +24317,9 @@ void FreeTrustedPeer(TrustedPeerCert* tp, void* heap)
         return;
     }
 
-    if (tp->name) {
-        XFREE(tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
-    }
+    XFREE(tp->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
 
-    if (tp->sig) {
-        XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
-    }
+    XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
 #ifndef IGNORE_NAME_CONSTRAINTS
     if (tp->permittedNames)
         FreeNameSubtrees(tp->permittedNames, heap);
@@ -27507,12 +27492,8 @@ static int SetExtKeyUsage(Cert* cert, byte* output, word32 outSz, byte input)
     }
 
     /* Dispose of allocated data. */
-    if (extKuASN != NULL) {
-        XFREE(extKuASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (dataASN != NULL) {
-        XFREE(dataASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(extKuASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dataASN, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 #endif
@@ -28611,10 +28592,8 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
         }
     }
 
-    if (namesASN != NULL)
-        XFREE(namesASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dataASN != NULL)
-        XFREE(dataASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(namesASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dataASN, heap, DYNAMIC_TYPE_TMP_BUFFER);
     (void)heap;
     return ret;
 #endif
@@ -37491,8 +37470,7 @@ void FreeOcspRequest(OcspRequest* req)
     WOLFSSL_ENTER("FreeOcspRequest");
 
     if (req) {
-        if (req->serial)
-            XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->serial = NULL;
 
 #ifdef OPENSSL_EXTRA
@@ -37505,8 +37483,7 @@ void FreeOcspRequest(OcspRequest* req)
         req->serialInt = NULL;
 #endif
 
-        if (req->url)
-            XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+        XFREE(req->url, req->heap, DYNAMIC_TYPE_OCSP_REQUEST);
         req->url = NULL;
 
 #ifdef OPENSSL_EXTRA
@@ -37727,8 +37704,7 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
         tmp = next;
     }
 #ifdef OPENSSL_EXTRA
-    if (dcrl->issuer != NULL)
-        XFREE(dcrl->issuer, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(dcrl->issuer, NULL, DYNAMIC_TYPE_OPENSSL);
 #endif
 }
 
@@ -39034,10 +39010,8 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
                 mimeType == MIME_PARAM)) && pos >= 1) {
                 mimeStatus = MIME_BODYVAL;
                 end = pos-1;
-                if (nameAttr != NULL) {
-                    XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
-                    nameAttr = NULL;
-                }
+                XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
+                nameAttr = NULL;
                 ret = wc_MIME_header_strip(curLine, &nameAttr, start, end);
                 if (ret) {
                     goto error;
@@ -39046,10 +39020,8 @@ int wc_MIME_parse_headers(char* in, int inLen, MimeHdr** headers)
             }
             else if (mimeStatus == MIME_BODYVAL && cur == ';' && pos >= 1) {
                 end = pos-1;
-                if (bodyVal != NULL) {
-                    XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
-                    bodyVal = NULL;
-                }
+                XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
+                bodyVal = NULL;
                 ret = wc_MIME_header_strip(curLine, &bodyVal, start, end);
                 if (ret) {
                     goto error;
@@ -39142,12 +39114,9 @@ error:
     if (ret != 0)
         wc_MIME_free_hdrs(curHdr);
     wc_MIME_free_hdrs(nextHdr);
-    if (nameAttr != NULL)
-        XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
-    if (bodyVal != NULL)
-        XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
-    if (nextParam != NULL)
-        XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(nameAttr, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(bodyVal, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(nextParam, NULL, DYNAMIC_TYPE_PKCS7);
 
     return ret;
 }

@@ -2451,14 +2451,10 @@ static int aes_xts_128_test(void)
 
     test_xts_end:
 
-    if (enc2)
-        XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
-    if (dec2)
-        XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
-    if (src)
-        XFREE(src, NULL, DYNAMIC_TYPE_AES);
-    if (dst)
-        XFREE(dst, NULL, DYNAMIC_TYPE_AES);
+    XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(src, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dst, NULL, DYNAMIC_TYPE_AES);
     if (req)
         skcipher_request_free(req);
     if (tfm)
@@ -2466,19 +2462,14 @@ static int aes_xts_128_test(void)
 
   out:
 
-    if (large_input)
-        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_AES);
-    if (cipher)
-        XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
-
-    if (aes)
-        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    XFREE(buf, NULL, DYNAMIC_TYPE_AES);
+    XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 
 #undef AES_XTS_128_TEST_BUF_SIZ
 
@@ -2939,14 +2930,10 @@ static int aes_xts_256_test(void)
 
     test_xts_end:
 
-    if (enc2)
-        XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
-    if (dec2)
-        XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
-    if (src)
-        XFREE(src, NULL, DYNAMIC_TYPE_AES);
-    if (dst)
-        XFREE(dst, NULL, DYNAMIC_TYPE_AES);
+    XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(src, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dst, NULL, DYNAMIC_TYPE_AES);
     if (req)
         skcipher_request_free(req);
     if (tfm)
@@ -2954,19 +2941,15 @@ static int aes_xts_256_test(void)
 
   out:
 
-    if (large_input)
-        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_AES);
-    if (cipher)
-        XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
+    XFREE(buf, NULL, DYNAMIC_TYPE_AES);
+    XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
 
-    if (aes)
-        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 
 #undef AES_XTS_256_TEST_BUF_SIZ
 

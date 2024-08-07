@@ -151,17 +151,11 @@ void Clr_CallbackCtx(FSPSM_ST *g)
     (void) g;
 
    #if defined(WOLFSSL_RENESAS_SCEPROTECT_CRYPTONLY)
-    if (g->wrapped_key_rsapri2048 != NULL)
-        XFREE(g->wrapped_key_rsapri2048,
-                            NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(g->wrapped_key_rsapri2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (g->wrapped_key_rsapub2048 != NULL)
-        XFREE(g->wrapped_key_rsapub2048,
-                            NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(g->wrapped_key_rsapub2048, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (g->wrapped_key_rsapri1024 != NULL)
-        XFREE(g->wrapped_key_rsapri1024,
-                            NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(g->wrapped_key_rsapri1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (g->wrapped_key_rsapub2048 != NULL)
         XFREE(g->wrapped_key_rsapub1024,

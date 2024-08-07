@@ -1309,8 +1309,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticketLenAlloc = 0;
         }
 #ifdef WOLFSSL_SMALL_STACK
-        if (tmpTicket != NULL)
-            XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         return WOLFSSL_FAILURE;
     }
@@ -1330,16 +1329,12 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             output->ticketLenAlloc = 0;
         }
 #ifdef WOLFSSL_TLS13
-        if (preallocNonce != NULL) {
-            XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
-            preallocNonce = NULL;
-        }
+        XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+        preallocNonce = NULL;
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_SMALL_STACK
-        if (tmpTicket != NULL) {
-            XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            tmpTicket = NULL;
-        }
+        XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        tmpTicket = NULL;
 #endif
 #endif
     }
@@ -1417,8 +1412,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
         }
     }
 #ifdef WOLFSSL_SMALL_STACK
-    if (tmpTicket != NULL)
-        XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(tmpTicket, output->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TICKET_NONCE_MALLOC) &&          \
@@ -1455,8 +1449,7 @@ int wolfSSL_GetSessionFromCache(WOLFSSL* ssl, WOLFSSL_SESSION* output)
             preallocNonce = NULL;
         }
     }
-    if (preallocNonce != NULL)
-        XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+    XFREE(preallocNonce, output->heap, DYNAMIC_TYPE_SESSION_TICK);
 #endif /* WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC && FIPS_VERSION_GE(5,3)*/
 
 #endif
@@ -1839,8 +1832,7 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
         preallocNonce = (byte*)XMALLOC(addSession->ticketNonce.len,
             addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
         if (preallocNonce == NULL) {
-            if (ticBuff != NULL)
-                XFREE(ticBuff, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
+            XFREE(ticBuff, addSession->heap, DYNAMIC_TYPE_SESSION_TICK);
             return MEMORY_E;
         }
         preallocNonceLen = addSession->ticketNonce.len;
@@ -3906,8 +3898,7 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
             }
         }
         else {
-            if (ticBuff != NULL)
-                XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
+            XFREE(ticBuff, output->heap, DYNAMIC_TYPE_SESSION_TICK);
             output->ticket = output->staticTicket;
             output->ticketLenAlloc = 0;
         }

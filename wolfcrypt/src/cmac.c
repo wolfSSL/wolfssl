@@ -242,9 +242,7 @@ int wc_CmacFree(Cmac* cmac)
     /* TODO: msg is leaked if wc_CmacFinal() is not called
      * e.g. when multiple calls to wc_CmacUpdate() and one fails but
      * wc_CmacFinal() not called. */
-    if (cmac->msg != NULL) {
-        XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     wc_AesFree(&cmac->aes);
     ForceZero(cmac, sizeof(Cmac));
@@ -414,9 +412,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (cmac) {
-        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
-    }
+    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif
@@ -495,9 +491,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
                               INVALID_DEVID);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (cmac) {
-        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
-    }
+    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif

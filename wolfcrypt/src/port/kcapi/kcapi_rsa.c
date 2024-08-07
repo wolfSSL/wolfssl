@@ -76,9 +76,7 @@ static int KcapiRsa_SetPrivKey(RsaKey* key)
         }
     }
 
-    if (priv != NULL) {
-        XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(priv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -167,9 +165,7 @@ static int KcapiRsa_SetPubKey(RsaKey* key)
         }
     }
 
-    if (pub != NULL) {
-        XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 

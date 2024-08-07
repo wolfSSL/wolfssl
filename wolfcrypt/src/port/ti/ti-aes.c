@@ -545,9 +545,9 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
 exit:
-    if (in_save)    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (out_save)   XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (authIn_save)XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -645,9 +645,9 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
 exit:
-    if (in_save)    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (out_save)   XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (authIn_save)XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

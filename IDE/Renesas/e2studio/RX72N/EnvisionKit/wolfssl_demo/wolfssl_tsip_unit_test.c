@@ -107,21 +107,13 @@ typedef struct tagInfo
 
  void Clr_CallbackCtx(TsipUserCtx *g)
  {
-     if (g->rsa1024pri_keyIdx != NULL)
-         XFREE(g->rsa1024pri_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa1024pri_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-     if (g->rsa1024pub_keyIdx != NULL)
-         XFREE(g->rsa1024pub_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa1024pub_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-     if (g->rsa2048pri_keyIdx != NULL)
-         XFREE(g->rsa2048pri_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa2048pri_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-     if (g->rsa2048pub_keyIdx != NULL)
-         XFREE(g->rsa2048pub_keyIdx,
-                             NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(g->rsa2048pub_keyIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
      XMEMSET(g, 0, sizeof(TsipUserCtx));
  }
 
@@ -789,15 +781,9 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
         wc_FreeRsaKey(key);
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (in != NULL) {
-        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (in2 != NULL) {
-        XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (out != NULL) {
-        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

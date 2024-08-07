@@ -2679,9 +2679,7 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS && salt != NULL && saltSz > 0) {
-        if (ctx->pkey->hkdfSalt != NULL) {
-            XFREE(ctx->pkey->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
-        }
+        XFREE(ctx->pkey->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
         ctx->pkey->hkdfSalt = (byte*)XMALLOC((size_t)saltSz, NULL,
             DYNAMIC_TYPE_SALT);
         if (ctx->pkey->hkdfSalt == NULL) {
@@ -2716,9 +2714,7 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_key(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        if (ctx->pkey->hkdfKey != NULL) {
-            XFREE(ctx->pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
-        }
+        XFREE(ctx->pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
         ctx->pkey->hkdfKey = (byte*)XMALLOC((size_t)keySz, NULL,
             DYNAMIC_TYPE_KEY);
         if (ctx->pkey->hkdfKey == NULL) {
@@ -6298,15 +6294,11 @@ void wolfSSL_EVP_init(void)
             ctx->keyLen     = 0;
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
-            if (ctx->authBuffer) {
-                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authBuffer = NULL;
-            }
+            XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authBuffer = NULL;
             ctx->authBufferLen = 0;
-            if (ctx->authIn) {
-                XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authIn = NULL;
-            }
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
             ctx->authInSz = 0;
             ctx->authIvGenEnable = 0;
             ctx->authIncIv = 0;
@@ -6428,10 +6420,8 @@ void wolfSSL_EVP_init(void)
     {
         int ret = WOLFSSL_SUCCESS;
 
-        if (ctx->authIn) {
-            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->authIn = NULL;
-        }
+        XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+        ctx->authIn = NULL;
         ctx->authInSz = 0;
 
         ctx->block_size = AES_BLOCK_SIZE;
@@ -6635,10 +6625,8 @@ void wolfSSL_EVP_init(void)
     {
         int ret = WOLFSSL_SUCCESS;
 
-        if (ctx->authIn) {
-            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->authIn = NULL;
-        }
+        XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+        ctx->authIn = NULL;
         ctx->authInSz = 0;
 
         ctx->block_size = AES_BLOCK_SIZE;
@@ -6786,10 +6774,8 @@ void wolfSSL_EVP_init(void)
             return WOLFSSL_FAILURE;
         }
 
-        if (ctx->authIn) {
-            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->authIn = NULL;
-        }
+        XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+        ctx->authIn = NULL;
         ctx->authInSz = 0;
 
         ctx->block_size = AES_BLOCK_SIZE;
@@ -7821,10 +7807,8 @@ void wolfSSL_EVP_init(void)
                 ctx->ivSz = GCM_NONCE_MID_SZ;
             }
             ctx->authTagSz  = SM4_BLOCK_SIZE;
-            if (ctx->authIn) {
-                XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authIn = NULL;
-            }
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
             ctx->authInSz = 0;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
@@ -7853,10 +7837,8 @@ void wolfSSL_EVP_init(void)
                 ctx->ivSz = GCM_NONCE_MID_SZ;
             }
             ctx->authTagSz  = SM4_BLOCK_SIZE;
-            if (ctx->authIn) {
-                XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authIn = NULL;
-            }
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
             ctx->authInSz = 0;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
@@ -11108,18 +11090,12 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 
                 #ifdef HAVE_HKDF
                 case EVP_PKEY_HKDF:
-                    if (key->hkdfSalt != NULL) {
-                        XFREE(key->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
-                        key->hkdfSalt = NULL;
-                    }
-                    if (key->hkdfKey != NULL) {
-                        XFREE(key->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
-                        key->hkdfKey = NULL;
-                    }
-                    if (key->hkdfInfo != NULL) {
-                        XFREE(key->hkdfInfo, NULL, DYNAMIC_TYPE_INFO);
-                        key->hkdfInfo = NULL;
-                    }
+                    XFREE(key->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
+                    key->hkdfSalt = NULL;
+                    XFREE(key->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
+                    key->hkdfKey = NULL;
+                    XFREE(key->hkdfInfo, NULL, DYNAMIC_TYPE_INFO);
+                    key->hkdfInfo = NULL;
                     key->hkdfSaltSz = 0;
                     key->hkdfKeySz = 0;
                     key->hkdfInfoSz = 0;
@@ -11598,10 +11574,8 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = wolfSSL_BIO_write(out, "\n", 1) > 0;
     }
 
-    if (pub != NULL) {
-        XFREE(pub, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        pub = NULL;
-    }
+    XFREE(pub, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+    pub = NULL;
 
     wc_ecc_free(key);
     mp_free(a);

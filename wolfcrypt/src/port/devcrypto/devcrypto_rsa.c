@@ -244,20 +244,13 @@ static int _PrivateOperation(const byte* in, word32 inlen, byte* out,
         }
     }
 
-    if (d != NULL)
-        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (p != NULL)
-        XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (q != NULL)
-        XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dp != NULL)
-        XFREE(dp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dq != NULL)
-        XFREE(dq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (u != NULL)
-        XFREE(u,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (n != NULL)
-        XFREE(n,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(p, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(q, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dq, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(u, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(n, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     wc_DevCryptoFree(dev);
     return ret;
@@ -311,10 +304,8 @@ static int _PublicOperation(const byte* in, word32 inlen, byte* out,
     }
     wc_DevCryptoFree(&key->ctx);
 
-    if (m != NULL)
-        XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (e != NULL)
-        XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(m, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(e, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -556,21 +547,13 @@ int wc_DevCrypto_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #endif
     }
 
-    if (p != NULL)
-        XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (q != NULL)
-        XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dp != NULL)
-        XFREE(dp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (dq != NULL)
-        XFREE(dq, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (c != NULL)
-        XFREE(c, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (n != NULL)
-        XFREE(n, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (d != NULL) {
-        XFREE(d, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(p, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(q, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(dq, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(c, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(n, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(d, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     (void)rng;
     return ret;

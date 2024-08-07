@@ -39767,8 +39767,7 @@ static int test_wc_PKCS7_VerifySignedData_RSA(void)
             pkcs7 = NULL;
         }
 
-        if (buf != NULL)
-            XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
     }
 #endif /* BER and stream */
 #endif
@@ -68742,8 +68741,7 @@ static int test_wolfSSL_i2d_X509(void)
     ExpectIntGT(i2d_X509(cert, &tmp), 0);
     ExpectPtrGT(tmp, out);
 
-    if (out != NULL)
-        XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(out, NULL, DYNAMIC_TYPE_OPENSSL);
     X509_free(cert);
 #endif
     return EXPECT_RESULT();

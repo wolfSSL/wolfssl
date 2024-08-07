@@ -1034,9 +1034,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("wolfSSL_Init failed");
             WOLFSSL_LEAVE("wolfSSL_CTX_new_ex", 0);
-            if (method != NULL) {
-                XFREE(method, heap, DYNAMIC_TYPE_METHOD);
-            }
+            XFREE(method, heap, DYNAMIC_TYPE_METHOD);
             return NULL;
         }
     }
@@ -1132,10 +1130,8 @@ void wolfSSL_CTX_free(WOLFSSL_CTX* ctx)
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
 && !defined(NO_SHA256) && !defined(WC_NO_RNG)
         if (ctx->srp != NULL) {
-            if (ctx->srp_password != NULL){
-                XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
-                ctx->srp_password = NULL;
-            }
+            XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
+            ctx->srp_password = NULL;
             wc_SrpTerm(ctx->srp);
             XFREE(ctx->srp, ctx->heap, DYNAMIC_TYPE_SRP);
             ctx->srp = NULL;
@@ -11553,16 +11549,12 @@ cleanup:
                 wc_FreeRng(&rng);
                 return WOLFSSL_FAILURE;
             }
-            if (ctx->srp_password != NULL){
-                XFREE(ctx->srp_password,NULL,
-                      DYNAMIC_TYPE_SRP);
-                ctx->srp_password = NULL;
-            }
+            XFREE(ctx->srp_password, NULL, DYNAMIC_TYPE_SRP);
+            ctx->srp_password = NULL;
             wc_FreeRng(&rng);
         } else {
             /* save password for wolfSSL_set_srp_username */
-            if (ctx->srp_password != NULL)
-                XFREE(ctx->srp_password,ctx->heap, DYNAMIC_TYPE_SRP);
+            XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
 
             ctx->srp_password = (byte*)XMALLOC(XSTRLEN(password) + 1, ctx->heap,
                                                DYNAMIC_TYPE_SRP);
@@ -21316,8 +21308,7 @@ void wolfSSL_WOLFSSL_STRING_free(WOLFSSL_STRING s)
 {
     WOLFSSL_ENTER("wolfSSL_WOLFSSL_STRING_free");
 
-    if (s != NULL)
-        XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(s, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 void wolfSSL_sk_WOLFSSL_STRING_free(WOLF_STACK_OF(WOLFSSL_STRING)* sk)
@@ -23639,10 +23630,8 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
 void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf)
 {
     if (buf) {
-        if (buf->data) {
-            XFREE(buf->data, NULL, DYNAMIC_TYPE_OPENSSL);
-            buf->data = NULL;
-        }
+        XFREE(buf->data, NULL, DYNAMIC_TYPE_OPENSSL);
+        buf->data = NULL;
         buf->max = 0;
         buf->length = 0;
         XFREE(buf, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -24217,8 +24206,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     if (initTmpRng)
         wc_FreeRng(tmpRNG);
 #ifdef WOLFSSL_SMALL_STACK
-    if (tmpRNG)
-        XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
 #endif
 
     return ret;

@@ -219,13 +219,10 @@ static void CRL_Entry_free(CRL_Entry* crle, void* heap)
         tmp = next;
     }
 #endif
-    if (crle->signature != NULL)
-        XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
-    if (crle->toBeSigned != NULL)
-        XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
+    XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
+    XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
 #ifdef WC_RSA_PSS
-    if (crle->sigParams != NULL)
-        XFREE(crle->sigParams, heap, DYNAMIC_TYPE_CRL_ENTRY);
+    XFREE(crle->sigParams, heap, DYNAMIC_TYPE_CRL_ENTRY);
 #endif
 #if defined(OPENSSL_EXTRA)
     if (crle->issuer != NULL) {

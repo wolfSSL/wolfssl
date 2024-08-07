@@ -373,9 +373,7 @@ int wc_InitRsaHw(RsaKey* key)
     }
 
     /* check for existing mod buffer to avoid memory leak */
-    if (key->mod != NULL) {
-        XFREE(key->mod, key->heap, DYNAMIC_TYPE_KEY);
-    }
+    XFREE(key->mod, key->heap, DYNAMIC_TYPE_KEY);
 
     key->pubExp = e;
     key->mod    = m;
@@ -2144,9 +2142,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
             }
 
-            if (d != NULL) {
-                XFREE(d, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-            }
+            XFREE(d, key->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         }
     #endif
         break;
@@ -5085,16 +5081,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
 #if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
 #ifdef WOLFSSL_SMALL_STACK
-    if (p)
+    if (key != NULL) {
         XFREE(p, key->heap, DYNAMIC_TYPE_RSA);
-    if (q)
         XFREE(q, key->heap, DYNAMIC_TYPE_RSA);
-    if (tmp1)
         XFREE(tmp1, key->heap, DYNAMIC_TYPE_RSA);
-    if (tmp2)
         XFREE(tmp2, key->heap, DYNAMIC_TYPE_RSA);
-    if (tmp3)
         XFREE(tmp3, key->heap, DYNAMIC_TYPE_RSA);
+    }
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     mp_memzero_check(p);
     mp_memzero_check(q);

@@ -903,10 +903,8 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (hash)
-        XFREE(hash, srp->heap, DYNAMIC_TYPE_SRP);
-    if (digest)
-        XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
+    XFREE(hash, srp->heap, DYNAMIC_TYPE_SRP);
+    XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
     if (u) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(u);

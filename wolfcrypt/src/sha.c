@@ -1058,10 +1058,8 @@ void wc_ShaFree(wc_Sha* sha)
      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH) || \
     defined(WOLFSSL_RENESAS_RX64_HASH)
-    if (sha->msg != NULL) {
-        XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        sha->msg = NULL;
-    }
+    XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha->msg = NULL;
 #endif
 #ifdef WOLFSSL_IMXRT_DCP
     DCPShaFree(sha);

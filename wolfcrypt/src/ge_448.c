@@ -10781,18 +10781,10 @@ int ge448_double_scalarmult_vartime(ge448_p2 *r, const byte *a,
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && (!defined(WOLFSSL_NO_MALLOC) ||                                                           defined(XMALLOC_USER))
-    if (p2 != NULL) {
-        XFREE(p2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (pi != NULL) {
-        XFREE(pi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (bslide != NULL) {
-        XFREE(bslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (aslide != NULL) {
-        XFREE(aslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(p2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pi, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(bslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(aslide, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;

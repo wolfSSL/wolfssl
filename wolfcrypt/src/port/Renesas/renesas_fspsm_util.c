@@ -367,8 +367,7 @@ WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
 
     ret = fspsm_ServerKeyExVerify(2, ssl, sigforSCE, 64, ctx);
 
-    if (sigforSCE)
-        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
+    XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
 
     if (ret == WOLFSSL_SUCCESS) {
         *result = 1;
@@ -854,10 +853,8 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             cbInfo->keyflgs_tls.bits.session_key_set = 1;
         }
 
-        if (key_client_aes)
-            XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
-        if (key_server_aes)
-            XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
 
         /* unlock hw */
         wc_fspsm_hw_unlock();
@@ -1070,9 +1067,7 @@ WOLFSSL_LOCAL int wc_fspsm_tls_CertVerify(
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG(" R_XXX_TlsCertificateVerification() failed");
         }
-        if (sigforSCE) {
-          XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
-        }
+        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
         wc_fspsm_hw_unlock();
     }
     else {
