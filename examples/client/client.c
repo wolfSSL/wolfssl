@@ -413,9 +413,29 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             else if (XSTRCMP(pqcAlg, "P384_KYBER_LEVEL3") == 0) {
                 group = WOLFSSL_P384_KYBER_LEVEL3;
             }
+            else if (XSTRCMP(pqcAlg, "P256_KYBER_LEVEL3") == 0) {
+                group = WOLFSSL_P256_KYBER_LEVEL3;
+            }
             else if (XSTRCMP(pqcAlg, "P521_KYBER_LEVEL5") == 0) {
                 group = WOLFSSL_P521_KYBER_LEVEL5;
-            } else {
+            }
+            else if (XSTRCMP(pqcAlg, "P384_KYBER_LEVEL5") == 0) {
+                group = WOLFSSL_P384_KYBER_LEVEL5;
+            }
+        #ifdef HAVE_CURVE25519
+            else if (XSTRCMP(pqcAlg, "X25519_KYBER_LEVEL1") == 0) {
+                group = WOLFSSL_X25519_KYBER_LEVEL1;
+            }
+            else if (XSTRCMP(pqcAlg, "X25519_KYBER_LEVEL3") == 0) {
+                group = WOLFSSL_X25519_KYBER_LEVEL3;
+            }
+        #endif
+        #ifdef HAVE_CURVE448
+            else if (XSTRCMP(pqcAlg, "X448_KYBER_LEVEL3") == 0) {
+                group = WOLFSSL_X448_KYBER_LEVEL3;
+            }
+        #endif
+            else {
                 err_sys("invalid post-quantum KEM specified");
             }
 
