@@ -5081,11 +5081,13 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
 #if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(p, key->heap, DYNAMIC_TYPE_RSA);
-    XFREE(q, key->heap, DYNAMIC_TYPE_RSA);
-    XFREE(tmp1, key->heap, DYNAMIC_TYPE_RSA);
-    XFREE(tmp2, key->heap, DYNAMIC_TYPE_RSA);
-    XFREE(tmp3, key->heap, DYNAMIC_TYPE_RSA);
+    if (key != NULL) {
+        XFREE(p, key->heap, DYNAMIC_TYPE_RSA);
+        XFREE(q, key->heap, DYNAMIC_TYPE_RSA);
+        XFREE(tmp1, key->heap, DYNAMIC_TYPE_RSA);
+        XFREE(tmp2, key->heap, DYNAMIC_TYPE_RSA);
+        XFREE(tmp3, key->heap, DYNAMIC_TYPE_RSA);
+    }
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     mp_memzero_check(p);
     mp_memzero_check(q);
