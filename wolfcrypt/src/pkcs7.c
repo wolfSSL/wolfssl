@@ -2322,8 +2322,9 @@ static int wc_PKCS7_BuildDigestInfo(PKCS7* pkcs7, byte* flatSignedAttribs,
         XMEMCPY(esd->contentAttribsDigest, esd->contentDigest + 2, hashSz);
     }
 
-    /* set algoID, with NULL attributes */
-    algoIdSz = SetAlgoID(pkcs7->hashOID, algoId, oidHashType, 0);
+    /* Set algoID, allow absent hash params */
+    algoIdSz = SetAlgoIDEx(pkcs7->hashOID, algoId, oidHashType,
+                           0, pkcs7->hashParamsAbsent);
 
     digestStrSz = SetOctetString(hashSz, digestStr);
     digestInfoSeqSz = SetSequence(algoIdSz + digestStrSz + hashSz,
@@ -2932,8 +2933,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
 
     if (pkcs7->sidType != DEGENERATE_SID) {
         signerInfoSz += esd->signerVersionSz;
-        esd->signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->signerDigAlgoId,
-                                          oidHashType, 0);
+        esd->signerDigAlgoIdSz = SetAlgoIDEx(pkcs7->hashOID, esd->signerDigAlgoId,
+                                          oidHashType, 0, pkcs7->hashParamsAbsent);
         signerInfoSz += esd->signerDigAlgoIdSz;
 
         /* set signatureAlgorithm */
@@ -2943,8 +2944,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
             idx = ret;
             goto out;
         }
-        esd->digEncAlgoIdSz = SetAlgoID(digEncAlgoId, esd->digEncAlgoId,
-                                        digEncAlgoType, 0);
+        esd->digEncAlgoIdSz = SetAlgoIDEx(digEncAlgoId, esd->digEncAlgoId,
+                                        digEncAlgoType, 0, pkcs7->hashParamsAbsent);
         signerInfoSz += esd->digEncAlgoIdSz;
 
         /* build up signed attributes, include contentType, signingTime, and
@@ -3018,8 +3019,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
         esd->certsSetSz = SetImplicit(ASN_SET, 0, certSetSz, esd->certsSet, 0);
 
     if (pkcs7->sidType != DEGENERATE_SID) {
-        esd->singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->singleDigAlgoId,
-                                      oidHashType, 0);
+        esd->singleDigAlgoIdSz = SetAlgoIDEx(pkcs7->hashOID, esd->singleDigAlgoId,
+                                      oidHashType, 0, pkcs7->hashParamsAbsent);
     }
     esd->digAlgoIdSetSz = SetSet(esd->singleDigAlgoIdSz, esd->digAlgoIdSet);
 
@@ -4323,8 +4324,9 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
         }
     }
 
-    /* Set algoID, with NULL attributes */
-    algoIdSz = SetAlgoID(pkcs7->hashOID, algoId, oidHashType, 0);
+    /* Set algoID, match whatever was input to match either NULL or absent */
+    algoIdSz = SetAlgoIDEx(pkcs7->hashOID, algoId, oidHashType,
+                            0, pkcs7->hashParamsAbsent);
 
     digestStrSz = SetOctetString(hashSz, digestStr);
     digestInfoSeqSz = SetSequence(algoIdSz + digestStrSz + hashSz,
@@ -4868,6 +4870,7 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
     word32 sigOID = 0, hashOID = 0;
     word32 idx = *idxIn, localIdx;
     byte tag;
+    byte absentParams = FALSE;
 
     WOLFSSL_ENTER("wc_PKCS7_ParseSignerInfo");
     /* require a signer if degenerate case not allowed */
@@ -4969,10 +4972,12 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
         }
 
         /* Get the sequence of digestAlgorithm */
-        if (ret == 0 && GetAlgoId(in, &idx, &hashOID, oidHashType, inSz) < 0) {
+        if (ret == 0 && GetAlgoIdEx(in, &idx, &hashOID, oidHashType,
+                                    inSz, &absentParams) < 0) {
             ret = ASN_PARSE_E;
         }
         pkcs7->hashOID = (int)hashOID;
+        pkcs7->hashParamsAbsent = absentParams;
 
         /* Get the IMPLICIT[0] SET OF signedAttributes */
         localIdx = idx;
@@ -5334,9 +5339,11 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     switch (pkcs7->state) {
         case WC_PKCS7_START:
         #ifndef NO_PKCS7_STREAM
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, MAX_SEQ_SZ +
+            /* The expected size calculation originally assumed digest OID
+             * with NULL params, -2 to also accept with absent params */
+            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz, (MAX_SEQ_SZ +
                             MAX_VERSION_SZ + MAX_SEQ_SZ + MAX_LENGTH_SZ +
-                            ASN_TAG_SZ + MAX_OID_SZ + MAX_SEQ_SZ,
+                            ASN_TAG_SZ + MAX_OID_SZ + MAX_SEQ_SZ) - 2,
                             &pkiMsg, &idx)) != 0) {
                 break;
             }
