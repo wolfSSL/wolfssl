@@ -44,6 +44,8 @@ RUN cd /opt/sources && wget -q -O- https://roumenpetrov.info/secsh/src/pkixssh-1
 
 # Install udp/tcp-proxy
 RUN cd /opt/sources && git clone --depth=1 --single-branch --branch=main http://github.com/wolfssl/udp-proxy && cd udp-proxy && make && cp tcp_proxy udp_proxy /bin/.
+# Install libbacktrace
+RUN cd /opt/sources && git clone --depth=1 --single-branch https://github.com/ianlancetaylor/libbacktrace.git && cd libbacktrace && mkdir build && cd build && ../configure && make && make install
 
 # Allow non-root to use tcpdump (will need NET_RAW and NET_ADMIN capability when running the container)
 RUN setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' /usr/bin/tcpdump
