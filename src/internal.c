@@ -29565,6 +29565,10 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
             DtlsMsgPoolReset(ssl);
+#ifdef WOLFSSL_DTLS_CID
+            if (ssl->options.useDtlsCID)
+                DtlsCIDOnExtensionsParsed(ssl);
+#endif /* WOLFSSL_DTLS_CID */
         }
 #endif
 
