@@ -263,6 +263,9 @@
 #else
     #define OPENSSL_EXTRA
     #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+	#if !defined(min)
+    	#define min(data1, data2)    _builtin_min(data1, data2)
+	#endif
 #endif
 
 
