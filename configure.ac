@@ -217,9 +217,15 @@ AC_ARG_ENABLE([debug-trace-errcodes],
     [ ENABLED_DEBUG_TRACE_ERRCODES=no ]
     )
 
-if test "$ENABLED_DEBUG_TRACE_ERRCODES" = "yes"
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "no"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEBUG_TRACE_ERROR_CODES"
+fi
+
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" = "backtrace"
+then
+    AM_CFLAGS="$AM_CFLAGS -g -funwind-tables -DWOLFSSL_DEBUG_BACKTRACE_ERROR_CODES"
+    AM_LDFLAGS="$AM_LDFLAGS -lbacktrace"
 fi
 
 # Start without certificates enabled and enable if a certificate algorithm is
@@ -9981,7 +9987,7 @@ echo "" >> $OPTION_FILE
 echo "#endif /* WOLFSSL_OPTIONS_H */" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
-if test "$ENABLED_DEBUG_TRACE_ERRCODES" = "yes"
+if test "$ENABLED_DEBUG_TRACE_ERRCODES" != "no"
 then
     support/gen-debug-trace-error-codes.sh || AC_MSG_ERROR([Header generation for debug-trace-errcodes failed.])
 fi

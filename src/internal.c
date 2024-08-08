@@ -20653,7 +20653,11 @@ static void LogAlert(int type)
     typeStr = AlertTypeToString(type);
     if (typeStr != NULL) {
         char buff[60];
-        XSNPRINTF(buff, sizeof(buff), "Alert type: %s", typeStr);
+        if (XSNPRINTF(buff, sizeof(buff), "Alert type: %s", typeStr)
+            >= (int)sizeof(buff))
+        {
+            buff[sizeof(buff) - 1] = 0;
+        }
         WOLFSSL_MSG(buff);
     }
 #else

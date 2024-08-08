@@ -4691,7 +4691,9 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
     mp_clear(t);
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(tmp, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsa != NULL) {
+        XFREE(tmp, rsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
 
     return ret;

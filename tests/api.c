@@ -78089,9 +78089,11 @@ static int load_pem_key_file_as_der(const char* privKeyFile, DerBuffer** pDer,
     (void)encInfo; /* not used in this test */
 
 #ifdef DEBUG_WOLFSSL
-    fprintf(stderr, "%s (%d): Loading PEM %s (len %d) to DER (len %d)\n",
-        (ret == 0) ? "Success" : "Failure", ret, privKeyFile, (int)key_sz,
-        (*pDer)->length);
+    if (*pDer != NULL) {
+        fprintf(stderr, "%s (%d): Loading PEM %s (len %d) to DER (len %d)\n",
+                (ret == 0) ? "Success" : "Failure", ret, privKeyFile,
+                (int)key_sz, (*pDer)->length);
+    }
 #endif
 
     return ret;
