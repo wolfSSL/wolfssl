@@ -474,7 +474,7 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
         if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "\t")
             >= (int)sizeof(line) - bufidx)
         {
-            return;
+            goto errout;
         }
         bufidx++;
 
@@ -483,14 +483,14 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
                 if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "%02x ",
                               buffer[i]) >= (int)sizeof(line) - bufidx)
                 {
-                    return;
+                    goto errout;
                 }
             }
             else {
                 if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "   ")
                     >= (int)sizeof(line) - bufidx)
                 {
-                    return;
+                    goto errout;
                 }
             }
             bufidx += 3;
@@ -499,7 +499,7 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
         if (XSNPRINTF(&line[bufidx], sizeof(line)-bufidx, "| ")
             >= (int)sizeof(line) - bufidx)
         {
-            return;
+            goto errout;
         }
         bufidx++;
 
@@ -511,7 +511,7 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
                               : '.')
                     >= (int)sizeof(line) - bufidx)
                 {
-                    return;
+                    goto errout;
                 }
                 bufidx++;
             }
@@ -521,6 +521,12 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
         buffer += LINE_LEN;
         buflen -= LINE_LEN;
     }
+
+    return;
+
+errout:
+
+    wolfssl_log(INFO_LOG, NULL, 0, "\t[Buffer error while rendering]");
 }
 
 #undef WOLFSSL_ENTER /* undo WOLFSSL_DEBUG_CODEPOINTS wrapper */
@@ -1799,18 +1805,23 @@ static int backtrace_init(struct backtrace_state **backtrace_state) {
 }
 
 void wc_backtrace_render(void) {
-    static wolfSSL_Mutex backtrace_mutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(backtrace_mutex);
+    static wolfSSL_Mutex backtrace_mutex
+        WOLFSSL_MUTEX_INITIALIZER_CLAUSE(backtrace_mutex);
     static struct backtrace_state *backtrace_state = NULL;
     int depth = 0;
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     static wolfSSL_Atomic_Int init_count = 0;
     if (init_count != 1) {
-        if (wolfSSL_Atomic_Int_FetchSub(&init_count, 1) != -1)
+        int cur_init_count = wolfSSL_Atomic_Int_FetchSub(&init_count, 1);
+        if (cur_init_count != 0) {
+            (void)wolfSSL_Atomic_Int_FetchAdd(&init_count, 1);
             return;
+        }
         if (wc_InitMutex(&backtrace_mutex) != 0)
             return;
-        init_count = 1;
+        /* set init_count to 1, race-free: (-1) - (0-2) = 1 */
+        (void)wolfSSL_Atomic_Int_FetchSub(&init_count, cur_init_count - 2);
     }
 #endif
 
