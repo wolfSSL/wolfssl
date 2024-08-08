@@ -722,6 +722,8 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_keygen_init(WOLFSSL_EVP_PKEY_CTX *ctx);
 WOLFSSL_API int wolfSSL_EVP_PKEY_keygen(WOLFSSL_EVP_PKEY_CTX *ctx,
   WOLFSSL_EVP_PKEY **ppkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey);
+WOLFSSL_API int wolfSSL_EVP_PKEY_is_a(const WOLFSSL_EVP_PKEY *pkey,
+                                      const char *name);
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 WOLFSSL_API void wolfSSL_EVP_PKEY_CTX_free(WOLFSSL_EVP_PKEY_CTX *ctx);
 #else
@@ -1111,6 +1113,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_PKEY_keygen                wolfSSL_EVP_PKEY_keygen
 #define EVP_PKEY_keygen_init           wolfSSL_EVP_PKEY_keygen_init
 #define EVP_PKEY_bits                  wolfSSL_EVP_PKEY_bits
+#define EVP_PKEY_is_a                  wolfSSL_EVP_PKEY_is_a
 #define EVP_PKEY_CTX_free              wolfSSL_EVP_PKEY_CTX_free
 #define EVP_PKEY_CTX_new               wolfSSL_EVP_PKEY_CTX_new
 #define EVP_PKEY_CTX_set_rsa_padding   wolfSSL_EVP_PKEY_CTX_set_rsa_padding
