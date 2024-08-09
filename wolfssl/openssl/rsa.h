@@ -240,6 +240,9 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 
 #define RSA_F4             WOLFSSL_RSA_F4
 
+#define OPENSSL_RSA_MAX_MODULUS_BITS RSA_MAX_SIZE
+#define OPENSSL_RSA_MAX_PUBEXP_BITS  RSA_MAX_SIZE
+
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef __cplusplus

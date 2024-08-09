@@ -4809,7 +4809,8 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
         }
         if (ret == 1) {
             /* Push the X509 object onto stack. */
-            ret = wolfSSL_sk_X509_push(ctx->x509Chain, x509);
+            ret = wolfSSL_sk_X509_push(ctx->x509Chain, x509) > 0
+                    ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         }
 
         if (ret != 1) {
@@ -4873,7 +4874,8 @@ int wolfSSL_add0_chain_cert(WOLFSSL* ssl, WOLFSSL_X509* x509)
         }
         if (ret == 1) {
             /* Push X509 object onto stack to be freed. */
-            ret = wolfSSL_sk_X509_push(ssl->ourCertChain, x509);
+            ret = wolfSSL_sk_X509_push(ssl->ourCertChain, x509) > 0
+                    ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
             if (ret != 1) {
                 /* Free it now on error. */
                 wolfSSL_X509_free(x509);

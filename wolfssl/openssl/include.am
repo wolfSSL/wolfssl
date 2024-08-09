@@ -46,6 +46,7 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/pkcs7.h \
                          wolfssl/openssl/rand.h \
                          wolfssl/openssl/rsa.h \
+                         wolfssl/openssl/safestack.h \
                          wolfssl/openssl/sha.h \
                          wolfssl/openssl/sha3.h \
                          wolfssl/openssl/srp.h \

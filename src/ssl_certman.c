@@ -398,7 +398,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
         }
 
         /* Decode certificate. */
-        if ((!err) && (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS)) {
+        if ((!err) && (wolfSSL_sk_X509_push(sk, x509) <= 0)) {
             wolfSSL_X509_free(x509);
             err = 1;
         }

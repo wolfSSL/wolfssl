@@ -424,6 +424,7 @@ typedef WOLFSSL_EC_KEY_METHOD         EC_KEY_METHOD;
 #define i2d_ECPrivateKey                wolfSSL_i2d_ECPrivateKey
 #define EC_KEY_set_conv_form            wolfSSL_EC_KEY_set_conv_form
 #define EC_KEY_get_conv_form            wolfSSL_EC_KEY_get_conv_form
+#define d2i_ECPKParameters              wolfSSL_d2i_ECPKParameters
 
 #define EC_POINT_point2hex              wolfSSL_EC_POINT_point2hex
 #define EC_POINT_hex2point              wolfSSL_EC_POINT_hex2point
