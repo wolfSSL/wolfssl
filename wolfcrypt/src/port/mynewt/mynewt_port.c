@@ -19,8 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#if defined(WOLFSSL_APACHE_MYNEWT)
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#ifdef WOLFSSL_APACHE_MYNEWT
+
 #ifndef NO_FILESYSTEM
+
 #include "fs/fs.h"
 #define FILE struct fs_file
 
@@ -142,5 +148,5 @@ int mynewt_fclose(FILE *stream)
     return 0;
 }
 
-#endif /* NO_FILESYSTEM*/
-#endif /* if defined(WOLFSSL_APACHE_MYNEWT) */
+#endif /* !NO_FILESYSTEM */
+#endif /* WOLFSSL_APACHE_MYNEWT */
