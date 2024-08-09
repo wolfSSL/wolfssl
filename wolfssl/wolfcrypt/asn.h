@@ -2356,7 +2356,7 @@ WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output,
     byte isIndef);
 WOLFSSL_LOCAL word32 SetSet(word32 len, byte* output);
 WOLFSSL_API word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz);
-WOLFSSL_API word32 SetAlgoIDEx(int algoOID, byte* output, int type, int curveSz,
+WOLFSSL_LOCAL word32 SetAlgoIDEx(int algoOID, byte* output, int type, int curveSz,
                                 byte absentParams);
 WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header);
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
