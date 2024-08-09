@@ -40,10 +40,12 @@ RUN cd /opt/sources && git clone --single-branch https://github.com/cisco/hash-s
 
 # Install pkixssh to /opt/pkixssh for X509 interop testing with wolfSSH
 RUN mkdir /var/empty
-RUN cd /opt/sources && wget -q -O- https://roumenpetrov.info/secsh/src/pkixssh-14.1.1.tar.gz | tar xzf - && cd pkixssh-14.1.1 && ./configure --prefix=/opt/pkixssh/ --exec-prefix=/opt/pkixssh/ && make install
+RUN cd /opt/sources && wget -q -O- https://roumenpetrov.info/secsh/src/pkixssh-15.1.tar.gz | tar xzf - && cd pkixssh-15.1 && ./configure --prefix=/opt/pkixssh/ --exec-prefix=/opt/pkixssh/ && make install
 
 # Install udp/tcp-proxy
 RUN cd /opt/sources && git clone --depth=1 --single-branch --branch=main http://github.com/wolfssl/udp-proxy && cd udp-proxy && make && cp tcp_proxy udp_proxy /bin/.
+# Install libbacktrace
+RUN cd /opt/sources && git clone --depth=1 --single-branch https://github.com/ianlancetaylor/libbacktrace.git && cd libbacktrace && mkdir build && cd build && ../configure && make && make install
 
 # Allow non-root to use tcpdump (will need NET_RAW and NET_ADMIN capability when running the container)
 RUN setcap 'CAP_NET_RAW+eip CAP_NET_ADMIN+eip' /usr/bin/tcpdump
