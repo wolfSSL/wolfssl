@@ -46,7 +46,7 @@ extern "C" {
 #define HAVE_EXT_CACHE
 #define ATOMIC_USER /* Enable Atomic Record Layer callbacks */
 #define HAVE_PK_CALLBACKS /* Enable public key callbacks */
-#define WOLFSSL_ALT_NAMES /* Allow alternate cert chain validation to any trusted cert (not entire chain presented by peer) */
+#define WOLFSSL_ALT_CERT_CHAINS /* Allow alternate cert chain validation to any trusted cert (not entire chain presented by peer) */
 #define HAVE_NULL_CIPHER /* Enable use of TLS cipher suites without cipher (clear text / no encryption) */
 #define WOLFSSL_HAVE_CERT_SERVICE
 #define WOLFSSL_JNI
@@ -126,6 +126,7 @@ extern "C" {
 #define WOLFSSL_CUSTOM_OID
 #define HAVE_OID_ENCODING
 #define WOLFSSL_ASN_TEMPLATE
+#define WOLFSSL_ALT_NAMES /* Support subject alternative names extension */
 
 /* Certificate Revocation */
 #define HAVE_OCSP
