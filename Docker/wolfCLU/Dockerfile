@@ -3,7 +3,7 @@ FROM ubuntu as BUILDER
 
 ARG DEPS_WOLFSSL="build-essential autoconf libtool zlib1g-dev libuv1-dev libpam0g-dev git libpcap-dev libcurl4-openssl-dev bsdmainutils netcat-traditional iputils-ping bubblewrap"
 RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y apt-utils \
-                    && apt install -y ${DEPS_WOLFSSL} ${DEPS_LIBOQS} \
+                    && apt install -y ${DEPS_WOLFSSL} \
                     && apt clean -y && rm -rf /var/lib/apt/lists/*
 
 ARG NUM_CPU=16
