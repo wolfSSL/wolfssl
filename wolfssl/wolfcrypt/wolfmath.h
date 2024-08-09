@@ -52,6 +52,10 @@ This library provides big integer math functions.
     #include <wolfssl/wolfcrypt/random.h>
 #endif
 
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
+#endif
+
 #ifndef MIN
    #define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
@@ -116,6 +120,28 @@ WOLFSSL_API int wc_export_int(mp_int* mp, byte* buf, word32* len,
 
 #ifdef HAVE_WC_INTROSPECTION
     WOLFSSL_API const char *wc_GetMathInfo(void);
+#endif
+
+/* Support for generic Hardware based Math Functions */
+#ifdef WOLFSSL_USE_HW_MP
+
+WOLFSSL_LOCAL int hw_mod(mp_int* multiplier, mp_int* mod, mp_int* result);
+WOLFSSL_LOCAL int hw_mulmod(mp_int* multiplier, mp_int* multiplicand,
+                                mp_int* mod, mp_int* result);
+WOLFSSL_LOCAL int hw_addmod(mp_int* a, mp_int* b, mp_int* mod, mp_int* result);
+WOLFSSL_LOCAL int hw_submod(mp_int* a, mp_int* b, mp_int* mod, mp_int* result);
+WOLFSSL_LOCAL int hw_exptmod(mp_int* base, mp_int* exp, mp_int* mod,
+                                mp_int* result);
+WOLFSSL_LOCAL int hw_sqrmod(mp_int* base, mp_int* mod, mp_int* result);
+
+/* One to one mappings */
+#define mp_mod      hw_mod
+#define mp_addmod   hw_addmod
+#define mp_submod   hw_submod
+#define mp_mulmod   hw_mulmod
+#define mp_exptmod  hw_exptmod
+#define mp_sqrmod   hw_sqrmod
+
 #endif
 
 #ifdef __cplusplus

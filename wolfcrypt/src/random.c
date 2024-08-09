@@ -136,6 +136,8 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_GETRANDOM)
     #include <errno.h>
     #include <sys/random.h>
+#elif defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -3834,6 +3836,23 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return maxq10xx_random(output, sz);
     }
+#elif defined(MAX3266X_RNG)
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        static int initDone = 0;
+        (void)os;
+        if (initDone == 0) {
+            if(MXC_TRNG_HealthTest() != 0) {
+                #if defined(DEBUG_WOLFSSL)
+                WOLFSSL_MSG("TRNG HW Health Test Failed");
+                #endif
+                return WC_HW_E;
+            }
+            initDone = 1;
+        }
+        return wc_MXC_TRNG_Random(output, sz);
+    }
+
 #elif defined(WOLFSSL_GETRANDOM)
 
     /* getrandom() was added to the Linux kernel in version 3.17.
