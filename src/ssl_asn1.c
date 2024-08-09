@@ -3545,6 +3545,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
     return ret;
 }
 
+#if !defined(USER_TIME) && !defined(TIME_OVERRIDES)
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
 {
     WOLFSSL_ASN1_TIME* ret = s;
@@ -3570,7 +3571,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
 
     return ret;
 }
-
+#endif /* !USER_TIME && !TIME_OVERRIDES */
 #endif /* OPENSSL_EXTRA */
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA)
