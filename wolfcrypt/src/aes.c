@@ -2209,7 +2209,8 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 }
 
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
-    !defined(NO_IMX6_CAAM_AES) && !defined(WOLFSSL_QNX_CAAM))
+    !defined(NO_IMX6_CAAM_AES) && !defined(WOLFSSL_QNX_CAAM)) && \
+    !defined(MAX3266X_AES)
 /* Encrypt a number of blocks using AES.
  *
  * @param [in]  aes  AES object.
@@ -3187,7 +3188,8 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 }
 
 #if defined(HAVE_AES_ECB) && !(defined(WOLFSSL_IMX6_CAAM) && \
-    !defined(NO_IMX6_CAAM_AES) && !defined(WOLFSSL_QNX_CAAM))
+    !defined(NO_IMX6_CAAM_AES) && !defined(WOLFSSL_QNX_CAAM)) && \
+    !defined(MAX3266X_AES)
 /* Decrypt a number of blocks using AES.
  *
  * @param [in]  aes  AES object.
@@ -5422,8 +5424,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return BAD_LENGTH_E;
         #else
             return BAD_FUNC_ARG;
-        }
         #endif
+        }
         if (sz == 0) {
             return 0;
         }
@@ -5462,8 +5464,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return BAD_LENGTH_E;
         #else
             return BAD_FUNC_ARG;
-        }
         #endif
+        }
         if (sz == 0) {
             return 0;
         }
@@ -11532,8 +11534,8 @@ int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return status;
     }
 
-    status = wc_MXC_TPU_AesEncrypt(in, aes->reg, aes->key, MXC_TPU_MODE_ECB,
-                                        sz, out, keySize);
+    status = wc_MXC_TPU_AesEncrypt(in, (byte*)aes->reg, (byte*)aes->key,
+                                        MXC_TPU_MODE_ECB, sz, out, keySize);
 
     return status;
 }
@@ -11552,8 +11554,8 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return status;
     }
 
-    status = wc_MXC_TPU_AesDecrypt(in, aes->reg, aes->key, MXC_TPU_MODE_ECB,
-                                        sz, out, keySize);
+    status = wc_MXC_TPU_AesDecrypt(in, (byte*)aes->reg, (byte*)aes->key,
+                                        MXC_TPU_MODE_ECB, sz, out, keySize);
 
     return status;
 }

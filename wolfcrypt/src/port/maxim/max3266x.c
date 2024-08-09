@@ -53,6 +53,7 @@
     #error MXC HW port needs #define WOLFSSL_SP_MATH_ALL
 #endif
 
+/* Max size MAA can handle */
 #define MXC_MAA_MAX_SIZE (2048 / MXC_WORD_SIZE)
 
 int wc_MXC_TPU_Init(void)
@@ -85,7 +86,11 @@ int wc_MXC_TPU_Shutdown(void)
 /* using #define MAX3266X_VERBOSE */
 int wc_MXC_error(int *ret)
 {
-    switch(*ret){
+    if (ret == NULL) {
+        /* In case somehow pointer to the return code is NULL */
+        return BAD_FUNC_ARG;
+    }
+    switch (*ret) {
         case E_SUCCESS:
             return 0;
 
@@ -119,27 +124,44 @@ int wc_MXC_error(int *ret)
 
 
 #if defined(MAX3266X_RNG)
-
+/* Simple call to SDK's TRNG HW */
 int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
 {
-    if (MXC_TPU_Init(MXC_SYS_PERIPH_CLOCK_TRNG) != 0) {
-        MAX3266X_MSG("TRNG Device did not initialize");
-        return RNG_FAILURE_E;
+    int status;
+    if (output == NULL) {
+        return BAD_FUNC_ARG;
     }
-    /* void return function */
-    MXC_TPU_TRNG_Read(MXC_TRNG, output, sz);
-    MAX3266X_MSG("TRNG Hardware Used");
-    return 0;
+    status = wolfSSL_CryptHwMutexLock(); /* Lock Mutex needed since */
+                                         /* calling TPU init */
+    if (status != 0) {
+        return status;
+    }
+    status = MXC_TPU_Init(MXC_SYS_PERIPH_CLOCK_TRNG);
+    if (status == 0) {
+        /* void return function */
+        MXC_TPU_TRNG_Read(MXC_TRNG, output, sz);
+        MAX3266X_MSG("TRNG Hardware Used");
+    }
+    else {
+        MAX3266X_MSG("TRNG Device did not initialize");
+        status = RNG_FAILURE_E;
+    }
+    wolfSSL_CryptHwMutexUnLock(); /* Unlock Mutex no matter status value */
+    return status;
 }
 #endif /* MAX3266X_RNG */
 
 #if defined(MAX3266X_AES)
+/* Generic call to the SDK's AES 1 shot Encrypt based on inputs given */
 int wc_MXC_TPU_AesEncrypt(const unsigned char* in, const unsigned char* iv,
                             const unsigned char* enc_key,
                             MXC_TPU_MODE_TYPE mode, unsigned int data_size,
                             unsigned char* out, unsigned int keySize)
 {
     int status;
+    if (in == NULL || iv == NULL || enc_key == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
     status = wolfSSL_CryptHwMutexLock();
     MAX3266X_MSG("AES HW Encryption");
     if (status != 0) {
@@ -182,12 +204,16 @@ int wc_MXC_TPU_AesEncrypt(const unsigned char* in, const unsigned char* iv,
     return 0;
 }
 #ifdef HAVE_AES_DECRYPT
+/* Generic call to the SDK's AES 1 shot decrypt based on inputs given */
 int wc_MXC_TPU_AesDecrypt(const unsigned char* in, const unsigned char* iv,
                             const unsigned char* dec_key,
                             MXC_TPU_MODE_TYPE mode, unsigned int data_size,
                             unsigned char* out, unsigned int keySize)
 {
     int status;
+    if (in == NULL || iv == NULL || dec_key == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
     status = wolfSSL_CryptHwMutexLock();
     if (status != 0) {
         return status;
@@ -243,42 +269,48 @@ int wc_MXC_TPU_SHA_Init(wc_MXC_Sha *hash)
     return 0;
 }
 
+/* Used to update the msg. Currently the SDK only supports 1 shots, so the */
+/* hash->msg buffer needs to be updated and resized. hash->msg will keep the */
+/* unhashed msg and produce a digest when wc_MXC_TPU_SHA_Final or */
+/* wc_MXC_TPU_SHA_GetHash is called */
 int wc_MXC_TPU_SHA_Update(wc_MXC_Sha *hash, const unsigned char* data,
                             unsigned int size)
 {
     void *p;
-    if (size != (0 || NULL)) {
-        if ((hash == NULL) || (data == NULL)) {
-            return BAD_FUNC_ARG;
-        }
-        if (hash->size < hash->used+size) {
-            if (hash->msg == NULL) {
-                p = XMALLOC(hash->used+size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            }
-            else {
-                #ifdef WOLFSSL_NO_REALLOC
-                p = XMALLOC(hash->used + size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                if (p != NULL) {
-                    XMEMCPY(p, hash->msg, hash->used);
-                    XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-                }
-                #else
-                p = XREALLOC(hash->msg, hash->used+size, NULL,
-                                DYNAMIC_TYPE_TMP_BUFFER);
-                #endif
-
-            }
-            if (p == NULL) {
-                return -1;
-            }
-            hash->msg = p;
-            hash->size = hash->used+size;
-        }
-        XMEMCPY(hash->msg+hash->used, data, size);
-        hash->used += size;
+    /* Only update if size is not 0 */
+    if (size == 0) {
+        return 0;
+    }
+    /* Check for NULL pointers After Size Check */
+    if (hash == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (hash->size < hash->used+size) {
         if (hash->msg == NULL) {
-            return BAD_FUNC_ARG;
+            p = XMALLOC(hash->used+size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
+        else {
+            #ifdef WOLFSSL_NO_REALLOC
+            p = XMALLOC(hash->used + size, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (p != NULL) {
+                XMEMCPY(p, hash->msg, hash->used);
+                XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            }
+            #else
+            p = XREALLOC(hash->msg, hash->used+size, NULL,
+                            DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
+        }
+        if (p == NULL) {
+            return -1;
+        }
+        hash->msg = p;
+        hash->size = hash->used+size;
+    }
+    XMEMCPY(hash->msg+hash->used, data, size);
+    hash->used += size;
+    if (hash->msg == NULL) {
+        return BAD_FUNC_ARG;
     }
     return 0;
 }
@@ -287,16 +319,20 @@ int wc_MXC_TPU_SHA_GetHash(wc_MXC_Sha *hash, unsigned char* digest,
                                 MXC_TPU_HASH_TYPE algo)
 {
     int status;
+    if (hash == NULL || digest == NULL) {
+        return BAD_FUNC_ARG;
+    }
     status = wc_MXC_TPU_SHA_GetDigest(hash, digest, algo);
     /* True Case that msg is an empty string */
     if (status == 1) {
+        /* Hardware cannot handle the case of an empty string */
+        /* so in the case of this we will provide the hash via software */
         return 0;
     }
     /* False Case where msg needs to be processed */
     else if (status == 0) {
-        status = wolfSSL_CryptHwMutexLock();
-        if (wc_MXC_error(&status) != 0) {
-
+        status = wolfSSL_CryptHwMutexLock(); /* Set Mutex **/
+        if (status != 0) { /* Mutex Call Check */
             return status;
         }
         MXC_TPU_Init(MXC_SYS_PERIPH_CLOCK_TPU);
@@ -304,7 +340,7 @@ int wc_MXC_TPU_SHA_GetHash(wc_MXC_Sha *hash, unsigned char* digest,
         status = MXC_TPU_Hash_SHA((const char *)hash->msg, algo, hash->size,
                                          (char *)digest);
         MAX3266X_MSG("SHA HW Acceleration Used");
-        wolfSSL_CryptHwMutexUnLock();
+        wolfSSL_CryptHwMutexUnLock(); /* Release Mutex */
         if (wc_MXC_error(&status) != 0) {
             MAX3266X_MSG("SHA HW Error Occurred");
             return status;
@@ -314,15 +350,21 @@ int wc_MXC_TPU_SHA_GetHash(wc_MXC_Sha *hash, unsigned char* digest,
     return status;
 }
 
+/* Calls GetHash to determine the digest and then reinitialize the hash */
+/* struct */
 int wc_MXC_TPU_SHA_Final(wc_MXC_Sha *hash, unsigned char* digest,
                                     MXC_TPU_HASH_TYPE algo)
 {
     int status;
+    if (hash == NULL || digest == NULL) {
+        return BAD_FUNC_ARG;
+    }
     status = wc_MXC_TPU_SHA_GetHash(hash, digest, algo);
+    /* Free hash->msg no matter result */
+    XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (status != 0) {
         return status;
     }
-    XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     status = wc_MXC_TPU_SHA_Init(hash);
     if (status != 0) {
         return status;
@@ -330,6 +372,7 @@ int wc_MXC_TPU_SHA_Final(wc_MXC_Sha *hash, unsigned char* digest,
     return status;
 }
 
+/* Copies Struct values from SRC struct to DST struct */
 int wc_MXC_TPU_SHA_Copy(wc_MXC_Sha* src, wc_MXC_Sha* dst)
 {
     if (src == NULL || dst == NULL) {
@@ -341,8 +384,14 @@ int wc_MXC_TPU_SHA_Copy(wc_MXC_Sha* src, wc_MXC_Sha* dst)
     return 0;
 }
 
+/* Free the given struct's msg buffer and then reinitialize the struct to 0 */
+/* returns void to match other wc_Sha*Free api */
 void wc_MXC_TPU_SHA_Free(wc_MXC_Sha* hash)
 {
+    if (hash == NULL) {
+        return; /* Hash Struct is Null already, dont edit potentially */
+                /* undefined memory */
+    }
     XFREE(hash->msg, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     wc_MXC_TPU_SHA_Init(hash); /* sets hash->msg to null + zero's attributes */
     return;
@@ -353,8 +402,11 @@ void wc_MXC_TPU_SHA_Free(wc_MXC_Sha* hash)
 int wc_MXC_TPU_SHA_GetDigest(wc_MXC_Sha *hash, unsigned char* digest,
                                         MXC_TPU_HASH_TYPE algo)
 {
-    if (hash->msg == 0 && hash->size == 0 && digest != NULL) {
-        switch(algo) {
+    if (hash == NULL || digest == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (hash->msg == 0 && hash->size == 0) {
+        switch (algo) {
             #ifndef NO_SHA
             case MXC_TPU_HASH_SHA1:
                 XMEMCPY(digest, MXC_EMPTY_DIGEST_SHA1, WC_SHA_DIGEST_SIZE);
@@ -633,10 +685,9 @@ int wc_MXC_MAA_init(unsigned int len)
     int status;
     MAX3266X_MSG("Setting Hardware Mutex and Starting MAA");
     status = wolfSSL_CryptHwMutexLock();
-    if (status != 0) {
-        return status;
+    if (status == 0) {
+        status = MXC_TPU_MAA_Init(len);
     }
-    status = MXC_TPU_MAA_Init(len);
     return wc_MXC_error(&status); /* Return Status of Init */
 }
 
@@ -648,13 +699,10 @@ int wc_MXC_MAA_Shutdown(void)
     status = MXC_TPU_MAA_Shutdown();
     if (status == E_BAD_PARAM) { /* Miss leading, Send WC_HW_ERROR */
                                 /* This is returned when MAA cannot stop */
-        return WC_HW_E;
+        status = WC_HW_E;
     }
-    else if(wc_MXC_error(&status) != 0) {
-        return status;
-    }
-    wolfSSL_CryptHwMutexUnLock();
-    return status;
+    wolfSSL_CryptHwMutexUnLock(); /* Always call Unlock in shutdown */
+    return wc_MXC_error(&status);
 }
 
 /* Update used number for mp_int struct for results */
@@ -706,8 +754,6 @@ int wc_MXC_MAA_Fallback(unsigned int count, ...)
     return 0;
 }
 
-
-
 /* Have to zero pad the entire data array up to 256 bytes(2048 bits) */
 /* If length > 256 bytes then error */
 int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
@@ -728,7 +774,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
     /* Create an array to compare values to to check edge for error edge case */
     zero_tmp = (mp_digit*)XMALLOC(multiplier->size*sizeof(mp_digit), NULL,
                                     DYNAMIC_TYPE_TMP_BUFFER);
-    if(zero_tmp == NULL){
+    if (zero_tmp == NULL) {
         MAX3266X_MSG("NULL pointer found after XMALLOC call");
         return WC_HW_E;
     }
@@ -806,7 +852,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
 
 
 
-    /* General Control Over MAA Hardware to handle all needed Cases */
+/* General Control Over MAA Hardware to handle all needed Cases */
 int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
                                 mp_int* mod, mp_int* result,
                                 MXC_TPU_MAA_TYPE clc)
@@ -815,6 +861,11 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     int length;
     mp_int* result_tmp_ptr;
     mp_int result_tmp;
+    if (multiplier == NULL || multiplicand == NULL || mod == NULL ||
+            (exp == NULL && clc == MXC_TPU_MAA_EXP) || result == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     /* Check if result shares struct pointer */
     if ((multiplier == result) || (multiplicand == result) || (exp == result) ||
             (mod == result)) {
@@ -871,7 +922,8 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     ret = wc_MXC_MAA_Shutdown();
     if (ret != 0) {
         MAX3266X_MSG("HW Shutdown Failure");
-        wolfSSL_CryptHwMutexUnLock();
+        /* Shutdown will always call wolfSSL_CryptHwMutexUnLock(); */
+        /* before returning */
         return ret;
     }
 
@@ -892,6 +944,9 @@ int wc_MXC_MAA_expmod(mp_int* base, mp_int* exp, mp_int* mod,
                             mp_int* result)
 {
     mp_int multiplicand;
+    if (base == NULL || exp == NULL || mod == NULL || result == NULL) {
+        return BAD_FUNC_ARG;
+    }
     XMEMSET(&multiplicand, 0, sizeof(mp_int));
     multiplicand.dp[0] = 0x01;
     multiplicand.used = mod->used;
@@ -903,6 +958,9 @@ int wc_MXC_MAA_expmod(mp_int* base, mp_int* exp, mp_int* mod,
 int wc_MXC_MAA_sqrmod(mp_int* multiplier, mp_int* mod, mp_int* result)
 {
     mp_int multiplicand;
+    if (multiplier == NULL || mod == NULL || result == NULL) {
+        return BAD_FUNC_ARG;
+    }
     XMEMSET(&multiplicand, 0, sizeof(mp_int));
     multiplicand.dp[0] = 0x01;
     multiplicand.used = mod->used;
@@ -914,6 +972,10 @@ int wc_MXC_MAA_sqrmod(mp_int* multiplier, mp_int* mod, mp_int* result)
 int wc_MXC_MAA_mulmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
                             mp_int* result)
 {
+    if (multiplier == NULL || multiplicand == NULL || mod == NULL ||
+            result == NULL) {
+        return BAD_FUNC_ARG;
+    }
     MAX3266X_MSG("Preparing mulmod MAA HW Call");
     return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
                             MXC_TPU_MAA_MUL);
@@ -922,6 +984,10 @@ int wc_MXC_MAA_mulmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
 int wc_MXC_MAA_sqrmulmod(mp_int* multiplier, mp_int* multiplicand,
                             mp_int* exp, mp_int* mod, mp_int* result)
 {
+    if (multiplier == NULL || multiplicand == NULL || exp == NULL ||
+            mod == NULL || result == NULL) {
+        return BAD_FUNC_ARG;
+    }
     MAX3266X_MSG("Preparing sqrmulmod MAA HW Call");
     return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
                             MXC_TPU_MAA_SQMUL);
@@ -930,6 +996,10 @@ int wc_MXC_MAA_sqrmulmod(mp_int* multiplier, mp_int* multiplicand,
 int wc_MXC_MAA_addmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
                             mp_int* result)
 {
+    if (multiplier == NULL || multiplicand == NULL || mod == NULL ||
+            result == NULL) {
+        return BAD_FUNC_ARG;
+    }
     MAX3266X_MSG("Preparing addmod MAA HW Call");
     return wc_MXC_MAA_math(multiplier, multiplicand, NULL, mod, result,
                             MXC_TPU_MAA_ADD);
@@ -938,6 +1008,10 @@ int wc_MXC_MAA_addmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
 int wc_MXC_MAA_submod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
                             mp_int* result)
 {
+    if (multiplier == NULL || multiplicand == NULL || mod == NULL ||
+            result == NULL) {
+        return BAD_FUNC_ARG;
+    }
     MAX3266X_MSG("Preparing submod MAA HW Call");
     if ((mod->used < multiplier->used) || (mod->used < multiplicand->used)) {
             MAX3266X_MSG("HW Limitation: Defaulting back to software");
@@ -953,6 +1027,10 @@ int wc_MXC_MAA_submod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
 int hw_mulmod(mp_int* multiplier, mp_int* multiplicand, mp_int* mod,
                     mp_int* result)
 {
+    if (multiplier == NULL || multiplicand == NULL || mod == NULL ||
+            result == NULL) {
+        return MP_VAL;
+    }
     if ((multiplier->used == 0) || (multiplicand->used == 0)) {
         mp_zero(result);
         return 0;
@@ -1033,7 +1111,10 @@ int hw_exptmod(mp_int* base, mp_int* exp, mp_int* mod, mp_int* result)
 int hw_mod(mp_int* a, mp_int* mod, mp_int* result)
 {
     mp_int b;
-    if (wc_MXC_MAA_Fallback(2, a->used, mod->used) != 0){
+    if (a == NULL || mod == NULL || result == NULL) {
+        return MP_VAL;
+    }
+    if (wc_MXC_MAA_Fallback(2, a->used, mod->used) != 0) {
         return mxc_mod(a, mod, result);
     }
     XMEMSET(&b, 0, sizeof(mp_int));
@@ -1043,6 +1124,9 @@ int hw_mod(mp_int* a, mp_int* mod, mp_int* result)
 
 int hw_sqrmod(mp_int* base, mp_int* mod, mp_int* result)
 {
+    if (base == NULL || mod == NULL || result == NULL) {
+        return MP_VAL;
+    }
     if (base->used == 0) {
         mp_zero(result);
         return 0;
@@ -1060,29 +1144,29 @@ int wc_MXC_RTC_Init(void)
     if (MXC_RTC_Init(0, 0) != E_NO_ERROR) {
         return WC_HW_E;
     }
-
     /* Disable the Interrupt */
     if (MXC_RTC_DisableInt(MXC_RTC_INT_EN_LONG) == E_BUSY) {
         return WC_HW_E;
     }
-
+    /* Start Clock for RTC */
     if (MXC_RTC_SquareWaveStart(MXC_RTC_F_512HZ) == E_BUSY) {
         return E_BUSY;
     }
-
-    if (MXC_RTC_Start() != E_NO_ERROR){
+    /* Begin RTC count */
+    if (MXC_RTC_Start() != E_NO_ERROR) {
         return WC_HW_E;
     }
-
     return 0;
 }
 
 /* Reset the RTC */
 int wc_MXC_RTC_Reset(void)
 {
+    /* Stops Counts */
     if (MXC_RTC_Stop() != E_NO_ERROR) {
         return WC_HW_E;
     }
+    /* Restart RTC via Init */
     if (wc_MXC_RTC_Init() != E_NO_ERROR) {
         return WC_HW_E;
     }
@@ -1109,7 +1193,7 @@ double wc_MXC_RTC_Time(void)
     /* Retrieve sub-seconds from RTC */
     wc_MXC_RTC_GetRTCValue((int32_t (*)(uint32_t*))MXC_RTC_GetSubSeconds,
                                     &rtc_subseconds, &err);
-    if (err != E_NO_ERROR){
+    if (err != E_NO_ERROR) {
         return (double)err;
     }
     /* Retrieve seconds from RTC */
