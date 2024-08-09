@@ -218,7 +218,7 @@ int wc_PBKDF2_ex(byte* output, const byte* passwd, int pLen, const byte* salt,
      * length", ensure the returned bits for the derived master key are at a
      * minimum 14-bytes or 112-bits after stretching and strengthening
      * (iterations) */
-    if (kLen < HMAC_FIPS_MIN_KEY/8)
+    if (kLen < HMAC_FIPS_MIN_KEY)
         return BAD_LENGTH_E;
 #endif
 
