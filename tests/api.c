@@ -38789,6 +38789,167 @@ static int test_wc_PKCS7_EncodeSignedData(void)
     return EXPECT_RESULT();
 } /* END test_wc_PKCS7_EncodeSignedData */
 
+static int test_wc_PKCS7_EncodeSignedData_absent(void)
+{
+        EXPECT_DECLS;
+#if defined(HAVE_PKCS7)
+    PKCS7* pkcs7 = NULL;
+    WC_RNG rng;
+    byte   output[FOURK_BUF];
+    word32 outputSz = (word32)sizeof(output);
+    int withParamsLen = 0;
+    int withoutParamsLen = 0;
+    byte   data[] = "Test data to encode.";
+#ifndef NO_RSA
+    #if defined(USE_CERT_BUFFERS_2048)
+        byte        key[sizeof(client_key_der_2048)];
+        byte        cert[sizeof(client_cert_der_2048)];
+        word32      keySz = (word32)sizeof(key);
+        word32      certSz = (word32)sizeof(cert);
+        XMEMSET(key, 0, keySz);
+        XMEMSET(cert, 0, certSz);
+        XMEMCPY(key, client_key_der_2048, keySz);
+        XMEMCPY(cert, client_cert_der_2048, certSz);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        byte        key[sizeof_client_key_der_1024];
+        byte        cert[sizeof(sizeof_client_cert_der_1024)];
+        word32      keySz = (word32)sizeof(key);
+        word32      certSz = (word32)sizeof(cert);
+        XMEMSET(key, 0, keySz);
+        XMEMSET(cert, 0, certSz);
+        XMEMCPY(key, client_key_der_1024, keySz);
+        XMEMCPY(cert, client_cert_der_1024, certSz);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        unsigned char   key[ONEK_BUF];
+        XFILE           fp = XBADFILE;
+        int             certSz;
+        int             keySz;
+
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-cert.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, sizeof_client_cert_der_1024,
+            fp), 0);
+        if (fp != XBADFILE) {
+            XFCLOSE(fp);
+            fp = XBADFILE;
+        }
+
+        ExpectTrue((fp = XFOPEN("./certs/1024/client-key.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, sizeof_client_key_der_1024, fp),
+            0);
+        if (fp != XBADFILE)
+            XFCLOSE(fp);
+    #endif
+#elif defined(HAVE_ECC)
+    #if defined(USE_CERT_BUFFERS_256)
+        unsigned char    cert[sizeof(cliecc_cert_der_256)];
+        unsigned char    key[sizeof(ecc_clikey_der_256)];
+        int              certSz = (int)sizeof(cert);
+        int              keySz = (int)sizeof(key);
+        XMEMSET(cert, 0, certSz);
+        XMEMSET(key, 0, keySz);
+        XMEMCPY(cert, cliecc_cert_der_256, certSz);
+        XMEMCPY(key, ecc_clikey_der_256, keySz);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        unsigned char   key[ONEK_BUF];
+        XFILE           fp = XBADFILE;
+        int             certSz;
+        int             keySz;
+
+        ExpectTrue((fp = XFOPEN("./certs/client-ecc-cert.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(certSz = (int)XFREAD(cert, 1, ONEK_BUF, fp), 0);
+        if (fp != XBADFILE) {
+            XFCLOSE(fp);
+            fp = XBADFILE;
+        }
+
+        ExpectTrue((fp = XFOPEN("./certs/client-ecc-key.der", "rb")) !=
+            XBADFILE);
+        ExpectIntGT(keySz = (int)XFREAD(key, 1, ONEK_BUF, fp), 0);
+        if (fp != XBADFILE)
+            XFCLOSE(fp);
+    #endif
+#endif
+
+    XMEMSET(&rng, 0, sizeof(WC_RNG));
+
+    XMEMSET(output, 0, outputSz);
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /* First generate and verify with NULL params */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+    if (pkcs7 != NULL) {
+        pkcs7->content = data;
+        pkcs7->contentSz = (word32)sizeof(data);
+        pkcs7->privateKey = key;
+        pkcs7->privateKeySz = (word32)sizeof(key);
+        pkcs7->encryptOID = RSAk;
+    #ifdef NO_SHA
+        pkcs7->hashOID = SHA256h;
+    #else
+        pkcs7->hashOID = SHAh;
+    #endif
+        pkcs7->rng = &rng;
+    }
+
+    withParamsLen = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    ExpectIntGT(withParamsLen, 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, withParamsLen), 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    XMEMSET(output, 0, outputSz);
+
+    /* Now generate again without params */
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, certSz), 0);
+
+    if (pkcs7 != NULL) {
+        pkcs7->content = data;
+        pkcs7->contentSz = (word32)sizeof(data);
+        pkcs7->privateKey = key;
+        pkcs7->privateKeySz = (word32)sizeof(key);
+        pkcs7->encryptOID = RSAk;
+    #ifdef NO_SHA
+        pkcs7->hashOID = SHA256h;
+    #else
+        pkcs7->hashOID = SHAh;
+    #endif
+        pkcs7->rng = &rng;
+        pkcs7->hashParamsAbsent = TRUE;
+    }
+
+    withoutParamsLen = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    ExpectIntGT(withoutParamsLen, 0);
+    wc_PKCS7_Free(pkcs7);
+    pkcs7 = NULL;
+
+    ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+    ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, NULL, 0), 0);
+    ExpectIntEQ(wc_PKCS7_VerifySignedData(pkcs7, output, withoutParamsLen), 0);
+
+    /* Both are valid PKCS7 with non-zero len, ensure without is shorter */
+    ExpectIntLT(withoutParamsLen, withParamsLen);
+
+    wc_PKCS7_Free(pkcs7);
+    DoExpectIntEQ(wc_FreeRng(&rng), 0);
+
+#endif
+    return EXPECT_RESULT();
+}
 
 /*
  * Testing wc_PKCS7_EncodeSignedData_ex() and wc_PKCS7_VerifySignedData_ex()
@@ -84809,6 +84970,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_PKCS7_EncodeData),
     TEST_DECL(test_wc_PKCS7_EncodeSignedData),
     TEST_DECL(test_wc_PKCS7_EncodeSignedData_ex),
+    TEST_DECL(test_wc_PKCS7_EncodeSignedData_absent),
     TEST_DECL(test_wc_PKCS7_VerifySignedData_RSA),
     TEST_DECL(test_wc_PKCS7_VerifySignedData_ECC),
     TEST_DECL(test_wc_PKCS7_EncodeDecodeEnvelopedData),

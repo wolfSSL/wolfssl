@@ -6061,22 +6061,8 @@ enum {
 #define algoIdASN_Length (sizeof(algoIdASN) / sizeof(ASNItem))
 #endif
 
-/* Get the OID id/sum from the BER encoding of an algorithm identifier.
- *
- * NULL tag is skipped if present.
- *
- * @param [in]      input     Buffer holding BER encoded data.
- * @param [in, out] inOutIdx  On in, start of algorithm identifier.
- *                            On out, start of ASN.1 item after algorithm id.
- * @param [out]     oid       Id of OID in algorithm identifier data.
- * @param [in]      oidType   Type of OID to expect.
- * @param [in]      maxIdx    Maximum index of data in buffer.
- * @return  0 on success.
- * @return  ASN_PARSE_E when encoding is invalid.
- * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
- */
-int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
-                     word32 oidType, word32 maxIdx)
+static int GetAlgoIdImpl(const byte* input, word32* inOutIdx, word32* oid,
+                     word32 oidType, word32 maxIdx, byte *absentParams)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     int    length;
@@ -6102,6 +6088,10 @@ int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
                 ret = GetASNNull(input, &idx, maxIdx);
                 if (ret != 0)
                     return ret;
+
+                if (absentParams != NULL) {
+                    *absentParams = FALSE;
+                }
             }
         }
     }
@@ -6126,11 +6116,47 @@ int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
     if (ret == 0) {
         /* Return the OID id/sum. */
         *oid = dataASN[ALGOIDASN_IDX_OID].data.oid.sum;
+
+        if ((absentParams != NULL) &&
+            (dataASN[ALGOIDASN_IDX_NULL].tag == ASN_TAG_NULL)) {
+            *absentParams = FALSE;
+        }
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
+}
+
+/* Get the OID id/sum from the BER encoding of an algorithm identifier.
+ *
+ * NULL tag is skipped if present.
+ *
+ * @param [in]      input     Buffer holding BER encoded data.
+ * @param [in, out] inOutIdx  On in, start of algorithm identifier.
+ *                            On out, start of ASN.1 item after algorithm id.
+ * @param [out]     oid       Id of OID in algorithm identifier data.
+ * @param [in]      oidType   Type of OID to expect.
+ * @param [in]      maxIdx    Maximum index of data in buffer.
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when encoding is invalid.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ */
+int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
+                     word32 oidType, word32 maxIdx)
+{
+    return GetAlgoIdImpl(input, inOutIdx, oid, oidType, maxIdx, NULL);
+}
+
+int GetAlgoIdEx(const byte* input, word32* inOutIdx, word32* oid,
+                     word32 oidType, word32 maxIdx, byte *absentParams)
+{
+    /* Assume absent until proven otherwise */
+    if (absentParams != NULL) {
+        *absentParams = TRUE;
+    }
+
+    return GetAlgoIdImpl(input, inOutIdx, oid, oidType, maxIdx, absentParams);
 }
 
 #ifndef NO_RSA
@@ -16077,7 +16103,7 @@ static WC_INLINE int IsSigAlgoECC(word32 algoOID)
  * @return  Encoded data size on success.
  * @return  0 when dynamic memory allocation fails.
  */
-word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
+static word32 SetAlgoIDImpl(int algoOID, byte* output, int type, int curveSz, byte absentParams)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 tagSz, idSz, seqSz, algoSz = 0;
@@ -16086,9 +16112,10 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     byte   seqArray[MAX_SEQ_SZ + 1];  /* add object_id to end */
     word32    length = 0;
 
-    tagSz = (type == oidHashType ||
+    tagSz = ((type == oidHashType ||
              (type == oidSigType && !IsSigAlgoECC((word32)algoOID)) ||
-             (type == oidKeyType && algoOID == RSAk)) ? 2U : 0U;
+             (type == oidKeyType && algoOID == RSAk)) &&
+                (absentParams == FALSE)) ? 2U : 0U;
     algoName = OidFromId((word32)algoOID, (word32)type, &algoSz);
     if (algoName == NULL) {
         WOLFSSL_MSG("Unknown Algorithm");
@@ -16144,6 +16171,10 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
             /* Don't put out NULL DER item. */
             dataASN[ALGOIDASN_IDX_NULL].noOut = 1;
         }
+        /* Override for absent (not NULL) params */
+        if (TRUE == absentParams) {
+            dataASN[ALGOIDASN_IDX_NULL].noOut = 1;
+        }
         if (algoOID == DSAk) {
             /* Don't include SEQUENCE for DSA keys. */
             o = 1;
@@ -16184,6 +16215,27 @@ word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     FREE_ASNSETDATA(dataASN, NULL);
     return (word32)ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
+}
+
+/* Encode an algorithm identifier.
+ *
+ * [algoOID, type] is unique.
+ *
+ * @param [in]  algoOID   Algorithm identifier.
+ * @param [out] output    Buffer to hold encoding.
+ * @param [in]  type      Type of OID being encoded.
+ * @param [in]  curveSz   Add extra space for curve data.
+ * @return  Encoded data size on success.
+ * @return  0 when dynamic memory allocation fails.
+ */
+word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
+{
+    return SetAlgoIDImpl(algoOID, output, type, curveSz, FALSE);
+}
+
+word32 SetAlgoIDEx(int algoOID, byte* output, int type, int curveSz, byte absentParams)
+{
+    return SetAlgoIDImpl(algoOID, output, type, curveSz, absentParams);
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
