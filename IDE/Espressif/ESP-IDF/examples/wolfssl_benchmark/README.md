@@ -19,6 +19,13 @@ other local port to `COM20` as needed:
 change port com20=com23
 ```
 
+## Bulk Testing
+
+If you have a test jig with multiple ESP32 devices and you'd like to run this wolfcrypt benchmark on all of them, check out
+the `testAll.sh` and `testMonitor.sh` scripts in the [../wolfssl_test](../wolfssl_test/README.md) directory. Copy those
+bash script files to this project. See the `esp32[NN]_PORT` and `esp32[NN]_PUTTY` settings in `testMonitor.sh` that will
+be machine-specific.
+
 ## VisualGDB
 
 Open the VisualGDB Visual Studio Project file in the VisualGDB directory and click the "Start" button.

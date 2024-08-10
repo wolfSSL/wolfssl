@@ -1,6 +1,6 @@
 /* aes.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -54,6 +54,11 @@ typedef struct Gcm {
     #endif
 #endif /* GCM_TABLE */
 } Gcm;
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_AES_sanity(void);
+#endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
 #ifdef WOLFSSL_ARMASM
@@ -256,7 +261,7 @@ struct Aes {
     ALIGN16 bs_word bs_key[15 * AES_BLOCK_SIZE * BS_WORD_SIZE];
 #endif
     word32  rounds;
-#ifdef WC_AES_C_DYNAMIC_FALLBACK
+#ifdef WC_C_DYNAMIC_FALLBACK
     word32 key_C_fallback[60];
 #endif
     int     keylen;
@@ -400,14 +405,36 @@ struct Aes {
 #endif
 
 #ifdef WOLFSSL_AES_XTS
-typedef struct XtsAes {
-    Aes aes;
-#ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
-    Aes aes_decrypt;
+    #if FIPS_VERSION3_GE(6,0,0)
+        /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
+         * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+         * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes)
+         */
+        #define FIPS_AES_XTS_MAX_BYTES_PER_TWEAK 16777216
+    #endif
+    struct XtsAes {
+        Aes aes;
+    #ifdef WC_AES_XTS_SUPPORT_SIMULTANEOUS_ENC_AND_DEC_KEYS
+        Aes aes_decrypt;
+    #endif
+        Aes tweak;
+    };
+
+    #ifdef WOLFSSL_AESXTS_STREAM
+        struct XtsAesStreamData {
+            byte tweak_block[AES_BLOCK_SIZE];
+            word32 bytes_crypted_with_this_tweak;
+        };
+    #endif
+
+    #ifndef WC_AESXTS_TYPE_DEFINED
+        typedef struct XtsAes XtsAes;
+        typedef struct XtsAesStreamData XtsAesStreamData;
+        #define WC_AESXTS_TYPE_DEFINED
+    #endif
+
 #endif
-    Aes tweak;
-} XtsAes;
-#endif
+
 
 #if (!defined(WC_AESFREE_IS_MANDATORY)) &&                              \
     (defined(WC_DEBUG_CIPHER_LIFECYCLE) ||                              \
@@ -430,9 +457,15 @@ typedef struct XtsAes {
 #endif
 
 #ifdef HAVE_AESGCM
-typedef struct Gmac {
+struct Gmac {
     Aes aes;
-} Gmac;
+};
+
+#ifndef WC_AESGCM_TYPE_DEFINED
+    typedef struct Gmac Gmac;
+    #define WC_AESGCM_TYPE_DEFINED
+#endif
+
 #endif /* HAVE_AESGCM */
 #endif /* HAVE_FIPS */
 
@@ -657,6 +690,28 @@ WOLFSSL_API int wc_AesXtsEncryptConsecutiveSectors(XtsAes* aes,
 WOLFSSL_API int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes,
         byte* out, const byte* in, word32 sz, word64 sector,
         word32 sectorSz);
+
+#ifdef WOLFSSL_AESXTS_STREAM
+
+WOLFSSL_API int wc_AesXtsEncryptInit(XtsAes* aes, const byte* i, word32 iSz,
+         struct XtsAesStreamData *stream);
+
+WOLFSSL_API int wc_AesXtsDecryptInit(XtsAes* aes, const byte* i, word32 iSz,
+         struct XtsAesStreamData *stream);
+
+WOLFSSL_API int wc_AesXtsEncryptUpdate(XtsAes* aes, byte* out,
+         const byte* in, word32 sz, struct XtsAesStreamData *stream);
+
+WOLFSSL_API int wc_AesXtsDecryptUpdate(XtsAes* aes, byte* out,
+         const byte* in, word32 sz, struct XtsAesStreamData *stream);
+
+WOLFSSL_API int wc_AesXtsEncryptFinal(XtsAes* aes, byte* out,
+         const byte* in, word32 sz, struct XtsAesStreamData *stream);
+
+WOLFSSL_API int wc_AesXtsDecryptFinal(XtsAes* aes, byte* out,
+         const byte* in, word32 sz, struct XtsAesStreamData *stream);
+
+#endif /* WOLFSSL_AESXTS_STREAM */
 
 WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
 #endif

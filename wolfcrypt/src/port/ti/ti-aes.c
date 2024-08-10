@@ -1,6 +1,6 @@
 /* port/ti/ti-aes.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -465,7 +465,7 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, &M, &L);
-    if (ret == BAD_FUNC_ARG) {
+    if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         return ret;
     }
 
@@ -545,9 +545,9 @@ static int AesAuthEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
 exit:
-    if (in_save)    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (out_save)   XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (authIn_save)XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -565,7 +565,7 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     ret = AesAuthArgCheck(aes, out, in, inSz, nonce, nonceSz, authTag,
         authTagSz, &M, &L);
-    if (ret == BAD_FUNC_ARG) {
+    if (ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
         return ret;
     }
 
@@ -645,9 +645,9 @@ static int AesAuthDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     }
 
 exit:
-    if (in_save)    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (out_save)   XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (authIn_save)XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(in_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(out_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(authIn_save, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

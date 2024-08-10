@@ -1,6 +1,6 @@
 /* sha3.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,6 +34,11 @@
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_sha3_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SHA3_sanity(void);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -119,6 +124,16 @@ struct wc_Sha3 {
 
     void*  heap;
 
+#ifdef WOLF_CRYPTO_CB
+    int    devId;
+#endif
+
+#ifdef WC_C_DYNAMIC_FALLBACK
+    void (*sha3_block)(word64 *s);
+    void (*sha3_block_n)(word64 *s, const byte* data, word32 n,
+        word64 c);
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -135,7 +150,10 @@ struct wc_Sha3 {
 #endif
 
 #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
-typedef wc_Sha3 wc_Shake;
+    #ifndef WC_SHAKE_TYPE_DEFINED
+        typedef wc_Sha3 wc_Shake;
+        #define WC_SHAKE_TYPE_DEFINED
+    #endif
 #endif
 
 WOLFSSL_API int wc_InitSha3_224(wc_Sha3* sha3, void* heap, int devId);
@@ -202,7 +220,8 @@ WOLFSSL_LOCAL void sha3_block_bmi2(word64* s);
 WOLFSSL_LOCAL void sha3_block_avx2(word64* s);
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #endif
-#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARMASM_CRYPTO_SHA3)
+#if defined(WOLFSSL_ARMASM) && (defined(__arm__) || \
+    defined(WOLFSSL_ARMASM_CRYPTO_SHA3))
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #endif
 

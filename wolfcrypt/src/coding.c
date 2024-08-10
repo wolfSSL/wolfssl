@@ -1,6 +1,6 @@
 /* coding.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -181,7 +181,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         byte e1, e2, e3, e4;
 
         if ((ret = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (ret == BUFFER_E) {
+            if (ret == WC_NO_ERR_TRACE(BUFFER_E)) {
                 /* Running out of buffer here is not an error */
                 break;
             }

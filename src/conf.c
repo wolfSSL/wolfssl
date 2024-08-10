@@ -1,6 +1,6 @@
 /* conf.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -146,9 +146,7 @@ error:
         wolfSSL_TXT_DB_free(ret);
         ret = NULL;
     }
-    if (buf) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -793,8 +791,7 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
     return ret ? ret : str;
 
 expand_cleanup:
-    if (ret)
-        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
     return NULL;
 }
 
@@ -961,8 +958,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
 cleanup:
     if (in)
         wolfSSL_BIO_free(in);
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (eline)
         *eline = line;
     return ret;
@@ -986,13 +982,11 @@ void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
         if (val->name) {
             /* Not a section. Don't free section as it is a shared pointer. */
             XFREE(val->name, NULL, DYNAMIC_TYPE_OPENSSL);
-            if (val->value)
-                XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
         }
         else {
             /* Section so val->value is a stack */
-            if (val->section)
-                XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Only free the stack structures. The contained conf values
              * will be freed in wolfSSL_NCONF_free */
             sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE)*)val->value;
@@ -1598,5 +1592,34 @@ int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
 /*******************************************************************************
  * END OF CONF API
  ******************************************************************************/
+
+#if defined(OPENSSL_EXTRA)
+OPENSSL_INIT_SETTINGS* wolfSSL_OPENSSL_INIT_new(void)
+{
+    OPENSSL_INIT_SETTINGS* init = (OPENSSL_INIT_SETTINGS*)XMALLOC(
+            sizeof(OPENSSL_INIT_SETTINGS), NULL, DYNAMIC_TYPE_OPENSSL);
+
+    return init;
+}
+
+void wolfSSL_OPENSSL_INIT_free(OPENSSL_INIT_SETTINGS* init)
+{
+    XFREE(init, NULL, DYNAMIC_TYPE_OPENSSL);
+}
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS* init,
+        char* appname)
+{
+    (void)init;
+    (void)appname;
+    WOLFSSL_STUB("OPENSSL_INIT_set_config_appname");
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
+#endif /* OPENSSL_EXTRA */
+
+
 
 #endif /* WOLFSSL_CONF_INCLUDED */

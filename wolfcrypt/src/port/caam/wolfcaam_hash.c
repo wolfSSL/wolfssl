@@ -1,6 +1,6 @@
 /* wolfcaam_hash.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -26,7 +26,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_CAAM) && defined(WOLFSSL_CAAM_HASH) \
-	&& !defined(WOLFSSL_IMXRT1170_CAAM)
+        && !defined(WOLFSSL_IMXRT1170_CAAM)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

@@ -1,6 +1,6 @@
 /* falcon.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -75,7 +75,7 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     {
         ret = wc_CryptoCb_PqcSign(in, inLen, out, outLen, rng,
                                   WC_PQC_SIG_TYPE_FALCON, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0;
@@ -173,7 +173,7 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     {
         ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, res,
                                     WC_PQC_SIG_TYPE_FALCON, key);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
         ret = 0;
@@ -469,7 +469,8 @@ static int parse_private_key(const byte* priv, word32 privSz,
 
     /* At this point, it is still a PKCS8 private key. */
     if ((ret = ToTraditionalInline(priv, &idx, privSz)) < 0) {
-        return ret;
+        /* ignore error, did not have PKCS8 header */
+        (void)ret;
     }
 
     /* Now it is a octet_string(concat(priv,pub)) */

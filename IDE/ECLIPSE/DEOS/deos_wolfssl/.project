@@ -240,9 +240,9 @@
 			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/fe_operations.c</locationURI>
 		</link>
 		<link>
-			<name>wolfcrypt/src/fe_x25519_128.i</name>
+			<name>wolfcrypt/src/fe_x25519_128.h</name>
 			<type>1</type>
-			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/fe_x25519_128.i</locationURI>
+			<locationURI>WOLFSSL_ROOT/wolfcrypt/src/fe_x25519_128.h</locationURI>
 		</link>
 		<link>
 			<name>wolfcrypt/src/fp_mont_small.i</name>

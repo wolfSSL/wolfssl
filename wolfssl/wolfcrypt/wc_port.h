@@ -1,6 +1,6 @@
 /* wc_port.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -59,7 +59,9 @@
 #endif /* WOLFSSL_LINUXKM */
 
 /* THREADING/MUTEX SECTION */
-#ifdef USE_WINDOWS_API
+#if defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
+    /* No system headers required for build. */
+#elif defined(USE_WINDOWS_API)
     #if defined(WOLFSSL_PTHREADS)
         #include <pthread.h>
     #endif
@@ -80,7 +82,7 @@
             #endif
         #endif /* WOLFSSL_SGX */
     #endif
-    #ifndef SINGLE_THREADED
+    #if !defined(SINGLE_THREADED) && !defined(_WIN32_WCE)
         #include <process.h>
     #endif
 #elif defined(THREADX)
@@ -145,13 +147,20 @@
 #elif defined(WOLFSSL_APACHE_MYNEWT)
     /* do nothing */
 #elif defined(WOLFSSL_ZEPHYR)
+    #include <version.h>
     #ifndef SINGLE_THREADED
-        #ifndef CONFIG_PTHREAD_IPC
-            #error "Need CONFIG_PTHREAD_IPC for threading"
+        #if !defined(CONFIG_PTHREAD_IPC) && !defined(CONFIG_POSIX_THREADS)
+            #error "Threading needs CONFIG_PTHREAD_IPC / CONFIG_POSIX_THREADS"
         #endif
+    #if KERNEL_VERSION_NUMBER >= 0x30100
         #include <zephyr/kernel.h>
         #include <zephyr/posix/posix_types.h>
         #include <zephyr/posix/pthread.h>
+    #else
+        #include <kernel.h>
+        #include <posix/posix_types.h>
+        #include <posix/pthread.h>
+    #endif
     #endif
 #elif defined(WOLFSSL_TELIT_M2MB)
 
@@ -335,7 +344,11 @@
 #endif
 #elif defined(_MSC_VER)
     /* Use MSVC compiler intrinsics for atomic ops */
-    #include <intrin.h>
+    #ifdef _WIN32_WCE
+        #include <armintr.h>
+    #else
+        #include <intrin.h>
+    #endif
     typedef volatile long wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_OPS
 #endif
@@ -702,16 +715,23 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS     fgets
     #define XFPRINTF   fprintf
     #define XFFLUSH    fflush
+    #define XFEOF(fp)  feof(fp)
+    #define XFERROR(fp) ferror(fp)
+    #define XCLEARERR(fp) clearerr(fp)
 
     #if !defined(NO_WOLFSSL_DIR)\
         && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
         #if defined(USE_WINDOWS_API)
+            #include <io.h>
             #include <sys/stat.h>
             #ifndef XSTAT
                 #define XSTAT       _stat
             #endif
             #define XS_ISREG(s) (s & _S_IFREG)
             #define SEPARATOR_CHAR ';'
+            #define XWRITE      _write
+            #define XREAD       _read
+            #define XALTHOMEVARNAME "USERPROFILE"
 
         #elif defined(ARDUINO)
             #ifndef XSTAT
@@ -765,6 +785,15 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
     #ifndef MAX_PATH
         #define MAX_PATH (260 + 1)
+    #endif
+    #ifndef XFEOF
+        #define XFEOF(fp)  0
+    #endif
+    #ifndef XFERROR
+        #define XFERROR(fp) 0
+    #endif
+    #ifndef XCLEARERR
+        #define XCLEARERR(fp) WC_DO_NOTHING
     #endif
 
     WOLFSSL_LOCAL int wc_FileLoad(const char* fname, unsigned char** buf,
@@ -832,6 +861,25 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSPRINTF   sprintf
 #endif
 
+#ifdef USE_WINDOWS_API
+    #ifndef SOCKET_T
+        #ifdef __MINGW64__
+            typedef size_t SOCKET_T;
+        #else
+            typedef unsigned int SOCKET_T;
+        #endif
+    #endif
+    #ifndef SOCKET_INVALID
+        #define SOCKET_INVALID INVALID_SOCKET
+    #endif
+#else
+    #ifndef SOCKET_T
+        typedef int SOCKET_T;
+    #endif
+    #ifndef SOCKET_INVALID
+        #define SOCKET_INVALID (-1)
+    #endif
+#endif
 
 /* MIN/MAX MACRO SECTION */
 /* Windows API defines its own min() macro. */
@@ -999,8 +1047,13 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define USE_WOLF_TIME_T
 
 #elif defined(WOLFSSL_ZEPHYR)
+    #include <version.h>
     #ifndef _POSIX_C_SOURCE
-        #include <zephyr/posix/time.h>
+        #if KERNEL_VERSION_NUMBER >= 0x30100
+            #include <zephyr/posix/time.h>
+        #else
+            #include <posix/time.h>
+        #endif
     #else
         #include <time.h>
     #endif

@@ -1,6 +1,6 @@
 /* dtls13.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -396,7 +396,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
          * WANT_WRITE means that we are done with processing the msg and we are
          * waiting to flush the output buffer. */
         if ((ret == 0 || ret == WANT_WRITE) || (msg->type == certificate_request &&
-                         ssl->options.handShakeDone && ret == WC_PENDING_E)) {
+                         ssl->options.handShakeDone &&
+                         ret == WC_NO_ERR_TRACE(WC_PENDING_E))) {
             if (IsAtLeastTLSv1_3(ssl->version))
                 Dtls13MsgWasProcessed(ssl, (enum HandShakeType)msg->type);
             else if (downgraded)
@@ -810,9 +811,7 @@ static void Dtls13MaybeSaveClientHello(WOLFSSL* ssl)
         while (r != NULL) {
             if (r->handshakeType == client_hello) {
                 Dtls13RtxRecordUnlink(ssl, prev_next, r);
-                if (ssl->dtls13ClientHello != NULL)
-                    XFREE(ssl->dtls13ClientHello, ssl->heap,
-                        DYNAMIC_TYPE_DTLS_MSG);
+                XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
                 ssl->dtls13ClientHello = r->data;
                 ssl->dtls13ClientHelloSz = r->length;
                 r->data = NULL;

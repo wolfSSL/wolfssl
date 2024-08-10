@@ -1,6 +1,6 @@
 /* quic.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -82,7 +82,7 @@ static QuicRecord *quic_record_make(WOLFSSL *ssl,
             qr->capacity = qr->len = (word32)len;
         }
         else {
-            qr->capacity = qr->len = qr_length(data, len);
+            qr->capacity = qr->len = (word32) qr_length(data, len);
             if (qr->capacity > WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
                 WOLFSSL_MSG("QUIC length read larger than expected");
                 quic_record_free(ssl, qr);
@@ -123,17 +123,17 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         missing = 4 - qr->end;
         if (len < missing) {
             XMEMCPY(qr->data + qr->end, data, len);
-            qr->end += len;
+            qr->end += (word32)len;
             consumed = len;
             goto cleanup; /* len consumed, but qr->len still unknown */
         }
         XMEMCPY(qr->data + qr->end, data, missing);
-        qr->end += missing;
+        qr->end += (word32)missing;
         len -= missing;
         data += missing;
         consumed = missing;
 
-        qr->len = qr_length(qr->data, qr->end);
+        qr->len = (word32)qr_length(qr->data, qr->end);
 
         /* sanity check on length read from wire before use */
         if (qr->len > WOLFSSL_QUIC_MAX_RECORD_CAPACITY) {
@@ -163,7 +163,7 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         len = missing;
     }
     XMEMCPY(qr->data + qr->end, data, len);
-    qr->end += len;
+    qr->end += (word32)len;
     consumed += len;
 
 cleanup:
@@ -172,7 +172,7 @@ cleanup:
 }
 
 
-static word32 add_rec_header(byte* output, word32 length, int type)
+static word32 add_rec_header(byte* output, word32 length, byte type)
 {
     RecordLayerHeader* rl;
 
@@ -188,15 +188,21 @@ static word32 add_rec_header(byte* output, word32 length, int type)
     return RECORD_HEADER_SZ;
 }
 
-static word32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
+static sword32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
 {
     word32 len = qr->end - qr->start;
     word32 offset = 0;
-    word16 rlen;
+    word32 rlen;
 
     if (len <= 0) {
         return 0;
     }
+
+    /* We check if the buf is at least RECORD_HEADER_SZ */
+    if (sz < RECORD_HEADER_SZ) {
+        return -1;
+    }
+
     if (qr->rec_hdr_remain == 0) {
         /* start a new TLS record */
         rlen = (qr->len <= (word32)MAX_RECORD_SIZE) ?
@@ -218,7 +224,7 @@ static word32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
         qr->start += len;
         qr->rec_hdr_remain -= len;
     }
-    return len + offset;
+    return (sword32)(len + offset);
 }
 
 
@@ -236,7 +242,7 @@ const QuicTransportParam* QuicTransportParam_new(const uint8_t* data,
         return NULL;
     }
     XMEMCPY((uint8_t*)tp->data, data, len);
-    tp->len = len;
+    tp->len = (word16)len;
     return tp;
 }
 
@@ -766,7 +772,7 @@ cleanup:
 /* Called internally when SSL wants a certain amount of input. */
 int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
-    word32 n = 0;
+    sword32 n = 0;
     int transferred = 0;
 
     WOLFSSL_ENTER("wolfSSL_quic_receive");
@@ -774,6 +780,11 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
         n = 0;
         if (ssl->quic.input_head) {
             n = quic_record_transfer(ssl->quic.input_head, buf, sz);
+
+            /* record too small to be fit into a RecordLayerHeader struct. */
+            if (n == -1) {
+                return -1;
+            }
             if (quic_record_done(ssl->quic.input_head)) {
                 QuicRecord* qr = ssl->quic.input_head;
                 ssl->quic.input_head = qr->next;
@@ -791,9 +802,9 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
             ssl->error = transferred = WANT_READ;
             goto cleanup;
         }
-        sz -= n;
+        sz -= (word32)n;
         buf += n;
-        transferred += n;
+        transferred += (int)n;
     }
 cleanup:
     WOLFSSL_LEAVE("wolfSSL_quic_receive", transferred);
@@ -836,8 +847,8 @@ static int wolfSSL_quic_send_internal(WOLFSSL* ssl)
                 goto cleanup;
             }
             output += len;
-            length -= len;
-            ssl->quic.output_rec_remain -= len;
+            length -= (word32)len;
+            ssl->quic.output_rec_remain -= (word32)len;
         }
         else {
             /* at start of a TLS Record */
@@ -990,11 +1001,13 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_aead(WOLFSSL* ssl)
             evp_cipher = wolfSSL_EVP_chacha20_poly1305();
             break;
 #endif
-#if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
         case TLS_AES_128_CCM_SHA256:
-            FALL_THROUGH;
+            evp_cipher = wolfSSL_EVP_aes_128_ccm();
+            break;
         case TLS_AES_128_CCM_8_SHA256:
-            evp_cipher = wolfSSL_EVP_aes_128_ctr();
+            WOLFSSL_MSG("wolfSSL_quic_get_aead: no CCM-8 support in EVP layer");
+            evp_cipher = NULL;
             break;
 #endif
 
@@ -1011,7 +1024,8 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_aead(WOLFSSL* ssl)
     return evp_cipher;
 }
 
-static int evp_cipher_eq(const WOLFSSL_EVP_CIPHER* c1,
+/* currently only used if HAVE_CHACHA && HAVE_POLY1305. */
+WC_MAYBE_UNUSED static int evp_cipher_eq(const WOLFSSL_EVP_CIPHER* c1,
                          const WOLFSSL_EVP_CIPHER* c2)
 {
     /* We could check on nid equality, but we seem to have singulars */
@@ -1034,27 +1048,40 @@ const WOLFSSL_EVP_CIPHER* wolfSSL_quic_get_hp(WOLFSSL* ssl)
     }
 
     switch (cipher->cipherSuite) {
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_COUNTER)
+        /* This has to be CTR even though the spec says that ECB is used for
+         * mask generation. ngtcp2_crypto_hp_mask uses a hack where they pass
+         * in the "ECB" input as the IV for the CTR cipher and then the input
+         * is just a cleared buffer. They do this so that the EVP
+         * init-update-final cycle can be used without the padding that is added
+         * for EVP_aes_(128|256)_ecb. */
+#if defined(WOLFSSL_AES_128)
         case TLS_AES_128_GCM_SHA256:
             evp_cipher = wolfSSL_EVP_aes_128_ctr();
             break;
+#endif
+#if defined(WOLFSSL_AES_256)
         case TLS_AES_256_GCM_SHA384:
             evp_cipher = wolfSSL_EVP_aes_256_ctr();
             break;
+#endif
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case TLS_CHACHA20_POLY1305_SHA256:
             evp_cipher = wolfSSL_EVP_chacha20();
             break;
 #endif
-#if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
+#if !defined(NO_AES) && defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128) && \
+        defined(WOLFSSL_AES_COUNTER)
+        /* This has to be CTR. See comment above. */
         case TLS_AES_128_CCM_SHA256:
-            FALL_THROUGH;
-        case TLS_AES_128_CCM_8_SHA256:
             evp_cipher = wolfSSL_EVP_aes_128_ctr();
             break;
+        case TLS_AES_128_CCM_8_SHA256:
+            WOLFSSL_MSG("wolfSSL_quic_get_hp: no CCM-8 support in EVP layer");
+            evp_cipher = NULL;
+            break;
 #endif
-
         default:
             evp_cipher = NULL;
             break;
@@ -1072,8 +1099,7 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
     size_t ret;
 #ifdef WOLFSSL_SMALL_STACK
-    WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX *)XMALLOC(
-        sizeof(*ctx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    WOLFSSL_EVP_CIPHER_CTX *ctx = wolfSSL_EVP_CIPHER_CTX_new();
     if (ctx == NULL)
         return 0;
 #else
@@ -1083,7 +1109,7 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
     XMEMSET(ctx, 0, sizeof(*ctx));
     if (wolfSSL_EVP_CipherInit(ctx, aead_cipher, NULL, NULL, 0)
         == WOLFSSL_SUCCESS) {
-        ret = ctx->authTagSz;
+        ret = (size_t)ctx->authTagSz;
     } else {
         ret = 0;
     }
@@ -1098,30 +1124,12 @@ size_t wolfSSL_quic_get_aead_tag_len(const WOLFSSL_EVP_CIPHER* aead_cipher)
 
 int wolfSSL_quic_aead_is_gcm(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
-    if (evp_cipher_eq(aead_cipher, wolfSSL_EVP_aes_128_gcm())
-#ifdef WOLFSSL_AES_256
-        || evp_cipher_eq(aead_cipher, wolfSSL_EVP_aes_256_gcm())
-#endif
-    ) {
-        return 1;
-    }
-#else
-    (void)aead_cipher;
-#endif
-    return 0;
+    return WOLFSSL_EVP_CIPHER_mode(aead_cipher) == WOLFSSL_EVP_CIPH_GCM_MODE;
 }
 
 int wolfSSL_quic_aead_is_ccm(const WOLFSSL_EVP_CIPHER* aead_cipher)
 {
-#if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
-    if (evp_cipher_eq(aead_cipher, wolfSSL_EVP_aes_128_ctr())) {
-        return 1;
-    }
-#else
-    (void)aead_cipher;
-#endif
-    return 0;
+    return WOLFSSL_EVP_CIPHER_mode(aead_cipher) == WOLFSSL_EVP_CIPH_CCM_MODE;
 }
 
 int wolfSSL_quic_aead_is_chacha20(const WOLFSSL_EVP_CIPHER* aead_cipher)
@@ -1358,7 +1366,7 @@ int wolfSSL_quic_aead_decrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
         return WOLFSSL_FAILURE;
     }
 
-    enclen -= ctx->authTagSz;
+    enclen -= (size_t)ctx->authTagSz;
     tag = enc + enclen;
 
     if (wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 0) != WOLFSSL_SUCCESS

@@ -1,0 +1,11 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3/README.txt
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3/test.vcxproj
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3/wolfssl-fips.sln
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3/wolfssl-fips.vcxproj
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3/user_settings.h
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3/resource.h
+EXTRA_DIST+= IDE/WIN-SRTP-KDF-140-3/wolfssl-fips.rc

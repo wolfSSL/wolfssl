@@ -1,6 +1,6 @@
 /* suites.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -154,7 +154,7 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
                 printf("suite too long!\n");
                 return 0;
             }
-            XMEMCPY(suite, begin, len);
+            XMEMCPY(suite, begin, (size_t) len);
             suite[len] = '\0';
         }
         else
@@ -660,7 +660,7 @@ static void test_harness(void* vargs)
         return;
     }
 
-    script = (char*)malloc(sz+1);
+    script = (char*)malloc((size_t)(sz+1));
     if (script == 0) {
         fprintf(stderr, "unable to allocate script buffer\n");
         fclose(file);
@@ -668,7 +668,7 @@ static void test_harness(void* vargs)
         return;
     }
 
-    len = fread(script, 1, sz, file);
+    len = (long) fread(script, 1, (size_t)sz, file);
     if (len != sz) {
         fprintf(stderr, "read error\n");
         fclose(file);
@@ -1060,7 +1060,9 @@ int SuiteTest(int argc, char** argv)
 #if defined(HAVE_ECC) && !defined(NO_SHA256) && defined(WOLFSSL_CUSTOM_CURVES) && \
     defined(HAVE_ECC_KOBLITZ) && defined(HAVE_ECC_BRAINPOOL) && \
         /* Intel QuickAssist and Cavium Nitrox do not support custom curves */ \
-        !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM_V)
+        !defined(HAVE_INTEL_QA) && !defined(HAVE_CAVIUM_V) && \
+        /* only supported with newer ASN template code */ \
+        defined(WOLFSSL_ASN_TEMPLATE)
 
     /* TLS non-NIST curves (Koblitz / Brainpool) */
     XSTRLCPY(argv0[1], "tests/test-ecc-cust-curves.conf", sizeof(argv0[1]));

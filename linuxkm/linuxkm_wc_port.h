@@ -1,6 +1,6 @@
 /* linuxkm_wc_port.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -115,6 +115,7 @@
     _Pragma("GCC diagnostic ignored \"-Wdiscarded-qualifiers\"");
     _Pragma("GCC diagnostic ignored \"-Wtype-limits\"");
     _Pragma("GCC diagnostic ignored \"-Wswitch-enum\"");
+    _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
 
     #include <linux/kconfig.h>
     #include <linux/kernel.h>
@@ -333,10 +334,24 @@
 
     #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && \
         defined(CONFIG_X86)
+
+        extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
+        extern void free_wolfcrypt_linuxkm_fpu_states(void);
+        extern __must_check int can_save_vector_registers_x86(void);
+        extern __must_check int save_vector_registers_x86(void);
+        extern void restore_vector_registers_x86(void);
+
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
             #include <asm/i387.h>
         #else
             #include <asm/simd.h>
+        #endif
+        #ifndef CAN_SAVE_VECTOR_REGISTERS
+            #ifdef DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+                #define CAN_SAVE_VECTOR_REGISTERS() (can_save_vector_registers_x86() && (SAVE_VECTOR_REGISTERS2_fuzzer() == 0))
+            #else
+                #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_x86()
+            #endif
         #endif
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) {    \
@@ -361,20 +376,46 @@
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_x86()
         #endif
+
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && (defined(CONFIG_ARM) || defined(CONFIG_ARM64))
+
+        #error kernel module ARM SIMD is not yet tested or usable.
+
         #include <asm/fpsimd.h>
+
+        static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
+        {
+            preempt_disable();
+            if (! may_use_simd()) {
+                preempt_enable();
+                return BAD_STATE_E;
+            } else {
+                fpsimd_preserve_current_state();
+                return 0;
+            }
+        }
+        static inline void restore_vector_registers_arm(void)
+        {
+            fpsimd_restore_current_state();
+            preempt_enable();
+        }
+
         #ifndef SAVE_VECTOR_REGISTERS
             #define SAVE_VECTOR_REGISTERS(fail_clause) { int _svr_ret = save_vector_registers_arm(); if (_svr_ret != 0) { fail_clause } }
         #endif
         #ifndef SAVE_VECTOR_REGISTERS2
             #define SAVE_VECTOR_REGISTERS2() save_vector_registers_arm()
         #endif
+        #ifndef CAN_SAVE_VECTOR_REGISTERS
+            #define CAN_SAVE_VECTOR_REGISTERS() can_save_vector_registers_arm()
+        #endif
         #ifndef RESTORE_VECTOR_REGISTERS
             #define RESTORE_VECTOR_REGISTERS() restore_vector_registers_arm()
         #endif
+
     #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
         #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
-    #endif
+    #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     _Pragma("GCC diagnostic pop");
 
@@ -393,6 +434,25 @@
     #ifdef HAVE_FIPS
         extern int wolfCrypt_FIPS_first(void);
         extern int wolfCrypt_FIPS_last(void);
+        #if FIPS_VERSION3_GE(6,0,0)
+            extern int wolfCrypt_FIPS_AES_sanity(void);
+            extern int wolfCrypt_FIPS_CMAC_sanity(void);
+            extern int wolfCrypt_FIPS_DH_sanity(void);
+            extern int wolfCrypt_FIPS_ECC_sanity(void);
+            extern int wolfCrypt_FIPS_ED25519_sanity(void);
+            extern int wolfCrypt_FIPS_ED448_sanity(void);
+            extern int wolfCrypt_FIPS_HMAC_sanity(void);
+            extern int wolfCrypt_FIPS_KDF_sanity(void);
+            extern int wolfCrypt_FIPS_PBKDF_sanity(void);
+            extern int wolfCrypt_FIPS_DRBG_sanity(void);
+            extern int wolfCrypt_FIPS_RSA_sanity(void);
+            extern int wolfCrypt_FIPS_SHA_sanity(void);
+            extern int wolfCrypt_FIPS_SHA256_sanity(void);
+            extern int wolfCrypt_FIPS_SHA512_sanity(void);
+            extern int wolfCrypt_FIPS_SHA3_sanity(void);
+            extern int wolfCrypt_FIPS_FT_sanity(void);
+            extern int wc_RunAllCast_fips(void);
+        #endif
     #endif
 
     #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
@@ -473,22 +533,37 @@
 
         const unsigned char *_ctype;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+        typeof(kmalloc_noprof) *kmalloc_noprof;
+        typeof(krealloc_noprof) *krealloc_noprof;
+        typeof(kzalloc_noprof) *kzalloc_noprof;
+        typeof(__kvmalloc_node_noprof) *__kvmalloc_node_noprof;
+        typeof(__kmalloc_cache_noprof) *__kmalloc_cache_noprof;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+        typeof(kmalloc_noprof) *kmalloc_noprof;
+        typeof(krealloc_noprof) *krealloc_noprof;
+        typeof(kzalloc_noprof) *kzalloc_noprof;
+        typeof(kvmalloc_node_noprof) *kvmalloc_node_noprof;
+        typeof(kmalloc_trace_noprof) *kmalloc_trace_noprof;
+#else /* <6.10.0 */
         typeof(kmalloc) *kmalloc;
-        typeof(kfree) *kfree;
-        typeof(ksize) *ksize;
         typeof(krealloc) *krealloc;
         #ifdef HAVE_KVMALLOC
         typeof(kvmalloc_node) *kvmalloc_node;
-        typeof(kvfree) *kvfree;
         #endif
-        typeof(is_vmalloc_addr) *is_vmalloc_addr;
-
         #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
             typeof(kmalloc_trace) *kmalloc_trace;
         #else
             typeof(kmem_cache_alloc_trace) *kmem_cache_alloc_trace;
             typeof(kmalloc_order_trace) *kmalloc_order_trace;
         #endif
+#endif /* <6.10.0 */
+        #ifdef HAVE_KVMALLOC
+        typeof(kvfree) *kvfree;
+        #endif
+        typeof(kfree) *kfree;
+        typeof(ksize) *ksize;
+        typeof(is_vmalloc_addr) *is_vmalloc_addr;
 
         typeof(get_random_bytes) *get_random_bytes;
         #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -500,39 +575,15 @@
         #endif
 
         struct task_struct *(*get_current)(void);
-        int (*preempt_count)(void);
 
         #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
 
-            #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
-                typeof(cpu_number) *cpu_number;
-            #else
-                typeof(pcpu_hot) *pcpu_hot;
-            #endif
-            typeof(nr_cpu_ids) *nr_cpu_ids;
-
-            #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && !defined(WOLFSSL_COMMERCIAL_LICENSE)
-                /* note the current and needed version of these were added in af449901b8 (2020-Sep-17) */
-                typeof(migrate_disable) *migrate_disable;
-                typeof(migrate_enable) *migrate_enable;
-            #endif
-
             #ifdef CONFIG_X86
-                typeof(irq_fpu_usable) *irq_fpu_usable;
-                #ifdef WOLFSSL_COMMERCIAL_LICENSE
-                    typeof(fpregs_lock) *fpregs_lock;
-                    typeof(fpregs_lock) *fpregs_unlock;
-                #else /* !WOLFSSL_COMMERCIAL_LICENSE */
-                    /* kernel_fpu_begin() replaced by kernel_fpu_begin_mask() in commit e4512289,
-                     * released in kernel 5.11, backported to 5.4.93
-                     */
-                    #ifdef kernel_fpu_begin
-                        typeof(kernel_fpu_begin_mask) *kernel_fpu_begin_mask;
-                    #else
-                        typeof(kernel_fpu_begin) *kernel_fpu_begin;
-                    #endif
-                    typeof(kernel_fpu_end) *kernel_fpu_end;
-                #endif /* !defined(WOLFSSL_COMMERCIAL_LICENSE) */
+                typeof(allocate_wolfcrypt_linuxkm_fpu_states) *allocate_wolfcrypt_linuxkm_fpu_states;
+                typeof(can_save_vector_registers_x86) *can_save_vector_registers_x86;
+                typeof(free_wolfcrypt_linuxkm_fpu_states) *free_wolfcrypt_linuxkm_fpu_states;
+                typeof(restore_vector_registers_x86) *restore_vector_registers_x86;
+                typeof(save_vector_registers_x86) *save_vector_registers_x86;
             #else /* !CONFIG_X86 */
                 #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
             #endif /* arch */
@@ -553,6 +604,25 @@
         #ifdef HAVE_FIPS
         typeof(wolfCrypt_FIPS_first) *wolfCrypt_FIPS_first;
         typeof(wolfCrypt_FIPS_last) *wolfCrypt_FIPS_last;
+        #if FIPS_VERSION3_GE(6,0,0)
+            typeof(wolfCrypt_FIPS_AES_sanity) *wolfCrypt_FIPS_AES_sanity;
+            typeof(wolfCrypt_FIPS_CMAC_sanity) *wolfCrypt_FIPS_CMAC_sanity;
+            typeof(wolfCrypt_FIPS_DH_sanity) *wolfCrypt_FIPS_DH_sanity;
+            typeof(wolfCrypt_FIPS_ECC_sanity) *wolfCrypt_FIPS_ECC_sanity;
+            typeof(wolfCrypt_FIPS_ED25519_sanity) *wolfCrypt_FIPS_ED25519_sanity;
+            typeof(wolfCrypt_FIPS_ED448_sanity) *wolfCrypt_FIPS_ED448_sanity;
+            typeof(wolfCrypt_FIPS_HMAC_sanity) *wolfCrypt_FIPS_HMAC_sanity;
+            typeof(wolfCrypt_FIPS_KDF_sanity) *wolfCrypt_FIPS_KDF_sanity;
+            typeof(wolfCrypt_FIPS_PBKDF_sanity) *wolfCrypt_FIPS_PBKDF_sanity;
+            typeof(wolfCrypt_FIPS_DRBG_sanity) *wolfCrypt_FIPS_DRBG_sanity;
+            typeof(wolfCrypt_FIPS_RSA_sanity) *wolfCrypt_FIPS_RSA_sanity;
+            typeof(wolfCrypt_FIPS_SHA_sanity) *wolfCrypt_FIPS_SHA_sanity;
+            typeof(wolfCrypt_FIPS_SHA256_sanity) *wolfCrypt_FIPS_SHA256_sanity;
+            typeof(wolfCrypt_FIPS_SHA512_sanity) *wolfCrypt_FIPS_SHA512_sanity;
+            typeof(wolfCrypt_FIPS_SHA3_sanity) *wolfCrypt_FIPS_SHA3_sanity;
+            typeof(wolfCrypt_FIPS_FT_sanity) *wolfCrypt_FIPS_FT_sanity;
+            typeof(wc_RunAllCast_fips) *wc_RunAllCast_fips;
+        #endif
         #endif
 
         #if !defined(WOLFCRYPT_ONLY) && !defined(NO_CERTS)
@@ -621,22 +691,42 @@
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+    /* see include/linux/alloc_tag.h and include/linux/slab.h */
+    #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
+    #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
+    #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
+    #define __kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kvmalloc_node_noprof)
+    #define __kmalloc_cache_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kmalloc_cache_noprof)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+    /* see include/linux/alloc_tag.h and include/linux/slab.h */
+    #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
+    #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
+    #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
+    #define kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node_noprof)
+    #define kmalloc_trace_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace_noprof)
+#else /* <6.10.0 */
     #define kmalloc (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc)
-    #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
-    #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
     #define krealloc (wolfssl_linuxkm_get_pie_redirect_table()->krealloc)
     #define kzalloc(size, flags) kmalloc(size, (flags) | __GFP_ZERO)
     #ifdef HAVE_KVMALLOC
         #define kvmalloc_node (wolfssl_linuxkm_get_pie_redirect_table()->kvmalloc_node)
-        #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
     #endif
-    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
         #define kmalloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_trace)
     #else
         #define kmem_cache_alloc_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmem_cache_alloc_trace)
         #define kmalloc_order_trace (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_order_trace)
     #endif
+#endif /* <6.10.0 */
+
+    #define kfree (wolfssl_linuxkm_get_pie_redirect_table()->kfree)
+    #ifdef HAVE_KVMALLOC
+        #define kvfree (wolfssl_linuxkm_get_pie_redirect_table()->kvfree)
+    #endif
+    #define ksize (wolfssl_linuxkm_get_pie_redirect_table()->ksize)
+
+    #define is_vmalloc_addr (wolfssl_linuxkm_get_pie_redirect_table()->is_vmalloc_addr)
 
     #define get_random_bytes (wolfssl_linuxkm_get_pie_redirect_table()->get_random_bytes)
     #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
@@ -649,38 +739,15 @@
 
     #undef get_current
     #define get_current (wolfssl_linuxkm_get_pie_redirect_table()->get_current)
-    #undef preempt_count
-    #define preempt_count (wolfssl_linuxkm_get_pie_redirect_table()->preempt_count)
 
-    #ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-        #if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
-            #define cpu_number (*(wolfssl_linuxkm_get_pie_redirect_table()->cpu_number))
-        #else
-            #define pcpu_hot (*(wolfssl_linuxkm_get_pie_redirect_table()->pcpu_hot))
-        #endif
-        #define nr_cpu_ids (*(wolfssl_linuxkm_get_pie_redirect_table()->nr_cpu_ids))
-
-        #if defined(CONFIG_SMP) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && !defined(WOLFSSL_COMMERCIAL_LICENSE)
-            #define migrate_disable (*(wolfssl_linuxkm_get_pie_redirect_table()->migrate_disable))
-            #define migrate_enable (*(wolfssl_linuxkm_get_pie_redirect_table()->migrate_enable))
-        #endif
-
-        #ifdef CONFIG_X86
-            #define irq_fpu_usable (wolfssl_linuxkm_get_pie_redirect_table()->irq_fpu_usable)
-            #ifdef WOLFSSL_COMMERCIAL_LICENSE
-                #define fpregs_lock() (wolfssl_linuxkm_get_pie_redirect_table()->fpregs_lock())
-                #define fpregs_unlock() (wolfssl_linuxkm_get_pie_redirect_table()->fpregs_unlock())
-            #else /* !defined(WOLFSSL_COMMERCIAL_LICENSE) */
-                #ifdef kernel_fpu_begin
-                    #define kernel_fpu_begin_mask (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin_mask)
-                #else
-                    #define kernel_fpu_begin (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_begin)
-                #endif
-                #define kernel_fpu_end (wolfssl_linuxkm_get_pie_redirect_table()->kernel_fpu_end)
-            #endif /* !defined(WOLFSSL_COMMERCIAL_LICENSE) */
-        #else /* !CONFIG_X86 */
-            #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
-        #endif /* archs */
+    #if defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS) && defined(CONFIG_X86)
+        #define allocate_wolfcrypt_linuxkm_fpu_states (wolfssl_linuxkm_get_pie_redirect_table()->allocate_wolfcrypt_linuxkm_fpu_states)
+        #define can_save_vector_registers_x86 (wolfssl_linuxkm_get_pie_redirect_table()->can_save_vector_registers_x86)
+        #define free_wolfcrypt_linuxkm_fpu_states (wolfssl_linuxkm_get_pie_redirect_table()->free_wolfcrypt_linuxkm_fpu_states)
+        #define restore_vector_registers_x86 (wolfssl_linuxkm_get_pie_redirect_table()->restore_vector_registers_x86)
+        #define save_vector_registers_x86 (wolfssl_linuxkm_get_pie_redirect_table()->save_vector_registers_x86)
+    #elif defined(WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS)
+        #error WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS is set for an unsupported architecture.
     #endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     #define __mutex_init (wolfssl_linuxkm_get_pie_redirect_table()->__mutex_init)
@@ -713,40 +780,6 @@
     #endif /* __PIE__ */
 
     #endif /* USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE */
-
-#ifdef WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS
-
-#ifdef CONFIG_X86
-
-    extern __must_check int allocate_wolfcrypt_linuxkm_fpu_states(void);
-    extern void free_wolfcrypt_linuxkm_fpu_states(void);
-    extern __must_check int save_vector_registers_x86(void);
-    extern void restore_vector_registers_x86(void);
-
-#elif defined(CONFIG_ARM) || defined(CONFIG_ARM64)
-
-    #error kernel module ARM SIMD is not yet tested or usable.
-
-    static WARN_UNUSED_RESULT inline int save_vector_registers_arm(void)
-    {
-        preempt_disable();
-        if (! may_use_simd()) {
-            preempt_enable();
-            return BAD_STATE_E;
-        } else {
-            fpsimd_preserve_current_state();
-            return 0;
-        }
-    }
-    static inline void restore_vector_registers_arm(void)
-    {
-        fpsimd_restore_current_state();
-        preempt_enable();
-    }
-
-#endif
-
-#endif /* WOLFSSL_LINUXKM_USE_SAVE_VECTOR_REGISTERS */
 
     /* remove this multifariously conflicting macro, picked up from
      * Linux arch/<arch>/include/asm/current.h.

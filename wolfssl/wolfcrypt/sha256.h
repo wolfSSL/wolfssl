@@ -1,6 +1,6 @@
 /* sha256.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,8 +32,7 @@
 
 #ifndef NO_SHA256
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
@@ -59,6 +58,11 @@
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_sha256_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SHA256_sanity(void);
 #endif
 
 /* avoid redefinition of structs */
@@ -175,13 +179,23 @@ struct wc_Sha256 {
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
     psa_hash_operation_t psa_ctx;
 #else
+#ifdef WC_64BIT_CPU
     /* alignment on digest and buffer speeds up ARMv8 crypto operations */
     ALIGN16 word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
     ALIGN16 word32  buffer[WC_SHA256_BLOCK_SIZE  / sizeof(word32)];
+#else
+    word32  digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+    word32  buffer[WC_SHA256_BLOCK_SIZE  / sizeof(word32)];
+#endif
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
     void*   heap;
+
+#ifdef WC_C_DYNAMIC_FALLBACK
+    int sha_method;
+#endif
+
 #endif
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */

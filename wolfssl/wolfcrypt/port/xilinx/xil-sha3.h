@@ -1,6 +1,6 @@
 /* xil-sha3.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,7 +35,7 @@
 #endif
 
 /* Sha3 digest */
-typedef struct Sha3 {
+typedef struct wc_Sha3 {
 #ifdef WOLFSSL_XILINX_CRYPT_VERSAL
     wc_Xsecure xSec;
 #else

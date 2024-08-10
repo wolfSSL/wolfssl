@@ -1,6 +1,6 @@
 /* sha.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -36,13 +36,13 @@
 
 #if !defined(NO_SHA)
 
-#if defined(HAVE_FIPS) && defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$j")
-        #pragma const_seg(".fipsB$j")
+        #pragma code_seg(".fipsA$k")
+        #pragma const_seg(".fipsB$k")
     #endif
 #endif
 
@@ -118,6 +118,14 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_sha_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000013 };
+    int wolfCrypt_FIPS_SHA_sanity(void)
+    {
+        return 0;
+    }
+#endif
 
 /* Hardware Acceleration */
 #if defined(WOLFSSL_PIC32MZ_HASH)
@@ -433,7 +441,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #define f3(x,y,z) (((x)&(y))|((z)&((x)|(y))))
     #define f4(x,y,z) ((x)^(y)^(z))
 
-    #ifdef WOLFSSL_NUCLEUS_1_2
+    #if defined(WOLFSSL_NUCLEUS_1_2) || defined(NUCLEUS_PLUS_2_3)
         /* nucleus.h also defines R1-R4 */
         #undef R1
         #undef R2
@@ -598,7 +606,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
 #ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_ShaHash(sha, data, len, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         ret = 0; /* reset ret */
         /* fall-through when unavailable */
@@ -817,7 +825,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash)
 #ifdef WOLF_CRYPTO_CB
     if (sha->devId != INVALID_DEVID) {
         ret = wc_CryptoCb_ShaHash(sha, NULL, 0, hash);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -1050,10 +1058,8 @@ void wc_ShaFree(wc_Sha* sha)
      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH) || \
     defined(WOLFSSL_RENESAS_RX64_HASH)
-    if (sha->msg != NULL) {
-        XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        sha->msg = NULL;
-    }
+    XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha->msg = NULL;
 #endif
 #ifdef WOLFSSL_IMXRT_DCP
     DCPShaFree(sha);

@@ -105,6 +105,7 @@ package body Tls_Server with SPARK_Mode is
       Ch : Character;
 
       Result : WolfSSL.Subprogram_Result;
+      DTLS : Boolean;
       Shall_Continue : Boolean := True;
 
       Input  : WolfSSL.Read_Result;
@@ -117,10 +118,29 @@ package body Tls_Server with SPARK_Mode is
          return;
       end if;
 
-      SPARK_Sockets.Create_Socket (Socket => L);
-      if not L.Exists then
-         Put_Line ("ERROR: Failed to create socket.");
+      if SPARK_Terminal.Argument_Count > 1
+         or (SPARK_Terminal.Argument_Count = 1
+         and then SPARK_Terminal.Argument (1) /= "--dtls")
+      then
+         Put_Line ("usage: tls_server_main [--dtls]");
          return;
+      end if;
+
+      DTLS := (SPARK_Terminal.Argument_Count = 1);
+
+      if DTLS then
+         SPARK_Sockets.Create_Datagram_Socket (Socket => L);
+      else
+         SPARK_Sockets.Create_Stream_Socket (Socket => L);
+      end if;
+
+      if not L.Exists then
+         declare
+            Mode : constant String := (if DTLS then "datagram" else "stream");
+         begin
+            Put_Line ("ERROR: Failed to create " & Mode & " socket.");
+            return;
+         end;
       end if;
 
       Option := (Name => Reuse_Address, Enabled => True);
@@ -144,17 +164,32 @@ package body Tls_Server with SPARK_Mode is
          return;
       end if;
 
-      Result := SPARK_Sockets.Listen_Socket (Socket => L.Socket,
-                                             Length => 5);
+      if DTLS then
+         Result := SPARK_Sockets.Receive_Socket (Socket => L.Socket);
+      else
+         Result := SPARK_Sockets.Listen_Socket (Socket => L.Socket,
+                                                Length => 5);
+      end if;
+
       if Result /= Success then
-         Put_Line ("ERROR: Failed to configure listener socket.");
-         SPARK_Sockets.Close_Socket (L);
-         return;
+         declare
+            Operation : constant String := (if DTLS then "receiver" else "listener");
+         begin
+            Put_Line ("ERROR: Failed to configure " & Operation & " socket.");
+            SPARK_Sockets.Close_Socket (L);
+            return;
+         end;
       end if;
 
       --  Create and initialize WOLFSSL_CTX.
-      WolfSSL.Create_Context (Method  => WolfSSL.TLSv1_3_Server_Method,
-                              Context => Ctx);
+      WolfSSL.Create_Context
+        (Method  =>
+           (if DTLS then
+               WolfSSL.DTLSv1_3_Server_Method
+            else
+               WolfSSL.TLSv1_3_Server_Method),
+         Context => Ctx);
+
       if not WolfSSL.Is_Valid (Ctx) then
          Put_Line ("ERROR: failed to create WOLFSSL_CTX.");
          SPARK_Sockets.Close_Socket (L);
@@ -217,16 +252,18 @@ package body Tls_Server with SPARK_Mode is
          pragma Loop_Invariant (not WolfSSL.Is_Valid (Ssl));
          pragma Loop_Invariant (WolfSSL.Is_Valid (Ctx));
 
-         Put_Line ("Waiting for a connection...");
-         SPARK_Sockets.Accept_Socket (Server  => L.Socket,
-                                      Socket  => C,
-                                      Address => A,
-                                      Result  => Result);
-         if Result /= Success then
-            Put_Line ("ERROR: failed to accept the connection.");
-            SPARK_Sockets.Close_Socket (L);
-            WolfSSL.Free (Context => Ctx);
-            return;
+         if not DTLS then
+            Put_Line ("Waiting for a connection...");
+            SPARK_Sockets.Accept_Socket (Server  => L.Socket,
+                                         Socket  => C,
+                                         Address => A,
+                                         Result  => Result);
+            if Result /= Success then
+               Put_Line ("ERROR: failed to accept the connection.");
+               SPARK_Sockets.Close_Socket (L);
+               WolfSSL.Free (Context => Ctx);
+               return;
+            end if;
          end if;
 
          --  Create a WOLFSSL object.
@@ -234,32 +271,45 @@ package body Tls_Server with SPARK_Mode is
          if not WolfSSL.Is_Valid (Ssl) then
             Put_Line ("ERROR: failed to create WOLFSSL object.");
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
          end if;
 
          --  Attach wolfSSL to the socket.
-         Result := WolfSSL.Attach (Ssl    => Ssl,
-                                   Socket => SPARK_Sockets.To_C (C.Socket));
+         Result := WolfSSL.Attach
+           (Ssl    => Ssl,
+            Socket => SPARK_Sockets.To_C (if DTLS then L.Socket else C.Socket));
          if Result /= Success then
             Put_Line ("ERROR: Failed to set the file descriptor.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
          end if;
 
-         --  Establish TLS connection.
+         --  Establish (D)TLS connection.
          Result := WolfSSL.Accept_Connection (Ssl);
          if Result /= Success then
             Put_Line ("Accept error.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
@@ -268,11 +318,15 @@ package body Tls_Server with SPARK_Mode is
          Put_Line ("Client connected successfully.");
 
          Input := WolfSSL.Read (Ssl);
-         if not  Input.Success then
+         if not Input.Success then
             Put_Line ("Read error.");
             WolfSSL.Free (Ssl);
             SPARK_Sockets.Close_Socket (L);
-            SPARK_Sockets.Close_Socket (C);
+
+            if not DTLS then
+               SPARK_Sockets.Close_Socket (C);
+            end if;
+
             WolfSSL.Free (Context => Ctx);
             Set (Exit_Status_Failure);
             return;
@@ -306,15 +360,24 @@ package body Tls_Server with SPARK_Mode is
          end if;
 
          for I in 1 .. 3 loop
+
             Result := WolfSSL.Shutdown (Ssl);
-            exit when Result = Success;
+
+            exit when DTLS or Result = Success;
             delay 0.001;  --  Delay is expressed in seconds.
+
          end loop;
-         if Result /= Success then
+         if not DTLS and then Result /= Success then
             Put_Line ("ERROR: Failed to shutdown WolfSSL context.");
          end if;
+
          WolfSSL.Free (Ssl);
-         SPARK_Sockets.Close_Socket (C);
+
+         if DTLS then
+            Shall_Continue := False;
+         else
+            SPARK_Sockets.Close_Socket (C);
+         end if;
 
          Put_Line ("Shutdown complete.");
       end loop;

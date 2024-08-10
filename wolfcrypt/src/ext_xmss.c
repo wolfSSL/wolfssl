@@ -1,6 +1,6 @@
 /* ext_xmss.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -307,7 +307,7 @@ void wc_XmssKey_Free(XmssKey* key)
  *  returns     BAD_FUNC_ARG when a parameter is NULL.
  *  returns     -1 on failure.
  * */
-int wc_XmssKey_SetWriteCb(XmssKey * key, write_private_key_cb write_cb)
+int wc_XmssKey_SetWriteCb(XmssKey * key, wc_xmss_write_private_key_cb write_cb)
 {
     if (key == NULL || write_cb == NULL) {
         return BAD_FUNC_ARG;
@@ -336,7 +336,7 @@ int wc_XmssKey_SetWriteCb(XmssKey * key, write_private_key_cb write_cb)
  *  returns     BAD_FUNC_ARG when a parameter is NULL.
  *  returns     -1 on failure.
  * */
-int wc_XmssKey_SetReadCb(XmssKey * key, read_private_key_cb read_cb)
+int wc_XmssKey_SetReadCb(XmssKey * key, wc_xmss_read_private_key_cb read_cb)
 {
     if (key == NULL || read_cb == NULL) {
         return BAD_FUNC_ARG;

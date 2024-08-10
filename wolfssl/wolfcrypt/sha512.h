@@ -1,6 +1,6 @@
 /* sha512.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -32,13 +32,17 @@
 #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 
-#if defined(HAVE_FIPS) && \
-    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#if FIPS_VERSION3_GE(2,0,0)
     #include <wolfssl/wolfcrypt/fips.h>
 #endif /* HAVE_FIPS_VERSION >= 2 */
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    extern const unsigned int wolfCrypt_FIPS_sha512_ro_sanity[2];
+    WOLFSSL_LOCAL int wolfCrypt_FIPS_SHA512_sanity(void);
 #endif
 
 /* avoid redefinition of structs */
@@ -147,15 +151,20 @@ struct wc_Sha512 {
 #ifdef USE_INTEL_SPEEDUP
     const byte* data;
 #endif
+#ifdef WC_C_DYNAMIC_FALLBACK
+    int sha_method;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word64* W;
 #endif
+
 #if defined(WOLFSSL_ESP32_CRYPT) && \
    !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) && \
-   !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512)
+    (!defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA512) || \
+     !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA384))
     WC_ESP32SHA ctx;
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)

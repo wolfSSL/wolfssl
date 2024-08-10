@@ -1,6 +1,6 @@
 /* dtls.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -107,14 +107,14 @@ int DtlsIgnoreError(int err)
 {
     /* Whitelist of errors not to ignore */
     switch (err) {
-    case MEMORY_E:
-    case MEMORY_ERROR:
-    case ASYNC_INIT_E:
-    case ASYNC_OP_E:
-    case SOCKET_ERROR_E:
-    case WANT_READ:
-    case WANT_WRITE:
-    case COOKIE_ERROR:
+    case WC_NO_ERR_TRACE(MEMORY_E):
+    case WC_NO_ERR_TRACE(MEMORY_ERROR):
+    case WC_NO_ERR_TRACE(ASYNC_INIT_E):
+    case WC_NO_ERR_TRACE(ASYNC_OP_E):
+    case WC_NO_ERR_TRACE(SOCKET_ERROR_E):
+    case WC_NO_ERR_TRACE(WANT_READ):
+    case WC_NO_ERR_TRACE(WANT_WRITE):
+    case WC_NO_ERR_TRACE(COOKIE_ERROR):
         return 0;
     default:
         return 1;
@@ -187,14 +187,14 @@ typedef struct WolfSSL_CH {
     byte dtls12cookieSet:1;
 } WolfSSL_CH;
 
-static int ReadVector8(const byte* input, WolfSSL_ConstVector* v)
+static word32 ReadVector8(const byte* input, WolfSSL_ConstVector* v)
 {
     v->size = *input;
     v->elements = input + OPAQUE8_LEN;
     return v->size + OPAQUE8_LEN;
 }
 
-static int ReadVector16(const byte* input, WolfSSL_ConstVector* v)
+static word32 ReadVector16(const byte* input, WolfSSL_ConstVector* v)
 {
     word16 size16;
     ato16(input, &size16);
@@ -267,7 +267,7 @@ static int CheckDtlsCookie(const WOLFSSL* ssl, WolfSSL_CH* ch,
             return BUFFER_E;
         ret = TlsCheckCookie(ssl, ch->cookieExt.elements + OPAQUE16_LEN,
                 (word16)(ch->cookieExt.size - OPAQUE16_LEN));
-        if (ret < 0 && ret != HRR_COOKIE_ERROR)
+        if (ret < 0 && ret != WC_NO_ERR_TRACE(HRR_COOKIE_ERROR))
             return ret;
         *cookieGood = ret > 0;
         ret = 0;
@@ -1010,11 +1010,20 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
             ssl->options.dtlsStateful = 1;
             /* Update the window now that we enter the stateful parsing */
 #ifdef WOLFSSL_DTLS13
-            if (isTls13)
+            if (isTls13) {
+                /* Set record numbers before current record number as read */
+                Dtls13Epoch* e;
                 ret = Dtls13UpdateWindowRecordRecvd(ssl);
+                e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
+                if (e != NULL)
+                    XMEMSET(e->window, 0xFF, sizeof(e->window));
+            }
             else
 #endif
                 DtlsUpdateWindow(ssl);
+            /* Set record numbers before current record number as read */
+            XMEMSET(ssl->keys.peerSeq->window, 0xFF,
+                    sizeof(ssl->keys.peerSeq->window));
         }
     }
 
@@ -1141,10 +1150,8 @@ void TLSX_ConnectionID_Free(byte* ext, void* heap)
     info = DtlsCidGetInfoFromExt(ext);
     if (info == NULL)
         return;
-    if (info->rx != NULL)
-        XFREE(info->rx, heap, DYNAMIC_TYPE_TLSX);
-    if (info->tx != NULL)
-        XFREE(info->tx, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(info->rx, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(info->tx, heap, DYNAMIC_TYPE_TLSX);
     XFREE(info, heap, DYNAMIC_TYPE_TLSX);
     DtlsCidUnsetInfoFromExt(ext);
     XFREE(ext, heap, DYNAMIC_TYPE_TLSX);
@@ -1333,10 +1340,8 @@ int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid, unsigned int size)
     if (cidInfo == NULL)
         return WOLFSSL_FAILURE;
 
-    if (cidInfo->rx != NULL) {
-        XFREE(cidInfo->rx, ssl->heap, DYNAMIC_TYPE_TLSX);
-        cidInfo->rx = NULL;
-    }
+    XFREE(cidInfo->rx, ssl->heap, DYNAMIC_TYPE_TLSX);
+    cidInfo->rx = NULL;
 
     /* empty CID */
     if (size == 0)

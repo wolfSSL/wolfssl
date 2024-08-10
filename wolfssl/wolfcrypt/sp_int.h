@@ -1,6 +1,6 @@
 /* sp_int.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -692,12 +692,14 @@ typedef struct sp_ecc_ctx {
  *
  * @param  [in]  a  SP integer to update.
  */
-#define sp_clamp(a)                                               \
-    do {                                                          \
-        int ii;                                                   \
-        for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
-        }                                                         \
-        (a)->used = (unsigned int)ii + 1;                         \
+#define sp_clamp(a)                                                            \
+    do {                                                                       \
+        int ii;                                                                \
+        if ((a)->used > 0) {                                                   \
+            for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
+            }                                                                  \
+            (a)->used = (unsigned int)(ii + 1);                                \
+        }                                                                      \
     } while (0)
 
 /* Check the compiled and linked math implementation are the same.
@@ -996,6 +998,9 @@ MP_API int sp_submod_ct(const sp_int* a, const sp_int* b, const sp_int* m,
 MP_API int sp_addmod_ct(const sp_int* a, const sp_int* b, const sp_int* m,
     sp_int* r);
 #endif
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+MP_API void sp_xor_ct(const sp_int* a, const sp_int* b, int len, sp_int* r);
+#endif
 
 MP_API int sp_lshd(sp_int* a, int s);
 #ifdef WOLFSSL_SP_MATH_ALL
@@ -1144,6 +1149,7 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_submod                           sp_submod
 #define mp_addmod_ct                        sp_addmod_ct
 #define mp_submod_ct                        sp_submod_ct
+#define mp_xor_ct                           sp_xor_ct
 #define mp_lshd                             sp_lshd
 #define mp_rshd                             sp_rshd
 #define mp_div                              sp_div

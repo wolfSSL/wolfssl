@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -79,7 +79,7 @@ int wc_caamSetResource(IODevice ioDev)
 /* used to route crypto operations through crypto callback */
 static int wc_CAAM_router(int devId, wc_CryptoInfo* info, void* ctx)
 {
-    int ret = CRYPTOCB_UNAVAILABLE;
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
 
     (void)ctx;
     (void)devId;
@@ -694,7 +694,7 @@ int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
 }
 #endif /* WOLFSSL_CAAM_BLOB */
 
-/* outSz gets set to key size plus 16 for mac and padding 
+/* outSz gets set to key size plus 16 for mac and padding
  * return 0 on success
  */
 int wc_caamCoverKey(byte* in, word32 inSz, byte* out, word32* outSz, int flag)

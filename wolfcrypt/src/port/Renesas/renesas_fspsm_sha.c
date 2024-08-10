@@ -1,6 +1,6 @@
 /* renesas_fspsm_sha.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -100,10 +100,8 @@ static void FSPSM_HashFree(wolfssl_FSPSM_Hash* hash)
         return;
 
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
-    if (hash->msg != NULL) {
-        XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        hash->msg = NULL;
-    }
+    XFREE(hash->msg, hash->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    hash->msg = NULL;
 #endif
 
 }
@@ -149,14 +147,14 @@ static int FSPSM_HashInit(wolfssl_FSPSM_Hash* hash, void* heap, int devId,
     XMEMSET(hash, 0, sizeof(wolfssl_FSPSM_Hash));
     hash->sha_type = sha_type;
     hash->heap = heap;
-    
+
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     hash->len  = 0;
     hash->used = 0;
     hash->msg  = NULL;
-    
+
 #elif defined(WOLFSSL_RENESAS_RSIP)
-    
+
     switch(hash->sha_type) {
     case FSPSM_SHA1:
         Init = FSPSM_SHA1_Init;
@@ -244,7 +242,7 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
     XMEMCPY(hash->msg + hash->used, data , sz);
     hash->used += sz;
 #elif defined(WOLFSSL_RENESAS_RSIP)
-    
+
     switch(hash->sha_type) {
     case FSPSM_SHA1:
         Update = FSPSM_SHA1_Up;
@@ -271,7 +269,7 @@ static int FSPSM_HashUpdate(wolfssl_FSPSM_Hash* hash,
         return BAD_FUNC_ARG;
     }
     wc_fspsm_hw_lock();
-    ret = Update(&hash->handle, data, sz);
+    ret = Update(&hash->handle, (byte*)data, sz);
     wc_fspsm_hw_unlock();
     return ret;
 #endif
@@ -309,7 +307,7 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         Final = FSPSM_SHA256_Final;
     } else
         return BAD_FUNC_ARG;
-    
+
     wc_fspsm_hw_lock();
 
     if (Init(&handle) == FSP_SUCCESS) {
@@ -328,7 +326,7 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         }
     }
     wc_fspsm_hw_unlock();
-    
+
 #elif defined(WOLFSSL_RENESAS_RSIP)
     switch(hash->sha_type) {
     case FSPSM_SHA1:
@@ -355,7 +353,7 @@ static int FSPSM_HashFinal(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     default:
         return BAD_FUNC_ARG;
     }
-    
+
     wc_fspsm_hw_lock();
     ret = Final(&hash->handle, out, (uint32_t*)&sz);
     if (ret != FSP_SUCCESS) {
@@ -380,7 +378,7 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     fsp_err_t (*Final )(FSPSM_SHA_HANDLE*, uint8_t*, uint32_t*);
     uint32_t sz = 0;
     (void) outSz;
-    
+
 #if defined(WOLFSSL_RENESAS_SCEPROTECT)
     FSPSM_SHA_HANDLE handle;
     fsp_err_t (*Init)(FSPSM_SHA_HANDLE*);
@@ -401,7 +399,7 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         Final = FSPSM_SHA256_Final;
     } else
         return BAD_FUNC_ARG;
-    
+
     wc_fspsm_hw_lock();
     if (Init(&handle) == FSP_SUCCESS) {
         ret = Update(&handle, (uint8_t*)hash->msg, hash->used);
@@ -419,7 +417,7 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         }
     }
     wc_fspsm_hw_unlock();
-    
+
 #elif defined(WOLFSSL_RENESAS_RSIP)
     switch(hash->sha_type) {
     case FSPSM_SHA1:
@@ -446,8 +444,8 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
     default:
         return BAD_FUNC_ARG;
     }
-    
-    
+
+
     if(FSPSM_HashCopy(hash, &hashCopy) != 0) {
         WOLFSSL_MSG("ShaCopy operation failed");
         WOLFSSL_ERROR(WC_HW_E);
@@ -461,7 +459,7 @@ static int FSPSM_HashGet(wolfssl_FSPSM_Hash* hash, byte* out, word32 outSz)
         ret = WC_HW_E;
     }
     wc_fspsm_hw_unlock();
-    
+
 #endif
 
     return ret;

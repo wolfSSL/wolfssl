@@ -1,6 +1,6 @@
 /* lms.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,8 +34,8 @@
 typedef struct LmsKey LmsKey;
 
 /* Private key write and read callbacks. */
-typedef int (*write_private_key_cb)(const byte * priv, word32 privSz, void *context);
-typedef int (*read_private_key_cb)(byte * priv, word32 privSz, void *context);
+typedef int (*wc_lms_write_private_key_cb)(const byte * priv, word32 privSz, void *context);
+typedef int (*wc_lms_read_private_key_cb)(byte * priv, word32 privSz, void *context);
 
 /* Return codes returned by private key callbacks. */
 enum wc_LmsRc {
@@ -75,20 +75,45 @@ enum wc_LmsRc {
 
 /* Predefined LMS/HSS parameter sets for convenience.
  *
- * Not predefining a set with Winternitz=1, because the signatures
+ * Not predefining many sets with Winternitz=1, because the signatures
  * will be large. */
 enum wc_LmsParm {
-    WC_LMS_PARM_NONE      =  0,
-    WC_LMS_PARM_L1_H15_W2 =  1, /* 1 level Merkle tree of 15 height. */
-    WC_LMS_PARM_L1_H15_W4 =  2,
-    WC_LMS_PARM_L2_H10_W2 =  3, /* 2 level Merkle tree of 10 height. */
-    WC_LMS_PARM_L2_H10_W4 =  4,
-    WC_LMS_PARM_L2_H10_W8 =  5,
-    WC_LMS_PARM_L3_H5_W2  =  6, /* 3 level Merkle tree of 5 height. */
-    WC_LMS_PARM_L3_H5_W4  =  7,
-    WC_LMS_PARM_L3_H5_W8  =  8,
-    WC_LMS_PARM_L3_H10_W4 =  9, /* 3 level Merkle tree of 10 height. */
-    WC_LMS_PARM_L4_H5_W8  = 10, /* 4 level Merkle tree of 5 height. */
+    WC_LMS_PARM_NONE = 0,
+    WC_LMS_PARM_L1_H5_W1 = 1,
+    WC_LMS_PARM_L1_H5_W2 = 2,
+    WC_LMS_PARM_L1_H5_W4 = 3,
+    WC_LMS_PARM_L1_H5_W8 = 4,
+    WC_LMS_PARM_L1_H10_W2 = 5,
+    WC_LMS_PARM_L1_H10_W4 = 6,
+    WC_LMS_PARM_L1_H10_W8 = 7,
+    WC_LMS_PARM_L1_H15_W2 = 8,
+    WC_LMS_PARM_L1_H15_W4 = 9,
+    WC_LMS_PARM_L1_H15_W8 = 10,
+    WC_LMS_PARM_L1_H20_W2 = 11,
+    WC_LMS_PARM_L1_H20_W4 = 12,
+    WC_LMS_PARM_L1_H20_W8 = 13,
+    WC_LMS_PARM_L2_H5_W2 = 14,
+    WC_LMS_PARM_L2_H5_W4 = 15,
+    WC_LMS_PARM_L2_H5_W8 = 16,
+    WC_LMS_PARM_L2_H10_W2 = 17,
+    WC_LMS_PARM_L2_H10_W4 = 18,
+    WC_LMS_PARM_L2_H10_W8 = 19,
+    WC_LMS_PARM_L2_H15_W2 = 20,
+    WC_LMS_PARM_L2_H15_W4 = 21,
+    WC_LMS_PARM_L2_H15_W8 = 22,
+    WC_LMS_PARM_L2_H20_W2 = 23,
+    WC_LMS_PARM_L2_H20_W4 = 24,
+    WC_LMS_PARM_L2_H20_W8 = 25,
+    WC_LMS_PARM_L3_H5_W2 = 26,
+    WC_LMS_PARM_L3_H5_W4 = 27,
+    WC_LMS_PARM_L3_H5_W8 = 28,
+    WC_LMS_PARM_L3_H10_W4 = 29,
+    WC_LMS_PARM_L3_H10_W8 = 30,
+    WC_LMS_PARM_L4_H5_W2 = 31,
+    WC_LMS_PARM_L4_H5_W4 = 32,
+    WC_LMS_PARM_L4_H5_W8 = 33,
+    WC_LMS_PARM_L4_H10_W4 = 34,
+    WC_LMS_PARM_L4_H10_W8 = 35,
 };
 
 /* enum wc_LmsState is to help track the state of an LMS/HSS Key. */
@@ -113,9 +138,9 @@ WOLFSSL_API int  wc_LmsKey_GetParameters(const LmsKey * key, int * levels,
     int * height, int * winternitz);
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
 WOLFSSL_API int  wc_LmsKey_SetWriteCb(LmsKey * key,
-    write_private_key_cb write_cb);
+    wc_lms_write_private_key_cb write_cb);
 WOLFSSL_API int  wc_LmsKey_SetReadCb(LmsKey * key,
-    read_private_key_cb read_cb);
+    wc_lms_read_private_key_cb read_cb);
 WOLFSSL_API int  wc_LmsKey_SetContext(LmsKey * key, void * context);
 WOLFSSL_API int  wc_LmsKey_MakeKey(LmsKey * key, WC_RNG * rng);
 WOLFSSL_API int  wc_LmsKey_Reload(LmsKey * key);

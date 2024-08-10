@@ -1,6 +1,6 @@
 /* armv8-32-aes-asm
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_AES
 #ifdef HAVE_AES_DECRYPT
@@ -5304,7 +5304,7 @@ L_AES_GCM_encrypt_end:
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
-#endif /* !__aarch64__ && !__thumb__ */
+#endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

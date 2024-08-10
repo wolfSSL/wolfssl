@@ -334,9 +334,19 @@ openssl ocsp -port $port3 -nmin 1                               \
     "$@"                                                        \
     &
 
+# NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
+# purposes!
+openssl ocsp -port $port4 -nmin 1                         \
+    -index   certs/ocsp/index-ca-and-intermediate-cas.txt \
+    -rsigner certs/ocsp/ocsp-responder-cert.pem           \
+    -rkey    certs/ocsp/ocsp-responder-key.pem            \
+    -CA      certs/ocsp/root-ca-cert.pem                  \
+    "$@"                                                  \
+    &
+
 sleep 0.1
 # "jobs" is not portable for posix. Must use bash interpreter!
-[ $(jobs -r | wc -l) -ne 3 ] && printf '\n\n%s\n' "Setup ocsp responder failed, skipping" && exit 0
+[ $(jobs -r | wc -l) -ne 4 ] && printf '\n\n%s\n' "Setup ocsp responder failed, skipping" && exit 0
 
 printf '\n\n%s\n\n' "All OCSP responders started successfully!"
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
@@ -352,18 +362,18 @@ RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
 
-printf '%s\n\n' "TEST CASE 2 DISABLED PENDING REVIEW"
-#printf '%s\n\n' "------------- TEST CASE 2 SHOULD PASS ------------------------"
-#remove_single_rF $ready_file5
-#./examples/server/server -c certs/ocsp/server3-cert.pem \
-#                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
-#                         -p $port5 &
-#wait_for_readyFile $ready_file5 $server_pid5 $port5
-#./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
-#                         -p $port5
-#RESULT=$?
-#[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 2 failed" && exit 1
-#printf '%s\n\n' "Test PASSED!"
+printf '%s\n\n' "------------- TEST CASE 2 SHOULD PASS ------------------------"
+remove_single_rF $ready_file5
+./examples/server/server -c certs/ocsp/server3-cert.pem \
+                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
+                         -p $port5 &
+server_pid5=$!
+wait_for_readyFile $ready_file5 $server_pid5 $port5
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 3 -v 3 \
+                         -p $port5
+RESULT=$?
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 2 failed" && exit 1
+printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 3 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED SERVER CERT
@@ -498,6 +508,22 @@ RESULT=$?
                  && printf '\n\n%s\n' "Client connection 10 succeeded $RESULT" \
                  && exit 1
 printf '%s\n\n' "Test PASSED!"
+
+
+if ./examples/client/client -? 2>&1 | grep -q 'DTLS'; then
+printf '%s\n\n' "------------- TEST CASE DTLS-1 SHOULD PASS -------------------"
+# client test against our own server - GOOD CERTS
+./examples/server/server -c certs/ocsp/server3-cert.pem \
+                         -k certs/ocsp/server3-key.pem -R $ready_file5 \
+                         -p $port5 -u -v 3 &
+server_pid5=$!
+sleep 0.2
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 2 -u -v 3 \
+                         -p $port5
+RESULT=$?
+[ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection 1 failed" && exit 1
+printf '%s\n\n' "Test PASSED!"
+fi
 
 printf '%s\n\n' "------------------- TESTS COMPLETE ---------------------------"
 

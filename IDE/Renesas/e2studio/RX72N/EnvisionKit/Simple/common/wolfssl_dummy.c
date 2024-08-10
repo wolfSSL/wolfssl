@@ -1,6 +1,6 @@
 /* wolfssl_dummy.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -21,8 +21,8 @@
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 
-#define YEAR 2023
-#define MON  5
+#define YEAR 2024
+#define MON  7
 
 static int tick = 0;
 

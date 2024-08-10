@@ -1,6 +1,6 @@
 /* wolfcaam_seco.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1215,9 +1215,7 @@ word32 wc_SECO_WrapKey(word32 keyId, byte* in, word32 inSz, byte* iv,
         }
     }
 
-    if (wrappedKey != NULL) {
-        XFREE(wrappedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(wrappedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (wc_TranslateHSMError(0, err) != Success) {
         return 0;

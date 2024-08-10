@@ -53,7 +53,7 @@
 /* using the RTC */
 //#define NO_ASN_TIME
 #ifndef NO_ASN_TIME
-	#define FREESCALE_SNVS_RTC
+    #define FREESCALE_SNVS_RTC
 #endif
 
 #define NO_CRYPT_TEST
@@ -64,19 +64,19 @@
     #include <stdarg.h>
     static void myPrintf(const char* fmt, ...)
     {
-	    int ret;
-	    char line[150];
-	    va_list ap;
+        int ret;
+        char line[150];
+        va_list ap;
 
-	    va_start(ap, fmt);
-	    ret = vsnprintf(line, sizeof(line), fmt, ap);
-	    line[sizeof(line)-1] = '\0';
+        va_start(ap, fmt);
+        ret = vsnprintf(line, sizeof(line), fmt, ap);
+        line[sizeof(line)-1] = '\0';
 
-	    DbgConsole_Printf("%s", line);
+        DbgConsole_Printf("%s", line);
 
-	    /* add CR on newlines */
-	    if (ret > 0 && line[ret-1] == '\n') {
-	        DbgConsole_Printf("\r");
+        /* add CR on newlines */
+        if (ret > 0 && line[ret-1] == '\n') {
+            DbgConsole_Printf("\r");
         }
     }
     #define XPRINTF myPrintf

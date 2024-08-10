@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2006-2023 wolfSSL Inc.
+# Copyright (C) 2006-2024 wolfSSL Inc.
 #
 # This file is part of wolfSSL.
 #
@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+#/
 #
 #
 # Component Makefile

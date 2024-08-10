@@ -301,12 +301,15 @@
     <ClCompile Include="wolfcrypt\src\cpuid.c" />
     <ClCompile Include="wolfcrypt\src\cryptocb.c" />
     <ClCompile Include="wolfcrypt\src\des3.c" />
+    <ClCompile Include="wolfcrypt\src\dilithium.c" />
     <ClCompile Include="wolfcrypt\src\dh.c" />
     <ClCompile Include="wolfcrypt\src\dsa.c" />
     <ClCompile Include="wolfcrypt\src\ecc.c" />
     <ClCompile Include="wolfcrypt\src\ed25519.c" />
     <ClCompile Include="wolfcrypt\src\ed448.c" />
     <ClCompile Include="wolfcrypt\src\error.c" />
+    <ClCompile Include="wolfcrypt\src\ext_kyber.c" />
+    <ClCompile Include="wolfcrypt\src\falcon.c" />
     <ClCompile Include="wolfcrypt\src\fe_448.c" />
     <ClCompile Include="wolfcrypt\src\fe_low_mem.c" />
     <ClCompile Include="wolfcrypt\src\fe_operations.c" />
@@ -317,6 +320,8 @@
     <ClCompile Include="wolfcrypt\src\hmac.c" />
     <ClCompile Include="wolfcrypt\src\integer.c" />
     <ClCompile Include="wolfcrypt\src\kdf.c" />
+    <ClCompile Include="wolfcrypt\src\wc_kyber.c" />
+    <ClCompile Include="wolfcrypt\src\wc_kyber_poly.c" />
     <ClCompile Include="wolfcrypt\src\logging.c" />
     <ClCompile Include="wolfcrypt\src\md2.c" />
     <ClCompile Include="wolfcrypt\src\md4.c" />
@@ -335,6 +340,7 @@
     <ClCompile Include="wolfcrypt\src\sha3.c" />
     <ClCompile Include="wolfcrypt\src\sha512.c" />
     <ClCompile Include="wolfcrypt\src\signature.c" />
+    <ClCompile Include="wolfcrypt\src\sphincs.c" />
     <ClCompile Include="wolfcrypt\src\sp_c32.c" />
     <ClCompile Include="wolfcrypt\src\sp_c64.c" />
     <ClCompile Include="wolfcrypt\src\sp_int.c" />
@@ -346,6 +352,7 @@
     <ClCompile Include="wolfcrypt\src\wc_port.c" />
     <ClCompile Include="wolfcrypt\src\wolfmath.c" />
     <ClCompile Include="wolfcrypt\src\wolfevent.c" />
+    <ClCompile Include="wolfcrypt\src\port\liboqs\liboqs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -364,6 +371,48 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
     </CustomBuild>
     <CustomBuild Include="wolfcrypt\src\aes_gcm_asm.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\aes_xts_asm.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\chacha_asm.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="wolfcrypt\src\poly1305_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /c /Zi /Fo"$(OutDir)%(Filename).obj" %(Identity)</Command>

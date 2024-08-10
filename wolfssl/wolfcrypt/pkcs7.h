@@ -1,6 +1,6 @@
 /* pkcs7.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -345,6 +345,10 @@ struct PKCS7 {
     word32 plainDigestSz;
     word32 pkcs7DigestSz;
 
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    wc_UnknownExtCallback unknownExtCallback;
+#endif
+
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
     CallbackRsaSignRawDigest rsaSignRawDigestCb;
 #endif
@@ -354,10 +358,15 @@ struct PKCS7 {
     word32 cachedEncryptedContentSz;
     word16 contentCRLF:1; /* have content line endings been converted to CRLF */
     word16 contentIsPkcs7Type:1; /* eContent follows PKCS#7 RFC not CMS */
+    word16 hashParamsAbsent:1;
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
 WOLFSSL_API PKCS7* wc_PKCS7_New(void* heap, int devId);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    WOLFSSL_API void wc_PKCS7_SetUnknownExtCallback(PKCS7* pkcs7,
+        wc_UnknownExtCallback cb);
+#endif
 WOLFSSL_API int  wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* der, word32 derSz);
 WOLFSSL_API int  wc_PKCS7_AddCertificate(PKCS7* pkcs7, byte* der, word32 derSz);

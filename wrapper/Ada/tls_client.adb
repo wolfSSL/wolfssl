@@ -47,12 +47,18 @@ package body Tls_Client with SPARK_Mode is
       Ada.Text_IO.Put (Text);
    end Put;
 
-   procedure Put (Number : Natural) is
+   procedure Put (Number : Natural)
+   with
+     Annotate => (GNATprove, Might_Not_Return)
+   is
    begin
       Natural_IO.Put (Item => Number, Width => 0, Base => 10);
    end Put;
 
-   procedure Put (Number : Byte_Index) is
+   procedure Put (Number : Byte_Index)
+   with
+     Annotate => (GNATprove, Might_Not_Return)
+   is
    begin
       Natural_IO.Put (Item => Natural (Number), Width => 0, Base => 10);
    end Put;
@@ -137,6 +143,7 @@ package body Tls_Client with SPARK_Mode is
       Output : WolfSSL.Write_Result;
 
       Result : WolfSSL.Subprogram_Result;
+      DTLS   : Boolean;
    begin
       Result := WolfSSL.Initialize;
       if Result /= Success then
@@ -144,14 +151,29 @@ package body Tls_Client with SPARK_Mode is
          return;
       end if;
 
-      if Argument_Count < 1 then
-         Put_Line ("usage: tcl_client <IPv4 address>");
+      if Argument_Count < 1
+         or Argument_Count > 2
+         or (Argument_Count = 2 and then Argument (2) /= "--dtls")
+      then
+         Put_Line ("usage: tls_client_main <IPv4 address> [--dtls]");
          return;
       end if;
-      SPARK_Sockets.Create_Socket (C);
+
+      DTLS := (SPARK_Terminal.Argument_Count = 2);
+
+      if DTLS then
+         SPARK_Sockets.Create_Datagram_Socket (C);
+      else
+         SPARK_Sockets.Create_Stream_Socket (C);
+      end if;
+
       if not C.Exists then
-         Put_Line ("ERROR: Failed to create socket.");
-         return;
+         declare
+            Mode : constant String := (if DTLS then "datagram" else "stream");
+         begin
+            Put_Line ("ERROR: Failed to create " & Mode & " socket.");
+            return;
+         end;
       end if;
 
       Addr := SPARK_Sockets.Inet_Addr (Argument (1));
@@ -167,24 +189,37 @@ package body Tls_Client with SPARK_Mode is
             Addr   => Addr.Addr,
             Port   => P);
 
-      Result := SPARK_Sockets.Connect_Socket (Socket => C.Socket,
-                                              Server => A);
-      if Result /= Success then
-         Put_Line ("ERROR: Failed to connect to server.");
-         SPARK_Sockets.Close_Socket (C);
-         Set (Exit_Status_Failure);
-         return;
+      if not DTLS then
+         Result := SPARK_Sockets.Connect_Socket (Socket => C.Socket,
+                                                 Server => A);
+         if Result /= Success then
+            Put_Line ("ERROR: Failed to connect to server.");
+            SPARK_Sockets.Close_Socket (C);
+            Set (Exit_Status_Failure);
+            return;
+         end if;
       end if;
 
       --  Create and initialize WOLFSSL_CTX.
-      WolfSSL.Create_Context (Method  => WolfSSL.TLSv1_3_Client_Method,
-                              Context => Ctx);
+      WolfSSL.Create_Context
+        (Method  =>
+           (if DTLS then
+               WolfSSL.DTLSv1_3_Client_Method
+            else
+               WolfSSL.TLSv1_3_Client_Method),
+         Context => Ctx);
+
       if not WolfSSL.Is_Valid (Ctx) then
          Put_Line ("ERROR: failed to create WOLFSSL_CTX.");
          SPARK_Sockets.Close_Socket (C);
          Set (Exit_Status_Failure);
          return;
       end if;
+
+      --  Require mutual authentication.
+      WolfSSL.Set_Verify
+         (Context => Ctx,
+          Mode    => WolfSSL.Verify_Peer & WolfSSL.Verify_Fail_If_No_Peer_Cert);
 
       --  Load client certificate into WOLFSSL_CTX.
       Result := WolfSSL.Use_Certificate_File (Context => Ctx,
@@ -239,6 +274,19 @@ package body Tls_Client with SPARK_Mode is
          WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
+      end if;
+
+      if DTLS then
+         Result := WolfSSL.DTLS_Set_Peer(Ssl     => Ssl,
+                                         Address => A);
+         if Result /= Success then
+            Put_Line ("ERROR: Failed to set the DTLS peer.");
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Ssl);
+            WolfSSL.Free (Context => Ctx);
+            Set (Exit_Status_Failure);
+            return;
+         end if;
       end if;
 
       --  Attach wolfSSL to the socket.

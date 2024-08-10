@@ -1,6 +1,6 @@
 /* cmac.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -39,8 +39,8 @@
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$n")
-        #pragma const_seg(".fipsB$n")
+        #pragma code_seg(".fipsA$c")
+        #pragma const_seg(".fipsB$c")
     #endif
 #endif
 
@@ -57,6 +57,15 @@
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_cmac_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000003 };
+    int wolfCrypt_FIPS_CMAC_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 #ifdef WOLFSSL_HASH_KEEP
@@ -125,7 +134,7 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
 
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, NULL, 0, NULL, NULL,
                 type, unused);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -193,7 +202,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, in, inSz,
                 NULL, NULL, 0, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -202,7 +211,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
     /* Clear CRYPTOCB_UNAVAILABLE return code */
     ret = 0;
 
-    while (inSz != 0) {
+    while ((ret == 0) && (inSz != 0)) {
         word32 add = min(inSz, AES_BLOCK_SIZE - cmac->bufferSz);
         XMEMCPY(&cmac->buffer[cmac->bufferSz], in, add);
 
@@ -233,9 +242,7 @@ int wc_CmacFree(Cmac* cmac)
     /* TODO: msg is leaked if wc_CmacFinal() is not called
      * e.g. when multiple calls to wc_CmacUpdate() and one fails but
      * wc_CmacFinal() not called. */
-    if (cmac->msg != NULL) {
-        XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(cmac->msg, cmac->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     wc_AesFree(&cmac->aes);
     ForceZero(cmac, sizeof(Cmac));
@@ -261,7 +268,7 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
     #endif
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, 0, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
     }
@@ -331,7 +338,7 @@ int wc_AesCmacGenerate_ex(Cmac* cmac,
 
         ret = wc_CryptoCb_Cmac(cmac, key, keySz, in, inSz, out, outSz,
                 WC_CMAC_AES, NULL);
-        if (ret != CRYPTOCB_UNAVAILABLE)
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
 
          /* Clear CRYPTOCB_UNAVAILABLE return code */
@@ -405,9 +412,7 @@ int wc_AesCmacGenerate(byte* out, word32* outSz,
 
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (cmac) {
-        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
-    }
+    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif
@@ -440,10 +445,8 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
                                 devId);
     if (ret == 0) {
         compareRet = ConstantCompare(check, a, (int)min(checkSz, aSz));
-    }
-
-    if (ret == 0)
         ret = compareRet ? 1 : 0;
+    }
 
     return ret;
 }
@@ -488,9 +491,7 @@ int wc_AesCmacVerify(const byte* check, word32 checkSz,
                               INVALID_DEVID);
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (cmac) {
-        XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
-    }
+    XFREE(cmac, NULL, DYNAMIC_TYPE_CMAC);
 #elif defined(WOLFSSL_CHECK_MEM_ZERO)
     wc_MemZero_Check(cmac, sizeof(Cmac));
 #endif

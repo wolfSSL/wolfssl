@@ -1,6 +1,6 @@
 /* sp_int.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -210,9 +210,10 @@ This library provides single precision (SP) integer math functions.
 
 
 /* Declare a variable that will be assigned a value on XMALLOC. */
-#define DECL_DYN_SP_INT_ARRAY(n, s, c)  \
-    sp_int* n##d = NULL;            \
-    sp_int* (n)[c] = { NULL, }
+#define DECL_DYN_SP_INT_ARRAY(n, s, c)               \
+    sp_int* n##d = NULL;                             \
+    sp_int* (n)[c];                                  \
+    void *n ## _dummy_var = XMEMSET(n, 0, sizeof(n))
 
 /* DECL_SP_INT_ARRAY: Declare array of 'sp_int'. */
 #if (defined(WOLFSSL_SMALL_STACK) || defined(SP_ALLOC)) && \
@@ -240,6 +241,7 @@ This library provides single precision (SP) integer math functions.
  */
 #define ALLOC_DYN_SP_INT_ARRAY(n, s, c, err, h)                                \
 do {                                                                           \
+    (void)n ## _dummy_var;                                                     \
     if (((err) == MP_OKAY) && ((s) > SP_INT_DIGITS)) {                         \
         (err) = MP_VAL;                                                        \
     }                                                                          \
@@ -8097,6 +8099,27 @@ int sp_submod_ct(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 }
 #endif /* WOLFSSL_SP_MATH_ALL && HAVE_ECC */
 
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC) && \
+    defined(WOLFSSL_ECC_BLIND_K)
+void sp_xor_ct(const sp_int* a, const sp_int* b, int len, sp_int* r)
+{
+    if ((a != NULL) && (b != NULL) && (r != NULL)) {
+        unsigned int i;
+
+        r->used = (len * 8 + SP_WORD_SIZE - 1) / SP_WORD_SIZE;
+        for (i = 0; i < r->used; i++) {
+            r->dp[i] = a->dp[i] ^ b->dp[i];
+        }
+        i = (len * 8) % SP_WORD_SIZE;
+        if (i > 0) {
+            r->dp[r->used - 1] &= ((sp_int_digit)1 << i) - 1;
+        }
+        /* Remove leading zeros. */
+        sp_clamp_ct(r);
+    }
+}
+#endif
+
 /********************
  * Shifting functoins
  ********************/
@@ -8941,9 +8964,7 @@ static int _sp_mul_nxn(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -9019,9 +9040,7 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -9103,9 +9122,7 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -9229,9 +9246,7 @@ static int _sp_mul_4(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (w != NULL) {
-        XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -10228,9 +10243,7 @@ static int _sp_mul_16(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -11036,9 +11049,7 @@ static int _sp_mul_24(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -14684,9 +14695,7 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -14791,9 +14800,7 @@ static int _sp_sqr(const sp_int* a, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -14905,9 +14912,7 @@ static int _sp_sqr_4(const sp_int* a, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (w != NULL) {
-        XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(w, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -15732,9 +15737,7 @@ static int _sp_sqr_16(const sp_int* a, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }
@@ -16307,9 +16310,7 @@ static int _sp_sqr_24(const sp_int* a, sp_int* r)
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
-    if (t != NULL) {
-        XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
-    }
+    XFREE(t, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
 }

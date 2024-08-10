@@ -1,21 +1,21 @@
 #
-#  Copyright (C) 2006-2023 wolfSSL Inc.
+# Copyright (C) 2006-2024 wolfSSL Inc.
 #
-#  This file is part of wolfSSL.
+# This file is part of wolfSSL.
 #
-#  wolfSSL is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
-#  (at your option) any later version.
+# wolfSSL is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 #
-#  wolfSSL is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
+# wolfSSL is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 #
 # cmake for wolfssl Espressif projects
 #
@@ -45,6 +45,11 @@ else()
 endif()
 message(STATUS "THIS_USER = ${THIS_USER}")
 
+if( "$ENV{IDF_PATH}" STREQUAL "" )
+    message(FATAL_ERROR "IDF_PATH Environment variable not set!")
+else()
+    string(REPLACE "\\" "/" THIS_IDF_PATH "$ENV{IDF_PATH}")
+endif()
 
 # COMPONENT_NAME = wolfssl
 # The component name is the directory name. "No feature to change this".
@@ -158,8 +163,8 @@ if(CMAKE_BUILD_EARLY_EXPANSION)
     idf_component_register(
                             REQUIRES "${COMPONENT_REQUIRES}"
                             PRIV_REQUIRES # esp_hw_support
-                                          esp_timer
-                                          driver # this will typically only be needed for wolfSSL benchmark
+                                          # esp_timer
+                                          # driver # this will typically only be needed for wolfSSL benchmark
                            )
 
 else()
@@ -363,6 +368,10 @@ else()
         "\"${WOLFSSL_ROOT}/wolfssl/\""
         "\"${WOLFSSL_ROOT}/wolfssl/wolfcrypt/\""
         "\"${RTOS_IDF_PATH}/\""
+        # wolfSSL release after v5.7 includes WiFi, time, and mem/debug helpers
+        "${THIS_IDF_PATH}/components/esp_event/include"
+        "${THIS_IDF_PATH}/components/esp_netif/include"
+        "${THIS_IDF_PATH}/components/esp_wifi/include"
         )
 
 
@@ -384,7 +393,10 @@ else()
         "\"${WOLFSSL_ROOT}/src/ssl_bn.c\""      # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_certman.c\"" # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_crypto.c\""  # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_load.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/ssl_misc.c\""    # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_p7p12.c\""   # included by ssl.c
+        "\"${WOLFSSL_ROOT}/src/ssl_sess.c\""    # included by ssl.c
         "\"${WOLFSSL_ROOT}/src/x509.c\""
         "\"${WOLFSSL_ROOT}/src/x509_str.c\""
         "\"${WOLFSSL_ROOT}/wolfcrypt/src/evp.c\""

@@ -1,6 +1,6 @@
 /* thumb2-sha512-asm
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,18 +28,11 @@
     #include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && defined(__thumb__)
-#include <stdint.h>
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif /* HAVE_CONFIG_H */
-#include <wolfssl/wolfcrypt/settings.h>
 #ifdef WOLFSSL_ARMASM_INLINE
-
-#ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
@@ -133,7 +126,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "STRD	r10, r11, [sp, #184]\n\t"
         /* Start of loop processing a block */
         "\n"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_SHA512_transform_len_begin:\n\t"
+#else
+    "L_SHA512_transform_len_begin_%=:\n\t"
+#endif
         /* Load, Reverse and Store W */
         "LDR	r4, [%[data]]\n\t"
         "LDR	r5, [%[data], #4]\n\t"
@@ -239,7 +236,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "MOV	r12, #0x4\n\t"
         /* Start of 16 rounds */
         "\n"
+#if defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
     "L_SHA512_transform_len_start:\n\t"
+#else
+    "L_SHA512_transform_len_start_%=:\n\t"
+#endif
         /* Round 0 */
         "LDRD	r4, r5, [%[sha512], #32]\n\t"
         "LSRS	r6, r4, #14\n\t"
@@ -2226,10 +2227,12 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "STRD	r4, r5, [sp, #120]\n\t"
         "ADD	r3, r3, #0x80\n\t"
         "SUBS	r12, r12, #0x1\n\t"
-#ifdef __GNUC__
-        "BNE	L_SHA512_transform_len_start\n\t"
-#else
+#if defined(__GNUC__)
+        "BNE	L_SHA512_transform_len_start_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "BNE.W	L_SHA512_transform_len_start\n\t"
+#else
+        "BNE.W	L_SHA512_transform_len_start_%=\n\t"
 #endif
         /* Round 0 */
         "LDRD	r4, r5, [%[sha512], #32]\n\t"
@@ -3563,10 +3566,12 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
         "SUBS	%[len], %[len], #0x80\n\t"
         "SUB	r3, r3, #0x200\n\t"
         "ADD	%[data], %[data], #0x80\n\t"
-#ifdef __GNUC__
-        "BNE	L_SHA512_transform_len_begin\n\t"
-#else
+#if defined(__GNUC__)
+        "BNE	L_SHA512_transform_len_begin_%=\n\t"
+#elif defined(__IAR_SYSTEMS_ICC__) && (__VER__ < 9000000)
         "BNE.W	L_SHA512_transform_len_begin\n\t"
+#else
+        "BNE.W	L_SHA512_transform_len_begin_%=\n\t"
 #endif
         "EOR	r0, r0, r0\n\t"
         "ADD	sp, sp, #0xc0\n\t"
@@ -3587,7 +3592,4 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
 #endif /* WOLFSSL_SHA512 */
 #endif /* !__aarch64__ && __thumb__ */
 #endif /* WOLFSSL_ARMASM */
-#endif /* !defined(__aarch64__) && defined(__thumb__) */
-#endif /* WOLFSSL_ARMASM */
-
 #endif /* WOLFSSL_ARMASM_INLINE */

@@ -19,7 +19,12 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 --
 
+pragma Warnings (Off, "* is an internal GNAT unit");
+with GNAT.Sockets.Thin_Common;
+pragma Warnings (On, "* is an internal GNAT unit");
+with Interfaces.C.Extensions;
 with Interfaces.C.Strings;
+with System;
 
 package body WolfSSL is
 
@@ -96,6 +101,46 @@ package body WolfSSL is
    begin
       return WolfTLSv1_3_Client_Method;
    end TLSv1_3_Client_Method;
+
+   function WolfDTLSv1_2_Server_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_2_server_method",
+     Import        => True;
+
+   function DTLSv1_2_Server_Method return Method_Type is
+   begin
+      return WolfDTLSv1_2_Server_Method;
+   end DTLSv1_2_Server_Method;
+
+   function WolfDTLSv1_2_Client_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_2_client_method",
+     Import        => True;
+
+   function DTLSv1_2_Client_Method return Method_Type is
+   begin
+      return WolfDTLSv1_2_Client_Method;
+   end DTLSv1_2_Client_Method;
+
+   function WolfDTLSv1_3_Server_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_3_server_method",
+     Import        => True;
+
+   function DTLSv1_3_Server_Method return Method_Type is
+   begin
+      return WolfDTLSv1_3_Server_Method;
+   end DTLSv1_3_Server_Method;
+
+   function WolfDTLSv1_3_Client_Method return Method_Type with
+     Convention    => C,
+     External_Name => "wolfDTLSv1_3_client_method",
+     Import        => True;
+
+   function DTLSv1_3_Client_Method return Method_Type is
+   begin
+      return WolfDTLSv1_3_Client_Method;
+   end DTLSv1_3_Client_Method;
 
    function WolfSSL_CTX_new (Method : Method_Type)
                              return Context_Type with
@@ -486,6 +531,41 @@ package body WolfSSL is
                                         Input'Length, int (Format));
       return Subprogram_Result (Result);
    end Use_Private_Key_Buffer;
+
+   function WolfSSL_DTLS_Set_Peer
+     (ssl    : WolfSSL_Type;
+      peer   : GNAT.Sockets.Thin_Common.Sockaddr_Access;
+      peerSz : Interfaces.C.unsigned)
+      return int with
+     Convention    => C,
+     External_Name => "wolfSSL_dtls_set_peer",
+     Import        => True;
+
+   function DTLS_Set_Peer
+     (Ssl     : WolfSSL_Type;
+      Address : GNAT.Sockets.Sock_Addr_Type)
+      return Subprogram_Result is
+
+      Sin    : aliased GNAT.Sockets.Thin_Common.Sockaddr;
+      Length : Interfaces.C.int;
+
+   begin
+
+      GNAT.Sockets.Thin_Common.Set_Address
+        (Sin     => Sin'Unchecked_Access,
+         Address => Address,
+         Length  => Length);
+
+      pragma Assert (Length >= 0);
+
+      return
+        Subprogram_Result
+          (WolfSSL_DTLS_Set_Peer
+             (ssl    => Ssl,
+              peer   => Sin'Unchecked_Access,
+              peerSz => Interfaces.C.unsigned (Length)));
+
+   end DTLS_Set_Peer;
 
    function WolfSSL_Set_Fd (Ssl : WolfSSL_Type; Fd : int) return int with
      Convention    => C,

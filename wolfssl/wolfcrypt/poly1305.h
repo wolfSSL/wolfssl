@@ -1,6 +1,6 @@
 /* poly1305.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -48,9 +48,16 @@
 #define WC_HAS_GCC_4_4_64BIT
 #endif
 
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
+#ifdef WOLFSSL_X86_64_BUILD
+#if defined(USE_INTEL_SPEEDUP) && !defined(NO_POLY1305_ASM)
+    #define USE_INTEL_POLY1305_SPEEDUP
+    #define HAVE_INTEL_AVX1
+#endif
+#endif
+
+#if defined(USE_INTEL_POLY1305_SPEEDUP)
 #elif (defined(WC_HAS_SIZEOF_INT128_64BIT) || defined(WC_HAS_MSVC_64BIT) ||  \
-       defined(WC_HAS_GCC_4_4_64BIT))
+       defined(WC_HAS_GCC_4_4_64BIT)) && !defined(WOLFSSL_W64_WRAPPER_TEST)
 #define POLY130564
 #else
 #define POLY130532
@@ -67,7 +74,7 @@ enum {
 
 /* Poly1305 state */
 typedef struct Poly1305 {
-#if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
+#ifdef USE_INTEL_POLY1305_SPEEDUP
     word64 r[3];
     word64 h[3];
     word64 pad[2];
@@ -125,9 +132,12 @@ WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, const byte* additional,
     word32 addSz, const byte* input, word32 sz, byte* tag, word32 tagSz);
 
 #if defined(__aarch64__ ) && defined(WOLFSSL_ARMASM)
-void poly1305_blocks(Poly1305* ctx, const unsigned char *m,
+#define poly1305_blocks     poly1305_blocks_aarch64
+#define poly1305_block      poly1305_block_aarch64
+
+void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
                             size_t bytes);
-void poly1305_block(Poly1305* ctx, const unsigned char *m);
+void poly1305_block_aarch64(Poly1305* ctx, const unsigned char *m);
 #endif
 
 #ifdef __cplusplus

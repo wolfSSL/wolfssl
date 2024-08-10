@@ -24,6 +24,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_AUTOSAR
+
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/port/autosar/Csm.h>
 #define BLOCK_SIZE 16
@@ -428,3 +431,5 @@ int main(int argc, char* argv[])
 #endif /* REDIRECTION_CONFIG */
     return ret;
 }
+
+#endif /* WOLFSSL_AUTOSAR */

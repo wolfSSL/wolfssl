@@ -1,6 +1,6 @@
 ; /* aes_asm.asm
 ;  *
-;  * Copyright (C) 2006-2023 wolfSSL Inc.
+; * Copyright (C) 2006-2024 wolfSSL Inc.
 ;  *
 ;  * This file is part of wolfSSL.
 ;  *
@@ -40,7 +40,7 @@ IFDEF HAVE_FIPS
 ENDIF
 
 IF fips_version GE 2
-  fipsAh SEGMENT ALIAS(".fipsA$h") 'CODE'
+  fipsAb SEGMENT ALIAS(".fipsA$b") 'CODE'
 ELSE
   _text SEGMENT
 ENDIF
@@ -1523,7 +1523,7 @@ MAKE_RK256_b:
 
 
 IF fips_version GE 2
-  fipsAh ENDS
+  fipsAb ENDS
 ELSE
   _text ENDS
 ENDIF

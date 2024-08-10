@@ -1,6 +1,6 @@
 /* chacha.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,6 +38,9 @@ Public domain.
 #if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
     /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
+#elif defined(WOLFSSL_RISCV_ASM)
+    /* implementation located in wolfcrypt/src/port/rsicv/riscv-64-chacha.c */
+
 #else
 #if defined(HAVE_CHACHA)
 
@@ -71,6 +74,10 @@ Public domain.
         #define NO_AVX2_SUPPORT
     #elif defined(__clang__) && defined(NO_AVX2_SUPPORT)
         #undef NO_AVX2_SUPPORT
+    #endif
+    #if defined(_MSC_VER) && (_MSC_VER <= 1900)
+        #undef  NO_AVX2_SUPPORT
+        #define NO_AVX2_SUPPORT
     #endif
 
     #ifndef NO_AVX2_SUPPORT

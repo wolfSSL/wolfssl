@@ -16,6 +16,13 @@ EXTRA_DIST += \
 		 certs/ecc/server-secp256k1-cert.der \
 		 certs/ecc/server-secp256k1-cert.pem
 
+EXTRA_DIST += \
+                 certs/ecc/ca-secp256k1-cert.pem \
+                 certs/ecc/ca-secp256k1-key.pem \
+                 certs/ecc/secp256k1-param.pem \
+                 certs/ecc/secp256k1-privkey.pem \
+                 certs/ecc/server2-secp256k1-cert.pem
+
 # Brainpool Curves
 EXTRA_DIST += \
 		 certs/ecc/bp256r1-key.der \

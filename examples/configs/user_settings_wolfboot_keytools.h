@@ -4,7 +4,7 @@
  * Enabled via WOLFSSL_USER_SETTINGS.
  *
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -86,7 +86,7 @@
 #define NO_RABBIT
 #define NO_MD5
 #define NO_SIG_WRAPPER
-#define NO_CERT
+#define NO_CERTS
 #define NO_SESSION_CACHE
 #define NO_HC128
 #define NO_DES3

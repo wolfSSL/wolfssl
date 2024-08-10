@@ -32,6 +32,7 @@ Flavor is one of:
     fips-ready (ready FIPS 140-3)
     fips-dev (dev FIPS 140-3)
     wolfrand
+    wolfentropy
 Keep (default off) retains the temp dir $TEST_DIR for inspection.
 
 Example:
@@ -254,6 +255,41 @@ wolfrand)
     'wolfssl/wolfcrypt/sha256.h:WCv4-stable'
   )
   ;;
+wolfentropy)
+  FIPS_OPTION='v6'
+  FIPS_FILES=(
+    'wolfcrypt/src/fips.c:wolfEntropy1'
+    'wolfcrypt/src/fips_test.c:wolfEntropy1'
+    'wolfcrypt/src/wolfcrypt_first.c:wolfEntropy1'
+    'wolfcrypt/src/wolfcrypt_last.c:wolfEntropy1'
+    'wolfssl/wolfcrypt/fips.h:wolfEntropy1'
+  )
+  WOLFCRYPT_FILES=(
+    'wolfcrypt/src/aes.c:wolfEntropy1'
+    'wolfcrypt/src/aes_asm.asm:wolfEntropy1'
+    'wolfcrypt/src/aes_asm.S:wolfEntropy1'
+    'wolfcrypt/src/aes_gcm_asm.S:wolfEntropy1'
+    'wolfcrypt/src/ecc.c:wolfEntropy1'
+    'wolfcrypt/src/hmac.c:wolfEntropy1'
+    'wolfcrypt/src/kdf.c:wolfEntropy1'
+    'wolfcrypt/src/random.c:wolfEntropy1'
+    'wolfcrypt/src/sha256.c:wolfEntropy1'
+    'wolfcrypt/src/sha256_asm.S:wolfEntropy1'
+    'wolfcrypt/src/sha3.c:wolfEntropy1'
+    'wolfcrypt/src/sha512.c:wolfEntropy1'
+    'wolfcrypt/src/sha512_asm.S:wolfEntropy1'
+    'wolfssl/wolfcrypt/aes.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/ecc.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/fips_test.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/hmac.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/kdf.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/random.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/sha256.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/sha3.h:wolfEntropy1'
+    'wolfssl/wolfcrypt/sha512.h:wolfEntropy1'
+  )
+  ;;
+
 *)
   Usage
   exit 1

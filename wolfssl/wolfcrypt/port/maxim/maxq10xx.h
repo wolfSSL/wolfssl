@@ -1,6 +1,6 @@
 /* maxq10xx.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -96,6 +96,7 @@ WOLFSSL_LOCAL void wc_MAXQ10XX_Sha256Copy(wc_Sha256* sha256);
 WOLFSSL_LOCAL void wc_MAXQ10XX_Sha256Free(wc_Sha256* sha256);
 WOLFSSL_LOCAL int wc_MAXQ10XX_EccSetKey(ecc_key* key, word32 keysize);
 WOLFSSL_LOCAL void wc_MAXQ10XX_EccFree(ecc_key* key);
+WOLFSSL_LOCAL int maxq10xx_random(byte* output, unsigned short sz);
 #endif /* WOLFSSL_MAXQ10XX_CRYPTO */
 
 #ifdef HAVE_PK_CALLBACKS

@@ -115,8 +115,7 @@ build_aria_test() {
 
     # View the available ciphers with:
     echo "checking wolfsl client ssl version numbers SSLv3(0) - TLS1.3(4):"
-    ./examples/client/client -V
-    if [ $? -eq 0 ]; then
+    if ./examples/client/client -V; then
         echo "Confirmed ./examples/client/client operational."
     else
         echo "ERROR ./examples/client/client error = $?"

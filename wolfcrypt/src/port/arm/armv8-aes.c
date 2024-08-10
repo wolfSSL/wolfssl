@@ -1,6 +1,6 @@
 /* armv8-aes.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,14 +35,29 @@
 
 #if !defined(NO_AES) && defined(WOLFSSL_ARMASM)
 
-#if defined(HAVE_FIPS) && !defined(FIPS_NO_WRAPPERS)
-#define FIPS_NO_WRAPPERS
+#if FIPS_VERSION3_LT(6,0,0) && defined(HAVE_FIPS)
+    #undef HAVE_FIPS
+#else
+    #if defined(HAVE_FIPS) && FIPS_VERSION3_GE(6,0,0)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+        #define FIPS_NO_WRAPPERS
+    #endif
+#endif
+
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/logging.h>
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
+                                             { 0x1a2b3c4d, 0x00000002 };
+    int wolfCrypt_FIPS_AES_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
 
-#include <wolfssl/wolfcrypt/aes.h>
-#include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -1517,6 +1532,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         "USHR v7.2d, v7.2d, #56 \n"
 
         "# AAD \n"
+        "CBZ %[a], 20f \n"
         "CBZ %w[aSz], 20f \n"
         "MOV w12, %w[aSz] \n"
 
@@ -1687,6 +1703,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 
         "20: \n"
         "# Cipher Text \n"
+        "CBZ %[c], 120f \n"
         "CBZ %w[cSz], 120f \n"
         "MOV w12, %w[cSz] \n"
 
@@ -16471,8 +16488,6 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
 #else /* !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
-#include <wolfssl/wolfcrypt/logging.h>
-#include <wolfssl/wolfcrypt/aes.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else

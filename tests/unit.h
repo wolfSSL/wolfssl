@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -127,7 +127,7 @@
 #define EXPECT_RESULT() \
     _ret
 #define EXPECT_SUCCESS() \
-    (_ret == TEST_SUCCESS)
+    ((_ret == TEST_SUCCESS) || (_ret == TEST_SKIPPED))
 #define EXPECT_FAIL() \
     (_ret == TEST_FAIL)
 

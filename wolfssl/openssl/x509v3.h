@@ -1,6 +1,6 @@
 /* x509v3.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -145,7 +145,7 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 
 #define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free
 #define AUTHORITY_KEYID_free      wolfSSL_AUTHORITY_KEYID_free
-#define SSL_CTX_get_cert_store(x) wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
+#define SSL_CTX_get_cert_store(x) wolfSSL_CTX_get_cert_store ((x))
 #define ASN1_INTEGER              WOLFSSL_ASN1_INTEGER
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
 #define X509V3_EXT_get            wolfSSL_X509V3_EXT_get

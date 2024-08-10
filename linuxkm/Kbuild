@@ -1,6 +1,6 @@
 # Linux kernel-native Makefile ("Kbuild") for libwolfssl.ko
 #
-# Copyright (C) 2006-2023 wolfSSL Inc.
+# Copyright (C) 2006-2024 wolfSSL Inc.
 #
 # This file is part of wolfSSL.
 #
@@ -18,7 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 
-SHELL=/bin/bash
+SHELL=bash
 
 ifeq "$(WOLFSSL_OBJ_FILES)" ""
     $(error $$WOLFSSL_OBJ_FILES is unset.)
@@ -48,9 +48,17 @@ endif
 
 $(obj)/linuxkm/module_exports.o: $(WOLFSSL_OBJ_TARGETS)
 
+ifndef KERNEL_THREAD_STACK_SIZE
+    ifdef CROSS_COMPILE
+        KERNEL_THREAD_STACK_SIZE=16384
+    endif
+endif
+
 # this mechanism only works in kernel 5.x+ (fallback to hardcoded value)
-hostprogs := linuxkm/get_thread_size
-always-y := $(hostprogs)
+ifndef KERNEL_THREAD_STACK_SIZE
+    hostprogs := linuxkm/get_thread_size
+    always-y := $(hostprogs)
+endif
 
 HOST_EXTRACFLAGS += $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(KBUILD_CFLAGS) -static -fno-omit-frame-pointer
 
@@ -63,8 +71,10 @@ endif
 # this rule is needed to get build to succeed in 4.x (get_thread_size still doesn't get built)
 $(obj)/linuxkm/get_thread_size: $(src)/linuxkm/get_thread_size.c
 
-$(WOLFSSL_OBJ_TARGETS): | $(obj)/linuxkm/get_thread_size
-KERNEL_THREAD_STACK_SIZE=$(shell test -x $(obj)/linuxkm/get_thread_size && $(obj)/linuxkm/get_thread_size || echo 16384)
+ifndef KERNEL_THREAD_STACK_SIZE
+    $(WOLFSSL_OBJ_TARGETS): | $(obj)/linuxkm/get_thread_size
+    KERNEL_THREAD_STACK_SIZE=$(shell test -x $(obj)/linuxkm/get_thread_size && $(obj)/linuxkm/get_thread_size || echo 16384)
+endif
 MAX_STACK_FRAME_SIZE=$(shell echo $$(( $(KERNEL_THREAD_STACK_SIZE) / 4)))
 
 libwolfssl-y := $(WOLFSSL_OBJ_FILES) linuxkm/module_hooks.o linuxkm/module_exports.o
@@ -114,6 +124,16 @@ $(obj)/wolfcrypt/src/aes_xts_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU
 $(obj)/wolfcrypt/src/aes_xts_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/sp_x86_64_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 $(obj)/wolfcrypt/src/sp_x86_64_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/sha256_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha256_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/sha512_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha512_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/sha3_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/sha3_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/chacha_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/chacha_asm.o: OBJECT_FILES_NON_STANDARD := y
+$(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
+$(obj)/wolfcrypt/src/poly1305_asm.o: OBJECT_FILES_NON_STANDARD := y
 
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
@@ -162,17 +182,17 @@ ifneq "$(quiet)" "silent_"
 	@echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
 endif
 
-$(src)/linuxkm/module_exports.c: rename-pie-text-and-data-sections
+$(obj)/linuxkm/module_exports.c: rename-pie-text-and-data-sections
 
 endif
 
 
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
-$(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
+$(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
 	@cp $< $@
-	@readelf --symbols --wide $(WOLFSSL_OBJ_TARGETS) |				\
-		awk '/^ *[0-9]+: / {							\
+	@$(READELF) --symbols --wide $(WOLFSSL_OBJ_TARGETS) |				\
+		$(AWK) '/^ *[0-9]+: / {							\
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}				\
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
 		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", WOLFSSL);";    		\
@@ -180,4 +200,4 @@ $(src)/linuxkm/module_exports.c: $(src)/linuxkm/module_exports.c.template $(WOLF
 		}' >> $@
 	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, WOLFSSL);\n#endif' >> $@
 
-clean-files := module_exports.c linuxkm src wolfcrypt/src wolfcrypt/test wolfcrypt
+clean-files := linuxkm src wolfcrypt

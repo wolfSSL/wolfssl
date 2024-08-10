@@ -1,6 +1,6 @@
 /* ssl_bn.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
- #include <wolfssl/internal.h>
+#include <wolfssl/internal.h>
 #ifndef WC_NO_RNG
     #include <wolfssl/wolfcrypt/random.h>
 #endif

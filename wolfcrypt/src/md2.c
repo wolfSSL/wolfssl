@@ -1,6 +1,6 @@
 /* md2.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -123,7 +123,7 @@ void wc_Md2Final(Md2* md2, byte* hash)
     for (i = 0; i < padLen; i++)
         padding[i] = (byte)padLen;
 
-    wc_Md2Update(md2, padding, padLen);
+    wc_Md2Update(md2, padding, padLen); /* cppcheck-suppress uninitvar */
     wc_Md2Update(md2, md2->C, MD2_BLOCK_SIZE);
 
     XMEMCPY(hash, md2->X, MD2_DIGEST_SIZE);

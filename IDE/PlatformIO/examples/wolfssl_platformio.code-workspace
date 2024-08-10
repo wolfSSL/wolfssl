@@ -1,0 +1,22 @@
+{
+    "folders": [
+        {
+            "name": "wolfsl_test",
+            "path": "wolfsl_test"
+        },
+        {
+            "name": "wolfsl_benchmark",
+            "path": "wolfsl_benchmark"
+        }
+    ],
+	"settings": {
+		"files.associations": {
+			"version.h": "c",
+			"types.h": "c",
+			"settings.h": "c",
+			"freertos.h": "c",
+			"esp32-crypt.h": "c",
+			"esp_log.h": "c"
+		}
+	}
+}

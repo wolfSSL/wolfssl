@@ -83,11 +83,75 @@ Reminder that we build with `make` and not `cmake` in VisualGDB.
 
 Build files will be created in `[project directory]\build`
 
-## ESP-IDF make Commandline (version 3.5 or earlier for the ESP8266)
+See notes below if building a project in a directory other than the examples.
+
+Problems?
+
+- Try deleting any existing `sdkconfig` file and/or `./build` directory to start fresh.
+- Be sure the RTOS SDK is installed and properly configured.
+
+## ESP-IDF `make` Commandline (version 3.5 or earlier for the ESP8266)
+
+In-place example build:
+
+```bash
+export IDF_PATH=~/esp/ESP8266_RTOS_SDK
+export PATH="$PATH:$HOME/esp/xtensa-lx106-elf/bin"
+cd /mnt/c/workspace/wolfssl-master/IDE/Espressif/ESP-IDF/examples/wolfssl_client
+make clean
+make
+```
+
+When building a in a *different directory*, for example assuming the `wolfssl_client` in the wolfssl examples
+directory is copied to the `C:\test\demo` directory in Windows. (aka ` /mnt/c/test/demo` in WSL),
+with a clone of wolfSSL `master` branch in `C:\workspace\wolfssl-master`:
+
+```bash
+cp -r /mnt/c/workspace/wolfssl-master/IDE/Espressif/ESP-IDF/examples/wolfssl_client/* /mnt/c/test/demo
+```
+
+Modify the project `./components/wolfssl/component.mk` file. Adjust `WOLFSSL_ROOT` setting, in this case to a value of:
+
+`WOLFSSL_ROOT := ../../../../workspace/wolfssl-master`
+
+Ensure the path is *relative* to the project `component.mk` file location and *not* absolute.
+
+Note the location of the component makefile in this case is `c:\test\demo\components\wolfssl\component.mk`.
+Thus we need to navigate up 4 parents to the root of `C:\` to find `/mnt/c` in WSL.
+
+Proceed to run `make` from the project directory as usual:
+
+```bash
+# setup environment as needed
+export IDF_PATH=~/esp/ESP8266_RTOS_SDK
+export PATH="$PATH:$HOME/esp/xtensa-lx106-elf/bin"
+
+# copy and navigate to project directory
+mkdir -p /mnt/c/test/demo  
+cp -r /mnt/c/workspace/wolfssl-master/IDE/Espressif/ESP-IDF/examples/wolfssl_client/* /mnt/c/test/demo  
+cd /mnt/c/test/demo
+
+# Clean
+rm -rf ./build
+rm sdkconfig
+make clean
+
+# Edit ./components/wolfssl/component.mk and set WOLFSSL_ROOT value
+# WOLFSSL_ROOT := ../../../../workspace/wolfssl-master
+
+# build the example project
+make
+```
+
+When using `make` there should be details in the build log to indicate
+the assigned path, and the equivalent, fully-qualified path of `WOLFSSL_ROOT`.
 
 ```
-export IDF_PATH=~/esp/ESP8266_RTOS_SDK
-
+*************  wolfssl_client *************
+***********  wolfssl component ************
+WOLFSSL_ROOT defined: ../../../../workspace/wolfssl-master
+WOLFSSL_ROOT actual:  /mnt/c/workspace/wolfssl-master
+********** end wolfssl component **********
 ```
 
 
@@ -158,7 +222,7 @@ Command:
 
 ```
 cd /mnt/c/workspace/wolfssl-$USER/IDE/Espressif/ESP-IDF/examples/wolfssl_server
-. /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
+. /mnt/c/SysGCC/esp32/esp-idf/v5.2/export.sh
 idf.py flash -p /dev/ttyS19 -b 115200 monitor
 ```
 
@@ -184,5 +248,34 @@ I hear you fa shizzle!
 
 ./examples/server/server                   -v 3 -l ECDHE-ECDSA-SM4-CBC-SM3     -c ./certs/sm2/server-sm2.pem -k ./certs/sm2/server-sm2-priv.pem     -A ./certs/sm2/client-sm2.pem -V
 ```
+
+
+#### Linux Client using Kyber to ESP32 Server
+
+```
+# Ensure build with Kyber enabled:
+# ./configure --enable-kyber=all --enable-experimental && make
+
+./examples/client/client  -h 192.168.1.38 -v 4 -l  TLS_AES_128_GCM_SHA256 --pqc KYBER_LEVEL5
+```
+
+#### ESP32 Client to WSL Linux Server
+
+In Windows Powershell, (elevated permissions) forward the port _after_ starting the listening server:
+
+```bash
+netsh interface portproxy add v4tov4 listenport=11111 listenaddress=0.0.0.0 connectport=11111 connectaddress=127.0.0.1
+```
+
+After the server exits, remove the port proxy forward:
+
+```bash
+netsh interface portproxy delete v4tov4 listenport=11111 listenaddress=0.0.0.0
+```
+
+For additional information, see [Accessing network applications with WSL](https://learn.microsoft.com/en-us/windows/wsl/networking).
+
+
+## Additional Information
 
 See the README.md file in the upper level 'examples' directory for [more information about examples](../README.md).

@@ -1,6 +1,6 @@
-#ifndef _TIME_HELPER_H
-/*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+/* PlatformIO wolfssl_test main.c
+ *
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,15 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+#ifndef _MAIN_H_
+#define _MAIN_H_
 
-#ifdef __cplusplus
-extern "C" {
 #endif
-
-int set_time(void);
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
-
-#endif /* #ifndef _TIME_HELPER_H */

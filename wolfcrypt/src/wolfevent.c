@@ -1,6 +1,6 @@
 /* wolfevent.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -55,7 +55,7 @@ int wolfEvent_Init(WOLF_EVENT* event, WOLF_EVENT_TYPE type, void* context)
 
 int wolfEvent_Poll(WOLF_EVENT* event, WOLF_EVENT_FLAG flags)
 {
-    int ret = BAD_COND_E;
+    int ret = WC_NO_ERR_TRACE(BAD_COND_E);
 
     /* Check hardware */
 #ifdef WOLFSSL_ASYNC_CRYPT

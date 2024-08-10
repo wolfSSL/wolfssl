@@ -1,6 +1,6 @@
 /* thumb2-sha512-asm
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -39,7 +39,7 @@
 	.text
 	.type	L_SHA512_transform_len_k, %object
 	.size	L_SHA512_transform_len_k, 640
-	.align	4
+	.align	8
 L_SHA512_transform_len_k:
 	.word	0xd728ae22
 	.word	0x428a2f98
@@ -2319,7 +2319,7 @@ L_SHA512_transform_len_start:
 	STRD	r4, r5, [sp, #120]
 	ADD	r3, r3, #0x80
 	SUBS	r12, r12, #0x1
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA512_transform_len_start
 #else
 	BNE.W	L_SHA512_transform_len_start
@@ -3656,7 +3656,7 @@ L_SHA512_transform_len_start:
 	SUBS	r2, r2, #0x80
 	SUB	r3, r3, #0x200
 	ADD	r1, r1, #0x80
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_SHA512_transform_len_begin
 #else
 	BNE.W	L_SHA512_transform_len_begin

@@ -1,6 +1,6 @@
 /* des3.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,8 +38,8 @@
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$i")
-        #pragma const_seg(".fipsB$i")
+        #pragma code_seg(".fipsA$d")
+        #pragma const_seg(".fipsB$d")
     #endif
 #endif
 
@@ -1602,7 +1602,7 @@
     #ifdef WOLF_CRYPTO_CB
         if (des->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_Des3Encrypt(des, out, in, sz);
-            if (ret != CRYPTOCB_UNAVAILABLE)
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
         }
@@ -1653,7 +1653,7 @@
     #ifdef WOLF_CRYPTO_CB
         if (des->devId != INVALID_DEVID) {
             int ret = wc_CryptoCb_Des3Decrypt(des, out, in, sz);
-            if (ret != CRYPTOCB_UNAVAILABLE)
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
                 return ret;
             /* fall-through when unavailable */
         }

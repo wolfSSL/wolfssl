@@ -1,6 +1,6 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -177,7 +177,8 @@ enum CertType {
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
     ECC_PARAM_TYPE,
-    CHAIN_CERT_TYPE
+    CHAIN_CERT_TYPE,
+    PKCS7_TYPE
 };
 
 
@@ -218,9 +219,9 @@ enum Ctc_SigType {
     CTC_FALCON_LEVEL1 = 273,
     CTC_FALCON_LEVEL5 = 276,
 
-    CTC_DILITHIUM_LEVEL2     = 213,
-    CTC_DILITHIUM_LEVEL3     = 216,
-    CTC_DILITHIUM_LEVEL5     = 220,
+    CTC_DILITHIUM_LEVEL2     = 218,
+    CTC_DILITHIUM_LEVEL3     = 221,
+    CTC_DILITHIUM_LEVEL5     = 225,
 
     CTC_SPHINCS_FAST_LEVEL1  = 281,
     CTC_SPHINCS_FAST_LEVEL3  = 283,
@@ -360,7 +361,6 @@ typedef struct WOLFSSL_ASN1_INTEGER {
 #endif
 #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
-#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef WOLFSSL_MULTI_ATTRIB
 #ifndef CTC_MAX_ATTRIB
     #define CTC_MAX_ATTRIB 4
@@ -374,7 +374,6 @@ typedef struct NameAttrib {
     char value[CTC_NAME_SIZE];   /* name */
 } NameAttrib;
 #endif /* WOLFSSL_MULTI_ATTRIB */
-#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef WOLFSSL_CUSTOM_OID
 typedef struct CertOidField {
@@ -799,8 +798,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || \
-                            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -809,8 +807,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_PQC) && (defined(HAVE_FALCON) || \
-                            defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 

@@ -117,8 +117,8 @@ int set_fixed_default_time(void)
      * but let's set a default time, just in case */
     struct tm timeinfo = {
         .tm_year = 2024 - 1900,
-        .tm_mon  = 1,
-        .tm_mday = 05,
+        .tm_mon  = 3,
+        .tm_mday = 01,
         .tm_hour = 13,
         .tm_min  = 01,
         .tm_sec  = 05
@@ -203,7 +203,8 @@ int set_time_from_string(const char* time_buffer)
             /* we found a match for all componets */
 
             const char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+                                   };
 
             for (int i = 0; i < 12; i++) {
                 if (strcmp(month_str, months[i]) == 0) {
@@ -216,7 +217,7 @@ int set_time_from_string(const char* time_buffer)
             this_timeinfo.tm_hour = hour;
             this_timeinfo.tm_min = minute;
             this_timeinfo.tm_sec = second;
-            this_timeinfo.tm_year = year - 1900; /* Number of years since 1900 */
+            this_timeinfo.tm_year = year - 1900; /* Years since 1900 */
 
             interim_time = mktime(&this_timeinfo);
             now = (struct timeval){ .tv_sec = interim_time };
@@ -350,7 +351,7 @@ int set_time_wait_for_ntp(void)
 
     ret = esp_netif_sntp_sync_wait(500 / portTICK_PERIOD_MS);
 #else
-    ESP_LOGE(TAG, "HAS_ESP_NETIF_SNTP not defined");
+    ESP_LOGW(TAG, "HAS_ESP_NETIF_SNTP not defined");
 #endif /* HAS_ESP_NETIF_SNTP */
     esp_show_current_datetime();
 
@@ -370,7 +371,7 @@ int set_time_wait_for_ntp(void)
 #endif
 
     if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Successfuly set time via NTP servers.");
+        ESP_LOGI(TAG, "Successfully set time via NTP servers.");
         }
     else {
         ESP_LOGW(TAG, "Warning: Failed to set time with NTP: "

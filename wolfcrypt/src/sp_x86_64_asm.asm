@@ -1,6 +1,6 @@
 ; /* sp_x86_64_asm.asm */
 ; /*
-;  * Copyright (C) 2006-2023 wolfSSL Inc.
+;  * Copyright (C) 2006-2024 wolfSSL Inc.
 ;  *
 ;  * This file is part of wolfSSL.
 ;  *
@@ -9712,14 +9712,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_16 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -9736,10 +9736,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9753,10 +9753,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+8]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9770,10 +9770,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+16]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9787,10 +9787,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+24]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9804,10 +9804,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+32]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9821,10 +9821,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+40]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9838,10 +9838,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+48]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9855,10 +9855,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+56]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9872,10 +9872,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+64]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9889,10 +9889,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+72]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9906,10 +9906,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+80]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9923,10 +9923,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+88]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9940,10 +9940,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+96]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9957,10 +9957,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+104]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9974,10 +9974,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+112]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -9991,10 +9991,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+120]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10008,10 +10008,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+128]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10025,10 +10025,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+136]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10042,10 +10042,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+144]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10059,10 +10059,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+152]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10076,10 +10076,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+160]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10093,10 +10093,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+168]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10110,10 +10110,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+176]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10127,10 +10127,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+184]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10144,10 +10144,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+192]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10161,10 +10161,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+200]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10178,10 +10178,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+208]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10195,10 +10195,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+216]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10212,10 +10212,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+224]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10229,10 +10229,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+232]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10246,10 +10246,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+240]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10263,10 +10263,10 @@ sp_2048_get_from_table_16 PROC
         mov	r9, QWORD PTR [rdx+248]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10276,10 +10276,10 @@ sp_2048_get_from_table_16 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 0-7
         ; START: 8-15
@@ -10293,10 +10293,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10311,10 +10311,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10329,10 +10329,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10347,10 +10347,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10365,10 +10365,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10383,10 +10383,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10401,10 +10401,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10419,10 +10419,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10437,10 +10437,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10455,10 +10455,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10473,10 +10473,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10491,10 +10491,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10509,10 +10509,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10527,10 +10527,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10545,10 +10545,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10563,10 +10563,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10581,10 +10581,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10599,10 +10599,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10617,10 +10617,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10635,10 +10635,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10653,10 +10653,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10671,10 +10671,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10689,10 +10689,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10707,10 +10707,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10725,10 +10725,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10743,10 +10743,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10761,10 +10761,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10779,10 +10779,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10797,10 +10797,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10815,10 +10815,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10833,10 +10833,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10851,10 +10851,10 @@ sp_2048_get_from_table_16 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -10864,19 +10864,19 @@ sp_2048_get_from_table_16 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 8-15
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_2048_get_from_table_16 ENDP
@@ -13169,14 +13169,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_2048_get_from_table_32 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -13193,10 +13193,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13210,10 +13210,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+8]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13227,10 +13227,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+16]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13244,10 +13244,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+24]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13261,10 +13261,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+32]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13278,10 +13278,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+40]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13295,10 +13295,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+48]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13312,10 +13312,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+56]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13329,10 +13329,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+64]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13346,10 +13346,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+72]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13363,10 +13363,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+80]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13380,10 +13380,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+88]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13397,10 +13397,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+96]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13414,10 +13414,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+104]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13431,10 +13431,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+112]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13448,10 +13448,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+120]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13465,10 +13465,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+128]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13482,10 +13482,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+136]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13499,10 +13499,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+144]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13516,10 +13516,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+152]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13533,10 +13533,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+160]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13550,10 +13550,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+168]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13567,10 +13567,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+176]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13584,10 +13584,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+184]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13601,10 +13601,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+192]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13618,10 +13618,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+200]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13635,10 +13635,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+208]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13652,10 +13652,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+216]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13669,10 +13669,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+224]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13686,10 +13686,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+232]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13703,10 +13703,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+240]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13720,10 +13720,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+248]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13737,10 +13737,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+256]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13754,10 +13754,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+264]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13771,10 +13771,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+272]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13788,10 +13788,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+280]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13805,10 +13805,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+288]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13822,10 +13822,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+296]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13839,10 +13839,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+304]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13856,10 +13856,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+312]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13873,10 +13873,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+320]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13890,10 +13890,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+328]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13907,10 +13907,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+336]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13924,10 +13924,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+344]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13941,10 +13941,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+352]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13958,10 +13958,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+360]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13975,10 +13975,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+368]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -13992,10 +13992,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+376]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14009,10 +14009,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+384]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14026,10 +14026,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+392]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14043,10 +14043,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+400]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14060,10 +14060,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+408]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14077,10 +14077,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+416]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14094,10 +14094,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+424]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14111,10 +14111,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+432]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14128,10 +14128,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+440]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14145,10 +14145,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+448]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14162,10 +14162,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+456]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14179,10 +14179,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+464]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14196,10 +14196,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+472]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14213,10 +14213,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+480]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14230,10 +14230,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+488]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14247,10 +14247,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+496]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14264,10 +14264,10 @@ sp_2048_get_from_table_32 PROC
         mov	r9, QWORD PTR [rdx+504]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14277,10 +14277,10 @@ sp_2048_get_from_table_32 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 0-7
         ; START: 8-15
@@ -14294,10 +14294,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14312,10 +14312,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14330,10 +14330,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14348,10 +14348,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14366,10 +14366,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14384,10 +14384,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14402,10 +14402,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14420,10 +14420,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14438,10 +14438,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14456,10 +14456,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14474,10 +14474,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14492,10 +14492,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14510,10 +14510,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14528,10 +14528,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14546,10 +14546,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14564,10 +14564,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14582,10 +14582,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14600,10 +14600,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14618,10 +14618,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14636,10 +14636,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14654,10 +14654,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14672,10 +14672,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14690,10 +14690,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14708,10 +14708,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14726,10 +14726,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14744,10 +14744,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14762,10 +14762,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14780,10 +14780,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14798,10 +14798,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14816,10 +14816,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14834,10 +14834,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14852,10 +14852,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14870,10 +14870,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14888,10 +14888,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14906,10 +14906,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14924,10 +14924,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14942,10 +14942,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14960,10 +14960,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14978,10 +14978,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -14996,10 +14996,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15014,10 +15014,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15032,10 +15032,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15050,10 +15050,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15068,10 +15068,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15086,10 +15086,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15104,10 +15104,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15122,10 +15122,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15140,10 +15140,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15158,10 +15158,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15176,10 +15176,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15194,10 +15194,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15212,10 +15212,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15230,10 +15230,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15248,10 +15248,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15266,10 +15266,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15284,10 +15284,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15302,10 +15302,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15320,10 +15320,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15338,10 +15338,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15356,10 +15356,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15374,10 +15374,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15392,10 +15392,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15410,10 +15410,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15428,10 +15428,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15441,10 +15441,10 @@ sp_2048_get_from_table_32 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 8-15
         ; START: 16-23
@@ -15458,10 +15458,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15476,10 +15476,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15494,10 +15494,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15512,10 +15512,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15530,10 +15530,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15548,10 +15548,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15566,10 +15566,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15584,10 +15584,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15602,10 +15602,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15620,10 +15620,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15638,10 +15638,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15656,10 +15656,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15674,10 +15674,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15692,10 +15692,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15710,10 +15710,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15728,10 +15728,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15746,10 +15746,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15764,10 +15764,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15782,10 +15782,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15800,10 +15800,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15818,10 +15818,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15836,10 +15836,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15854,10 +15854,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15872,10 +15872,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15890,10 +15890,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15908,10 +15908,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15926,10 +15926,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15944,10 +15944,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15962,10 +15962,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15980,10 +15980,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -15998,10 +15998,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16016,10 +16016,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16034,10 +16034,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16052,10 +16052,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16070,10 +16070,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16088,10 +16088,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16106,10 +16106,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16124,10 +16124,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16142,10 +16142,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16160,10 +16160,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16178,10 +16178,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16196,10 +16196,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16214,10 +16214,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16232,10 +16232,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16250,10 +16250,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16268,10 +16268,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16286,10 +16286,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16304,10 +16304,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16322,10 +16322,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16340,10 +16340,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16358,10 +16358,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16376,10 +16376,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16394,10 +16394,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16412,10 +16412,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16430,10 +16430,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16448,10 +16448,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16466,10 +16466,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16484,10 +16484,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16502,10 +16502,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16520,10 +16520,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16538,10 +16538,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16556,10 +16556,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16574,10 +16574,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16592,10 +16592,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16605,10 +16605,10 @@ sp_2048_get_from_table_32 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 16-23
         ; START: 24-31
@@ -16622,10 +16622,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16640,10 +16640,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16658,10 +16658,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16676,10 +16676,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16694,10 +16694,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16712,10 +16712,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16730,10 +16730,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16748,10 +16748,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16766,10 +16766,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16784,10 +16784,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16802,10 +16802,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16820,10 +16820,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16838,10 +16838,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16856,10 +16856,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16874,10 +16874,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16892,10 +16892,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16910,10 +16910,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16928,10 +16928,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16946,10 +16946,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16964,10 +16964,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -16982,10 +16982,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17000,10 +17000,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17018,10 +17018,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17036,10 +17036,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17054,10 +17054,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17072,10 +17072,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17090,10 +17090,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17108,10 +17108,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17126,10 +17126,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17144,10 +17144,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17162,10 +17162,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17180,10 +17180,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17198,10 +17198,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17216,10 +17216,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17234,10 +17234,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17252,10 +17252,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17270,10 +17270,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17288,10 +17288,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17306,10 +17306,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17324,10 +17324,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17342,10 +17342,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17360,10 +17360,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17378,10 +17378,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17396,10 +17396,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17414,10 +17414,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17432,10 +17432,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17450,10 +17450,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17468,10 +17468,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17486,10 +17486,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17504,10 +17504,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17522,10 +17522,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17540,10 +17540,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17558,10 +17558,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17576,10 +17576,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17594,10 +17594,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17612,10 +17612,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17630,10 +17630,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17648,10 +17648,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17666,10 +17666,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17684,10 +17684,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17702,10 +17702,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17720,10 +17720,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17738,10 +17738,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17756,10 +17756,10 @@ sp_2048_get_from_table_32 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -17769,19 +17769,19 @@ sp_2048_get_from_table_32 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 24-31
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_2048_get_from_table_32 ENDP
@@ -20598,8 +20598,8 @@ _text SEGMENT READONLY PARA
 sp_2048_lshift_32 PROC
         push	r12
         push	r13
-        mov	cl, r8b
         mov	rax, rcx
+        mov	cl, r8b
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+216]
         mov	r8, QWORD PTR [rdx+224]
@@ -31837,14 +31837,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_24 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -31861,10 +31861,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31878,10 +31878,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+8]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31895,10 +31895,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+16]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31912,10 +31912,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+24]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31929,10 +31929,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+32]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31946,10 +31946,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+40]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31963,10 +31963,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+48]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31980,10 +31980,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+56]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -31997,10 +31997,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+64]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32014,10 +32014,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+72]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32031,10 +32031,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+80]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32048,10 +32048,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+88]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32065,10 +32065,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+96]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32082,10 +32082,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+104]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32099,10 +32099,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+112]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32116,10 +32116,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+120]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32133,10 +32133,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+128]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32150,10 +32150,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+136]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32167,10 +32167,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+144]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32184,10 +32184,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+152]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32201,10 +32201,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+160]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32218,10 +32218,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+168]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32235,10 +32235,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+176]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32252,10 +32252,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+184]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32269,10 +32269,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+192]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32286,10 +32286,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+200]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32303,10 +32303,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+208]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32320,10 +32320,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+216]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32337,10 +32337,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+224]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32354,10 +32354,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+232]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32371,10 +32371,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+240]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32388,10 +32388,10 @@ sp_3072_get_from_table_24 PROC
         mov	r9, QWORD PTR [rdx+248]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32401,10 +32401,10 @@ sp_3072_get_from_table_24 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 0-7
         ; START: 8-15
@@ -32418,10 +32418,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32436,10 +32436,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32454,10 +32454,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32472,10 +32472,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32490,10 +32490,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32508,10 +32508,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32526,10 +32526,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32544,10 +32544,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32562,10 +32562,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32580,10 +32580,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32598,10 +32598,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32616,10 +32616,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32634,10 +32634,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32652,10 +32652,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32670,10 +32670,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32688,10 +32688,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32706,10 +32706,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32724,10 +32724,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32742,10 +32742,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32760,10 +32760,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32778,10 +32778,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32796,10 +32796,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32814,10 +32814,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32832,10 +32832,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32850,10 +32850,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32868,10 +32868,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32886,10 +32886,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32904,10 +32904,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32922,10 +32922,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32940,10 +32940,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32958,10 +32958,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32976,10 +32976,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -32989,10 +32989,10 @@ sp_3072_get_from_table_24 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 8-15
         ; START: 16-23
@@ -33006,10 +33006,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33024,10 +33024,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33042,10 +33042,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33060,10 +33060,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33078,10 +33078,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33096,10 +33096,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33114,10 +33114,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33132,10 +33132,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33150,10 +33150,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33168,10 +33168,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33186,10 +33186,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33204,10 +33204,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33222,10 +33222,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33240,10 +33240,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33258,10 +33258,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33276,10 +33276,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33294,10 +33294,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33312,10 +33312,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33330,10 +33330,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33348,10 +33348,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33366,10 +33366,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33384,10 +33384,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33402,10 +33402,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33420,10 +33420,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33438,10 +33438,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33456,10 +33456,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33474,10 +33474,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33492,10 +33492,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33510,10 +33510,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33528,10 +33528,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33546,10 +33546,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33564,10 +33564,10 @@ sp_3072_get_from_table_24 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -33577,19 +33577,19 @@ sp_3072_get_from_table_24 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 16-23
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_3072_get_from_table_24 ENDP
@@ -36853,14 +36853,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_3072_get_from_table_48 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -36877,10 +36877,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -36894,10 +36894,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+8]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -36911,10 +36911,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+16]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -36928,10 +36928,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+24]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -36945,10 +36945,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+32]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -36962,10 +36962,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+40]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -36979,10 +36979,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+48]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -36996,10 +36996,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+56]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37013,10 +37013,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+64]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37030,10 +37030,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+72]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37047,10 +37047,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+80]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37064,10 +37064,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+88]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37081,10 +37081,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+96]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37098,10 +37098,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+104]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37115,10 +37115,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+112]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37132,10 +37132,10 @@ sp_3072_get_from_table_48 PROC
         mov	r9, QWORD PTR [rdx+120]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37145,10 +37145,10 @@ sp_3072_get_from_table_48 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 0-7
         ; START: 8-15
@@ -37162,10 +37162,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37180,10 +37180,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37198,10 +37198,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37216,10 +37216,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37234,10 +37234,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37252,10 +37252,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37270,10 +37270,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37288,10 +37288,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37306,10 +37306,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37324,10 +37324,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37342,10 +37342,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37360,10 +37360,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37378,10 +37378,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37396,10 +37396,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37414,10 +37414,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37432,10 +37432,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37445,10 +37445,10 @@ sp_3072_get_from_table_48 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 8-15
         ; START: 16-23
@@ -37462,10 +37462,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37480,10 +37480,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37498,10 +37498,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37516,10 +37516,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37534,10 +37534,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37552,10 +37552,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37570,10 +37570,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37588,10 +37588,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37606,10 +37606,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37624,10 +37624,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37642,10 +37642,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37660,10 +37660,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37678,10 +37678,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37696,10 +37696,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37714,10 +37714,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37732,10 +37732,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37745,10 +37745,10 @@ sp_3072_get_from_table_48 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 16-23
         ; START: 24-31
@@ -37762,10 +37762,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37780,10 +37780,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37798,10 +37798,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37816,10 +37816,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37834,10 +37834,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37852,10 +37852,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37870,10 +37870,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37888,10 +37888,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37906,10 +37906,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37924,10 +37924,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37942,10 +37942,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37960,10 +37960,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37978,10 +37978,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -37996,10 +37996,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38014,10 +38014,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38032,10 +38032,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38045,10 +38045,10 @@ sp_3072_get_from_table_48 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 24-31
         ; START: 32-39
@@ -38062,10 +38062,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38080,10 +38080,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38098,10 +38098,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38116,10 +38116,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38134,10 +38134,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38152,10 +38152,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38170,10 +38170,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38188,10 +38188,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38206,10 +38206,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38224,10 +38224,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38242,10 +38242,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38260,10 +38260,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38278,10 +38278,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38296,10 +38296,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38314,10 +38314,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38332,10 +38332,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38345,10 +38345,10 @@ sp_3072_get_from_table_48 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 32-39
         ; START: 40-47
@@ -38362,10 +38362,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38380,10 +38380,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38398,10 +38398,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38416,10 +38416,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38434,10 +38434,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38452,10 +38452,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38470,10 +38470,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38488,10 +38488,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38506,10 +38506,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38524,10 +38524,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38542,10 +38542,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38560,10 +38560,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38578,10 +38578,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38596,10 +38596,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38614,10 +38614,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38632,10 +38632,10 @@ sp_3072_get_from_table_48 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -38645,19 +38645,19 @@ sp_3072_get_from_table_48 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 40-47
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_3072_get_from_table_48 ENDP
@@ -40446,8 +40446,8 @@ _text SEGMENT READONLY PARA
 sp_3072_lshift_48 PROC
         push	r12
         push	r13
-        mov	cl, r8b
         mov	rax, rcx
+        mov	cl, r8b
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+344]
         mov	r8, QWORD PTR [rdx+352]
@@ -49224,14 +49224,14 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_4096_get_from_table_64 PROC
         sub	rsp, 128
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
         mov	rax, 1
         movd	xmm10, r8
         movd	xmm11, rax
@@ -49248,10 +49248,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49265,10 +49265,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+8]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49282,10 +49282,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+16]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49299,10 +49299,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+24]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49316,10 +49316,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+32]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49333,10 +49333,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+40]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49350,10 +49350,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+48]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49367,10 +49367,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+56]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49384,10 +49384,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+64]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49401,10 +49401,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+72]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49418,10 +49418,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+80]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49435,10 +49435,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+88]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49452,10 +49452,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+96]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49469,10 +49469,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+104]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49486,10 +49486,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+112]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49503,10 +49503,10 @@ sp_4096_get_from_table_64 PROC
         mov	r9, QWORD PTR [rdx+120]
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49516,10 +49516,10 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 0-7
         ; START: 8-15
@@ -49533,10 +49533,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49551,10 +49551,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49569,10 +49569,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49587,10 +49587,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49605,10 +49605,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49623,10 +49623,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49641,10 +49641,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49659,10 +49659,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49677,10 +49677,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49695,10 +49695,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49713,10 +49713,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49731,10 +49731,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49749,10 +49749,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49767,10 +49767,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49785,10 +49785,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49803,10 +49803,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 64
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49816,10 +49816,10 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 8-15
         ; START: 16-23
@@ -49833,10 +49833,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49851,10 +49851,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49869,10 +49869,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49887,10 +49887,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49905,10 +49905,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49923,10 +49923,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49941,10 +49941,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49959,10 +49959,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49977,10 +49977,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -49995,10 +49995,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50013,10 +50013,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50031,10 +50031,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50049,10 +50049,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50067,10 +50067,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50085,10 +50085,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50103,10 +50103,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 128
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50116,10 +50116,10 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 16-23
         ; START: 24-31
@@ -50133,10 +50133,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50151,10 +50151,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50169,10 +50169,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50187,10 +50187,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50205,10 +50205,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50223,10 +50223,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50241,10 +50241,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50259,10 +50259,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50277,10 +50277,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50295,10 +50295,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50313,10 +50313,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50331,10 +50331,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50349,10 +50349,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50367,10 +50367,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50385,10 +50385,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50403,10 +50403,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 192
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50416,10 +50416,10 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 24-31
         ; START: 32-39
@@ -50433,10 +50433,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50451,10 +50451,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50469,10 +50469,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50487,10 +50487,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50505,10 +50505,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50523,10 +50523,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50541,10 +50541,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50559,10 +50559,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50577,10 +50577,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50595,10 +50595,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50613,10 +50613,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50631,10 +50631,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50649,10 +50649,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50667,10 +50667,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50685,10 +50685,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50703,10 +50703,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 256
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50716,10 +50716,10 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 32-39
         ; START: 40-47
@@ -50733,10 +50733,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50751,10 +50751,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50769,10 +50769,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50787,10 +50787,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50805,10 +50805,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50823,10 +50823,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50841,10 +50841,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50859,10 +50859,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50877,10 +50877,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50895,10 +50895,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50913,10 +50913,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50931,10 +50931,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50949,10 +50949,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50967,10 +50967,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -50985,10 +50985,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51003,10 +51003,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 320
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51016,10 +51016,10 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 40-47
         ; START: 48-55
@@ -51033,10 +51033,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51051,10 +51051,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51069,10 +51069,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51087,10 +51087,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51105,10 +51105,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51123,10 +51123,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51141,10 +51141,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51159,10 +51159,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51177,10 +51177,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51195,10 +51195,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51213,10 +51213,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51231,10 +51231,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51249,10 +51249,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51267,10 +51267,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51285,10 +51285,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51303,10 +51303,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 384
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51316,10 +51316,10 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         add	rcx, 64
         ; END: 48-55
         ; START: 56-63
@@ -51333,10 +51333,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51351,10 +51351,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51369,10 +51369,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51387,10 +51387,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51405,10 +51405,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51423,10 +51423,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51441,10 +51441,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51459,10 +51459,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51477,10 +51477,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51495,10 +51495,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51513,10 +51513,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51531,10 +51531,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51549,10 +51549,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51567,10 +51567,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51585,10 +51585,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51603,10 +51603,10 @@ sp_4096_get_from_table_64 PROC
         add	r9, 448
         movdqu	xmm12, xmm13
         pcmpeqd	xmm12, xmm10
-        movdqu	xmm0, [r9]
-        movdqu	xmm1, [r9+16]
-        movdqu	xmm2, [r9+32]
-        movdqu	xmm3, [r9+48]
+        movdqu	xmm0, OWORD PTR [r9]
+        movdqu	xmm1, OWORD PTR [r9+16]
+        movdqu	xmm2, OWORD PTR [r9+32]
+        movdqu	xmm3, OWORD PTR [r9+48]
         pand	xmm0, xmm12
         pand	xmm1, xmm12
         pand	xmm2, xmm12
@@ -51616,19 +51616,19 @@ sp_4096_get_from_table_64 PROC
         por	xmm6, xmm2
         por	xmm7, xmm3
         paddd	xmm13, xmm11
-        movdqu	[rcx], xmm4
-        movdqu	[rcx+16], xmm5
-        movdqu	[rcx+32], xmm6
-        movdqu	[rcx+48], xmm7
+        movdqu	OWORD PTR [rcx], xmm4
+        movdqu	OWORD PTR [rcx+16], xmm5
+        movdqu	OWORD PTR [rcx+32], xmm6
+        movdqu	OWORD PTR [rcx+48], xmm7
         ; END: 56-63
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
         add	rsp, 128
         ret
 sp_4096_get_from_table_64 ENDP
@@ -53973,8 +53973,8 @@ _text SEGMENT READONLY PARA
 sp_4096_lshift_64 PROC
         push	r12
         push	r13
-        mov	cl, r8b
         mov	rax, rcx
+        mov	cl, r8b
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+472]
         mov	r8, QWORD PTR [rdx+480]
@@ -55726,16 +55726,16 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_256_get_point_33_4 PROC
         sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	OWORD PTR [rsp+144], xmm15
         mov	rax, 1
         movd	xmm13, r8d
         add	rdx, 200
@@ -55755,12 +55755,12 @@ L_256_get_point_33_4_start_1:
         movdqa	xmm12, xmm14
         paddd	xmm14, xmm15
         pcmpeqd	xmm12, xmm13
-        movdqu	xmm6, [rdx]
-        movdqu	xmm7, [rdx+16]
-        movdqu	xmm8, [rdx+64]
-        movdqu	xmm9, [rdx+80]
-        movdqu	xmm10, [rdx+128]
-        movdqu	xmm11, [rdx+144]
+        movdqu	xmm6, OWORD PTR [rdx]
+        movdqu	xmm7, OWORD PTR [rdx+16]
+        movdqu	xmm8, OWORD PTR [rdx+64]
+        movdqu	xmm9, OWORD PTR [rdx+80]
+        movdqu	xmm10, OWORD PTR [rdx+128]
+        movdqu	xmm11, OWORD PTR [rdx+144]
         add	rdx, 200
         pand	xmm6, xmm12
         pand	xmm7, xmm12
@@ -55776,22 +55776,22 @@ L_256_get_point_33_4_start_1:
         por	xmm5, xmm11
         dec	rax
         jnz	L_256_get_point_33_4_start_1
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+64], xmm2
-        movdqu	[rcx+80], xmm3
-        movdqu	[rcx+128], xmm4
-        movdqu	[rcx+144], xmm5
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+64], xmm2
+        movdqu	OWORD PTR [rcx+80], xmm3
+        movdqu	OWORD PTR [rcx+128], xmm4
+        movdqu	OWORD PTR [rcx+144], xmm5
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        movdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
         ret
 sp_256_get_point_33_4 ENDP
@@ -56442,12 +56442,12 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_256_get_entry_64_4 PROC
         sub	rsp, 96
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
         ; From entry 1
         mov	rax, 1
         movd	xmm9, r8d
@@ -56466,10 +56466,10 @@ L_256_get_entry_64_4_start_0:
         movdqa	xmm8, xmm10
         paddd	xmm10, xmm11
         pcmpeqd	xmm8, xmm9
-        movdqu	xmm4, [rdx]
-        movdqu	xmm5, [rdx+16]
-        movdqu	xmm6, [rdx+32]
-        movdqu	xmm7, [rdx+48]
+        movdqu	xmm4, OWORD PTR [rdx]
+        movdqu	xmm5, OWORD PTR [rdx+16]
+        movdqu	xmm6, OWORD PTR [rdx+32]
+        movdqu	xmm7, OWORD PTR [rdx+48]
         add	rdx, 64
         pand	xmm4, xmm8
         pand	xmm5, xmm8
@@ -56481,16 +56481,16 @@ L_256_get_entry_64_4_start_0:
         por	xmm3, xmm7
         dec	rax
         jnz	L_256_get_entry_64_4_start_0
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+64], xmm2
-        movdqu	[rcx+80], xmm3
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+64], xmm2
+        movdqu	OWORD PTR [rcx+80], xmm3
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
         add	rsp, 96
         ret
 sp_256_get_entry_64_4 ENDP
@@ -56550,12 +56550,12 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_256_get_entry_65_4 PROC
         sub	rsp, 96
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
         ; From entry 1
         mov	rax, 1
         movd	xmm9, r8d
@@ -56574,10 +56574,10 @@ L_256_get_entry_65_4_start_0:
         movdqa	xmm8, xmm10
         paddd	xmm10, xmm11
         pcmpeqd	xmm8, xmm9
-        movdqu	xmm4, [rdx]
-        movdqu	xmm5, [rdx+16]
-        movdqu	xmm6, [rdx+32]
-        movdqu	xmm7, [rdx+48]
+        movdqu	xmm4, OWORD PTR [rdx]
+        movdqu	xmm5, OWORD PTR [rdx+16]
+        movdqu	xmm6, OWORD PTR [rdx+32]
+        movdqu	xmm7, OWORD PTR [rdx+48]
         add	rdx, 64
         pand	xmm4, xmm8
         pand	xmm5, xmm8
@@ -56589,16 +56589,16 @@ L_256_get_entry_65_4_start_0:
         por	xmm3, xmm7
         dec	rax
         jnz	L_256_get_entry_65_4_start_0
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+64], xmm2
-        movdqu	[rcx+80], xmm3
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+64], xmm2
+        movdqu	OWORD PTR [rcx+80], xmm3
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
         add	rsp, 96
         ret
 sp_256_get_entry_65_4 ENDP
@@ -57715,22 +57715,22 @@ sp_256_mod_inv_avx2_4 PROC
         mov	r13, QWORD PTR [rdx+8]
         mov	r14, QWORD PTR [rdx+16]
         mov	r15, QWORD PTR [rdx+24]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_order
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_order]
         vmovupd	ymm6, YMMWORD PTR [rbx]
         vmovupd	ymm7, YMMWORD PTR [rbx+32]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_one
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_one]
         vmovupd	ymm8, YMMWORD PTR [rbx]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_mask01111
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_mask01111]
         vmovupd	ymm9, YMMWORD PTR [rbx]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_all_one
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_all_one]
         vmovupd	ymm10, YMMWORD PTR [rbx]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_down_one_dword
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_down_one_dword]
         vmovupd	ymm11, YMMWORD PTR [rbx]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_neg
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_neg]
         vmovupd	ymm12, YMMWORD PTR [rbx]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_up_one_dword
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_up_one_dword]
         vmovupd	ymm13, YMMWORD PTR [rbx]
-        mov	rbx, ptr_L_sp256_mod_inv_avx2_4_mask26
+        mov	rbx, QWORD PTR [ptr_L_sp256_mod_inv_avx2_4_mask26]
         vmovupd	ymm14, YMMWORD PTR [rbx]
         vpxor	xmm0, xmm0, xmm0
         vpxor	xmm1, xmm1, xmm1
@@ -59734,16 +59734,16 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_384_get_point_33_6 PROC
         sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	OWORD PTR [rsp+144], xmm15
         mov	rax, 1
         movd	xmm13, r8d
         add	rdx, 296
@@ -59763,12 +59763,12 @@ L_384_get_point_33_6_start_1:
         movdqa	xmm12, xmm14
         paddd	xmm14, xmm15
         pcmpeqd	xmm12, xmm13
-        movdqu	xmm6, [rdx]
-        movdqu	xmm7, [rdx+16]
-        movdqu	xmm8, [rdx+32]
-        movdqu	xmm9, [rdx+96]
-        movdqu	xmm10, [rdx+112]
-        movdqu	xmm11, [rdx+128]
+        movdqu	xmm6, OWORD PTR [rdx]
+        movdqu	xmm7, OWORD PTR [rdx+16]
+        movdqu	xmm8, OWORD PTR [rdx+32]
+        movdqu	xmm9, OWORD PTR [rdx+96]
+        movdqu	xmm10, OWORD PTR [rdx+112]
+        movdqu	xmm11, OWORD PTR [rdx+128]
         add	rdx, 296
         pand	xmm6, xmm12
         pand	xmm7, xmm12
@@ -59784,12 +59784,12 @@ L_384_get_point_33_6_start_1:
         por	xmm5, xmm11
         dec	rax
         jnz	L_384_get_point_33_6_start_1
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+32], xmm2
-        movdqu	[rcx+96], xmm3
-        movdqu	[rcx+112], xmm4
-        movdqu	[rcx+128], xmm5
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+32], xmm2
+        movdqu	OWORD PTR [rcx+96], xmm3
+        movdqu	OWORD PTR [rcx+112], xmm4
+        movdqu	OWORD PTR [rcx+128], xmm5
         mov	rax, 1
         movd	xmm13, r8d
         sub	rdx, 9472
@@ -59806,9 +59806,9 @@ L_384_get_point_33_6_start_2:
         movdqa	xmm12, xmm14
         paddd	xmm14, xmm15
         pcmpeqd	xmm12, xmm13
-        movdqu	xmm6, [rdx+192]
-        movdqu	xmm7, [rdx+208]
-        movdqu	xmm8, [rdx+224]
+        movdqu	xmm6, OWORD PTR [rdx+192]
+        movdqu	xmm7, OWORD PTR [rdx+208]
+        movdqu	xmm8, OWORD PTR [rdx+224]
         add	rdx, 296
         pand	xmm6, xmm12
         pand	xmm7, xmm12
@@ -59818,19 +59818,19 @@ L_384_get_point_33_6_start_2:
         por	xmm2, xmm8
         dec	rax
         jnz	L_384_get_point_33_6_start_2
-        movdqu	[rcx+192], xmm0
-        movdqu	[rcx+208], xmm1
-        movdqu	[rcx+224], xmm2
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        movdqu	OWORD PTR [rcx+192], xmm0
+        movdqu	OWORD PTR [rcx+208], xmm1
+        movdqu	OWORD PTR [rcx+224], xmm2
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        movdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
         ret
 sp_384_get_point_33_6 ENDP
@@ -60368,16 +60368,16 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_384_get_entry_64_6 PROC
         sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -60398,12 +60398,12 @@ L_384_get_entry_64_6_start_0:
         movdqa	xmm12, xmm14
         paddd	xmm14, xmm15
         pcmpeqd	xmm12, xmm13
-        movdqu	xmm6, [rdx]
-        movdqu	xmm7, [rdx+16]
-        movdqu	xmm8, [rdx+32]
-        movdqu	xmm9, [rdx+48]
-        movdqu	xmm10, [rdx+64]
-        movdqu	xmm11, [rdx+80]
+        movdqu	xmm6, OWORD PTR [rdx]
+        movdqu	xmm7, OWORD PTR [rdx+16]
+        movdqu	xmm8, OWORD PTR [rdx+32]
+        movdqu	xmm9, OWORD PTR [rdx+48]
+        movdqu	xmm10, OWORD PTR [rdx+64]
+        movdqu	xmm11, OWORD PTR [rdx+80]
         add	rdx, 96
         pand	xmm6, xmm12
         pand	xmm7, xmm12
@@ -60419,22 +60419,22 @@ L_384_get_entry_64_6_start_0:
         por	xmm5, xmm11
         dec	rax
         jnz	L_384_get_entry_64_6_start_0
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+32], xmm2
-        movdqu	[rcx+96], xmm3
-        movdqu	[rcx+112], xmm4
-        movdqu	[rcx+128], xmm5
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+32], xmm2
+        movdqu	OWORD PTR [rcx+96], xmm3
+        movdqu	OWORD PTR [rcx+112], xmm4
+        movdqu	OWORD PTR [rcx+128], xmm5
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        movdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
         ret
 sp_384_get_entry_64_6 ENDP
@@ -60512,16 +60512,16 @@ IFNDEF WC_NO_CACHE_RESISTANT
 _text SEGMENT READONLY PARA
 sp_384_get_entry_65_6 PROC
         sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -60542,12 +60542,12 @@ L_384_get_entry_65_6_start_0:
         movdqa	xmm12, xmm14
         paddd	xmm14, xmm15
         pcmpeqd	xmm12, xmm13
-        movdqu	xmm6, [rdx]
-        movdqu	xmm7, [rdx+16]
-        movdqu	xmm8, [rdx+32]
-        movdqu	xmm9, [rdx+48]
-        movdqu	xmm10, [rdx+64]
-        movdqu	xmm11, [rdx+80]
+        movdqu	xmm6, OWORD PTR [rdx]
+        movdqu	xmm7, OWORD PTR [rdx+16]
+        movdqu	xmm8, OWORD PTR [rdx+32]
+        movdqu	xmm9, OWORD PTR [rdx+48]
+        movdqu	xmm10, OWORD PTR [rdx+64]
+        movdqu	xmm11, OWORD PTR [rdx+80]
         add	rdx, 96
         pand	xmm6, xmm12
         pand	xmm7, xmm12
@@ -60563,22 +60563,22 @@ L_384_get_entry_65_6_start_0:
         por	xmm5, xmm11
         dec	rax
         jnz	L_384_get_entry_65_6_start_0
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+32], xmm2
-        movdqu	[rcx+96], xmm3
-        movdqu	[rcx+112], xmm4
-        movdqu	[rcx+128], xmm5
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+32], xmm2
+        movdqu	OWORD PTR [rcx+96], xmm3
+        movdqu	OWORD PTR [rcx+112], xmm4
+        movdqu	OWORD PTR [rcx+128], xmm5
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        movdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
         ret
 sp_384_get_entry_65_6 ENDP
@@ -65054,16 +65054,16 @@ sp_521_get_point_33_9 PROC
         push	r13
         push	r14
         sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	OWORD PTR [rsp+144], xmm15
         mov	r14, 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -65091,13 +65091,13 @@ L_521_get_point_33_9_start_1:
         sete	r9b
         neg	r9
         inc	r14
-        movdqu	xmm6, [rdx]
-        movdqu	xmm7, [rdx+16]
-        movdqu	xmm8, [rdx+32]
-        movdqu	xmm9, [rdx+48]
+        movdqu	xmm6, OWORD PTR [rdx]
+        movdqu	xmm7, OWORD PTR [rdx+16]
+        movdqu	xmm8, OWORD PTR [rdx+32]
+        movdqu	xmm9, OWORD PTR [rdx+48]
         mov	r10, QWORD PTR [rdx+64]
-        movdqu	xmm10, [rdx+144]
-        movdqu	xmm11, [rdx+160]
+        movdqu	xmm10, OWORD PTR [rdx+144]
+        movdqu	xmm11, OWORD PTR [rdx+160]
         add	rdx, 440
         pand	xmm6, xmm12
         pand	xmm7, xmm12
@@ -65115,13 +65115,13 @@ L_521_get_point_33_9_start_1:
         or	r12, r10
         dec	rax
         jnz	L_521_get_point_33_9_start_1
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+32], xmm2
-        movdqu	[rcx+48], xmm3
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+32], xmm2
+        movdqu	OWORD PTR [rcx+48], xmm3
         mov	QWORD PTR [rcx+64], r12
-        movdqu	[rcx+144], xmm4
-        movdqu	[rcx+160], xmm5
+        movdqu	OWORD PTR [rcx+144], xmm4
+        movdqu	OWORD PTR [rcx+160], xmm5
         mov	r14, 1
         mov	rax, 1
         movd	xmm13, r8d
@@ -65149,13 +65149,13 @@ L_521_get_point_33_9_start_2:
         sete	r9b
         neg	r9
         inc	r14
-        movdqu	xmm6, [rdx+176]
-        movdqu	xmm7, [rdx+192]
+        movdqu	xmm6, OWORD PTR [rdx+176]
+        movdqu	xmm7, OWORD PTR [rdx+192]
         mov	r10, QWORD PTR [rdx+208]
-        movdqu	xmm8, [rdx+288]
-        movdqu	xmm9, [rdx+304]
-        movdqu	xmm10, [rdx+320]
-        movdqu	xmm11, [rdx+336]
+        movdqu	xmm8, OWORD PTR [rdx+288]
+        movdqu	xmm9, OWORD PTR [rdx+304]
+        movdqu	xmm10, OWORD PTR [rdx+320]
+        movdqu	xmm11, OWORD PTR [rdx+336]
         mov	r11, QWORD PTR [rdx+352]
         add	rdx, 440
         pand	xmm6, xmm12
@@ -65176,24 +65176,24 @@ L_521_get_point_33_9_start_2:
         or	r13, r11
         dec	rax
         jnz	L_521_get_point_33_9_start_2
-        movdqu	[rcx+176], xmm0
-        movdqu	[rcx+192], xmm1
+        movdqu	OWORD PTR [rcx+176], xmm0
+        movdqu	OWORD PTR [rcx+192], xmm1
         mov	QWORD PTR [rcx+208], r12
-        movdqu	[rcx+288], xmm2
-        movdqu	[rcx+304], xmm3
-        movdqu	[rcx+320], xmm4
-        movdqu	[rcx+336], xmm5
+        movdqu	OWORD PTR [rcx+288], xmm2
+        movdqu	OWORD PTR [rcx+304], xmm3
+        movdqu	OWORD PTR [rcx+320], xmm4
+        movdqu	OWORD PTR [rcx+336], xmm5
         mov	QWORD PTR [rcx+352], r13
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        movdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
         pop	r14
         pop	r13
@@ -66817,16 +66817,16 @@ _text SEGMENT READONLY PARA
 sp_521_get_entry_64_9 PROC
         push	r12
         sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	r12, 1
         mov	rax, 1
@@ -66852,10 +66852,10 @@ L_521_get_entry_64_9_start_0:
         sete	r9b
         neg	r9
         inc	r12
-        movdqu	xmm4, [rdx]
-        movdqu	xmm5, [rdx+16]
-        movdqu	xmm6, [rdx+32]
-        movdqu	xmm7, [rdx+48]
+        movdqu	xmm4, OWORD PTR [rdx]
+        movdqu	xmm5, OWORD PTR [rdx+16]
+        movdqu	xmm6, OWORD PTR [rdx+32]
+        movdqu	xmm7, OWORD PTR [rdx+48]
         mov	r10, QWORD PTR [rdx+64]
         add	rdx, 144
         pand	xmm4, xmm12
@@ -66870,10 +66870,10 @@ L_521_get_entry_64_9_start_0:
         or	r11, r10
         dec	rax
         jnz	L_521_get_entry_64_9_start_0
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+32], xmm2
-        movdqu	[rcx+48], xmm3
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+32], xmm2
+        movdqu	OWORD PTR [rcx+48], xmm3
         mov	QWORD PTR [rcx+64], r11
         ; From entry 1
         mov	r12, 1
@@ -66900,10 +66900,10 @@ L_521_get_entry_64_9_start_1:
         sete	r9b
         neg	r9
         inc	r12
-        movdqu	xmm4, [rdx]
-        movdqu	xmm5, [rdx+16]
-        movdqu	xmm6, [rdx+32]
-        movdqu	xmm7, [rdx+48]
+        movdqu	xmm4, OWORD PTR [rdx]
+        movdqu	xmm5, OWORD PTR [rdx+16]
+        movdqu	xmm6, OWORD PTR [rdx+32]
+        movdqu	xmm7, OWORD PTR [rdx+48]
         mov	r10, QWORD PTR [rdx+64]
         add	rdx, 144
         pand	xmm4, xmm12
@@ -66918,21 +66918,21 @@ L_521_get_entry_64_9_start_1:
         or	r11, r10
         dec	rax
         jnz	L_521_get_entry_64_9_start_1
-        movdqu	[rcx+144], xmm0
-        movdqu	[rcx+160], xmm1
-        movdqu	[rcx+176], xmm2
-        movdqu	[rcx+192], xmm3
+        movdqu	OWORD PTR [rcx+144], xmm0
+        movdqu	OWORD PTR [rcx+160], xmm1
+        movdqu	OWORD PTR [rcx+176], xmm2
+        movdqu	OWORD PTR [rcx+192], xmm3
         mov	QWORD PTR [rcx+208], r11
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        movdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
         pop	r12
         ret
@@ -67034,16 +67034,16 @@ _text SEGMENT READONLY PARA
 sp_521_get_entry_65_9 PROC
         push	r12
         sub	rsp, 160
-        vmovdqu	OWORD PTR [rsp], xmm6
-        vmovdqu	OWORD PTR [rsp+16], xmm7
-        vmovdqu	OWORD PTR [rsp+32], xmm8
-        vmovdqu	OWORD PTR [rsp+48], xmm9
-        vmovdqu	OWORD PTR [rsp+64], xmm10
-        vmovdqu	OWORD PTR [rsp+80], xmm11
-        vmovdqu	OWORD PTR [rsp+96], xmm12
-        vmovdqu	OWORD PTR [rsp+112], xmm13
-        vmovdqu	OWORD PTR [rsp+128], xmm14
-        vmovdqu	OWORD PTR [rsp+144], xmm15
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        movdqu	OWORD PTR [rsp+32], xmm8
+        movdqu	OWORD PTR [rsp+48], xmm9
+        movdqu	OWORD PTR [rsp+64], xmm10
+        movdqu	OWORD PTR [rsp+80], xmm11
+        movdqu	OWORD PTR [rsp+96], xmm12
+        movdqu	OWORD PTR [rsp+112], xmm13
+        movdqu	OWORD PTR [rsp+128], xmm14
+        movdqu	OWORD PTR [rsp+144], xmm15
         ; From entry 1
         mov	r12, 1
         mov	rax, 1
@@ -67069,10 +67069,10 @@ L_521_get_entry_65_9_start_0:
         sete	r9b
         neg	r9
         inc	r12
-        movdqu	xmm4, [rdx]
-        movdqu	xmm5, [rdx+16]
-        movdqu	xmm6, [rdx+32]
-        movdqu	xmm7, [rdx+48]
+        movdqu	xmm4, OWORD PTR [rdx]
+        movdqu	xmm5, OWORD PTR [rdx+16]
+        movdqu	xmm6, OWORD PTR [rdx+32]
+        movdqu	xmm7, OWORD PTR [rdx+48]
         mov	r10, QWORD PTR [rdx+64]
         add	rdx, 144
         pand	xmm4, xmm12
@@ -67087,10 +67087,10 @@ L_521_get_entry_65_9_start_0:
         or	r11, r10
         dec	rax
         jnz	L_521_get_entry_65_9_start_0
-        movdqu	[rcx], xmm0
-        movdqu	[rcx+16], xmm1
-        movdqu	[rcx+32], xmm2
-        movdqu	[rcx+48], xmm3
+        movdqu	OWORD PTR [rcx], xmm0
+        movdqu	OWORD PTR [rcx+16], xmm1
+        movdqu	OWORD PTR [rcx+32], xmm2
+        movdqu	OWORD PTR [rcx+48], xmm3
         mov	QWORD PTR [rcx+64], r11
         ; From entry 1
         mov	r12, 1
@@ -67117,10 +67117,10 @@ L_521_get_entry_65_9_start_1:
         sete	r9b
         neg	r9
         inc	r12
-        movdqu	xmm4, [rdx]
-        movdqu	xmm5, [rdx+16]
-        movdqu	xmm6, [rdx+32]
-        movdqu	xmm7, [rdx+48]
+        movdqu	xmm4, OWORD PTR [rdx]
+        movdqu	xmm5, OWORD PTR [rdx+16]
+        movdqu	xmm6, OWORD PTR [rdx+32]
+        movdqu	xmm7, OWORD PTR [rdx+48]
         mov	r10, QWORD PTR [rdx+64]
         add	rdx, 144
         pand	xmm4, xmm12
@@ -67135,21 +67135,21 @@ L_521_get_entry_65_9_start_1:
         or	r11, r10
         dec	rax
         jnz	L_521_get_entry_65_9_start_1
-        movdqu	[rcx+144], xmm0
-        movdqu	[rcx+160], xmm1
-        movdqu	[rcx+176], xmm2
-        movdqu	[rcx+192], xmm3
+        movdqu	OWORD PTR [rcx+144], xmm0
+        movdqu	OWORD PTR [rcx+160], xmm1
+        movdqu	OWORD PTR [rcx+176], xmm2
+        movdqu	OWORD PTR [rcx+192], xmm3
         mov	QWORD PTR [rcx+208], r11
-        vmovdqu	xmm6, OWORD PTR [rsp]
-        vmovdqu	xmm7, OWORD PTR [rsp+16]
-        vmovdqu	xmm8, OWORD PTR [rsp+32]
-        vmovdqu	xmm9, OWORD PTR [rsp+48]
-        vmovdqu	xmm10, OWORD PTR [rsp+64]
-        vmovdqu	xmm11, OWORD PTR [rsp+80]
-        vmovdqu	xmm12, OWORD PTR [rsp+96]
-        vmovdqu	xmm13, OWORD PTR [rsp+112]
-        vmovdqu	xmm14, OWORD PTR [rsp+128]
-        vmovdqu	xmm15, OWORD PTR [rsp+144]
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        movdqu	xmm8, OWORD PTR [rsp+32]
+        movdqu	xmm9, OWORD PTR [rsp+48]
+        movdqu	xmm10, OWORD PTR [rsp+64]
+        movdqu	xmm11, OWORD PTR [rsp+80]
+        movdqu	xmm12, OWORD PTR [rsp+96]
+        movdqu	xmm13, OWORD PTR [rsp+112]
+        movdqu	xmm14, OWORD PTR [rsp+128]
+        movdqu	xmm15, OWORD PTR [rsp+144]
         add	rsp, 160
         pop	r12
         ret
@@ -67504,8 +67504,8 @@ ENDIF
 _text SEGMENT READONLY PARA
 sp_521_rshift_9 PROC
         push	r12
-        mov	rcx, r8
         mov	rax, rcx
+        mov	rcx, r8
         mov	r8, QWORD PTR [rdx]
         mov	r9, QWORD PTR [rdx+8]
         mov	r10, QWORD PTR [rdx+16]
@@ -67547,8 +67547,8 @@ _text SEGMENT READONLY PARA
 sp_521_lshift_9 PROC
         push	r12
         push	r13
-        mov	cl, r8b
         mov	rax, rcx
+        mov	cl, r8b
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+32]
         mov	r8, QWORD PTR [rdx+40]
@@ -67594,8 +67594,8 @@ _text SEGMENT READONLY PARA
 sp_521_lshift_18 PROC
         push	r12
         push	r13
-        mov	cl, r8b
         mov	rax, rcx
+        mov	cl, r8b
         mov	r12, 0
         mov	r13, QWORD PTR [rdx+104]
         mov	r8, QWORD PTR [rdx+112]

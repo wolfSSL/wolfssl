@@ -1,6 +1,6 @@
 /* armv8-32-sha256-asm
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__)
+#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_SHA256
 #ifdef WOLFSSL_ARMASM_NO_NEON
@@ -2865,7 +2865,7 @@ L_SHA256_transform_neon_len_start:
 	.size	Transform_Sha256_Len,.-Transform_Sha256_Len
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
-#endif /* !__aarch64__ && !__thumb__ */
+#endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

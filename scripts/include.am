@@ -128,5 +128,6 @@ dist_noinst_SCRIPTS+= scripts/dtlscid.test
 endif
 
 EXTRA_DIST += scripts/bench/bench_functions.sh
+EXTRA_DIST += scripts/benchmark_compare.sh
 
 EXTRA_DIST += scripts/user_settings_asm.sh

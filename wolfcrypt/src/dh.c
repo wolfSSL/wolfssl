@@ -1,6 +1,6 @@
 /* dh.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,8 +35,8 @@
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$m")
-        #pragma const_seg(".fipsB$m")
+        #pragma code_seg(".fipsA$e")
+        #pragma const_seg(".fipsB$e")
     #endif
 #endif
 
@@ -53,6 +53,15 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#if FIPS_VERSION3_GE(6,0,0)
+    const unsigned int wolfCrypt_FIPS_dh_ro_sanity[2] =
+                                                     { 0x1a2b3c4d, 0x00000004 };
+    int wolfCrypt_FIPS_DH_sanity(void)
+    {
+        return 0;
+    }
 #endif
 
 #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
@@ -1019,7 +1028,7 @@ static int _ffc_pairwise_consistency_test(DhKey* key,
         if (n < 5)
             return 0;
         else
-            return (word32)(2.4 * XPOW((double)n, 1.0/3.0) *
+            return (word32)((double)2.4 * XPOW((double)n, 1.0/3.0) *
                     XPOW(XLOG((double)n), 2.0/3.0) - 5);
     }
 #endif /* WOLFSSL_DH_CONST*/
@@ -1144,7 +1153,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     }
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    wc_MemZero_Add("GeneratePrivateDh186 cBuf", cBuf, cSz);
+    wc_MemZero_Add("GeneratePrivateDh186 cBuf", cBuf, cSz); /* cppcheck-suppress uninitvar */
     mp_memzero_add("GeneratePrivateDh186 tmpX", tmpX);
 #endif
     do {
@@ -2931,6 +2940,14 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     if (ret == 0) {
         /* modulus size in bytes */
         modSz /= WOLFSSL_BIT_SIZE;
+
+        if ((word32)modSz < groupSz) {
+            WOLFSSL_MSG("DH modSz was too small");
+            ret = BAD_FUNC_ARG;
+        }
+    }
+
+    if (ret == 0) {
         bufSz = (word32)modSz - groupSz;
 
         /* allocate ram */

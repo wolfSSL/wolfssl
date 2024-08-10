@@ -1,6 +1,6 @@
 /* sphincs.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -431,7 +431,8 @@ static int parse_private_key(const byte* priv, word32 privSz,
 
     /* At this point, it is still a PKCS8 private key. */
     if ((ret = ToTraditionalInline(priv, &idx, privSz)) < 0) {
-        return ret;
+        /* ignore error, did not have PKCS8 header */
+        (void)ret;
     }
 
     /* Now it is a octet_string(concat(priv,pub)) */

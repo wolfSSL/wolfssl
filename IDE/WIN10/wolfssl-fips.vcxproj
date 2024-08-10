@@ -258,10 +258,17 @@
     <ClCompile Include="..\..\wolfcrypt\src\coding.c" />
     <ClCompile Include="..\..\src\crl.c" />
     <ClCompile Include="..\..\wolfcrypt\src\cpuid.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\curve25519.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\curve448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\des3.c" />
     <ClCompile Include="..\..\wolfcrypt\src\dh.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ecc.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ed25519.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ed448.c" />
     <ClCompile Include="..\..\wolfcrypt\src\error.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fe_448.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fe_low_mem.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\fe_operations.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fips.c">
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</WholeProgramOptimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</WholeProgramOptimization>
@@ -269,6 +276,9 @@
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="..\..\wolfcrypt\src\fips_test.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ge_448.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ge_low_mem.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\ge_operations.c" />
     <ClCompile Include="..\..\wolfcrypt\src\hash.c" />
     <ClCompile Include="..\..\wolfcrypt\src\hmac.c" />
     <ClCompile Include="..\..\wolfcrypt\src\integer.c" />
@@ -324,6 +334,20 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\wolfcrypt\src\aes_gcm_asm.asm">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">false</ExcludedFromBuild>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DLL Release|x64'">$(IntDir)%(Filename).obj</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\wolfcrypt\src\aes_xts_asm.asm">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DLL Debug|x64'">false</ExcludedFromBuild>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64.exe /DHAVE_FIPS /DHAVE_FIPS_VERSION=5 /DHAVE_FIPS_VERSION_MINOR=1 /c /Zi /Fo"$(IntDir)%(Filename).obj" %(Identity)</Command>

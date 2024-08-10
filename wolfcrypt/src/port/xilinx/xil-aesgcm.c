@@ -1,6 +1,6 @@
 /* xil-aesgcm.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -87,9 +87,9 @@ static WC_INLINE int aligned_xmalloc(byte** buf, byte** aligned, void* heap, wor
 
 static WC_INLINE void aligned_xfree(void* buf, void* heap)
 {
-	if (buf == NULL)
-		return;
-	XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL)
+                return;
+        XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
 }
 
 static WC_INLINE int check_keysize(word32 len)

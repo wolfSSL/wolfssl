@@ -1,6 +1,6 @@
 /* pem.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -776,6 +776,10 @@ int main(int argc, char* argv[])
             argv++;
             if (argc == 0) {
                 fprintf(stderr, "No filename provided\n");
+                return 1;
+            }
+            if (in_file != stdin) {
+                fprintf(stderr, "At most one input file can be supplied.\n");
                 return 1;
             }
             in_file = fopen(argv[0], "r");

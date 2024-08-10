@@ -1,6 +1,6 @@
 /* cavium_octeon_sync.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -775,7 +775,7 @@ static int Octeon_AesGcm_Decrypt(Aes* aes, byte* in, byte* out, word32 inSz,
 
 static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 {
-    int ret = NOT_COMPILED_IN; /* return this to bypass HW and use SW */
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN); /* return this to bypass HW and use SW */
 
     if (info == NULL)
         return BAD_FUNC_ARG;

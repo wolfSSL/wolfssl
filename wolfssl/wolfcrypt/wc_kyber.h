@@ -34,7 +34,9 @@
 
 #ifdef WOLFSSL_HAVE_KYBER
 
-#if defined(_MSC_VER)
+#ifdef noinline
+    #define KYBER_NOINLINE noinline
+#elif defined(_MSC_VER)
     #define KYBER_NOINLINE __declspec(noinline)
 #elif defined(__GNUC__)
     #define KYBER_NOINLINE __attribute__((noinline))

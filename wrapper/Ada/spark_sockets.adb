@@ -19,6 +19,7 @@
 -- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 --
 
+with Ada.Streams;
 with Interfaces.C;
 
 package body SPARK_Sockets is
@@ -33,15 +34,34 @@ package body SPARK_Sockets is
          return (Exists => False);
    end Inet_Addr;
 
-   procedure Create_Socket (Socket : in out Optional_Socket) is
+   procedure Create_Socket
+     (Socket : in out Optional_Socket;
+      Family : GNAT.Sockets.Family_Type;
+      Mode   : GNAT.Sockets.Mode_Type) is
       S : Socket_Type;
    begin
-      GNAT.Sockets.Create_Socket (S);
+      GNAT.Sockets.Create_Socket (S, Family, Mode);
       Socket := (Exists => True, Socket => S);
    exception
       when others =>
          Socket := (Exists => False);
    end Create_Socket;
+
+   procedure Create_Stream_Socket (Socket : in out Optional_Socket) is
+   begin
+      Create_Socket
+        (Socket => Socket,
+         Family => GNAT.Sockets.Family_Inet,
+         Mode   => GNAT.Sockets.Socket_Stream);
+   end Create_Stream_Socket;
+
+   procedure Create_Datagram_Socket (Socket : in out Optional_Socket) is
+   begin
+      Create_Socket
+        (Socket => Socket,
+         Family => GNAT.Sockets.Family_Inet,
+         Mode   => GNAT.Sockets.Socket_Datagram);
+   end Create_Datagram_Socket;
 
    function Connect_Socket (Socket : Socket_Type;
                             Server : Sock_Addr_Type)
@@ -98,6 +118,22 @@ package body SPARK_Sockets is
       when others =>
          return Failure;
    end Listen_Socket;
+
+   function Receive_Socket
+     (Socket : Socket_Type)
+      return Subprogram_Result is
+
+      Item : Ada.Streams.Stream_Element_Array (1 .. 4096);
+      Last : Ada.Streams.Stream_Element_Offset;
+      From : GNAT.Sockets.Sock_Addr_Type;
+
+   begin
+      GNAT.Sockets.Receive_Socket (Socket, Item, Last, From);
+      return Success;
+   exception
+      when others =>
+         return Failure;
+   end Receive_Socket;
 
    procedure Accept_Socket (Server  : Socket_Type;
                             Socket  : out Optional_Socket;

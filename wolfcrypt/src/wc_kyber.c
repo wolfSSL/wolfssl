@@ -59,6 +59,11 @@
 
 /******************************************************************************/
 
+/* Declare variable to make compiler not optimize code in kyber_from_msg(). */
+volatile sword16 kyber_opt_blocker = 0;
+
+/******************************************************************************/
+
 /**
  * Initialize the Kyber key.
  *
@@ -281,7 +286,9 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     }
 
     /* Free dynamic memory allocated in function. */
-    XFREE(a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key != NULL) {
+        XFREE(a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
     return ret;
 }
@@ -528,7 +535,9 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
     byte msg[2 * KYBER_SYM_SZ];
     byte kr[2 * KYBER_SYM_SZ + 1];
     int ret = 0;
+#ifndef WOLFSSL_ML_KEM
     unsigned int ctSz = 0;
+#endif
 
     /* Validate parameters. */
     if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rand == NULL)) {
@@ -538,6 +547,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
         ret = BUFFER_E;
     }
 
+#ifndef WOLFSSL_ML_KEM
     if (ret == 0) {
         /* Establish parameters based on key type. */
         switch (key->type) {
@@ -562,6 +572,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
             break;
         }
     }
+#endif
 
     /* If public hash (h) is not stored against key, calculate it. */
     if ((ret == 0) && ((key->flags & KYBER_FLAG_H_SET) == 0)) {
@@ -591,8 +602,12 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
     }
 
     if (ret == 0) {
+#ifndef WOLFSSL_ML_KEM
         /* Hash random to anonymize as seed data. */
         ret = KYBER_HASH_H(rand, KYBER_SYM_SZ, msg);
+#else
+        XMEMCPY(msg, rand, KYBER_SYM_SZ);
+#endif
     }
     if (ret == 0) {
         /* Copy the hash of the public key into msg. */
@@ -607,6 +622,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
         ret = kyberkey_encapsulate(key, msg, kr + KYBER_SYM_SZ, ct);
     }
 
+#ifndef WOLFSSL_ML_KEM
     if (ret == 0) {
         /* Hash the cipher text after the seed. */
         ret = KYBER_HASH_H(ct, ctSz, kr + KYBER_SYM_SZ);
@@ -615,6 +631,11 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
         /* Derive the secret from the seed and hash of cipher text. */
         ret = KYBER_KDF(kr, 2 * KYBER_SYM_SZ, ss, KYBER_SS_SZ);
     }
+#else
+    if (ret == 0) {
+        XMEMCPY(ss, kr, KYBER_SS_SZ);
+    }
+#endif
 
     return ret;
 }
@@ -720,6 +741,39 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
     return ret;
 }
 
+#ifdef WOLFSSL_ML_KEM
+/* Derive the secret from z and cipher text.
+ *
+ * @param [in]  z     Implicit rejection value.
+ * @param [in]  ct    Cipher text.
+ * @param [in]  ctSz  Length of cipher text in bytes.
+ * @param [out] ss    Shared secret.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ * @return  Other negative when a hash error occurred.
+ */
+static int kyber_derive_secret(const byte* z, const byte* ct, word32 ctSz,
+    byte* ss)
+{
+    int ret;
+    wc_Shake shake;
+
+    ret = wc_InitShake256(&shake, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_Shake256_Update(&shake, z, KYBER_SYM_SZ);
+        if (ret == 0) {
+            ret = wc_Shake256_Update(&shake, ct, ctSz);
+        }
+        if (ret == 0) {
+            ret = wc_Shake256_Final(&shake, ss, KYBER_SS_SZ);
+        }
+        wc_Shake256_Free(&shake);
+    }
+
+    return ret;
+}
+#endif
+
 /**
  * Decapsulate the cipher text to calculate the shared secret.
  *
@@ -813,6 +867,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
         /* Compare generated cipher text with that passed in. */
         fail = kyber_cmp(ct, cmp, ctSz);
 
+#ifndef WOLFSSL_ML_KEM
         /* Hash the cipher text after the seed. */
         ret = KYBER_HASH_H(ct, ctSz, kr + KYBER_SYM_SZ);
     }
@@ -824,11 +879,22 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 
         /* Derive the secret from the seed and hash of cipher text. */
         ret = KYBER_KDF(kr, 2 * KYBER_SYM_SZ, ss, KYBER_SS_SZ);
+#else
+        ret = kyber_derive_secret(key->z, ct, ctSz, msg);
+     }
+     if (ret == 0) {
+        /* Change seed to z on comparison failure. */
+        for (i = 0; i < KYBER_SYM_SZ; i++) {
+            ss[i] = kr[i] ^ ((kr[i] ^ msg[i]) & fail);
+        }
+#endif
     }
 
 #ifndef USE_INTEL_SPEEDUP
     /* Dispose of dynamic memory allocated in function. */
-    XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key != NULL) {
+        XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 #endif
 
     return ret;
@@ -849,13 +915,14 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in, word32 len)
+int wc_KyberKey_DecodePrivateKey(KyberKey* key, const unsigned char* in,
+    word32 len)
 {
     int ret = 0;
     word32 privLen = 0;
     word32 pubLen = 0;
     unsigned int k = 0;
-    unsigned char* p = in;
+    const unsigned char* p = in;
 
     /* Validate parameters. */
     if ((key == NULL) || (in == NULL)) {
@@ -933,12 +1000,13 @@ int wc_KyberKey_DecodePrivateKey(KyberKey* key, unsigned char* in, word32 len)
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePublicKey(KyberKey* key, unsigned char* in, word32 len)
+int wc_KyberKey_DecodePublicKey(KyberKey* key, const unsigned char* in,
+    word32 len)
 {
     int ret = 0;
     word32 pubLen = 0;
     unsigned int k = 0;
-    unsigned char* p = in;
+    const unsigned char* p = in;
 
     if ((key == NULL) || (in == NULL)) {
         ret = BAD_FUNC_ARG;

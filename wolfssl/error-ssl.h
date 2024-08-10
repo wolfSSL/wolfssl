@@ -1,6 +1,6 @@
 /* error-ssl.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,6 +28,10 @@
 
 #ifdef __cplusplus
     extern "C" {
+#endif
+
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
+    #include <wolfssl/debug-untrace-error-codes.h>
 #endif
 
 enum wolfSSL_ErrorCodes {
@@ -211,6 +215,9 @@ enum wolfSSL_ErrorCodes {
 WOLFSSL_LOCAL
 void SetErrorString(int err, char* buff);
 
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+    #include <wolfssl/debug-trace-error-codes.h>
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */

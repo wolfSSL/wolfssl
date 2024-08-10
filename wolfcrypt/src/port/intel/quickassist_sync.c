@@ -1,6 +1,6 @@
 /* quickassist_sync.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -144,9 +144,9 @@ typedef void (*IntelQaFreeFunc)(struct IntelQaDev*);
 
 /* QuickAssist device */
 typedef struct IntelQaDev {
-	CpaInstanceHandle handle;
+        CpaInstanceHandle handle;
     int devId;
-	void* heap;
+        void* heap;
 
     /* callback return info */
     int ret;
@@ -220,7 +220,7 @@ static int IntelQaGetCyInstanceCount(void);
 
 #ifdef WOLF_CRYPTO_CB
     static int IntelQaSymSync_CryptoDevCb(int, struct wc_CryptoInfo*,
-			void*);
+                        void*);
 #endif /* WOLF_CRYPTO_CB */
 
 
@@ -359,21 +359,15 @@ void IntelQaHardwareStop(void)
                 status);
     }
 
-    if (g_cyInstMap) {
-        XFREE(g_cyInstMap, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyInstMap = NULL;
-    }
+    XFREE(g_cyInstMap, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyInstMap = NULL;
 
-    if (g_cyInstanceInfo) {
-        XFREE(g_cyInstanceInfo, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyInstanceInfo = NULL;
-    }
+    XFREE(g_cyInstanceInfo, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyInstanceInfo = NULL;
 
 #ifdef QAT_USE_POLLING_CHECK
-    if (g_cyPolling) {
-        XFREE(g_cyPolling, NULL, DYNAMIC_TYPE_ASYNC);
-        g_cyPolling = NULL;
-    }
+    XFREE(g_cyPolling, NULL, DYNAMIC_TYPE_ASYNC);
+    g_cyPolling = NULL;
     if (g_PollLock) {
         for (i=0; i<g_numInstances; i++) {
             pthread_mutex_destroy(&g_PollLock[i]);
@@ -423,7 +417,7 @@ int IntelQaHardwareStart(const char* process_name, int limitDevAccess)
 
 #ifdef QAT_DEBUG
     /* optionally enable debugging */
-    //osalLogLevelSet(8);
+    /* osalLogLevelSet(8); */
 #endif
 
     status = cpaCyGetNumInstances(&g_numInstances);
@@ -674,7 +668,7 @@ int IntelQaPoll(IntelQaDev* dev)
     }
 
     {
-        if (dev->ret != WC_PENDING_E) {
+        if (dev->ret != WC_NO_ERR_TRACE(WC_PENDING_E)) {
             /* perform cleanup */
             IntelQaFreeFunc freeFunc = dev->freeFunc;
             QLOG("IntelQaOpFree: Dev %p, FreeFunc %p\n", dev, freeFunc);
@@ -881,31 +875,20 @@ static void IntelQaSymCipherFree(IntelQaDev* dev)
     CpaBufferList* pDstBuffer = &dev->op.cipher.bufferList;
 
     if (opData) {
-        if (opData->pAdditionalAuthData) {
-            XFREE(opData->pAdditionalAuthData, dev->heap,
-                    DYNAMIC_TYPE_ASYNC_NUMA);
-            opData->pAdditionalAuthData = NULL;
-        }
-        if (opData->pIv) {
-            XFREE(opData->pIv, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
-            opData->pIv = NULL;
-        }
+        XFREE(opData->pAdditionalAuthData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        opData->pAdditionalAuthData = NULL;
+        XFREE(opData->pIv, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        opData->pIv = NULL;
         XMEMSET(opData, 0, sizeof(CpaCySymOpData));
     }
     if (pDstBuffer) {
         if (pDstBuffer->pBuffers) {
-            if (pDstBuffer->pBuffers->pData) {
-                XFREE(pDstBuffer->pBuffers->pData, dev->heap,
-                        DYNAMIC_TYPE_ASYNC_NUMA);
-                pDstBuffer->pBuffers->pData = NULL;
-            }
+            XFREE(pDstBuffer->pBuffers->pData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+            pDstBuffer->pBuffers->pData = NULL;
             XMEMSET(pDstBuffer->pBuffers, 0, sizeof(CpaFlatBuffer));
         }
-        if (pDstBuffer->pPrivateMetaData) {
-            XFREE(pDstBuffer->pPrivateMetaData, dev->heap,
-                    DYNAMIC_TYPE_ASYNC_NUMA);
-            pDstBuffer->pPrivateMetaData = NULL;
-        }
+        XFREE(pDstBuffer->pPrivateMetaData, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+        pDstBuffer->pPrivateMetaData = NULL;
         XMEMSET(pDstBuffer, 0, sizeof(CpaBufferList));
     }
 

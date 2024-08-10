@@ -1,6 +1,6 @@
 /* liboqs.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -43,7 +43,7 @@ implementations for Post-Quantum cryptography algorithms.
 #if defined(HAVE_LIBOQS)
 
 #include "oqs/oqs.h"
-    
+
 
 int wolfSSL_liboqsInit(void);
 

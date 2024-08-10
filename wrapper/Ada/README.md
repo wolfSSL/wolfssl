@@ -2,7 +2,7 @@
 The source code for the Ada/SPARK binding of the WolfSSL library
 is the WolfSSL Ada package in the wolfssl.ads and wolfssl.adb files.
 
-The source code here also demonstrates a TLS v1.3 server and client
+The source code here also demonstrates a (D)TLS v1.3 server and client
 using the WolfSSL Ada binding. The implementation is cross-platform
 and compiles on Linux, Mac OS X and Windows.
 
@@ -15,7 +15,8 @@ for the secondary stack. The GNAT User's Guide recommends
 avoiding the secondary stack using the restriction
 No_Secondary_Stack (see the GNAT configuration file gnat.adc
 which instructs compilation of the WolfSSL Ada binding under
-this restriction).
+this restriction). Note, however, that the examples do make use of the
+secondary stack.
 
 Portability: The WolfSSL Ada binding makes no usage of controlled types
 and has no dependency upon the Ada.Finalization package.
@@ -91,13 +92,13 @@ Make sure the executables for the compiler and GPRBuild are on the PATH
 and use gprbuild to build the source code.
 
 ## Files
-The TLS v1.3 client example in the Ada/SPARK programming language
+The (D)TLS v1.3 client example in the Ada/SPARK programming language
 using the WolfSSL library can be found in the files:
 tls_client_main.adb
 tls_client.ads
 tls_client.adb
 
-The TLS v1.3 server example in the Ada/SPARK programming language
+The (D)TLS v1.3 server example in the Ada/SPARK programming language
 using the WolfSSL library can be found in the files:
 tls_server_main.adb
 tls_server.ads

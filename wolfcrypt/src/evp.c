@@ -1,6 +1,6 @@
 /* evp.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -711,8 +711,19 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
 static int wolfSSL_EVP_CipherUpdate_GCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
         const unsigned char *in, int inl) {
     if (in && inl > 0) {
-        byte* tmp = (byte*)XREALLOC(ctx->authIn,
+        byte* tmp;
+    #ifdef WOLFSSL_NO_REALLOC
+        tmp = (byte*)XMALLOC((size_t)(ctx->authInSz + inl), NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (tmp != NULL) {
+            XMEMCPY(tmp, ctx->authIn, (size_t)ctx->authInSz);
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
+        }
+    #else
+        tmp = (byte*)XREALLOC(ctx->authIn,
                 (size_t)(ctx->authInSz + inl), NULL, DYNAMIC_TYPE_OPENSSL);
+    #endif
         if (tmp) {
             ctx->authIn = tmp;
             XMEMCPY(ctx->authIn + ctx->authInSz, in, (size_t)inl);
@@ -745,9 +756,19 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
             /* Buffer input for one-shot API */
             if (inl > 0) {
                 byte* tmp;
+            #ifdef WOLFSSL_NO_REALLOC
+                tmp = (byte*)XMALLOC((size_t)(ctx->authBufferLen + inl), NULL,
+                        DYNAMIC_TYPE_OPENSSL);
+                if (tmp != NULL) {
+                    XMEMCPY(tmp, ctx->authBuffer, (size_t)ctx->authBufferLen);
+                    XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                    ctx->authBuffer = NULL;
+                }
+            #else
                 tmp = (byte*)XREALLOC(ctx->authBuffer,
                         (size_t)(ctx->authBufferLen + inl), NULL,
                         DYNAMIC_TYPE_OPENSSL);
+            #endif
                 if (tmp) {
                     XMEMCPY(tmp + ctx->authBufferLen, in, (size_t)inl);
                     ctx->authBufferLen += inl;
@@ -817,8 +838,19 @@ static int wolfSSL_EVP_CipherUpdate_GCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
 static int wolfSSL_EVP_CipherUpdate_CCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
         const unsigned char *in, int inl) {
     if (in && inl > 0) {
-        byte* tmp = (byte*)XREALLOC(ctx->authIn,
+        byte* tmp;
+    #ifdef WOLFSSL_NO_REALLOC
+        tmp = (byte*)XMALLOC((size_t)(ctx->authInSz + inl), NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (tmp != NULL) {
+            XMEMCPY(tmp, ctx->authIn, (size_t)ctx->authInSz);
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
+        }
+    #else
+        tmp = (byte*)XREALLOC(ctx->authIn,
                 (size_t)(ctx->authInSz + inl), NULL, DYNAMIC_TYPE_OPENSSL);
+    #endif
         if (tmp) {
             ctx->authIn = tmp;
             XMEMCPY(ctx->authIn + ctx->authInSz, in, (size_t)inl);
@@ -843,9 +875,19 @@ static int wolfSSL_EVP_CipherUpdate_CCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
         /* Buffer input for one-shot API */
         if (inl > 0) {
             byte* tmp;
+        #ifdef WOLFSSL_NO_REALLOC
+            tmp = (byte*)XMALLOC((size_t)(ctx->authBufferLen + inl), NULL,
+                    DYNAMIC_TYPE_OPENSSL);
+            if (tmp != NULL) {
+                XMEMCPY(tmp, ctx->authBuffer, (size_t)ctx->authBufferLen);
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+            }
+        #else
             tmp = (byte*)XREALLOC(ctx->authBuffer,
                     (size_t)(ctx->authBufferLen + inl), NULL,
                     DYNAMIC_TYPE_OPENSSL);
+        #endif
             if (tmp) {
                 XMEMCPY(tmp + ctx->authBufferLen, in, (size_t)inl);
                 ctx->authBufferLen += inl;
@@ -875,8 +917,19 @@ static int wolfSSL_EVP_CipherUpdate_AriaGCM_AAD(WOLFSSL_EVP_CIPHER_CTX *ctx,
         const unsigned char *in, int inl)
 {
     if (in && inl > 0) {
-        byte* tmp = (byte*)XREALLOC(ctx->authIn,
+        byte* tmp;
+    #ifdef WOLFSSL_NO_REALLOC
+        tmp = (byte*)XMALLOC((size_t)ctx->authInSz + inl, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (tmp != NULL) {
+            XMEMCPY(tmp, ctx->authIn, (size_t)ctx->authInSz);
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
+        }
+    #else
+        tmp = (byte*)XREALLOC(ctx->authIn,
                 (size_t)ctx->authInSz + inl, NULL, DYNAMIC_TYPE_OPENSSL);
+    #endif
         if (tmp) {
             ctx->authIn = tmp;
             XMEMCPY(ctx->authIn + ctx->authInSz, in, (size_t)inl);
@@ -905,9 +958,18 @@ static int wolfSSL_EVP_CipherUpdate_AriaGCM(WOLFSSL_EVP_CIPHER_CTX *ctx,
             if (ctx->enc == 0) { /* Append extra space for the tag */
                 size = WC_ARIA_GCM_GET_CIPHERTEXT_SIZE(size);
             }
-            tmp = (byte*)XREALLOC(ctx->authBuffer,
-                    (size_t)size, NULL,
-                    DYNAMIC_TYPE_OPENSSL);
+        #ifdef WOLFSSL_NO_REALLOC
+            tmp = (byte*)XMALLOC((size_t)size, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+            if (tmp != NULL) {
+                XMEMCPY(tmp, ctx->authBuffer, (size_t)ctx->authBufferLen);
+                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+                ctx->authBuffer = NULL;
+            }
+        #else
+            tmp = (byte*)XREALLOC(ctx->authBuffer, (size_t)size, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        #endif
             if (tmp) {
                 XMEMCPY(tmp + ctx->authBufferLen, in, (size_t)inl);
                 ctx->authBufferLen += inl;
@@ -2617,9 +2679,7 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS && salt != NULL && saltSz > 0) {
-        if (ctx->pkey->hkdfSalt != NULL) {
-            XFREE(ctx->pkey->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
-        }
+        XFREE(ctx->pkey->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
         ctx->pkey->hkdfSalt = (byte*)XMALLOC((size_t)saltSz, NULL,
             DYNAMIC_TYPE_SALT);
         if (ctx->pkey->hkdfSalt == NULL) {
@@ -2654,9 +2714,7 @@ int wolfSSL_EVP_PKEY_CTX_set1_hkdf_key(WOLFSSL_EVP_PKEY_CTX* ctx,
     }
 
     if (ret == WOLFSSL_SUCCESS) {
-        if (ctx->pkey->hkdfKey != NULL) {
-            XFREE(ctx->pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
-        }
+        XFREE(ctx->pkey->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
         ctx->pkey->hkdfKey = (byte*)XMALLOC((size_t)keySz, NULL,
             DYNAMIC_TYPE_KEY);
         if (ctx->pkey->hkdfKey == NULL) {
@@ -2693,9 +2751,19 @@ int wolfSSL_EVP_PKEY_CTX_add1_hkdf_info(WOLFSSL_EVP_PKEY_CTX* ctx,
     if (ret == WOLFSSL_SUCCESS && info != NULL && infoSz > 0) {
         unsigned char* p;
         /* If there's already info in the buffer, append. */
+    #ifdef WOLFSSL_NO_REALLOC
+        p = (byte*)XMALLOC((size_t)(ctx->pkey->hkdfInfoSz + (word32)infoSz), NULL,
+            DYNAMIC_TYPE_INFO);
+        if (p != NULL) {
+            XMEMCPY(p, ctx->pkey->hkdfInfo, (size_t)ctx->pkey->hkdfInfoSz);
+            XFREE(ctx->pkey->hkdfInfo, NULL, DYNAMIC_TYPE_INFO);
+            ctx->pkey->hkdfInfo = NULL;
+        }
+    #else
         p = (byte*)XREALLOC(ctx->pkey->hkdfInfo,
             (size_t)(ctx->pkey->hkdfInfoSz + (word32)infoSz), NULL,
             DYNAMIC_TYPE_INFO);
+    #endif
         if (p == NULL) {
             WOLFSSL_MSG("Failed to reallocate larger HKDF info buffer.");
             ret = WOLFSSL_FAILURE;
@@ -3211,6 +3279,8 @@ int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
     if (pkey == NULL) return 0;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_bits");
     if ((bytes = wolfSSL_EVP_PKEY_size((WOLFSSL_EVP_PKEY*)pkey)) ==0) return 0;
+    if (bytes < 0)
+        return 0;
     return bytes*8;
 }
 
@@ -4275,23 +4345,39 @@ static int wolfssl_evp_digest_pk_final(WOLFSSL_EVP_MD_CTX *ctx,
     int  ret;
 
     if (ctx->isHMAC) {
-        Hmac hmacCopy;
-
-        if (wolfSSL_HmacCopy(&hmacCopy, &ctx->hash.hmac) != WOLFSSL_SUCCESS)
+#ifdef WOLFSSL_SMALL_STACK
+        Hmac *hmacCopy = (Hmac *)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_OPENSSL);
+        if (hmacCopy == NULL)
             return WOLFSSL_FAILURE;
-        ret = wc_HmacFinal(&hmacCopy, md) == 0;
-        wc_HmacFree(&hmacCopy);
+#else
+        Hmac hmacCopy[1];
+#endif
+        ret = wolfSSL_HmacCopy(hmacCopy, &ctx->hash.hmac);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = wc_HmacFinal(hmacCopy, md) == 0;
+        wc_HmacFree(hmacCopy);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(hmacCopy, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
         return ret;
     }
     else {
-        WOLFSSL_EVP_MD_CTX ctxCopy;
-        wolfSSL_EVP_MD_CTX_init(&ctxCopy);
-
-        if (wolfSSL_EVP_MD_CTX_copy_ex(&ctxCopy, ctx) != WOLFSSL_SUCCESS)
+#ifdef WOLFSSL_SMALL_STACK
+        WOLFSSL_EVP_MD_CTX *ctxCopy = (WOLFSSL_EVP_MD_CTX *)XMALLOC(sizeof(WOLFSSL_EVP_MD_CTX), NULL, DYNAMIC_TYPE_OPENSSL);
+        if (ctxCopy == NULL)
             return WOLFSSL_FAILURE;
+#else
+        WOLFSSL_EVP_MD_CTX ctxCopy[1];
+#endif
+        wolfSSL_EVP_MD_CTX_init(ctxCopy);
 
-        ret = wolfSSL_EVP_DigestFinal(&ctxCopy, md, mdlen);
-        wolfSSL_EVP_MD_CTX_cleanup(&ctxCopy);
+        ret = wolfSSL_EVP_MD_CTX_copy_ex(ctxCopy, ctx);
+        if (ret == WOLFSSL_SUCCESS)
+            ret = wolfSSL_EVP_DigestFinal(ctxCopy, md, mdlen);
+        wolfSSL_EVP_MD_CTX_cleanup(ctxCopy);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(ctxCopy, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
         return ret;
     }
 }
@@ -5468,7 +5554,7 @@ void wolfSSL_EVP_init(void)
     #endif /* HAVE_AES_CBC */
 
     #ifdef WOLFSSL_AES_CFB
-#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
+#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0))
     #ifdef WOLFSSL_AES_128
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cfb1(void)
     {
@@ -6208,15 +6294,11 @@ void wolfSSL_EVP_init(void)
             ctx->keyLen     = 0;
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
-            if (ctx->authBuffer) {
-                XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authBuffer = NULL;
-            }
+            XFREE(ctx->authBuffer, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authBuffer = NULL;
             ctx->authBufferLen = 0;
-            if (ctx->authIn) {
-                XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authIn = NULL;
-            }
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
             ctx->authInSz = 0;
             ctx->authIvGenEnable = 0;
             ctx->authIncIv = 0;
@@ -6338,10 +6420,8 @@ void wolfSSL_EVP_init(void)
     {
         int ret = WOLFSSL_SUCCESS;
 
-        if (ctx->authIn) {
-            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->authIn = NULL;
-        }
+        XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+        ctx->authIn = NULL;
         ctx->authInSz = 0;
 
         ctx->block_size = AES_BLOCK_SIZE;
@@ -6545,10 +6625,8 @@ void wolfSSL_EVP_init(void)
     {
         int ret = WOLFSSL_SUCCESS;
 
-        if (ctx->authIn) {
-            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->authIn = NULL;
-        }
+        XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+        ctx->authIn = NULL;
         ctx->authInSz = 0;
 
         ctx->block_size = AES_BLOCK_SIZE;
@@ -6696,10 +6774,8 @@ void wolfSSL_EVP_init(void)
             return WOLFSSL_FAILURE;
         }
 
-        if (ctx->authIn) {
-            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-            ctx->authIn = NULL;
-        }
+        XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+        ctx->authIn = NULL;
         ctx->authInSz = 0;
 
         ctx->block_size = AES_BLOCK_SIZE;
@@ -7731,10 +7807,8 @@ void wolfSSL_EVP_init(void)
                 ctx->ivSz = GCM_NONCE_MID_SZ;
             }
             ctx->authTagSz  = SM4_BLOCK_SIZE;
-            if (ctx->authIn) {
-                XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authIn = NULL;
-            }
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
             ctx->authInSz = 0;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
@@ -7763,10 +7837,8 @@ void wolfSSL_EVP_init(void)
                 ctx->ivSz = GCM_NONCE_MID_SZ;
             }
             ctx->authTagSz  = SM4_BLOCK_SIZE;
-            if (ctx->authIn) {
-                XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
-                ctx->authIn = NULL;
-            }
+            XFREE(ctx->authIn, NULL, DYNAMIC_TYPE_OPENSSL);
+            ctx->authIn = NULL;
             ctx->authInSz = 0;
             if (enc == 0 || enc == 1)
                 ctx->enc = enc ? 1 : 0;
@@ -8465,7 +8537,7 @@ void wolfSSL_EVP_init(void)
         }
 
         if (ret < 0) {
-            if (ret == AES_GCM_AUTH_E) {
+            if (ret == WC_NO_ERR_TRACE(AES_GCM_AUTH_E)) {
                 WOLFSSL_MSG("wolfSSL_EVP_Cipher failure: bad AES-GCM tag.");
             }
             WOLFSSL_MSG("wolfSSL_EVP_Cipher failure");
@@ -8543,7 +8615,7 @@ static int PopulateRSAEvpPkeyDer(WOLFSSL_EVP_PKEY *pkey)
             if (key->pkcs8HeaderSz) {
                 ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, NULL, (word32)derSz,
                     RSAk, NULL, 0);
-                if (ret == LENGTH_ONLY_E)
+                if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E))
                     ret = 0;
             }
         #endif
@@ -8917,7 +8989,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
         ret = wc_DhParamsToDer(dhkey,NULL,&derSz);
     }
 
-    if (derSz == 0 || ret != LENGTH_ONLY_E) {
+    if (derSz == 0 || ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
        WOLFSSL_MSG("Failed to get size of DH Key");
        return WOLFSSL_FAILURE;
     }
@@ -9060,7 +9132,7 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
 #ifdef HAVE_PKCS8
         if (key->pkcs8HeaderSz) {
             /* when key has pkcs8 header the pkey should too */
-            if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == LENGTH_ONLY_E) {
+            if (wc_EccKeyToPKCS8(ecc, NULL, (word32*)&derSz) == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
                 derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
                 if (derBuf) {
@@ -9112,8 +9184,17 @@ static int ECC_populate_EVP_PKEY(EVP_PKEY* pkey, WOLFSSL_EC_KEY *key)
     }
     else if (ecc->type == ECC_PUBLICKEY) {
         if ((derSz = wc_EccPublicKeyDerSize(ecc, 1)) > 0) {
-            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, (size_t)derSz, NULL,
+        #ifdef WOLFSSL_NO_REALLOC
+            derBuf = (byte*)XMALLOC((size_t)derSz, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+            if (derBuf != NULL) {
+                XMEMCPY(derBuf, pkey->pkey.ptr, (size_t)pkey->pkey_sz);
+                XFREE(pkey->pkey.ptr, pkey->heap, DYNAMIC_TYPE_OPENSSL);
+                pkey->pkey.ptr = NULL;
+            }
+        #else
+            derBuf = (byte*)XREALLOC(pkey->pkey.ptr, (size_t)derSz, pkey->heap,
                     DYNAMIC_TYPE_OPENSSL);
+        #endif
             if (derBuf != NULL) {
                 pkey->pkey.ptr = (char*)derBuf;
                 if ((derSz = wc_EccPublicKeyToDer(ecc, derBuf, (word32)derSz,
@@ -9205,7 +9286,7 @@ const WOLFSSL_EVP_MD* wolfSSL_EVP_ripemd160(void)
 
 int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     WOLFSSL_ENTER("wolfSSL_EVP_MD_pkey_type");
 
@@ -9228,6 +9309,9 @@ int wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type)
         else if (XSTRCMP(type, "SHA512") == 0) {
             ret = NID_sha512WithRSAEncryption;
         }
+    }
+    else {
+        ret = BAD_FUNC_ARG;
     }
 
     WOLFSSL_LEAVE("wolfSSL_EVP_MD_pkey_type", ret);
@@ -11006,18 +11090,12 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 
                 #ifdef HAVE_HKDF
                 case EVP_PKEY_HKDF:
-                    if (key->hkdfSalt != NULL) {
-                        XFREE(key->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
-                        key->hkdfSalt = NULL;
-                    }
-                    if (key->hkdfKey != NULL) {
-                        XFREE(key->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
-                        key->hkdfKey = NULL;
-                    }
-                    if (key->hkdfInfo != NULL) {
-                        XFREE(key->hkdfInfo, NULL, DYNAMIC_TYPE_INFO);
-                        key->hkdfInfo = NULL;
-                    }
+                    XFREE(key->hkdfSalt, NULL, DYNAMIC_TYPE_SALT);
+                    key->hkdfSalt = NULL;
+                    XFREE(key->hkdfKey, NULL, DYNAMIC_TYPE_KEY);
+                    key->hkdfKey = NULL;
+                    XFREE(key->hkdfInfo, NULL, DYNAMIC_TYPE_INFO);
+                    key->hkdfInfo = NULL;
                     key->hkdfSaltSz = 0;
                     key->hkdfKeySz = 0;
                     key->hkdfInfoSz = 0;
@@ -11496,10 +11574,8 @@ static int PrintPubKeyEC(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
         res = wolfSSL_BIO_write(out, "\n", 1) > 0;
     }
 
-    if (pub != NULL) {
-        XFREE(pub, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        pub = NULL;
-    }
+    XFREE(pub, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+    pub = NULL;
 
     wc_ecc_free(key);
     mp_free(a);
@@ -12432,7 +12508,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
             (word32)(BASE64_DECODE_BLOCK_SIZE - ctx->remaining), (word32)inl);
 
         for ( i = 0; cpySz > 0 && inLen > 0; i++) {
-            if (Base64_SkipNewline(in, &inLen, &j) == ASN_INPUT_E) {
+            if (Base64_SkipNewline(in, &inLen, &j) == WC_NO_ERR_TRACE(ASN_INPUT_E)) {
                 return -1;  /* detected an illegal char in input */
             }
             c = in[j++];
@@ -12472,7 +12548,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
      */
     while (inLen > 3) {
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12486,7 +12562,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         }
         inLen--;
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12497,7 +12573,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         e[1] = in[j++];
         inLen--;
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12508,7 +12584,7 @@ int  wolfSSL_EVP_DecodeUpdate(WOLFSSL_EVP_ENCODE_CTX* ctx,
         e[2] = in[j++];
         inLen--;
         if ((res = Base64_SkipNewline(in, &inLen, &j)) != 0) {
-            if (res == BUFFER_E) {
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
                 break;
             }
             else {
@@ -12615,8 +12691,10 @@ int  wolfSSL_EVP_DecodeFinal(WOLFSSL_EVP_ENCODE_CTX* ctx,
         inLen = (word32)ctx->remaining;
         if ((res = Base64_SkipNewline(ctx->data, &inLen, &j)) != 0) {
             *outl = 0;
-            if (res == BUFFER_E) /* means no valid data to decode in buffer */
+            if (res == WC_NO_ERR_TRACE(BUFFER_E)) {
+                /* means no valid data to decode in buffer */
                 return  1; /* returns as success with no output */
+            }
             else
                 return -1;
         }

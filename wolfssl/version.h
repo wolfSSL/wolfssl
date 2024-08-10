@@ -1,6 +1,6 @@
 /* wolfssl_version.h.in
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,8 +28,8 @@
 extern "C" {
 #endif
 
-#define LIBWOLFSSL_VERSION_STRING "5.7.0"
-#define LIBWOLFSSL_VERSION_HEX 0x05007000
+#define LIBWOLFSSL_VERSION_STRING "5.7.2"
+#define LIBWOLFSSL_VERSION_HEX 0x05007002
 
 #ifdef __cplusplus
 }

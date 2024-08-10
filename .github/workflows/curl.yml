@@ -1,7 +1,16 @@
 name: curl Test
 
+# START OF COMMON SECTION
 on:
-  workflow_call:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
 
 jobs:
   build_wolfssl:
@@ -17,11 +26,14 @@ jobs:
           configure: --enable-curl
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-curl
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   test_curl:
@@ -45,7 +57,9 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: wolf-install-curl
-        path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
     - name: Build curl
       uses: wolfSSL/actions-build-autotools-project@v1

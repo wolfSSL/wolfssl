@@ -1,6 +1,6 @@
 /* xil-versal-glue.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -78,7 +78,7 @@ int wc_InitXsecure(wc_Xsecure* xsec)
 /**
    Convert Xilinx specific error to string
 
-   err	The error to convert
+   err  The error to convert
 
    Returns a pointer to a string (always, never returns NULL).
  */

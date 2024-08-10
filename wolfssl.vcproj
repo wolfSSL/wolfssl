@@ -200,6 +200,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\aes_gcm_asm.asm"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\arc4.c"
 				>
 			</File>
@@ -228,11 +232,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\chacha_asm.asm"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\chacha20_poly1305.c"
 				>
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\des3.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\dilithium.c"
 				>
 			</File>
 			<File
@@ -249,6 +261,14 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\error.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\ext_kyber.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\falcon.c"
 				>
 			</File>
 			<File
@@ -277,6 +297,14 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\integer.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_kyber.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wc_kyber_poly.c"
 				>
 			</File>
 			<File
@@ -312,6 +340,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\poly1305_asm.asm"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\pwdbased.c"
 				>
 			</File>
@@ -341,6 +373,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\sha512.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\sphincs.c"
 				>
 			</File>
 			<File
@@ -389,6 +425,10 @@
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\wolfevent.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\port\liboqs\liboqs.c"
 				>
 			</File>
 		</Filter>

@@ -1,6 +1,6 @@
 /* pic32mz-crypt.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -365,7 +365,7 @@ static void reset_engine(int algo)
 static void update_engine(const byte *input, word32 len, word32 *hash)
 {
     int total;
-    
+
     gLHDesc.bd[gLHDesc.currBd].UPDPTR = KVA_TO_PA(hash);
 
     /* Add the data to the current buffer. If the buffer fills, start processing it

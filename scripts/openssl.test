@@ -279,7 +279,7 @@ check_server_ready() {
     server_ready=0
     while [ "$counter" -lt 20 ]; do
         echo -e "waiting for $server_name ready..."
-        echo -e Checking | nc localhost $server_port
+        echo -e Checking | nc -w 5 localhost $server_port
         nc_result=$?
         if [ $nc_result = 0 ]
         then

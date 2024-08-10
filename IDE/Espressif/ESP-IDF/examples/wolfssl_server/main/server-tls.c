@@ -1,6 +1,6 @@
 /* server-tls.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,10 +31,16 @@
 /* socket includes */
 #include <lwip/netdb.h>
 #include <lwip/sockets.h>
+#include <netinet/tcp.h> /* For TCP options */
+#include <sys/socket.h>
+
+#ifndef TCP_RTO_MIN
+    #define TCP_RTO_MIN 1500
+#endif
 
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/settings.h>
-#include "user_settings.h"
+#include <wolfssl/certs_test.h>
 #include <wolfssl/ssl.h>
 
 #ifdef WOLFSSL_TRACK_MEMORY
@@ -48,30 +54,6 @@
 
     #undef  DEFAULT_MAX_DHKEY_BITS
     #define DEFAULT_MAX_DHKEY_BITS 2048
-#endif
-
-#if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)
-    #include <wolfssl/certs_test_sm.h>
-    #define CTX_CA_CERT          root_sm2
-    #define CTX_CA_CERT_SIZE     sizeof_root_sm2
-    #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_PEM
-    #define CTX_SERVER_CERT      server_sm2
-    #define CTX_SERVER_CERT_SIZE sizeof_server_sm2
-    #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_PEM
-    #define CTX_SERVER_KEY       server_sm2_priv
-    #define CTX_SERVER_KEY_SIZE  sizeof_server_sm2_priv
-    #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_PEM
-#else
-    #include <wolfssl/certs_test.h>
-    #define CTX_CA_CERT          ca_cert_der_2048
-    #define CTX_CA_CERT_SIZE     sizeof_ca_cert_der_2048
-    #define CTX_CA_CERT_TYPE     WOLFSSL_FILETYPE_ASN1
-    #define CTX_SERVER_CERT      server_cert_der_2048
-    #define CTX_SERVER_CERT_SIZE sizeof_server_cert_der_2048
-    #define CTX_SERVER_CERT_TYPE WOLFSSL_FILETYPE_ASN1
-    #define CTX_SERVER_KEY       server_key_der_2048
-    #define CTX_SERVER_KEY_SIZE  sizeof_server_key_der_2048
-    #define CTX_SERVER_KEY_TYPE  WOLFSSL_FILETYPE_ASN1
 #endif
 
 /* Project */
@@ -112,7 +94,6 @@ int ShowCiphers(WOLFSSL* ssl)
     return ret;
 }
 
-
 /* FreeRTOS */
 /* server task */
 WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
@@ -133,7 +114,10 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
     int                ret;
     socklen_t          size = sizeof(clientAddr);
     size_t             len;
-
+#if 0
+    /* optionally set TCP RTO. See also below. */
+    int rto_min = 200; /* Minimum TCP RTO in milliseconds */
+#endif
     /* declare wolfSSL objects */
     WOLFSSL_CTX* ctx;
     WOLFSSL*     ssl;
@@ -157,16 +141,18 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         ESP_LOGE(TAG, "ERROR: failed to create the socket");
     }
 
+    /* Optionally set TCP RTO
+    setsockopt(sockfd, IPPROTO_TCP, TCP_RTO_MIN, &rto_min, sizeof(rto_min)); */
+
     /* Create and initialize WOLFSSL_CTX */
     WOLFSSL_MSG("Create and initialize WOLFSSL_CTX");
 #if defined(WOLFSSL_SM2) || defined(WOLFSSL_SM3) || defined(WOLFSSL_SM4)
     ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
-    // ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());  /* only TLS 1.3 */
+    /* ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()); for only TLS 1.3 */
     if (ctx == NULL) {
         ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL_CTX");
     }
 #else
-    /* TODO remove duplicate */
     if ((ctx = wolfSSL_CTX_new(wolfSSLv23_server_method())) == NULL) {
         ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL_CTX");
     }
@@ -304,8 +290,8 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
     ESP_LOGI(TAG, "accept clients...");
     /* Continue to accept clients until shutdown is issued */
     while (!shutdown) {
-        ESP_LOGI(TAG, "Stack used: %d\n", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                          - uxTaskGetStackHighWaterMark(NULL));
+        ESP_LOGI(TAG, "Stack used: %d\n", TLS_SMP_SERVER_TASK_BYTES
+                                        - uxTaskGetStackHighWaterMark(NULL) );
         WOLFSSL_MSG("Waiting for a connection...");
         wifi_show_ip();
 
@@ -314,16 +300,33 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
             == -1) {
              ESP_LOGE(TAG, "ERROR: failed to accept the connection");
         }
+#if defined(WOLFSSL_EXPERIMENTAL_SETTINGS)
+        ESP_LOGW(TAG, "WOLFSSL_EXPERIMENTAL_SETTINGS is enabled");
+#endif
         /* Create a WOLFSSL object */
         if ((ssl = wolfSSL_new(ctx)) == NULL) {
             ESP_LOGE(TAG, "ERROR: failed to create WOLFSSL object");
         }
-
+#if defined(WOLFSSL_HAVE_KYBER)
+        else {
+            /* If success creating CTX and Kyber enabled, set key share: */
+            ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_P521_KYBER_LEVEL5);
+            if (ret == SSL_SUCCESS) {
+                ESP_LOGI(TAG, "UseKeyShare WOLFSSL_P521_KYBER_LEVEL5 success");
+            }
+            else {
+                ESP_LOGE(TAG, "UseKeyShare WOLFSSL_P521_KYBER_LEVEL5 failed");
+            }
+        }
+#else
+        ESP_LOGI(TAG, "WOLFSSL_HAVE_KYBER is not enabled");
+#endif
         /* show what cipher connected for this WOLFSSL* object */
         ShowCiphers(ssl);
 
         /* Attach wolfSSL to the socket */
         wolfSSL_set_fd(ssl, connd);
+
         /* Establish TLS connection */
         ret = wolfSSL_accept(ssl);
         if (ret == SSL_SUCCESS) {
@@ -333,23 +336,18 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
             ESP_LOGE(TAG, "wolfSSL_accept error %d",
                            wolfSSL_get_error(ssl, ret));
         }
-        WOLFSSL_MSG("Client connected successfully");
-        ESP_LOGI(TAG, "Stack used: %d\n", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                          - uxTaskGetStackHighWaterMark(NULL));
+        ESP_LOGI(TAG, "Client connected successfully");
 
         /* Read the client data into our buff array */
         memset(buff, 0, sizeof(buff));
         if (wolfSSL_read(ssl, buff, sizeof(buff)-1) == -1) {
             ESP_LOGE(TAG, "ERROR: failed to read");
         }
-        /* Print to stdout any data the client sends */
-        ESP_LOGI(TAG, "Stack used: %d\n", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                          - uxTaskGetStackHighWaterMark(NULL));
-        WOLFSSL_MSG("Client sends:");
-        WOLFSSL_MSG(buff);
+
+        ESP_LOGI(TAG, "Client sends: %s", buff);
         /* Check for server shutdown command */
         if (strncmp(buff, "shutdown", 8) == 0) {
-            WOLFSSL_MSG("Shutdown command issued!");
+            ESP_LOGI(TAG, "Shutdown command issued!");
             shutdown = 1;
         }
         /* Write our reply into buff */
@@ -360,10 +358,12 @@ WOLFSSL_ESP_TASK tls_smp_server_task(void *args)
         if (wolfSSL_write(ssl, buff, len) != len) {
             ESP_LOGE(TAG, "ERROR: failed to write");
         }
+
+        ESP_LOGI(TAG, "Done! Cleanup...");
         /* Cleanup after this connection */
         wolfSSL_free(ssl);      /* Free the wolfSSL object              */
         close(connd);           /* Close the connection to the client   */
-    }
+    } /* !shutdown */
     /* Cleanup and return */
     wolfSSL_free(ssl);      /* Free the wolfSSL object                  */
     wolfSSL_CTX_free(ctx);  /* Free the wolfSSL context object          */
@@ -397,12 +397,14 @@ WOLFSSL_ESP_TASK tls_smp_server_init(void* args)
 #else
     xTaskHandle _handle;
 #endif
-    /* http://esp32.info/docs/esp_idf/html/dd/d3c/group__xTaskCreate.html */
+    /* Note that despite vanilla FreeRTOS using WORDS for a parameter,
+     * Espressif uses BYTES for the task stack size here.
+     * See https://docs.espressif.com/projects/esp-idf/en/v4.3/esp32/api-reference/system/freertos.html */
     ESP_LOGI(TAG, "Creating tls_smp_server_task with stack size = %d",
-                   TLS_SMP_SERVER_TASK_WORDS);
+                   TLS_SMP_SERVER_TASK_BYTES);
     ret_i = xTaskCreate(tls_smp_server_task,
                       TLS_SMP_SERVER_TASK_NAME,
-                      TLS_SMP_SERVER_TASK_WORDS, /* not bytes! */
+                      TLS_SMP_SERVER_TASK_BYTES,
                       (void*)&thisPort,
                       TLS_SMP_SERVER_TASK_PRIORITY,
                       &_handle);
@@ -411,7 +413,7 @@ WOLFSSL_ESP_TASK tls_smp_server_init(void* args)
         ESP_LOGI(TAG, "create thread %s failed", TLS_SMP_SERVER_TASK_NAME);
     }
 
-    /* vTaskStartScheduler(); // called automatically in ESP-IDF */
+    /* vTaskStartScheduler();  called automatically in ESP-IDF */
     return TLS_SMP_CLIENT_TASK_RET;
 }
 #endif

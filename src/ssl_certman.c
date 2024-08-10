@@ -1,6 +1,6 @@
 /* ssl_certman.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -141,14 +141,12 @@ WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap)
     #ifdef HAVE_ECC
         cm->minEccKeySz = MIN_ECCKEY_SZ;
     #endif
-    #ifdef HAVE_PQC
     #ifdef HAVE_FALCON
         cm->minFalconKeySz = MIN_FALCONKEY_SZ;
     #endif /* HAVE_FALCON */
     #ifdef HAVE_DILITHIUM
         cm->minDilithiumKeySz = MIN_DILITHIUMKEY_SZ;
     #endif /* HAVE_DILITHIUM */
-    #endif /* HAVE_PQC */
 
         /* Set heap hint to use in certificate manager operations. */
         cm->heap = heap;
@@ -611,8 +609,7 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm, VerifyCallback vc)
 }
 #endif /* NO_WOLFSSL_CM_VERIFY */
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
 void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallback cb)
 {
@@ -622,7 +619,7 @@ void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
     }
 
 }
-#endif /* WOLFSSL_CUSTOM_OID && WOLFSSL_ASN_TEMPLATE && HAVE_OID_DECODING */
+#endif /* WC_ASN_UNKNOWN_EXT_CB */
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* Verify the certificate.
@@ -692,15 +689,14 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         /* Create a decoded certificate with DER buffer. */
         InitDecodedCert(cert, buff, (word32)sz, cm->heap);
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
         if (cm->unknownExtCallback != NULL)
             wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
 #endif
 
         /* Parse DER into decoded certificate fields and verify signature
          * against a known CA. */
-        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm);
+        ret = ParseCertRelative(cert, CERT_TYPE, VERIFY, cm, NULL);
      }
 
 #ifdef HAVE_CRL
@@ -1386,9 +1382,7 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
                 ret = FWRITE_ERROR;
             }
         }
-        if (mem != NULL) {
-            XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         /* Unlock CA table. */
         wc_UnLockMutex(&cm->caLock);
@@ -1819,7 +1813,7 @@ int wolfSSL_CertManagerCheckCRL(WOLFSSL_CERT_MANAGER* cm,
             InitDecodedCert(cert, der, (word32)sz, NULL);
 
             /* Parse certificate and perform CRL checks. */
-            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm);
+            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_CRL, cm, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("ParseCert failed");
             }
@@ -2291,7 +2285,7 @@ int wolfSSL_CertManagerCheckOCSP(WOLFSSL_CERT_MANAGER* cm,
             InitDecodedCert(cert, der, (word32)sz, NULL);
 
             /* Parse certificate and perform CRL checks. */
-            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm);
+            ret = ParseCertRelative(cert, CERT_TYPE, VERIFY_OCSP, cm, NULL);
             if (ret != 0) {
                 WOLFSSL_MSG("ParseCert failed");
             }

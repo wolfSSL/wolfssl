@@ -1,6 +1,6 @@
 /* port.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -130,6 +130,13 @@
     #include <freertos/task.h>
     /* The Espressif-specific platform include: */
     #include <pthread.h>
+#endif
+
+#if defined(WOLFSSL_ZEPHYR)
+#if defined(CONFIG_BOARD_NATIVE_POSIX)
+#include "native_rtc.h"
+#define CONFIG_RTC
+#endif
 #endif
 
 /* prevent multiple mutex initializations */
@@ -1170,6 +1177,23 @@ int wc_strncasecmp(const char *s1, const char *s2, size_t n)
 }
 #endif /* USE_WOLF_STRNCASECMP */
 
+#ifdef USE_WOLF_STRDUP
+char* wc_strdup_ex(const char *src, int memType) {
+    char *ret = NULL;
+    word32 len = 0;
+
+    if (src) {
+        len = (word32)XSTRLEN(src);
+        ret = (char*)XMALLOC(len, NULL, memType);
+        if (ret != NULL) {
+            XMEMCPY(ret, src, len);
+        }
+    }
+
+    return ret;
+}
+#endif
+
 #ifdef WOLFSSL_ATOMIC_OPS
 
 #ifdef HAVE_C___ATOMIC
@@ -1303,9 +1327,8 @@ int wolfSSL_CryptHwMutexInit(void)
 }
 int wolfSSL_CryptHwMutexLock(void)
 {
-    int ret = BAD_MUTEX_E;
     /* Make sure HW Mutex has been initialized */
-    ret = wolfSSL_CryptHwMutexInit();
+    int ret = wolfSSL_CryptHwMutexInit();
     if (ret == 0) {
         ret = wc_LockMutex(&wcCryptHwMutex);
     }
@@ -1313,11 +1336,12 @@ int wolfSSL_CryptHwMutexLock(void)
 }
 int wolfSSL_CryptHwMutexUnLock(void)
 {
-    int ret = BAD_MUTEX_E;
     if (wcCryptHwMutexInit) {
-        ret = wc_UnLockMutex(&wcCryptHwMutex);
+        return wc_UnLockMutex(&wcCryptHwMutex);
     }
-    return ret;
+    else {
+        return BAD_MUTEX_E;
+    }
 }
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
 
@@ -1699,9 +1723,8 @@ int wolfSSL_CryptHwMutexUnLock(void)
 
     int maxq_CryptHwMutexTryLock()
     {
-        int ret = BAD_MUTEX_E;
         /* Make sure HW Mutex has been initialized */
-        ret = wolfSSL_CryptHwMutexInit();
+        int ret = wolfSSL_CryptHwMutexInit();
         if (ret == 0) {
             ret = maxq_LockMutex(&wcCryptHwMutex, 1);
         }
@@ -3174,6 +3197,21 @@ time_t z_time(time_t * timer)
 
     #if defined(CONFIG_RTC) && \
         (defined(CONFIG_PICOLIBC) || defined(CONFIG_NEWLIB_LIBC))
+
+    #if defined(CONFIG_BOARD_NATIVE_POSIX)
+
+    /* When using native sim, get time from simulator rtc */
+    uint32_t nsec = 0;
+    uint64_t sec = 0;
+    native_rtc_gettime(RTC_CLOCK_PSEUDOHOSTREALTIME, &nsec, &sec);
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec;
+
+    #else
+
     /* Try to obtain the actual time from an RTC */
     static const struct device *rtc = DEVICE_DT_GET(DT_NODELABEL(rtc));
 
@@ -3192,6 +3230,7 @@ time_t z_time(time_t * timer)
             return epochTime;
         }
     }
+    #endif /* defined(CONFIG_BOARD_NATIVE_POSIX) */
     #endif
 
     /* Fallback to uptime since boot. This works for relative times, but
@@ -3431,7 +3470,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 #ifndef SINGLE_THREADED
 
 /* Environment-specific multi-thread implementation check  */
-#if defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS)
+#if defined(USE_WINDOWS_API) && !defined(WOLFSSL_PTHREADS) && \
+    !defined(_WIN32_WCE)
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
     {
@@ -3646,7 +3686,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
                            "wolfSSL thread",
                            (entry_functionType)cb, (ULONG)arg,
                            thread->threadStack,
-                           TESTSUITE_THREAD_STACK_SZ,
+                           WOLFSSL_NETOS_STACK_SZ,
                            2, 2,
                            1, TX_AUTO_START);
         if (result != TX_SUCCESS) {
@@ -3668,11 +3708,13 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
 #elif defined(WOLFSSL_ZEPHYR)
 
+    void* wolfsslThreadHeapHint = NULL;
+
     int wolfSSL_NewThread(THREAD_TYPE* thread,
         THREAD_CB cb, void* arg)
     {
         #ifndef WOLFSSL_ZEPHYR_STACK_SZ
-            #define WOLFSSL_ZEPHYR_STACK_SZ (24*1024)
+            #define WOLFSSL_ZEPHYR_STACK_SZ (48*1024)
         #endif
 
         if (thread == NULL || cb == NULL)
@@ -3686,10 +3728,12 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
          *                                            0);
          */
         thread->threadStack = (void*)XMALLOC(
-                Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ), 0,
-                                             DYNAMIC_TYPE_TMP_BUFFER);
-        if (thread->threadStack == NULL)
+                Z_KERNEL_STACK_SIZE_ADJUST(WOLFSSL_ZEPHYR_STACK_SZ),
+                wolfsslThreadHeapHint, DYNAMIC_TYPE_TMP_BUFFER);
+        if (thread->threadStack == NULL) {
+            WOLFSSL_MSG("error: XMALLOC failed");
             return MEMORY_E;
+        }
 
         /* k_thread_create does not return any error codes */
         /* Casting to k_thread_entry_t should be fine since we just ignore the
@@ -3716,7 +3760,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
          * if (err != 0)
          *     ret = MEMORY_E;
          */
-        XFREE(thread.threadStack, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(thread.threadStack, wolfsslThreadHeapHint,
+                DYNAMIC_TYPE_TMP_BUFFER);
         thread.threadStack = NULL;
 
         /* No thread resources to free. Everything is stored in thread.tid */

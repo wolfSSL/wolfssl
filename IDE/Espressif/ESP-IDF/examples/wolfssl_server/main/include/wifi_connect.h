@@ -1,6 +1,6 @@
 /* wifi_connect.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,7 +28,7 @@
 #define EXAMPLE_ESP_MAXIMUM_RETRY       CONFIG_ESP_MAXIMUM_RETRY
 
 #define TLS_SMP_SERVER_TASK_NAME         "tls_sever_example"
-#define TLS_SMP_SERVER_TASK_WORDS        22240
+#define TLS_SMP_SERVER_TASK_BYTES        22240
 #define TLS_SMP_SERVER_TASK_PRIORITY     8
 
 #define TLS_SMP_WIFI_SSID                CONFIG_WIFI_SSID
@@ -77,13 +77,19 @@
     #ifdef CONFIG_ESP_WIFI_SSID
         #define EXAMPLE_ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
     #else
-        #define EXAMPLE_ESP_WIFI_SSID "MYSSID_WIFI_CONNECT"
+        /* See new esp-sdk-lib.h helpers: */
+        #ifndef EXAMPLE_ESP_WIFI_SSID
+            #define EXAMPLE_ESP_WIFI_SSID "MYSSID_WIFI_CONNECT"
+        #endif
     #endif
 
     #ifdef CONFIG_ESP_WIFI_PASSWORD
         #define EXAMPLE_ESP_WIFI_PASS CONFIG_ESP_WIFI_PASSWORD
     #else
-        #define EXAMPLE_ESP_WIFI_PASS "MYPASSWORD_WIFI_CONNECT"
+        /* See new esp-sdk-lib.h helpers: */
+        #ifndef EXAMPLE_ESP_WIFI_PASS
+            #define EXAMPLE_ESP_WIFI_PASS "MYPASSWORD_WIFI_CONNECT"
+        #endif
     #endif
 #endif
 

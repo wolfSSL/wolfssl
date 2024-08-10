@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,7 +38,8 @@ int esp_show_current_datetime();
 int set_fixed_default_time(void);
 
 /* set time from string (e.g. GitHub commit time) */
-int set_time_from_string(char* time_buffer);
+/* When not using the new esp-sdk-lib.h helpers: */
+/* int set_time_from_string(char* time_buffer); */
 
 /* set time from NTP servers,
  * also initially calls set_fixed_default_time or set_time_from_string */

@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -246,7 +246,6 @@
     #define WOLFSSL_RENESAS_TSIP_TLS
 
     #if !defined(NO_RENESAS_TSIP_CRYPT)
-        #define WOLFSSL_RENESAS_TSIP_CRYPTONLY
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
         #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -278,3 +277,5 @@
 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
 
 #define CUSTOM_RAND_GENERATE_BLOCK wc_tsip_GenerateRandBlock
+/* use original ASN parsing */
+#define WOLFSSL_ASN_ORIGINAL

@@ -1,6 +1,6 @@
 /* utils.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -41,7 +41,7 @@ char* create_tmp_dir(char *tmpDir, int len)
 
     XMEMCPY(tmpDir, TMP_DIR_PREFIX, XSTR_SIZEOF(TMP_DIR_PREFIX));
 
-    if (mymktemp(tmpDir, len, len - XSTR_SIZEOF(TMP_DIR_PREFIX)) == NULL)
+    if (mymktemp(tmpDir, len, len - (int)XSTR_SIZEOF(TMP_DIR_PREFIX)) == NULL)
         return NULL;
 
 #ifdef _MSC_VER
@@ -99,8 +99,12 @@ int copy_file(const char* in, const char* out)
         goto cleanup;
 
     while ((sz = XFREAD(buf, 1, sizeof(buf), inFile)) != 0) {
+        if (XFERROR(inFile))
+            goto cleanup;
         if (XFWRITE(buf, 1, sz, outFile) != sz)
             goto cleanup;
+        if (XFEOF(inFile))
+            break;
     }
 
     ret = 0;
@@ -192,7 +196,7 @@ static WC_INLINE int test_memio_write_cb(WOLFSSL *ssl, char *data, int sz,
         }
     }
 #endif
-    XMEMCPY(buf + *len, data, sz);
+    XMEMCPY(buf + *len, data, (size_t)sz);
     *len += sz;
 
     return sz;
@@ -222,8 +226,8 @@ static WC_INLINE int test_memio_read_cb(WOLFSSL *ssl, char *data, int sz,
 
     read_sz = sz < *len ? sz : *len;
 
-    XMEMCPY(data, buf, read_sz);
-    XMEMMOVE(buf, buf + read_sz, *len - read_sz);
+    XMEMCPY(data, buf, (size_t)read_sz);
+    XMEMMOVE(buf, buf + read_sz,(size_t) (*len - read_sz));
 
     *len -= read_sz;
 
