@@ -53,6 +53,20 @@ Total                           172    17 (10%)          .                     1
 
 ## Compiler and Build System installation
 
+### Recommended: [Alire](https://alire.ada.dev)
+[Alire](https://alire.ada.dev) is a modern package manager for the Ada
+ecosystem.  The latest version is available for Windows, OSX, Linux and FreeBSD
+systems.  It can install a complete Ada toolchain if needed, see `alr install`
+for more information.
+
+In order to use WolfSSL in a project, just add WolfSSL as a dependency by
+running `alr with wolfssl` within your project's directory.
+
+If the project is to be verified with SPARK, just add `gnatprove` as a
+dependency by running `alr with gnatprove` and then running `alr gnatprove`,
+which will execute the SPARK solver. If you get warnings, it is recommended to
+increase the prove level: `alr gnatprove --level=4`.
+
 ### GNAT Community Edition 2021
 Download and install the GNAT community Edition 2021 compiler and studio:
 https://www.adacore.com/download
