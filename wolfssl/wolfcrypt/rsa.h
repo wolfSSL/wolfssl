@@ -103,7 +103,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 #ifndef RSA_MIN_SIZE
-#define RSA_MIN_SIZE 512
+#define RSA_MIN_SIZE 1024
 #endif
 
 #ifndef RSA_MAX_SIZE
