@@ -90,6 +90,7 @@ typedef struct Poly1305 {
     unsigned char started;
 #else
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+    ALIGN128 word64 r64[2];
     ALIGN128 word32 r[5];
     ALIGN128 word32 r_2[5]; /* r^2 */
     ALIGN128 word32 r_4[5]; /* r^4 */

@@ -53,137 +53,112 @@ static WC_INLINE void poly1305_blocks_aarch64_16(Poly1305* ctx,
     const unsigned char *m, size_t bytes)
 {
     __asm__ __volatile__ (
+        /* Check for zero bytes to do. */
         "CMP        %[bytes], %[POLY1305_BLOCK_SIZE] \n\t"
-        "BLO        L_poly1305_aarch64_16_64_done_%= \n\t"
-        /* Load r and h */
-        "LDP        x21, x23, %[ctx_r]   \n\t"
-        "LDR        w25, %[ctx_r_4]      \n\t"
-        "LDP        x2, x4, %[ctx_h]     \n\t"
-        "LDR        w6, %[ctx_h_4]       \n\t"
-        "LSR        x22, x21, #32        \n\t"
-        "LSR        x24, x23, #32        \n\t"
-        "LSR        x3, x2, #32          \n\t"
-        "LSR        x5, x4, #32          \n\t"
-        "AND        x21, x21, #0x3ffffff \n\t"
-        "AND        x23, x23, #0x3ffffff \n\t"
-        "AND        x2, x2, #0x3ffffff   \n\t"
-        "AND        x4, x4, #0x3ffffff   \n\t"
-        /* s1 = r1 * 5; */
-        /* s2 = r2 * 5; */
-        /* s3 = r3 * 5; */
-        /* s4 = r4 * 5; */
-        "MOV        x15, #5              \n\t"
-        "CMP        %[finished], #0      \n\t"
-        "MUL        w7, w22, w15         \n\t"
-        "CSET       %[finished], EQ      \n\t"
-        "MUL        w8, w23, w15         \n\t"
-        "LSL        %[finished], %[finished], #24 \n\t"
-        "MUL        w9, w24, w15         \n\t"
-        "MOV        x14, #0x3ffffff      \n\t"
-        "MUL        w10, w25, w15        \n\t"
+        "BLO        L_poly1305_aarch64_16_done_%= \n\t"
+
+        "MOV        x12, #1               \n\t"
+        /* Load h */
+        "LDP        w4, w5, [%[ctx_h], #0]   \n\t"
+        "LDP        w6, w7, [%[ctx_h], #8]   \n\t"
+        "LDR        w8, [%[ctx_h], #16]   \n\t"
+        /* Base 26 -> Base 64 */
+        "ORR        x4, x4, x5, LSL #26\n\t"
+        "ORR        x4, x4, x6, LSL #52\n\t"
+        "LSR        x5, x6, #12\n\t"
+        "ORR        x5, x5, x7, LSL #14\n\t"
+        "ORR        x5, x5, x8, LSL #40\n\t"
+        "LSR        x6, x8, #24\n\t"
+        /* Load r */
+        "LDP        x8, x9, %[ctx_r64]   \n\t"
+        "SUB        %[finished], x12, %[finished]\n\t"
         "\n"
         ".align 2 \n\t"
-    "L_poly1305_aarch64_16_64_loop_%=: \n\t"
-        /* t0 = U8TO64(&m[0]); */
-        /* t1 = U8TO64(&m[8]); */
-        "LDP        x16, x17, [%[m]], #16 \n\t"
-        /* h0 += (U8TO32(m + 0)) & 0x3ffffff; */
-        "AND        x26, x16, #0x3ffffff \n\t"
-        "ADD        x2, x2, x26          \n\t"
-        /* h1 += (U8TO32(m + 3) >> 2) & 0x3ffffff; */
-        "AND        x26, x14, x16, LSR #26 \n\t"
-        "ADD        x3, x3, x26          \n\t"
-        /* h2 += (U8TO32(m + 6) >> 4) & 0x3ffffff; */
-        "EXTR       x26, x17, x16, #52   \n\t"
-        "AND        x26, x26, #0x3ffffff \n\t"
-        "ADD        x4, x4, x26          \n\t"
-        /* h3 += (U8TO32(m + 9) >> 6) & 0x3ffffff; */
-        "AND        x26, x14, x17, LSR #14 \n\t"
-        "ADD        x5, x5, x26          \n\t"
-        /* h4 += (U8TO32(m + 12) >> 8) | hibit; */
-        "ORR        x17, %[finished], x17, LSR #40 \n\t"
-        "ADD        x6, x6, x17          \n\t"
-        /* d0 = h0 * r0 + h1 * s4 + h2 * s3 + h3 * s2 + h4 * s1 */
-        /* d1 = h0 * r1 + h1 * r0 + h2 * s4 + h3 * s3 + h4 * s2 */
-        /* d2 = h0 * r2 + h1 * r1 + h2 * r0 + h3 * s4 + h4 * s3 */
-        /* d3 = h0 * r3 + h1 * r2 + h2 * r1 + h3 * r0 + h4 * s4 */
-        /* d4 = h0 * r4 + h1 * r3 + h2 * r2 + h3 * r1 + h4 * r0 */
-        "MUL        x16, x2, x21         \n\t"
-        "MUL        x17, x2, x22         \n\t"
-        "MUL        x26, x2, x23         \n\t"
-        "MUL        x19, x2, x24         \n\t"
-        "MUL        x20, x2, x25         \n\t"
-        "MADD       x16, x3, x10, x16    \n\t"
-        "MADD       x17, x3, x21, x17    \n\t"
-        "MADD       x26, x3, x22, x26    \n\t"
-        "MADD       x19, x3, x23, x19    \n\t"
-        "MADD       x20, x3, x24, x20    \n\t"
-        "MADD       x16, x4, x9, x16     \n\t"
-        "MADD       x17, x4, x10, x17    \n\t"
-        "MADD       x26, x4, x21, x26    \n\t"
-        "MADD       x19, x4, x22, x19    \n\t"
-        "MADD       x20, x4, x23, x20    \n\t"
-        "MADD       x16, x5, x8, x16     \n\t"
-        "MADD       x17, x5, x9, x17     \n\t"
-        "MADD       x26, x5, x10, x26    \n\t"
-        "MADD       x19, x5, x21, x19    \n\t"
-        "MADD       x20, x5, x22, x20    \n\t"
-        "MADD       x16, x6, x7, x16     \n\t"
-        "MADD       x17, x6, x8, x17     \n\t"
-        "MADD       x26, x6, x9, x26     \n\t"
-        "MADD       x19, x6, x10, x19    \n\t"
-        "MADD       x20, x6, x21, x20    \n\t"
-        /* d1 = d1 + d0 >> 26 */
-        /* d2 = d2 + d1 >> 26 */
-        /* d3 = d3 + d2 >> 26 */
-        /* d4 = d4 + d3 >> 26 */
-        /* h0 = d0 & 0x3ffffff */
-        /* h1 = d1 & 0x3ffffff */
-        /* h2 = d2 & 0x3ffffff */
-        /* h0 = h0 + (d4 >> 26) * 5 */
-        /* h1 = h1 + h0 >> 26 */
-        /* h3 = d3 & 0x3ffffff */
-        /* h4 = d4 & 0x3ffffff */
-        /* h0 = h0 & 0x3ffffff */
-        "ADD        x17, x17, x16, LSR #26 \n\t"
-        "ADD        x20, x20, x19, LSR #26 \n\t"
-        "AND        x16, x16, #0x3ffffff \n\t"
-        "LSR        x2, x20, #26         \n\t"
-        "AND        x19, x19, #0x3ffffff \n\t"
-        "MADD       x16, x2, x15, x16    \n\t"
-        "ADD        x26, x26, x17, LSR #26 \n\t"
-        "AND        x17, x17, #0x3ffffff \n\t"
-        "AND        x20, x20, #0x3ffffff \n\t"
-        "ADD        x19, x19, x26, LSR #26 \n\t"
-        "AND        x4, x26, #0x3ffffff  \n\t"
-        "ADD        x3, x17, x16, LSR #26 \n\t"
-        "AND        x2, x16, #0x3ffffff  \n\t"
-        "ADD        x6, x20, x19, LSR #26 \n\t"
-        "AND        x5, x19, #0x3ffffff  \n\t"
-        "SUB        %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE] \n\t"
-        "CMP        %[bytes], %[POLY1305_BLOCK_SIZE] \n\t"
-        "BHS        L_poly1305_aarch64_16_64_loop_%= \n\t"
-        /* Store h */
-        "ORR        x2, x2, x3, LSL #32  \n\t"
-        "ORR        x4, x4, x5, LSL #32  \n\t"
-        "STP        x2, x4, %[ctx_h]     \n\t"
-        "STR        w6, %[ctx_h_4]       \n\t"
+    "L_poly1305_aarch64_16_loop_%=: \n\t"
+        /* Load m */
+        "LDR        x10, [%[m]]          \n\t"
+        "LDR        x11, [%[m], 8]       \n\t"
+        /* Add m and !finished at bit 128. */
+        "ADDS       x4, x4, x10          \n\t"
+        "ADCS       x5, x5, x11          \n\t"
+        "ADC        x6, x6, %[finished]  \n\t"
+
+        /* r * h */
+        /* r0 * h0 */
+        "MUL        x12, x8, x4\n\t"
+        "UMULH      x13, x8, x4\n\t"
+        /* r0 * h1 */
+        "MUL        x16, x8, x5\n\t"
+        "UMULH      x14, x8, x5\n\t"
+        /* r1 * h0 */
+        "MUL        x15, x9, x4\n\t"
+        "ADDS       x13, x13, x16\n\t"
+        "UMULH      x17, x9, x4\n\t"
+        "ADC        x14, x14, xzr\n\t"
+        "ADDS       x13, x13, x15\n\t"
+        /* r0 * h2 */
+        "MUL        x16, x8, x6\n\t"
+        "ADCS       x14, x14, x17\n\t"
+        "UMULH      x17, x8, x6\n\t"
+        "ADC        x15, xzr, xzr\n\t"
+        "ADDS       x14, x14, x16\n\t"
+        /* r1 * h1 */
+        "MUL        x16, x9, x5\n\t"
+        "ADC        x15, x15, x17\n\t"
+        "UMULH      x19, x9, x5\n\t"
+        "ADDS       x14, x14, x16\n\t"
+        /* r1 * h2 */
+        "MUL        x17, x9, x6\n\t"
+        "ADCS       x15, x15, x19\n\t"
+        "UMULH      x19, x9, x6\n\t"
+        "ADC        x16, xzr, xzr\n\t"
+        "ADDS       x15, x15, x17\n\t"
+        "ADC        x16, x16, x19\n\t"
+        /* h' = x12, x13, x14, x15, x16 */
+
+        /* h' mod 2^130 - 5 */
+        /* Get top two bits from h[2]. */
+        "AND        x6, x14, 3\n\t"
+        /* Get high bits from h[2]. */
+        "AND        x14, x14, -4\n\t"
+        /* Add top bits * 4. */
+        "ADDS       x4, x12, x14\n\t"
+        "ADCS       x5, x13, x15\n\t"
+        "ADC        x6, x6, x16\n\t"
+        /* Move down 2 bits. */
+        "EXTR       x14, x15, x14, 2\n\t"
+        "EXTR       x15, x16, x15, 2\n\t"
+        /* Add top bits. */
+        "ADDS       x4, x4, x14\n\t"
+        "ADCS       x5, x5, x15\n\t"
+        "ADC        x6, x6, xzr\n\t"
+
+        "SUBS       %[bytes], %[bytes], %[POLY1305_BLOCK_SIZE]\n\t"
+        "ADD        %[m], %[m], %[POLY1305_BLOCK_SIZE]\n\t"
+        "BGT        L_poly1305_aarch64_16_loop_%=\n\t"
+
+        /* Base 64 -> Base 26 */
+        "MOV        x10, #0x3ffffff\n\t"
+        "EXTR       x8, x6, x5, #40\n\t"
+        "AND        x7, x10, x5, LSR #14\n\t"
+        "EXTR       x6, x5, x4, #52\n\t"
+        "AND        x5, x10, x4, LSR #26\n\t"
+        "AND        x4, x4, x10\n\t"
+        "AND        x6, x6, x10\n\t"
+        "AND        x8, x8, x10\n\t"
+        "STP        w4, w5, [%[ctx_h], #0]   \n\t"
+        "STP        w6, w7, [%[ctx_h], #8]   \n\t"
+        "STR        w8, [%[ctx_h], #16]   \n\t"
         "\n"
         ".align 2 \n\t"
-    "L_poly1305_aarch64_16_64_done_%=: \n\t"
-        : [ctx_h] "+m" (ctx->h[0]),
-          [ctx_h_4] "+m" (ctx->h[4]),
-          [bytes] "+r" (bytes),
-          [m] "+r" (m)
+    "L_poly1305_aarch64_16_done_%=: \n\t"
+        : [bytes] "+r" (bytes), [m] "+r" (m)
         : [POLY1305_BLOCK_SIZE] "I" (POLY1305_BLOCK_SIZE),
-          [ctx_r] "m" (ctx->r[0]),
-          [ctx_r_4] "m" (ctx->r[4]),
+          [ctx_r64] "m" (ctx->r64[0]), [ctx_h] "r" (ctx->h),
           [finished] "r" ((word64)ctx->finished)
         : "memory", "cc",
-          "w2", "w3", "w4", "w5", "w6", "w7", "w8", "w9", "w10", "w15",
-          "w21", "w22", "w23", "w24", "w25", "x2", "x3", "x4", "x5", "x6",
-          "x7", "x8", "x9", "x10", "x14", "x15", "x16", "x17", "x19", "x20",
-          "x21", "x22", "x23", "x24", "x25", "x26"
+          "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14",
+          "x15", "x16", "x17", "x19"
     );
 }
 
@@ -910,151 +885,147 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         "LDP        x10, x11, [%[key], #16] \n\t"
         /* Load clamp */
         "LDP        x12, x13, [%[clamp]] \n\t"
+        /* Save pad for later */
+        "STP        x10, x11, [%[ctx_pad]] \n\t"
         /* Apply clamp */
         /* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
         "AND        x8, x8, x12          \n\t"
         "AND        x9, x9, x13          \n\t"
-        "MOV        x19, xzr             \n\t"
-        "MOV        x20, xzr             \n\t"
-        "MOV        x21, xzr             \n\t"
-        "MOV        x22, xzr             \n\t"
-        "MOV        x23, xzr             \n\t"
-        "BFI        x19, x8, #0, #26     \n\t"
-        "LSR        x8, x8, #26          \n\t"
-        "BFI        x20, x8, #0, #26     \n\t"
-        "LSR        x8, x8, #26          \n\t"
-        "BFI        x21, x8, #0, #12     \n\t"
-        "BFI        x21, x9, #12, #14    \n\t"
-        "LSR        x9, x9, #14          \n\t"
-        "BFI        x22, x9, #0, #26     \n\t"
-        "LSR        x9, x9, #26          \n\t"
-        "BFI        x23, x9, #0, #24     \n\t"
+        "STP        x8, x9, [%[ctx_r64]] \n\t"
+        /* 128-bits: Base 64 -> Base 26 */
+        "MOV        x20, #0x3ffffff\n\t"
+        "LSR        x15, x9, #40\n\t"
+        "AND        x14, x20, x9, LSR #14\n\t"
+        "EXTR       x13, x9, x8, #52\n\t"
+        "AND        x12, x20, x8, LSR #26\n\t"
+        "AND        x11, x8, x20\n\t"
+        "AND        x13, x13, x20\n\t"
+        "AND        x15, x15, x20\n\t"
+        "STP        w11, w12, [%[ctx_r], #0]   \n\t"
+        "STP        w13, w14, [%[ctx_r], #8]   \n\t"
+        "STR        w15, [%[ctx_r], #16]   \n\t"
+
         /* Compute r^2 */
-        /* r*5 */
-        "MOV        x8, #5               \n\t"
-        "MUL        x24, x20, x8         \n\t"
-        "MUL        x25, x21, x8         \n\t"
-        "MUL        x26, x22, x8         \n\t"
-        "MUL        x27, x23, x8         \n\t"
-        /* d = r*r */
-        /* d0 = h0 * r0 + h1 * s4 + h2 * s3 + h3 * s2 + h4 * s1 */
-        /* d1 = h0 * r1 + h1 * r0 + h2 * s4 + h3 * s3 + h4 * s2 */
-        /* d2 = h0 * r2 + h1 * r1 + h2 * r0 + h3 * s4 + h4 * s3 */
-        /* d3 = h0 * r3 + h1 * r2 + h2 * r1 + h3 * r0 + h4 * s4 */
-        /* d4 = h0 * r4 + h1 * r3 + h2 * r2 + h3 * r1 + h4 * r0 */
-        "MUL        x14, x19, x19        \n\t"
-        "MUL        x15, x19, x20        \n\t"
-        "MUL        x16, x19, x21        \n\t"
-        "MUL        x17, x19, x22        \n\t"
-        "MUL        x7, x19, x23         \n\t"
-        "MADD       x14, x20, x27, x14   \n\t"
-        "MADD       x15, x20, x19, x15   \n\t"
-        "MADD       x16, x20, x20, x16   \n\t"
-        "MADD       x17, x20, x21, x17   \n\t"
-        "MADD       x7, x20, x22, x7     \n\t"
-        "MADD       x14, x21, x26, x14   \n\t"
-        "MADD       x15, x21, x27, x15   \n\t"
-        "MADD       x16, x21, x19, x16   \n\t"
-        "MADD       x17, x21, x20, x17   \n\t"
-        "MADD       x7, x21, x21, x7     \n\t"
-        "MADD       x14, x22, x25, x14   \n\t"
-        "MADD       x15, x22, x26, x15   \n\t"
-        "MADD       x16, x22, x27, x16   \n\t"
-        "MADD       x17, x22, x19, x17   \n\t"
-        "MADD       x7, x22, x20, x7     \n\t"
-        "MADD       x14, x23, x24, x14   \n\t"
-        "MADD       x15, x23, x25, x15   \n\t"
-        "MADD       x16, x23, x26, x16   \n\t"
-        "MADD       x17, x23, x27, x17   \n\t"
-        "MADD       x7, x23, x19, x7     \n\t"
+        /* r0 * r0 */
+        "MUL        x12, x8, x8\n\t"
+        "UMULH      x13, x8, x8\n\t"
+        /* 2 * r0 * r1 */
+        "MUL        x15, x8, x9\n\t"
+        "UMULH      x16, x8, x9\n\t"
+        "ADDS       x13, x13, x15\n\t"
+        "ADC        x14, xzr, x16\n\t"
+        "ADDS       x13, x13, x15\n\t"
+        "ADCS       x14, x14, x16\n\t"
+        "ADC        x15, xzr, xzr\n\t"
+        /* r1 * r1 */
+        "MUL        x16, x9, x9\n\t"
+        "UMULH      x17, x9, x9\n\t"
+        "ADDS       x14, x14, x16\n\t"
+        "ADC        x15, x15, x17\n\t"
         /* r_2 = r^2 % P */
-        "ADD        x15, x15, x14, LSR #26 \n\t"
-        "ADD        x7, x7, x17, LSR #26 \n\t"
-        "AND        x14, x14, #0x3ffffff \n\t"
-        "LSR        x9, x7, #26          \n\t"
-        "AND        x17, x17, #0x3ffffff \n\t"
-        "MADD       x14, x9, x8, x14     \n\t"
-        "ADD        x16, x16, x15, LSR #26 \n\t"
-        "AND        x15, x15, #0x3ffffff \n\t"
-        "AND        x7, x7, #0x3ffffff   \n\t"
-        "ADD        x17, x17, x16, LSR #26 \n\t"
-        "AND        x16, x16, #0x3ffffff \n\t"
-        "ADD        x15, x15, x14, LSR #26 \n\t"
-        "AND        x14, x14, #0x3ffffff \n\t"
-        "ADD        x7, x7, x17, LSR #26 \n\t"
-        "AND        x17, x17, #0x3ffffff \n\t"
-        /* Store r */
-        "ORR        x19, x19, x20, LSL #32 \n\t"
-        "ORR        x21, x21, x22, LSL #32 \n\t"
-        "STP        x19, x21, [%[ctx_r]] \n\t"
-        "STR        w23, [%[ctx_r], #16] \n\t"
-        "MOV        x8, #5               \n\t"
-        "MUL        x24, x15, x8         \n\t"
-        "MUL        x25, x16, x8         \n\t"
-        "MUL        x26, x17, x8         \n\t"
-        "MUL        x27, x7, x8          \n\t"
-        /* Compute r^4 */
-        /* d0 = h0 * r0 + h1 * s4 + h2 * s3 + h3 * s2 + h4 * s1 */
-        /* d1 = h0 * r1 + h1 * r0 + h2 * s4 + h3 * s3 + h4 * s2 */
-        /* d2 = h0 * r2 + h1 * r1 + h2 * r0 + h3 * s4 + h4 * s3 */
-        /* d3 = h0 * r3 + h1 * r2 + h2 * r1 + h3 * r0 + h4 * s4 */
-        /* d4 = h0 * r4 + h1 * r3 + h2 * r2 + h3 * r1 + h4 * r0 */
-        "MUL        x19, x14, x14        \n\t"
-        "MUL        x20, x14, x15        \n\t"
-        "MUL        x21, x14, x16        \n\t"
-        "MUL        x22, x14, x17        \n\t"
-        "MUL        x23, x14, x7         \n\t"
-        "MADD       x19, x15, x27, x19   \n\t"
-        "MADD       x20, x15, x14, x20   \n\t"
-        "MADD       x21, x15, x15, x21   \n\t"
-        "MADD       x22, x15, x16, x22   \n\t"
-        "MADD       x23, x15, x17, x23   \n\t"
-        "MADD       x19, x16, x26, x19   \n\t"
-        "MADD       x20, x16, x27, x20   \n\t"
-        "MADD       x21, x16, x14, x21   \n\t"
-        "MADD       x22, x16, x15, x22   \n\t"
-        "MADD       x23, x16, x16, x23   \n\t"
-        "MADD       x19, x17, x25, x19   \n\t"
-        "MADD       x20, x17, x26, x20   \n\t"
-        "MADD       x21, x17, x27, x21   \n\t"
-        "MADD       x22, x17, x14, x22   \n\t"
-        "MADD       x23, x17, x15, x23   \n\t"
-        "MADD       x19, x7, x24, x19    \n\t"
-        "MADD       x20, x7, x25, x20    \n\t"
-        "MADD       x21, x7, x26, x21    \n\t"
-        "MADD       x22, x7, x27, x22    \n\t"
-        "MADD       x23, x7, x14, x23    \n\t"
-        /* r^4 % P */
-        "ADD        x20, x20, x19, LSR #26 \n\t"
-        "ADD        x23, x23, x22, LSR #26 \n\t"
-        "AND        x19, x19, #0x3ffffff \n\t"
-        "LSR        x9, x23, #26         \n\t"
-        "AND        x22, x22, #0x3ffffff \n\t"
-        "MADD       x19, x9, x8, x19     \n\t"
-        "ADD        x21, x21, x20, LSR #26 \n\t"
-        "AND        x20, x20, #0x3ffffff \n\t"
-        "AND        x23, x23, #0x3ffffff \n\t"
-        "ADD        x22, x22, x21, LSR #26 \n\t"
-        "AND        x21, x21, #0x3ffffff \n\t"
-        "ADD        x20, x20, x19, LSR #26 \n\t"
-        "AND        x19, x19, #0x3ffffff \n\t"
-        "ADD        x23, x23, x22, LSR #26 \n\t"
-        "AND        x22, x22, #0x3ffffff \n\t"
+        /* Get top two bits from r^2[2]. */
+        "AND        x10, x14, 3\n\t"
+        /* Get high bits from r^2[2]. */
+        "AND        x14, x14, -4\n\t"
+        /* Add top bits * 4. */
+        "ADDS       x8, x12, x14\n\t"
+        "ADCS       x9, x13, x15\n\t"
+        "ADC        x10, x10, xzr\n\t"
+        /* Move down 2 bits. */
+        "EXTR       x14, x15, x14, 2\n\t"
+        "LSR        x15, x15, 2\n\t"
+        /* Add top bits. */
+        "ADDS       x8, x8, x14\n\t"
+        "ADCS       x9, x9, x15\n\t"
+        "ADC        x10, x10, xzr\n\t"
+        /* 130-bits: Base 64 -> Base 26 */
+        "EXTR       x15, x10, x9, #40\n\t"
+        "AND        x14, x20, x9, LSR #14\n\t"
+        "EXTR       x13, x9, x8, #52\n\t"
+        "AND        x12, x20, x8, LSR #26\n\t"
+        "AND        x11, x8, x20\n\t"
+        "AND        x13, x13, x20\n\t"
+        "AND        x15, x15, x20\n\t"
         /* Store r^2 */
-        "ORR        x14, x14, x15, LSL #32 \n\t"
-        "ORR        x16, x16, x17, LSL #32 \n\t"
-        "STP        x14, x16, [%[ctx_r_2]] \n\t"
-        "STR        w7, [%[ctx_r_2], #16] \n\t"
+        "STP        w11, w12, [%[ctx_r_2], #0]   \n\t"
+        "STP        w13, w14, [%[ctx_r_2], #8]   \n\t"
+        "STR        w15, [%[ctx_r_2], #16]   \n\t"
+
+        /* Compute r^4 */
+        /* r0 * r0 */
+        "MUL        x12, x8, x8\n\t"
+        "UMULH      x13, x8, x8\n\t"
+        /* 2 * r0 * r1 */
+        "MUL        x15, x8, x9\n\t"
+        "UMULH      x16, x8, x9\n\t"
+        "ADDS       x13, x13, x15\n\t"
+        "ADC        x14, xzr, x16\n\t"
+        "ADDS       x13, x13, x15\n\t"
+        "ADCS       x14, x14, x16\n\t"
+        "ADC        x15, xzr, xzr\n\t"
+        /* 2 * r0 * r2 */
+        "MUL        x16, x8, x10\n\t"
+        "UMULH      x17, x8, x10\n\t"
+        "ADDS       x14, x14, x16\n\t"
+        "ADC        x15, x15, x17\n\t"
+        "ADDS       x14, x14, x16\n\t"
+        "ADC        x15, x15, x17\n\t"
+        /* r1 * r1 */
+        "MUL        x16, x9, x9\n\t"
+        "UMULH      x17, x9, x9\n\t"
+        "ADDS       x14, x14, x16\n\t"
+        "ADCS       x15, x15, x17\n\t"
+        "ADC        x16, xzr, xzr\n\t"
+        /* 2 * r1 * r2 */
+        "MUL        x17, x9, x10\n\t"
+        "UMULH      x19, x9, x10\n\t"
+        "ADDS       x15, x15, x17\n\t"
+        "ADC        x16, x16, x19\n\t"
+        "ADDS       x15, x15, x17\n\t"
+        "ADC        x16, x16, x19\n\t"
+        /* r2 * r2 */
+        "MUL        x17, x10, x10\n\t"
+        "ADD        x16, x16, x17\n\t"
+        /* r_4 = r^4 % P */
+        /* Get top two bits from r^4[2]. */
+        "AND        x10, x14, 3\n\t"
+        /* Get high bits from r^4[2]. */
+        "AND        x14, x14, -4\n\t"
+        /* Add top bits * 4. */
+        "ADDS       x8, x12, x14\n\t"
+        "ADCS       x9, x13, x15\n\t"
+        "ADC        x10, x10, x16\n\t"
+        /* Move down 2 bits. */
+        "EXTR       x14, x15, x14, 2\n\t"
+        "EXTR       x15, x16, x15, 2\n\t"
+        "LSR        x16, x16, 2\n\t"
+        /* Add top bits. */
+        "ADDS       x8, x8, x14\n\t"
+        "ADCS       x9, x9, x15\n\t"
+        "ADC        x10, x10, x16\n\t"
+        /* Top again as it was 260 bits mod less than 130 bits. */
+        "AND        x11, x10, -4\n\t"
+        "AND        x10, x10, 3\n\t"
+        "ADD        x11, x11, x11, LSR #2\n\t"
+        "ADDS       x8, x8, x11\n\t"
+        "ADCS       x9, x9, xzr\n\t"
+        "ADC        x10, x10, xzr\n\t"
+        /* 130-bits: Base 64 -> Base 26 */
+        "EXTR       x15, x10, x9, #40\n\t"
+        "AND        x14, x20, x9, LSR #14\n\t"
+        "EXTR       x13, x9, x8, #52\n\t"
+        "AND        x12, x20, x8, LSR #26\n\t"
+        "AND        x11, x8, x20\n\t"
+        "AND        x13, x13, x20\n\t"
+        "AND        x15, x15, x20\n\t"
         /* Store r^4 */
-        "ORR        x19, x19, x20, LSL #32 \n\t"
-        "ORR        x21, x21, x22, LSL #32 \n\t"
-        "STP        x19, x21, [%[ctx_r_4]] \n\t"
-        "STR        w23, [%[ctx_r_4], #16] \n\t"
+        "STP        w11, w12, [%[ctx_r_4], #0]   \n\t"
+        "STP        w13, w14, [%[ctx_r_4], #8]   \n\t"
+        "STR        w15, [%[ctx_r_4], #16]   \n\t"
+
         /* h (accumulator) = 0 */
         "STP        xzr, xzr, [%[ctx_h_0]] \n\t"
         "STR        wzr, [%[ctx_h_0], #16] \n\t"
-        /* Save pad for later */
-        "STP        x10, x11, [%[ctx_pad]] \n\t"
         /* Zero leftover */
         "STR        xzr, [%[ctx_leftover]] \n\t"
         /* Zero finished */
@@ -1062,6 +1033,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
         :
         : [clamp] "r" (clamp),
           [key] "r" (key),
+          [ctx_r64] "r" (ctx->r64),
           [ctx_r] "r" (ctx->r),
           [ctx_r_2] "r" (ctx->r_2),
           [ctx_r_4] "r" (ctx->r_4),
@@ -1070,9 +1042,8 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
           [ctx_leftover] "r" (&ctx->leftover),
           [ctx_finished] "r" (&ctx->finished)
         : "memory", "cc",
-          "w7", "w14", "w15", "w16", "w17", "w19", "w20", "w21", "w22", "w23",
-          "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16",
-          "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27"
+          "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17",
+          "x19", "x20"
     );
 
     return 0;
@@ -1081,7 +1052,6 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 
 int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 {
-
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
@@ -1096,67 +1066,54 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
     }
 
     __asm__ __volatile__ (
-        /* Load raw h and zero h registers */
-        "LDP        x2, x3, %[h_addr]    \n\t"
-        "MOV        x5, xzr              \n\t"
-        "LDR        w4, %[h_4_addr]      \n\t"
-        "MOV        x6, xzr              \n\t"
-        "LDP        x16, x17, %[pad_addr] \n\t"
+        "LDP        x9, x10, %[ctx_pad] \n\t"
+        /* Load h */
+        "LDP        w4, w5, [%[ctx_h], #0]   \n\t"
+        "LDP        w6, w7, [%[ctx_h], #8]   \n\t"
+        "LDR        w8, [%[ctx_h], #16]   \n\t"
         /* Base 26 -> Base 64 */
-        "MOV        w5, w2               \n\t"
-        "LSR        x2, x2, #32          \n\t"
-        "ORR        x5, x5, x2, LSL #26  \n\t"
-        "ORR        x5, x5, x3, LSL #52  \n\t"
-        "LSR        w6, w3, #12          \n\t"
-        "LSR        x3, x3, #32          \n\t"
-        "ORR        x6, x6, x3, LSL #14  \n\t"
-        "ORR        x6, x6, x4, LSL #40  \n\t"
-        "LSR        x7, x4, #24          \n\t"
+        "ORR        x4, x4, x5, LSL #26\n\t"
+        "ORR        x4, x4, x6, LSL #52\n\t"
+        "LSR        x5, x6, #12\n\t"
+        "ORR        x5, x5, x7, LSL #14\n\t"
+        "ORR        x5, x5, x8, LSL #40\n\t"
+        "LSR        x6, x8, #24\n\t"
         /* Check if h is larger than p */
-        "ADDS       x2, x5, #5           \n\t"
-        "ADCS       x3, x6, xzr          \n\t"
-        "ADC        x4, x7, xzr          \n\t"
+        "ADDS       x1, x4, #5           \n\t"
+        "ADCS       x2, x5, xzr          \n\t"
+        "ADC        x3, x6, xzr          \n\t"
         /* Check if h+5 is larger than 2^130 */
-        "CMP        x4, #3               \n\t"
+        "CMP        x3, #3               \n\t"
+        "CSEL       x4, x1, x4, HI       \n\t"
         "CSEL       x5, x2, x5, HI       \n\t"
-        "CSEL       x6, x3, x6, HI       \n\t"
-        "ADDS       x5, x5, x16          \n\t"
-        "ADC        x6, x6, x17          \n\t"
-        "STP        x5, x6, [%[mac]]     \n\t"
-        : [mac] "+r" (mac)
-        : [pad_addr] "m" (ctx->pad),
-          [h_addr] "m" (ctx->h),
-          [h_4_addr] "m" (ctx->h[4])
-        : "memory", "cc",
-          "w2", "w3", "w4", "w5", "w6", "w7", "x2", "x3", "x4", "x5",
-          "x6", "x7", "x16", "x17"
-    );
+        "ADDS       x4, x4, x9           \n\t"
+        "ADC        x5, x5, x10          \n\t"
+        "STP        x4, x5, [%[mac]]     \n\t"
 
-    /* zero out the state */
-    ctx->h[0] = 0;
-    ctx->h[1] = 0;
-    ctx->h[2] = 0;
-    ctx->h[3] = 0;
-    ctx->h[4] = 0;
-    ctx->r[0] = 0;
-    ctx->r[1] = 0;
-    ctx->r[2] = 0;
-    ctx->r[3] = 0;
-    ctx->r[4] = 0;
-    ctx->r_2[0] = 0;
-    ctx->r_2[1] = 0;
-    ctx->r_2[2] = 0;
-    ctx->r_2[3] = 0;
-    ctx->r_2[4] = 0;
-    ctx->r_4[0] = 0;
-    ctx->r_4[1] = 0;
-    ctx->r_4[2] = 0;
-    ctx->r_4[3] = 0;
-    ctx->r_4[4] = 0;
-    ctx->pad[0] = 0;
-    ctx->pad[1] = 0;
-    ctx->pad[2] = 0;
-    ctx->pad[3] = 0;
+        /* Zero out h */
+        "STP        xzr, xzr, [%[ctx_h]] \n\t"
+        "STR        wzr, [%[ctx_h], #16] \n\t"
+        /* Zero out r64 */
+        "STP        xzr, xzr, [%[ctx_r64]] \n\t"
+        /* Zero out r */
+        "STP        xzr, xzr, [%[ctx_r]] \n\t"
+        "STR        wzr, [%[ctx_r], #16] \n\t"
+        /* Zero out r_2 */
+        "STP        xzr, xzr, [%[ctx_r_2]] \n\t"
+        "STR        wzr, [%[ctx_r_2], #16] \n\t"
+        /* Zero out r_4 */
+        "STP        xzr, xzr, [%[ctx_r_4]] \n\t"
+        "STR        wzr, [%[ctx_r_4], #16] \n\t"
+        /* Zero out pad */
+        "STP        xzr, xzr, %[ctx_pad] \n\t"
+        :
+        : [ctx_pad] "m" (ctx->pad), [ctx_h] "r" (ctx->h), [mac] "r" (mac),
+          [ctx_r64] "r" (ctx->r64), [ctx_r] "r" (ctx->r),
+          [ctx_r_2] "r" (ctx->r_2), [ctx_r_4] "r" (ctx->r_4)
+        : "memory", "cc",
+          "w4", "w5", "w6", "w7", "w8",
+          "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10"
+    );
 
     return 0;
 }
