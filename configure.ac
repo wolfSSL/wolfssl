@@ -8475,6 +8475,19 @@ AC_ARG_ENABLE([cryptocb],
     [ ENABLED_CRYPTOCB=no ]
     )
 
+# Enable testing of cryptoCb using software crypto. On platforms where wolfCrypt tests
+# are used to test a custom cryptoCb, it may be desired to disable this so wolfCrypt tests
+# don't also test software implementations of every algorithm
+AC_ARG_ENABLE([cryptocb-sw-test],
+    [AS_HELP_STRING([--disable-cryptocb-sw-test],[Disable wolfCrypt crypto callback tests using software crypto (default: enabled). Only valid with --enable-cryptocb])],
+    [ if test "x$ENABLED_CRYPTOCB" = "xno"; then
+          AC_MSG_ERROR([--disable-cryptocb-sw-test requires --enable-cryptocb])
+      else
+          ENABLED_CRYPTOCB_SW_TEST=$enableval
+      fi ],
+    [ ENABLED_CRYPTOCB_SW_TEST=yes ]
+    )
+
 if test "x$ENABLED_PKCS11" = "xyes" || test "x$ENABLED_WOLFTPM" = "xyes" || test "$ENABLED_CAAM" != "no"
 then
     ENABLED_CRYPTOCB=yes
@@ -8482,6 +8495,11 @@ fi
 if test "$ENABLED_CRYPTOCB" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_CB"
+fi
+
+if test "$ENABLED_CRYPTOCB_SW_TEST" = "no"
+then
+        AM_CFLAGS="$AM_CFLAGS -DWC_TEST_NO_CRYPTOCB_SW_TEST"
 fi
 
 
