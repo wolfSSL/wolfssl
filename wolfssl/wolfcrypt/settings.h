@@ -695,7 +695,6 @@
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
     #define TFM_TIMING_RESISTANT
-    #define NO_BIG_INT
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
