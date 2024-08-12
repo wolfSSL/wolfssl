@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 #if (defined(__INTEGRITY) || defined(INTEGRITY)) || \
     (defined(__QNX__) || defined(__QNXNTO__))
 

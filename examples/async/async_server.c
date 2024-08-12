@@ -22,6 +22,10 @@
 /* TLS server demonstrating asynchronous cryptography features and optionally
  * using the crypto or PK callbacks */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 /* std */
 #include <stdlib.h>
 #include <stdio.h>

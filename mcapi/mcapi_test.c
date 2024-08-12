@@ -23,7 +23,9 @@
 
 /* Tests Microchip CRYPTO API layer */
 
-
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 /* mc api header */
 #include <wolfssl/wolfcrypt/settings.h>
