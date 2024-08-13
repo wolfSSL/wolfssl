@@ -22,12 +22,9 @@
 #ifndef EXT_XMSS_H
 #define EXT_XMSS_H
 
-#ifdef WOLFSSL_HAVE_XMSS
-#include <wolfssl/wolfcrypt/xmss.h>
+#if defined(WOLFSSL_HAVE_XMSS) && defined(HAVE_LIBXMSS)
 
-#if !defined(HAVE_LIBXMSS)
-    #error "This code requires libxmss"
-#endif
+#include <wolfssl/wolfcrypt/xmss.h>
 
 #include <xmss.h>
 #include <params.h>

@@ -27,7 +27,8 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
-#ifdef WOLFSSL_HAVE_LMS
+#if defined(WOLFSSL_HAVE_LMS) && defined(HAVE_LIBLMS)
+
 #include <wolfssl/wolfcrypt/ext_lms.h>
 
 #ifdef NO_INLINE
@@ -1048,4 +1049,4 @@ int wc_LmsKey_Verify(LmsKey * key, const byte * sig, word32 sigSz,
     return 0;
 }
 
-#endif /* WOLFSSL_HAVE_LMS */
+#endif /* WOLFSSL_HAVE_LMS && HAVE_LIBLMS */

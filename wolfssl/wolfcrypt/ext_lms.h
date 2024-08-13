@@ -22,12 +22,9 @@
 #ifndef EXT_LMS_H
 #define EXT_LMS_H
 
-#ifdef WOLFSSL_HAVE_LMS
-#include <wolfssl/wolfcrypt/lms.h>
+#if defined(WOLFSSL_HAVE_LMS) && defined(HAVE_LIBLMS)
 
-#if !defined(HAVE_LIBLMS)
-#error "This code requires liblms"
-#endif
+#include <wolfssl/wolfcrypt/lms.h>
 
 /* hash-sigs LMS HSS includes */
 #include <hss.h>
