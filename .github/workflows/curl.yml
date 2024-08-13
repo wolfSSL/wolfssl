@@ -58,8 +58,8 @@ jobs:
       with:
         name: wolf-install-curl
 
-      - name: untar build-dir
-        run: tar -xf build-dir.tgz
+    - name: untar build-dir
+      run: tar -xf build-dir.tgz
 
     - name: Build curl
       uses: wolfSSL/actions-build-autotools-project@v1
