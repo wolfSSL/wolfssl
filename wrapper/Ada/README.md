@@ -28,7 +28,9 @@ Not only can the WolfSSL Ada binding be used in Ada applications but
 also SPARK applications (a subset of the Ada language suitable
 formal verification). To formally verify the Ada code in this repository
 open the client.gpr with GNAT Studio and then select
-SPARK -> Prove All Sources and use Proof Level 2.
+SPARK -> Prove All Sources and use Proof Level 2. Or when using the command
+line, use `gnatprove -Pclient.gpr --level=4 -j12` (`-j12` is there in
+order to instruct the prover to use 12 CPUs if available).
 
 ```
 Summary of SPARK analysis
@@ -67,19 +69,17 @@ dependency by running `alr with gnatprove` and then running `alr gnatprove`,
 which will execute the SPARK solver. If you get warnings, it is recommended to
 increase the prove level: `alr gnatprove --level=4`.
 
-### GNAT Community Edition 2021
-Download and install the GNAT community Edition 2021 compiler and studio:
-https://www.adacore.com/download
+### GNAT FSF Compiler and GPRBuild manual installation
+In May 2022 AdaCore announced the end of the GNAT Community releases.
+Pre-built binaries for the GNAT FSF compiler and GPRBuild can be
+downloaded and manually installed from here:
+https://github.com/alire-project/GNAT-FSF-builds/releases
+Make sure the executables for the compiler and GPRBuild are on the PATH
+and use gprbuild to build the source code.
 
-Linux Install:
+#### Manual build of the project
 
 ```sh
-chmod +x gnat-2021-20210519-x86_64-linux-bin
-./gnat-2021-20210519-x86_64-linux-bin
-```
-
-```sh
-export PATH="/opt/GNAT/2021/bin:$PATH"
 cd wrapper/Ada
 gprclean
 gprbuild default.gpr
@@ -96,15 +96,6 @@ gprbuild -XOS=Windows default.gpr
 gprbuild -XOS=Windows client.gpr
 ```
 
-
-### GNAT FSF Compiler and GPRBuild manual installation
-In May 2022 AdaCore announced the end of the GNAT Community releases.
-Pre-built binaries for the GNAT FSF compiler and GPRBuild can be
-downloaded and manually installed from here:
-https://github.com/alire-project/GNAT-FSF-builds/releases
-Make sure the executables for the compiler and GPRBuild are on the PATH
-and use gprbuild to build the source code.
-
 ## Files
 The (D)TLS v1.3 client example in the Ada/SPARK programming language
 using the WolfSSL library can be found in the files:
@@ -117,15 +108,3 @@ using the WolfSSL library can be found in the files:
 tls_server_main.adb
 tls_server.ads
 tls_server.adb
-
-A feature of the Ada language that is not part of SPARK is exceptions.
-Some packages of the Ada standard library and GNAT specific packages
-provided by the GNAT compiler can therefore not be used directly but
-need to be put into wrapper packages that does not raise exceptions.
-The packages that provide access to sockets and command line arguments
-to applications implemented in the SPARK programming language can be
-found in the files:
-spark_sockets.ads
-spark_sockets.adb
-spark_terminal.ads
-spark_terminal.adb
