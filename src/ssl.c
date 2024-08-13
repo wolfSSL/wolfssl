@@ -10806,6 +10806,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
+    #ifdef WOLFSSL_COPY_CERT
+        /* If WOLFSSL_COPY_CERT defined, always free cert buffers in SSL obj */
+        FreeDer(&ssl->buffers.certificate);
+        FreeDer(&ssl->buffers.certChain);
+    #endif
         if (ssl->buffers.weOwnCert && !ssl->keepCert) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
@@ -19549,6 +19554,11 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     /* ctx still owns certificate, certChain, key, dh, and cm */
     if (ssl->buffers.weOwnCert)
         FreeDer(&ssl->buffers.certificate);
+#ifdef WOLFSSL_COPY_CERT
+    /* If WOLFSSL_COPY_CERT defined, always free cert buffers in SSL obj */
+    FreeDer(&ssl->buffers.certificate);
+    FreeDer(&ssl->buffers.certChain);
+#endif
     ssl->buffers.certificate = NULL;
     if (ssl->buffers.weOwnCertChain)
         FreeDer(&ssl->buffers.certChain);
@@ -20151,9 +20161,39 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->ctx = ctx;
 
 #ifndef NO_CERTS
+#ifdef WOLFSSL_COPY_CERT
+    /* If WOLFSSL_COPY_CERT defined, always make new copy of cert */
+    if (ctx->certificate != NULL) {
+        if (ssl->buffers.certificate != NULL) {
+            FreeDer(&ssl->buffers.certificate);
+        }
+        ret = AllocCopyDer(&ssl->buffers.certificate, ctx->certificate->buffer,
+            ctx->certificate->length, ctx->certificate->type,
+            ctx->certificate->heap);
+        if (ret != 0) {
+            return NULL;
+        }
+
+        ret = WOLFSSL_SUCCESS;
+    }
+    if (ctx->certChain != NULL) {
+        if (ssl->buffers.certChain != NULL) {
+            FreeDer(&ssl->buffers.certChain);
+        }
+        ret = AllocCopyDer(&ssl->buffers.certChain, ctx->certChain->buffer,
+            ctx->certChain->length, ctx->certChain->type,
+            ctx->certChain->heap);
+        if (ret != 0) {
+            return NULL;
+        }
+
+        ret = WOLFSSL_SUCCESS;
+    }
+#else
     /* ctx owns certificate, certChain and key */
     ssl->buffers.certificate = ctx->certificate;
     ssl->buffers.certChain = ctx->certChain;
+#endif
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
