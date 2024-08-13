@@ -18501,11 +18501,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certext_test(void)
         return WC_TEST_RET_ENC_EC(ret);
 
     /* check the SKID from a RSA certificate */
-    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
+    if ((sizeof(skid_rsa) - 1 != cert.extSubjKeyIdSz) ||
+        (XMEMCMP(skid_rsa, cert.extSubjKeyId, cert.extSubjKeyIdSz)))
         return WC_TEST_RET_ENC_NC;
 
     /* check the AKID from an RSA certificate */
-    if (XMEMCMP(akid_rsa, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
+    if ((sizeof(akid_rsa) - 1 != cert.extAuthKeyIdSz) ||
+            (XMEMCMP(akid_rsa, cert.extAuthKeyId, cert.extAuthKeyIdSz)))
         return WC_TEST_RET_ENC_NC;
 
     /* check the Key Usage from an RSA certificate */
@@ -18552,7 +18554,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certext_test(void)
     /* check the SKID from a ECC certificate - generated dynamically */
 
     /* check the AKID from an ECC certificate */
-    if (XMEMCMP(akid_ecc, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
+    if ((sizeof(akid_ecc) - 1 != cert.extAuthKeyIdSz) ||
+            (XMEMCMP(akid_ecc, cert.extAuthKeyId, cert.extAuthKeyIdSz)))
         return WC_TEST_RET_ENC_NC;
 
     /* check the Key Usage from an ECC certificate */
@@ -18600,11 +18603,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t certext_test(void)
         return WC_TEST_RET_ENC_EC(ret);
 
     /* check the SKID from a CA certificate */
-    if (XMEMCMP(kid_ca, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
+    if ((sizeof(kid_ca) - 1 != cert.extSubjKeyIdSz) ||
+            (XMEMCMP(kid_ca, cert.extSubjKeyId, cert.extSubjKeyIdSz)))
         return WC_TEST_RET_ENC_NC;
 
     /* check the AKID from an CA certificate */
-    if (XMEMCMP(kid_ca, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
+    if ((sizeof(kid_ca) - 1 != cert.extAuthKeyIdSz) ||
+            (XMEMCMP(kid_ca, cert.extAuthKeyId, cert.extAuthKeyIdSz)))
         return WC_TEST_RET_ENC_NC;
 
     /* check the Key Usage from CA certificate */
