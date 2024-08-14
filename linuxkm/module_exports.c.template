@@ -171,6 +171,9 @@
     #include <wolfssl/wolfcrypt/wc_lms.h>
 #endif
 #endif
+#ifdef HAVE_DILITHIUM
+    #include <wolfssl/wolfcrypt/dilithium.h>
+#endif
 
 #ifdef OPENSSL_EXTRA
   #ifndef WOLFCRYPT_ONLY
