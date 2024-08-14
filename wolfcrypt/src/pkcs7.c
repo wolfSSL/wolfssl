@@ -4187,14 +4187,18 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
         } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     #endif
 
-        FreeDecodedCert(dCert);
-        wc_ecc_free(key);
-
         if (ret == 0 && res == 1) {
             /* found signer that successfully verified signature */
             verified = 1;
+            XMEMCPY(pkcs7->issuerSubjKeyId, dCert->extSubjKeyId, KEYID_SIZE);
             pkcs7->verifyCert   = pkcs7->cert[i];
             pkcs7->verifyCertSz = pkcs7->certSz[i];
+        }
+
+        wc_ecc_free(key);
+        FreeDecodedCert(dCert);
+
+        if (ret == 0 && res == 1) {
             break;
         }
     }
