@@ -6886,7 +6886,7 @@ static const ASNItem pkcs8KeyASN[] = {
                                   { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
 /* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
 };
-enum {
+enum pkcsEnum {
     PKCS8KEYASN_IDX_SEQ = 0,
     PKCS8KEYASN_IDX_VER,
     PKCS8KEYASN_IDX_PKEY_ALGO_SEQ,
@@ -21840,7 +21840,7 @@ static const ASNItem x509CertASN[] = {
                                                    /* signature            BIT STRING */
 /* SIGNATURE                     */        { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
-enum {
+enum x509Enum {
     X509CERTASN_IDX_SEQ = 0,
     X509CERTASN_IDX_TBS_SEQ,
     X509CERTASN_IDX_TBS_VER,
