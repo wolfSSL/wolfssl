@@ -19717,13 +19717,14 @@ static int DecodeAuthKeyId(const byte* input, word32 sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
+    cert->extAuthKeyIdSz = length;
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef WOLFSSL_AKID_NAME
     cert->extRawAuthKeyIdSrc = input;
     cert->extRawAuthKeyIdSz = sz;
 #endif
     cert->extAuthKeyIdSrc = &input[idx];
-    cert->extAuthKeyIdSz = length;
 #endif /* OPENSSL_EXTRA */
 
     return GetHashId(input + idx, length, cert->extAuthKeyId,
@@ -19819,9 +19820,9 @@ static int DecodeSubjKeyId(const byte* input, word32 sz, DecodedCert* cert)
 
     ret = GetOctetString(input, &idx, &length, sz);
     if (ret > 0) {
+        cert->extSubjKeyIdSz = (word32)length;
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         cert->extSubjKeyIdSrc = &input[idx];
-        cert->extSubjKeyIdSz = (word32)length;
     #endif /* OPENSSL_EXTRA */
 
         /* Get the hash or hash of the hash if wrong size. */
