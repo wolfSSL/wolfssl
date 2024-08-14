@@ -20164,7 +20164,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             return NULL;
         }
 
-        ssl->buffers.weOwnCert = TRUE;
+        ssl->buffers.weOwnCert = 1;
         ret = WOLFSSL_SUCCESS;
     }
     if (ctx->certChain != NULL) {
@@ -20178,7 +20178,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             return NULL;
         }
 
-        ssl->buffers.weOwnCertChain = TRUE;
+        ssl->buffers.weOwnCertChain = 1;
         ret = WOLFSSL_SUCCESS;
     }
 #else

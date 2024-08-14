@@ -6816,7 +6816,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return ret;
         }
 
-        ssl->buffers.weOwnCert = TRUE;
+        ssl->buffers.weOwnCert = 1;
         ret = WOLFSSL_SUCCESS;
     }
     if (ctx->certChain != NULL) {
@@ -6830,7 +6830,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return ret;
         }
 
-        ssl->buffers.weOwnCertChain = TRUE;
+        ssl->buffers.weOwnCertChain = 1;
         ret = WOLFSSL_SUCCESS;
     }
 #else
