@@ -236,9 +236,6 @@ static int ProcessUserChainRetain(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* Store in SSL object if available. */
     if (ssl != NULL) {
         /* Dispose of old chain if not reference to context's. */
-    #ifdef WOLFSSL_COPY_CERT
-        FreeDer(&ssl->buffers.certChain);
-    #endif
         if (ssl->buffers.weOwnCertChain) {
             FreeDer(&ssl->buffers.certChain);
         }
@@ -2082,10 +2079,6 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* Leaf certificate - our certificate. */
     else if (type == CERT_TYPE) {
         if (ssl != NULL) {
-#ifdef WOLFSSL_COPY_CERT
-            /* Always Free previously set if WOLFSSL_COPY_CERT defined */
-            FreeDer(&ssl->buffers.certificate);
-#endif
             /* Free previous certificate if we own it. */
             if (ssl->buffers.weOwnCert) {
                 FreeDer(&ssl->buffers.certificate);
@@ -4566,10 +4559,6 @@ static int wolfssl_add_to_chain(DerBuffer** chain, int weOwn, const byte* cert,
         /* Append length and DER encoded certificate. */
         c32to24(certSz, newChain->buffer + len);
         XMEMCPY(newChain->buffer + len + CERT_HEADER_SZ, cert, certSz);
-
-#ifdef WOLFSSL_COPY_CERT
-        FreeDer(chain);
-#endif
 
         /* Dispose of old chain if we own it. */
         if (weOwn) {

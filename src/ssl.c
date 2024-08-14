@@ -10806,11 +10806,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return BAD_FUNC_ARG;
         }
 
-    #ifdef WOLFSSL_COPY_CERT
-        /* If WOLFSSL_COPY_CERT defined, always free cert buffers in SSL obj */
-        FreeDer(&ssl->buffers.certificate);
-        FreeDer(&ssl->buffers.certChain);
-    #endif
         if (ssl->buffers.weOwnCert && !ssl->keepCert) {
             WOLFSSL_MSG("Unloading cert");
             FreeDer(&ssl->buffers.certificate);
@@ -19554,11 +19549,6 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     /* ctx still owns certificate, certChain, key, dh, and cm */
     if (ssl->buffers.weOwnCert)
         FreeDer(&ssl->buffers.certificate);
-#ifdef WOLFSSL_COPY_CERT
-    /* If WOLFSSL_COPY_CERT defined, always free cert buffers in SSL obj */
-    FreeDer(&ssl->buffers.certificate);
-    FreeDer(&ssl->buffers.certChain);
-#endif
     ssl->buffers.certificate = NULL;
     if (ssl->buffers.weOwnCertChain)
         FreeDer(&ssl->buffers.certChain);
@@ -20174,6 +20164,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             return NULL;
         }
 
+        ssl->buffers.weOwnCert = TRUE;
         ret = WOLFSSL_SUCCESS;
     }
     if (ctx->certChain != NULL) {
@@ -20187,6 +20178,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
             return NULL;
         }
 
+        ssl->buffers.weOwnCertChain = TRUE;
         ret = WOLFSSL_SUCCESS;
     }
 #else
