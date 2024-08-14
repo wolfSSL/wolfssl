@@ -62722,6 +62722,215 @@ static int test_wolfSSL_EVP_X_STATE_LEN(void)
     return EXPECT_RESULT();
 }
 
+static int test_EVP_PKEY_is_a(void)
+{
+    EXPECT_DECLS;
+    EVP_PKEY *pkey = NULL;
+
+    ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DH"), 0);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "RSA"), 0);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "EC"), 0);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DSA"), 0);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, NULL), 0);
+
+#if !defined(NO_DH) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
+
+    {
+        const unsigned char* key = dh_key_der_2048;
+        ExpectNotNull((pkey = d2i_PrivateKey(EVP_PKEY_DH, NULL, &key,
+                                             sizeof_dh_key_der_2048)));
+
+        ExpectIntNE(wolfSSL_EVP_PKEY_is_a(pkey, "DH"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "RSA"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "EC"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DSA"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, NULL), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif /* !NO_DH && (!HAVE_FIPS || FIPS_VERSION_GT(2,0)) */
+
+#ifndef NO_DSA
+    {
+#ifdef USE_CERT_BUFFERS_1024
+        const unsigned char* dsaKeyDer = dsa_key_der_1024;
+        int dsaKeySz  = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+        const unsigned char* dsaKeyDer = dsa_key_der_2048;
+        int dsaKeySz  = sizeof_dsa_key_der_2048;
+#endif
+        ExpectNotNull(d2i_PrivateKey(EVP_PKEY_DSA, &pkey, &dsaKeyDer,
+                                     (long)dsaKeySz));
+
+        ExpectIntNE(wolfSSL_EVP_PKEY_is_a(pkey, "DSA"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "RSA"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "EC"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DH"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, NULL), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif /* !NO_DSA */
+
+#if !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    {
+
+        const unsigned char* server_key =
+            (const unsigned char*)server_key_der_2048;
+        ExpectNotNull(pkey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &server_key,
+            (long)sizeof_server_key_der_2048));
+
+        ExpectIntNE(wolfSSL_EVP_PKEY_is_a(pkey, "RSA"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DSA"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "EC"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DH"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, NULL), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif /* !NO_RSA && USE_CERT_BUFFERS_2048 */
+
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    {
+        const unsigned char* client_key =
+            (const unsigned char*)ecc_clikey_der_256;
+        ExpectNotNull((pkey = d2i_PrivateKey(EVP_PKEY_EC, NULL, &client_key,
+            (long)sizeof_ecc_clikey_der_256)));
+
+        ExpectIntNE(wolfSSL_EVP_PKEY_is_a(pkey, "EC"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DSA"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "RSA"), 0);
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, "DH"), 0);
+
+        ExpectIntEQ(wolfSSL_EVP_PKEY_is_a(pkey, NULL), 0);
+
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif /* HAVE_ECC && USE_CERT_BUFFERS_256 */
+
+    return EXPECT_RESULT();
+}
+
+static int test_EVP_CIPHER_key_length(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_AES_CBC) || defined(HAVE_AESGCM) || \
+    defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_ECB) || \
+    defined(WOLFSSL_AES_OFB) || !defined(NO_RC4) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+
+#ifdef HAVE_AES_CBC
+    #ifdef WOLFSSL_AES_128
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_128_cbc()), AES_128_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_192_cbc()), AES_192_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_256_cbc()), AES_256_KEY_SIZE);
+    #endif
+#endif
+
+#ifdef HAVE_AESGCM
+    #ifdef WOLFSSL_AES_128
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_128_gcm()), AES_128_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_192_gcm()), AES_192_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_256_gcm()), AES_256_KEY_SIZE);
+    #endif
+#endif
+
+#ifdef HAVE_AESCCM
+    #ifdef WOLFSSL_AES_128
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_128_ccm()), AES_128_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_192_ccm()), AES_192_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_256_ccm()), AES_256_KEY_SIZE);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AES_COUNTER
+    #ifdef WOLFSSL_AES_128
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_128_ctr()), AES_128_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_192_ctr()), AES_192_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_256_ctr()), AES_256_KEY_SIZE);
+    #endif
+#endif
+
+#ifdef HAVE_AES_ECB
+    #ifdef WOLFSSL_AES_128
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_128_ecb()), AES_128_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_192_ecb()), AES_192_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_256_ecb()), AES_256_KEY_SIZE);
+    #endif
+#endif
+
+#ifdef WOLFSSL_AES_OFB
+    #ifdef WOLFSSL_AES_128
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_128_ofb()), AES_128_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_192
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_192_ofb()), AES_192_KEY_SIZE);
+    #endif
+    #ifdef WOLFSSL_AES_256
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_aes_256_ofb()), AES_256_KEY_SIZE);
+    #endif
+#endif
+
+#ifndef NO_RC4
+    ExpectIntEQ(EVP_CIPHER_key_length(wolfSSL_EVP_rc4()), RC4_KEY_SIZE);
+#endif
+
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    ExpectIntEQ(EVP_CIPHER_key_length(wolfSSL_EVP_chacha20_poly1305()),
+                CHACHA20_POLY1305_AEAD_KEYSIZE);
+#endif
+#endif
+
+#ifdef WOLFSSL_SM4_ECB
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_sm4_ecb()), SM4_KEY_SIZE);
+#endif
+#ifdef WOLFSSL_SM4_CBC
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_sm4_cbc()), SM4_KEY_SIZE);
+#endif
+#ifdef WOLFSSL_SM4_CTR
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_sm4_ctr()), SM4_KEY_SIZE);
+#endif
+#ifdef WOLFSSL_SM4_GCM
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_sm4_gcm()), SM4_KEY_SIZE);
+#endif
+#ifdef WOLFSSL_SM4_CCM
+    ExpectIntEQ(EVP_CIPHER_key_length(EVP_sm4_ccm()), SM4_KEY_SIZE);
+#endif
+
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_EVP_CIPHER_block_size(void)
 {
     EXPECT_DECLS;
@@ -85139,6 +85348,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EVP_CIPHER_iv_length),
     TEST_DECL(test_wolfSSL_EVP_X_STATE),
     TEST_DECL(test_wolfSSL_EVP_X_STATE_LEN),
+    TEST_DECL(test_EVP_PKEY_is_a),
+    TEST_DECL(test_EVP_CIPHER_key_length),
     TEST_DECL(test_wolfSSL_EVP_BytesToKey),
 #endif
 
