@@ -489,6 +489,10 @@ static int InitSha512_256(wc_Sha512* sha512)
                        SHA512_AVX1_RORX, SHA512_AVX2_RORX, SHA512_C };
 
 #ifndef WC_C_DYNAMIC_FALLBACK
+    /* note that all write access to this static variable must be idempotent,
+     * as arranged by Sha512_SetTransform(), else it will be susceptible to
+     * data races.
+     */
     static enum sha_methods sha_method = SHA512_UNSET;
 #endif
 
