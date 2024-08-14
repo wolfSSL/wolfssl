@@ -283,6 +283,35 @@ static const struct s_ent {
 
 static const char EVP_NULL[] = "NULL";
 
+static const struct pkey_type_name_ent {
+    int type;
+    const char *name;
+} pkey_type_names[] =
+{
+    { EVP_PKEY_RSA,     "RSA" },
+    { EVP_PKEY_EC,      "EC" },
+    { EVP_PKEY_DH,      "DH" },
+    { EVP_PKEY_DSA,     "DSA" }
+};
+
+static int pkey_type_by_name(const char *name) {
+    unsigned int i;
+    if (name == NULL)
+        return 0;
+    for (i = 0; i < XELEM_CNT(pkey_type_names); ++i) {
+        if (XSTRCMP(name, pkey_type_names[i].name))
+            return pkey_type_names[i].type;
+    }
+    return 0;
+}
+
+int wolfSSL_EVP_PKEY_is_a(const WOLFSSL_EVP_PKEY *pkey, const char *name) {
+    int type = pkey_type_by_name(name);
+    if (type == 0)
+        return 0;
+    return (pkey->type == type);
+}
+
 #define EVP_CIPHER_TYPE_MATCHES(x, y) (XSTRCMP(x,y) == 0)
 
 #define EVP_PKEY_PRINT_LINE_WIDTH_MAX  80
@@ -2283,7 +2312,7 @@ int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
 {
     (void)digest;
     /* nothing to do */
-    return 0;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -4083,7 +4112,7 @@ int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)
 {
     (void)cipher;
     /* nothing to do */
-    return 0;
+    return WOLFSSL_SUCCESS;
 }
 
 
