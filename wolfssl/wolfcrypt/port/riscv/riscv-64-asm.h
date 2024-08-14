@@ -150,6 +150,15 @@
 
 #endif /* WOLFSSL_RISCV_BASE_BIT_MANIPULATION */
 
+#ifdef WOLFSSL_RISCV_BIT_MANIPULATION_TERNARY
+
+/* rd = (rs1|rs3 >> imm)[0..63] */
+#define FSRI(rd, rs1, rs3, imm)                                     \
+    ASM_WORD((0b1 << 26) | (0b101 << 12) | (0b0110011 << 0) |       \
+             (rs3 << 27) | (imm << 20) | (rs1 << 15) | (rd << 7))
+
+#endif
+
 /*
  * Load and store
  */
@@ -242,6 +251,7 @@
     ASM_WORD((0b000000 << 26) | (0b1 << 25) |       \
              (0b000 << 12) | (0b1010111 << 0) |     \
              (vs2 << 20) | (vs1 << 15) | (vd << 7))
+
 /* vd = vs1 ^ vs2 */
 #define VXOR_VV(vd, vs1, vs2)                       \
     ASM_WORD((0b001011 << 26) | (0b1 << 25) |       \
@@ -252,11 +262,28 @@
     ASM_WORD((0b001001 << 26) | (0b1 << 25) |       \
              (0b000 << 12) | (0b1010111 << 0) |     \
              (vd << 7) | (vs1 << 15) | (vs2 << 20))
+/* vd = vs1 & rs2 */
+#define VAND_VX(vd, vs2, rs1)                       \
+    ASM_WORD((0b001001 << 26) | (0b1 << 25) |       \
+             (0b100 << 12) | (0b1010111 << 0) |     \
+             (vd << 7) | (rs1 << 15) | (vs2 << 20))
 /* vd = vs1 | vs2 */
 #define VOR_VV(vd, vs1, vs2)                        \
     ASM_WORD((0b001010 << 26) | (0b1 << 25) |       \
              (0b000 << 12) | (0b1010111 << 0) |     \
              (vd << 7) | (vs1 << 15) | (vs2 << 20))
+
+
+/* vd = LOW(vs1 * vs2) */
+#define VMUL_VV(vd, vs1, vs2)                       \
+    ASM_WORD((0b100101 << 26) | (0b1 << 25) |       \
+             (0b010 << 12) | (0b1010111 << 0) |     \
+             (vs2 << 20) | (vs1 << 15) | (vd << 7))
+/* vd = HIGH(vs1 * vs2) - unsigned * unsigned */
+#define VMULHU_VV(vd, vs1, vs2)                     \
+    ASM_WORD((0b100100 << 26) | (0b1 << 25) |       \
+             (0b010 << 12) | (0b1010111 << 0) |     \
+             (vs2 << 20) | (vs1 << 15) | (vd << 7))
 
 
 /*

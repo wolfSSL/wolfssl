@@ -206,7 +206,7 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
 #endif
 
 #elif defined(POLY130564)
-#ifndef WOLFSSL_ARMASM
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
     static word64 U8TO64(const byte* p)
     {
         return
@@ -230,7 +230,7 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
         p[6] = (byte)(v >> 48);
         p[7] = (byte)(v >> 56);
     }
-#endif/* WOLFSSL_ARMASM */
+#endif/* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
 #else /* if not 64 bit then use 32 bit */
 
     static word32 U8TO32(const byte *p)
@@ -268,7 +268,8 @@ static WC_INLINE void u32tole64(const word32 inLe32, byte outLe64[8])
 }
 
 
-#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
+#if (!defined(WOLFSSL_ARMASM) || !defined(__aarch64__)) && \
+    !defined(WOLFSSL_RISCV_ASM)
 /*
 This local function operates on a message with a given number of bytes
 with a given ctx pointer to a Poly1305 structure.
@@ -491,9 +492,7 @@ static int poly1305_block(Poly1305* ctx, const unsigned char *m)
     return poly1305_blocks(ctx, m, POLY1305_BLOCK_SIZE);
 #endif
 }
-#endif /* !defined(WOLFSSL_ARMASM) || !defined(__aarch64__) */
 
-#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
 int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
 {
 #if defined(POLY130564) && !defined(USE_INTEL_POLY1305_SPEEDUP)
@@ -789,7 +788,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     return 0;
 }
-#endif /* !defined(WOLFSSL_ARMASM) || !defined(__aarch64__) */
+#endif /* (!WOLFSSL_ARMASM || !__aarch64__) && !WOLFSSL_RISCV_ASM */
 
 
 int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
@@ -884,7 +883,8 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
         /* process full blocks */
         if (bytes >= POLY1305_BLOCK_SIZE) {
             size_t want = ((size_t)bytes & ~((size_t)POLY1305_BLOCK_SIZE - 1));
-#if !defined(WOLFSSL_ARMASM) || !defined(__aarch64__)
+#if (!defined(WOLFSSL_ARMASM) || !defined(__aarch64__)) && \
+    !defined(WOLFSSL_RISCV_ASM)
             int ret;
             ret = poly1305_blocks(ctx, m, want);
             if (ret != 0)

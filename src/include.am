@@ -914,6 +914,9 @@ if BUILD_POLY1305
 if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-poly1305.c
 endif
+if BUILD_RISCV_ASM
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/riscv/riscv-64-poly1305.c
+endif
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/poly1305.c
 if !BUILD_X86_ASM
 if BUILD_INTELASM
