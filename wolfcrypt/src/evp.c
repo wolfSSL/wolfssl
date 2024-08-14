@@ -283,6 +283,40 @@ static const struct s_ent {
 
 static const char EVP_NULL[] = "NULL";
 
+static const struct pkey_type_name_ent {
+    int type;
+    const char *name;
+} pkey_type_names[] = {
+    { EVP_PKEY_RSA,     "RSA" },
+    { EVP_PKEY_EC,      "EC" },
+    { EVP_PKEY_DH,      "DH" },
+    { EVP_PKEY_DSA,     "DSA" }
+};
+
+static int pkey_type_by_name(const char *name) {
+    unsigned int i;
+    if (name == NULL)
+        return EVP_PKEY_NONE;
+    for (i = 0; i < XELEM_CNT(pkey_type_names); ++i) {
+        if (XSTRCMP(name, pkey_type_names[i].name) == 0)
+            return pkey_type_names[i].type;
+    }
+    return EVP_PKEY_NONE;
+}
+
+int wolfSSL_EVP_PKEY_is_a(const WOLFSSL_EVP_PKEY *pkey, const char *name) {
+    int type;
+
+    if (pkey == NULL)
+        return WOLFSSL_FAILURE;
+
+    type = pkey_type_by_name(name);
+    if (type == EVP_PKEY_NONE)
+        return WOLFSSL_FAILURE;
+
+    return (pkey->type == type) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+
 #define EVP_CIPHER_TYPE_MATCHES(x, y) (XSTRCMP(x,y) == 0)
 
 #define EVP_PKEY_PRINT_LINE_WIDTH_MAX  80
@@ -363,6 +397,9 @@ int wolfSSL_EVP_Cipher_key_length(const WOLFSSL_EVP_CIPHER* c)
       case DES_EDE3_CBC_TYPE: return 24;
       case DES_ECB_TYPE:      return 8;
       case DES_EDE3_ECB_TYPE: return 24;
+  #endif
+  #ifndef NO_RC4
+      case ARC4_TYPE:         return 16;
   #endif
   #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
       case CHACHA20_POLY1305_TYPE: return 32;
