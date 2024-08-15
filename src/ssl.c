@@ -20152,11 +20152,10 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 
 #ifndef NO_CERTS
 #ifdef WOLFSSL_COPY_CERT
-    /* If WOLFSSL_COPY_CERT defined, always make new copy of cert */
-    if (ctx->certificate != NULL) {
-        if (ssl->buffers.certificate != NULL) {
-            FreeDer(&ssl->buffers.certificate);
-        }
+    /* If WOLFSSL_COPY_CERT defined, make new copy of cert from ctx
+     * unless SSL object already has a cert */
+    if ((ctx->certificate != NULL) &&
+        (ssl->buffers.certificate == NULL)) {
         ret = AllocCopyDer(&ssl->buffers.certificate, ctx->certificate->buffer,
             ctx->certificate->length, ctx->certificate->type,
             ctx->certificate->heap);
@@ -20167,10 +20166,8 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         ssl->buffers.weOwnCert = 1;
         ret = WOLFSSL_SUCCESS;
     }
-    if (ctx->certChain != NULL) {
-        if (ssl->buffers.certChain != NULL) {
-            FreeDer(&ssl->buffers.certChain);
-        }
+    if ((ctx->certChain != NULL) &&
+        (ssl->buffers.certChain == NULL)) {
         ret = AllocCopyDer(&ssl->buffers.certChain, ctx->certChain->buffer,
             ctx->certChain->length, ctx->certChain->type,
             ctx->certChain->heap);

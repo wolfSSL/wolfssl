@@ -6806,9 +6806,6 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_COPY_CERT
     /* If WOLFSSL_COPY_CERT is defined, always copy the cert */
     if (ctx->certificate != NULL) {
-        if (ssl->buffers.certificate != NULL) {
-            FreeDer(&ssl->buffers.certificate);
-        }
         ret = AllocCopyDer(&ssl->buffers.certificate, ctx->certificate->buffer,
             ctx->certificate->length, ctx->certificate->type,
             ctx->certificate->heap);
@@ -6820,9 +6817,6 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ret = WOLFSSL_SUCCESS;
     }
     if (ctx->certChain != NULL) {
-        if (ssl->buffers.certChain != NULL) {
-            FreeDer(&ssl->buffers.certChain);
-        }
         ret = AllocCopyDer(&ssl->buffers.certChain, ctx->certChain->buffer,
             ctx->certChain->length, ctx->certChain->type,
             ctx->certChain->heap);
