@@ -1240,8 +1240,8 @@ do
   1024)
     ENABLED_KYBER1024=yes
     ;;
-  ml-kem)
-    ENABLED_ML_KEM=yes
+  original)
+    ENABLED_ORIGINAL=yes
     ;;
   *)
     AC_MSG_ERROR([Invalid choice for KYBER []: $ENABLED_KYBER.])
@@ -1251,7 +1251,6 @@ done
 
 if test "$ENABLED_KYBER" != "no"
 then
-    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([KYBER requires --enable-experimental.]) ])
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_KYBER"
     # Use liboqs if specified.
     if test "$ENABLED_LIBOQS" = "no"; then
@@ -1269,8 +1268,8 @@ then
     if test "$ENABLED_KYBER1024" = ""; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
     fi
-    if test "$ENABLED_ML_KEM" = "yes"; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ML_KEM"
+    if test "$ENABLED_ORIGINAL" = "yes"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_ORIGINAL"
     fi
 
     if test "$ENABLED_WC_KYBER" = "yes"
@@ -1346,7 +1345,6 @@ done
 
 if test "$ENABLED_DILITHIUM" != "no"
 then
-    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([DILITHIUM requires --enable-experimental.]) ])
     AM_CFLAGS="$AM_CFLAGS -DHAVE_DILITHIUM"
 
     if test "$ENABLED_MLDSA44" = ""; then

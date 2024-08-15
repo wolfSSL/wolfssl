@@ -1581,7 +1581,7 @@ _kyber_keygen_avx2:
 #endif /* __APPLE__ */
         vmovdqu	kyber_q(%rip), %ymm14
         vmovdqu	kyber_v(%rip), %ymm15
-        movq	%r8, %r9
+        movslq	%r8d, %r9
         movq	%rdi, %r10
 L_kyber_keygen_avx2_priv:
         # ntt
@@ -2242,11 +2242,11 @@ L_kyber_keygen_avx2_priv:
         subq	$0x01, %r9
         jg	L_kyber_keygen_avx2_priv
         vmovdqu	kyber_qinv(%rip), %ymm13
-        movq	%r8, %rax
+        movslq	%r8d, %rax
         movq	%rsi, %r10
 L_kyber_keygen_avx2_acc:
         # Pointwise acc mont
-        movq	%r8, %r9
+        movslq	%r8d, %r9
         # Base mul mont
         leaq	L_kyber_avx2_zetas_basemul(%rip), %r11
         vmovdqu	(%rcx), %ymm2
@@ -3417,16 +3417,16 @@ L_pointwise_acc_mont_end_keygen:
         vmovdqu	%ymm1, 480(%r10)
         addq	$0x200, %rcx
         addq	$0x200, %rdi
-        movq	%r8, %r9
+        movslq	%r8d, %r9
         shl	$9, %r9d
         subq	%r9, %rdi
         addq	$0x200, %r10
         subq	$0x01, %rax
         jg	L_kyber_keygen_avx2_acc
-        movq	%r8, %rax
+        movslq	%r8d, %rax
         vmovdqu	kyber_f(%rip), %ymm12
         vmovdqu	kyber_f_qinv(%rip), %ymm13
-        movq	%r8, %rax
+        movslq	%r8d, %rax
         movq	%rsi, %r10
 L_kyber_keygen_avx2_to_mont:
         # To Mont
@@ -3529,7 +3529,7 @@ L_kyber_keygen_avx2_to_mont:
         addq	$0x200, %r10
         subq	$0x01, %rax
         jg	L_kyber_keygen_avx2_to_mont
-        movq	%r8, %rax
+        movslq	%r8d, %rax
 L_kyber_keygen_avx2_to_mont_ntt_err:
         # ntt
         leaq	L_kyber_avx2_zetas(%rip), %r11
@@ -4281,7 +4281,7 @@ _kyber_encapsulate_avx2:
         subq	$48, %rsp
         vmovdqu	kyber_q(%rip), %ymm14
         vmovdqu	kyber_v(%rip), %ymm15
-        movq	%r11, %r13
+        movslq	%r11d, %r13
         movq	%r8, %r14
 L_kyber_encapsulate_avx2_trans:
         # ntt
@@ -4877,11 +4877,11 @@ L_kyber_encapsulate_avx2_trans:
         addq	$0x200, %r14
         subq	$0x01, %r13
         jg	L_kyber_encapsulate_avx2_trans
-        movq	%r11, %r12
+        movslq	%r11d, %r12
 L_kyber_encapsulate_avx2_calc:
         vmovdqu	kyber_qinv(%rip), %ymm12
         # Pointwise acc mont
-        movq	%r11, %r13
+        movslq	%r11d, %r13
         # Base mul mont
         leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rcx), %ymm2
@@ -6052,7 +6052,7 @@ L_pointwise_acc_mont_end_encap_bp:
         vmovdqu	%ymm1, 480(%rsi)
         addq	$0x200, %rcx
         addq	$0x200, %r8
-        movq	%r11, %r13
+        movslq	%r11d, %r13
         shl	$9, %r13d
         subq	%r13, %r8
         # invntt
@@ -6911,7 +6911,7 @@ L_pointwise_acc_mont_end_encap_bp:
         jg	L_kyber_encapsulate_avx2_calc
         vmovdqu	kyber_qinv(%rip), %ymm12
         # Pointwise acc mont
-        movq	%r11, %r13
+        movslq	%r11d, %r13
         # Base mul mont
         leaq	L_kyber_avx2_zetas_basemul(%rip), %r15
         vmovdqu	(%rdi), %ymm2
@@ -8082,7 +8082,7 @@ L_pointwise_acc_mont_end_encap_v:
         vmovdqu	%ymm1, 480(%rdx)
         addq	$0x200, %rdi
         addq	$0x200, %r8
-        movq	%r11, %r13
+        movslq	%r11d, %r13
         shl	$9, %r13d
         subq	%r13, %r8
         # invntt
@@ -9024,7 +9024,7 @@ _kyber_decapsulate_avx2:
 #endif /* __APPLE__ */
         vmovdqu	kyber_q(%rip), %ymm14
         vmovdqu	kyber_v(%rip), %ymm15
-        movq	%r8, %rax
+        movslq	%r8d, %rax
         movq	%rdx, %r9
 L_kyber_decapsulate_avx2_trans:
         # ntt
@@ -9686,7 +9686,7 @@ L_kyber_decapsulate_avx2_trans:
         jg	L_kyber_decapsulate_avx2_trans
         vmovdqu	kyber_qinv(%rip), %ymm12
         # Pointwise acc mont
-        movq	%r8, %rax
+        movslq	%r8d, %rax
         # Base mul mont
         leaq	L_kyber_avx2_zetas_basemul(%rip), %r10
         vmovdqu	(%rdi), %ymm2
@@ -10857,7 +10857,7 @@ L_pointwise_acc_mont_end_decap:
         vmovdqu	%ymm1, 480(%rsi)
         addq	$0x200, %rdi
         addq	$0x200, %rdx
-        movq	%r8, %rax
+        movslq	%r8d, %rax
         shl	$9, %eax
         subq	%rax, %rdx
         # invntt

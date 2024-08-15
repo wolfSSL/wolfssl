@@ -213,6 +213,58 @@ WOLFSSL_API int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out,
 WOLFSSL_API int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out,
     word32 len);
 
+
+
+#define WC_ML_KEM_512_K                     KYBER512_K
+#define WC_ML_KEM_512_PUBLIC_KEY_SIZE       KYBER512_PUBLIC_KEY_SIZE
+#define wC_ML_KEM_512_PRIVATE_KEY_SIZE      KYBER512_PRIVATE_KEY_SIZE
+#define wC_ML_KEM_512_CIPHER_TEXT_SIZE      KYBER512_CIPHER_TEXT_SIZE
+
+#define WC_ML_KEM_768_K                     KYBER768_K
+#define WC_ML_KEM_768_PUBLIC_KEY_SIZE       KYBER768_PUBLIC_KEY_SIZE
+#define wC_ML_KEM_768_PRIVATE_KEY_SIZE      KYBER768_PRIVATE_KEY_SIZE
+#define wC_ML_KEM_768_CIPHER_TEXT_SIZE      KYBER768_CIPHER_TEXT_SIZE
+
+#define WC_ML_KEM_1024_K                    KYBER1024_K
+#define WC_ML_KEM_1024_PUBLIC_KEY_SIZE      KYBER1024_PUBLIC_KEY_SIZE
+#define wC_ML_KEM_1024_PRIVATE_KEY_SIZE     KYBER1024_PRIVATE_KEY_SIZE
+#define wC_ML_KEM_1024_CIPHER_TEXT_SIZE     KYBER1024_CIPHER_TEXT_SIZE
+
+#define WC_ML_KEM_MAX_K                     KYBER_MAX_K
+#define WC_ML_KEM_MAX_PRIVATE_KEY_SIZE      KYBER_MAX_PRIVATE_KEY_SIZE
+#define WC_ML_KEM_MAX_PUBLIC_KEY_SIZE       KYBER_MAX_PUBLIC_KEY_SIZE
+#define WC_ML_KEM_MAX_CIPHER_TEXT_SIZE      KYBER_MAX_CIPHER_TEXT_SIZE
+
+#define WC_ML_KEM_512       KYBER512
+#define WC_ML_KEM_768       KYBER768
+#define WC_ML_KEM_1024      KYBER1024
+
+#define WC_ML_KEM_SYM_SZ            KYBER_SYM_SZ
+#define WC_ML_KEM_SS_SZ             KYBER_SS_SZ
+#define WC_ML_KEM_MAKEKEY_RAND_SZ   KYBER_MAKEKEY_RAND_SZ
+#define WC_ML_KEM_ENC_RAND_SZ       KYBER_ENC_RAND_SZ
+#define WC_ML_KEM_POLY_SIZE         KYBER_POLY_SIZE
+
+#define MlKemKey            KyberKey
+
+#define wc_MlKemKey_Init(key, type, heap, devId) \
+        wc_KyberKey_Init(type, key, heap, devId)
+#define wc_MlKemKey_Free                    wc_KyberKey_Free
+#define wc_MlKemKey_MakeKey                 wc_KyberKey_MakeKey
+#define wc_MlKemKey_MakeKeyWithRandom       wc_KyberKey_MakeKeyWithRandom
+#define wc_MlKemKey_CipherTextSize          wc_KyberKey_CipherTextSize
+#define wc_MlKemKey_SharedSecretSize        wc_KyberKey_SharedSecretSize
+#define wc_MlKemKey_Encapsulate             wc_KyberKey_Encapsulate
+#define wc_MlKemKey_EncapsulateWithRandom   wc_KyberKey_EncapsulateWithRandom
+#define wc_MlKemKey_Decapsulate             wc_KyberKey_Encapsulate
+#define wc_MlKemKey_DecodePrivateKey        wc_KyberKey_DecodePrivateKey
+#define wc_MlKemKey_DecodePublicKey         wc_KyberKey_DecodePublicKey
+#define wc_MlKemKey_PrivateKeySize          wc_KyberKey_PrivateKeySize
+#define wc_MlKemKey_PublicKeySize           wc_KyberKey_PublicKeySize
+#define wc_MlKemKey_EncodePrivateKey        wc_KyberKey_EncodePrivateKey
+#define wc_MlKemKey_EncodePublicKey         wc_KyberKey_EncodePublicKey
+
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

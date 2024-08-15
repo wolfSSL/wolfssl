@@ -103,6 +103,9 @@ enum {
 
 
 
+/* The data type of the hash function. */
+#define KYBER_HASH_T    wc_Sha3
+
 /* The data type of the pseudo-random function. */
 #define KYBER_PRF_T     wc_Shake
 
@@ -119,6 +122,8 @@ struct KyberKey {
     /* Flags indicating what is stored in the key. */
     int flags;
 
+    /* A pseudo-random function object. */
+    KYBER_HASH_T hash;
     /* A pseudo-random function object. */
     KYBER_PRF_T prf;
 
@@ -162,6 +167,18 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1, sword16* vec2,
 WOLFSSL_LOCAL
 int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen);
 #endif
+WOLFSSL_LOCAL
+void kyber_hash_init(KYBER_HASH_T* hash);
+WOLFSSL_LOCAL
+int kyber_hash_new(KYBER_HASH_T* hash, void* heap, int devId);
+WOLFSSL_LOCAL
+void kyber_hash_free(KYBER_HASH_T* hash);
+WOLFSSL_LOCAL
+int kyber_hash256(wc_Sha3* hash, const byte* data, word32 dataLen, byte* out);
+WOLFSSL_LOCAL
+int kyber_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
+    const byte* data2, word32 data2Len, byte* out);
+
 WOLFSSL_LOCAL
 void kyber_prf_init(KYBER_PRF_T* prf);
 WOLFSSL_LOCAL

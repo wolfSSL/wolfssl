@@ -197,8 +197,8 @@
 #define PARAMS_ML_DSA_44_ETA            DILITHIUM_ETA_2
 /* Number of bits in private key for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_ETA_BITS       DILITHIUM_ETA_2_BITS
-/* Collision strength of c-tilde, LAMBDA, in bytes for ML-DSA-44. */
-#define PARAMS_ML_DSA_44_LAMBDA         16
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-44. */
+#define PARAMS_ML_DSA_44_LAMBDA         128
 /* # +/-1's in polynomial c, TAU, for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_TAU            39
 /* BETA = TAU * ETA for ML-DSA-44. */
@@ -242,7 +242,7 @@
     (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_44_K * DILITHIUM_N * DILITHIUM_U / 8)
 /* Encoding size of signature in bytes for ML-DSA-44. */
 #define PARAMS_ML_DSA_44_SIG_SIZE       \
-    ((PARAMS_ML_DSA_44_LAMBDA * 2) +    \
+    ((PARAMS_ML_DSA_44_LAMBDA / 4) +    \
      PARAMS_ML_DSA_44_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_44_GAMMA1_BITS + 1) + \
      PARAMS_ML_DSA_44_OMEGA + PARAMS_ML_DSA_44_K)
 
@@ -258,8 +258,8 @@
 #define PARAMS_ML_DSA_65_ETA            DILITHIUM_ETA_4
 /* Number of bits in private key for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_ETA_BITS       DILITHIUM_ETA_4_BITS
-/* Collision strength of c-tilde, LAMBDA, in bytes for ML-DSA-65. */
-#define PARAMS_ML_DSA_65_LAMBDA         24
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-65. */
+#define PARAMS_ML_DSA_65_LAMBDA         192
 /* # +/-1's in polynomial c, TAU, for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_TAU            49
 /* BETA = TAU * ETA for ML-DSA-65. */
@@ -303,7 +303,7 @@
     (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_65_K * DILITHIUM_N * DILITHIUM_U / 8)
 /* Encoding size of signature in bytes for ML-DSA-65. */
 #define PARAMS_ML_DSA_65_SIG_SIZE       \
-    ((PARAMS_ML_DSA_65_LAMBDA * 2) +    \
+    ((PARAMS_ML_DSA_65_LAMBDA / 4) +    \
      PARAMS_ML_DSA_65_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_65_GAMMA1_BITS + 1) + \
      PARAMS_ML_DSA_65_OMEGA + PARAMS_ML_DSA_65_K)
 
@@ -319,8 +319,8 @@
 #define PARAMS_ML_DSA_87_ETA            DILITHIUM_ETA_2
 /* Number of bits in private key for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_ETA_BITS       DILITHIUM_ETA_2_BITS
-/* Collision strength of c-tilde, LAMBDA, in bytes for ML-DSA-87. */
-#define PARAMS_ML_DSA_87_LAMBDA         32
+/* Collision strength of c-tilde, LAMBDA, in bits for ML-DSA-87. */
+#define PARAMS_ML_DSA_87_LAMBDA         256
 /* # +/-1's in polynomial c, TAU, for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_TAU            60
 /* BETA = TAU * ETA for ML-DSA-87. */
@@ -365,7 +365,7 @@
     (DILITHIUM_PUB_SEED_SZ + PARAMS_ML_DSA_87_K * DILITHIUM_N * DILITHIUM_U / 8)
 /* Encoding size of signature in bytes for ML-DSA-87. */
 #define PARAMS_ML_DSA_87_SIG_SIZE       \
-    ((PARAMS_ML_DSA_87_LAMBDA * 2) +    \
+    ((PARAMS_ML_DSA_87_LAMBDA / 4) +    \
      PARAMS_ML_DSA_87_L * DILITHIUM_N/8 * (PARAMS_ML_DSA_87_GAMMA1_BITS + 1) + \
      PARAMS_ML_DSA_87_OMEGA + PARAMS_ML_DSA_87_K)
 
@@ -520,7 +520,7 @@ typedef struct wc_dilithium_params {
     byte tau;
     byte beta;
     byte omega;
-    byte lambda;
+    word16 lambda;
     byte gamma1_bits;
     word32 gamma2;
     word32 w1EncSz;
@@ -626,15 +626,38 @@ WOLFSSL_API
 int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed);
 
 WOLFSSL_API
-int wc_dilithium_sign_msg(const byte* in, word32 inLen, byte* out,
-    word32 *outLen, dilithium_key* key, WC_RNG* rng);
+int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
+    word32* sigLen, dilithium_key* key, WC_RNG* rng);
 WOLFSSL_API
-int wc_dilithium_sign_msg_with_seed(const byte* in, word32 inLen, byte* out,
-    word32 *outLen, dilithium_key* key, byte* seed);
+int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
+    word32 msgLen, byte* sig, word32* sigLen, dilithium_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_dilithium_sign_ctx_hash(const byte* ctx, byte ctxLen, int hashAlg,
+    const byte* hash, word32 hashLen, byte* sig, word32* sigLen,
+    dilithium_key* key, WC_RNG* rng);
+WOLFSSL_API
+int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
+    word32 *sigLen, dilithium_key* key, const byte* seed);
+WOLFSSL_API
+int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
+    const byte* msg, word32 msgLen, byte* sig, word32 *sigLen,
+    dilithium_key* key, const byte* seed);
+WOLFSSL_API
+int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
+    int hashAlg, const byte* hash, word32 hashLen, byte* sig, word32 *sigLen,
+    dilithium_key* key, const byte* seed);
 #endif
 WOLFSSL_API
 int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     word32 msgLen, int* res, dilithium_key* key);
+WOLFSSL_API
+int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
+    word32 ctxLen, const byte* msg, word32 msgLen, int* res,
+    dilithium_key* key);
+WOLFSSL_API
+int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
+    const byte* ctx, word32 ctxLen, int hashAlg, const byte* hash,
+    word32 hashLen, int* res, dilithium_key* key);
 
 WOLFSSL_API
 int wc_dilithium_init(dilithium_key* key);
