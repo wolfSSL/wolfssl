@@ -28,7 +28,8 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 
-#ifdef WOLFSSL_HAVE_XMSS
+#if defined(WOLFSSL_HAVE_XMSS) && defined(HAVE_LIBXMSS)
+
 #include <wolfssl/wolfcrypt/ext_xmss.h>
 
 #ifdef NO_INLINE
@@ -1042,4 +1043,4 @@ int wc_XmssKey_Verify(XmssKey * key, const byte * sig, word32 sigLen,
     return ret;
 }
 
-#endif /* WOLFSSL_HAVE_XMSS */
+#endif /* WOLFSSL_HAVE_XMSS && HAVE_LIBXMSS */
