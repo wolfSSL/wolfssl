@@ -1877,6 +1877,10 @@ add_option("WOLFSSL_CRYPTOCB"
     "Enable crypto callbacks (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_CRYPTOCB_NO_SW_TEST"
+    "Disable crypto callback SW testing (default: disabled)"
+    "no" "yes;no")
+
 add_option("WOLFSSL_PKCALLBACKS"
     "Enable public key callbacks (default: disabled)"
     "no" "yes;no")
@@ -2078,6 +2082,10 @@ endif()
 
 if(WOLFSSL_CRYPTOCB)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLF_CRYPTO_CB")
+endif()
+
+if(WOLFSSL_CRYPTOCB_NO_SW_TEST)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_TEST_NO_CRYPTOCB_SW_TEST")
 endif()
 
 # Public Key Callbacks

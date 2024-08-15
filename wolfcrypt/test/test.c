@@ -735,7 +735,7 @@ void printOutput(const char *strName, unsigned char *data, unsigned int dataSz);
 WOLFSSL_TEST_SUBROUTINE int ariagcm_test(MC_ALGID);
 #endif
 
-#ifdef WOLF_CRYPTO_CB
+#if defined(WOLF_CRYPTO_CB) && !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void);
 #endif
 #ifdef WOLFSSL_CERT_PIV
@@ -2321,7 +2321,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         TEST_PASS("blob     test passed!\n");
 #endif
 
-#if defined(WOLF_CRYPTO_CB) && \
+#if defined(WOLF_CRYPTO_CB) && !defined(WC_TEST_NO_CRYPTOCB_SW_TEST) && \
     !(defined(HAVE_INTEL_QAT_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
       defined(WOLFSSL_QNX_CAAM) || defined(HAVE_RENESAS_SYNC))
     if ( (ret = cryptocb_test()) != 0)
@@ -55572,6 +55572,7 @@ static int myCryptoCbFind(int currentId, int algoType)
 #endif /* WOLF_CRYPTO_CB_FIND */
 
 
+#if !defined(WC_TEST_NO_CRYPTOCB_SW_TEST)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 {
     wc_test_ret_t ret = 0;
@@ -55700,6 +55701,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cryptocb_test(void)
 
     return ret;
 }
+#endif /* ! WC_TEST_NO_CRYPTOCB_SW_TEST */
 #endif /* WOLF_CRYPTO_CB */
 
 #ifdef WOLFSSL_CERT_PIV
