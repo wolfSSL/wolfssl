@@ -297,8 +297,8 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
 
 /* see user_settings PROJECT_DH for HAVE_DH and HAVE_FFDHE_2048 */
 #ifndef NO_DH
-    ret = wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
-     if (ret != WOLFSSL_SUCCESS) {
+    ret_i = wolfSSL_CTX_SetMinDhKey_Sz(ctx, (word16)minDhKeyBits);
+     if (ret_i != WOLFSSL_SUCCESS) {
         ESP_LOGE(TAG, "Error setting minimum DH key size");
     }
 #endif
