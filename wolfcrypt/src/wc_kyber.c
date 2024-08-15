@@ -407,14 +407,8 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
 
     if (ret == 0) {
         /* Allocate dynamic memory for all matrices, vectors and polynomials. */
-#ifndef USE_INTEL_SPEEDUP
         at = (sword16*)XMALLOC(((kp + 3) * kp + 3) * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#else
-        at = (sword16*)XMALLOC(
-            ((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N * sizeof(sword16),
-            key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
         if (at == NULL) {
             ret = MEMORY_E;
         }
