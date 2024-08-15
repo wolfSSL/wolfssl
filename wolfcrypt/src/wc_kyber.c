@@ -377,11 +377,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     sword16* epp = NULL;
     unsigned int kp = 0;
     unsigned int compVecSz = 0;
-#ifndef USE_INTEL_SPEEDUP
     sword16* at = NULL;
-#else
-    sword16 at[((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N];
-#endif
 
     /* Establish parameters based on key type. */
     switch (key->type) {
@@ -409,7 +405,6 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
         break;
     }
 
-#ifndef USE_INTEL_SPEEDUP
     if (ret == 0) {
         /* Allocate dynamic memory for all matrices, vectors and polynomials. */
         at = (sword16*)XMALLOC(((kp + 3) * kp + 3) * KYBER_N * sizeof(sword16),
@@ -418,7 +413,6 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
             ret = MEMORY_E;
         }
     }
-#endif
 
     if (ret == 0) {
         /* Assign allocated dynamic memory to pointers.
@@ -472,10 +466,8 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     #endif
     }
 
-#ifndef USE_INTEL_SPEEDUP
     /* Dispose of dynamic memory allocated in function. */
     XFREE(at, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
 
     return ret;
 }

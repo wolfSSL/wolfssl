@@ -1724,7 +1724,9 @@ struct DecodedCert {
     const byte* extCrlInfo;          /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
+    word32  extSubjKeyIdSz;
     byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
+    word32  extAuthKeyIdSz;
 #ifdef WOLFSSL_AKID_NAME
     const byte* extAuthKeyIdIssuer;  /* Authority Key ID authorityCertIssuer */
     word32  extAuthKeyIdIssuerSz;    /* Authority Key ID authorityCertIssuer length */
@@ -1751,9 +1753,7 @@ struct DecodedCert {
     word32  extRawAuthKeyIdSz;
 #endif
     const byte* extAuthKeyIdSrc;
-    word32  extAuthKeyIdSz;
     const byte* extSubjKeyIdSrc;
-    word32  extSubjKeyIdSz;
 #endif
 #ifdef OPENSSL_ALL
     const byte* extSubjAltNameSrc;

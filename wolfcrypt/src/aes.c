@@ -613,6 +613,10 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
         #define AESNI_ALIGN 16
     #endif
 
+    /* note that all write access to these static variables must be idempotent,
+     * as arranged by Check_CPU_support_AES(), else they will be susceptible to
+     * data races.
+     */
     static int checkedAESNI = 0;
     static int haveAESNI  = 0;
     static word32 intel_flags = 0;

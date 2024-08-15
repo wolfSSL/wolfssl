@@ -408,6 +408,10 @@ static int InitSha256(wc_Sha256* sha256)
                        SHA256_SSE2, SHA256_C };
 
 #ifndef WC_C_DYNAMIC_FALLBACK
+    /* note that all write access to this static variable must be idempotent,
+     * as arranged by Sha256_SetTransform(), else it will be susceptible to
+     * data races.
+     */
     static enum sha_methods sha_method = SHA256_UNSET;
 #endif
 
