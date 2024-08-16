@@ -9929,7 +9929,7 @@ AX_AM_JOBSERVER([yes])
 
 # See Automake 9.4.1 Built Sources Example
 AC_DEFUN([AX_OUT_OF_TREE_FILE],[
-  AC_CONFIG_COMMANDS([$1], [test ! -f $srcdir/$1 && >> $srcdir/$1])
+  AC_CONFIG_COMMANDS([$1], [test ! -f $srcdir/$1 && echo -n >> $srcdir/$1])
 ])
 
 AX_OUT_OF_TREE_FILE([wolfssl/wolfcrypt/async.h])
