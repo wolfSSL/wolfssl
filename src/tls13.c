@@ -8511,7 +8511,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         listSz = 0;
     }
     else {
-        if (!ssl->buffers.certificate || !ssl->buffers.certificate) {
+        if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer) {
             WOLFSSL_MSG("Send Cert missing certificate buffer");
             return NO_CERT_ERROR;
         }
