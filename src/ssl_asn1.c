@@ -151,7 +151,7 @@ static void asn1_free_tpl(void *obj, const WOLFSSL_ASN1_TEMPLATE *mem)
 {
     if (obj != NULL) {
         if (mem->sequence)
-            wolfSSL_sk_pop_free(obj, mem->free_func);
+            wolfSSL_sk_pop_free((WOLFSSL_STACK *)obj, mem->free_func);
         else
             mem->free_func(obj);
     }
@@ -201,9 +201,9 @@ static int i2d_asn1_items(const void* obj, byte** buf,
         const WOLFSSL_ASN1_TEMPLATE* mem)
 {
     int len = 0;
-    int ret;
+    int ret = 0;
     if (mem->sequence) {
-        const WOLFSSL_STACK* sk = asn1Mem(obj, mem->offset);
+        const WOLFSSL_STACK* sk = (WOLFSSL_STACK *)asn1Mem(obj, mem->offset);
         int ski; /* stack index */
         int innerLen = 0;
         /* Figure out the inner length first */

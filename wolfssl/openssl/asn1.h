@@ -301,7 +301,7 @@ WOLFSSL_API void* wolfSSL_ASN1_item_d2i(void** dst, const byte **src, long len,
     type* d2i_##type(type **dst, const byte **src, long len); \
     type* d2i_##type(type **dst, const byte **src, long len) \
     { \
-        return wolfSSL_ASN1_item_d2i((void**)dst, src, len, \
+        return (type*)wolfSSL_ASN1_item_d2i((void**)dst, src, len, \
                 &type##_template_data); \
     }
 /* // NOLINTEND(readability-named-parameter) */

@@ -13350,7 +13350,7 @@ WOLFSSL_X509_OBJECT *wolfSSL_X509_OBJECT_retrieve_by_subject(
         return NULL;
 
     for (i = 0; i < wolfSSL_sk_X509_OBJECT_num(sk); i++) {
-        WOLFSSL_X509_OBJECT* obj = wolfSSL_sk_X509_OBJECT_value(sk, i);
+        WOLFSSL_X509_OBJECT* obj = (WOLFSSL_X509_OBJECT *)wolfSSL_sk_X509_OBJECT_value(sk, i);
         if (obj != NULL && obj->type == type &&
             wolfSSL_X509_NAME_cmp(
                 wolfSSL_X509_get_subject_name(obj->data.x509), name) == 0)
