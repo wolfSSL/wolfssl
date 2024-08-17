@@ -77500,8 +77500,17 @@ static int test_wolfSSL_set_SSL_CTX(void)
 #ifdef WOLFSSL_SESSION_ID_CTX
     ExpectIntEQ(XMEMCMP(ssl->sessionCtx, session_id2, 4), 0);
 #endif
+#ifdef WOLFSSL_COPY_CERT
+    if (ctx2 != NULL && ctx2->certificate != NULL) {
+        ExpectFalse(ssl->buffers.certificate == ctx2->certificate);
+    }
+    if (ctx2 != NULL && ctx2->certChain != NULL) {
+        ExpectFalse(ssl->buffers.certChain == ctx2->certChain);
+    }
+#else
     ExpectTrue(ssl->buffers.certificate == ctx2->certificate);
     ExpectTrue(ssl->buffers.certChain == ctx2->certChain);
+#endif
 #endif
 
 #ifdef HAVE_SESSION_TICKET
@@ -77519,8 +77528,17 @@ static int test_wolfSSL_set_SSL_CTX(void)
 #endif
     /* MUST change */
 #ifdef WOLFSSL_INT_H
+#ifdef WOLFSSL_COPY_CERT
+    if (ctx1 != NULL && ctx1->certificate != NULL) {
+        ExpectFalse(ssl->buffers.certificate == ctx1->certificate);
+    }
+    if (ctx1 != NULL && ctx1->certChain != NULL) {
+        ExpectFalse(ssl->buffers.certChain == ctx1->certChain);
+    }
+#else
     ExpectTrue(ssl->buffers.certificate == ctx1->certificate);
     ExpectTrue(ssl->buffers.certChain == ctx1->certChain);
+#endif
 #ifdef WOLFSSL_SESSION_ID_CTX
     ExpectIntEQ(XMEMCMP(ssl->sessionCtx, session_id1, 4), 0);
 #endif
