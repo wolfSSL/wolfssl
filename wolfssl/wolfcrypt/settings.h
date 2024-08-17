@@ -55,7 +55,7 @@
 /* This flag allows wolfSSL to include options.h instead of having client
  * projects do it themselves. This should *NEVER* be defined when building
  * wolfSSL as it can cause hard to debug problems. */
-#ifdef EXTERNAL_OPTS_OPENVPN
+#if defined(EXTERNAL_OPTS_OPENVPN) || defined(WOLFSSL_USE_OPTIONS_H)
 #include <wolfssl/options.h>
 #endif
 

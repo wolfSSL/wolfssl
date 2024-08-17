@@ -12,6 +12,11 @@
     $ make check   # (optional, but highly recommended)
     $ sudo make install
 
+    Note: Building with configure generates a wolfssl/options.h file that contains
+    all the generated build options. This file needs to be included in your application
+    before any other wolfSSL headers. Optionally your application can define
+    WOLFSSL_USE_OPTIONS_H to do this automatically.
+
 2. Building on iOS
 
     Use on the xcode project in IDE/iOS/wolfssl.xcodeproj
@@ -74,7 +79,7 @@
 13. Porting to a new platform
 
     Please see section 2.4 in the manual:
-    http://www.wolfssl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.html
+    https://www.wolfssl.com/documentation/manuals/wolfssl/chapter02.html#customizing-or-porting-wolfssl
 
 14. Building with CMake
     Note: Primary development uses automake (./configure). The support for CMake
@@ -90,6 +95,11 @@
     line work flow. Regardless of your chosen workflow, cmake will generate
     a header options.h in the wolfssl directory that contains the options used
     to configure the build.
+
+    Note: Building with configure generates a wolfssl/options.h file that contains
+    all the generated build options. This file needs to be included in your application
+    before any other wolfSSL headers. Optionally your application can define
+    WOLFSSL_USE_OPTIONS_H to do this automatically.
 
     Unix-based Platforms
     ---
