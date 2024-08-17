@@ -1,0 +1,366 @@
+# Kconfig template
+#
+# Copyright (C) 2006-2024 wolfSSL Inc.  All rights reserved.
+#
+# This file is part of wolfSSL.
+#
+# wolfSSL is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# wolfSSL is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+#
+
+# Kconfig File Version 5.7.0.001 for wolfssl_test
+
+# Kconfig Format Rules
+#
+# See:
+#  https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/kconfig.html
+#
+# Format rules for Kconfig files are as follows:
+#
+# Option names in any menus should have consistent prefixes. The prefix
+# currently should have at least 3 characters.
+#
+# The unit of indentation should be 4 spaces. All sub-items belonging to a
+# parent item are indented by one level deeper. For example, menu is indented
+# by 0 spaces, config menu by 4 spaces, help in config by 8 spaces, and the
+# text under help by 12 spaces.
+#
+# No trailing spaces are allowed at the end of the lines.
+#
+# The maximum length of options is NOT 50 characters as documented.
+#   kconfcheck will complain that options should be 40 at most.
+#
+# Fix option lengths first. Superflous errors on other lines may occur.
+#
+# The maximum length of lines is 120 characters.
+#
+# python -m kconfcheck <path_to_kconfig_file>
+#
+# ---------------------------------------------------------------------------------------------------------------------
+# Begin main wolfSSL configuration menu
+# ---------------------------------------------------------------------------------------------------------------------
+menu "wolfSSL"
+    config TLS_STACK_WOLFSSL
+        bool "Include wolfSSL in ESP-TLS"
+        default y
+        select FREERTOS_ENABLE_BACKWARD_COMPATIBILITY
+        help
+            Includes wolfSSL in ESP-TLS so that it can be compiled with wolfSSL as its SSL/TLS library.
+
+    menu "Hardening"
+        config ESP_WOLFSSL_WC_NO_HARDEN
+            bool "Disable wolfSSL hardening"
+            default n
+            help
+                Sets WC_NO_HARDEN
+
+        config ESP_WOLFSSL_TFM_TIMING_RESISTANT
+            bool "Enable TFM Timing Resistant Code"
+            default n
+            help
+                Sets TFM_TIMING_RESISTANT.
+
+    endmenu # Hardening
+
+    config ESP_WOLFSSL_ENABLE_BENCHMARK
+        bool "Enable wolfSSL Benchmark Library"
+        default n
+        help
+            Enables wolfcrypt/benchmark/benchmark.c code for benchmark metrics. Disables NO_CRYPT_BENCHMARK.
+
+
+    menu "Benchmark Debug"
+        config ESP_DEBUG_WOLFSSL_BENCHMARK_TIMING
+            bool "Enable benchmark timing debug"
+            depends on ESP_WOLFSSL_ENABLE_BENCHMARK
+            default n
+            help
+                Enable wolfssl debug for benchmark metric timing (CPU Cycles, RTOS ticks, etc).
+
+        config ESP_WOLFSSL_BENCHMARK_TIMER_DEBUG
+            bool "Enable benchmark timer debug"
+            depends on ESP_WOLFSSL_ENABLE_BENCHMARK
+            default n
+            help
+                Turn on timer debugging (used when CPU cycles not available)
+
+    endmenu # Benchmark Debug
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # wolfCrypt Test
+    # -----------------------------------------------------------------------------------------------------------------
+    config ESP_WOLFSSL_ENABLE_TEST
+        bool "Enable wolfCrypt test Library"
+        default n
+        help
+            Enables wolfcrypt/test/test.c code for testing. Disables NO_CRYPT_TEST.
+
+    menu "wolfCrypt tests"
+        config WOLFSSL_HAVE_WOLFCRYPT_TEST_OPTIONS
+            bool "Enable wolfCrypt Test Options"
+            depends on ESP_WOLFSSL_ENABLE_TEST
+            default n
+            help
+                Enables HAVE_WOLFCRYPT_TEST_OPTIONS
+    endmenu # wolfCrypt tests
+
+    # -----------------------------------------------------------------------------------------------------------------
+    # Apple HomeKit Options
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "Apple HomeKit"
+        config WOLFSSL_APPLE_HOMEKIT
+            bool "Enable Apple HomeKit options"
+            default n
+            help
+                Enables FP_MAX_BITS (8192 * 2), SRP, ChaCha, Poly1305, Base64 encoding needed for Apple HomeKit.
+    endmenu # Apple HomeKit
+    # -----------------------------------------------------------------------------------------------------------------
+
+    config ESP_WOLFSSL_DISABLE_MY_ECC
+        bool "Disable ECC in my project"
+        default "n"
+        help
+            ECC is enabled by default. Select this option to disable.
+
+    config ESP_WOLFSSL_ENABLE_MY_USE_RSA
+        bool "Enable RSA in my project"
+        default "n"
+        help
+            RSA is disabled by default. Select this option to enable.
+
+    config ESP_WOLFSSL_BENCHMARK
+        bool "Enable wolfSSL Benchmark"
+        default n
+        help
+            Enables user settings relevant to benchmark code
+
+    config ESP_TLS_USING_WOLFSSL_SPECIFIED
+        bool "Use the specified wolfssl for ESP-TLS"
+        default Y
+        help
+            Includes wolfSSL from specified directory (not using esp-wolfssl).
+
+    config ESP_WOLFSSL_NO_USE_FAST_MATH
+        bool "Disable FAST_MATH library and all ESP32 Hardware Acceleration"
+        select ESP_WOLFSSL_NO_HW
+        select ESP_WOLFSSL_NO_HW_AES
+        select ESP_WOLFSSL_NO_HW_HASH
+        select ESP_WOLFSSL_NO_HW_RSA_PRI
+        select ESP_WOLFSSL_NO_HW_RSA_PRI_MP_MUL
+        select ESP_WOLFSSL_NO_HW_RSA_PRI_MULMOD
+        select ESP_WOLFSSL_NO_HW_RSA_PRI_EXPTMOD
+        default n
+        help
+            When disabling all hardware acceleration for smaller memory footprint,
+            disabling TFM fast math provides faster wolfSSL software algorithms in an
+            even smaller flash memory footprint.
+
+    menu "Protocol Config"
+        config WOLFSSL_HAVE_ALPN
+            bool "Enable ALPN (Application Layer Protocol Negotiation) in wolfSSL"
+            default y
+
+        config WOLFSSL_ALLOW_TLS12
+            bool "Allow TLS 1.2"
+            default n
+            help
+                Allow TLS to fallback to TLS1.2. Memory footprint will likely be larger for TLS1.2.
+                When disabled HTTPS and MQTT over TLS connections will fail if TLS1.3 not accepted.
+
+        config WOLFSSL_HAVE_OCSP
+            bool "Enable OCSP (Online Certificate Status Protocol) in wolfSSL"
+            default n
+    endmenu # Protocol Config
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "wolfSSL ESP-TLS"
+        config TLS_STACK_WOLFSSL
+            bool "Include wolfSSL in ESP-TLS"
+            default y
+            select FREERTOS_ENABLE_BACKWARD_COMPATIBILITY
+            help
+                Includes wolfSSL in ESP-TLS so that it can be compiled with wolfSSL as its SSL/TLS library.
+    endmenu # wolfSSL ESP-TLS
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
+    config ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+        bool "Modify default hardware acceleration settings"
+        default n
+        help
+            Typically used for debugging, analysis, or optimizations. The default
+            hardware acceleration features can be each manually adjusted.
+
+    menu "wolfSSL Hardware Acceleration"
+
+        config ESP_WOLFSSL_NO_ESP32_CRYPT
+            bool "Disable all ESP32 Hardware Acceleration"
+            depends on ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+            default n
+            select ESP_WOLFSSL_NO_HW_AES
+            select ESP_WOLFSSL_NO_HW_HASH
+            select ESP_WOLFSSL_NO_HW_RSA_PRI
+            select ESP_WOLFSSL_NO_HW_RSA_PRI_MP_MUL
+            select ESP_WOLFSSL_NO_HW_RSA_PRI_MULMOD
+            select ESP_WOLFSSL_NO_HW_RSA_PRI_EXPTMOD
+            help
+                Hardware acceleration enabled by default. When selected defines: NO_ESP32_CRYPT.
+                Consider disabling FASTMATH (other libraries are faster in software and smaller)
+
+        config ESP_WOLFSSL_NO_HW_AES
+            bool "Disable all ESP32 AES Hardware Acceleration"
+            depends on ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+            default n
+            help
+                Hardware acceleration enabled by default.When selected defines: NO_HW_AES
+
+        config ESP_WOLFSSL_NO_HW_HASH
+            bool "Disable all ESP32 SHA Hash Hardware Acceleration"
+            depends on ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+            default n
+            help
+                Hardware acceleration enabled by default. When selected defines: NO_HW_HASH
+
+        config ESP_WOLFSSL_NO_HW_RSA_PRI
+            bool "Disable all ESP32 RSA Hardware Acceleration"
+            depends on ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+            default n
+            select ESP_WOLFSSL_NO_HW_PRI_MP_MUL
+            select ESP_WOLFSSL_NO_HW_RSA_PRI_MULMOD
+            select ESP_WOLFSSL_NO_HW_RSA_PRI_EXPTMOD
+            help
+                Hardware acceleration enabled by default. When selected defines: NO_HW_RSA_PRI
+
+        config ESP_WOLFSSL_NO_HW_RSA_PRI_MP_MUL
+            bool "Disable all ESP32 Multiplication Hardware Acceleration"
+            depends on ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+            default n
+            help
+                Hardware acceleration enabled by default. When selected defines: NO_HW_RSA_PRI_MP_MUL
+
+        config ESP_WOLFSSL_NO_HW_RSA_PRI_MULMOD
+            bool "Disable all ESP32 Modular Multiplication Hardware Acceleration"
+            depends on ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+            default n
+            help
+                Hardware acceleration enabled by default. When selected defines: NO_HW_RSA_PRI_MULMOD
+
+        config ESP_WOLFSSL_NO_HW_RSA_PRI_EXPTMOD
+            bool "Disable all ESP32 RSA Exponential Math Hardware Acceleration"
+            depends on ESP_WOLFSSL_ALT_HARDWARE_ACCELERATION
+            default n
+            help
+                Hardware acceleration enabled by default.
+                Select this option to force disable: NO_HW_RSA_PRI_EXPTMOD
+
+    endmenu # wolfSSL Hardware Acceleration
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "wolfSSL Experimental Options"
+
+        config ESP_WOLFSSL_EXPERIMENTAL_SETTINGS
+            bool "Enable wolfSSL Experimental Settings"
+            default n
+            help
+                Enables experimental settings for wolfSSL. See documentation.
+
+        config ESP_WOLFSSL_ENABLE_KYBER
+            bool "Enable wolfSSL Kyber"
+            default n
+            help
+                Enable debugging messages for wolfSSL. See user_settings.h for additional debug options.
+
+    endmenu # wolfSSL Experimental Options
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "wolfSSL Debug Options"
+        config ESP_WOLFSSL_DEBUG_WOLFSSL
+            bool "Enable wolfSSL Debugging"
+            default n
+            help
+                Enable debugging messages for wolfSSL. See user_settings.h for additional debug options.
+    endmenu # wolfSSL Debug Options
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "wolfSSL Customization"
+        config CUSTOM_SETTING_WOLFSSL_ROOT
+            string "Enter a path for wolfSSL source code"
+            default "~/workspace/wolfssl"
+            help
+                This option lets you specify a directory for the wolfSSL source code (typically a git clone).
+                Enter the path using forward slashes (e.g., C:/myfolder/mysubfolder) or double backslashes
+                (e.g., C:\\myfolder\\mysubfolder).
+
+    endmenu # wolfSSL Customization
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "Component Config"
+        config IGNORE_ESP_IDF_WOLFSSL_COMPONENT
+            bool "Ignore the ESP-IDF component of wolfSSL (if present)"
+            default n
+            help
+                Ignores wolfSSL present in the esp-idf/components directory. Requires wolfssl as a local component.
+
+        config IGNORE_LOCAL_WOLFSSL_COMPONENT
+            bool "Ignore the local component of wolfSSL (if present)"
+            default n
+            help
+                Ignores wolfSSL present in the local project components directory.
+                Requires wolfssl as a ESP-IDF component.
+
+    endmenu # Component Config
+    # -----------------------------------------------------------------------------------------------------------------
+
+endmenu # wolfSSL
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+menu "wolfSSH"
+    config ESP_ENABLE_WOLFSSH
+        bool "Enable wolfSSH options"
+        default n
+        help
+            Enables WOLFSSH_TERM, WOLFSSL_KEY_GEN, WOLFSSL_PTHREADS, WOLFSSH_TEST_SERVER, WOLFSSH_TEST_THREADING
+
+    config ESP_WOLFSSL_DEBUG_WOLFSSH
+        bool "Enable wolfSSH debugging"
+        default n
+        help
+            Enable wolfSSH debugging macro. See user_settings.h
+
+endmenu # wolfSSH
+# ---------------------------------------------------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------------------------------------------------
+menu "wolfMQTT"
+    config ESP_ENABLE_WOLFMQTT
+        bool "Enable wolfMQTT options"
+        default n
+        help
+            Enables WOLFMQTT
+
+    config ESP_WOLFSSL_DEBUG_WOLFMQTT
+        bool "Enable wolfMQTT debugging"
+        default n
+        help
+            Enable wolfMQTT debugging macro. See user_settings.h
+
+endmenu # wolfMQTT
+# ---------------------------------------------------------------------------------------------------------------------
