@@ -5685,9 +5685,9 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 
     err = fp_randprime(a, len, rng, heap);
     switch(err) {
-        case FP_VAL:
+        case WC_NO_ERR_TRACE(MP_VAL):
             return MP_VAL;
-        case FP_MEM:
+        case WC_NO_ERR_TRACE(MP_MEM):
             return MP_MEM;
         default:
             break;

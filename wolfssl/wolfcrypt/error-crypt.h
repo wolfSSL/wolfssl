@@ -37,10 +37,21 @@ the error status.
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
+#include <wolfssl/debug-untrace-error-codes.h>
+#endif
 
 /* error codes, add string for new errors !!! */
 enum {
-    MAX_CODE_E         = -100,  /* errors -101 - -299 */
+    MAX_CODE_E         =   -1,  /* errors -2 - -299 */
+    WC_FIRST_E         =   -2,  /* errors -2 - -299 */
+
+    MP_MEM             =   -2,  /* MP dynamic memory allocation failed. */
+    MP_VAL             =   -3,  /* MP value passed is not able to be used. */
+    MP_WOULDBLOCK      =   -4,  /* MP non-blocking operation is returning after
+                                 * partial completion. */
+    MP_NOT_INF         =   -5,  /* MP point not at infinity */
+
     OPEN_RAN_E         = -101,  /* opening random device error */
     READ_RAN_E         = -102,  /* reading random device error */
     WINCRYPT_E         = -103,  /* windows crypt init error */
@@ -276,12 +287,11 @@ enum {
     SM4_CCM_AUTH_E      = -299,  /* SM4-CCM Authentication check failure */
 
     WC_LAST_E           = -299,  /* Update this to indicate last error */
-    MIN_CODE_E          = -300   /* errors -101 - -299 */
+    MIN_CODE_E          = -300   /* errors -2 - -299 */
 
     /* add new companion error id strings for any new error codes
        wolfcrypt/src/error.c !!! */
 };
-
 
 #ifdef NO_ERROR_STRINGS
     #define wc_GetErrorString(error) "no support for error strings built in"

@@ -15361,7 +15361,9 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     ret = 0 - ret; /* setting as negative value */
     /* wolfCrypt range is less than MAX (-100)
        wolfSSL range is MIN (-300) and lower */
-    if (ret < MAX_CODE_E && ret > MIN_CODE_E) {
+    if ((ret <= WC_FIRST_E && ret >=  WC_LAST_E) ||
+        (ret <= WOLFSSL_FIRST_E && ret >= WOLFSSL_LAST_E))
+    {
         return ret;
     }
     else {

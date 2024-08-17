@@ -12,7 +12,7 @@ BEGIN {
     print("#undef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H") >> "wolfssl/debug-untrace-error-codes.h";
 }
 {
-    if (match($0, "^[[:space:]]+([A-Z][A-Z0-9_]+)[[:space:]]*=[[:space:]]*(-[0-9]+)[,[:space:]]")) {
+    if (match($0, "^[[:space:]]+([A-Z][A-Z0-9_]+)[[:space:]]*=[[:space:]]*(-[0-9]+)([,[:space:]]|$)")) {
 
         # for mawkward compatibility -- gawk allows errcode_a as the 3rd arg to match().
         gsub("^[[:space:]]+", "", $0);

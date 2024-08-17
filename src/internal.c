@@ -25142,7 +25142,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     }
 
     /* pass to wolfCrypt */
-    if (error < MAX_CODE_E && error > MIN_CODE_E) {
+    if (error <= WC_FIRST_E && error >= WC_LAST_E) {
         return wc_GetErrorString(error);
     }
 

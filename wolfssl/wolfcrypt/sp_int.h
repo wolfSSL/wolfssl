@@ -742,24 +742,18 @@ typedef struct sp_ecc_ctx {
 #define MP_LT    (-1)
 
 /* ERROR VALUES */
+
+/* MP_MEM, MP_VAL, MP_WOULDBLOCK, and MP_NOT_INF are defined in error-crypt.h */
+
 /** Error value on success. */
 #define MP_OKAY          0
-/** Error value when dynamic memory allocation fails. */
-#define MP_MEM          (-2)
-/** Error value when value passed is not able to be used. */
-#define MP_VAL          (-3)
-/** Error value when non-blocking operation is returning after partial
- * completion.
- */
-#define FP_WOULDBLOCK   (-4)
-/* Unused error. Defined for backward compatibility. */
-#define MP_NOT_INF      (-5)
+
+#define FP_WOULDBLOCK   MP_WOULDBLOCK
 /* Unused error. Defined for backward compatibility. */
 #define MP_RANGE        MP_NOT_INF
-
 #ifdef USE_FAST_MATH
 /* For old FIPS, need FP_MEM defined for old implementation. */
-#define FP_MEM          (-2)
+#define FP_MEM          MP_MEM
 #endif
 
 /* Number of bits in each word/digit. */

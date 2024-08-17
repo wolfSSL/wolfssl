@@ -44,6 +44,18 @@ const char* wc_GetErrorString(int error)
 {
     switch (error) {
 
+    case MP_MEM :
+        return "MP integer dynamic memory allocation failed";
+
+    case MP_VAL :
+        return "MP integer invalid argument";
+
+    case MP_WOULDBLOCK :
+        return "MP integer non-blocking operation would block";
+
+    case MP_NOT_INF:
+        return "MP point not at infinity";
+
     case OPEN_RAN_E :
         return "opening random device error";
 
