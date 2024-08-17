@@ -1657,7 +1657,9 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* -D */
     printf("%s", msg[++msgid]); /* -e */
     printf("%s", msg[++msgid]); /* -g */
+#ifdef WOLFSSL_DTLS
     printf("%s", msg[++msgid]); /* -u */
+#endif
 #ifdef WOLFSSL_SCTP
     printf("%s", msg[++msgid]); /* -G */
 #endif
@@ -1772,7 +1774,6 @@ static void Usage(void)
     printf("%s", msg[++msgid]); /* --wolfsentry-config */
 #endif
     printf("%s", msg[++msgid]); /* -7 */
-    printf("%s", msg[++msgid]); /* Examples repo link */
 #ifdef HAVE_PQC
     printf("%s", msg[++msgid]);     /* --pqc */
 #endif
