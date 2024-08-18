@@ -1376,6 +1376,92 @@ then
     fi
 fi
 
+# MlDsaComposite
+#  - Dilithium
+AC_ARG_ENABLE([mldsa-composite],
+    [AS_HELP_STRING([--enable-mldsa-composite],[Enable MLDSA_COMPOSITE (requires --enable-dilithium) (default: disabled)])],
+    [ ENABLED_MLDSA_COMPOSITE=$enableval ],
+    [ ENABLED_MLDSA_COMPOSITE=no ]
+    )
+
+ENABLED_MLDSA_COMPOSITE_OPTS=$ENABLED_MLDSA_COMPOSITE
+ENABLED_MLDSA_COMPOSITE_MAKE_KEY=no
+ENABLED_MLDSA_COMPOSITE_SIGN=no
+ENABLED_MLDSA_COMPOSITE_VERIFY=no
+for v in `echo $ENABLED_MLDSA_COMPOSITE_OPTS | tr "," " "`
+do
+  case $v in
+  yes)
+    ENABLED_MLDSA44_P256=yes
+    ENABLED_MLDSA44_ED25519=yes
+    ENABLED_MLDSA_COMPOSITE_MAKE_KEY=yes
+    ENABLED_MLDSA_COMPOSITE_SIGN=yes
+    ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+    ;;
+  no)
+    ;;
+  all)
+    ENABLED_MLDSA_COMPOSITE_MAKE_KEY=yes
+    ENABLED_MLDSA_COMPOSITE_SIGN=yes
+    ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+    ;;
+  make)
+    ENABLED_MLDSA_COMPOSITE_MAKE_KEY=yes
+    ;;
+  sign)
+    ENABLED_MLDSA_COMPOSITE_SIGN=yes
+    ;;
+  verify)
+    ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+    ;;
+  verify-only)
+    ENABLED_MLDSA_COMPOSITE_MAKE_KEY=no
+    ENABLED_MLDSA_COMPOSITE_SIGN=no
+    ENABLED_MLDSA_COMPOSITE_VERIFY=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_VERIFY_ONLY"
+    ;;
+  mldsa44_p256)
+    ENABLED_MLDSA44_P256=yes
+    ;;
+  mldsa44_ed25519)
+    ENABLED_MLDSA44_ED25519=yes
+    ;;
+  *)
+    AC_MSG_ERROR([Invalid choice for MLDSA_COMPOSITE [all,make,sign,verify,verify-only,mldsa44_p256,mldsa44_ed25519]: $ENABLED_MLDSA_COMPOSITE.])
+    break;;
+  esac
+done
+
+if test "$ENABLED_MLDSA_COMPOSITE" != "no"
+then
+    AS_IF([ test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([MLDSA_COMPOSITE requires --enable-experimental.]) ])
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_MLDSA_COMPOSITE"
+
+    if test "$ENABLED_MLDSA44_P256" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MLDSA44_P256"
+    fi
+    if test "$ENABLED_MLDSA44_ED25519" = ""; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_MLDSA44_ED25519"
+    fi
+
+    if test "$ENABLED_MLDSA_COMPOSITE_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_MAKE_KEY"
+    fi
+    if test "$ENABLED_MLDSA_COMPOSITE_SIGN" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_SIGN"
+    fi
+    if test "$ENABLED_MLDSA_COMPOSITE_VERIFY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MLDSA_COMPOSITE_NO_VERIFY"
+    fi
+
+    if test "$ENABLED_LIBOQS" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_DILITHIUM"
+        test "$enable_sha3" = "" && enable_sha3=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+    fi
+fi
+
 # XMSS
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
@@ -9764,6 +9850,7 @@ AM_CONDITIONAL([BUILD_WC_LMS],[test "x$ENABLED_WC_LMS" != "xno" || test "x$ENABL
 AM_CONDITIONAL([BUILD_WC_XMSS],[test "x$ENABLED_WC_XMSS" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_WC_KYBER],[test "x$ENABLED_WC_KYBER" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_DILITHIUM],[test "x$ENABLED_DILITHIUM" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
+AM_CONDITIONAL([BUILD_MLDSA_COMPOSITE],[test "x$ENABLED_MLDSA_COMPOSITE" != "xno" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_ECCSI],[test "x$ENABLED_ECCSI" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SAKKE],[test "x$ENABLED_SAKKE" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_MEMORY],[test "x$ENABLED_MEMORY" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
@@ -10265,6 +10352,7 @@ fi
 echo "   * KYBER:                      $ENABLED_KYBER"
 echo "   * KYBER wolfSSL impl:         $ENABLED_WC_KYBER"
 echo "   * DILITHIUM:                  $ENABLED_DILITHIUM"
+echo "   * MLDSA_COMPOSITE:            $ENABLED_MLDSA_COMPOSITE"
 echo "   * ECCSI                       $ENABLED_ECCSI"
 echo "   * SAKKE                       $ENABLED_SAKKE"
 echo "   * ASN:                        $ENABLED_ASN"
