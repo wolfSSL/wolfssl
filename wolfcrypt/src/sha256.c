@@ -1229,7 +1229,9 @@ static int InitSha256(wc_Sha256* sha256)
         }
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
+        #ifndef WOLFSSL_NO_FORCE_ZERO
         ForceZero(W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
+        #endif
         XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         return 0;
@@ -2242,7 +2244,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha256->W != NULL) {
+#ifndef WOLFSSL_NO_FORCE_ZERO
         ForceZero(sha256->W, sizeof(word32) * WC_SHA256_BLOCK_SIZE);
+#endif
         XFREE(sha256->W, NULL, DYNAMIC_TYPE_DIGEST);
         sha256->W = NULL;
     }
@@ -2326,7 +2330,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
         ESP_LOGV(TAG, "Hardware unlock not needed in wc_Sha256Free.");
     }
 #endif
+#ifndef WOLFSSL_NO_FORCE_ZERO
     ForceZero(sha256, sizeof(*sha256));
+#endif
 } /* wc_Sha256Free */
 
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
@@ -2623,5 +2629,4 @@ int wc_Sha256GetFlags(wc_Sha256* sha256, word32* flags)
 }
 #endif
 #endif /* !WOLFSSL_TI_HASH */
-
 #endif /* NO_SHA256 */

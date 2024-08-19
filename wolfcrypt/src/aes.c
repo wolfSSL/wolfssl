@@ -5979,9 +5979,11 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             #ifdef WOLFSSL_LEANPSK
                 byte tmp[16];
 
-		/* throw the 16 bytes tmp buffer on the stack breifly rather than
-		 * hanging on to them for the life of the AES struct */
+                /* throw the 16 bytes tmp buffer on the stack breifly rather
+                 * than hanging on to them for the life of the AES struct */
                 XMEMCPY(tmp, in, AES_BLOCK_SIZE);
+            #else
+                XMEMCPY(aes->tmp, in, AES_BLOCK_SIZE);
             #endif
                 ret = wc_AesDecrypt(aes, in, out);
                 if (ret != 0)

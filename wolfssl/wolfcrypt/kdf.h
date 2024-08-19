@@ -44,17 +44,21 @@
     WOLFSSL_LOCAL int wolfCrypt_FIPS_KDF_sanity(void);
 #endif
 
-enum max_prf {
 #ifdef HAVE_FFDHE_8192
-    MAX_PRF_HALF        = 516, /* Maximum half secret len */
+    #define MAX_PRF_HALF 516 /* Maximum half secret len */
 #elif defined(HAVE_FFDHE_6144)
-    MAX_PRF_HALF        = 388, /* Maximum half secret len */
+    #define MAX_PRF_HALF 388 /* Maximum half secret len */
 #else
-    MAX_PRF_HALF        = 260, /* Maximum half secret len */
+    #define MAX_PRF_HALF 260 /* Maximum half secret len */
 #endif
-    MAX_PRF_LABSEED     = 128, /* Maximum label + seed len */
-    MAX_PRF_DIG         = 224  /* Maximum digest len      */
-};
+
+#ifndef MAX_PRF_LABSEED
+    #define MAX_PRF_LABSEED 128 /* Maximum label + seed len */
+#endif
+
+#ifndef MAX_PRF_DIG
+    #define MAX_PRF_DIG     224  /* Maximum digest len      */
+#endif
 
 
 #ifdef WOLFSSL_HAVE_PRF

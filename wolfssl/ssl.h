@@ -1145,6 +1145,9 @@ WOLFSSL_API int  wolfSSL_set1_sigalgs_list(WOLFSSL* ssl, const char* list);
 #endif
 WOLFSSL_ABI WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX* ctx);
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl);
+#ifdef WOLFSSL_LEANPSK_STATIC
+WOLFSSL_API WOLFSSL* wolfSSL_new_leanpsk(WOLFSSL_METHOD* method, byte ciphersuite0, byte ciphersuite1, unsigned char* ran, int ranSz);
+#endif
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_CTX_get0_param(WOLFSSL_CTX* ctx);
 WOLFSSL_API WOLFSSL_X509_VERIFY_PARAM* wolfSSL_get0_param(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_set1_param(WOLFSSL_CTX* ctx, WOLFSSL_X509_VERIFY_PARAM *vpm);
@@ -1176,6 +1179,12 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_connect(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_write(
     WOLFSSL* ssl, const void* data, int sz);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
+#ifdef WOLFSSL_LEANPSK_STATIC
+WOLFSSL_API int  wolfSSL_write_inline( WOLFSSL* ssl, const void* data,
+    int dataSz, int maxSz);
+WOLFSSL_API int  wolfSSL_read_inline(WOLFSSL* ssl, void* buf, int bufSz,
+    void** data, int dataSz);
+#endif
 WOLFSSL_API int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_accept(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
@@ -2350,7 +2359,7 @@ WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 #define WOLFSSL_DEFAULT_CIPHER_LIST ""   /* default all */
 
 /* These are bit-masks */
-enum {
+enum ocspCrlCheck {
     WOLFSSL_OCSP_URL_OVERRIDE = 1,
     WOLFSSL_OCSP_NO_NONCE     = 2,
     WOLFSSL_OCSP_CHECKALL     = 4,
@@ -2360,7 +2369,7 @@ enum {
 };
 
 /* Separated out from other enums because of size */
-enum {
+enum sslOptionsCode {
     WOLFSSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
     WOLFSSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
     WOLFSSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG       = 0x00000004,
@@ -2603,18 +2612,17 @@ WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
     #define SSL_R_SSLV3_ALERT_BAD_CERTIFICATE WOLFSSL_R_SSLV3_ALERT_BAD_CERTIFICATE
 #endif
 
-enum { /* ssl Constants */
-    WOLFSSL_ERROR_NONE      =  0,   /* for most functions */
-    WOLFSSL_FAILURE         =  0,   /* for some functions */
+#define WOLFSSL_ERROR_NONE       0   /* for most functions */
+#define WOLFSSL_FAILURE          0   /* for some functions */
+#define WOLFSSL_SUCCESS          1
 
-    #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
-            (defined(BUILDING_WOLFSSL) || \
-             defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
-        #define WOLFSSL_FAILURE WC_ERR_TRACE(WOLFSSL_FAILURE)
-        #define CONST_NUM_ERR_WOLFSSL_FAILURE 0
-    #endif
-
-    WOLFSSL_SUCCESS         =  1,
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
+        (defined(BUILDING_WOLFSSL) || \
+         defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
+    #undef  WOLFSSL_FAILURE
+    #define WOLFSSL_FAILURE WC_ERR_TRACE(WOLFSSL_FAILURE)
+    #define CONST_NUM_ERR_WOLFSSL_FAILURE 0
+#endif
 
 /* WOLFSSL_SHUTDOWN_NOT_DONE is returned by wolfSSL_shutdown and
  * wolfSSL_SendUserCanceled when the other end
@@ -2626,55 +2634,62 @@ enum { /* ssl Constants */
  */
 #ifdef WOLFSSL_ERROR_CODE_OPENSSL
 /* SSL_shutdown returns 0 when not done, per OpenSSL documentation. */
-    WOLFSSL_SHUTDOWN_NOT_DONE = 0,
+#define WOLFSSL_SHUTDOWN_NOT_DONE 0
 #else
-    WOLFSSL_SHUTDOWN_NOT_DONE =  2,
+#define WOLFSSL_SHUTDOWN_NOT_DONE  2
 #endif
 
-    WOLFSSL_FILETYPE_ASN1    = CTC_FILETYPE_ASN1,
-    WOLFSSL_FILETYPE_PEM     = CTC_FILETYPE_PEM,
-    WOLFSSL_FILETYPE_DEFAULT = CTC_FILETYPE_ASN1, /* ASN1 */
+#define WOLFSSL_ALPN_NOT_FOUND  -9
+#define WOLFSSL_BAD_CERTTYPE    -8
+#define WOLFSSL_BAD_STAT        -7
+#define WOLFSSL_BAD_PATH        -6
+#define WOLFSSL_BAD_FILETYPE    -5
+#define WOLFSSL_BAD_FILE        -4
+#define WOLFSSL_NOT_IMPLEMENTED -3
+#define WOLFSSL_UNKNOWN         -2
+#define WOLFSSL_FATAL_ERROR     -1
 
-    WOLFSSL_VERIFY_NONE                 = 0,
-    WOLFSSL_VERIFY_PEER                 = 1 << 0,
-    WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT = 1 << 1,
-    WOLFSSL_VERIFY_CLIENT_ONCE          = 1 << 2,
-    WOLFSSL_VERIFY_POST_HANDSHAKE       = 1 << 3,
-    WOLFSSL_VERIFY_FAIL_EXCEPT_PSK      = 1 << 4,
-    WOLFSSL_VERIFY_DEFAULT              = 1 << 9,
+#define WOLFSSL_FILETYPE_ASN1    CTC_FILETYPE_ASN1
+#define WOLFSSL_FILETYPE_PEM     CTC_FILETYPE_PEM
+#define WOLFSSL_FILETYPE_DEFAULT CTC_FILETYPE_ASN1 /* ASN1 */
 
-    WOLFSSL_SESS_CACHE_OFF                = 0x0000,
-    WOLFSSL_SESS_CACHE_CLIENT             = 0x0001,
-    WOLFSSL_SESS_CACHE_SERVER             = 0x0002,
-    WOLFSSL_SESS_CACHE_BOTH               = 0x0003,
-    WOLFSSL_SESS_CACHE_NO_AUTO_CLEAR      = 0x0008,
-    WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP = 0x0100,
-    WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE  = 0x0200,
-    WOLFSSL_SESS_CACHE_NO_INTERNAL        =
-            (WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE |
-                    WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP),
+#define WOLFSSL_VERIFY_NONE                 0
+#define WOLFSSL_VERIFY_PEER                 1 << 0
+#define WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT 1 << 1
+#define WOLFSSL_VERIFY_CLIENT_ONCE          1 << 2
+#define WOLFSSL_VERIFY_POST_HANDSHAKE       1 << 3
+#define WOLFSSL_VERIFY_FAIL_EXCEPT_PSK      1 << 4
+#define WOLFSSL_VERIFY_DEFAULT              1 << 9
 
-    /* These values match OpenSSL values for corresponding names. */
-    WOLFSSL_ERROR_SSL              =  1,
-    WOLFSSL_ERROR_WANT_READ        =  2,
-    WOLFSSL_ERROR_WANT_WRITE       =  3,
-    WOLFSSL_ERROR_WANT_X509_LOOKUP =  4,
-    WOLFSSL_ERROR_SYSCALL          =  5,
-    WOLFSSL_ERROR_ZERO_RETURN      =  6,
-    WOLFSSL_ERROR_WANT_CONNECT     =  7,
-    WOLFSSL_ERROR_WANT_ACCEPT      =  8,
+#define WOLFSSL_SESS_CACHE_OFF                0x0000
+#define WOLFSSL_SESS_CACHE_CLIENT             0x0001
+#define WOLFSSL_SESS_CACHE_SERVER             0x0002
+#define WOLFSSL_SESS_CACHE_BOTH               0x0003
+#define WOLFSSL_SESS_CACHE_NO_AUTO_CLEAR      0x0008
+#define WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP 0x0100
+#define WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE  0x0200
+#define WOLFSSL_SESS_CACHE_NO_INTERNAL (WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE | WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP)
 
-    WOLFSSL_SENT_SHUTDOWN     = 1,
-    WOLFSSL_RECEIVED_SHUTDOWN = 2,
-    WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER = 4,
+/* These values match OpenSSL values for corresponding names. */
+#define WOLFSSL_ERROR_SSL               1
+#define WOLFSSL_ERROR_WANT_READ         2
+#define WOLFSSL_ERROR_WANT_WRITE        3
+#define WOLFSSL_ERROR_WANT_X509_LOOKUP  4
+#define WOLFSSL_ERROR_SYSCALL           5
+#define WOLFSSL_ERROR_ZERO_RETURN       6
+#define WOLFSSL_ERROR_WANT_CONNECT      7
+#define WOLFSSL_ERROR_WANT_ACCEPT       8
 
-    WOLFSSL_R_SSL_HANDSHAKE_FAILURE           = 101,
-    WOLFSSL_R_TLSV1_ALERT_UNKNOWN_CA          = 102,
-    WOLFSSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN = 103,
-    WOLFSSL_R_SSLV3_ALERT_BAD_CERTIFICATE     = 104,
+#define WOLFSSL_SENT_SHUTDOWN     1
+#define WOLFSSL_RECEIVED_SHUTDOWN 2
+#define WOLFSSL_MODE_ACCEPT_MOVING_WRITE_BUFFER 4
 
-    WOLF_PEM_BUFSIZE = 1024
-};
+#define WOLFSSL_R_SSL_HANDSHAKE_FAILURE           101
+#define WOLFSSL_R_TLSV1_ALERT_UNKNOWN_CA          102
+#define WOLFSSL_R_SSLV3_ALERT_CERTIFICATE_UNKNOWN 103
+#define WOLFSSL_R_SSLV3_ALERT_BAD_CERTIFICATE     104
+
+#define WOLF_PEM_BUFSIZE 1024
 
 #ifndef NO_PSK
     typedef unsigned int (*wc_psk_client_callback)(WOLFSSL* ssl, const char*, char*,
@@ -3382,15 +3397,15 @@ WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL* ssl,
                                byte* inner, word32 sz, int content, int verify);
 
 /* Atomic User Needs */
-enum {
-    WOLFSSL_SERVER_END = 0,
-    WOLFSSL_CLIENT_END = 1,
-    WOLFSSL_NEITHER_END = 3,
-    WOLFSSL_BLOCK_TYPE = 2,
-    WOLFSSL_STREAM_TYPE = 3,
-    WOLFSSL_AEAD_TYPE = 4,
-    WOLFSSL_TLS_HMAC_INNER_SZ = 13      /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
-};
+
+#define WOLFSSL_SERVER_END 0
+#define WOLFSSL_CLIENT_END 1
+#define WOLFSSL_NEITHER_END 3
+#define WOLFSSL_BLOCK_TYPE 2
+#define WOLFSSL_STREAM_TYPE 3
+#define WOLFSSL_AEAD_TYPE 4
+#define WOLFSSL_TLS_HMAC_INNER_SZ 13      /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
+
 
 /* for GetBulkCipher and internal use
  * using explicit values to assist with serialization of a TLS session */
@@ -4061,7 +4076,7 @@ WOLFSSL_API int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
 #endif
 
 /* Named Groups */
-enum {
+enum eccNameGroup {
     WOLFSSL_NAMED_GROUP_INVALID = 0,
 #if 0 /* Not Supported */
     WOLFSSL_ECC_SECT163K1 = 1,
@@ -4156,7 +4171,7 @@ enum {
 #endif /* HAVE_PQC */
 };
 
-enum {
+enum eccCompresion {
     WOLFSSL_EC_PF_UNCOMPRESSED = 0,
 #if 0 /* Not Supported */
     WOLFSSL_EC_PF_X962_COMP_PRIME = 1,

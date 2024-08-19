@@ -2253,7 +2253,7 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
         ret = MakeTlsMasterSecret(ssl);
 
     if (ret == 0) {
-        ssl->keys.encryptionOn = 1;
+        ssl->keys->encryptionOn = 1;
         ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
     }
 
@@ -2263,8 +2263,8 @@ int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
             WOLFSSL_DTLS_PEERSEQ* peerSeq;
             int i;
 
-            ssl->keys.dtls_epoch = epoch;
-            for (i = 0, peerSeq = ssl->keys.peerSeq;
+            ssl->keys->dtls_epoch = epoch;
+            for (i = 0, peerSeq = ssl->keys->peerSeq;
                  i < WOLFSSL_DTLS_PEERSEQ_SZ;
                  i++, peerSeq++) {
 
@@ -2313,9 +2313,9 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int sub)
         /* Make sure it isn't already present, while keeping the first
          * open spot. */
         for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
-            if (ssl->keys.peerSeq[i].peerId == INVALID_PEER_ID)
-                p = &ssl->keys.peerSeq[i];
-            if (ssl->keys.peerSeq[i].peerId == peerId) {
+            if (ssl->keys->peerSeq[i].peerId == INVALID_PEER_ID)
+                p = &ssl->keys->peerSeq[i];
+            if (ssl->keys->peerSeq[i].peerId == peerId) {
                 WOLFSSL_MSG("Peer ID already in multicast peer list.");
                 p = NULL;
             }
@@ -2336,8 +2336,8 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int sub)
     }
     else {
         for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
-            if (ssl->keys.peerSeq[i].peerId == peerId)
-                p = &ssl->keys.peerSeq[i];
+            if (ssl->keys->peerSeq[i].peerId == peerId)
+                p = &ssl->keys->peerSeq[i];
         }
 
         if (p != NULL) {
@@ -2367,9 +2367,9 @@ int wolfSSL_mcast_peer_known(WOLFSSL* ssl, unsigned short peerId)
     }
 
     for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
-        if (ssl->keys.peerSeq[i].peerId == peerId) {
-            if (ssl->keys.peerSeq[i].nextSeq_hi ||
-                ssl->keys.peerSeq[i].nextSeq_lo) {
+        if (ssl->keys->peerSeq[i].peerId == peerId) {
+            if (ssl->keys->peerSeq[i].nextSeq_hi ||
+                ssl->keys->peerSeq[i].nextSeq_lo) {
 
                 known = 1;
             }
@@ -2993,7 +2993,7 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 
     ret = wolfSSL_read_internal(ssl, data, sz, FALSE);
     if (ssl->options.dtls && ssl->options.haveMcast && id != NULL)
-        *id = ssl->keys.curPeerId;
+        *id = ssl->keys->curPeerId;
     return ret;
 }
 
@@ -3612,7 +3612,7 @@ static int _Rehandshake(WOLFSSL* ssl)
     }
 
 #ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls && ssl->keys.dtls_epoch == 0xFFFF) {
+    if (ssl->options.dtls && ssl->keys->dtls_epoch == 0xFFFF) {
         WOLFSSL_MSG("Secure Renegotiation not allowed. Epoch would wrap");
         return SECURE_RENEGOTIATION_E;
     }
@@ -4316,23 +4316,23 @@ const byte* wolfSSL_GetDtlsMacSecret(WOLFSSL* ssl, int verify, int epochOrder)
         if (IsDtlsMsgSCRKeys(ssl))
             keys = &ssl->secure_renegotiation->tmp_keys;
         else
-            keys = &ssl->keys;
+            keys = ssl->keys;
         break;
     case PREV_ORDER:
-        keys = &ssl->keys;
+        keys = ssl->keys;
         break;
     case CUR_ORDER:
         if (DtlsUseSCRKeys(ssl))
             keys = &ssl->secure_renegotiation->tmp_keys;
         else
-            keys = &ssl->keys;
+            keys = ssl->keys;
         break;
     default:
         WOLFSSL_MSG("Unknown epoch order");
         return NULL;
     }
 #else
-    keys = &ssl->keys;
+    keys = ssl->keys;
 #endif
 
     if ( (ssl->options.side == WOLFSSL_CLIENT_END && !verify) ||
@@ -4358,9 +4358,9 @@ const byte* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify)
 
     if ( (ssl->options.side == WOLFSSL_CLIENT_END && !verify) ||
          (ssl->options.side == WOLFSSL_SERVER_END &&  verify) )
-        return ssl->keys.client_write_MAC_secret;
+        return ssl->keys->client_write_MAC_secret;
     else
-        return ssl->keys.server_write_MAC_secret;
+        return ssl->keys->server_write_MAC_secret;
 #else
     (void)ssl;
     (void)verify;
@@ -4508,7 +4508,7 @@ void* wolfSSL_GetVerifyDecryptCtx(WOLFSSL* ssl)
 const byte* wolfSSL_GetClientWriteKey(WOLFSSL* ssl)
 {
     if (ssl)
-        return ssl->keys.client_write_key;
+        return ssl->keys->client_write_key;
 
     return NULL;
 }
@@ -4517,7 +4517,7 @@ const byte* wolfSSL_GetClientWriteKey(WOLFSSL* ssl)
 const byte* wolfSSL_GetClientWriteIV(WOLFSSL* ssl)
 {
     if (ssl)
-        return ssl->keys.client_write_IV;
+        return ssl->keys->client_write_IV;
 
     return NULL;
 }
@@ -4526,7 +4526,7 @@ const byte* wolfSSL_GetClientWriteIV(WOLFSSL* ssl)
 const byte* wolfSSL_GetServerWriteKey(WOLFSSL* ssl)
 {
     if (ssl)
-        return ssl->keys.server_write_key;
+        return ssl->keys->server_write_key;
 
     return NULL;
 }
@@ -4535,7 +4535,7 @@ const byte* wolfSSL_GetServerWriteKey(WOLFSSL* ssl)
 const byte* wolfSSL_GetServerWriteIV(WOLFSSL* ssl)
 {
     if (ssl)
-        return ssl->keys.server_write_IV;
+        return ssl->keys->server_write_IV;
 
     return NULL;
 }
@@ -4631,8 +4631,8 @@ int wolfSSL_GetPeerSequenceNumber(WOLFSSL* ssl, word64 *seq)
     if ((ssl == NULL) || (seq == NULL))
         return BAD_FUNC_ARG;
 
-    *seq = ((word64)ssl->keys.peer_sequence_number_hi << 32) |
-                    ssl->keys.peer_sequence_number_lo;
+    *seq = ((word64)ssl->keys->peer_sequence_number_hi << 32) |
+                    ssl->keys->peer_sequence_number_lo;
     return !(*seq);
 }
 
@@ -4641,8 +4641,8 @@ int wolfSSL_GetSequenceNumber(WOLFSSL* ssl, word64 *seq)
     if ((ssl == NULL) || (seq == NULL))
         return BAD_FUNC_ARG;
 
-    *seq = ((word64)ssl->keys.sequence_number_hi << 32) |
-                    ssl->keys.sequence_number_lo;
+    *seq = ((word64)ssl->keys->sequence_number_hi << 32) |
+                    ssl->keys->sequence_number_lo;
     return !(*seq);
 }
 #endif
@@ -13164,7 +13164,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->extensions = NULL;
     #endif
 
-        if (ssl->keys.encryptionOn) {
+        if (ssl->keys->encryptionOn) {
             ForceZero(ssl->buffers.inputBuffer.buffer -
                 ssl->buffers.inputBuffer.offset,
                 ssl->buffers.inputBuffer.bufferSize);
@@ -13174,7 +13174,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
                 ssl->buffers.inputBuffer.bufferSize);
         #endif
         }
-        ssl->keys.encryptionOn = 0;
+        ssl->keys->encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)

@@ -967,7 +967,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
 
         /* check calculated length */
         fcur = flen - fcur;
-        if (fcur > MAX_WOLFSSL_FILE_SIZE || fcur <= 0)
+        if ((unsigned long)fcur > MAX_WOLFSSL_FILE_SIZE || fcur <= 0)
             return NULL;
 
         data = (byte*)XMALLOC((size_t)fcur, 0, DYNAMIC_TYPE_TMP_BUFFER);

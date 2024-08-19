@@ -2400,18 +2400,18 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
 #endif /* WOLFSSL_DTLS13 */
     }
     else if (verifyOrder == PEER_ORDER) {
-        seq[0] = ssl->keys.peer_sequence_number_hi;
-        seq[1] = ssl->keys.peer_sequence_number_lo++;
+        seq[0] = ssl->keys->peer_sequence_number_hi;
+        seq[1] = ssl->keys->peer_sequence_number_lo++;
         /* handle rollover */
-        if (seq[1] > ssl->keys.peer_sequence_number_lo)
-            ssl->keys.peer_sequence_number_hi++;
+        if (seq[1] > ssl->keys->peer_sequence_number_lo)
+            ssl->keys->peer_sequence_number_hi++;
     }
     else {
-        seq[0] = ssl->keys.sequence_number_hi;
-        seq[1] = ssl->keys.sequence_number_lo++;
+        seq[0] = ssl->keys->sequence_number_hi;
+        seq[1] = ssl->keys->sequence_number_lo++;
         /* handle rollover */
-        if (seq[1] > ssl->keys.sequence_number_lo)
-            ssl->keys.sequence_number_hi++;
+        if (seq[1] > ssl->keys->sequence_number_lo)
+            ssl->keys->sequence_number_hi++;
     }
 
     c32toa(seq[0], out);
@@ -2620,7 +2620,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
             if (ssl->encrypt.nonce == NULL)
                 return MEMORY_E;
 
-            BuildTls13Nonce(ssl, ssl->encrypt.nonce, ssl->keys.aead_enc_imp_IV,
+            BuildTls13Nonce(ssl, ssl->encrypt.nonce, ssl->keys->aead_enc_imp_IV,
                             CUR_ORDER);
         #endif
 
@@ -3022,7 +3022,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
             if (ssl->decrypt.nonce == NULL)
                 return MEMORY_E;
 
-            BuildTls13Nonce(ssl, ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
+            BuildTls13Nonce(ssl, ssl->decrypt.nonce, ssl->keys->aead_dec_imp_IV,
                             PEER_ORDER);
         #endif
 
@@ -4069,13 +4069,13 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 
         /* Derive the Finished message secret. */
         ret = DeriveFinishedSecret(ssl, binderKey,
-                                   ssl->keys.client_write_MAC_secret,
+                                   ssl->keys->client_write_MAC_secret,
                                    0 /* neither end */);
         if (ret != 0)
             break;
 
         /* Build the HMAC of the handshake message data = binder. */
-        ret = BuildTls13HandshakeHmac(ssl, ssl->keys.client_write_MAC_secret,
+        ret = BuildTls13HandshakeHmac(ssl, ssl->keys->client_write_MAC_secret,
             current->binder, &current->binderLen);
         if (ret != 0)
             break;
@@ -4756,9 +4756,9 @@ static int Dtls13ClientDoDowngrade(WOLFSSL* ssl)
     XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
     ssl->dtls13ClientHello = NULL;
     ssl->dtls13ClientHelloSz = 0;
-    ssl->keys.dtls_sequence_number_hi =
+    ssl->keys->dtls_sequence_number_hi =
         (word16)w64GetHigh32(ssl->dtls13EncryptEpoch->nextSeqNumber);
-    ssl->keys.dtls_sequence_number_lo =
+    ssl->keys->dtls_sequence_number_lo =
         w64GetLow32(ssl->dtls13EncryptEpoch->nextSeqNumber);
     return ret;
 }
@@ -5562,7 +5562,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return EXT_MISSING;
         }
 
-        ssl->keys.encryptionOn = 1;
+        ssl->keys->encryptionOn = 1;
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
     }
@@ -5637,7 +5637,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     *inOutIdx = i + totalExtSz;
 
     /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
+    *inOutIdx += ssl->keys->padSz;
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData != no_early_data) {
@@ -5775,7 +5775,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     }
 
     /* This message is always encrypted so add encryption padding. */
-    *inOutIdx += ssl->keys.padSz;
+    *inOutIdx += ssl->keys->padSz;
 
     WOLFSSL_LEAVE("DoTls13CertificateRequest", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
@@ -6120,14 +6120,14 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
         /* Derive the Finished message secret. */
         ret = DeriveFinishedSecret(ssl, binderKey,
-                                   ssl->keys.client_write_MAC_secret,
+                                   ssl->keys->client_write_MAC_secret,
                                    0 /* neither end */);
         if (ret != 0)
             return ret;
 
         /* Derive the binder and compare with the one in the extension. */
         ret = BuildTls13HandshakeHmac(ssl,
-                         ssl->keys.client_write_MAC_secret, binder, &binderLen);
+                         ssl->keys->client_write_MAC_secret, binder, &binderLen);
         if (ret != 0)
             return ret;
         if (binderLen != current->binderLen ||
@@ -6288,7 +6288,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
                     return ret;
 
-                ssl->keys.encryptionOn = 1;
+                ssl->keys->encryptionOn = 1;
 
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls) {
@@ -7503,7 +7503,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     WOLFSSL_ENTER("SendTls13EncryptedExtensions");
 
     ssl->options.buildingMsg = 1;
-    ssl->keys.encryptionOn = 1;
+    ssl->keys->encryptionOn = 1;
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
@@ -10599,7 +10599,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             *inOutIdx = args->idx;
 
             /* Encryption is always on: add padding */
-            *inOutIdx += ssl->keys.padSz;
+            *inOutIdx += ssl->keys->padSz;
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
@@ -10725,33 +10725,33 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (ssl->options.handShakeDone) {
         ret = DeriveFinishedSecret(ssl, ssl->clientSecret,
-                                   ssl->keys.client_write_MAC_secret,
+                                   ssl->keys->client_write_MAC_secret,
                                    WOLFSSL_CLIENT_END);
         if (ret != 0)
             return ret;
 
-        secret = ssl->keys.client_write_MAC_secret;
+        secret = ssl->keys->client_write_MAC_secret;
     }
     else if (ssl->options.side == WOLFSSL_CLIENT_END) {
         /* All the handshake messages have been received to calculate
          * client and server finished keys.
          */
         ret = DeriveFinishedSecret(ssl, ssl->clientSecret,
-                                   ssl->keys.client_write_MAC_secret,
+                                   ssl->keys->client_write_MAC_secret,
                                    WOLFSSL_CLIENT_END);
         if (ret != 0)
             return ret;
 
         ret = DeriveFinishedSecret(ssl, ssl->serverSecret,
-                                   ssl->keys.server_write_MAC_secret,
+                                   ssl->keys->server_write_MAC_secret,
                                    WOLFSSL_SERVER_END);
         if (ret != 0)
             return ret;
 
-        secret = ssl->keys.server_write_MAC_secret;
+        secret = ssl->keys->server_write_MAC_secret;
     }
     else {
-        secret = ssl->keys.client_write_MAC_secret;
+        secret = ssl->keys->client_write_MAC_secret;
     }
 
     if (sniff == NO_SNIFF) {
@@ -10789,7 +10789,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     /* Force input exhaustion at ProcessReply by consuming padSz. */
-    *inOutIdx += size + ssl->keys.padSz;
+    *inOutIdx += size + ssl->keys->padSz;
 
     if (ssl->options.side == WOLFSSL_SERVER_END &&
                                                   !ssl->options.handShakeDone) {
@@ -10899,32 +10899,32 @@ static int SendTls13Finished(WOLFSSL* ssl)
     /* make finished hashes */
     if (ssl->options.handShakeDone) {
         ret = DeriveFinishedSecret(ssl, ssl->clientSecret,
-                                   ssl->keys.client_write_MAC_secret,
+                                   ssl->keys->client_write_MAC_secret,
                                    WOLFSSL_CLIENT_END);
         if (ret != 0)
             return ret;
 
-        secret = ssl->keys.client_write_MAC_secret;
+        secret = ssl->keys->client_write_MAC_secret;
     }
     else if (ssl->options.side == WOLFSSL_CLIENT_END)
-        secret = ssl->keys.client_write_MAC_secret;
+        secret = ssl->keys->client_write_MAC_secret;
     else {
         /* All the handshake messages have been done to calculate client and
          * server finished keys.
          */
         ret = DeriveFinishedSecret(ssl, ssl->clientSecret,
-                                   ssl->keys.client_write_MAC_secret,
+                                   ssl->keys->client_write_MAC_secret,
                                    WOLFSSL_SERVER_END);
         if (ret != 0)
             return ret;
 
         ret = DeriveFinishedSecret(ssl, ssl->serverSecret,
-                                   ssl->keys.server_write_MAC_secret,
+                                   ssl->keys->server_write_MAC_secret,
                                    WOLFSSL_CLIENT_END);
         if (ret != 0)
             return ret;
 
-        secret = ssl->keys.server_write_MAC_secret;
+        secret = ssl->keys->server_write_MAC_secret;
     }
     ret = BuildTls13HandshakeHmac(ssl, secret, &input[headerSz], NULL);
     if (ret != 0)
@@ -11147,10 +11147,10 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
      *   2. This isn't responding to peer KeyUpdate requiring a response then,
      * I want a response.
      */
-    ssl->keys.updateResponseReq = output[i++] =
-         !ssl->keys.updateResponseReq && !ssl->keys.keyUpdateRespond;
+    ssl->keys->updateResponseReq = output[i++] =
+         !ssl->keys->updateResponseReq && !ssl->keys->keyUpdateRespond;
     /* Sent response, no longer need to respond. */
-    ssl->keys.keyUpdateRespond = 0;
+    ssl->keys->keyUpdateRespond = 0;
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls) {
@@ -11232,12 +11232,12 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     switch (input[i]) {
         case update_not_requested:
             /* This message in response to any outstanding request. */
-            ssl->keys.keyUpdateRespond = 0;
-            ssl->keys.updateResponseReq = 0;
+            ssl->keys->keyUpdateRespond = 0;
+            ssl->keys->updateResponseReq = 0;
             break;
         case update_requested:
             /* New key update requiring a response. */
-            ssl->keys.keyUpdateRespond = 1;
+            ssl->keys->keyUpdateRespond = 1;
             break;
         default:
             WOLFSSL_ERROR_VERBOSE(INVALID_PARAMETER);
@@ -11247,7 +11247,7 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Move index to byte after message. */
     *inOutIdx += totalSz;
     /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
+    *inOutIdx += ssl->keys->padSz;
 
     /* Future traffic uses new decryption keys. */
     if ((ret = DeriveTls13Keys(ssl, update_traffic_key, DECRYPT_SIDE_ONLY, 1))
@@ -11271,7 +11271,7 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if (ssl->keys.keyUpdateRespond) {
+    if (ssl->keys->keyUpdateRespond) {
 
 #ifdef WOLFSSL_DTLS13
         /* we already sent a keyUpdate (either in response to a previous
@@ -11281,7 +11281,7 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
            don't do that as it looks redundant, it will make the code more
            complex and I don't see a good use case for that. */
         if (ssl->options.dtls && ssl->dtls13WaitKeyUpdateAck) {
-            ssl->keys.keyUpdateRespond = 0;
+            ssl->keys->keyUpdateRespond = 0;
             return 0;
         }
 #endif /* WOLFSSL_DTLS13 */
@@ -11386,7 +11386,7 @@ static int DoTls13EndOfEarlyData(WOLFSSL* ssl, const byte* input,
     ssl->earlyData = done_early_data;
 
     /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
+    *inOutIdx += ssl->keys->padSz;
 
     ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY);
 
@@ -11551,7 +11551,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     #endif
 
     /* Always encrypted. */
-    *inOutIdx += ssl->keys.padSz;
+    *inOutIdx += ssl->keys->padSz;
 
     ssl->expect_session_ticket = 0;
 #else
@@ -11560,7 +11560,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
 
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
 
-    *inOutIdx += size + ssl->keys.padSz;
+    *inOutIdx += size + ssl->keys->padSz;
 #endif /* HAVE_SESSION_TICKET */
 
     WOLFSSL_LEAVE("DoTls13NewSessionTicket", 0);
@@ -11624,7 +11624,7 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
     }
 
     /* Generate the Client's Finished message and hash it. */
-    ret = BuildTls13HandshakeHmac(ssl, ssl->keys.client_write_MAC_secret, mac,
+    ret = BuildTls13HandshakeHmac(ssl, ssl->keys->client_write_MAC_secret, mac,
                                   &finishedSz);
     if (ret != 0)
         return ret;
@@ -12800,7 +12800,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                        totalSz);
     }
 
-    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx - ssl->keys.padSz;
+    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx - ssl->keys->padSz;
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
@@ -12841,7 +12841,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     input + *inOutIdx - HANDSHAKE_HEADER_SZ,
                     inputLength);
             ssl->arrays->pendingMsgOffset = inputLength;
-            *inOutIdx += inputLength + ssl->keys.padSz - HANDSHAKE_HEADER_SZ;
+            *inOutIdx += inputLength + ssl->keys->padSz - HANDSHAKE_HEADER_SZ;
             return 0;
         }
 
@@ -12865,7 +12865,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
                 input + *inOutIdx, inputLength);
         ssl->arrays->pendingMsgOffset += inputLength;
-        *inOutIdx += inputLength + ssl->keys.padSz;
+        *inOutIdx += inputLength + ssl->keys->padSz;
 
         if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
         {
@@ -12879,7 +12879,7 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 /* setup to process fragment again */
                 ssl->arrays->pendingMsgOffset -= inputLength;
-                *inOutIdx -= inputLength + ssl->keys.padSz;
+                *inOutIdx -= inputLength + ssl->keys->padSz;
             }
             else
         #endif
@@ -13676,7 +13676,7 @@ int wolfSSL_key_update_response(WOLFSSL* ssl, int* required)
     if (required == NULL || ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
         return BAD_FUNC_ARG;
 
-    *required = ssl->keys.updateResponseReq;
+    *required = ssl->keys->updateResponseReq;
 
     return 0;
 }

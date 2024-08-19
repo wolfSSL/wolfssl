@@ -120,12 +120,12 @@
 #endif
 
 /* in bytes */
-enum {
-    WC_SHA256              =  WC_HASH_TYPE_SHA256,
-    WC_SHA256_BLOCK_SIZE   = 64,
-    WC_SHA256_DIGEST_SIZE  = 32,
-    WC_SHA256_PAD_SIZE     = 56
-};
+
+#define WC_SHA256 WC_HASH_TYPE_SHA256
+#define WC_SHA256_BLOCK_SIZE  64
+#define WC_SHA256_DIGEST_SIZE 32
+#define WC_SHA256_PAD_SIZE    56
+
 
 
 #ifdef WOLFSSL_TI_HASH

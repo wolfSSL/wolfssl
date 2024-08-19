@@ -71,6 +71,7 @@
     }
 #endif
 
+#ifndef WOLFSSL_LEANPSK
 int wc_HmacSizeByType(int type)
 {
     int ret;
@@ -153,6 +154,7 @@ int wc_HmacSizeByType(int type)
 
     return ret;
 }
+#endif
 
 int _InitHmac(Hmac* hmac, int type, void* heap)
 {
@@ -254,7 +256,7 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     int    ret = 0;
     void*  heap = NULL;
 
-    if (hmac == NULL || (key == NULL && length != 0) ||
+    if (hmac == NULL || (key == NULL && length != 0u) ||
        !(type == WC_MD5 || type == WC_SHA ||
     #ifdef WOLFSSL_SM3
             type == WC_SM3 ||
@@ -272,7 +274,7 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
        provided the user calls wc_HmacInit() first. That function is not
        available in FIPS builds. In current FIPS builds, the hashes are
        not allocating resources. */
-    if (hmac->macType != WC_HASH_TYPE_NONE) {
+    if (hmac->macType != (byte)WC_HASH_TYPE_NONE) {
         wc_HmacFree(hmac);
     }
 #endif
@@ -313,7 +315,7 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
      * (no security strength)
      */
     if (!allowFlag) {
-        if (length < HMAC_FIPS_MIN_KEY) {
+        if (length < (word32)HMAC_FIPS_MIN_KEY) {
             WOLFSSL_ERROR_VERBOSE(HMAC_MIN_KEYLEN_E);
             return HMAC_MIN_KEYLEN_E;
         }
@@ -397,7 +399,7 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     #ifndef NO_SHA256
         case WC_SHA256:
             hmac_block_size = WC_SHA256_BLOCK_SIZE;
-            if (length <= WC_SHA256_BLOCK_SIZE) {
+            if (length <= (word32)WC_SHA256_BLOCK_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -704,7 +706,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
 
-    if (hmac == NULL || (msg == NULL && length > 0)) {
+    if (hmac == NULL || (msg == NULL && length > 0u)) {
         return BAD_FUNC_ARG;
     }
 
@@ -1064,7 +1066,7 @@ int wc_HmacInit(Hmac* hmac, void* heap, int devId)
     if (hmac == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMSET(hmac, 0, sizeof(Hmac));
+    XMEMSET((void*)hmac, 0, sizeof(Hmac));
     hmac->macType = WC_HASH_TYPE_NONE;
     hmac->heap = heap;
 #ifdef WOLF_CRYPTO_CB
@@ -1219,7 +1221,9 @@ void wc_HmacFree(Hmac* hmac)
             break;
     }
 
+#ifndef WOLFSSL_NO_FORCE_ZERO
     ForceZero(hmac, sizeof(*hmac));
+#endif
 }
 #endif /* WOLFSSL_KCAPI_HMAC */
 
