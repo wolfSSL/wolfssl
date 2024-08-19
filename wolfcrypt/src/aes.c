@@ -1596,7 +1596,7 @@ static const FLASH_QUALIFIER byte Td4[256] =
 #define GETBYTE(x, y) (word32)((byte)((x) >> (8 * (y))))
 
 #ifdef WOLFSSL_AES_SMALL_TABLES
-static const byte Tsbox[256] = {
+static const FLASH_QUALIFIER byte Tsbox[256] = {
     0x63U, 0x7cU, 0x77U, 0x7bU, 0xf2U, 0x6bU, 0x6fU, 0xc5U,
     0x30U, 0x01U, 0x67U, 0x2bU, 0xfeU, 0xd7U, 0xabU, 0x76U,
     0xcaU, 0x82U, 0xc9U, 0x7dU, 0xfaU, 0x59U, 0x47U, 0xf0U,
@@ -2127,7 +2127,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 
     r *= 2;
     /* Two rounds at a time */
-    for (rk += 4; r > 1; r--, rk += 4) {
+    for (rk += 4u; r > 1u; r--, rk += 4u) {
         t0 =
             ((word32)GetTable8(Tsbox, GETBYTE(s0, 3)) << 24) ^
             ((word32)GetTable8(Tsbox, GETBYTE(s1, 2)) << 16) ^
@@ -2823,7 +2823,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 
     r = aes->rounds >> 1;
 
-    if (r > 7 || r == 0) {
+    if (r > 7u || r == 0u) {
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
@@ -3120,7 +3120,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #endif
 
     r *= 2;
-    for (rk += 4; r > 1; r--, rk += 4) {
+    for (rk += 4u; r > 1u; r--, rk += 4u) {
         t0 =
             ((word32)GetTable8(Td4, GETBYTE(s0, 3)) << 24) ^
             ((word32)GetTable8(Td4, GETBYTE(s3, 2)) << 16) ^
@@ -3600,7 +3600,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 
     r = aes->rounds >> 1;
 
-    if (r > 7 || r == 0) {
+    if (r > 7u || r == 0u) {
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
@@ -4222,7 +4222,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             rk[5] = rk[1] ^ rk[4];
             rk[6] = rk[2] ^ rk[5];
             rk[7] = rk[3] ^ rk[6];
-            if (++i == 10)
+            if (++i == 10u)
                 break;
             rk += 4;
         }
@@ -4315,7 +4315,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         break;
 #endif /* 256 */
     } /* switch */
+#ifndef WOLFSSL_NO_FORCE_ZERO
     ForceZero(&temp, sizeof(temp));
+#endif
 
 #if defined(HAVE_AES_DECRYPT) && !defined(MAX3266X_AES)
     if (dir == AES_DECRYPTION) {
@@ -4334,7 +4336,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             temp = rk[i + 2]; rk[i + 2] = rk[j + 2]; rk[j + 2] = temp;
             temp = rk[i + 3]; rk[i + 3] = rk[j + 3]; rk[j + 3] = temp;
         }
+#ifndef WOLFSSL_NO_FORCE_ZERO
         ForceZero(&temp, sizeof(temp));
+#endif
     #if !defined(WOLFSSL_AES_SMALL_TABLES)
         /* apply the inverse MixColumn transform to all round keys but the
            first and the last: */
@@ -4508,13 +4512,13 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     #endif
 
         if (checkKeyLen) {
-            if (keylen != 16 && keylen != 24 && keylen != 32) {
+            if (keylen != 16u && keylen != 24u && keylen != 32u) {
                 return BAD_FUNC_ARG;
             }
         #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
             /* Check key length only when AES_MAX_KEY_SIZE doesn't allow
              * all key sizes. Otherwise this condition is never true. */
-            if (keylen > (AES_MAX_KEY_SIZE / 8)) {
+            if (keylen > (word32)(AES_MAX_KEY_SIZE / 8)) {
                 return BAD_FUNC_ARG;
             }
         #endif
@@ -5647,7 +5651,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return BAD_FUNC_ARG;
         }
 
-        if (sz == 0) {
+        if (sz == 0u) {
             return 0;
         }
 
@@ -5769,10 +5773,10 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         else
     #endif
         {
-            ret = 0;
+            ret = 0; /* in case blocks is 0 */
             while (blocks--) {
                 xorbuf((byte*)aes->reg, in, AES_BLOCK_SIZE);
-                ret = wc_AesEncrypt(aes, (byte*)aes->reg, (byte*)aes->reg);
+                ret = wc_AesEncrypt(aes, (const byte*)aes->reg, (byte*)aes->reg);
                 if (ret != 0)
                     break;
                 XMEMCPY(out, aes->reg, AES_BLOCK_SIZE);
@@ -5800,7 +5804,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return BAD_FUNC_ARG;
         }
 
-        if (sz == 0) {
+        if (sz == 0u) {
             return 0;
         }
 
@@ -5972,13 +5976,23 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             }
 #else
             while (blocks--) {
-                XMEMCPY(aes->tmp, in, AES_BLOCK_SIZE);
+            #ifdef WOLFSSL_LEANPSK
+                byte tmp[16];
+
+		/* throw the 16 bytes tmp buffer on the stack breifly rather than
+		 * hanging on to them for the life of the AES struct */
+                XMEMCPY(tmp, in, AES_BLOCK_SIZE);
+            #endif
                 ret = wc_AesDecrypt(aes, in, out);
                 if (ret != 0)
                     return ret;
                 xorbuf(out, (byte*)aes->reg, AES_BLOCK_SIZE);
                 /* store iv for next call */
+            #ifdef WOLFSSL_LEANPSK
+                XMEMCPY(aes->reg, tmp, AES_BLOCK_SIZE);
+            #else
                 XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
+            #endif
 
                 out += AES_BLOCK_SIZE;
                 in  += AES_BLOCK_SIZE;
@@ -10532,7 +10546,9 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
                                   authTag, authTagSz, authIn, authInSz);
         wc_AesFree(aes);
     }
+#ifndef WOLFSSL_NO_FORCE_ZERO
     ForceZero(aes, sizeof *aes);
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
@@ -10573,7 +10589,9 @@ int wc_GmacVerify(const byte* key, word32 keySz,
                                   authTag, authTagSz, authIn, authInSz);
         wc_AesFree(aes);
     }
+#ifndef WOLFSSL_NO_FORCE_ZERO
     ForceZero(aes, sizeof *aes);
+#endif
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 #endif
@@ -11492,6 +11510,7 @@ void wc_AesFree(Aes* aes)
 #endif
 }
 
+#ifndef WOLFSSL_LEANPSK
 int wc_AesGetKeySize(Aes* aes, word32* keySize)
 {
     int ret = 0;
@@ -11530,6 +11549,7 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
     return ret;
 }
+#endif
 
 #endif /* !WOLFSSL_TI_CRYPT */
 

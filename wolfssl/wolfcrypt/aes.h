@@ -163,7 +163,7 @@ WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #ifndef WOLFSSL_AES_KEY_SIZE_ENUM
 #define WOLFSSL_AES_KEY_SIZE_ENUM
 /* these are required for FIPS and non-FIPS */
-enum {
+enum aesSizes {
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
@@ -180,7 +180,7 @@ enum {
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
-enum {
+enum aesTypes {
     AES_ENC_TYPE   = WC_CIPHER_AES,   /* cipher unique type */
     AES_ENCRYPTION = 0,
     AES_DECRYPTION = 1,
@@ -255,7 +255,12 @@ enum {
 #endif
 
 struct Aes {
+#if defined(NO_AES_192) && defined(NO_AES_256)
+    /* only need to store an expanded 128 bit key */
+    ALIGN16 word32 key[44];
+#else
     ALIGN16 word32 key[60];
+#endif
 #ifdef WC_AES_BITSLICED
     /* Extra key schedule space required for bit-slicing technique. */
     ALIGN16 bs_word bs_key[15 * AES_BLOCK_SIZE * BS_WORD_SIZE];
@@ -267,8 +272,9 @@ struct Aes {
     int     keylen;
 
     ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
+#ifndef WOLFSSL_LEANPSK
     ALIGN16 word32 tmp[AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
-
+#endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     word32 invokeCtr[2];
     word32 nonceSz;
