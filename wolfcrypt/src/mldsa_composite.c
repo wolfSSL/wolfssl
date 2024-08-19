@@ -1314,7 +1314,7 @@ static int mldsa_composite_sign_msg(mldsa_composite_key* key, WC_RNG* rng, const
     }
     if (ret == 0) {
         /* Sign with random seed. */
-        ret = dilithium_sign_msg_with_seed(key, rnd, msg, msgLen, sig,
+        ret = mldsa_composite_sign_msg_with_seed(key, rnd, msg, msgLen, sig,
             sigLen);
     }
 
@@ -1935,7 +1935,7 @@ int wc_mldsa_composite_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* 
 
     if (ret == 0) {
         /* Sign message. */
-    #ifdef WOLFSSL_WC_DILITHIUM
+    #ifdef WOLFSSL_WC_MLDSA_COMPOSITE
         ret = mldsa_composite_sign_msg_with_seed(key, seed, msg, msgLen, sig, sigLen);
     #elif defined(HAVE_LIBOQS)
         ret = NOT_COMPILED_IN;
