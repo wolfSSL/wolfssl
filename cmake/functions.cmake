@@ -805,6 +805,10 @@ function(generate_lib_src_list LIB_SOURCES)
               list(APPEND LIB_SOURCES wolfcrypt/src/dilithium.c)
          endif()
 
+         if(BUILD_MLDSA_COMPOSITE)
+              list(APPEND LIB_SOURCES wolfcrypt/src/mldsa_composite.c)
+         endif()
+
          if(BUILD_WC_KYBER)
               list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber.c)
               list(APPEND LIB_SOURCES wolfcrypt/src/wc_kyber_poly.c)

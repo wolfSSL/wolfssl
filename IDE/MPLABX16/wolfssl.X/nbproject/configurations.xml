@@ -33,6 +33,7 @@
         <itemPath>../../../wolfcrypt/src/des3.c</itemPath>
         <itemPath>../../../wolfcrypt/src/dh.c</itemPath>
         <itemPath>../../../wolfcrypt/src/dilithium.c</itemPath>
+        <itemPath>../../../wolfcrypt/src/mldsa_composite.c</itemPath>
         <itemPath>../../../wolfcrypt/src/dsa.c</itemPath>
         <itemPath>../../../wolfcrypt/src/ecc.c</itemPath>
         <itemPath>../../../wolfcrypt/src/ecc_fp.c</itemPath>

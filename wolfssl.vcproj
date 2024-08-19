@@ -248,6 +248,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\mldsa_composite.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\dh.c"
 				>
 			</File>

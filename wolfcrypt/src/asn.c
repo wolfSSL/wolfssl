@@ -176,6 +176,10 @@ ASN Options:
     #include <wolfssl/wolfcrypt/sphincs.h>
 #endif
 
+#if defined(HAVE_MLDSA_COMPOSITE)
+    #include <wolfssl/wolfcrypt/mldsa_composite.h>
+#endif
+
 #ifdef WOLFSSL_QNX_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif

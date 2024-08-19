@@ -38,7 +38,6 @@
 #endif
 
 #if defined(HAVE_MLDSA_COMPOSITE)
-dddsfd
 #include <wolfssl/wolfcrypt/mldsa_composite.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
@@ -1909,7 +1908,7 @@ int wc_mldsa_composite_make_key_from_seed(mldsa_composite_key* key, const byte* 
  *          0 otherwise.
  */
 int wc_mldsa_composite_sign_msg(const byte* msg, word32 msgLen, byte* sig,
-    word32 *sigLen, mldsa_composite* key, WC_RNG* rng)
+    word32 *sigLen, mldsa_composite_key* key, WC_RNG* rng)
 {
     int ret = 0;
 
@@ -1957,7 +1956,7 @@ int wc_mldsa_composite_sign_msg(const byte* msg, word32 msgLen, byte* sig,
  *          0 otherwise.
  */
 int wc_mldsa_composite_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
-    word32 *sigLen, mldsa_composite* key, byte* seed)
+    word32 *sigLen, mldsa_composite_key* key, byte* seed)
 {
     int ret = 0;
 
@@ -2078,7 +2077,7 @@ int wc_mldsa_composite_init_id(mldsa_composite_key* key, const unsigned char* id
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && ((len < 0) || (len > DILITHIUM_MAX_ID_LEN))) {
+    if ((ret == 0) && ((len < 0) || (len > MLDSA_COMPOSITE_MAX_ID_LEN))) {
         ret = BUFFER_E;
     }
 
@@ -3387,13 +3386,6 @@ int wcMlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output, word32 len
     return ret;
 }
 #endif /* WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY */
-
-//////////////////////////////////////////////////////////////////////////
-// Resume From Here vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-//////////////////////////////////////////////////////////////////////////
-
-
-
 
 /* Encode the private data of a mldsa_composite key in DER.
  *

@@ -115,17 +115,17 @@ typedef struct wc_MlDsaComposite_params {
 } wc_MlDsaComposite_params;
 #endif
 
-struct mldsa_composite_key {
+struct mldsa_composite_key_t {
     MlDsaKey mldsa_key;
     union {
         ecc_key ecc;
-        rsa_key rsa;
+        RsaKey rsa;
         ed25519_key ed25519;
     } classic_key;
 };
 
 #ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
-    typedef struct mldsa_composite_key mldsa_composite_key;
+    typedef struct mldsa_composite_key_t mldsa_composite_key;
     #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
 #endif
 
@@ -135,122 +135,122 @@ struct mldsa_composite_key {
 
 #ifndef WOLFSSL_DILITHIUM_VERIFY_ONLY
 WOLFSSL_API
-int wc_MlDsaComposite_make_key(MlDsaCompositeKey* key, WC_RNG* rng);
+int wc_mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng);
 WOLFSSL_API
-int wc_MlDsaComposite_make_key_from_seed(MlDsaCompositeKey* key, const byte* seed);
+int wc_mldsa_composite_make_key_from_seed(mldsa_composite_key* key, const byte* seed);
 
 WOLFSSL_API
-int wc_MlDsaComposite_sign_msg(const byte* in, word32 inLen, byte* out,
-    word32 *outLen, MlDsaCompositeKey* key, WC_RNG* rng);
+int wc_mldsa_composite_sign_msg(const byte* in, word32 inLen, byte* out,
+    word32 *outLen, mldsa_composite_key* key, WC_RNG* rng);
 WOLFSSL_API
-int wc_MlDsaComposite_sign_msg_with_seed(const byte* in, word32 inLen, byte* out,
-    word32 *outLen, MlDsaCompositeKey* key, byte* seed);
+int wc_mldsa_composite_sign_msg_with_seed(const byte* in, word32 inLen, byte* out,
+    word32 *outLen, mldsa_composite_key* key, byte* seed);
 #endif
 WOLFSSL_API
-int wc_MlDsaComposite_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
-    word32 msgLen, int* res, MlDsaCompositeKey* key);
+int wc_mldsa_composite_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
+    word32 msgLen, int* res, mldsa_composite_key* key);
 
 WOLFSSL_API
-int wc_MlDsaComposite_init(MlDsaCompositeKey* key);
+int wc_mldsa_composite_init(mldsa_composite_key* key);
 
 WOLFSSL_API
-int wc_MlDsaComposite_init_ex(MlDsaCompositeKey* key, void* heap, int devId);
+int wc_mldsa_composite_init_ex(mldsa_composite_key* key, void* heap, int devId);
 
 #ifdef WOLF_PRIVATE_KEY_ID
 WOLFSSL_API
-int wc_MlDsaComposite_init_id(MlDsaCompositeKey* key, const unsigned char* id, int len,
+int wc_mldsa_composite_init_id(mldsa_composite_key* key, const unsigned char* id, int len,
     void* heap, int devId);
 WOLFSSL_API
-int wc_MlDsaComposite_init_label(MlDsaCompositeKey* key, const char* label, void* heap,
+int wc_mldsa_composite_init_label(mldsa_composite_key* key, const char* label, void* heap,
     int devId);
 #endif
 
 WOLFSSL_API
-int wc_MlDsaComposite_set_level(MlDsaCompositeKey* key, byte level);
+int wc_mldsa_composite_set_level(mldsa_composite_key* key, byte level);
 WOLFSSL_API
-int wc_MlDsaComposite_get_level(MlDsaCompositeKey* key, byte* level);
+int wc_mldsa_composite_get_level(mldsa_composite_key* key, byte* level);
 WOLFSSL_API
-void wc_MlDsaComposite_free(MlDsaCompositeKey* key);
+void wc_mldsa_composite_free(mldsa_composite_key* key);
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_size(MlDsaCompositeKey* key);
+int wc_mldsa_composite_size(mldsa_composite_key* key);
 #endif
 #if defined(WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY) && \
-    defined(WOLFSSL_ML_DSA_COMPOSITE_PUBLIC_KEY)
+    defined(WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY)
 WOLFSSL_API
-int wc_MlDsaComposite_priv_size(MlDsaCompositeKey* key);
+int wc_mldsa_composite_priv_size(mldsa_composite_key* key);
 #endif
-#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+#ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_pub_size(MlDsaCompositeKey* key);
+int wc_mldsa_composite_pub_size(mldsa_composite_key* key);
 #endif
 #if !defined(WOLFSSL_MLDSA_COMPOSITE_NO_SIGN) || !defined(WOLFSSL_MLDSA_COMPOSITE_NO_VERIFY)
 WOLFSSL_API
-int wc_MlDsaComposite_sig_size(MlDsaCompositeKey* key);
+int wc_mldsa_composite_sig_size(mldsa_composite_key* key);
 #endif
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_CHECK_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_check_key(MlDsaCompositeKey* key);
+int wc_mldsa_composite_check_key(mldsa_composite_key* key);
 #endif
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_import_public(const byte* in, word32 inLen,
-    MlDsaCompositeKey* key);
+int wc_mldsa_composite_import_public(const byte* in, word32 inLen,
+    mldsa_composite_key* key);
 #endif
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_import_private(const byte* priv, word32 privSz,
-    MlDsaCompositeKey* key);
-#define wc_MlDsaComposite_import_private_only    wc_MlDsaComposite_import_private
+int wc_mldsa_composite_import_private(const byte* priv, word32 privSz,
+    mldsa_composite_key* key);
+#define wc_mldsa_composite_import_private_only    wc_mldsa_composite_import_private
 WOLFSSL_API
-int wc_MlDsaComposite_import_key(const byte* priv, word32 privSz,
-    const byte* pub, word32 pubSz, MlDsaCompositeKey* key);
+int wc_mldsa_composite_import_key(const byte* priv, word32 privSz,
+    const byte* pub, word32 pubSz, mldsa_composite_key* key);
 #endif
 
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_export_public(MlDsaCompositeKey* key, byte* out, word32* outLen);
+int wc_mldsa_composite_export_public(mldsa_composite_key* key, byte* out, word32* outLen);
 #endif
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_export_private(MlDsaCompositeKey* key, byte* out, word32* outLen);
+int wc_mldsa_composite_export_private(mldsa_composite_key* key, byte* out, word32* outLen);
 #endif
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
 WOLFSSL_API
-int wc_MlDsaComposite_export_key(MlDsaCompositeKey* key, byte* priv, word32 *privSz,
+int wc_mldsa_composite_export_key(mldsa_composite_key* key, byte* priv, word32 *privSz,
     byte* pub, word32 *pubSz);
 #endif
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_ASN1
 #if defined(WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY)
 WOLFSSL_API int wc_MlDsaComposite_PrivateKeyDecode(const byte* input,
-    word32* inOutIdx, MlDsaCompositeKey* key, word32 inSz);
+    word32* inOutIdx, mldsa_composite_key* key, word32 inSz);
 #endif
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_ASN1 */
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PUBLIC_KEY
 WOLFSSL_API int wc_MlDsaComposite_PublicKeyDecode(const byte* input,
-    word32* inOutIdx, MlDsaCompositeKey* key, word32 inSz);
+    word32* inOutIdx, mldsa_composite_key* key, word32 inSz);
 #endif
 
 #ifndef WOLFSSL_MLDSA_COMPOSITE_NO_ASN1
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
-WOLFSSL_API int wc_MlDsaComposite_PublicKeyToDer(MlDsaCompositeKey* key, byte* output,
+WOLFSSL_API int wc_MlDsaComposite_PublicKeyToDer(mldsa_composite_key* key, byte* output,
     word32 inLen, int withAlg);
 #endif
 #if defined(WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY)
-WOLFSSL_API int wc_MlDsaComposite_KeyToDer(MlDsaCompositeKey* key, byte* output,
+WOLFSSL_API int wc_MlDsaComposite_KeyToDer(mldsa_composite_key* key, byte* output,
     word32 inLen);
 #endif
 #ifdef WOLFSSL_MLDSA_COMPOSITE_PRIVATE_KEY
-WOLFSSL_API int wc_MlDsaComposite_PrivateKeyToDer(MlDsaCompositeKey* key, byte* output,
+WOLFSSL_API int wc_MlDsaComposite_PrivateKeyToDer(mldsa_composite_key* key, byte* output,
     word32 inLen);
 #endif
 #endif /* WOLFSSL_MLDSA_COMPOSITE_NO_ASN1 */
 
-#define WC_MLDSA44_P256         2
+#define WC_MLDSA44_P256         1
 #define WC_MLDSA44_ED25519      2
 
 int wc_MlDsaCompositeKey_GetPrivLen(MlDsaCompositeKey* key, int* len);
@@ -262,4 +262,4 @@ int wc_MlDsaCompositeKey_GetSigLen(MlDsaCompositeKey* key, int* len);
 #endif
 
 #endif /* HAVE_MLDSA_COMPOSITE */
-#endif /* WOLF_CRYPT_DILITHIUM_H */
+#endif /* WOLF_CRYPT_MLDSA_COMPOSITE_H */

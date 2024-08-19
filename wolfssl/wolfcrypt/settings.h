@@ -3509,6 +3509,12 @@ extern void uITRON4_free(void *p) ;
 #endif
 #endif
 
+#ifdef HAVE_MLDSA_COMPOSITE
+    #define WOLFSSL_HAVE_MLDSA_COMPOSITE
+    #define WOLFSSL_MLDSA44_P256
+    #define WOLFSSL_MLDSA44_ED25519
+#endif
+
 #ifdef HAVE_PQM4
 #define HAVE_PQC
 #define WOLFSSL_HAVE_KYBER

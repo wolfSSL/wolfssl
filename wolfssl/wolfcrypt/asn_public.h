@@ -76,6 +76,10 @@ This library defines the interface APIs for X509 certificates.
     typedef struct dilithium_key dilithium_key;
     #define WC_DILITHIUMKEY_TYPE_DEFINED
 #endif
+#ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
+    typedef struct mldsa_composite_key mldsa_composite_key;
+    #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
+#endif
 #ifndef WC_SPHINCSKEY_TYPE_DEFINED
     typedef struct sphincs_key sphincs_key;
     #define WC_SPHINCSKEY_TYPE_DEFINED
@@ -170,6 +174,8 @@ enum CertType {
     DILITHIUM_LEVEL2_TYPE,
     DILITHIUM_LEVEL3_TYPE,
     DILITHIUM_LEVEL5_TYPE,
+    MLDSA44_P256_TYPE,
+    MLDSA44_ED25519_TYPE,
     SPHINCS_FAST_LEVEL1_TYPE,
     SPHINCS_FAST_LEVEL3_TYPE,
     SPHINCS_FAST_LEVEL5_TYPE,
@@ -222,6 +228,9 @@ enum Ctc_SigType {
     CTC_DILITHIUM_LEVEL2     = 218,
     CTC_DILITHIUM_LEVEL3     = 221,
     CTC_DILITHIUM_LEVEL5     = 225,
+
+    CTC_MLDSA44_P256         = 225,
+    CTC_MLDSA44_ED25519      = 225,
 
     CTC_SPHINCS_FAST_LEVEL1  = 281,
     CTC_SPHINCS_FAST_LEVEL3  = 283,
@@ -798,7 +807,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_EXPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_EXPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_EXPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)))
     #define WC_ENABLE_ASYM_KEY_EXPORT
 #endif
 
@@ -807,7 +816,7 @@ WOLFSSL_API int wc_DhPrivKeyToDer(DhKey* key, byte* out, word32* outSz);
      (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) || \
      (defined(HAVE_ED448)      && defined(HAVE_ED448_KEY_IMPORT)) || \
      (defined(HAVE_CURVE448)   && defined(HAVE_CURVE448_KEY_IMPORT)) || \
-     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS)))
+     (defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)))
     #define WC_ENABLE_ASYM_KEY_IMPORT
 #endif
 
