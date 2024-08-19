@@ -115,7 +115,7 @@ typedef struct wc_MlDsaComposite_params {
 } wc_MlDsaComposite_params;
 #endif
 
-struct mldsa_composite_key_t {
+struct mldsa_composite_key {
     MlDsaKey mldsa_key;
     union {
         ecc_key ecc;
@@ -125,7 +125,7 @@ struct mldsa_composite_key_t {
 };
 
 #ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
-    typedef struct mldsa_composite_key_t mldsa_composite_key;
+    typedef struct mldsa_composite_key mldsa_composite_key;
     #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
 #endif
 
