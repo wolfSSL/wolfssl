@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # assemble-chains.sh
 # Create certs and assemble all the certificate CA path test cert chains.

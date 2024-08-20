@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #crl.test
 # if we can, isolate the network namespace to eliminate port collisions.

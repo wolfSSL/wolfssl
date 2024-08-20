@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Assume we're in wolfssl/Docker/yocto
 WOLFSSL_DIR=$(builtin cd ${BASH_SOURCE%/*}/../..; pwd)

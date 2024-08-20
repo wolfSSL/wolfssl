@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # This script is designed to compare the output of wolfcrypt/benchmark test
 # application. If the file has an extension ".csv", then it will parse the
 # comma separated format, otherwise it will use the standard output format. The

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # gencrls, crl config already done, see taoCerts.txt for setup
 check_result(){

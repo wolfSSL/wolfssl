@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ocsp-stapling-with-ca-as-responder.test
 

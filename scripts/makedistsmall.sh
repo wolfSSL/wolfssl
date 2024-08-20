@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #set -v
 
 # Script to produce a small source/header only package (with CMake support)

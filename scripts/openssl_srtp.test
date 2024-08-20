@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Test WolfSSL/OpenSSL srtp interoperability
 #
 # TODO: add OpenSSL client with WolfSSL server
