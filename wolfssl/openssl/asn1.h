@@ -125,17 +125,17 @@ WOLFSSL_API WOLFSSL_ASN1_OBJECT *wolfSSL_c2i_ASN1_OBJECT(WOLFSSL_ASN1_OBJECT **a
  * we don't use this. Some projects use OpenSSL to implement ASN1 types and
  * this section is only to provide those projects with ASN1 functionality. */
 
-typedef void* (*wolfssl_asn1_new)(void);
-typedef void (*wolfssl_asn1_free)(void*);
-typedef int (*wolfssl_asn1_i2d)(const void*, unsigned char**);
-typedef void* (*wolfssl_asn1_d2i)(void**, const byte **, long);
+typedef void* (*WolfsslAsn1NewCb)(void);
+typedef void (*WolfsslAsn1FreeCb)(void*);
+typedef int (*WolfsslAsn1i2dCb)(const void*, unsigned char**);
+typedef void* (*WolfsslAsn1d2iCb)(void**, const byte **, long);
 
 struct WOLFSSL_ASN1_TEMPLATE {
     /* Type functions */
-    wolfssl_asn1_new new_func;
-    wolfssl_asn1_free free_func;
-    wolfssl_asn1_i2d i2d_func;
-    wolfssl_asn1_d2i d2i_func;
+    WolfsslAsn1NewCb new_func;
+    WolfsslAsn1FreeCb free_func;
+    WolfsslAsn1i2dCb i2d_func;
+    WolfsslAsn1d2iCb d2i_func;
     /* Member info */
     size_t offset;              /* Offset of this field in structure */
     /* DER info */
@@ -232,45 +232,45 @@ static WC_MAYBE_UNUSED const byte ASN1_BIT_STRING_FIRST_BYTE = ASN_BIT_STRING;
  * incorrectly expand the type. Ex: ASN1_INTEGER -> WOLFSSL_ASN1_INTEGER */
 
 #define ASN1_SIMPLE(type, member, member_type) \
-    { (wolfssl_asn1_new)member_type##_new, \
-      (wolfssl_asn1_free)member_type##_free, \
-      (wolfssl_asn1_i2d)i2d_##member_type, \
-      (wolfssl_asn1_d2i)d2i_##member_type, \
+    { (WolfsslAsn1NewCb)member_type##_new, \
+      (WolfsslAsn1FreeCb)member_type##_free, \
+      (WolfsslAsn1i2dCb)i2d_##member_type, \
+      (WolfsslAsn1d2iCb)d2i_##member_type, \
       ASN1_TYPE(type, member, -1, 0, 0, 0) }
 
 #define ASN1_IMP(type, member, member_type, tag) \
-    { (wolfssl_asn1_new)member_type##_new, \
-      (wolfssl_asn1_free)member_type##_free, \
-      (wolfssl_asn1_i2d)i2d_##member_type, \
-      (wolfssl_asn1_d2i)d2i_##member_type, \
+    { (WolfsslAsn1NewCb)member_type##_new, \
+      (WolfsslAsn1FreeCb)member_type##_free, \
+      (WolfsslAsn1i2dCb)i2d_##member_type, \
+      (WolfsslAsn1d2iCb)d2i_##member_type, \
       ASN1_TYPE(type, member, tag, member_type##_FIRST_BYTE, 0, 0) }
 
 #define ASN1_EXP(type, member, member_type, tag) \
-    { (wolfssl_asn1_new)member_type##_new, \
-      (wolfssl_asn1_free)member_type##_free, \
-      (wolfssl_asn1_i2d)i2d_##member_type, \
-      (wolfssl_asn1_d2i)d2i_##member_type, \
+    { (WolfsslAsn1NewCb)member_type##_new, \
+      (WolfsslAsn1FreeCb)member_type##_free, \
+      (WolfsslAsn1i2dCb)i2d_##member_type, \
+      (WolfsslAsn1d2iCb)d2i_##member_type, \
       ASN1_TYPE(type, member, tag, 0, 1, 0) }
 
 #define ASN1_SEQUENCE_OF(type, member, member_type) \
-    { (wolfssl_asn1_new)member_type##_new, \
-      (wolfssl_asn1_free)member_type##_free, \
-      (wolfssl_asn1_i2d)i2d_##member_type, \
-      (wolfssl_asn1_d2i)d2i_##member_type, \
+    { (WolfsslAsn1NewCb)member_type##_new, \
+      (WolfsslAsn1FreeCb)member_type##_free, \
+      (WolfsslAsn1i2dCb)i2d_##member_type, \
+      (WolfsslAsn1d2iCb)d2i_##member_type, \
       ASN1_TYPE(type, member, -1, 0, 0, 1) }
 
 #define ASN1_EXP_SEQUENCE_OF(type, member, member_type, tag) \
-    { (wolfssl_asn1_new)member_type##_new, \
-      (wolfssl_asn1_free)member_type##_free, \
-      (wolfssl_asn1_i2d)i2d_##member_type, \
-      (wolfssl_asn1_d2i)d2i_##member_type, \
+    { (WolfsslAsn1NewCb)member_type##_new, \
+      (WolfsslAsn1FreeCb)member_type##_free, \
+      (WolfsslAsn1i2dCb)i2d_##member_type, \
+      (WolfsslAsn1d2iCb)d2i_##member_type, \
       ASN1_TYPE(type, member, tag, 0, 1, 1) }
 
 #define ASN1_EX_TEMPLATE_TYPE(flags, tag, name, member_type) \
-    { (wolfssl_asn1_new)member_type##_new, \
-      (wolfssl_asn1_free)member_type##_free, \
-      (wolfssl_asn1_i2d)i2d_##member_type, \
-      (wolfssl_asn1_d2i)d2i_##member_type, \
+    { (WolfsslAsn1NewCb)member_type##_new, \
+      (WolfsslAsn1FreeCb)member_type##_free, \
+      (WolfsslAsn1i2dCb)i2d_##member_type, \
+      (WolfsslAsn1d2iCb)d2i_##member_type, \
       0, flags & ASN1_TFLG_TAG_MASK ? tag : -1, 0, \
       !!(flags & ASN1_TFLG_EXPLICIT), TRUE }
 

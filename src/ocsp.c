@@ -1587,7 +1587,7 @@ int wolfSSL_OCSP_REQ_CTX_set1_req(WOLFSSL_OCSP_REQ_CTX *ctx, OcspRequest *req)
 
 static int OCSP_REQ_CTX_bio_cb(char *buf, int sz, void *ctx)
 {
-    return BioReceive((WOLFSSL_BIO*)ctx, NULL, buf, sz);
+    return BioReceiveInternal((WOLFSSL_BIO*)ctx, NULL, buf, sz);
 }
 
 int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx)

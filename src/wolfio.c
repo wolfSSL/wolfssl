@@ -260,7 +260,18 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
 
-int BioReceive(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr, char* buf, int sz)
+int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+{
+    return SslBioSend(ssl, buf, sz, ctx);
+}
+
+int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    return SslBioReceive(ssl, buf, sz, ctx);
+}
+
+int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr, char* buf,
+                       int sz)
 {
     int recvd = WOLFSSL_CBIO_ERR_GENERAL;
 
@@ -325,7 +336,7 @@ int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     WOLFSSL_ENTER("SslBioReceive");
     (void)ctx;
-    return BioReceive(ssl->biord, ssl->biowr, buf, sz);
+    return BioReceiveInternal(ssl->biord, ssl->biowr, buf, sz);
 }
 
 

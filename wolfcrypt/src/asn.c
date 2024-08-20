@@ -13543,7 +13543,7 @@ static int AddDNSEntryToList(DNS_entry** lst, DNS_entry* entry)
 
 /* Allocate a DNS entry and set the fields.
  *
- * @param [in]      cert     Certificate object.
+ * @param [in]      heap     Heap hint.
  * @param [in]      str      DNS name string.
  * @param [in]      strLen   Length of DNS name string.
  * @param [in]      type     Type of DNS name string.

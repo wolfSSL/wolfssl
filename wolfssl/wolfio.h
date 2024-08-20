@@ -520,11 +520,14 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
 #endif
 #endif /* WOLFSSL_NO_SOCK */
 
+/* Preseve API previously exposed */
+WOLFSSL_API int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
-WOLFSSL_API int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
-WOLFSSL_API int BioReceive(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr, char* buf,
-                           int sz);
-WOLFSSL_API int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+WOLFSSL_LOCAL int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+WOLFSSL_LOCAL int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr,
+                                     char* buf, int sz);
+WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #if defined(USE_WOLFSSL_IO)
     /* default IO callbacks */
     WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
