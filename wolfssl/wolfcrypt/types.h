@@ -1080,6 +1080,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_DEBUG_TAG    = 100,
         DYNAMIC_TYPE_LMS          = 101,
         DYNAMIC_TYPE_BIO          = 102,
+        DYNAMIC_TYPE_MLDSA_COMPOSITE     = 900,
         DYNAMIC_TYPE_SNIFFER_SERVER      = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION     = 1001,
         DYNAMIC_TYPE_SNIFFER_PB          = 1002,
@@ -1242,13 +1243,21 @@ typedef struct w64wrapper {
         #undef _WC_PK_TYPE_MAX
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_KEM_DECAPS
     #endif
-    #if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON)
+    #if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || defined (HAVE_SPHINCS) || defined(HAVE_MLDSA_COMPOSITE)
         WC_PK_TYPE_PQC_SIG_KEYGEN = 21,
         WC_PK_TYPE_PQC_SIG_SIGN = 22,
         WC_PK_TYPE_PQC_SIG_VERIFY = 23,
         WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY = 24,
         #undef _WC_PK_TYPE_MAX
         #define _WC_PK_TYPE_MAX WC_PK_TYPE_PQC_SIG_CHECK_PRIV_KEY
+    #endif
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_KEYGEN = 25,
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_SIGN = 26,
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_VERIFY = 27,
+        WC_PK_TYPE_MLDSA_COMPOSITE_SIG_CHECK_PRIV_KEY = 28,
+        #undef _WC_PK_TYPE_MAX
+        #define _WC_PK_TYPE_MAX WC_PK_TYPE_MLDSA_COMPOSITE_SIG_CHECK_PRIV_KEY
     #endif
         WC_PK_TYPE_MAX = _WC_PK_TYPE_MAX
     };
@@ -1267,7 +1276,7 @@ typedef struct w64wrapper {
     };
 #endif
 
-#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON)
+#if defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || defined(HAVE_MLDSA_COMPOSITE)
     /* Post quantum signature algorithms */
     enum wc_PqcSignatureType {
         WC_PQC_SIG_TYPE_NONE = 0,
@@ -1281,6 +1290,16 @@ typedef struct w64wrapper {
         WC_PQC_SIG_TYPE_FALCON = 2,
         #undef _WC_PQC_SIG_TYPE_MAX
         #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_FALCON
+    #endif
+    #if defined(HAVE_SPINCS)
+        WC_PQC_SIG_TYPE_SPHINCS = 3,
+        #undef _WC_PQC_SIG_TYPE_MAX
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_SPHINCS
+    #endif
+    #if defined(HAVE_MLDSA_COMPOSITE)
+        WC_PQC_SIG_TYPE_MLDSA_COMPOSITE = 4,
+        #undef _WC_PQC_SIG_TYPE_MAX
+        #define _WC_PQC_SIG_TYPE_MAX WC_PQC_SIG_TYPE_MLDSA_COMPOSITE
     #endif
         WC_PQC_SIG_TYPE_MAX = _WC_PQC_SIG_TYPE_MAX
     };

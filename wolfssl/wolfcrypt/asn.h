@@ -1191,7 +1191,9 @@ enum Key_Sum {
     SPHINCS_FAST_LEVEL5k   = 282, /* 1 3 9999 6 9 3 */
     SPHINCS_SMALL_LEVEL1k  = 287, /* 1 3 9999 6 7 10 */
     SPHINCS_SMALL_LEVEL3k  = 285, /* 1 3 9999 6 8 7 */
-    SPHINCS_SMALL_LEVEL5k  = 286  /* 1 3 9999 6 9 7 */
+    SPHINCS_SMALL_LEVEL5k  = 286,  /* 1 3 9999 6 9 7 */
+    MLDSA44_ED25519k       = 903, /* 2.16.840.1.114027.80.8.1.3 - id-MLDSA44-Ed25519-SHA512 - 900 + 3*/
+    MLDSA44_P256k          = 904, /* 2.16.840.1.114027.80.8.1.4 - id-MLDSA44-ECDSA-P256-SHA256 - 900 + 4 */
 };
 
 #if !defined(NO_AES) || defined(HAVE_PKCS7)

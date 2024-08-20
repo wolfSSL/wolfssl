@@ -18,6 +18,7 @@
 #define WOLF_CRYPT_MLDSA_COMPOSITE_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/asn.h>
 
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
@@ -33,6 +34,10 @@
 
 #if defined(HAVE_ED25519)
 #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+
+#if defined(HAVE_ED448)
+#include <wolfssl/wolfcrypt/ed448.h>
 #endif
 
 #ifndef NO_RSA
@@ -108,26 +113,65 @@
 /* Structs */
 
 #ifdef WOLFSSL_WC_MLDSA_COMPOSITE
-typedef struct wc_MlDsaComposite_params {
-    byte mldsa_level;
-    byte traditional_level;
-    byte traditional_type;
-} wc_MlDsaComposite_params;
+
+typedef struct wc_composite_key_params {
+    enum wc_PkType type;
+    union {        
+        struct {
+            word16 bits;
+            enum wc_HashType mask_gen_param;
+            enum wc_HashType digest_alg_param;
+            int salt_len;
+        } rsapss;
+
+        struct {
+            word16 bits;    
+        } rsa_oaep;
+        
+        struct {
+            ecc_curve_id curve_id;
+        } ecdsa;
+
+        struct {
+            // No Params
+        } ed25519;
+
+        struct {
+            byte level;
+        } dilithium;
+
+        struct {
+            byte level;
+        } falcon;
+
+    } values;
+} wc_CompositeKeyParams;
+
+
 #endif
 
 struct mldsa_composite_key {
-    MlDsaKey mldsa_key;
+    const enum wc_PkType algo; /* RSAPSSk */
+    const enum wc_HashType hashParam; /* hSHA256 */
+    wc_CompositeKeyParams params[2];
+    dilithium_key * mldsa_key;
     union {
-        ecc_key ecc;
-        RsaKey rsa;
-        ed25519_key ed25519;
-    } classic_key;
+        RsaKey * rsa_oaep; /* RSAOAEPk, RSAPSSk */
+        ecc_key * ecc; /* ECDSAk */
+        ed25519_key * ed25519; /* ED25519k */
+    } alt_key;
 };
 
 #ifndef WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
     typedef struct mldsa_composite_key mldsa_composite_key;
+    #define mldsa_composite_key MlDsaCompositeKey
     #define WC_MLDSA_COMPOSITEKEY_TYPE_DEFINED
+    const mldsa_composite_key mldsacomposite_params[] = {
+        { MLDSA44_ED25519k, SHA256, { { DILITHIUM_LEVEL2k, 2 }, { } }, NULL, { NULL } },
+        { MLDSA44_P256k, SHA256, { { DILITHIUM_LEVEL2k, 2 }, { ECC_SECP256R1 } }, NULL, { NULL } },
+    };
 #endif
+
 
 #define MlDsaCompositeKey mldsa_composite_key
 
