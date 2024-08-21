@@ -2627,7 +2627,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
         int first;
         int last;
     } missing[] = {
-        { -6, -100 },
         { -124, -124 },
         { -166, -169 }
     };

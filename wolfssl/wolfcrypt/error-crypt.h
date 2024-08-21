@@ -43,14 +43,14 @@ the error status.
 
 /* error codes, add string for new errors !!! */
 enum {
-    MAX_CODE_E         =   -1,  /* errors -2 - -299 */
-    WC_FIRST_E         =   -2,  /* errors -2 - -299 */
+    MAX_CODE_E         =  -96,  /* errors -97 - -299 */
+    WC_FIRST_E         =  -97,  /* errors -97 - -299 */
 
-    MP_MEM             =   -2,  /* MP dynamic memory allocation failed. */
-    MP_VAL             =   -3,  /* MP value passed is not able to be used. */
-    MP_WOULDBLOCK      =   -4,  /* MP non-blocking operation is returning after
+    MP_MEM             =  -97,  /* MP dynamic memory allocation failed. */
+    MP_VAL             =  -98,  /* MP value passed is not able to be used. */
+    MP_WOULDBLOCK      =  -99,  /* MP non-blocking operation is returning after
                                  * partial completion. */
-    MP_NOT_INF         =   -5,  /* MP point not at infinity */
+    MP_NOT_INF         = -100,  /* MP point not at infinity */
 
     OPEN_RAN_E         = -101,  /* opening random device error */
     READ_RAN_E         = -102,  /* reading random device error */
@@ -304,10 +304,7 @@ WOLFSSL_API void wc_ErrorString(int err, char* buff);
 WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
 #endif
 
-#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && !defined(BUILDING_WOLFSSL)
-    #undef WOLFSSL_DEBUG_TRACE_ERROR_CODES
-#endif
-#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && defined(BUILDING_WOLFSSL)
     extern void wc_backtrace_render(void);
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE
