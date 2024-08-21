@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 if test ! -x ./wolfcrypt/test/testwolfcrypt
 then
@@ -18,4 +18,3 @@ then
     cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
     sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak >wolfcrypt/src/fips_test.c
 fi
-

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script can be run with several environment variables set dictating its
 # run. You can set the following to what you like:

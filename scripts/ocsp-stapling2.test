@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ocsp-stapling2.test
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST_V2

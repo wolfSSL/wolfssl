@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # check if IDF_PATH is set
 if [ -z "$IDF_PATH" ]; then

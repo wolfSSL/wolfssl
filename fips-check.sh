@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # fips-check.sh
 # This script checks the current revision of the code against the

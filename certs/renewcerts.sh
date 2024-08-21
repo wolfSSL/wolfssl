@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # renewcerts.sh
 #
 # renews the following certs:

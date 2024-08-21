@@ -35,7 +35,7 @@ press the reset button or power cycle the Arduino before making a connection.
 Here's one possible script to test the server from a command-line client:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 echo "client log " > client_log.txt
 counter=1
 THIS_ERR=0
