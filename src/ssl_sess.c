@@ -1711,12 +1711,12 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
             WOLFSSL_MSG("Client cache serverRow or serverIdx invalid");
             error = -1;
         }
-        /* Prevent memory access before clientSession->serverRow and
-         * clientSession->serverIdx are sanitized. */
-        XFENCE();
         if (error == 0) {
             /* Lock row */
             sessRow = &SessionCache[clientSession->serverRow];
+            /* Prevent memory access before clientSession->serverRow and
+             * clientSession->serverIdx are sanitized. */
+            XFENCE();
             error = SESSION_ROW_RD_LOCK(sessRow);
             if (error != 0) {
                 WOLFSSL_MSG("Session cache row lock failure");
@@ -1729,6 +1729,8 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
 #else
             cacheSession = &sessRow->Sessions[clientSession->serverIdx];
 #endif
+            /* Prevent memory access */
+            XFENCE();
             if (cacheSession && cacheSession->sessionIDSz == 0) {
                 cacheSession = NULL;
                 WOLFSSL_MSG("Session cache entry not set");

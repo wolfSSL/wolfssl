@@ -1560,7 +1560,9 @@ static void ProcessBufferCertSetHave(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
     #endif
 #ifndef WC_STRICT_SIG
-    wolfssl_set_have_from_key_oid(ctx, ssl, cert->keyOID);
+    if ((ctx != NULL) || (ssl != NULL)) {
+        wolfssl_set_have_from_key_oid(ctx, ssl, cert->keyOID);
+    }
 #else
     /* Set whether ECC is available based on signature available. */
     if (ssl != NULL) {

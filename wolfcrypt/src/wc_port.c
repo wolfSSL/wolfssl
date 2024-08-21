@@ -1183,7 +1183,7 @@ char* wc_strdup_ex(const char *src, int memType) {
     word32 len = 0;
 
     if (src) {
-        len = (word32)XSTRLEN(src);
+        len = (word32)XSTRLEN(src) + 1; /* Add one for null terminator */
         ret = (char*)XMALLOC(len, NULL, memType);
         if (ret != NULL) {
             XMEMCPY(ret, src, len);

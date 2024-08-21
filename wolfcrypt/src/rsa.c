@@ -5243,7 +5243,7 @@ int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
     if (err == MP_OKAY) {
         key->type = RSA_PRIVATE;
     }
-    else {
+    else if (key != NULL) {
         mp_clear(&key->n);
         mp_clear(&key->e);
         mp_clear(&key->d);
