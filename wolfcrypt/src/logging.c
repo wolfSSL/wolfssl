@@ -1721,6 +1721,14 @@ void WOLFSSL_ERROR_MSG(const char* msg)
 
 #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
 
+#ifdef WOLFSSL_LINUXKM
+
+void wc_backtrace_render(void) {
+    dump_stack();
+}
+
+#else /* !WOLFSSL_LINUXKM */
+
 #include <backtrace-supported.h>
 
 #if BACKTRACE_SUPPORTED != 1
@@ -1848,5 +1856,6 @@ void wc_backtrace_render(void) {
 
     wc_UnLockMutex(&backtrace_mutex);
 }
+#endif /* !WOLFSSL_LINUXKM */
 
 #endif /* WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES */
