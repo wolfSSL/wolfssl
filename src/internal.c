@@ -25068,7 +25068,8 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     if (type == close_notify) {
         if (!ssl->options.sentNotify) {
             ssl->options.sentNotify = 1;
-        }  else {
+        }
+        else {
             /* CLOSE_NOTIFY already sent */
             return 0;
         }

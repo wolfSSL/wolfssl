@@ -81186,6 +81186,91 @@ static int test_extra_alerts_bad_psk(void)
 }
 #endif
 
+#ifdef OPENSSL_EXTRA
+/*
+ * Emulates wolfSSL_shutdown that goes on EAGAIN,
+ * by returning on output WOLFSSL_ERROR_WANT_WRITE.*/
+static int custom_wolfSSL_shutdown(WOLFSSL *ssl, char *buf,
+        int sz, void *ctx)
+{
+    (void)ssl;
+    (void)buf;
+    (void)ctx;
+    (void)sz;
+
+    return WOLFSSL_CBIO_ERR_WANT_WRITE;
+}
+
+static int test_multiple_alerts_EAGAIN(void)
+{
+    EXPECT_DECLS;
+    CallbackIOSend copy_current_io_cb = NULL;
+    size_t size_of_last_packet = 0;
+
+    /* declare wolfSSL objects */
+    struct test_memio_ctx test_ctx;
+    WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+    /* Create and initialize WOLFSSL_CTX and WOLFSSL objects */
+#ifdef USE_TLSV13
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+          wolfTLSv1_3_client_method,  wolfTLSv1_3_server_method), 0);
+#else
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+         wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), 0);
+#endif
+    ExpectNotNull(ctx_c);
+    ExpectNotNull(ssl_c);
+    ExpectNotNull(ctx_s);
+    ExpectNotNull(ssl_s);
+
+    /* Load client certificates into WOLFSSL_CTX */
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx_c, "./certs/ca-cert.pem", NULL), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+
+    /*
+     * We set the custom callback for the IO to emulate multiple EAGAINs
+     * on shutdown, so we can check that we don't send multiple packets.
+     * */
+    copy_current_io_cb = ssl_c->CBIOSend;
+    wolfSSL_SSLSetIOSend(ssl_c, custom_wolfSSL_shutdown);
+
+    /*
+     * We call wolfSSL_shutdown multiple times to reproduce the behaviour,
+     * to check that it doesn't add the CLOSE_NOTIFY packet multiple times
+     * on the output buffer.
+     * */
+    wolfSSL_shutdown(ssl_c);
+    wolfSSL_shutdown(ssl_c);
+    size_of_last_packet = ssl_c->buffers.outputBuffer.length;
+    wolfSSL_shutdown(ssl_c);
+
+    /*
+     * Finally we check the length of the output buffer.
+     * */
+    ExpectIntEQ((ssl_c->buffers.outputBuffer.length - size_of_last_packet), 0);
+
+    wolfSSL_SSLSetIOSend(ssl_c, copy_current_io_cb);
+
+    /* Cleanup and return */
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_free(ssl_c);
+    wolfSSL_CTX_free(ctx_s);
+    wolfSSL_free(ssl_s);
+
+    return EXPECT_RESULT();
+}
+#else
+static int test_multiple_alerts_EAGAIN(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
+
 #if defined(WOLFSSL_TLS13) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)\
     && !defined(NO_PSK)
 static unsigned int test_tls13_bad_psk_binder_client_cb(WOLFSSL* ssl,
@@ -86697,6 +86782,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_extra_alerts_wrong_cs),
     TEST_DECL(test_extra_alerts_skip_hs),
     TEST_DECL(test_extra_alerts_bad_psk),
+    TEST_DECL(test_multiple_alerts_EAGAIN),
     TEST_DECL(test_tls13_bad_psk_binder),
     /* Can't memory test as client/server Asserts. */
     TEST_DECL(test_harden_no_secure_renegotiation),
