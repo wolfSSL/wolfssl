@@ -81186,7 +81186,7 @@ static int test_extra_alerts_bad_psk(void)
 }
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
 /*
  * Emulates wolfSSL_shutdown that goes on EAGAIN,
  * by returning on output WOLFSSL_ERROR_WANT_WRITE.*/
