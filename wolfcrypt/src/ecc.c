@@ -2491,8 +2491,7 @@ static int _ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
    }
    if (err == MP_OKAY && mp_iszero((MP_INT_SIZE*)t2)) {
       /* T2 = X * X */
-      if (err == MP_OKAY)
-          err = mp_sqr(x, t2);
+      err = mp_sqr(x, t2);
       if (err == MP_OKAY)
           err = mp_montgomery_reduce(t2, modulus, mp);
       /* T1 = T2 + T1 */
@@ -2506,8 +2505,7 @@ static int _ecc_projective_dbl_point(ecc_point *P, ecc_point *R, mp_int* a,
       /* use "a" in calc */
 
       /* T2 = T1 * T1 */
-      if (err == MP_OKAY)
-          err = mp_sqr(t1, t2);
+      err = mp_sqr(t1, t2);
       if (err == MP_OKAY)
           err = mp_montgomery_reduce(t2, modulus, mp);
       /* T1 = T2 * a */

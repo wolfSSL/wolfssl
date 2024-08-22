@@ -2623,40 +2623,53 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
     int i;
     int j = 0;
     /* Values that are not or no longer error codes. */
-    int missing[] = { -124, -166, -167, -168, -169,   0 };
+    static const struct {
+        int first;
+        int last;
+    } missing[] = {
+        { -124, -124 },
+        { -166, -169 }
+    };
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
      * string.
      */
-    for (i = MAX_CODE_E-1; i >= WC_LAST_E; i--) {
+    for (i = WC_FIRST_E; i >= WC_LAST_E; i--) {
+        int this_missing = 0;
+        for (j = 0; j < (int)XELEM_CNT(missing); ++j) {
+            if ((i <= missing[j].first) && (i >= missing[j].last)) {
+                this_missing = 1;
+                break;
+            }
+        }
         errStr = wc_GetErrorString(i);
         wc_ErrorString(i, out);
 
-        if (i != missing[j]) {
+        if (! this_missing) {
             if (XSTRCMP(errStr, unknownStr) == 0) {
                 WOLFSSL_MSG("errStr unknown");
-                return WC_TEST_RET_ENC_NC;
+                return WC_TEST_RET_ENC_I(-i);
             }
             if (XSTRCMP(out, unknownStr) == 0) {
                 WOLFSSL_MSG("out unknown");
-                return WC_TEST_RET_ENC_NC;
+                return WC_TEST_RET_ENC_I(-i);
             }
             if (XSTRCMP(errStr, out) != 0) {
                 WOLFSSL_MSG("errStr does not match output");
-                return WC_TEST_RET_ENC_NC;
+                return WC_TEST_RET_ENC_I(-i);
             }
             if (XSTRLEN(errStr) >= WOLFSSL_MAX_ERROR_SZ) {
                 WOLFSSL_MSG("errStr too long");
-                return WC_TEST_RET_ENC_NC;
+                return WC_TEST_RET_ENC_I(-i);
             }
         }
         else {
             j++;
             if (XSTRCMP(errStr, unknownStr) != 0)
-                return WC_TEST_RET_ENC_NC;
+                return WC_TEST_RET_ENC_I(-i);
             if (XSTRCMP(out, unknownStr) != 0)
-                return WC_TEST_RET_ENC_NC;
+                return WC_TEST_RET_ENC_I(-i);
         }
     }
 

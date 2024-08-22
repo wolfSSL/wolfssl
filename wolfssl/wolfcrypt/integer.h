@@ -42,6 +42,8 @@
 
 #else
 
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifndef CHAR_BIT
@@ -162,9 +164,6 @@ extern "C" {
 #define MP_NEG        1   /* negative */
 
 #define MP_OKAY       0   /* ok result */
-#define MP_MEM       (-2) /* out of mem */
-#define MP_VAL       (-3) /* invalid input */
-#define MP_NOT_INF   (-4) /* point not at infinity */
 #define MP_RANGE      MP_NOT_INF
 
 #define MP_YES        1   /* yes response */

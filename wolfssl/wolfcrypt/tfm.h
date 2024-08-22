@@ -40,6 +40,7 @@
 #define WOLF_CRYPT_TFM_H
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #ifndef CHAR_BIT
     #include <limits.h>
 #endif
@@ -305,10 +306,10 @@
 
 /* return codes */
 #define FP_OKAY      0
-#define FP_VAL      (-1)
-#define FP_MEM      (-2)
-#define FP_NOT_INF  (-3)
-#define FP_WOULDBLOCK (-4)
+#define FP_VAL      MP_VAL
+#define FP_MEM      MP_MEM
+#define FP_NOT_INF  MP_NOT_INF
+#define FP_WOULDBLOCK MP_WOULDBLOCK
 
 /* equalities */
 #define FP_LT        (-1)   /* less than */
@@ -776,10 +777,7 @@ int  fp_sqr_comba64(fp_int *a, fp_int *b);
 #define MP_LT   FP_LT   /* less than    */
 #define MP_EQ   FP_EQ   /* equal to     */
 #define MP_GT   FP_GT   /* greater than */
-#define MP_VAL  FP_VAL  /* invalid */
-#define MP_MEM  FP_MEM  /* memory error */
-#define MP_NOT_INF FP_NOT_INF /* point not at infinity */
-#define MP_RANGE FP_NOT_INF
+#define MP_RANGE MP_NOT_INF
 #define MP_OKAY FP_OKAY /* ok result    */
 #define MP_NO   FP_NO   /* yes/no result */
 #define MP_YES  FP_YES  /* yes/no result */

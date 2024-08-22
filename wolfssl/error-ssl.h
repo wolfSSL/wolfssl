@@ -35,6 +35,8 @@
 #endif
 
 enum wolfSSL_ErrorCodes {
+    WOLFSSL_FIRST_E              = -301,
+
     INPUT_CASE_ERROR             = -301,   /* process input state error */
     PREFIX_ERROR                 = -302,   /* bad index to key rounds  */
     MEMORY_ERROR                 = -303,   /* out of memory            */
@@ -196,8 +198,11 @@ enum wolfSSL_ErrorCodes {
     KEY_SHARE_ERROR              = -503,   /* key share mismatch */
     POST_HAND_AUTH_ERROR         = -504,   /* client won't do post-hand auth */
     HRR_COOKIE_ERROR             = -505,   /* HRR msg cookie mismatch */
-    UNSUPPORTED_CERTIFICATE      = -506    /* unsupported certificate type */
+    UNSUPPORTED_CERTIFICATE      = -506,   /* unsupported certificate type */
     /* end negotiation parameter errors only 10 for now */
+
+    WOLFSSL_LAST_E               = -506
+
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* no error strings go down here, add above negotiation errors !!!! */
@@ -215,7 +220,7 @@ enum wolfSSL_ErrorCodes {
 WOLFSSL_LOCAL
 void SetErrorString(int err, char* buff);
 
-#ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && defined(BUILDING_WOLFSSL)
     #include <wolfssl/debug-trace-error-codes.h>
 #endif
 

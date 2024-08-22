@@ -632,6 +632,10 @@
         #endif
         #endif
 
+        #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+        typeof(dump_stack) *dump_stack;
+        #endif
+
         const void *_last_slot;
     };
 
@@ -775,6 +779,10 @@
         #ifndef NO_SKID
             #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
         #endif
+    #endif
+
+    #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+        #define dump_stack (wolfssl_linuxkm_get_pie_redirect_table()->dump_stack)
     #endif
 
     #endif /* __PIE__ */
