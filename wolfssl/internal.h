@@ -2834,6 +2834,9 @@ WOLFSSL_LOCAL socklen_t wolfSSL_BIO_ADDR_size(const WOLFSSL_BIO_ADDR *addr);
  * keep as a constant size (no additional ifdefs) for session export */
 typedef struct Keys {
 #ifdef WOLFSSL_LEANPSK_STATIC
+    /* storing all in a single buffer with offsets to avoid
+     * placing on and off the stack when storing into individual
+     * arrays */
     byte keys[MAX_PRF_DIG];
 #else
 #if !defined(WOLFSSL_AEAD_ONLY) || defined(WOLFSSL_TLS13)
@@ -5255,10 +5258,10 @@ struct WOLFSSL_X509 {
 #endif
     WOLFSSL_ASN1_TIME notBefore;
     WOLFSSL_ASN1_TIME notAfter;
-    buffer           sig;
+    WOLFSSL_BUFFER_INFO sig;
     int              sigOID;
     DNS_entry*       altNames;                       /* alt names list */
-    buffer           pubKey;
+    WOLFSSL_BUFFER_INFO pubKey;
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \

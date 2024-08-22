@@ -426,8 +426,8 @@ int InitSSL_leanpsk(WOLFSSL* ssl, WOLFSSL_METHOD* method, byte ciphersuite0,
 #ifdef HAVE_EXTENDED_MASTER
     ssl->options.haveEMS = ctx->haveEMS;
 #endif
-    ssl->options.useClientOrder = 0;//ctx->useClientOrder;
-    ssl->options.mutualAuth = 0;//ctx->mutualAuth;
+    ssl->options.useClientOrder = 0;
+    ssl->options.mutualAuth = 0;
     
     /* default alert state (none) */
     ssl->alert_history.last_rx.code  = -1;
@@ -448,12 +448,6 @@ int InitSSL_leanpsk(WOLFSSL* ssl, WOLFSSL_METHOD* method, byte ciphersuite0,
         return ret;
     }
 
-    /* Initialize SSL with the appropriate fields from it's ctx */
-    /* requires valid arrays and suites unless writeDup ing */
-    //if ((ret = SetSSL_CTX(ssl, ctx, writeDup)) != WOLFSSL_SUCCESS) {
-    //    WOLFSSL_MSG_EX("SetSSL_CTX failed. err = %d", ret);
-    //    return ret;
-    //}
     if (method->side != (byte)WOLFSSL_NEITHER_END)
         ssl->options.side      = method->side;
 #ifndef WOLFSSL_NO_DOWNGRADE
