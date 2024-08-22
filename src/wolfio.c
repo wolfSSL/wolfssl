@@ -259,6 +259,68 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
 
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
+
+int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+{
+    return SslBioSend(ssl, buf, sz, ctx);
+}
+
+int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    return SslBioReceive(ssl, buf, sz, ctx);
+}
+
+int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr, char* buf,
+                       int sz)
+{
+    int recvd = WOLFSSL_CBIO_ERR_GENERAL;
+
+    WOLFSSL_ENTER("SslBioReceive");
+
+    if (biord == NULL) {
+        WOLFSSL_MSG("WOLFSSL biord not set");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    recvd = wolfSSL_BIO_read(biord, buf, sz);
+    if (recvd <= 0) {
+        if (/* ssl->biowr->wrIdx is checked for Bind9 */
+            wolfSSL_BIO_method_type(biowr) == WOLFSSL_BIO_BIO &&
+            wolfSSL_BIO_wpending(biowr) != 0 &&
+            /* Not sure this pending check is necessary but let's double
+             * check that the read BIO is empty before we signal a write
+             * need */
+            wolfSSL_BIO_supports_pending(biord) &&
+            wolfSSL_BIO_ctrl_pending(biord) == 0) {
+            /* Let's signal to the app layer that we have
+             * data pending that needs to be sent. */
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+        }
+        else if (biord->type == WOLFSSL_BIO_SOCKET) {
+            if (recvd == 0) {
+                WOLFSSL_MSG("SslBioReceive connection closed");
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            }
+        #ifdef USE_WOLFSSL_IO
+            recvd = TranslateIoReturnCode(recvd, biord->num.fd,
+                                          SOCKET_RECEIVING);
+        #endif
+            return recvd;
+        }
+
+        /* If retry and read flags are set, return WANT_READ */
+        if ((biord->flags & WOLFSSL_BIO_FLAG_READ) &&
+            (biord->flags & WOLFSSL_BIO_FLAG_RETRY)) {
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        }
+
+        WOLFSSL_MSG("BIO general error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    return recvd;
+}
+
 /* Use the WOLFSSL read BIO for receiving data. This is set by the function
  * wolfSSL_set_bio and can also be set by wolfSSL_CTX_SetIORecv.
  *
@@ -270,55 +332,11 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
  *
  * returns the amount of data read or want read. See WOLFSSL_CBIO_ERR_* values.
  */
-int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
-    int recvd = WOLFSSL_CBIO_ERR_GENERAL;
-
-    WOLFSSL_ENTER("BioReceive");
-
-    if (ssl->biord == NULL) {
-        WOLFSSL_MSG("WOLFSSL biord not set");
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
-
-    recvd = wolfSSL_BIO_read(ssl->biord, buf, sz);
-    if (recvd <= 0) {
-        if (/* ssl->biowr->wrIdx is checked for Bind9 */
-            wolfSSL_BIO_method_type(ssl->biowr) == WOLFSSL_BIO_BIO &&
-            wolfSSL_BIO_wpending(ssl->biowr) != 0 &&
-            /* Not sure this pending check is necessary but let's double
-             * check that the read BIO is empty before we signal a write
-             * need */
-            wolfSSL_BIO_supports_pending(ssl->biord) &&
-            wolfSSL_BIO_ctrl_pending(ssl->biord) == 0) {
-            /* Let's signal to the app layer that we have
-             * data pending that needs to be sent. */
-            return WOLFSSL_CBIO_ERR_WANT_WRITE;
-        }
-        else if (ssl->biord->type == WOLFSSL_BIO_SOCKET) {
-            if (recvd == 0) {
-                WOLFSSL_MSG("BioReceive connection closed");
-                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-            }
-        #ifdef USE_WOLFSSL_IO
-            recvd = TranslateIoReturnCode(recvd, ssl->biord->num.fd,
-                                          SOCKET_RECEIVING);
-        #endif
-            return recvd;
-        }
-
-        /* If retry and read flags are set, return WANT_READ */
-        if ((ssl->biord->flags & WOLFSSL_BIO_FLAG_READ) &&
-            (ssl->biord->flags & WOLFSSL_BIO_FLAG_RETRY)) {
-            return WOLFSSL_CBIO_ERR_WANT_READ;
-        }
-
-        WOLFSSL_MSG("BIO general error");
-        return WOLFSSL_CBIO_ERR_GENERAL;
-    }
-
+    WOLFSSL_ENTER("SslBioReceive");
     (void)ctx;
-    return recvd;
+    return BioReceiveInternal(ssl->biord, ssl->biowr, buf, sz);
 }
 
 
@@ -332,11 +350,11 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
  *
  * returns the amount of data sent or want send. See WOLFSSL_CBIO_ERR_* values.
  */
-int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     int sent = WOLFSSL_CBIO_ERR_GENERAL;
 
-    WOLFSSL_ENTER("BioSend");
+    WOLFSSL_ENTER("SslBioSend");
 
     if (ssl->biowr == NULL) {
         WOLFSSL_MSG("WOLFSSL biowr not set");
@@ -1659,8 +1677,9 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
     return result;
 }
 
-static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
-    int* recvBufSz, int chunkSz, char* start, int len, int dynType, void* heap)
+static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
+    void* ioCbCtx, byte **recvBuf, int* recvBufSz, int chunkSz, char* start,
+    int len, int dynType, void* heap)
 {
     byte* newRecvBuf = NULL;
     int newRecvSz = *recvBufSz + chunkSz;
@@ -1713,7 +1732,7 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
 
     /* receive the remainder of chunk */
     while (len < chunkSz) {
-        int rxSz = wolfIO_Recv(sfd, (char*)&newRecvBuf[pos], chunkSz-len, 0);
+        int rxSz = ioCb((char*)&newRecvBuf[pos], chunkSz-len, ioCbCtx);
         if (rxSz > 0) {
             len += rxSz;
             pos += rxSz;
@@ -1731,8 +1750,9 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf,
     return 0;
 }
 
-int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
-    byte** respBuf, byte* httpBuf, int httpBufSz, int dynType, void* heap)
+int wolfIO_HttpProcessResponseGenericIO(WolfSSLGenericIORecvCb ioCb,
+    void* ioCbCtx, const char** appStrList, unsigned char** respBuf,
+    unsigned char* httpBuf, int httpBufSz, int dynType, void* heap)
 {
     static const char HTTP_PROTO[] = "HTTP/1.";
     static const char HTTP_STATUS_200[] = "200";
@@ -1753,8 +1773,8 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
     do {
         if (state == phr_get_chunk_data) {
             /* get chunk of data */
-            result = wolfIO_HttpProcessResponseBuf(sfd, respBuf, &respBufSz,
-                chunkSz, start, len, dynType, heap);
+            result = wolfIO_HttpProcessResponseBuf(ioCb, ioCbCtx, respBuf,
+                &respBufSz, chunkSz, start, len, dynType, heap);
 
             state = (result != 0) ? phr_http_end : phr_get_chunk_len;
             end = NULL;
@@ -1768,7 +1788,7 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
                                       * can.
                                       */
             }
-            result = wolfIO_Recv(sfd, (char*)httpBuf+len, httpBufSz-len-1, 0);
+            result = ioCb((char*)httpBuf+len, httpBufSz-len-1, ioCbCtx);
             if (result > 0) {
                 len += result;
                 start = (char*)httpBuf;
@@ -1894,8 +1914,8 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
     } while (state != phr_http_end);
 
     if (!isChunked) {
-        result = wolfIO_HttpProcessResponseBuf(sfd, respBuf, &respBufSz, chunkSz,
-                                                    start, len, dynType, heap);
+        result = wolfIO_HttpProcessResponseBuf(ioCb, ioCbCtx, respBuf,
+                &respBufSz, chunkSz, start, len, dynType, heap);
     }
 
     if (result >= 0) {
@@ -1907,6 +1927,22 @@ int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
 
     return result;
 }
+
+static int httpResponseIoCb(char* buf, int sz, void* ctx)
+{
+    /* Double cast to silence the compiler int/pointer width msg */
+    return wolfIO_Recv((SOCKET_T)(uintptr_t)ctx, buf, sz, 0);
+}
+
+int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
+    byte** respBuf, byte* httpBuf, int httpBufSz, int dynType, void* heap)
+{
+    return wolfIO_HttpProcessResponseGenericIO(httpResponseIoCb,
+            /* Double cast to silence the compiler int/pointer width msg */
+            (void*)(uintptr_t)sfd, appStrList, respBuf, httpBuf, httpBufSz,
+            dynType, heap);
+}
+
 int wolfIO_HttpBuildRequest(const char *reqType, const char *domainName,
                                const char *path, int pathLen, int reqSz, const char *contentType,
                                byte *buf, int bufSize)
@@ -2028,17 +2064,25 @@ int wolfIO_HttpBuildRequestOcsp(const char* domainName, const char* path,
         ocspReqSz, "application/ocsp-request", cacheCtl, buf, bufSize);
 }
 
+static const char* ocspAppStrList[] = {
+    "application/ocsp-response",
+    NULL
+};
+
+WOLFSSL_API int wolfIO_HttpProcessResponseOcspGenericIO(
+    WolfSSLGenericIORecvCb ioCb, void* ioCbCtx, unsigned char** respBuf,
+    unsigned char* httpBuf, int httpBufSz, void* heap)
+{
+    return wolfIO_HttpProcessResponseGenericIO(ioCb, ioCbCtx,
+          ocspAppStrList, respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_OCSP, heap);
+}
+
 /* return: >0 OCSP Response Size
  *         -1 error */
 int wolfIO_HttpProcessResponseOcsp(int sfd, byte** respBuf,
                                        byte* httpBuf, int httpBufSz, void* heap)
 {
-    const char* appStrList[] = {
-        "application/ocsp-response",
-        NULL
-    };
-
-    return wolfIO_HttpProcessResponse(sfd, appStrList,
+    return wolfIO_HttpProcessResponse(sfd, ocspAppStrList,
         respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_OCSP, heap);
 }
 

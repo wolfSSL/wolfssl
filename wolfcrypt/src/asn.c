@@ -1092,7 +1092,7 @@ static int GetASN_Integer(const byte* input, word32 idx, int length,
  * @return  0 on success.
  * @return  ASN_PARSE_E when unused bits is invalid.
  */
-static int GetASN_BitString(const byte* input, word32 idx, int length)
+int GetASN_BitString(const byte* input, word32 idx, int length)
 {
 #if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2))
@@ -2471,7 +2471,7 @@ static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx,
  * @return  BUFFER_E when there is not enough data to parse.
  * @return  ASN_PARSE_E when the expected tag is not found or length is invalid.
  */
-static int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
+int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
                         word32 maxIdx)
 {
     return GetASNHeader_ex(input, tag, inOutIdx, len, maxIdx, 1);
@@ -13543,7 +13543,7 @@ static int AddDNSEntryToList(DNS_entry** lst, DNS_entry* entry)
 
 /* Allocate a DNS entry and set the fields.
  *
- * @param [in]      cert     Certificate object.
+ * @param [in]      heap     Heap hint.
  * @param [in]      str      DNS name string.
  * @param [in]      strLen   Length of DNS name string.
  * @param [in]      type     Type of DNS name string.
@@ -13551,24 +13551,21 @@ static int AddDNSEntryToList(DNS_entry** lst, DNS_entry* entry)
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails.
  */
-static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
+static int SetDNSEntry(void* heap, const char* str, int strLen,
                        int type, DNS_entry** entries)
 {
     DNS_entry* dnsEntry;
     int ret = 0;
 
-    /* Only used for heap. */
-    (void)cert;
-
     /* TODO: consider one malloc. */
     /* Allocate DNS Entry object. */
-    dnsEntry = AltNameNew(cert->heap);
+    dnsEntry = AltNameNew(heap);
     if (dnsEntry == NULL) {
         ret = MEMORY_E;
     }
     if (ret == 0) {
         /* Allocate DNS Entry name - length of string plus 1 for NUL. */
-        dnsEntry->name = (char*)XMALLOC((size_t)strLen + 1, cert->heap,
+        dnsEntry->name = (char*)XMALLOC((size_t)strLen + 1, heap,
                                                           DYNAMIC_TYPE_ALTNAME);
         if (dnsEntry->name == NULL) {
             ret = MEMORY_E;
@@ -13583,25 +13580,23 @@ static int SetDNSEntry(DecodedCert* cert, const char* str, int strLen,
 
 #ifdef WOLFSSL_RID_ALT_NAME
         /* store registeredID as a string */
-        if (type == ASN_RID_TYPE) {
-            ret = GenerateDNSEntryRIDString(dnsEntry, cert->heap);
-        }
-#endif
-#ifdef WOLFSSL_IP_ALT_NAME
-        /* store IP addresses as a string */
-        if (type == ASN_IP_TYPE) {
-            ret = GenerateDNSEntryIPString(dnsEntry, cert->heap);
-        }
+        if (type == ASN_RID_TYPE)
+            ret = GenerateDNSEntryRIDString(dnsEntry, heap);
 #endif
     }
+#ifdef WOLFSSL_IP_ALT_NAME
+    /* store IP addresses as a string */
+    if (ret == 0 && type == ASN_IP_TYPE)
+        ret = GenerateDNSEntryIPString(dnsEntry, heap);
+#endif
     if (ret == 0) {
         ret = AddDNSEntryToList(entries, dnsEntry);
     }
 
     /* failure cleanup */
     if (ret != 0 && dnsEntry != NULL) {
-        XFREE(dnsEntry->name, cert->heap, DYNAMIC_TYPE_ALTNAME);
-        XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
+        XFREE(dnsEntry->name, heap, DYNAMIC_TYPE_ALTNAME);
+        XFREE(dnsEntry, heap, DYNAMIC_TYPE_ALTNAME);
     }
 
     return ret;
@@ -15879,7 +15874,7 @@ word32 SetLengthEx(word32 length, byte* output, byte isIndef)
  * @param [out] output  Buffer to encode into.
  * @return  Number of bytes encoded.
  */
-static word32 SetHeader(byte tag, word32 len, byte* output, byte isIndef)
+word32 SetHeader(byte tag, word32 len, byte* output, byte isIndef)
 {
     if (output) {
         /* Encode tag first. */
@@ -18215,7 +18210,7 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
     }
 
     if (ret == 0) {
-        ret = SetDNSEntry(cert, buf, (int)bufLen, ASN_OTHER_TYPE, &entry);
+        ret = SetDNSEntry(cert->heap, buf, (int)bufLen, ASN_OTHER_TYPE, &entry);
         if (ret == 0) {
         #ifdef WOLFSSL_FPKI
             entry->oidSum = oid;
@@ -18242,10 +18237,12 @@ static int DecodeOtherHelper(ASNGetData* dataASN, DecodedCert* cert, int oid)
  * @return  BUFFER_E when data in buffer is too small.
  */
 static int DecodeOtherName(DecodedCert* cert, const byte* input,
-                           word32* inOutIdx, word32 maxIdx)
+                           word32* inOutIdx, int len)
 {
     DECL_ASNGETDATA(dataASN, otherNameASN_Length);
     int ret = 0;
+    word32 maxIdx = *inOutIdx + (word32)len;
+    const char* name = (const char*)input + *inOutIdx;
 
     CALLOC_ASNGETDATA(dataASN, otherNameASN_Length, ret, cert->heap);
 
@@ -18274,7 +18271,9 @@ static int DecodeOtherName(DecodedCert* cert, const byte* input,
                            (int)dataASN[OTHERNAMEASN_IDX_TYPEID].data.oid.sum);
                 break;
             default:
-                WOLFSSL_MSG("\tunsupported OID skipping");
+                WOLFSSL_MSG("\tadding unsupported OID");
+                ret = SetDNSEntry(cert->heap, name, len, ASN_OTHER_TYPE,
+                        &cert->altNames);
                 break;
         }
     }
@@ -18306,8 +18305,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
 
     /* GeneralName choice: dnsName */
     if (tag == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
-        ret = SetDNSEntry(cert, (const char*)(input + idx), len, ASN_DNS_TYPE,
-                &cert->altNames);
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+                ASN_DNS_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
         }
@@ -18325,7 +18324,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
             return ASN_PARSE_E;
         }
 
-        ret = SetDNSEntry(cert, (const char*)(input + idxDir), strLen,
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idxDir), strLen,
                 ASN_DIR_TYPE, &cert->altDirNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -18333,7 +18332,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     }
     /* GeneralName choice: rfc822Name */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
-        ret = SetDNSEntry(cert, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
                 ASN_RFC822_TYPE, &cert->altEmailNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -18381,8 +18380,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
         }
     #endif
 
-        ret = SetDNSEntry(cert, (const char*)(input + idx), len, ASN_URI_TYPE,
-                &cert->altNames);
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+                ASN_URI_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
         }
@@ -18390,8 +18389,8 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     #ifdef WOLFSSL_IP_ALT_NAME
     /* GeneralName choice: iPAddress */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
-        ret = SetDNSEntry(cert, (const char*)(input + idx), len, ASN_IP_TYPE,
-                &cert->altNames);
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
+                ASN_IP_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
         }
@@ -18400,7 +18399,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     #ifdef WOLFSSL_RID_ALT_NAME
     /* GeneralName choice: registeredID */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
-        ret = SetDNSEntry(cert, (const char*)(input + idx), len,
+        ret = SetDNSEntry(cert->heap, (const char*)(input + idx), len,
                 ASN_RID_TYPE, &cert->altNames);
         if (ret == 0) {
             idx += (word32)len;
@@ -18412,7 +18411,7 @@ static int DecodeGeneralName(const byte* input, word32* inOutIdx, byte tag,
     /* GeneralName choice: otherName */
     else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_OTHER_TYPE)) {
         /* TODO: test data for code path */
-        ret = DecodeOtherName(cert, input, &idx, idx + (word32)len);
+        ret = DecodeOtherName(cert, input, &idx, len);
     }
 #endif
     /* GeneralName choice: dNSName, x400Address, ediPartyName */

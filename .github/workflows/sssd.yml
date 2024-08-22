@@ -1,0 +1,97 @@
+name: sssd Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all CFLAGS=-DWOLFSSL_NO_ASN_STRICT
+          install: true
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-sssd
+          path: build-dir.tgz
+          retention-days: 5
+
+  sssd_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 2.9.1 ]
+    name: ${{ matrix.ref }}
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/sssd/ci-client-devel:ubuntu-latest
+      env:
+        LD_LIBRARY_PATH: /usr/local/lib
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 20
+    needs: build_wolfssl
+    steps:
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf libldb-dev libldb2 python3-ldb bc
+
+      - name: Setup env
+        run: |
+          ln -s samba-4.0/ldb.h /usr/include/ldb.h
+          ln -s samba-4.0/ldb_errors.h /usr/include/ldb_errors.h
+          ln -s samba-4.0/ldb_handlers.h /usr/include/ldb_handlers.h
+          ln -s samba-4.0/ldb_module.h /usr/include/ldb_module.h
+          ln -s samba-4.0/ldb_version.h /usr/include/ldb_version.h
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-sssd
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Build and test sssd
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: SSSD/sssd
+          ref: ${{ matrix.ref }}
+          path: sssd
+          patch-file: $GITHUB_WORKSPACE/osp/sssd/${{ matrix.ref }}.patch
+          configure: >-
+            --without-samba --without-nfsv4-idmapd-plugin --with-oidc-child=no 
+            --without-manpages WOLFSSL_INSTALL_DIR=$GITHUB_WORKSPACE/build-dir
+          check: true
+

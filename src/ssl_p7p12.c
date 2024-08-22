@@ -229,7 +229,7 @@ WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
         if (!ret)
             ret = wolfSSL_sk_X509_new_null();
         if (x509) {
-            if (wolfSSL_sk_X509_push(ret, x509) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_sk_X509_push(ret, x509) <= 0) {
                 wolfSSL_X509_free(x509);
                 WOLFSSL_MSG("wolfSSL_sk_X509_push error");
                 goto error;
@@ -294,7 +294,7 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return NULL;
     }
 
-    if (wolfSSL_sk_X509_push(signers, x509) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_X509_push(signers, x509) <= 0) {
         wolfSSL_sk_X509_pop_free(signers, NULL);
         return NULL;
     }
@@ -1152,7 +1152,8 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
             }
             XMEMSET(boundary, 0, (word32)(boundLen+1));
             boundary[0] = boundary[1] = '-';
-            XSTRNCPY(&boundary[2], curParam->value, boundLen-2);
+            /* analyzers have issues with using strncpy and strcpy here */
+            XMEMCPY(&boundary[2], curParam->value, boundLen - 2);
 
             /* Parse up to first boundary, ignore everything here. */
             lineLen = wolfSSL_BIO_gets(in, section, remainLen);
@@ -1929,7 +1930,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 }
                 FreeDecodedCert(DeCert);
 
-                if (wolfSSL_sk_X509_push(*ca, x509) != 1) {
+                if (wolfSSL_sk_X509_push(*ca, x509) <= 0) {
                     WOLFSSL_MSG("Failed to push x509 onto stack");
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;

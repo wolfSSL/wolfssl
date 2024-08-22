@@ -9172,13 +9172,19 @@ void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group)
  * @return  NULL on error.
  */
 static WOLFSSL_EC_GROUP* wolfssl_ec_group_d2i(WOLFSSL_EC_GROUP** group,
-    const unsigned char* in, long inSz)
+    const unsigned char** in_pp, long inSz)
 {
     int err = 0;
     WOLFSSL_EC_GROUP* ret = NULL;
     word32 idx = 0;
     word32 oid = 0;
     int id = 0;
+    const unsigned char* in;
+
+    if (in_pp == NULL || *in_pp == NULL)
+        return NULL;
+
+    in = *in_pp;
 
     /* Use the group passed in. */
     if ((group != NULL) && (*group != NULL)) {
@@ -9227,6 +9233,9 @@ static WOLFSSL_EC_GROUP* wolfssl_ec_group_d2i(WOLFSSL_EC_GROUP** group,
         }
         ret = NULL;
     }
+    else {
+        *in_pp += idx;
+    }
     return ret;
 }
 
@@ -9258,7 +9267,8 @@ WOLFSSL_EC_GROUP* wolfSSL_PEM_read_bio_ECPKParameters(WOLFSSL_BIO* bio,
     }
     if (!err) {
         /* Create EC group from DER encoding. */
-        ret = wolfssl_ec_group_d2i(group, der->buffer, der->length);
+        const byte** p = (const byte**)&der->buffer;
+        ret = wolfssl_ec_group_d2i(group, p, der->length);
         if (ret == NULL) {
             WOLFSSL_ERROR_MSG("Error loading DER buffer into WOLFSSL_EC_GROUP");
         }
@@ -9269,6 +9279,11 @@ WOLFSSL_EC_GROUP* wolfSSL_PEM_read_bio_ECPKParameters(WOLFSSL_BIO* bio,
     return ret;
 }
 
+WOLFSSL_EC_GROUP *wolfSSL_d2i_ECPKParameters(WOLFSSL_EC_GROUP **out,
+        const unsigned char **in, long len)
+{
+    return wolfssl_ec_group_d2i(out, in, len);
+}
 #endif /* !NO_BIO */
 
 #if defined(OPENSSL_ALL) && !defined(NO_CERTS)

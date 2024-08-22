@@ -437,7 +437,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
                     break;
             }
             else if (foundEntry == 0) {
-                ret = ASN_AFTER_DATE_E;
+                ret = CRL_CERT_DATE_ERR;
             }
         }
     }
@@ -478,8 +478,9 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     if (foundEntry == 0) {
         /* perform embedded lookup */
         if (crl->crlIOCb) {
-            ret = crl->crlIOCb(crl, (const char*)extCrlInfo, extCrlInfoSz);
-            if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
+            int cbRet = crl->crlIOCb(crl, (const char*)extCrlInfo,
+                                     extCrlInfoSz);
+            if (cbRet == WOLFSSL_CBIO_ERR_WANT_READ) {
                 ret = OCSP_WANT_READ;
             }
             else if (ret >= 0) {
@@ -502,9 +503,9 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
     /* When not set the folder or not use hash_dir, do nothing.             */
     if ((foundEntry == 0) && (ret != WC_NO_ERR_TRACE(OCSP_WANT_READ))) {
         if (crl->cm != NULL && crl->cm->x509_store_p != NULL) {
-            ret = LoadCertByIssuer(crl->cm->x509_store_p,
+            int loadRet = LoadCertByIssuer(crl->cm->x509_store_p,
                           (WOLFSSL_X509_NAME*)issuerName, X509_LU_CRL);
-            if (ret == WOLFSSL_SUCCESS) {
+            if (loadRet == WOLFSSL_SUCCESS) {
                 /* try again */
                 ret = CheckCertCRLList(crl, issuerHash, serial, serialSz,
                         serialHash, &foundEntry);

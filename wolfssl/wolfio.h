@@ -520,9 +520,14 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
 #endif
 #endif /* WOLFSSL_NO_SOCK */
 
-
+/* Preseve API previously exposed */
 WOLFSSL_API int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
 WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
+WOLFSSL_LOCAL int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+WOLFSSL_LOCAL int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr,
+                                     char* buf, int sz);
+WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #if defined(USE_WOLFSSL_IO)
     /* default IO callbacks */
     WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
@@ -545,9 +550,14 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     #endif /* WOLFSSL_DTLS */
 #endif /* USE_WOLFSSL_IO */
 
+
+typedef int (*WolfSSLGenericIORecvCb)(char *buf, int sz, void *ctx);
 #ifdef HAVE_OCSP
     WOLFSSL_API int wolfIO_HttpBuildRequestOcsp(const char* domainName,
         const char* path, int ocspReqSz, unsigned char* buf, int bufSize);
+    WOLFSSL_API int wolfIO_HttpProcessResponseOcspGenericIO(
+        WolfSSLGenericIORecvCb ioCb, void* ioCbCtx, unsigned char** respBuf,
+        unsigned char* httpBuf, int httpBufSz, void* heap);
     WOLFSSL_API int wolfIO_HttpProcessResponseOcsp(int sfd,
         unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
         void* heap);
@@ -578,6 +588,10 @@ WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     WOLFSSL_LOCAL int wolfIO_HttpBuildRequest_ex(const char* reqType,
         const char* domainName, const char* path, int pathLen, int reqSz,
         const char* contentType, const char *exHdrs, unsigned char* buf, int bufSize);
+    WOLFSSL_API  int wolfIO_HttpProcessResponseGenericIO(
+        WolfSSLGenericIORecvCb ioCb, void* ioCbCtx, const char** appStrList,
+        unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
+        int dynType, void* heap);
     WOLFSSL_API  int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
         unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
         int dynType, void* heap);
@@ -603,7 +617,6 @@ WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
 
 WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
 WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
-
 
 #ifdef HAVE_NETX
     WOLFSSL_LOCAL int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx);
