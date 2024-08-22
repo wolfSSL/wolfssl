@@ -1,6 +1,6 @@
 /* psk-tls.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -154,12 +154,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, byte srvr)
                       FINISHED_LABEL_SZ, handshake_hash, hashSz,
                       IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
                       ssl->heap,
-                    #ifdef WOLF_CRYPTO_CB
-                    ssl->devId
-#else
-                    INVALID_DEVID
-#endif
-                    );
+                      INVALID_DEVID);
             PRIVATE_KEY_LOCK();
         }
 #ifndef WOLFSSL_NO_FORCE_ZERO
@@ -470,7 +465,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     /* Up to last 6 blocks can be hashed safely. */
     safeBlocks = blocks - 6;
 
-    if (sz < 1)
+    if (sz < 1u)
         return BAD_FUNC_ARG;
 
     /* Length of message data. */
@@ -573,11 +568,10 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
              int content, int verify, int epochOrder)
 {
 #ifdef WOLFSSL_SMALL_STACK
-        Hmac*  hmac = NULL;
-    //byte*   myInner;
+    Hmac*  hmac = NULL;
     byte   myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
 #else
-        Hmac   hmac[1];
+    Hmac   hmac[1];
     byte   myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
 #endif
     int    ret = 0;
@@ -595,12 +589,6 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     hmac = (Hmac*)XMALLOC(sizeof(Hmac), NULL, DYNAMIC_TYPE_HMAC);
     if (hmac == NULL)
         return MEMORY_E;
-    
-    //myInner = (byte*)XMALLOC(WOLFSSL_TLS_HMAC_INNER_SZ, NULL, DYNAMIC_TYPE_HMAC);
-    //if (myInner == NULL) {
-    //    XFREE(hmac, NULL, DYNAMIC_TYPE_HMAC);
-    //    return MEMORY_E;
-    //}
 #endif
     
 #ifdef HAVE_TRUNCATED_HMAC
@@ -748,48 +736,10 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
     if (opts != NULL)
         havePSK = opts->havePSK;
 #endif
-#ifndef NO_WOLFSSL_CLIENT
-    if (side == (word16)WOLFSSL_CLIENT_END) {
-#ifdef WOLFSSL_LEANPSK
-        if (cipherSuite != TLS_PSK_WITH_AES_128_CBC_SHA256 &&
-            cipherSuite != TLS_PSK_WITH_AES_128_GCM_SHA256 &&
-            cipherSuite != TLS_PSK_WITH_CHACHA20_POLY1305_SHA256)
-            return UNSUPPORTED_SUITE;
-#else
-        /* server side verified before SetCipherSpecs call */
-        if (VerifyClientSuite(havePSK, cipherSuite0, cipherSuite) != 1) {
-            WOLFSSL_MSG("SetCipherSpecs() client has an unusable suite");
-            WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
-            return UNSUPPORTED_SUITE;
-        }
-#endif
-    }
-#endif /* NO_WOLFSSL_CLIENT */
-
-    switch (cipherSuite) {
-
-#ifdef BUILD_TLS_PSK_WITH_AES_128_GCM_SHA256
-    case TLS_PSK_WITH_AES_128_GCM_SHA256 :
-        specs->bulk_cipher_algorithm = wolfssl_aes_gcm;
-        specs->cipher_type           = aead;
-        specs->mac_algorithm         = sha256_mac;
-        specs->kea                   = psk_kea;
-        specs->sig_algo              = anonymous_sa_algo;
-        specs->hash_size             = WC_SHA256_DIGEST_SIZE;
-        specs->pad_size              = PAD_SHA;
-        //specs->static_ecdh           = 0;
-        specs->key_size              = AES_128_KEY_SIZE;
-        specs->block_size            = AES_BLOCK_SIZE;
-        specs->iv_size               = AESGCM_IMP_IV_SZ;
-        specs->aead_mac_size         = AES_GCM_AUTH_SZ;
-
-        if (opts != NULL)
-            opts->usingPSK_cipher    = 1;
-        break;
-#endif
+    if (cipherSuite != TLS_PSK_WITH_AES_128_CBC_SHA256)
+        return UNSUPPORTED_SUITE;
 
 #ifdef BUILD_TLS_PSK_WITH_AES_128_CBC_SHA256
-    case TLS_PSK_WITH_AES_128_CBC_SHA256 :
         specs->bulk_cipher_algorithm = wolfssl_aes;
         specs->cipher_type           = block;
         specs->mac_algorithm         = sha256_mac;
@@ -797,43 +747,11 @@ int GetCipherSpec(word16 side, byte cipherSuite0, byte cipherSuite,
         specs->sig_algo              = anonymous_sa_algo;
         specs->hash_size             = WC_SHA256_DIGEST_SIZE;
         specs->pad_size              = PAD_SHA;
-        //specs->static_ecdh           = 0;
-        //specs->key_size              = AES_128_KEY_SIZE;
         specs->block_size            = AES_BLOCK_SIZE;
-        //specs->iv_size               = AES_IV_SIZE;
 
         if (opts != NULL)
             opts->usingPSK_cipher    = 1;
-        break;
 #endif
-        
-#ifdef BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256                              
-    case TLS_PSK_WITH_CHACHA20_POLY1305_SHA256:                                 
-        specs->bulk_cipher_algorithm = wolfssl_chacha;                          
-        specs->cipher_type           = aead;                                    
-        specs->mac_algorithm         = sha256_mac;                              
-        specs->kea                   = psk_kea;                                 
-        specs->sig_algo              = anonymous_sa_algo;                       
-        specs->hash_size             = WC_SHA256_DIGEST_SIZE;                   
-        specs->pad_size              = PAD_SHA;                                 
-        //specs->static_ecdh           = 0;                                       
-        specs->key_size              = CHACHA20_256_KEY_SIZE;                   
-        specs->block_size            = CHACHA20_BLOCK_SIZE;                     
-        specs->iv_size               = CHACHA20_IV_SIZE;                        
-        specs->aead_mac_size         = POLY1305_AUTH_SZ;                        
-                                                                                
-        if (opts != NULL) {                                                     
-            opts->oldPoly            = 0; /* use recent padding RFC */          
-            opts->usingPSK_cipher    = 1;                                       
-        }                                                                       
-        break;                                                                  
-#endif   
-        
-    default:
-        WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs");
-        WOLFSSL_ERROR_VERBOSE(UNSUPPORTED_SUITE);
-        return UNSUPPORTED_SUITE;
-    }  /* switch */
 
     if (specs->sig_algo == anonymous_sa_algo && opts != NULL) {
         /* CLIENT/SERVER: No peer authentication to be performed. */
@@ -853,100 +771,11 @@ enum KeyStuff {
 };
 
 
-#if 0
-/* TLS can call too */
-int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
-{
-    size_t sz;
-    int i = 0;
-    Keys* keys = ssl->keys;
-    
-    if (ssl->specs.cipher_type != aead) {
-        sz = ssl->specs.hash_size;
-        if (side & PROVISION_CLIENT) {
-    #ifndef WOLFSSL_AEAD_ONLY
-        #ifdef WOLFSSL_DTLS
-            if (scr_copy)
-                XMEMCPY(ssl->keys.client_write_MAC_secret,
-                        keys->client_write_MAC_secret, sz);
-        #endif
-            XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
-    #endif
-            i += (int)sz;
-        }
-        if (side & PROVISION_SERVER) {
-    #ifndef WOLFSSL_AEAD_ONLY
-        #ifdef WOLFSSL_DTLS
-            if (scr_copy)
-                XMEMCPY(ssl->keys.server_write_MAC_secret,
-                        keys->server_write_MAC_secret, sz);
-        #endif
-            XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
-    #endif
-            i += (int)sz;
-        }
-    }
-    sz = ssl->specs.key_size;
-    if (side & PROVISION_CLIENT) {
-    #ifdef WOLFSSL_DTLS
-        if (scr_copy)
-            XMEMCPY(ssl->keys.client_write_key,
-                    keys->client_write_key, sz);
-    #endif
-        XMEMCPY(keys->client_write_key, &keyData[i], sz);
-        i += (int)sz;
-    }
-    if (side & PROVISION_SERVER) {
-    #ifdef WOLFSSL_DTLS
-        if (scr_copy)
-            XMEMCPY(ssl->keys.server_write_key,
-                    keys->server_write_key, sz);
-    #endif
-        XMEMCPY(keys->server_write_key, &keyData[i], sz);
-        i += (int)sz;
-    }
-
-    sz = ssl->specs.iv_size;
-    if (side & PROVISION_CLIENT) {
-    #ifdef WOLFSSL_DTLS
-        if (scr_copy)
-            XMEMCPY(ssl->keys.client_write_IV,
-                    keys->client_write_IV, sz);
-    #endif
-        XMEMCPY(keys->client_write_IV, &keyData[i], sz);
-        i += (int)sz;
-    }
-    if (side & PROVISION_SERVER) {
-    #ifdef WOLFSSL_DTLS
-        if (scr_copy)
-            XMEMCPY(ssl->keys.server_write_IV,
-                    keys->server_write_IV, sz);
-    #endif
-        XMEMCPY(keys->server_write_IV, &keyData[i], sz);
-    }
-
-#ifdef HAVE_AEAD
-    if (ssl->specs.cipher_type == aead) {
-        /* Initialize the AES-GCM/CCM explicit IV to a zero. */
-    #ifdef WOLFSSL_DTLS
-        if (scr_copy)
-            XMEMMOVE(ssl->keys.aead_exp_IV,
-                    keys->aead_exp_IV, AEAD_MAX_EXP_SZ);
-    #endif
-        XMEMSET(keys->aead_exp_IV, 0, AEAD_MAX_EXP_SZ);
-    }
-#endif
-
-    return 0;
-}
-#endif
-
 /* Master wrapper, doesn't use SSL stack space in TLS mode */
-int MakeMasterSecret(WOLFSSL* ssl, byte * key_label)
+int LeanPSKMakeMasterSecret(WOLFSSL* ssl, byte* keyLabel)
 {
     /* append secret to premaster : premaster | SerSi | CliSi */
     int ret = 0;
-
     {
         byte master_label[MASTER_LABEL_SZ + 1] = "master secret";
         PRIVATE_KEY_UNLOCK();
@@ -956,30 +785,23 @@ int MakeMasterSecret(WOLFSSL* ssl, byte * key_label)
                 1, ssl->specs.mac_algorithm, ssl->heap, INVALID_DEVID);
         PRIVATE_KEY_LOCK();
     }
+
     if (ret == 0) {
         int   key_dig_len = 2 * ssl->specs.hash_size +
-#ifdef HAVE_CHACHA
-                            2 * CHACHA20_256_KEY_SIZE +           
-                            2 * CHACHA20_IV_SIZE;  
-#else
                             2 * AES_128_KEY_SIZE  +
                             2 * AES_IV_SIZE;
-#endif
-        {
-            byte seed[SEED_LEN];
+        byte seed[SEED_LEN];
+        
+        XMEMCPY(seed,           ssl->arrays->csRandom + RAN_LEN, RAN_LEN);
+        XMEMCPY(seed + RAN_LEN, ssl->arrays->csRandom, RAN_LEN);
 
-            XMEMCPY(seed,           ssl->arrays->csRandom + RAN_LEN, RAN_LEN);
-            XMEMCPY(seed + RAN_LEN, ssl->arrays->csRandom, RAN_LEN);
-
-
-            PRIVATE_KEY_UNLOCK();
-            ret = wc_PRF_TLS(ssl->keys->keys, key_dig_len,
-                    ssl->arrays->masterSecret, SECRET_LEN, key_label,
-                    KEY_LABEL_SZ, (const byte*)seed, SEED_LEN,
-                    IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm, ssl->heap,
-                    INVALID_DEVID);
-            PRIVATE_KEY_LOCK();
-        }
+        PRIVATE_KEY_UNLOCK();
+        ret = wc_PRF_TLS(ssl->keys->keys, key_dig_len,
+                ssl->arrays->masterSecret, SECRET_LEN, keyLabel,
+                KEY_LABEL_SZ, (const byte*)seed, SEED_LEN,
+                IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm, ssl->heap,
+                INVALID_DEVID);
+        PRIVATE_KEY_LOCK();
     }
 
     return ret;
@@ -1016,10 +838,8 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     byte lastTime;
     
 #ifdef WOLFSSL_SMALL_STACK
-    //byte*  previous;
     byte*  current;
     byte   previous[WC_SHA256_DIGEST_SIZE];  /* max size */
-    //byte   current[WC_SHA256_DIGEST_SIZE];   /* max size */
     Hmac*  hmac;
 #else
     byte   previous[P_HASH_MAX_SIZE];  /* max size */
@@ -1069,12 +889,9 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         lastTime = times - 1U;
 
     #ifdef WOLFSSL_SMALL_STACK
-        //previous = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, heap, DYNAMIC_TYPE_DIGEST);
         current  = (byte*)XMALLOC(WC_SHA256_DIGEST_SIZE, heap, DYNAMIC_TYPE_DIGEST);
         hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
         if (hmac == NULL || current == NULL) {
-        //if (previous == NULL || current == NULL || hmac == NULL) {
-            //if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
             if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
             if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
             return MEMORY_E;
@@ -1143,7 +960,6 @@ int wc_PRF_TLS(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        //XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
         XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
         XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
     #endif

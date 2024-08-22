@@ -1075,9 +1075,9 @@ int DeriveResumptionSecret(WOLFSSL* ssl, byte* key)
 #endif
 
 /* Length of the finished label. */
-#define FINISHED_LABEL_SZ           8
+#define TLS13_FINISHED_LABEL_SZ           8
 /* Finished label for generating finished key. */
-static const byte finishedLabel[FINISHED_LABEL_SZ+1] = "finished";
+static const byte finishedLabel[TLS13_FINISHED_LABEL_SZ+1] = "finished";
 /* Derive the finished secret.
  *
  * ssl     The SSL/TLS object.
@@ -1091,7 +1091,7 @@ static int DeriveFinishedSecret(WOLFSSL* ssl, byte* key, byte* secret,
 {
     WOLFSSL_MSG("Derive Finished Secret");
     return Tls13DeriveKey(ssl, secret, -1, key, finishedLabel,
-                          FINISHED_LABEL_SZ,  ssl->specs.mac_algorithm, 0,
+                          TLS13_FINISHED_LABEL_SZ,  ssl->specs.mac_algorithm, 0,
                           side);
 }
 

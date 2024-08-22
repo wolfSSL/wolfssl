@@ -325,11 +325,11 @@ int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 #endif
 
 
-#define drbgInitC      0
-#define drbgReseed     1
-#define drbgGenerateW  2
-#define drbgGenerateH  3
-#define drbgInitV      4
+#define drbgInitC      0u
+#define drbgReseed     1u
+#define drbgGenerateW  2u
+#define drbgGenerateH  3u
+#define drbgInitV      4u
 
 typedef struct DRBG_internal DRBG_internal;
 
@@ -406,7 +406,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         if (ret == 0)
             ret = wc_Sha256Update(sha, inA, inASz);
         if (ret == 0) {
-            if (inB != NULL && inBSz > 0)
+            if (inB != NULL && inBSz > 0u)
                 ret = wc_Sha256Update(sha, inB, inBSz);
         }
         if (ret == 0)
@@ -416,7 +416,7 @@ static int Hash_df(DRBG_internal* drbg, byte* out, word32 outSz, byte type,
         wc_Sha256Free(sha);
 #endif
         if (ret == 0) {
-            if (outSz > OUTPUT_BLOCK_LEN) {
+            if (outSz > (word32)OUTPUT_BLOCK_LEN) {
                 XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
                 outSz -= OUTPUT_BLOCK_LEN;
                 out += OUTPUT_BLOCK_LEN;
@@ -506,7 +506,7 @@ static WC_INLINE void array_add_one(byte* data, word32 dataSz)
     int i;
     for (i = (int)dataSz - 1; i >= 0; i--) {
         data[i]++;
-        if (data[i] != 0) break;
+        if (data[i] != 0u) break;
     }
 }
 
@@ -551,7 +551,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
     /* Special case: outSz is 0 and out is NULL. wc_Generate a block to save for
      * the continuous test. */
 
-    if (outSz == 0) {
+    if (outSz == 0u) {
         outSz = 1;
     }
 
@@ -575,8 +575,8 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 #endif
 
         if (ret == 0) {
-            if (out != NULL && outSz != 0) {
-                if (outSz >= OUTPUT_BLOCK_LEN) {
+            if (out != NULL && outSz != 0u) {
+                if (outSz >= (word32)OUTPUT_BLOCK_LEN) {
                     XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
                     outSz -= OUTPUT_BLOCK_LEN;
                     out += OUTPUT_BLOCK_LEN;
@@ -611,7 +611,7 @@ static int Hash_gen(DRBG_internal* drbg, byte* out, word32 outSz, const byte* V)
 
 static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
-    if (dLen > 0 && sLen > 0 && dLen >= sLen) {
+    if (dLen > 0u && sLen > 0u && dLen >= sLen) {
         int sIdx, dIdx;
         word16 carry = 0;
 
@@ -649,7 +649,7 @@ static int Hash_DRBG_Generate(DRBG_internal* drbg, byte* out, word32 outSz)
         return DRBG_FAILURE;
     }
 
-    if (drbg->reseedCtr == RESEED_INTERVAL) {
+    if (drbg->reseedCtr == (word32)RESEED_INTERVAL) {
 #if FIPS_VERSION3_GE(6,0,0)
         printf("Reseed triggered\n");
 #endif
@@ -1633,7 +1633,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     if (rng == NULL)
         return BAD_FUNC_ARG;
-    if (nonce == NULL && nonceSz != 0)
+    if (nonce == NULL && nonceSz != 0u)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_HEAP_TEST
@@ -1701,7 +1701,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
  /* not CUSTOM_RAND_GENERATE_BLOCK follows */
 #ifdef HAVE_HASHDRBG
-    if (nonceSz == 0) {
+    if (nonceSz == 0u) {
         seedSz = MAX_SEED_SZ;
     }
 
@@ -1909,7 +1909,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     if (rng == NULL || output == NULL)
         return BAD_FUNC_ARG;
 
-    if (sz == 0)
+    if (sz == 0u)
         return 0;
 
 #ifdef WOLF_CRYPTO_CB
@@ -1952,10 +1952,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #else
 
 #ifdef HAVE_HASHDRBG
-    if (sz > RNG_MAX_BLOCK_LEN)
+    if (sz > (word32)RNG_MAX_BLOCK_LEN)
         return BAD_FUNC_ARG;
 
-    if (rng->status != DRBG_OK)
+    if (rng->status != (byte)DRBG_OK)
         return RNG_FAILURE_E;
 
     ret = Hash_DRBG_Generate((DRBG_internal *)rng->drbg, output, sz);
@@ -2113,7 +2113,7 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
         return BAD_FUNC_ARG;
     }
 
-    if (outputSz != RNG_HEALTH_TEST_CHECK_SIZE) {
+    if (outputSz != (word32)RNG_HEALTH_TEST_CHECK_SIZE) {
         return ret;
     }
 

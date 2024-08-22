@@ -17,8 +17,8 @@ extern "C" {
 #define SINGLE_THREADED
 
 #undef  NO_BIG_INT
-#define NO_BIG_INT 
-    
+#define NO_BIG_INT
+
 /* remove code around sockets and use IO callbacks instead */
 #undef  WOLFSSL_NO_SOCK
 #define WOLFSSL_NO_SOCK
@@ -26,7 +26,7 @@ extern "C" {
 #undef  WOLFSSL_USER_IO
 #define WOLFSSL_USER_IO
 
-/* Build settings specific for use with MCC18 */	
+/* Build settings specific for use with MCC18 */
 #ifdef __18CXX
 
     /* 8 bit Micro, reusing some of the setting from 16 bit Micro */
@@ -40,13 +40,13 @@ extern "C" {
     #undef  WOLFSSL_USE_FLASHMEM
     #define WOLFSSL_USE_FLASHMEM
 #endif
-    
+
 #define NO_WOLFSSL_DIR
 
 /* ------------------------------------------------------------------------- */
 /* Crypto */
 /* ------------------------------------------------------------------------- */
-    
+
 /* AES Configuration */
 #undef NO_AES
 #if 1
@@ -217,8 +217,8 @@ extern "C" {
 #undef  NO_CLIENT_CACHE
 #define NO_CLIENT_CACHE
 
-#undef  NO_WOLFSSL_CM_VERIFY  
-#define NO_WOLFSSL_CM_VERIFY  
+#undef  NO_WOLFSSL_CM_VERIFY
+#define NO_WOLFSSL_CM_VERIFY
 
 /* ------------------------------------------------------------------------- */
 /* Fine Tuned Size Reduction */
@@ -249,26 +249,31 @@ extern "C" {
 
 #undef  NO_FORCE_SCR_SAME_SUITE
 #define NO_FORCE_SCR_SAME_SUITE
-    
+
 /* remove extra check that server hello did use matching cihper suite */
 #undef  WOLFSSL_NO_STRICT_CIPHER_SUITE
 #define WOLFSSL_NO_STRICT_CIPHER_SUITE
-    
+
+/* Remove additional sanity checks to make sure no duplicates, no fast forward ...
+ * ~1k of code size */
+#undef  WOLFSSL_NO_SANITY_CHECK_HANDSHAKE
+//#define WOLFSSL_NO_SANITY_CHECK_HANDSHAKE
+
 /* remove async support */
 #undef  WOLFSSL_NO_ASYNC_IO
 #define WOLFSSL_NO_ASYNC_IO
-    
+
 /* trim down misc.c file */
 #define WOLFSSL_NO_FORCE_ZERO
 #define WOLFSSL_NO_STRING_CONV
-    
+
 /* lean PSK to compile additional code */
 #define WOLFSSL_LEANPSK
 #define WOLFSSL_LEANPSK_STATIC
 #ifdef __18CXX
     #define WOLFSSL_LEANPSK_STATIC_IO
 #endif
-    
+
 /* disables some early sanity checks on the handshake */
 #undef  WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
 #define WOLFSSL_DISABLE_EARLY_SANITY_CHECKS
@@ -293,7 +298,7 @@ extern "C" {
 #define WOLFSSL_SMALL_STACK
 
 #undef  WOLFSSL_NO_REALLOC
-#define WOLFSSL_NO_REALLOC    
+#define WOLFSSL_NO_REALLOC
 
 //#define WOLFSSL_STATIC_MEMORY
 #ifndef WOLFSSL_STATIC_MEMORY

@@ -1336,7 +1336,7 @@ static int InitSha256(wc_Sha256* sha256)
         byte* local;
 
         /* check that internal buffLen is valid */
-        if (sha256->buffLen >= WC_SHA256_BLOCK_SIZE) {
+        if (sha256->buffLen >= (word32)WC_SHA256_BLOCK_SIZE) {
             return BUFFER_E;
         }
 
@@ -1346,7 +1346,7 @@ static int InitSha256(wc_Sha256* sha256)
         local = (byte*)sha256->buffer;
 
         /* process any remainder from previous operation */
-        if (sha256->buffLen > 0) {
+        if (sha256->buffLen > 0u) {
             blocksLen = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
             XMEMCPY(&local[sha256->buffLen], data, blocksLen);
 
@@ -1354,7 +1354,7 @@ static int InitSha256(wc_Sha256* sha256)
             data            += blocksLen;
             len             -= blocksLen;
 
-            if (sha256->buffLen == WC_SHA256_BLOCK_SIZE) {
+            if (sha256->buffLen == (word32)WC_SHA256_BLOCK_SIZE) {
             #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) && \
                !defined(NO_WOLFSSL_ESP32_CRYPT_HASH_SHA256)
                 if (sha256->ctx.mode == ESP32_SHA_INIT) {
@@ -1439,7 +1439,7 @@ static int InitSha256(wc_Sha256* sha256)
         (defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP) && \
          (defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)))
         {
-            while (len >= WC_SHA256_BLOCK_SIZE) {
+            while (len >= (word32)WC_SHA256_BLOCK_SIZE) {
                 word32* local32 = sha256->buffer;
                 /* optimization to avoid memcpy if data pointer is properly aligned */
                 /* Intel transform function requires use of sha256->buffer */
@@ -1492,7 +1492,7 @@ static int InitSha256(wc_Sha256* sha256)
     #endif
 
         /* save remainder */
-        if (ret == 0 && len > 0) {
+        if (ret == 0 && len > 0u) {
             XMEMCPY(local, data, len);
             sha256->buffLen = len;
         }
@@ -1509,7 +1509,7 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha256 == NULL) {
             return BAD_FUNC_ARG;
         }
-        if (data == NULL && len == 0) {
+        if (data == NULL && len == 0u) {
             /* valid, but do nothing */
             return 0;
         }
@@ -1547,7 +1547,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         /* we'll add a 0x80 byte at the end,
         ** so make sure we have appropriate buffer length. */
-        if (sha256->buffLen > WC_SHA256_BLOCK_SIZE - 1) {
+        if (sha256->buffLen > (word32)WC_SHA256_BLOCK_SIZE - 1u) {
             /* exit with error code if there's a bad buffer size in buffLen */
             return BAD_STATE_E;
         } /* buffLen check */
@@ -1556,8 +1556,8 @@ static int InitSha256(wc_Sha256* sha256)
         local[sha256->buffLen++] = 0x80; /* add 1 */
 
         /* pad with zeros */
-        if (sha256->buffLen > WC_SHA256_PAD_SIZE) {
-            if (sha256->buffLen < WC_SHA256_BLOCK_SIZE) {
+        if (sha256->buffLen > (word32)WC_SHA256_PAD_SIZE) {
+            if (sha256->buffLen < (word32)WC_SHA256_BLOCK_SIZE) {
                 XMEMSET(&local[sha256->buffLen], 0,
                     WC_SHA256_BLOCK_SIZE - sha256->buffLen);
             }

@@ -297,7 +297,7 @@ WC_MISC_STATIC WC_INLINE void xorbufout(void* out, const void* buf,
         /* Alignment checks out. Possible to XOR words. */
         /* Move alignment so that it lines up with a
          * WOLFSSL_WORD_SIZE boundary */
-        while (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE != 0 && count > 0u) {
+        while (((wc_ptr_t)b) % WOLFSSL_WORD_SIZE != 0u && count > 0u) {
             *(o++) = (byte)(*(b++) ^ *(m++));
             count--;
         }
@@ -352,7 +352,7 @@ WC_MISC_STATIC WC_INLINE void xorbuf(void* buf, const void* mask, word32 count)
         /* Alignment checks out. Possible to XOR words. */
         /* Move alignment so that it lines up with a
          * WOLFSSL_WORD_SIZE boundary */
-        while (((wc_ptr_t)buf) % WOLFSSL_WORD_SIZE != 0 && count > 0u) {
+        while (((wc_ptr_t)buf) % WOLFSSL_WORD_SIZE != 0u && count > 0u) {
             *(b++) ^= *(m++);
             count--;
         }

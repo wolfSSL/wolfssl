@@ -17155,7 +17155,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
             return WOLFSSL_BAD_FILE;
         }
 
-        if (sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
+        if ((unsigned long)sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
             WOLFSSL_MSG("cmp_peer_cert_to_file size error");
             XFCLOSE(file);
             return WOLFSSL_BAD_FILE;

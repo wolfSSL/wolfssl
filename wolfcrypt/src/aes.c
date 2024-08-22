@@ -1952,7 +1952,7 @@ static void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
 #else
-    rk = aes->key;
+    rk = (const word32*)aes->key;
 #endif
 
     /*
@@ -2994,7 +2994,7 @@ static void AesDecrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #ifdef WC_C_DYNAMIC_FALLBACK
     rk = aes->key_C_fallback;
 #else
-    rk = aes->key;
+    rk = (const word32*)aes->key;
 #endif
 
     /*
@@ -5988,7 +5988,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                 ret = wc_AesDecrypt(aes, in, out);
                 if (ret != 0)
                     return ret;
-                xorbuf(out, (byte*)aes->reg, AES_BLOCK_SIZE);
+                xorbuf((void*)out, (const void*)aes->reg, AES_BLOCK_SIZE);
                 /* store iv for next call */
             #ifdef WOLFSSL_LEANPSK
                 XMEMCPY(aes->reg, tmp, AES_BLOCK_SIZE);
