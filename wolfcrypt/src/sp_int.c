@@ -13655,7 +13655,7 @@ static int _sp_exptmod_base_2(const sp_int* e, int digits, const sp_int* m,
 #ifndef WC_NO_HARDEN
     FREE_SP_INT_ARRAY(d, NULL);
 #else
-    FREE_SP_INT(tr, m->used * 2 + 1);
+    FREE_SP_INT(tr, NULL);
 #endif
     return err;
 }

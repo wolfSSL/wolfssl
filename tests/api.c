@@ -59747,9 +59747,9 @@ static int test_wolfSSL_SESSION(void)
 
     /* TLS v1.3 requires session tickets */
     /* CHACHA and POLY1305 required for myTicketEncCb */
-#if defined(WOLFSSL_TLS13) && (!defined(HAVE_SESSION_TICKET) && \
-    !defined(WOLFSSL_NO_TLS12) || !(defined(HAVE_CHACHA) && \
-            defined(HAVE_POLY1305) && !defined(HAVE_AESGCM)))
+#if !defined(WOLFSSL_NO_TLS12) && (!defined(WOLFSSL_TLS13) || \
+    !(defined(HAVE_SESSION_TICKET) && ((defined(HAVE_CHACHA) && \
+            defined(HAVE_POLY1305)) || defined(HAVE_AESGCM))))
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
 #else
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -82532,7 +82532,13 @@ static int test_dtls13_bad_epoch_ch(void)
 }
 #endif
 
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE)
+#if ((defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && \
+      defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TICKET_HAVE_ID) && \
+      !defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)) || \
+     (!defined(NO_OLD_TLS) && ((!defined(NO_AES) && !defined(NO_AES_CBC)) || \
+      !defined(NO_DES3))) || !defined(WOLFSSL_NO_TLS12)) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && !defined(NO_SESSION_CACHE)
 static int test_short_session_id_ssl_ready(WOLFSSL* ssl)
 {
     EXPECT_DECLS;
@@ -82606,7 +82612,6 @@ static int test_short_session_id(void)
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
             &server_cbf, NULL), TEST_SUCCESS);
     }
-
     return EXPECT_RESULT();
 }
 #else
