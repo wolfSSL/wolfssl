@@ -70719,6 +70719,9 @@ static int test_wolfssl_EVP_chacha20_poly1305(void)
     EVP_CIPHER_CTX* ctx = NULL;
     int outSz;
 
+    XMEMSET(key, 0, sizeof(key));
+    XMEMSET(iv, 0, sizeof(iv));
+
     /* Encrypt. */
     ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));
     ExpectIntEQ(EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, NULL,
