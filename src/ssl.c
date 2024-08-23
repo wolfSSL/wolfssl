@@ -1726,10 +1726,15 @@ int wolfSSL_get_fd(const WOLFSSL* ssl)
 
 int wolfSSL_dtls(WOLFSSL* ssl)
 {
+#ifdef WOLFSSL_DTLS
     int dtlsOpt = 0;
     if (ssl)
         dtlsOpt = ssl->options.dtls;
     return dtlsOpt;
+#else
+    (void)ssl;
+    return 0;
+#endif
 }
 
 #if !defined(NO_CERTS)
@@ -8842,12 +8847,13 @@ int wolfSSL_dtls_get_using_nonblock(WOLFSSL* ssl)
         return WOLFSSL_FAILURE;
 
     WOLFSSL_ENTER("wolfSSL_dtls_get_using_nonblock");
-    if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
         useNb = ssl->options.dtlsUseNonblock;
-#endif
     }
-    else {
+    else
+#endif
+    {
         WOLFSSL_MSG("wolfSSL_dtls_get_using_nonblock() is "
                     "DEPRECATED for non-DTLS use.");
     }
@@ -8866,12 +8872,13 @@ void wolfSSL_dtls_set_using_nonblock(WOLFSSL* ssl, int nonblock)
     if (ssl == NULL)
         return;
 
-    if (ssl->options.dtls) {
 #ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
         ssl->options.dtlsUseNonblock = (nonblock != 0);
-#endif
     }
-    else {
+    else
+#endif
+    {
         WOLFSSL_MSG("wolfSSL_dtls_set_using_nonblock() is "
                     "DEPRECATED for non-DTLS use.");
     }

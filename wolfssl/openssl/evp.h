@@ -1230,10 +1230,10 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #endif
 
 
-#define EVP_R_BAD_DECRYPT               (-MIN_CODE_E + 100 + 1)
-#define EVP_R_BN_DECODE_ERROR           (-MIN_CODE_E + 100 + 2)
-#define EVP_R_DECODE_ERROR              (-MIN_CODE_E + 100 + 3)
-#define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-MIN_CODE_E + 100 + 4)
+#define EVP_R_BAD_DECRYPT               (-(MIN_CODE_E) + 100 + 1)
+#define EVP_R_BN_DECODE_ERROR           (-(MIN_CODE_E) + 100 + 2)
+#define EVP_R_DECODE_ERROR              (-(MIN_CODE_E) + 100 + 3)
+#define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-(MIN_CODE_E) + 100 + 4)
 
 #define EVP_PKEY_NONE                   NID_undef
 #define EVP_PKEY_DH                     28

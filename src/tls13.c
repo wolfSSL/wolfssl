@@ -6127,7 +6127,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 inputSz,
 
         /* Derive the binder and compare with the one in the extension. */
         ret = BuildTls13HandshakeHmac(ssl,
-                         ssl->keys->client_write_MAC_secret, binder, &binderLen);
+                        ssl->keys->client_write_MAC_secret, binder, &binderLen);
         if (ret != 0)
             return ret;
         if (binderLen != current->binderLen ||
@@ -12800,7 +12800,8 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                        totalSz);
     }
 
-    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx - ssl->keys->padSz;
+    inputLength = ssl->buffers.inputBuffer.length - *inOutIdx -
+        ssl->keys->padSz;
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */

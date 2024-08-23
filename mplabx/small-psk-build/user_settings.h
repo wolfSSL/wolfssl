@@ -228,7 +228,12 @@ extern "C" {
 #define WC_NO_CACHE_RESISTANT
 
 /* pre calculated sizes */
-#define MAX_PSK_ID_LEN  10
+#ifdef __18CXX
+    #define MAX_PSK_ID_LEN  10
+#else
+    /* large enough for example "Client_identity" */
+    #define MAX_PSK_ID_LEN  17
+#endif
 #define MAX_PSK_KEY_LEN 16u
 
 #undef  WOLFSSL_MAX_SUITE_SZ
@@ -254,8 +259,8 @@ extern "C" {
 #undef  WOLFSSL_NO_STRICT_CIPHER_SUITE
 #define WOLFSSL_NO_STRICT_CIPHER_SUITE
 
-/* Remove additional sanity checks to make sure no duplicates, no fast forward ...
- * ~1k of code size */
+/* Remove additional sanity checks to make sure no duplicates, no fast forward
+    ...  ~1k of code size */
 #undef  WOLFSSL_NO_SANITY_CHECK_HANDSHAKE
 //#define WOLFSSL_NO_SANITY_CHECK_HANDSHAKE
 
@@ -332,9 +337,9 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 #ifndef WOLFSSL_GENSEED_FORTEST
     #if 0
-        /* Gains about 30 bytes of heap and ~6k of code space but is not a secure
-         * RNG. RNG is used with client random in ClientHello and with AES-CBC IV's
-         * when usng static PSK cipher suite.
+        /* Gains about 30 bytes of heap and ~6k of code space but is not a
+         * secure  RNG. RNG is used with client random in ClientHello and with
+         * AES-CBC IV's when usng static PSK cipher suite.
          */
         #define CUSTOM_RAND_GENERATE_BLOCK myRng
 

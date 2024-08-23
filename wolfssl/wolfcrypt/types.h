@@ -1000,7 +1000,7 @@ typedef struct w64wrapper {
 
 
     /* memory allocation types for user hints */
-    enum {
+    enum dynamicTypes {
         DYNAMIC_TYPE_CA           = 1,
         DYNAMIC_TYPE_CERT         = 2,
         DYNAMIC_TYPE_KEY          = 3,

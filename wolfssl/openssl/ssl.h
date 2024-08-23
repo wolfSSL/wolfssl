@@ -1556,11 +1556,11 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define PEM_F_PEM_DEF_CALLBACK  100
 
 /* Avoid wolfSSL error code range */
-#define PEM_R_NO_START_LINE             (-MIN_CODE_E + 1)
-#define PEM_R_PROBLEMS_GETTING_PASSWORD (-MIN_CODE_E + 2)
-#define PEM_R_BAD_PASSWORD_READ         (-MIN_CODE_E + 3)
-#define PEM_R_BAD_DECRYPT               (-MIN_CODE_E + 4)
-#define ASN1_R_HEADER_TOO_LONG          (-MIN_CODE_E + 5)
+#define PEM_R_NO_START_LINE             (-(MIN_CODE_E) + 1)
+#define PEM_R_PROBLEMS_GETTING_PASSWORD (-(MIN_CODE_E) + 2)
+#define PEM_R_BAD_PASSWORD_READ         (-(MIN_CODE_E) + 3)
+#define PEM_R_BAD_DECRYPT               (-(MIN_CODE_E) + 4)
+#define ASN1_R_HEADER_TOO_LONG          (-(MIN_CODE_E) + 5)
 
 #define ERR_LIB_SYS             2
 #define ERR_LIB_RSA             4

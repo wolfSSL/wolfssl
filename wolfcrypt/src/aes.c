@@ -2823,7 +2823,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
 
     r = aes->rounds >> 1;
 
-    if (r > 7u || r == 0u) {
+    if (r > 7U || r == 0U) {
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
@@ -3600,7 +3600,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
 
     r = aes->rounds >> 1;
 
-    if (r > 7u || r == 0u) {
+    if (r > 7U || r == 0U) {
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
@@ -4222,7 +4222,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             rk[5] = rk[1] ^ rk[4];
             rk[6] = rk[2] ^ rk[5];
             rk[7] = rk[3] ^ rk[6];
-            if (++i == 10u)
+            if (++i == 10U)
                 break;
             rk += 4;
         }
@@ -4512,7 +4512,7 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     #endif
 
         if (checkKeyLen) {
-            if (keylen != 16u && keylen != 24u && keylen != 32u) {
+            if (keylen != 16U && keylen != 24U && keylen != 32U) {
                 return BAD_FUNC_ARG;
             }
         #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE < 256
@@ -5651,7 +5651,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return BAD_FUNC_ARG;
         }
 
-        if (sz == 0u) {
+        if (sz == 0U) {
             return 0;
         }
 
@@ -5776,7 +5776,8 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             ret = 0; /* in case blocks is 0 */
             while (blocks--) {
                 xorbuf((byte*)aes->reg, in, AES_BLOCK_SIZE);
-                ret = wc_AesEncrypt(aes, (const byte*)aes->reg, (byte*)aes->reg);
+                ret = wc_AesEncrypt(aes, (const byte*)aes->reg,
+                    (byte*)aes->reg);
                 if (ret != 0)
                     break;
                 XMEMCPY(out, aes->reg, AES_BLOCK_SIZE);
@@ -5804,7 +5805,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return BAD_FUNC_ARG;
         }
 
-        if (sz == 0u) {
+        if (sz == 0U) {
             return 0;
         }
 

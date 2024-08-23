@@ -1484,6 +1484,7 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
         if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
             err_sys_with_errno("tcp connect failed");
     }
+    (void)ssl; /* not used when compiled without DTLS support */
 }
 
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */

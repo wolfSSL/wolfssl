@@ -3583,9 +3583,9 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 #ifdef WOLFSSL_DTLS
     if (ret == 0 && ssl->options.dtls && !ssl->options.tls1_3) {
         if (wc_encrypt)
-            wc_encrypt->src = keys == &ssl->keys ? KEYS : SCR;
+            wc_encrypt->src = keys == ssl->keys ? KEYS : SCR;
         if (wc_decrypt)
-            wc_decrypt->src = keys == &ssl->keys ? KEYS : SCR;
+            wc_decrypt->src = keys == ssl->keys ? KEYS : SCR;
     }
 #endif
 
@@ -3595,7 +3595,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
         /* Sanity check that keys == ssl->secure_renegotiation->tmp_keys.
          * Otherwise the memcpy calls would copy overlapping memory
          * and cause UB. Fail early. */
-        if (keys == &ssl->keys)
+        if (keys == ssl->keys)
             return BAD_FUNC_ARG;
 
         if (ssl->options.side == WOLFSSL_CLIENT_END && wc_encrypt)

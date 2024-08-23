@@ -70,8 +70,10 @@ Block counter is located at index 12.
 #endif
 #endif
 
-#define CHACHA_ENC_TYPE  WC_CIPHER_CHACHA    /* cipher unique type */
-#define CHACHA_MAX_KEY_SZ  32
+enum {
+    CHACHA_ENC_TYPE = WC_CIPHER_CHACHA,    /* cipher unique type */
+    CHACHA_MAX_KEY_SZ = 32
+};
 
 typedef struct ChaCha {
     word32 X[CHACHA_CHUNK_WORDS];           /* state of cipher */

@@ -1668,7 +1668,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
             return WOLFSSL_FATAL_ERROR;
         }
         fileSz = XFTELL(file);
-        if (fileSz > MAX_WOLFSSL_FILE_SIZE || fileSz < 0) {
+        if ((unsigned long)fileSz > MAX_WOLFSSL_FILE_SIZE || fileSz < 0) {
             XFCLOSE(file);
             return WOLFSSL_FATAL_ERROR;
         }
@@ -4812,8 +4812,10 @@ static int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
             XMEMSET(ssl->decrypt.additional, 0, AEAD_AUTH_DATA_SZ);
 
-            XMEMCPY(ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
-            XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
+            XMEMCPY(ssl->decrypt.nonce, ssl->keys->aead_dec_imp_IV,
+                AESGCM_IMP_IV_SZ);
+            XMEMCPY(ssl->decrypt.nonce + AESGCM_IMP_IV_SZ, input,
+                AESGCM_EXP_IV_SZ);
 
             if ((ret = aes_auth_fn(ssl->decrypt.aes,
                         plain,
@@ -5006,7 +5008,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         return NULL;
     }
 
-    ssl->keys.encryptSz = sz;
+    ssl->keys->encryptSz = sz;
     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block) {
         output += ssl->specs.block_size; /* go past TLSv1.1 IV */
         ivExtra = ssl->specs.block_size;
@@ -5015,10 +5017,10 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
 
     if (ssl->specs.cipher_type == aead) {
         *advance = ssl->specs.aead_mac_size;
-        ssl->keys.padSz = ssl->specs.aead_mac_size;
+        ssl->keys->padSz = ssl->specs.aead_mac_size;
     }
     else
-        ssl->keys.padSz = ssl->specs.hash_size;
+        ssl->keys->padSz = ssl->specs.hash_size;
 
     if (ssl->specs.cipher_type == block) {
         /* last pad bytes indicates length */
@@ -5027,12 +5029,12 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
             /* get value of last pad byte */
             pad = *(output + sz - ivExtra - 1) + 1;
         }
-        ssl->keys.padSz += pad;
+        ssl->keys->padSz += pad;
     }
 
 #ifdef WOLFSSL_TLS13
     if (IsAtLeastTLSv1_3(ssl->version)) {
-        word16 i = (word16)(sz - ssl->keys.padSz);
+        word16 i = (word16)(sz - ssl->keys->padSz);
         /* Remove padding from end of plain text. */
         for (--i; i > 0; i--) {
             if (output[i] != 0)
@@ -5040,7 +5042,7 @@ static const byte* DecryptMessage(WOLFSSL* ssl, const byte* input, word32 sz,
         }
         /* Get the real content type from the end of the data. */
         rh->type = output[i];
-        ssl->keys.padSz = sz - i;
+        ssl->keys->padSz = sz - i;
     }
 #endif
     (void)rh;
@@ -6382,7 +6384,7 @@ doPart:
                 used = startIdx - sslBytes;
                 sslFrame += used;
                 if (decrypted)
-                    sslFrame += ssl->keys.padSz;
+                    sslFrame += ssl->keys->padSz;
             }
             break;
         case change_cipher_spec:

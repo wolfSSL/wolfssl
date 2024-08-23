@@ -256,7 +256,7 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
     int    ret = 0;
     void*  heap = NULL;
 
-    if (hmac == NULL || (key == NULL && length != 0u) ||
+    if (hmac == NULL || (key == NULL && length != 0U) ||
        !(type == WC_MD5 || type == WC_SHA ||
     #ifdef WOLFSSL_SM3
             type == WC_SM3 ||
@@ -706,7 +706,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
 
-    if (hmac == NULL || (msg == NULL && length > 0u)) {
+    if (hmac == NULL || (msg == NULL && length > 0U)) {
         return BAD_FUNC_ARG;
     }
 

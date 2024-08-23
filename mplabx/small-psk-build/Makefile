@@ -24,8 +24,8 @@ INC = -I$(USER_SETTINGS_DIR) \
 
 # Defines
 DEF = -DWOLFSSL_USER_SETTINGS -DWOLFSSL_GENSEED_FORTEST
-#DEF = -DUSE_LIBFUZZER
-#CFLAGS = -fsanitize=fuzzer,address
+#DEF += -DUSE_LIBFUZZER
+#CFLAGS = -fsanitize=fuzzer,address -g
 
 # LD: generate map
 LDFLAGS += -Wl,-Map=$(BUILD_DIR)/$(BIN).map
@@ -53,7 +53,6 @@ SRC_C += ../../wolfcrypt/src/hmac.c
 SRC_C += ../../wolfcrypt/src/random.c
 SRC_C += ../../wolfcrypt/src/sha256.c
 SRC_C += ../../wolfcrypt/src/misc.c
-SRC_C += ../../src/wolfio.c
 SRC_C += psk-ssl.c
 SRC_C += psk-tls.c
 SRC_C += example-client-psk.c
@@ -66,7 +65,7 @@ vpath %.c $(dir $(SRC_C))
 
 APP = example-client-psk
 
-all: $(BUILD_DIR)/$(APP)
+all: $(BUILD_DIR) $(BUILD_DIR)/$(APP)
 	@echo ""
 	$(CMD_ECHO) $(SIZE) $(BUILD_DIR)/$(APP)
 

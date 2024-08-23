@@ -245,15 +245,15 @@ enum processReply {
 
 
 #ifndef WOLFSSL_NO_TLS12
-#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_WOLFSSL_SERVER) || \
+    (!defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_TLS13))
 
-#ifdef WOLFSSL_TLS13
 /* Server random bytes for TLS v1.3 described downgrade protection mechanism. */
 static const byte tls13Downgrade[7] = {
     0x44, 0x4f, 0x57, 0x4e, 0x47, 0x52, 0x44
 };
 #define TLS13_DOWNGRADE_SZ  sizeof(tls13Downgrade)
-#endif
+
 #endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 
 #if !defined(NO_OLD_TLS) && !defined(WOLFSSL_AEAD_ONLY)
@@ -2420,7 +2420,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     }
 #endif
 
-#ifdef WOLF_CRYPTO_CB
 #ifdef WOLFSSL_QNX_CAAM
     /* default to try using CAAM when built */
     ctx->devId = WOLFSSL_CAAM_DEVID;
@@ -2428,7 +2427,6 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->devId = WOLFSSL_ARIA_DEVID;
 #else
     ctx->devId = INVALID_DEVID;
-#endif
 #endif
 
 #if defined(WOLFSSL_DTLS)
@@ -2908,7 +2906,8 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->decrypt.des3, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #if defined(BUILD_AES) || defined(BUILD_AESGCM) || defined(HAVE_ARIA)
-    /* See: InitKeys() in keys->c on addition of BUILD_AESGCM check (enc->aes, dec->aes) */
+    /* See: InitKeys() in keys->c on addition of BUILD_AESGCM check
+        (enc->aes, dec->aes) */
     wc_AesFree(ssl->encrypt.aes);
     wc_AesFree(ssl->decrypt.aes);
     XFREE(ssl->encrypt.aes, ssl->heap, DYNAMIC_TYPE_CIPHER);
@@ -6454,6 +6453,7 @@ static void InitSuites_EitherSide(Suites* suites, ProtocolVersion pv, int keySz,
                    haveECC, TRUE, haveStaticECC, haveFalconSig,
                    haveDilithiumSig, haveAnon, TRUE, side);
     }
+    (void)haveDH; /* not used when no server support is compiled in */
 }
 
 void InitSSL_CTX_Suites(WOLFSSL_CTX* ctx)
@@ -8200,11 +8200,11 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeHandshakeHashes(ssl);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
-#ifndef WOLFSSL_NO_FORCE_ZERO
-    /* clear keys struct after session */
-    ForceZero(ssl->keys, sizeof(Keys));
-#endif
     if (ssl->keys != NULL) {
+    #ifndef WOLFSSL_NO_FORCE_ZERO
+        /* clear keys struct after session */
+        ForceZero(ssl->keys, sizeof(Keys));
+    #endif
         XFREE(ssl->keys, ssl->heap, DYNAMIC_TYPE_KEY);
         ssl->keys = NULL;
     }
@@ -9643,7 +9643,7 @@ int DtlsMsgPoolSend(WOLFSSL* ssl, int sendOnlyFirstPacket)
                  * PREV_ORDER will always use ssl->keys
                  */
                 if (DtlsSCRKeysSet(ssl)) {
-                    if (pool->epoch == ssl->secure_renegotiation->tmp_keys->dtls_epoch)
+                    if (pool->epoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
                         epochOrder = CUR_ORDER;
                     else
                         epochOrder = PREV_ORDER;
@@ -11457,7 +11457,8 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     #endif
     }
     else
-        ato16(ssl->buffers.inputBuffer.buffer + *inOutIdx, &ssl->keys->curSeq_hi);
+        ato16(ssl->buffers.inputBuffer.buffer + *inOutIdx,
+            &ssl->keys->curSeq_hi);
     *inOutIdx += OPAQUE16_LEN;
     ato32(ssl->buffers.inputBuffer.buffer + *inOutIdx, &ssl->keys->curSeq_lo);
     *inOutIdx += OPAQUE32_LEN;  /* advance past rest of seq */
@@ -11519,7 +11520,8 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         if (!_DtlsCheckWindow(ssl) ||
                 (rh->type == application_data && ssl->keys->curEpoch == 0) ||
                 (rh->type == alert && ssl->options.handShakeDone &&
-                        ssl->keys->curEpoch == 0 && ssl->keys->dtls_epoch != 0)) {
+                        ssl->keys->curEpoch == 0 &&
+                        ssl->keys->dtls_epoch != 0)) {
             WOLFSSL_LEAVE("GetRecordHeader()", SEQUENCE_ERROR);
             return SEQUENCE_ERROR;
         }
@@ -13897,9 +13899,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
 #endif
     /* if verify callback has been set */
     if ((use_cb && (ssl != NULL)
-    #ifndef NO_CERTS
             && ((ssl->verifyCallback != NULL)
-    #endif
     #ifdef OPENSSL_ALL
         || (ssl->ctx->verifyCertCb != NULL)
     #endif
@@ -13952,7 +13952,6 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
                 }
             }
     #endif
-    #ifndef NO_CERTS
             /* non-zero return code indicates failure override */
             if (ssl->verifyCallback) {
                 if (ssl->verifyCallback(verify_ok, store)) {
@@ -13965,7 +13964,6 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
                     verifyFail = 1;
                 }
             }
-    #endif
 #if defined(WOLFSSL_LOCAL_X509_STORE) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_QT))
             if (SSL_STORE(ssl) != NULL && SSL_STORE(ssl)->verify_cb != NULL) {
@@ -15452,7 +15450,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     #endif
 
-#ifndef NO_CERTS
                     if (ssl->verifyCallback) {
                         WOLFSSL_MSG(
                             "\tCallback override available, will continue");
@@ -15461,7 +15458,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (args->fatal)
                             DoCertFatalAlert(ssl, ret);
                     }
-#endif
                     #if defined(__APPLE__) && defined(WOLFSSL_SYS_CA_CERTS)
                     /* Disregard failure to verify peer cert, as we will verify
                      * the whole chain with the native API later */
@@ -18193,7 +18189,8 @@ static int Dtls13UpdateWindow(WOLFSSL* ssl)
         return BAD_STATE_E;
     }
 
-    if (!w64Equal(ssl->keys->curEpoch64, ssl->dtls13DecryptEpoch->epochNumber)) {
+    if (!w64Equal(ssl->keys->curEpoch64,
+            ssl->dtls13DecryptEpoch->epochNumber)) {
         /* ssl->dtls13DecryptEpoch has been updated since we received the msg */
         e = Dtls13GetEpoch(ssl, ssl->keys->curEpoch64);
         if (e == NULL) {
@@ -18702,7 +18699,7 @@ int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
     /* opaque SEQ number stored for AD */
     if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
         if (ssl->keys->dtls_epoch ==
-                    ssl->secure_renegotiation->tmp_keys->dtls_epoch) {
+                    ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
             keys = &ssl->secure_renegotiation->tmp_keys;
             WriteSEQ(ssl, CUR_ORDER, add);
         }
@@ -18918,7 +18915,7 @@ int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
      *   has the latest epoch cipher material
      */
     if (ssl->options.dtls && DtlsSCRKeysSet(ssl) &&
-        ssl->keys->curEpoch == ssl->secure_renegotiation->tmp_keys->dtls_epoch)
+        ssl->keys->curEpoch == ssl->secure_renegotiation->tmp_keys.dtls_epoch)
         keys = &ssl->secure_renegotiation->tmp_keys;
 #endif
 
@@ -19698,7 +19695,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && IsDtlsMsgSCRKeys(ssl))
                 XMEMCPY(ssl->decrypt.nonce,
-                        ssl->secure_renegotiation->tmp_keys->aead_dec_imp_IV,
+                        ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
                         AESGCM_IMP_IV_SZ);
             else
         #endif
@@ -19761,7 +19758,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && IsDtlsMsgSCRKeys(ssl))
                 XMEMCPY(ssl->decrypt.nonce,
-                        ssl->secure_renegotiation->tmp_keys->aead_dec_imp_IV,
+                        ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
                         AESGCM_IMP_IV_SZ);
             else
         #endif
@@ -19862,7 +19859,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && IsDtlsMsgSCRKeys(ssl))
                 XMEMCPY(ssl->decrypt.nonce,
-                        ssl->secure_renegotiation->tmp_keys->aead_dec_imp_IV,
+                        ssl->secure_renegotiation->tmp_keys.aead_dec_imp_IV,
                         GCM_IMP_IV_SZ);
             else
         #endif
@@ -20006,10 +20003,10 @@ static int DecryptTls(WOLFSSL* ssl, byte* plain, const byte* input, word16 sz)
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
                 /* For epochs >1 the current cipher parameters are located in
-                 * ssl->secure_renegotiation->tmp_keys-> Previous cipher
+                 * ssl->secure_renegotiation->tmp_keys Previous cipher
                  * parameters and for epoch 1 use ssl->keys */
                 if (ssl->keys->curEpoch ==
-                        ssl->secure_renegotiation->tmp_keys->dtls_epoch) {
+                        ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
                     if (ssl->decrypt.src != SCR) {
                         ssl->secure_renegotiation->cache_status =
                                 SCR_CACHE_NEEDED;
@@ -22391,14 +22388,15 @@ default:
                 ssl->options.processReply = runProcessingOneMessage;
 
                 if (IsEncryptionOn(ssl, 0)) {
-                    WOLFSSL_MSG("Bundled encrypted messages, remove middle pad");
+                    WOLFSSL_MSG(
+                               "Bundled encrypted messages, remove middle pad");
             #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
                     if (ssl->options.startedETMRead) {
                         word32 digestSz = MacSize(ssl);
                         if (ssl->buffers.inputBuffer.idx >=
-                                                   ssl->keys->padSz + digestSz) {
+                                                  ssl->keys->padSz + digestSz) {
                             ssl->buffers.inputBuffer.idx -=
-                                                     ssl->keys->padSz + digestSz;
+                                                    ssl->keys->padSz + digestSz;
                         }
                         else {
                             WOLFSSL_MSG("\tmiddle padding error");
@@ -22798,7 +22796,6 @@ static int BuildSHA_CertVerify(const WOLFSSL* ssl, byte* digest)
 }
 #endif /* !NO_SHA && (!NO_OLD_TLS || WOLFSSL_ALLOW_TLS_SHA1) */
 
-#if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes)
 {
     int ret = 0;
@@ -22860,7 +22857,6 @@ int BuildCertHashes(const WOLFSSL* ssl, Hashes* hashes)
 
     return ret;
 }
-#endif
 
 #ifndef WOLFSSL_NO_TLS12
 void FreeBuildMsgArgs(WOLFSSL* ssl, BuildMsgArgs* args)
@@ -22964,7 +22960,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         #if defined(WOLFSSL_DTLS) && defined(HAVE_SECURE_RENEGOTIATION)
             if (ssl->options.dtls && DtlsSCRKeysSet(ssl)) {
                 /* For epochs >1 the current cipher parameters are located in
-                 * ssl->secure_renegotiation->tmp_keys-> Previous cipher
+                 * ssl->secure_renegotiation->tmp_keys Previous cipher
                  * parameters and for epoch 1 use ssl->keys */
                 switch (epochOrder) {
                 case PREV_ORDER:
@@ -22977,7 +22973,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     break;
                 case CUR_ORDER:
                     if (ssl->keys->dtls_epoch ==
-                            ssl->secure_renegotiation->tmp_keys->dtls_epoch) {
+                            ssl->secure_renegotiation->tmp_keys.dtls_epoch) {
                         if (ssl->encrypt.src != SCR) {
                             ssl->secure_renegotiation->cache_status =
                                     SCR_CACHE_NEEDED;
@@ -23034,7 +23030,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 }
 
                 if (ssl->options.tls1_1) {
-                    args->ivSz = blockSz;
+                    args->ivSz = (byte)blockSz;
                     args->sz  += args->ivSz;
 
                     if (args->ivSz > MAX_IV_SZ)
@@ -23402,7 +23398,7 @@ int SendFinished(WOLFSSL* ssl)
     int              sendSz,
                      finishedSz = ssl->options.tls ? TLS_FINISHED_SZ :
                                                      FINISHED_SZ;
-    byte             input[FINISHED_SZ + 12];//DTLS_HANDSHAKE_HEADER_SZ];  /* max */
+    byte             input[FINISHED_SZ + DTLS_HANDSHAKE_HEADER_SZ];  /* max */
     byte            *output;
     Hashes*          hashes;
     int              ret;
@@ -24530,7 +24526,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 int DtlsSCRKeysSet(WOLFSSL* ssl)
 {
     return ssl->secure_renegotiation &&
-           ssl->secure_renegotiation->tmp_keys->dtls_epoch != 0;
+           ssl->secure_renegotiation->tmp_keys.dtls_epoch != 0;
 }
 
 /**
@@ -24543,7 +24539,7 @@ int IsDtlsMsgSCRKeys(WOLFSSL* ssl)
 {
     return DtlsSCRKeysSet(ssl) &&
            ssl->keys->curEpoch ==
-                   ssl->secure_renegotiation->tmp_keys->dtls_epoch;
+                   ssl->secure_renegotiation->tmp_keys.dtls_epoch;
 }
 
 /**
@@ -24555,18 +24551,19 @@ int IsDtlsMsgSCRKeys(WOLFSSL* ssl)
 int DtlsUseSCRKeys(WOLFSSL* ssl)
 {
     return DtlsSCRKeysSet(ssl) &&
-           ssl->secure_renegotiation->tmp_keys->dtls_epoch ==
+           ssl->secure_renegotiation->tmp_keys.dtls_epoch ==
                    ssl->keys->dtls_epoch;
 }
 
 /**
- * If ssl->secure_renegotiation->tmp_keys->dtls_epoch > ssl->keys->dtls_epoch
+ * If ssl->secure_renegotiation->tmp_keys.dtls_epoch > ssl->keys->dtls_epoch
  * then PREV_ORDER refers to the current epoch.
  * */
 int DtlsCheckOrder(WOLFSSL* ssl, int order)
 {
     if (order == PREV_ORDER && ssl->secure_renegotiation &&
-            ssl->secure_renegotiation->tmp_keys->dtls_epoch > ssl->keys->dtls_epoch) {
+            ssl->secure_renegotiation->tmp_keys.dtls_epoch >
+            ssl->keys->dtls_epoch) {
         return CUR_ORDER;
     }
     else {
@@ -25000,7 +24997,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         sent += buffSz;
 
         /* only one message per attempt */
-        if (ssl->options.partialWrite == 1u) {
+        if (ssl->options.partialWrite == 1) {
             WOLFSSL_MSG("Partial Write on, only sending one record");
             break;
         }
@@ -29957,7 +29954,6 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
         if (ssl->toInfoOn) AddLateName("HelloVerifyRequest", &ssl->timeoutInfo);
 #endif
 
-#ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
             DtlsMsgPoolReset(ssl);
 #ifdef WOLFSSL_DTLS_CID
@@ -29965,7 +29961,6 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
                 DtlsCIDOnExtensionsParsed(ssl);
 #endif /* WOLFSSL_DTLS_CID */
         }
-#endif
 
         if (OPAQUE16_LEN + OPAQUE8_LEN > size)
             return BUFFER_ERROR;
@@ -29983,12 +29978,10 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             if ((*inOutIdx - begin) + cookieSz > size)
                 return BUFFER_ERROR;
 
-#ifdef WOLFSSL_DTLS
             if (cookieSz <= MAX_COOKIE_LEN) {
                 XMEMCPY(ssl->arrays->cookie, input + *inOutIdx, cookieSz);
                 ssl->arrays->cookieSz = cookieSz;
             }
-#endif
             *inOutIdx += cookieSz;
         }
 
@@ -34295,7 +34288,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* HAVE_ECC */
 
-#ifdef WOLFSSL_DTLS
     int TranslateErrorToAlert(int err)
     {
         switch (err) {
@@ -34321,7 +34313,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 return invalid_alert;
         }
     }
-#endif
 
     /* search suites for specific one, idx on success, negative on error */
     int FindSuite(const Suites* suites, byte first, byte second)
@@ -34447,7 +34438,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ret != 0)
                 return ret;
 
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13)
             if (TLSv1_3_Capable(ssl)) {
                 /* TLS v1.3 capable server downgraded. */
                 XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
@@ -39008,8 +38999,10 @@ cleanup:
             int   inputSz = (int)idx; /* build msg adds rec hdr */
             int   recordHeaderSz = RECORD_HEADER_SZ;
 
+            #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls)
                 recordHeaderSz += DTLS_RECORD_EXTRA;
+            #endif
             inputSz -= recordHeaderSz;
             input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
             if (input == NULL)

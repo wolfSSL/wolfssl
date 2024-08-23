@@ -35,9 +35,11 @@
 #define     DEFAULT_IP "127.0.0.1"
 static int sockfd = SOCKET_INVALID;
 
-static int cannedLen = 0;
-static byte canned[4096];
-static int cannedIdx = 0;
+typedef struct cannedStruct {
+    int bufferLen;
+    byte buffer[4096];
+    int bufferIdx;
+} cannedStruct;
 
 #ifndef NO_PSK
 /*
@@ -67,17 +69,17 @@ static inline unsigned int My_Psk_Client_Cb(WOLFSSL* ssl, const char* hint,
 
 int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 {
-    /* By default, ctx will be a pointer to the file descriptor to read from.
-     * This can be changed by calling wolfSSL_SetIOReadCtx(). */
     int recvd;
 
-
-    if (cannedLen > 0) {
-        recvd = (sz < (cannedLen - cannedIdx))? sz : cannedLen - cannedIdx;
-        memcpy(buff, canned + cannedIdx, recvd);
-        cannedIdx += recvd;
+    if (ctx != NULL) {
+        cannedStruct *cannedData = (cannedStruct*)ctx;
+        recvd = sz;
+        if (recvd > (cannedData->bufferLen - cannedData->bufferIdx)) {
+            recvd = cannedData->bufferLen - cannedData->bufferIdx;
+        }
+        memcpy(buff, cannedData->buffer + cannedData->bufferIdx, recvd);
+        cannedData->bufferIdx += recvd;
         if (recvd == 0) {
-            fprintf(stderr, "ran out of input\n");
             return WOLFSSL_CBIO_ERR_CONN_CLOSE;
         }
     }
@@ -129,7 +131,9 @@ int my_IORecv(WOLFSSL* ssl, char* buff, int sz, void* ctx)
 #endif
     }
     /* successful receive */
+#ifndef USE_LIBFUZZER
     printf("my_IORecv: received %d bytes\n", sz);
+#endif
     return recvd;
 }
 
@@ -140,44 +144,45 @@ int my_IOSend(WOLFSSL* ssl, char* buff, int sz, void* ctx)
      * This can be changed by calling wolfSSL_SetIOWriteCtx(). */
     int sent;
 
-
-    if (cannedLen > 0) {
+    if (ctx != NULL) {
+        /* drop sent data */
         sent = sz;
     }
     else {
-    /* Receive message from socket */
-    if ((sent = send(sockfd, buff, sz, 0)) == -1) {
-        /* error encountered. Be responsible and report it in wolfSSL terms */
-
-        fprintf(stderr, "IO SEND ERROR: ");
-        switch (errno) {
-        #if EAGAIN != EWOULDBLOCK
-        case EAGAIN: /* EAGAIN == EWOULDBLOCK on some systems, but not others */
-        #endif
-        case EWOULDBLOCK:
-            fprintf(stderr, "would block\n");
-            return WOLFSSL_CBIO_ERR_WANT_WRITE;
-        case ECONNRESET:
-            fprintf(stderr, "connection reset\n");
-            return WOLFSSL_CBIO_ERR_CONN_RST;
-        case EINTR:
-            fprintf(stderr, "socket interrupted\n");
-            return WOLFSSL_CBIO_ERR_ISR;
-        case EPIPE:
-            fprintf(stderr, "socket EPIPE\n");
-            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
-        default:
-            fprintf(stderr, "general error\n");
-            return WOLFSSL_CBIO_ERR_GENERAL;
+        /* Receive message from socket */
+        if ((sent = send(sockfd, buff, sz, 0)) == -1) {
+            fprintf(stderr, "IO SEND ERROR: ");
+            switch (errno) {
+            #if EAGAIN != EWOULDBLOCK
+            case EAGAIN: /* EAGAIN == EWOULDBLOCK on some systems */
+            #endif
+            case EWOULDBLOCK:
+                fprintf(stderr, "would block\n");
+                return WOLFSSL_CBIO_ERR_WANT_WRITE;
+            case ECONNRESET:
+                fprintf(stderr, "connection reset\n");
+                return WOLFSSL_CBIO_ERR_CONN_RST;
+            case EINTR:
+                fprintf(stderr, "socket interrupted\n");
+                return WOLFSSL_CBIO_ERR_ISR;
+            case EPIPE:
+                fprintf(stderr, "socket EPIPE\n");
+                return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+            default:
+                fprintf(stderr, "general error\n");
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+        }
+        else if (sent == 0) {
+            printf("Connection closed\n");
+            return 0;
         }
     }
-    else if (sent == 0) {
-        printf("Connection closed\n");
-        return 0;
-    }
-    }
+
     /* successful send */
+#ifndef USE_LIBFUZZER
     printf("my_IOSend: sent %d bytes\n", sz);
+#endif
     return sent;
 }
 
@@ -199,10 +204,10 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t sz)
     byte ran[TLS_RANDOM_SIZE];
     byte *ptr;
     WOLFSSL_METHOD* meth = NULL;
-
     WOLFSSL* ssl = NULL;
+    cannedStruct cannedData;
 
-    memset(ran, 0, sizeof(ran));
+    cannedData.bufferLen = 0;
 #ifndef USE_LIBFUZZER
     if (argc == 2) {
         FILE* f = fopen(argv[1], "rb");
@@ -212,7 +217,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t sz)
             return 1;
         }
         else {
-            cannedLen = fread(canned, 1, 4096, f);
+            cannedData.bufferLen = fread(cannedData.buffer, 1, 4096, f);
+            cannedData.bufferIdx = 0;
             fclose(f);
         }
     }
@@ -244,13 +250,16 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t sz)
         }
     }
 #else
-    cannedLen = sz;
-    memcpy(canned, data, cannedLen);
+    cannedData.bufferLen = sz;
+    memcpy(cannedData.buffer, data, cannedData.bufferLen);
+    cannedData.bufferIdx = 0;
 #endif
     wolfSSL_Init();  /* initialize wolfSSL */
 
     meth = wolfTLSv1_2_client_method();
+
     /* creat wolfssl object after each tcp connect */
+    memset(ran, 0, sizeof(ran));
     if ( (ssl = wolfSSL_new_leanpsk(meth, SUITE0, SUITE1, ran,
             TLS_RANDOM_SIZE)) == NULL) {
         fprintf(stderr, "wolfSSL_new_leanpsk error.\n");
@@ -261,12 +270,24 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t sz)
     wolfSSL_SSLSetIORecv(ssl, my_IORecv);
     wolfSSL_SSLSetIOSend(ssl, my_IOSend);
 
+    if (cannedData.bufferLen > 0) {
+        wolfSSL_SetIOWriteCtx(ssl, (void*)&cannedData);
+        wolfSSL_SetIOReadCtx(ssl, (void*)&cannedData);
+    }
+
     ret = wolfSSL_connect(ssl);
+#ifndef USE_LIBFUZZER
     printf("ret of connect = %d\n", ret);
+#endif
+    if (ret < 0) {
+        goto exit;
+    }
 
     /* write string to the server */
     if (wolfSSL_write_inline(ssl, recvline, strlen(recvline), MAXLINE) < 0) {
+    #ifndef USE_LIBFUZZER
         printf("Write Error to Server\n");
+    #endif
         ret = -1;
         goto exit;
     }
@@ -274,14 +295,20 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t sz)
     /* check if server ended before client could read a response  */
     if ((read = wolfSSL_read_inline(ssl, recvline, MAXLINE, (void**)&ptr,
             MAXLINE)) < 0 ) {
+    #ifndef USE_LIBFUZZER
         printf("Client: Server Terminated Prematurely!\n");
+    #endif
         ret = -1;
         goto exit;
     }
 
-    /* show message from the server */
-    ptr[read] = '\0';
-    printf("Server Message: %s\n", ptr);
+    if (read > 0) {
+        /* show message from the server */
+        ptr[read] = '\0';
+    #ifndef USE_LIBFUZZER
+        printf("Server Message: %s\n", ptr);
+    #endif
+    }
 
     ret = 0;
 

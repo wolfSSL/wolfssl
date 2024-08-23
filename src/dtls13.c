@@ -203,7 +203,7 @@ static int Dtls13HandshakeAddHeaderFrag(WOLFSSL* ssl, byte* output,
 
     hdr->msg_type = msg_type;
     c32to24((word32)msg_length, hdr->length);
-    c16toa(ssl->keys.dtls_handshake_number, hdr->messageSeq);
+    c16toa(ssl->keys->dtls_handshake_number, hdr->messageSeq);
 
     c32to24(frag_offset, hdr->fragmentOffset);
     c32to24(frag_length, hdr->fragmentLength);
@@ -339,7 +339,7 @@ static byte Dtls13RtxMsgNeedsAck(WOLFSSL* ssl, enum HandShakeType hs)
 static void Dtls13MsgWasProcessed(WOLFSSL* ssl, enum HandShakeType hs)
 {
     if (ssl->options.dtlsStateful)
-        ssl->keys.dtls_expected_peer_handshake_number++;
+        ssl->keys->dtls_expected_peer_handshake_number++;
 
     /* we need to send ACKs on the last message of a flight that needs explicit
        acknowledgment */
@@ -359,7 +359,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
         idx = 0;
 
         /* message not in order */
-        if (ssl->keys.dtls_expected_peer_handshake_number != msg->seq)
+        if (ssl->keys->dtls_expected_peer_handshake_number != msg->seq)
             break;
 
         /* message not complete */
@@ -407,7 +407,7 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
                 /* DoHandShakeMsgType normally handles the hs number but if
                  * DoTls13HandShakeMsgType processed 1.2 msgs then this wasn't
                  * incremented. */
-                ssl->keys.dtls_expected_peer_handshake_number++;
+                ssl->keys->dtls_expected_peer_handshake_number++;
 
             ssl->dtls_rx_msg_list = msg->next;
             DtlsMsgDelete(msg, ssl->heap);
@@ -429,7 +429,7 @@ static int Dtls13NextMessageComplete(WOLFSSL* ssl)
     return ssl->dtls_rx_msg_list != NULL &&
            ssl->dtls_rx_msg_list->ready &&
            ssl->dtls_rx_msg_list->seq ==
-               ssl->keys.dtls_expected_peer_handshake_number;
+               ssl->keys->dtls_expected_peer_handshake_number;
 }
 
 static WC_INLINE int FragIsInOutputBuffer(WOLFSSL* ssl, const byte* frag)
@@ -745,13 +745,13 @@ static int Dtls13DetectDisruption(WOLFSSL* ssl, word32 fragOffset)
 {
     /* retransmission. The other peer may have lost our flight or our ACKs. We
        don't account this as a disruption */
-    if (ssl->keys.dtls_peer_handshake_number <
-        ssl->keys.dtls_expected_peer_handshake_number)
+    if (ssl->keys->dtls_peer_handshake_number <
+        ssl->keys->dtls_expected_peer_handshake_number)
         return 0;
 
     /* out of order message */
-    if (ssl->keys.dtls_peer_handshake_number >
-        ssl->keys.dtls_expected_peer_handshake_number) {
+    if (ssl->keys->dtls_peer_handshake_number >
+        ssl->keys->dtls_expected_peer_handshake_number) {
         return 1;
     }
 
@@ -788,8 +788,8 @@ static void Dtls13RtxRemoveCurAck(WOLFSSL* ssl)
     rn = ssl->dtls13Rtx.seenRecords;
 
     while (rn != NULL) {
-        if (w64Equal(rn->epoch, ssl->keys.curEpoch64) &&
-            w64Equal(rn->seq, ssl->keys.curSeq)) {
+        if (w64Equal(rn->epoch, ssl->keys->curEpoch64) &&
+            w64Equal(rn->seq, ssl->keys->curSeq)) {
             *prevNext = rn->next;
             XFREE(rn, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
             return;
@@ -833,8 +833,8 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
     WOLFSSL_ENTER("Dtls13RtxMsgRecvd");
 
     if (!ssl->options.handShakeDone &&
-        ssl->keys.dtls_peer_handshake_number >=
-            ssl->keys.dtls_expected_peer_handshake_number) {
+        ssl->keys->dtls_peer_handshake_number >=
+            ssl->keys->dtls_expected_peer_handshake_number) {
 
         if (hs == server_hello)
             Dtls13MaybeSaveClientHello(ssl);
@@ -852,8 +852,8 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
             DtlsMsgPoolReset(ssl);
     }
 
-    if (ssl->keys.dtls_peer_handshake_number <
-        ssl->keys.dtls_expected_peer_handshake_number) {
+    if (ssl->keys->dtls_peer_handshake_number <
+        ssl->keys->dtls_expected_peer_handshake_number) {
 
         /* retransmission detected. */
         ssl->dtls13Rtx.retransmit = 1;
@@ -864,8 +864,8 @@ static int Dtls13RtxMsgRecvd(WOLFSSL* ssl, enum HandShakeType hs,
             ssl->dtls13Rtx.sendAcks = (byte)ssl->options.dtls13SendMoreAcks;
     }
 
-    if (ssl->keys.dtls_peer_handshake_number ==
-            ssl->keys.dtls_expected_peer_handshake_number &&
+    if (ssl->keys->dtls_peer_handshake_number ==
+            ssl->keys->dtls_expected_peer_handshake_number &&
         ssl->options.handShakeDone && hs == certificate_request) {
 
         /* the current record, containing a post-handshake certificate request,
@@ -1202,7 +1202,7 @@ int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
 
     hdr->msg_type = msg_type;
     c32to24((word32)length, hdr->length);
-    c16toa(ssl->keys.dtls_handshake_number, hdr->messageSeq);
+    c16toa(ssl->keys->dtls_handshake_number, hdr->messageSeq);
 
     /* send unfragmented first */
     c32to24(0, hdr->fragmentOffset);
@@ -1506,7 +1506,7 @@ int Dtls13RecordRecvd(WOLFSSL* ssl)
     if (!ssl->options.dtls13SendMoreAcks)
         ssl->dtls13FastTimeout = 1;
 
-    ret = Dtls13RtxAddAck(ssl, ssl->keys.curEpoch64, ssl->keys.curSeq);
+    ret = Dtls13RtxAddAck(ssl, ssl->keys->curEpoch64, ssl->keys->curSeq);
     if (ret != 0)
         WOLFSSL_MSG("can't save ack fragment");
 
@@ -1666,10 +1666,10 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
         /* To be able to operate in stateless mode, we assume the ClientHello
          * is in order and we use its Handshake Message number and Sequence
          * Number for our Tx. */
-        ssl->keys.dtls_expected_peer_handshake_number =
-            ssl->keys.dtls_handshake_number =
-                ssl->keys.dtls_peer_handshake_number;
-        ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys.curSeq;
+        ssl->keys->dtls_expected_peer_handshake_number =
+            ssl->keys->dtls_handshake_number =
+                ssl->keys->dtls_peer_handshake_number;
+        ssl->dtls13Epochs[0].nextSeqNumber = ssl->keys->curSeq;
     }
 
     if (idx + fragLength > size) {
@@ -1684,8 +1684,8 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     if (ret != 0)
         return ret;
 
-    if (ssl->keys.dtls_peer_handshake_number <
-        ssl->keys.dtls_expected_peer_handshake_number) {
+    if (ssl->keys->dtls_peer_handshake_number <
+        ssl->keys->dtls_expected_peer_handshake_number) {
 
 #ifdef WOLFSSL_DEBUG_TLS
         WOLFSSL_MSG(
@@ -1693,7 +1693,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
 #endif /* WOLFSSL_DEBUG_TLS */
 
         /* ignore the message */
-        *processedSize = idx + fragLength + ssl->keys.padSz;
+        *processedSize = idx + fragLength + ssl->keys->padSz;
 
         return 0;
     }
@@ -1727,7 +1727,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             WOLFSSL_MSG("DTLS1.3 not accepting fragmented plaintext message");
 #endif /* WOLFSSL_DEBUG_TLS */
             /* ignore the message */
-            *processedSize = idx + fragLength + ssl->keys.padSz;
+            *processedSize = idx + fragLength + ssl->keys->padSz;
             return 0;
         }
     }
@@ -1740,12 +1740,12 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
      * if the message is stored in the buffer.
      */
     if (!isComplete ||
-        ssl->keys.dtls_peer_handshake_number >
-            ssl->keys.dtls_expected_peer_handshake_number ||
+        ssl->keys->dtls_peer_handshake_number >
+            ssl->keys->dtls_expected_peer_handshake_number ||
         usingAsyncCrypto) {
         if (ssl->dtls_rx_msg_list_sz < DTLS_POOL_SZ) {
-            DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys.curEpoch64),
-                ssl->keys.dtls_peer_handshake_number,
+            DtlsMsgStore(ssl, (word16)w64GetLow32(ssl->keys->curEpoch64),
+                ssl->keys->dtls_peer_handshake_number,
                 input + DTLS_HANDSHAKE_HEADER_SZ, messageLength, handshakeType,
                 fragOff, fragLength, ssl->heap);
         }
@@ -1755,7 +1755,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
             return DTLS_TOO_MANY_FRAGMENTS_E;
         }
 
-        *processedSize = idx + fragLength + ssl->keys.padSz;
+        *processedSize = idx + fragLength + ssl->keys->padSz;
         if (Dtls13NextMessageComplete(ssl))
             return Dtls13ProcessBufferedMessages(ssl);
 
@@ -1804,7 +1804,7 @@ int Dtls13FragmentsContinue(WOLFSSL* ssl)
 
     ret = Dtls13SendFragmentedInternal(ssl);
     if (ret == 0)
-        ssl->keys.dtls_handshake_number++;
+        ssl->keys->dtls_handshake_number++;
 
     return ret;
 }
@@ -1894,13 +1894,13 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
         ret = Dtls13SendOneFragmentRtx(ssl, handshakeType, outputSize, message,
             length, hashOutput);
         if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
-            ssl->keys.dtls_handshake_number++;
+            ssl->keys->dtls_handshake_number++;
     }
     else {
         ret = Dtls13SendFragmented(ssl, message, length, handshakeType,
             hashOutput);
         if (ret == 0)
-            ssl->keys.dtls_handshake_number++;
+            ssl->keys->dtls_handshake_number++;
     }
 
     return ret;
@@ -1927,7 +1927,7 @@ int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision)
         if (ret != 0)
             goto end;
 
-        XMEMCPY(ssl->keys.client_sn_key, key_dig, ssl->specs.key_size);
+        XMEMCPY(ssl->keys->client_sn_key, key_dig, ssl->specs.key_size);
     }
 
     if (provision & PROVISION_SERVER) {
@@ -1938,7 +1938,7 @@ int Dtls13DeriveSnKeys(WOLFSSL* ssl, int provision)
         if (ret != 0)
             goto end;
 
-        XMEMCPY(ssl->keys.server_sn_key, key_dig, ssl->specs.key_size);
+        XMEMCPY(ssl->keys->server_sn_key, key_dig, ssl->specs.key_size);
     }
 
 end:
@@ -2081,7 +2081,7 @@ int Dtls13GetSeq(WOLFSSL* ssl, int order, word32* seq, byte increment)
     w64wrapper* nativeSeq;
 
     if (order == PEER_ORDER) {
-        nativeSeq = &ssl->keys.curSeq;
+        nativeSeq = &ssl->keys->curSeq;
         /* never increment seq number for current record. In DTLS seq number are
            explicit */
         increment = 0;
@@ -2166,7 +2166,7 @@ int Dtls13NewEpoch(WOLFSSL* ssl, w64wrapper epochNumber, int side)
             return BAD_STATE_E;
     }
 
-    Dtls13EpochCopyKeys(ssl, e, &ssl->keys, side);
+    Dtls13EpochCopyKeys(ssl, e, ssl->keys, side);
 
     if (!e->isValid) {
         /* fresh epoch, initialize fields */
@@ -2243,33 +2243,33 @@ int Dtls13SetEpochKeys(WOLFSSL* ssl, w64wrapper epochNumber,
         return 0;
 
     if (clientWrite) {
-        XMEMCPY(ssl->keys.client_write_key, e->client_write_key,
-            sizeof(ssl->keys.client_write_key));
+        XMEMCPY(ssl->keys->client_write_key, e->client_write_key,
+            sizeof(ssl->keys->client_write_key));
 
-        XMEMCPY(ssl->keys.client_write_IV, e->client_write_IV,
-            sizeof(ssl->keys.client_write_IV));
+        XMEMCPY(ssl->keys->client_write_IV, e->client_write_IV,
+            sizeof(ssl->keys->client_write_IV));
 
-        XMEMCPY(ssl->keys.client_sn_key, e->client_sn_key,
-            sizeof(ssl->keys.client_sn_key));
+        XMEMCPY(ssl->keys->client_sn_key, e->client_sn_key,
+            sizeof(ssl->keys->client_sn_key));
     }
 
     if (serverWrite) {
-        XMEMCPY(ssl->keys.server_write_key, e->server_write_key,
-            sizeof(ssl->keys.server_write_key));
+        XMEMCPY(ssl->keys->server_write_key, e->server_write_key,
+            sizeof(ssl->keys->server_write_key));
 
-        XMEMCPY(ssl->keys.server_write_IV, e->server_write_IV,
-            sizeof(ssl->keys.server_write_IV));
+        XMEMCPY(ssl->keys->server_write_IV, e->server_write_IV,
+            sizeof(ssl->keys->server_write_IV));
 
-        XMEMCPY(ssl->keys.server_sn_key, e->server_sn_key,
-            sizeof(ssl->keys.server_sn_key));
+        XMEMCPY(ssl->keys->server_sn_key, e->server_sn_key,
+            sizeof(ssl->keys->server_sn_key));
     }
 
     if (enc)
-        XMEMCPY(ssl->keys.aead_enc_imp_IV, e->aead_enc_imp_IV,
-            sizeof(ssl->keys.aead_enc_imp_IV));
+        XMEMCPY(ssl->keys->aead_enc_imp_IV, e->aead_enc_imp_IV,
+            sizeof(ssl->keys->aead_enc_imp_IV));
     if (dec)
-        XMEMCPY(ssl->keys.aead_dec_imp_IV, e->aead_dec_imp_IV,
-            sizeof(ssl->keys.aead_dec_imp_IV));
+        XMEMCPY(ssl->keys->aead_dec_imp_IV, e->aead_dec_imp_IV,
+            sizeof(ssl->keys->aead_dec_imp_IV));
 
     return SetKeysSide(ssl, side);
 }
@@ -2300,16 +2300,16 @@ int Dtls13SetRecordNumberKeys(WOLFSSL* ssl, enum encrypt_side side)
 
     if (enc) {
         if (ssl->options.side == WOLFSSL_CLIENT_END)
-            encKey = ssl->keys.client_sn_key;
+            encKey = ssl->keys->client_sn_key;
         else
-            encKey = ssl->keys.server_sn_key;
+            encKey = ssl->keys->server_sn_key;
     }
 
     if (dec) {
         if (ssl->options.side == WOLFSSL_CLIENT_END)
-            decKey = ssl->keys.server_sn_key;
+            decKey = ssl->keys->server_sn_key;
         else
-            decKey = ssl->keys.client_sn_key;
+            decKey = ssl->keys->client_sn_key;
     }
 
     /* DTLSv1.3 supports only AEAD algorithm.  */
@@ -2863,7 +2863,7 @@ int Dtls13CheckAEADFailLimit(WOLFSSL* ssl)
     else if (w64GT(ssl->dtls13DecryptEpoch->dropCount, keyUpdateLimit)) {
         WOLFSSL_MSG("Connection exceeded key update limit. Issuing key update");
         /* If not waiting for a response then request a key update. */
-        if (!ssl->keys.updateResponseReq) {
+        if (!ssl->keys->updateResponseReq) {
             ssl->dtls13DoKeyUpdate = 1;
             ssl->dtls13InvalidateBefore = ssl->dtls13PeerEpoch;
             w64Increment(&ssl->dtls13InvalidateBefore);

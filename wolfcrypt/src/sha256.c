@@ -1346,7 +1346,7 @@ static int InitSha256(wc_Sha256* sha256)
         local = (byte*)sha256->buffer;
 
         /* process any remainder from previous operation */
-        if (sha256->buffLen > 0u) {
+        if (sha256->buffLen > 0U) {
             blocksLen = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
             XMEMCPY(&local[sha256->buffLen], data, blocksLen);
 
@@ -1492,7 +1492,7 @@ static int InitSha256(wc_Sha256* sha256)
     #endif
 
         /* save remainder */
-        if (ret == 0 && len > 0u) {
+        if (ret == 0 && len > 0U) {
             XMEMCPY(local, data, len);
             sha256->buffLen = len;
         }
@@ -1509,7 +1509,7 @@ static int InitSha256(wc_Sha256* sha256)
         if (sha256 == NULL) {
             return BAD_FUNC_ARG;
         }
-        if (data == NULL && len == 0u) {
+        if (data == NULL && len == 0U) {
             /* valid, but do nothing */
             return 0;
         }
@@ -1547,7 +1547,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         /* we'll add a 0x80 byte at the end,
         ** so make sure we have appropriate buffer length. */
-        if (sha256->buffLen > (word32)WC_SHA256_BLOCK_SIZE - 1u) {
+        if (sha256->buffLen > (word32)WC_SHA256_BLOCK_SIZE - 1U) {
             /* exit with error code if there's a bad buffer size in buffLen */
             return BAD_STATE_E;
         } /* buffLen check */
