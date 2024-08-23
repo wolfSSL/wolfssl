@@ -81204,7 +81204,6 @@ static int custom_wolfSSL_shutdown(WOLFSSL *ssl, char *buf,
 static int test_multiple_alerts_EAGAIN(void)
 {
     EXPECT_DECLS;
-    CallbackIOSend copy_current_io_cb = NULL;
     size_t size_of_last_packet = 0;
 
     /* declare wolfSSL objects */
@@ -81236,7 +81235,6 @@ static int test_multiple_alerts_EAGAIN(void)
      * We set the custom callback for the IO to emulate multiple EAGAINs
      * on shutdown, so we can check that we don't send multiple packets.
      * */
-    copy_current_io_cb = ssl_c->CBIOSend;
     wolfSSL_SSLSetIOSend(ssl_c, custom_wolfSSL_shutdown);
 
     /*
@@ -81253,8 +81251,6 @@ static int test_multiple_alerts_EAGAIN(void)
      * Finally we check the length of the output buffer.
      * */
     ExpectIntEQ((ssl_c->buffers.outputBuffer.length - size_of_last_packet), 0);
-
-    wolfSSL_SSLSetIOSend(ssl_c, copy_current_io_cb);
 
     /* Cleanup and return */
     wolfSSL_CTX_free(ctx_c);
