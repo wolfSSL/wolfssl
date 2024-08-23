@@ -151,14 +151,15 @@ typedef struct wc_composite_key_params {
 #endif
 
 struct mldsa_composite_key {
+    int devId; /* should use wc_CryptoCb_DefaultDevID() */
     const enum wc_PkType algo; /* RSAPSSk */
     const enum wc_HashType hashParam; /* hSHA256 */
     wc_CompositeKeyParams params[2];
-    dilithium_key * mldsa_key;
+    dilithium_key mldsa_key;
     union {
-        RsaKey * rsa_oaep; /* RSAOAEPk, RSAPSSk */
-        ecc_key * ecc; /* ECDSAk */
-        ed25519_key * ed25519; /* ED25519k */
+        RsaKey rsa_oaep; /* RSAOAEPk, RSAPSSk */
+        ecc_key ecc; /* ECDSAk */
+        ed25519_key ed25519; /* ED25519k */
     } alt_key;
 };
 

@@ -72,9 +72,9 @@ static int mldsa_composite_make_key(mldsa_composite_key* key, WC_RNG* rng)
 {
     int ret;
   
-    ret = wc_dilithium_make_key(key->mldsa_key, rng);
-    
-    if (ret != 0) ret = wc_ecc_make_key(rng, 256, key->alt_key.ecc);
+    ret = wc_dilithium_make_key(&key->mldsa_key, rng);
+
+    if (ret == 0) ret = wc_ecc_make_key(rng, 256, &key->alt_key.ecc);
 
     return ret;
 }
@@ -1664,11 +1664,33 @@ int wc_mldsa_composite_init_ex(mldsa_composite_key* key, void* heap, int devId)
 
     /* Init the MLDSA Key */
     ret = wc_dilithium_init_ex(&key->mldsa_key, heap, devId);
+    if (ret) return ret;
 
-    /* Initialize the traditional key */
-    //
-    // MISSING CODE
-    //
+    /* Initializes the traditional key */
+    switch (key->algo) {
+        case WC_MLDSA44_ED25519: {
+            ret = wc_ed25519_init(&key->alt_key.ed25519);
+        } break;
+
+        case WC_MLDSA44_P256: {
+            // ret = wc_ecc_init_ext(&key->alt_key.ecc);
+            ret = wc_ecc_init(&key->alt_key.ecc);
+        } break;
+
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    key->devCtx = NULL;
+    key->devId = devId;
+#endif
+#ifdef WOLF_PRIVATE_KEY_ID
+    key->idLen = 0;
+    key->labelLen = 0;
+#endif
+
+    (void) heap;
+    (void) devId;
+
     return ret;
 }
 
