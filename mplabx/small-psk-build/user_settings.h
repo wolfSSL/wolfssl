@@ -302,7 +302,12 @@ extern "C" {
 
 //#define WOLFSSL_STATIC_MEMORY
 #ifndef WOLFSSL_STATIC_MEMORY
-    #define XMALLOC_USER
+    #ifdef __18CXX
+        /* use custom malloc on target */
+        #define XMALLOC_USER
+    #else
+        #define NO_WOLFSSL_MEMORY
+    #endif
 #else
     #define WOLFSSL_STATIC_MEMORY_LEAN
     #define USE_WOLFSSL_MEMORY
