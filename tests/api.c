@@ -81244,7 +81244,10 @@ static int test_multiple_alerts_EAGAIN(void)
      * */
     wolfSSL_shutdown(ssl_c);
     wolfSSL_shutdown(ssl_c);
-    size_of_last_packet = ssl_c->buffers.outputBuffer.length;
+
+    if (ssl_c != NULL) {
+        size_of_last_packet = ssl_c->buffers.outputBuffer.length;
+    }
     wolfSSL_shutdown(ssl_c);
 
     /*
