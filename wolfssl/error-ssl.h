@@ -220,7 +220,9 @@ enum wolfSSL_ErrorCodes {
 WOLFSSL_LOCAL
 void SetErrorString(int err, char* buff);
 
-#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && defined(BUILDING_WOLFSSL)
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
+        (defined(BUILDING_WOLFSSL) || \
+         defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
     #include <wolfssl/debug-trace-error-codes.h>
 #endif
 

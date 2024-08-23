@@ -19,8 +19,11 @@ BEGIN {
         split($0, errcode_a, "[[:space:]=,]+");
 
         if ((errcode_a[1] == "MIN_CODE_E") ||
+            (errcode_a[1] == "MAX_CODE_E") ||
+            (errcode_a[1] == "WC_FIRST_E") ||
             (errcode_a[1] == "WC_LAST_E") ||
-            (errcode_a[1] == "MAX_CODE_E"))
+            (errcode_a[1] == "WOLFSSL_FIRST_E") ||
+            (errcode_a[1] == "WOLFSSL_LAST_E"))
         {
             next;
         }
