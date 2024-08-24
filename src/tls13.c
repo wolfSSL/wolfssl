@@ -8611,7 +8611,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         headerSz = OPAQUE8_LEN + certReqCtxLen + CERT_HEADER_SZ +
                    CERT_HEADER_SZ;
         /* set empty extension as default */
-        for (extIdx = 0; extIdx < XELEM_CNT(extSz); extIdx++)
+        for (extIdx = 0; extIdx < (word16)XELEM_CNT(extSz); extIdx++)
             extSz[extIdx] = OPAQUE16_LEN;
 
         length = 0;
