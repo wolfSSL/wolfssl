@@ -22,7 +22,9 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/user_settings.h
 # Template
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/CMakeLists.txt
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/Kconfig
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/Kconfig.projbuild
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/partitions_singleapp_large.csv
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/README.md
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/sdkconfig.defaults

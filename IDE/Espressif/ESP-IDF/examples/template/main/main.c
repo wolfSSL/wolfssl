@@ -50,6 +50,11 @@ void app_main(void)
 #ifdef WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE
     int ret = 0;
 #endif
+
+#if !defined(CONFIG_WOLFSSL_EXAMPLE_NAME_TEMPLATE)
+    ESP_LOGW(TAG, "Warning: Example wolfSSL misconfigured? Check menuconfig.");
+#endif
+
     ESP_LOGI(TAG, "Hello wolfSSL!");
 
 #ifdef HAVE_VERSION_EXTENDED_INFO
