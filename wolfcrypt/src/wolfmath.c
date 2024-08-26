@@ -149,10 +149,10 @@ int mp_cond_copy(mp_int* a, int copy, mp_int* b)
         for (; i < b->used; i++) {
             b->dp[i] ^= (get_digit(a, (int)i) ^ get_digit(b, (int)i)) & mask;
         }
-        b->used ^= (a->used ^ b->used) & (unsigned int)mask;
+        b->used ^= (a->used ^ b->used) & (mp_size_t)mask;
 #if (!defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)) || \
     defined(WOLFSSL_SP_INT_NEGATIVE)
-        b->sign ^= (a->sign ^ b->sign) & (unsigned int)mask;
+        b->sign ^= (a->sign ^ b->sign) & (mp_size_t)mask;
 #endif
     }
 
@@ -196,7 +196,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
         ret = BAD_FUNC_ARG;
     }
     if (ret == MP_OKAY) {
-        a->used = (word32)digits;
+        a->used = (mp_size_t)digits;
     }
 #endif
     /* fill the data with random bytes */

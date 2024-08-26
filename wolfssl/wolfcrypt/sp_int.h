@@ -698,7 +698,7 @@ typedef struct sp_ecc_ctx {
         if ((a)->used > 0) {                                                   \
             for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
             }                                                                  \
-            (a)->used = (unsigned int)(ii + 1);                                \
+            (a)->used = (mp_size_t)(ii + 1);                                   \
         }                                                                      \
     } while (0)
 
@@ -770,8 +770,8 @@ typedef struct sp_ecc_ctx {
 /* The number of bytes to a sp_int with 'cnt' digits.
  * Must have at least one digit.
  */
-#define MP_INT_SIZEOF(cnt)                                              \
-    (sizeof(sp_int_minimal) + (((cnt) <= 1) ? 0 : ((cnt) - 1)) *        \
+#define MP_INT_SIZEOF(cnt)                                                  \
+    (sizeof(sp_int_minimal) + (((cnt) <= 1) ? 0 : ((size_t)((cnt) - 1))) *  \
      sizeof(sp_int_digit))
 /* The address of the next sp_int after one with 'cnt' digits. */
 #define MP_INT_NEXT(t, cnt) \
@@ -780,7 +780,7 @@ typedef struct sp_ecc_ctx {
 
 /* Calculate the number of words required to support a number of bits. */
 #define MP_BITS_CNT(bits)                                       \
-        ((((bits) + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)
+        ((unsigned int)(((((bits) + SP_WORD_SIZE - 1) / SP_WORD_SIZE) * 2 + 1)))
 
 #ifdef WOLFSSL_SMALL_STACK
 /*
@@ -865,6 +865,16 @@ while (0)
     #define WOLF_BIGINT_DEFINED
 #endif
 
+#if SP_INT_DIGITS < (65536 / SP_WORD_SIZEOF)
+/* Type for number of digits. */
+typedef word16       sp_size_t;
+#else
+/* Type for number of digits. */
+typedef unsigned int sp_size_t;
+#endif
+
+/* Type for number of digits. */
+#define mp_size_t    sp_size_t
 
 /**
  * SP integer.
@@ -873,12 +883,12 @@ while (0)
  */
 typedef struct sp_int {
     /** Number of words that contain data.  */
-    unsigned int used;
+    sp_size_t    used;
     /** Maximum number of words in data.  */
-    unsigned int size;
+    sp_size_t    size;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     /** Indicates whether number is 0/positive or negative.  */
-    unsigned int sign;
+    sp_uint8     sign;
 #endif
 #ifdef HAVE_WOLF_BIGINT
     /** Unsigned binary (big endian) representation of number. */
@@ -889,12 +899,16 @@ typedef struct sp_int {
 } sp_int;
 
 typedef struct sp_int_minimal {
-    unsigned int used;
-    unsigned int size;
+    /** Number of words that contain data.  */
+    sp_size_t    used;
+    /** Maximum number of words in data.  */
+    sp_size_t    size;
 #ifdef WOLFSSL_SP_INT_NEGATIVE
-    unsigned int sign;
+    /** Indicates whether number is 0/positive or negative.  */
+    sp_uint8     sign;
 #endif
 #ifdef HAVE_WOLF_BIGINT
+    /** Unsigned binary (big endian) representation of number. */
     struct WC_BIGINT raw;
 #endif
     /** First digit of number.  */
