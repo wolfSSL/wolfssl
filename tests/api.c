@@ -48391,6 +48391,9 @@ static int test_wolfSSL_ASN1_TIME(void)
     ExpectIntEQ(ASN1_TIME_check(NULL), 0);
     ExpectIntEQ(ASN1_TIME_check(asn_time), 1);
 
+    ExpectIntEQ(ASN1_TIME_set_string_X509(asn_time, "101219181011Z"), 1);
+    ExpectIntEQ(ASN1_TIME_set_string_X509(asn_time, "101219181011Za"), 0);
+
     ASN1_TIME_free(asn_time);
     ASN1_TIME_free(NULL);
 #endif
@@ -52851,10 +52854,9 @@ static int test_wolfSSL_EVP_MD_size(void)
     /* error case */
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
-    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, ""), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, ""), 0);
+    ExpectIntEQ(wolfSSL_EVP_MD_size(wolfSSL_EVP_MD_CTX_md(&mdCtx)), 0);
+    ExpectIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), 0);
     /* Cleanup is valid on uninit'ed struct */
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 #endif /* OPENSSL_EXTRA */
@@ -55753,7 +55755,6 @@ static int test_wolfSSL_BN_enc_dec(void)
     XMEMSET(&emptyBN, 0, sizeof(emptyBN));
     ExpectNotNull(a = BN_new());
     ExpectNotNull(b = BN_new());
-    ExpectIntEQ(BN_set_word(a, 2), 1);
 
     /* Invalid parameters */
     ExpectIntEQ(BN_bn2bin(NULL, NULL), -1);
@@ -55765,8 +55766,10 @@ static int test_wolfSSL_BN_enc_dec(void)
     ExpectNull(BN_bn2dec(NULL));
     ExpectNull(BN_bn2dec(&emptyBN));
 
-    ExpectNull(BN_bin2bn(NULL, sizeof(binNum), NULL));
-    ExpectNull(BN_bin2bn(NULL, sizeof(binNum), a));
+    ExpectNotNull(BN_bin2bn(NULL, sizeof(binNum), a));
+    BN_free(a);
+    ExpectNotNull(a = BN_new());
+    ExpectIntEQ(BN_set_word(a, 2), 1);
     ExpectNull(BN_bin2bn(binNum, -1, a));
     ExpectNull(BN_bin2bn(binNum, -1, NULL));
     ExpectNull(BN_bin2bn(binNum, sizeof(binNum), &emptyBN));
@@ -62750,6 +62753,10 @@ static int test_othername_and_SID_ext(void) {
     ExpectIntGT(X509_REQ_sign(x509, priv, EVP_sha256()), 0);
     pt = der;
     ExpectIntGT(derSz = i2d_X509_REQ(x509, &pt), 0);
+    X509_REQ_free(x509);
+    x509 = NULL;
+    pt = der;
+    ExpectNotNull(d2i_X509_REQ_INFO(&x509, (const unsigned char**)&pt, derSz));
     sk_GENERAL_NAME_pop_free(gns, GENERAL_NAME_free);
     gns = NULL;
     sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free);
@@ -62758,7 +62765,6 @@ static int test_othername_and_SID_ext(void) {
     ASN1_OBJECT_free(sid_oid);
     ASN1_OCTET_STRING_free(sid_data);
     X509_REQ_free(x509);
-    x509 = NULL;
     EVP_PKEY_free(priv);
 
     /* At this point everything used to generate what is in der is cleaned up.
@@ -65187,6 +65193,13 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
         XFREE(bufPtr, NULL, DYNAMIC_TYPE_OPENSSL);
 
         RSA_free(rsa);
+        rsa = NULL;
+        ExpectIntGT(BIO_write(bio, client_key_der_2048,
+                    sizeof_client_key_der_2048), 0);
+        ExpectNotNull(d2i_RSA_PUBKEY_bio(bio, &rsa));
+        (void)BIO_reset(bio);
+
+        RSA_free(rsa);
         rsa = RSA_new();
         ExpectIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, NULL), 0);
 #endif /* USE_CERT_BUFFERS_2048 WOLFSSL_KEY_GEN */
@@ -67173,9 +67186,9 @@ static int test_wolfSSL_EVP_PKEY_keygen(void)
     ExpectNotNull(ctx = EVP_PKEY_CTX_new(pkey, NULL));
 
     /* Bad cases */
-    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(NULL, &pkey), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(ctx, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(NULL, &pkey), 0);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(ctx, NULL), 0);
+    ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(NULL, NULL), 0);
 
     /* Good case */
     ExpectIntEQ(wolfSSL_EVP_PKEY_keygen(ctx, &pkey), 0);
@@ -76483,6 +76496,65 @@ static int test_wolfSSL_RSA(void)
     ExpectNotNull(rsa = RSA_generate_key(2048, 3, NULL, NULL));
     ExpectIntEQ(RSA_size(rsa), 256);
 
+#if (!defined(HAVE_FIPS) || FIPS_VERSION3_GT(6,0,0)) && !defined(HAVE_SELFTEST)
+    {
+        /* Test setting only subset of parameters */
+        RSA *rsa2 = NULL;
+        unsigned char hash[SHA256_DIGEST_LENGTH];
+        unsigned char signature[2048/8];
+        unsigned int signatureLen = 0;
+
+        XMEMSET(hash, 0, sizeof(hash));
+        RSA_get0_key(rsa, &n, &e, &d);
+        RSA_get0_factors(rsa, &p, &q);
+        RSA_get0_crt_params(rsa, &dmp1, &dmq1, &iqmp);
+
+        ExpectIntEQ(RSA_sign(NID_sha256, hash, sizeof(hash), signature,
+            &signatureLen, rsa), 1);
+        /* Quick sanity check */
+        ExpectIntEQ(RSA_verify(NID_sha256, hash, sizeof(hash), signature,
+            signatureLen, rsa), 1);
+
+        /* Verifying */
+        ExpectNotNull(rsa2 = RSA_new());
+        ExpectIntEQ(RSA_set0_key(rsa2, BN_dup(n), BN_dup(e), NULL), 1);
+        ExpectIntEQ(RSA_verify(NID_sha256, hash, sizeof(hash), signature,
+            signatureLen, rsa2), 1);
+        ExpectIntEQ(RSA_set0_factors(rsa2, BN_dup(p), BN_dup(q)), 1);
+        ExpectIntEQ(RSA_verify(NID_sha256, hash, sizeof(hash), signature,
+            signatureLen, rsa2), 1);
+        ExpectIntEQ(RSA_set0_crt_params(rsa2, BN_dup(dmp1), BN_dup(dmq1),
+                BN_dup(iqmp)), 1);
+        ExpectIntEQ(RSA_verify(NID_sha256, hash, sizeof(hash), signature,
+            signatureLen, rsa2), 1);
+        RSA_free(rsa2);
+        rsa2 = NULL;
+
+        /* Signing */
+        XMEMSET(signature, 0, sizeof(signature));
+        ExpectNotNull(rsa2 = RSA_new());
+        ExpectIntEQ(RSA_set0_key(rsa2, BN_dup(n), BN_dup(e), BN_dup(d)), 1);
+        ExpectIntEQ(RSA_sign(NID_sha256, hash, sizeof(hash), signature,
+            &signatureLen, rsa2), 1);
+        ExpectIntEQ(RSA_verify(NID_sha256, hash, sizeof(hash), signature,
+            signatureLen, rsa), 1);
+        ExpectIntEQ(RSA_set0_factors(rsa2, BN_dup(p), BN_dup(q)), 1);
+        XMEMSET(signature, 0, sizeof(signature));
+        ExpectIntEQ(RSA_sign(NID_sha256, hash, sizeof(hash), signature,
+            &signatureLen, rsa2), 1);
+        ExpectIntEQ(RSA_verify(NID_sha256, hash, sizeof(hash), signature,
+            signatureLen, rsa), 1);
+        ExpectIntEQ(RSA_set0_crt_params(rsa2, BN_dup(dmp1), BN_dup(dmq1),
+                BN_dup(iqmp)), 1);
+        ExpectIntEQ(RSA_sign(NID_sha256, hash, sizeof(hash), signature,
+            &signatureLen, rsa2), 1);
+        ExpectIntEQ(RSA_verify(NID_sha256, hash, sizeof(hash), signature,
+            signatureLen, rsa), 1);
+        RSA_free(rsa2);
+        rsa2 = NULL;
+    }
+#endif
+
 #ifdef WOLFSSL_RSA_KEY_CHECK
     ExpectIntEQ(RSA_check_key(NULL), 0);
     ExpectIntEQ(RSA_check_key(rsa), 1);
@@ -79859,6 +79931,18 @@ static int test_EC_i2d(void)
     ExpectNull(d2i_ECPrivateKey(&copy, &tmp, 0));
     ExpectNull(d2i_ECPrivateKey(&copy, &tmp, 1));
     ExpectNull(d2i_ECPrivateKey(&key, &tmp, 0));
+
+    {
+        EC_KEY *pubkey = NULL;
+        BIO* bio = NULL;
+
+        ExpectNotNull(bio = BIO_new(BIO_s_mem()));
+        ExpectIntGT(BIO_write(bio, buf, len), 0);
+        ExpectNotNull(d2i_EC_PUBKEY_bio(bio, &pubkey));
+
+        BIO_free(bio);
+        EC_KEY_free(pubkey);
+    }
 
     ExpectIntEQ(i2d_ECPrivateKey(NULL, &p), 0);
     ExpectIntEQ(i2d_ECPrivateKey(NULL, NULL), 0);

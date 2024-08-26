@@ -165,7 +165,15 @@ static int wolfssl_read_bio(WOLFSSL_BIO* bio, char** data, int* dataSz,
     if (bio->type == WOLFSSL_BIO_MEMORY) {
         ret = wolfSSL_BIO_get_mem_data(bio, data);
         if (ret > 0) {
-            bio->rdIdx += ret;
+            /* Advance the write index in the memory bio */
+            WOLFSSL_BIO* mem_bio = bio;
+            for (; mem_bio != NULL; mem_bio = mem_bio->next) {
+                if (mem_bio->type == WOLFSSL_BIO_MEMORY)
+                    break;
+            }
+            if (mem_bio == NULL)
+                mem_bio = bio; /* Default to input */
+            mem_bio->rdIdx += ret;
         }
         *memAlloced = 0;
     }
