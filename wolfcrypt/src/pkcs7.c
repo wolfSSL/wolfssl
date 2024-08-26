@@ -13624,7 +13624,14 @@ authenv_atrbend:
         }
         XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
+#else
+    if (ret < 0) {
+        ForceZero(encryptedContent, (word32)encryptedContentSz);
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
+    }
 #endif
+
 #ifndef NO_PKCS7_STREAM
     if (ret != 0 && ret != WC_NO_ERR_TRACE(WC_PKCS7_WANT_READ_E)) {
         wc_PKCS7_ResetStream(pkcs7);
