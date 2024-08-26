@@ -32439,6 +32439,10 @@ static int test_wc_dilithium_sign_vfy(void)
     wc_dilithium_free(key);
 #endif
 
+    wc_FreeRng(&rng);
+    XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
 #endif
     return EXPECT_RESULT();
 }
