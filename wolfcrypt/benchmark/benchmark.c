@@ -685,6 +685,11 @@
 #define BENCH_KYBER1024                 0x00000080
 #define BENCH_KYBER                     (BENCH_KYBER512 | BENCH_KYBER768 | \
                                          BENCH_KYBER1024)
+#define BENCH_ML_KEM_512                0x00000020
+#define BENCH_ML_KEM_768                0x00000040
+#define BENCH_ML_KEM_1024               0x00000080
+#define BENCH_ML_KEM                    (BENCH_ML_KEM_512 | BENCH_ML_KEM_768 | \
+                                         BENCH_ML_KEM_1024)
 #define BENCH_FALCON_LEVEL1_SIGN        0x00000001
 #define BENCH_FALCON_LEVEL5_SIGN        0x00000002
 #define BENCH_DILITHIUM_LEVEL2_SIGN     0x04000000
@@ -1087,6 +1092,10 @@ static const bench_pq_alg bench_pq_asym_opt[] = {
     { "-kyber512",          BENCH_KYBER512          },
     { "-kyber768",          BENCH_KYBER768          },
     { "-kyber1024",         BENCH_KYBER1024         },
+    { "-ml-kem",            BENCH_ML_KEM            },
+    { "-ml-kem-512",        BENCH_ML_KEM_512        },
+    { "-ml-kem-768",        BENCH_ML_KEM_768        },
+    { "-ml-kem-1024",       BENCH_ML_KEM_1024       },
 #endif
 #if defined(HAVE_FALCON)
     { "-falcon_level1",     BENCH_FALCON_LEVEL1_SIGN },
