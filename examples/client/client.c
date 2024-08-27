@@ -398,24 +398,43 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
         if (usePqc) {
             int group = 0;
 
+        #ifndef WOLFSSL_NO_KYBER512
             if (XSTRCMP(pqcAlg, "KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_KYBER_LEVEL1;
             }
-            else if (XSTRCMP(pqcAlg, "KYBER_LEVEL3") == 0) {
+            else
+        #endif
+        #ifndef WOLFSSL_NO_KYBER768
+            if (XSTRCMP(pqcAlg, "KYBER_LEVEL3") == 0) {
                 group = WOLFSSL_KYBER_LEVEL3;
             }
-            else if (XSTRCMP(pqcAlg, "KYBER_LEVEL5") == 0) {
+            else
+        #endif
+        #ifndef WOLFSSL_NO_KYBER1024
+            if (XSTRCMP(pqcAlg, "KYBER_LEVEL5") == 0) {
                 group = WOLFSSL_KYBER_LEVEL5;
             }
-            else if (XSTRCMP(pqcAlg, "P256_KYBER_LEVEL1") == 0) {
+            else
+        #endif
+        #ifndef WOLFSSL_NO_KYBER512
+            if (XSTRCMP(pqcAlg, "P256_KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_P256_KYBER_LEVEL1;
             }
-            else if (XSTRCMP(pqcAlg, "P384_KYBER_LEVEL3") == 0) {
+            else
+        #endif
+        #ifndef WOLFSSL_NO_KYBER768
+            if (XSTRCMP(pqcAlg, "P384_KYBER_LEVEL3") == 0) {
                 group = WOLFSSL_P384_KYBER_LEVEL3;
             }
-            else if (XSTRCMP(pqcAlg, "P521_KYBER_LEVEL5") == 0) {
+            else
+        #endif
+        #ifndef WOLFSSL_NO_KYBER1024
+            if (XSTRCMP(pqcAlg, "P521_KYBER_LEVEL5") == 0) {
                 group = WOLFSSL_P521_KYBER_LEVEL5;
-            } else {
+            }
+            else
+        #endif
+            {
                 err_sys("invalid post-quantum KEM specified");
             }
 

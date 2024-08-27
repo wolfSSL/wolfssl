@@ -72803,7 +72803,13 @@ static int test_tls13_apis(void)
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
 #ifdef WOLFSSL_HAVE_KYBER
+    #ifndef WOLFSSL_NO_KYBER512
                                WOLFSSL_KYBER_LEVEL1
+    #elif !defined(WOLFSSL_NO_KYBER768)
+                               WOLFSSL_KYBER_LEVEL3
+    #else
+                               WOLFSSL_KYBER_LEVEL5
+    #endif
 #else
                                WOLFSSL_ECC_SECP256R1
 #endif
@@ -72831,15 +72837,30 @@ static int test_tls13_apis(void)
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256:secp256r1"
 #if defined(WOLFSSL_HAVE_KYBER)
+    #ifndef WOLFSSL_NO_KYBER512
             ":P256_KYBER_LEVEL1"
+    #elif !defined(WOLFSSL_NO_KYBER768)
+            ":P256_KYBER_LEVEL3"
+    #else
+            ":P256_KYBER_LEVEL5"
+    #endif
 #endif
 #endif
 #endif /* !defined(NO_ECC_SECP) */
 #if defined(WOLFSSL_HAVE_KYBER)
+    #ifndef WOLFSSL_NO_KYBER512
             ":KYBER_LEVEL1"
+    #elif !defined(WOLFSSL_NO_KYBER768)
+            ":KYBER_LEVEL3"
+    #else
+            ":KYBER_LEVEL5"
+    #endif
 #endif
             "";
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
+#if defined(WOLFSSL_HAVE_KYBER)
+    int kyberLevel;
+#endif
 
     (void)ret;
 
@@ -72969,17 +72990,24 @@ static int test_tls13_apis(void)
 #endif
 
 #if defined(WOLFSSL_HAVE_KYBER)
-    ExpectIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_KYBER_LEVEL3), BAD_FUNC_ARG);
+#ifndef WOLFSSL_NO_KYBER768
+    kyberLevel = WOLFSSL_KYBER_LEVEL3;
+#elif !defined(WOLFSSL_NO_KYBER1024)
+    kyberLevel = WOLFSSL_KYBER_LEVEL5;
+#else
+    kyberLevel = WOLFSSL_KYBER_LEVEL1;
+#endif
+    ExpectIntEQ(wolfSSL_UseKeyShare(NULL, kyberLevel), BAD_FUNC_ARG);
 #ifndef NO_WOLFSSL_SERVER
-    ExpectIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_KYBER_LEVEL3),
+    ExpectIntEQ(wolfSSL_UseKeyShare(serverSsl, kyberLevel),
         WOLFSSL_SUCCESS);
 #endif
 #ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
-    ExpectIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_KYBER_LEVEL3),
+    ExpectIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, kyberLevel),
         BAD_FUNC_ARG);
 #endif
-    ExpectIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_KYBER_LEVEL3),
+    ExpectIntEQ(wolfSSL_UseKeyShare(clientSsl, kyberLevel),
         WOLFSSL_SUCCESS);
 #endif
 #endif
