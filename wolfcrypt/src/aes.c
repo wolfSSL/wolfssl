@@ -13641,10 +13641,6 @@ static WARN_UNUSED_RESULT int S2V(
         WOLFSSL_MSG("Maximum number of ADs for AES SIV is 126.");
         ret = BAD_FUNC_ARG;
     }
-    else if (numAssoc != 1) {
-        WOLFSSL_MSG("Currently only exactly one AD is supported for AES SIV.");
-        ret = BAD_FUNC_ARG;
-    }
 
     if (ret == 0) {
         XMEMSET(tmp[1], 0, AES_BLOCK_SIZE);
@@ -13652,26 +13648,35 @@ static WARN_UNUSED_RESULT int S2V(
 
         ret = wc_AesCmacGenerate(tmp[0], &macSz, tmp[1], AES_BLOCK_SIZE,
                                  key, keySz);
-        if (ret == 0) {
-            ShiftAndXorRb(tmp[1], tmp[0]);
-            ret = wc_AesCmacGenerate(tmp[0], &macSz, assoc[0].assoc,
-                                     assoc[0].assocSz, key, keySz);
-            if (ret == 0) {
-                xorbuf(tmp[1], tmp[0], AES_BLOCK_SIZE);
-            }
-        }
     }
 
     if (ret == 0) {
-        if (nonceSz > 0) {
-            ShiftAndXorRb(tmp[0], tmp[1]);
-            ret = wc_AesCmacGenerate(tmp[1], &macSz, nonce, nonceSz, key,
-                                     keySz);
-            if (ret == 0) {
-                xorbuf(tmp[0], tmp[1], AES_BLOCK_SIZE);
-            }
+        /* Loop over authenticated associated data AD1..ADn */
+        byte tmpi = 0;
+        for(word32 ai = 0; ai < numAssoc; ++ai) {
+            ShiftAndXorRb(tmp[1-tmpi], tmp[tmpi]);
+            ret = wc_AesCmacGenerate(tmp[tmpi], &macSz, assoc[ai].assoc,
+                                     assoc[ai].assocSz, key, keySz);
+            if (ret != 0)
+                break;
+            xorbuf(tmp[1-tmpi], tmp[tmpi], AES_BLOCK_SIZE);
+            tmpi = 1 - tmpi;
         }
-        else {
+
+        /* Add nonce as final AD. See RFC 5297 Section 3. */
+        if ((ret == 0) && (nonceSz > 0)) {
+            ShiftAndXorRb(tmp[1-tmpi], tmp[tmpi]);
+            ret = wc_AesCmacGenerate(tmp[tmpi], &macSz, nonce,
+                                     nonceSz, key, keySz);
+            if (ret == 0) {
+                xorbuf(tmp[1-tmpi], tmp[tmpi], AES_BLOCK_SIZE);
+            }
+            tmpi = 1 - tmpi;
+        }
+
+        /* For simplicity of the remaining code, make sure the "final" result
+           is always in tmp[0]. */
+        if (tmpi == 1) {
             XMEMCPY(tmp[0], tmp[1], AES_BLOCK_SIZE);
         }
     }
