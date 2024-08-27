@@ -8602,7 +8602,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
         }
         else {
-            fragSz = min(length, maxFragment);
+            fragSz = min((word32)length, maxFragment);
             sendSz += fragSz;
         }
 
