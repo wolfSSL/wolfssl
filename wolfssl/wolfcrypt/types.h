@@ -515,7 +515,9 @@ typedef struct w64wrapper {
         #ifdef WOLFSSL_NO_MALLOC
             /* this platform does not support heap use */
             #ifdef WOLFSSL_MALLOC_CHECK
+                #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
+                #endif
                 static inline void* malloc_check(size_t sz) {
                     fprintf(stderr, "wolfSSL_malloc failed");
                     return NULL;
@@ -842,12 +844,16 @@ typedef struct w64wrapper {
                    have stdio.h available, so it needs its own section. */
                 #define XSNPRINTF snprintf
             #elif defined(WOLF_C89)
+                #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
+                #endif
                 #define XSPRINTF sprintf
                 /* snprintf not available for C89, so remap using macro */
                 #define XSNPRINTF(f, len, ...) sprintf(f, __VA_ARGS__)
             #else
+                #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
+                #endif
                 #define XSNPRINTF snprintf
             #endif
         #else
