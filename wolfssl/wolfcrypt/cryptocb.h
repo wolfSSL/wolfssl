@@ -118,6 +118,9 @@ typedef struct wc_CryptoInfo {
                 int         type;
                 RsaKey*     key;
                 WC_RNG*     rng;
+            #ifdef WOLF_CRYPTO_CB_RSA_PAD
+                RsaPadding *padding;
+            #endif
             } rsa;
         #ifdef WOLFSSL_KEY_GEN
             struct {
@@ -480,6 +483,11 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info);
 #ifndef NO_RSA
 WOLFSSL_LOCAL int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     word32* outLen, int type, RsaKey* key, WC_RNG* rng);
+
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+WOLFSSL_LOCAL int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
+    word32* outLen, int type, RsaKey* key, WC_RNG* rng, RsaPadding *padding);
+#endif
 
 #ifdef WOLFSSL_KEY_GEN
 WOLFSSL_LOCAL int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e,

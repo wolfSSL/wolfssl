@@ -83658,6 +83658,13 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                 info->pk.rsa.type, ret, *info->pk.rsa.outLen);
         #endif
         }
+        #ifdef WOLF_CRYPTO_CB_RSA_PAD
+        else if (info->pk.type == WC_PK_TYPE_RSA_PKCS ||
+                 info->pk.type == WC_PK_TYPE_RSA_PSS  ||
+                 info->pk.type == WC_PK_TYPE_RSA_OAEP) {
+            ret = CRYPTOCB_UNAVAILABLE; /* fallback to software */
+        }
+        #endif /* ifdef WOLF_CRYPTO_CB_RSA_PAD */
     #endif /* !NO_RSA */
     #ifdef HAVE_ECC
         if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {

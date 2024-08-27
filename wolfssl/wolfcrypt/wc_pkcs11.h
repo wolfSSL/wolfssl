@@ -97,6 +97,10 @@ WOLFSSL_API int wc_Pkcs11StoreKey(Pkcs11Token* token, int type, int clear,
 WOLFSSL_API int wc_Pkcs11_CryptoDevCb(int devId, wc_CryptoInfo* info,
     void* ctx);
 
+WOLFSSL_LOCAL int wc_hash2sz(int);
+WOLFSSL_LOCAL CK_MECHANISM_TYPE wc_hash2ckm(int);
+WOLFSSL_LOCAL CK_MECHANISM_TYPE wc_mgf2ckm(int);
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
