@@ -1,0 +1,94 @@
+name: SoftHSMv2 Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all CFLAGS=-DRSA_MIN_SIZE=1024
+          install: true
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-softhsm
+          path: build-dir.tgz
+          retention-days: 5
+
+  softhsm_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 2.6.1 ]
+    name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 20
+    needs: build_wolfssl
+    steps:
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y libcppunit-dev
+
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-softhsm
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout SoftHSMv2
+        uses: actions/checkout@v4
+        with:
+          repository: opendnssec/SoftHSMv2
+          path: softhsm
+          ref: ${{ matrix.ref }}
+
+      # Not using wolfSSL/actions-build-autotools-project@v1 because autogen.sh doesn't work
+      - name: Build softhsm
+        working-directory: softhsm
+        run: |
+          patch -p1 < $GITHUB_WORKSPACE/osp/softhsm/${{ matrix.ref }}.patch
+          autoreconf -if
+          ./configure --with-crypto-backend=wolfssl WOLFSSL_INSTALL_DIR=$GITHUB_WORKSPACE/build-dir
+          make -j
+
+      - name: Test softhsm
+        working-directory: softhsm
+        run: make -j check

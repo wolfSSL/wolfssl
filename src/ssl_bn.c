@@ -1312,7 +1312,7 @@ static int wolfssl_bn_add_word_int(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w,
 #endif
 
     /* Validate parameters. */
-    if (BN_IS_NULL(bn)) {
+    if (ret == 1 && BN_IS_NULL(bn)) {
         WOLFSSL_MSG("bn NULL error");
         ret = 0;
     }
@@ -1415,6 +1415,85 @@ int wolfSSL_BN_sub_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
     ret = wolfssl_bn_add_word_int(bn, w, 1);
 
     WOLFSSL_LEAVE("wolfSSL_BN_sub_word", ret);
+
+    return ret;
+}
+
+int wolfSSL_BN_mul_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w)
+{
+    int ret = 1;
+#if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* w_mp = NULL;
+#else
+    mp_int w_mp[1];
+#endif /* WOLFSSL_SMALL_STACK */
+#endif
+
+    WOLFSSL_ENTER("wolfSSL_BN_mul_word");
+
+#if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
+#ifdef WOLFSSL_SMALL_STACK
+    /* Allocate temporary MP integer. */
+    w_mp = (mp_int*)XMALLOC(sizeof(*w_mp), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (w_mp == NULL) {
+        ret = 0;
+    }
+    else
+#endif /* WOLFSSL_SMALL_STACK */
+    {
+        /* Clear out MP integer so it can be freed. */
+        XMEMSET(w_mp, 0, sizeof(*w_mp));
+    }
+#endif
+
+    /* Validate parameters. */
+    if (ret == 1 && BN_IS_NULL(bn)) {
+        WOLFSSL_MSG("bn NULL error");
+        ret = 0;
+    }
+
+    if (ret == 1) {
+        int rc = 0;
+#if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
+        if (w > (WOLFSSL_BN_ULONG)MP_MASK) {
+            /* Initialize temporary MP integer. */
+            if (mp_init(w_mp) != MP_OKAY) {
+                ret = 0;
+            }
+            /* Set value into temporary MP integer. */
+            if ((ret == 1) && (mp_set_int(w_mp, w) != MP_OKAY)) {
+                ret = 0;
+            }
+            if (ret == 1) {
+                rc = mp_mul((mp_int*)bn->internal, w_mp,
+                        (mp_int*)bn->internal);
+                if (rc != MP_OKAY) {
+                    WOLFSSL_MSG("mp_mul error");
+                    ret = 0;
+                }
+            }
+        }
+        else
+#endif
+        {
+            rc = mp_mul_d((mp_int*)bn->internal, (mp_digit)w,
+                    (mp_int*)bn->internal);
+            if (rc != MP_OKAY) {
+                WOLFSSL_MSG("mp_mul_d error");
+                ret = 0;
+            }
+        }
+    }
+
+#if DIGIT_BIT < (SIZEOF_LONG * CHAR_BIT)
+    mp_free(w_mp);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(w_mp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* WOLFSSL_SMALL_STACK */
+#endif
+
+    WOLFSSL_LEAVE("wolfSSL_BN_mul_word", ret);
 
     return ret;
 }

@@ -7175,6 +7175,15 @@ int ToTraditionalInline_ex2(const byte* input, word32* inOutIdx, word32 sz,
                 }
                 break;
         #endif
+        #ifndef NO_DH
+            case DHk:
+                /* Neither NULL item nor OBJECT_ID item allowed. */
+                if ((dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_NULL].tag != 0) ||
+                    (dataASN[PKCS8KEYASN_IDX_PKEY_ALGO_OID_CURVE].tag != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                break;
+        #endif
             /* DSAk not supported. */
             /* Falcon, Dilithium and Sphincs not supported. */
             /* Ignore OID lookup failures. */

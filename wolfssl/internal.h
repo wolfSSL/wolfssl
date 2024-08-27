@@ -7114,6 +7114,12 @@ WOLFSSL_LOCAL int wolfssl_asn1_obj_set(WOLFSSL_ASN1_OBJECT* obj,
         const byte* der, word32 len, int addHdr);
 #endif
 
+WOLFSSL_LOCAL int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key,
+        word32* keySz);
+WOLFSSL_LOCAL int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
+        const WOLFSSL_EVP_CIPHER* enc, char* passwd, int passwdSz, byte* key,
+        word32* keySz);
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
