@@ -12347,7 +12347,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0, tmp;
     word32 inIdx = *inOutIdx;
-    int alertType = invalid_alert;
+    int alertType;
 #if defined(HAVE_ECH)
     TLSX* echX = NULL;
     word32 echInOutIdx;
