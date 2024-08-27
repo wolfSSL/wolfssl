@@ -1264,7 +1264,11 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 
 #ifndef WOLFSSL_NO_FENCE
-    #if defined (__i386__) || defined(__x86_64__)
+    #ifdef XFENCE
+        /* use user-supplied XFENCE definition. */
+    #elif defined(__GNUC__) && (__GNUC__ >= 4)
+        #define XFENCE() __sync_synchronize()
+    #elif defined (__i386__) || defined(__x86_64__)
         #define XFENCE() XASM_VOLATILE("lfence")
     #elif (defined (__arm__) && (__ARM_ARCH > 6)) || defined(__aarch64__)
         #define XFENCE() XASM_VOLATILE("isb")
@@ -1273,10 +1277,10 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #elif defined(__PPC__)
         #define XFENCE() XASM_VOLATILE("isync; sync")
     #else
-        #define XFENCE() do{}while(0)
+        #define XFENCE() WC_DO_NOTHING
     #endif
 #else
-    #define XFENCE() do{}while(0)
+    #define XFENCE() WC_DO_NOTHING
 #endif
 
 
