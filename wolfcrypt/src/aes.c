@@ -13636,9 +13636,10 @@ static WARN_UNUSED_RESULT int S2V(
     if (ret == 0)
 #endif
 
-    if (numAssoc > 126) {
+    if ((numAssoc > 126) || ((nonceSz > 0) && (numAssoc > 125))) {
         /* See RFC 5297 Section 7. */
-        WOLFSSL_MSG("Maximum number of ADs for AES SIV is 126.");
+        WOLFSSL_MSG("Maximum number of ADs (including the nonce) for AES SIV is"
+                    " 126.");
         ret = BAD_FUNC_ARG;
     }
 
