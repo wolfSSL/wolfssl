@@ -13623,6 +13623,8 @@ static WARN_UNUSED_RESULT int S2V(
 #endif
     word32 macSz = AES_BLOCK_SIZE;
     int ret = 0;
+    byte tmpi = 0;
+    word32 ai;
     word32 zeroBytes;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -13653,8 +13655,7 @@ static WARN_UNUSED_RESULT int S2V(
 
     if (ret == 0) {
         /* Loop over authenticated associated data AD1..ADn */
-        byte tmpi = 0;
-        for(word32 ai = 0; ai < numAssoc; ++ai) {
+        for (ai = 0; ai < numAssoc; ++ai) {
             ShiftAndXorRb(tmp[1-tmpi], tmp[tmpi]);
             ret = wc_AesCmacGenerate(tmp[tmpi], &macSz, assoc[ai].assoc,
                                      assoc[ai].assocSz, key, keySz);
@@ -13843,7 +13844,9 @@ int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out)
 {
-    const AesSivAssoc ad0 = { .assoc = assoc, .assocSz=assocSz };
+    AesSivAssoc ad0;
+    ad0.assoc = assoc;
+    ad0.assocSz = assocSz;
     return AesSivCipher(key, keySz, &ad0, 1u, nonce, nonceSz, in, inSz,
                         siv, out, 1);
 }
@@ -13855,7 +13858,9 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out)
 {
-    const AesSivAssoc ad0 = { .assoc = assoc, .assocSz=assocSz };
+    AesSivAssoc ad0;
+    ad0.assoc = assoc;
+    ad0.assocSz = assocSz;
     return AesSivCipher(key, keySz, &ad0, 1u, nonce, nonceSz, in, inSz,
                         siv, out, 0);
 }
