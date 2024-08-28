@@ -3088,6 +3088,8 @@ WOLFSSL_LOCAL int GetEchConfig(WOLFSSL_EchConfig* config, byte* output,
 
 WOLFSSL_LOCAL int GetEchConfigsEx(WOLFSSL_EchConfig* configs,
     byte* output, word32* outputLen);
+
+WOLFSSL_LOCAL void FreeEchConfigs(WOLFSSL_EchConfig* configs, void* heap);
 #endif
 
 struct TLSX {
@@ -3806,6 +3808,9 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SCTP)
     byte        dtlsSctp:1;         /* DTLS-over-SCTP mode */
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    byte        disableECH:1;
 #endif
     word16      minProto:1; /* sets min to min available */
     word16      maxProto:1; /* sets max to max available */
@@ -4957,7 +4962,8 @@ struct Options {
     word16            useDtlsCID:1;
 #endif /* WOLFSSL_DTLS_CID */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    word16            useEch:1;
+    word16            useEch:1;               /* Do we have a valid config */
+    byte              disableECH:1;           /* Did the user disable ech */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     word16            cookieGood:1;

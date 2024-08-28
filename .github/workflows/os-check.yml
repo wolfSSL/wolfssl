@@ -35,6 +35,9 @@ jobs:
              CPPFLAGS=''-DWOLFSSL_DTLS13_NO_HRR_ON_RESUME'' ',
           '--enable-experimental --enable-kyber --enable-dtls --enable-dtls13
              --enable-dtls-frag-ch',
+          '--enable-all --enable-dtls13 --enable-dtls-frag-ch',
+          '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch 
+           --enable-dtls-mtu',
         ]
     name: make check
     runs-on: ${{ matrix.os }}

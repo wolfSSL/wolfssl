@@ -553,6 +553,18 @@ int wolfSSL_CTX_GetEchConfigs(WOLFSSL_CTX* ctx, byte* output,
     return GetEchConfigsEx(ctx->echConfigs, output, outputLen);
 }
 
+void wolfSSL_CTX_SetEchEnable(WOLFSSL_CTX* ctx, byte enable)
+{
+    if (ctx != NULL) {
+        ctx->disableECH = !enable;
+        if (ctx->disableECH) {
+            TLSX_Remove(&ctx->extensions, TLSX_ECH, ctx->heap);
+            FreeEchConfigs(ctx->echConfigs, ctx->heap);
+            ctx->echConfigs = NULL;
+        }
+    }
+}
+
 /* set the ech config from base64 for our client ssl object, base64 is the
  * format ech configs are sent using dns records */
 int wolfSSL_SetEchConfigsBase64(WOLFSSL* ssl, char* echConfigs64,
@@ -940,6 +952,18 @@ int wolfSSL_GetEchConfigs(WOLFSSL* ssl, byte* output, word32* outputLen)
     }
 
     return GetEchConfigsEx(ssl->echConfigs, output, outputLen);
+}
+
+void wolfSSL_SetEchEnable(WOLFSSL* ssl, byte enable)
+{
+    if (ssl != NULL) {
+        ssl->options.disableECH = !enable;
+        if (ssl->options.disableECH) {
+            TLSX_Remove(&ssl->extensions, TLSX_ECH, ssl->heap);
+            FreeEchConfigs(ssl->echConfigs, ssl->heap);
+            ssl->echConfigs = NULL;
+        }
+    }
 }
 
 /* get the raw ech configs from our linked list of ech config structs */
@@ -8480,10 +8504,6 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     }
 
     /* list contains ciphers either only for TLS 1.3 or <= TLS 1.2 */
-    if (suites->suiteSz == 0) {
-        WOLFSSL_MSG("Warning suites->suiteSz = 0 set to WOLFSSL_MAX_SUITE_SZ");
-        suites->suiteSz = WOLFSSL_MAX_SUITE_SZ;
-    }
 #ifdef WOLFSSL_SMALL_STACK
     if (suites->suiteSz > 0) {
         suitesCpy = (byte*)XMALLOC(suites->suiteSz, NULL,
@@ -8510,6 +8530,12 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         return WOLFSSL_FAILURE;
     }
 
+    /* The idea in this section is that OpenSSL has two API to set ciphersuites.
+     *   - SSL_CTX_set_cipher_list for setting TLS <= 1.2 suites
+     *   - SSL_CTX_set_ciphersuites for setting TLS 1.3 suites
+     * Since we direct both API here we attempt to provide API compatibility. If
+     * we only get suites from <= 1.2 or == 1.3 then we will only update those
+     * suites and keep the suites from the other group. */
     for (i = 0; i < suitesCpySz &&
                 suites->suiteSz <= (WOLFSSL_MAX_SUITE_SZ - SUITE_LEN); i += 2) {
         /* Check for duplicates */
