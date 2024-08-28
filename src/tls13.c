@@ -8614,9 +8614,6 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         for (extIdx = 0; extIdx < (word16)XELEM_CNT(extSz); extIdx++)
             extSz[extIdx] = OPAQUE16_LEN;
 
-        length = 0;
-        listSz = 0;
-
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
         /* We only send CSR on the server side. On client side, the CSR data
          * is populated with the server response. We would be sending the server
@@ -8639,9 +8636,9 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         }
 
         /* Length of message data with one certificate and extensions. */
-        length += (sword32)(headerSz + certSz + totalextSz);
+        length = (sword32)(headerSz + certSz + totalextSz);
         /* Length of list data with one certificate and extensions. */
-        listSz += CERT_HEADER_SZ + certSz + totalextSz;
+        listSz = CERT_HEADER_SZ + certSz + totalextSz;
 
         /* Send rest of chain if sending cert (chain has leading size/s). */
         if (certSz > 0 && ssl->buffers.certChainCnt > 0) {
