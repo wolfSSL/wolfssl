@@ -422,9 +422,9 @@ void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
     flags parameter may include one or more of the following:
     #define MSG_OOB 0x1  // process out-of-band data,
     #define MSG_DONTROUTE  0x4  // bypass routing, use direct interface.
-    The flag MSG_OOB is used to send ``out-of-band'' data on sockets that
+    The flag MSG_OOB is used to send 'out-of-band' data on sockets that
     support this notion (e.g.  SOCK_STREAM); the underlying protocol must also
-    support ``out-of-band'' data.  MSG_DONTROUTE is usually used only by
+    support 'out-of-band' data.  MSG_DONTROUTE is usually used only by
     diagnostic or routing programs.”
 
     \return none No returns.
