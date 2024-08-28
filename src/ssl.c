@@ -3628,7 +3628,7 @@ static int _Rehandshake(WOLFSSL* ssl)
 
         ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
 
-#if !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_WOLFSSL_SERVER) && !defined(WOLFSSL_NO_TLS12)
         if (ssl->options.side == WOLFSSL_SERVER_END) {
             ret = SendHelloRequest(ssl);
             if (ret != 0) {
@@ -3636,7 +3636,7 @@ static int _Rehandshake(WOLFSSL* ssl)
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-#endif /* !NO_WOLFSSL_SERVER */
+#endif /* !NO_WOLFSSL_SERVER && !WOLFSSL_NO_TLS12 */
 
         ret = InitHandshakeHashes(ssl);
         if (ret != 0) {
