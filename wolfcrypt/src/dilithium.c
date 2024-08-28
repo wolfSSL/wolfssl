@@ -149,6 +149,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/dilithium.h>
+#include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
@@ -353,6 +354,9 @@ static int dilithium_shake256(wc_Shake* shake256, const byte* data,
     return ret;
 }
 
+#if !defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
 /* 256-bit hash using SHAKE-256.
  *
  * FIPS 204. 8.3: H(v,d) <- SHAKE256(v,d)
@@ -390,7 +394,9 @@ static int dilithium_hash256(wc_Shake* shake256, const byte* data1,
 
     return ret;
 }
+#endif
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
 /* 256-bit hash of context and message using SHAKE-256.
  *
@@ -580,6 +586,7 @@ static int dilithium_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
     return ret;
 }
 #endif
+#endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
 
 #ifndef WOLFSSL_DILITHIUM_SMALL
 /* 128-bit hash using SHAKE-128.
@@ -2779,8 +2786,14 @@ static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
         XMEMSET(c, 0, DILITHIUM_POLY_SIZE);
 
         /* Generate a block of data from seed. */
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         ret = dilithium_shake256(shake256, seed, seedLen, block,
             DILITHIUM_GEN_C_BLOCK_BYTES);
+#else
+        (void)seedLen;
+        ret = dilithium_shake256(shake256, seed, DILITHIUM_SEED_SZ, block,
+            DILITHIUM_GEN_C_BLOCK_BYTES);
+#endif
     }
     if (ret == 0) {
         /* Copy first 8 bytes of first hash block as random sign bits. */
@@ -5465,7 +5478,9 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     sword32* s2 = NULL;
     sword32* t = NULL;
     byte* pub_seed = key->k;
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     byte kl[2];
+#endif
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
@@ -5526,12 +5541,19 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #endif
 
     if (ret == 0) {
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         kl[0] = params->k;
         kl[1] = params->l;
         /* Step 1: Create public seed, private seed and K from seed.
          * Step 9; Alg 24, Step 1: Public seed is placed into private key. */
         ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
             pub_seed, DILITHIUM_SEEDS_SZ);
+#else
+        /* Step 2: Create public seed, private seed and K from seed.
+         * Step 9; Alg 18, Step 1: Public seed is placed into private key. */
+        ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ, pub_seed,
+            DILITHIUM_SEEDS_SZ);
+#endif
     }
     if (ret == 0) {
         /* Step 7; Alg 22 Step 1: Copy public seed into public key. */
@@ -5615,7 +5637,9 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     byte* pub_seed = key->k;
     unsigned int r;
     unsigned int s;
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     byte kl[2];
+#endif
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
@@ -5644,12 +5668,19 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     }
 
     if (ret == 0) {
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         kl[0] = params->k;
         kl[1] = params->l;
         /* Step 1: Create public seed, private seed and K from seed.
          * Step 9; Alg 24, Step 1: Public seed is placed into private key. */
         ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
             pub_seed, DILITHIUM_SEEDS_SZ);
+#else
+        /* Step 2: Create public seed, private seed and K from seed.
+         * Step 9; Alg 18, Step 1: Public seed is placed into private key. */
+        ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ, pub_seed,
+            DILITHIUM_SEEDS_SZ);
+#endif
     }
     if (ret == 0) {
         byte* priv_seed = key->k + DILITHIUM_PUB_SEED_SZ;
@@ -6708,6 +6739,7 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 #endif
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign a message with the key and a seed.
  *
  * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
@@ -6758,6 +6790,7 @@ static int dilithium_sign_ctx_msg_with_seed(dilithium_key* key,
 
     return ret;
 }
+#endif
 
 /* Sign a message with the key and a seed.
  *
@@ -6807,6 +6840,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign a message with the key and a random number generator.
  *
  * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
@@ -6870,6 +6904,7 @@ static int dilithium_sign_ctx_msg(dilithium_key* key, WC_RNG* rng,
 
     return ret;
 }
+#endif
 
 /* Sign a message with the key and a random number generator.
  *
@@ -6932,6 +6967,7 @@ static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng,
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign a pre-hashed message with the key and a seed.
  *
  * FIPS 204. 5.4.1: Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
@@ -7052,6 +7088,7 @@ static int dilithium_sign_ctx_hash(dilithium_key* key, WC_RNG* rng,
 
     return ret;
 }
+#endif
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -7277,15 +7314,14 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
 #ifndef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
     byte*    block = NULL;
 #endif
-    byte tr[DILITHIUM_TR_SZ];
     byte* w1e = NULL;
-    byte* commit_calc = tr;
+    byte commit_calc[DILITHIUM_TR_SZ];
     int valid = 0;
     sword32 hi;
     unsigned int r;
     byte o;
     byte* encW1;
-    byte* seed = tr;
+    byte* seed = commit_calc;
 
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
@@ -7500,11 +7536,6 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
         }
     }
     if ((ret == 0) && valid) {
-        /* Step 6: Hash public key. */
-        ret = dilithium_shake256(&key->shake, key->p, params->pkSz, tr,
-            DILITHIUM_TR_SZ);
-    }
-    if ((ret == 0) && valid) {
         /* Step 12: Hash mu and encoded w1. */
         ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ, w1e,
             params->w1EncSz, commit_calc, params->lambda / 4);
@@ -7522,6 +7553,7 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
 #endif /* !WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM */
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify signature of message using public key.
  *
  * @param [in, out] key     Dilithium key.
@@ -7567,6 +7599,7 @@ static int dilithium_verify_ctx_msg(dilithium_key* key, const byte* ctx,
 
     return ret;
 }
+#endif
 
 /* Verify signature of message using public key.
  *
@@ -7611,6 +7644,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify signature of message using public key.
  *
  * @param [in, out] key       Dilithium key.
@@ -7665,6 +7699,7 @@ static int dilithium_verify_ctx_hash(dilithium_key* key, const byte* ctx,
 
     return ret;
 }
+#endif
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
 #elif defined(HAVE_LIBOQS)
@@ -7910,6 +7945,7 @@ int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #endif
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign the message using the dilithium private key.
  *
  *  ctx         [in]      Context of signature.
@@ -7966,6 +8002,7 @@ int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
 
     return ret;
 }
+#endif
 
 /* Sign the message using the dilithium private key.
  *
@@ -8017,6 +8054,7 @@ int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign the message hash using the dilithium private key.
  *
  *  ctx         [in]      Context of signature.
@@ -8107,6 +8145,7 @@ int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
 
     return ret;
 }
+#endif
 
 /* Sign the message using the dilithium private key.
  *
@@ -8144,6 +8183,7 @@ int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign the message using the dilithium private key.
  *
  *  ctx         [in]      Context of signature.
@@ -8190,9 +8230,11 @@ int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
 
     return ret;
 }
+#endif
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify the message using the dilithium public key.
  *
  *  sig         [in]  Signature to verify.
@@ -8236,6 +8278,7 @@ int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
 
     return ret;
 }
+#endif
 
 /* Verify the message using the dilithium public key.
  *
@@ -8287,6 +8330,7 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify the message using the dilithium public key.
  *
  *  sig         [in]  Signature to verify.
@@ -8333,6 +8377,7 @@ int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
 
     return ret;
 }
+#endif
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
 /* Initialize the dilithium private/public key.
