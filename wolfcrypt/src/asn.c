@@ -102,6 +102,9 @@ ASN Options:
  *  which is discouraged by X.690 specification - default values shall not
  *  be encoded.
  * NO_TIME_SIGNEDNESS_CHECK: Disabled the time_t signedness check.
+ * WOLFSSL_ECC_SIGALG_PARAMS_NULL_ALLOWED: Allows the ECDSA/EdDSA signature
+ *  algorithms in certificates to have NULL parameter instead of empty.
+ *  DO NOT enable this unless required for interoperability.
 */
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -22100,16 +22103,20 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
         }
         /* Parameters not allowed after ECDSA or EdDSA algorithm OID. */
         else if (IsSigAlgoECC(cert->signatureOID)) {
-            if ((dataASN[X509CERTASN_IDX_SIGALGO_PARAMS_NULL].tag != 0)
-        #ifdef WC_RSA_PSS
-                || (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0)
-        #endif
-                ) {
+        #ifndef WOLFSSL_ECC_SIGALG_PARAMS_NULL_ALLOWED
+            if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS_NULL].tag != 0) {
                 WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
                 ret = ASN_PARSE_E;
             }
-        }
+        #endif
         #ifdef WC_RSA_PSS
+            if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0) {
+                WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+                ret = ASN_PARSE_E;
+            }
+        #endif
+        }
+    #ifdef WC_RSA_PSS
         /* Check parameters starting with a SEQUENCE. */
         else if (dataASN[X509CERTASN_IDX_SIGALGO_PARAMS].tag != 0) {
             word32 oid = dataASN[X509CERTASN_IDX_SIGALGO_OID].data.oid.sum;
@@ -22151,7 +22158,7 @@ static int DecodeCertInternal(DecodedCert* cert, int verify, int* criticalExt,
                 cert->sigParamsLength = sigAlgParamsSz;
             }
         }
-        #endif
+    #endif
     }
     if ((ret == 0) && (!done)) {
         pubKeyEnd = dataASN[X509CERTASN_IDX_TBS_ISSUERUID].offset;
