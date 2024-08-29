@@ -75,7 +75,7 @@
     #include <wolfssl/wolfcrypt/kyber.h>
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
-#elif defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
+#elif defined(HAVE_LIBOQS)
     #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 #endif

@@ -1750,7 +1750,7 @@ static int tls13_uart_client(void)
 
     wolfSSL_SetIOReadCtx(ssl, tbuf);
 
-#ifdef HAVE_PQC
+#ifdef WOLFSSL_HAVE_KYBER
     if (wolfSSL_UseKeyShare(ssl, WOLFSSL_KYBER_LEVEL1) != WOLFSSL_SUCCESS) {
         printf("wolfSSL_UseKeyShare Error!!");
     }
