@@ -945,12 +945,28 @@ if(WOLFSSL_ECC)
     endif()
 endif()
 
-# TODO: - ECC custom curves
-#       - Compressed key
+# TODO: - Compressed key
 #       - FP ECC, fixed point cache ECC
 #       - ECC encrypt
 #       - PSK
 #       - Single PSK identity
+
+# ECC custom curves
+add_option("WOLFSSL_ECCCUSTCURVES"
+    "Enable ECC Custom Curves (default: disabled)"
+    "no" "yes;no;all")
+
+if(WOLFSSL_ECCCUSTCURVES)
+    if("${WOLFSSL_ECCCUSTCURVES}" STREQUAL "all")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_SECPR2")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_SECPR3")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_BRAINPOOL")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_KOBLITZ")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_CDH")
+    endif()
+
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CUSTOM_CURVES")
+endif()
 
 # CURVE25519
 set(WOLFSSL_CURVE25519_SMALL "no")
