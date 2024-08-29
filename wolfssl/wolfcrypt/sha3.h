@@ -220,8 +220,8 @@ WOLFSSL_LOCAL void sha3_block_bmi2(word64* s);
 WOLFSSL_LOCAL void sha3_block_avx2(word64* s);
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #endif
-#if defined(WOLFSSL_ARMASM) && (defined(__arm__) || \
-    defined(WOLFSSL_ARMASM_CRYPTO_SHA3))
+#if (defined(WOLFSSL_ARMASM) && (defined(__arm__) || \
+     defined(WOLFSSL_ARMASM_CRYPTO_SHA3))) || defined(WOLFSSL_RISCV_ASM)
 WOLFSSL_LOCAL void BlockSha3(word64 *s);
 #endif
 

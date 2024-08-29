@@ -252,10 +252,9 @@ static WC_INLINE void poly1305_blocks_riscv64_16(Poly1305* ctx,
 #ifdef WOLFSSL_RISCV_VECTOR
 
 #define MUL_RES_REDIS(l, h, t)  \
-        VSRL_VI(t, l, 26)       \
-        VAND_VX(l, l, REG_A6)   \
-        VSRL_VI(t, t, 26)       \
+        VSRL_VX(t, l, REG_A7)   \
         VSLL_VI(h, h, 12)       \
+        VAND_VX(l, l, REG_A6)   \
         VOR_VV(h, h, t)
 
 #endif
@@ -273,6 +272,7 @@ void poly1305_blocks_riscv64(Poly1305* ctx, const unsigned char *m,
         "li     a4, 0xffffffc000000\n\t"
         "li     a5, 0x3ffffff\n\t"
         "li     a6, 0xfffffffffffff\n\t"
+        "li     a7, 52\n\t"
 
         /* Load r and r^2 */
         "mv     t0, %[r2]\n\t"
@@ -430,7 +430,7 @@ void poly1305_blocks_riscv64(Poly1305* ctx, const unsigned char *m,
         : [bytes] "+r" (bytes), [m] "+r" (m)
         : [r2] "r" (ctx->r2), [h] "r" (ctx->h)
         : "memory", "t0", "t1", "t2", "t3", "t4", "t5", "t6",
-          "s3", "s4", "s5", "a4", "a5", "a6"
+          "s3", "s4", "s5", "a4", "a5", "a6", "a7"
     );
 #endif
     poly1305_blocks_riscv64_16(ctx, m, bytes, 1);

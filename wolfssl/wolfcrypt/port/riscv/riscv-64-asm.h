@@ -137,10 +137,23 @@
              (0b0010011 << 0) |                             \
              (rs << 15) | (rd << 7))
 
+/* Rotate right 32-bit register 5-bit value. */
 #define RORIW(rd, rs, imm)                                  \
     ASM_WORD((0b0110000 << 25) | (0b101 << 12) |            \
              (0b0011011 << 0) |                             \
              (imm << 20) | (rs << 15) | (rd << 7))
+
+/* Rotate right 64-bit register 7-bit value. */
+#define RORI(rd, rs, imm)                                   \
+    ASM_WORD((0b01100 << 27) | (0b101 << 12) |              \
+             (0b0010011 << 0) |                             \
+             ((imm) << 20) | ((rs) << 15) | ((rd) << 7))
+
+/* rs1 and not rs2 into rd. */
+#define ANDN(rd, rs1, rs2)                                  \
+    ASM_WORD((0b0100000 << 25) | (0b111 << 12) |            \
+             (0b0110011 << 0) |                             \
+             ((rs2) << 20) | ((rs1) << 15) | ((rd) << 7))
 
 
 /* rd = rs1[0..31] | rs2[0..31]. */
@@ -167,6 +180,23 @@
 #define WIDTH_64  0b111
 /* 32-bit width when loading. */
 #define WIDTH_32  0b110
+
+
+#define VLSEG_V(vd, rs1, cnt, width) \
+    ASM_WORD(0b0000111 | (width << 12) | (0b10101000 << 20) |   \
+        (0 << 28) | ((cnt - 1) << 29) | (vd << 7) | (rs1 << 15))
+/* Load 8 Vector registers' 64-bit element. */
+#define VLSEG8E64_V(vd, rs1)  VLSEG_V(vd, rs1, 8, WIDTH_64)
+/* Load 1 Vector register's 64-bit element. */
+#define VLSEG1E64_V(vd, rs1)  VLSEG_V(vd, rs1, 1, WIDTH_64)
+
+#define VSSEG_V(vd, rs1, cnt, width) \
+    ASM_WORD(0b0100111 | (width << 12) | (0b10101000 << 20) |   \
+        (0 << 28) | ((cnt - 1) << 29) | (vd << 7) | (rs1 << 15))
+/* Store 8 Vector registers' 64-bit element. */
+#define VSSEG8E64_V(vd, rs1)  VSSEG_V(vd, rs1, 8, WIDTH_64)
+/* Store 1 Vector register's 64-bit element. */
+#define VSSEG1E64_V(vd, rs1)  VSSEG_V(vd, rs1, 1, WIDTH_64)
 
 /* Load n Vector registers with width-bit components. */
 #define VLRE_V(vd, rs1, cnt, width)                             \
@@ -225,11 +255,21 @@
  * Logic
  */
 
+/* vd = vs2 << rs1 */
+#define VSLL_VX(vd, vs2, rs1)                       \
+    ASM_WORD((0b100101 << 26) | (0b1 << 25) |       \
+             (0b100 << 12) | (0b1010111 << 0) |     \
+             (vd << 7) | (rs1 << 15) | (vs2 << 20))
 /* vd = vs2 << uimm */
 #define VSLL_VI(vd, vs2, uimm)                      \
     ASM_WORD((0b100101 << 26) | (0b1 << 25) |       \
              (0b011 << 12) | (0b1010111 << 0) |     \
              (vd << 7) | (uimm << 15) | (vs2 << 20))
+/* vd = vs2 >> rs1 */
+#define VSRL_VX(vd, vs2, rs1)                       \
+    ASM_WORD((0b101000 << 26) | (0b1 << 25) |       \
+             (0b100 << 12) | (0b1010111 << 0) |     \
+             (vd << 7) | (rs1 << 15) | (vs2 << 20))
 /* vd = vs2 >> uimm */
 #define VSRL_VI(vd, vs2, uimm)                      \
     ASM_WORD((0b101000 << 26) | (0b1 << 25) |       \
@@ -257,6 +297,14 @@
     ASM_WORD((0b001011 << 26) | (0b1 << 25) |       \
              (0b000 << 12) | (0b1010111 << 0) |     \
              (vd << 7) | (vs1 << 15) | (vs2 << 20))
+/* vd = imm ^ vs2 */
+#define VXOR_VI(vd, vs2, imm)                       \
+    ASM_WORD((0b001011 << 26) | (0b1 << 25) |       \
+             (0b011 << 12) | (0b1010111 << 0) |     \
+             (vd << 7) | (imm << 15) | (vs2 << 20))
+/* vd = ~vs */
+#define VNOT_V(vd, vs)  VXOR_VI(vd, vs, 0b11111)
+
 /* vd = vs1 & vs2 */
 #define VAND_VV(vd, vs1, vs2)                       \
     ASM_WORD((0b001001 << 26) | (0b1 << 25) |       \
@@ -284,6 +332,13 @@
     ASM_WORD((0b100100 << 26) | (0b1 << 25) |       \
              (0b010 << 12) | (0b1010111 << 0) |     \
              (vs2 << 20) | (vs1 << 15) | (vd << 7))
+
+
+#define VMERGE_VVM(vd, vs2, vs1)                    \
+    ASM_WORD((0b010111 << 26) | (0b0 << 25) |       \
+             (0b000 << 12) | (0b1010111 << 0) |     \
+             (vs2 << 20) | (vs1 << 15) | (vd << 7))
+
 
 
 /*
@@ -354,12 +409,23 @@
              (0b010 << 12) | (0b1010111 << 0) |                \
              (vs2 << 20) | (vd << 7))
 
-/* Reverse order of bytes in words of vector regsiter. */
+/* Rotate left bits of vector regsiter. */
+#define VROL_VX(vd, vs2, rs) \
+    ASM_WORD((0b010101 << 26) | (0b1 << 25) | (0b100 << 12) |    \
+             (0b1010111 << 0) |                                  \
+             (vs2 << 20) | (rs << 15) | (vd << 7))
+
+/* Rotate right bits of vector regsiter. */
 #define VROR_VI(vd, imm, vs2) \
     ASM_WORD((0b01010 << 27) | (0b1 << 25) | (0b011 << 12) |    \
              (0b1010111 << 0) | ((imm >> 5) << 26) |            \
              (vs2 << 20) | ((imm & 0x1f) << 15) | (vd << 7))
 
+/* Vector ANDN - vd = ~vs1 & vs2. */
+#define VANDN_VV(vd, vs1, vs2) \
+    ASM_WORD((0b000001 << 26) | (0b1 << 25) | (0b000 << 12) |    \
+             (0b1010111 << 0) |                                  \
+             (vs2 << 20) | (vs1 << 15) | (vd << 7))
 
 #endif /* WOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION ||
         * WOLFSSL_RISCV_VECTOR_CRYPTO_ASM */
