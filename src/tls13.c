@@ -4455,8 +4455,17 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         if (ret != 0)
             return ret;
 
+        /* Total message size. */
+        args->sendSz =
+                (int)(args->length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ);
+
+#ifdef WOLFSSL_DTLS13
+        if (ssl->options.dtls)
+            args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+#endif /* WOLFSSL_DTLS13 */
+
 #ifdef WOLFSSL_DTLS_CH_FRAG
-        if (ssl->options.dtls && args->length > maxFrag &&
+        if (ssl->options.dtls && args->sendSz > maxFrag &&
                 TLSX_Find(ssl->extensions, TLSX_COOKIE) == NULL) {
             /* Try again with an empty key share if we would be fragmenting
              * without a cookie */
@@ -4467,7 +4476,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
             ret = TLSX_GetRequestSize(ssl, client_hello, &args->length);
             if (ret != 0)
                 return ret;
-            if (args->length > maxFrag) {
+            args->sendSz = (int)(args->length +
+                    DTLS_HANDSHAKE_HEADER_SZ + DTLS_RECORD_HEADER_SZ);
+            if (args->sendSz > maxFrag) {
                 WOLFSSL_MSG("Can't fit first CH in one fragment.");
                 return BUFFER_ERROR;
             }
@@ -4475,14 +4486,6 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         }
 #endif
     }
-
-    /* Total message size. */
-    args->sendSz = (int)(args->length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ);
-
-#ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls)
-        args->sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-#endif /* WOLFSSL_DTLS13 */
 
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0)

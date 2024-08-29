@@ -953,8 +953,13 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
             int tlsxFound;
             ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
                                  &tlsxFound);
-            if (ret != 0)
+            if (ret != 0) {
+                if (isFirstCHFrag) {
+                    WOLFSSL_MSG("\t\tCookie probably missing from first "
+                                "fragment. Dropping.");
+                }
                 return ret;
+            }
         }
     }
 #endif
