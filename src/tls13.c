@@ -8462,12 +8462,13 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     int    ret = 0;
     word32 certSz, certChainSz, headerSz, listSz, payloadSz;
     word16 extSz = 0;
-    word32 length, maxFragment;
+    word32 maxFragment;
     word32 len = 0;
     word32 idx = 0;
     word32 offset = OPAQUE16_LEN;
     byte*  p = NULL;
     byte   certReqCtxLen = 0;
+    sword32 length;
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     byte*  certReqCtx = NULL;
 #endif
@@ -8513,7 +8514,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         listSz = 0;
     }
     else {
-        if (!ssl->buffers.certificate) {
+        if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer) {
             WOLFSSL_MSG("Send Cert missing certificate buffer");
             return NO_CERT_ERROR;
         }
@@ -8604,7 +8605,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 #endif /* WOLFSSL_DTLS13 */
         }
         else {
-            fragSz = min(length, maxFragment);
+            fragSz = min((word32)length, maxFragment);
             sendSz += fragSz;
         }
 
