@@ -28,6 +28,7 @@
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/openssl/err.h>
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 
 #ifdef __cplusplus
     extern "C" {

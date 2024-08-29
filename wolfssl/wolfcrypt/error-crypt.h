@@ -304,7 +304,9 @@ WOLFSSL_API void wc_ErrorString(int err, char* buff);
 WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
 #endif
 
-#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && defined(BUILDING_WOLFSSL)
+#if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
+        (defined(BUILDING_WOLFSSL) || \
+         defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
     extern void wc_backtrace_render(void);
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE
