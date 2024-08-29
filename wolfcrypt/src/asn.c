@@ -14003,6 +14003,10 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                             " found");
                 WOLFSSL_MSG("Use WOLFSSL_NO_ASN_STRICT if wanting to allow"
                             " empty DirectoryString's");
+            #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+            !defined(WOLFCRYPT_ONLY)
+                wolfSSL_X509_NAME_free(dName);
+            #endif /* OPENSSL_EXTRA */
                 return ASN_PARSE_E;
             }
         #endif
