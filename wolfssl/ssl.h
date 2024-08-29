@@ -2647,14 +2647,15 @@ enum { /* ssl Constants */
             (WOLFSSL_SESS_CACHE_NO_INTERNAL_STORE |
                     WOLFSSL_SESS_CACHE_NO_INTERNAL_LOOKUP),
 
+    /* These values match OpenSSL values for corresponding names. */
+    WOLFSSL_ERROR_SSL              =  1,
     WOLFSSL_ERROR_WANT_READ        =  2,
     WOLFSSL_ERROR_WANT_WRITE       =  3,
+    WOLFSSL_ERROR_WANT_X509_LOOKUP =  4,
+    WOLFSSL_ERROR_SYSCALL          =  5,
+    WOLFSSL_ERROR_ZERO_RETURN      =  6,
     WOLFSSL_ERROR_WANT_CONNECT     =  7,
     WOLFSSL_ERROR_WANT_ACCEPT      =  8,
-    WOLFSSL_ERROR_SYSCALL          =  5,
-    WOLFSSL_ERROR_WANT_X509_LOOKUP = 83,
-    WOLFSSL_ERROR_ZERO_RETURN      =  6,
-    WOLFSSL_ERROR_SSL              = 85,
 
     WOLFSSL_SENT_SHUTDOWN     = 1,
     WOLFSSL_RECEIVED_SHUTDOWN = 2,

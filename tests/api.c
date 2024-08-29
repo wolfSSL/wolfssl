@@ -55059,8 +55059,10 @@ static int post_auth_version_client_cb(WOLFSSL* ssl)
     ExpectIntEQ(wolfSSL_ERR_get_error(), -WC_NO_ERR_TRACE(UNSUPPORTED_PROTO_VERSION));
 
     /* check the string matches expected string */
+    #ifndef NO_ERROR_STRINGS
     ExpectStrEQ(wolfSSL_ERR_error_string(-WC_NO_ERR_TRACE(UNSUPPORTED_PROTO_VERSION), NULL),
             "WRONG_SSL_VERSION");
+    #endif
 #endif
     return EXPECT_RESULT();
 }
@@ -83162,6 +83164,7 @@ static int test_wolfSSL_set_psk_use_session_callback(void)
  */
 static int error_test(void)
 {
+    EXPECT_DECLS;
     const char* errStr;
     const char* unknownStr = wc_GetErrorString(0);
 
@@ -83170,11 +83173,9 @@ static int error_test(void)
      * The string is that error strings are not available.
      */
     errStr = wc_GetErrorString(OPEN_RAN_E);
-    wc_ErrorString(OPEN_RAN_E, out);
-    if (XSTRCMP(errStr, unknownStr) != 0)
-        return -1;
-    if (XSTRCMP(out, unknownStr) != 0)
-        return -2;
+    ExpectIntEQ(XSTRCMP(errStr, unknownStr), 0);
+    if (EXPECT_FAIL())
+        return OPEN_RAN_E;
 #else
     int i;
     int j = 0;
@@ -83183,6 +83184,20 @@ static int error_test(void)
         int first;
         int last;
     } missing[] = {
+#ifndef OPENSSL_EXTRA
+        { 0, 0 },
+#endif
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+        { -11, -12 },
+        { -15, -17 },
+        { -19, -19 },
+        { -26, -27 },
+        { -30, WC_FIRST_E+1 },
+#else
+        { -9, WC_FIRST_E+1 },
+#endif
         { -124, -124 },
         { -166, -169 },
         { -300, -300 },
@@ -83192,14 +83207,15 @@ static int error_test(void)
         { -358, -358 },
         { -372, -372 },
         { -384, -384 },
-        { -473, -499 }
+        { -466, -499 },
+        { WOLFSSL_LAST_E-1, WOLFSSL_LAST_E-1 }
     };
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
      * string.
      */
-    for (i = WC_FIRST_E; i >= WOLFSSL_LAST_E; i--) {
+    for (i = 0; i >= WOLFSSL_LAST_E-1; i--) {
         int this_missing = 0;
         for (j = 0; j < (int)XELEM_CNT(missing); ++j) {
             if ((i <= missing[j].first) && (i >= missing[j].last)) {
@@ -83210,31 +83226,26 @@ static int error_test(void)
         errStr = wolfSSL_ERR_reason_error_string(i);
 
         if (! this_missing) {
-            if (XSTRCMP(errStr, unknownStr) == 0) {
-                WOLFSSL_MSG("errStr unknown");
-                return -3;
+            ExpectIntNE(XSTRCMP(errStr, unknownStr), 0);
+            if (EXPECT_FAIL()) {
+                return i;
             }
-            if (XSTRLEN(errStr) >= WOLFSSL_MAX_ERROR_SZ) {
-                WOLFSSL_MSG("errStr too long");
-                return -4;
+            ExpectTrue(XSTRLEN(errStr) < WOLFSSL_MAX_ERROR_SZ);
+            if (EXPECT_FAIL()) {
+                return i;
             }
         }
         else {
             j++;
-            if (XSTRCMP(errStr, unknownStr) != 0) {
-                return -5;
+            ExpectIntEQ(XSTRCMP(errStr, unknownStr), 0);
+            if (EXPECT_FAIL()) {
+                return i;
             }
         }
     }
-
-    /* Check if the next possible value has been given a string. */
-    errStr = wc_GetErrorString(i);
-    if (XSTRCMP(errStr, unknownStr) != 0) {
-        return -6;
-    }
 #endif
 
-    return 0;
+    return 1;
 }
 
 static int test_wolfSSL_ERR_strings(void)
@@ -83272,7 +83283,7 @@ static int test_wolfSSL_ERR_strings(void)
 #endif
 #endif
 
-    ExpectIntEQ(error_test(), 0);
+    ExpectIntEQ(error_test(), 1);
 
     return EXPECT_RESULT();
 }

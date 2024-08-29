@@ -42,7 +42,7 @@ the error status.
 #endif
 
 /* error codes, add string for new errors !!! */
-enum {
+enum wolfCrypt_ErrorCodes {
     /* note that WOLFSSL_FATAL_ERROR is defined as -1 in error-ssl.h, for
      * reasons of backward compatibility.
      */

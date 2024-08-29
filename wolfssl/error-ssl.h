@@ -35,9 +35,40 @@
 #endif
 
 enum wolfSSL_ErrorCodes {
-    WOLFSSL_FATAL_ERROR          =   -1, /* note, must be -1 for backward
-                                          * compat.                    */
-    WOLFSSL_FIRST_E              = -301,
+    WOLFSSL_FATAL_ERROR          =   -1,   /* must be -1 for backward compat. */
+
+    /* negative counterparts to namesake positive constants in ssl.h */
+    WOLFSSL_ERROR_WANT_READ_E    =   -2,
+    WOLFSSL_ERROR_WANT_WRITE_E   =   -3,
+    WOLFSSL_ERROR_WANT_X509_LOOKUP_E = -4,
+    WOLFSSL_ERROR_SYSCALL_E      =   -5,
+    WOLFSSL_ERROR_ZERO_RETURN_E  =   -6,
+    WOLFSSL_ERROR_WANT_CONNECT_E =   -7,
+    WOLFSSL_ERROR_WANT_ACCEPT_E  =   -8,
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+
+    WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE_E  = -7, /* note conflict with
+                                              * WOLFSSL_ERROR_WANT_CONNECT_E
+                                                        */
+    WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID_E      = -9,
+    WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED_E        = -10,
+    WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD_E = -13,
+    WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD_E = -14,
+    WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT_E = -18,
+    WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY_E = -20,
+    WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE_E = -21,
+    WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG_E     = -22,
+    WOLFSSL_X509_V_ERR_CERT_REVOKED_E            = -23,
+    WOLFSSL_X509_V_ERR_INVALID_CA_E              = -24,
+    WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED_E    = -25,
+    WOLFSSL_X509_V_ERR_CERT_REJECTED_E           = -28,
+    WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH_E = -29,
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER || HAVE_MEMCACHED */
+
+    WOLFSSL_FIRST_E              = -301,   /* start of native TLS codes */
 
     INPUT_CASE_ERROR             = -301,   /* process input state error */
     PREFIX_ERROR                 = -302,   /* bad index to key rounds  */
@@ -203,15 +234,6 @@ enum wolfSSL_ErrorCodes {
     WOLFSSL_NOT_IMPLEMENTED      = -464,   /* Function not implemented */
     WOLFSSL_UNKNOWN              = -465,   /* Unknown algorithm (EVP) */
 
-    /* I/O Callback errors */
-    WOLFSSL_CBIO_ERR_GENERAL     = -466,   /* I/O callback general unexpected error */
-    WOLFSSL_CBIO_ERR_WANT_READ   = -467,   /* I/O callback want read, call again */
-    WOLFSSL_CBIO_ERR_WANT_WRITE  = -468,   /* I/O callback want write, call again */
-    WOLFSSL_CBIO_ERR_CONN_RST    = -469,   /* I/O callback connection reset */
-    WOLFSSL_CBIO_ERR_ISR         = -470,   /* I/O callback interrupt */
-    WOLFSSL_CBIO_ERR_CONN_CLOSE  = -471,   /* I/O callback connection closed or epipe */
-    WOLFSSL_CBIO_ERR_TIMEOUT     = -472,   /* I/O callback socket timeout */
-
     /* negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,   /* unsupported cipher suite */
     MATCH_SUITE_ERROR            = -501,   /* can't match cipher suite */
@@ -224,6 +246,16 @@ enum wolfSSL_ErrorCodes {
     WOLFSSL_LAST_E               = -506
 };
 
+/* I/O Callback default errors */
+enum IOerrors {
+    WOLFSSL_CBIO_ERR_GENERAL    = -1,     /* general unexpected err */
+    WOLFSSL_CBIO_ERR_WANT_READ  = -2,     /* need to call read  again */
+    WOLFSSL_CBIO_ERR_WANT_WRITE = -2,     /* need to call write again */
+    WOLFSSL_CBIO_ERR_CONN_RST   = -3,     /* connection reset */
+    WOLFSSL_CBIO_ERR_ISR        = -4,     /* interrupt */
+    WOLFSSL_CBIO_ERR_CONN_CLOSE = -5,     /* connection closed or epipe */
+    WOLFSSL_CBIO_ERR_TIMEOUT    = -6      /* socket timeout */
+};
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     enum {

@@ -25165,12 +25165,13 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return wc_GetErrorString(error);
     }
 
-    switch (error) {
-
 #ifdef OPENSSL_EXTRA
-    case 0 :
+    if (error == 0) {
         return "ok";
+    }
 #endif
+
+    switch ((enum wolfSSL_ErrorCodes)error) {
 
     case UNSUPPORTED_SUITE :
         return "unsupported cipher suite";
@@ -25279,9 +25280,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case -WOLFSSL_ERROR_WANT_X509_LOOKUP:
         return "application client cert callback asked to be called again";
-
-    case -WOLFSSL_ERROR_SSL:
-        return "fatal TLS protocol error";
 
     case BUFFER_ERROR :
         return "malformed buffer input error";
@@ -25627,37 +25625,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case HTTP_APPSTR_ERR:
         return "HTTP Application string error";
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
-     *       -WOLFSSL_ERROR_WANT_CONNECT. */
-    case -WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
-        return "certificate not yet valid";
-    case -WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED:
-        return "certificate has expired";
-    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
-        return "certificate signature failure";
-    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
-        return "format error in certificate's notAfter field";
-    case -WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
-        return "self-signed certificate in certificate chain";
-    case -WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
-        return "unable to get local issuer certificate";
-    case -WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
-        return "unable to verify the first certificate";
-    case -WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG:
-        return "certificate chain too long";
-    case -WOLFSSL_X509_V_ERR_CERT_REVOKED:
-        return "certificate revoked";
-    case -WOLFSSL_X509_V_ERR_INVALID_CA:
-        return "invalid CA certificate";
-    case -WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED:
-        return "path length constraint exceeded";
-    case -WOLFSSL_X509_V_ERR_CERT_REJECTED:
-        return "certificate rejected";
-    case -WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
-        return "subject issuer mismatch";
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
-
     case UNSUPPORTED_PROTO_VERSION:
         #ifdef OPENSSL_EXTRA
         return "WRONG_SSL_VERSION";
@@ -25693,6 +25660,8 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "Certificate type not supported";
 
     case WOLFSSL_BAD_STAT:
+        return "bad status";
+
     case WOLFSSL_BAD_PATH:
         return "No certificates found at designated path";
 
@@ -25708,26 +25677,56 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case WOLFSSL_UNKNOWN:
         return "Unknown algorithm (EVP)";
 
-    case WOLFSSL_CBIO_ERR_GENERAL:
-        return "I/O callback general unexpected error";
+    case WOLFSSL_FATAL_ERROR:
+        return "fatal error";
 
-    case WOLFSSL_CBIO_ERR_WANT_READ:
-        return "I/O callback want read, call again";
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
 
-    case WOLFSSL_CBIO_ERR_WANT_WRITE:
-        return "I/O callback want write, call again";
+    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
+     *       -WOLFSSL_ERROR_WANT_CONNECT.
+     */
 
-    case WOLFSSL_CBIO_ERR_CONN_RST:
-        return "I/O callback connection reset";
+    case -WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
+        return "certificate not yet valid";
 
-    case WOLFSSL_CBIO_ERR_ISR:
-        return "I/O callback interrupt";
+    case -WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED:
+        return "certificate has expired";
 
-    case WOLFSSL_CBIO_ERR_CONN_CLOSE:
-        return "I/O callback connection closed or epipe";
+    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+        return "certificate signature failure";
 
-    case WOLFSSL_CBIO_ERR_TIMEOUT:
-        return "I/O callback socket timeout";
+    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+        return "format error in certificate's notAfter field";
+
+    case -WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+        return "self-signed certificate in certificate chain";
+
+    case -WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+        return "unable to get local issuer certificate";
+
+    case -WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+        return "unable to verify the first certificate";
+
+    case -WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG:
+        return "certificate chain too long";
+
+    case -WOLFSSL_X509_V_ERR_CERT_REVOKED:
+        return "certificate revoked";
+
+    case -WOLFSSL_X509_V_ERR_INVALID_CA:
+        return "invalid CA certificate";
+
+    case -WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED:
+        return "path length constraint exceeded";
+
+    case -WOLFSSL_X509_V_ERR_CERT_REJECTED:
+        return "certificate rejected";
+
+    case -WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
+        return "subject issuer mismatch";
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER || HAVE_MEMCACHED */
 
     default :
         return "unknown error number";
