@@ -656,7 +656,7 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
     byte digest[SRP_MAX_DIGEST_SIZE];
     word32 i, j, digestSz = SrpHashSize(srp->type);
     byte counter[4];
-    int r = BAD_FUNC_ARG;
+    int r = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     XMEMSET(digest, 0, SRP_MAX_DIGEST_SIZE);
 

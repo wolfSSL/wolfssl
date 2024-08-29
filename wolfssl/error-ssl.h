@@ -35,6 +35,8 @@
 #endif
 
 enum wolfSSL_ErrorCodes {
+    WOLFSSL_FATAL_ERROR          =   -1, /* note, must be -1 for backward
+                                          * compat.                    */
     WOLFSSL_FIRST_E              = -301,
 
     INPUT_CASE_ERROR             = -301,   /* process input state error */
@@ -81,12 +83,14 @@ enum wolfSSL_ErrorCodes {
     ZERO_RETURN                  = -343,   /* peer sent close notify */
     SIDE_ERROR                   = -344,   /* wrong client/server type */
     NO_PEER_CERT                 = -345,   /* peer didn't send key */
+
     ECC_CURVETYPE_ERROR          = -350,   /* Bad ECC Curve Type */
     ECC_CURVE_ERROR              = -351,   /* Bad ECC Curve */
     ECC_PEERKEY_ERROR            = -352,   /* Bad Peer ECC Key */
     ECC_MAKEKEY_ERROR            = -353,   /* Bad Make ECC Key */
     ECC_EXPORT_ERROR             = -354,   /* Bad ECC Export Key */
     ECC_SHARED_ERROR             = -355,   /* Bad ECC Shared Secret */
+
     NOT_CA_ERROR                 = -357,   /* Not a CA cert error */
 
     BAD_CERT_MANAGER_ERROR       = -359,   /* Bad Cert Manager */
@@ -187,11 +191,28 @@ enum wolfSSL_ErrorCodes {
     DTLS_CID_ERROR               = -454,   /* Wrong or missing CID */
     DTLS_TOO_MANY_FRAGMENTS_E    = -455,   /* Received too many fragments */
     QUIC_WRONG_ENC_LEVEL         = -456,   /* QUIC data received on wrong encryption level */
-
     DUPLICATE_TLS_EXT_E          = -457,   /* Duplicate TLS extension in msg. */
-    /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
-    /* begin negotiation parameter errors */
+    /* legacy CyaSSL compat layer error codes */
+    WOLFSSL_ALPN_NOT_FOUND       = -458,   /* TLS extension not found */
+    WOLFSSL_BAD_CERTTYPE         = -459,   /* Certificate type not supported */
+    WOLFSSL_BAD_STAT             = -460,   /* not used */
+    WOLFSSL_BAD_PATH             = -461,   /* No certificates found at designated path */
+    WOLFSSL_BAD_FILETYPE         = -462,   /* Data format not supported */
+    WOLFSSL_BAD_FILE             = -463,   /* Input/output error on file */
+    WOLFSSL_NOT_IMPLEMENTED      = -464,   /* Function not implemented */
+    WOLFSSL_UNKNOWN              = -465,   /* Unknown algorithm (EVP) */
+
+    /* I/O Callback errors */
+    WOLFSSL_CBIO_ERR_GENERAL     = -466,   /* I/O callback general unexpected error */
+    WOLFSSL_CBIO_ERR_WANT_READ   = -467,   /* I/O callback want read, call again */
+    WOLFSSL_CBIO_ERR_WANT_WRITE  = -468,   /* I/O callback want write, call again */
+    WOLFSSL_CBIO_ERR_CONN_RST    = -469,   /* I/O callback connection reset */
+    WOLFSSL_CBIO_ERR_ISR         = -470,   /* I/O callback interrupt */
+    WOLFSSL_CBIO_ERR_CONN_CLOSE  = -471,   /* I/O callback connection closed or epipe */
+    WOLFSSL_CBIO_ERR_TIMEOUT     = -472,   /* I/O callback socket timeout */
+
+    /* negotiation parameter errors */
     UNSUPPORTED_SUITE            = -500,   /* unsupported cipher suite */
     MATCH_SUITE_ERROR            = -501,   /* can't match cipher suite */
     COMPRESSION_ERROR            = -502,   /* compression mismatch */
@@ -199,13 +220,8 @@ enum wolfSSL_ErrorCodes {
     POST_HAND_AUTH_ERROR         = -504,   /* client won't do post-hand auth */
     HRR_COOKIE_ERROR             = -505,   /* HRR msg cookie mismatch */
     UNSUPPORTED_CERTIFICATE      = -506,   /* unsupported certificate type */
-    /* end negotiation parameter errors only 10 for now */
 
     WOLFSSL_LAST_E               = -506
-
-    /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
-
-    /* no error strings go down here, add above negotiation errors !!!! */
 };
 
 

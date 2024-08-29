@@ -395,7 +395,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
          * from there, the message can be considered processed successfully.
          * WANT_WRITE means that we are done with processing the msg and we are
          * waiting to flush the output buffer. */
-        if ((ret == 0 || ret == WANT_WRITE) || (msg->type == certificate_request &&
+        if ((ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE)) ||
+                        (msg->type == certificate_request &&
                          ssl->options.handShakeDone &&
                          ret == WC_NO_ERR_TRACE(WC_PENDING_E))) {
             if (IsAtLeastTLSv1_3(ssl->version))
@@ -919,7 +920,7 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
         handshakeType, hashOutput, Dtls13SendNow(ssl, handshakeType));
 
     if (rtxRecord != NULL) {
-        if (ret == 0 || ret == WANT_WRITE)
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
             Dtls13RtxAddRecord(&ssl->dtls13Rtx, rtxRecord);
         else
             Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
@@ -979,7 +980,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
         ret = Dtls13SendOneFragmentRtx(ssl,
             (enum HandShakeType)ssl->dtls13FragHandshakeType,
             (word16)recordLength + MAX_MSG_EXTRA, output, (word32)recordLength, 0);
-        if (ret == WANT_WRITE) {
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
             ssl->dtls13FragOffset += fragLength;
             return ret;
         }
@@ -1561,7 +1562,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         ret = Dtls13SendFragment(ssl, output, (word16)sendSz, r->length + headerLength,
             (enum HandShakeType)r->handshakeType, 0,
             isLast || !ssl->options.groupMessages);
-        if (ret != 0 && ret != WANT_WRITE)
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(WANT_WRITE))
             return ret;
 
         if (r->rnIdx >= DTLS13_RETRANS_RN_SIZE)
@@ -1575,7 +1576,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         r->seq[r->rnIdx] = seq;
         r->rnIdx++;
 
-        if (ret == WANT_WRITE) {
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
             /* this fragment will be sent eventually. Move it to the end of the
                list so next time we start with a new one. */
             Dtls13RtxMoveToEndOfList(ssl, prevNext, r);
@@ -1874,7 +1875,7 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
     if (maxLen < maxFrag) {
         ret = Dtls13SendOneFragmentRtx(ssl, handshakeType, outputSize, message,
             length, hashOutput);
-        if (ret == 0 || ret == WANT_WRITE)
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
             ssl->keys.dtls_handshake_number++;
     }
     else {

@@ -16658,7 +16658,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     const byte* sigParams, word32 sigParamsSz,
     byte* rsaKeyIdx)
 {
-    int ret = ASN_SIG_CONFIRM_E; /* default to failure */
+    int ret = WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E); /* default to failure */
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
     CertAttribute* certatt = NULL;
 #endif
@@ -32025,7 +32025,7 @@ int wc_MakeSelfCert(Cert* cert, byte* buf, word32 buffSz,
 WOLFSSL_ABI
 int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert)
 {
-    int rc = BAD_FUNC_ARG;
+    int rc = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     if ((subjectRaw != NULL) && (cert != NULL)) {
         *subjectRaw = cert->sbjRaw;
         rc = 0;

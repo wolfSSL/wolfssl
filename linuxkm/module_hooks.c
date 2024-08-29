@@ -105,7 +105,7 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 {
     if ((! ok) || (err != 0))
         pr_err("libwolfssl FIPS error: %s\n", wc_GetErrorString(err));
-    if (err == IN_CORE_FIPS_E) {
+    if (err == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
         pr_err("In-core integrity hash check failure.\n"
                "Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                hash ? hash : "<null>");
@@ -237,7 +237,7 @@ static int wolfssl_init(void)
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
         pr_err("wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
-        if (ret == IN_CORE_FIPS_E) {
+        if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
             const char *newhash = wolfCrypt_GetCoreHash_fips();
             pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                    newhash ? newhash : "<null>");

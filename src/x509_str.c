@@ -1007,7 +1007,7 @@ WOLFSSL_X509_LOOKUP* wolfSSL_X509_STORE_add_lookup(WOLFSSL_X509_STORE* store,
 
 int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
 {
-    int result = WOLFSSL_FATAL_ERROR;
+    int result = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
 
     WOLFSSL_ENTER("wolfSSL_X509_STORE_add_cert");
     if (store != NULL && store->cm != NULL && x509 != NULL

@@ -4604,7 +4604,7 @@ void wolfSSL_ASN1_TYPE_free(WOLFSSL_ASN1_TYPE* at)
 
 int wolfSSL_i2d_ASN1_TYPE(WOLFSSL_ASN1_TYPE* at, unsigned char** pp)
 {
-    int ret = WOLFSSL_FATAL_ERROR;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
 
     if (at == NULL)
         return WOLFSSL_FATAL_ERROR;

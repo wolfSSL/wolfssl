@@ -913,7 +913,7 @@ static int ProcessBufferTryDecodeFalcon(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         /* Free dynamically allocated data in key. */
         wc_falcon_free(key);
     }
-    else if ((ret == ALGO_ID_E) && (*keyFormat == 0)) {
+    else if ((ret == WC_NO_ERR_TRACE(ALGO_ID_E)) && (*keyFormat == 0)) {
         WOLFSSL_MSG("Not a Falcon key");
         /* Format unknown so keep trying. */
         ret = 0;
@@ -1021,7 +1021,7 @@ static int ProcessBufferTryDecodeDilithium(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         /* Free dynamically allocated data in key. */
         wc_dilithium_free(key);
     }
-    else if ((ret == ALGO_ID_E) && (*keyFormat == 0)) {
+    else if ((ret == WC_NO_ERR_TRACE(ALGO_ID_E)) && (*keyFormat == 0)) {
         WOLFSSL_MSG("Not a Dilithium key");
         /* Format unknown so keep trying. */
         ret = 0;
@@ -2369,7 +2369,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     if (ret == 0) {
         ret = 1;
     }
-    else if (ret == WOLFSSL_FATAL_ERROR) {
+    else if (ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
         ret = 0;
     }
     WOLFSSL_LEAVE("ProcessBuffer", ret);
@@ -5143,7 +5143,7 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     #elif defined(WOLFSSL_SYS_CA_CERTS)
         /* Load the system CA certificates. */
         ret = wolfSSL_CTX_load_system_CA_certs(ctx);
-        if (ret == WOLFSSL_BAD_PATH) {
+        if (ret == WC_NO_ERR_TRACE(WOLFSSL_BAD_PATH)) {
             /* OpenSSL doesn't treat the lack of a system CA cert directory as a
              * failure. We do the same here.
              */

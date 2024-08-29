@@ -32,8 +32,8 @@
 /* for users not using preprocessor flags*/
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/error-ssl.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/types.h>
@@ -2599,6 +2599,14 @@ WOLFSSL_API void wolfSSL_ERR_print_errors(WOLFSSL_BIO *bio);
 enum { /* ssl Constants */
     WOLFSSL_ERROR_NONE      =  0,   /* for most functions */
     WOLFSSL_FAILURE         =  0,   /* for some functions */
+
+    #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
+            (defined(BUILDING_WOLFSSL) || \
+             defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
+        #define WOLFSSL_FAILURE WC_ERR_TRACE(WOLFSSL_FAILURE)
+        #define CONST_NUM_ERR_WOLFSSL_FAILURE 0
+    #endif
+
     WOLFSSL_SUCCESS         =  1,
 
 /* WOLFSSL_SHUTDOWN_NOT_DONE is returned by wolfSSL_shutdown and
@@ -2615,16 +2623,6 @@ enum { /* ssl Constants */
 #else
     WOLFSSL_SHUTDOWN_NOT_DONE =  2,
 #endif
-
-    WOLFSSL_ALPN_NOT_FOUND  = -9,
-    WOLFSSL_BAD_CERTTYPE    = -8,
-    WOLFSSL_BAD_STAT        = -7,
-    WOLFSSL_BAD_PATH        = -6,
-    WOLFSSL_BAD_FILETYPE    = -5,
-    WOLFSSL_BAD_FILE        = -4,
-    WOLFSSL_NOT_IMPLEMENTED = -3,
-    WOLFSSL_UNKNOWN         = -2,
-    WOLFSSL_FATAL_ERROR     = -1,
 
     WOLFSSL_FILETYPE_ASN1    = CTC_FILETYPE_ASN1,
     WOLFSSL_FILETYPE_PEM     = CTC_FILETYPE_PEM,
@@ -3233,18 +3231,6 @@ WOLFSSL_API void wolfSSL_SetFuzzerCb(WOLFSSL* ssl, CallbackFuzzer cbf, void* fCt
 
 
 WOLFSSL_API int   wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl, const byte* secret, word32 secretSz);
-
-
-/* I/O Callback default errors */
-enum IOerrors {
-    WOLFSSL_CBIO_ERR_GENERAL    = -1,     /* general unexpected err */
-    WOLFSSL_CBIO_ERR_WANT_READ  = -2,     /* need to call read  again */
-    WOLFSSL_CBIO_ERR_WANT_WRITE = -2,     /* need to call write again */
-    WOLFSSL_CBIO_ERR_CONN_RST   = -3,     /* connection reset */
-    WOLFSSL_CBIO_ERR_ISR        = -4,     /* interrupt */
-    WOLFSSL_CBIO_ERR_CONN_CLOSE = -5,     /* connection closed or epipe */
-    WOLFSSL_CBIO_ERR_TIMEOUT    = -6      /* socket timeout */
-};
 
 
 /* CA cache callbacks */

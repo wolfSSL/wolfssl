@@ -8722,7 +8722,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         }
     }
 
-    if (ret != WANT_WRITE) {
+    if (ret != WC_NO_ERR_TRACE(WANT_WRITE)) {
         /* Clean up the fragment offset. */
         ssl->options.buildingMsg = 0;
         ssl->fragOffset = 0;
@@ -10903,7 +10903,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
         dtlsRet = Dtls13HandshakeSend(ssl, output, (word16)outputSz,
             (word16)(Dtls13GetRlHeaderLength(ssl, 1) + headerSz + finishedSz), finished,
             1);
-        if (dtlsRet != 0 && dtlsRet != WANT_WRITE)
+        if (dtlsRet != 0 && dtlsRet != WC_NO_ERR_TRACE(WANT_WRITE))
             return ret;
 
     } else
@@ -11141,7 +11141,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
         ret = SendBuffered(ssl);
 
 
-        if (ret != 0 && ret != WANT_WRITE)
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(WANT_WRITE))
             return ret;
     }
 
@@ -12932,7 +12932,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* do not send buffered or advance state if last error was an
             async pending operation */
-        && ssl->error != WC_PENDING_E
+        && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
     ) {
         if ((ret = SendBuffered(ssl)) == 0) {
@@ -13614,7 +13614,7 @@ int wolfSSL_update_keys(WOLFSSL* ssl)
 {
     int ret;
     ret = Tls13UpdateKeys(ssl);
-    if (ret == WANT_WRITE)
+    if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
         ret = WOLFSSL_ERROR_WANT_WRITE;
     else if (ret == 0)
         ret = WOLFSSL_SUCCESS;
@@ -13715,7 +13715,7 @@ int wolfSSL_request_certificate(WOLFSSL* ssl)
     ssl->msgsReceived.got_finished = 0;
 
     ret = SendTls13CertificateRequest(ssl, &certReqCtx->ctx, certReqCtx->len);
-    if (ret == WANT_WRITE)
+    if (ret == WC_NO_ERR_TRACE(WANT_WRITE))
         ret = WOLFSSL_ERROR_WANT_WRITE;
     else if (ret == 0)
         ret = WOLFSSL_SUCCESS;
@@ -14070,7 +14070,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* do not send buffered or advance state if last error was an
             async pending operation */
-        && ssl->error != WC_PENDING_E
+        && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
     ) {
 
@@ -14682,7 +14682,7 @@ int wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz, int* outSz)
         ret = ReceiveData(ssl, (byte*)data, sz, FALSE);
         if (ret > 0)
             *outSz = ret;
-        if (ssl->error == ZERO_RETURN) {
+        if (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
             ssl->error = WOLFSSL_ERROR_NONE;
 #ifdef WOLFSSL_DTLS13
             if (ssl->options.dtls) {

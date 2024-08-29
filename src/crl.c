@@ -480,7 +480,7 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
         if (crl->crlIOCb) {
             int cbRet = crl->crlIOCb(crl, (const char*)extCrlInfo,
                                      extCrlInfoSz);
-            if (cbRet == WOLFSSL_CBIO_ERR_WANT_READ) {
+            if (cbRet == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ)) {
                 ret = OCSP_WANT_READ;
             }
             else if (ret >= 0) {

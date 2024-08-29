@@ -1988,10 +1988,12 @@ int AddSessionToCache(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* addSession,
 #if defined(HAVE_SESSION_TICKET) && defined(WOLFSSL_TLS13) &&                  \
     defined(WOLFSSL_TICKET_NONCE_MALLOC) &&                                   \
     (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
-    ret = wolfSSL_DupSessionEx(addSession, cacheSession, 1, preallocNonce,
-        &preallocNonceLen, &preallocNonceUsed) == WOLFSSL_FAILURE;
+    ret = (wolfSSL_DupSessionEx(addSession, cacheSession, 1, preallocNonce,
+                                &preallocNonceLen, &preallocNonceUsed)
+           == WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 #else
-    ret = wolfSSL_DupSession(addSession, cacheSession, 1) == WOLFSSL_FAILURE;
+    ret = (wolfSSL_DupSession(addSession, cacheSession, 1)
+           == WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 #endif /* HAVE_SESSION_TICKET && WOLFSSL_TLS13 && WOLFSSL_TICKET_NONCE_MALLOC
           && FIPS_VERSION_GE(5,3)*/
 #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
@@ -4230,7 +4232,7 @@ const byte* wolfSSL_get_sessionID(const WOLFSSL_SESSION* session)
 
 int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_ENTER("wolfSSL_SESSION_set_ex_data");
 #ifdef HAVE_EX_DATA
     session = ClientSessionToSession(session);
