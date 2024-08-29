@@ -20891,7 +20891,8 @@ static wc_test_ret_t rsa_keygen_test(WC_RNG* rng)
     word32 idx = 0;
 #endif
     int    derSz = 0;
-#if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FIPS)
+#if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_FIPS) && \
+    (defined(RSA_MIN_SIZE) && (RSA_MIN_SIZE <= 1024))
     int    keySz = 1024;
 #else
     int    keySz = 2048;

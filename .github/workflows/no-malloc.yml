@@ -18,7 +18,7 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC"',
+          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024"',
         ]
     name: make check
     runs-on: ubuntu-latest

@@ -26,7 +26,7 @@ jobs:
           path: wolfssl
           configure: >-
             --enable-openssh --enable-dsa --with-max-rsa-bits=8192
-            --enable-intelasm --enable-sp-asm
+            --enable-intelasm --enable-sp-asm CFLAGS="-DRSA_MIN_SIZE=1024"
           install: true
 
       - name: tar build-dir
