@@ -25165,11 +25165,13 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return wc_GetErrorString(error);
     }
 
-#ifdef OPENSSL_EXTRA
     if (error == 0) {
+#ifdef OPENSSL_EXTRA
         return "ok";
-    }
+#else
+        return "unknown error number";
 #endif
+    }
 
     switch ((enum wolfSSL_ErrorCodes)error) {
 
