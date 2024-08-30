@@ -3281,8 +3281,8 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_NO_HASH_RAW
 #endif
 
-/* XChacha not implemented with ARM assembly ChaCha */
-#if defined(WOLFSSL_ARMASM)
+#if defined(HAVE_XCHACHA) && !defined(HAVE_CHACHA)
+    /* XChacha requires ChaCha */
     #undef HAVE_XCHACHA
 #endif
 
