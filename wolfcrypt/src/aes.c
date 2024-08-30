@@ -13844,10 +13844,10 @@ int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out)
 {
-    AesSivAssoc ad0;
-    ad0.assoc = assoc;
-    ad0.assocSz = assocSz;
-    return AesSivCipher(key, keySz, &ad0, 1U, nonce, nonceSz, in, inSz,
+    AesSivAssoc ad;
+    ad.assoc = assoc;
+    ad.assocSz = assocSz;
+    return AesSivCipher(key, keySz, &ad, 1U, nonce, nonceSz, in, inSz,
                         siv, out, 1);
 }
 
@@ -13858,10 +13858,10 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out)
 {
-    AesSivAssoc ad0;
-    ad0.assoc = assoc;
-    ad0.assocSz = assocSz;
-    return AesSivCipher(key, keySz, &ad0, 1U, nonce, nonceSz, in, inSz,
+    AesSivAssoc ad;
+    ad.assoc = assoc;
+    ad.assocSz = assocSz;
+    return AesSivCipher(key, keySz, &ad, 1U, nonce, nonceSz, in, inSz,
                         siv, out, 0);
 }
 
