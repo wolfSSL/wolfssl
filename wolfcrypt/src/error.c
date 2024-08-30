@@ -42,7 +42,7 @@
 WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
-    switch (error) {
+    switch ((enum wolfCrypt_ErrorCodes)error) {
 
     case MP_MEM :
         return "MP integer dynamic memory allocation failed";
@@ -642,6 +642,8 @@ const char* wc_GetErrorString(int error)
     case PBKDF2_KAT_FIPS_E:
         return "wolfCrypt FIPS PBKDF2 Known Answer Test Failure";
 
+    case MAX_CODE_E:
+    case MIN_CODE_E:
     default:
         return "unknown error number";
 

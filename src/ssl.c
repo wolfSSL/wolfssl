@@ -2046,7 +2046,7 @@ static int DtlsSrtpSelProfiles(word16* id, const char* profile_str)
 
 int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx, const char* profile_str)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL) {
         ret = DtlsSrtpSelProfiles(&ctx->dtlsSrtpProfiles, profile_str);
     }
@@ -2054,7 +2054,7 @@ int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx, const char* profile_str)
 }
 int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl, const char* profile_str)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ssl != NULL) {
         ret = DtlsSrtpSelProfiles(&ssl->dtlsSrtpProfiles, profile_str);
     }
@@ -2399,7 +2399,7 @@ int wolfSSL_mcast_set_highwater_ctx(WOLFSSL* ssl, void* ctx)
 /* return underlying connect or accept, WOLFSSL_SUCCESS on ok */
 int wolfSSL_negotiate(WOLFSSL* ssl)
 {
-    int err = WOLFSSL_FATAL_ERROR;
+    int err = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
 
     WOLFSSL_ENTER("wolfSSL_negotiate");
 
@@ -2905,9 +2905,9 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite) {
-        if (ssl->error != 0 && ssl->error != WANT_READ
+        if (ssl->error != 0 && ssl->error != WC_NO_ERR_TRACE(WANT_READ)
         #ifdef WOLFSSL_ASYNC_CRYPT
-            && ssl->error != WC_PENDING_E
+            && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
         #endif
         ) {
             int notifyErr;
@@ -3980,7 +3980,7 @@ int wolfSSL_recv(WOLFSSL* ssl, void* data, int sz, int flags)
 
 int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_ENTER("wolfSSL_recv");
 
     if (ssl != NULL) {
@@ -4002,7 +4002,7 @@ int wolfSSL_SendUserCanceled(WOLFSSL* ssl)
 WOLFSSL_ABI
 int wolfSSL_shutdown(WOLFSSL* ssl)
 {
-    int  ret = WOLFSSL_FATAL_ERROR;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     WOLFSSL_ENTER("wolfSSL_shutdown");
 
     if (ssl == NULL)
@@ -4044,7 +4044,7 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
         /* call wolfSSL_shutdown again for bidirectional shutdown */
         if (ssl->options.sentNotify && !ssl->options.closeNotify) {
             ret = ProcessReply(ssl);
-            if ((ret == ZERO_RETURN) ||
+            if ((ret == WC_NO_ERR_TRACE(ZERO_RETURN)) ||
                 (ret == WC_NO_ERR_TRACE(SOCKET_ERROR_E))) {
                 /* simulate OpenSSL behavior */
                 ssl->options.shutdownDone = 1;
@@ -4102,12 +4102,15 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
     WOLFSSL_LEAVE("wolfSSL_get_error", ssl->error);
 
     /* make sure converted types are handled in SetErrorString() too */
-    if (ssl->error == WANT_READ)
+    if (ssl->error == WC_NO_ERR_TRACE(WANT_READ))
         return WOLFSSL_ERROR_WANT_READ;         /* convert to OpenSSL type */
-    else if (ssl->error == WANT_WRITE)
+    else if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE))
         return WOLFSSL_ERROR_WANT_WRITE;        /* convert to OpenSSL type */
-    else if (ssl->error == ZERO_RETURN || ssl->options.shutdownDone)
+    else if (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN) ||
+             ssl->options.shutdownDone)
+    {
         return WOLFSSL_ERROR_ZERO_RETURN;       /* convert to OpenSSL type */
+    }
 #ifdef OPENSSL_EXTRA
     else if (ssl->error == WC_NO_ERR_TRACE(SOCKET_PEER_CLOSED_E))
         return WOLFSSL_ERROR_SYSCALL;           /* convert to OpenSSL type */
@@ -4131,9 +4134,9 @@ int wolfSSL_want(WOLFSSL* ssl)
 {
     int rw_state = SSL_NOTHING;
     if (ssl) {
-        if (ssl->error == WANT_READ)
+        if (ssl->error == WC_NO_ERR_TRACE(WANT_READ))
             rw_state = SSL_READING;
-        else if (ssl->error == WANT_WRITE)
+        else if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE))
             rw_state = SSL_WRITING;
     }
     return rw_state;
@@ -4144,7 +4147,7 @@ int wolfSSL_want(WOLFSSL* ssl)
 int wolfSSL_want_read(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_want_read");
-    if (ssl->error == WANT_READ)
+    if (ssl->error == WC_NO_ERR_TRACE(WANT_READ))
         return 1;
 
     return 0;
@@ -4155,7 +4158,7 @@ int wolfSSL_want_read(WOLFSSL* ssl)
 int wolfSSL_want_write(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_want_write");
-    if (ssl->error == WANT_WRITE)
+    if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE))
         return 1;
 
     return 0;
@@ -8903,7 +8906,7 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
         result = Dtls13RtxTimeout(ssl);
         if (result < 0) {
-            if (result == WANT_WRITE)
+            if (result == WC_NO_ERR_TRACE(WANT_WRITE))
                 ssl->dtls13SendingAckOrRtx = 1;
             ssl->error = result;
             WOLFSSL_ERROR(result);
@@ -9243,7 +9246,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* do not send buffered or advance state if last error was an
                 async pending operation */
-            && ssl->error != WC_PENDING_E
+            && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
         #endif
         ) {
             ret = SendBuffered(ssl);
@@ -9342,7 +9345,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                      * should just ignore the message */
                     ssl->dtls13Rtx.sendAcks = 0;
                     if ((ssl->error = SendDtls13Ack(ssl)) < 0) {
-                        if (ssl->error == WANT_WRITE)
+                        if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE))
                             ssl->dtls13SendingAckOrRtx = 1;
                         WOLFSSL_ERROR(ssl->error);
                         return WOLFSSL_FATAL_ERROR;
@@ -9443,7 +9446,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     ProcessReplyEx(ssl, 1); /* See if an alert was sent. */
                 #endif
 #ifdef WOLFSSL_EXTRA_ALERTS
-                    if (ssl->error == NO_PEER_KEY ||
+                    if (ssl->error == WC_NO_ERR_TRACE(NO_PEER_KEY) ||
                         ssl->error == WC_NO_ERR_TRACE(PSK_KEY_ERROR)) {
                         SendAlert(ssl, alert_fatal, handshake_failure);
                     }
@@ -9794,7 +9797,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* do not send buffered or advance state if last error was an
                 async pending operation */
-            && ssl->error != WC_PENDING_E
+            && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
         #endif
         ) {
             ret = SendBuffered(ssl);
@@ -10918,8 +10921,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_OpenSSL_add_all_algorithms_noconf");
 
-        if  (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR)
+        if  (wolfSSL_add_all_algorithms() ==
+             WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR))
+        {
             return WOLFSSL_FATAL_ERROR;
+        }
 
         return  WOLFSSL_SUCCESS;
     }
@@ -10932,7 +10938,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         the use of a wolfssl.cnf type configuration file and is only used for
         OpenSSL compatibility. */
 
-        if (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR) {
+        if (wolfSSL_add_all_algorithms() ==
+            WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR))
+        {
             return WOLFSSL_FATAL_ERROR;
         }
         return WOLFSSL_SUCCESS;
@@ -12583,7 +12591,7 @@ static int Set_CTX_max_proto_version(WOLFSSL_CTX* ctx, int ver)
 int wolfSSL_CTX_set_max_proto_version(WOLFSSL_CTX* ctx, int version)
 {
     int i;
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int minProto;
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_max_proto_version");
@@ -12704,7 +12712,7 @@ static int Set_SSL_min_proto_version(WOLFSSL* ssl, int ver)
 int wolfSSL_set_min_proto_version(WOLFSSL* ssl, int version)
 {
     int i;
-    int ret = WOLFSSL_FAILURE;;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);;
 
     WOLFSSL_ENTER("wolfSSL_set_min_proto_version");
 
@@ -12772,7 +12780,7 @@ static int Set_SSL_max_proto_version(WOLFSSL* ssl, int ver)
 int wolfSSL_set_max_proto_version(WOLFSSL* ssl, int version)
 {
     int i;
-    int ret = WOLFSSL_FAILURE;;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);;
 
     WOLFSSL_ENTER("wolfSSL_set_max_proto_version");
 
@@ -12910,7 +12918,7 @@ int wolfSSL_CTX_get_max_proto_version(WOLFSSL_CTX* ctx)
 
     WOLFSSL_LEAVE("wolfSSL_CTX_get_max_proto_version", ret);
 
-    if (ret == WOLFSSL_FATAL_ERROR) {
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
         WOLFSSL_MSG("Error getting max proto version");
         ret = 0; /* setting ret to 0 to match compat return */
     }
@@ -13509,7 +13517,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
              * first if we have one for this cert */
             SSL_CM_WARNING(ssl);
             if (PushCAx509Chain(SSL_CM(ssl), x509, sk)
-                    == WOLFSSL_FATAL_ERROR) {
+                    == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
@@ -14669,7 +14677,9 @@ int wolfSSL_sk_CIPHER_description(WOLFSSL_CIPHER* cipher)
     authStr = GetCipherAuthStr(n);
     /* encStr */
     encStr = GetCipherEncStr(n);
-    if ((cipher->bits = SetCipherBits(encStr)) == WOLFSSL_FAILURE) {
+    if ((cipher->bits = SetCipherBits(encStr)) ==
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+    {
        WOLFSSL_MSG("Cipher Bits Not Set.");
     }
     /* macStr */
@@ -17030,7 +17040,7 @@ int wolfSSL_sk_SSL_COMP_num(WOLF_STACK_OF(WOLFSSL_COMP)* sk)
 #if defined(HAVE_EX_DATA) && !defined(NO_FILESYSTEM)
 int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 {
-    int ret = WOLFSSL_FATAL_ERROR;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
 
     WOLFSSL_ENTER("wolfSSL_cmp_peer_cert_to_file");
     if (ssl != NULL && fname != NULL)
@@ -19323,11 +19333,11 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
         }
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) \
         || defined(WOLFSSL_HAPROXY)
-        if (ret == -ASN_NO_PEM_HEADER)
+        if (ret == -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER))
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
     #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-        if (ret == ASN1_R_HEADER_TOO_LONG) {
+        if (ret == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG)) {
             return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
         }
     #endif
@@ -20157,7 +20167,7 @@ int wolfSSL_FIPS_mode_set(int r)
 
 int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_bits");
 
     #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
@@ -20478,10 +20488,10 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
-        if (ret == -ASN_NO_PEM_HEADER)
+        if (ret == -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER))
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #if defined(WOLFSSL_PYTHON)
-        if (ret == ASN1_R_HEADER_TOO_LONG)
+        if (ret == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG))
             return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
     #endif
         return (unsigned long)ret;
@@ -23835,7 +23845,7 @@ static int wolfSSL_RAND_InitMutex(void)
  */
 int wolfSSL_RAND_Init(void)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 #ifdef HAVE_GLOBAL_RNG
     if (wc_LockMutex(&globalRNGMutex) == 0) {
         if (initGlobalRNG == 0) {
@@ -24851,7 +24861,7 @@ void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
 #if defined(OPENSSL_EXTRA) && !defined(WC_NO_RNG) && defined(HAVE_HASHDRBG)
 int wolfSSL_FIPS_drbg_init(WOLFSSL_DRBG_CTX *ctx, int type, unsigned int flags)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL) {
         XMEMSET(ctx, 0, sizeof(WOLFSSL_DRBG_CTX));
         ctx->type = type;
@@ -24863,7 +24873,7 @@ int wolfSSL_FIPS_drbg_init(WOLFSSL_DRBG_CTX *ctx, int type, unsigned int flags)
 }
 WOLFSSL_DRBG_CTX* wolfSSL_FIPS_drbg_new(int type, unsigned int flags)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_DRBG_CTX* ctx = (WOLFSSL_DRBG_CTX*)XMALLOC(sizeof(WOLFSSL_DRBG_CTX),
         NULL, DYNAMIC_TYPE_OPENSSL);
     ret = wolfSSL_FIPS_drbg_init(ctx, type, flags);
@@ -24880,7 +24890,7 @@ WOLFSSL_DRBG_CTX* wolfSSL_FIPS_drbg_new(int type, unsigned int flags)
 int wolfSSL_FIPS_drbg_instantiate(WOLFSSL_DRBG_CTX* ctx,
     const unsigned char* pers, size_t perslen)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL && ctx->rng == NULL) {
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS) && FIPS_VERSION_GE(5,0)))
@@ -24914,7 +24924,7 @@ int wolfSSL_FIPS_drbg_set_callbacks(WOLFSSL_DRBG_CTX* ctx,
     size_t entropy_blocklen,
     drbg_nonce_get none_get, drbg_nonce_clean nonce_clean)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL) {
         ctx->entropy_get = entropy_get;
         ctx->entropy_clean = entropy_clean;
@@ -24935,7 +24945,7 @@ void wolfSSL_FIPS_rand_add(const void* buf, int num, double entropy)
 int wolfSSL_FIPS_drbg_reseed(WOLFSSL_DRBG_CTX* ctx, const unsigned char* adin,
     size_t adinlen)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL && ctx->rng != NULL) {
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
         (defined(HAVE_FIPS) && FIPS_VERSION_GE(2,0)))
@@ -24954,7 +24964,7 @@ int wolfSSL_FIPS_drbg_generate(WOLFSSL_DRBG_CTX* ctx, unsigned char* out,
     size_t outlen, int prediction_resistance, const unsigned char* adin,
     size_t adinlen)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ctx != NULL && ctx->rng != NULL) {
         ret = wc_RNG_GenerateBlock(ctx->rng, out, (word32)outlen);
         if (ret == 0) {

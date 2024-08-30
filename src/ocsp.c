@@ -533,7 +533,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         responseSz = ocsp->cm->ocspIOCb(ioCtx, url, urlSz,
                                         request, requestSz, &response);
     }
-    if (responseSz == WOLFSSL_CBIO_ERR_WANT_READ) {
+    if (responseSz == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ)) {
         ret = OCSP_WANT_READ;
     }
 
@@ -1667,8 +1667,11 @@ int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx)
             if (ret <= 0) {
                 if (resp != NULL)
                     XFREE(resp, NULL, DYNAMIC_TYPE_OCSP);
-                if (ret == WOLFSSL_CBIO_ERR_WANT_READ || ret == OCSP_WANT_READ)
+                if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ) ||
+                    ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
+                {
                     return -1;
+                }
                 return WOLFSSL_FAILURE;
             }
             respLen = ret;

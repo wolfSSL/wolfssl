@@ -2948,7 +2948,7 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
     }
 
     /* if async pending then skip cleanup*/
-    if (ret == WC_PENDING_E
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)
     #ifdef WC_RSA_NONBLOCK
         || ret == FP_WOULDBLOCK
     #endif
@@ -3177,7 +3177,7 @@ static int wc_RsaFunction_ex(const byte* in, word32 inLen, byte* out,
     RESTORE_VECTOR_REGISTERS();
 
     /* handle error */
-    if (ret < 0 && ret != WC_PENDING_E
+    if (ret < 0 && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
     #ifdef WC_RSA_NONBLOCK
         && ret != FP_WOULDBLOCK
     #endif
@@ -3363,7 +3363,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     }
 
     /* if async pending then return and skip done cleanup below */
-    if (ret == WC_PENDING_E
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)
     #ifdef WC_RSA_NONBLOCK
         || ret == FP_WOULDBLOCK
     #endif
@@ -3579,9 +3579,11 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY)
-            ret = ctMaskSelInt(ctMaskLTE(ret, (int)outLen), ret, RSA_BUFFER_E);
+            ret = ctMaskSelInt(ctMaskLTE(ret, (int)outLen), ret,
+                               WC_NO_ERR_TRACE(RSA_BUFFER_E));
     #ifndef WOLFSSL_RSA_DECRYPT_TO_0_LEN
-            ret = ctMaskSelInt(ctMaskNotEq(ret, 0), ret, RSA_BUFFER_E);
+            ret = ctMaskSelInt(ctMaskNotEq(ret, 0), ret,
+                               WC_NO_ERR_TRACE(RSA_BUFFER_E));
     #endif
 #else
             if (outLen < (word32)ret)
@@ -3616,7 +3618,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
     }
 
     /* if async pending then return and skip done cleanup below */
-    if (ret == WC_PENDING_E
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)
     #ifdef WC_RSA_NONBLOCK
         || ret == FP_WOULDBLOCK
     #endif

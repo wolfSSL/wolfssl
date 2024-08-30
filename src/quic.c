@@ -614,7 +614,7 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
             else {
                 ret = wolfSSL_read_early_data(ssl, tmpbuffer,
                                               sizeof(tmpbuffer), &len);
-                if (ret < 0 && ssl->error == ZERO_RETURN) {
+                if (ret < 0 && ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
                     /* this is expected, since QUIC handles the actual early
                      * data separately. */
                     ret = WOLFSSL_SUCCESS;
@@ -634,7 +634,9 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
 cleanup:
     if (ret <= 0
         && ssl->options.handShakeState == HANDSHAKE_DONE
-        && (ssl->error == ZERO_RETURN || ssl->error == WANT_READ)) {
+        && (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN) ||
+            ssl->error == WC_NO_ERR_TRACE(WANT_READ)))
+    {
         ret = WOLFSSL_SUCCESS;
     }
     if (ret == WOLFSSL_SUCCESS) {

@@ -7575,7 +7575,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* requires valid arrays and suites unless writeDup ing */
     if ((ret = SetSSL_CTX(ssl, ctx, writeDup)) != WOLFSSL_SUCCESS
 #ifdef WOLFSSL_NO_INIT_CTX_KEY
-        && ret != NO_PRIVATE_KEY
+        && ret != WC_NO_ERR_TRACE(NO_PRIVATE_KEY)
 #endif
         ) {
         WOLFSSL_MSG_EX("SetSSL_CTX failed. err = %d", ret);
@@ -10478,7 +10478,7 @@ retry:
     recvd = ssl->CBIORecv(ssl, (char *)buf, (int)sz, ssl->IOCB_ReadCtx);
     if (recvd < 0) {
         switch (recvd) {
-            case WOLFSSL_CBIO_ERR_GENERAL:        /* general/unknown error */
+            case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL):
                 #ifdef WOLFSSL_APACHE_HTTPD
                 #ifndef NO_BIO
                     if (ssl->biord) {
@@ -10492,15 +10492,15 @@ retry:
                 #endif
                 return -1;
 
-            case WOLFSSL_CBIO_ERR_WANT_READ:      /* want read, would block */
+            case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ):
                 if (retryLimit > 0 && ssl->ctx->autoRetry &&
                         !ssl->options.handShakeDone && !ssl->options.dtls) {
                     retryLimit--;
                     goto retry;
                 }
-                return WANT_READ;
+                return WC_NO_ERR_TRACE(WANT_READ);
 
-            case WOLFSSL_CBIO_ERR_CONN_RST:       /* connection reset */
+            case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_RST):
                 #ifdef USE_WINDOWS_API
                 if (ssl->options.dtls) {
                     goto retry;
@@ -10509,7 +10509,7 @@ retry:
                 ssl->options.connReset = 1;
                 return -1;
 
-            case WOLFSSL_CBIO_ERR_ISR:            /* interrupt */
+            case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_ISR): /* interrupt */
                 /* see if we got our timeout */
                 #ifdef WOLFSSL_CALLBACKS
                     if (ssl->toInfoOn) {
@@ -10529,11 +10529,11 @@ retry:
                 #endif
                 goto retry;
 
-            case WOLFSSL_CBIO_ERR_CONN_CLOSE:     /* peer closed connection */
+            case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_CLOSE):
                 ssl->options.isClosed = 1;
                 return -1;
 
-            case WOLFSSL_CBIO_ERR_TIMEOUT:
+            case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT):
             #ifdef WOLFSSL_DTLS
 #ifdef WOLFSSL_DTLS13
                 if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
@@ -10649,19 +10649,19 @@ retry:
         if (sent < 0) {
             switch (sent) {
 
-                case WOLFSSL_CBIO_ERR_WANT_WRITE:        /* would block */
+                case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_WRITE):
                     if (retryLimit > 0 && ssl->ctx->autoRetry &&
                             !ssl->options.handShakeDone && !ssl->options.dtls) {
                         retryLimit--;
                         goto retry;
                     }
-                    return WANT_WRITE;
+                    return WC_NO_ERR_TRACE(WANT_WRITE);
 
-                case WOLFSSL_CBIO_ERR_CONN_RST:          /* connection reset */
+                case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_RST):
                     ssl->options.connReset = 1;
                     break;
 
-                case WOLFSSL_CBIO_ERR_ISR:               /* interrupt */
+                case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_ISR): /* interrupt */
                     /* see if we got our timeout */
                     #ifdef WOLFSSL_CALLBACKS
                         if (ssl->toInfoOn) {
@@ -10681,7 +10681,7 @@ retry:
                     #endif
                     continue;
 
-                case WOLFSSL_CBIO_ERR_CONN_CLOSE: /* epipe / conn closed */
+                case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_CLOSE): /* epipe */
                     ssl->options.connReset = 1;  /* treat same as reset */
                     break;
 
@@ -15379,9 +15379,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             if (ssl->peerVerifyRet == 0) {
                                 /* Return first cert error here */
                                 ssl->peerVerifyRet =
-                                        ret == OCSP_CERT_REVOKED
-                                            ? WOLFSSL_X509_V_ERR_CERT_REVOKED
-                                            : WOLFSSL_X509_V_ERR_CERT_REJECTED;
+                                    ret == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED)
+                                    ? WOLFSSL_X509_V_ERR_CERT_REVOKED
+                                    : WOLFSSL_X509_V_ERR_CERT_REJECTED;
                             }
                         #endif
                         }
@@ -15410,7 +15410,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             if (ssl->peerVerifyRet == 0) {
                                 /* Return first cert error here */
                                 ssl->peerVerifyRet =
-                                        ret == CRL_CERT_REVOKED
+                                        ret == WC_NO_ERR_TRACE(CRL_CERT_REVOKED)
                                             ? WOLFSSL_X509_V_ERR_CERT_REVOKED
                                             : WOLFSSL_X509_V_ERR_CERT_REJECTED;
                             }
@@ -17107,10 +17107,10 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* hello_request not hashed */
     if (type != hello_request
     #ifdef WOLFSSL_ASYNC_CRYPT
-            && ssl->error != WC_PENDING_E
+            && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
     #ifdef WOLFSSL_NONBLOCK_OCSP
-            && ssl->error != OCSP_WANT_READ
+            && ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ)
     #endif
     ) {
         ret = HashInput(ssl, input + *inOutIdx, (int)size);
@@ -20838,8 +20838,8 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
                      ssl->buffers.inputBuffer.buffer +
                      ssl->buffers.inputBuffer.length,
                      (word32)inSz);
-        if (in == WANT_READ)
-            return WANT_READ;
+        if (in == WC_NO_ERR_TRACE(WANT_READ))
+            return WC_NO_ERR_TRACE(WANT_READ);
 
         if (in < 0) {
             WOLFSSL_ERROR_VERBOSE(SOCKET_ERROR_E);
@@ -21078,15 +21078,17 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
         atomicUser = 1;
 #endif
 
-    if (ssl->error != 0 && ssl->error != WANT_READ && ssl->error != WANT_WRITE
+    if (ssl->error != 0 &&
+        ssl->error != WC_NO_ERR_TRACE(WANT_READ) &&
+        ssl->error != WC_NO_ERR_TRACE(WANT_WRITE)
     #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
-        && ssl->error != APP_DATA_READY
+        && ssl->error != WC_NO_ERR_TRACE(APP_DATA_READY)
     #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
-        && ssl->error != WC_PENDING_E
+        && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
     #ifdef WOLFSSL_NONBLOCK_OCSP
-        && ssl->error != OCSP_WANT_READ
+        && ssl->error != WC_NO_ERR_TRACE(OCSP_WANT_READ)
     #endif
         && (allowSocketErr != 1 ||
             ssl->error != WC_NO_ERR_TRACE(SOCKET_ERROR_E))
@@ -21320,7 +21322,7 @@ default:
             if (!ssl->options.dtls) {
                 if ((ret = GetInputData(ssl, ssl->curSize)) < 0) {
 #ifdef WOLFSSL_EXTRA_ALERTS
-                    if (ret != WANT_READ)
+                    if (ret != WC_NO_ERR_TRACE(WANT_READ))
                         SendAlert(ssl, alert_fatal, bad_record_mac);
 #endif
                     return ret;
@@ -21843,7 +21845,7 @@ default:
                              * calling DtlsMsgPoolSend. This msg is done
                              * processing so let's move on. */
                         && (!ssl->options.dtls
-                            || ret != WANT_WRITE)
+                            || ret != WC_NO_ERR_TRACE(WANT_WRITE))
 #ifdef WOLFSSL_ASYNC_CRYPT
                     /* In async case, on pending, move onto next message.
                      * Current message should have been DtlsMsgStore'ed and
@@ -23765,7 +23767,7 @@ int SendCertificate(WOLFSSL* ssl)
             ret = SendBuffered(ssl);
     }
 
-    if (ret != WANT_WRITE) {
+    if (ret != WC_NO_ERR_TRACE(WANT_WRITE)) {
         /* Clean up the fragment offset. */
         ssl->options.buildingMsg = 0;
         ssl->fragOffset = 0;
@@ -24488,9 +24490,9 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     int groupMsgs = 0;
 #endif
 
-    if (ssl->error == WANT_WRITE
+    if (ssl->error == WC_NO_ERR_TRACE(WANT_WRITE)
     #ifdef WOLFSSL_ASYNC_CRYPT
-        || ssl->error == WC_PENDING_E
+        || ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
     ) {
         ssl->error = 0;
@@ -24747,7 +24749,9 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     WOLFSSL_ENTER("ReceiveData");
 
     /* reset error state */
-    if (ssl->error == WANT_READ || ssl->error == WOLFSSL_ERROR_WANT_READ) {
+    if (ssl->error == WC_NO_ERR_TRACE(WANT_READ) ||
+        ssl->error == WOLFSSL_ERROR_WANT_READ)
+    {
         ssl->error = 0;
     }
 
@@ -24764,12 +24768,12 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     }
 #endif /* WOLFSSL_DTLS */
 
-    if (ssl->error != 0 && ssl->error != WANT_WRITE
+    if (ssl->error != 0 && ssl->error != WC_NO_ERR_TRACE(WANT_WRITE)
 #ifdef WOLFSSL_ASYNC_CRYPT
-            && ssl->error != WC_PENDING_E
+            && ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E)
 #endif
 #if defined(HAVE_SECURE_RENEGOTIATION) || defined(WOLFSSL_DTLS13)
-            && ssl->error != APP_DATA_READY
+            && ssl->error != WC_NO_ERR_TRACE(APP_DATA_READY)
 #endif
     ) {
         WOLFSSL_MSG("User calling wolfSSL_read in error state, not allowed");
@@ -24812,7 +24816,7 @@ startScr:
 
     while (ssl->buffers.clearOutputBuffer.length == 0) {
         if ( (ssl->error = ProcessReply(ssl)) < 0) {
-            if (ssl->error == ZERO_RETURN) {
+            if (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
                 WOLFSSL_MSG("Zero return, no more data coming");
                 return 0; /* no more data coming */
             }
@@ -24964,7 +24968,7 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
         /* If CheckAvailableSize returned WANT_WRITE due to a blocking write
          * then discard pending output and just send the alert. */
         if (ssl->options.dtls) {
-            if (ret != WANT_WRITE || severity != alert_fatal)
+            if (ret != WC_NO_ERR_TRACE(WANT_WRITE) || severity != alert_fatal)
                 return ret;
             ShrinkOutputBuffer(ssl);
             if ((ret = CheckAvailableSize(ssl, outputSz)) != 0) {
@@ -25161,12 +25165,13 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return wc_GetErrorString(error);
     }
 
-    switch (error) {
-
 #ifdef OPENSSL_EXTRA
-    case 0 :
+    if (error == 0) {
         return "ok";
+    }
 #endif
+
+    switch ((enum wolfSSL_ErrorCodes)error) {
 
     case UNSUPPORTED_SUITE :
         return "unsupported cipher suite";
@@ -25275,9 +25280,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case -WOLFSSL_ERROR_WANT_X509_LOOKUP:
         return "application client cert callback asked to be called again";
-
-    case -WOLFSSL_ERROR_SSL:
-        return "fatal TLS protocol error";
 
     case BUFFER_ERROR :
         return "malformed buffer input error";
@@ -25433,6 +25435,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SESSION_TICKET_EXPECT_E:
         return "Session Ticket Error";
+
+    case SCR_DIFFERENT_CERT_E:
+        return "SCR Different cert error";
 
     case SESSION_SECRET_CB_E:
         return "Session Secret Callback Error";
@@ -25599,52 +25604,27 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case UNSUPPORTED_CERTIFICATE:
         return "Unsupported certificate type";
 
-#ifdef HAVE_HTTP_CLIENT
     case HTTP_TIMEOUT:
         return "HTTP timeout for OCSP or CRL req";
+
     case HTTP_RECV_ERR:
         return "HTTP Receive error";
+
     case HTTP_HEADER_ERR:
         return "HTTP Header error";
+
     case HTTP_PROTO_ERR:
         return "HTTP Protocol error";
+
     case HTTP_STATUS_ERR:
         return "HTTP Status error";
+
     case HTTP_VERSION_ERR:
         return "HTTP Version error";
+
     case HTTP_APPSTR_ERR:
         return "HTTP Application string error";
-#endif
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
-     *       -WOLFSSL_ERROR_WANT_CONNECT. */
-    case -WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
-        return "certificate not yet valid";
-    case -WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED:
-        return "certificate has expired";
-    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
-        return "certificate signature failure";
-    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
-        return "format error in certificate's notAfter field";
-    case -WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
-        return "self-signed certificate in certificate chain";
-    case -WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
-        return "unable to get local issuer certificate";
-    case -WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
-        return "unable to verify the first certificate";
-    case -WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG:
-        return "certificate chain too long";
-    case -WOLFSSL_X509_V_ERR_CERT_REVOKED:
-        return "certificate revoked";
-    case -WOLFSSL_X509_V_ERR_INVALID_CA:
-        return "invalid CA certificate";
-    case -WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED:
-        return "path length constraint exceeded";
-    case -WOLFSSL_X509_V_ERR_CERT_REJECTED:
-        return "certificate rejected";
-    case -WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
-        return "subject issuer mismatch";
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
+
     case UNSUPPORTED_PROTO_VERSION:
         #ifdef OPENSSL_EXTRA
         return "WRONG_SSL_VERSION";
@@ -25654,26 +25634,103 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case FALCON_KEY_SIZE_E:
         return "Wrong key size for Falcon.";
+
     case DILITHIUM_KEY_SIZE_E:
         return "Wrong key size for Dilithium.";
 
-#ifdef WOLFSSL_QUIC
     case QUIC_TP_MISSING_E:
         return "QUIC transport parameter not set";
+
     case QUIC_WRONG_ENC_LEVEL:
         return "QUIC data received at wrong encryption level";
-#endif
+
     case DTLS_CID_ERROR:
         return "DTLS ConnectionID mismatch or missing";
+
     case DTLS_TOO_MANY_FRAGMENTS_E:
         return "Received too many fragmented messages from peer error";
 
     case DUPLICATE_TLS_EXT_E:
         return "Duplicate TLS extension in message.";
 
-    default :
-        return "unknown error number";
+    case WOLFSSL_ALPN_NOT_FOUND:
+        return "TLS extension not found";
+
+    case WOLFSSL_BAD_CERTTYPE:
+        return "Certificate type not supported";
+
+    case WOLFSSL_BAD_STAT:
+        return "bad status";
+
+    case WOLFSSL_BAD_PATH:
+        return "No certificates found at designated path";
+
+    case WOLFSSL_BAD_FILETYPE:
+        return "Data format not supported";
+
+    case WOLFSSL_BAD_FILE:
+        return "Input/output error on file";
+
+    case WOLFSSL_NOT_IMPLEMENTED:
+        return "Function not implemented";
+
+    case WOLFSSL_UNKNOWN:
+        return "Unknown algorithm (EVP)";
+
+    case WOLFSSL_FATAL_ERROR:
+        return "fatal error";
     }
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+
+    switch (error) {
+    /* TODO: -WOLFSSL_X509_V_ERR_CERT_SIGNATURE_FAILURE. Conflicts with
+     *       -WOLFSSL_ERROR_WANT_CONNECT.
+     */
+
+    case -WOLFSSL_X509_V_ERR_CERT_NOT_YET_VALID:
+        return "certificate not yet valid";
+
+    case -WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED:
+        return "certificate has expired";
+
+    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD:
+        return "certificate signature failure";
+
+    case -WOLFSSL_X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD:
+        return "format error in certificate's notAfter field";
+
+    case -WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+        return "self-signed certificate in certificate chain";
+
+    case -WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+        return "unable to get local issuer certificate";
+
+    case -WOLFSSL_X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+        return "unable to verify the first certificate";
+
+    case -WOLFSSL_X509_V_ERR_CERT_CHAIN_TOO_LONG:
+        return "certificate chain too long";
+
+    case -WOLFSSL_X509_V_ERR_CERT_REVOKED:
+        return "certificate revoked";
+
+    case -WOLFSSL_X509_V_ERR_INVALID_CA:
+        return "invalid CA certificate";
+
+    case -WOLFSSL_X509_V_ERR_PATH_LENGTH_EXCEEDED:
+        return "path length constraint exceeded";
+
+    case -WOLFSSL_X509_V_ERR_CERT_REJECTED:
+        return "certificate rejected";
+
+    case -WOLFSSL_X509_V_ERR_SUBJECT_ISSUER_MISMATCH:
+        return "subject issuer mismatch";
+    }
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER || HAVE_MEMCACHED */
+
+    return "unknown error number";
 
 #endif /* NO_ERROR_STRINGS */
 }
@@ -26553,7 +26610,7 @@ const char* GetCipherMacStr(char n[][MAX_SEGMENT_SZ]) {
 
 /* Returns the number of bits based on the cipher enc string, or 0 on failure */
 int SetCipherBits(const char* enc) {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     if ((XSTRCMP(enc,"AESGCM(256)") == 0) ||
         (XSTRCMP(enc,"AES(256)") == 0) ||
@@ -32672,7 +32729,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         );
                         if (!ssl->specs.static_ecdh
                         #ifdef WOLFSSL_ASYNC_CRYPT
-                            && ret != WC_PENDING_E
+                            && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
                         #endif
                         ) {
                             FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
@@ -32693,7 +32750,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         );
                         if (!ssl->specs.static_ecdh
                         #ifdef WOLFSSL_ASYNC_CRYPT
-                            && ret != WC_PENDING_E
+                            && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
                         #endif
                         ) {
                             FreeKey(ssl, DYNAMIC_TYPE_CURVE448,
@@ -32740,7 +32797,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         );
                         if (!ssl->specs.static_ecdh
                         #ifdef WOLFSSL_ASYNC_CRYPT
-                            && ret != WC_PENDING_E
+                            && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
                         #endif
                         ) {
                             FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
@@ -32761,7 +32818,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         );
                         if (!ssl->specs.static_ecdh
                         #ifdef WOLFSSL_ASYNC_CRYPT
-                            && ret != WC_PENDING_E
+                            && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
                         #endif
                         ) {
                             FreeKey(ssl, DYNAMIC_TYPE_CURVE448,
@@ -32784,7 +32841,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     if (!ssl->specs.static_ecdh
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                        && ret != WC_PENDING_E
+                        && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
                 #endif
                      && !ssl->options.keepResources) {
                         FreeKey(ssl, DYNAMIC_TYPE_ECC,
@@ -33046,7 +33103,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             if (!ssl->options.groupMessages) {
                 ret = SendBuffered(ssl);
             }
-            if (ret == 0 || ret == WANT_WRITE) {
+            if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
                 int tmpRet = MakeMasterSecret(ssl);
                 if (tmpRet != 0) {
                     ret = tmpRet;   /* save WANT_WRITE unless more serious */
@@ -33076,7 +33133,9 @@ exit_scke:
 
 #ifdef WOLFSSL_ASYNC_IO
     /* Handle async operation */
-    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) || ret == WANT_WRITE) {
+    if (ret == WC_NO_ERR_TRACE(WC_PENDING_E) ||
+        ret == WC_NO_ERR_TRACE(WANT_WRITE))
+    {
         if (ssl->options.buildingMsg)
             return ret;
         /* If we have completed all states then we will not enter this function
@@ -33629,9 +33688,9 @@ exit_scv:
 
 #ifdef WOLFSSL_ASYNC_IO
     /* Handle async operation */
-    if (ret == WANT_WRITE
+    if (ret == WC_NO_ERR_TRACE(WANT_WRITE)
 #ifdef WOLFSSL_ASYNC_CRYPT
-            || ret == WC_PENDING_E
+            || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
 #endif
             )
         return ret;
@@ -35860,9 +35919,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     #ifdef WOLFSSL_ASYNC_IO
         /* Handle async operation */
-        if (ret == WANT_WRITE
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)
         #ifdef WOLFSSL_ASYNC_CRYPT
-                || ret == WC_PENDING_E
+                || ret == WC_NO_ERR_TRACE(WC_PENDING_E)
         #endif
                 )
             return ret;
@@ -40457,7 +40516,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
                         );
                         if (!ssl->specs.static_ecdh
                     #ifdef WOLFSSL_ASYNC_CRYPT
-                            && ret != WC_PENDING_E
+                            && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
                     #endif
                         ) {
                             FreeKey(ssl, DYNAMIC_TYPE_ECC,

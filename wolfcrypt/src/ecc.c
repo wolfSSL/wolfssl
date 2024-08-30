@@ -5518,7 +5518,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
             /* Map in a separate call as this should be constant time */
             err = wc_ecc_mulmod_ex2(ecc_get_k(key), base, pub, curve->Af,
                                  curve->prime, curve->order, rng, 0, key->heap);
-            if (err == MP_MEM) {
+            if (err == WC_NO_ERR_TRACE(MP_MEM)) {
                err = MEMORY_E;
             }
         }
@@ -5534,7 +5534,7 @@ static int ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curve,
 
     if (err != MP_OKAY
     #ifdef WOLFSSL_ASYNC_CRYPT
-        && err != WC_PENDING_E
+        && err != WC_NO_ERR_TRACE(WC_PENDING_E)
     #endif
     ) {
         /* clean up if failed */
@@ -5988,7 +5988,7 @@ static int _ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
 
         if (err == MP_OKAY
         #ifdef WOLFSSL_ASYNC_CRYPT
-            || err == WC_PENDING_E
+            || err == WC_NO_ERR_TRACE(WC_PENDING_E)
         #endif
         ) {
             key->type = ECC_PRIVATEKEY;

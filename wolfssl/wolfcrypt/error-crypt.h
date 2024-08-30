@@ -42,7 +42,11 @@ the error status.
 #endif
 
 /* error codes, add string for new errors !!! */
-enum {
+enum wolfCrypt_ErrorCodes {
+    /* note that WOLFSSL_FATAL_ERROR is defined as -1 in error-ssl.h, for
+     * reasons of backward compatibility.
+     */
+
     MAX_CODE_E         =  -96,  /* errors -97 - -299 */
     WC_FIRST_E         =  -97,  /* errors -97 - -299 */
 
@@ -307,7 +311,7 @@ WOLFSSL_ABI WOLFSSL_API const char* wc_GetErrorString(int error);
 #if defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES) && \
         (defined(BUILDING_WOLFSSL) || \
          defined(WOLFSSL_DEBUG_TRACE_ERROR_CODES_ALWAYS))
-    extern void wc_backtrace_render(void);
+    WOLFSSL_API extern void wc_backtrace_render(void);
     #define WC_NO_ERR_TRACE(label) (CONST_NUM_ERR_ ## label)
     #ifndef WOLFSSL_DEBUG_BACKTRACE_RENDER_CLAUSE
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES

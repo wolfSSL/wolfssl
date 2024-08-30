@@ -800,7 +800,7 @@ expand_cleanup:
         {(idx)++;}
 int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_BIO *in = NULL;
     char* buf = NULL;
     char* idx = NULL;
@@ -1539,7 +1539,7 @@ static const conf_cmd_tbl* wolfssl_conf_find_cmd(WOLFSSL_CONF_CTX* cctx,
  */
 int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     const conf_cmd_tbl* confcmd = NULL;
     WOLFSSL_ENTER("wolfSSL_CONF_cmd");
 

@@ -773,7 +773,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         pr_err("%s: wc_AesGcmDecryptFinal failed with return code %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
 
-        if (err == AES_GCM_AUTH_E) {
+        if (err == WC_NO_ERR_TRACE(AES_GCM_AUTH_E)) {
             return -EBADMSG;
         }
         else {

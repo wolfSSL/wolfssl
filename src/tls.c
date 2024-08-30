@@ -9919,7 +9919,7 @@ int TLSX_KeyShare_Setup(WOLFSSL *ssl, KeyShareEntry* clientKSE)
         /* for async do setup of serverKSE below, but return WC_PENDING_E */
         if (ret != 0
         #ifdef WOLFSSL_ASYNC_CRYPT
-            && ret != WC_PENDING_E
+            && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
         #endif
         ) {
             TLSX_KeyShare_FreeAll(list, ssl->heap);

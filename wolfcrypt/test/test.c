@@ -940,7 +940,7 @@ static int wolfssl_pb_print(const char* msg, ...)
 /* Enable support for RNG with crypto callback */
 static int rng_crypto_cb(int thisDevId, wc_CryptoInfo* info, void* ctx)
 {
-    int rc = CRYPTOCB_UNAVAILABLE;
+    int rc = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     if (info->algo_type == WC_ALGO_TYPE_RNG) {
         rc = wc_GenerateSeed(&info->rng.rng->seed, info->rng.out, info->rng.sz);
     }
@@ -17409,7 +17409,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t XChaCha20Poly1305_test(void) {
 #endif /* defined(HAVE_XCHACHA) && defined(HAVE_POLY1305) */
 
 #ifndef WC_NO_RNG
-static wc_test_ret_t _rng_test(WC_RNG* rng, int errorOffset)
+static wc_test_ret_t _rng_test(WC_RNG* rng)
 {
     byte block[32];
     wc_test_ret_t ret;
@@ -17419,8 +17419,7 @@ static wc_test_ret_t _rng_test(WC_RNG* rng, int errorOffset)
 
     ret = wc_RNG_GenerateBlock(rng, block, sizeof(block));
     if (ret != 0) {
-        ret = 1;
-        goto exit;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
     /* Check for 0's */
@@ -17431,48 +17430,35 @@ static wc_test_ret_t _rng_test(WC_RNG* rng, int errorOffset)
     }
     /* All zeros count check */
     if (ret >= (int)sizeof(block)) {
-        ret = 2;
-        goto exit;
+        return WC_TEST_RET_ENC_NC;
     }
 
     ret = wc_RNG_GenerateByte(rng, block);
     if (ret != 0) {
-        ret = 3;
-        goto exit;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
     /* Parameter validation testing. */
     ret = wc_RNG_GenerateBlock(NULL, block, sizeof(block));
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        ret = 4;
-        goto exit;
+        return WC_TEST_RET_ENC_EC(ret);
     }
     ret = wc_RNG_GenerateBlock(rng, NULL, sizeof(block));
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        ret = 5;
-        goto exit;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
     ret = wc_RNG_GenerateByte(NULL, block);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        ret = 6;
-        goto exit;
+        return WC_TEST_RET_ENC_EC(ret);
     }
     ret = wc_RNG_GenerateByte(rng, NULL);
     if (ret != WC_NO_ERR_TRACE(BAD_FUNC_ARG)) {
-        ret = 7;
-        goto exit;
+        return WC_TEST_RET_ENC_EC(ret);
     }
 
-    ret = 0;
-
-exit:
-    if (ret != 0)
-        ret = errorOffset - (ret * 1000000);
-
-    return ret;
+    return 0;
 }
-
 
 static wc_test_ret_t random_rng_test(void)
 {
@@ -17490,7 +17476,7 @@ static wc_test_ret_t random_rng_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    ret = _rng_test(rng, WC_TEST_RET_ENC_NC);
+    ret = _rng_test(rng);
 
     /* Make sure and free RNG */
     wc_FreeRng(rng);
@@ -17507,7 +17493,7 @@ static wc_test_ret_t random_rng_test(void)
         if (rng == NULL)
             return WC_TEST_RET_ENC_ERRNO;
 
-        ret = _rng_test(rng, WC_TEST_RET_ENC_NC);
+        ret = _rng_test(rng);
         wc_rng_free(rng);
         rng = NULL;
 
@@ -17520,7 +17506,7 @@ static wc_test_ret_t random_rng_test(void)
         if (ret != 0)
             return WC_TEST_RET_ENC_EC(ret);
 
-        ret = _rng_test(rng, WC_TEST_RET_ENC_NC);
+        ret = _rng_test(rng);
         wc_rng_free(rng);
 
         if (ret != 0)
@@ -20262,7 +20248,9 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     }
 
     ret = wc_RsaSSL_Verify(out, outSz, tmp, inLen, key);
-    if (ret != MP_VAL && ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E)) {
+    if (ret != WC_NO_ERR_TRACE(MP_VAL) &&
+        ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+    {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_even_mod);
     }
 #endif
@@ -20277,7 +20265,9 @@ static wc_test_ret_t rsa_even_mod_test(WC_RNG* rng, RsaKey* key)
     /* test encrypt and decrypt using WC_RSA_NO_PAD */
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
     ret = wc_RsaPublicEncrypt(tmp, inLen, out, (int)outSz, key, rng);
-    if (ret != MP_VAL && ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E)) {
+    if (ret != WC_NO_ERR_TRACE(MP_VAL) &&
+        ret != WC_NO_ERR_TRACE(MP_EXPTMOD_E))
+    {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit_rsa_even_mod);
     }
 #endif /* WOLFSSL_RSA_VERIFY_ONLY */
@@ -25522,11 +25512,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
                 (unsigned char*)key, (unsigned char*)iv) == 0)
             return WC_TEST_RET_ENC_NC;
 
-        if (wolfSSL_EVP_EncryptFinal_ex(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+        if (wolfSSL_EVP_EncryptFinal_ex(NULL, NULL, NULL)
+            != WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        {
             return WC_TEST_RET_ENC_NC;
+        }
 
-        if (wolfSSL_EVP_EncryptFinal(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+        if (wolfSSL_EVP_EncryptFinal(NULL, NULL, NULL)
+            != WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        {
             return WC_TEST_RET_ENC_NC;
+        }
 
         if (wolfSSL_EVP_CIPHER_CTX_cleanup(de) != WOLFSSL_SUCCESS)
             return WC_TEST_RET_ENC_NC;
@@ -25538,11 +25534,17 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
                 (unsigned char*)key, (unsigned char*)iv) == 0)
             return WC_TEST_RET_ENC_NC;
 
-        if (wolfSSL_EVP_DecryptFinal(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+        if (wolfSSL_EVP_DecryptFinal(NULL, NULL, NULL)
+            != WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        {
             return WC_TEST_RET_ENC_NC;
+        }
 
-        if (wolfSSL_EVP_DecryptFinal_ex(NULL, NULL, NULL) != WOLFSSL_FAILURE)
+        if (wolfSSL_EVP_DecryptFinal_ex(NULL, NULL, NULL)
+            != WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        {
             return WC_TEST_RET_ENC_NC;
+        }
 
         if (EVP_CIPHER_CTX_block_size(NULL) != WC_NO_ERR_TRACE(BAD_FUNC_ARG))
             return WC_TEST_RET_ENC_NC;
@@ -52119,7 +52121,7 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return WC_TEST_RET_ENC_EC(ret);
 #ifdef WOLFSSL_SP_MATH
     ret = mp_grow(a, SP_INT_DIGITS + 1);
-    if (ret != MP_MEM)
+    if (ret != WC_NO_ERR_TRACE(MP_MEM))
         return WC_TEST_RET_ENC_EC(ret);
 #endif
 #endif

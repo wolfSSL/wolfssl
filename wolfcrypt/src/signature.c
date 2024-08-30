@@ -80,7 +80,7 @@ static int wc_SignatureDerEncode(enum wc_HashType hash_type, byte* hash_data,
 int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len)
 {
-    int sig_len = BAD_FUNC_ARG;
+    int sig_len = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     /* Suppress possible unused args if all signature types are disabled */
     (void)key;

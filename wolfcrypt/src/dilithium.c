@@ -306,7 +306,7 @@ static const wc_dilithium_params dilithium_params[] = {
 static int dilithium_get_params(int level, const wc_dilithium_params** params)
 {
     unsigned int i;
-    int ret = NOT_COMPILED_IN;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
     for (i = 0; i < DILITHIUM_PARAMS_CNT; i++) {
         if (dilithium_params[i].level == level) {
@@ -8559,7 +8559,7 @@ void wc_dilithium_free(dilithium_key* key)
  */
 int wc_dilithium_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
         if (key->level == WC_ML_DSA_44) {
@@ -8585,7 +8585,7 @@ int wc_dilithium_size(dilithium_key* key)
  */
 int wc_dilithium_priv_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
         if (key->level == WC_ML_DSA_44) {
@@ -8632,7 +8632,7 @@ int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len)
  */
 int wc_dilithium_pub_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
         if (key->level == WC_ML_DSA_44) {
@@ -8678,7 +8678,7 @@ int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len)
  */
 int wc_dilithium_sig_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
         if (key->level == WC_ML_DSA_44) {
@@ -9712,7 +9712,7 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 len,
  */
 int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output, word32 len)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     /* Validate parameters and check public and private key set. */
     if ((key != NULL) && key->prvKeySet && key->pubKeySet) {
@@ -9748,7 +9748,7 @@ int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output, word32 len)
  */
 int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output, word32 len)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     /* Validate parameters and check private key set. */
     if ((key != NULL) && key->prvKeySet) {

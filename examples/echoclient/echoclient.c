@@ -248,13 +248,13 @@ void echoclient_test(void* args)
         if (ret != WOLFSSL_SUCCESS) {
             err = SSL_get_error(ssl, 0);
         #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_PENDING_E) {
+            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                 if (ret < 0) break;
             }
         #endif
         }
-    } while (err == WC_PENDING_E);
+    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret != WOLFSSL_SUCCESS) {
         fprintf(stderr, "SSL_connect error %d, %s\n", err,
             ERR_error_string((unsigned long)err, buffer));
@@ -271,13 +271,13 @@ void echoclient_test(void* args)
             if (ret <= 0) {
                 err = SSL_get_error(ssl, 0);
             #ifdef WOLFSSL_ASYNC_CRYPT
-                if (err == WC_PENDING_E) {
+                if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                     ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                     if (ret < 0) break;
                 }
             #endif
             }
-        } while (err == WC_PENDING_E);
+        } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
         if (ret != sendSz) {
             fprintf(stderr, "SSL_write msg error %d, %s\n", err,
                 ERR_error_string((unsigned long)err, buffer));
@@ -306,13 +306,13 @@ void echoclient_test(void* args)
                 if (ret <= 0) {
                     err = SSL_get_error(ssl, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_PENDING_E) {
+                    if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                         ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                         if (ret < 0) break;
                     }
                 #endif
                 }
-            } while (err == WC_PENDING_E);
+            } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
             if (ret > 0) {
                 reply[ret] = 0;
                 LIBCALL_CHECK_RET(fputs(reply, fout));
@@ -320,7 +320,9 @@ void echoclient_test(void* args)
                 sendSz -= ret;
             }
 #ifdef WOLFSSL_DTLS
-            else if (wolfSSL_dtls(ssl) && err == DECRYPT_ERROR) {
+            else if (wolfSSL_dtls(ssl) &&
+                     err == WC_NO_ERR_TRACE(DECRYPT_ERROR))
+            {
                 /* This condition is OK. The packet should be dropped
                  * silently when there is a decrypt or MAC error on
                  * a DTLS record. */
@@ -346,13 +348,13 @@ void echoclient_test(void* args)
         if (ret <= 0) {
             err = SSL_get_error(ssl, 0);
         #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_PENDING_E) {
+            if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                 if (ret < 0) break;
             }
         #endif
         }
-    } while (err == WC_PENDING_E);
+    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
 #else
     SSL_shutdown(ssl);
 #endif

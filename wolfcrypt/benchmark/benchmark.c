@@ -526,7 +526,7 @@
                wc_GetErrorString(err));
         printf("%shash = %s\n", ok ? info_prefix : err_prefix, hash);
 
-        if (err == IN_CORE_FIPS_E) {
+        if (err == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
             printf("%sIn core integrity hash check failure, copy above hash\n",
                    err_prefix);
             printf("%sinto verifyCore[] in fips_test.c and rebuild\n",
@@ -1798,7 +1798,7 @@ static const char* bench_result_words2[][5] = {
     {
         WOLF_EVENT_STATE state = asyncDev->event.state;
 
-        if (*ret == WC_PENDING_E) {
+        if (*ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             if (state == WOLF_EVENT_STATE_DONE) {
                 *ret = asyncDev->event.ret;
                 asyncDev->event.state = WOLF_EVENT_STATE_READY;
@@ -8956,7 +8956,7 @@ void bench_rsa_key(int useDeviceID, word32 rsaKeySz)
 
             /* create the RSA key */
             ret = wc_MakeRsaKey(rsaKey[i], (int)rsaKeySz, exp, &gRng);
-            if (ret == WC_PENDING_E) {
+            if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                 isPending[i] = 1;
                 pending      = 1;
             }

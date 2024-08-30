@@ -273,7 +273,7 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr, char* buf,
                        int sz)
 {
-    int recvd = WOLFSSL_CBIO_ERR_GENERAL;
+    int recvd = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL);
 
     WOLFSSL_ENTER("SslBioReceive");
 
@@ -352,7 +352,7 @@ int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
  */
 int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
-    int sent = WOLFSSL_CBIO_ERR_GENERAL;
+    int sent = WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_GENERAL);
 
     WOLFSSL_ENTER("SslBioSend");
 
@@ -781,7 +781,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         if (recvd < 0) {
             WOLFSSL_MSG("Embed Receive From error");
-            if (recvd == WOLFSSL_CBIO_ERR_WANT_READ &&
+            if (recvd == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ) &&
                 !wolfSSL_dtls_get_using_nonblock(ssl)) {
                 recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
             }
@@ -894,7 +894,7 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
     if (recvd < 0) {
         WOLFSSL_MSG("Embed Receive From error");
-        if (recvd == WOLFSSL_CBIO_ERR_WANT_READ &&
+        if (recvd == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ) &&
             !wolfSSL_dtls_get_using_nonblock(ssl)) {
             recvd = WOLFSSL_CBIO_ERR_TIMEOUT;
         }
@@ -1795,7 +1795,7 @@ int wolfIO_HttpProcessResponseGenericIO(WolfSSLGenericIORecvCb ioCb,
                 start[len] = 0;
             }
             else {
-                if (result == WOLFSSL_CBIO_ERR_WANT_READ) {
+                if (result == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ)) {
                     return OCSP_WANT_READ;
                 }
 
