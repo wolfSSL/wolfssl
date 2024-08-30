@@ -62,8 +62,8 @@
     }
 #endif
 
-#if !defined(WOLFSSL_ARMASM) || (!defined(__arm__) && \
-    !defined(WOLFSSL_ARMASM_CRYPTO_SHA3))
+#if (!defined(WOLFSSL_ARMASM) || (!defined(__arm__) && \
+     !defined(WOLFSSL_ARMASM_CRYPTO_SHA3))) && !defined(WOLFSSL_RISCV_ASM)
 
 #ifdef USE_INTEL_SPEEDUP
     #include <wolfssl/wolfcrypt/cpuid.h>
@@ -250,7 +250,7 @@ while (0)
 #ifndef USE_INTEL_SPEEDUP
 static
 #endif
-void BlockSha3(word64 *s)
+void BlockSha3(word64* s)
 {
     byte i, x, y;
     word64 t0, t1;
@@ -541,7 +541,7 @@ while (0)
 #ifndef USE_INTEL_SPEEDUP
 static
 #endif
-void BlockSha3(word64 *s)
+void BlockSha3(word64* s)
 {
     word64 n[25];
     word64 b[5];
@@ -563,7 +563,7 @@ void BlockSha3(word64 *s)
     }
 }
 #endif /* WOLFSSL_SHA3_SMALL */
-#endif /* !WOLFSSL_ARMASM */
+#endif /* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
 
 static WC_INLINE word64 Load64Unaligned(const unsigned char *a)
 {
