@@ -1809,57 +1809,78 @@ static int Pkcs11RsaPrivateKey(Pkcs11Session* session, RsaKey* rsaKey,
     return ret;
 }
 
+/**
+ * Get the hash length associated with the WolfCrypt hash type.
+ *
+ * @param  [in]   hType   Hash Type.
+ * @return  -1 if hash type not recognized.
+ * @return  hash length on success.
+ */
 int wc_hash2sz(int hType)
 {
     switch(hType) {
     case WC_HASH_TYPE_SHA:
         return 20;
+    case WC_HASH_TYPE_SHA224:
+        return 24;
     case WC_HASH_TYPE_SHA256:
         return 32;
     case WC_HASH_TYPE_SHA384:
         return 48;
     case WC_HASH_TYPE_SHA512:
         return 64;
-    case WC_HASH_TYPE_SHA224:
-        return 24;
     default:
         /* unsupported WC_HASH_TYPE_XXXX */
         return -1;
     }
 }
 
+/**
+ * Get PKCS11 hash mechanism associated with the WolfCrypt hash type.
+ *
+ * @param  [in]   hType   Hash Type.
+ * @return  0 if hash type not recognized.
+ * @return  PKCS11 mechanism on success.
+ */
 CK_MECHANISM_TYPE wc_hash2ckm(int hType)
 {
     switch(hType) {
     case WC_HASH_TYPE_SHA:
         return CKM_SHA_1;
+    case WC_HASH_TYPE_SHA224:
+        return CKM_SHA224;
     case WC_HASH_TYPE_SHA256:
         return CKM_SHA256;
     case WC_HASH_TYPE_SHA384:
         return CKM_SHA384;
     case WC_HASH_TYPE_SHA512:
         return CKM_SHA512;
-    case WC_HASH_TYPE_SHA224:
-        return CKM_SHA224;
     default:
         /* unsupported WC_HASH_TYPE_XXXX */
         return 0UL;
     }
 }
 
+/**
+ * Get PKCS11 MGF hash mechanism associated with the WolfCrypt MGF hash type.
+ *
+ * @param  [in]   mgf   MGF Type.
+ * @return  0 if MGF type not recognized.
+ * @return  PKCS11 MGF hash mechanism on success.
+ */
 CK_MECHANISM_TYPE wc_mgf2ckm(int mgf)
 {
     switch(mgf) {
     case WC_MGF1SHA1:
         return CKG_MGF1_SHA1;
+    case WC_MGF1SHA224:
+        return CKG_MGF1_SHA224;
     case WC_MGF1SHA256:
         return CKG_MGF1_SHA256;
     case WC_MGF1SHA384:
         return CKG_MGF1_SHA384;
     case WC_MGF1SHA512:
         return CKG_MGF1_SHA512;
-    case WC_MGF1SHA224:
-        return CKG_MGF1_SHA224;
     default:
         /* unsupported WC_MGF1XXXX */
         return 0x0UL;
