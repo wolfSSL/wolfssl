@@ -83187,7 +83187,17 @@ static int error_test(void)
 #ifndef OPENSSL_EXTRA
         { 0, 0 },
 #endif
+
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER) || defined(HAVE_MEMCACHED)
+        { -11, -12 },
+        { -15, -17 },
+        { -19, -19 },
+        { -26, -27 },
+        { -30, WC_FIRST_E+1 },
+#else
         { -9, WC_FIRST_E+1 },
+#endif
         { -124, -124 },
         { -166, -169 },
         { -300, -300 },
