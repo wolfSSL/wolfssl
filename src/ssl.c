@@ -2851,13 +2851,64 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
         return ret;
 }
 
-static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
+
+/* does encryption and creation of TLS packet inline on buffer 'data'
+ * can only handle one fragment at a time */
+int wolfSSL_write_inline(WOLFSSL* ssl, const void* data, int dataSz, int maxSz)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_write_inline");
+
+    if (ssl == NULL || data == NULL || dataSz < 0)
+        return BAD_FUNC_ARG;
+
+    /* only support a single TLS fragment */
+    if (wolfSSL_GetMaxFragSize(ssl, dataSz) > dataSz)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_QUIC
+    if (WOLFSSL_IS_QUIC(ssl)) {
+        WOLFSSL_MSG("SSL_write() on QUIC not allowed");
+        return BAD_FUNC_ARG;
+    }
+#endif
+
+#ifdef HAVE_ERRNO_H
+    errno = 0;
+#endif
+
+    if (SetOutputBuffer(ssl, (byte*)data, maxSz) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+#ifdef OPENSSL_EXTRA
+    if (ssl->CBIS != NULL) {
+        ssl->CBIS(ssl, SSL_CB_WRITE, WOLFSSL_SUCCESS);
+        ssl->cbmode = SSL_CB_WRITE;
+    }
+#endif
+    ret = SendData(ssl, data, dataSz);
+
+    WOLFSSL_LEAVE("wolfSSL_write_inline", ret);
+
+    if (ret < 0)
+        return WOLFSSL_FATAL_ERROR;
+    else
+        return ret;
+}
+
+static int wolfSSL_read_internal(WOLFSSL* ssl, void** data, int sz, int peek)
 {
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_read_internal");
 
     if (ssl == NULL || data == NULL || sz < 0)
+        return BAD_FUNC_ARG;
+
+    if (ssl->buffers.inputBuffer.dynamicFlag != WOLFSSL_EXTERNAL_IO_BUFFER &&
+            *data == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_QUIC
@@ -2901,7 +2952,7 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
         errno = 0;
 #endif
 
-    ret = ReceiveData(ssl, (byte*)data, sz, peek);
+    ret = ReceiveData(ssl, (byte**)data, sz, peek);
 
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite) {
@@ -2934,7 +2985,7 @@ int wolfSSL_peek(WOLFSSL* ssl, void* data, int sz)
 {
     WOLFSSL_ENTER("wolfSSL_peek");
 
-    return wolfSSL_read_internal(ssl, data, sz, TRUE);
+    return wolfSSL_read_internal(ssl, &data, sz, TRUE);
 }
 
 
@@ -2952,7 +3003,39 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
         ssl->cbmode = SSL_CB_READ;
     }
     #endif
-    return wolfSSL_read_internal(ssl, data, sz, FALSE);
+    return wolfSSL_read_internal(ssl, &data, sz, FALSE);
+}
+
+
+/* 'buf' is the full buffer available when reading data from the peer
+ * 'data' pointer gets pointed to the location of 'buf' where the data has been
+ *        decrypted on success
+ *
+ * returns the amount of clear text data available on success and negative
+ *         values on failure
+ */
+int  wolfSSL_read_inline(WOLFSSL* ssl, void* buf, int bufSz, void** data,
+        int dataSz)
+{
+    WOLFSSL_ENTER("wolfSSL_read");
+
+    #ifdef OPENSSL_EXTRA
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (ssl->CBIS != NULL) {
+        ssl->CBIS(ssl, SSL_CB_READ, WOLFSSL_SUCCESS);
+        ssl->cbmode = SSL_CB_READ;
+    }
+    #endif
+
+    /* ShrinkInputBuffer will reset the internal buffer back to the static
+     * buffer and does not zero out or free 'buf' */
+    if (SetInputBuffer(ssl, (byte*)buf, bufSz) != WOLFSSL_SUCCESS) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_read_internal(ssl, data, dataSz, FALSE);
 }
 
 
@@ -2967,7 +3050,7 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    ret = wolfSSL_read_internal(ssl, data, sz, FALSE);
+    ret = wolfSSL_read_internal(ssl, &data, sz, FALSE);
     if (ssl->options.dtls && ssl->options.haveMcast && id != NULL)
         *id = ssl->keys.curPeerId;
     return ret;

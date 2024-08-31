@@ -2345,13 +2345,15 @@ enum {
     #define STATIC_BUFFER_LEN RECORD_HEADER_SZ
 #endif
 
+#define WOLFSSL_DYNMAIC_IO_BUFFER  1
+#define WOLFSSL_EXTERNAL_IO_BUFFER 2
 typedef struct {
     ALIGN16 byte staticBuffer[STATIC_BUFFER_LEN];
     byte*  buffer;       /* place holder for static or dynamic buffer */
     word32 length;       /* total buffer length used */
     word32 idx;          /* idx to part of length already consumed */
     word32 bufferSize;   /* current buffer size */
-    byte   dynamicFlag;  /* dynamic memory currently in use */
+    byte   dynamicFlag;  /* dynamic(1) or external(2) memory currently in use */
     byte   offset;       /* alignment offset attempt */
 } bufferStatic;
 
@@ -6321,7 +6323,7 @@ WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL* ssl);
-WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek);
+WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte** output, int sz, int peek);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL* ssl);
 WOLFSSL_LOCAL int RetrySendAlert(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendAlert(WOLFSSL* ssl, int severity, int type);
@@ -6350,6 +6352,8 @@ WOLFSSL_LOCAL void FreeHandshakeResources(WOLFSSL* ssl);
 WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
 WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte* GetOutputBuffer(WOLFSSL* ssl);
+WOLFSSL_LOCAL int SetOutputBuffer(WOLFSSL* ssl, byte* buf, int bufSz);
+WOLFSSL_LOCAL int SetInputBuffer(WOLFSSL* ssl, byte* buf, int bufSz);
 
 WOLFSSL_LOCAL int CipherRequires(byte first, byte second, int requirement);
 WOLFSSL_LOCAL int VerifyClientSuite(word16 havePSK, byte cipherSuite0,

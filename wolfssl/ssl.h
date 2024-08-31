@@ -1171,6 +1171,10 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_connect(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_write(
     WOLFSSL* ssl, const void* data, int sz);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
+WOLFSSL_API int  wolfSSL_write_inline( WOLFSSL* ssl, const void* data,
+    int dataSz, int maxSz);
+WOLFSSL_API int  wolfSSL_read_inline(WOLFSSL* ssl, void* buf, int bufSz,
+    void** data, int dataSz);
 WOLFSSL_API int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_accept(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
