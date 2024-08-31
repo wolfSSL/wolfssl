@@ -251,7 +251,7 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
         NULL);
     WOLFSSL_MSG(errstr);
 #else
-    WOLFSSL_MSG("\tGeneral error");
+    WOLFSSL_MSG_EX("\tGeneral error: %d", err);
 #endif
     return WOLFSSL_CBIO_ERR_GENERAL;
 }
