@@ -34,6 +34,10 @@ decouple library dependencies with standard string, memory and so on.
     #include <wolfssl/wolfcrypt/settings.h>
     #include <wolfssl/wolfcrypt/wc_port.h>
 
+    #ifdef __APPLE__
+        #include <AvailabilityMacros.h>
+    #endif
+
     #ifdef __cplusplus
         extern "C" {
     #endif
@@ -1490,17 +1494,18 @@ typedef struct w64wrapper {
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD
     #elif defined(WOLFSSL_PTHREADS)
-        #ifndef __MACH__
-            #include <pthread.h>
-            typedef struct COND_TYPE {
-                pthread_mutex_t mutex;
-                pthread_cond_t cond;
-            } COND_TYPE;
-        #else
+        #if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 \
+            && !defined(__ppc__)
             #include <dispatch/dispatch.h>
             typedef struct COND_TYPE {
                 wolfSSL_Mutex mutex;
                 dispatch_semaphore_t cond;
+            } COND_TYPE;
+        #else
+            #include <pthread.h>
+            typedef struct COND_TYPE {
+                pthread_mutex_t mutex;
+                pthread_cond_t cond;
             } COND_TYPE;
         #endif
         typedef void*         THREAD_RETURN;
