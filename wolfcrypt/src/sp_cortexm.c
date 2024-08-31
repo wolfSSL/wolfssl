@@ -102,6 +102,15 @@ static void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 
     if (i >= 0) {
+#ifdef BIG_ENDIAN_ORDER
+        int s;
+
+        /* Place remaining bytes into last digit. */
+        r[j] = 0;
+        for (s = 0; i >= 0; i--,s += 8) {
+            r[j] |= ((sp_digit)a[i]) << s;
+        }
+#else
         r[j] = 0;
 
         d = (byte*)r;
@@ -110,6 +119,7 @@ static void sp_2048_from_bin(sp_digit* r, int size, const byte* a, int n)
             case 1: d[n - 1 - 1] = a[1]; //fallthrough
             case 0: d[n - 1 - 0] = a[0]; //fallthrough
         }
+#endif
         j++;
     }
 
@@ -9978,6 +9988,15 @@ static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 
     if (i >= 0) {
+#ifdef BIG_ENDIAN_ORDER
+        int s;
+
+        /* Place remaining bytes into last digit. */
+        r[j] = 0;
+        for (s = 0; i >= 0; i--,s += 8) {
+            r[j] |= ((sp_digit)a[i]) << s;
+        }
+#else
         r[j] = 0;
 
         d = (byte*)r;
@@ -9986,6 +10005,7 @@ static void sp_3072_from_bin(sp_digit* r, int size, const byte* a, int n)
             case 1: d[n - 1 - 1] = a[1]; //fallthrough
             case 0: d[n - 1 - 0] = a[0]; //fallthrough
         }
+#endif
         j++;
     }
 
@@ -22837,6 +22857,15 @@ static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 
     if (i >= 0) {
+#ifdef BIG_ENDIAN_ORDER
+        int s;
+
+        /* Place remaining bytes into last digit. */
+        r[j] = 0;
+        for (s = 0; i >= 0; i--,s += 8) {
+            r[j] |= ((sp_digit)a[i]) << s;
+        }
+#else
         r[j] = 0;
 
         d = (byte*)r;
@@ -22845,6 +22874,7 @@ static void sp_4096_from_bin(sp_digit* r, int size, const byte* a, int n)
             case 1: d[n - 1 - 1] = a[1]; //fallthrough
             case 0: d[n - 1 - 0] = a[0]; //fallthrough
         }
+#endif
         j++;
     }
 
@@ -39435,6 +39465,15 @@ static void sp_256_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 
     if (i >= 0) {
+#ifdef BIG_ENDIAN_ORDER
+        int s;
+
+        /* Place remaining bytes into last digit. */
+        r[j] = 0;
+        for (s = 0; i >= 0; i--,s += 8) {
+            r[j] |= ((sp_digit)a[i]) << s;
+        }
+#else
         r[j] = 0;
 
         d = (byte*)r;
@@ -39443,6 +39482,7 @@ static void sp_256_from_bin(sp_digit* r, int size, const byte* a, int n)
             case 1: d[n - 1 - 1] = a[1]; //fallthrough
             case 0: d[n - 1 - 0] = a[0]; //fallthrough
         }
+#endif
         j++;
     }
 
@@ -49498,6 +49538,15 @@ static void sp_384_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 
     if (i >= 0) {
+#ifdef BIG_ENDIAN_ORDER
+        int s;
+
+        /* Place remaining bytes into last digit. */
+        r[j] = 0;
+        for (s = 0; i >= 0; i--,s += 8) {
+            r[j] |= ((sp_digit)a[i]) << s;
+        }
+#else
         r[j] = 0;
 
         d = (byte*)r;
@@ -49506,6 +49555,7 @@ static void sp_384_from_bin(sp_digit* r, int size, const byte* a, int n)
             case 1: d[n - 1 - 1] = a[1]; //fallthrough
             case 0: d[n - 1 - 0] = a[0]; //fallthrough
         }
+#endif
         j++;
     }
 
@@ -62260,6 +62310,15 @@ static void sp_521_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 
     if (i >= 0) {
+#ifdef BIG_ENDIAN_ORDER
+        int s;
+
+        /* Place remaining bytes into last digit. */
+        r[j] = 0;
+        for (s = 0; i >= 0; i--,s += 8) {
+            r[j] |= ((sp_digit)a[i]) << s;
+        }
+#else
         r[j] = 0;
 
         d = (byte*)r;
@@ -62268,6 +62327,7 @@ static void sp_521_from_bin(sp_digit* r, int size, const byte* a, int n)
             case 1: d[n - 1 - 1] = a[1]; //fallthrough
             case 0: d[n - 1 - 0] = a[0]; //fallthrough
         }
+#endif
         j++;
     }
 
@@ -81799,6 +81859,15 @@ static void sp_1024_from_bin(sp_digit* r, int size, const byte* a, int n)
     }
 
     if (i >= 0) {
+#ifdef BIG_ENDIAN_ORDER
+        int s;
+
+        /* Place remaining bytes into last digit. */
+        r[j] = 0;
+        for (s = 0; i >= 0; i--,s += 8) {
+            r[j] |= ((sp_digit)a[i]) << s;
+        }
+#else
         r[j] = 0;
 
         d = (byte*)r;
@@ -81807,6 +81876,7 @@ static void sp_1024_from_bin(sp_digit* r, int size, const byte* a, int n)
             case 1: d[n - 1 - 1] = a[1]; //fallthrough
             case 0: d[n - 1 - 0] = a[0]; //fallthrough
         }
+#endif
         j++;
     }
 
