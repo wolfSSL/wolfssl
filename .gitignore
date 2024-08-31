@@ -442,6 +442,12 @@ debian/changelog
 debian/control
 *.deb
 
+# Ada/Alire files
+wrapper/Ada/alire/
+wrapper/Ada/config/
+wrapper/Ada/lib/
+wrapper/Ada/obj/
+
 # PlatformIO
 /**/.pio
 /**/.vscode/.browse.c_cpp.db*
