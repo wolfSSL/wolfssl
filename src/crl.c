@@ -1100,7 +1100,11 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
     struct kevent change;
 
     /* trigger custom shutdown */
+#if defined(NOTE_TRIGGER)
     EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);
+#elif defined(EV_TRIGGER)
+    EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, EV_TRIGGER, 0, 0, NULL);
+#endif
     if (kevent(mfd, &change, 1, NULL, 0, NULL) < 0) {
         WOLFSSL_MSG("kevent trigger customer event failed");
         return -1;
