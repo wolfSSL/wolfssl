@@ -1004,7 +1004,7 @@ WOLFSSL_SESSION* wolfSSL_GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
 #else
         current = &sessRow->Sessions[clSess[idx].serverIdx];
 #endif
-        if (current && XMEMCMP(current->serverID, id, len) == 0) {
+        if (current && XMEMCMP(current->serverID, id, (unsigned long)len) == 0) {
             WOLFSSL_MSG("Found a serverid match for client");
             if (LowResTimer() < (current->bornOn + current->timeout)) {
                 WOLFSSL_MSG("Session valid");

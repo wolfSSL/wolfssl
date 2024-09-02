@@ -1684,7 +1684,7 @@ const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
         return NULL;
 
     cipher = wolfSSL_get_cipher_name_iana(ssl);
-    len = (int)min((word32)len, (int)(XSTRLEN(cipher) + 1));
+    len = (int)min((word32)len, (word32)(XSTRLEN(cipher) + 1));
     XMEMCPY(buf, cipher, len);
     return buf;
 }
@@ -4673,7 +4673,7 @@ int wolfSSL_pending(WOLFSSL* ssl)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
-    return ssl->buffers.clearOutputBuffer.length;
+    return (int)ssl->buffers.clearOutputBuffer.length;
 }
 
 int wolfSSL_has_pending(const WOLFSSL* ssl)
@@ -10391,7 +10391,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 sending += (int)iov[i].iov_len;
 
             if (sending > (int)sizeof(staticBuffer)) {
-                myBuffer = (byte*)XMALLOC(sending, ssl->heap,
+                myBuffer = (byte*)XMALLOC((size_t)sending, ssl->heap,
                                                            DYNAMIC_TYPE_WRITEV);
                 if (!myBuffer)
                     return MEMORY_ERROR;
@@ -11734,7 +11734,7 @@ cleanup:
         WOLFSSL_MSG("wolfSSL options are set through API calls and macros");
         if(ctx == NULL)
             return BAD_FUNC_ARG;
-        return ctx->mask;
+        return (long)ctx->mask;
     }
 
     /* forward declaration */
@@ -11747,7 +11747,7 @@ cleanup:
         if (ctx == NULL)
             return BAD_FUNC_ARG;
 
-        ctx->mask = wolf_set_options(ctx->mask, opt);
+        ctx->mask = (unsigned long)wolf_set_options((long)ctx->mask, opt);
 #if defined(HAVE_SESSION_TICKET) && (defined(OPENSSL_EXTRA) \
         || defined(HAVE_WEBSERVER) || defined(WOLFSSL_WPAS_SMALL))
         if ((ctx->mask & WOLFSSL_OP_NO_TICKET) == WOLFSSL_OP_NO_TICKET) {
@@ -11763,7 +11763,7 @@ cleanup:
         #endif
         */
 #endif
-        return ctx->mask;
+        return (long)ctx->mask;
     }
 
     long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
@@ -11771,8 +11771,8 @@ cleanup:
         WOLFSSL_ENTER("wolfSSL_CTX_clear_options");
         if(ctx == NULL)
             return BAD_FUNC_ARG;
-        ctx->mask &= ~opt;
-        return ctx->mask;
+        ctx->mask &= (unsigned long)~opt;
+        return (long)ctx->mask;
     }
 
 #ifdef OPENSSL_EXTRA
@@ -14277,7 +14277,7 @@ word32 wolfSSL_CIPHER_get_id(const WOLFSSL_CIPHER* cipher)
     WOLFSSL_ENTER("wolfSSL_CIPHER_get_id");
 
     if (cipher && cipher->ssl) {
-        cipher_id = (cipher->ssl->options.cipherSuite0 << 8) |
+        cipher_id = (word16)(cipher->ssl->options.cipherSuite0 << 8) |
                      cipher->ssl->options.cipherSuite;
     }
 
@@ -15970,7 +15970,7 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         return 0;
     }
 
-    ssl->options.mask = wolf_set_options(ssl->options.mask, op);
+    ssl->options.mask = (unsigned long)wolf_set_options((long)ssl->options.mask, op);
 
     if ((ssl->options.mask & WOLFSSL_OP_NO_TLSv1_3) == WOLFSSL_OP_NO_TLSv1_3) {
         WOLFSSL_MSG("Disabling TLS 1.3");
@@ -16073,7 +16073,7 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         }
     }
 
-    return ssl->options.mask;
+    return (long)ssl->options.mask;
 }
 
 
@@ -16082,7 +16082,7 @@ long wolfSSL_get_options(const WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_get_options");
     if(ssl == NULL)
         return WOLFSSL_FAILURE;
-    return ssl->options.mask;
+    return (long)ssl->options.mask;
 }
 
 #if defined(HAVE_SECURE_RENEGOTIATION) \
