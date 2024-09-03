@@ -3671,7 +3671,7 @@ static void* benchmarks_do(void* args)
             #endif
 
                 if (wc_ecc_get_curve_size_from_id(curveId) !=
-                        ECC_BAD_ARG_E) {
+                        WC_NO_ERR_TRACE(ECC_BAD_ARG_E)) {
                     bench_ecc_curve(curveId);
                     if (csv_format != 1) {
                         printf("\n");

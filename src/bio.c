@@ -453,8 +453,9 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         }
     }
     else {
-        if (Base64_Encode((const byte*)data, inLen, NULL, &sz) !=
-            LENGTH_ONLY_E) {
+        if (Base64_Encode((const byte*)data, inLen, NULL, &sz)
+              != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
+        {
             WOLFSSL_MSG("Error with base64 get length");
             return WOLFSSL_FATAL_ERROR;
         }

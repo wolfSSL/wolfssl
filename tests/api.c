@@ -2181,7 +2181,7 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
     /* load ca cert */
 #ifdef NO_RSA
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL),
-        WS_RETURN_CODE(ASN_UNKNOWN_OID_E,WOLFSSL_FAILURE));
+        WS_RETURN_CODE(WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E),WC_NO_ERR_TRACE(WOLFSSL_FAILURE)));
 #else /* Skip the following test without RSA certs. */
     ExpectIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL),
         WOLFSSL_SUCCESS);
@@ -2741,7 +2741,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 #elif defined(NO_RSA)
-    ExpectIntEQ(ret, ASN_UNKNOWN_OID_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E));
 #else
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
@@ -2750,7 +2750,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 #elif defined(NO_RSA)
-    ExpectIntEQ(ret, ASN_UNKNOWN_OID_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E));
 #elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && \
       !defined(NO_ASN_TIME)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
@@ -2774,7 +2774,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 #elif defined(NO_RSA)
-    ExpectIntEQ(ret, ASN_UNKNOWN_OID_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E));
 #else
     ExpectIntEQ(ret, WOLFSSL_SUCCESS);
 #endif
@@ -2784,7 +2784,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
 #if defined(NO_WOLFSSL_CLIENT) && defined(NO_WOLFSSL_SERVER)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
 #elif defined(NO_RSA)
-    ExpectIntEQ(ret, ASN_UNKNOWN_OID_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_UNKNOWN_OID_E));
 #elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && \
       !defined(NO_ASN_TIME) && defined(WOLFSSL_TRUST_PEER_CERT) && \
       defined(OPENSSL_COMPATIBLE_DEFAULTS)
@@ -13562,7 +13562,7 @@ static int test_override_x509(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     EXPECT_DECLS;
 #ifndef OPENSSL_COMPATIBLE_DEFAULTS
-    ExpectIntEQ(store->error, ASN_VERSION_E);
+    ExpectIntEQ(store->error, WC_NO_ERR_TRACE(ASN_VERSION_E));
 #else
     ExpectIntEQ(store->error, 0);
 #endif
@@ -16569,7 +16569,7 @@ static int test_wc_Md5HmacSetKey(void)
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 5)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #elif defined(HAVE_FIPS)
-    ExpectIntEQ(ret, HMAC_MIN_KEYLEN_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E));
 #else
     ExpectIntEQ(ret, 0);
 #endif
@@ -16620,7 +16620,7 @@ static int test_wc_ShaHmacSetKey(void)
 
     ret = wc_HmacSetKey(&hmac, WC_SHA, (byte*)keys[0], 0);
 #ifdef HAVE_FIPS
-    ExpectIntEQ(ret, HMAC_MIN_KEYLEN_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E));
 #else
     ExpectIntEQ(ret, 0);
 #endif
@@ -16668,7 +16668,7 @@ static int test_wc_Sha224HmacSetKey(void)
         (word32)XSTRLEN(keys[0])), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ret = wc_HmacSetKey(&hmac, WC_SHA224, (byte*)keys[0], 0);
 #ifdef HAVE_FIPS
-    ExpectIntEQ(ret, HMAC_MIN_KEYLEN_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E));
 #else
     ExpectIntEQ(ret, 0);
 #endif
@@ -16716,7 +16716,7 @@ static int test_wc_Sha256HmacSetKey(void)
         (word32)XSTRLEN(keys[0])), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ret = wc_HmacSetKey(&hmac, WC_SHA256, (byte*)keys[0], 0);
 #ifdef HAVE_FIPS
-    ExpectIntEQ(ret, HMAC_MIN_KEYLEN_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E));
 #else
     ExpectIntEQ(ret, 0);
 #endif
@@ -16765,7 +16765,7 @@ static int test_wc_Sha384HmacSetKey(void)
         (word32)XSTRLEN(keys[0])), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ret = wc_HmacSetKey(&hmac, WC_SHA384, (byte*)keys[0], 0);
 #ifdef HAVE_FIPS
-    ExpectIntEQ(ret, HMAC_MIN_KEYLEN_E);
+    ExpectIntEQ(ret, WC_NO_ERR_TRACE(HMAC_MIN_KEYLEN_E));
 #else
     ExpectIntEQ(ret, 0);
 #endif
@@ -18058,7 +18058,7 @@ static int test_wc_Sm4Gcm(void)
         GCM_NONCE_MIN_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)), 0);
     ExpectIntEQ(wc_Sm4GcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE * 2, nonce,
         GCM_NONCE_MAX_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)),
-        SM4_GCM_AUTH_E);
+        WC_NO_ERR_TRACE(SM4_GCM_AUTH_E));
 
     /* Check valid values of tag size - wc_Sm4GcmEncrypt/wc_Sm4GcmDecrypt. */
     for (i = WOLFSSL_MIN_AUTH_TAG_SZ; i < SM4_BLOCK_SIZE; i++) {
@@ -18234,7 +18234,7 @@ static int test_wc_Sm4Ccm(void)
     }
     ExpectIntEQ(wc_Sm4CcmDecrypt(&sm4, in, out, SM4_BLOCK_SIZE, nonce,
         CCM_NONCE_MIN_SZ, tag, SM4_BLOCK_SIZE, aad, sizeof(aad)),
-        SM4_CCM_AUTH_E);
+        WC_NO_ERR_TRACE(SM4_CCM_AUTH_E));
 
     /* Check invalid values of tag size - wc_Sm4CcmEncrypt/wc_Sm4CcmDecrypt. */
     for (i = 0; i < 4; i++) {
@@ -18849,15 +18849,15 @@ static int test_wc_Rc2SetKey(void)
     ExpectIntEQ(wc_Rc2SetKey(&rc2, NULL, (word32) sizeof(key40) / sizeof(byte),
         iv, 40), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* key size == 0 */
-    ExpectIntEQ(wc_Rc2SetKey(&rc2, key40, 0, iv, 40), WC_KEY_SIZE_E);
+    ExpectIntEQ(wc_Rc2SetKey(&rc2, key40, 0, iv, 40), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
     /* key size > 128 */
-    ExpectIntEQ(wc_Rc2SetKey(&rc2, key40, 129, iv, 40), WC_KEY_SIZE_E);
+    ExpectIntEQ(wc_Rc2SetKey(&rc2, key40, 129, iv, 40), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
     /* effective bits == 0 */
     ExpectIntEQ(wc_Rc2SetKey(&rc2, key40, (word32)sizeof(key40) / sizeof(byte),
-        iv, 0), WC_KEY_SIZE_E);
+        iv, 0), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
     /* effective bits > 1024 */
     ExpectIntEQ(wc_Rc2SetKey(&rc2, key40, (word32)sizeof(key40) / sizeof(byte),
-        iv, 1025), WC_KEY_SIZE_E);
+        iv, 1025), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_Rc2SetKey */
@@ -19457,7 +19457,7 @@ static int test_wc_AesGcmEncryptDecrypt(void)
     #if (defined(HAVE_FIPS) && FIPS_VERSION_LE(2,0) && defined(WOLFSSL_ARMASM))
     ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte), iv,
         sizeof(iv)/sizeof(byte), resultT, sizeof(resultT) + 1, a, sizeof(a)),
-        AES_GCM_AUTH_E);
+        WC_NO_ERR_TRACE(AES_GCM_AUTH_E));
     #else
     ExpectIntEQ(wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte), iv,
         sizeof(iv)/sizeof(byte), resultT, sizeof(resultT) + 1, a, sizeof(a)),
@@ -32104,7 +32104,7 @@ static int test_wc_dilithium_sign(void)
         0);
     ExpectIntEQ(wc_dilithium_sign_msg(msg, 32, sig, &sigLen, key, &rng), 0);
 #ifdef WOLFSSL_DILITHIUM_CHECK_KEY
-    ExpectIntEQ(wc_dilithium_check_key(importKey), PUBLIC_KEY_E);
+    ExpectIntEQ(wc_dilithium_check_key(importKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
 #endif
     wc_dilithium_free(importKey);
 
@@ -32556,14 +32556,14 @@ static int test_wc_dilithium_check_key(void)
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
         ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
             privCheckKeyLen, pubCheckKey, pubCheckKeyLen, checkKey), 0);
-        ExpectIntEQ(wc_dilithium_check_key(checkKey), PUBLIC_KEY_E);
+        ExpectIntEQ(wc_dilithium_check_key(checkKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         pubCheckKey[0] ^= 0x80;
 
         /* Modify encoded t1. */
         pubCheckKey[48] ^= 0x80;
         ExpectIntEQ(wc_dilithium_import_key(privCheckKey,
             privCheckKeyLen,pubCheckKey, pubCheckKeyLen, checkKey), 0);
-        ExpectIntEQ(wc_dilithium_check_key(checkKey), PUBLIC_KEY_E);
+        ExpectIntEQ(wc_dilithium_check_key(checkKey), WC_NO_ERR_TRACE(PUBLIC_KEY_E));
         pubCheckKey[48] ^= 0x80;
     }
 
@@ -33443,7 +33443,7 @@ static int test_wc_dilithium_der(void)
     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(NULL, der , DILITHIUM_MAX_DER_SIZE,
         0), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , der , 0                     ,
-        0), BUFFER_E    );
+        0), WC_NO_ERR_TRACE(BUFFER_E));
     /* Get length only. */
     ExpectIntEQ(wc_Dilithium_PublicKeyToDer(key , NULL, 0                     ,
         0), pubLen);
@@ -33481,7 +33481,7 @@ static int test_wc_dilithium_der(void)
     ExpectIntEQ(wc_Dilithium_KeyToDer(NULL, der , DILITHIUM_MAX_DER_SIZE),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wc_Dilithium_KeyToDer(key , der , 0                     ),
-        BUFFER_E    );
+        WC_NO_ERR_TRACE(BUFFER_E));
     /* Get length only. */
     ExpectIntEQ(wc_Dilithium_KeyToDer(key , NULL, DILITHIUM_MAX_DER_SIZE),
         keyDerLen);
@@ -45980,7 +45980,7 @@ static int test_wc_PKCS7_BER(void)
 #ifndef NO_RSA
 #ifdef WOLFSSL_SP_MATH
     ExpectIntEQ(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
-        sizeof(berContent), decoded, sizeof(decoded)), WC_KEY_SIZE_E);
+        sizeof(berContent), decoded, sizeof(decoded)), WC_NO_ERR_TRACE(WC_KEY_SIZE_E));
 #else
     ExpectIntGT(wc_PKCS7_DecodeEnvelopedData(pkcs7, berContent,
         sizeof(berContent), decoded, sizeof(decoded)), 0);
@@ -81510,7 +81510,7 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     /* Connection should fail with a DECRYPT_ERROR */
     ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
     AssertIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
-    AssertIntEQ(wolfSSL_get_error(ssl, ret), DECRYPT_ERROR);
+    AssertIntEQ(wolfSSL_get_error(ssl, ret), WC_NO_ERR_TRACE(DECRYPT_ERROR));
 
     test_AEAD_done = 1;
 }
@@ -86009,7 +86009,7 @@ static int test_harden_no_secure_renegotiation(void)
     test_wolfSSL_client_server_nofail(&client_cbs, &server_cbs);
 
     ExpectIntEQ(client_cbs.return_code, TEST_FAIL);
-    ExpectIntEQ(client_cbs.last_err, SECURE_RENEGOTIATION_E);
+    ExpectIntEQ(client_cbs.last_err, WC_NO_ERR_TRACE(SECURE_RENEGOTIATION_E));
     ExpectIntEQ(server_cbs.return_code, TEST_FAIL);
     ExpectTrue(server_cbs.last_err == WC_NO_ERR_TRACE(SOCKET_ERROR_E) ||
                server_cbs.last_err == WC_NO_ERR_TRACE(FATAL_ERROR));
@@ -87363,7 +87363,7 @@ static int test_wolfSSL_dtls13_null_cipher(void)
         *ptr = 'H';
         /* bad messages should be ignored in DTLS */
         ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), -1);
-        ExpectIntEQ(ssl_s->error, WANT_READ);
+        ExpectIntEQ(ssl_s->error, WC_NO_ERR_TRACE(WANT_READ));
     }
 
     wolfSSL_free(ssl_c);
@@ -88040,7 +88040,7 @@ static void test_dtls_downgrade_scr_server_on_result(WOLFSSL* ssl)
     char msgBuf[sizeof(testMsg)];
     if (wolfSSL_is_server(ssl)) {
         AssertIntEQ(wolfSSL_Rehandshake(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
-        AssertIntEQ(wolfSSL_get_error(ssl, -1), APP_DATA_READY);
+        AssertIntEQ(wolfSSL_get_error(ssl, -1), WC_NO_ERR_TRACE(APP_DATA_READY));
         AssertIntEQ(wolfSSL_read(ssl, msgBuf, sizeof(msgBuf)), sizeof(msgBuf));
         AssertIntEQ(wolfSSL_Rehandshake(ssl), WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_write(ssl, testMsg, sizeof(testMsg)),
@@ -88100,7 +88100,7 @@ static void test_dtls_downgrade_scr_on_result(WOLFSSL* ssl)
     char msgBuf[sizeof(testMsg)];
     if (wolfSSL_is_server(ssl)) {
         AssertIntEQ(wolfSSL_Rehandshake(ssl), WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
-        AssertIntEQ(wolfSSL_get_error(ssl, -1), APP_DATA_READY);
+        AssertIntEQ(wolfSSL_get_error(ssl, -1), WC_NO_ERR_TRACE(APP_DATA_READY));
         AssertIntEQ(wolfSSL_read(ssl, msgBuf, sizeof(msgBuf)), sizeof(msgBuf));
         AssertIntEQ(wolfSSL_Rehandshake(ssl), WOLFSSL_SUCCESS);
         AssertIntEQ(wolfSSL_write(ssl, testMsg, sizeof(testMsg)),
@@ -89171,7 +89171,7 @@ static int test_tls13_early_data(void)
 
             if (params[i].isUdp) {
                 ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
-                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), APP_DATA_READY);
+                ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WC_NO_ERR_TRACE(APP_DATA_READY));
 
                 /* Read server 0.5-RTT data */
                 ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg4));
@@ -89490,7 +89490,7 @@ static int test_write_dup(void)
 
             ExpectNotNull(ssl_c2 = wolfSSL_write_dup(ssl_c));
             ExpectIntEQ(wolfSSL_write(ssl_c, hiWorld, sizeof(hiWorld)),
-                    WRITE_DUP_WRITE_E);
+                    WC_NO_ERR_TRACE(WRITE_DUP_WRITE_E));
             ExpectIntEQ(wolfSSL_write(ssl_c2, hiWorld, sizeof(hiWorld)),
                     sizeof(hiWorld));
 
@@ -89500,7 +89500,7 @@ static int test_write_dup(void)
                     sizeof(hiWorld));
 
             ExpectIntEQ(wolfSSL_read(ssl_c2, readData, sizeof(readData)),
-                    WRITE_DUP_READ_E);
+                    WC_NO_ERR_TRACE(WRITE_DUP_READ_E));
             ExpectIntEQ(wolfSSL_read(ssl_c, readData, sizeof(readData)),
                     sizeof(hiWorld));
 
