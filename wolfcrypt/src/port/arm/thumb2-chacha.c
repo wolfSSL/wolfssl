@@ -49,8 +49,6 @@
 #endif
 
 
-extern void wc_chacha_setiv(word32* x, const byte* iv, word32 counter);
-
 /* Set the Initialization Vector (IV) and counter into ChaCha context.
  *
  * Set up iv(nonce). Earlier versions used 64 bits instead of 96, this version
@@ -91,8 +89,6 @@ int wc_Chacha_SetIV(ChaCha* ctx, const byte* iv, word32 counter)
 
     return ret;
 }
-
-extern void wc_chacha_setkey(word32* x, const byte* key, word32 keySz);
 
 /* Set the key into the ChaCha context.
  *
@@ -140,11 +136,6 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
 
     return ret;
 }
-
-extern void wc_chacha_use_over(byte* over, byte* output, const byte* input,
-    word32 len);
-extern void wc_chacha_crypt_bytes(ChaCha* ctx, byte* c, const byte* m,
-    word32 len);
 
 /* API to encrypt/decrypt a message of any size.
  *
