@@ -3839,15 +3839,30 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(MAX3266X_RNG)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
+        #ifdef WOLFSSL_MAX3266X
+        int status;
+        #endif /* WOLFSSL_MAX3266X */
         static int initDone = 0;
         (void)os;
         if (initDone == 0) {
+            #ifdef WOLFSSL_MAX3266X
+            status = wolfSSL_HwRngMutexLock();
+            if (status != 0) {
+                return status;
+            }
+            #endif /* WOLFSSL_MAX3266X */
             if(MXC_TRNG_HealthTest() != 0) {
-                #if defined(DEBUG_WOLFSSL)
+                #ifdef DEBUG_WOLFSSL
                 WOLFSSL_MSG("TRNG HW Health Test Failed");
-                #endif
+                #endif /* DEBUG_WOLFSSL */
+                #ifdef WOLFSSL_MAX3266X
+                wolfSSL_HwRngMutexUnLock();
+                #endif /* WOLFSSL_MAX3266X */
                 return WC_HW_E;
             }
+            #ifdef WOLFSSL_MAX3266X
+            wolfSSL_HwRngMutexUnLock();
+            #endif /* WOLFSSL_MAX3266X */
             initDone = 1;
         }
         return wc_MXC_TRNG_Random(output, sz);

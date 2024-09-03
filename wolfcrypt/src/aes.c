@@ -84,6 +84,13 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
+#ifdef WOLF_CRYPTO_CB
+    /* Revert back to SW so HW CB works */
+    /* HW only works for AES: ECB, CBC, and partial via ECB for other modes */
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
+    /* Turn off MAX3266X_AES in the context of this file when using CB */
+    #undef MAX3266X_AES
+#endif
 #endif
 
 #if defined(WOLFSSL_TI_CRYPT)
@@ -2794,9 +2801,12 @@ extern void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz);
 static WARN_UNUSED_RESULT int wc_AesEncrypt(
     Aes* aes, const byte* inBlock, byte* outBlock)
 {
-    #if defined(MAX3266X_AES)
+#if defined(MAX3266X_AES)
     word32 keySize;
-    #endif
+#endif
+#if defined(MAX3266X_CB)
+    int ret_cb;
+#endif
     word32 r;
 
     if (aes == NULL) {
@@ -2905,6 +2915,18 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
         return wc_MXC_TPU_AesEncrypt(inBlock, (byte*)aes->reg, (byte*)aes->key,
                                     MXC_TPU_MODE_ECB, AES_BLOCK_SIZE,
                                     outBlock, (unsigned int)keySize);
+    }
+#endif
+#ifdef MAX3266X_CB /* Can do a basic ECB block */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret_cb = wc_CryptoCb_AesEcbEncrypt(aes, outBlock, inBlock,
+                                            AES_BLOCK_SIZE);
+        if (ret_cb != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret_cb;
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -3556,9 +3578,12 @@ static void AesDecryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 static WARN_UNUSED_RESULT int wc_AesDecrypt(
     Aes* aes, const byte* inBlock, byte* outBlock)
 {
-    #if defined(MAX3266X_AES)
+#if defined(MAX3266X_AES)
     word32 keySize;
-    #endif
+#endif
+#if defined(MAX3266X_CB)
+    int ret_cb;
+#endif
     word32 r;
 
     if (aes == NULL) {
@@ -3640,6 +3665,19 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         return wc_MXC_TPU_AesDecrypt(inBlock, (byte*)aes->reg, (byte*)aes->key,
                                     MXC_TPU_MODE_ECB, AES_BLOCK_SIZE,
                                     outBlock, (unsigned int)keySize);
+    }
+#endif
+
+#ifdef MAX3266X_CB /* Can do a basic ECB block */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        ret_cb = wc_CryptoCb_AesEcbDecrypt(aes, outBlock, inBlock,
+                                            AES_BLOCK_SIZE);
+        if (ret_cb != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret_cb;
+        /* fall-through when unavailable */
     }
 #endif
 
@@ -4130,6 +4168,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     unsigned int i = 0;
 
     XMEMCPY(rk, key, keySz);
+#ifdef MAX3266X_CB /* Copies needed values to use later if CB is used */
+    XMEMCPY(aes->cb_key, key, keySz);
+#endif
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
     (!defined(WOLFSSL_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES)) && \
     !defined(MAX3266X_AES)
@@ -4572,6 +4613,9 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 #endif
 
         XMEMCPY(aes->key, userKey, keylen);
+#ifdef MAX3266X_CB /* Copy Key for CB for use later if needed */
+        XMEMCMP(aes->cb_key, userKey, keylen);
+#endif
 
 #ifndef WC_AES_BITSLICED
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \

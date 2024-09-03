@@ -220,6 +220,9 @@
     #ifdef HAVE_RENESAS_SYNC
         #include <wolfssl/wolfcrypt/port/renesas/renesas_sync.h>
     #endif
+    #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+        #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3167,8 +3170,9 @@ static void* benchmarks_do(void* args)
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
-         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) && \
-        !defined(NO_HW_BENCH)
+         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) || \
+         ((defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)) && \
+         defined(WOLF_CRYPTO_CB)) && !defined(NO_HW_BENCH)
         bench_aes_aad_options_wrap(bench_aesgcm, 1);
     #endif
     #ifndef NO_SW_BENCH

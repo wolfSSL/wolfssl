@@ -42,6 +42,10 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
+#endif
+
 #if defined(USE_FAST_MATH) || defined(USE_INTEGER_HEAP_MATH)
     #error  MXC Not Compatible with Fast Math or Heap Math
     #include <wolfssl/wolfcrypt/tfm.h>
@@ -81,6 +85,85 @@ int wc_MXC_TPU_Shutdown(void)
     return 0;
 }
 
+
+#ifdef WOLF_CRYPTO_CB
+int wc_MxcAesCryptoCb(wc_CryptoInfo* info)
+{
+    switch (info->cipher.type) {
+#ifdef HAVE_AES_CBC
+        case WC_CIPHER_AES_CBC:
+            if (info->cipher.enc == 1) {
+                return wc_MxcCb_AesCbcEncrypt(info->cipher.aescbc.aes,
+                                                info->cipher.aescbc.out,
+                                                info->cipher.aescbc.in,
+                                                info->cipher.aescbc.sz);
+            }
+            #ifdef HAVE_AES_DECRYPT
+            else if (info->cipher.enc == 0) {
+                return wc_MxcCb_AesCbcDecrypt(info->cipher.aescbc.aes,
+                                                info->cipher.aescbc.out,
+                                                info->cipher.aescbc.in,
+                                                info->cipher.aescbc.sz);
+                }
+            #endif
+            break; /* Break out and return error */
+#endif
+#ifdef HAVE_AES_ECB
+        case WC_CIPHER_AES_ECB:
+            if (info->cipher.enc == 1) {
+                return wc_MxcCb_AesEcbEncrypt(info->cipher.aesecb.aes,
+                                                info->cipher.aesecb.out,
+                                                info->cipher.aesecb.in,
+                                                info->cipher.aesecb.sz);
+            }
+            #ifdef HAVE_AES_DECRYPT
+            else if (info->cipher.enc == 0) {
+                return wc_MxcCb_AesEcbDecrypt(info->cipher.aesecb.aes,
+                                                info->cipher.aesecb.out,
+                                                info->cipher.aesecb.in,
+                                                info->cipher.aesecb.sz);
+                }
+            #endif
+            break; /* Break out and return error */
+#endif
+        default:
+            /* Is not ECB/CBC/GCM */
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    /* Just in case code breaks of switch statement return error */
+    return BAD_FUNC_ARG;
+}
+
+/* Determines AES Type for Callback */
+/* General Callback Function to determine ALGO Type */
+int wc_MxcCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret;
+    (void)ctx;
+
+    if (info == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef DEBUG_CRYPTOCB
+    wc_CryptoCb_InfoString(info);
+#endif
+
+    switch (info->algo_type) {
+        case WC_ALGO_TYPE_CIPHER:
+            /* return this to bypass HW and use SW */
+            MAX3266X_MSG("Using MXC HW Callback:");
+            ret = wc_MxcAesCryptoCb(info); /* Determine AES HW or SW */
+            break;
+        default:
+            MAX3266X_MSG("Callback not support with MXC, using SW");
+            /* return this to bypass HW and use SW */
+            ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+
+    return ret;
+}
+#endif
 
 /* Convert Error Codes Correctly and Report HW error when */
 /* using #define MAX3266X_VERBOSE */
@@ -131,7 +214,7 @@ int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
     if (output == NULL) {
         return BAD_FUNC_ARG;
     }
-    status = wolfSSL_CryptHwMutexLock(); /* Lock Mutex needed since */
+    status = wolfSSL_HwRngMutexLock(); /* Lock Mutex needed since */
                                          /* calling TPU init */
     if (status != 0) {
         return status;
@@ -146,7 +229,7 @@ int wc_MXC_TRNG_Random(unsigned char* output, unsigned int sz)
         MAX3266X_MSG("TRNG Device did not initialize");
         status = RNG_FAILURE_E;
     }
-    wolfSSL_CryptHwMutexUnLock(); /* Unlock Mutex no matter status value */
+    wolfSSL_HwRngMutexUnLock(); /* Unlock Mutex no matter status value */
     return status;
 }
 #endif /* MAX3266X_RNG */
@@ -162,7 +245,7 @@ int wc_MXC_TPU_AesEncrypt(const unsigned char* in, const unsigned char* iv,
     if (in == NULL || iv == NULL || enc_key == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    status = wolfSSL_CryptHwMutexLock();
+    status = wolfSSL_HwAesMutexLock();
     MAX3266X_MSG("AES HW Encryption");
     if (status != 0) {
         MAX3266X_MSG("Hardware Mutex Failure");
@@ -192,17 +275,84 @@ int wc_MXC_TPU_AesEncrypt(const unsigned char* in, const unsigned char* iv,
             break;
         default:
             MAX3266X_MSG("AES HW ERROR: Length Not Supported");
-            wolfSSL_CryptHwMutexUnLock();
-            return WC_HW_E;
-        break;
+            wolfSSL_HwAesMutexUnLock();
+            return BAD_FUNC_ARG;
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wolfSSL_HwAesMutexUnLock();
     if (status != 0) {
         MAX3266X_MSG("AES HW Acceleration Error Occurred");
         return WC_HW_E;
     }
-    return 0;
+    return status;
 }
+
+
+/* Encrypt AES Crypto Callbacks*/
+#if defined(WOLF_CRYPTO_CB)
+
+#ifdef HAVE_AES_ECB
+int wc_MxcCb_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int status;
+    word32 keySize;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
+    }
+
+    status = wc_MXC_TPU_AesEncrypt(in, (byte*)aes->reg, (byte*)aes->cb_key,
+                                        MXC_TPU_MODE_ECB, sz, out, keySize);
+
+    return status;
+}
+#endif /* HAVE_AES_ECB */
+
+#ifdef HAVE_AES_CBC
+int wc_MxcCb_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 keySize;
+    int status;
+    byte *iv;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Always enforce a length check */
+    if (sz % AES_BLOCK_SIZE) {
+    #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        return BAD_LENGTH_E;
+    #else
+        return BAD_FUNC_ARG;
+    #endif
+    }
+    if (sz == 0) {
+        return 0;
+    }
+
+    iv = (byte*)aes->reg;
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
+    }
+
+    status = wc_MXC_TPU_AesEncrypt(in, iv, (byte*)aes->cb_key,
+                                    MXC_TPU_MODE_CBC, sz, out,
+                                    (unsigned int)keySize);
+    /* store iv for next call */
+    if (status == 0) {
+        XMEMCPY(iv, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    }
+    return (status == 0) ? 0 : -1;
+}
+#endif /* HAVE_AES_CBC */
+#endif /* WOLF_CRYPTO_CB */
+
 #ifdef HAVE_AES_DECRYPT
 /* Generic call to the SDK's AES 1 shot decrypt based on inputs given */
 int wc_MXC_TPU_AesDecrypt(const unsigned char* in, const unsigned char* iv,
@@ -214,7 +364,7 @@ int wc_MXC_TPU_AesDecrypt(const unsigned char* in, const unsigned char* iv,
     if (in == NULL || iv == NULL || dec_key == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    status = wolfSSL_CryptHwMutexLock();
+    status = wolfSSL_HwAesMutexLock();
     if (status != 0) {
         return status;
     }
@@ -242,17 +392,86 @@ int wc_MXC_TPU_AesDecrypt(const unsigned char* in, const unsigned char* iv,
             break;
         default:
             MAX3266X_MSG("AES HW ERROR: Length Not Supported");
-            wolfSSL_CryptHwMutexUnLock();
-            return WC_HW_E;
-        break;
+            wolfSSL_HwAesMutexUnLock();
+            return BAD_FUNC_ARG;
     }
-    wolfSSL_CryptHwMutexUnLock();
+    wolfSSL_HwAesMutexUnLock();
     if (status != 0) {
         MAX3266X_MSG("AES HW Acceleration Error Occurred");
         return WC_HW_E;
     }
-    return 0;
+    return status;
 }
+
+/* Decrypt Aes Crypto Callbacks*/
+#if defined(WOLF_CRYPTO_CB)
+
+#ifdef HAVE_AES_ECB
+int wc_MxcCb_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    int status;
+    word32 keySize;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
+    }
+
+    status = wc_MXC_TPU_AesDecrypt(in, (byte*)aes->reg, (byte*)aes->cb_key,
+                                        MXC_TPU_MODE_ECB, sz, out, keySize);
+
+    return status;
+}
+#endif /* HAVE_AES_ECB */
+
+#ifdef HAVE_AES_CBC
+int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 keySize;
+    int status;
+    byte *iv;
+    byte temp_block[AES_BLOCK_SIZE];
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Always enforce a length check */
+    if (sz % AES_BLOCK_SIZE) {
+    #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
+        return BAD_LENGTH_E;
+    #else
+        return BAD_FUNC_ARG;
+    #endif
+    }
+    if (sz == 0) {
+        return 0;
+    }
+
+    iv = (byte*)aes->reg;
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status != 0) {
+        return status;
+    }
+
+    /* get IV for next call */
+    XMEMCPY(temp_block, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    status = wc_MXC_TPU_AesDecrypt(in, iv, (byte*)aes->cb_key,
+                                    MXC_TPU_MODE_CBC, sz, out,
+                                    keySize);
+
+    /* store iv for next call */
+    if (status == 0) {
+        XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
+    }
+    return (status == 0) ? 0 : -1;
+}
+#endif /* HAVE_AES_CBC */
+#endif /* WOLF_CRYPTO_CB */
 #endif /* HAVE_AES_DECRYPT */
 #endif /* MAX3266X_AES */
 
@@ -331,7 +550,7 @@ int wc_MXC_TPU_SHA_GetHash(wc_MXC_Sha *hash, unsigned char* digest,
     }
     /* False Case where msg needs to be processed */
     else if (status == 0) {
-        status = wolfSSL_CryptHwMutexLock(); /* Set Mutex **/
+        status = wolfSSL_HwHashMutexLock(); /* Set Mutex */
         if (status != 0) { /* Mutex Call Check */
             return status;
         }
@@ -340,7 +559,7 @@ int wc_MXC_TPU_SHA_GetHash(wc_MXC_Sha *hash, unsigned char* digest,
         status = MXC_TPU_Hash_SHA((const char *)hash->msg, algo, hash->size,
                                          (char *)digest);
         MAX3266X_MSG("SHA HW Acceleration Used");
-        wolfSSL_CryptHwMutexUnLock(); /* Release Mutex */
+        wolfSSL_HwHashMutexUnLock(); /* Release Mutex */
         if (wc_MXC_error(&status) != 0) {
             MAX3266X_MSG("SHA HW Error Occurred");
             return status;
@@ -684,7 +903,7 @@ int wc_MXC_MAA_init(unsigned int len)
 {
     int status;
     MAX3266X_MSG("Setting Hardware Mutex and Starting MAA");
-    status = wolfSSL_CryptHwMutexLock();
+    status = wolfSSL_HwPkMutexLock();
     if (status == 0) {
         status = MXC_TPU_MAA_Init(len);
     }
@@ -701,7 +920,7 @@ int wc_MXC_MAA_Shutdown(void)
                                 /* This is returned when MAA cannot stop */
         status = WC_HW_E;
     }
-    wolfSSL_CryptHwMutexUnLock(); /* Always call Unlock in shutdown */
+    wolfSSL_HwPkMutexUnLock(); /* Always call Unlock in shutdown */
     return wc_MXC_error(&status);
 }
 
@@ -901,7 +1120,7 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     ret = wc_MXC_MAA_init(length*sizeof(mp_digit)*8);
     if (ret != 0) {
         MAX3266X_MSG("HW Init Failed");
-        wolfSSL_CryptHwMutexUnLock();
+        wolfSSL_HwPkMutexUnLock();
         return ret;
     }
 
@@ -915,14 +1134,14 @@ int wc_MXC_MAA_math(mp_int* multiplier, mp_int* multiplicand, mp_int* exp,
     MAX3266X_MSG("MAA Finished Computation");
     if (wc_MXC_error(&ret) != 0) {
         MAX3266X_MSG("HW Computation Error");
-        wolfSSL_CryptHwMutexUnLock();
+        wolfSSL_HwPkMutexUnLock();
         return ret;
     }
 
     ret = wc_MXC_MAA_Shutdown();
     if (ret != 0) {
         MAX3266X_MSG("HW Shutdown Failure");
-        /* Shutdown will always call wolfSSL_CryptHwMutexUnLock(); */
+        /* Shutdown will always call wolfSSL_HwPkMutexUnLock(); */
         /* before returning */
         return ret;
     }

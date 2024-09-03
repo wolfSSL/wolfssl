@@ -41,6 +41,21 @@
     #define MAX3266X_MATH
 #endif
 
+/* Some extra conditions when using callbacks */
+#if defined(WOLF_CRYPTO_CB)
+    #define MAX3266X_CB
+#endif
+
+/* Crypto HW can be used in parallel on this device */
+/* Sets up new Mutexing if desired */
+#ifdef WOLFSSL_ALGO_HW_MUTEX
+    /* SDK only supports using RNG in parallel with crypto HW */
+    /* AES, HASH, and PK must share some mutex */
+    #define NO_AES_MUTEX
+    #define NO_HASH_MUTEX
+    #define NO_PK_MUTEX
+#endif /* WOLFSSL_ALGO_HW_MUTEX */
+
 #if defined(WOLFSSL_MAX3266X_OLD)
     /* Support for older SDK API Maxim provides */
 
@@ -198,14 +213,15 @@
                                 MXC_TPU_MODE_TYPE mode,
                                 unsigned int data_size,
                                 unsigned char* out, unsigned int keySize);
-
+#ifdef HAVE_AES_DECRYPT
     WOLFSSL_LOCAL int wc_MXC_TPU_AesDecrypt(const unsigned char* in,
                                 const unsigned char* iv,
                                 const unsigned char* enc_key,
                                 MXC_TPU_MODE_TYPE mode,
                                 unsigned int data_size,
                                 unsigned char* out, unsigned int keySize);
-#endif
+#endif /* HAVE_AES_DECRYPT */
+#endif /* MAX3266X_AES */
 
 #ifdef MAX3266X_SHA
 
@@ -214,6 +230,13 @@
         unsigned int    used;
         unsigned int    size;
         unsigned char   hash[WOLFSSL_MAX_HASH_SIZE];
+        #ifdef WOLF_CRYPTO_CB
+        int             devId;
+        void*           devCtx; /* generic crypto callback context */
+        #endif
+        #ifdef WOLFSSL_HASH_FLAGS
+        unsigned int    flags; /* enum wc_HashFlags in hash.h */
+        #endif
     } wc_MXC_Sha;
 
     #if !defined(NO_SHA)
