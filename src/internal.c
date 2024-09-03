@@ -6918,7 +6918,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
     }  /* writeDup check */
 
-    if (ctx->mask != 0 && wolfSSL_set_options(ssl, ctx->mask) == 0) {
+    if (ctx->mask != 0 && wolfSSL_set_options(ssl, (long)ctx->mask) == 0) {
         WOLFSSL_MSG("wolfSSL_set_options error");
         return BAD_FUNC_ARG;
     }
@@ -7894,7 +7894,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     }
 
     /* Allocate memory for key */
-    *pKey = (void *)XMALLOC(sz, ssl->heap, type);
+    *pKey = (void *)XMALLOC((size_t)sz, ssl->heap, type);
     if (*pKey == NULL) {
         return MEMORY_E;
     }
@@ -8099,7 +8099,7 @@ void FreeKeyExchange(WOLFSSL* ssl)
     }
 
     /* Free handshake key */
-    FreeKey(ssl, ssl->hsType, &ssl->hsKey);
+    FreeKey(ssl, (int)ssl->hsType, &ssl->hsKey);
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     FreeKey(ssl, ssl->hsAltType, &ssl->hsAltKey);
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
@@ -10363,7 +10363,7 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
             fragSz = inputSz - ssl->fragOffset;
 
         /* check for available size */
-        outputSz = headerSz + fragSz;
+        outputSz = headerSz + (int)fragSz;
         if (IsEncryptionOn(ssl, 1))
             outputSz += cipherExtraData(ssl);
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
@@ -10421,7 +10421,7 @@ static int SendHandshakeMsg(WOLFSSL* ssl, byte* input, word32 inputSz,
             }
 #endif
         }
-        ssl->buffers.outputBuffer.length += outputSz;
+        ssl->buffers.outputBuffer.length += (word32)outputSz;
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn) {
             AddPacketName(ssl, packetName);
@@ -10589,8 +10589,8 @@ void ShrinkOutputBuffer(WOLFSSL* ssl)
  * calls ShrinkInputBuffer itself when it is safe to do so. Don't overuse it. */
 void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree)
 {
-    int usedLength = ssl->buffers.inputBuffer.length -
-                     ssl->buffers.inputBuffer.idx;
+    int usedLength = (int)(ssl->buffers.inputBuffer.length -
+                     ssl->buffers.inputBuffer.idx);
     if (!forcedFree && (usedLength > STATIC_BUFFER_LEN ||
             ssl->buffers.clearOutputBuffer.length > 0))
         return;
@@ -10697,8 +10697,8 @@ retry:
             return SEND_OOB_READ_E;
         }
 
-        ssl->buffers.outputBuffer.idx += sent;
-        ssl->buffers.outputBuffer.length -= sent;
+        ssl->buffers.outputBuffer.idx += (word32)sent;
+        ssl->buffers.outputBuffer.length -= (word32)sent;
     }
 
     ssl->buffers.outputBuffer.idx = 0;
@@ -10821,7 +10821,7 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
         return BAD_FUNC_ARG;
     }
 
-    tmp = (byte*)XMALLOC(size + usedLength + align,
+    tmp = (byte*)XMALLOC((size_t)(size + usedLength + align),
                              ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     WOLFSSL_MSG("growing input buffer");
 
@@ -10865,7 +10865,7 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
         ssl->buffers.inputBuffer.offset = 0;
 
     ssl->buffers.inputBuffer.buffer = tmp;
-    ssl->buffers.inputBuffer.bufferSize = size + usedLength;
+    ssl->buffers.inputBuffer.bufferSize = (word32)(size + usedLength);
     ssl->buffers.inputBuffer.idx    = 0;
     ssl->buffers.inputBuffer.length = (word32)usedLength;
 
@@ -20316,7 +20316,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     /* 4th argument has potential to underflow, ssl->hmac function should
      * either increment the size by (macSz + padLen + 1) before use or check on
      * the size to make sure is valid. */
-    ret = ssl->hmac(ssl, verify, input, pLen - macSz - padLen - 1, padLen,
+    ret = ssl->hmac(ssl, verify, input, (word32)(pLen - macSz - padLen - 1), padLen,
                                                         content, 1, PEER_ORDER);
     good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
 
@@ -20418,7 +20418,7 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
             ivExtra = AESGCM_EXP_IV_SZ;
     }
 
-    dataSz = msgSz - ivExtra - ssl->keys.padSz;
+    dataSz = (int)(msgSz - (word32)ivExtra - ssl->keys.padSz);
 #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
     if (ssl->options.startedETMRead)
         dataSz -= MacSize(ssl);
@@ -20454,7 +20454,7 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
             if (dataSz < 0) return dataSz;
         }
 #endif
-        idx += rawSz;
+        idx += (word32)rawSz;
 
         ssl->buffers.clearOutputBuffer.buffer = rawData;
         ssl->buffers.clearOutputBuffer.length = (unsigned int)dataSz;
@@ -20727,7 +20727,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
             if (CipherHasExpIV(ssl))
                 ivExtra = AESGCM_EXP_IV_SZ;
         }
-        dataSz -= ivExtra;
+        dataSz -= (word32)ivExtra;
         dataSz -= ssl->keys.padSz;
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (ssl->options.startedETMRead)
@@ -20794,9 +20794,9 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
 
 
     /* check max input length */
-    usedLength = ssl->buffers.inputBuffer.length - ssl->buffers.inputBuffer.idx;
-    maxLength  = ssl->buffers.inputBuffer.bufferSize - usedLength;
-    inSz       = (int)(size - usedLength);      /* from last partial read */
+    usedLength = (int)(ssl->buffers.inputBuffer.length - ssl->buffers.inputBuffer.idx);
+    maxLength  = (int)(ssl->buffers.inputBuffer.bufferSize - (word32)usedLength);
+    inSz       = (int)(size - (word32)usedLength);      /* from last partial read */
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls && IsDtlsNotSctpMode(ssl)) {
@@ -20818,7 +20818,7 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
     }
 
     if (inSz > maxLength) {
-        if (GrowInputBuffer(ssl, size + dtlsExtra, usedLength) < 0)
+        if (GrowInputBuffer(ssl, (int)(size + (word32)dtlsExtra), usedLength) < 0)
             return MEMORY_E;
     }
 
@@ -20851,7 +20851,7 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
             return RECV_OVERFLOW_E;
         }
 
-        ssl->buffers.inputBuffer.length += in;
+        ssl->buffers.inputBuffer.length += (word32)in;
         inSz -= in;
 
     } while (ssl->buffers.inputBuffer.length < size);
@@ -20937,8 +20937,8 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
             if (!ssl->ctx->VerifyMacCb ||
                 ret == WC_NO_ERR_TRACE(PROTOCOLCB_UNAVAILABLE))
 #endif
-            ret = TimingPadVerify(ssl, input, pad, digestSz, msgSz - ivExtra,
-                                  content);
+            ret = TimingPadVerify(ssl, input, (int)pad, (int)digestSz,
+                                  (int)(msgSz - (word32)ivExtra), content);
             if (ret != 0)
                 return ret;
         }
@@ -21471,13 +21471,14 @@ default:
                                 /* Mask on indicates this is expected to be a
                                  * padding byte.
                                  */
-                                padding &= ctMaskLTE(i, ssl->keys.padSz);
+                                padding &= ctMaskLTE((int)i,
+                                                       (int)ssl->keys.padSz);
                                 /* When this is a padding byte and not equal
                                  * to length then mask is set.
                                  */
                                 invalid |= padding &
                                            ctMaskNotEq(in->buffer[off - i],
-                                                       ssl->keys.padSz);
+                                                       (int)ssl->keys.padSz);
                             }
                             /* If mask is set then there was an error. */
                             if (invalid) {
@@ -22291,7 +22292,7 @@ int SendChangeCipher(WOLFSSL* ssl)
                 return ret;
         }
     #endif
-    ssl->buffers.outputBuffer.length += sendSz;
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
 
 #ifdef WOLFSSL_TLS13
     if (!ssl->options.tls1_3)
@@ -22707,7 +22708,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         ssl->options.buildMsgState = BUILD_MSG_BEGIN;
         XMEMSET(args, 0, sizeof(BuildMsgArgs));
 
-        args->sz = RECORD_HEADER_SZ + inSz;
+        args->sz = RECORD_HEADER_SZ + (word32)inSz;
         args->idx  = RECORD_HEADER_SZ;
         args->headerSz = RECORD_HEADER_SZ;
     }
@@ -22865,7 +22866,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 args->idx += min(args->ivSz, MAX_IV_SZ);
             }
             XMEMCPY(output + args->idx, input, inSz);
-            args->idx += inSz;
+            args->idx += (word32)inSz;
 
             ssl->options.buildMsgState = BUILD_MSG_HASH;
         }
@@ -22877,7 +22878,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 goto exit_buildmsg;
 
             if (type == handshake && hashOutput) {
-                ret = HashOutput(ssl, output, args->headerSz + inSz, args->ivSz);
+                ret = HashOutput(ssl, output,
+                        (int)(args->headerSz + (word32)inSz), (int)args->ivSz);
                 if (ret != 0)
                     goto exit_buildmsg;
             }
@@ -23092,7 +23094,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 {
                     ret = ssl->hmac(ssl, output + args->idx + args->pad + 1,
                                     output + args->headerSz,
-                                    args->ivSz + inSz + args->pad + 1, -1, type,
+                                    args->ivSz + (word32)inSz + args->pad + 1,
+                                    -1, type,
                                     0, epochOrder);
                 }
             }
@@ -23187,7 +23190,8 @@ int SendFinished(WOLFSSL* ssl)
 
     /* get output buffer */
     output = GetOutputBuffer(ssl);
-    AddHandShakeHeader(input, finishedSz, 0, finishedSz, finished, ssl);
+    AddHandShakeHeader(input, (word32)finishedSz, 0,
+            (word32)finishedSz, finished, ssl);
 
     /* make finished hashes */
     hashes = (Hashes*)&input[headerSz];
@@ -23277,7 +23281,7 @@ int SendFinished(WOLFSSL* ssl)
         }
     #endif
 
-    ssl->buffers.outputBuffer.length += sendSz;
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
 
     ret = SendBuffered(ssl);
 
@@ -23709,7 +23713,7 @@ int SendCertificate(WOLFSSL* ssl)
             }
 
             if (inputSz > 0) {  /* clang thinks could be zero, let's help */
-                input = (byte*)XMALLOC(inputSz, ssl->heap,
+                input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
                                        DYNAMIC_TYPE_IN_BUFFER);
                 if (input == NULL)
                     return MEMORY_E;
@@ -23762,7 +23766,7 @@ int SendCertificate(WOLFSSL* ssl)
         }
     #endif
 
-        ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
         if (!ssl->options.groupMessages)
             ret = SendBuffered(ssl);
     }
@@ -23935,14 +23939,16 @@ int SendCertificateRequest(WOLFSSL* ssl)
                 return BUFFER_E;
             }
 
-            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
+                    DYNAMIC_TYPE_IN_BUFFER);
             if (input == NULL)
                 return MEMORY_E;
 
             XMEMCPY(input, output + recordHeaderSz, inputSz);
             #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl) &&
-                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz, certificate_request)) != 0) {
+                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz,
+                                           certificate_request)) != 0) {
                 XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
                 return ret;
             }
@@ -23957,7 +23963,8 @@ int SendCertificateRequest(WOLFSSL* ssl)
             sendSz = (int)i;
             #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl)) {
-                    if ((ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz, certificate_request)) != 0)
+                    if ((ret = DtlsMsgPoolSave(ssl, output, (word32)sendSz,
+                                    certificate_request)) != 0)
                         return ret;
                 }
                 if (ssl->options.dtls)
@@ -23978,7 +23985,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
                 return ret;
         }
     #endif
-    ssl->buffers.outputBuffer.length += sendSz;
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
     if (ssl->options.groupMessages)
         ret = 0;
     else
@@ -24712,7 +24719,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 #ifdef WOLFSSL_ASYNC_CRYPT
         FreeAsyncCtx(ssl, 0);
 #endif
-        ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         if ( (ssl->error = SendBuffered(ssl)) < 0) {
             WOLFSSL_ERROR(ssl->error);
@@ -24889,12 +24896,12 @@ startScr:
 #endif
     }
 
-    size = min(sz, (int)ssl->buffers.clearOutputBuffer.length);
+    size = (int)min((word32)sz, ssl->buffers.clearOutputBuffer.length);
 
     XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
 
     if (peek == 0) {
-        ssl->buffers.clearOutputBuffer.length -= size;
+        ssl->buffers.clearOutputBuffer.length -= (word32)size;
         ssl->buffers.clearOutputBuffer.buffer += size;
     }
 
@@ -25079,7 +25086,7 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
         }
     }
 
-    ssl->buffers.outputBuffer.length += sendSz;
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
 
     ret = SendBuffered(ssl);
 
@@ -28376,7 +28383,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 #ifndef NO_RSA
     if (ssl->buffers.keyType == rsa_sa_algo || ssl->buffers.keyType == 0) {
         ssl->hsType = DYNAMIC_TYPE_RSA;
-        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        ret = AllocKey(ssl, (int)ssl->hsType, &ssl->hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
@@ -28425,7 +28432,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
 
 #ifdef HAVE_ECC
 #ifndef NO_RSA
-    FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+    FreeKey(ssl, (int)ssl->hsType, (void**)&ssl->hsKey);
 #endif /* !NO_RSA */
 
     if (ssl->buffers.keyType == ecc_dsa_sa_algo || ssl->buffers.keyType == 0
@@ -28434,7 +28441,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word32* length)
     #endif
         ) {
         ssl->hsType = DYNAMIC_TYPE_ECC;
-        ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+        ret = AllocKey(ssl, (int)ssl->hsType, &ssl->hsKey);
         if (ret != 0) {
             goto exit_dpk;
         }
@@ -29587,14 +29594,16 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
             if (ssl->options.dtls)
                 recordHeaderSz += DTLS_RECORD_EXTRA;
             inputSz -= recordHeaderSz;
-            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
+                    DYNAMIC_TYPE_IN_BUFFER);
             if (input == NULL)
                 return MEMORY_E;
 
             XMEMCPY(input, output + recordHeaderSz, inputSz);
             #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl) &&
-                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz, client_hello)) != 0) {
+                    (ret = DtlsMsgPoolSave(ssl, input, (word32)inputSz,
+                                          client_hello)) != 0) {
                 XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
                 return ret;
             }
@@ -29638,7 +29647,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 
         ssl->options.buildingMsg = 0;
 
-        ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         ret = SendBuffered(ssl);
 
@@ -32212,7 +32221,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     /* create ephemeral private key */
                     ssl->hsType = DYNAMIC_TYPE_ECC;
-                    ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+                    ret = AllocKey(ssl, (int)ssl->hsType, &ssl->hsKey);
                     if (ret != 0) {
                         goto exit_scke;
                     }
@@ -33036,8 +33045,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                 if (ssl->options.dtls)
                     recordHeaderSz += DTLS_RECORD_EXTRA;
-                args->inputSz = idx - recordHeaderSz; /* buildmsg adds rechdr */
-                args->input = (byte*)XMALLOC(args->inputSz, ssl->heap,
+                args->inputSz = (int)idx - recordHeaderSz; /* buildmsg adds rechdr */
+                args->input = (byte*)XMALLOC((size_t)args->inputSz, ssl->heap,
                                                        DYNAMIC_TYPE_IN_BUFFER);
                 if (args->input == NULL) {
                     ERROR_OUT(MEMORY_E, exit_scke);
@@ -33100,7 +33109,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
         #endif
 
-            ssl->buffers.outputBuffer.length += args->sendSz;
+            ssl->buffers.outputBuffer.length += (word32)args->sendSz;
 
             if (!ssl->options.groupMessages) {
                 ret = SendBuffered(ssl);
@@ -33280,7 +33289,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
             /* Use tmp buffer */
-            args->input = (byte*)XMALLOC(args->sendSz,
+            args->input = (byte*)XMALLOC((size_t)args->sendSz,
                     ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
             if (args->input == NULL)
                 ERROR_OUT(MEMORY_E, exit_scv);
@@ -34215,7 +34224,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ssl->options.dtls)
                 recordHeaderSz += DTLS_RECORD_EXTRA;
             inputSz -= recordHeaderSz;
-            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
+                    DYNAMIC_TYPE_IN_BUFFER);
             if (input == NULL)
                 return MEMORY_E;
 
@@ -34260,7 +34270,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
         ssl->options.buildingMsg = 0;
-        ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         if (ssl->options.groupMessages)
             ret = 0;
@@ -34283,7 +34293,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return 0;
         }
 
-        return (byte)GetCurveByOID(key->dp->oidSum);
+        return (byte)GetCurveByOID((int)key->dp->oidSum);
     }
 
 #endif /* HAVE_ECC */
@@ -37756,7 +37766,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 inputSz += DTLS_HANDSHAKE_EXTRA;
             }
 
-            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            input = (byte*)XMALLOC((size_t)inputSz, ssl->heap,
+                    DYNAMIC_TYPE_IN_BUFFER);
             if (input == NULL)
                 return MEMORY_E;
 
@@ -37801,7 +37812,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
         ssl->options.buildingMsg = 0;
 
-        ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         ret = SendBuffered(ssl);
 
@@ -41488,7 +41499,8 @@ static int DoAppleNativeCertValidation(const WOLFSSL_BUFFER_INFO* certs,
     }
 
     for (i = 0; i < totalCerts; i++) {
-        secCert = ConvertToSecCertificateRef(certs[i].buffer, certs[i].length);
+        secCert = ConvertToSecCertificateRef(certs[i].buffer,
+                (int)certs[i].length);
         if (!secCert) {
             WOLFSSL_MSG("Error: can't convert DER cert to SecCertificateRef");
             ret = 0;
