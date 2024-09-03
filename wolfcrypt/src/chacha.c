@@ -35,6 +35,43 @@ Public domain.
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef HAVE_CHACHA
+    #include <wolfssl/wolfcrypt/chacha.h>
+    #include <wolfssl/wolfcrypt/error-crypt.h>
+
+    #ifdef NO_INLINE
+        #include <wolfssl/wolfcrypt/misc.h>
+    #else
+        #define WOLFSSL_MISC_INCLUDED
+        #include <wolfcrypt/src/misc.c>
+    #endif
+
+    #ifdef BIG_ENDIAN_ORDER
+        #define LITTLE32(x) ByteReverseWord32(x)
+    #else
+        #define LITTLE32(x) (x)
+    #endif
+
+    /* Number of rounds */
+    #define ROUNDS  20
+
+    #define U32C(v) (v##U)
+    #define U32V(v) ((word32)(v) & U32C(0xFFFFFFFF))
+    #define U8TO32_LITTLE(p) LITTLE32(((word32*)(p))[0])
+
+    #define ROTATE(v,c) rotlFixed(v, c)
+    #define XOR(v,w)    ((v) ^ (w))
+    #define PLUS(v,w)   (U32V((v) + (w)))
+    #define PLUSONE(v)  (PLUS((v),1))
+
+    #define QUARTERROUND(a,b,c,d) \
+        x[a] = PLUS(x[a],x[b]); x[d] = ROTATE(XOR(x[d],x[a]),16); \
+        x[c] = PLUS(x[c],x[d]); x[b] = ROTATE(XOR(x[b],x[c]),12); \
+        x[a] = PLUS(x[a],x[b]); x[d] = ROTATE(XOR(x[d],x[a]), 8); \
+        x[c] = PLUS(x[c],x[d]); x[b] = ROTATE(XOR(x[b],x[c]), 7);
+#endif /* HAVE_CHACHA */
+
+
 #if defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_NO_NEON)
     /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
@@ -42,18 +79,12 @@ Public domain.
     /* implementation located in wolfcrypt/src/port/rsicv/riscv-64-chacha.c */
 
 #else
+
+/* BEGIN ChaCha C implementation */
 #if defined(HAVE_CHACHA)
 
-#include <wolfssl/wolfcrypt/chacha.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
-#ifdef NO_INLINE
-    #include <wolfssl/wolfcrypt/misc.h>
-#else
-    #define WOLFSSL_MISC_INCLUDED
-    #include <wolfcrypt/src/misc.c>
-#endif
 
 #ifdef CHACHA_AEAD_TEST
     #include <stdio.h>
@@ -87,31 +118,6 @@ Public domain.
     static int cpuidFlagsSet = 0;
     static word32 cpuidFlags = 0;
 #endif
-
-#ifdef BIG_ENDIAN_ORDER
-    #define LITTLE32(x) ByteReverseWord32(x)
-#else
-    #define LITTLE32(x) (x)
-#endif
-
-/* Number of rounds */
-#define ROUNDS  20
-
-#define U32C(v) (v##U)
-#define U32V(v) ((word32)(v) & U32C(0xFFFFFFFF))
-#define U8TO32_LITTLE(p) LITTLE32(((word32*)(p))[0])
-
-#define ROTATE(v,c) rotlFixed(v, c)
-#define XOR(v,w)    ((v) ^ (w))
-#define PLUS(v,w)   (U32V((v) + (w)))
-#define PLUSONE(v)  (PLUS((v),1))
-
-#define QUARTERROUND(a,b,c,d) \
-  x[a] = PLUS(x[a],x[b]); x[d] = ROTATE(XOR(x[d],x[a]),16); \
-  x[c] = PLUS(x[c],x[d]); x[b] = ROTATE(XOR(x[b],x[c]),12); \
-  x[a] = PLUS(x[a],x[b]); x[d] = ROTATE(XOR(x[d],x[a]), 8); \
-  x[c] = PLUS(x[c],x[d]); x[b] = ROTATE(XOR(x[b],x[c]), 7);
-
 
 /**
   * Set up iv(nonce). Earlier versions used 64 bits instead of 96, this version
@@ -238,86 +244,6 @@ static WC_INLINE void wc_Chacha_wordtobyte(word32 x[CHACHA_CHUNK_WORDS],
 }
 #endif /* !USE_INTEL_CHACHA_SPEEDUP */
 
-
-#ifdef HAVE_XCHACHA
-
-/*
- * wc_HChacha_block - half a ChaCha block, for XChaCha
- *
- * see https://tools.ietf.org/html/draft-arciszewski-xchacha-03
- */
-static WC_INLINE void wc_HChacha_block(ChaCha* ctx, word32 stream[CHACHA_CHUNK_WORDS/2], word32 nrounds)
-{
-    word32 x[CHACHA_CHUNK_WORDS];
-    word32 i;
-
-    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
-        x[i] = ctx->X[i];
-    }
-
-    for (i = nrounds; i > 0; i -= 2) {
-        QUARTERROUND(0, 4,  8, 12)
-        QUARTERROUND(1, 5,  9, 13)
-        QUARTERROUND(2, 6, 10, 14)
-        QUARTERROUND(3, 7, 11, 15)
-        QUARTERROUND(0, 5, 10, 15)
-        QUARTERROUND(1, 6, 11, 12)
-        QUARTERROUND(2, 7,  8, 13)
-        QUARTERROUND(3, 4,  9, 14)
-    }
-
-    for (i = 0; i < CHACHA_CHUNK_WORDS/4; ++i)
-        stream[i] = x[i];
-    for (i = CHACHA_CHUNK_WORDS/4; i < CHACHA_CHUNK_WORDS/2; ++i)
-        stream[i] = x[i + CHACHA_CHUNK_WORDS/2];
-}
-
-/* XChaCha -- https://tools.ietf.org/html/draft-arciszewski-xchacha-03 */
-int wc_XChacha_SetKey(ChaCha *ctx,
-                      const byte *key, word32 keySz,
-                      const byte *nonce, word32 nonceSz,
-                      word32 counter) {
-    word32 k[CHACHA_MAX_KEY_SZ];
-    byte iv[CHACHA_IV_BYTES];
-    int ret;
-
-    if (nonceSz != XCHACHA_NONCE_BYTES)
-        return BAD_FUNC_ARG;
-
-    if ((ret = wc_Chacha_SetKey(ctx, key, keySz)) < 0)
-        return ret;
-
-    /* form a first chacha IV from the first 16 bytes of the nonce.
-     * the first word is supplied in the "counter" arg, and
-     * the result is a full 128 bit nonceful IV for the one-time block
-     * crypto op that follows.
-     */
-    if ((ret = wc_Chacha_SetIV(ctx, nonce + 4, U8TO32_LITTLE(nonce))) < 0)
-        return ret;
-
-    wc_HChacha_block(ctx, k, 20); /* 20 rounds, but keeping half the output. */
-
-    /* the HChacha output is used as a 256 bit key for the main cipher. */
-    XMEMCPY(&ctx->X[4], k, 8 * sizeof(word32));
-
-    /* use 8 bytes from the end of the 24 byte nonce, padded up to 12 bytes,
-     * to form the IV for the main cipher.
-     */
-    XMEMSET(iv, 0, 4);
-    XMEMCPY(iv + 4, nonce + 16, 8);
-
-    if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0)
-        return ret;
-
-    ForceZero(k, sizeof k);
-    ForceZero(iv, sizeof iv);
-
-    return 0;
-}
-
-#endif /* HAVE_XCHACHA */
-
-
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -441,7 +367,13 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 #endif
 }
 
-void wc_Chacha_purge_current_block(ChaCha* ctx) {
+#endif /* HAVE_CHACHA */
+#endif /* END ChaCha C implementation */
+
+#if defined(HAVE_CHACHA) && defined(HAVE_XCHACHA)
+
+void wc_Chacha_purge_current_block(ChaCha* ctx)
+{
     if (ctx->left > 0) {
         byte scratch[CHACHA_CHUNK_BYTES];
         XMEMSET(scratch, 0, sizeof(scratch));
@@ -449,6 +381,80 @@ void wc_Chacha_purge_current_block(ChaCha* ctx) {
     }
 }
 
-#endif /* HAVE_CHACHA */
+/*
+ * wc_HChacha_block - half a ChaCha block, for XChaCha
+ *
+ * see https://tools.ietf.org/html/draft-arciszewski-xchacha-03
+ */
+static WC_INLINE void wc_HChacha_block(ChaCha* ctx,
+    word32 stream[CHACHA_CHUNK_WORDS/2], word32 nrounds)
+{
+    word32 x[CHACHA_CHUNK_WORDS];
+    word32 i;
 
-#endif /* WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_NEON */
+    for (i = 0; i < CHACHA_CHUNK_WORDS; i++) {
+        x[i] = ctx->X[i];
+    }
+
+    for (i = nrounds; i > 0; i -= 2) {
+        QUARTERROUND(0, 4,  8, 12)
+        QUARTERROUND(1, 5,  9, 13)
+        QUARTERROUND(2, 6, 10, 14)
+        QUARTERROUND(3, 7, 11, 15)
+        QUARTERROUND(0, 5, 10, 15)
+        QUARTERROUND(1, 6, 11, 12)
+        QUARTERROUND(2, 7,  8, 13)
+        QUARTERROUND(3, 4,  9, 14)
+    }
+
+    for (i = 0; i < CHACHA_CHUNK_WORDS/4; ++i)
+        stream[i] = x[i];
+    for (i = CHACHA_CHUNK_WORDS/4; i < CHACHA_CHUNK_WORDS/2; ++i)
+        stream[i] = x[i + CHACHA_CHUNK_WORDS/2];
+}
+
+/* XChaCha -- https://tools.ietf.org/html/draft-arciszewski-xchacha-03 */
+int wc_XChacha_SetKey(ChaCha *ctx,
+                      const byte *key, word32 keySz,
+                      const byte *nonce, word32 nonceSz,
+                      word32 counter)
+{
+    int ret;
+    word32 k[CHACHA_MAX_KEY_SZ];
+    byte   iv[CHACHA_IV_BYTES];
+
+    if (nonceSz != XCHACHA_NONCE_BYTES)
+        return BAD_FUNC_ARG;
+
+    if ((ret = wc_Chacha_SetKey(ctx, key, keySz)) < 0)
+        return ret;
+
+    /* form a first chacha IV from the first 16 bytes of the nonce.
+     * the first word is supplied in the "counter" arg, and
+     * the result is a full 128 bit nonceful IV for the one-time block
+     * crypto op that follows.
+     */
+    if ((ret = wc_Chacha_SetIV(ctx, nonce + 4, U8TO32_LITTLE(nonce))) < 0)
+        return ret;
+
+    wc_HChacha_block(ctx, k, 20); /* 20 rounds, but keeping half the output. */
+
+    /* the HChacha output is used as a 256 bit key for the main cipher. */
+    XMEMCPY(&ctx->X[4], k, 8 * sizeof(word32));
+
+    /* use 8 bytes from the end of the 24 byte nonce, padded up to 12 bytes,
+     * to form the IV for the main cipher.
+     */
+    XMEMSET(iv, 0, 4);
+    XMEMCPY(iv + 4, nonce + 16, 8);
+
+    if ((ret = wc_Chacha_SetIV(ctx, iv, counter)) < 0)
+        return ret;
+
+    ForceZero(k, sizeof k);
+    ForceZero(iv, sizeof iv);
+
+    return 0;
+}
+
+#endif /* HAVE_CHACHA && HAVE_XCHACHA */
