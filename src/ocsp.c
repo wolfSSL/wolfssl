@@ -852,7 +852,7 @@ void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse)
 int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
     WOLF_STACK_OF(WOLFSSL_X509) *certs, WOLFSSL_X509_STORE *st, unsigned long flags)
 {
-    int         ret = WOLFSSL_FAILURE;
+    int         ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert *cert;
 #else

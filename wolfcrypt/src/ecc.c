@@ -236,14 +236,6 @@ ECC Curve Sizes:
     #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
 
-#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
-    #define GEN_MEM_ERR MP_MEM
-#elif defined(USE_FAST_MATH)
-    #define GEN_MEM_ERR FP_MEM
-#else
-    #define GEN_MEM_ERR MP_MEM
-#endif
-
 #if !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SILABS_SE_ACCEL) && \
     !defined(WOLFSSL_KCAPI_ECC) && !defined(WOLFSSL_SE050) && \
@@ -8204,12 +8196,12 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   /* allocate memory */
   tA = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_ECC_BUFFER);
   if (tA == NULL) {
-     return GEN_MEM_ERR;
+     return MP_MEM;
   }
   tB = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_ECC_BUFFER);
   if (tB == NULL) {
      XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
-     return GEN_MEM_ERR;
+     return MP_MEM;
   }
 #endif
 
@@ -8218,7 +8210,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   if (key == NULL) {
      XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
      XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
-     return GEN_MEM_ERR;
+     return MP_MEM;
   }
 #endif
 #ifdef WOLFSSL_SMALL_STACK
@@ -8230,7 +8222,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
   #ifdef WOLFSSL_SMALL_STACK_CACHE
      XFREE(key, heap, DYNAMIC_TYPE_ECC_BUFFER);
   #endif
-     return GEN_MEM_ERR;
+     return MP_MEM;
   }
 #endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
@@ -12471,7 +12463,7 @@ static int add_entry(int idx, ecc_point *g)
    /* allocate base and LUT */
    fp_cache[idx].g = wc_ecc_new_point();
    if (fp_cache[idx].g == NULL) {
-      return GEN_MEM_ERR;
+      return MP_MEM;
    }
 
    /* copy x and y */
@@ -12480,7 +12472,7 @@ static int add_entry(int idx, ecc_point *g)
        (mp_copy(g->z, fp_cache[idx].g->z) != MP_OKAY)) {
       wc_ecc_del_point(fp_cache[idx].g);
       fp_cache[idx].g = NULL;
-      return GEN_MEM_ERR;
+      return MP_MEM;
    }
 
    for (x = 0; x < (1U<<FP_LUT); x++) {
@@ -12493,7 +12485,7 @@ static int add_entry(int idx, ecc_point *g)
          wc_ecc_del_point(fp_cache[idx].g);
          fp_cache[idx].g         = NULL;
          fp_cache[idx].lru_count = 0;
-         return GEN_MEM_ERR;
+         return MP_MEM;
       }
    }
 
@@ -12529,7 +12521,7 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 
    err = mp_init(tmp);
    if (err != MP_OKAY) {
-       err = GEN_MEM_ERR;
+       err = MP_MEM;
        goto errout;
    }
 
@@ -12805,7 +12797,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
              if ((mp_copy(fp_cache[idx].LUT[z]->x, R->x) != MP_OKAY) ||
                  (mp_copy(fp_cache[idx].LUT[z]->y, R->y) != MP_OKAY) ||
                  (mp_copy(&fp_cache[idx].mu,       R->z) != MP_OKAY)) {
-                 err = GEN_MEM_ERR;
+                 err = MP_MEM;
                  break;
              }
              first = 0;
@@ -13069,7 +13061,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
                  if ((mp_copy(fp_cache[idx1].LUT[zA]->x, R->x) != MP_OKAY) ||
                      (mp_copy(fp_cache[idx1].LUT[zA]->y, R->y) != MP_OKAY) ||
                      (mp_copy(&fp_cache[idx1].mu,        R->z) != MP_OKAY)) {
-                     err = GEN_MEM_ERR;
+                     err = MP_MEM;
                      break;
                  }
                     first = 0;
@@ -13084,7 +13076,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
                  if ((mp_copy(fp_cache[idx2].LUT[zB]->x, R->x) != MP_OKAY) ||
                      (mp_copy(fp_cache[idx2].LUT[zB]->y, R->y) != MP_OKAY) ||
                      (mp_copy(&fp_cache[idx2].mu,        R->z) != MP_OKAY)) {
-                     err = GEN_MEM_ERR;
+                     err = MP_MEM;
                      break;
                  }
                     first = 0;

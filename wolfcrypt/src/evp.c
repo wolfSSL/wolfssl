@@ -3836,8 +3836,9 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
         dh_key->q != NULL)
     {
         if (ret == WOLFSSL_SUCCESS &&
-            wolfSSL_BN_mod_exp(num1, dh_key->g, dh_key->q, dh_key->p, ctx) ==
-            WOLFSSL_FAILURE) {
+            wolfSSL_BN_mod_exp(num1, dh_key->g, dh_key->q, dh_key->p, ctx)
+               == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        {
             WOLFSSL_MSG("BN_mod_exp failed");
             ret = WOLFSSL_FAILURE;
         }
@@ -4563,7 +4564,7 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
 {
     unsigned char digest[WC_MAX_DIGEST_SIZE];
     unsigned int  hashLen;
-    int           ret = WOLFSSL_FAILURE;
+    int           ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     WOLFSSL_ENTER("EVP_DigestSignFinal");
 
@@ -11347,7 +11348,7 @@ static int PrintPubKeyRSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
     int indent, int bitlen, ASN1_PCTX* pctx)
 {
     byte   buff[8] = { 0 };
-    int    res = WOLFSSL_FAILURE;
+    int    res = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32 inOutIdx = 0;
     word32 nSz;             /* size of modulus */
     word32 eSz;             /* size of public exponent */
@@ -11699,7 +11700,7 @@ static int PrintPubKeyDSA(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 
     byte    buff[8] = { 0 };
     int     length;
-    int     res = WOLFSSL_FAILURE;
+    int     res = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32  inOutIdx = 0;
     word32  oid;
     byte    tagFound;
@@ -11917,7 +11918,7 @@ static int PrintPubKeyDH(WOLFSSL_BIO* out, const byte* pkey, int pkeySz,
 {
 
     byte    buff[8] = { 0 };
-    int     res = WOLFSSL_FAILURE;
+    int     res = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     word32  length;
     word32  inOutIdx;
     word32  oid;

@@ -40363,7 +40363,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
 
                         lenErrMask = 0 - (SECRET_LEN != args->sigSz);
                         args->lastErr = (ret & (~lenErrMask)) |
-                            (RSA_PAD_E & lenErrMask);
+                            (WC_NO_ERR_TRACE(RSA_PAD_E) & lenErrMask);
                         ret = 0;
                         break;
                     } /* rsa_kea */

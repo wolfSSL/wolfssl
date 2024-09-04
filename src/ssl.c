@@ -2881,8 +2881,9 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     /* make sure bidirectional TLS shutdown completes */
     if (ssl->error == WOLFSSL_ERROR_SYSCALL || ssl->options.shutdownDone) {
         /* ask the underlying transport the connection is closed */
-        if (ssl->CBIORecv(ssl, (char*)data, 0, ssl->IOCB_ReadCtx) ==
-                                            WOLFSSL_CBIO_ERR_CONN_CLOSE) {
+        if (ssl->CBIORecv(ssl, (char*)data, 0, ssl->IOCB_ReadCtx)
+            == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_CLOSE))
+        {
             ssl->options.isClosed = 1;
             ssl->error = WOLFSSL_ERROR_ZERO_RETURN;
         }
@@ -3400,7 +3401,7 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
     char    *list, *ptr, **token;
     word16  len;
     int     idx = 0;
-    int     ret = WOLFSSL_FAILURE;
+    int     ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     WOLFSSL_ENTER("wolfSSL_UseALPN");
 
@@ -6209,7 +6210,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
 #endif
     word32 size;
     byte*  buff;
-    int    ret = WOLFSSL_FAILURE;
+    int    ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     WOLFSSL_ENTER("check_cert_key");
 
@@ -10466,7 +10467,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     static int wolfSSL_ex_wrapper(WOLFSSL* ssl, HandShakeCallBack hsCb,
                                  TimeoutCallBack toCb, WOLFSSL_TIMEVAL timeout)
     {
-        int       ret        = WOLFSSL_FATAL_ERROR;
+        int       ret        = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
         int       oldTimerOn = 0;   /* was timer already on */
         WOLFSSL_TIMEVAL startTime;
         WOLFSSL_TIMEVAL endTime;
@@ -12190,8 +12191,9 @@ int wolfSSL_get_peer_tmp_key(const WOLFSSL* ssl, WOLFSSL_EVP_PKEY** pkey)
         int sz;
 
         PRIVATE_KEY_UNLOCK();
-        if (wc_ecc_export_x963(ssl->peerEccKey, NULL, &derSz) !=
-                LENGTH_ONLY_E) {
+        if (wc_ecc_export_x963(ssl->peerEccKey, NULL, &derSz)
+              != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
+        {
             WOLFSSL_MSG("get ecc der size failed");
             PRIVATE_KEY_LOCK();
             return WOLFSSL_FAILURE;
@@ -15481,7 +15483,7 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     /* Nginx looks for this error to know to stop parsing certificates.
      * Same for HAProxy. */
     if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE) ||
-       ((err & 0xFFFFFFL) == -ASN_NO_PEM_HEADER) ||
+       ((err & 0xFFFFFFL) == -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER)) ||
        ((err & 0xFFFL) == PEM_R_NO_START_LINE ))
         return PEM_R_NO_START_LINE;
     if (err == ((ERR_LIB_SSL << 24) | -SSL_R_HTTP_REQUEST))

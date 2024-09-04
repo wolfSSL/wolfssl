@@ -1830,7 +1830,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
                                  byte isRequest)
 {
     word16  size = 0, offset = 0, wlen;
-    int     r = BUFFER_ERROR;
+    int     r = WC_NO_ERR_TRACE(BUFFER_ERROR);
     const byte *s;
 
     if (OPAQUE16_LEN > length)
