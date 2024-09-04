@@ -17,7 +17,7 @@ fi
 # Not defining WOLFSSL_EXTERNAL_TEST runs only opt out.
 # Defining WOLFSSL_EXTERNAL_TEST!=0 runs opt out and opt in.
 # Defining WOLFSSL_EXTERNAL_TEST=0  does not run opt in or opt out.
-if [[ "$WOLFSSL_EXTERNAL_TEST" == "0" ]]; then
+if test "$WOLFSSL_EXTERNAL_TEST" == "0"; then
     echo 'skipping oscp-stapling.test because WOLFSSL_EXTERNAL_TEST is \
     defined to the value 0.'
     exit 77
