@@ -367,38 +367,6 @@ int wolfSSL_sk_X509_EXTENSION_push(WOLFSSL_STACK* sk,WOLFSSL_X509_EXTENSION* ext
     return wolfSSL_sk_push(sk, ext);
 }
 
-/* Free the structure for X509_EXTENSION stack
- *
- * sk  stack to free nodes in
- */
-void wolfSSL_sk_X509_EXTENSION_free(WOLFSSL_STACK* sk)
-{
-    WOLFSSL_STACK* node;
-
-    WOLFSSL_ENTER("wolfSSL_sk_X509_EXTENSION_free");
-
-    if (sk == NULL) {
-        return;
-    }
-
-    /* parse through stack freeing each node */
-    node = sk->next;
-    while ((node != NULL) && (sk->num > 1)) {
-        WOLFSSL_STACK* tmp = node;
-        node = node->next;
-
-        wolfSSL_X509_EXTENSION_free(tmp->data.ext);
-        XFREE(tmp, NULL, DYNAMIC_TYPE_X509);
-        sk->num -= 1;
-    }
-
-    /* free head of stack */
-    if (sk->num == 1) {
-        wolfSSL_X509_EXTENSION_free(sk->data.ext);
-    }
-    XFREE(sk, NULL, DYNAMIC_TYPE_X509);
-}
-
 static WOLFSSL_STACK* generateExtStack(const WOLFSSL_X509 *x)
 {
     int numOfExt, i;
@@ -872,11 +840,37 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
 
         switch (oid) {
             case BASIC_CA_OID:
+            {
+                word32 dataIdx = idx;
+                word32 dummyOid;
+                int dataLen = 0;
+
                 if (!isSet)
                     break;
                 /* Set pathlength */
                 a = wolfSSL_ASN1_INTEGER_new();
-                if (a == NULL) {
+
+                /* Set the data */
+                ret = GetObjectId(input, &dataIdx, &dummyOid, oidCertExtType,
+                        (word32)sz) == 0;
+                if (ret && dataIdx < (word32)sz) {
+                    /* Skip the critical information */
+                    if (input[dataIdx] == ASN_BOOLEAN) {
+                        dataIdx++;
+                        ret = GetLength(input, &dataIdx, &dataLen, sz) >= 0;
+                        dataIdx += dataLen;
+                    }
+                }
+                if (ret) {
+                    ret = GetOctetString(input, &dataIdx, &dataLen,
+                            (word32)sz) > 0;
+                }
+                if (ret) {
+                    ret = wolfSSL_ASN1_STRING_set(&ext->value, input + dataIdx,
+                            dataLen) == 1;
+                }
+
+                if (a == NULL || !ret) {
                     wolfSSL_X509_EXTENSION_free(ext);
                     FreeDecodedCert(cert);
                 #ifdef WOLFSSL_SMALL_STACK
@@ -892,7 +886,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                 ext->obj->ca = x509->isCa;
                 ext->crit = x509->basicConstCrit;
                 break;
-
+            }
             case AUTH_INFO_OID:
                 if (!isSet)
                     break;
@@ -3654,6 +3648,24 @@ WOLFSSL_X509* wolfSSL_X509_REQ_d2i(WOLFSSL_X509** x509,
 {
     return d2i_X509orX509REQ(x509, in, len, 1, NULL);
 }
+
+WOLFSSL_X509* wolfSSL_d2i_X509_REQ_INFO(WOLFSSL_X509** req,
+        const unsigned char** in, int len)
+{
+    WOLFSSL_X509* ret = NULL;
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_REQ_INFO");
+
+    if (in == NULL) {
+        WOLFSSL_MSG("NULL input for wolfSSL_d2i_X509");
+        return NULL;
+    }
+
+    ret = wolfSSL_X509_REQ_d2i(req, *in, len);
+    if (ret != NULL) {
+        *in += ret->derCert->length;
+    }
+    return ret;
+}
 #endif
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
@@ -5040,6 +5052,11 @@ void wolfSSL_sk_X509_EXTENSION_pop_free(
         void (*f) (WOLFSSL_X509_EXTENSION*))
 {
     wolfSSL_sk_pop_free(sk, (wolfSSL_sk_freefunc)f);
+}
+
+void wolfSSL_sk_X509_EXTENSION_free(WOLF_STACK_OF(WOLFSSL_X509_EXTENSION)* sk)
+{
+    wolfSSL_sk_pop_free(sk, NULL);
 }
 
 #endif /* OPENSSL_EXTRA */

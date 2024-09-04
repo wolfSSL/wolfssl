@@ -2052,6 +2052,32 @@ WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,
     }
     return rsa;
 }
+
+WOLFSSL_RSA *wolfSSL_d2i_RSA_PUBKEY_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
+{
+    char* data = NULL;
+    int dataSz = 0;
+    int memAlloced = 0;
+    WOLFSSL_RSA* rsa = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_RSA_PUBKEY_bio");
+
+    if (bio == NULL)
+        return NULL;
+
+    if (wolfssl_read_bio(bio, &data, &dataSz, &memAlloced) != 0) {
+        if (memAlloced)
+            XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+
+    rsa = wolfssl_rsa_d2i(out, (const unsigned char*)data, dataSz,
+            WOLFSSL_RSA_LOAD_PUBLIC);
+    if (memAlloced)
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return rsa;
+}
 #endif /* !NO_BIO */
 
 #ifndef NO_FILESYSTEM
@@ -12341,6 +12367,56 @@ int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
 
     return res;
 }
+
+
+#ifndef NO_BIO
+
+WOLFSSL_EC_KEY *wolfSSL_d2i_EC_PUBKEY_bio(WOLFSSL_BIO *bio,
+        WOLFSSL_EC_KEY **out)
+{
+    char* data = NULL;
+    int dataSz = 0;
+    int memAlloced = 0;
+    WOLFSSL_EC_KEY* ec = NULL;
+    int err = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_EC_PUBKEY_bio");
+
+    if (bio == NULL)
+        return NULL;
+
+    if (err == 0 && wolfssl_read_bio(bio, &data, &dataSz, &memAlloced) != 0) {
+        WOLFSSL_ERROR_MSG("wolfssl_read_bio failed");
+        err = 1;
+    }
+
+    if (err == 0 && (ec = wolfSSL_EC_KEY_new()) == NULL) {
+        WOLFSSL_ERROR_MSG("wolfSSL_EC_KEY_new failed");
+        err = 1;
+    }
+
+    /* Load the EC key with the public key from the DER encoding. */
+    if (err == 0 && wolfSSL_EC_KEY_LoadDer_ex(ec, (const unsigned char*)data,
+            dataSz, WOLFSSL_EC_KEY_LOAD_PUBLIC) != 1) {
+        WOLFSSL_ERROR_MSG("wolfSSL_EC_KEY_LoadDer_ex failed");
+        err = 1;
+    }
+
+    if (memAlloced)
+        XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (err) { /* on error */
+        wolfSSL_EC_KEY_free(ec);
+        ec = NULL;
+    }
+    else { /* on success */
+        if (out != NULL)
+            *out = ec;
+    }
+
+    return ec;
+}
+
+#endif /* !NO_BIO */
 
 /*
  * EC key PEM APIs

@@ -492,7 +492,7 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* data, int len,
     WOLFSSL_ENTER("wolfSSL_BN_bin2bn");
 
     /* Validate parameters. */
-    if ((data == NULL) || (len < 0)) {
+    if (len < 0) {
         ret = NULL;
     }
     /* Allocate a new big number when ret is NULL. */
@@ -507,7 +507,7 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* data, int len,
         if (ret->internal == NULL) {
             ret = NULL;
         }
-        else {
+        else if (data != NULL) {
             /* Decode into big number. */
             if (mp_read_unsigned_bin((mp_int*)ret->internal, data, (word32)len)
                     != 0) {
@@ -519,6 +519,9 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* data, int len,
                 /* Don't free bn as we may be returning it. */
                 bn = NULL;
             }
+        }
+        else if (data == NULL) {
+            wolfSSL_BN_zero(ret);
         }
     }
 
