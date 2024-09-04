@@ -74549,6 +74549,7 @@ static int test_wc_GetPkcs8TraditionalOffset(void)
     int derSz = 0;
     word32 inOutIdx;
     const char* path = "./certs/server-keyPkcs8.der";
+    const char* pathAttributes = "./certs/ca-key-pkcs8-attribute.der";
     XFILE file = XBADFILE;
     byte der[2048];
 
@@ -74577,6 +74578,16 @@ static int test_wc_GetPkcs8TraditionalOffset(void)
     inOutIdx = 0;
     ExpectIntEQ(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx, (word32)derSz),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
+
+    /* test parsing with attributes */
+    ExpectTrue((file = XFOPEN(pathAttributes, "rb")) != XBADFILE);
+    ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), file), 0);
+    if (file != XBADFILE)
+        XFCLOSE(file);
+
+    inOutIdx = 0;
+    ExpectIntGT(length = wc_GetPkcs8TraditionalOffset(der, &inOutIdx,
+        (word32)derSz), 0);
 #endif /* NO_ASN */
     return EXPECT_RESULT();
 }
