@@ -11,8 +11,15 @@ if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
 
-if test -n "$WOLFSSL_NO_EXTERNAL_NETWORK_TESTS"; then
-    echo 'skipping oscp-stapling.test because WOLFSSL_NO_EXTERNAL_NETWORK_TESTS defined.'
+# These tests do run by default, we will call these opt out. There are
+# additional non-default tests that require network connection, those are
+# opt in.
+# Not defining WOLFSSL_EXTERNAL_TEST runs only opt out.
+# Defining WOLFSSL_EXTERNAL_TEST!=0 runs opt out and opt in.
+# Defining WOLFSSL_EXTERNAL_TEST=0  does not run opt in or opt out.
+if [[ "$WOLFSSL_EXTERNAL_TEST" == "0" ]]; then
+    echo 'skipping oscp-stapling.test because WOLFSSL_EXTERNAL_TEST is \
+    defined to the value 0.'
     exit 77
 fi
 

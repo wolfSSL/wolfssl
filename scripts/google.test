@@ -6,8 +6,18 @@ server=www.google.com
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
-if ! test -n "$WOLFSSL_EXTERNAL_TEST"; then
+# These tests do not run by default, we will call these opt in. There are
+# additional default tests that require network connection, those are
+# opt out.
+# Not defining WOLFSSL_EXTERNAL_TEST runs only opt out.
+# Defining WOLFSSL_EXTERNAL_TEST!=0 runs opt out and opt in.
+# Defining WOLFSSL_EXTERNAL_TEST=0  does not run opt in or opt out.
+if [[ ! -v WOLFSSL_EXTERNAL_TEST ]]; then
     echo "WOLFSSL_EXTERNAL_TEST not set, won't run"
+    exit 77
+fi
+if [[ "$WOLFSSL_EXTERNAL_TEST" == "0" ]]; then
+    echo "WOLFSSL_EXTERNAL_TEST is defined to zero, won't run"
     exit 77
 fi
 
