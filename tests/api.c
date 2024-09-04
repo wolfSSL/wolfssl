@@ -74557,6 +74557,7 @@ static int test_wc_GetPkcs8TraditionalOffset(void)
     ExpectIntGT(derSz = (int)XFREAD(der, 1, sizeof(der), file), 0);
     if (file != XBADFILE)
         XFCLOSE(file);
+    file = XBADFILE; /* reset file to avoid warning of use after close */
 
     /* valid case */
     inOutIdx = 0;
