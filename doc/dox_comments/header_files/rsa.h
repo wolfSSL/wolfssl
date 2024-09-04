@@ -23,7 +23,7 @@
     int ret;
     ret = wc_InitRsaKey(&enc, NULL); // not using heap hint. No custom memory
     if ( ret != 0 ) {
-        // error initializing RSA key
+    	// error initializing RSA key
     }
     \endcode
 
@@ -166,7 +166,7 @@ int  wc_FreeRsaKey(RsaKey* key);
     ret = wc_RsaDirect(in, (word32)sizeof(in), out, &outSz, &key,
         RSA_PRIVATE_ENCRYPT, &rng);
     if (ret < 0) {
-        //handle error
+	    //handle error
     }
     \endcode
 
@@ -240,7 +240,7 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
     // initialize with received public key parameters
     ret = wc_RsaPublicEncrypt(msg, sizeof(msg), out, sizeof(out), &pub, &rng);
     if ( ret != 0 ) {
-        // error encrypting message
+    	// error encrypting message
     }
     \endcode
 
@@ -331,6 +331,12 @@ int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
     memset(plain, 0, sizeof(plain));
     ret = wc_RsaSSL_Verify(out, ret, plain, sizeof(plain), &key);
     if (ret < 0) {
+        return -1;
+    }
+    if (ret != inLen) {
+        return -1;
+    }
+    if (XMEMCMP(in, plain, ret) != 0) {
         return -1;
     }
     \endcode
@@ -1043,7 +1049,7 @@ int  wc_RsaEncryptSize(RsaKey* key);
     wc_InitRsaKey(&enc, NULL); // not using heap hint. No custom memory
     ret = wc_RsaPrivateKeyDecode(der, &idx, &enc, sizeof(der));
     if( ret != 0 ) {
-        // error parsing private key
+    	// error parsing private key
     }
     \endcode
 
@@ -1093,7 +1099,7 @@ int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     wc_InitRsaKey(&pub, NULL); // not using heap hint. No custom memory
     ret = wc_RsaPublicKeyDecode(der, &idx, &pub, sizeof(der));
     if( ret != 0 ) {
-        // error parsing public key
+    	// error parsing public key
     }
     \endcode
 
@@ -1138,7 +1144,7 @@ int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
     wc_InitRsaKey(&pub, NULL); // not using heap hint. No custom memory
     ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, sizeof(e), &pub);
     if( ret != 0 ) {
-        // error parsing public key elements
+    	// error parsing public key elements
     }
     \endcode
 
@@ -1221,7 +1227,7 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen);
     ret = wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out), &key, &rng,
     WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
     if (ret < 0) {
-        //handle error
+	    //handle error
     }
     \endcode
 
@@ -1268,14 +1274,14 @@ int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
     ret = wc_RsaPublicEncrypt_ex(in, sizeof(in), out, sizeof(out), &key,
     &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
     if (ret < 0) {
-        //handle error
+	    //handle error
     }
     …
     ret = wc_RsaPrivateDecrypt_ex(out, ret, plain, sizeof(plain), &key,
     WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
 
     if (ret < 0) {
-        //handle error
+	    //handle error
     }
     \endcode
 
@@ -1326,14 +1332,14 @@ int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
     &rng, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
 
     if (ret < 0) {
-        //handle error
+	    //handle error
     }
     …
     ret = wc_RsaPrivateDecryptInline_ex(out, ret, &plain, &key,
     WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
 
     if (ret < 0) {
-        //handle error
+	    //handle error
     }
     \endcode
 
@@ -1376,7 +1382,7 @@ int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
     ...
     ret = wc_RsaFlattenPublicKey(&key, e, &eSz, n, &nSz);
     if (ret != 0) {
-        // Failure case.
+    	// Failure case.
     }
     \endcode
 
@@ -1522,7 +1528,7 @@ int wc_RsaKeyToPublicDer_ex(RsaKey* key, byte* output, word32 inLen,
     // generate 2048 bit long private key
     ret = wc_MakeRsaKey(&priv, 2048, e, &rng);
     if( ret != 0 ) {
-        // error generating private key
+	    // error generating private key
     }
     \endcode
 
