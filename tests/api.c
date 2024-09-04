@@ -83432,7 +83432,7 @@ static int test_wolfSSL_EVP_sm3(void)
     ExpectTrue(mdCtx != NULL);
 
     /* Invalid Parameters */
-    ExpectIntEQ(EVP_DigestInit(NULL, md), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(EVP_DigestInit(NULL, md), WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
     /* Valid Parameters */
     ExpectIntEQ(EVP_DigestInit(mdCtx, md), WOLFSSL_SUCCESS);
 
