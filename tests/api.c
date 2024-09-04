@@ -55652,19 +55652,41 @@ static int test_wolfSSL_X509_check_host(void)
     && !defined(NO_SHA) && !defined(NO_RSA)
     X509* x509 = NULL;
     const char altName[] = "example.com";
+    const char badAltName[] = "a.example.com";
 
+    /* cliCertFile has subjectAltName set to 'example.com', '127.0.0.1' */
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
                 SSL_FILETYPE_PEM));
 
     ExpectIntEQ(X509_check_host(x509, altName, XSTRLEN(altName), 0, NULL),
             WOLFSSL_SUCCESS);
 
+    ExpectIntEQ(X509_check_host(x509, badAltName, XSTRLEN(badAltName), 0, NULL),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
     ExpectIntEQ(X509_check_host(x509, NULL, 0, 0, NULL),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* Check WOLFSSL_LEFT_MOST_WILDCARD_ONLY flag set */
+    ExpectIntEQ(X509_check_host(x509, altName, XSTRLEN(altName),
+            WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(X509_check_host(x509, NULL, 0,
+            WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    ExpectIntEQ(X509_check_host(x509, badAltName, XSTRLEN(badAltName),
+            WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL),
             WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
     X509_free(x509);
 
     ExpectIntEQ(X509_check_host(NULL, altName, XSTRLEN(altName), 0, NULL),
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
+
+    /* Check again with WOLFSSL_LEFT_MOST_WILDCARD_ONLY flag set */
+    ExpectIntEQ(X509_check_host(NULL, altName, XSTRLEN(altName),
+            WOLFSSL_LEFT_MOST_WILDCARD_ONLY, NULL),
             WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 #endif
     return EXPECT_RESULT();
@@ -63359,6 +63381,12 @@ static int test_wolfSSL_X509_bad_altname(void)
      * name of "a*\0*". Ensure that it does not match "aaaaa" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name, nameLen,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
+
+    /* Also make sure WOLFSSL_LEFT_MOST_WILDCARD_ONLY fails too */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name, nameLen,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), 1);
+
     X509_free(x509);
 
 #endif
@@ -63478,6 +63506,26 @@ static int test_wolfSSL_X509_name_match(void)
     /* Ensure that "a*" does not match "bbb" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name4, nameLen4,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), 1);
+
+    /* WOLFSSL_LEFT_MOST_WILDCARD_ONLY flag should fail on all cases, since
+     * 'a*' alt name does not have wildcard left-most */
+
+    /* Ensure that "a*" does not match "aaaaa" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name1, nameLen1,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_SUCCESS);
+    /* Ensure that "a*" does not match "a" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name2, nameLen2,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_SUCCESS);
+    /* Ensure that "a*" does not match "abbbb" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name3, nameLen3,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_SUCCESS);
+    /* Ensure that "a*" does not match "bbb" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name4, nameLen4,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_SUCCESS);
 
     wolfSSL_X509_free(x509);
 
@@ -63601,6 +63649,21 @@ static int test_wolfSSL_X509_name_match2(void)
     ExpectIntNE(wolfSSL_X509_check_host(x509, name4, nameLen4,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
 
+    /* WOLFSSL_LEFT_MOST_WILDCARD_ONLY flag should fail on all cases, since
+     * 'a*b*' alt name does not have wildcard left-most */
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, nameLen1,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name2, nameLen2,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name3, nameLen3,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_FAILURE);
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name4, nameLen4,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_FAILURE);
+
     /* Ensure that "a*b*" matches "ab", testing openssl behavior replication
      * on check len input handling, 0 for len is OK as it should then use
      * strlen(name1) */
@@ -63714,6 +63777,8 @@ static int test_wolfSSL_X509_name_match3(void)
     int nameLen1 = (int)(XSTRLEN(name1));
     const char *name2 = "x.y.example.com";
     int nameLen2 = (int)(XSTRLEN(name2));
+    const char *name3 = "example.com";
+    int nameLen3 = (int)(XSTRLEN(name3));
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_buffer(
         cert_der, certSize, WOLFSSL_FILETYPE_ASN1));
@@ -63724,6 +63789,22 @@ static int test_wolfSSL_X509_name_match3(void)
     /* Ensure that "*.example.com" does NOT match "x.y.example.com" */
     ExpectIntNE(wolfSSL_X509_check_host(x509, name2, nameLen2,
         WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+    /* Ensure that "*.example.com" does NOT match "example.com" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name3, nameLen3,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT, NULL), WOLFSSL_SUCCESS);
+
+    /* WOLFSSL_LEFT_MOST_WILDCARD_ONLY, should match "foo.example.com" */
+    ExpectIntEQ(wolfSSL_X509_check_host(x509, name1, nameLen1,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_SUCCESS);
+    /* WOLFSSL_LEFT_MOST_WILDCARD_ONLY, should NOT  match "x.y.example.com" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name2, nameLen2,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_SUCCESS);
+    /* WOLFSSL_LEFT_MOST_WILDCARD_ONLY, should NOT match "example.com" */
+    ExpectIntNE(wolfSSL_X509_check_host(x509, name3, nameLen3,
+        WOLFSSL_ALWAYS_CHECK_SUBJECT | WOLFSSL_LEFT_MOST_WILDCARD_ONLY,
+        NULL), WOLFSSL_SUCCESS);
 
     wolfSSL_X509_free(x509);
 
