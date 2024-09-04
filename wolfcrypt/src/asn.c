@@ -5652,7 +5652,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
     }
 
     /* compute length of encoded OID */
-    d = (in[0] * 40) + in[1];
+    d = ((word32)in[0] * 40) + in[1];
     len = 0;
     for (i = 1; i < (int)inSz; i++) {
         x = 0;
@@ -5675,7 +5675,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
         }
 
         /* calc first byte */
-        d = (in[0] * 40) + in[1];
+        d = ((word32)in[0] * 40) + in[1];
 
         /* encode bytes */
         x = 0;
@@ -5710,7 +5710,7 @@ int EncodeObjectId(const word16* in, word32 inSz, byte* out, word32* outSz)
     }
 
     /* return length */
-    *outSz = len;
+    *outSz = (word32)len;
 
     return 0;
 }
@@ -13476,12 +13476,12 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
                     }
 
                     if (i < tmpSize - 1) {
-                        ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d.",
-                            tmpName[i]);
+                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
+                            "%d.", tmpName[i]);
                     }
                     else {
-                        ret = XSNPRINTF(oidName + j, MAX_OID_SZ - j, "%d",
-                            tmpName[i]);
+                        ret = XSNPRINTF(oidName + j, (word32)(MAX_OID_SZ - j),
+                            "%d", tmpName[i]);
                     }
 
                     if (ret >= 0) {
@@ -13500,7 +13500,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     if (ret == 0) {
         nameSz = (int)XSTRLEN((const char*)finalName);
 
-        entry->ridString = (char*)XMALLOC(nameSz + 1, heap,
+        entry->ridString = (char*)XMALLOC((word32)(nameSz + 1), heap,
                 DYNAMIC_TYPE_ALTNAME);
 
         if (entry->ridString == NULL) {
@@ -13508,7 +13508,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
         }
 
         if (ret == 0) {
-            XMEMCPY(entry->ridString, finalName, nameSz + 1);
+            XMEMCPY(entry->ridString, finalName, (word32)(nameSz + 1));
         }
     }
 
@@ -28121,9 +28121,9 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 break;
         #ifdef WOLFSSL_CUSTOM_OID
             case ASN_CUSTOM_NAME:
-                nameSz = cname->custom.valSz;
+                nameSz = (word32)cname->custom.valSz;
                 oid = cname->custom.oid;
-                oidSz = cname->custom.oidSz;
+                oidSz = (word32)cname->custom.oidSz;
                 break;
         #endif
         #ifdef WOLFSSL_CERT_REQ
@@ -28447,8 +28447,8 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                 else if (type == ASN_CUSTOM_NAME) {
                 #ifdef WOLFSSL_CUSTOM_OID
                     SetRdnItems(namesASN + idx, dataASN + idx, name->custom.oid,
-                        name->custom.oidSz, name->custom.enc,
-                        name->custom.val, name->custom.valSz);
+                        (word32)name->custom.oidSz, (byte)name->custom.enc,
+                        name->custom.val, (word32)name->custom.valSz);
                 #endif
                 }
                 else {
@@ -32486,7 +32486,7 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
     }
 
     XMEMCPY(cert->extKeyUsageOID[idx], oid, oidSz);
-    cert->extKeyUsageOIDSz[idx] = oidSz;
+    cert->extKeyUsageOIDSz[idx] = (byte)oidSz;
     cert->extKeyUsage |= EXTKEYUSE_USER;
 
     return 0;
@@ -32522,7 +32522,7 @@ int wc_SetCustomExtension(Cert *cert, int critical, const char *oid,
     ext->oid = (char*)oid;
     ext->crit = (critical == 0) ? 0 : 1;
     ext->val = (byte*)der;
-    ext->valSz = derSz;
+    ext->valSz = (int)derSz;
 
     cert->customCertExtCount++;
     return 0;
@@ -38724,7 +38724,7 @@ end:
             tbsParams =
                 GetASNItem_Addr(dataASN[CRLASN_IDX_TBS_SIGALGO_PARAMS],
                     buff);
-            tbsParamsSz =
+            tbsParamsSz =(int)
                 GetASNItem_Length(dataASN[CRLASN_IDX_TBS_SIGALGO_PARAMS],
                     buff);
         }
@@ -38732,7 +38732,7 @@ end:
             sigParams =
                 GetASNItem_Addr(dataASN[CRLASN_IDX_SIGALGO_PARAMS],
                     buff);
-            sigParamsSz =
+            sigParamsSz = (int)
                 GetASNItem_Length(dataASN[CRLASN_IDX_SIGALGO_PARAMS],
                     buff);
             dcrl->sigParamsIndex =
@@ -38759,7 +38759,7 @@ end:
             ret = ASN_PARSE_E;
         }
         else if ((tbsParamsSz > 0) &&
-                 (XMEMCMP(tbsParams, sigParams, tbsParamsSz) != 0)) {
+                 (XMEMCMP(tbsParams, sigParams, (word32)tbsParamsSz) != 0)) {
             WOLFSSL_MSG("CRL TBS and signature parameter mismatch");
             ret = ASN_PARSE_E;
         }

@@ -3225,7 +3225,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if (defined(WOLFSSL_SCTP) || defined(WOLFSSL_DTLS_MTU)) && \
                                                            defined(WOLFSSL_DTLS)
     if (dtlsMTU)
-        wolfSSL_CTX_dtls_set_mtu(ctx, dtlsMTU);
+        wolfSSL_CTX_dtls_set_mtu(ctx, (unsigned short)dtlsMTU);
 #endif
 
 #ifndef NO_DH

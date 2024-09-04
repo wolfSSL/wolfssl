@@ -1102,8 +1102,8 @@ static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr,
          * message ready to write once */
         strLen = XSNPRINTF(serialMsg, sizeof(serialMsg), " %s", words[3]);
         for (i = 0; i < sz; i++)
-            strLen = XSNPRINTF(serialMsg + strLen, sizeof(serialMsg) - strLen,
-                ":%02x ", serial[i]);
+            strLen = XSNPRINTF(serialMsg + strLen,
+                sizeof(serialMsg) - (size_t)strLen, ":%02x ", serial[i]);
         printf("%s\n", serialMsg);
     }
 

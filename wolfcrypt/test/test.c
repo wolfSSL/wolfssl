@@ -2563,7 +2563,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
             return WC_TEST_RET_ENC(calling_line, 2, WC_TEST_RET_TAG_I);
         }
     #ifndef WOLFSSL_NO_MALLOC
-        pem = (byte*)XMALLOC(pemSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = (byte*)XMALLOC((word32)pemSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             return WC_TEST_RET_ENC(calling_line, 3, WC_TEST_RET_TAG_I);
         }
@@ -2572,7 +2572,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
             return BAD_FUNC_ARG;
     #endif
         /* Convert to PEM */
-        pemSz = wc_DerToPem(der, (word32)derSz, pem, pemSz, pemType);
+        pemSz = wc_DerToPem(der, (word32)derSz, pem, (word32)pemSz, pemType);
         if (pemSz < 0) {
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return WC_TEST_RET_ENC(calling_line, 4, WC_TEST_RET_TAG_I);
