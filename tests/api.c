@@ -93278,6 +93278,20 @@ static int test_dtls_frag_ch(void)
     /* Expect quietly dropping fragmented first CH */
     ExpectIntEQ(test_ctx.c_len, 0);
 
+#if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
+    /* Disable ECH as it pushes it over our MTU */
+    wolfSSL_SetEchEnable(ssl_c, 0);
+#endif
+
+    /* Limit options to make the CH a fixed length */
+    /* See wolfSSL_parse_cipher_list for reason why we provide 1.3 AND 1.2
+     * ciphersuite. This is only necessary when building with OPENSSL_EXTRA. */
+    ExpectTrue(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"
+#ifdef OPENSSL_EXTRA
+            ":DHE-RSA-AES256-GCM-SHA384"
+#endif
+            ));
+
     /* CH1 */
     ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
     ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);

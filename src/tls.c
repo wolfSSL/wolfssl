@@ -12083,6 +12083,11 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     if (size == 0)
         return BAD_FUNC_ARG;
 
+    if (ssl->options.disableECH) {
+        WOLFSSL_MSG("TLSX_ECH_Parse: ECH disabled. Ignoring.");
+        return 0;
+    }
+
     if (msgType == encrypted_extensions) {
         ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
 
@@ -13588,18 +13593,21 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #endif
 #if defined(HAVE_ECH)
             /* GREASE ECH */
-            if (ssl->echConfigs == NULL) {
-                ret = GREASE_ECH_USE(&(ssl->extensions), ssl->heap, ssl->rng);
-            }
-            else if (ssl->echConfigs != NULL) {
-                ret = ECH_USE(ssl->echConfigs, &(ssl->extensions), ssl->heap,
-                    ssl->rng);
+            if (!ssl->options.disableECH) {
+                if (ssl->echConfigs == NULL) {
+                    ret = GREASE_ECH_USE(&(ssl->extensions), ssl->heap,
+                            ssl->rng);
+                }
+                else if (ssl->echConfigs != NULL) {
+                    ret = ECH_USE(ssl->echConfigs, &(ssl->extensions),
+                            ssl->heap, ssl->rng);
+                }
             }
 #endif
         }
 #if defined(HAVE_ECH)
         else if (IsAtLeastTLSv1_3(ssl->version)) {
-            if (ssl->ctx->echConfigs != NULL) {
+            if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
                 ret = SERVER_ECH_USE(&(ssl->extensions), ssl->heap,
                     ssl->ctx->echConfigs);
 
@@ -13789,7 +13797,8 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
     }
     #endif
 #if defined(HAVE_ECH)
-    if (ssl->options.useEch == 1 && msgType == client_hello) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH
+            && msgType == client_hello) {
         ret = TLSX_GetSizeWithEch(ssl, semaphore, msgType, &length);
         if (ret != 0)
             return ret;
@@ -14034,7 +14043,8 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
     #endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    if (ssl->options.useEch == 1 && msgType == client_hello) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH
+            && msgType == client_hello) {
         ret = TLSX_WriteWithEch(ssl, output, semaphore,
                          msgType, &offset);
         if (ret != 0)
