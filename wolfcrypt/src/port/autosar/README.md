@@ -31,15 +31,15 @@ There is an example test case located at wolfcrypt/src/port/autsar/example.c. Af
 
 ## 4.0 API Implemented
 
-- Std_ReturnType Csm_Decrypt(uint32 jobId,                            
-         Crypto_OperationModeType mode, const uint8* dataPtr, uint32 dataLength, 
-         uint8* resultPtr, uint32* resultLengthPtr);                             
-- Std_ReturnType Csm_Encrypt(uint32 jobId,                            
-         Crypto_OperationModeType mode, const uint8* dataPtr, uint32 dataLength, 
-         uint8* resultPtr, uint32* resultLengthPtr);                             
-- Std_ReturnType Csm_KeyElementSet(uint32 keyId, uint32 keyElementId, 
-         const uint8* keyPtr, uint32 keyLength);                                 
-- Std_ReturnType Csm_RandomGenerate( uint32 jobId, uint8* resultPtr,  
+- Std_ReturnType Csm_Decrypt(uint32 jobId,
+         Crypto_OperationModeType mode, const uint8* dataPtr, uint32 dataLength,
+         uint8* resultPtr, uint32* resultLengthPtr);
+- Std_ReturnType Csm_Encrypt(uint32 jobId,
+         Crypto_OperationModeType mode, const uint8* dataPtr, uint32 dataLength,
+         uint8* resultPtr, uint32* resultLengthPtr);
+- Std_ReturnType Csm_KeyElementSet(uint32 keyId, uint32 keyElementId,
+         const uint8* keyPtr, uint32 keyLength);
+- Std_ReturnType Csm_RandomGenerate( uint32 jobId, uint8* resultPtr,
          uint32* resultLengthPtr);
 
 Along with the structures necessary for these API.

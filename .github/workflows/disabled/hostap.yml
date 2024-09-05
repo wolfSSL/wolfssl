@@ -181,7 +181,7 @@ jobs:
       - name: Checkout hostap
         uses: actions/checkout@v4
         with:
-          repository: julek-wolfssl/hostap-mirror 
+          repository: julek-wolfssl/hostap-mirror
           path: hostap
           ref: ${{ matrix.config.hostap_ref }}
           # necessary for cherry pick step
@@ -210,7 +210,7 @@ jobs:
           done
 
       - if: ${{ matrix.hostapd }}
-        name: Setup hostapd config file 
+        name: Setup hostapd config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/hostapd.config \
              hostap/hostapd/.config
@@ -220,7 +220,7 @@ jobs:
           EOF
 
       - if: ${{ matrix.wpa_supplicant }}
-        name: Setup wpa_supplicant config file 
+        name: Setup wpa_supplicant config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/wpa_supplicant.config \
              hostap/wpa_supplicant/.config

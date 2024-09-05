@@ -27,7 +27,7 @@ then "Browse" and select:
     ```
     Click "OK" then "OK" again.
 
-4. Create a new `<path_to_wolfssl>/user_settings.h` file and add your custom 
+4. Create a new `<path_to_wolfssl>/user_settings.h` file and add your custom
 settings. Below is an example but you can expand the settings. For more details,
 see https://github.com/wolfSSL/wolfssl/blob/master/examples/configs/user_settings_template.h
 

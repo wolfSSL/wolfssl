@@ -1662,7 +1662,7 @@ void wc_SetCert_Free(Cert* cert);
     \return Length of traditional private key on success.
     \return Negative values on failure.
 
-    \param input Buffer containing unencrypted PKCS#8 private key. 
+    \param input Buffer containing unencrypted PKCS#8 private key.
     \param inOutIdx Index into the input buffer. On input, it should be a byte
     offset to the beginning of the the PKCS#8 buffer. On output, it will be the
     byte offset to the traditional private key within the input buffer.
@@ -1691,7 +1691,7 @@ int wc_GetPkcs8TraditionalOffset(byte* input,
 
     \brief This function takes in a DER private key and converts it to PKCS#8
     format. Also used in creating PKCS#12 shrouded key bags. See RFC 5208.
-    
+
     \return The size of the PKCS#8 key placed into out on success.
     \return LENGTH_ONLY_E if out is NULL, with required output buffer size in
     outSz.
@@ -1840,7 +1840,7 @@ int wc_DecryptPKCS8Key(byte* input, word32 sz, const char* password,
 
     \brief This function takes a traditional, DER key, converts it to PKCS#8
      format, and encrypts it. It uses wc_CreatePKCS8Key and wc_EncryptPKCS8Key
-     to do this. 
+     to do this.
 
     \return The size of the encrypted key placed in out on success.
     \return LENGTH_ONLY_E if out is NULL, with required output buffer size in
@@ -2199,7 +2199,7 @@ int wc_Asn1PrintOptions_Init(Asn1PrintOptions* opts);
     \return  0 on success.
     \return  BAD_FUNC_ARG when asn1 is NULL.
     \return  BAD_FUNC_ARG when val is out of range for option.
- 
+
     \param opts  The ASN.1 options for printing.
     \param opt   An option to set value for.
     \param val   The value to set.

@@ -13,7 +13,7 @@ Additional examples can be found on [wolfSSL/wolfssl-examples](https://github.co
 
 ## Connect with an Arduino Sketch
 
-See the companion [Arduino Sketch Client](../wolfssl_client/wolfssl_client.ino). 
+See the companion [Arduino Sketch Client](../wolfssl_client/wolfssl_client.ino).
 
 ## Connect with Linux Client
 

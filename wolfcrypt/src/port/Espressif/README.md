@@ -160,10 +160,10 @@ ECDSA    256 sign            4 ops took 1.101 sec, avg 275.250 ms, 3.633 ops/sec
 ECDSA    256 verify          2 ops took 1.092 sec, avg 546.000 ms, 1.832 ops/sec
 ```
 
-Condition  :  
-- Model    : ESP32-WROOM-32  
-- CPU Speed: 240Mhz  
-- ESP-IDF  : v3.3-beta1-39-g6cb37ecc5(commit hash : 6cb37ecc5)  
+Condition  :
+- Model    : ESP32-WROOM-32
+- CPU Speed: 240Mhz
+- ESP-IDF  : v3.3-beta1-39-g6cb37ecc5(commit hash : 6cb37ecc5)
 - OS       : Ubuntu 18.04.1 LTS (Bionic Beaver)
 
 ## Support

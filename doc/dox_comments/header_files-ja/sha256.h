@@ -1,5 +1,5 @@
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  この関数はSHA256を初期化します。これはWC_SHA256HASHによって自動的に呼び出されます。
     \return 0  初期化に成功したときに返されます
     _Example_
@@ -20,7 +20,7 @@
 int wc_InitSha256(wc_Sha256*);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  データをダイジェストに正常に追加すると返されます。
     \param sha256  暗号化に使用するSHA256構造へのポインタ
@@ -46,7 +46,7 @@ int wc_InitSha256(wc_Sha256*);
 int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  データのハッシュを確定します。結果はハッシュに入れられます。SHA256構造体の状態をリセットします。
     \return 0  ファイナライズに成功したときに返されます。
     \param sha256  暗号化に使用するSHA256構造へのポインタ
@@ -71,7 +71,7 @@ int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len);
 int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  SHA256構造をリセットします。注：これは、wolfssl_ti_hashが定義されている場合にのみサポートされています。
     \return none  いいえ返します。
     _Example_
@@ -96,7 +96,7 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash);
 void wc_Sha256Free(wc_Sha256*);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  ハッシュデータを取得します。結果はハッシュに入れられます。SHA256構造体の状態をリセットしません。
     \return 0  ファイナライズに成功したときに返されます。
     \param sha256  暗号化に使用するSHA256構造へのポインタ
@@ -118,7 +118,7 @@ void wc_Sha256Free(wc_Sha256*);
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  SHA224構造を初期化するために使用されます。
     \return 0  成功
     \return 1  SHA224がNULLなので、エラーが返されました。
@@ -137,7 +137,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash);
 int wc_InitSha224(wc_Sha224*);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  成功
     \return 1  関数が失敗した場合はエラーが返されます。
@@ -165,7 +165,7 @@ int wc_InitSha224(wc_Sha224*);
 int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  データのハッシュを確定します。結果はハッシュに入れられます。SHA224構造体の状態をリセットします。
     \return 0  成功
     \return <0  エラー

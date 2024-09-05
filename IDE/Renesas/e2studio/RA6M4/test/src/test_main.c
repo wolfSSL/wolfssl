@@ -100,9 +100,9 @@ static int SetScetlsKey()
 
     #endif
 
-#endif    
+#endif
     return 0;
-}    
+}
 #endif
 
 typedef struct func_args {
@@ -142,8 +142,8 @@ void SCE_KeyGeneration(FSPSM_ST *g)
         if (err == FSP_SUCCESS)
             g->keyflgs_crypt.bits.aes256_installedkey_set = 1;
     }
-    
-    
+
+
 }
 
 void Clr_CallbackCtx(FSPSM_ST *g)
@@ -239,7 +239,7 @@ void sce_test(void)
     if ((ret = wolfCrypt_Init()) != 0) {
          printf("wolfCrypt_Init failed %d\n", ret);
     }
-    
+
 #if defined(HAVE_RENESAS_SYNC) && \
     defined(HAVE_AES_CBC)
 
@@ -261,14 +261,14 @@ void sce_test(void)
     printf("Start wolfCrypt Benchmark\n");
     benchmark_test(NULL);
     printf("End wolfCrypt Benchmark\n");
-    
+
     /* free */
     Clr_CallbackCtx(&guser_PKCbInfo);
 
 #elif defined(TLS_CLIENT)
     #include "hal_data.h"
     #include "r_sce.h"
-    
+
 #if defined(WOLFSSL_TLS13)
     /* TLS1.3 needs RSA_PSS enabled.
      * SCE doesn't support RSA PSS Padding
@@ -353,20 +353,20 @@ void sce_test(void)
             info[j].log_f = my_Logging_cb;
 
             memset(info[j].name, 0, sizeof(info[j].name));
-            sprintf(info[j].name, "clt_thd_%s", ((j%2) == 0) ? 
+            sprintf(info[j].name, "clt_thd_%s", ((j%2) == 0) ?
                                                             "taskA" : "taskB");
 
             printf(" %s connecting to %d port\n", info[j].name, info[j].port);
 
-            xReturned = xTaskCreate(wolfSSL_TLS_client_do, info[j].name, 
+            xReturned = xTaskCreate(wolfSSL_TLS_client_do, info[j].name,
                                     THREAD_STACK_SIZE, &info[j], 2, NULL);
             if (xReturned != pdPASS) {
                  printf("Failed to create task\n");
             }
         }
-        
+
         for(j = i; j < (i+2); j++) {
-            xSemaphoreGiveFromISR(info[j].xBinarySemaphore, 
+            xSemaphoreGiveFromISR(info[j].xBinarySemaphore,
                                                 &xHigherPriorityTaskWoken);
         }
 

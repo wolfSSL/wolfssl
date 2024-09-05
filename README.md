@@ -1,6 +1,6 @@
 # wolfSSL Embedded SSL/TLS Library
 
-The [wolfSSL embedded SSL library](https://www.wolfssl.com/products/wolfssl/) 
+The [wolfSSL embedded SSL library](https://www.wolfssl.com/products/wolfssl/)
 (formerly CyaSSL) is a lightweight SSL/TLS library written in ANSI C and
 targeted for embedded, RTOS, and resource-constrained environments - primarily
 because of its small size, speed, and feature set.  It is commonly used in

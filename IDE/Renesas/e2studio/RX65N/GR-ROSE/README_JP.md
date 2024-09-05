@@ -186,7 +186,7 @@ testアプリケーションでは、TLSバージョンと証明書のタイプ�
 |:--|:--|:--|
 |TLS1.3|RSA/ECDSA証明書|  |
 |||TLS_AES_128_GCM_SHA256|
-|||TLS_AES_128_CCM_SHA256| 
+|||TLS_AES_128_CCM_SHA256|
 |TLS1.2|RSA証明書|
 |||TLS_RSA_WITH_AES_128_CBC_SHA|
 |||TLS_RSA_WITH_AES_256_CBC_SHA|

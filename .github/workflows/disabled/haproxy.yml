@@ -57,4 +57,3 @@ jobs:
       - name: Test HaProxy
         working-directory: haproxy
         run: make reg-tests reg-tests/ssl VTEST_PROGRAM=$GITHUB_WORKSPACE/VTest/vtest
- 

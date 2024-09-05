@@ -123,18 +123,18 @@ void wolfSSL_TLS_server_init()
     #if !defined(NO_FILESYSTEM)
         ret = wolfSSL_CTX_use_PrivateKey_file(server_ctx, key, 0);
     #else
-        ret = wolfSSL_CTX_use_PrivateKey_buffer(server_ctx, key, sizeof_key, 
+        ret = wolfSSL_CTX_use_PrivateKey_buffer(server_ctx, key, sizeof_key,
                                                         SSL_FILETYPE_ASN1);
     #endif
         if (ret != SSL_SUCCESS) {
             printf("Error %d loading server-key!\n", ret);
             return;
         }
-   
+
    /* Register callbacks */
    wolfSSL_SetIORecv(server_ctx, my_IORecv);
    wolfSSL_SetIOSend(server_ctx, my_IOSend);
-   
+
 }
 
 void wolfSSL_TLS_server( )

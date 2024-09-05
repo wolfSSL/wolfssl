@@ -13,10 +13,10 @@ if(CONFIG_WOLFSSL)
     endif()
 
     zephyr_include_directories(
-  	${ZEPHYR_CURRENT_MODULE_DIR}
-  	${ZEPHYR_CURRENT_MODULE_DIR}/wolfssl
-  	${ZEPHYR_CURRENT_MODULE_DIR}/zephyr
-  	)
+        ${ZEPHYR_CURRENT_MODULE_DIR}
+        ${ZEPHYR_CURRENT_MODULE_DIR}/wolfssl
+        ${ZEPHYR_CURRENT_MODULE_DIR}/zephyr
+        )
 
     zephyr_library()
     zephyr_library_sources(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr/zephyr_init.c)
@@ -164,8 +164,8 @@ if(CONFIG_WOLFSSL)
 
     zephyr_library_link_libraries(wolfSSL)
 
-  	target_compile_definitions(wolfSSL INTERFACE WOLFSSL_ZEPHYR)
-  	target_compile_definitions(wolfSSL INTERFACE WOLFSSL_USER_SETTINGS)
+        target_compile_definitions(wolfSSL INTERFACE WOLFSSL_ZEPHYR)
+        target_compile_definitions(wolfSSL INTERFACE WOLFSSL_USER_SETTINGS)
     if(CONFIG_WOLFSSL_DEBUG)
       target_compile_definitions(wolfSSL INTERFACE DEBUG_WOLFSSL)
       zephyr_library_compile_options(-g3 -O0)
@@ -177,8 +177,8 @@ if(CONFIG_WOLFSSL)
     # therefore susceptible to bit rot
 
     target_include_directories(wolfSSL INTERFACE
-  	${CONFIG_WOLFSSL_INSTALL_PATH}
-  	)
+        ${CONFIG_WOLFSSL_INSTALL_PATH}
+        )
 
     zephyr_link_libraries(
       wolfssl_external

@@ -20,7 +20,7 @@
 # Reminder there's typically no $USER for GitHub actions, but:
 # ROOT_DIR="/mnt/c/Users/$USER/Documents/Arduino/libraries"
 #
-# The company name is "wolfSSL Inc."; There’s a space, no comma, and a period after "Inc."
+# The company name is "wolfSSL Inc."; There's a space, no comma, and a period after "Inc."
 # The Arduino library name is "wolfssl" (all lower case)
 # The Arduino library directory name is "wolfssl" (all lower case)
 # The Arduino library include file is "wolfssl.h" (all lower case)

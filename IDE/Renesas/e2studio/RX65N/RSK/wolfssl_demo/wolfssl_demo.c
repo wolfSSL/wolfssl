@@ -145,7 +145,7 @@ static void Tls_client_init(const char* cipherlist)
             char *cert       = "./certs/ca-cert.pem";
         #endif
     #else
-        #if defined(USE_ECC_CERT) && defined(USE_CERT_BUFFERS_256) 
+        #if defined(USE_ECC_CERT) && defined(USE_CERT_BUFFERS_256)
             const unsigned char *cert       = ca_ecc_cert_der_256;
             #define  SIZEOF_CERT sizeof_ca_ecc_cert_der_256
         #else
@@ -164,7 +164,7 @@ static void Tls_client_init(const char* cipherlist)
     #endif
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = 
+    if ((client_ctx =
         wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
@@ -175,7 +175,7 @@ static void Tls_client_init(const char* cipherlist)
     #endif
 
     #if defined(NO_FILESYSTEM)
-    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, 
+    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert,
                             SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
            printf("ERROR: can't load certificate data\n");
        return;
@@ -187,10 +187,10 @@ static void Tls_client_init(const char* cipherlist)
     }
     #endif
 
-    
+
     /* use specific cipher */
-    if (cipherlist != NULL && 
-        wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) != 
+    if (cipherlist != NULL &&
+        wolfSSL_CTX_set_cipher_list(client_ctx, cipherlist) !=
                                                             WOLFSSL_SUCCESS) {
         wolfSSL_CTX_free(client_ctx); client_ctx = NULL;
         printf("client can't set cipher list");
@@ -220,8 +220,8 @@ static void Tls_client()
     socklen_t       socksize = sizeof(struct freertos_sockaddr);
     struct freertos_sockaddr    PeerAddr;
     char    addrBuff[ADDR_SIZE] = {0};
-  
-    static const char sendBuff[]= "Hello Server\n" ;    
+
+    static const char sendBuff[]= "Hello Server\n" ;
     char    rcvBuff[BUFF_SIZE] = {0};
 
 
@@ -285,7 +285,7 @@ static void Tls_client()
         }
     }
 
-#endif /* USE_ECC_CERT */    
+#endif /* USE_ECC_CERT */
 
 
 #ifdef USE_ECC_CERT
@@ -313,14 +313,14 @@ static void Tls_client()
         }
     }
     #endif /* WOLFSSL_CHECK_SIG_FAULTS */
- 
+
     #else
 
     /* DER format ECC private key */
     if (ret == 0) {
-        err = wolfSSL_use_PrivateKey_buffer(ssl, 
+        err = wolfSSL_use_PrivateKey_buffer(ssl,
                                     ecc_clikey_der_256,
-                                    sizeof_ecc_clikey_der_256, 
+                                    sizeof_ecc_clikey_der_256,
                                     WOLFSSL_FILETYPE_ASN1);
         if (err != SSL_SUCCESS) {
             printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
@@ -334,7 +334,7 @@ static void Tls_client()
 #else
 
     #if defined(WOLFSSL_RENESAS_TSIP_TLS)
-    
+
     /* Note: TSIP asks RSA client key pair for client authentication.  */
 
     /* TSIP specific RSA private key */
@@ -359,10 +359,10 @@ static void Tls_client()
 
     #else
 
-    if (ret == 0) { 
+    if (ret == 0) {
         err = wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
                             sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1);
-         
+
         if (err != SSL_SUCCESS) {
             printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
@@ -390,7 +390,7 @@ static void Tls_client()
     }
 
     if (ret == 0) {
-        if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != 
+        if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) !=
                                                             strlen(sendBuff)) {
             printf("ERROR wolfSSL_write: %d\n", wolfSSL_get_error(ssl, 0));
             ret = -1;
@@ -409,7 +409,7 @@ static void Tls_client()
         }
     }
 
-    
+
     wolfSSL_shutdown(ssl);
 
     FreeRTOS_shutdown(socket, FREERTOS_SHUT_RDWR);
@@ -499,7 +499,7 @@ static void Tls_client_demo(void)
     tsip_inform_cert_sign((const byte*)ca_ecc_cert_der_sig);
 
     #else
-    
+
     /* Root CA cert has RSA public key */
     tsip_inform_cert_sign((const byte*)ca_cert_der_sig);
 
@@ -529,7 +529,7 @@ static void Tls_client_demo(void)
 #endif /* TLS_CLIENT */
 
 /* Demo entry function called by iot_demo_runner
- * To run this entry function as an aws_iot_demo, define this as 
+ * To run this entry function as an aws_iot_demo, define this as
  * DEMO_entryFUNCTION in aws_demo_config.h.
  */
 void wolfSSL_demo_task(bool         awsIotMqttMode,

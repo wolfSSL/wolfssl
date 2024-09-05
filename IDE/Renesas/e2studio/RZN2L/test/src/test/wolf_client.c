@@ -58,14 +58,14 @@ void wolfSSL_TLS_client_init()
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
     }
-    
+
     #if !defined(NO_FILESYSTEM)
     if (wolfSSL_CTX_load_verify_locations(client_ctx, cert, 0) != SSL_SUCCESS) {
         printf("ERROR: can't load \"%s\"\n", cert);
         return NULL;
     }
     #else
-    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT, 
+    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, SIZEOF_CERT,
                                             SSL_FILETYPE_ASN1) != SSL_SUCCESS){
            printf("ERROR: can't load certificate data\n");
        return;
@@ -83,13 +83,13 @@ int wolfSSL_TLS_client_do(void *pvParam)
     socklen_t xSize = sizeof(struct freertos_sockaddr);
     xSocket_t xClientSocket = NULL;
     struct freertos_sockaddr xRemoteAddress;
-    
+
     WOLFSSL_CTX *ctx = (WOLFSSL_CTX *)p->ctx;
     WOLFSSL *ssl = NULL;
 
     #define BUFF_SIZE 256
     static const char sendBuff[]= "Hello Server\n" ;
-    
+
     char    rcvBuff[BUFF_SIZE] = {0};
 
     /* Client Socket Setup */
@@ -128,10 +128,10 @@ int wolfSSL_TLS_client_do(void *pvParam)
          printf(" Error [%d]: wolfSSL_set_fd.\n",ret);
      }
 
-     printf("  Cipher : %s\n", 
+     printf("  Cipher : %s\n",
                                     (p->cipher == NULL) ? "NULL" : p->cipher);
      /* use specific cipher */
-     if (p->cipher != NULL && wolfSSL_set_cipher_list(ssl, p->cipher) 
+     if (p->cipher != NULL && wolfSSL_set_cipher_list(ssl, p->cipher)
                                                            != WOLFSSL_SUCCESS) {
           printf(" client can't set cipher list 1");
           goto out;
@@ -150,7 +150,7 @@ int wolfSSL_TLS_client_do(void *pvParam)
      wolfSSL_Debugging_OFF();
      #endif
 
-     if (wolfSSL_write(ssl, sendBuff, (int)strlen(sendBuff)) 
+     if (wolfSSL_write(ssl, sendBuff, (int)strlen(sendBuff))
                                                     != (int)strlen(sendBuff)) {
         printf(" ERROR SSL write: %d\n", wolfSSL_get_error(ssl, 0));
         goto out;

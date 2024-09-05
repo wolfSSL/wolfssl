@@ -83,9 +83,9 @@ wolfSSL のプロジェクトファイルは、wolfSSL と wolfCrypt の両方�
   プロジェクト名横にある矢印マークをクリック
 + `dummy_library` の以下のフォルダーとファイルを選択
 
-    `ra/`  
-    `ra_gen/`  
-    `ra_cfg/`  
+    `ra/`
+    `ra_gen/`
+    `ra_cfg/`
     `script/`
 
 + 選択したフォルダーとファイルを `wolfSSL_RA6M3G`プロジェクトに貼り付け
@@ -110,7 +110,7 @@ wolfSSL のプロジェクトファイルは、wolfSSL と wolfCrypt の両方�
 
 + `dummy_app`の以下のフォルダーをコピー
 
-    `src/`  
+    `src/`
     `script/`
 
 + 選択したフォルダーを`./IDE/Renesas/e2studio/RA6M3/common/ra6m3g/`へコピー

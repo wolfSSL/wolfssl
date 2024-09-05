@@ -201,7 +201,7 @@ static void Tls_client_init()
             char *cert       = "./certs/ca-cert.pem";
         #endif
     #else
-        #if defined(USE_ECC_CERT) && defined(USE_CERT_BUFFERS_256) 
+        #if defined(USE_ECC_CERT) && defined(USE_CERT_BUFFERS_256)
             const unsigned char *cert       = ca_ecc_cert_der_256;
             #define  SIZEOF_CERT sizeof_ca_ecc_cert_der_256
         #else
@@ -216,7 +216,7 @@ static void Tls_client_init()
     wolfSSL_Init();
 
     /* Create and initialize WOLFSSL_CTX */
-    if ((client_ctx = 
+    if ((client_ctx =
         wolfSSL_CTX_new(wolfSSLv23_client_method_ex((void *)NULL))) == NULL) {
         printf("ERROR: failed to create WOLFSSL_CTX\n");
         return;
@@ -228,7 +228,7 @@ static void Tls_client_init()
 
     /* load root CA certificate */
     #if defined(NO_FILESYSTEM)
-    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert, 
+    if (wolfSSL_CTX_load_verify_buffer(client_ctx, cert,
                             SIZEOF_CERT, SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
            printf("ERROR: can't load certificate data\n");
        return;
@@ -239,7 +239,7 @@ static void Tls_client_init()
         return NULL;
     }
     #endif
-     
+
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_RENESAS_TSIP_TLS)
 
     if (wolfSSL_CTX_UseSupportedCurve(client_ctx, WOLFSSL_ECC_SECP256R1)
@@ -311,7 +311,7 @@ static void Tls_client(void *pvParam)
     if (ret == 0) {
         ssl = wolfSSL_new(ctx);
         if (ssl == NULL) {
-            msg(pcName, p->id, "ERROR wolfSSL_new: %d\n", 
+            msg(pcName, p->id, "ERROR wolfSSL_new: %d\n",
                                         wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
@@ -345,7 +345,7 @@ static void Tls_client(void *pvParam)
     if (ret == 0) {
         /* associate socket with ssl object */
         if (wolfSSL_set_fd(ssl, (int)socket) != WOLFSSL_SUCCESS) {
-            msg(pcName, p->id, "ERROR wolfSSL_set_fd: %d\n", 
+            msg(pcName, p->id, "ERROR wolfSSL_set_fd: %d\n",
                                                     wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
@@ -404,11 +404,11 @@ static void Tls_client(void *pvParam)
         }
     }
 #endif /* WOLFSSL_CHECK_SIG_FAULTS */
-    
+
     #else
     /* Client authentication using RSA certificate can be handled by TSIP.
      * Note that the internal verification of the signature process requires
-     * not only the client's private key but also its public key, so pass them 
+     * not only the client's private key but also its public key, so pass them
      * using tsip_use_PrivateKey_buffer_TLS and tsip_use_PublicKey_buffer_TLS
      * respectively.
          */
@@ -435,9 +435,9 @@ static void Tls_client(void *pvParam)
 #else
     #if defined(USE_ECC_CERT)
     if (ret == 0) {
-        err = wolfSSL_use_PrivateKey_buffer(ssl, 
+        err = wolfSSL_use_PrivateKey_buffer(ssl,
                                     ecc_clikey_der_256,
-                                    sizeof_ecc_clikey_der_256, 
+                                    sizeof_ecc_clikey_der_256,
                                     WOLFSSL_FILETYPE_ASN1);
         if (err != SSL_SUCCESS) {
             printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
@@ -446,10 +446,10 @@ static void Tls_client(void *pvParam)
         }
     }
     #else
-    if (ret == 0) { 
+    if (ret == 0) {
         err = wolfSSL_use_PrivateKey_buffer(ssl, client_key_der_2048,
                             sizeof_client_key_der_2048, WOLFSSL_FILETYPE_ASN1);
-         
+
         if (err != SSL_SUCCESS) {
             printf("ERROR wolfSSL_use_PrivateKey_buffer: %d\n",
                                                 wolfSSL_get_error(ssl, 0));
@@ -464,7 +464,7 @@ static void Tls_client(void *pvParam)
 #endif
     if (ret == 0) {
         if (wolfSSL_connect(ssl) != WOLFSSL_SUCCESS) {
-            msg(pcName, p->id, "ERROR wolfSSL_connect: %d\n", 
+            msg(pcName, p->id, "ERROR wolfSSL_connect: %d\n",
                                                     wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
@@ -473,9 +473,9 @@ static void Tls_client(void *pvParam)
    wolfSSL_Debugging_OFF();
 #endif
     if (ret == 0) {
-        if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) != 
+        if (wolfSSL_write(ssl, sendBuff, strlen(sendBuff)) !=
                                                             strlen(sendBuff)) {
-            msg(pcName, p->id, "ERROR wolfSSL_write: %d\n", 
+            msg(pcName, p->id, "ERROR wolfSSL_write: %d\n",
                                                     wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
@@ -483,7 +483,7 @@ static void Tls_client(void *pvParam)
 
     if (ret == 0) {
         if ((ret=wolfSSL_read(ssl, rcvBuff, BUFF_SIZE -1)) < 0) {
-            msg(pcName, p->id, "ERROR wolfSSL_read: %d\n", 
+            msg(pcName, p->id, "ERROR wolfSSL_read: %d\n",
                                                     wolfSSL_get_error(ssl, 0));
             ret = -1;
         }
@@ -493,7 +493,7 @@ static void Tls_client(void *pvParam)
             ret = 0;
         }
     }
-    
+
 #if defined(TLS_MULTITHREAD_TEST)
 out:
 #endif
@@ -600,7 +600,7 @@ static void Tls_client_demo(void)
     tsip_inform_cert_sign((const byte*)ca_ecc_cert_der_sig);
 
     #else
-    
+
     /* Root CA cert has RSA public key */
     tsip_inform_cert_sign((const byte*)ca_cert_der_sig);
 
@@ -639,7 +639,7 @@ static void Tls_client_demo(void)
 
             printf(" %s connecting to %d port\n", info[j].name, info[j].port);
 
-            xReturned = xTaskCreate(Tls_client, info[j].name, 
+            xReturned = xTaskCreate(Tls_client, info[j].name,
                                         THREAD_STACK_SIZE, &info[j], 3, NULL);
             if (xReturned != pdPASS) {
                 printf("Failed to create task\n");
@@ -647,7 +647,7 @@ static void Tls_client_demo(void)
         }
 
         for (j = i; j < (i+2); j++) {
-            xSemaphoreGiveFromISR(info[j].xBinarySemaphore, 
+            xSemaphoreGiveFromISR(info[j].xBinarySemaphore,
                                                     &xHigherPriorityTaskWoken);
         }
 
@@ -695,7 +695,7 @@ static void Tls_client_demo(void)
 #endif /* TLS_CLIENT */
 
 /* Demo entry function called by iot_demo_runner
- * To run this entry function as an aws_iot_demo, define this as 
+ * To run this entry function as an aws_iot_demo, define this as
  * DEMO_entryFUNCTION in aws_demo_config.h.
  */
 void wolfSSL_demo_task(bool         awsIotMqttMode,

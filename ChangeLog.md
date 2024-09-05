@@ -874,9 +874,9 @@ Release 5.5.1 of wolfSSL embedded TLS has bug fixes and new features including:
 
 ## Enhancements
 * DTLSv1.3: Do HRR Cookie exchange by default
-* Add wolfSSL_EVP_PKEY_new_CMAC_key to OpenSSL compatible API 
-* Update ide win10 build files to add missing sp source files 
-* Improve Workbench docs 
+* Add wolfSSL_EVP_PKEY_new_CMAC_key to OpenSSL compatible API
+* Update ide win10 build files to add missing sp source files
+* Improve Workbench docs
 * Improve EVP support for CHACHA20_POLY1305
 * Improve `wc_SetCustomExtension` documentation
 * RSA-PSS with OCSP and add simple OCSP response DER verify test case
@@ -884,23 +884,23 @@ Release 5.5.1 of wolfSSL embedded TLS has bug fixes and new features including:
 * Don't over-allocate memory for DTLS fragments
 * Add WOLFSSL_ATECC_TFLXTLS for Atmel port
 * SHA-3 performance improvements with x86_64 assembly
-* Add code to fallback to S/W if TSIP cannot handle 
+* Add code to fallback to S/W if TSIP cannot handle
 * Improves entropy with VxWorks
 * Make time in milliseconds 64-bits for longer session ticket lives
 * Support for setting cipher list with bytes
 * wolfSSL_set1_curves_list(), wolfSSL_CTX_set1_curves_list() improvements
 * Add to RSAES-OAEP key parsing for pkcs7
 * Add missing DN nid to work with PrintName()
-* SP int: default to 16 bit word size when NO_64BIT defined 
+* SP int: default to 16 bit word size when NO_64BIT defined
 * Limit the amount of fragments we store per a DTLS connection and error out when max limit is reached
 * Detect when certificate's RSA public key size is too big and fail on loading of certificate
 
 ## Fixes
 * Fix for async with OCSP non-blocking in `ProcessPeerCerts`
 * Fixes for building with 32-bit and socket size sign/unsigned mismatch
-* Fix Windows CMakeList compiler options 
-* TLS 1.3 Middle-Box compat: fix missing brace 
-* Configuration consistency fixes for RSA keys and way to force disable of private keys 
+* Fix Windows CMakeList compiler options
+* TLS 1.3 Middle-Box compat: fix missing brace
+* Configuration consistency fixes for RSA keys and way to force disable of private keys
 * Fix for Aarch64 Mac M1 SP use
 * Fix build errors and warnings for MSVC with DTLS 1.3
 * Fix HMAC compat layer function for SHA-1
@@ -908,9 +908,9 @@ Release 5.5.1 of wolfSSL embedded TLS has bug fixes and new features including:
 * Check return from call to wc_Time
 * SP math: fix build configuration with opensslall
 * Fix for async session tickets
-* SP int mp_init_size fixes when SP_WORD_SIZE == 8 
+* SP int mp_init_size fixes when SP_WORD_SIZE == 8
 * Ed. function to make public key now checks for if the private key flag is set
-* Fix HashRaw WC_SHA256_DIGEST_SIZE for wc_Sha256GetHash 
+* Fix HashRaw WC_SHA256_DIGEST_SIZE for wc_Sha256GetHash
 * Fix for building with PSK only
 * Set correct types in wolfSSL_sk_*_new functions
 * Sanity check that size passed to mp_init_size() is no more than SP_INT_DIGITS
@@ -1024,7 +1024,7 @@ CVE-2020-12966 https://www.amd.com/en/corporate/product-security/bulletin/amd-sb
 * Update SP math all to not use sp_int_word when SQR_MUL_ASM is available
 ### SP Math Fixes
 * Fixes for constant time with div function
-* Fix casting warnings for Windows builds and assembly changes to support XMM6-15 being non-volatile 
+* Fix casting warnings for Windows builds and assembly changes to support XMM6-15 being non-volatile
 * Fix for div_word when not using div function
 * Fixes for user settings with SP ASM and ED/Curve25519 small
 * Additional Wycheproof tests ran and fixes
@@ -1204,7 +1204,7 @@ Release 5.3.0 of wolfSSL embedded TLS has bug fixes and new features including:
 ### Math Library Fixes
 * Sanity check with SP math that ECC points ordinates are not greater than modulus length
 * Additional sanity checks that _sp_add_d does not error due to overflow
-* Wycheproof fixes, testing integration, and fixes for AVX / AArch64 ASM edge case tests 
+* Wycheproof fixes, testing integration, and fixes for AVX / AArch64 ASM edge case tests
 * TFM fp_div_2_ct rework to avoid potential overflow
 
 ### Misc.
@@ -1445,7 +1445,7 @@ Release 5.1.0 of wolfSSL embedded TLS has bug fixes and new features including:
 ###### PORT Fixes
 * Building with Android wpa_supplicant and KeyStore
 * Setting initial value of CA certificate with TSIP enabled
-* Cryptocell ECC build fix and fix with RSA disabled 
+* Cryptocell ECC build fix and fix with RSA disabled
 * IoT-SAFE improvement for Key/File slot ID size, fix for C++ compile, and fixes for retrieving the public key after key generation
 
 ###### Math Library Fixes
@@ -1584,7 +1584,7 @@ Release 5.0.0 of wolfSSL embedded TLS has bug fixes and new features including:
     - SSL_SESSION_has_ticket()
     - SSL_SESSION_get_ticket_lifetime_hint()
     - DIST_POINT_new
-    - DIST_POINT_free 
+    - DIST_POINT_free
     - DIST_POINTS_free
     - CRL_DIST_POINTS_free
     - sk_DIST_POINT_push
@@ -1747,7 +1747,7 @@ Release 4.8.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
 ### Vulnerabilities
 * [Low] CVE-2021-37155: OCSP request/response verification issue. In the case that the serial number in the OCSP request differs from the serial number in the OCSP response the error from the comparison was not resulting in a failed verification. We recommend users that have wolfSSL version 4.6.0 and 4.7.0 with OCSP enabled update their version of wolfSSL. Version 4.5.0 and earlier are not affected by this report. Thanks to Rainer Mueller-Amersdorffer, Roee Yankelevsky, Barak Gutman, Hila Cohen and Shoshi Berko (from CYMOTIVE Technologies and CARIAD) for the report.
-* [Low] CVE-2021-24116: Side-Channel cache look up vulnerability in base64 PEM decoding for versions of wolfSSL 4.5.0 and earlier. Versions 4.6.0 and up contain a fix and do not need to be updated for this report. If decoding a PEM format private key using version 4.5.0 and older of wolfSSL then we recommend updating the version of wolfSSL used. Thanks to Florian Sieck, Jan Wichelmann, Sebastian Berndt and Thomas Eisenbarth for the report. 
+* [Low] CVE-2021-24116: Side-Channel cache look up vulnerability in base64 PEM decoding for versions of wolfSSL 4.5.0 and earlier. Versions 4.6.0 and up contain a fix and do not need to be updated for this report. If decoding a PEM format private key using version 4.5.0 and older of wolfSSL then we recommend updating the version of wolfSSL used. Thanks to Florian Sieck, Jan Wichelmann, Sebastian Berndt and Thomas Eisenbarth for the report.
 
 ### New Feature Additions
 ###### New Product

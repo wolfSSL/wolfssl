@@ -1,5 +1,5 @@
 /*!
-    \ingroup wolfCrypt 
+    \ingroup wolfCrypt
     \brief  この関数は提供されたwc_hashtypeのOIDを返します。
     \return OID  戻り値0を超えてください
     \return HASH_TYPE_E  ハッシュ型はサポートされていません。
@@ -18,7 +18,7 @@
 int wc_HashGetOID(enum wc_HashType hash_type);
 
 /*!
-    \ingroup wolfCrypt 
+    \ingroup wolfCrypt
     \brief  この関数は、hash_typeのダイジェスト（出力）のサイズを返します。返品サイズは、WC_HASHに提供される出力バッファが十分に大きいことを確認するために使用されます。
     \return Success  正の戻り値は、ハッシュのダイジェストサイズを示します。
     \return Error  hash_typeがサポートされていない場合はhash_type_eを返します。
@@ -36,7 +36,7 @@ int wc_HashGetOID(enum wc_HashType hash_type);
 int wc_HashGetDigestSize(enum wc_HashType hash_type);
 
 /*!
-    \ingroup wolfCrypt 
+    \ingroup wolfCrypt
     \brief  この関数は、提供されたデータバッファ上にハッシュを実行し、提供されたハッシュバッファにそれを返します。
     \return 0  そうでなければ、それ以外の誤り（bad_func_argやbuffer_eなど）。
     \param hash_type  "wc_hash_type_sha256"などの "enum wc_hashtype"からのハッシュ型。
@@ -61,7 +61,7 @@ int wc_Hash(enum wc_HashType hash_type,
     byte* hash, word32 hash_len);
 
 /*!
-    \ingroup MD5 
+    \ingroup MD5
     \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
     \return 0  データを正常にハッシュしたときに返されます。
     \return Memory_E  メモリエラー、メモリを割り当てることができません。これは、小さなスタックオプションが有効になっているだけです。
@@ -86,7 +86,7 @@ int wc_Hash(enum wc_HashType hash_type,
 int wc_Md5Hash(const byte* data, word32 len, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
     \return 0  うまく返されました...。
     \return Memory_E  メモリエラー、メモリを割り当てることができません。これは、小さなスタックオプションが有効になっているだけです。
@@ -103,7 +103,7 @@ int wc_Md5Hash(const byte* data, word32 len, byte* hash);
 int wc_ShaHash(const byte* data, word32 len, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
     \return 0  うまく返されました...
     \return Memory_E  メモリエラー、メモリを割り当てることができません。これは、小さなスタックオプションが有効になっているだけです。
@@ -120,7 +120,7 @@ int wc_ShaHash(const byte* data, word32 len, byte* hash);
 int wc_Sha256Hash(const byte* data, word32 len, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
     \return 0  成功
     \return <0  エラー
@@ -137,7 +137,7 @@ int wc_Sha256Hash(const byte* data, word32 len, byte* hash);
 int wc_Sha224Hash(const byte* data, word32 len, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
     \return 0  入力されたデータを正常にハッシュしたときに返されます
     \return Memory_E  メモリエラー、メモリを割り当てることができません。これは、小さなスタックオプションが有効になっているだけです。
@@ -154,7 +154,7 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash);
 int wc_Sha512Hash(const byte* data, word32 len, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  利便性機能は、すべてのハッシュを処理し、その結果をハッシュに入れます。
     \return 0  データを正常にハッシュしたときに返されます
     \return Memory_E  メモリエラー、メモリを割り当てることができません。これは、小さなスタックオプションが有効になっているだけです。

@@ -2,7 +2,7 @@
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
- 
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,7 +39,7 @@ extern int  SER_PutChar   (int ch);
 /*-----------------------------------------------------------------------------
   Write character to the Serial Port
  *----------------------------------------------------------------------------*/
-int sendchar (int c) 
+int sendchar (int c)
 {
     if (c == '\n')  {
         SER_PutChar ('\r');
@@ -52,7 +52,7 @@ int sendchar (int c)
 /*-----------------------------------------------------------------------------
   Read character from the Serial Port
  *----------------------------------------------------------------------------*/
-int getkey (void) 
+int getkey (void)
 {
     int ch = SER_GetChar();
         #if defined (HAVE_KEIL_RTX)
@@ -67,7 +67,7 @@ int getkey (void)
 
 /*--------------------------- _ttywrch ---------------------------------------*/
 
-void _ttywrch (int ch) 
+void _ttywrch (int ch)
 {
 #ifdef STDIO
     sendchar (ch);
@@ -76,28 +76,28 @@ void _ttywrch (int ch)
 
 /*--------------------------- _sys_open --------------------------------------*/
 #ifndef NO_FILESYSTEM
-static int KEIL_FS_open(const char *name, int openmode) 
+static int KEIL_FS_open(const char *name, int openmode)
 {
     int i ;  int ret ;
     #define PATHSIZE 100
     char path[PATHSIZE] ; char *p ;
-    
+
     if(strlen(name) > PATHSIZE)return(-1) ;
-    
+
     for(i = 0; i<= strlen(name); i++) {
         if(name[i] == '/')path[i] = '\\' ;
         else              path[i] = name[i] ;
-    }       
+    }
     if(path[0] == '.' && path[1] == '\\') p = path + 2 ;
     else                                  p = path ;
 
     ret = __sys_open (p, openmode) ;
-    
+
     return(ret) ;
 }
 #endif
 
-FILEHANDLE _sys_open (const char *name, int openmode) 
+FILEHANDLE _sys_open (const char *name, int openmode)
 {
     /* Register standard Input Output devices. */
     if (strcmp(name, "STDIN") == 0) {
@@ -118,7 +118,7 @@ FILEHANDLE _sys_open (const char *name, int openmode)
 
 /*--------------------------- _sys_close -------------------------------------*/
 
-int _sys_close (FILEHANDLE fh) 
+int _sys_close (FILEHANDLE fh)
 {
     if (fh > 0x8000) {
         return (0);
@@ -132,7 +132,7 @@ int _sys_close (FILEHANDLE fh)
 
 /*--------------------------- _sys_write -------------------------------------*/
 
-int _sys_write (FILEHANDLE fh, const U8 *buf, U32 len, int mode) 
+int _sys_write (FILEHANDLE fh, const U8 *buf, U32 len, int mode)
 {
 #ifdef STDIO
     if (fh == STDOUT) {
@@ -155,7 +155,7 @@ int _sys_write (FILEHANDLE fh, const U8 *buf, U32 len, int mode)
 
 /*--------------------------- _sys_read --------------------------------------*/
 
-int _sys_read (FILEHANDLE fh, U8 *buf, U32 len, int mode) 
+int _sys_read (FILEHANDLE fh, U8 *buf, U32 len, int mode)
 {
 #ifdef STDIO
     if (fh == STDIN) {
@@ -183,7 +183,7 @@ int _sys_read (FILEHANDLE fh, U8 *buf, U32 len, int mode)
 
 /*--------------------------- _sys_istty -------------------------------------*/
 
-int _sys_istty (FILEHANDLE fh) 
+int _sys_istty (FILEHANDLE fh)
 {
     if (fh > 0x8000) {
         return (1);
@@ -193,7 +193,7 @@ int _sys_istty (FILEHANDLE fh)
 
 /*--------------------------- _sys_seek --------------------------------------*/
 
-int _sys_seek (FILEHANDLE fh, long pos) 
+int _sys_seek (FILEHANDLE fh, long pos)
 {
     if (fh > 0x8000) {
         return (-1);
@@ -207,7 +207,7 @@ int _sys_seek (FILEHANDLE fh, long pos)
 
 /*--------------------------- _sys_ensure ------------------------------------*/
 
-int _sys_ensure (FILEHANDLE fh) 
+int _sys_ensure (FILEHANDLE fh)
 {
     if (fh > 0x8000) {
         return (-1);
@@ -221,7 +221,7 @@ int _sys_ensure (FILEHANDLE fh)
 
 /*--------------------------- _sys_flen --------------------------------------*/
 
-long _sys_flen (FILEHANDLE fh) 
+long _sys_flen (FILEHANDLE fh)
 {
     if (fh > 0x8000) {
         return (0);
@@ -236,21 +236,21 @@ long _sys_flen (FILEHANDLE fh)
 
 /*--------------------------- _sys_tmpnam ------------------------------------*/
 
-int _sys_tmpnam (char *name, int sig, unsigned maxlen) 
+int _sys_tmpnam (char *name, int sig, unsigned maxlen)
 {
     return (1);
 }
 
 /*--------------------------- _sys_command_string ----------------------------*/
 
-char *_sys_command_string (char *cmd, int len) 
+char *_sys_command_string (char *cmd, int len)
 {
     return (cmd);
 }
 
 /*--------------------------- _sys_exit --------------------------------------*/
 
-void _sys_exit (int return_code) 
+void _sys_exit (int return_code)
 {
 #ifdef WOLFSSL_MDK_SHELL
     return ;
@@ -258,6 +258,6 @@ void _sys_exit (int return_code)
     /* Endless loop. */
     while (1);
 #endif
-    
+
 }
 
