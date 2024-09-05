@@ -5113,6 +5113,13 @@ Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
     if (cm == NULL || keyHash == NULL)
         return NULL;
 
+    /* try lookup using keyHash as subjKeyID first */
+    ret = GetCA(vp, (byte*)keyHash);
+    if (ret != NULL && XMEMCMP(ret->subjectKeyHash, keyHash, KEYID_SIZE) == 0) {
+        return ret;
+    }
+
+    /* if we can't find the cert, we have to scan the full table */
     if (wc_LockMutex(&cm->caLock) != 0)
         return NULL;
 
@@ -5120,8 +5127,7 @@ Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
     for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
         for (signers = cm->caTable[row]; signers != NULL;
                 signers = signers->next) {
-            if (XMEMCMP(signers->subjectKeyHash, keyHash, KEYID_SIZE)
-                    == 0) {
+            if (XMEMCMP(signers->subjectKeyHash, keyHash, KEYID_SIZE) == 0) {
                 ret = signers;
                 break;
             }
