@@ -11255,6 +11255,11 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
+    if (ssl->dtls13CurRlLength > sizeof(ssl->dtls13CurRL)) {
+        WOLFSSL_MSG("Record header too long");
+        return SEQUENCE_ERROR;
+    }
+
     if (readSize < ssl->dtls13CurRlLength + DTLS13_RN_MASK_SIZE) {
         /* when using DTLS over a medium that does not guarantee that a full
          * message is received in a single read, we may end up without the full
