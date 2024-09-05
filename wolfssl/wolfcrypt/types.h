@@ -730,6 +730,7 @@ typedef struct w64wrapper {
         #define XMEMSET(b,c,l)    memset((b),(c),(l))
         #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
         #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+        #define XMEMMEM(h,hl,n,nl) mymemmem((h),(hl),(n),(nl))
 
         #define XSTRLEN(s1)       strlen((s1))
         #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))

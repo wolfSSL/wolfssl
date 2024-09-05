@@ -1433,7 +1433,7 @@ enum {
 /* DTLSv1.3 parsing code copies the record header in a static buffer to decrypt
  * the record. Increasing the CID max size does increase also this buffer,
  * impacting on per-session runtime memory footprint. */
-#define DTLS_CID_MAX_SIZE 2
+#define DTLS_CID_MAX_SIZE 10
 #endif
 #else
 #undef DTLS_CID_MAX_SIZE

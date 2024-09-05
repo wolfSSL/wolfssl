@@ -93839,6 +93839,137 @@ static int test_dtls_old_seq_number(void)
     return EXPECT_RESULT();
 }
 
+static int test_dtls13_basic_connection_id(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13) \
+    && defined(WOLFSSL_DTLS_CID)
+    unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
+    unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    unsigned char readBuf[30];
+    const char* params[] = {
+        "TLS13-AES128-GCM-SHA256",
+        "TLS13-CHACHA20-POLY1305-SHA256",
+        "TLS13-AES128-CCM-8-SHA256",
+        "TLS13-AES128-CCM-SHA256",
+        "TLS13-SHA256-SHA256",
+    };
+    size_t i;
+
+    /* We check if the side included the CID in their output */
+#define CLIENT_CID() XMEMMEM(test_ctx.s_buff, test_ctx.s_len, \
+                             client_cid, sizeof(client_cid))
+#define SERVER_CID() XMEMMEM(test_ctx.c_buff, test_ctx.c_len, \
+                             server_cid, sizeof(server_cid))
+
+    printf("\n");
+    for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
+        WOLFSSL_CTX *ctx_c = NULL, *ctx_s = NULL;
+        WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
+        struct test_memio_ctx test_ctx;
+
+        printf("Testing %s ... ", params[i]);
+
+        XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+
+        ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+            wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i]), 1);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i]), 1);
+
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)),
+                1);
+        ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_s), 1);
+        ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_s, client_cid, sizeof(client_cid)),
+                1);
+
+        /* CH1 */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectNull(CLIENT_CID());
+        /* HRR */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectNull(SERVER_CID());
+        /* CH2 */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectNull(CLIENT_CID());
+        /* Server first flight */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectNotNull(SERVER_CID());
+        /* Client second flight */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectNotNull(CLIENT_CID());
+        /* Server second flight */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
+        ExpectNotNull(SERVER_CID());
+        /* Client third flight */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
+        ExpectNotNull(CLIENT_CID());
+        /* Server process flight */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
+        ExpectNull(SERVER_CID()); /* No data should be sent */
+
+        /* Write some data */
+        ExpectIntEQ(wolfSSL_write(ssl_c, params[i], XSTRLEN(params[i])),
+                XSTRLEN(params[i]));
+        ExpectNotNull(CLIENT_CID());
+        ExpectIntEQ(wolfSSL_write(ssl_s, params[i], XSTRLEN(params[i])),
+                XSTRLEN(params[i]));
+        ExpectNotNull(SERVER_CID());
+        /* Read the data */
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)),
+                XSTRLEN(params[i]));
+        ExpectStrEQ(readBuf, params[i]);
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)),
+                XSTRLEN(params[i]));
+        ExpectStrEQ(readBuf, params[i]);
+        /* Write short data */
+        ExpectIntEQ(wolfSSL_write(ssl_c, params[i], 1), 1);
+        ExpectNotNull(CLIENT_CID());
+        ExpectIntEQ(wolfSSL_write(ssl_s, params[i], 1), 1);
+        ExpectNotNull(SERVER_CID());
+        /* Read the short data */
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), 1);
+        ExpectIntEQ(readBuf[0], params[i][0]);
+        XMEMSET(readBuf, 0, sizeof(readBuf));
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 1);
+        ExpectIntEQ(readBuf[0], params[i][0]);
+
+        /* Close connection */
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
+        ExpectNotNull(CLIENT_CID());
+        ExpectIntEQ(wolfSSL_shutdown(ssl_s), WOLFSSL_SHUTDOWN_NOT_DONE);
+        ExpectNotNull(SERVER_CID());
+        ExpectIntEQ(wolfSSL_shutdown(ssl_c), 1);
+        ExpectIntEQ(wolfSSL_shutdown(ssl_s), 1);
+
+        if (EXPECT_SUCCESS())
+            printf("ok\n");
+        else
+            printf("failed\n");
+
+        wolfSSL_free(ssl_c);
+        wolfSSL_CTX_free(ctx_c);
+        wolfSSL_free(ssl_s);
+        wolfSSL_CTX_free(ctx_s);
+    }
+
+#undef CLIENT_CID
+#undef SERVER_CID
+
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_LIBOQS)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
@@ -96240,6 +96371,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls13_frag_ch_pq),
     TEST_DECL(test_dtls_empty_keyshare_with_cookie),
     TEST_DECL(test_dtls_old_seq_number),
+    TEST_DECL(test_dtls13_basic_connection_id),
     TEST_DECL(test_tls13_pq_groups),
     TEST_DECL(test_tls13_early_data),
     TEST_DECL(test_tls_multi_handshakes_one_record),
