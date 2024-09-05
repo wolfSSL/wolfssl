@@ -418,6 +418,62 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 
+#ifdef WOLF_CRYPTO_CB_RSA_PAD
+int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
+                    word32* outLen, int type, RsaKey* key, WC_RNG* rng,
+                           RsaPadding *padding)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+    int pk_type;
+
+    if (key == NULL)
+        return ret;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
+
+    if (padding) {
+        switch(padding->pad_type) {
+#ifndef NO_PKCS11_RSA_PKCS
+        case WC_RSA_PKCSV15_PAD:
+            pk_type = WC_PK_TYPE_RSA_PKCS;
+            break;
+        case WC_RSA_PSS_PAD:
+            pk_type = WC_PK_TYPE_RSA_PSS;
+            break;
+        case WC_RSA_OAEP_PAD:
+            pk_type = WC_PK_TYPE_RSA_OAEP;
+            break;
+#endif /* NO_PKCS11_RSA_PKCS */
+        default:
+            pk_type = WC_PK_TYPE_RSA;
+        }
+    } else {
+        pk_type = WC_PK_TYPE_RSA;
+    }
+
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_PK;
+        cryptoInfo.pk.type = pk_type;
+        cryptoInfo.pk.rsa.in = in;
+        cryptoInfo.pk.rsa.inLen = inLen;
+        cryptoInfo.pk.rsa.out = out;
+        cryptoInfo.pk.rsa.outLen = outLen;
+        cryptoInfo.pk.rsa.type = type;
+        cryptoInfo.pk.rsa.key = key;
+        cryptoInfo.pk.rsa.rng = rng;
+        cryptoInfo.pk.rsa.padding = padding;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif
+
 #ifdef WOLFSSL_KEY_GEN
 int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
