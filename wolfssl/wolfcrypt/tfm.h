@@ -380,6 +380,7 @@ while (0)
 #endif
 
 #define mp_size_t int
+#define mp_sign_t int
 
 /* a FP type */
 typedef struct fp_int {
