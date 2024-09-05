@@ -259,7 +259,7 @@ void main(void)
 #if defined(SIMPLE_TLS_TSIP_CLIENT)
     SetTsiptlsKey();
 #endif
-    
+
     do {
         /* simply use TCP */
         #if defined(SIMPLE_TCP_CLIENT)

@@ -1,6 +1,6 @@
 # ESP-IDF Port
 
-These Espressif examples have been created and tested with the latest stable release branch of 
+These Espressif examples have been created and tested with the latest stable release branch of
 [ESP-IDF V5.2](https://docs.espressif.com/projects/esp-idf/en/release-v5.2/esp32/get-started/index.html).
 The prior version 4.4 ESP-IDF is still supported, however version 5.2 or greater is recommended.
 Espressif has [a list of all ESP-IDF versions](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/versions.html).
@@ -140,7 +140,7 @@ See the specific examples for additional details.
 
 This is an alternate method for installation. It is recommended to use the new `CMakeLists.txt` to point to wolfSSL source code.
 
- 1. Run `setup.sh` at _/path/to_`/wolfssl/IDE/Espressif/ESP-IDF/` to deploy files into ESP-IDF tree  
+ 1. Run `setup.sh` at _/path/to_`/wolfssl/IDE/Espressif/ESP-IDF/` to deploy files into ESP-IDF tree
  2. Find Wolfssl files at _/path/to/esp_`/esp-idf/components/wolfssl/`
  3. Find [Example Programs](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples) under _/path/to/esp_`/esp-idf/examples/protocols/wolfssl_xxx` (where xxx is the project name)
 
@@ -169,7 +169,7 @@ C:\SysGCC\esp32\esp-idf>git clone -b v5.0.2 --recursive https://github.com/espre
 
 ## Configuration
 
- 1. The `user_settings.h` can be found in `[project]/components/wolfssl/include/user_settings.h`. 
+ 1. The `user_settings.h` can be found in `[project]/components/wolfssl/include/user_settings.h`.
 
 ## Configuration (Legacy IDF install)
 
@@ -183,7 +183,7 @@ C:\SysGCC\esp32\esp-idf>git clone -b v5.0.2 --recursive https://github.com/espre
 
  For question please email [support@wolfssl.com]
 
- Note: This is tested with :  
+ Note: This is tested with :
    - OS: Ubuntu 20.04.3 LTS
    - Microsoft Windows 10 Pro 10.0.19041 / Windows 11 Pro 22H2 22621.2715
    - Visual Studio 2022 17.7.6 with VisualGDB 5.6R9 (build 4777)

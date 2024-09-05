@@ -36,7 +36,7 @@ newt pkg new crypto/wolfssl
 echo "create apps/wolfcrypttest pkg"
 /bin/rm -rf apps/wolfcrypttest
 newt pkg new -t app apps/wolfcrypttest
-/bin/rm -rf apps/wolfcrypttest/include 
+/bin/rm -rf apps/wolfcrypttest/include
 /bin/rm -rf apps/wolfcrypttest/src
 /bin/mkdir -p apps/wolfcrypttest/src
 

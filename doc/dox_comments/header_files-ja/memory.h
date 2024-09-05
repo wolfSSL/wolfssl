@@ -1,5 +1,5 @@
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  この関数はmalloc（）と似ていますが、WolfSSLが使用するように構成されているメモリ割り当て関数を呼び出します。デフォルトでは、WolfSSLはmalloc（）を使用します。これは、WolfSSLメモリ抽象化レイヤを使用して変更できます -  wolfssl_setAllocator（）を参照してください。注WOLFSSL_MALLOCは、WOLFSSLによって直接呼び出されませんが、代わりにMacro XMallocによって呼び出されます。デフォルトのビルドの場合、size引数のみが存在します。wolfssl_static_memoryビルドを使用する場合は、ヒープとタイプ引数が含まれます。
     \return pointer  成功した場合、この関数は割り当てられたメモリへのポインタを返します。
     \return error  エラーがある場合は、NULLが返されます。
@@ -19,7 +19,7 @@
 void* wolfSSL_Malloc(size_t size, void* heap, int type);
 
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  この関数はfree（）と似ていますが、WolfSSLが使用するように構成されているメモリフリー機能を呼び出します。デフォルトでは、WolfSSLはfree（）を使用します。これは、WolfSSLメモリ抽象化レイヤを使用して変更できます -  wolfssl_setAllocator（）を参照してください。注WOLFSSL_FREEはWOLFSSLによって直接呼び出されませんが、代わりにマクロXFreeによって呼び出されます。デフォルトのビルドの場合、PTR引数のみが存在します。wolfssl_static_memoryビルドを使用する場合は、ヒープとタイプ引数が含まれます。
     \return none  いいえ返します。
     \param ptr  解放されるメモリへのポインタ。
@@ -43,7 +43,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type);
 void  wolfSSL_Free(void *ptr, void* heap, int type);
 
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  この関数はREALLOC（）と似ていますが、WolfSSLが使用するように構成されているメモリ再割り当て機能を呼び出します。デフォルトでは、WolfSSLはRealLoc（）を使用します。これは、WolfSSLメモリ抽象化レイヤを使用して変更できます -  wolfssl_setAllocator（）を参照してください。注WOLFSSL_REALLOCはWOLFSSLによって直接呼び出されませんが、代わりにマクロXreallocによって呼び出されます。デフォルトのビルドの場合、size引数のみが存在します。wolfssl_static_memoryビルドを使用する場合は、ヒープとタイプ引数が含まれます。
     \return pointer  成功した場合、この関数はマイポイントを再割り当てするためのポインタを返します。これはPTRと同じポインタ、または新しいポインタの場所であり得る。
     \return Null  エラーがある場合は、NULLが返されます。
@@ -65,7 +65,7 @@ void  wolfSSL_Free(void *ptr, void* heap, int type);
 void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type);
 
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  この機能は、WolfSSLが使用する割り当て関数を登録します。デフォルトでは、システムがそれをサポートしている場合、Malloc / FreeとRealLocが使用されます。この機能を使用すると、実行時にユーザーは独自のメモリハンドラをインストールできます。
     \return Success  成功した場合、この関数は0を返します。
     \return BAD_FUNC_ARG  関数ポインタが提供されていない場合に返されるエラーです。
@@ -101,7 +101,7 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
                                       wolfSSL_Realloc_cb);
 
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  この機能は、静的メモリ機能が使用されている場合（--enable-staticMemory）の場合に使用できます。メモリの「バケット」に最適なバッファサイズを示します。これにより、パーティション化された後に追加の未使用のメモリが終了しないように、バッファサイズを計算する方法が可能になります。返された値は、正の場合、使用するコンピュータのバッファサイズです。
     \return Success  バッファサイズ計算を正常に完了すると、正の値が返されます。この返された値は最適なバッファサイズです。
     \return Failure  すべての負の値はエラーの場合と見なされます。
@@ -124,7 +124,7 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
 int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
 
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  この機能は、静的メモリ機能が使用されている場合（--enable-staticMemory）の場合に使用できます。メモリの各パーティションに必要なパディングのサイズを示します。このパディングサイズは、メモリアライメントのために追加のメモリ管理構造を含む必要があるサイズになります。
     \return On  正常なメモリパディング計算戻り値は正の値になります
     \return All  負の値はエラーケースと見なされます。

@@ -35,7 +35,7 @@
 
 #ifndef NO_CRYPT_BENCHMARK
 
-/*-specs=nano.specs doesn’t include support for floating point in printf()*/
+/*-specs=nano.specs doesn't include support for floating point in printf()*/
 asm (".global _printf_float");
 
 #ifndef RTC_FREQ

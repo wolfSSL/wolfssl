@@ -51,7 +51,7 @@ extern "C" {
     #undef  FP_MAX_BITS
     #define FP_MAX_BITS     2048
 #else
-    #define WOLFSSL_SP_MATH 
+    #define WOLFSSL_SP_MATH
     #define WOLFSSL_SP_SMALL
     #define WOLFSSL_SP_MATH_ALL
     #define SP_INT_BITS 256
@@ -162,7 +162,7 @@ extern "C" {
 
  /* #undef  WOLFSSL_AES_DIRECT
     #define WOLFSSL_AES_DIRECT */
-    
+
     #undef  NO_AES_CBC
     #define NO_AES_CBC
 #else
@@ -301,7 +301,7 @@ extern "C" {
 #define NO_PKCS8
 #define WOLFSSL_NO_PEM
 
-    
+
 /* ------------------------------------------------------------------------- */
 /* Enable Features */
 /* ------------------------------------------------------------------------- */
@@ -397,7 +397,7 @@ extern "C" {
 #undef  NO_PWDBASED
 #define NO_PWDBASED
 
-#undef  NO_MD5    
+#undef  NO_MD5
 #define NO_MD5
 
 #undef  NO_DES3

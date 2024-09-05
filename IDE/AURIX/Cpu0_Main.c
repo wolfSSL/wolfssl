@@ -63,7 +63,7 @@ int fputc(int ch, FILE *f)
     if (ch == (int)'\n') {
         int chcr = (int)'\r';
         count = 1;
-        IfxAsclin_Asc_write(&g_asc, &chcr, &count, TIME_INFINITE);    
+        IfxAsclin_Asc_write(&g_asc, &chcr, &count, TIME_INFINITE);
     }
     count = 1;
     IfxAsclin_Asc_write(&g_asc, &ch, &count, TIME_INFINITE);

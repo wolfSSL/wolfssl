@@ -8,7 +8,7 @@
     \return 0 Returned upon successfully making the public key.
     \return BAD_FUNC_ARG Returned if key or pubKey evaluate to NULL, or if the
     specified key size is not 32 bytes (Ed25519 has 32 byte keys).
-    \return ECC_PRIV_KEY_E returned if the ed25519_key object does not have 
+    \return ECC_PRIV_KEY_E returned if the ed25519_key object does not have
     the private key in it.
     \return MEMORY_E Returned if there is an error allocating memory
     during function execution.

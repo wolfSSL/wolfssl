@@ -1,5 +1,5 @@
 /*!
-    \ingroup openSSL 
+    \ingroup openSSL
     \brief  この関数は、次の数学「R =（A ^ P）％M」を実行します。
     \return SSL_SUCCESS  数学操作をうまく実行します。
     \return SSL_FAILURE  エラーケースに遭遇した場合

@@ -27,7 +27,7 @@ This option will allow wolfSSL to be installed directly using the native Arduino
 
 ## Manually Reformatting wolfSSL as a Compatible Arduino Library
 
-Use [this](./wolfssl-arduino.sh) shell script that will re-organize the wolfSSL library to be 
+Use [this](./wolfssl-arduino.sh) shell script that will re-organize the wolfSSL library to be
 compatible with [Arduino Library Specification](https://arduino.github.io/arduino-cli/0.35/library-specification/)
 for projects that use Arduino IDE 1.5.0 or newer.
 
@@ -55,8 +55,8 @@ from within the `wolfssl/IDE/ARDUINO` directory:
 3. `./wolfssl-arduino.sh INSTALL /path/to/repository` (Used to update [arduino-wolfSSL](https://github.com/wolfSSL/arduino-wolfSSL))
     - Creates an Arduino Library in `wolfSSL` directory
     - Copies that directory contents to the specified `/path/to/repository`
-    - Adds the [default](../../examples/configs/user_settings_arduino.h) as `user_settings.h`. 
-     
+    - Adds the [default](../../examples/configs/user_settings_arduino.h) as `user_settings.h`.
+
 4. `./wolfssl-arduino.sh INSTALL /path/to/any/other/directory`
     - Creates an Arduino Library in `wolfSSL` directory
     - Copies that directory contents to the specified `/path/to/any/other/directory`

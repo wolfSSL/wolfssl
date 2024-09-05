@@ -7,7 +7,7 @@ For general information on [wolfSSL examples for Espressif](../README.md), see t
 
 ## ESP Registry
 
-The easiest way to get started with wolfSSL is by using the 
+The easiest way to get started with wolfSSL is by using the
 [ESP Registry](https://components.espressif.com/components/wolfssl/wolfssl/) examples.
 
 ```
@@ -24,10 +24,10 @@ No wolfSSL setup is needed. You may need to adjust your specific COM port. The d
 
 ## ESP-IDF Commandline
 
-1. `idf.py menuconfig` to configure the program.  
+1. `idf.py menuconfig` to configure the program.
     1-1. Example Configuration ->
 
-    TEST_ARG : argument that you want to use. Default is "-lng 0"  
+    TEST_ARG : argument that you want to use. Default is "-lng 0"
     The list of argument can be find in help.
 
 When you want to run the test program
@@ -60,16 +60,16 @@ idf.py set-target esp32s3
 idf.py erase-flash -p /dev/ttyS24 -b 115200
 
 # start with a low upload speed, then increase as found operational
-idf.py 
+idf.py
 # build and flash, in this example to COM24
 idf.py build flash -p /dev/ttyS24 -b 115200 monitor
 ```
 
 ## Example Output
 
-Note the default wolfSSL `user_settings.h` is configured by default to be the most 
+Note the default wolfSSL `user_settings.h` is configured by default to be the most
 compatible across the widest ranges of targets. Contact wolfSSL at support@wolfssl.com
-for help in optimizing for your particular application, or see the 
+for help in optimizing for your particular application, or see the
 [docs](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
 Compiled and flashed with `idf.py build  flash -p /dev/ttyS7 -b 115200 monitor`:

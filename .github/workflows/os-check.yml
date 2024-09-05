@@ -25,18 +25,18 @@ jobs:
           '--enable-all --enable-asn=original',
           '--enable-harden-tls',
           '--enable-tls13 --enable-session-ticket --enable-dtls --enable-dtls13
-             --enable-opensslextra --enable-sessioncerts 
-             CPPFLAGS=''-DWOLFSSL_DTLS_NO_HVR_ON_RESUME -DHAVE_EXT_CACHE 
+             --enable-opensslextra --enable-sessioncerts
+             CPPFLAGS=''-DWOLFSSL_DTLS_NO_HVR_ON_RESUME -DHAVE_EXT_CACHE
              -DWOLFSSL_TICKET_HAVE_ID -DHAVE_EX_DATA -DSESSION_CACHE_DYNAMIC_MEM'' ',
           '--enable-all --enable-secure-renegotiation',
           '--enable-all --enable-haproxy --enable-quic',
-          '--enable-dtls --enable-dtls13 --enable-earlydata 
-             --enable-session-ticket --enable-psk 
+          '--enable-dtls --enable-dtls13 --enable-earlydata
+             --enable-session-ticket --enable-psk
              CPPFLAGS=''-DWOLFSSL_DTLS13_NO_HRR_ON_RESUME'' ',
           '--enable-experimental --enable-kyber --enable-dtls --enable-dtls13
              --enable-dtls-frag-ch',
           '--enable-all --enable-dtls13 --enable-dtls-frag-ch',
-          '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch 
+          '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
            --enable-dtls-mtu',
         ]
     name: make check

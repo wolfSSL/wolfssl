@@ -1,5 +1,5 @@
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \brief  この関数は、Diffie-Hellman Exchangeプロトコルを使用して安全な秘密鍵を交渉するのに使用するためのDiffie-Hellmanキーを初期化します。
     \return none  いいえ返します。
     _Example_
@@ -13,7 +13,7 @@
 int wc_InitDhKey(DhKey* key);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \brief  この関数は、Diffie-Hellman Exchangeプロトコルを使用して安全な秘密鍵をネゴシエートするために使用された後にDiffie-Hellmanキーを解放します。
     \return none  いいえ返します。
     _Example_
@@ -28,7 +28,7 @@ int wc_InitDhKey(DhKey* key);
 void wc_FreeDhKey(DhKey* key);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \brief  この関数はdiffie-hellmanパブリックパラメータに基づいてパブリック/秘密鍵ペアを生成し、PRIVSの秘密鍵とPubの公開鍵を格納します。初期化されたDiffie-Hellmanキーと初期化されたRNG構造を取ります。
     \return BAD_FUNC_ARG  この関数への入力の1つを解析するエラーがある場合に返されます
     \return RNG_FAILURE_E  RNGを使用して乱数を生成するエラーが発生した場合
@@ -63,7 +63,7 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
                                  word32* privSz, byte* pub, word32* pubSz);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \brief  この関数は、ローカル秘密鍵と受信した公開鍵に基づいて合意された秘密鍵を生成します。交換の両側で完了した場合、この関数は対称通信のための秘密鍵の合意を生成します。共有秘密鍵の生成に成功すると、書かれた秘密鍵のサイズは仲間に保存されます。
     \return 0  合意された秘密鍵の生成に成功しました
     \return MP_INIT_E  共有秘密鍵の生成中にエラーが発生した場合に返却される可能性があります
@@ -100,7 +100,7 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        word32 pubSz);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \brief  この機能は、DERフォーマットのキーを含む与えられた入力バッファからDiffie-Hellmanキーをデコードします。結果をDHKEY構造体に格納します。
     \return 0  入力キーの復号に成功したときに返されます
     \return ASN_PARSE_E  入力のシーケンスを解析したエラーがある場合に返されます
@@ -128,7 +128,7 @@ int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
                            word32);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \brief  この関数は、入力秘密鍵パラメータを使用してDHKEY構造体のキーを設定します。WC_DHKEYDECODEとは異なり、この関数は入力キーがDERフォーマットでフォーマットされ、代わりにPARSED入力パラメータP（Prime）とG（Base）を受け入れる必要はありません。
     \return 0  鍵の設定に成功しました
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLに評価された場合に返されます。
@@ -157,7 +157,7 @@ int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                         word32 gSz);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \brief  この関数は、与えられた入力バッファからDiffie-HellmanパラメータP（Prime）とG（ベース）をフォーマットされています。
     \return 0  DHパラメータの抽出に成功しました
     \return ASN_PARSE_E  DERフォーマットのDH証明書の解析中にエラーが発生した場合に返されます。
@@ -187,7 +187,7 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
                             word32* pInOutSz, byte* g, word32* gInOutSz);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \sa wc_Dh_ffdhe3072_Get
     \sa wc_Dh_ffdhe4096_Get
     \sa wc_Dh_ffdhe6144_Get
@@ -196,7 +196,7 @@ int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
 const DhParams* wc_Dh_ffdhe2048_Get(void);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \sa wc_Dh_ffdhe2048_Get
     \sa wc_Dh_ffdhe4096_Get
     \sa wc_Dh_ffdhe6144_Get
@@ -205,7 +205,7 @@ const DhParams* wc_Dh_ffdhe2048_Get(void);
 const DhParams* wc_Dh_ffdhe3072_Get(void);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \sa wc_Dh_ffdhe2048_Get
     \sa wc_Dh_ffdhe3072_Get
     \sa wc_Dh_ffdhe6144_Get
@@ -214,7 +214,7 @@ const DhParams* wc_Dh_ffdhe3072_Get(void);
 const DhParams* wc_Dh_ffdhe4096_Get(void);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \sa wc_Dh_ffdhe2048_Get
     \sa wc_Dh_ffdhe3072_Get
     \sa wc_Dh_ffdhe4096_Get
@@ -223,7 +223,7 @@ const DhParams* wc_Dh_ffdhe4096_Get(void);
 const DhParams* wc_Dh_ffdhe6144_Get(void);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
     \sa wc_Dh_ffdhe2048_Get
     \sa wc_Dh_ffdhe3072_Get
     \sa wc_Dh_ffdhe4096_Get
@@ -232,13 +232,13 @@ const DhParams* wc_Dh_ffdhe6144_Get(void);
 const DhParams* wc_Dh_ffdhe8192_Get(void);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
 */
 int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
                         const byte* priv, word32 privSz);
 
 /*!
-    \ingroup Diffie-Hellman 
+    \ingroup Diffie-Hellman
 */
 int wc_DhCheckPrivKey(DhKey* key, const byte* priv, word32 pubSz);
 

@@ -51,7 +51,7 @@ jobs:
             CFLAGS: ${{ matrix.CFLAGS }}
             QEMU_LD_PREFIX: /usr/${{ matrix.HOST }}
         run: ./autogen.sh && ./configure --host=${{ matrix.HOST }} --enable-all --disable-examples ${{ matrix.EXTRA_OPTS }} && make
-      - name: Print errors 
+      - name: Print errors
         if: ${{ failure() }}
         run: |
           if [ -f config.log ] ; then

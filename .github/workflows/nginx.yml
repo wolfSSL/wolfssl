@@ -96,7 +96,7 @@ jobs:
               stream_ssl_preread.t stream_ssl_realip.t stream_ssl_session_reuse.t stream_ssl.t
               stream_ssl_variables.t stream_ssl_verify_client.t stream_upstream_zone_ssl.t
               upstream_zone_ssl.t uwsgi_ssl_certificate.t uwsgi_ssl_certificate_vars.t
-              uwsgi_ssl.t uwsgi_ssl_verify.t 
+              uwsgi_ssl.t uwsgi_ssl_verify.t
             # Following tests do not pass with sanitizer on (with OpenSSL too)
             sanitize-not-ok: >-
               grpc_ssl.t h2_proxy_request_buffering_ssl.t h2_proxy_ssl.t
@@ -221,4 +221,4 @@ jobs:
           LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib \
             TMPDIR=$GITHUB_WORKSPACE TEST_NGINX_BINARY=../nginx/objs/nginx \
             prove ${{ matrix.sanitize-ok }}
- 
+

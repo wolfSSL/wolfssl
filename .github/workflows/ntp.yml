@@ -89,4 +89,3 @@ jobs:
           ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
           make -j
           make -j check
- 

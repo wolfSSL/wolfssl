@@ -51,10 +51,10 @@ int strncasecmp(const char *s1, const char * s2, unsigned int sz)
             return 1;
         }
     }
-    return 0;	
+    return 0;
 }
-    
-void abort(void) 
+
+void abort(void)
 {
     while(1);
 }
