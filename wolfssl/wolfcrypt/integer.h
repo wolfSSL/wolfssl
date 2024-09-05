@@ -223,6 +223,7 @@ typedef int           mp_err;
 #endif
 
 #define mp_size_t int
+#define mp_sign_t int
 
 /* the mp_int structure */
 typedef struct mp_int {
