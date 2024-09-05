@@ -6882,8 +6882,9 @@ static const ASNItem pkcs8KeyASN[] = {
 /*  PKEY_ALGO_PARAM_SEQ */            { 2, ASN_SEQUENCE, 1, 0, 1 },
 #endif
 /*  PKEY_DATA           */        { 1, ASN_OCTET_STRING, 0, 0, 0 },
-                /* attributes            [0] Attributes OPTIONAL */
-                /* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
+/*  OPTIONAL Attributes IMPLICIT [0] */
+                                  { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 1 },
+/* [[2: publicKey        [1] PublicKey OPTIONAL ]] */
 };
 enum {
     PKCS8KEYASN_IDX_SEQ = 0,
@@ -6896,6 +6897,7 @@ enum {
     PKCS8KEYASN_IDX_PKEY_ALGO_PARAM_SEQ,
 #endif
     PKCS8KEYASN_IDX_PKEY_DATA,
+    PKCS8KEYASN_IDX_PKEY_ATTRIBUTES,
     WOLF_ENUM_DUMMY_LAST_ELEMENT(PKCS8KEYASN_IDX)
 };
 
@@ -7306,7 +7308,9 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     *outSz = tmpSz + sz;
     return (int)(tmpSz + sz);
 #else
-    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length);
+    /* pkcs8KeyASN_Length-1, the -1 is because we are not adding the optional
+     * set of attributes */
+    DECL_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1);
     int sz = 0;
     int ret = 0;
     word32 keyIdx = 0;
@@ -7327,7 +7331,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         ret = ASN_PARSE_E;
     }
 
-    CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length, ret, NULL);
+    CALLOC_ASNSETDATA(dataASN, pkcs8KeyASN_Length-1, ret, NULL);
 
     if (ret == 0) {
         /* Only support default PKCS #8 format - v0. */
@@ -7353,7 +7357,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
         SetASN_Buffer(&dataASN[PKCS8KEYASN_IDX_PKEY_DATA], key, keySz);
 
         /* Get the size of the DER encoding. */
-        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length, &sz);
+        ret = SizeASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, &sz);
     }
     if (ret == 0) {
         /* Always return the calculated size. */
@@ -7366,7 +7370,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     }
     if (ret == 0) {
         /*  Encode PKCS #8 key into buffer. */
-        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length, out);
+        SetASN_Items(pkcs8KeyASN, dataASN, pkcs8KeyASN_Length-1, out);
         ret = sz;
     }
 
