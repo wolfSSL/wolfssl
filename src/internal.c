@@ -7817,7 +7817,7 @@ void FreeKey(WOLFSSL* ssl, int type, void** pKey)
 int AllocKey(WOLFSSL* ssl, int type, void** pKey)
 {
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
-    int sz = 0;
+    size_t sz = 0;
 #ifdef HAVE_ECC
     ecc_key* eccKey;
 #endif /* HAVE_ECC */
@@ -7894,7 +7894,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     }
 
     /* Allocate memory for key */
-    *pKey = (void *)XMALLOC((size_t)sz, ssl->heap, type);
+    *pKey = (void *)XMALLOC(sz, ssl->heap, type);
     if (*pKey == NULL) {
         return MEMORY_E;
     }
@@ -20715,7 +20715,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
     #endif
 
     if (IsEncryptionOn(ssl, 0)) {
-        int ivExtra = 0;
+        word32 ivExtra = 0;
 #ifndef WOLFSSL_AEAD_ONLY
         if (ssl->specs.cipher_type == block) {
             if (ssl->options.tls1_1)
@@ -20727,7 +20727,7 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type)
             if (CipherHasExpIV(ssl))
                 ivExtra = AESGCM_EXP_IV_SZ;
         }
-        dataSz -= (word32)ivExtra;
+        dataSz -= ivExtra;
         dataSz -= ssl->keys.padSz;
     #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
         if (ssl->options.startedETMRead)
