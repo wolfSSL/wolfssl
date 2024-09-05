@@ -5127,6 +5127,42 @@ Signer* GetCA(void* vp, byte* hash)
     return ret;
 }
 
+#if defined(HAVE_OCSP)
+Signer* GetCAByKeyHash(void* vp, const byte* keyHash)
+{
+    WOLFSSL_CERT_MANAGER* cm = (WOLFSSL_CERT_MANAGER*)vp;
+    Signer* ret = NULL;
+    Signer* signers;
+    int row;
+
+    if (cm == NULL || keyHash == NULL)
+        return NULL;
+
+    /* try lookup using keyHash as subjKeyID first */
+    ret = GetCA(vp, (byte*)keyHash);
+    if (ret != NULL && XMEMCMP(ret->subjectKeyHash, keyHash, KEYID_SIZE) == 0) {
+        return ret;
+    }
+
+    /* if we can't find the cert, we have to scan the full table */
+    if (wc_LockMutex(&cm->caLock) != 0)
+        return NULL;
+
+    /* Unfortunately we need to look through the entire table */
+    for (row = 0; row < CA_TABLE_SIZE && ret == NULL; row++) {
+        for (signers = cm->caTable[row]; signers != NULL;
+                signers = signers->next) {
+            if (XMEMCMP(signers->subjectKeyHash, keyHash, KEYID_SIZE) == 0) {
+                ret = signers;
+                break;
+            }
+        }
+    }
+
+    wc_UnLockMutex(&cm->caLock);
+    return ret;
+}
+#endif
 #ifdef WOLFSSL_AKID_NAME
 Signer* GetCAByAKID(void* vp, const byte* issuer, word32 issuerSz,
         const byte* serial, word32 serialSz)

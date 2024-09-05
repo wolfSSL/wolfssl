@@ -36770,7 +36770,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         int sigValid = -1;
 
         #ifndef NO_SKID
-            ca = GetCA(cm, resp->single->issuerKeyHash);
+            ca = GetCAByKeyHash(cm, resp->single->issuerKeyHash);
         #else
             ca = GetCA(cm, resp->single->issuerHash);
         #endif
@@ -36911,7 +36911,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         /* Response didn't have a certificate - lookup CA. */
     #ifndef NO_SKID
-        ca = GetCA(cm, resp->single->issuerKeyHash);
+        ca = GetCAByKeyHash(cm, resp->single->issuerKeyHash);
     #else
         ca = GetCA(cm, resp->single->issuerHash);
     #endif
