@@ -24794,6 +24794,14 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         if (IsEncryptionOn(ssl, 1) || ssl->options.tls1_3)
             outputSz += cipherExtraData(ssl);
 
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+        if (ssl->options.dtls) {
+            unsigned int cidSz = 0;
+            if (wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz) == WOLFSSL_SUCCESS)
+                outputSz += cidSz;
+        }
+#endif
+
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
             return ssl->error = ret;
