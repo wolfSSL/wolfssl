@@ -1561,7 +1561,7 @@ static void ProcessBufferCertSetHave(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #endif
 #ifndef WC_STRICT_SIG
     if ((ctx != NULL) || (ssl != NULL)) {
-        wolfssl_set_have_from_key_oid(ctx, ssl, cert->keyOID);
+        wolfssl_set_have_from_key_oid(ctx, ssl, (int)cert->keyOID);
     }
 #else
     /* Set whether ECC is available based on signature available. */
@@ -5272,8 +5272,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
 
     if (ret == 1) {
         /* Allocate buffers for p and g to be assigned into SSL. */
-        pAlloc = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        gAlloc = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        pAlloc = (byte*)XMALLOC((size_t)pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        gAlloc = (byte*)XMALLOC((size_t)gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((pAlloc == NULL) || (gAlloc == NULL)) {
             /* Memory will be freed below in the (ret != 1) block */
             ret = MEMORY_E;
@@ -5332,7 +5332,7 @@ static int wolfssl_check_dh_key(unsigned char* p, int pSz, unsigned char* g,
         /* Initialize a DH object. */
         if ((ret = wc_InitDhKey(checkKey)) == 0) {
             /* Check DH parameters. */
-            ret = wc_DhSetCheckKey(checkKey, p, (word32)pSz, g, gSz, NULL, 0, 0, &rng);
+            ret = wc_DhSetCheckKey(checkKey, p, (word32)pSz, g, (word32)gSz, NULL, 0, 0, &rng);
             /* Dispose of DH object. */
             wc_FreeDhKey(checkKey);
         }
@@ -5431,8 +5431,8 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
 
     if (ret == 1) {
         /* Allocate buffers for p and g to be assigned into SSL context. */
-        pAlloc = (byte*)XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        gAlloc = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        pAlloc = (byte*)XMALLOC((size_t)pSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        gAlloc = (byte*)XMALLOC((size_t)gSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((pAlloc == NULL) || (gAlloc == NULL)) {
             ret = MEMORY_E;
         }
@@ -5687,11 +5687,11 @@ static int ws_ctx_ssl_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         else if (ssl != NULL) {
             /* Set p and g into SSL. */
-            res = wolfssl_set_tmp_dh(ssl, p, (int)pSz, g, gSz);
+            res = wolfssl_set_tmp_dh(ssl, p, (int)pSz, g, (int)gSz);
         }
         else {
             /* Set p and g into SSL context. */
-            res = wolfssl_ctx_set_tmp_dh(ctx, p, (int)pSz, g, gSz);
+            res = wolfssl_ctx_set_tmp_dh(ctx, p, (int)pSz, g, (int)gSz);
         }
     }
 
