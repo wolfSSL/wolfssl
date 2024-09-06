@@ -6647,7 +6647,7 @@ typedef struct CipherSuiteInfo {
 #endif
     byte cipherSuite0;
     byte cipherSuite;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT) || \
     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
     byte minor;
     byte major;
@@ -6677,7 +6677,7 @@ WOLFSSL_LOCAL const char* GetCipherNameIana(byte cipherSuite0, byte cipherSuite)
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 WOLFSSL_LOCAL int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
-                                         byte* cipherSuite, int* flags);
+                       byte* cipherSuite, byte* major, byte* minor, int* flags);
 
 
 enum encrypt_side {
