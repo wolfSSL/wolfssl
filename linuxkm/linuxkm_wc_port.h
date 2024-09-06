@@ -461,8 +461,11 @@
         struct Signer *GetCA(void *signers, unsigned char *hash);
         #ifndef NO_SKID
             struct Signer *GetCAByName(void* signers, unsigned char *hash);
-        #endif
-    #endif
+            #ifdef HAVE_OCSP
+                struct Signer* GetCAByKeyHash(void* vp, const unsigned char* keyHash);
+            #endif /* HAVE_OCSP */
+        #endif /* NO_SKID */
+    #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
         #error "compiling -fPIE requires PIE redirect table."
@@ -629,8 +632,11 @@
         typeof(GetCA) *GetCA;
         #ifndef NO_SKID
         typeof(GetCAByName) *GetCAByName;
-        #endif
-        #endif
+        #ifdef HAVE_OCSP
+        typeof(GetCAByKeyHash) *GetCAByKeyHash;
+        #endif /* HAVE_OCSP */
+        #endif /* NO_SKID */
+        #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         typeof(dump_stack) *dump_stack;
@@ -778,8 +784,11 @@
         #define GetCA (wolfssl_linuxkm_get_pie_redirect_table()->GetCA)
         #ifndef NO_SKID
             #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
-        #endif
-    #endif
+            #ifdef HAVE_OCSP
+                #define GetCAByKeyHash (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByKeyHash)
+            #endif /* HAVE_OCSP */
+        #endif /* NO_SKID */
+    #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         #define dump_stack (wolfssl_linuxkm_get_pie_redirect_table()->dump_stack)
