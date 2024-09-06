@@ -11,6 +11,12 @@ if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
 fi
 
+if test "$WOLFSSL_EXTERNAL_TEST" == "0"; then
+    echo 'skipping oscp-stapling.test because WOLFSSL_EXTERNAL_TEST is \
+    defined to the value 0.'
+    exit 77
+fi
+
 if ! ./examples/client/client -V | grep -q 3; then
     echo 'skipping ocsp-stapling.test because TLS1.2 is not available.' 1>&2
     exit 77
