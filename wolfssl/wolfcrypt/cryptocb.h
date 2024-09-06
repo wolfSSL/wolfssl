@@ -294,6 +294,9 @@ typedef struct wc_CryptoInfo {
                 WC_RNG*     rng;
                 void*       key;
                 int         type; /* enum wc_PqcSignatureType */
+                const byte* context;
+                byte        contextLen;
+                word32      preHashType; /* enum wc_HashType */
             } pqc_sign;
             struct {
                 const byte* sig;
@@ -303,6 +306,9 @@ typedef struct wc_CryptoInfo {
                 int*        res;
                 void*       key;
                 int         type; /* enum wc_PqcSignatureType */
+                const byte* context;
+                byte        contextLen;
+                word32      preHashType; /* enum wc_HashType */
             } pqc_verify;
             struct {
                 void*       key;
@@ -560,10 +566,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type,
     int keySize, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out,
-    word32 *outlen, WC_RNG* rng, int type, void* key);
+    word32 *outlen, const byte* context, byte contextLen, word32 preHashType,
+    WC_RNG* rng, int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen,
-    const byte* msg, word32 msglen, int* res, int type, void* key);
+    const byte* msg, word32 msglen, const byte* context, byte contextLen,
+    word32 preHashType, int* res, int type, void* key);
 
 WOLFSSL_LOCAL int wc_CryptoCb_PqcSignatureCheckPrivKey(void* key, int type,
     const byte* pubKey, word32 pubKeySz);

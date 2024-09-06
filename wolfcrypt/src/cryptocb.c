@@ -1043,7 +1043,8 @@ int wc_CryptoCb_MakePqcSignatureKey(WC_RNG* rng, int type, int keySize,
 }
 
 int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
-    WC_RNG* rng, int type, void* key)
+    const byte* context, byte contextLen, word32 preHashType, WC_RNG* rng,
+    int type, void* key)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
@@ -1068,6 +1069,9 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
         cryptoInfo.pk.pqc_sign.inlen = inlen;
         cryptoInfo.pk.pqc_sign.out = out;
         cryptoInfo.pk.pqc_sign.outlen = outlen;
+        cryptoInfo.pk.pqc_sign.context = context;
+        cryptoInfo.pk.pqc_sign.contextLen = contextLen;
+        cryptoInfo.pk.pqc_sign.preHashType = preHashType;
         cryptoInfo.pk.pqc_sign.rng = rng;
         cryptoInfo.pk.pqc_sign.key = key;
         cryptoInfo.pk.pqc_sign.type = type;
@@ -1079,7 +1083,8 @@ int wc_CryptoCb_PqcSign(const byte* in, word32 inlen, byte* out, word32 *outlen,
 }
 
 int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
-    word32 msglen, int* res, int type, void* key)
+    word32 msglen, const byte* context, byte contextLen, word32 preHashType,
+    int* res, int type, void* key)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     int devId = INVALID_DEVID;
@@ -1104,6 +1109,9 @@ int wc_CryptoCb_PqcVerify(const byte* sig, word32 siglen, const byte* msg,
         cryptoInfo.pk.pqc_verify.siglen = siglen;
         cryptoInfo.pk.pqc_verify.msg = msg;
         cryptoInfo.pk.pqc_verify.msglen = msglen;
+        cryptoInfo.pk.pqc_verify.context = context;
+        cryptoInfo.pk.pqc_verify.contextLen = contextLen;
+        cryptoInfo.pk.pqc_verify.preHashType = preHashType;
         cryptoInfo.pk.pqc_verify.res = res;
         cryptoInfo.pk.pqc_verify.key = key;
         cryptoInfo.pk.pqc_verify.type = type;

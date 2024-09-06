@@ -73,8 +73,8 @@ int wc_falcon_sign_msg(const byte* in, word32 inLen,
     if (key->devId != INVALID_DEVID)
     #endif
     {
-        ret = wc_CryptoCb_PqcSign(in, inLen, out, outLen, rng,
-                                  WC_PQC_SIG_TYPE_FALCON, key);
+        ret = wc_CryptoCb_PqcSign(in, inLen, out, outLen, NULL, 0,
+                WC_HASH_TYPE_NONE, rng, WC_PQC_SIG_TYPE_FALCON, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -171,8 +171,8 @@ int wc_falcon_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     if (key->devId != INVALID_DEVID)
     #endif
     {
-        ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, res,
-                                    WC_PQC_SIG_TYPE_FALCON, key);
+        ret = wc_CryptoCb_PqcVerify(sig, sigLen, msg, msgLen, NULL, 0,
+                WC_HASH_TYPE_NONE, res, WC_PQC_SIG_TYPE_FALCON, key);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
