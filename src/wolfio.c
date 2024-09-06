@@ -650,6 +650,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 #elif !defined(DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER)
     word32 invalidPeerPackets = 0;
 #endif
+    int newPeer = 0;
 
     WOLFSSL_ENTER("EmbedReceiveFrom");
 
@@ -677,8 +678,13 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 dtlsCtx->peer.bufSz = sizeof(SOCKADDR_S);
             else
                 dtlsCtx->peer.bufSz = 0;
+            newPeer = 1;
+            peer = (SOCKADDR_S*)dtlsCtx->peer.sa;
         }
-        peer = (SOCKADDR_S*)dtlsCtx->peer.sa;
+        else {
+            peer = &lclPeer;
+            XMEMCPY(peer, (SOCKADDR_S*)dtlsCtx->peer.sa, sizeof(lclPeer));
+        }
         peerSz = dtlsCtx->peer.bufSz;
     }
 
@@ -688,9 +694,20 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
-        doDtlsTimeout =
-            doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL ||
+        doDtlsTimeout = doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL;
+#ifdef WOLFSSL_RW_THREADED
+        {
+            int ret = wc_LockMutex(&ssl->dtls13Rtx.mutex);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+#endif
+        doDtlsTimeout = doDtlsTimeout ||
             (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
+#ifdef WOLFSSL_RW_THREADED
+        wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+#endif
     }
 #endif /* WOLFSSL_DTLS13 */
 
@@ -822,8 +839,16 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             }
         }
         else {
-            /* Store size of saved address */
-            dtlsCtx->peer.sz = peerSz;
+            if (newPeer) {
+                /* Store size of saved address */
+                dtlsCtx->peer.sz = peerSz;
+            }
+#ifndef WOLFSSL_PEER_ADDRESS_CHANGES
+            else if ((dtlsCtx->peer.sz != (unsigned int)peerSz) ||
+                     (XMEMCMP(peer, dtlsCtx->peer.sa, peerSz) != 0)) {
+                return WOLFSSL_CBIO_ERR_GENERAL;
+            }
+#endif
         }
 #ifndef NO_ASN_TIME
         ssl->dtls_start_timeout = 0;
