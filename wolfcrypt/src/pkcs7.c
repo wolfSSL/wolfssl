@@ -1376,15 +1376,15 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
         pkcs7->cachedEncryptedContentSz = 0;
     }
 
-    if (pkcs7->isDynamic) {
-        pkcs7->isDynamic = 0;
-        XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    }
-
     if (pkcs7->customSKID) {
         XFREE(pkcs7->customSKID, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         pkcs7->customSKID = NULL;
         pkcs7->customSKIDSz = 0;
+    }
+
+    if (pkcs7->isDynamic) {
+        pkcs7->isDynamic = 0;
+        XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 }
 
@@ -3457,6 +3457,7 @@ int wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, byte* in, word16 inSz)
     }
     else {
         XMEMCPY(pkcs7->customSKID, in, inSz);
+        pkcs7->customSKIDSz = inSz;
     }
     return ret;
 }
@@ -9633,8 +9634,9 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
 #ifndef ASN_BER_TO_DER
-    if (output == NULL || outputSz == 0)
+    if (output == NULL || outputSz == 0) {
         return BAD_FUNC_ARG;
+    }
 #else
     /* if both output and callback are not set then error out */
     if ((output == NULL || outputSz == 0) && (pkcs7->streamOutCb == NULL)) {
