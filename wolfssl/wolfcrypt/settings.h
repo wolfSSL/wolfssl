@@ -272,6 +272,7 @@
 #ifdef PLATFORMIO
     #ifdef ESP_PLATFORM
         /* Turn on the wolfSSL ESPIDF flag for the PlatformIO ESP-IDF detect */
+        #undef  WOLFSSL_ESPIDF
         #define WOLFSSL_ESPIDF
     #endif /* ESP_PLATFORM */
 
@@ -498,6 +499,302 @@
 
 #if defined(WOLFSSL_ESPIDF)
     #define SIZEOF_LONG_LONG 8
+
+    #ifndef WOLFSSL_MAX_ERROR_SZ
+        /* Espressif paths can be quite long. Ensure error prints full path. */
+        #define WOLFSSL_MAX_ERROR_SZ 200
+    #endif
+
+    /* Parse any Kconfig / menuconfig items into wolfSSL macro equivalents.
+     * Macros may or may not be defined. If defined, they may have a value of
+     *
+     *   0 - not enabled (also the equivalent of not defined)
+     *   1 - enabled
+     *
+     * The naming convention is generally an exact match of wolfSSL macros
+     * in the Kconfig file. At cmake time, the Kconfig is processed and an
+     * sdkconfig.h file is created by the ESP-IDF. Any configured options are
+     * named CONFIG_[Kconfig name] and thus CONFIG_[macro name]. Those that
+     * are expected to be ESP-IDF specific and may be ambigous can named
+     * with an ESP prefix, for example CONFIG_[ESP_(Kconfig name)]
+     *
+     * Note there are some inconsistent macro names that may have been
+     * used in the esp-wolfssl or other places in the ESP-IDF. They should
+     * be always be included for backward compatibility.
+     *
+     * See also: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/kconfig.html
+     *
+     * These settings should be checked and assigned wolfssl equivalents before
+     * any others.
+     *
+     * Only the actual config settings should be defined here. Any others that
+     * may be application specific should be conditionally defined in the
+     * respective user_settings.h file.
+     *
+     * See the template example for reference:
+     * https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples/template
+     *
+     * Reminder that by the time we are here, the user_settings.h has already
+     * been processed. The following settings are additive; Enabled settings
+     * from user_settings are not disabled here.
+     */
+    #if (defined(CONFIG_DEBUG_WOLFSSL) &&             \
+                 CONFIG_DEBUG_WOLFSSL) ||             \
+        (defined(CONFIG_ESP_WOLFSSL_DEBUG_WOLFSSL) && \
+                 CONFIG_ESP_WOLFSSL_DEBUG_WOLFSSL  )
+        #define                     DEBUG_WOLFSSL
+    #endif
+    #if defined(CONFIG_ESP_WOLFSSL_ENABLE_WOLFSSH) && \
+                CONFIG_ESP_WOLFSSL_ENABLE_WOLFSSH
+        #define            WOLFSSL_ENABLE_WOLFSSH
+    #endif
+    #if (defined(CONFIG_TEST_ESPIDF_ALL_WOLFSSL) && \
+                 CONFIG_TEST_ESPIDF_ALL_WOLFSSL   )
+        #define         TEST_ESPIDF_ALL_WOLFSSL
+    #endif
+    #if (defined(CONFIG_WOLFSSL_ALT_CERT_CHAINS) && \
+                 CONFIG_WOLFSSL_ALT_CERT_CHAINS   )
+        #define         WOLFSSL_ALT_CERT_CHAINS
+    #endif
+    #if defined(CONFIG_WOLFSSL_ASN_ALLOW_0_SERIAL) && \
+                CONFIG_WOLFSSL_ASN_ALLOW_0_SERIAL
+        #define        WOLFSSL_ASN_ALLOW_0_SERIAL
+    #endif
+    #if defined(CONFIG_WOLFSSL_NO_ASN_STRICT) && \
+                CONFIG_WOLFSSL_NO_ASN_STRICT
+        #define        WOLFSSL_NO_ASN_STRICT
+    #endif
+    #if defined(CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE) && \
+                CONFIG_WOLFSSL_DEBUG_CERT_BUNDLE
+        #define        WOLFSSL_DEBUG_CERT_BUNDLE
+    #endif
+    #if defined(CONFIG_USE_WOLFSSL_ESP_SDK_TIME) && \
+                CONFIG_USE_WOLFSSL_ESP_SDK_TIME
+        #define        USE_WOLFSSL_ESP_SDK_TIME
+    #endif
+    #if defined(CONFIG_USE_WOLFSSL_ESP_SDK_WIFI) && \
+                CONFIG_USE_WOLFSSL_ESP_SDK_WIFI
+        #define        USE_WOLFSSL_ESP_SDK_WIFI
+    #endif
+    #if defined(CONFIG_WOLFSSL_APPLE_HOMEKIT) && \
+                CONFIG_WOLFSSL_APPLE_HOMEKIT
+        #define        WOLFSSL_APPLE_HOMEKIT
+    #endif
+
+    #if defined(CONFIG_TLS_STACK_WOLFSSL) && (CONFIG_TLS_STACK_WOLFSSL)
+        /* When using ESP-TLS, some old algoritms such as SHA1 are no longer
+         * enabled in wolfSSL, except for the OpenSSL compatibility. So enable
+         * that here: */
+        #define OPENSSL_EXTRA
+    #endif
+
+    /* Optional Apple HomeKit support. See below for related sanity checks. */
+    #if defined(WOLFSSL_APPLE_HOMEKIT)
+        /* SRP is known to need 8K; slow on some devices */
+        #undef  FP_MAX_BITS
+        #define FP_MAX_BITS (8192 * 2)
+        #define WOLFCRYPT_HAVE_SRP
+        #define HAVE_CHACHA
+        #define HAVE_POLY1305
+        #define WOLFSSL_BASE64_ENCODE
+        #define HAVE_HKDF
+        #define WOLFSSL_SHA512
+     #endif
+
+    /* Enable benchmark code via menuconfig, or when not otherwise disable: */
+    #ifdef CONFIG_ESP_WOLFSSL_ENABLE_BENCHMARK
+        #ifdef NO_CRYPT_BENCHMARK
+            #pragma message("Benchmark conflict:")
+            #pragma message("-- NO_CRYPT_BENCHMARK defined.")
+            #pragma message("-- CONFIG_WOLFSSL_ENABLE_BENCHMARK also defined.")
+            #pragma message("-- NO_CRYPT_BENCHMARK will be undefined.")
+            #undef NO_CRYPT_BENCHMARK
+        #endif
+    #endif
+
+    #if !defined(NO_CRYPT_BENCHMARK) || \
+         defined(CONFIG_ESP_WOLFSSL_ENABLE_BENCHMARK)
+
+        #define BENCH_EMBEDDED
+        #define WOLFSSL_BENCHMARK_FIXED_UNITS_KB
+
+        /* See wolfcrypt/benchmark/benchmark.c for debug and other settings: */
+
+        /* Turn on benchmark timing debugging (CPU Cycles, RTOS ticks, etc) */
+        #ifdef CONFIG_ESP_DEBUG_WOLFSSL_BENCHMARK_TIMING
+            #define DEBUG_WOLFSSL_BENCHMARK_TIMING
+        #endif
+
+        /* Turn on timer debugging (used when CPU cycles not available) */
+        #ifdef CONFIG_ESP_WOLFSSL_BENCHMARK_TIMER_DEBUG
+            #define WOLFSSL_BENCHMARK_TIMER_DEBUG
+        #endif
+    #endif
+
+    /* Typically only used in tests, but available to all apps is
+     * the "enable all" feature: */
+    #if defined(TEST_ESPIDF_ALL_WOLFSSL)
+        #define WOLFSSL_MD2
+        #define HAVE_BLAKE2
+        #define HAVE_BLAKE2B
+        #define HAVE_BLAKE2S
+
+        #define WC_RC2
+        #define WOLFSSL_ALLOW_RC4
+
+        #define HAVE_POLY1305
+
+        #define WOLFSSL_AES_128
+        #define WOLFSSL_AES_OFB
+        #define WOLFSSL_AES_CFB
+        #define WOLFSSL_AES_XTS
+
+        /* #define WC_SRTP_KDF */
+        /* TODO Causes failure with Espressif AES HW Enabled */
+        /* #define HAVE_AES_ECB */
+        /* #define HAVE_AESCCM  */
+        /* TODO sanity check when missing HAVE_AES_ECB */
+        #define WOLFSSL_WOLFSSH
+
+        #define HAVE_AESGCM
+        #define WOLFSSL_AES_COUNTER
+
+        #define HAVE_FFDHE
+        #define HAVE_FFDHE_2048
+        #if defined(CONFIG_IDF_TARGET_ESP8266)
+            /* TODO Full size SRP is disabled on the ESP8266 at this time.
+             * Low memory issue? */
+            #define WOLFCRYPT_HAVE_SRP
+            /* MIN_FFDHE_FP_MAX_BITS = (MIN_FFDHE_BITS * 2); see settings.h */
+            #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
+        #elif defined(CONFIG_IDF_TARGET_ESP32)   || \
+              defined(CONFIG_IDF_TARGET_ESP32S2) || \
+              defined(CONFIG_IDF_TARGET_ESP32S3)
+            #define WOLFCRYPT_HAVE_SRP
+            #define FP_MAX_BITS (8192 * 2)
+        #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
+              defined(CONFIG_IDF_TARGET_ESP32H2)
+            /* SRP Known to be working on this target::*/
+            #define WOLFCRYPT_HAVE_SRP
+            #define FP_MAX_BITS (8192 * 2)
+        #else
+            /* For everything else, give a try and see if SRP working: */
+            #define WOLFCRYPT_HAVE_SRP
+            #define FP_MAX_BITS (8192 * 2)
+        #endif
+
+        #define HAVE_DH
+
+        /* TODO: there may be a problem with HAVE_CAMELLIA with HW AES disabled.
+         * Do not define NO_WOLFSSL_ESP32_CRYPT_AES when enabled: */
+        /* #define HAVE_CAMELLIA */
+
+        /* DSA requires old SHA */
+        #define HAVE_DSA
+
+        /* Needs SHA512 ? */
+        #define HAVE_HPKE
+
+        /* Not for Espressif? */
+        #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+            defined(CONFIG_IDF_TARGET_ESP8684) || \
+            defined(CONFIG_IDF_TARGET_ESP32H2) || \
+            defined(CONFIG_IDF_TARGET_ESP8266)
+
+            #if defined(CONFIG_IDF_TARGET_ESP8266)
+                #undef HAVE_ECC
+                #undef HAVE_ECC_CDH
+                #undef HAVE_CURVE25519
+
+                #ifdef HAVE_CHACHA
+                    #error "HAVE_CHACHA not supported on ESP8266"
+                #endif
+                #ifdef HAVE_XCHACHA
+                    #error "HAVE_XCHACHA not supported on ESP8266"
+                #endif
+            #else
+                #define HAVE_XCHACHA
+                #define HAVE_CHACHA
+                /* TODO Not enabled at this time, needs further testing:
+                 *   #define WC_SRTP_KDF
+                 *   #define HAVE_COMP_KEY
+                 *   #define WOLFSSL_HAVE_XMSS
+                 */
+            #endif
+            /* TODO AES-EAX needs stesting on this platform */
+
+            /* Optionally disable DH
+             *   #undef HAVE_DH
+             *   #undef HAVE_FFDHE
+             */
+
+            /* ECC_SHAMIR out of memory on ESP32-C2 during ECC  */
+            #ifndef HAVE_ECC
+                #define ECC_SHAMIR
+            #endif
+        #else
+            #define WOLFSSL_AES_EAX
+
+            #define ECC_SHAMIR
+        #endif
+
+        /* Only for WOLFSSL_IMX6_CAAM / WOLFSSL_QNX_CAAM ? */
+        /* #define WOLFSSL_CAAM      */
+        /* #define WOLFSSL_CAAM_BLOB */
+
+        #define WOLFSSL_AES_SIV
+        #define WOLFSSL_CMAC
+
+        #define WOLFSSL_CERT_PIV
+
+        /* HAVE_SCRYPT may turn on HAVE_PBKDF2 see settings.h */
+        /* #define HAVE_SCRYPT */
+        #define SCRYPT_TEST_ALL
+        #define HAVE_X963_KDF
+    #endif
+
+    /* Optionally enable some wolfSSH settings via compiler def or Kconfig */
+    #if defined(ESP_ENABLE_WOLFSSH)
+        /* The default SSH Windows size is massive for an embedded target.
+         * Limit it: */
+        #define DEFAULT_WINDOW_SZ 2000
+
+        /* These may be defined in cmake for other examples: */
+        #undef  WOLFSSH_TERM
+        #define WOLFSSH_TERM
+
+        #if defined(CONFIG_ESP_WOLFSSL_DEBUG_WOLFSSH)
+            /* wolfSSH debugging enabled via Kconfig / menuconfig */
+            #undef  DEBUG_WOLFSSH
+            #define DEBUG_WOLFSSH
+        #endif
+
+        #undef  WOLFSSL_KEY_GEN
+        #define WOLFSSL_KEY_GEN
+
+        #undef  WOLFSSL_PTHREADS
+        #define WOLFSSL_PTHREADS
+
+        #define WOLFSSH_TEST_SERVER
+        #define WOLFSSH_TEST_THREADING
+
+    #endif /* ESP_ENABLE_WOLFSSH */
+
+    /* Experimental Kyber.  */
+    #ifdef CONFIG_ESP_WOLFSSL_ENABLE_KYBER
+        /* Kyber typically needs a minimum 10K stack */
+        #define WOLFSSL_EXPERIMENTAL_SETTINGS
+        #define WOLFSSL_HAVE_KYBER
+        #define WOLFSSL_WC_KYBER
+        #define WOLFSSL_SHA3
+        #if defined(CONFIG_IDF_TARGET_ESP8266)
+            /* With limited RAM, we'll disable some of the Kyber sizes: */
+            #define WOLFSSL_NO_KYBER1024
+            #define WOLFSSL_NO_KYBER768
+            #define NO_SESSION_CACHE
+        #endif
+    #endif
+
     #ifndef NO_ESPIDF_DEFAULT
         #define FREERTOS
         #define WOLFSSL_LWIP
@@ -3698,8 +3995,8 @@ extern void uITRON4_free(void *p) ;
     /* Ciphersuite check done in internal.h */
 #endif
 
-/* Some final sanity checks */
-#ifdef WOLFSSL_APPLE_HOMEKIT
+/* Some final sanity checks. See esp32-crypt.h for Apple HomeKit config. */
+#if defined(WOLFSSL_APPLE_HOMEKIT) || defined(CONFIG_WOLFSSL_APPLE_HOMEKIT)
     #ifndef WOLFCRYPT_HAVE_SRP
         #error "WOLFCRYPT_HAVE_SRP is required for Apple Homekit"
     #endif
@@ -3717,8 +4014,21 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#if defined(CONFIG_WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_NO_ASN_STRICT)
+    /* The settings.h and/or user_settings.h should have detected config
+     * valuse from Kconfig and set the appropriate wolfSSL macro: */
+    #error "CONFIG_WOLFSSL_NO_ASN_STRICT found without WOLFSSL_NO_ASN_STRICT"
+#endif
+
 #if defined(WOLFSSL_ESPIDF) && defined(ARDUINO)
     #error "Found both ESPIDF and ARDUINO. Pick one."
+#endif
+
+#if defined(CONFIG_MBEDTLS_CERTIFICATE_BUNDLE) && \
+    defined(CONFIG_WOLFSSL_CERTIFICATE_BUNDLE) && \
+            CONFIG_MBEDTLS_CERTIFICATE_BUNDLE  && \
+            CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+    #error "mbedTLS and wolfSSL Certificate Bundles both enabled. Pick one".
 #endif
 
 #if defined(HAVE_FIPS) && defined(HAVE_PKCS11)

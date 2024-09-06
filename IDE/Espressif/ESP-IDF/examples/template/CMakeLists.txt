@@ -1,9 +1,12 @@
 # wolfSSL Espressif Example Project CMakeLists.txt
-#   v1.0
+#   v1.2
 #
 # The following lines of boilerplate have to be in your project's
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.16)
+
+# Optional no watchdog typically used for test & benchmark
+# add_compile_options(-DWOLFSSL_ESP_NO_WATCHDOG=1)
 
 # The wolfSSL CMake file should be able to find the source code.
 # Otherwise, assign an environment variable or set it here:
@@ -68,6 +71,8 @@ else()
     message(STATUS "No conflicting wolfSSL components found.")
 endif()
 
+# Not only is a project-level "set(COMPONENTS" not needed here, this will cause
+# an unintuitive error about  Unknown CMake command "esptool_py_flash_project_args".
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(wolfssl_template)
