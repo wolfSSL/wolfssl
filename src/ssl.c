@@ -14439,9 +14439,6 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
             return "P384_KYBER_LEVEL3";
         case WOLFSSL_P521_KYBER_LEVEL5:
             return "P521_KYBER_LEVEL5";
-#elif defined(HAVE_PQM4)
-        case WOLFSSL_KYBER_LEVEL1:
-            return "KYBER_LEVEL1";
 #elif defined(WOLFSSL_WC_KYBER)
     #ifdef WOLFSSL_KYBER512
         case WOLFSSL_KYBER_LEVEL1:

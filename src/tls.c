@@ -52,7 +52,7 @@
     #include <wolfssl/wolfcrypt/kyber.h>
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
-#elif defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
+#elif defined(HAVE_LIBOQS)
     #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 #endif
@@ -9458,9 +9458,6 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             }
             break;
         }
-    #elif defined(HAVE_PQM4)
-        case WOLFSSL_KYBER_LEVEL1:
-            break;
     #endif
 #endif
         default:
@@ -9529,8 +9526,6 @@ static const word16 preferredGroup[] = {
     WOLFSSL_P256_KYBER_LEVEL1,
     WOLFSSL_P384_KYBER_LEVEL3,
     WOLFSSL_P521_KYBER_LEVEL5,
-#elif defined(HAVE_PQM4)
-    WOLFSSL_KYBER_LEVEL1,
 #endif
     WOLFSSL_NAMED_GROUP_INVALID
 };
@@ -13171,8 +13166,6 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_LEVEL5,
                                      ssl->heap);
-#elif defined(HAVE_PQM4)
-    ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1, ssl->heap);
 #endif /* HAVE_LIBOQS */
 #endif /* WOLFSSL_HAVE_KYBER */
 

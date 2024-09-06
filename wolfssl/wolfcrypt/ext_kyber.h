@@ -29,8 +29,8 @@
 #ifdef WOLFSSL_HAVE_KYBER
 #include <wolfssl/wolfcrypt/kyber.h>
 
-#if !defined(HAVE_LIBOQS) && !defined(HAVE_PQM4)
-#error "This code requires liboqs or pqm4"
+#if !defined(HAVE_LIBOQS)
+#error "This code requires liboqs"
 #endif
 
 #if defined(WOLFSSL_WC_KYBER)
@@ -41,15 +41,6 @@
     #include <oqs/kem.h>
     #define EXT_KYBER_MAX_PRIV_SZ OQS_KEM_kyber_1024_length_secret_key
     #define EXT_KYBER_MAX_PUB_SZ  OQS_KEM_kyber_1024_length_public_key
-#elif defined(HAVE_PQM4)
-    #include "api_kyber.h"
-    #define PQM4_PUBLIC_KEY_LENGTH    CRYPTO_PUBLICKEYBYTES
-    #define PQM4_PRIVATE_KEY_LENGTH   CRYPTO_SECRETKEYBYTES
-    #define PQM4_SHARED_SECRET_LENGTH CRYPTO_BYTES
-    #define PQM4_CIPHERTEXT_LENGTH    CRYPTO_CIPHERTEXTBYTES
-
-    #define EXT_KYBER_MAX_PRIV_SZ PQM4_PRIVATE_KEY_LENGTH
-    #define EXT_KYBER_MAX_PUB_SZ  PQM4_PUBLIC_KEY_LENGTH
 #endif
 
 struct KyberKey {

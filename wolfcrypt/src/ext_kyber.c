@@ -168,12 +168,6 @@ int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
         }
     }
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    (void)key;
-    if (ret == 0) {
-        *len = PQM4_PRIVATE_KEY_LENGTH;
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -216,12 +210,6 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
         }
     }
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    (void)key;
-    if (ret == 0) {
-        *len = PQM4_PUBLIC_KEY_LENGTH;
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -264,12 +252,6 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
         }
     }
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    (void)key;
-    if (ret == 0) {
-        *len = PQM4_CIPHERTEXT_LENGTH;
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -301,7 +283,7 @@ int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len)
 /**
  * Make a Kyber key object using a random number generator.
  *
- * NOTE: rng is ignored. OQS and PQM4 don't use our RNG.
+ * NOTE: rng is ignored. OQS doesn't use our RNG.
  *
  * @param  [in, out]  key   Kyber key ovject.
  * @param  [in]       rng   Random number generator.
@@ -362,14 +344,6 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     wolfSSL_liboqsRngMutexUnlock();
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    if (ret == 0) {
-        if (crypto_kem_keypair(key->pub, key->priv) != 0) {
-            WOLFSSL_MSG("PQM4 keygen failure");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-#endif /* HAVE_PQM4 */
 
     if (ret != 0) {
         ForceZero(key, sizeof(*key));
@@ -394,7 +368,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 {
     (void)rand;
     (void)len;
-    /* OQS and PQM4 don't support external randomness. */
+    /* OQS doesn't support external randomness. */
     return wc_KyberKey_MakeKey(key, NULL);
 }
 
@@ -471,14 +445,6 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     wolfSSL_liboqsRngMutexUnlock();
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    if (ret == 0) {
-        if (crypto_kem_enc(ct, ss, key->pub) != 0) {
-            WOLFSSL_MSG("PQM4 Encapsulation failure.");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 }
@@ -501,7 +467,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 {
     (void)rand;
     (void)len;
-    /* OQS and PQM4 don't support external randomness. */
+    /* OQS doesn't support external randomness. */
     return wc_KyberKey_Encapsulate(key, ct, ss, NULL);
 }
 
@@ -577,14 +543,6 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 
     OQS_KEM_free(kem);
 #endif /* HAVE_LIBOQS */
-#ifdef HAVE_PQM4
-    if (ret == 0) {
-        if (crypto_kem_dec(ss, ct, key->priv) != 0) {
-            WOLFSSL_MSG("PQM4 Decapsulation failure.");
-            ret = BAD_FUNC_ARG;
-        }
-    }
-#endif /* HAVE_PQM4 */
 
     return ret;
 

@@ -314,7 +314,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
 #endif
-#if defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
+#if defined(HAVE_LIBOQS)
     #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 #endif
@@ -37758,7 +37758,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 #endif /* HAVE_ED448 */
 
 #ifdef WOLFSSL_HAVE_KYBER
-#ifdef WOLFSSL_WC_KYBER /* OQS and PQM4 do not support KATs */
+#ifdef WOLFSSL_WC_KYBER /* OQS does not support KATs */
 #ifdef WOLFSSL_KYBER512
 static wc_test_ret_t kyber512_kat(void)
 {

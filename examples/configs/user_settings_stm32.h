@@ -119,8 +119,8 @@ extern "C" {
 /*---------- WOLF_CONF_TEST -----------*/
 #define WOLF_CONF_TEST      1
 
-/*---------- WOLF_CONF_PQM4 -----------*/
-#define WOLF_CONF_PQM4      0
+/*---------- WOLF_CONF_KYBER -----------*/
+#define WOLF_CONF_kYBER      0
 
 /* ------------------------------------------------------------------------- */
 /* Hardware platform */
@@ -373,14 +373,6 @@ extern "C" {
     #define NO_SESSION_CACHE
 #endif
 
-/* Post Quantum
- * Note: PQM4 is compatible with STM32. The project can be found at:
- * https://github.com/mupq/pqm4
- */
-#if defined(WOLF_CONF_PQM4) && WOLF_CONF_PQM4 == 1
-    #define HAVE_PQM4
-#endif
-
 /* ------------------------------------------------------------------------- */
 /* Crypto */
 /* ------------------------------------------------------------------------- */
@@ -575,6 +567,35 @@ extern "C" {
 #else
     #define NO_MD5
 #endif
+
+/* ------------------------------------------------------------------------- */
+/* Post-Quantum Crypto */
+/* ------------------------------------------------------------------------- */
+
+/*
+ * NOTE: this is after the hashing section to override the potential SHA3 undef
+ * above. */
+#if defined(WOLF_CONF_KYBER) && WOLF_CONF_KYBER == 1
+#undef  WOLFSSL_EXPERIMENTAL_SETTINGS
+#define WOLFSSL_EXPERIMENTAL_SETTINGS
+
+#undef  WOLFSSL_HAVE_KYBER
+#define WOLFSSL_HAVE_KYBER
+
+#undef  WOLFSSL_WC_KYBER
+#define WOLFSSL_WC_KYBER
+
+#undef  WOLFSSL_NO_SHAKE128
+#undef  WOLFSSL_SHAKE128
+#define WOLFSSL_SHAKE128
+
+#undef  WOLFSSL_NO_SHAKE256
+#undef  WOLFSSL_SHAKE256
+#define WOLFSSL_SHAKE256
+
+#undef  WOLFSSL_SHA3
+#define WOLFSSL_SHA3
+#endif /* WOLF_CONF_KYBER */
 
 /* ------------------------------------------------------------------------- */
 /* Benchmark / Test */
