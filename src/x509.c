@@ -461,13 +461,13 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
 
     if (!x || !obj) {
         WOLFSSL_MSG("Bad parameter");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     sk = wolfSSL_X509_get0_extensions(x);
     if (!sk) {
         WOLFSSL_MSG("No extensions");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
     lastpos++;
     if (lastpos < 0)
@@ -476,7 +476,7 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
         if (wolfSSL_OBJ_cmp(wolfSSL_sk_X509_EXTENSION_value(sk,
                         lastpos)->obj, obj) == 0)
             return lastpos;
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 }
 
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
@@ -1993,7 +1993,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
  * lastPos : Start search from extension after lastPos.
  *           Set to -1 to search from index 0.
  * return >= 0 If successful the extension index is returned.
- * return -1 If extension is not found or error is encountered.
+ * return WOLFSSL_FATAL_ERROR If extension is not found or error is encountered.
  */
 int wolfSSL_X509_get_ext_by_NID(const WOLFSSL_X509* x509, int nid, int lastPos)
 {
@@ -4503,7 +4503,7 @@ int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
     WOLFSSL_ENTER("wolfSSL_sk_GENERAL_NAME_num");
 
     if (sk == NULL) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     return (int)sk->num;
@@ -4674,7 +4674,7 @@ int wolfSSL_sk_DIST_POINT_num(WOLFSSL_STACK* sk)
     WOLFSSL_ENTER("wolfSSL_sk_DIST_POINT_num");
 
     if (sk == NULL) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     return wolfSSL_sk_num(sk);
@@ -5335,7 +5335,7 @@ int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
 {
     WOLFSSL_ENTER("wolfSSL_X509_NAME_get_sz");
     if (!name)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     return name->sz;
 }
 
@@ -9084,7 +9084,7 @@ int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
     return wolfSSL_X509_cmp_time(asnTime, NULL);
 }
 
-/* return -1 if asnTime is earlier than or equal to cmpTime, and 1 otherwise
+/* return WOLFSSL_FATAL_ERROR if asnTime is earlier than or equal to cmpTime, and 1 otherwise
  * return 0 on error
  */
 int wolfSSL_X509_cmp_time(const WOLFSSL_ASN1_TIME* asnTime, time_t* cmpTime)
@@ -10924,7 +10924,7 @@ static int ConvertNIDToWolfSSL(int nid)
         case NID_favouriteDrink: return ASN_FAVOURITE_DRINK;
         default:
             WOLFSSL_MSG("Attribute NID not found");
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
     }
 }
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA ||
@@ -12424,7 +12424,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                                            int idx) {
         if (!name || idx >= MAX_NAME_ENTRIES ||
                 !obj || !obj->obj) {
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
 
         if (idx < 0) {
@@ -12441,7 +12441,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
                 }
             }
         }
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
@@ -12777,7 +12777,7 @@ int wolfSSL_sk_X509_NAME_find(const WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk,
             return i;
         }
     }
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 }
 
 /* Name Entry */
@@ -13417,7 +13417,7 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
     WOLFSSL_ENTER("wolfSSL_sk_X509_num");
 
     if (s == NULL)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     return (int)s->num;
 }
 
@@ -13549,7 +13549,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
     else {
         for (i = 0; i < (chklen > 1 ? chklen - 1 : chklen); i++) {
             if (chk[i] == '\0') {
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 goto out;
             }
         }

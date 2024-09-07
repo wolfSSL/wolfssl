@@ -3149,7 +3149,7 @@ int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
             *pSz = pLen;
             *qSz = qLen;
             *gSz = gLen;
-            ret = LENGTH_ONLY_E;
+            ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
     }
 

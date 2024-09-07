@@ -622,7 +622,7 @@ int wc_ExportSakkeKey(SakkeKey* key, byte* data, word32* sz)
 
     if ((err == 0) && (data == NULL)) {
         *sz = (word32)(3 * key->ecc.dp->size);
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err >= 0) && (*sz < (word32)(3 * key->ecc.dp->size))) {
         err = BUFFER_E;
@@ -731,7 +731,7 @@ int wc_ExportSakkePrivateKey(SakkeKey* key, byte* data, word32* sz)
 
     if ((err == 0) && (data == NULL)) {
         *sz = (word32)key->ecc.dp->size;
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err >= 0) && (*sz < (word32)key->ecc.dp->size)) {
         err = BUFFER_E;
@@ -848,7 +848,7 @@ static int sakke_encode_point(ecc_point* point, word32 size, byte* data,
 
     if (data == NULL) {
         *sz = size * 2 + !raw;
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < size * 2 + !raw)) {
         err = BUFFER_E;
@@ -1419,7 +1419,7 @@ int wc_GenerateSakkeRskTable(const SakkeKey* key, const ecc_point* rsk,
     }
     if ((err == 0) && (table == NULL)) {
         *len = 0;
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*len != 0)) {
         err = BUFFER_E;
@@ -6421,7 +6421,7 @@ int wc_GetSakkePointI(SakkeKey* key, byte* data, word32* sz)
 
     if ((err == 0) && (data == NULL)) {
         *sz = (word32)(key->ecc.dp->size * 2);
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < (word32)key->ecc.dp->size * 2)) {
         err = BUFFER_E;
@@ -6531,7 +6531,7 @@ int wc_GenerateSakkePointITable(SakkeKey* key, byte* table, word32* len)
 #else
     if ((err == 0) && (table == NULL)) {
         *len = 0;
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*len != 0)) {
         *len = 0;
@@ -6729,7 +6729,7 @@ int wc_MakeSakkeEncapsulatedSSV(SakkeKey* key, enum wc_HashType hashType,
         *authSz = outSz;
 
         if (auth == NULL) {
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
     }
 
@@ -6824,7 +6824,7 @@ int wc_GenerateSakkeSSV(SakkeKey* key, WC_RNG* rng, byte* ssv, word16* ssvSz)
         /* Return length only if an output buffer is NULL. */
         if (ssv == NULL) {
             *ssvSz = (word16) (n / 8);
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else {
             n = *ssvSz;

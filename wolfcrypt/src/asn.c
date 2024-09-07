@@ -3665,7 +3665,7 @@ int StreamOctetString(const byte* inBuf, word32 inBufSz, byte* out, word32* outS
     }
     else {
         *outSz = outIdx;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 }
 
@@ -4033,7 +4033,7 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
     /* Return the length of the DER encoded ASN.1 */
     *derSz = j;
     if (der == NULL) {
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 end:
 #ifdef WOLFSSL_SMALL_STACK
@@ -7238,7 +7238,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 
         WOLFSSL_MSG("Checking size of PKCS8");
 
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     WOLFSSL_ENTER("wc_CreatePKCS8Key");
@@ -7366,7 +7366,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
     /* Check for buffer to encoded into. */
     if ((ret == 0) && (out == NULL)) {
         WOLFSSL_MSG("Checking size of PKCS8");
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if (ret == 0) {
         /*  Encode PKCS #8 key into buffer. */
@@ -8573,7 +8573,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
         if (out == NULL) {
             /* Sequence tag, length */
             *outSz = 1 + SetLength(outerLen, NULL) + outerLen;
-            return LENGTH_ONLY_E;
+            return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         SetOctetString(keySz + padSz, out);
 
@@ -9287,7 +9287,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
     if (out == NULL) {
         *outSz = totalSz;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     inOutIdx = 0;
@@ -9443,7 +9443,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     /* Return size when no output buffer. */
     if ((ret == 0) && (out == NULL)) {
         *outSz = (word32)sz;
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* Check output buffer is big enough for encoded data. */
     if ((ret == 0) && (sz > (int)*outSz)) {
@@ -10218,7 +10218,7 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
     /* if no output, then just getting size */
     if (output == NULL) {
         *outSz = total;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     /* make sure output fits in buffer */
@@ -10293,7 +10293,7 @@ int wc_DhKeyToDer(DhKey* key, byte* output, word32* outSz, int exportPriv)
     ret = SizeASN_Items(dhKeyPkcs8ASN, dataASN, dhKeyPkcs8ASN_Length, &sz);
     if (output == NULL) {
         *outSz = (word32)sz;
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* Check buffer is big enough for encoding. */
     if ((ret == 0) && ((int)*outSz < sz)) {
@@ -10357,7 +10357,7 @@ int wc_DhParamsToDer(DhKey* key, byte* output, word32* outSz)
 
     if (output == NULL) {
         *outSz = idx;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* make sure output fits in buffer */
     if (idx > *outSz) {
@@ -10405,7 +10405,7 @@ int wc_DhParamsToDer(DhKey* key, byte* output, word32* outSz)
     }
     if ((ret == 0) && (output == NULL)) {
         *outSz = (word32)sz;
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* Check buffer is big enough for encoding. */
     if ((ret == 0) && (*outSz < (word32)sz)) {
@@ -11256,7 +11256,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
     *inLen = outLen;
     if (output == NULL) {
         FreeTmpDsas(tmps, key->heap, ints);
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if (outLen > *inLen) {
         FreeTmpDsas(tmps, key->heap, ints);
@@ -11318,7 +11318,7 @@ static int DsaKeyIntsToDer(DsaKey* key, byte* output, word32* inLen,
     }
     if ((ret == 0) && (output == NULL)) {
         *inLen = (word32)sz;
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* Check buffer is big enough for encoding. */
     if ((ret == 0) && (sz > (int)*inLen)) {
@@ -11369,7 +11369,7 @@ int wc_DsaKeyToParamsDer(DsaKey* key, byte* output, word32 inLen)
 }
 
 /* This version of the function allows output to be NULL. In that case, the
-   DsaKeyIntsToDer will return LENGTH_ONLY_E and the required output buffer
+   DsaKeyIntsToDer will return WC_NO_ERR_TRACE(LENGTH_ONLY_E) and the required output buffer
    size will be pointed to by inLen. */
 int wc_DsaKeyToParamsDer_ex(DsaKey* key, byte* output, word32* inLen)
 {
@@ -11875,7 +11875,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int outLen,
             pubSz = 1 + pubSz;
         else
             pubSz = 1 + 2 * pubSz;
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     #else
         ret = wc_ecc_export_x963_ex(key, NULL, &pubSz, comp);
     #endif
@@ -26113,7 +26113,7 @@ int wc_GetPubKeyDerFromCert(struct DecodedCert* cert,
     /* if derKey is NULL, return required output buffer size in derKeySz */
     if (derKey == NULL) {
         *derKeySz = cert->pubKeySize;
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (ret == 0) {
@@ -26180,7 +26180,7 @@ int wc_GetUUIDFromCert(struct DecodedCert* cert, byte* uuid, word32* uuidSz)
 
             if (uuid == NULL) {
                 *uuidSz = (word32)id->len;
-                return LENGTH_ONLY_E;
+                return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
 
             if ((int)*uuidSz < id->len) {
@@ -26208,7 +26208,7 @@ int wc_GetFASCNFromCert(struct DecodedCert* cert, byte* fascn, word32* fascnSz)
         if (id != NULL && id->oidSum == FASCN_OID) {
             if (fascn == NULL) {
                 *fascnSz = (word32)id->len;
-                return LENGTH_ONLY_E;
+                return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
 
             if ((int)*fascnSz < id->len) {
@@ -34686,7 +34686,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
             XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
     #endif
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if (inLen != NULL && totalSz > *inLen) {
         #ifndef WOLFSSL_NO_MALLOC
@@ -34798,7 +34798,7 @@ int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 *inLen,
     /* Return the size if no buffer. */
     if ((ret == 0) && (output == NULL)) {
         *inLen = (word32)sz;
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     /* Check the buffer is big enough. */
     if ((ret == 0) && (inLen != NULL) && (sz > (int)*inLen)) {
@@ -34937,7 +34937,7 @@ static int eccToPKCS8(ecc_key* key, byte* output, word32* outLen,
         XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
         *outLen = pkcs8Sz;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
 
     }
     else if (*outLen < pkcs8Sz) {

@@ -200,7 +200,7 @@ static sword32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
 
     /* We check if the buf is at least RECORD_HEADER_SZ */
     if (sz < RECORD_HEADER_SZ) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (qr->rec_hdr_remain == 0) {
@@ -785,7 +785,7 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
 
             /* record too small to be fit into a RecordLayerHeader struct. */
             if (n == -1) {
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
             }
             if (quic_record_done(ssl->quic.input_head)) {
                 QuicRecord* qr = ssl->quic.input_head;

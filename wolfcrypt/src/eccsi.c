@@ -516,7 +516,7 @@ static int eccsi_encode_point(ecc_point* point, word32 size, byte* data,
 
     if (data == NULL) {
         *sz = size * 2 + !raw;
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < size * 2 + !raw)) {
         err = BUFFER_E;
@@ -655,7 +655,7 @@ int wc_ExportEccsiKey(EccsiKey* key, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)(key->ecc.dp->size * 3);
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size * 3) {
             err = BUFFER_E;
@@ -777,7 +777,7 @@ int wc_ExportEccsiPrivateKey(EccsiKey* key, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)key->ecc.dp->size;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size) {
             err = BUFFER_E;
@@ -1016,7 +1016,7 @@ int wc_EncodeEccsiPair(const EccsiKey* key, mp_int* ssk, ecc_point* pvt,
 
     if ((err == 0) && (data == NULL)) {
         *sz = (word32)(key->ecc.dp->size * 3);
-        err = LENGTH_ONLY_E;
+        err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if ((err == 0) && (*sz < (word32)(key->ecc.dp->size * 3))) {
         err = BUFFER_E;
@@ -1077,7 +1077,7 @@ int wc_EncodeEccsiSsk(const EccsiKey* key, mp_int* ssk, byte* data, word32* sz)
     if (err == 0) {
         if (data == NULL) {
             *sz = (word32)key->ecc.dp->size;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
         else if (*sz < (word32)key->ecc.dp->size) {
             err = BUFFER_E;
@@ -2000,7 +2000,7 @@ int wc_SignEccsiHash(EccsiKey* key, WC_RNG* rng, enum wc_HashType hashType,
         sz = (word32)key->ecc.dp->size;
         if (sig == NULL) {
             *sigSz = sz * 4 + 1;
-            err = LENGTH_ONLY_E;
+            err = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
     }
     if ((err == 0) && (*sigSz < sz * 4 + 1)) {
