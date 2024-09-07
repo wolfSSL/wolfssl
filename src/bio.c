@@ -24,7 +24,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#if defined(OPENSSL_EXTRA) && !defined(_WIN32)
+#if defined(OPENSSL_EXTRA) && !defined(_WIN32) && !defined(_GNU_SOURCE)
     /* turn on GNU extensions for XVASPRINTF with wolfSSL_BIO_printf */
     #undef  _GNU_SOURCE
     #define _GNU_SOURCE
