@@ -3451,14 +3451,25 @@ int wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, byte* in, word16 inSz)
         return BAD_FUNC_ARG;
     }
 
-    pkcs7->customSKID = (byte*)XMALLOC(inSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-    if (pkcs7->customSKID == NULL) {
-        ret = MEMORY_E;
+    if (in == NULL) {
+        if (pkcs7->customSKID != NULL) {
+            XFREE(pkcs7->customSKID, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        }
+        pkcs7->customSKIDSz = 0;
+        pkcs7->customSKID   = NULL;
     }
     else {
-        XMEMCPY(pkcs7->customSKID, in, inSz);
-        pkcs7->customSKIDSz = inSz;
+        pkcs7->customSKID = (byte*)XMALLOC(inSz, pkcs7->heap,
+            DYNAMIC_TYPE_PKCS7);
+        if (pkcs7->customSKID == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(pkcs7->customSKID, in, inSz);
+            pkcs7->customSKIDSz = inSz;
+        }
     }
+
     return ret;
 }
 
