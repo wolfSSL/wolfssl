@@ -3986,7 +3986,7 @@ unsigned char* wolfSSL_ASN1_TIME_get_data(const WOLFSSL_ASN1_TIME *t)
  */
 int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
 {
-    int ret = 1;
+    int ret = WOLFSSL_SUCCESS;
     char buf[MAX_TIME_STRING_SZ];
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_check");
@@ -3994,7 +3994,7 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
     /* If can convert to human readable then format good. */
     if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)a, buf,
             MAX_TIME_STRING_SZ) == NULL) {
-        ret = 0;
+        ret = WOLFSSL_FAILURE;
     }
 
     return ret;
@@ -4012,7 +4012,7 @@ int wolfSSL_ASN1_TIME_check(const WOLFSSL_ASN1_TIME* a)
  */
 int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *t, const char *str)
 {
-    int ret = 1;
+    int ret = WOLFSSL_SUCCESS;
     int slen = 0;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_set_string");
@@ -4021,15 +4021,15 @@ int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *t, const char *str)
         WOLFSSL_MSG("Bad parameter");
         ret = 0;
     }
-    if (ret == 1) {
+    if (ret == WOLFSSL_SUCCESS) {
         /* Get length of string including NUL terminator. */
         slen = (int)XSTRLEN(str) + 1;
         if (slen > CTC_DATE_SIZE) {
             WOLFSSL_MSG("Date string too long");
-            ret = 0;
+            ret = WOLFSSL_FAILURE;
         }
     }
-    if ((ret == 1) && (t != NULL)) {
+    if ((ret == WOLFSSL_SUCCESS) && (t != NULL)) {
         /* Copy in string including NUL terminator. */
         XMEMCPY(t->data, str, (size_t)slen);
         /* Do not include NUL terminator in length. */
@@ -4039,6 +4039,21 @@ int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *t, const char *str)
             V_ASN1_GENERALIZEDTIME);
     }
 
+    return ret;
+}
+
+int wolfSSL_ASN1_TIME_set_string_X509(WOLFSSL_ASN1_TIME *t, const char *str)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_set_string_X509");
+
+    if (t == NULL)
+        ret = WOLFSSL_FAILURE;
+    if (ret == WOLFSSL_SUCCESS)
+        ret = wolfSSL_ASN1_TIME_set_string(t, str);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = wolfSSL_ASN1_TIME_check(t);
     return ret;
 }
 

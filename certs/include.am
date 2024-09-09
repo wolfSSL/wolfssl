@@ -6,6 +6,7 @@ EXTRA_DIST += \
              certs/ca-cert-chain.der \
              certs/ca-cert.pem \
              certs/ca-key.pem \
+             certs/ca-key-pkcs8-attribute.der \
              certs/client-cert.pem \
              certs/client-keyEnc.pem \
              certs/client-key.pem \

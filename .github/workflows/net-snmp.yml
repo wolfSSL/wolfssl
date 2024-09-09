@@ -58,7 +58,7 @@ jobs:
 
       - name: untar build-dir
         run: tar -xf build-dir.tgz
-    
+
       - name: Checkout OSP
         uses: actions/checkout@v4
         with:

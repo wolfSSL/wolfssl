@@ -74,7 +74,7 @@ jobs:
           configure: --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-rpath=-Wl,-rpath=
           check: false
 
-      # make tests take >20 minutes. Consider limiting? 
+      # make tests take >20 minutes. Consider limiting?
       - name: Run tests
         working-directory: ./openssh
         run: |

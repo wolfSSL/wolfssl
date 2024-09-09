@@ -154,7 +154,7 @@
       -# Set the RSK and, optionally precomputation table: wc_SetSakkeRsk()
       -# Derive SSV and auth data: wc_DeriveSakkeSSV()
       -# Free SAKKE Key: wc_FreeSakkeKey()
-    
+
     \defgroup SAKKE_Setup Setup SAKKE Key
     Operations for establishing a SAKKE key.
 

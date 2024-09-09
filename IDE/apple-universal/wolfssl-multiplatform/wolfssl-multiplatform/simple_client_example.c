@@ -40,7 +40,7 @@ int simple_client_example(void)
     WOLFSSL_CTX* ctx;
     WOLFSSL* ssl;
     int sockfd, ret;
-    
+
     /* Resolve the server address */
     struct addrinfo hints, *server_addr;
     memset(&hints, 0, sizeof(hints));
@@ -84,7 +84,7 @@ int simple_client_example(void)
         close(sockfd);
         return 1;
     }
-    
+
     /* Load CA certificate into WOLFSSL_CTX
      * NOTE: CERT_PATH macro is set relative to Xcode $(PROJECT_DIR) environment
      * variable in the preprocessor macros section of the project build settings

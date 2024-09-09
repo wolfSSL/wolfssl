@@ -71,5 +71,5 @@ benchmarking using threads on aDSP
 20000 verifies on 4 threads took 23.261446 seconds
 
 benchmarking 1 thread on cDSP
-5000 verifies on 1 threads took 18.560995 seconds 
+5000 verifies on 1 threads took 18.560995 seconds
 

@@ -333,6 +333,12 @@ int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
     if (ret < 0) {
         return -1;
     }
+    if (ret != inLen) {
+        return -1;
+    }
+    if (XMEMCMP(in, plain, ret) != 0) {
+        return -1;
+    }
     \endcode
 
     \sa wc_RsaPad
@@ -401,6 +407,12 @@ int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
     memset(plain, 0, sizeof(plain));
     ret = wc_RsaSSL_Verify(out, ret, plain, sizeof(plain), &key);
     if (ret < 0) {
+        return -1;
+    }
+    if (ret != inLen) {
+        return -1;
+    }
+    if (XMEMCMP(in, plain, ret) != 0) {
         return -1;
     }
     \endcode

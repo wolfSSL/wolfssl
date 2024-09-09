@@ -1216,7 +1216,7 @@ int wc_Sha512Transform(wc_Sha512* sha512, const unsigned char* data)
         ret = BAD_FUNC_ARG;
     }
     else {
-        ByteReverseWords(sha512->buffer, (word32*)data, WC_SHA512_BLOCK_SIZE);
+        ByteReverseWords((word32*)sha512->buffer, (word32*)data, WC_SHA512_BLOCK_SIZE);
         Sha512Transform(sha512, (byte*)sha512->buffer, 1);
     }
 

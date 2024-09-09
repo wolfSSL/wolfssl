@@ -1,5 +1,5 @@
 /*!
-    \ingroup CryptoCb 
+    \ingroup CryptoCb
     \brief  この関数は、Crypto Operationsをキーストア、Secure Element、HSM、PKCS11またはTPMなどの外部ハードウェアにオフロードするための固有のデバイス識別子（DEVID）とコールバック関数を登録します。CryptoコールバックのSTSAFEの場合は、wolfcrypt / src / port / st / stsafe.cとwolfssl_stsafe_cryptodevcb関数を参照してください。TPMベースのCryptoコールバックの例では、wolftpm src / tpm2_wrap.cのwolftpm2_cryptodevcb関数を参照してください。
     \return CRYPTOCB_UNAVAILABLE  ソフトウェア暗号を使用するためにフォールバックする
     \return 0  成功のために
@@ -73,7 +73,7 @@
 int  wc_CryptoCb_RegisterDevice(int devId, CryptoDevCallbackFunc cb, void* ctx);
 
 /*!
-    \ingroup CryptoCb 
+    \ingroup CryptoCb
     \brief  この関数は、固有のデバイス識別子（devid）コールバック関数を除外します。
     \return none  いいえ返します。
     _Example_

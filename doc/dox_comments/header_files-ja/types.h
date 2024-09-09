@@ -1,5 +1,5 @@
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  これは実際には関数ではなく、むしろプリプロセッサマクロであり、ユーザーは自分のMalloc、Realloc、および標準のCメモリ関数の代わりに自由な関数に置き換えることができます。外部メモリ機能を使用するには、xmalloc_userを定義します。これにより、メモリ機能をフォームの外部関数に置き換えます.extern void * xmalloc（size_t n、void * heap、int型）; extern void * XrealLoc（void * p、size_t n、void *ヒープ、int型）。 extern void xfree（void * p、void * heap、int型）; wolfssl_malloc、wolfssl_realloc、wolfssl_freeの代わりに基本的なCメモリ機能を使用するには、NO_WOLFSSL_MEMORYを定義します。これにより、メモリ関数が次のものに置き換えられます。#define Xmalloc（s、h、t）（（void）h、（void）t、malloc（（s）））#define xfree（p、h、t）{void * xp =（p）; if（（xp））free（（xp））; #define xrealloc（p、n、h、t）Realloc（（p）、（n））これらのオプションのどれも選択されていない場合、システムはデフォルトで使用されます。 WolfSSLメモリ機能ユーザーはコールバックフックを介してカスタムメモリ機能を設定できます（Wolfssl_Malloc、WolfSSL_Realloc、wolfssl_freeを参照）。このオプションは、メモリ関数を次のものに置き換えます。#define xmalloc（s、h、t）（（void）H、（Void）T、wolfssl_malloc（（s）））#define xfree（p、h、t）{void * XP =（P）; if（（xp））wolfssl_free（（xp））; #define xrealloc（p、n、h、t）wolfssl_realloc（（p）、（n））
     \return pointer  成功したメモリへのポインタを返します
 	\return NULL  失敗した
@@ -21,7 +21,7 @@
 void* XMALLOC(size_t n, void* heap, int type);
 
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  これは実際には関数ではなく、むしろプリプロセッサマクロであり、ユーザーは自分のMalloc、Realloc、および標準のCメモリ関数の代わりに自由な関数に置き換えることができます。外部メモリ機能を使用するには、xmalloc_userを定義します。これにより、メモリ機能をフォームの外部関数に置き換えます.extern void * xmalloc（size_t n、void * heap、int型）; extern void * XrealLoc（void * p、size_t n、void *ヒープ、int型）。 extern void xfree（void * p、void * heap、int型）; wolfssl_malloc、wolfssl_realloc、wolfssl_freeの代わりに基本的なCメモリ機能を使用するには、NO_WOLFSSL_MEMORYを定義します。これにより、メモリ関数が次のものに置き換えられます。#define Xmalloc（s、h、t）（（void）h、（void）t、malloc（（s）））#define xfree（p、h、t）{void * xp =（p）; if（（xp））free（（xp））; #define xrealloc（p、n、h、t）Realloc（（p）、（n））これらのオプションのどれも選択されていない場合、システムはデフォルトで使用されます。 WolfSSLメモリ機能ユーザーはコールバックフックを介してカスタムメモリ機能を設定できます（Wolfssl_Malloc、WolfSSL_Realloc、wolfssl_freeを参照）。このオプションは、メモリ関数を次のものに置き換えます。#define xmalloc（s、h、t）（（void）H、（Void）T、wolfssl_malloc（（s）））#define xfree（p、h、t）{void * XP =（P）; if（（xp））wolfssl_free（（xp））; #define xrealloc（p、n、h、t）wolfssl_realloc（（p）、（n））
     \return Return  成功したメモリを割り当てるポインタ
 	\return NULL  失敗した
@@ -42,7 +42,7 @@ void* XMALLOC(size_t n, void* heap, int type);
 void* XREALLOC(void *p, size_t n, void* heap, int type);
 
 /*!
-    \ingroup Memory 
+    \ingroup Memory
     \brief  これは実際には関数ではなく、むしろプリプロセッサマクロであり、ユーザーは自分のMalloc、Realloc、および標準のCメモリ関数の代わりに自由な関数に置き換えることができます。外部メモリ機能を使用するには、xmalloc_userを定義します。これにより、メモリ機能をフォームの外部関数に置き換えます.extern void * xmalloc（size_t n、void * heap、int型）; extern void * XrealLoc（void * p、size_t n、void *ヒープ、int型）。 extern void xfree（void * p、void * heap、int型）; wolfssl_malloc、wolfssl_realloc、wolfssl_freeの代わりに基本的なCメモリ機能を使用するには、NO_WOLFSSL_MEMORYを定義します。これにより、メモリ関数が次のものに置き換えられます。#define Xmalloc（s、h、t）（（void）h、（void）t、malloc（（s）））#define xfree（p、h、t）{void * xp =（p）; if（（xp））free（（xp））; #define xrealloc（p、n、h、t）Realloc（（p）、（n））これらのオプションのどれも選択されていない場合、システムはデフォルトで使用されます。 WolfSSLメモリ機能ユーザーはコールバックフックを介してカスタムメモリ機能を設定できます（Wolfssl_Malloc、WolfSSL_Realloc、wolfssl_freeを参照）。このオプションは、メモリ関数を次のものに置き換えます。#define xmalloc（s、h、t）（（void）H、（Void）T、wolfssl_malloc（（s）））#define xfree（p、h、t）{void * XP =（P）; if（（xp））wolfssl_free（（xp））; #define xrealloc（p、n、h、t）wolfssl_realloc（（p）、（n））
     \return none  いいえ返します。
     \param p  無料のアドレスへのポインタ
@@ -63,7 +63,7 @@ void* XREALLOC(void *p, size_t n, void* heap, int type);
 void XFREE(void *p, void* heap, int type);
 
 /*!
-    \ingroup Math 
+    \ingroup Math
     \brief  この関数はコンパイル時クラスの設定をチェックします。設定が正しく機能するためのライブラリ間のライブラリ間で一致する必要があるため、ユーザーがWolfCryptライブラリを独立して使用している場合は重要です。このチェックはCheckCtcSettings（）として定義されています。これは、CheckRuntimeSettingsとCTC_Settingsを比較するだけで、ミスマッチがある場合は0、または1が一致した場合は1を返します。
     \return settings  実行時CTC_SETTINGS（コンパイル時設定）を返します。
     _Example_

@@ -24,7 +24,7 @@ jobs:
             wolf_extra_config: --disable-tls13
           - build_id: hostap-vm-build2
             wolf_extra_config: >-
-              --enable-wpas-dpp --enable-brainpool --with-eccminsz=192 
+              --enable-wpas-dpp --enable-brainpool --with-eccminsz=192
               --enable-tlsv10 --enable-oldtls
     name: Build wolfSSL
     runs-on: ubuntu-latest
@@ -87,7 +87,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
-          repository: torvalds/linux 
+          repository: torvalds/linux
           path: linux
 
       - name: Compile linux
@@ -199,7 +199,7 @@ jobs:
       - name: Checkout hostap
         uses: actions/checkout@v4
         with:
-          repository: julek-wolfssl/hostap-mirror 
+          repository: julek-wolfssl/hostap-mirror
           path: hostap
           ref: ${{ matrix.config.hostap_ref }}
 
@@ -233,7 +233,7 @@ jobs:
           fi
 
       - if: ${{ matrix.hostapd }}
-        name: Setup hostapd config file 
+        name: Setup hostapd config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/hostapd.config \
              hostap/hostapd/.config
@@ -243,7 +243,7 @@ jobs:
           EOF
 
       - if: ${{ matrix.wpa_supplicant }}
-        name: Setup wpa_supplicant config file 
+        name: Setup wpa_supplicant config file
         run: |
           cp wolfssl/.github/workflows/hostap-files/configs/${{ matrix.config.hostap_ref }}/wpa_supplicant.config \
              hostap/wpa_supplicant/.config

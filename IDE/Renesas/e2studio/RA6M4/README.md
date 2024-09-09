@@ -4,13 +4,13 @@ wolfSSL for Renesas RA Evaluation Kit (EK-RA6M4)
 ## Description
 
 This directory contains e2studio projects targeted at the Renesas RA 32-bit MCUs.
-The example projects include a wolfSSL TLS client. 
+The example projects include a wolfSSL TLS client.
 They also include benchmark and cryptography tests for the wolfCrypt library.
 
 
 The wolfssl project contains both the wolfSSL and wolfCrypt libraries.
 It is built as a `Renesas RA C Library Project` and contains the Renesas RA
-configuration. The wolfssl project uses `Secure Cryptography Engine on RA6 Protected Mode` 
+configuration. The wolfssl project uses `Secure Cryptography Engine on RA6 Protected Mode`
 as hardware acceleration for cypto and TLS operation.
 
 
@@ -85,7 +85,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |:--|:--|
 |Network Events call vApplicationIPNetworkEventHook|Disable|
 |Use DHCP|Disable|
-  
+
 + Save `dummy_library` FSP configuration
 + Copy <u>configuration.xml</u> and pincfg under `dummy_library` to `wolfSSL_RA6M4`
 + Open Smart Configurator by clicking copied configuration.xml
@@ -105,7 +105,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + Copy the following folder and file at `dummy_application` to `test_RA6M4`\
   script/\
   src/sce_tst_thread_entry.c
-  
+
 + Add `sce_test()` call under /* TODO: add your own code here */ line at sce_tst_thread_entry.c
 ```
 ...
@@ -119,7 +119,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 + Download J-Link software from [Segger](https://www.segger.com/downloads/jlink)
 + Choose `J-Link Software and Documentation Pack`
 + Copy sample program files below from `Installed SEGGER` folder, `e.g C:\Program Files\SEGGER\JLink\Samples\RTT`, to /path/to/wolfssl/IDE/Reenesas/e2studio/RA6M4/test/src/SEGGER_RTT\
-  
+
     SEGGER_RTT.c\
     SEGGER_RTT.h\
     SEGGER_RTT_Conf.h\
@@ -134,7 +134,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
     you can specify "RTT control block" to 0x200232a8 by Address\
     OR\
     you can specify "RTT control block" to 0x20020000 0x10000 by Search Range
-  
+
 ## Run Client
 1.) Enable TLS_CLIENT definition in wolfssl_demo.h of test_RA6M4 project
 
@@ -175,7 +175,7 @@ $./examples/server/server -b -d -i -c ./certs/server-ecc.pem -k ./certs/ecc-key.
 
 You will see the following message on J-LinK RTT Viewer when using RSA sign and verify.
 ```
- Start Client Example, 
+ Start Client Example,
  Connecting to 192.168.11.xx
 
 [wolfSSL_TLS_client_do(00)][00]  Start to connect to the server.
@@ -204,7 +204,7 @@ You will see the following message on J-LinK RTT Viewer when using RSA sign and 
 
 You will see the following message on J-LinK RTT Viewer when using ECDSA sign and verify.
 ```
- Start Client Example, 
+ Start Client Example,
  Connecting to 192.168.11.xx
 
 [wolfSSL_TLS_client_do(00)][00]  Start to connect to the server.
@@ -235,7 +235,7 @@ You will see the following message on J-LinK RTT Viewer when using ECDSA sign an
 ### Run Multi Client Session example
 1.) Enable TLS_CLIENT and TLS_MULTITHREAD_TEST definition in wolfssl_demo.h of test_RA6M4 project
 
-2.) Follow [Run Client](#run-client) instruction 
+2.) Follow [Run Client](#run-client) instruction
 
 3.) Prepare peer wolfssl server
 
@@ -258,7 +258,7 @@ $./examples/server/server -b -d -c -i ./certs/server-ecc.pem -k ./certs/ecc-key.
 4.) Run Multi Client Session Example
 You will see similar following message on J-LinK RTT Viewer when using ECDSA sign and verify.
 ```
- Start Client Example, 
+ Start Client Example,
  Connecting to 192.168.11.xx
 
  clt_thd_taskA connecting to 11111 port
@@ -291,7 +291,7 @@ You will see similar following message on J-LinK RTT Viewer when using ECDSA sig
 
 You will see similar following message on J-LinK RTT Viewer when using ECDSA sign and verify.
 ```
- Start Client Example, 
+ Start Client Example,
  Connecting to 192.168.11.xx
 
  clt_thd_taskA connecting to 11111 port

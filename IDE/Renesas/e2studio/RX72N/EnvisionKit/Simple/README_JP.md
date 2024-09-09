@@ -212,7 +212,7 @@ TSIPドライバがサポートする暗号スイートは下記の一覧にな�
 |:--|:--|:--|
 |TLS1.3|RSA/ECDSA certificate|  |
 |||TLS_AES_128_GCM_SHA256|
-|||TLS_AES_128_CCM_SHA256| 
+|||TLS_AES_128_CCM_SHA256|
 |TLS1.2|RSA certificate|
 |||TLS_RSA_WITH_AES_128_CBC_SHA|
 |||TLS_RSA_WITH_AES_256_CBC_SHA|

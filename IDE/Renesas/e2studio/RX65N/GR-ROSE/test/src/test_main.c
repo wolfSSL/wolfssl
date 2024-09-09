@@ -89,14 +89,14 @@ double current_time(int reset)
 
 int SetTsiptlsKey()
 {
-#if defined(WOLFSSL_RENESAS_TSIP) && (WOLFSSL_RENESAS_TSIP_VER >=109)   
-    
+#if defined(WOLFSSL_RENESAS_TSIP) && (WOLFSSL_RENESAS_TSIP_VER >=109)
+
 #if defined(TLS_CLIENT)
 
-    #if defined(USE_ECC_CERT)    
+    #if defined(USE_ECC_CERT)
     /* Root CA cert has ECC-P256 public key */
     tsip_inform_cert_sign((const byte *)ca_ecc_cert_der_sig);
-    #else    
+    #else
     /* Root CA cert has RSA public key */
     tsip_inform_cert_sign((const byte *)ca_cert_der_sig);
     #endif
@@ -120,24 +120,24 @@ int SetTsiptlsKey()
 #endif
 
 #elif defined(WOLFSSL_RENESAS_TSIP) && (WOLFSSL_RENESAS_TSIP_VER < 109)
-    
+
     #if defined(TLS_CLIENT)
- 
+
         tsip_inform_cert_sign((const byte *)ca_cert_sig);
         tsip_inform_user_keys((byte*)&g_key_block_data.encrypted_session_key,
                             (byte*)&g_key_block_data.iv,
                             (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key);
- 
+
     #elif defined(TLS_SERVER)
- 
+
         tsip_inform_cert_sign((const byte *)client_cert_der_sign);
         tsip_inform_user_keys((byte*)&g_key_block_data.encrypted_session_key,
                             (byte*)&g_key_block_data.iv,
                             (byte*)&g_key_block_data.encrypted_user_rsa2048_ne_key);
- 
+
     #endif
 
-#endif    
+#endif
     return 0;
 }
 
@@ -283,7 +283,7 @@ void main(void)
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     SetTsiptlsKey();
 #endif
-    
+
     do {
         if(cipherlist_sz > 0 ) printf("cipher : %s\n", cipherlist[i]);
 

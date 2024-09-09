@@ -126,11 +126,11 @@ static void test_SrpInit(void)
     Srp srp;
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(NULL, SRP_TYPE_TEST_DEFAULT,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpInit(NULL, SRP_TYPE_TEST_DEFAULT,
                                          SRP_CLIENT_SIDE));
     /* // NOLINTBEGIN(clang-analyzer-optin.core.EnumCastOutOfRange) */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, (SrpType)255, SRP_CLIENT_SIDE));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpInit(&srp, (SrpType)255, SRP_CLIENT_SIDE));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT,
                                          (SrpSide)255));
     /* // NOLINTEND(clang-analyzer-optin.core.EnumCastOutOfRange) */
 
@@ -147,8 +147,8 @@ static void test_SrpSetUsername(void)
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT, SRP_CLIENT_SIDE));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetUsername(NULL, username, usernameSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetUsername(&srp, NULL, usernameSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetUsername(NULL, username, usernameSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetUsername(&srp, NULL, usernameSz));
 
     /* success */
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
@@ -165,7 +165,7 @@ static void test_SrpSetParams(void)
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_TEST_DEFAULT, SRP_CLIENT_SIDE));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpSetParams(&srp,
+    AssertIntEQ(WC_NO_ERR_TRACE(SRP_CALL_ORDER_E), wc_SrpSetParams(&srp,
                                                   srp_N,    sizeof(srp_N),
                                                   srp_g,    sizeof(srp_g),
                                                   srp_salt, sizeof(srp_salt)));
@@ -174,19 +174,19 @@ static void test_SrpSetParams(void)
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(NULL,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetParams(NULL,
                                               srp_N,    sizeof(srp_N),
                                               srp_g,    sizeof(srp_g),
                                               srp_salt, sizeof(srp_salt)));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetParams(&srp,
                                               NULL,     sizeof(srp_N),
                                               srp_g,    sizeof(srp_g),
                                               srp_salt, sizeof(srp_salt)));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetParams(&srp,
                                               srp_N,    sizeof(srp_N),
                                               NULL,      sizeof(srp_g),
                                               srp_salt, sizeof(srp_salt)));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetParams(&srp,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetParams(&srp,
                                               srp_N,    sizeof(srp_N),
                                               srp_g,    sizeof(srp_g),
                                               NULL,     sizeof(srp_salt)));
@@ -215,9 +215,9 @@ static void test_SrpSetPassword(void)
     AssertIntEQ(0, wc_SrpSetUsername(&srp, username, usernameSz));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E,
+    AssertIntEQ(WC_NO_ERR_TRACE(SRP_CALL_ORDER_E),
                 wc_SrpSetPassword(&srp, password, passwordSz));
-    AssertIntEQ(SRP_CALL_ORDER_E,
+    AssertIntEQ(WC_NO_ERR_TRACE(SRP_CALL_ORDER_E),
                 wc_SrpGetVerifier(&srp, v, &vSz));
 
     /* fix call order */
@@ -226,16 +226,16 @@ static void test_SrpSetPassword(void)
                                          srp_salt, sizeof(srp_salt)));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetPassword(NULL, password, passwordSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetPassword(&srp, NULL,     passwordSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetPassword(NULL, password, passwordSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetPassword(&srp, NULL,     passwordSz));
 
     /* success */
     AssertIntEQ(0, wc_SrpSetPassword(&srp, password, passwordSz));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetVerifier(NULL, v,    &vSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetVerifier(&srp, NULL, &vSz));
-    AssertIntEQ(BUFFER_E,     wc_SrpGetVerifier(&srp, v,    &vSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetVerifier(NULL, v,    &vSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetVerifier(&srp, NULL, &vSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BUFFER_E),     wc_SrpGetVerifier(&srp, v,    &vSz));
 
     /* success */
     vSz = sizeof(v);
@@ -244,14 +244,14 @@ static void test_SrpSetPassword(void)
     AssertIntEQ(0, XMEMCMP(srp_verifier, v, vSz));
 
     /* invalid params - client side srp */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetVerifier(&srp, v, vSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetVerifier(&srp, v, vSz));
 
     wc_SrpTerm(&srp);
     AssertIntEQ(0, wc_SrpInit(&srp, SRP_TYPE_SHA, SRP_SERVER_SIDE));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetVerifier(NULL, v,    vSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpSetVerifier(&srp, NULL, vSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetVerifier(NULL, v,    vSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpSetVerifier(&srp, NULL, vSz));
 
     /* success */
     AssertIntEQ(0, wc_SrpSetVerifier(&srp, v, vSz));
@@ -273,16 +273,16 @@ static void test_SrpGetPublic(void)
                                          srp_salt, sizeof(srp_salt)));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, pub, &pubSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(SRP_CALL_ORDER_E), wc_SrpGetPublic(&srp, pub, &pubSz));
 
     /* fix call order */
     AssertIntEQ(0, wc_SrpSetPassword(&srp, password, passwordSz));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(NULL, pub, &pubSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(&srp, NULL,   &pubSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetPublic(&srp, pub, NULL));
-    AssertIntEQ(BUFFER_E,     wc_SrpGetPublic(&srp, pub, &pubSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetPublic(NULL, pub, &pubSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetPublic(&srp, NULL,   &pubSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetPublic(&srp, pub, NULL));
+    AssertIntEQ(WC_NO_ERR_TRACE(BUFFER_E),     wc_SrpGetPublic(&srp, pub, &pubSz));
 
     /* success */
     pubSz = sizeof(pub);
@@ -300,7 +300,7 @@ static void test_SrpGetPublic(void)
                                          srp_salt, sizeof(srp_salt)));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpGetPublic(&srp, pub, &pubSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(SRP_CALL_ORDER_E), wc_SrpGetPublic(&srp, pub, &pubSz));
 
     /* fix call order */
     AssertIntEQ(0, wc_SrpSetVerifier(&srp, srp_verifier, sizeof(srp_verifier)));
@@ -328,7 +328,7 @@ static void test_SrpComputeKey(void)
     AssertIntEQ(0, wc_SrpInit(&srv, SRP_TYPE_SHA, SRP_SERVER_SIDE));
 
     /* invalid call order */
-    AssertIntEQ(SRP_CALL_ORDER_E, wc_SrpComputeKey(&cli,
+    AssertIntEQ(WC_NO_ERR_TRACE(SRP_CALL_ORDER_E), wc_SrpComputeKey(&cli,
                                                    clientPubKey, clientPubKeySz,
                                                    serverPubKey, serverPubKeySz));
 
@@ -354,19 +354,19 @@ static void test_SrpComputeKey(void)
     AssertIntEQ(0, XMEMCMP(serverPubKey, srp_B, serverPubKeySz));
 
     /* invalid params */
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpComputeKey(NULL,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpComputeKey(NULL,
                                                clientPubKey, clientPubKeySz,
                                                serverPubKey, serverPubKeySz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpComputeKey(&cli,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpComputeKey(&cli,
                                                NULL,         clientPubKeySz,
                                                serverPubKey, serverPubKeySz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpComputeKey(&cli,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpComputeKey(&cli,
                                                clientPubKey, 0,
                                                serverPubKey, serverPubKeySz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpComputeKey(&cli,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpComputeKey(&cli,
                                                clientPubKey, clientPubKeySz,
                                                NULL,         serverPubKeySz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpComputeKey(&cli,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpComputeKey(&cli,
                                                clientPubKey, clientPubKeySz,
                                                serverPubKey, 0));
 
@@ -432,16 +432,16 @@ static void test_SrpGetProofAndVerify(void)
 
     /* invalid params */
     serverProofSz = 0;
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetProof(NULL, clientProof,&clientProofSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetProof(&cli, NULL,       &clientProofSz));
-    AssertIntEQ(BAD_FUNC_ARG, wc_SrpGetProof(&cli, clientProof,NULL));
-    AssertIntEQ(BUFFER_E,     wc_SrpGetProof(&srv, serverProof,&serverProofSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetProof(NULL, clientProof,&clientProofSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetProof(&cli, NULL,       &clientProofSz));
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG), wc_SrpGetProof(&cli, clientProof,NULL));
+    AssertIntEQ(WC_NO_ERR_TRACE(BUFFER_E),     wc_SrpGetProof(&srv, serverProof,&serverProofSz));
 
-    AssertIntEQ(BAD_FUNC_ARG,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 wc_SrpVerifyPeersProof(NULL, clientProof, clientProofSz));
-    AssertIntEQ(BAD_FUNC_ARG,
+    AssertIntEQ(WC_NO_ERR_TRACE(BAD_FUNC_ARG),
                 wc_SrpVerifyPeersProof(&cli, NULL,        clientProofSz));
-    AssertIntEQ(BUFFER_E,
+    AssertIntEQ(WC_NO_ERR_TRACE(BUFFER_E),
                 wc_SrpVerifyPeersProof(&srv, serverProof, serverProofSz));
     serverProofSz = SRP_MAX_DIGEST_SIZE;
 

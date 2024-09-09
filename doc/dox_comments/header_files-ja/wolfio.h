@@ -1,5 +1,5 @@
 /*!
-    \brief  
+    \brief
     \return Success  この関数は、読み取られたバイト数を返します。
     \return WOLFSSL_CBIO_ERR_WANT_READ  最後のエラーがsocket_ewouldbolcokまたはsocket_eagainであれば、メッセージを返されます。
     \return WOLFSSL_CBIO_ERR_TIMEOUT  "Socket Timeout"メッセージを返しました。
@@ -30,7 +30,7 @@
 int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
-    \brief  
+    \brief
     \return Success  この関数は送信されたバイト数を返します。
     \return WOLFSSL_CBIO_ERR_WANT_WRITE  最後のエラーがsocket_ewouldblockまたはsocket_eagainであれば、 "Block"メッセージを返します。
     \return WOLFSSL_CBIO_ERR_CONN_RST  最後のエラーがsocket_econnresetの場合、 "Connection Reset"メッセージで返されます。
@@ -58,7 +58,7 @@ int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
-    \brief  
+    \brief
     \return Success  この関数は、実行が成功した場合に読み込まれたNBバイトを返します。
     \return WOLFSSL_CBIO_ERR_WANT_READ  接続が拒否された場合、または「ブロック」エラーが発生した場合は機能にスローされました。
     \return WOLFSSL_CBIO_ERR_TIMEOUT  ソケットがタイムアウトした場合は返されます。
@@ -89,7 +89,7 @@ int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
 
 /*!
-    \brief  
+    \brief
     \return Success  この関数は送信されたバイト数を返します。
     \return WOLFSSL_CBIO_ERR_WANT_WRITE  最後のエラーがsocket_ewouldblockまたはsocket_eagainエラーの場合、 "Block"メッセージを返します。
     \return WOLFSSL_CBIO_ERR_CONN_RST  最後のエラーがsocket_econnresetの場合、 "Connection Reset"メッセージで返されます。
@@ -119,7 +119,7 @@ int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
 int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 
 /*!
-    \brief  
+    \brief
     \return Success  この関数は、バッファにコピーされたバイト数を返します。
     \return GEN_COOKIE_E  getPeernameがEmbedGenerateCookieに失敗した場合に返されます。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -145,7 +145,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
                                            int sz, void*);
 
 /*!
-    \brief  
+    \brief
     \return none  いいえ返します。
     \param ctx  ヒープヒントへのvoidポインタ。
     _Example_
@@ -222,7 +222,7 @@ void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
 void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、WolfSSL構造体のIOCB_READCTXメンバーを返します。
     \return pointer  この関数は、wolfssl構造体のiocb_readctxメンバーへのvoidポインタを返します。
     \return NULL  wolfssl構造体がNULLの場合に返されます。
@@ -245,7 +245,7 @@ void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
 void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、WolfSSL構造のIOCB_WRITECTXメンバーを返します。
     \return pointer  この関数は、WolfSSL構造のIOCB_WRITECTXメンバーへのvoidポインタを返します。
     \return NULL  wolfssl構造体がNULLの場合に返されます。
@@ -303,7 +303,7 @@ void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
 void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 
 /*!
-    \ingroup IO 
+    \ingroup IO
     \brief  この関数は、wolfssl構造内のnxctx構造体のNxSocketメンバーとNXWAITメンバーを設定します。
     \return none  いいえ返します。
     \param ssl  wolfssl_new（）を使用して作成されたWolfSSL構造へのポインタ。
@@ -347,7 +347,7 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
 void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX* ctx, CallbackGenCookie cb);
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、WolfSSL構造のIOCB_COOKIECTXメンバーを返します。
     \return pointer  この関数は、iocb_cookiectxに格納されているvoidポインタ値を返します。
     \return NULL  WolfSSL構造体がNULLの場合
@@ -369,7 +369,7 @@ void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
 
 
 /*!
-    \ingroup Setup 
+    \ingroup Setup
     \brief  この関数は、WolfSSLがWolfSSL_ISOTPでコンパイルされている場合に使用する場合は、WolfSSLの場合はISO-TPコンテキストを設定します。
     \return 0  成功すると、故障のwolfssl_cbio_err_general
     \param ssl  wolfsslコンテキスト

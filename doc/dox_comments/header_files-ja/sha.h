@@ -1,5 +1,5 @@
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  この関数はSHAを初期化します。これは自動的にWC_Shahashによって呼び出されます。
     \return 0  初期化に成功したときに返されます
     _Example_
@@ -20,7 +20,7 @@
 int wc_InitSha(wc_Sha*);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  データをダイジェストに正常に追加すると返されます。
     \param sha  暗号化に使用するSHA構造へのポインタ
@@ -46,7 +46,7 @@ int wc_InitSha(wc_Sha*);
 int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  データのハッシュを確定します。結果はハッシュに入れられます。SHA構造体の状態をリセットします。
     \return 0  ファイナライズに成功したときに返されます。
     \param sha  暗号化に使用するSHA構造へのポインタ
@@ -71,7 +71,7 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len);
 int wc_ShaFinal(wc_Sha* sha, byte* hash);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  初期化されたSHA構造体によって使用されるメモリをクリーンアップするために使用されます。注：これは、wolfssl_ti_hashが定義されている場合にのみサポートされています。
     \return No  戻り値。
     _Example_
@@ -88,7 +88,7 @@ int wc_ShaFinal(wc_Sha* sha, byte* hash);
 void wc_ShaFree(wc_Sha*);
 
 /*!
-    \ingroup SHA 
+    \ingroup SHA
     \brief  ハッシュデータを取得します。結果はハッシュに入れられます。SHA構造体の状態をリセットしません。
     \return 0  ファイナライズに成功したときに返されます。
     \param sha  暗号化に使用するSHA構造へのポインタ

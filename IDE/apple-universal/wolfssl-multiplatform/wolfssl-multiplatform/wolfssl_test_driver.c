@@ -42,21 +42,21 @@ void wolfssl_test(void)
 {
     int ret;
     test_func_args args = {0};
-    
+
 #ifdef WC_RNG_SEED_CB
     wc_SetSeed_Cb(wc_GenerateSeed);
 #endif
-    
+
     printf("Run wolfCrypt Test:\n");
     ret = wolfcrypt_test(&args);
     printf("\nResult of wolfcrypt_test() = %d\n\n", ret);
-    
+
     printf("Run wolfCrypt Benchmark:\n");
     ret = benchmark_test(&args);
     printf("\nResult of benchmark_test() = %d\n\n", ret);
-    
+
     printf("Run simple client test:\n");
     ret = simple_client_example();
     printf("\nResult of simple_client_test() = %d\n\n", ret);
-    
+
 }

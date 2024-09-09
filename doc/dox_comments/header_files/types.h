@@ -23,14 +23,14 @@
     #define XMALLOC(s, h, t) 	((void)h, (void)t, wolfSSL_Malloc((s)))
     #define XFREE(p, h, t)   	{void* xp = (p); if((xp)) wolfSSL_Free((xp));}
     #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n))
-    	
+
     \return pointer Return a pointer to allocated memory on success
 	\return NULL on failure
-	
+
 	\param s size of memory to allocate
-	\param h (used by custom XMALLOC function) pointer to the heap to use	
+	\param h (used by custom XMALLOC function) pointer to the heap to use
 	\param t memory allocation types for user hints. See enum in types.h
-	
+
 	_Example_
 	\code
 	int* tenInts = XMALLOC(sizeof(int)*10, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -39,7 +39,7 @@
 	    return MEMORY_E;
     }
 	\endcode
-	
+
 	\sa wolfSSL_Malloc
 	\sa wolfSSL_Realloc
 	\sa wolfSSL_Free
@@ -75,19 +75,19 @@ void* XMALLOC(size_t n, void* heap, int type);
 
     \return Return a pointer to allocated memory on success
 	\return NULL on failure
-	
+
 	\param p pointer to the address to reallocate
 	\param n size of memory to allocate
-	\param h (used by custom XREALLOC function) pointer to the heap to use	
+	\param h (used by custom XREALLOC function) pointer to the heap to use
 	\param t memory allocation types for user hints. See enum in types.h
-	
+
 	_Example_
 	\code
 	int* tenInts = (int*)XMALLOC(sizeof(int)*10, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     int* twentyInts = (int*)XREALLOC(tenInts, sizeof(int)*20, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
 	\endcode
-	
+
 	\sa wolfSSL_Malloc
 	\sa wolfSSL_Realloc
 	\sa wolfSSL_Free
@@ -123,9 +123,9 @@ void* XREALLOC(void *p, size_t n, void* heap, int type);
     \return none No returns.
 
     \param p pointer to the address to free
-	\param h (used by custom XFREE function) pointer to the heap to use	
+	\param h (used by custom XFREE function) pointer to the heap to use
 	\param t memory allocation types for user hints. See enum in types.h
-	
+
 	_Example_
 	\code
 	int* tenInts = XMALLOC(sizeof(int) * 10, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -134,7 +134,7 @@ void* XREALLOC(void *p, size_t n, void* heap, int type);
 	    return MEMORY_E;
     }
 	\endcode
-	
+
 	\sa wolfSSL_Malloc
 	\sa wolfSSL_Realloc
 	\sa wolfSSL_Free

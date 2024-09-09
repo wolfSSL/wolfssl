@@ -52,7 +52,7 @@
     #include <wolfssl/wolfcrypt/kyber.h>
 #ifdef WOLFSSL_WC_KYBER
     #include <wolfssl/wolfcrypt/wc_kyber.h>
-#elif defined(HAVE_LIBOQS) || defined(HAVE_PQM4)
+#elif defined(HAVE_LIBOQS)
     #include <wolfssl/wolfcrypt/ext_kyber.h>
 #endif
 #endif
@@ -1830,7 +1830,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, const byte *input, word16 length,
                                  byte isRequest)
 {
     word16  size = 0, offset = 0, wlen;
-    int     r = BUFFER_ERROR;
+    int     r = WC_NO_ERR_TRACE(BUFFER_ERROR);
     const byte *s;
 
     if (OPAQUE16_LEN > length)
@@ -9458,9 +9458,6 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             }
             break;
         }
-    #elif defined(HAVE_PQM4)
-        case WOLFSSL_KYBER_LEVEL1:
-            break;
     #endif
 #endif
         default:
@@ -9529,8 +9526,6 @@ static const word16 preferredGroup[] = {
     WOLFSSL_P256_KYBER_LEVEL1,
     WOLFSSL_P384_KYBER_LEVEL3,
     WOLFSSL_P521_KYBER_LEVEL5,
-#elif defined(HAVE_PQM4)
-    WOLFSSL_KYBER_LEVEL1,
 #endif
     WOLFSSL_NAMED_GROUP_INVALID
 };
@@ -12083,6 +12078,11 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
     if (size == 0)
         return BAD_FUNC_ARG;
 
+    if (ssl->options.disableECH) {
+        WOLFSSL_MSG("TLSX_ECH_Parse: ECH disabled. Ignoring.");
+        return 0;
+    }
+
     if (msgType == encrypted_extensions) {
         ret = wolfSSL_SetEchConfigs(ssl, readBuf, size);
 
@@ -13166,8 +13166,6 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_LEVEL5,
                                      ssl->heap);
-#elif defined(HAVE_PQM4)
-    ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_KYBER_LEVEL1, ssl->heap);
 #endif /* HAVE_LIBOQS */
 #endif /* WOLFSSL_HAVE_KYBER */
 
@@ -13588,18 +13586,21 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #endif
 #if defined(HAVE_ECH)
             /* GREASE ECH */
-            if (ssl->echConfigs == NULL) {
-                ret = GREASE_ECH_USE(&(ssl->extensions), ssl->heap, ssl->rng);
-            }
-            else if (ssl->echConfigs != NULL) {
-                ret = ECH_USE(ssl->echConfigs, &(ssl->extensions), ssl->heap,
-                    ssl->rng);
+            if (!ssl->options.disableECH) {
+                if (ssl->echConfigs == NULL) {
+                    ret = GREASE_ECH_USE(&(ssl->extensions), ssl->heap,
+                            ssl->rng);
+                }
+                else if (ssl->echConfigs != NULL) {
+                    ret = ECH_USE(ssl->echConfigs, &(ssl->extensions),
+                            ssl->heap, ssl->rng);
+                }
             }
 #endif
         }
 #if defined(HAVE_ECH)
         else if (IsAtLeastTLSv1_3(ssl->version)) {
-            if (ssl->ctx->echConfigs != NULL) {
+            if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
                 ret = SERVER_ECH_USE(&(ssl->extensions), ssl->heap,
                     ssl->ctx->echConfigs);
 
@@ -13789,7 +13790,8 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word32* pLength)
     }
     #endif
 #if defined(HAVE_ECH)
-    if (ssl->options.useEch == 1 && msgType == client_hello) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH
+            && msgType == client_hello) {
         ret = TLSX_GetSizeWithEch(ssl, semaphore, msgType, &length);
         if (ret != 0)
             return ret;
@@ -14034,7 +14036,8 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word32* pOffset)
     #endif
 #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_ECH)
-    if (ssl->options.useEch == 1 && msgType == client_hello) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH
+            && msgType == client_hello) {
         ret = TLSX_WriteWithEch(ssl, output, semaphore,
                          msgType, &offset);
         if (ret != 0)

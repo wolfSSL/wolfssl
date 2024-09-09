@@ -73,7 +73,7 @@ At the wolfCrypt level we also support ECC native API's for `wc_ecc_*` using the
 
 `./configure --enable-pkcallbacks CFLAGS="-DWOLFSSL_STSAFEA100"`
 
-or 
+or
 
 `#define HAVE_PK_CALLBACKS`
 `#define WOLFSSL_STSAFEA100`

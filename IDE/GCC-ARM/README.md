@@ -118,7 +118,7 @@ These settings are located in `Header/user_settings.h`.
 * `USE_SLOW_SHA`: Enables smaller/slower version of SHA.
 * `USE_SLOW_SHA256`: About 2k smaller and about 25% slower
 * `USE_SLOW_SHA512`: Over twice as small, but 50% slower
-* `USE_CERT_BUFFERS_1024` or `USE_CERT_BUFFERS_2048`: Size of RSA certs / keys to test with. 
+* `USE_CERT_BUFFERS_1024` or `USE_CERT_BUFFERS_2048`: Size of RSA certs / keys to test with.
 * `BENCH_EMBEDDED`: Define this if using the wolfCrypt test/benchmark and using a low memory target.
 * `ECC_USER_CURVES`: Allows user to define curve sizes to enable. Default is 256-bit on. To enable others use `HAVE_ECC192`, `HAVE_ECC224`, etc....
 * `TFM_ARM`, `TFM_SSE2`, `TFM_AVR32`, `TFM_PPC32`, `TFM_MIPS`, `TFM_X86` or `TFM_X86_64`: These are assembly optimizations available with USE_FAST_MATH.

@@ -17,7 +17,7 @@ source ~/qnx700/qnxsdp-env.sh
 make
 ```
 
-Once the wolfSSL library has been built cd to IDE/QNX/CAAM-DRIVER and run "make". This will produce the wolfCrypt resource manager. It should be started on the device with root permissions. Once wolfCrypt is running on the device with root permissions then any user with access to open a connection to /dev/wolfCrypt can make use of the driver.  
+Once the wolfSSL library has been built cd to IDE/QNX/CAAM-DRIVER and run "make". This will produce the wolfCrypt resource manager. It should be started on the device with root permissions. Once wolfCrypt is running on the device with root permissions then any user with access to open a connection to /dev/wolfCrypt can make use of the driver.
 
 ### Momentics
 To build in momentics IDE:

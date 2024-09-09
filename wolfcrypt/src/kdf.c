@@ -84,11 +84,9 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     word32 lastTime;
     int    ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    byte*  previous;
     byte*  current;
     Hmac*  hmac;
 #else
-    byte   previous[P_HASH_MAX_SIZE];  /* max size */
     byte   current[P_HASH_MAX_SIZE];   /* max size */
     Hmac   hmac[1];
 #endif
@@ -153,19 +151,16 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
     lastTime = times - 1;
 
 #ifdef WOLFSSL_SMALL_STACK
-    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
-    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
-    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
-    if (previous == NULL || current == NULL || hmac == NULL) {
-        XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+    current = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    hmac    = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
+    if (current == NULL || hmac == NULL) {
         XFREE(current, heap, DYNAMIC_TYPE_DIGEST);
         XFREE(hmac, heap, DYNAMIC_TYPE_HMAC);
         return MEMORY_E;
     }
 #endif
 #ifdef WOLFSSL_CHECK_MEM_ZERO
-    XMEMSET(previous, 0xff, P_HASH_MAX_SIZE);
-    wc_MemZero_Add("wc_PRF previous", previous, P_HASH_MAX_SIZE);
+    XMEMSET(current, 0xff, P_HASH_MAX_SIZE);
     wc_MemZero_Add("wc_PRF current", current, P_HASH_MAX_SIZE);
     wc_MemZero_Add("wc_PRF hmac", hmac, sizeof(Hmac));
 #endif
@@ -176,53 +171,53 @@ int wc_PRF(byte* result, word32 resLen, const byte* secret,
         if (ret == 0)
             ret = wc_HmacUpdate(hmac, seed, seedLen); /* A0 = seed */
         if (ret == 0)
-            ret = wc_HmacFinal(hmac, previous);       /* A1 */
+            ret = wc_HmacFinal(hmac, current);        /* A1 */
         if (ret == 0) {
             word32 i;
             word32 idx = 0;
 
             for (i = 0; i < times; i++) {
-                ret = wc_HmacUpdate(hmac, previous, len);
+                ret = wc_HmacUpdate(hmac, current, len);
                 if (ret != 0)
                     break;
                 ret = wc_HmacUpdate(hmac, seed, seedLen);
                 if (ret != 0)
                     break;
-                ret = wc_HmacFinal(hmac, current);
-                if (ret != 0)
-                    break;
+                if ((i != lastTime) || !lastLen) {
+                    ret = wc_HmacFinal(hmac, &result[idx]);
+                    if (ret != 0)
+                        break;
+                    idx += len;
 
-                if ((i == lastTime) && lastLen)
+                    ret = wc_HmacUpdate(hmac, current, len);
+                    if (ret != 0)
+                        break;
+                    ret = wc_HmacFinal(hmac, current);
+                    if (ret != 0)
+                        break;
+                }
+                else {
+                    ret = wc_HmacFinal(hmac, current);
+                    if (ret != 0)
+                        break;
                     XMEMCPY(&result[idx], current,
                                              min(lastLen, P_HASH_MAX_SIZE));
-                else {
-                    XMEMCPY(&result[idx], current, len);
-                    idx += len;
-                    ret = wc_HmacUpdate(hmac, previous, len);
-                    if (ret != 0)
-                        break;
-                    ret = wc_HmacFinal(hmac, previous);
-                    if (ret != 0)
-                        break;
                 }
             }
         }
         wc_HmacFree(hmac);
     }
 
-    ForceZero(previous,  P_HASH_MAX_SIZE);
-    ForceZero(current,   P_HASH_MAX_SIZE);
-    ForceZero(hmac,      sizeof(Hmac));
+    ForceZero(current, P_HASH_MAX_SIZE);
+    ForceZero(hmac,    sizeof(Hmac));
 
 #if defined(WOLFSSL_CHECK_MEM_ZERO)
-    wc_MemZero_Check(previous, P_HASH_MAX_SIZE);
-    wc_MemZero_Check(current,  P_HASH_MAX_SIZE);
-    wc_MemZero_Check(hmac,     sizeof(Hmac));
+    wc_MemZero_Check(current, P_HASH_MAX_SIZE);
+    wc_MemZero_Check(hmac,    sizeof(Hmac));
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(current, heap, DYNAMIC_TYPE_DIGEST);
     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
 #endif
 

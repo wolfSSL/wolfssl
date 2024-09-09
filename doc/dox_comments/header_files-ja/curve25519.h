@@ -1,5 +1,5 @@
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、与えられたサイズ（Keysize）の指定された乱数発生器RNGを使用してCurve25519キーを生成し、それを指定されたCurve25519_Key構造体に格納します。キー構造がWC_CURVE25519_INIT（）を介して初期化された後に呼び出されるべきです。
     \return 0  キーの生成に成功し、それを指定されたCurve25519_Key構造体に格納します。
     \return ECC_BAD_ARG_E  入力キーサイズがCurve25519キー（32バイト）のキーシェイズに対応していない場合は返されます。
@@ -27,7 +27,7 @@
 int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、秘密の秘密鍵と受信した公開鍵を考えると、共有秘密鍵を計算します。生成された秘密鍵をバッファアウトに保存し、ounlentの秘密鍵の変数を割り当てます。ビッグエンディアンのみをサポートします。
     \return 0  共有秘密鍵を正常に計算したときに返されました。
     \return BAD_FUNC_ARG  渡された入力パラメータのいずれかがNULLの場合に返されます。
@@ -59,7 +59,7 @@ int wc_curve25519_shared_secret(curve25519_key* private_key,
                                 byte* out, word32* outlen);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、秘密の秘密鍵と受信した公開鍵を考えると、共有秘密鍵を計算します。生成された秘密鍵をバッファアウトに保存し、ounlentの秘密鍵の変数を割り当てます。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  共有秘密鍵を正常に計算したときに返されました。
     \return BAD_FUNC_ARG  渡された入力パラメータのいずれかがNULLの場合に返されます。
@@ -94,7 +94,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    byte* out, word32* outlen, int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数はCurve25519キーを初期化します。構造のキーを生成する前に呼び出されるべきです。
     \return 0  Curve25519_Key構造体の初期化に成功しました。
     \return BAD_FUNC_ARG  キーがNULLのときに返されます。
@@ -110,7 +110,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 int wc_curve25519_init(curve25519_key* key);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数はCurve25519オブジェクトを解放します。
     _Example_
     \code
@@ -125,7 +125,7 @@ int wc_curve25519_init(curve25519_key* key);
 void wc_curve25519_free(curve25519_key* key);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数はCurve25519秘密鍵のみをインポートします。（ビッグエンディアン）。
     \return 0  秘密鍵のインポートに成功しました。
     \return BAD_FUNC_ARG  キーまたはPRIVがNULLの場合は返します。
@@ -153,7 +153,7 @@ int wc_curve25519_import_private(const byte* priv, word32 privSz,
                                  curve25519_key* key);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  CURVE25519秘密鍵のインポートのみ。（大きなエンディアン）。
     \return 0  秘密鍵のインポートに成功しました。
     \return BAD_FUNC_ARG  キーまたはPRIVがNULLの場合は返します。
@@ -184,7 +184,7 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
                                     curve25519_key* key, int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、パブリック秘密鍵ペアをCurve25519_Key構造体にインポートします。ビッグエンディアンのみ。
     \return 0  Curve25519_Key構造体へのインポートに返されます
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLの場合に返します。
@@ -221,7 +221,7 @@ int wc_curve25519_import_private_raw(const byte* priv, word32 privSz,
                             const byte* pub, word32 pubSz, curve25519_key* key);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、パブリック秘密鍵ペアをCurve25519_Key構造体にインポートします。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  Curve25519_Key構造体へのインポートに返されます
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLの場合に返します。
@@ -260,7 +260,7 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
                                         curve25519_key* key, int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数はCurve25519_Key構造体から秘密鍵をエクスポートし、それを指定されたアウトバッファに格納します。また、エクスポートされたキーのサイズになるように概要を設定します。ビッグエンディアンのみ。
     \return 0  Curve25519_Key構造体から秘密鍵を正常にエクスポートしました。
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
@@ -291,7 +291,7 @@ int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
                                      word32* outLen);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数はCurve25519_Key構造体から秘密鍵をエクスポートし、それを指定されたアウトバッファに格納します。また、エクスポートされたキーのサイズになるように概要を設定します。それがビッグ・リトルエンディアンかを指定できます。
     \return 0  Curve25519_Key構造体から秘密鍵を正常にエクスポートしました。
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
@@ -324,7 +324,7 @@ int wc_curve25519_export_private_raw_ex(curve25519_key* key, byte* out,
                                         word32* outLen, int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、指定されたバッファから公開鍵をインポートし、それをCurve25519_Key構造体に格納します。
     \return 0  公開鍵をCurve25519_Key構造体に正常にインポートしました。
     \return ECC_BAD_ARG_E  InLenパラメータがキー構造のキーサイズと一致しない場合に返されます。
@@ -358,7 +358,7 @@ int wc_curve25519_import_public(const byte* in, word32 inLen,
                                 curve25519_key* key);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、指定されたバッファから公開鍵をインポートし、それをCurve25519_Key構造体に格納します。
     \return 0  公開鍵をCurve25519_Key構造体に正常にインポートしました。
     \return ECC_BAD_ARG_E  InLenパラメータがキー構造のキーサイズと一致しない場合に返されます。
@@ -393,7 +393,7 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
                                    curve25519_key* key, int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は、公開鍵バッファが指定されたエンディアンに対して有効なCurve2519キー値を保持していることを確認します。
     \return 0  公開鍵の値が有効なときに返されます。
     \return ECC_BAD_ARG_E  公開鍵の値が無効な場合は返されます。
@@ -420,7 +420,7 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
 int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は指定されたキー構造から公開鍵をエクスポートし、結果をアウトバッファに格納します。ビッグエンディアンのみ。
     \return 0  Curve25519_Key構造体から公開鍵を正常にエクスポートする上で返されます。
     \return ECC_BAD_ARG_E  outlenがcurve25519_pub_key_sizeより小さい場合に返されます。
@@ -449,7 +449,7 @@ int wc_curve25519_check_public(const byte* pub, word32 pubSz, int endian);
 int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は指定されたキー構造から公開鍵をエクスポートし、結果をアウトバッファに格納します。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  Curve25519_Key構造体から公開鍵を正常にエクスポートする上で返されます。
     \return ECC_BAD_ARG_E  outlenがcurve25519_pub_key_sizeより小さい場合に返されます。
@@ -481,7 +481,7 @@ int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
                                    word32* outLen, int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  Export Curve25519キーペア。ビッグエンディアンのみ。
     \return 0  Curve25519_Key構造体からキーペアのエクスポートに成功しました。
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
@@ -516,7 +516,7 @@ int wc_curve25519_export_key_raw(curve25519_key* key,
                                  byte* pub, word32 *pubSz);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  Export Curve25519キーペア。ビッグ・リトルエンディアン。
     \return 0  Curve25519_Key構造体からキーペアのエクスポートに成功しました。
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
@@ -555,7 +555,7 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
                                     int endian);
 
 /*!
-    \ingroup Curve25519 
+    \ingroup Curve25519
     \brief  この関数は与えられたキー構造のキーサイズを返します。
     \return Success  有効な初期化されたCurve25519_Key構造体を考慮すると、キーのサイズを返します。
     \return 0  キーがNULLの場合は返されます

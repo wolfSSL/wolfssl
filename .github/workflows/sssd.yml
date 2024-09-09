@@ -91,7 +91,7 @@ jobs:
           path: sssd
           patch-file: $GITHUB_WORKSPACE/osp/sssd/${{ matrix.ref }}.patch
           configure: >-
-            --without-samba --without-nfsv4-idmapd-plugin --with-oidc-child=no 
+            --without-samba --without-nfsv4-idmapd-plugin --with-oidc-child=no
             --without-manpages WOLFSSL_INSTALL_DIR=$GITHUB_WORKSPACE/build-dir
           check: true
 

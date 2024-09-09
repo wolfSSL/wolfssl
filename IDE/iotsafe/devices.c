@@ -62,10 +62,10 @@ static void usart1_init(void)
     GPIO_MODE(GPIOB_BASE) = reg | (0x02 << (USART1_PIN_TX * 2));
 
     reg = GPIO_PUPD(GPIOG_BASE) & (0x03 << (USART1_PIN_RX * 2));
-    
+
     reg = GPIO_PUPD(GPIOB_BASE) & (0x03 << (USART1_PIN_TX * 2));
     GPIO_PUPD(GPIOB_BASE) = reg | (0x01 << (USART1_PIN_TX * 2));
-    
+
 #if RTSCTS
     reg = GPIO_MODE(GPIOG_BASE) & ~(0x03 << (USART1_PIN_RTS * 2));
     GPIO_MODE(GPIOG_BASE) = reg | (0x02 << (USART1_PIN_RTS * 2));
@@ -376,7 +376,7 @@ static void stmod_pin_init(void)
     /* RST pin */
     reg = GPIO_MODE(STMOD_MODEM_RST_PORT) & ~(0x03 << (STMOD_MODEM_RST_PIN * 2));
     GPIO_MODE(STMOD_MODEM_RST_PORT) = reg | (0x01 << (STMOD_MODEM_RST_PIN * 2));
-    
+
     /* DTR pin */
     reg = GPIO_MODE(STMOD_MODEM_DTR_PORT) & ~(0x03 << (STMOD_MODEM_DTR_PIN * 2));
     GPIO_MODE(STMOD_MODEM_DTR_PORT) = reg | (0x01 << (STMOD_MODEM_DTR_PIN * 2));

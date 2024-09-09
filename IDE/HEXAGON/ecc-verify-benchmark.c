@@ -32,14 +32,14 @@
 #define MAX_TIMES 5000
 #define MAX_BLOCK_SIZE 1024
 
-#include <sys/time.h>                                                       
+#include <sys/time.h>
 
-static double get_time()                                              
-{                                                                           
-    struct timeval tv;                                                      
-    gettimeofday(&tv, 0);                                                   
-    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;                
-} 
+static double get_time()
+{
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
 
 
 /* software version */

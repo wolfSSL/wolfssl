@@ -4415,7 +4415,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     /* find length of outer and inner */
 #if defined(HAVE_ECH)
-    if (ssl->options.useEch == 1) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         if (echX == NULL)
             return -1;
@@ -4566,7 +4566,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
 #if defined(HAVE_ECH)
     /* write inner then outer */
-    if (ssl->options.useEch == 1) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
 
@@ -4626,7 +4626,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
 #if defined(HAVE_ECH)
     /* encrypt and pack the ech innerClientHello */
-    if (ssl->options.useEch == 1) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
         ret = TLSX_FinalizeEch(args->ech,
             args->output + RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ,
             (word32)(args->sendSz - (RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ)));
@@ -4656,11 +4656,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         {
 #if defined(HAVE_ECH)
             /* compute the inner hash */
-            if (ssl->options.useEch == 1) {
+            if (ssl->options.useEch == 1 && !ssl->options.disableECH)
                 ret = EchHashHelloInner(ssl, args->ech);
-            }
 #endif
-
             /* compute the outer hash */
             if (ret == 0)
                 ret = HashOutput(ssl, args->output, (int)args->idx, 0);
@@ -5475,7 +5473,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if defined(HAVE_ECH)
     /* check for acceptConfirmation and HashInput with 8 0 bytes */
-    if (ssl->options.useEch == 1) {
+    if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
         ret = EchCheckAcceptance(ssl, input, args->serverRandomOffset, (int)helloSz);
         if (ret != 0)
             return ret;
@@ -6935,7 +6933,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         goto exit_dch;
 
 #if defined(HAVE_ECH)
-    if (ssl->ctx->echConfigs != NULL) {
+    if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
         /* save the start of the buffer so we can use it when parsing ech */
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
 
@@ -7407,7 +7405,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 #endif /* WOLFSSL_DTLS13 */
         {
 #if defined(HAVE_ECH)
-            if (ssl->ctx->echConfigs != NULL) {
+            if (ssl->ctx->echConfigs != NULL && !ssl->options.disableECH) {
                 echX = TLSX_Find(ssl->extensions, TLSX_ECH);
 
                 if (echX == NULL)

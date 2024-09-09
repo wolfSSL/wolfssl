@@ -1,4 +1,4 @@
-﻿/* main.c
+/* main.c
  *
  * Copyright (C) 2006-2024 wolfSSL Inc.
  *

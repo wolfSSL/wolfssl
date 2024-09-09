@@ -36,9 +36,9 @@
 /* cannot enable with other definition */
 /* simplest tcp client*/
 /*#define SIMPLE_TCP_CLIENT */
-/* software TLS　client */
+/* software TLS client */
 /* #define SIMPLE_TLS_CLIENT */
-/* use TSIP　Acceleration */
+/* use TSIP Acceleration */
 /*#define SIMPLE_TLS_TSIP_CLIENT*/
 
 /* simplest tcp server */

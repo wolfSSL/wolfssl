@@ -1,5 +1,5 @@
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、与えられたサイズ（Keysize）のサイズの指定された乱数発生器RNGを使用してCurve448キーを生成し、それを指定されたCurve448_Key構造体に格納します。キー構造がWC_CURVE448_INIT（）を介して初期化された後に呼び出されるべきです。
     \return 0  キーの生成に成功し、それを指定されたCurve448_Key構造体に格納します。
     \return ECC_BAD_ARG_E  入力キーサイズがCurve448キー（56バイト）のキーシェイズに対応していない場合は返されます。
@@ -27,7 +27,7 @@
 int wc_curve448_make_key(WC_RNG* rng, int keysize, curve448_key* key);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、秘密の秘密鍵と受信した公開鍵を考えると、共有秘密鍵を計算します。生成された秘密鍵をバッファアウトに保存し、ounlentの秘密鍵の変数を割り当てます。ビッグエンディアンのみをサポートします。
     \return 0  共有秘密鍵を正常に計算する上で返却されました
     \return BAD_FUNC_ARG  渡された入力パラメーターのいずれかがNULLの場合に返されます
@@ -58,7 +58,7 @@ int wc_curve448_shared_secret(curve448_key* private_key,
                                 byte* out, word32* outlen);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、秘密の秘密鍵と受信した公開鍵を考えると、共有秘密鍵を計算します。生成された秘密鍵をバッファアウトに保存し、ounlentの秘密鍵の変数を割り当てます。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  共有秘密鍵を正常に計算したときに返されました。
     \return BAD_FUNC_ARG  渡された入力パラメータのいずれかがNULLの場合に返されます。
@@ -92,7 +92,7 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
                                    byte* out, word32* outlen, int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数はCurve448キーを初期化します。構造のキーを生成する前に呼び出されるべきです。
     \return 0  Curve448_Key構造体の初期化に成功しました。
     \return BAD_FUNC_ARG  キーがNULLのときに返されます。
@@ -108,7 +108,7 @@ int wc_curve448_shared_secret_ex(curve448_key* private_key,
 int wc_curve448_init(curve448_key* key);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数はCurve448オブジェクトを解放します。
     _Example_
     \code
@@ -123,7 +123,7 @@ int wc_curve448_init(curve448_key* key);
 void wc_curve448_free(curve448_key* key);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数はCurve448秘密鍵のみをインポートします。（ビッグエンディアン）。
     \return 0  秘密鍵のインポートに成功しました。
     \return BAD_FUNC_ARG  キーまたはPRIVがNULLの場合は返します。
@@ -151,7 +151,7 @@ int wc_curve448_import_private(const byte* priv, word32 privSz,
                                  curve448_key* key);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  CURVE448秘密鍵のインポートのみ。（ビッグエンディアン）。
     \return 0  秘密鍵のインポートに成功しました。
     \return BAD_FUNC_ARG  キーまたはPRIVがNULLの場合は返します。
@@ -182,7 +182,7 @@ int wc_curve448_import_private_ex(const byte* priv, word32 privSz,
                                     curve448_key* key, int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、public-秘密鍵のペアをCurve448_Key構造体にインポートします。ビッグエンディアンのみ。
     \return 0  Curve448_Key構造体へのインポート時に返されます。
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLの場合に返します。
@@ -219,7 +219,7 @@ int wc_curve448_import_private_raw(const byte* priv, word32 privSz,
                             const byte* pub, word32 pubSz, curve448_key* key);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、public-秘密鍵のペアをCurve448_Key構造体にインポートします。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  Curve448_Key構造体へのインポート時に返されます。
     \return BAD_FUNC_ARG  入力パラメータのいずれかがNULLの場合に返します。
@@ -259,7 +259,7 @@ int wc_curve448_import_private_raw_ex(const byte* priv, word32 privSz,
                                         curve448_key* key, int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数はCurve448_Key構造体から秘密鍵をエクスポートし、それを指定されたバッファに格納します。また、エクスポートされたキーのサイズになるように概要を設定します。ビッグエンディアンのみ。
     \return 0  Curve448_Key構造体から秘密鍵を正常にエクスポートする上で返されました。
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
@@ -290,7 +290,7 @@ int wc_curve448_export_private_raw(curve448_key* key, byte* out,
                                      word32* outLen);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数はCurve448_Key構造体から秘密鍵をエクスポートし、それを指定されたバッファに格納します。また、エクスポートされたキーのサイズになるように概要を設定します。それが大きいかリトルエンディアンかを指定できます。
     \return 0  Curve448_Key構造体から秘密鍵を正常にエクスポートする上で返されました。
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
@@ -323,7 +323,7 @@ int wc_curve448_export_private_raw_ex(curve448_key* key, byte* out,
                                         word32* outLen, int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、指定されたバッファから公開鍵をインポートし、それをCurve448_Key構造体に格納します。
     \return 0  公開鍵をCurve448_Key構造体に正常にインポートしました。
     \return ECC_BAD_ARG_E  InLenパラメータがキー構造のキーサイズと一致しない場合に返されます。
@@ -357,7 +357,7 @@ int wc_curve448_import_public(const byte* in, word32 inLen,
                                 curve448_key* key);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、指定されたバッファから公開鍵をインポートし、それをCurve448_Key構造体に格納します。
     \return 0  公開鍵をCurve448_Key構造体に正常にインポートしました。
     \return ECC_BAD_ARG_E  InLenパラメータがキー構造のキーサイズと一致しない場合に返されます。
@@ -392,7 +392,7 @@ int wc_curve448_import_public_ex(const byte* in, word32 inLen,
                                    curve448_key* key, int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は、公開鍵バッファがエンディアン順序付けを与えられた有効なCurve448キー値を保持することを確認します。
     \return 0  公開鍵の値が有効なときに返されます。
     \return ECC_BAD_ARG_E  公開鍵の値が無効な場合は返されます。
@@ -419,7 +419,7 @@ int wc_curve448_import_public_ex(const byte* in, word32 inLen,
 int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は指定されたキー構造から公開鍵をエクスポートし、結果をアウトバッファに格納します。ビッグエンディアンのみ。
     \return 0  Curve448_Key構造体から公開鍵のエクスポートに成功しました。
     \return ECC_BAD_ARG_E  outlenがcurve448_pub_key_sizeより小さい場合に返されます。
@@ -449,7 +449,7 @@ int wc_curve448_check_public(const byte* pub, word32 pubSz, int endian);
 int wc_curve448_export_public(curve448_key* key, byte* out, word32* outLen);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は指定されたキー構造から公開鍵をエクスポートし、結果をアウトバッファに格納します。ビッグ・リトルエンディアンの両方をサポートします。
     \return 0  Curve448_Key構造体から公開鍵のエクスポートに成功しました。
     \return ECC_BAD_ARG_E  outlenがcurve448_pub_key_sizeより小さい場合に返されます。
@@ -481,7 +481,7 @@ int wc_curve448_export_public_ex(curve448_key* key, byte* out,
                                    word32* outLen, int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は指定されたキー構造からキーペアをエクスポートし、結果をアウトバッファに格納します。ビッグエンディアンのみ。
     \return 0  Curve448_Key構造体からキーペアのエクスポートに成功しました。
     \return BAD_FUNC_ARG  入力パラメータがNULLの場合に返されます。
@@ -516,7 +516,7 @@ int wc_curve448_export_key_raw(curve448_key* key,
                                  byte* pub, word32 *pubSz);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  Curve448キーペアをエクスポートします。ビッグ、またはリトルエンディアン。
     \brief  この関数は指定されたキー構造からキーペアをエクスポートし、結果をアウトバッファに格納します。ビッグ、またはリトルエンディアン。
     \return 0  成功
@@ -556,7 +556,7 @@ int wc_curve448_export_key_raw_ex(curve448_key* key,
                                     int endian);
 
 /*!
-    \ingroup Curve448 
+    \ingroup Curve448
     \brief  この関数は与えられたキー構造のキーサイズを返します。
     \return Success  有効な初期化されたCurve448_Key構造体を考慮すると、キーのサイズを返します。
     \return 0  キーがNULLの場合は返されます。

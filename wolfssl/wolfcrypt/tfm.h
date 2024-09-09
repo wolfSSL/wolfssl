@@ -379,6 +379,9 @@ while (0)
     #define WOLF_BIGINT_DEFINED
 #endif
 
+#define mp_size_t int
+#define mp_sign_t int
+
 /* a FP type */
 typedef struct fp_int {
     int      used;

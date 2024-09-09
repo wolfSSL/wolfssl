@@ -8,7 +8,7 @@ TLS works on top of the Internet's TCP protocol stack. The TCP is shipped as par
 and accessible via system calls and APIs. TCP itself is not secured by TLS, only the data sent via it is
 protected. TCP does not have to know anything about TLS.
 
-QUIC, on the other hand, is always protected by TLS. A QUIC implementation does always need an 
+QUIC, on the other hand, is always protected by TLS. A QUIC implementation does always need an
 implementation of the TLS protocol, specifically TLSv1.3. It does this in new ways and TLS
 implementations need to accommodate these. Those specifics have been added to wolfSSL.
 
@@ -51,13 +51,13 @@ The above configuration has also been added to [curl](https://github.com/curl/cu
 
 ### why?
 
-Why all these different blocks? 
+Why all these different blocks?
 
 The separation of HTTP/3 and QUIC is natural when you think about the relationship between TCP and HTTP/1.1. Like TCP, QUIC can and will carry other protocols. HTTP/3 is only the first one. Most likely 'DNS over QUIC' (DoQ) is the next popular, replacing DoH.
 
 The separation of QUIC's "crypto" parts from its other protocol enabling functions is a matter of security. In its experimental beginnings, QUIC had its own security design. With the emerging TLSv1.3 and all it improvements, plus decades of experience, it seemed rather unwise to have something separate in QUIC.
 
-Therefore, the complete TLSv1.3 handshake became part of the QUIC protocol, with some restrictions and simplifications (UDP based QUIC does not accommodate broken TCP middle boxes). With the need for a complete TLSv1.3 stack, QUIC implementers happily make use of existing TLS libraries. 
+Therefore, the complete TLSv1.3 handshake became part of the QUIC protocol, with some restrictions and simplifications (UDP based QUIC does not accommodate broken TCP middle boxes). With the need for a complete TLSv1.3 stack, QUIC implementers happily make use of existing TLS libraries.
 
 ## wolfSSL API
 
@@ -76,7 +76,7 @@ A QUIC protocol handler installs these via `wolfSSL_CTX_set_quic_method()` or `w
 
 ```
   DATA ---recv+decrypt---+
-                         v 
+                         v
             wolfSSL_provide_quic_data(ssl, ...)
             wolfSSL_do_handshake(ssl);
                   +-> add_handshake_data_callback(REPLY)

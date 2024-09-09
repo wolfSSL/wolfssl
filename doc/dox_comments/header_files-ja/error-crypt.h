@@ -1,5 +1,5 @@
 /*!
-    \ingroup Error 
+    \ingroup Error
     \brief  この関数は、特定のバッファ内の特定のエラーコードのエラー文字列を格納します。
     \return none  いいえ返します。
     \param error  文字列を取得するためのエラーコード
@@ -17,7 +17,7 @@
 void wc_ErrorString(int err, char* buff);
 
 /*!
-    \ingroup Error 
+    \ingroup Error
     \brief  この関数は、特定のエラーコードのエラー文字列を返します。
     \return string  エラーコードのエラー文字列を文字列リテラルとして返します。
     _Example_

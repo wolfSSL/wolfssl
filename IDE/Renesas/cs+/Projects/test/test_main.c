@@ -45,7 +45,7 @@ void wolfcrypt_test(func_args args);
 void main(void)
 {
     func_args args = { 1 };
-  
+
     printf("Start wolfCrypt Test\n");
     wolfcrypt_test(args);
     printf("End wolfCrypt Test\n");
