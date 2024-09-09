@@ -8672,20 +8672,8 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 }
 
 
-/* Compute the shared key from the private key and peer's public key.
- *
- * Return code compliant with OpenSSL.
- * OpenSSL returns 0 when number of bits in p are smaller than minimum
- * supported.
- *
- * @param [out] key       Buffer to place shared key.
- * @param [in]  otherPub  Peer's public key.
- * @param [in]  dh        DH key containing private key.
- * @return  -1 on error.
- * @return  Size of shared secret in bytes on success.
- */
-int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
-    WOLFSSL_DH* dh)
+static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
+    WOLFSSL_DH* dh, int ct)
 {
     int            ret    = 0;
     word32         keySz  = 0;
@@ -8773,10 +8761,39 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
 
     PRIVATE_KEY_UNLOCK();
     /* Calculate shared secret from private and public keys. */
-    if ((ret == 0) && (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv,
-            (word32)privSz, pub, (word32)pubSz) < 0)) {
-        WOLFSSL_ERROR_MSG("wc_DhAgree failed");
-        ret = WOLFSSL_FATAL_ERROR;
+    if (ret == 0) {
+        word32 padded_keySz = keySz;
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && !defined(HAVE_SELFTEST)
+        if (ct) {
+            if (wc_DhAgree_ct((DhKey*)dh->internal, key, &keySz, priv,
+                           (word32)privSz, pub, (word32)pubSz) < 0) {
+                WOLFSSL_ERROR_MSG("wc_DhAgree_ct failed");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        else
+#endif /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
+        {
+            if (wc_DhAgree((DhKey*)dh->internal, key, &keySz, priv,
+                           (word32)privSz, pub, (word32)pubSz) < 0) {
+                WOLFSSL_ERROR_MSG("wc_DhAgree failed");
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+
+        if ((ret == 0) && ct) {
+            /* Arrange for correct fixed-length, right-justified key, even if
+             * the crypto back end doesn't support it.  With some crypto back
+             * ends this forgoes formal constant-timeness on the key agreement,
+             * but assured that wolfSSL_DH_compute_key_padded() functions
+             * correctly.
+             */
+            if (keySz < padded_keySz) {
+                XMEMMOVE(key, key + (padded_keySz - keySz),
+                         padded_keySz - keySz);
+                XMEMSET(key, 0, padded_keySz - keySz);
+            }
+        }
     }
     if (ret == 0) {
         /* Return actual length. */
@@ -8800,6 +8817,45 @@ int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
 
     return ret;
 }
+
+/* Compute the shared key from the private key and peer's public key.
+ *
+ * Return code compliant with OpenSSL.
+ * OpenSSL returns 0 when number of bits in p are smaller than minimum
+ * supported.
+ *
+ * @param [out] key       Buffer to place shared key.
+ * @param [in]  otherPub  Peer's public key.
+ * @param [in]  dh        DH key containing private key.
+ * @return  -1 on error.
+ * @return  Size of shared secret in bytes on success.
+ */
+int wolfSSL_DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
+    WOLFSSL_DH* dh)
+{
+    return _DH_compute_key(key, otherPub, dh, 0);
+}
+
+/* Compute the shared key from the private key and peer's public key as in
+ * wolfSSL_DH_compute_key, but using constant time processing, with an output
+ * key length fixed at the nominal DH key size.  Leading zeros are retained.
+ *
+ * Return code compliant with OpenSSL.
+ * OpenSSL returns 0 when number of bits in p are smaller than minimum
+ * supported.
+ *
+ * @param [out] key       Buffer to place shared key.
+ * @param [in]  otherPub  Peer's public key.
+ * @param [in]  dh        DH key containing private key.
+ * @return  -1 on error.
+ * @return  Size of shared secret in bytes on success.
+ */
+int wolfSSL_DH_compute_key_padded(unsigned char* key,
+    const WOLFSSL_BIGNUM* otherPub, WOLFSSL_DH* dh)
+{
+    return _DH_compute_key(key, otherPub, dh, 1);
+}
+
 #endif /* !HAVE_FIPS || (HAVE_FIPS && !WOLFSSL_DH_EXTRA) ||
         * HAVE_FIPS_VERSION > 2 */
 
