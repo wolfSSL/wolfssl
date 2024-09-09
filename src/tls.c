@@ -999,12 +999,12 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     /* Number of blocks to create for hash. */
     lenBlock = (realLen + extraLen) >> blockBits;
     /* Block containing EOC byte. */
-    eocBlock = realLen >> blockBits;
+    eocBlock = (int)(realLen >> (word32)blockBits);
     /* Index of EOC byte in block. */
-    eocIndex = realLen & blockMask;
+    eocIndex = (int)(realLen & (word32)blockMask);
 
     /* Add length of hmac's ipad to total length. */
-    realLen += blockSz;
+    realLen += (word32)blockSz;
     /* Length as bits - 8 bytes bigendian. */
     c32toa(realLen >> ((sizeof(word32) * 8) - 3), lenBytes);
     c32toa(realLen << 3, lenBytes + sizeof(word32));
@@ -1019,8 +1019,8 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         ret = Hmac_HashUpdate(hmac, header, WOLFSSL_TLS_HMAC_INNER_SZ);
         if (ret != 0)
             return ret;
-        ret = Hmac_HashUpdate(hmac, in, safeBlocks * blockSz -
-                                                     WOLFSSL_TLS_HMAC_INNER_SZ);
+        ret = Hmac_HashUpdate(hmac, in, (word32)(safeBlocks * blockSz -
+                                                     WOLFSSL_TLS_HMAC_INNER_SZ));
         if (ret != 0)
             return ret;
     }
@@ -1278,7 +1278,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     #endif
             {
                 ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
-                                      sz + hashSz + padSz + 1, hashSz, myInner);
+                                      (sz + hashSz + (word32)padSz + 1), (int)hashSz, myInner);
             }
 #else
             ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz + padSz + 1,
@@ -7663,7 +7663,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         #endif
             {
                 /* set curve info for EccMakeKey "peer" info */
-                ret = wc_ecc_set_curve(eccKey, kse->keyLen, curveId);
+                ret = wc_ecc_set_curve(eccKey, (int)kse->keyLen, curveId);
                 if (ret == 0) {
             #ifdef WOLFSSL_ASYNC_CRYPT
                     /* Detect when private key generation is done */

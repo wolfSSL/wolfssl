@@ -18620,7 +18620,7 @@ static int test_wc_Chacha_Process(void)
     ExpectIntEQ(wc_Chacha_Process(&enc, cipher, (byte*)input, (word32)inlen),
         0);
     ExpectIntEQ(wc_Chacha_Process(&dec, plain, cipher, (word32)inlen), 0);
-    ExpectIntEQ(XMEMCMP(input, plain, (int)inlen), 0);
+    ExpectIntEQ(XMEMCMP(input, plain, inlen), 0);
 
 #if !defined(USE_INTEL_CHACHA_SPEEDUP) && !defined(WOLFSSL_ARMASM)
     /* test checking and using leftovers, currently just in C code */
@@ -18635,7 +18635,7 @@ static int test_wc_Chacha_Process(void)
         (word32)inlen - 2), 0);
     ExpectIntEQ(wc_Chacha_Process(&dec, cipher + (inlen - 2),
         (byte*)input + (inlen - 2), 2), 0);
-    ExpectIntEQ(XMEMCMP(input, plain, (int)inlen), 0);
+    ExpectIntEQ(XMEMCMP(input, plain, inlen), 0);
 
     /* check edge cases with counter increment */
     {
@@ -20142,8 +20142,8 @@ static int test_wc_RsaPublicKeyDecodeRaw(void)
     RsaKey     key;
     const byte n = 0x23;
     const byte e = 0x03;
-    int        nSz = sizeof(n);
-    int        eSz = sizeof(e);
+    word32     nSz = sizeof(n);
+    word32     eSz = sizeof(e);
 
     ExpectIntEQ(wc_InitRsaKey(&key, HEAP_HINT), 0);
     ExpectIntEQ(wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, &key), 0);
@@ -50065,7 +50065,7 @@ static int test_wc_PemToDer(void)
         ExpectIntEQ(load_file(ecc_private_key, &cert_buf, &cert_sz), 0);
         key_buf[0] = '\n';
         ExpectNotNull(XMEMCPY(key_buf + 1, cert_buf, cert_sz));
-        ExpectIntNE((ret = wc_PemToDer(key_buf, cert_sz + 1, CERT_TYPE,
+        ExpectIntNE((ret = wc_PemToDer(key_buf, (long int)cert_sz + 1, CERT_TYPE,
             &pDer, NULL, &info, &eccKey)), 0);
 
     #ifdef OPENSSL_EXTRA
@@ -70516,7 +70516,7 @@ static int test_wc_ParseCert_Error(void)
     /* Test data */
     const struct testStruct {
         const byte* c;
-        const int cSz;
+        word32 cSz;
         const int expRet;
     } t[] = {
         {c0, sizeof(c0), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Invalid bit-string length */
@@ -76326,7 +76326,7 @@ static int test_ForceZero(void)
     for (i = 0; i < sizeof(data); i++) {
         for (len = 1; len < sizeof(data) - i; len++) {
             for (j = 0; j < sizeof(data); j++)
-                data[j] = j + 1;
+                data[j] = ((unsigned char)j + 1);
 
             ForceZero(data + i, len);
 
@@ -81896,7 +81896,7 @@ static int load_ca_into_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
     if ((ret = wolfSSL_CertManagerLoadCA(cm, certA, 0)) != WOLFSSL_SUCCESS) {
         fprintf(stderr, "loading cert %s failed\n", certA);
         fprintf(stderr, "Error: (%d): %s\n", ret,
-            wolfSSL_ERR_reason_error_string(ret));
+            wolfSSL_ERR_reason_error_string((unsigned long)ret));
         return -1;
     }
 
@@ -81910,7 +81910,7 @@ static int verify_cert_with_cm(WOLFSSL_CERT_MANAGER* cm, char* certA)
                                                          != WOLFSSL_SUCCESS) {
         fprintf(stderr, "could not verify the cert: %s\n", certA);
         fprintf(stderr, "Error: (%d): %s\n", ret,
-            wolfSSL_ERR_reason_error_string(ret));
+            wolfSSL_ERR_reason_error_string((unsigned long)ret));
         return -1;
     }
     else {
@@ -83223,7 +83223,7 @@ static int error_test(void)
                 break;
             }
         }
-        errStr = wolfSSL_ERR_reason_error_string(i);
+        errStr = wolfSSL_ERR_reason_error_string((unsigned long)i);
 
         if (! this_missing) {
             ExpectIntNE(XSTRCMP(errStr, unknownStr), 0);
@@ -83271,10 +83271,10 @@ static int test_wolfSSL_ERR_strings(void)
     ExpectNotNull(err = ERR_lib_error_string(PEM_R_PROBLEMS_GETTING_PASSWORD));
     ExpectIntEQ(XSTRNCMP(err, err2, XSTRLEN(err2)), 0);
 #else
-    ExpectNotNull(err = wolfSSL_ERR_reason_error_string(WC_NO_ERR_TRACE(UNSUPPORTED_SUITE)));
+    ExpectNotNull(err = wolfSSL_ERR_reason_error_string(WC_NO_ERR_TRACE((unsigned long)UNSUPPORTED_SUITE)));
     ExpectIntEQ(XSTRNCMP(err, err1, XSTRLEN(err1)), 0);
 
-    ExpectNotNull(err = wolfSSL_ERR_func_error_string(WC_NO_ERR_TRACE(UNSUPPORTED_SUITE)));
+    ExpectNotNull(err = wolfSSL_ERR_func_error_string(WC_NO_ERR_TRACE((unsigned long)UNSUPPORTED_SUITE)));
     ExpectIntEQ((*err == '\0'), 1);
 
     /* The value -MIN_CODE_E+2 is PEM_R_PROBLEMS_GETTING_PASSWORD. */
@@ -87239,7 +87239,7 @@ static int test_short_session_id_ssl_ready(WOLFSSL* ssl)
     EXPECT_DECLS;
     WOLFSSL_SESSION *sess = NULL;
     /* Setup the session to avoid errors */
-    ssl->session->timeout = -1;
+    ssl->session->timeout = (word32)-1;
     ssl->session->side = WOLFSSL_CLIENT_END;
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
