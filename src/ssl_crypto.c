@@ -2431,7 +2431,7 @@ int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* key,
     /* Check key parity is odd. */
     if ((ret == 0) && (!wolfSSL_DES_check_key_parity(key))) {
         WOLFSSL_MSG("Odd parity test fail");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     /* Check whether key is weak. */
     if ((ret == 0) && wolfSSL_DES_is_weak_key(key)) {
@@ -2929,19 +2929,19 @@ static int wolfssl_aes_set_key(const unsigned char *key, const int bits,
     /* Validate parameters. */
     if ((key == NULL) || (aes == NULL)) {
         WOLFSSL_MSG("Null argument passed in");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     XMEMSET(aes, 0, sizeof(AES_KEY));
 
     if (wc_AesInit((Aes*)aes, NULL, INVALID_DEVID) != 0) {
         WOLFSSL_MSG("Error in initting AES key");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (wc_AesSetKey((Aes*)aes, key, ((bits)/8), NULL, enc) != 0) {
         WOLFSSL_MSG("Error in setting AES key");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
     return 0;
 }

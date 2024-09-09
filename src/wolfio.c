@@ -1198,7 +1198,7 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
         unsigned long blocking = non_blocking;
         ret = ioctlsocket(sockfd, FIONBIO, &blocking);
         if (ret == SOCKET_ERROR)
-            ret = -1;
+            ret = WOLFSSL_FATAL_ERROR;
     #else
         ret = fcntl(sockfd, F_GETFL, 0);
         if (ret >= 0) {
@@ -1228,7 +1228,7 @@ int wolfIO_SendTo(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf, int sz, int wr
 
         if ((sockfd < 0) || (sockfd >= FD_SETSIZE)) {
             WOLFSSL_MSG("socket fd out of FDSET range");
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
     #endif
 
@@ -1314,7 +1314,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #endif /* HAVE_SOCKADDR */
 
     if (sockfd == NULL || ip == NULL) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
 #if !defined(HAVE_GETADDRINFO)
@@ -1343,12 +1343,12 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 
     if (wolfIO_Word16ToString(strPort, port) == 0) {
         WOLFSSL_MSG("invalid port number for responder");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (getaddrinfo(ip, strPort, &hints, &answer) < 0 || answer == NULL) {
         WOLFSSL_MSG("no addr info for responder");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     sockaddr_len = answer->ai_addrlen;
@@ -1412,7 +1412,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         }
         else {
             WOLFSSL_MSG("no addr info for responder");
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
     }
 #else
@@ -1452,7 +1452,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 
     if (entry == NULL) {
         WOLFSSL_MSG("no addr info for responder");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
@@ -1465,7 +1465,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     {
         WOLFSSL_MSG("bad socket fd, out of fds?");
         *sockfd = SOCKET_INVALID;
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
 #ifdef HAVE_IO_TIMEOUT
@@ -1499,7 +1499,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
         WOLFSSL_MSG("Responder tcp connect failed");
         CloseSocket(*sockfd);
         *sockfd = SOCKET_INVALID;
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
     return ret;
 #else
@@ -1507,7 +1507,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     (void)ip;
     (void)port;
     (void)to_sec;
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 #endif /* HAVE_SOCKADDR */
 }
 
@@ -1520,7 +1520,7 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
     SOCKADDR_IN *sin = (SOCKADDR_IN *)&addr;
 
     if (sockfd == NULL || port < 1) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     XMEMSET(&addr, 0, sizeof(addr));
@@ -1538,7 +1538,7 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
     {
         WOLFSSL_MSG("socket failed");
         *sockfd = SOCKET_INVALID;
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
 #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_MDK_ARM)\
@@ -1559,14 +1559,14 @@ int wolfIO_TcpBind(SOCKET_T* sockfd, word16 port)
         WOLFSSL_MSG("wolfIO_TcpBind failed");
         CloseSocket(*sockfd);
         *sockfd = SOCKET_INVALID;
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     return ret;
 #else
     (void)sockfd;
     (void)port;
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 #endif /* HAVE_SOCKADDR */
 }
 
@@ -1646,7 +1646,7 @@ int wolfIO_DecodeUrl(const char* url, int urlSz, char* outName, char* outPath,
             }
 
             for (j = 0; j < i; j++) {
-                if (port[j] < '0' || port[j] > '9') return -1;
+                if (port[j] < '0' || port[j] > '9') return WOLFSSL_FATAL_ERROR;
                 bigPort = (bigPort * 10) + (word32)(port[j] - '0');
             }
             if (outPort)
@@ -1726,7 +1726,7 @@ static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
         else {
             WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf bad size");
             XFREE(newRecvBuf, heap, dynType);
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -1740,7 +1740,7 @@ static int wolfIO_HttpProcessResponseBuf(WolfSSLGenericIORecvCb ioCb,
         else {
             WOLFSSL_MSG("wolfIO_HttpProcessResponseBuf recv failed");
             XFREE(newRecvBuf, heap, dynType);
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -3054,7 +3054,7 @@ int uIPReceive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
 {
     uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)_ctx;
     if (!ctx || !ctx->ssl_rx_databuf)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     (void)ssl;
     if (ctx->ssl_rb_len > 0) {
         if (sz > ctx->ssl_rb_len - ctx->ssl_rb_off)
@@ -3206,7 +3206,7 @@ int LwIPNativeSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     ret = tcp_write(nlwip->pcb, buf, sz, TCP_WRITE_FLAG_COPY);
     if (ret != ERR_OK) {
-        sz = -1;
+        sz = WOLFSSL_FATAL_ERROR;
     }
 
     return sz;

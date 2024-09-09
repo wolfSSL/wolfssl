@@ -4145,7 +4145,7 @@ int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
             return i;
     }
 
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 }
 
 /* returns status after we hash the ech inner */
@@ -4418,11 +4418,11 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         if (echX == NULL)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 
         args->ech = (WOLFSSL_ECH*)echX->data;
         if (args->ech == NULL)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
@@ -4816,7 +4816,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
                 break;
 #endif /* WOLFSSL_SM3 */
             default:
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
         }
     }
@@ -4954,7 +4954,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
                 break;
 #endif /* WOLFSSL_SM3 */
             default:
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
         }
 
@@ -6938,7 +6938,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
 
         if (echX == NULL)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 
         ((WOLFSSL_ECH*)echX->data)->aad = input + HANDSHAKE_HEADER_SZ;
         ((WOLFSSL_ECH*)echX->data)->aadLen = helloSz;
@@ -7409,7 +7409,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
                 echX = TLSX_Find(ssl->extensions, TLSX_ECH);
 
                 if (echX == NULL)
-                    return -1;
+                    return WOLFSSL_FATAL_ERROR;
 
                 /* replace the last 8 bytes of server random with the accept */
                 if (((WOLFSSL_ECH*)echX->data)->state == ECH_PARSED_INTERNAL) {

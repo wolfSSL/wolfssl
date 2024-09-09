@@ -2585,7 +2585,7 @@ int Dtls13RtxTimeout(WOLFSSL* ssl)
 
     /* Increase timeout on long timeout */
     if (DtlsMsgPoolTimeout(ssl) != 0)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
 
     return Dtls13RtxSendBuffered(ssl);
 }

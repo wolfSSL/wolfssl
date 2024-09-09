@@ -9593,7 +9593,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     /* return length needed only */
     if (point != NULL && out == NULL && outLen != NULL) {
         *outLen = 1 + 2*numlen;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (point == NULL || out == NULL || outLen == NULL)
@@ -9669,7 +9669,7 @@ int wc_ecc_export_point_der_compressed(const int curve_idx, ecc_point* point,
     /* return length needed only */
     if (point != NULL && out == NULL && outLen != NULL) {
         *outLen = output_len;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (point == NULL || out == NULL || outLen == NULL)
@@ -9733,7 +9733,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
       /* if key hasn't been setup assume max bytes for size estimation */
       numlen = key->dp ? (word32)key->dp->size : MAX_ECC_BYTES;
       *outLen = 1 + 2 * numlen;
-      return LENGTH_ONLY_E;
+      return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
    }
 
    if (key == NULL || out == NULL || outLen == NULL)
@@ -15366,7 +15366,7 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 
    if (*outLen < (1 + numlen)) {
       *outLen = 1 + numlen;
-      return LENGTH_ONLY_E;
+      return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
    }
 
    if (out == NULL)

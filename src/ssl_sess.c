@@ -1625,7 +1625,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx,
                     ID_LEN, &error) % CLIENT_SESSION_ROWS;
         }
         else {
-            error = -1;
+            error = WOLFSSL_FATAL_ERROR;
         }
         if (error == 0 && wc_LockMutex(&clisession_mutex) == 0) {
             clientIdx = (word32)ClientCache[clientRow].nextIdx;
@@ -1644,7 +1644,7 @@ ClientSession* AddSessionToClientCache(int side, int row, int idx,
                 }
             }
             else {
-                error = -1;
+                error = WOLFSSL_FATAL_ERROR;
                 ClientCache[clientRow].nextIdx = 0; /* reset index as safety */
                 WOLFSSL_MSG("Invalid client cache index! "
                             "Possible corrupted memory");
@@ -1709,7 +1709,7 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
         if (clientSession->serverRow >= SESSION_ROWS ||
                 clientSession->serverIdx >= SESSIONS_PER_ROW) {
             WOLFSSL_MSG("Client cache serverRow or serverIdx invalid");
-            error = -1;
+            error = WOLFSSL_FATAL_ERROR;
         }
         if (error == 0) {
             /* Lock row */
@@ -1734,7 +1734,7 @@ WOLFSSL_SESSION* ClientSessionToSession(const WOLFSSL_SESSION* session)
             if (cacheSession && cacheSession->sessionIDSz == 0) {
                 cacheSession = NULL;
                 WOLFSSL_MSG("Session cache entry not set");
-                error = -1;
+                error = WOLFSSL_FATAL_ERROR;
             }
         }
         if (error == 0) {

@@ -1456,7 +1456,7 @@ int wc_PKCS7_GetAttributeValue(PKCS7* pkcs7, const byte* oid, word32 oidSz,
 
     if (out == NULL) {
         *outSz = attrib->valueSz;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (*outSz < attrib->valueSz) {
@@ -6587,7 +6587,7 @@ int wc_PKCS7_GetSignerSID(PKCS7* pkcs7, byte* out, word32* outSz)
 
     if (out == NULL) {
         *outSz = pkcs7->signerInfo->sidSz;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (*outSz < pkcs7->signerInfo->sidSz) {
@@ -8841,7 +8841,7 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
     /* if user set out to NULL, give back required length */
     if (out == NULL) {
         *outSz = (word32)outLen;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     /* verify output buffer is large enough */
