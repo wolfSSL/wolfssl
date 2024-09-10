@@ -529,6 +529,27 @@ __asm__(                           \
 #define LOOP_START \
    mu = c[x] * mp
 
+#ifdef __APPLE__
+
+#define INNERMUL                     \
+__asm__(                             \
+   " mullw    r16,%3,%4       \n\t"  \
+   " mulhwu   r17,%3,%4       \n\t"  \
+   " addc     r16,r16,%2      \n\t"  \
+   " addze    r17,r17         \n\t"  \
+   " addc     %1,r16,%5       \n\t"  \
+   " addze    %0,r17          \n\t"  \
+:"=r"(cy),"=r"(_c[0]):"0"(cy),"r"(mu),"r"(tmpm[0]),"1"(_c[0]):"r16", "r17", "cc"); ++tmpm;
+
+#define PROPCARRY                    \
+__asm__(                             \
+   " addc     %1,%3,%2      \n\t"    \
+   " xor      %0,%2,%2      \n\t"    \
+   " addze    %0,%2         \n\t"    \
+:"=r"(cy),"=r"(_c[0]):"0"(cy),"1"(_c[0]):"cc");
+
+#else
+
 #define INNERMUL                     \
 __asm__(                             \
    " mullw    16,%3,%4       \n\t"   \
@@ -546,6 +567,8 @@ __asm__(                             \
    " addze    %0,%2         \n\t"    \
 :"=r"(cy),"=r"(_c[0]):"0"(cy),"1"(_c[0]):"cc");
 
+#endif
+
 #elif defined(TFM_PPC64)
 
 /* PPC64 */
@@ -554,6 +577,8 @@ __asm__(                             \
 #define LOOP_END
 #define LOOP_START \
    mu = c[x] * mp
+
+#ifdef __APPLE__
 
 #define INNERMUL                      \
 __asm__(                              \
@@ -575,6 +600,31 @@ __asm__(                              \
    " xor      %0,%0,%0       \n\t"    \
    " addze    %0,%0          \n\t"    \
 :"=r"(cy),"=m"(_c[0]):"0"(cy),"1"(_c[0]):"r16","cc");
+
+#else
+
+#define INNERMUL                     \
+__asm__(                             \
+   " mulld    16,%3,%4       \n\t"   \
+   " mulhdu   17,%3,%4       \n\t"   \
+   " addc     16,16,%0       \n\t"   \
+   " addze    17,17          \n\t"   \
+   " ldx      18,0,%1        \n\t"   \
+   " addc     16,16,18       \n\t"   \
+   " addze    %0,17          \n\t"   \
+   " sdx      16,0,%1        \n\t"   \
+:"=r"(cy),"=m"(_c[0]):"0"(cy),"r"(mu),"r"(tmpm[0]),"1"(_c[0]):"16", "17", "18","cc"); ++tmpm;
+
+#define PROPCARRY                    \
+__asm__(                             \
+   " ldx      16,0,%1       \n\t"    \
+   " addc     16,16,%0      \n\t"    \
+   " sdx      16,0,%1       \n\t"    \
+   " xor      %0,%0,%0      \n\t"    \
+   " addze    %0,%0         \n\t"    \
+:"=r"(cy),"=m"(_c[0]):"0"(cy),"1"(_c[0]):"16","cc");
+
+#endif
 
 /******************************************************************/
 

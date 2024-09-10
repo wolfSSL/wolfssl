@@ -3473,6 +3473,156 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
  * CPU: PPC64
  */
 
+    #ifdef __APPLE__
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        "mulld	%[l], %[a], %[b]	\n\t"            \
+        "mulhdu	%[h], %[a], %[b]	\n\t"            \
+        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "memory"                                       \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        "mulhdu	%[h], %[a], %[b]	\n\t"            \
+        "mulld	%[l], %[a], %[b]	\n\t"            \
+        "li	%[o], 0			\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        :                                                \
+    )
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        "mulld	r16, %[a], %[b]		\n\t"            \
+        "mulhdu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        "mulld	r16, %[a], %[b]		\n\t"            \
+        "mulhdu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        "mulld	r16, %[a], %[b]		\n\t"            \
+        "mulhdu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        "mulld	r16, %[a], %[b]		\n\t"            \
+        "mulhdu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "mulld	%[l], %[a], %[a]	\n\t"            \
+        "mulhdu	%[h], %[a], %[a]	\n\t"            \
+        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        : [a] "r" (va)                                   \
+        : "memory"                                       \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "mulld	r16, %[a], %[a]		\n\t"            \
+        "mulhdu	r17, %[a], %[a]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va)                                   \
+        : "r16", "r17", "cc"                             \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "mulld	r16, %[a], %[a]		\n\t"            \
+        "mulhdu	r17, %[a], %[a]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va)                                   \
+        : "r16", "r17", "cc"                             \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "addc	%[l], %[l], %[a]	\n\t"            \
+        "addze	%[h], %[h]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va)                                   \
+        : "cc"                                           \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBB(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "subfc	%[l], %[a], %[l]	\n\t"            \
+        "li    r16, 0			\n\t"            \
+        "subfe %[h], r16, %[h]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va)                                   \
+        : "r16", "cc"                                    \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "addc	%[l], %[l], %[a]	\n\t"            \
+        "adde	%[h], %[h], %[b]	\n\t"            \
+        "adde	%[o], %[o], %[c]	\n\t"            \
+        "addc	%[l], %[l], %[a]	\n\t"            \
+        "adde	%[h], %[h], %[b]	\n\t"            \
+        "adde	%[o], %[o], %[c]	\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb), [c] "r" (vc)       \
+        : "cc"                                           \
+    )
+/* Count leading zeros. */
+#define SP_ASM_LZCNT(va, vn)                             \
+    __asm__ __volatile__ (                               \
+        "cntlzd	%[n], %[a]	\n\t"                    \
+        : [n] "=r" (vn)                                  \
+        : [a] "r" (va)                                   \
+        :                                                \
+    )
+
+    #else  /* !defined(__APPLE__) */
+
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
     __asm__ __volatile__ (                               \
@@ -3619,6 +3769,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         :                                                \
     )
 
+    #endif /* !defined(__APPLE__) */
+
 #define SP_INT_ASM_AVAILABLE
 
     #endif /* WOLFSSL_SP_PPC64 && SP_WORD_SIZE == 64 */
@@ -3627,6 +3779,154 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 /*
  * CPU: PPC 32-bit
  */
+
+    #ifdef __APPLE__
+
+/* Multiply va by vb and store double size result in: vh | vl */
+#define SP_ASM_MUL(vl, vh, va, vb)                       \
+    __asm__ __volatile__ (                               \
+        "mullw	%[l], %[a], %[b]	\n\t"            \
+        "mulhwu	%[h], %[a], %[b]	\n\t"            \
+        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "memory"                                       \
+    )
+/* Multiply va by vb and store double size result in: vo | vh | vl */
+#define SP_ASM_MUL_SET(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        "mulhwu	%[h], %[a], %[b]	\n\t"            \
+        "mullw	%[l], %[a], %[b]	\n\t"            \
+        "li	%[o], 0			\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+    )
+/* Multiply va by vb and add double size result into: vo | vh | vl */
+#define SP_ASM_MUL_ADD(vl, vh, vo, va, vb)               \
+    __asm__ __volatile__ (                               \
+        "mullw	r16, %[a], %[b]		\n\t"            \
+        "mulhwu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Multiply va by vb and add double size result into: vh | vl */
+#define SP_ASM_MUL_ADD_NO(vl, vh, va, vb)                \
+    __asm__ __volatile__ (                               \
+        "mullw	r16, %[a], %[b]		\n\t"            \
+        "mulhwu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl */
+#define SP_ASM_MUL_ADD2(vl, vh, vo, va, vb)              \
+    __asm__ __volatile__ (                               \
+        "mullw	r16, %[a], %[b]		\n\t"            \
+        "mulhwu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Multiply va by vb and add double size result twice into: vo | vh | vl
+ * Assumes first add will not overflow vh | vl
+ */
+#define SP_ASM_MUL_ADD2_NO(vl, vh, vo, va, vb)           \
+    __asm__ __volatile__ (                               \
+        "mullw	r16, %[a], %[b]		\n\t"            \
+        "mulhwu	r17, %[a], %[b]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb)                     \
+        : "r16", "r17", "cc"                             \
+    )
+/* Square va and store double size result in: vh | vl */
+#define SP_ASM_SQR(vl, vh, va)                           \
+    __asm__ __volatile__ (                               \
+        "mullw	%[l], %[a], %[a]	\n\t"            \
+        "mulhwu	%[h], %[a], %[a]	\n\t"            \
+        : [h] "+r" (vh), [l] "+r" (vl)                   \
+        : [a] "r" (va)                                   \
+        : "memory"                                       \
+    )
+/* Square va and add double size result into: vo | vh | vl */
+#define SP_ASM_SQR_ADD(vl, vh, vo, va)                   \
+    __asm__ __volatile__ (                               \
+        "mullw	r16, %[a], %[a]		\n\t"            \
+        "mulhwu	r17, %[a], %[a]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        "addze	%[o], %[o]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va)                                   \
+        : "r16", "r17", "cc"                             \
+    )
+/* Square va and add double size result into: vh | vl */
+#define SP_ASM_SQR_ADD_NO(vl, vh, va)                    \
+    __asm__ __volatile__ (                               \
+        "mullw	r16, %[a], %[a]		\n\t"            \
+        "mulhwu	r17, %[a], %[a]		\n\t"            \
+        "addc	%[l], %[l], r16		\n\t"            \
+        "adde	%[h], %[h], r17		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va)                                   \
+        : "r16", "r17", "cc"                             \
+    )
+/* Add va into: vh | vl */
+#define SP_ASM_ADDC(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "addc	%[l], %[l], %[a]	\n\t"            \
+        "addze	%[h], %[h]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va)                                   \
+        : "cc"                                           \
+    )
+/* Sub va from: vh | vl */
+#define SP_ASM_SUBB(vl, vh, va)                          \
+    __asm__ __volatile__ (                               \
+        "subfc	%[l], %[a], %[l]	\n\t"            \
+        "li	r16, 0			\n\t"            \
+        "subfe	%[h], r16, %[h]		\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh)                   \
+        : [a] "r" (va)                                   \
+        : "r16", "cc"                                    \
+    )
+/* Add two times vc | vb | va into vo | vh | vl */
+#define SP_ASM_ADD_DBL_3(vl, vh, vo, va, vb, vc)         \
+    __asm__ __volatile__ (                               \
+        "addc	%[l], %[l], %[a]	\n\t"            \
+        "adde	%[h], %[h], %[b]	\n\t"            \
+        "adde	%[o], %[o], %[c]	\n\t"            \
+        "addc	%[l], %[l], %[a]	\n\t"            \
+        "adde	%[h], %[h], %[b]	\n\t"            \
+        "adde	%[o], %[o], %[c]	\n\t"            \
+        : [l] "+r" (vl), [h] "+r" (vh), [o] "+r" (vo)    \
+        : [a] "r" (va), [b] "r" (vb), [c] "r" (vc)       \
+        : "cc"                                           \
+    )
+/* Count leading zeros. */
+#define SP_ASM_LZCNT(va, vn)                             \
+    __asm__ __volatile__ (                               \
+        "cntlzw	%[n], %[a]	\n\t"                    \
+        : [n] "=r" (vn)                                  \
+        : [a] "r" (va)                                   \
+    )
+
+    #else /* !defined(__APPLE__) */
 
 /* Multiply va by vb and store double size result in: vh | vl */
 #define SP_ASM_MUL(vl, vh, va, vb)                       \
@@ -3771,6 +4071,8 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         : [n] "=r" (vn)                                  \
         : [a] "r" (va)                                   \
     )
+
+    #endif /* !defined(__APPLE__) */
 
 #define SP_INT_ASM_AVAILABLE
 

@@ -1106,7 +1106,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif
 
     /* PowerPC time_t is int */
-    #ifdef __PPC__
+    #if defined(__PPC__) || defined(__ppc__)
         #define TIME_T_NOT_64BIT
     #endif
 
@@ -1279,7 +1279,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define XFENCE() XASM_VOLATILE("isb")
     #elif defined(__riscv)
         #define XFENCE() XASM_VOLATILE("fence")
-    #elif defined(__PPC__)
+    #elif defined(__PPC__) || defined(__POWERPC__)
         #define XFENCE() XASM_VOLATILE("isync; sync")
     #else
         #define XFENCE() WC_DO_NOTHING

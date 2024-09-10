@@ -162,16 +162,16 @@ decouple library dependencies with standard string, memory and so on.
     #elif !defined(__BCPLUSPLUS__) && !defined(__EMSCRIPTEN__)
         #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
             #if (defined(__alpha__) || defined(__ia64__) || \
-                defined(_ARCH_PPC64) || defined(__mips64) || \
+                defined(_ARCH_PPC64) || defined(__ppc64__) || \
                 defined(__x86_64__)  || defined(__s390x__ ) || \
                 ((defined(sun) || defined(__sun)) && \
                  (defined(LP64) || defined(_LP64))) || \
                 (defined(__riscv_xlen) && (__riscv_xlen == 64)) || \
-                defined(__aarch64__) || \
+                defined(__aarch64__) || defined(__mips64) || \
                 (defined(__DCC__) && (defined(__LP64) || defined(__LP64__))))
                 /* long should be 64bit */
                 #define SIZEOF_LONG 8
-            #elif defined(__i386__) || defined(__CORTEX_M3__)
+            #elif defined(__i386__) || defined(__CORTEX_M3__) || defined(__ppc__)
                 /* long long should be 64bit */
                 #define SIZEOF_LONG_LONG 8
             #endif
@@ -234,7 +234,7 @@ decouple library dependencies with standard string, memory and so on.
          defined(__x86_64__) || defined(_M_X64)) || \
          defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
         (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64) || \
-        defined(__aarch64__) || \
+        defined(__aarch64__) || defined(__ppc64__) || \
         (defined(__DCC__) && (defined(__LP64) || defined(__LP64__)))
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
