@@ -759,14 +759,14 @@ fi
 
 # fastmath
 AC_ARG_ENABLE([fastmath],
-    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: disabled)])],
+    [AS_HELP_STRING([--enable-fastmath],[Enable legacy Tom's Fast Math back end (default: disabled)])],
     [ ENABLED_FASTMATH=$enableval ],
     [ ENABLED_FASTMATH=$DEF_FAST_MATH ]
     )
 
 # fast HUGE math
 AC_ARG_ENABLE([fasthugemath],
-    [AS_HELP_STRING([--enable-fasthugemath],[Enable fast math + huge code (default: disabled)])],
+    [AS_HELP_STRING([--enable-fasthugemath],[Enable legacy Tom's Fast Math + huge code (default: disabled)])],
     [ ENABLED_FASTHUGEMATH=$enableval ],
     [ ENABLED_FASTHUGEMATH=no ]
     )
@@ -8421,7 +8421,7 @@ then
 
     if test "x$ENABLED_HEAPMATH" = "xyes"
     then
-        AC_MSG_ERROR([please use --enable-fastmath if enabling staticmemory.])
+        AC_MSG_ERROR([--enable-heapmath is incompatible with --enable-staticmemory.])
     fi
     if test "$ENABLED_LOWRESOURCE" = "yes" && test "$ENABLED_RSA" = "no"
     then
