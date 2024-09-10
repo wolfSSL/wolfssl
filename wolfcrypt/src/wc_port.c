@@ -24,6 +24,10 @@
     #include <config.h>
 #endif
 
+#ifdef __APPLE__
+    #include <AvailabilityMacros.h>
+#endif
+
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -3814,86 +3818,8 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     }
 
 #ifdef WOLFSSL_COND
-    #ifndef __MACH__
-    /* Generic POSIX conditional */
-    int wolfSSL_CondInit(COND_TYPE* cond)
-    {
-        if (cond == NULL)
-            return BAD_FUNC_ARG;
-
-        if (pthread_mutex_init(&cond->mutex, NULL) != 0)
-            return MEMORY_E;
-
-        if (pthread_cond_init(&cond->cond, NULL) != 0) {
-            /* Keep compilers happy that we are using the return code */
-            if (pthread_mutex_destroy(&cond->mutex) != 0)
-                return MEMORY_E;
-            return MEMORY_E;
-        }
-
-        return 0;
-    }
-
-    int wolfSSL_CondFree(COND_TYPE* cond)
-    {
-        int ret = 0;
-
-        if (cond == NULL)
-            return BAD_FUNC_ARG;
-
-        if (pthread_mutex_destroy(&cond->mutex) != 0)
-            ret = MEMORY_E;
-
-        if (pthread_cond_destroy(&cond->cond) != 0)
-            ret = MEMORY_E;
-
-        return ret;
-    }
-
-    int wolfSSL_CondStart(COND_TYPE* cond)
-    {
-        if (cond == NULL)
-            return BAD_FUNC_ARG;
-
-        if (pthread_mutex_lock(&cond->mutex) != 0)
-            return BAD_MUTEX_E;
-
-        return 0;
-    }
-
-    int wolfSSL_CondSignal(COND_TYPE* cond)
-    {
-        if (cond == NULL)
-            return BAD_FUNC_ARG;
-
-        if (pthread_cond_signal(&cond->cond) != 0)
-            return MEMORY_E;
-
-        return 0;
-    }
-
-    int wolfSSL_CondWait(COND_TYPE* cond)
-    {
-        if (cond == NULL)
-            return BAD_FUNC_ARG;
-
-        if (pthread_cond_wait(&cond->cond, &cond->mutex) != 0)
-            return MEMORY_E;
-
-        return 0;
-    }
-
-    int wolfSSL_CondEnd(COND_TYPE* cond)
-    {
-        if (cond == NULL)
-            return BAD_FUNC_ARG;
-
-        if (pthread_mutex_unlock(&cond->mutex) != 0)
-            return BAD_MUTEX_E;
-
-        return 0;
-    }
-    #else /* __MACH__ */
+    #if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 \
+        && !defined(__ppc__)
     /* Apple style dispatch semaphore */
     int wolfSSL_CondInit(COND_TYPE* cond)
     {
@@ -3985,6 +3911,87 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 
         return 0;
     }
+
+    #else /* Generic POSIX conditional */
+
+    int wolfSSL_CondInit(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_mutex_init(&cond->mutex, NULL) != 0)
+            return MEMORY_E;
+
+        if (pthread_cond_init(&cond->cond, NULL) != 0) {
+            /* Keep compilers happy that we are using the return code */
+            if (pthread_mutex_destroy(&cond->mutex) != 0)
+                return MEMORY_E;
+            return MEMORY_E;
+        }
+
+        return 0;
+    }
+
+    int wolfSSL_CondFree(COND_TYPE* cond)
+    {
+        int ret = 0;
+
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_mutex_destroy(&cond->mutex) != 0)
+            ret = MEMORY_E;
+
+        if (pthread_cond_destroy(&cond->cond) != 0)
+            ret = MEMORY_E;
+
+        return ret;
+    }
+
+    int wolfSSL_CondStart(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_mutex_lock(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondSignal(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_cond_signal(&cond->cond) != 0)
+            return MEMORY_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondWait(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_cond_wait(&cond->cond, &cond->mutex) != 0)
+            return MEMORY_E;
+
+        return 0;
+    }
+
+    int wolfSSL_CondEnd(COND_TYPE* cond)
+    {
+        if (cond == NULL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_mutex_unlock(&cond->mutex) != 0)
+            return BAD_MUTEX_E;
+
+        return 0;
+    }
+
     #endif /* __MACH__ */
 #endif /* WOLFSSL_COND */
 
