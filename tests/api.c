@@ -82334,6 +82334,30 @@ static int test_wolfSSL_DH(void)
     ExpectNotNull(dh->g);
     ExpectTrue(pt == buf);
     ExpectIntEQ(DH_generate_key(dh), 1);
+
+    /* first, test for expected successful key agreement. */
+    if (EXPECT_SUCCESS()) {
+        DH *dh2 = NULL;
+        unsigned char buf2[268];
+        int sz1 = 0, sz2 = 0;
+
+        ExpectNotNull(dh2 = d2i_DHparams(NULL, &pt, len));
+        ExpectIntEQ(DH_generate_key(dh2), 1);
+
+        ExpectIntGT(sz1=DH_compute_key(buf, dh2->pub_key, dh), 0);
+        ExpectIntGT(sz2=DH_compute_key(buf2, dh->pub_key, dh2), 0);
+        ExpectIntEQ(sz1, sz2);
+        ExpectIntEQ(XMEMCMP(buf, buf2, (size_t)sz1), 0);
+
+        ExpectIntNE(sz1 = DH_size(dh), 0);
+        ExpectIntEQ(DH_compute_key_padded(buf, dh2->pub_key, dh), sz1);
+        ExpectIntEQ(DH_compute_key_padded(buf2, dh->pub_key, dh2), sz1);
+        ExpectIntEQ(XMEMCMP(buf, buf2, (size_t)sz1), 0);
+
+        if (dh2 != NULL)
+            DH_free(dh2);
+    }
+
     ExpectIntEQ(DH_generate_key(dh), 1);
     ExpectIntEQ(DH_compute_key(NULL, NULL, NULL), -1);
     ExpectNotNull(pub = BN_new());

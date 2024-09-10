@@ -22785,6 +22785,38 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
     if (agreeSz != agreeSz2 || XMEMCMP(agree, agree2, agreeSz)) {
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
+
+#if (!defined(HAVE_FIPS) || FIPS_VERSION_GE(7,0)) && \
+            !defined(HAVE_SELFTEST)
+    agreeSz = DH_TEST_BUF_SIZE;
+    agreeSz2 = DH_TEST_BUF_SIZE;
+
+    ret = wc_DhAgree_ct(key, agree, &agreeSz, priv, privSz, pub2, pubSz2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+    ret = wc_DhAgree_ct(key2, agree2, &agreeSz2, priv2, privSz2, pub, pubSz);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+
+#ifdef WOLFSSL_PUBLIC_MP
+    if (agreeSz != (word32)mp_unsigned_bin_size(&key->p))
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+#endif
+
+    if (agreeSz != agreeSz2)
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+
+    if (XMEMCMP(agree, agree2, agreeSz) != 0)
+    {
+        ERROR_OUT(WC_TEST_RET_ENC_NC, done);
+    }
+#endif /* (!HAVE_FIPS || FIPS_VERSION_GE(7,0)) && !HAVE_SELFTEST */
+
 #endif /* !WC_NO_RNG */
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
