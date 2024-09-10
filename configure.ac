@@ -840,67 +840,14 @@ AC_ARG_ENABLE([all],
     )
 if test "$ENABLED_ALL" = "yes"
 then
+    enable_all_crypto=yes
+
     test "$enable_dtls" = "" && enable_dtls=yes
     if test "x$FIPS_VERSION" != "xv1"
     then
         test "$enable_tls13" = "" && enable_tls13=yes
         test "$enable_rsapss" = "" && enable_rsapss=yes
     fi
-
-    # this set is also enabled by enable-all-crypto:
-    test "$enable_atomicuser" = "" && enable_atomicuser=yes
-    test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
-    test "$enable_aesccm" = "" && enable_aesccm=yes
-    test "$enable_aesctr" = "" && enable_aesctr=yes
-    test "$enable_aeseax" = "" && enable_aeseax=yes
-    test "$enable_aesofb" = "" && enable_aesofb=yes
-    test "$enable_aescfb" = "" && enable_aescfb=yes
-    test "$enable_aescbc_length_checks" = "" && enable_aescbc_length_checks=yes
-    test "$enable_camellia" = "" && enable_camellia=yes
-    test "$enable_ripemd" = "" && enable_ripemd=yes
-    test "$enable_sha224" = "" && enable_sha224=yes
-    test "$enable_sha512" = "" && enable_sha512=yes
-    test "$enable_sha3" = "" && enable_sha3=yes
-    test "$enable_shake128" = "" && enable_shake128=yes
-    test "$enable_shake256" = "" && enable_shake256=yes
-    test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
-    test "$enable_keygen" = "" && enable_keygen=yes
-    test "$enable_certgen" = "" && enable_certgen=yes
-    test "$enable_certreq" = "" && enable_certreq=yes
-    test "$enable_certext" = "" && enable_certext=yes
-    test "$enable_sep" = "" && enable_sep=yes
-    test "$enable_hkdf" = "" && enable_hkdf=yes
-    test "$enable_curve25519" = "" && enable_curve25519=yes
-    test "$enable_curve448" = "" && enable_curve448=yes
-    test "$enable_fpecc" = "" && test "$enable_ecc" != "no" && enable_fpecc=yes
-    test "$enable_eccencrypt" = "" && test "$enable_ecc" != "no" && enable_eccencrypt=yes
-    test "$enable_psk" = "" && enable_psk=yes
-    test "$enable_cmac" = "" && enable_cmac=yes
-    test "$enable_siphash" = "" && enable_siphash=yes
-    test "$enable_ocsp" = "" && enable_ocsp=yes
-    test "$enable_ocspstapling" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling=yes
-    test "$enable_ocspstapling2" = "" && test "$enable_ocsp" != "no" && enable_ocspstapling2=yes
-    test "$enable_crl" = "" && enable_crl=yes
-    test "$enable_supportedcurves" = "" && enable_supportedcurves=yes
-    test "$enable_tlsx" = "" && enable_tlsx=yes
-    test "$enable_pwdbased" = "" && enable_pwdbased=yes
-    test "$enable_aeskeywrap" = "" && enable_aeskeywrap=yes
-    test "$enable_x963kdf" = "" && enable_x963kdf=yes
-    test "$enable_scrypt" = "" && test "$enable_hmac" != "no" && enable_scrypt=yes
-    test "$enable_indef" = "" && enable_indef=yes
-    test "$enable_enckeys" = "" && enable_enckeys=yes
-    test "$enable_hashflags" = "" && enable_hashflags=yes
-    test "$enable_defaultdhparams" = "" && enable_defaultdhparams=yes
-    test "$enable_base64encode" = "" && enable_base64encode=yes
-    test "$enable_base16" = "" && enable_base16=yes
-    test "$enable_arc4" = "" && enable_arc4=yes
-    test "$enable_blake2" = "" && enable_blake2=yes
-    test "$enable_blake2s" = "" && enable_blake2s=yes
-    test "$enable_md2" = "" && enable_md2=yes
-    test "$enable_md4" = "" && enable_md4=yes
-    test "$enable_anon" = "" && enable_anon=yes
-    test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
 
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
@@ -922,20 +869,12 @@ then
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
     then
-        test "$enable_compkey" = "" && enable_compkey=yes
         test "$enable_quic" = "" && test "$enable_cryptonly" != "yes" && enable_quic=yes
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 
-    # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
     if test "$ENABLED_SP_MATH" = "no"
     then
-        test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
-        if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
-            test "$enable_ecccustcurves" = "" && enable_ecccustcurves=yes
-            test "$enable_brainpool" = "" && enable_brainpool=yes
-        fi
-        test "$enable_srp" = "" && enable_srp=yes
         # linuxkm is incompatible with opensslextra and its dependents.
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -964,17 +903,8 @@ then
 
     if test "$ENABLED_FIPS" = "no"
     then
-        test "$enable_cryptocb" = "" && enable_cryptocb=yes
-        test "$enable_pkcallbacks" = "" && enable_pkcallbacks=yes
-        test "$enable_xchacha" = "" && test "$enable_chacha" != "no" && enable_xchacha=yes
         test "$enable_scep" = "" && enable_scep=yes
-        test "$enable_pkcs7" = "" && enable_pkcs7=yes
-        test "$enable_nullcipher" = "" && enable_nullcipher=yes
         test "$enable_mcast" = "" && enable_mcast=yes
-        test "$enable_ed25519" = "" && enable_ed25519=yes
-        test "$enable_ed25519_stream" = "" && test "$enable_ed25519" != "no" && enable_ed25519_stream=yes
-        test "$enable_ed448" = "" && enable_ed448=yes
-        test "$enable_ed448_stream" = "" && test "$enable_ed448" != "no" && enable_ed448_stream=yes
 
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
         then
@@ -982,43 +912,10 @@ then
             test "$enable_stunnel" = "" && enable_stunnel=yes
             test "$enable_curl" = "" && enable_curl=yes
             test "$enable_tcpdump" = "" && enable_tcpdump=yes
-
-            test "$enable_eccsi" = "" && test "$enable_ecc" != "no" && enable_eccsi=yes
-            test "$enable_sakke" = "" && test "$enable_ecc" != "no" && enable_sakke=yes
         fi
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6 || test "$FIPS_VERSION" = "v5-dev"; then
-        test "$enable_aesxts" = "" && enable_aesxts=yes
-        test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && (test "$enable_armasm" = "" || test "$enable_armasm" = "no") && enable_aesxts_stream=yes
-        test "$enable_aessiv" = "" && enable_aessiv=yes
-    fi
-
-    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
-        test "$enable_des3" = "" && enable_des3=yes
-    fi
-
-    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
-    DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-
-    # Enable multiple attribute additions such as DC
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTI_ATTRIB"
-
-    # Enable AES Decrypt, AES ECB
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB"
-
-    # Enable Alt Names, DER Load, Keep Certs, CRL IO with Timeout
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
-
-    # Enable DH Extra
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
-
-    # Enable deterministic ECC signing API with variant
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT"
-
-    # Store issuer name components when parsing certificates.
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
 
     # Certificate extensions and alt. names for FPKI use
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SUBJ_DIR_ATTR -DWOLFSSL_FPKI -DWOLFSSL_SUBJ_INFO_ACC"
@@ -1028,15 +925,6 @@ then
 
     # More thorough error queue usage.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VERBOSE_ERRORS"
-
-    # enable all applicable assembly accelerations
-    if test "$ENABLED_ASM" != "no" &&
-       test "$enable_sp_asm" != "no" &&
-       test "$enable_all_asm" = "" &&
-       test "$ENABLED_LINUXKM_DEFAULTS" = "no"
-    then
-	enable_all_asm=yes
-    fi
 fi
 
 
@@ -1108,6 +996,7 @@ then
         test "$enable_compkey" = "" && enable_compkey=yes
     fi
 
+    # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
     if test "$ENABLED_SP_MATH" = "no"
     then
         test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
@@ -1147,8 +1036,7 @@ then
         test "$enable_des3" = "" && enable_des3=yes
     fi
 
-    # Enable AES Decrypt, AES ECB, Alt Names, DER Load
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES"
 
     # Enable DH const table speedups (eliminates `-lm` math lib dependency)
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
@@ -1172,7 +1060,7 @@ then
        test "$enable_all_asm" = "" &&
        test "$ENABLED_LINUXKM_DEFAULTS" = "no"
     then
-	enable_all_asm=yes
+        enable_all_asm=yes
     fi
 fi
 
@@ -2873,46 +2761,46 @@ if test "$ENABLED_ALL_ASM" != "no"
 then
     if test "$ENABLED_ASM" = "no"
     then
-	AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-asm])
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-asm])
     fi
 
     if test "$enable_sp_asm" = "no"
     then
-	AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-sp-asm])
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-sp-asm])
     fi
 
     if test "$enable_intelasm" = "no"
     then
-	AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-intelasm])
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-intelasm])
     fi
 
     if test "$enable_armasm" = "no"
     then
-	AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-armasm])
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-armasm])
     fi
 
     if test "$ENABLED_SP" != "no"
     then
-	ENABLED_SP_ASM=yes
-	if test "$ENABLED_SP" = ""
-	then
+        ENABLED_SP_ASM=yes
+        if test "$ENABLED_SP" = ""
+        then
             ENABLED_SP=yes
-	fi
+        fi
     fi
 
     case "$host_cpu" in
-	*x86_64*|*amd64*)
-	    if test "$enable_intelasm" = ""
-	    then
-		enable_intelasm=yes
-	    fi
-	    ;;
-	*aarch64*|*arm*|*cortex*)
-	    if test "$enable_armasm" = ""
-	    then
-	       enable_armasm=yes
-	    fi
-	    ;;
+        *x86_64*|*amd64*)
+            if test "$enable_intelasm" = ""
+            then
+                enable_intelasm=yes
+            fi
+            ;;
+        *aarch64*|*arm*|*cortex*)
+            if test "$enable_armasm" = ""
+            then
+               enable_armasm=yes
+            fi
+            ;;
     esac
 fi
 
