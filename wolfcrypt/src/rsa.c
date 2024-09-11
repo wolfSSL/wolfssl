@@ -3258,7 +3258,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                             WC_RNG* rng)
 {
     int ret = 0;
-    int sz;
+    int sz = 0;
     int state;
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
     RsaPadding padding;
@@ -3268,22 +3268,26 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         return BAD_FUNC_ARG;
     }
 
-    sz = wc_RsaEncryptSize(key);
-    if (sz > (int)outLen) {
-        return RSA_BUFFER_E;
-    }
+    /* If devId is valid then key is not populated so sz will be zero and it
+     * would be incorrect to do these checks. */
+    if (key->devId == INVALID_DEVID) {
+        sz = wc_RsaEncryptSize(key);
+        if (sz > (int)outLen) {
+            return RSA_BUFFER_E;
+        }
 
-    if (sz < RSA_MIN_PAD_SZ || sz > (int)RSA_MAX_SIZE/8) {
-        return WC_KEY_SIZE_E;
-    }
+        if (sz < RSA_MIN_PAD_SZ || sz > (int)RSA_MAX_SIZE/8) {
+            return WC_KEY_SIZE_E;
+        }
 
-    if (inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
+        if (inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
 #ifdef WC_RSA_NO_PADDING
-        /* In the case that no padding is used the input length can and should
-         * be the same size as the RSA key. */
-        if (pad_type != WC_RSA_NO_PAD)
+            /* In the case that no padding is used the input length can and
+             * should be the same size as the RSA key. */
+            if (pad_type != WC_RSA_NO_PAD)
 #endif
-        return RSA_BUFFER_E;
+                return RSA_BUFFER_E;
+        }
     }
 
 #ifndef WOLFSSL_BIND
