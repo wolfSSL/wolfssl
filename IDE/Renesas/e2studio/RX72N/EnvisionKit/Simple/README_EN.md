@@ -26,8 +26,8 @@ This sample program uses the following hardware and software libraries. If a new
 |Device|R5F572NNHxFB|
 |IDE| Renesas e2Studio Version:2022-07 |
 |Emulator| E2 Emulator Lite |
-|Toolchain|CCRX v3.03.00|
-|TSIP| TSIP v1.15|
+|Toolchain|CCRX v3.06.00|
+|TSIP| TSIP v1.21|
 
 
 The project of this sample program has a configuration file that uses the following FIT components.
@@ -42,7 +42,7 @@ However, the FIT components themselves are not included in the distribution of t
 |Generic system timer for RX MCUs|1.01|r_sys_time_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] - RX Ethernet Driver Interface|1.09|r_t4_driver_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] for Renesas MCUs|2.10|r_t4_rx|
-|TSIP(Trusted Secure IP) driver|1.15.l|r_tsip_rx|
+|TSIP(Trusted Secure IP) driver|1.21|r_tsip_rx|
 
 ## 3. Importing sample application project into e2Studio
 ----

@@ -67,10 +67,10 @@
     static WOLFSSL_CTX* client_ctx;
 #endif /* TLS_CLIENT */
 
-#define TLSSERVER_IP      "192.168.11.49"
+#define TLSSERVER_IP      "192.168.11.47"
 #define TLSSERVER_PORT    11111
-#define YEAR 2023
-#define MON  3
+#define YEAR 2024
+#define MON  9
 #define FREQ 10000 /* Hz */
 #define MAX_MSGSTR  80
 
@@ -422,7 +422,7 @@ static void Tls_client(void *pvParam)
             }
         }
         if (ret == 0) {
-            ret = tsip_use_PublicKey_buffer(ssl,
+            ret = tsip_use_PublicKey_buffer_TLS(ssl,
                 (const char*)g_key_block_data.encrypted_user_rsa2048_public_key,
                 sizeof(g_key_block_data.encrypted_user_rsa2048_public_key),
                                                             TSIP_RSA2048);
