@@ -864,7 +864,6 @@ then
     test "$enable_session_ticket" = "" && enable_session_ticket=yes
     test "$enable_earlydata" = "" && enable_earlydata=yes
     test "$enable_ech" = "" && enable_ech=yes
-    test "$enable_srtp" = "" && enable_srtp=yes
     test "$enable_rpk" = "" && enable_rpk=yes
 
     if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
@@ -915,6 +914,11 @@ then
         fi
     fi
 
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
+    then
+        test "$enable_srtp" = "" && enable_srtp=yes
+    fi
+
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
 
     # Certificate extensions and alt. names for FPKI use
@@ -929,9 +933,29 @@ fi
 
 
 # Auto-selected activation of all applicable asm accelerations
+
+# Enable asm automatically only if the compiler advertises itself as full Gnu C.
+if "$CC" $AM_CFLAGS $CPPFLAGS $CFLAGS -x c - -o /dev/null >/dev/null 2>&1 <<'    EOF'
+    #include <stdlib.h>
+    int main(int argc, char **argv) {
+        (void)argc; (void)argv;
+    #ifdef __STRICT_ANSI__
+        #error __STRICT_ANSI__
+    #endif
+    #ifndef __GNUC__
+        #error !__GNUC__
+    #endif
+        return 0;
+    }
+    EOF
+then
+    HAVE_GNUC=yes
+fi
+
 if test "$enable_all_crypto" = "yes" &&
    test "$ENABLED_LINUXKM_DEFAULTS" = "no" &&
    test "$ENABLED_ASM" != "no" &&
+   test "$HAVE_GNUC" = "yes" &&
    test "$enable_sp_asm" != "no" &&
    test "$enable_intelasm" != "no" &&
    test "$enable_armasm" != "no"
@@ -1005,7 +1029,6 @@ if test "$ENABLED_ALL_CRYPT" = "yes"
 then
     test "$enable_atomicuser" = "" && enable_atomicuser=yes
     test "$enable_aesgcm" = "" && enable_aesgcm=yes
-    test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
     test "$enable_aesccm" = "" && enable_aesccm=yes
     test "$enable_aesctr" = "" && enable_aesctr=yes
     test "$enable_aeseax" = "" && enable_aeseax=yes
@@ -1017,8 +1040,6 @@ then
     test "$enable_sha224" = "" && enable_sha224=yes
     test "$enable_sha512" = "" && enable_sha512=yes
     test "$enable_sha3" = "" && enable_sha3=yes
-    test "$enable_shake128" = "" && enable_shake128=yes
-    test "$enable_shake256" = "" && enable_shake256=yes
     test "$enable_sessioncerts" = "" && enable_sessioncerts=yes
     test "$enable_keygen" = "" && enable_keygen=yes
     test "$enable_certgen" = "" && enable_certgen=yes
@@ -1056,12 +1077,6 @@ then
     test "$enable_md4" = "" && enable_md4=yes
     test "$enable_anon" = "" && enable_anon=yes
     test "$enable_ssh" = "" && test "$enable_hmac" != "no" && enable_ssh=yes
-    test "$enable_srtp_kdf" = "" && enable_srtp_kdf=yes
-
-    if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
-    then
-        test "$enable_compkey" = "" && enable_compkey=yes
-    fi
 
     # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
     if test "$ENABLED_SP_MATH" = "no"
@@ -1093,10 +1108,16 @@ then
         fi
     fi
 
-    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6 || test "$FIPS_VERSION" = "v5-dev"; then
+    if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -ge 6
+    then
+        test "$enable_aesgcm_stream" = "" && test "$enable_aesgcm" = "yes" && enable_aesgcm_stream=yes
         test "$enable_aesxts" = "" && enable_aesxts=yes
         test "$enable_aesxts_stream" = "" && test "$enable_aesxts" = "yes" && (test "$enable_armasm" = "" || test "$enable_armasm" = "no") && enable_aesxts_stream=yes
         test "$enable_aessiv" = "" && enable_aessiv=yes
+        test "$enable_shake128" = "" && enable_shake128=yes
+        test "$enable_shake256" = "" && enable_shake256=yes
+        test "$enable_compkey" = "" && test "$ENABLED_LINUXKM_DEFAULTS" != "yes" && enable_compkey=yes
+        test "$enable_srtp_kdf" = "" && enable_srtp_kdf=yes
     fi
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
@@ -3997,7 +4018,8 @@ AC_ARG_ENABLE([compkey],
     [ ENABLED_COMPKEY=no ]
     )
 
-if test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes"
+if (test "$ENABLED_WPAS" = "yes" || test "$ENABLED_OPENSSLALL" = "yes") &&
+   (test "$HAVE_FIPS_VERSION" != "5" || test "$FIPS_VERSION" = "v5-dev")
 then
     ENABLED_COMPKEY=yes
 fi
@@ -5485,6 +5507,16 @@ AS_CASE([$FIPS_VERSION],
             [AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
                     (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesofb" != "no")],
                 [ENABLED_AESOFB="yes"; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_OFB"])])
+
+        AS_IF([test "$ENABLED_SRTP" != "no" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_srtp" != "yes")],
+            [AC_MSG_WARN([Forcing off srtp for FIPS ${FIPS_VERSION}.])
+             ENABLED_SRTP="no"])
+
+        AS_IF([test "$ENABLED_SRTP_KDF" != "no" &&
+               (test "$FIPS_VERSION" != "v5-dev" || test "$enable_srtp_kdf" != "yes")],
+            [AC_MSG_WARN([Forcing off srtp-kdf for FIPS ${FIPS_VERSION}.])
+             ENABLED_SRTP_KDF="no"])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
                (test "$ENABLED_AESCTR" = "yes" && test "$HAVE_AESCTR_PORT" != "yes") ||
