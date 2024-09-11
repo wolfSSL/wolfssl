@@ -805,29 +805,29 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
 #else
 
 #define SipRoundV(v0, v1, v2, v3)   \
-    v0 += v1;                       \
-    v2 += v3;                       \
-    v1 = rotlFixed64(v1, 13);       \
-    v3 = rotlFixed64(v3, 16);       \
-    v1 ^= v0;                       \
-    v3 ^= v2;                       \
-    v0 = rotlFixed64(v0, 32);       \
-    v2 += v1;                       \
-    v0 += v3;                       \
-    v1 = rotlFixed64(v1, 17);       \
-    v3 = rotlFixed64(v3, 21);       \
-    v1 ^= v2;                       \
-    v3 ^= v0;                       \
-    v2 = rotlFixed64(v2, 32);
+    (v0) += (v1);                   \
+    (v2) += (v3);                   \
+    (v1) = rotlFixed64(v1, 13);     \
+    (v3) = rotlFixed64(v3, 16);     \
+    (v1) ^= (v0);                   \
+    (v3) ^= (v2);                   \
+    (v0) = rotlFixed64(v0, 32);     \
+    (v2) += (v1);                   \
+    (v0) += (v3);                   \
+    (v1) = rotlFixed64(v1, 17);     \
+    (v3) = rotlFixed64(v3, 21);     \
+    (v1) ^= (v2);                   \
+    (v3) ^= (v0);                   \
+    (v2) = rotlFixed64(v2, 32);
 
 #define SipHashCompressV(v0, v1, v2, v3, m)             \
     do {                                                \
         int i;                                          \
-        v3 ^= m;                                        \
+        (v3) ^= (m);                                    \
         for (i = 0; i < WOLFSSL_SIPHASH_CROUNDS; i++) { \
             SipRoundV(v0, v1, v2, v3);                  \
         }                                               \
-        v0 ^= m;                                        \
+        (v0) ^= (m);                                    \
     }                                                   \
     while (0)
 
@@ -839,7 +839,7 @@ int wc_SipHash(const unsigned char* key, const unsigned char* in, word32 inSz,
         for (i = 0; i < WOLFSSL_SIPHASH_DROUNDS; i++) { \
             SipRoundV(v0, v1, v2, v3);                  \
         }                                               \
-        n = v0 ^ v1 ^ v2 ^ v3;                          \
+        n = (v0) ^ (v1) ^ (v2) ^ (v3);                  \
         SET_U64(out, n);                                \
     }                                                   \
     while (0)
