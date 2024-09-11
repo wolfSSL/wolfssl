@@ -928,9 +928,76 @@ then
 fi
 
 
+# Auto-selected activation of all applicable asm accelerations
+if test "$enable_all_crypto" = "yes" &&
+   test "$ENABLED_LINUXKM_DEFAULTS" = "no" &&
+   test "$ENABLED_ASM" != "no" &&
+   test "$enable_sp_asm" != "no" &&
+   test "$enable_intelasm" != "no" &&
+   test "$enable_armasm" != "no"
+then
+    DEFAULT_ENABLED_ALL_ASM=yes
+else
+    DEFAULT_ENABLED_ALL_ASM=no
+fi
+
+AC_ARG_ENABLE([all-asm],
+    [AS_HELP_STRING([--enable-all-asm],[Enable all applicable assembly accelerations (default: disabled)])],
+    [ ENABLED_ALL_ASM=$enableval ],
+    [ ENABLED_ALL_ASM=$DEFAULT_ENABLED_ALL_ASM ]
+    )
+
+if test "$ENABLED_ALL_ASM" != "no"
+then
+    if test "$ENABLED_ASM" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-asm])
+    fi
+
+    if test "$enable_sp_asm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-sp-asm])
+    fi
+
+    if test "$enable_intelasm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-intelasm])
+    fi
+
+    if test "$enable_armasm" = "no"
+    then
+        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-armasm])
+    fi
+
+    if test "$ENABLED_SP" != "no"
+    then
+        ENABLED_SP_ASM=yes
+        if test "$ENABLED_SP" = ""
+        then
+            ENABLED_SP=yes
+        fi
+    fi
+
+    case "$host_cpu" in
+        *x86_64*|*amd64*)
+            if test "$enable_intelasm" = ""
+            then
+                enable_intelasm=yes
+            fi
+            ;;
+        *aarch64*|*arm*|*cortex*)
+            if test "$enable_armasm" = ""
+            then
+               enable_armasm=yes
+            fi
+            ;;
+    esac
+fi
+
+
 # ALL CRYPTO FEATURES
 AC_ARG_ENABLE([all-crypto],
-    [AS_HELP_STRING([--enable-all-crypto],[Enable all available wolfcrypt algorithm support (default: disabled)])],
+    [AS_HELP_STRING([--enable-all-crypto],[Enable all wolfcrypt algorithms (default: disabled)])],
     [ ENABLED_ALL_CRYPT=$enableval ],
     [ ENABLED_ALL_CRYPT=no ]
     )
@@ -1053,15 +1120,6 @@ then
 
     # Store issuer name components when parsing certificates.
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_ISSUER_NAMES"
-
-    # enable all applicable assembly accelerations
-    if test "$ENABLED_ASM" != "no" &&
-       test "$enable_sp_asm" != "no" &&
-       test "$enable_all_asm" = "" &&
-       test "$ENABLED_LINUXKM_DEFAULTS" = "no"
-    then
-        enable_all_asm=yes
-    fi
 fi
 
 # liboqs
@@ -2747,61 +2805,6 @@ fi
 if test "$ENABLED_SM4" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SM4"
-fi
-
-
-# Auto-selected activation of all applicable asm accelerations
-AC_ARG_ENABLE([all-asm],
-    [AS_HELP_STRING([--enable-all-asm],[Enable all applicable assembly accelerations (default: disabled)])],
-    [ ENABLED_ALL_ASM=$enableval ],
-    [ ENABLED_ALL_ASM=no ]
-    )
-
-if test "$ENABLED_ALL_ASM" != "no"
-then
-    if test "$ENABLED_ASM" = "no"
-    then
-        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-asm])
-    fi
-
-    if test "$enable_sp_asm" = "no"
-    then
-        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-sp-asm])
-    fi
-
-    if test "$enable_intelasm" = "no"
-    then
-        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-intelasm])
-    fi
-
-    if test "$enable_armasm" = "no"
-    then
-        AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-armasm])
-    fi
-
-    if test "$ENABLED_SP" != "no"
-    then
-        ENABLED_SP_ASM=yes
-        if test "$ENABLED_SP" = ""
-        then
-            ENABLED_SP=yes
-        fi
-    fi
-
-    case "$host_cpu" in
-        *x86_64*|*amd64*)
-            if test "$enable_intelasm" = ""
-            then
-                enable_intelasm=yes
-            fi
-            ;;
-        *aarch64*|*arm*|*cortex*)
-            if test "$enable_armasm" = ""
-            then
-               enable_armasm=yes
-            fi
-            ;;
-    esac
 fi
 
 
