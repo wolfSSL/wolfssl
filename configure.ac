@@ -5265,7 +5265,8 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "x$ENABLED_ECCCUSTCURVES" != "xno" &&
                test "$FIPS_VERSION" != "dev"],
-            [ENABLED_ECCCUSTCURVES="no"])
+            [AC_MSG_WARN([Forcing off ecccustcurves for FIPS ${FIPS_VERSION}.])
+             ENABLED_ECCCUSTCURVES="no"])
 
 # Hashing section
         AS_IF([test "x$ENABLED_SHA3" != "xyes" &&
@@ -5348,7 +5349,8 @@ AS_CASE([$FIPS_VERSION],
 
 # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],
-            [ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
+            [AC_MSG_WARN([Forcing off oldtls for FIPS ${FIPS_VERSION}.])
+             ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
 
     ],
     [v5*], [ # FIPS 140-3
@@ -5392,7 +5394,8 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "$ENABLED_COMPKEY" = "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_compkey" != "yes")],
-            [ENABLED_COMPKEY="no"])
+            [AC_MSG_WARN([Forcing off compkey for FIPS ${FIPS_VERSION}.])
+             ENABLED_COMPKEY="no"])
 
         AS_IF([test "$ENABLED_SHA224" != "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_sha224" != "no")],
@@ -5409,12 +5412,14 @@ AS_CASE([$FIPS_VERSION],
         # Shake128 is a SHA-3 algorithm outside the v5 FIPS algorithm list
         AS_IF([test "$ENABLED_SHAKE128" != "no" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake128" != "yes")],
-            [ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
+            [AC_MSG_WARN([Forcing off shake128 for FIPS ${FIPS_VERSION}.])
+             ENABLED_SHAKE128=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE128"])
 
         # Shake256 is a SHA-3 algorithm outside the v5 FIPS algorithm list
         AS_IF([test "$ENABLED_SHAKE256" != "no" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_shake256" != "yes")],
-            [ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
+            [AC_MSG_WARN([Forcing off shake256 for FIPS ${FIPS_VERSION}.])
+             ENABLED_SHAKE256=no; AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_SHAKE256"])
 
         # SHA512-224 and SHA512-256 are SHA-2 algorithms outside the v5 FIPS algorithm list
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NOSHA512_224 -DWOLFSSL_NOSHA512_256"
@@ -5425,7 +5430,8 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "$ENABLED_AESXTS" = "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesxts" != "yes")],
-            [ENABLED_AESXTS="no"])
+            [AC_MSG_WARN([Forcing off aesxts for FIPS ${FIPS_VERSION}.])
+             ENABLED_AESXTS="no"])
 
         AS_IF([test "$ENABLED_RSAPSS" != "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_rsapss" != "no")],
@@ -5464,11 +5470,13 @@ AS_CASE([$FIPS_VERSION],
         # AES-GCM streaming isn't part of the v5 FIPS suite.
         AS_IF([test "$ENABLED_AESGCM_STREAM" = "yes" &&
                (test "$FIPS_VERSION" != "v5-dev" || test "$enable_aesgcm_stream" != "yes")],
-            [ENABLED_AESGCM_STREAM="no"])
+            [AC_MSG_WARN([Forcing off aesgcm-stream for FIPS ${FIPS_VERSION}.])
+             ENABLED_AESGCM_STREAM="no"])
 
         # Old TLS requires MD5 + HMAC, which is not allowed under FIPS 140-3
         AS_IF([test "$ENABLED_OLD_TLS" != "no"],
-            [ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
+            [AC_MSG_WARN([Forcing off oldtls for FIPS ${FIPS_VERSION}.])
+             ENABLED_OLD_TLS="no"; AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"])
 
         AS_IF([test $HAVE_FIPS_VERSION_MINOR -ge 2],
             [AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
