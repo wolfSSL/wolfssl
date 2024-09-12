@@ -61312,11 +61312,23 @@ static int test_wolfSSL_curves_mismatch(void)
 #endif
 #ifndef WOLFSSL_NO_TLS12
         {wolfTLSv1_2_client_method, wolfTLSv1_2_server_method, "TLS 1.2",
-                WC_NO_ERR_TRACE(FATAL_ERROR), WC_NO_ERR_TRACE(MATCH_SUITE_ERROR)},
+                WC_NO_ERR_TRACE(FATAL_ERROR),
+#ifdef OPENSSL_EXTRA
+                WC_NO_ERR_TRACE(WOLFSSL_ERROR_SYSCALL)
+#else
+                WC_NO_ERR_TRACE(MATCH_SUITE_ERROR)
+#endif
+        },
 #endif
 #ifndef NO_OLD_TLS
         {wolfTLSv1_1_client_method, wolfTLSv1_1_server_method, "TLS 1.1",
-                WC_NO_ERR_TRACE(FATAL_ERROR), WC_NO_ERR_TRACE(MATCH_SUITE_ERROR)},
+                WC_NO_ERR_TRACE(FATAL_ERROR),
+#ifdef OPENSSL_EXTRA
+                WC_NO_ERR_TRACE(WOLFSSL_ERROR_SYSCALL)
+#else
+                WC_NO_ERR_TRACE(MATCH_SUITE_ERROR)
+#endif
+        },
 #endif
     };
 
@@ -90059,8 +90071,14 @@ static int test_wrong_cs_downgrade(void)
     test_ctx.c_len = sizeof(test_wrong_cs_downgrade_sh);
 
     ExpectIntNE(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
+#ifdef OPENSSL_EXTRA
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
+        WC_NO_ERR_TRACE(WOLFSSL_ERROR_SYSCALL));
+#else
     ExpectIntEQ(wolfSSL_get_error(ssl_c, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)),
         WC_NO_ERR_TRACE(MATCH_SUITE_ERROR));
+#endif /* OPENSSL_EXTRA */
+
 
     wolfSSL_free(ssl_c);
     wolfSSL_CTX_free(ctx_c);
