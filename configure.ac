@@ -789,6 +789,69 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_X86_BUILD"
 fi
 
+
+AC_ARG_ENABLE([leanpsk],
+    [AS_HELP_STRING([--enable-leanpsk],[Enable Lean PSK build (default: disabled)])],
+    [ ENABLED_LEANPSK=$enableval ],
+    [ ENABLED_LEANPSK=no ]
+    )
+
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
+    ENABLED_SLOWMATH="no"
+    ENABLED_SINGLETHREADED="yes"
+    enable_lowresource=yes
+fi
+
+
+# ASN
+
+# disabling ASN implicitly disables certs, RSA, DSA, and ECC,
+# and also disables MPI unless DH is enabled.
+
+# turn off ASN if leanpsk on
+if test "$ENABLED_LEANPSK" = "yes"
+then
+    enable_asn=no
+fi
+
+AC_ARG_ENABLE([asn],
+    [AS_HELP_STRING([--enable-asn],[Enable ASN (default: enabled)])],
+    [ ENABLED_ASN=$enableval ],
+    [ ENABLED_ASN=yes ]
+    )
+
+for v in `echo $ENABLED_ASN | tr "," " "`
+do
+    case $v in
+    all)
+        # Enable all ASN features
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
+        ENABLED_ASN=yes
+        ;;
+    template | yes)
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
+        ENABLED_ASN=yes
+        ;;
+    original)
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ORIGINAL"
+        ;;
+    nocrypt)
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
+        enable_pwdbased=no
+        ;;
+    no)
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
+        enable_pwdbased=no
+        ;;
+    *)
+        AC_MSG_ERROR([Invalid asn option. Valid are: all, template/yes, original, nocrypt or no. Seen: $ENABLED_ASN.])
+        break;;
+esac
+done
+
+
 # if sp-math-all is not set, then enable fast math
 if test "x$ENABLED_FASTMATH" = "xyes" && test "$enable_sp_math_all" = "" && test "$enable_sp_math" = ""
 then
@@ -1137,8 +1200,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
 
-    # Enable multiple attribute additions such as DC
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MULTI_ATTRIB"
+    # Enable all parsing features for ASN */
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
 
     # Enable DH Extra
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DH_EXTRA"
@@ -2289,21 +2352,6 @@ if test "$ENABLED_BUMP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
     DEFAULT_MAX_CLASSIC_ASYM_KEY_BITS=4096
-fi
-
-# lean psk build
-AC_ARG_ENABLE([leanpsk],
-    [AS_HELP_STRING([--enable-leanpsk],[Enable Lean PSK build (default: disabled)])],
-    [ ENABLED_LEANPSK=$enableval ],
-    [ ENABLED_LEANPSK=no ]
-    )
-
-if test "$ENABLED_LEANPSK" = "yes"
-then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
-    ENABLED_SLOWMATH="no"
-    ENABLED_SINGLETHREADED="yes"
-    enable_lowresource=yes
 fi
 
 
@@ -4744,54 +4792,6 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_ANON"
 fi
 
-
-# ASN
-
-# turn off asn, which means no certs, no rsa, no dsa, no ecc,
-# and no big int (unless dh is on)
-
-# turn off ASN if leanpsk on
-if test "$ENABLED_LEANPSK" = "yes"
-then
-    enable_asn=no
-fi
-
-AC_ARG_ENABLE([asn],
-    [AS_HELP_STRING([--enable-asn],[Enable ASN (default: enabled)])],
-    [ ENABLED_ASN=$enableval ],
-    [ ENABLED_ASN=yes ]
-    )
-
-for v in `echo $ENABLED_ASN | tr "," " "`
-do
-    case $v in
-    all)
-        # Enable all ASN features
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
-        ENABLED_ASN=yes
-        ;;
-    template | yes)
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
-        ENABLED_ASN=yes
-        ;;
-    original)
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ORIGINAL"
-        ENABLED_ASN=yes
-        ;;
-    nocrypt)
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
-        enable_pwdbased=no
-        ;;
-    no)
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
-        enable_pwdbased=no
-        ENABLED_ASN=no
-        ;;
-    *)
-        AC_MSG_ERROR([Invalid asn option. Valid are: all, template/yes, original, nocrypt or no. Seen: $ENABLED_ASN.])
-        break;;
-esac
-done
 
 if test "$ENABLED_RSA" = "yes" && test "$ENABLED_RSAVFY" = "no" && \
    test "$ENABLED_ASN" = "no" && test "$ENABLED_LOWRESOURCE" = "no"
@@ -8896,7 +8896,7 @@ fi
 # determine if we have key validation mechanism
 if test "x$ENABLED_ECC" != "xno" || test "x$ENABLED_RSA" = "xyes"
 then
-    if test "x$ENABLED_ASN" = "xyes"
+    if test "$ENABLED_ASN" != "no" && test "$ENABLED_ASN" != "nocrypt"
     then
         ENABLED_PKI="yes"
     fi
@@ -9826,7 +9826,7 @@ AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$E
 AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
-AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes"] && [test "x$ENABLED_ASN_PRINT" = "xyes"] && [test "x$ENABLED_ASN" = "xyes"])
+AM_CONDITIONAL([BUILD_EXAMPLE_ASN1],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_ASN_PRINT" = "xyes" && test "$ENABLED_ASN" != "no"])
 AM_CONDITIONAL([BUILD_TESTS],[test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_THREADED_EXAMPLES],[test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_WOLFCRYPT_TESTS],[test "x$ENABLED_CRYPT_TESTS" = "xyes"])
