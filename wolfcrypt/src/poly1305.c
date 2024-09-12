@@ -231,7 +231,8 @@ extern void poly1305_final_avx2(Poly1305* ctx, byte* mac);
         p[7] = (byte)(v >> 56);
     }
 #endif/* !WOLFSSL_ARMASM && !WOLFSSL_RISCV_ASM */
-#else /* if not 64 bit then use 32 bit */
+/* if not 64 bit then use 32 bit */
+#elif !defined(WOLFSSL_ARMASM) || !defined(__thumb__)
 
     static word32 U8TO32(const byte *p)
     {
@@ -268,8 +269,8 @@ static WC_INLINE void u32tole64(const word32 inLe32, byte outLe64[8])
 }
 
 
-#if (!defined(WOLFSSL_ARMASM) || !defined(__aarch64__)) && \
-    !defined(WOLFSSL_RISCV_ASM)
+#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+    !defined(__thumb__))) && !defined(WOLFSSL_RISCV_ASM)
 /*
 This local function operates on a message with a given number of bytes
 with a given ctx pointer to a Poly1305 structure.
@@ -788,7 +789,8 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     return 0;
 }
-#endif /* (!WOLFSSL_ARMASM || !__aarch64__) && !WOLFSSL_RISCV_ASM */
+#endif /* (!WOLFSSL_ARMASM || (!__aarch64__ && !__thumb__)) &&
+        * !WOLFSSL_RISCV_ASM */
 
 
 int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
@@ -883,8 +885,8 @@ int wc_Poly1305Update(Poly1305* ctx, const byte* m, word32 bytes)
         /* process full blocks */
         if (bytes >= POLY1305_BLOCK_SIZE) {
             size_t want = ((size_t)bytes & ~((size_t)POLY1305_BLOCK_SIZE - 1));
-#if (!defined(WOLFSSL_ARMASM) || !defined(__aarch64__)) && \
-    !defined(WOLFSSL_RISCV_ASM)
+#if (!defined(WOLFSSL_ARMASM) || (!defined(__aarch64__) && \
+    !defined(__thumb__))) && !defined(WOLFSSL_RISCV_ASM)
             int ret;
             ret = poly1305_blocks(ctx, m, want);
             if (ret != 0)
