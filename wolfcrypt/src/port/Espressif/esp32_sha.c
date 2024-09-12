@@ -135,7 +135,11 @@ static const char* TAG = "wolf_hw_sha";
 #endif
 
     static uintptr_t mutex_ctx_owner = NULLPTR;
+
+#if (defined(ESP_MONITOR_HW_TASK_LOCK) && !defined(SINGLE_THREADED)) \
+    || defined(WOLFSSL_DEBUG_MUTEX)
     static portMUX_TYPE sha_crit_sect = portMUX_INITIALIZER_UNLOCKED;
+#endif
 
 #if defined(ESP_MONITOR_HW_TASK_LOCK)
     #ifdef SINGLE_THREADED
@@ -506,7 +510,7 @@ int esp_sha224_ctx_copy(struct wc_Sha256* src, struct wc_Sha256* dst)
     dst->ctx.initializer = (uintptr_t)&dst->ctx;
     #if defined(ESP_MONITOR_HW_TASK_LOCK) && !defined(SINGLE_THREADED)
     {
-        /* not HW mode for copy, so we are not interested in task owner: */
+        /* Not HW mode for copy, so we are not interested in task owner: */
         dst->ctx.task_owner = 0;
     }
     #endif
@@ -985,8 +989,10 @@ int esp_sha_hw_in_use()
 */
 uintptr_t esp_sha_hw_islocked(WC_ESP32SHA* ctx)
 {
-    TaskHandle_t mutexHolder;
     uintptr_t ret = 0;
+    #ifndef SINGLE_THREADED
+        TaskHandle_t mutexHolder;
+    #endif
     CTX_STACK_CHECK(ctx);
 
 #ifdef WOLFSSL_DEBUG_MUTEX
@@ -1132,7 +1138,9 @@ uintptr_t esp_sha_release_unfinished_lock(WC_ESP32SHA* ctx)
         ESP_LOGW(TAG, "esp_sha_release_unfinished_lock mode = %d", ctx->mode);
 #endif
         if (ctx->mode == ESP32_SHA_HW) {
+#if defined(DEBUG_WOLFSSL_ESP32_UNFINISHED_HW)
             ESP_LOGW(TAG, "esp_sha_release_unfinished_lock HW!");
+#endif
         }
     }
     return ret;

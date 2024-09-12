@@ -23,14 +23,19 @@
     #include <config.h>
 #endif
 
-/* Reminder: user_settings.h is needed and included from settings.h
- * Be sure to define WOLFSSL_USER_SETTINGS, typically in CMakeLists.txt */
-#include <wolfssl/wolfcrypt/settings.h>
+/* wolfSSL */
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
+/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+#endif
+
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
+#include "sdkconfig.h" /* programmatically generated from sdkconfig */
+
 #if defined(USE_WOLFSSL_ESP_SDK_TIME)
 /* Espressif */
-#include "sdkconfig.h" /* programmatically generated from sdkconfig */
 #include <esp_log.h>
 #include <esp_err.h>
 
@@ -145,11 +150,11 @@ int set_fixed_default_time(void)
      * but let's set a default time, just in case */
     struct tm timeinfo = {
         .tm_year = 2024 - 1900,
-        .tm_mon  = 1,
-        .tm_mday = 05,
+        .tm_mon  =  9 - 1, /* Month, where 0 = Jan */
+        .tm_mday =  3 ,    /* Day of the month 30  */
         .tm_hour = 13,
-        .tm_min  = 01,
-        .tm_sec  = 05
+        .tm_min  =  1,
+        .tm_sec  =  5
     };
     struct timeval now;
     time_t interim_time;
