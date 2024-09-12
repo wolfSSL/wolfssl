@@ -9390,7 +9390,7 @@ static int _sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
     #ifdef SP_WORD_OVERFLOW
         o = 0;
     #endif
-        for (k = 1; k <= (a->used - 1) + (b->used - 1); k++) {
+        for (k = 1; (int)k <= ((int)a->used - 1) + ((int)b->used - 1); k++) {
             i = k - (sp_size_t)(b->used - 1);
             i &= (sp_size_t)(((unsigned int)i >> (sizeof(i) * 8 - 1)) - 1U);
             j = (int)(k - i);

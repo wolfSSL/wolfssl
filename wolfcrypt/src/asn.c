@@ -36028,7 +36028,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     *ioIndex = idx;
 
     return 0;
-#else
+#else /* WOLFSSL_ASN_TEMPLATE */
     DECL_ASNGETDATA(dataASN, singleResponseASN_Length);
     int ret = 0;
     word32 ocspDigestSize = OCSP_DIGEST_SIZE;
@@ -36038,10 +36038,6 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
     word32 issuerKeyHashLen;
     word32 thisDateLen;
     word32 nextDateLen;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
-    WOLFSSL_ASN1_TIME *at;
-#endif
 
     (void)wrapperSz;
 
@@ -36119,19 +36115,20 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         if (!XVALIDATE_DATE(cs->thisDate, ASN_GENERALIZED_TIME, ASN_BEFORE)) {
             ret = ASN_BEFORE_DATE_E;
         }
+    #endif /* !NO_ASN_TIME_CHECK && !WOLFSSL_NO_OCSP_DATE_CHECK */
     }
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
     if (ret == 0) {
-    #endif
-    #ifdef WOLFSSL_OCSP_PARSE_STATUS
         /* Store ASN.1 version of thisDate. */
+        WOLFSSL_ASN1_TIME *at;
         cs->thisDateAsn = GetASNItem_Addr(
                 dataASN[SINGLERESPONSEASN_IDX_THISUPDATE_GT], source);
         at = &cs->thisDateParsed;
         at->type = ASN_GENERALIZED_TIME;
         XMEMCPY(at->data, cs->thisDate, thisDateLen);
         at->length = (int)thisDateLen;
-    #endif
     }
+#endif
     if ((ret == 0) &&
             (dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT].tag != 0)) {
         /* Store the nextDate format - only one possible. */
@@ -36141,20 +36138,22 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
         if (!XVALIDATE_DATE(cs->nextDate, ASN_GENERALIZED_TIME, ASN_AFTER)) {
             ret = ASN_AFTER_DATE_E;
         }
+    #endif /* !NO_ASN_TIME_CHECK && !WOLFSSL_NO_OCSP_DATE_CHECK */
     }
+#ifdef WOLFSSL_OCSP_PARSE_STATUS
     if ((ret == 0) &&
-            (dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT].tag != 0)) {
-    #endif
-    #ifdef WOLFSSL_OCSP_PARSE_STATUS
+            (dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT].tag != 0))
+    {
         /* Store ASN.1 version of thisDate. */
+        WOLFSSL_ASN1_TIME *at;
         cs->nextDateAsn = GetASNItem_Addr(
                 dataASN[SINGLERESPONSEASN_IDX_NEXTUPDATE_GT], source);
         at = &cs->nextDateParsed;
         at->type = ASN_GENERALIZED_TIME;
         XMEMCPY(at->data, cs->nextDate, nextDateLen);
         at->length = (int)nextDateLen;
-    #endif
     }
+#endif
     if (ret == 0) {
         /* OcspEntry now used. */
         single->used = 1;
@@ -36162,7 +36161,7 @@ static int DecodeSingleResponse(byte* source, word32* ioIndex, word32 size,
 
     FREE_ASNGETDATA(dataASN, NULL);
     return ret;
-#endif
+#endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
 #ifdef WOLFSSL_ASN_TEMPLATE
