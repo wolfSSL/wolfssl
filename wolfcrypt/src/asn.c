@@ -9156,7 +9156,7 @@ static const ASNItem p8EncPbes1ASN[] = {
 /* ENCALGO_PBEPARAM_SALT */             { 3, ASN_OCTET_STRING, 0, 0, 0 },
                         /* Iteration Count */
 /* ENCALGO_PBEPARAM_ITER */             { 3, ASN_INTEGER, 0, 0, 0 },
-/* ENCDATA               */     { 1, ASN_INDEF_LENGTH, 0, 0, 0 },
+/* ENCDATA               */     { 1, (ASN_CONTEXT_SPECIFIC | 0), 0, 0, 0 },
 };
 enum {
     P8ENCPBES1ASN_IDX_SEQ = 0,
