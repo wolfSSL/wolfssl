@@ -993,26 +993,33 @@ then
         AC_MSG_ERROR([--enable-all-asm is incompatible with --disable-armasm])
     fi
 
-    if test "$ENABLED_SP" != "no"
-    then
-        ENABLED_SP_ASM=yes
-        if test "$ENABLED_SP" = ""
-        then
-            ENABLED_SP=yes
-        fi
-    fi
-
     case "$host_cpu" in
         *x86_64*|*amd64*)
             if test "$enable_intelasm" = ""
             then
                 enable_intelasm=yes
             fi
+            if test "$ENABLED_SP" != "no"
+            then
+                ENABLED_SP_ASM=yes
+                if test "$ENABLED_SP" = ""
+                then
+                    ENABLED_SP=yes
+                fi
+            fi
             ;;
-        *aarch64*|*arm*|*cortex*)
+        *aarch64*)
             if test "$enable_armasm" = ""
             then
                enable_armasm=yes
+            fi
+            if test "$ENABLED_SP" != "no"
+            then
+                ENABLED_SP_ASM=yes
+                if test "$ENABLED_SP" = ""
+                then
+                    ENABLED_SP=yes
+                fi
             fi
             ;;
     esac
