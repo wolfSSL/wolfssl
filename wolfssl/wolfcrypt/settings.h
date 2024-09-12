@@ -2035,8 +2035,12 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_NOSHA3_224
         #define WOLFSSL_NOSHA3_256
         #define WOLFSSL_NOSHA3_512
-        #define WOLFSSL_NO_SHAKE128
-        #define WOLFSSL_NO_SHAKE256
+        #ifndef WOLFSSL_NO_SHAKE128
+            #define WOLFSSL_NO_SHAKE128
+        #endif
+        #ifndef WOLFSSL_NO_SHAKE256
+            #define WOLFSSL_NO_SHAKE256
+        #endif
     #endif
     #ifdef WOLFSSL_AFALG_XILINX_AES
         #undef  WOLFSSL_AES_DIRECT
