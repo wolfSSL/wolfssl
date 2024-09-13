@@ -1263,7 +1263,7 @@ int main(int argc, char** argv)
 #endif
 
     while (1) {
-        struct pcap_pkthdr header;
+        struct pcap_pkthdr *header;
         const unsigned char* packet = NULL;
         byte* data = NULL; /* pointer to decrypted data */
 #ifdef THREADED_SNIFFTEST
@@ -1290,20 +1290,22 @@ int main(int argc, char** argv)
         if (data == NULL) {
         /* grab next pcap packet */
             packetNumber++;
-            packet = pcap_next(pcap, &header);
+            if(pcap_next_ex(pcap, &header, &packet) < 0) {
+                hadBadPacket = 1;
+                break;
+            }
         }
 
         if (packet) {
-            if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
+            if (header->caplen > 40)  { /* min ip(20) + min tcp(20) */
                 packet        += frame;
-                header.caplen -= frame;
+                header->caplen -= frame;
             }
             else {
                 /* packet doesn't contain minimum ip/tcp header */
                 continue;
             }
             int ptype = pcap_datalink(pcap);
-            printf("Packet type: %d\n",ptype);
             if (ptype == DLT_LINUX_SLL) {
                 packet += 2;
                 header->caplen -= 2;
@@ -1311,7 +1313,7 @@ int main(int argc, char** argv)
 #ifdef THREADED_SNIFFTEST
             XMEMSET(&info, 0, sizeof(SnifferStreamInfo));
 
-            ret = ssl_DecodePacket_GetStream(&info, packet, header.caplen, err);
+            ret = ssl_DecodePacket_GetStream(&info, packet, header->caplen, err);
 
             /* calculate SnifferStreamInfo checksum */
             infoSum = 0;
@@ -1334,7 +1336,7 @@ int main(int argc, char** argv)
 
             /* add the packet to the worker's linked list */
             if (SnifferWorkerPacketAdd(&workers[threadNum], ret, (byte*)packet,
-                                   header.caplen, packetNumber)) {
+                                   header->caplen, packetNumber)) {
                 printf("Unable to add packet %d to worker", packetNumber);
                 break;
             }
@@ -1343,7 +1345,7 @@ int main(int argc, char** argv)
 #else
             /* Decode Packet, ret value will indicate whether a
              * bad packet was encountered */
-            hadBadPacket = DecodePacket((byte*)packet, header.caplen,
+            hadBadPacket = DecodePacket((byte*)packet, header->caplen,
                                         packetNumber,err);
 #endif
         }
