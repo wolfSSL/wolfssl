@@ -40527,27 +40527,27 @@ enum {
  * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
  * @return  MEMORY_E when dynamic memory allocation fails.
  * */
-static int DecodeHolder(const byte* input, word32 len, DecodedAcert* cert)
+static int DecodeHolder(const byte* input, word32 len, DecodedAcert* acert)
 {
     DECL_ASNGETDATA(dataASN, HolderASN_Length);
     int    ret = 0;
     word32 idx = 0;
     word32 holderSerialSz = 0;
 
-    if (input == NULL || len <= 0 || cert == NULL) {
+    if (input == NULL || len <= 0 || acert == NULL) {
         return BUFFER_E;
     }
 
-    CALLOC_ASNGETDATA(dataASN, HolderASN_Length, ret, cert->heap);
+    CALLOC_ASNGETDATA(dataASN, HolderASN_Length, ret, acert->heap);
 
     if (ret != 0) {
-        FREE_ASNGETDATA(dataASN, cert->heap);
+        FREE_ASNGETDATA(dataASN, acert->heap);
         return MEMORY_E;
     }
 
     holderSerialSz = EXTERNAL_SERIAL_SIZE;
 
-    GetASN_Buffer(&dataASN[HOLDER_IDX_SERIAL_INT], cert->holderSerial,
+    GetASN_Buffer(&dataASN[HOLDER_IDX_SERIAL_INT], acert->holderSerial,
                   &holderSerialSz);
 
     ret = GetASN_Items(HolderASN, dataASN, HolderASN_Length, 0, input,
@@ -40555,15 +40555,15 @@ static int DecodeHolder(const byte* input, word32 len, DecodedAcert* cert)
 
     if (ret != 0) {
         WOLFSSL_MSG("error: Holder: GetASN_Items failed");
-        FREE_ASNGETDATA(dataASN, cert->heap);
+        FREE_ASNGETDATA(dataASN, acert->heap);
         return ret;
     }
 
     if (dataASN[HOLDER_IDX_SERIAL_INT].tag != 0) {
-        cert->holderSerialSz = holderSerialSz;
+        acert->holderSerialSz = (int)holderSerialSz;
     }
     else {
-        cert->holderSerialSz = 0;
+        acert->holderSerialSz = 0;
     }
 
     {
@@ -40583,17 +40583,17 @@ static int DecodeHolder(const byte* input, word32 len, DecodedAcert* cert)
             gn_len = len;
         }
 
-        ret = DecodeAcertGeneralNames(gn_input, gn_len, cert,
-                                      &cert->holderIssuerName);
+        ret = DecodeAcertGeneralNames(gn_input, gn_len, acert,
+                                      &acert->holderIssuerName);
 
         if (ret != 0) {
             WOLFSSL_MSG("error: Holder: DecodeAcertGeneralNames failed");
-            FREE_ASNGETDATA(dataASN, cert->heap);
+            FREE_ASNGETDATA(dataASN, acert->heap);
             return ret;
         }
     }
 
-    FREE_ASNGETDATA(dataASN, cert->heap);
+    FREE_ASNGETDATA(dataASN, acert->heap);
     return 0;
 }
 
@@ -40856,7 +40856,7 @@ int ParseX509Acert(DecodedAcert* acert, int verify)
     }
 
     acert->version = version;
-    acert->serialSz = serialSz;
+    acert->serialSz = (int)serialSz;
 
     acert->signatureOID = dataASN[ACERT_IDX_ACINFO_ALGOID_OID].data.oid.sum;
     acert->certBegin = dataASN[ACERT_IDX_ACINFO_SEQ].offset;
