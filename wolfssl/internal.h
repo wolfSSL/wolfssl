@@ -2215,7 +2215,7 @@ WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz);
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str, word32 strLen);
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_ASN)
 WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen, int* checkCN);
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
@@ -2675,7 +2675,9 @@ typedef struct ProcPeerCertArgs {
 #ifdef WOLFSSL_TLS13
     buffer*      exts; /* extensions */
 #endif
+#ifndef NO_ASN
     DecodedCert* dCert;
+#endif
     word32 idx;
     word32 begin;
     int    totalCerts; /* number of certs in certs buffer */
@@ -6178,8 +6180,10 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
                                  int type, WOLFSSL* ssl, int userChain,
                                 WOLFSSL_CRL* crl, int verify);
 
+    #ifndef NO_ASN
     WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, const char *domainName,
                                     size_t domainNameLen);
+    #endif
 #endif
 
 
@@ -6591,8 +6595,10 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
     WOLFSSL_LOCAL void InitX509(WOLFSSL_X509* x509, int dynamicFlag,
                                 void* heap);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509* x509);
+    #ifndef NO_ASN
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509* x509,
                                          DecodedCert* dCert);
+    #endif
 #endif
 
 #ifndef MAX_CIPHER_NAME

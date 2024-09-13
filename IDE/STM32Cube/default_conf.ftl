@@ -107,7 +107,7 @@ extern ${variable.value} ${variable.name};
     #undef  NO_STM32_HASH
     #undef  NO_STM32_CRYPTO
     #define HAL_CONSOLE_UART huart3
-#elif defined(STM32H723xx) || defined(STM32H725xx)
+#elif defined(STM32H723xx) || defined(STM32H725xx) || defined(STM32H743xx)
     #define WOLFSSL_STM32H7
     #define HAL_CONSOLE_UART huart3
 #elif defined(STM32L4A6xx)
