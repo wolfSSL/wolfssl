@@ -163,6 +163,9 @@ struct wc_Sha {
     int    devId;
     void*  devCtx; /* generic crypto callback context */
 #endif
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_Sha mxcCtx;
+#endif
 #ifdef WOLFSSL_IMXRT1170_CAAM
     caam_hash_ctx_t ctx;
     caam_handle_t hndl;

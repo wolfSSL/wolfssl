@@ -30,20 +30,31 @@
 
 #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
 
+/* Some extra conditions when using callbacks */
+#if defined(WOLF_CRYPTO_CB)
+    #define MAX3266X_CB
+    #ifdef MAX3266X_MATH
+        #error Cannot have MAX3266X_MATH and MAX3266X_CB
+    #endif
+    #ifdef MAX3266X_SHA
+        #undef MAX3266X_SHA /* Turn Off Normal Sha Definition */
+        #define MAX3266X_SHA_CB /* Turn On Callback for SHA */
+    #endif
+#endif
+
 /* Default to all HW acceleration on unless specified in user_settings */
 #if !defined(MAX3266X_RNG) && !defined(MAX3266X_AES) && \
         !defined(MAX3266X_AESGCM) && !defined(MAX3266X_SHA) && \
         !defined(MAX3266X_MATH)
     #define MAX3266X_RNG
     #define MAX3266X_AES
-    #define MAX3266X_SHA
-    #define MAX3266X_ECDSA
-    #define MAX3266X_MATH
-#endif
-
-/* Some extra conditions when using callbacks */
-#if defined(WOLF_CRYPTO_CB)
-    #define MAX3266X_CB
+    #ifndef MAX3266X_CB
+        #define MAX3266X_SHA /* SHA is Supported, but need new definitions */
+        #define MAX3266X_MATH  /* MATH is not supported with callbacks */
+    #endif
+    #ifdef MAX3266X_CB
+        #define MAX3266X_SHA_CB /* Turn on Callback for SHA */
+    #endif
 #endif
 
 /* Crypto HW can be used in parallel on this device */
@@ -92,7 +103,7 @@
         #define MXC_TPU_Cipher_AES_Decrypt  TPU_AES_Decrypt
 
     #endif
-    #if defined(MAX3266X_SHA)
+    #if defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB)
         #include "hash.h"   /* Proivdes Drivers for SHA */
         /* SHA Defines */
         #define MXC_TPU_HASH_TYPE        tpu_hashfunsel_t
@@ -141,7 +152,7 @@
         #include "trng.h"   /* Provides Drivers for TRNG    */
     #endif
     #if defined(MAX3266X_AES) || defined(MAX3266X_SHA) || \
-                defined(MAX3266X_ECDSA) || defined(MAX3266X_RSA) || \
+                defined(MAX3266X_MATH) || defined(MAX3266X_RSA) || \
                 defined(MAX3266X_RNG)
         #include "tpu.h"    /* SDK Drivers for the TPU unit         */
                             /* Handles AES, SHA, and                */
@@ -223,25 +234,22 @@
 #endif /* HAVE_AES_DECRYPT */
 #endif /* MAX3266X_AES */
 
-#ifdef MAX3266X_SHA
+#if defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB)
 
     typedef struct {
         unsigned char   *msg;
         unsigned int    used;
         unsigned int    size;
-        unsigned char   hash[WOLFSSL_MAX_HASH_SIZE];
-        #ifdef WOLF_CRYPTO_CB
-        int             devId;
-        void*           devCtx; /* generic crypto callback context */
-        #endif
         #ifdef WOLFSSL_HASH_FLAGS
         unsigned int    flags; /* enum wc_HashFlags in hash.h */
         #endif
     } wc_MXC_Sha;
 
     #if !defined(NO_SHA)
+    #ifndef MAX3266X_SHA_CB
         typedef wc_MXC_Sha wc_Sha;
         #define WC_SHA_TYPE_DEFINED
+    #endif /* !MAX3266X_SHA_CB */
 
         /* Define the SHA digest for an empty string */
         /* as a constant byte array */
@@ -252,8 +260,10 @@
     #endif /* NO_SHA */
 
     #if defined(WOLFSSL_SHA224)
+    #ifndef MAX3266X_SHA_CB
         typedef wc_MXC_Sha wc_Sha224;
         #define WC_SHA224_TYPE_DEFINED
+    #endif /* !MAX3266X_SHA_CB */
 
         /* Define the SHA-224 digest for an empty string */
         /* as a constant byte array */
@@ -265,8 +275,10 @@
     #endif /* WOLFSSL_SHA224 */
 
     #if !defined(NO_SHA256)
+    #ifndef MAX3266X_SHA_CB
         typedef wc_MXC_Sha wc_Sha256;
         #define WC_SHA256_TYPE_DEFINED
+    #endif /* !MAX3266X_SHA_CB */
 
         /* Define the SHA-256 digest for an empty string */
         /* as a constant byte array */
@@ -278,8 +290,10 @@
     #endif /* NO_SHA256 */
 
     #if defined(WOLFSSL_SHA384)
+    #ifndef MAX3266X_SHA_CB
         typedef wc_MXC_Sha wc_Sha384;
         #define WC_SHA384_TYPE_DEFINED
+    #endif /* !MAX3266X_SHA_CB */
 
         /* Define the SHA-384 digest for an empty string */
         /* as a constant byte array */
@@ -293,10 +307,12 @@
     #endif /* WOLFSSL_SHA384 */
 
     #if defined(WOLFSSL_SHA512)
+    #ifndef MAX3266X_SHA_CB
         typedef wc_MXC_Sha wc_Sha512;
         typedef wc_MXC_Sha wc_Sha512_224;
         typedef wc_MXC_Sha wc_Sha512_256;
         #define WC_SHA512_TYPE_DEFINED
+    #endif /* !MAX3266X_SHA_CB */
 
         /* Does not support these SHA512 Macros */
         #ifndef WOLFSSL_NOSHA512_224
@@ -339,7 +355,7 @@
                                                 MXC_TPU_HASH_TYPE algo);
 
 
-#endif
+#endif /* defined(MAX3266X_SHA) && !defined(WOLF_CRYPTO_CB) */
 
 #if defined(MAX3266X_MATH)
     #define WOLFSSL_USE_HW_MP

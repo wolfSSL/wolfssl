@@ -264,11 +264,6 @@ struct Aes {
 #ifdef WC_C_DYNAMIC_FALLBACK
     word32 key_C_fallback[60];
 #endif
-#if (defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)) && \
-        defined(WOLF_CRYPTO_CB)
-    /* Need backup key for MXC CB */
-    word32 cb_key[60];
-#endif
     int     keylen;
 
     ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */

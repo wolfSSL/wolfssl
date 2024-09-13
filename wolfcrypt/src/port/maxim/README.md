@@ -34,9 +34,10 @@ this can be done by adding any combination of these defines:
 #define MAX3266X_SHA    - Allows usage of TPU for Hash Acceleration
 #define MAX3266X_MATH   - Allows usage of MAA for MOD based Math Acceleration
 ```
-For this you will still need to use `#define WOLFSSL_MAX3266X` or `#define WOLFSSL_MAX3266X_OLD`. When you use a specific hardware define like
-`#define MAX3266X_RNG` this will mean only the TRNG device is being used, and
-all other operations will use the default software implementations.
+For this you will still need to use `#define WOLFSSL_MAX3266X` or `#define WOLFSSL_MAX3266X_OLD`.
+When you use a specific hardware define like `#define MAX3266X_RNG` this will
+mean only the TRNG device is being used, and all other operations will use the
+default software implementations.
 
 The other prerequisite is that a change needs to be made to the Maxim SDK. This
 is to use the MAA Math Accelerator, this change only needs to be made if you are
@@ -96,6 +97,32 @@ like RSA and ECC key generation):
 - mulmod:   `(a*b)mod m = r`
 - sqrmod:   `(b^2)mod m = r`
 - exptmod:  `(b^e)mod m = r`
+
+## Crypto Callback Support
+This port also supports using the Crypto Callback functionality in wolfSSL.
+When `WOLF_CRYPTO_CB` is defined in `user_settings.h` along with
+`WOLFSSL_MAX3266X` or `WOLFSSL_MAX3266X_OLD` it will build the library to allow
+the ability to switch between hardware and software implementations.
+
+Crypto Callbacks only support using the hardware for these Algorithms:
+
+- AES ECB: 128, 192, 256
+- AES CBC: 128, 192, 256
+- SHA-1
+- SHA-256
+- SHA-384
+- SHA-512
+
+When using `WOLF_CRYPTO_CB` and `WOLFSSL_MAX3266X` or `WOLFSSL_MAX3266X_OLD`,
+`MAX3266X_MATH` is turned off and is is currently not supported to use with
+`WOLF_CRYPTO_CB`.
+
+The Hardware of the port will be used by default when no devId is set.
+To use software versions of the support Callback Algorithms the devId will need
+to be set to `INVALID_DEVID`.
+
+For more information about Crypto Callbacks and how to use them please refer to
+the [wolfSSL manual](https://www.wolfssl.com/documentation/manuals/wolfssl/chapter06.html).
 
 ## Extra Information
 For more Verbose info you can use `#define DEBUG_WOLFSSL` in combination with

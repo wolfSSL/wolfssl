@@ -134,6 +134,112 @@ int wc_MxcAesCryptoCb(wc_CryptoInfo* info)
     return BAD_FUNC_ARG;
 }
 
+#ifdef MAX3266X_SHA_CB
+
+int wc_MxcShaCryptoCb(wc_CryptoInfo* info)
+{
+    switch (info->hash.type) {
+    #ifndef NO_SHA
+        case WC_HASH_TYPE_SHA:
+            MAX3266X_MSG("SHA-1 CB:");
+            /* Update Case */
+            if (info->hash.in != NULL && info->hash.digest == NULL) {
+                MAX3266X_MSG("Update CB");
+                return wc_MXC_TPU_SHA_Update(&(info->hash.sha1->mxcCtx),
+                                            info->hash.in, info->hash.inSz);
+            }
+            /* Sha 1 Final Case */
+            if (info->hash.in == NULL && info->hash.digest != NULL) {
+                MAX3266X_MSG("Final CB");
+                return wc_MXC_TPU_SHA_Final(&(info->hash.sha1->mxcCtx),
+                                                info->hash.digest,
+                                                MXC_TPU_HASH_SHA1);
+            }
+            break; /* Break Out and Return Error */
+    #endif
+    #ifdef WOLFSSL_SHA224
+        case WC_HASH_TYPE_SHA224:
+            MAX3266X_MSG("SHA-224 CB:");
+            /* Update Case */
+            if (info->hash.in != NULL && info->hash.digest == NULL) {
+                MAX3266X_MSG("Update CB");
+                return wc_MXC_TPU_SHA_Update(&(info->hash.sha224->mxcCtx),
+                                            info->hash.in, info->hash.inSz);
+            }
+            /* Sha 256 Final Case */
+            if (info->hash.in == NULL && info->hash.digest != NULL) {
+                MAX3266X_MSG("Final CB");
+                return wc_MXC_TPU_SHA_Final(&(info->hash.sha224->mxcCtx),
+                                                info->hash.digest,
+                                                MXC_TPU_HASH_SHA224);
+            }
+            break; /* Break Out and Return Error */
+    #endif
+    #ifndef NO_SHA256
+        case WC_HASH_TYPE_SHA256:
+            MAX3266X_MSG("SHA-256 CB:");
+            /* Update Case */
+            if (info->hash.in != NULL && info->hash.digest == NULL) {
+                MAX3266X_MSG("Update CB");
+                return wc_MXC_TPU_SHA_Update(&(info->hash.sha256->mxcCtx),
+                                            info->hash.in, info->hash.inSz);
+            }
+            /* Sha 256 Final Case */
+            if (info->hash.in == NULL && info->hash.digest != NULL) {
+                MAX3266X_MSG("Final CB");
+                return wc_MXC_TPU_SHA_Final(&(info->hash.sha256->mxcCtx),
+                                                info->hash.digest,
+                                                MXC_TPU_HASH_SHA256);
+            }
+            break; /* Break Out and Return Error */
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case WC_HASH_TYPE_SHA384:
+            MAX3266X_MSG("SHA-384 CB:");
+            /* Update Case */
+            if (info->hash.in != NULL && info->hash.digest == NULL) {
+                MAX3266X_MSG("Update CB");
+                return wc_MXC_TPU_SHA_Update(&(info->hash.sha384->mxcCtx),
+                                            info->hash.in, info->hash.inSz);
+            }
+            /* Sha 384 Final Case */
+            if (info->hash.in == NULL && info->hash.digest != NULL) {
+                MAX3266X_MSG("Final CB");
+                return wc_MXC_TPU_SHA_Final(&(info->hash.sha384->mxcCtx),
+                                                info->hash.digest,
+                                                MXC_TPU_HASH_SHA384);
+            }
+            break; /* Break Out and Return Error */
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case WC_HASH_TYPE_SHA512:
+            MAX3266X_MSG("SHA-512 CB:");
+            /* Update Case */
+            if (info->hash.in != NULL && info->hash.digest == NULL) {
+                MAX3266X_MSG("Update CB");
+                return wc_MXC_TPU_SHA_Update(&(info->hash.sha512->mxcCtx),
+                                            info->hash.in, info->hash.inSz);
+            }
+            /* Sha 512 Final Case */
+            if (info->hash.in == NULL && info->hash.digest != NULL) {
+                MAX3266X_MSG("Final CB");
+                return wc_MXC_TPU_SHA_Final(&(info->hash.sha512->mxcCtx),
+                                                info->hash.digest,
+                                                MXC_TPU_HASH_SHA512);
+            }
+            break; /* Break Out and Return Error */
+    #endif
+        default:
+            /* Hash type not supported */
+            return WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    }
+    if (info->hash.inSz == 0) {
+        return 0; /* Dont need to Update when Size is Zero */
+    }
+    return BAD_FUNC_ARG;
+}
+#endif /* MAX3266X_SHA_CB */
+
 /* Determines AES Type for Callback */
 /* General Callback Function to determine ALGO Type */
 int wc_MxcCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
@@ -151,10 +257,15 @@ int wc_MxcCryptoCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
 
     switch (info->algo_type) {
         case WC_ALGO_TYPE_CIPHER:
-            /* return this to bypass HW and use SW */
-            MAX3266X_MSG("Using MXC HW Callback:");
+            MAX3266X_MSG("Using MXC AES HW Callback:");
             ret = wc_MxcAesCryptoCb(info); /* Determine AES HW or SW */
             break;
+#ifdef MAX3266X_SHA_CB
+        case WC_ALGO_TYPE_HASH:
+            MAX3266X_MSG("Using MXC SHA HW Callback:");
+            ret = wc_MxcShaCryptoCb(info); /* Determine SHA HW or SW */
+            break;
+#endif /* MAX3266X_SHA_CB */
         default:
             MAX3266X_MSG("Callback not support with MXC, using SW");
             /* return this to bypass HW and use SW */
@@ -305,7 +416,7 @@ int wc_MxcCb_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return status;
     }
 
-    status = wc_MXC_TPU_AesEncrypt(in, (byte*)aes->reg, (byte*)aes->cb_key,
+    status = wc_MXC_TPU_AesEncrypt(in, (byte*)aes->reg, (byte*)aes->devKey,
                                         MXC_TPU_MODE_ECB, sz, out, keySize);
 
     return status;
@@ -341,7 +452,7 @@ int wc_MxcCb_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return status;
     }
 
-    status = wc_MXC_TPU_AesEncrypt(in, iv, (byte*)aes->cb_key,
+    status = wc_MXC_TPU_AesEncrypt(in, iv, (byte*)aes->devKey,
                                     MXC_TPU_MODE_CBC, sz, out,
                                     (unsigned int)keySize);
     /* store iv for next call */
@@ -421,7 +532,7 @@ int wc_MxcCb_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return status;
     }
 
-    status = wc_MXC_TPU_AesDecrypt(in, (byte*)aes->reg, (byte*)aes->cb_key,
+    status = wc_MXC_TPU_AesDecrypt(in, (byte*)aes->reg, (byte*)aes->devKey,
                                         MXC_TPU_MODE_ECB, sz, out, keySize);
 
     return status;
@@ -460,7 +571,7 @@ int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     /* get IV for next call */
     XMEMCPY(temp_block, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-    status = wc_MXC_TPU_AesDecrypt(in, iv, (byte*)aes->cb_key,
+    status = wc_MXC_TPU_AesDecrypt(in, iv, (byte*)aes->devKey,
                                     MXC_TPU_MODE_CBC, sz, out,
                                     keySize);
 
@@ -475,7 +586,7 @@ int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif /* HAVE_AES_DECRYPT */
 #endif /* MAX3266X_AES */
 
-#if defined(MAX3266X_SHA)
+#if defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB)
 
 int wc_MXC_TPU_SHA_Init(wc_MXC_Sha *hash)
 {
@@ -521,7 +632,7 @@ int wc_MXC_TPU_SHA_Update(wc_MXC_Sha *hash, const unsigned char* data,
             #endif
         }
         if (p == NULL) {
-            return -1;
+            return MEMORY_E;
         }
         hash->msg = p;
         hash->size = hash->used+size;
@@ -599,7 +710,16 @@ int wc_MXC_TPU_SHA_Copy(wc_MXC_Sha* src, wc_MXC_Sha* dst)
     }
     dst->used = src->used;
     dst->size = src->size;
-    XMEMCPY(dst->hash, src->hash, sizeof(dst->hash));
+    if (dst->msg == src->msg && src->msg != 0) {
+        /* Allocate new memory for dst->msg if it points to the same location */
+        /* as src->msg */
+        dst->msg = (unsigned char*)XMALLOC(src->size, NULL,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
+        if (dst->msg == NULL) {
+            return MEMORY_E; /* Handle memory allocation failure */
+        }
+    }
+    XMEMCPY(dst->msg, src->msg, src->size);
     return 0;
 }
 
@@ -659,6 +779,7 @@ int wc_MXC_TPU_SHA_GetDigest(wc_MXC_Sha *hash, unsigned char* digest,
     return 0; /* False */
 }
 
+#ifndef MAX3266X_SHA_CB
 #if !defined(NO_SHA)
 
 WOLFSSL_API int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
@@ -893,8 +1014,8 @@ WOLFSSL_API void wc_Sha512Free(wc_Sha512* sha512)
 }
 
 #endif /* WOLFSSL_SHA512 */
-
-#endif /* MAX3266X_SHA */
+#endif /* !MAX3266X_SHA_CB*/
+#endif /* MAX3266X_SHA || MAX3266X_SHA_CB */
 
 #if defined(MAX3266X_MATH)
 
@@ -995,7 +1116,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
                                     DYNAMIC_TYPE_TMP_BUFFER);
     if (zero_tmp == NULL) {
         MAX3266X_MSG("NULL pointer found after XMALLOC call");
-        return WC_HW_E;
+        return MEMORY_E;
     }
     XMEMSET(zero_tmp, 0x00, multiplier->size*sizeof(mp_digit));
 

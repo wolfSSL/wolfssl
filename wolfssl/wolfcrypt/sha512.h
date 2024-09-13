@@ -188,6 +188,9 @@ struct wc_Sha512 {
     int    devId;
     void*  devCtx; /* generic crypto callback context */
 #endif
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_Sha mxcCtx;
+#endif
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
 #endif

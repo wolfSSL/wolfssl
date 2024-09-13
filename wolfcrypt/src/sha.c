@@ -564,6 +564,13 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     sha->devCtx = NULL;
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Init(&(sha->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
 #ifdef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
     if (sha->ctx.mode != ESP32_SHA_INIT) {
         /* it may be interesting to see old values during debugging */
@@ -1057,6 +1064,9 @@ void wc_ShaFree(wc_Sha* sha)
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_ShaPic32Free(sha);
 #endif
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha->mxcCtx));
+#endif
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     se050_hash_free(&sha->se050Ctx);
 #endif
@@ -1151,6 +1161,13 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 
 #if defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW)
     esp_sha_ctx_copy(src, dst);
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 
 #ifdef WOLFSSL_HASH_FLAGS

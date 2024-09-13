@@ -84,7 +84,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
 
 #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
-#ifdef WOLF_CRYPTO_CB
+#ifdef MAX3266X_CB
     /* Revert back to SW so HW CB works */
     /* HW only works for AES: ECB, CBC, and partial via ECB for other modes */
     #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
@@ -4168,9 +4168,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
     unsigned int i = 0;
 
     XMEMCPY(rk, key, keySz);
-#ifdef MAX3266X_CB /* Copies needed values to use later if CB is used */
-    XMEMCPY(aes->cb_key, key, keySz);
-#endif
 #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
     (!defined(WOLFSSL_ESP32_CRYPT) || defined(NO_WOLFSSL_ESP32_CRYPT_AES)) && \
     !defined(MAX3266X_AES)
@@ -4613,9 +4610,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
 #endif
 
         XMEMCPY(aes->key, userKey, keylen);
-#ifdef MAX3266X_CB /* Copy Key for CB for use later if needed */
-        XMEMCMP(aes->cb_key, userKey, keylen);
-#endif
 
 #ifndef WC_AES_BITSLICED
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \

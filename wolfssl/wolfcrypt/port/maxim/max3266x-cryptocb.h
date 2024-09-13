@@ -24,12 +24,8 @@
 
 #if (defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)) && \
     defined(WOLF_CRYPTO_CB)
-
 #ifndef WOLFSSL_MAX3266X_DEVID
     #define WOLFSSL_MAX3266X_DEVID 9
-#endif
-#ifndef MAX_CRYPTO_DEVID_CALLBACKS
-    #define MAX_CRYPTO_DEVID_CALLBACKS WOLFSSL_MAX3266X_DEVID
 #endif
 #define WC_USE_DEVID WOLFSSL_MAX3266X_DEVID
 #include <wolfssl/wolfcrypt/types.h>
@@ -61,6 +57,13 @@
                                         const byte* in, word32 sz);
 #endif
 #endif /* HAVE_AES_DECRYPT */
+
+
+    WOLFSSL_LOCAL int wc_MXC_Sha256Update(wc_MXC_Sha* sha256,
+                                            const unsigned char* data,
+                                            unsigned int len);
+    WOLFSSL_LOCAL int wc_MXC_Sha256Final(wc_MXC_Sha* sha256,
+                                            unsigned char* hash);
 
 #ifdef __cplusplus
     } /* extern "C" */

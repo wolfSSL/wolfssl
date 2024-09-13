@@ -55,11 +55,6 @@
 #ifdef WOLFSSL_CAAM
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
-
-#if defined (WOLFSSL_MAX3266X) || defined (WOLFSSL_MAX3266X_OLD)
-    #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
-#endif
-
 /* TODO: Consider linked list with mutex */
 #ifndef MAX_CRYPTO_DEVID_CALLBACKS
 #define MAX_CRYPTO_DEVID_CALLBACKS 8

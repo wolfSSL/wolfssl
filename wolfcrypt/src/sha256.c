@@ -279,10 +279,6 @@ static int InitSha256(wc_Sha256* sha256)
 #endif
 #endif
 
-#ifdef WOLF_CRYPTO_CB
-    sha256->devId = wc_CryptoCb_DefaultDevID();
-#endif
-
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     XMEMSET(&sha256->maxq_ctx, 0, sizeof(sha256->maxq_ctx));
 #endif
@@ -1095,6 +1091,12 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef WOLF_CRYPTO_CB
         sha256->devId = devId;
         sha256->devCtx = NULL;
+    #endif
+    #ifdef MAX3266X_SHA_CB
+        ret = wc_MXC_TPU_SHA_Init(&(sha256->mxcCtx));
+        if (ret != 0) {
+            return ret;
+        }
     #endif
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         sha256->W = NULL;
@@ -2246,6 +2248,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
     }
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha256->mxcCtx));
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
     wolfAsync_DevCtxFree(&sha256->asyncDev, WOLFSSL_ASYNC_MARKER_SHA256);
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -2545,6 +2551,13 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     wc_MAXQ10XX_Sha256Copy(src);
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
