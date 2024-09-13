@@ -14230,7 +14230,7 @@ int wolfSSL_X509_set_version(WOLFSSL_X509* x509, long v)
 
 #endif /* (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) && WOLFSSL_CERT_GEN */
 
-#if defined(OPENSSL_ALL) && \
+#if (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) &&           \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ)
 
 void wolfSSL_X509V3_set_ctx(WOLFSSL_X509V3_CTX* ctx, WOLFSSL_X509* issuer,

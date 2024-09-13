@@ -6462,7 +6462,7 @@ WOLFSSL_LOCAL WC_RNG* WOLFSSL_RSA_GetRNG(WOLFSSL_RSA *rsa, WC_RNG **tmpRNG,
     #ifndef GetCA
         WOLFSSL_LOCAL Signer* GetCA(void* vp, byte* hash);
     #endif
-    #ifdef WOLFSSL_AKID_NAME
+    #if defined(WOLFSSL_AKID_NAME) && !defined(GetCAByAKID)
         WOLFSSL_LOCAL Signer* GetCAByAKID(void* vp, const byte* issuer,
                 word32 issuerSz, const byte* serial, word32 serialSz);
     #endif

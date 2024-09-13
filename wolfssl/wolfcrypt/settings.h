@@ -2320,6 +2320,12 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_AESGCM
 #endif
 
+/* Detect Cortex M3 (no UMAAL) */
+#if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(__ARM_ARCH_7M__)
+    #undef  WOLFSSL_SP_NO_UMAAL
+    #define WOLFSSL_SP_NO_UMAAL
+#endif
+
 #if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX)
     #if defined(WOLFSSL_ARMASM)
         #error can not use both ARMv8 instructions and XILINX hardened crypto

@@ -578,9 +578,12 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifndef NO_SKID
     wolfssl_linuxkm_pie_redirect_table.GetCAByName = GetCAByName;
 #ifdef HAVE_OCSP
-wolfssl_linuxkm_pie_redirect_table.GetCAByKeyHash = GetCAByKeyHash;
+    wolfssl_linuxkm_pie_redirect_table.GetCAByKeyHash = GetCAByKeyHash;
 #endif /* HAVE_OCSP */
 #endif /* NO_SKID */
+#ifdef WOLFSSL_AKID_NAME
+    wolfssl_linuxkm_pie_redirect_table.GetCAByAKID = GetCAByAKID;
+#endif /* WOLFSSL_AKID_NAME */
 #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
 #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES

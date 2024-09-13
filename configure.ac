@@ -1021,7 +1021,9 @@ if test "$enable_all_crypto" = "yes" &&
    test "$HAVE_GNUC" = "yes" &&
    test "$enable_sp_asm" != "no" &&
    test "$enable_intelasm" != "no" &&
-   test "$enable_armasm" != "no"
+   test "$enable_armasm" != "no" &&
+   test "$enable_afalg" != "yes" &&
+   test "$ENABLED_32BIT" = "no"
 then
     DEFAULT_ENABLED_ALL_ASM=yes
 else
@@ -1187,7 +1189,8 @@ then
         test "$enable_shake128" = "" && enable_shake128=yes
         test "$enable_shake256" = "" && enable_shake256=yes
         test "$enable_compkey" = "" && test "$ENABLED_LINUXKM_DEFAULTS" != "yes" && enable_compkey=yes
-        test "$enable_srtp_kdf" = "" && enable_srtp_kdf=yes
+        # AFALG lacks AES-ECB
+        test "$enable_srtp_kdf" = "" && test "$enable_afalg" != "yes" && enable_srtp_kdf=yes
     fi
 
     if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
