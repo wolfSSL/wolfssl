@@ -1302,6 +1302,12 @@ int main(int argc, char** argv)
                 /* packet doesn't contain minimum ip/tcp header */
                 continue;
             }
+            int ptype = pcap_datalink(pcap);
+            printf("Packet type: %d\n",ptype);
+            if (ptype == DLT_LINUX_SLL) {
+                packet += 2;
+                header->caplen -= 2;
+            }
 #ifdef THREADED_SNIFFTEST
             XMEMSET(&info, 0, sizeof(SnifferStreamInfo));
 
