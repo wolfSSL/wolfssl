@@ -1,0 +1,13 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+#
+
+EXTRA_DIST += \
+		certs/acert/acert.pem \
+		certs/acert/acert_ietf.pem \
+		certs/acert/acert_pubkey.pem \
+		certs/acert/acert_ietf_pubkey.pem \
+		certs/acert/rsa_pss/acert.pem \
+		certs/acert/rsa_pss/acert_ietf.pem \
+		certs/acert/rsa_pss/acert_pubkey.pem \
+		certs/acert/rsa_pss/acert_ietf_pubkey.pem
