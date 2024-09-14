@@ -3195,6 +3195,10 @@ extern void uITRON4_free(void *p) ;
     #error "Dual alg cert support requires the ASN.1 template feature."
 #endif
 
+#if defined(WOLFSSL_ACERT) && !defined(WOLFSSL_ASN_TEMPLATE)
+    #error "Attribute Certificate support requires the ASN.1 template feature."
+#endif
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     #undef  WOLFSSL_ASN_ALL
     #define WOLFSSL_ASN_ALL
@@ -3290,6 +3294,11 @@ extern void uITRON4_free(void *p) ;
     /* Extended Key Usage */
     #undef  WOLFSSL_EKU_OID
     #define WOLFSSL_EKU_OID
+
+    /* Attribute Certificate support */
+    #if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_ACERT)
+        #define WOLFSSL_ACERT
+    #endif
 #endif
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \

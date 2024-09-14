@@ -24641,6 +24641,10 @@ wcchar END_CERT             = "-----END CERTIFICATE-----";
     wcchar BEGIN_CERT_REQ   = "-----BEGIN CERTIFICATE REQUEST-----";
     wcchar END_CERT_REQ     = "-----END CERTIFICATE REQUEST-----";
 #endif
+#if defined(WOLFSSL_ACERT)
+    wcchar BEGIN_ACERT      = "-----BEGIN ATTRIBUTE CERTIFICATE-----";
+    wcchar END_ACERT        = "-----END ATTRIBUTE CERTIFICATE-----";
+#endif /* WOLFSSL_ACERT */
 #ifndef NO_DH
     wcchar BEGIN_DH_PARAM   = "-----BEGIN DH PARAMETERS-----";
     wcchar END_DH_PARAM     = "-----END DH PARAMETERS-----";
@@ -24787,6 +24791,13 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             ret = 0;
             break;
     #endif
+    #if defined(WOLFSSL_ACERT)
+        case ACERT_TYPE:
+            if (header) *header = BEGIN_ACERT;
+            if (footer) *footer = END_ACERT;
+            ret = 0;
+            break;
+    #endif /* WOLFSSL_ACERT */
     #ifndef NO_DSA
         case DSA_TYPE:
         case DSA_PRIVATEKEY_TYPE:
@@ -40181,6 +40192,1007 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
 }
 #endif /* !NO_RSA && (!NO_BIG_INT || WOLFSSL_SP_MATH) */
 
+#if defined(WOLFSSL_ACERT) && defined(WOLFSSL_ASN_TEMPLATE)
+/* Initialize decoded certificate object with buffer of DER encoding.
+ *
+ * @param [in, out] cert    Decoded certificate object.
+ * @param [in]      source  Buffer containing DER encoded certificate.
+ * @param [in]      inSz    Size of DER data in buffer in bytes.
+ * @param [in]      heap    Dynamic memory hint.
+ */
+void InitDecodedAcert(DecodedAcert* acert, const byte* source, word32 inSz,
+                      void* heap)
+{
+    if (acert == NULL) {
+        return;
+    }
+
+    WOLFSSL_MSG("InitDecodedAcert");
+
+    XMEMSET(acert, 0, sizeof(DecodedAcert));
+    acert->heap = heap;
+    acert->source = source;  /* don't own */
+    acert->maxIdx = inSz;    /* can't go over this index */
+    acert->heap = heap;
+
+    InitSignatureCtx(&acert->sigCtx, heap, INVALID_DEVID);
+
+    return;
+}
+
+/* Free the decoded attribute cert object's dynamic data.
+ *
+ * @param [in, out] acert  Attribute Decoded certificate object.
+ */
+void FreeDecodedAcert(DecodedAcert * acert)
+{
+    if (acert == NULL) {
+        return;
+    }
+
+    WOLFSSL_MSG("FreeDecodedAcert");
+
+    if (acert->holderIssuerName) {
+        FreeAltNames(acert->holderIssuerName, acert->heap);
+        acert->holderIssuerName = NULL;
+    }
+
+    if (acert->holderEntityName) {
+        FreeAltNames(acert->holderEntityName, acert->heap);
+        acert->holderEntityName = NULL;
+    }
+
+    if (acert->AttCertIssuerName) {
+        FreeAltNames(acert->AttCertIssuerName, acert->heap);
+        acert->AttCertIssuerName = NULL;
+    }
+
+    FreeSignatureCtx(&acert->sigCtx);
+
+    XMEMSET(acert, 0, sizeof(DecodedAcert));
+    return;
+}
+
+/* Decode an Attribute Cert GeneralName field.
+ *
+ * @param [in]      input     Buffer containing encoded OtherName.
+ * @param [in, out] inOutIdx  On in, the index of the start of the OtherName.
+ *                            On out, index after OtherName.
+ * @param [in]      len       Length of data in buffer.
+ * @param [in]      cert      Decoded attribute certificate object.
+ * @param [in, out] entries   Linked list of DNS name entries.
+ *
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
+                                  byte tag, int len, DecodedAcert* acert,
+                                  DNS_entry** entries)
+{
+    int    ret = 0;
+    word32 idx = *inOutIdx;
+
+    /* GeneralName choice: dnsName */
+    if (tag == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE)) {
+        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+                          ASN_DNS_TYPE, entries);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
+#ifndef IGNORE_NAME_CONSTRAINTS
+    /* GeneralName choice: directoryName */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
+        int    strLen = 0;
+        word32 idxDir = idx;
+
+        /* Expecting a SEQUENCE using up all data. */
+        if (GetASN_Sequence(input, &idxDir, &strLen, idx + (word32)len, 1) < 0)
+        {
+            WOLFSSL_MSG("\tfail: seq length");
+            return ASN_PARSE_E;
+        }
+
+        ret = SetDNSEntry(acert->heap, (const char*)(input + idxDir), strLen,
+                          ASN_DIR_TYPE, entries);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
+    /* GeneralName choice: rfc822Name */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE)) {
+        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+                ASN_RFC822_TYPE, entries);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
+    /* GeneralName choice: uniformResourceIdentifier */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_URI_TYPE)) {
+        WOLFSSL_MSG("\tPutting URI into list but not using");
+
+    #if !defined(WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_FPKI)
+        /* Verify RFC 5280 Sec 4.2.1.6 rule:
+           "The name MUST NOT be a relative URI"
+           As per RFC 3986 Sec 4.3, an absolute URI is only required to contain
+           a scheme and hier-part.  So the only strict requirement is a ':'
+           being present after the scheme.  If a '/' is present as part of the
+           hier-part, it must come after the ':' (see RFC 3986 Sec 3). */
+        {
+            int i = 0;
+
+            /* skip past scheme (i.e http,ftp,...) finding first ':' char */
+            for (i = 0; i < len; i++) {
+                if (input[idx + (word32)i] == ':') {
+                    break;
+                }
+                if (input[idx + (word32)i] == '/') {
+                    i = len; /* error, found relative path since '/' was
+                              * encountered before ':'. Returning error
+                              * value in next if statement. */
+                }
+            }
+
+            /* test hier-part is empty */
+            if (i == 0 || i == len) {
+                WOLFSSL_MSG("\tEmpty or malformed URI");
+                WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
+                return ASN_ALT_NAME_E;
+            }
+
+            /* test if scheme is missing  */
+            if (input[idx + (word32)i] != ':') {
+                WOLFSSL_MSG("\tAlt Name must be absolute URI");
+                WOLFSSL_ERROR_VERBOSE(ASN_ALT_NAME_E);
+                return ASN_ALT_NAME_E;
+            }
+        }
+    #endif
+
+        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+                          ASN_URI_TYPE, entries);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
+    #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
+                                            defined(WOLFSSL_IP_ALT_NAME)
+    /* GeneralName choice: iPAddress */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_IP_TYPE)) {
+        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+                          ASN_IP_TYPE, entries);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
+    #endif /* WOLFSSL_QT || OPENSSL_ALL */
+
+    #ifdef OPENSSL_ALL
+    /* GeneralName choice: registeredID */
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_RID_TYPE)) {
+        ret = SetDNSEntry(acert->heap, (const char*)(input + idx), len,
+                ASN_RID_TYPE, entries);
+        if (ret == 0) {
+            idx += (word32)len;
+        }
+    }
+    #endif
+#endif /* IGNORE_NAME_CONSTRAINTS */
+    /* GeneralName choice: dNSName, x400Address, ediPartyName */
+    else {
+        WOLFSSL_MSG("\tUnsupported name type, skipping");
+        idx += (word32)len;
+    }
+
+    if (ret == 0) {
+        /* Return index of next encoded byte. */
+        *inOutIdx = idx;
+    }
+    return ret;
+}
+
+/* Decode General Names from an ACERT input.
+ *
+ * @param [in]      input    Buffer holding encoded data.
+ * @param [in]      sz       Size of encoded data in bytes.
+ * @param [in, out] cert     Decoded certificate object.
+ * @param [in, out] entries  Linked list of DNS name entries.
+ *
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ */
+static int DecodeAcertGeneralNames(const byte* input, word32 sz,
+                                   DecodedAcert* acert,
+                                   DNS_entry** entries)
+{
+    word32 idx = 0;
+    int    length = 0;
+    int    ret = 0;
+    word32 numNames = 0;
+
+    /* Get SEQUENCE and expect all data to be accounted for. */
+    if (GetASN_Sequence(input, &idx, &length, sz, 1) != 0) {
+        WOLFSSL_MSG("\tBad Sequence");
+        return ASN_PARSE_E;
+    }
+
+    if (length == 0) {
+        /* There is supposed to be a non-empty sequence here. */
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        return ASN_PARSE_E;
+    }
+
+    if ((word32)length + idx != sz) {
+        return ASN_PARSE_E;
+    }
+
+    while ((ret == 0) && (idx < sz)) {
+        ASNGetData dataASN[altNameASN_Length];
+
+        numNames++;
+        if (numNames > WOLFSSL_MAX_ALT_NAMES) {
+            WOLFSSL_MSG("error: acert: too many subject alternative names");
+            ret = ASN_ALT_NAME_E;
+            break;
+        }
+
+        /* Clear dynamic data items. */
+        XMEMSET(dataASN, 0, sizeof(dataASN));
+        /* Parse GeneralName with the choices supported. */
+        GetASN_Choice(&dataASN[ALTNAMEASN_IDX_GN], generalNameChoice);
+        /* Decode a GeneralName choice. */
+        ret = GetASN_Items(altNameASN, dataASN, altNameASN_Length, 0, input,
+                           &idx, sz);
+
+        if (ret != 0) {
+            break;
+        }
+
+        ret = DecodeAcertGeneralName(input, &idx,
+                                     dataASN[ALTNAMEASN_IDX_GN].tag,
+                                     (int)dataASN[ALTNAMEASN_IDX_GN].length,
+                                     acert, entries);
+    }
+
+    return ret;
+}
+
+/* Holder has three potential forms:
+ *   Holder ::= SEQUENCE {
+ *     baseCertificateID   [0] IssuerSerial OPTIONAL,
+ *         -- the issuer and serial number of
+ *         -- the holder's Public Key Certificate
+ *     entityName          [1] GeneralNames OPTIONAL,
+ *         -- the name of the claimant or role
+ *     objectDigestInfo    [2] ObjectDigestInfo OPTIONAL
+ *         -- used to directly authenticate the holder,
+ *         -- for example, an executable
+ *   }
+ *
+ * where IssuerSerial is:
+ *   IssuerSerial  ::=  SEQUENCE {
+ *     issuer         GeneralNames,
+ *     serial         CertificateSerialNumber,
+ *     issuerUID      UniqueIdentifier OPTIONAL
+ *   }
+ *
+ * Note:
+ *   - Holder Option 2 objectDigestInfo is not mandatory
+ *     for the spec and is not implemented here yet.
+ *
+ *   - issuerUniqueID not supported yet.
+ * */
+static const ASNItem HolderASN[] =
+{
+                     /* Holder root sequence. */
+/* HOLDER_SEQ  */    { 0, ASN_SEQUENCE, 1, 1, 0 },
+                         /* Holder Option 0:*/
+/* ISSUERSERIAL_SEQ  */  { 1, ASN_CONTEXT_SPECIFIC | 0, 1, 1, 2 },
+                             /* issuer         GeneralNames, */
+/* GN_SEQ  */                { 2, ASN_SEQUENCE, 1, 0, 0 },
+                             /* serial     CertificateSerialNumber */
+/* SERIAL_INT  */            { 2, ASN_INTEGER, 0, 0, 0 },
+                         /* Holder Option 1:*/
+/* GN_SEQ  */            { 1,  ASN_CONTEXT_SPECIFIC | 1, 1, 0, 2 },
+};
+
+enum {
+    HOLDER_IDX_SEQ = 0,
+    HOLDER_IDX_ISSUERSERIAL_SEQ,
+    HOLDER_IDX_GN_SEQ,
+    HOLDER_IDX_SERIAL_INT,
+    HOLDER_IDX_GN_SEQ_OPT1,
+};
+
+/* Number of items in ASN template for an X509 Acert. */
+#define HolderASN_Length (sizeof(HolderASN) / sizeof(ASNItem))
+
+/* Decode the Holder field of an x509 attribute certificate.
+ *
+ *
+ * @param [in]      input     Buffer containing encoded Holder field.
+ * @param [in]      len       Length of Holder field.
+ * @param [in]      cert      Decoded certificate object.
+ *
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * */
+static int DecodeHolder(const byte* input, word32 len, DecodedAcert* acert)
+{
+    DECL_ASNGETDATA(dataASN, HolderASN_Length);
+    int    ret = 0;
+    word32 idx = 0;
+    word32 holderSerialSz = 0;
+
+    if (input == NULL || len <= 0 || acert == NULL) {
+        return BUFFER_E;
+    }
+
+    CALLOC_ASNGETDATA(dataASN, HolderASN_Length, ret, acert->heap);
+
+    if (ret != 0) {
+        FREE_ASNGETDATA(dataASN, acert->heap);
+        return MEMORY_E;
+    }
+
+    holderSerialSz = EXTERNAL_SERIAL_SIZE;
+
+    GetASN_Buffer(&dataASN[HOLDER_IDX_SERIAL_INT], acert->holderSerial,
+                  &holderSerialSz);
+
+    ret = GetASN_Items(HolderASN, dataASN, HolderASN_Length, 0, input,
+                       &idx, len);
+
+    if (ret != 0) {
+        WOLFSSL_MSG("error: Holder: GetASN_Items failed");
+        FREE_ASNGETDATA(dataASN, acert->heap);
+        return ret;
+    }
+
+    if (dataASN[HOLDER_IDX_SERIAL_INT].tag != 0) {
+        acert->holderSerialSz = (int)holderSerialSz;
+    }
+    else {
+        acert->holderSerialSz = 0;
+    }
+
+    {
+        /* Now parse the GeneralNames field.
+         * Use the HOLDER_IDX_GN_SEQ offset for input. */
+        const byte * gn_input = NULL;
+        word32       gn_len = 0;
+        word32       holder_index = HOLDER_IDX_GN_SEQ;
+
+        /* Determine which tag was seen. */
+        if (dataASN[HOLDER_IDX_GN_SEQ].tag != 0) {
+            gn_input = input + dataASN[holder_index].offset;
+            gn_len = dataASN[holder_index].length + 2;
+        }
+        else {
+            gn_input = input;
+            gn_len = len;
+        }
+
+        ret = DecodeAcertGeneralNames(gn_input, gn_len, acert,
+                                      &acert->holderIssuerName);
+
+        if (ret != 0) {
+            WOLFSSL_MSG("error: Holder: DecodeAcertGeneralNames failed");
+            FREE_ASNGETDATA(dataASN, acert->heap);
+            return ret;
+        }
+    }
+
+    FREE_ASNGETDATA(dataASN, acert->heap);
+    return 0;
+}
+
+/* From RFC 5755.
+ * 4.2.3.  Issuer
+ *
+ * ACs conforming to this profile MUST use the v2Form choice, which MUST
+ * contain one and only one GeneralName in the issuerName, which MUST
+ * contain a non-empty distinguished name in the directoryName field.
+ * This means that all AC issuers MUST have non-empty distinguished
+ * names.  ACs conforming to this profile MUST omit the
+ * baseCertificateID and objectDigestInfo fields.
+ *
+ * 4.1.  X.509 Attribute Certificate Definition
+ *
+ * AttCertIssuer ::= CHOICE {
+ *   v1Form      GeneralNames,  -- MUST NOT be used in this
+ *                              -- profile
+ *   v2Form  [0] V2Form         -- v2 only
+ * }
+ *
+ * V2Form ::= SEQUENCE {
+ *   issuerName             GeneralNames  OPTIONAL,
+ *   baseCertificateID  [0] IssuerSerial  OPTIONAL,
+ *   objectDigestInfo   [1] ObjectDigestInfo  OPTIONAL
+ *          -- issuerName MUST be present in this profile
+ *          -- baseCertificateID and objectDigestInfo MUST
+ *          -- NOT be present in this profile
+ * }
+ * */
+static const ASNItem AttCertIssuerASN[] =
+{
+                           /* V2Form ::= SEQUENCE { */
+/* AttCertIssuer_GN_SEQ */ { 0, ASN_SEQUENCE, 1, 0, 0 },
+};
+
+enum {
+    ATTCERTISSUER_IDX_GN_SEQ,
+};
+
+/* Number of items in ASN template for an X509 Acert. */
+#define AttCertIssuerASN_Length (sizeof(AttCertIssuerASN) / sizeof(ASNItem))
+
+/* Decode the AttCertIssuer Field of an x509 attribute certificate.
+ *
+ *
+ * @param [in]      input     Buffer containing encoded AttCertIssuer field.
+ * @param [in]      len       Length of Holder field.
+ * @param [in]      cert      Decoded certificate object.
+ *
+ * @return  0 on success.
+ * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or
+ *          is invalid.
+ * @return  BUFFER_E when data in buffer is too small.
+ * @return  ASN_UNKNOWN_OID_E when the OID cannot be verified.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * */
+static int DecodeAttCertIssuer(const byte* input, word32 len,
+                               DecodedAcert* cert)
+{
+    DECL_ASNGETDATA(dataASN, AttCertIssuerASN_Length);
+    int          ret = 0;
+    word32       idx = 0;
+    const byte * gn_input = NULL;
+    word32       gn_len = 0;
+
+    if (input == NULL || len <= 0 || cert == NULL) {
+        return BUFFER_E;
+    }
+
+    CALLOC_ASNGETDATA(dataASN, AttCertIssuerASN_Length, ret, cert->heap);
+
+    if (ret != 0) {
+        return MEMORY_E;
+    }
+
+    ret = GetASN_Items(AttCertIssuerASN, dataASN, AttCertIssuerASN_Length,
+                       0, input, &idx, len);
+
+    if (ret != 0) {
+        FREE_ASNGETDATA(dataASN, cert->heap);
+        WOLFSSL_MSG("error: AttCertIssuer: GetASN_Items failed");
+        return ret;
+    }
+
+    /* Now parse the GeneralNames field.
+     * Use the HOLDER_IDX_GN_SEQ offset for input. */
+    gn_input = input + dataASN[ATTCERTISSUER_IDX_GN_SEQ].offset;
+    gn_len = dataASN[ATTCERTISSUER_IDX_GN_SEQ].length + 2;
+
+    ret = DecodeAcertGeneralNames(gn_input, gn_len, cert,
+                                  &cert->AttCertIssuerName);
+
+    if (ret != 0) {
+        FREE_ASNGETDATA(dataASN, cert->heap);
+        WOLFSSL_MSG("error: AttCertIssuer: DecodeAcertGeneralNames failed");
+        return ret;
+    }
+
+    FREE_ASNGETDATA(dataASN, cert->heap);
+    return 0;
+}
+
+
+/* ASN template for an X509 Attribute Certificate,
+ * from RFC 5755
+ */
+static const ASNItem AcertASN[] =
+{
+                          /* AttributeCertificate ::= SEQUENCE */
+/* SEQ                */  { 0, ASN_SEQUENCE, 1, 1, 0 },
+                              /* AttributeCertificateInfo ::= SEQUENCE  */
+/* ACINFO_SEQ         */      { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                  /* AttCertVersion ::= INTEGER { v2(1) } */
+/* ACINFO_VER_INT     */          { 2, ASN_INTEGER, 0, 0, 0 },
+                                  /* holder   Holder */
+/* ACINFO_HOLDER_SEQ  */          { 2, ASN_SEQUENCE, 1, 0, 0 },
+                                  /* issuer   AttCertIssuer */
+/* ACINFO_CHOICE_SEQ  */          { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 2 },
+/* ACINFO_ISSUER_SEQ  */          { 2, ASN_SEQUENCE | 0, 1, 0, 2 },
+                                  /* signature    AlgorithmIdentifier */
+                                  /* AlgorithmIdentifier ::= SEQUENCE */
+/* ACINFO_ALGOID_SEQ */           { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                      /* Algorithm    OBJECT IDENTIFIER */
+/* ACINFO_ALGOID_OID */               { 3, ASN_OBJECT_ID, 0, 0, 0 },
+                                      /* parameters */
+/* ACINFO_ALGOID_PARAMS_NULL */       { 3, ASN_TAG_NULL, 0, 0, 2 },
+#ifdef WC_RSA_PSS
+/* ACINFO_ALGOID_PARAMS */            { 3, ASN_SEQUENCE, 1, 0, 2 },
+#endif
+                                  /* CertificateSerialNumber ::= INTEGER */
+/* ACINFO_SERIAL        */        { 2, ASN_INTEGER, 0, 0, 0 },
+                                  /* Validity ::= SEQUENCE */
+/* ACINFO_VALIDITY_SEQ      */    { 2, ASN_SEQUENCE, 1, 1, 0 },
+                                      /* notBeforeTime  GeneralizedTime,  */
+/* ACINFO_VALIDITY_NOTB_GT  */        { 3, ASN_GENERALIZED_TIME, 0, 0, 2 },
+                                      /* notAfterTime   GeneralizedTime */
+/* ACINFO_VALIDITY_NOTA_GT  */        { 3, ASN_GENERALIZED_TIME, 0, 0, 3 },
+                                  /* attributes        SEQUENCE OF Attribute */
+/* ACINFO_ATTRIBUTES_SEQ    */    { 2, ASN_SEQUENCE, 1, 0, 0 },
+                                  /* issuerUniqueID    OPTIONAL, */
+/* ACINFO_UNIQUE_ID         */    { 2, ASN_CONTEXT_SPECIFIC | 1, 0, 0, 1 },
+                                  /* extensions        OPTIONAL */
+/* ACINFO_EXT               */    { 2, ASN_CONTEXT_SPECIFIC | 2, 1, 1, 1 },
+/* ACINFO_EXT_SEQ           */    { 2, ASN_SEQUENCE, 1, 0, 1 },
+                              /* signature    AlgorithmIdentifier */
+                              /* AlgorithmIdentifier ::= SEQUENCE */
+/* SIGALGO_SEQ         */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+                                  /* Algorithm    OBJECT IDENTIFIER */
+/* SIGALGO_OID         */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+                                  /* parameters */
+/* SIGALGO_PARAMS_NULL */         { 2, ASN_TAG_NULL, 0, 0, 2 },
+#ifdef WC_RSA_PSS
+/* SIGALGO_PARAMS      */         { 2, ASN_SEQUENCE, 1, 0, 2 },
+#endif
+                              /* signature    BIT STRING */
+/* SIGNATURE           */     { 1, ASN_BIT_STRING, 0, 0, 0 },
+};
+
+enum {
+    ACERT_IDX_SEQ = 0,
+    ACERT_IDX_ACINFO_SEQ,
+    ACERT_IDX_ACINFO_VER_INT,
+    /* ACINFO holder and issuer */
+    ACERT_IDX_ACINFO_HOLDER_SEQ,
+    ACERT_IDX_ACINFO_CHOICE_SEQ,
+    ACERT_IDX_ACINFO_ISSUER_SEQ,
+    /* ACINFO sig alg*/
+    ACERT_IDX_ACINFO_ALGOID_SEQ,
+    ACERT_IDX_ACINFO_ALGOID_OID,
+    ACERT_IDX_ACINFO_ALGOID_PARAMS_NULL,
+#ifdef WC_RSA_PSS
+    /* Additional RSA-PSS params. */
+    ACERT_IDX_ACINFO_ALGOID_PARAMS,
+#endif
+    /* serial number */
+    ACERT_IDX_ACINFO_SERIAL,
+    /* validity time */
+    ACERT_IDX_ACINFO_VALIDITY_SEQ,
+    ACERT_IDX_ACINFO_VALIDITY_NOTB_GT,
+    ACERT_IDX_ACINFO_VALIDITY_NOTA_GT,
+    /* attributes */
+    ACERT_IDX_ACINFO_ATTRIBUTES_SEQ,
+    /* unique identifier */
+    ACERT_IDX_ACINFO_UNIQUE_ID,
+    /* extensions */
+    ACERT_ACINFO_EXT,
+    ACERT_ACINFO_EXT_SEQ,
+    /* sig alg */
+    ACERT_IDX_SIGALGO_SEQ,
+    ACERT_IDX_SIGALGO_OID,
+    ACERT_IDX_SIGALGO_PARAMS_NULL,
+#ifdef WC_RSA_PSS
+    /* Additional RSA-PSS params. */
+    ACERT_IDX_SIGALGO_PARAMS,
+#endif
+    /* signature */
+    ACERT_IDX_SIGNATURE,
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(ACERT_IDX)
+};
+
+/* Number of items in ASN template for an X509 Acert. */
+#define AcertASN_Length (sizeof(AcertASN) / sizeof(ASNItem))
+
+/* Initial implementation for parsing and verifying an
+ * X509 Attribute Certificate (RFC 5755).
+ *
+ * At present these fields are NOT parsed:
+ *   - issuerUniqueID
+ *   - extensions
+ *   - attributes
+ *
+ * Returns 0 on success.
+ * Returns negative error code on error/failure.
+ * */
+int ParseX509Acert(DecodedAcert* acert, int verify)
+{
+    DECL_ASNGETDATA(dataASN, AcertASN_Length);
+    int    ret = 0;
+    word32 idx = 0;
+    int    badDate = 0;
+    byte   version = 0;
+    word32 serialSz = EXTERNAL_SERIAL_SIZE;
+
+    if (acert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    CALLOC_ASNGETDATA(dataASN, AcertASN_Length, ret, acert->heap);
+
+    if (ret != 0) {
+        return MEMORY_E;
+    }
+
+    /* Get the version and put the serial number into the buffer. */
+    GetASN_Int8Bit(&dataASN[ACERT_IDX_ACINFO_VER_INT], &version);
+
+    GetASN_Buffer(&dataASN[ACERT_IDX_ACINFO_SERIAL], acert->serial,
+                  &serialSz);
+
+    /* Check OID types for signature algorithm. */
+    GetASN_OID(&dataASN[ACERT_IDX_ACINFO_ALGOID_OID], oidSigType);
+    GetASN_OID(&dataASN[ACERT_IDX_SIGALGO_OID], oidSigType);
+
+    /* Parse the X509 certificate. */
+    ret = GetASN_Items(AcertASN, dataASN, AcertASN_Length, 1,
+                       acert->source, &acert->srcIdx, acert->maxIdx);
+
+    if (ret != 0) {
+        FREE_ASNGETDATA(dataASN, acert->heap);
+        return ret;
+    }
+
+    /* Check version is valid/supported - can't be negative. */
+    if (version > MAX_X509_VERSION) {
+        FREE_ASNGETDATA(dataASN, acert->heap);
+        WOLFSSL_MSG("Unexpected attribute certificate version");
+        WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+        return ASN_PARSE_E;
+    }
+
+    acert->version = version;
+    acert->serialSz = (int)serialSz;
+
+    acert->signatureOID = dataASN[ACERT_IDX_ACINFO_ALGOID_OID].data.oid.sum;
+    acert->certBegin = dataASN[ACERT_IDX_ACINFO_SEQ].offset;
+
+    /* check BEFORE date. */
+    idx = ACERT_IDX_ACINFO_VALIDITY_NOTB_GT;
+    if (CheckDate(&dataASN[idx], BEFORE) < 0) {
+        if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE)) {
+            badDate = ASN_BEFORE_DATE_E;
+        }
+    }
+
+    /* Store reference to BEFORE date. */
+    acert->beforeDate = GetASNItem_Addr(dataASN[idx], acert->source);
+    acert->beforeDateLen = (int)GetASNItem_Length(dataASN[idx], acert->source);
+
+    /* check AFTER date. */
+    idx = ACERT_IDX_ACINFO_VALIDITY_NOTA_GT;
+    if (CheckDate(&dataASN[idx], AFTER) < 0) {
+        if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE)) {
+            badDate = ASN_BEFORE_DATE_E;
+        }
+    }
+
+    /* Store reference to AFTER date. */
+    acert->afterDate = GetASNItem_Addr(dataASN[idx], acert->source);
+    acert->afterDateLen = (int)GetASNItem_Length(dataASN[idx], acert->source);
+
+    /* Store the signature information. */
+    acert->sigIndex = dataASN[ACERT_IDX_SIGALGO_SEQ].offset;
+    GetASN_GetConstRef(&dataASN[ACERT_IDX_SIGNATURE],
+                       &acert->signature, &acert->sigLength);
+
+    /* Make sure 'signature' and 'signatureAlgorithm' are the same. */
+    if (dataASN[ACERT_IDX_SIGALGO_OID].data.oid.sum != acert->signatureOID) {
+        FREE_ASNGETDATA(dataASN, acert->heap);
+        WOLFSSL_ERROR_VERBOSE(ASN_SIG_OID_E);
+        return ASN_SIG_OID_E;
+    }
+
+    /* Parameters not allowed after ECDSA or EdDSA algorithm OID. */
+    if (IsSigAlgoECC(acert->signatureOID)) {
+        if ((dataASN[ACERT_IDX_SIGALGO_PARAMS_NULL].tag != 0)
+    #ifdef WC_RSA_PSS
+            || (dataASN[ACERT_IDX_SIGALGO_PARAMS].tag != 0)
+    #endif
+            ) {
+            FREE_ASNGETDATA(dataASN, acert->heap);
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            return ASN_PARSE_E;
+        }
+    }
+
+    #ifdef WC_RSA_PSS
+    /* Check parameters starting with a SEQUENCE. */
+    if (dataASN[ACERT_IDX_SIGALGO_PARAMS].tag != 0) {
+        word32       oid = dataASN[ACERT_IDX_SIGALGO_OID].data.oid.sum;
+        word32       sigAlgParamsSz = 0;
+        const byte * acParams = NULL;
+        word32       acParamsSz = 0;
+        const byte * sigAlgParams = NULL;
+
+        /* Parameters only with RSA PSS. */
+        if (oid != CTC_RSASSAPSS) {
+            FREE_ASNGETDATA(dataASN, acert->heap);
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            return ASN_PARSE_E;
+        }
+
+        /* Check RSA PSS parameters are the same. */
+        acParams = GetASNItem_Addr(dataASN[ACERT_IDX_ACINFO_ALGOID_PARAMS],
+                                   acert->source);
+        acParamsSz = GetASNItem_Length(dataASN[ACERT_IDX_ACINFO_ALGOID_PARAMS],
+                                       acert->source);
+        sigAlgParams = GetASNItem_Addr(dataASN[ACERT_IDX_SIGALGO_PARAMS],
+                                       acert->source);
+        sigAlgParamsSz = GetASNItem_Length(dataASN[ACERT_IDX_SIGALGO_PARAMS],
+                                           acert->source);
+
+        if ((acParamsSz != sigAlgParamsSz) ||
+            (XMEMCMP(acParams, sigAlgParams, acParamsSz) != 0)) {
+
+            FREE_ASNGETDATA(dataASN, acert->heap);
+            WOLFSSL_ERROR_VERBOSE(ASN_PARSE_E);
+            return ASN_PARSE_E;
+        }
+
+        /* Store RSA PSS parameters for use in signature verification. */
+        acert->sigParamsIndex = dataASN[ACERT_IDX_SIGALGO_PARAMS].offset;
+        acert->sigParamsLength = sigAlgParamsSz;
+    }
+    #endif
+
+    /* Store the raw Attributes field. */
+    GetASN_GetConstRef(&dataASN[ACERT_IDX_ACINFO_ATTRIBUTES_SEQ],
+                       &acert->rawAttr, &acert->rawAttrLen);
+
+    {
+        /* Now parse the Holder and AttCertIssuer fields.
+         * Use the ACINFO holder and issuer sequence offset for input. */
+        const byte * holder_input = NULL;
+        word32       holder_len = 0;
+        const byte * issuer_input = NULL;
+        word32       issuer_len = 0;
+        word32       i_holder = ACERT_IDX_ACINFO_HOLDER_SEQ;
+        word32       i_issuer = 0;
+
+        /* Determine which issuer tag was seen. We need this to determine
+         * the holder_input. */
+        i_issuer = (dataASN[ACERT_IDX_ACINFO_CHOICE_SEQ].tag != 0) ?
+                    ACERT_IDX_ACINFO_CHOICE_SEQ : ACERT_IDX_ACINFO_ISSUER_SEQ;
+
+        holder_input = acert->source + dataASN[i_holder].offset;
+        holder_len = dataASN[i_issuer].offset - dataASN[i_holder].offset;
+
+        ret = DecodeHolder(holder_input, holder_len, acert);
+
+        if (ret != 0) {
+            FREE_ASNGETDATA(dataASN, acert->heap);
+            return ret;
+        }
+
+        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+        printf("debug: parse acert:issuer index: %d\n", i_issuer);
+        #endif /* WOLFSSL_DEBUG_ASN_TEMPLATE */
+
+        GetASN_GetConstRef(&dataASN[i_issuer], &issuer_input, &issuer_len);
+
+        if (i_issuer == ACERT_IDX_ACINFO_CHOICE_SEQ && issuer_len > 0) {
+            /* Try to decode the AttCertIssuer as well. */
+            ret = DecodeAttCertIssuer(issuer_input, issuer_len, acert);
+
+            if (ret != 0) {
+                FREE_ASNGETDATA(dataASN, acert->heap);
+                return ret;
+            }
+        }
+        #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
+        else {
+            printf("debug: parse acert: unsupported issuer format: %d, %d\n",
+                   i_issuer, issuer_len);
+        }
+        #endif /* WOLFSSL_DEBUG_ASN_TEMPLATE */
+    }
+
+    if (badDate) {
+        if ((verify != NO_VERIFY) && (verify != VERIFY_SKIP_DATE)) {
+            ret = badDate;
+        }
+    }
+
+    FREE_ASNGETDATA(dataASN, acert->heap);
+    return ret;
+}
+
+/* Given the parsed attribute cert info, verify the signature.
+ *
+ * The sigCtx is alloced and freed here.
+ *
+ * @param [in]      acinfo        the parsed acinfo sequence
+ * @param [in]      acinfoSz      the parsed acinfo sequence length
+ * @param [in]      pubKey        public key
+ * @param [in]      pubKeySz      public key length
+ * @param [in]      pubKeyOID     public key oid
+ * @param [in]      sig           the parsed signature
+ * @param [in]      sigSz         the parsed signature length
+ * @param [in]      sigOID        the parsed signature OID
+ * @param [in]      sigParams     the parsed signature RSA-PSS params
+ * @param [in]      sigParamsSz   the parsed signature RSA-PSS params length
+ * @param [in]      heap          heap hint
+ *
+ * @return  0   on verify success
+ * @return  < 0 on error
+ * */
+static int acert_sig_verify(const byte * acinfo, word32 acinfoSz,
+                            const byte * pubKey, word32 pubKeySz,
+                            int pubKeyOID, const byte * sig, word32 sigSz,
+                            word32 sigOID, const byte * sigParams,
+                            word32 sigParamsSz, void * heap)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    SignatureCtx   sigCtx[1];
+#else
+    SignatureCtx * sigCtx = NULL;
+#endif
+    int            ret = 0;
+
+    #ifdef WOLFSSL_SMALL_STACK
+    sigCtx = (SignatureCtx*)XMALLOC(sizeof(*sigCtx), heap,
+                                    DYNAMIC_TYPE_SIGNATURE);
+    if (sigCtx == NULL) {
+        WOLFSSL_MSG("error: VerifyX509Acert: malloc sigCtx failed");
+        return MEMORY_E;
+    }
+    #endif
+
+    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+
+    /* Check x509 acert signature. */
+    ret = ConfirmSignature(sigCtx, acinfo, acinfoSz, pubKey, pubKeySz,
+                           (word32)pubKeyOID, sig, sigSz, sigOID,
+                           sigParams, sigParamsSz, NULL);
+
+    if (ret == WC_NO_ERR_TRACE(ASN_SIG_CONFIRM_E)) {
+        WOLFSSL_MSG("info: VerifyX509Acert: confirm signature failed");
+    }
+
+    FreeSignatureCtx(sigCtx);
+    #ifdef WOLFSSL_SMALL_STACK
+    XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
+    sigCtx = NULL;
+    #endif
+
+    return ret;
+}
+
+/* Verify the X509 ACERT signature, using the given pubkey.
+ *
+ * @param [in]      der         input acert in der format
+ * @param [in]      derSz       acert length
+ * @param [in]      pubKey      public key
+ * @param [in]      pubKeySz    public key length
+ * @param [in]      pubKeyOID   public key oid
+ * @param [in]      heap        heap hint
+ *
+ * @return  0   on success
+ * @return  < 0 on error
+ * */
+int VerifyX509Acert(const byte* der, word32 derSz,
+                    const byte* pubKey, word32 pubKeySz, int pubKeyOID,
+                    void * heap)
+{
+    DECL_ASNGETDATA(dataASN, AcertASN_Length);
+    word32         idx = 0;
+    int            ret = 0;
+    const byte *   acinfo = NULL; /* The acinfo sequence. */
+    word32         acinfoSz = 0;  /* The acinfo sequence length. */
+#ifdef WC_RSA_PSS
+    const byte *   acParams = NULL;
+    word32         acParamsSz = 0;
+#endif
+    const byte *   sig = NULL;
+    word32         sigSz = 0;
+    word32         sigOID = 0;
+    const byte *   sigParams = NULL;
+    word32         sigParamsSz = 0;
+
+    if (der == NULL || pubKey == NULL || derSz == 0 || pubKeySz == 0) {
+        WOLFSSL_MSG("error: VerifyX509Acert: bad args");
+        return BAD_FUNC_ARG;
+    }
+
+    CALLOC_ASNGETDATA(dataASN, AcertASN_Length, ret, heap);
+
+    if (ret != 0) {
+        WOLFSSL_MSG("error: VerifyX509Acert: calloc dataASN failed");
+        return MEMORY_E;
+    }
+
+    /* Check OID types for signature algorithm. */
+    GetASN_OID(&dataASN[ACERT_IDX_ACINFO_ALGOID_OID], oidSigType);
+    GetASN_OID(&dataASN[ACERT_IDX_SIGALGO_OID], oidSigType);
+
+    /* Parse the X509 certificate. */
+    ret = GetASN_Items(AcertASN, dataASN, AcertASN_Length, 1,
+                       der, &idx, derSz);
+
+    if (ret != 0) {
+        WOLFSSL_MSG("error: VerifyX509Acert: GetASN_Items failed");
+        FREE_ASNGETDATA(dataASN, heap);
+        return ret;
+    }
+
+    /* Check signature OIDs match. */
+    if (dataASN[ACERT_IDX_ACINFO_ALGOID_OID].data.oid.sum
+        != dataASN[ACERT_IDX_SIGALGO_OID].data.oid.sum) {
+        WOLFSSL_MSG("error: VerifyX509Acert: sig OID mismatch");
+        FREE_ASNGETDATA(dataASN, heap);
+        return ASN_SIG_OID_E;
+    }
+
+    /* Get the attribute certificate info. */
+    acinfo = GetASNItem_Addr(dataASN[ACERT_IDX_ACINFO_SEQ], der);
+    acinfoSz = GetASNItem_Length(dataASN[ACERT_IDX_ACINFO_SEQ], der);
+
+    if (acinfo == NULL || acinfoSz == 0) {
+        WOLFSSL_MSG("error: VerifyX509Acert: empty acinfo");
+        FREE_ASNGETDATA(dataASN, heap);
+        return ASN_PARSE_E;
+    }
+
+    /* Get acert signature and sig info. */
+    sigOID = dataASN[ACERT_IDX_ACINFO_ALGOID_OID].data.oid.sum;
+    #ifdef WC_RSA_PSS
+    if (dataASN[ACERT_IDX_ACINFO_ALGOID_PARAMS].tag != 0) {
+        acParams = GetASNItem_Addr(dataASN[ACERT_IDX_ACINFO_ALGOID_PARAMS],
+                                  der);
+        acParamsSz = GetASNItem_Length(dataASN[ACERT_IDX_ACINFO_ALGOID_PARAMS],
+                                       der);
+    }
+    if (dataASN[ACERT_IDX_SIGALGO_PARAMS].tag != 0) {
+        sigParams = GetASNItem_Addr(dataASN[ACERT_IDX_SIGALGO_PARAMS], der);
+        sigParamsSz = GetASNItem_Length(dataASN[ACERT_IDX_SIGALGO_PARAMS],
+                                        der);
+    }
+    #endif
+
+    GetASN_GetConstRef(&dataASN[ACERT_IDX_SIGNATURE], &sig, &sigSz);
+
+    #ifdef WC_RSA_PSS
+    if (acParamsSz != sigParamsSz) {
+        ret = ASN_PARSE_E;
+    }
+    else if ((acParamsSz > 0) && (sigOID != CTC_RSASSAPSS)) {
+        ret = ASN_PARSE_E;
+    }
+    else if ((acParamsSz > 0) &&
+             (XMEMCMP(acParams, sigParams, acParamsSz) != 0)) {
+        ret = ASN_PARSE_E;
+    }
+    #endif
+
+    if (ret == 0) {
+        /* Finally, do the verification. */
+        ret = acert_sig_verify(acinfo, acinfoSz,
+                               pubKey, pubKeySz, pubKeyOID,
+                               sig, sigSz, sigOID, sigParams, sigParamsSz,
+                               heap);
+    }
+
+    FREE_ASNGETDATA(dataASN, heap);
+    return ret;
+}
+#endif /* WOLFSSL_ACERT && WOLFSSL_ASN_TEMPLATE */
 
 #ifdef WOLFSSL_SEP
 

@@ -3843,6 +3843,12 @@ then
     ENABLED_KEYGEN=yes
 fi
 
+# ATTRIBUTE CERTIFICATES
+AC_ARG_ENABLE([acert],
+    [AS_HELP_STRING([--enable-acert],[Enable attribute certificate support (default: disabled)])],
+    [ ENABLED_ACERT=$enableval ],
+    [ ENABLED_ACERT=no ]
+    )
 
 # CERT GENERATION
 AC_ARG_ENABLE([certgen],
@@ -9240,6 +9246,9 @@ AS_IF([test "x$ENABLED_ALTNAMES" = "xyes"],
 AS_IF([test "x$ENABLED_KEYGEN" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"])
 
+AS_IF([test "x$ENABLED_ACERT" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ACERT"])
+
 AS_IF([test "x$ENABLED_CERTREQ" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_REQ"])
 
@@ -10230,6 +10239,7 @@ echo "   * BLAKE2S:                    $ENABLED_BLAKE2S"
 echo "   * SipHash:                    $ENABLED_SIPHASH"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"
+echo "   * acert:                      $ENABLED_ACERT"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"

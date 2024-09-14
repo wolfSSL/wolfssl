@@ -5317,6 +5317,29 @@ struct WOLFSSL_X509 {
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 };
 
+#if defined(WOLFSSL_ACERT)
+struct WOLFSSL_X509_ACERT {
+    int               version;
+    int               serialSz;
+    byte              serial[EXTERNAL_SERIAL_SIZE];
+    WOLFSSL_ASN1_TIME notBefore;
+    WOLFSSL_ASN1_TIME notAfter;
+    buffer            sig;
+    int               sigOID;
+#ifndef NO_CERTS
+    DerBuffer *       derCert;
+#endif
+    void*             heap;
+    /* copy of raw Attributes field from */
+    byte              holderSerial[EXTERNAL_SERIAL_SIZE];
+    int               holderSerialSz;
+    DNS_entry *       holderEntityName;  /* Holder entityName from ACERT */
+    DNS_entry *       holderIssuerName;  /* issuerName from ACERT */
+    DNS_entry *       AttCertIssuerName; /* AttCertIssuer name from ACERT */
+    byte *            rawAttr;
+    word32            rawAttrLen;
+};
+#endif /* WOLFSSL_ACERT */
 
 /* record layer header for PlainText, Compressed, and CipherText */
 typedef struct RecordLayerHeader {
@@ -6594,6 +6617,12 @@ WOLFSSL_LOCAL enum wc_HashType HashAlgoToType(int hashAlgo);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509* x509,
                                          DecodedCert* dCert);
 #endif
+
+#if defined(WOLFSSL_ACERT)
+    WOLFSSL_LOCAL int  CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509,
+                                              DecodedAcert* dAcert);
+#endif /* WOLFSSL_ACERT */
+
 
 #ifndef MAX_CIPHER_NAME
 #define MAX_CIPHER_NAME 50
