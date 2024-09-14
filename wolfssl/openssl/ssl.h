@@ -398,7 +398,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 #define SSL_SESSION_get_max_early_data  wolfSSL_SESSION_get_max_early_data
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
     #define SSL_MODE_RELEASE_BUFFERS     0x00000010U
     #define ASN1_BOOLEAN                 WOLFSSL_ASN1_BOOLEAN
     #define X509_get_ext                 wolfSSL_X509_get_ext

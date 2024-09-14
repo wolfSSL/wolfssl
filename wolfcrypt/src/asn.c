@@ -13370,7 +13370,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 {
     int ret = 0;
     size_t nameSz = 0;
-    char tmpName[WOLFSSL_MAX_IPSTR] = {0};
+    char tmpName[WOLFSSL_MAX_IPSTR];
     unsigned char* ip;
 
     if (entry == NULL || entry->type != ASN_IP_TYPE) {
@@ -13383,6 +13383,8 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
         return BAD_FUNC_ARG;
     }
     ip = (unsigned char*)entry->name;
+
+    XMEMSET(tmpName, 0, sizeof(tmpName));
 
     /* store IP addresses as a string */
     if (entry->len == WOLFSSL_IP4_ADDR_LEN) {

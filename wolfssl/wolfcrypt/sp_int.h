@@ -178,13 +178,6 @@ extern "C" {
 #define WOLFSSL_SP_DIV_WORD_HALF
 #endif
 
-/* Detect Cortex M3 (no UMAAL) */
-#if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(__ARM_ARCH_7M__)
-    #undef  WOLFSSL_SP_NO_UMAAL
-    #define WOLFSSL_SP_NO_UMAAL
-#endif
-
-
 /* Make sure WOLFSSL_SP_ASM build option defined when requested */
 #if !defined(WOLFSSL_SP_ASM) && ( \
       defined(WOLFSSL_SP_X86_64_ASM) || defined(WOLFSSL_SP_ARM32_ASM) || \
