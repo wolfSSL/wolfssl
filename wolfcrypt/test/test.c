@@ -8622,6 +8622,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des_test(void)
         0x15,0x85,0xb3,0x22,0x4b,0x86,0x2b,0x4b
     };
 
+    #ifdef WOLFSSL_DES_ECB
+
+    /* "Stay strong and move on!"" */
+    WOLFSSL_SMALL_STACK_STATIC const byte vector_ecb[] =
+    {
+        0x53,0x74,0x61,0x79,0x20,0x73,0x74,0x72,
+        0x6F,0x6E,0x67,0x20,0x61,0x6E,0x64,0x20,
+        0x6D,0x6F,0x76,0x65,0x20,0x6F,0x6E,0x21
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC const byte verify_ecb[] =
+    {
+        0x70,0x4F,0x20,0xF6,0x72,0xB4,0xD0,0x2A,
+        0xB5,0xA9,0x94,0x9F,0x11,0xCF,0x87,0xED,
+        0x13,0x33,0x82,0xCB,0x8B,0xF1,0x82,0x56
+    };
+
+    /* "Lemmings" */
+    WOLFSSL_SMALL_STACK_STATIC const byte key_ecb[] =
+    {
+        0x4C,0x65,0x6D,0x6D,0x69,0x6E,0x67,0x73
+    };
+
+    #endif /* WOLFSSL_DES_ECB */
+
     wc_test_ret_t ret;
     WOLFSSL_ENTER("des_test");
 
@@ -8650,6 +8675,32 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des_test(void)
     ret = wc_Des_CbcEncryptWithKey(cipher, vector, sizeof(vector), key, iv);
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
+
+    /* Test basic ECB Process for DES*/
+#ifdef WOLFSSL_DES_ECB
+    ret = wc_Des_SetKey(&enc, key_ecb, iv, DES_ENCRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Des_EcbEncrypt(&enc, cipher, vector_ecb, sizeof(vector));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Des_SetKey(&dec, key_ecb, iv, DES_DECRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Des_EcbDecrypt(&dec, plain, cipher, sizeof(cipher));
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(plain, vector_ecb, sizeof(plain)))
+        return WC_TEST_RET_ENC_NC;
+
+    if (XMEMCMP(cipher, verify_ecb, sizeof(cipher)))
+        return WC_TEST_RET_ENC_NC;
+
+#endif /* WOLFSSL_DES_ECB */
 
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_SHA)
     {
@@ -8722,6 +8773,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des3_test(void)
         0x18,0x94,0x15,0x74,0x87,0x12,0x7d,0xb0
     };
 
+    #ifdef WOLFSSL_DES_ECB
+
+    /* Stay strong and move on! */
+    WOLFSSL_SMALL_STACK_STATIC const byte vector_ecb[] =
+    {
+        0x53,0x74,0x61,0x79,0x20,0x73,0x74,0x72,
+        0x6F,0x6E,0x67,0x20,0x61,0x6E,0x64,0x20,
+        0x6D,0x6F,0x76,0x65,0x20,0x6F,0x6E,0x21
+    };
+
+    WOLFSSL_SMALL_STACK_STATIC const byte verify3_ecb[] =
+    {
+        0x45,0x7E,0xFA,0xA1,0x05,0xDD,0x48,0x86,
+        0x4D,0xB2,0xAB,0xE4,0xF9,0x63,0xD6,0x54,
+        0x7C,0x5A,0xB3,0x67,0x32,0x25,0x67,0x3D
+    };
+
+    /* "Life is what you make it" */
+    WOLFSSL_SMALL_STACK_STATIC const byte key3_ecb[] =
+    {
+        0x4C,0x69,0x66,0x65,0x20,0x69,0x73,0x20,
+        0x77,0x68,0x61,0x74,0x20,0x79,0x6F,0x75,
+        0x20,0x6D,0x61,0x6B,0x65,0x20,0x69,0x74
+    };
+
+    #endif /* WOLFSSL_DES_ECB */
+
     wc_test_ret_t ret;
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     size_t i;
@@ -8759,6 +8837,42 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t des3_test(void)
 
     if (XMEMCMP(cipher, verify3, sizeof(cipher)))
         return WC_TEST_RET_ENC_NC;
+
+/* Test basic ECB Process for DES3*/
+#ifdef WOLFSSL_DES_ECB
+    ret = wc_Des3Init(&enc, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des3Init(&dec, HEAP_HINT, devId);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    ret = wc_Des3_SetKey(&enc, key3_ecb, NULL, DES_ENCRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des3_SetKey(&dec, key3_ecb, NULL, DES_DECRYPTION);
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des3_EcbEncrypt(&enc, cipher, vector_ecb, sizeof(vector_ecb));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+    ret = wc_Des3_EcbDecrypt(&dec, plain, cipher, sizeof(cipher));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
+    if (XMEMCMP(plain, vector_ecb, sizeof(plain)))
+        return WC_TEST_RET_ENC_NC;
+
+    if (XMEMCMP(cipher, verify3_ecb, sizeof(cipher)))
+        return WC_TEST_RET_ENC_NC;
+
+#endif /* WOLFSSL_DES_ECB */
 
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     /* test the same vectors with using compatibility layer */
