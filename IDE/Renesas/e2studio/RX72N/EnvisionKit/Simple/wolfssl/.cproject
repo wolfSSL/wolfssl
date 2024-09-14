@@ -14,7 +14,7 @@
 			</storageModule>
 			<storageModule moduleId="com.renesas.cdt.managedbuild.core.toolchainInfo">
 				<option id="toolchain.id" value="Renesas_RXC"/>
-				<option id="toolchain.version" value="v3.04.00"/>
+				<option id="toolchain.version" value="v3.06.00"/>
 				<option id="toolchain.enable" value="true"/>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">

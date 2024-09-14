@@ -3015,13 +3015,25 @@ int wc_tsip_ShaXHmacVerify(
     }
     wrapped_key = ssl->keys.tsip_server_write_MAC_secret;
 
-    if (wrapped_key.type == TSIP_KEY_INDEX_TYPE_HMAC_SHA1_FOR_TLS) {
+    if (wrapped_key.type ==
+#if (WOLFSSL_RENESAS_TSIP_VER >= 121)
+        TSIP_KEY_INDEX_TYPE_TLS_SERVER_HMAC_SHA1_FOR_CLIENT
+#else
+        TSIP_KEY_INDEX_TYPE_HMAC_SHA1_FOR_TLS
+#endif
+     ){
         WOLFSSL_MSG("perform Sha1-Hmac verification");
         initFn   = R_TSIP_Sha1HmacVerifyInit;
         updateFn = R_TSIP_Sha1HmacVerifyUpdate;
         finalFn  = R_TSIP_Sha1HmacVerifyFinal;
     }
-    else if (wrapped_key.type == TSIP_KEY_INDEX_TYPE_HMAC_SHA256_FOR_TLS) {
+    else if (wrapped_key.type ==
+#if (WOLFSSL_RENESAS_TSIP_VER >= 121)
+        TSIP_KEY_INDEX_TYPE_TLS_SERVER_HMAC_SHA256_FOR_CLIENT
+#else
+        TSIP_KEY_INDEX_TYPE_HMAC_SHA256_FOR_TLS
+#endif
+    ) {
         WOLFSSL_MSG("perform Sha256-Hmac verification");
         initFn   = R_TSIP_Sha256HmacVerifyInit;
         updateFn = R_TSIP_Sha256HmacVerifyUpdate;
