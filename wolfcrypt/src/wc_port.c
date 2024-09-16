@@ -3401,8 +3401,8 @@ void *mymemmem(const void *haystack, size_t haystacklen,
              const void *needle, size_t needlelen)
 {
     size_t i, j;
-    const char* h = haystack;
-    const char* n = needle;
+    const char* h = (const char*)haystack;
+    const char* n = (const char*)needle;
     if (needlelen > haystacklen)
         return NULL;
     for (i = 0; i <= haystacklen - needlelen; i++) {

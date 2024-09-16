@@ -94090,11 +94090,23 @@ static int test_dtls13_basic_connection_id(void)
     unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     unsigned char readBuf[30];
     const char* params[] = {
+#ifndef NO_SHA256
+#ifdef WOLFSSL_AES_128
+#ifdef HAVE_AESGCM
         "TLS13-AES128-GCM-SHA256",
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         "TLS13-CHACHA20-POLY1305-SHA256",
+#endif
+#ifdef HAVE_AESCCM
         "TLS13-AES128-CCM-8-SHA256",
         "TLS13-AES128-CCM-SHA256",
+#endif
+#endif
+#ifdef HAVE_NULL_CIPHER
         "TLS13-SHA256-SHA256",
+#endif
+#endif
     };
     size_t i;
 
@@ -94117,8 +94129,8 @@ static int test_dtls13_basic_connection_id(void)
         ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
             wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
 
-        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i]), 1);
-        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i]), 1);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_c, params[i]), WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_set_cipher_list(ssl_s, params[i]), WOLFSSL_SUCCESS);
 
         ExpectIntEQ(wolfSSL_dtls_cid_use(ssl_c), 1);
         ExpectIntEQ(wolfSSL_dtls_cid_set(ssl_c, server_cid, sizeof(server_cid)),
@@ -94147,15 +94159,10 @@ static int test_dtls13_basic_connection_id(void)
         ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
         ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
         ExpectNotNull(CLIENT_CID());
-        /* Server second flight */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
-        ExpectNotNull(SERVER_CID());
-        /* Client third flight */
-        ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
-        ExpectNotNull(CLIENT_CID());
         /* Server process flight */
         ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
-        ExpectNull(SERVER_CID()); /* No data should be sent */
+        /* Client process flight */
+        ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
 
         /* Write some data */
         ExpectIntEQ(wolfSSL_write(ssl_c, params[i], XSTRLEN(params[i])),

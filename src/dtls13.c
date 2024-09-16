@@ -1464,10 +1464,8 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
         hdrInfo->recordLength = inputSize - idx;
     }
 
-#ifdef HAVE_NULL_CIPHER
     /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
     if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null)
-#endif /*HAVE_NULL_CIPHER */
     {
         /* minimum size for a dtls1.3 packet is 16 bytes (to have enough
          * ciphertext to create record number xor mask).
