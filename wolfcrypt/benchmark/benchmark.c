@@ -8433,7 +8433,8 @@ exit:
 void bench_rsaKeyGen(int useDeviceID)
 {
     int    k;
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL) && \
+    (RSA_MIN_SIZE <= 1024)
     static const word32  keySizes[2] = {1024, 2048};
 #else
     static const word32  keySizes[1] = {2048};
