@@ -47390,7 +47390,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex(void)
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
     WC_RNG      rng;
     Cert        cert;
-#if !defined(NO_RSA) && defined(HAVE_RSA)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey      rsaKey;
     int         bits = 2048;
 #endif
@@ -47413,7 +47413,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex(void)
 
     ExpectIntEQ(wc_InitCert(&cert), 0);
 
-#if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     /* RSA */
     XMEMSET(&rsaKey, 0, sizeof(RsaKey));
     ExpectIntEQ(wc_InitRsaKey(&rsaKey, HEAP_HINT), 0);
@@ -47472,7 +47472,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex(void)
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
     WC_RNG      rng;
     Cert        cert;
-#if !defined(NO_RSA) && defined(HAVE_RSA)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey      rsaKey;
     int         bits = 2048;
 #endif
@@ -47495,7 +47495,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex(void)
 
     ExpectIntEQ(wc_InitCert(&cert), 0);
 
-#if !defined(NO_RSA) && defined(HAVE_RSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     /* RSA */
     XMEMSET(&rsaKey, 0, sizeof(RsaKey));
     ExpectIntEQ(wc_InitRsaKey(&rsaKey, HEAP_HINT), 0);
