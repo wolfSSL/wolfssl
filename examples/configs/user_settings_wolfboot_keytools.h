@@ -57,7 +57,6 @@
 #define WOLFSSL_SHAKE256
 
 /* RSA */
-#define HAVE_RSA
 #define WOLFSSL_HAVE_SP_RSA
 #define WC_RSA_BLINDING
 #define WOLFSSL_KEY_GEN

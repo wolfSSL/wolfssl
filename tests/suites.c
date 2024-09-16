@@ -1346,7 +1346,7 @@ int SuiteTest(int argc, char** argv)
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
-#endif /* HAVE_RSA and HAVE_ECC */
+#endif /* !NO__RSA and HAVE_ECC */
 #endif /* !WC_STRICT_SIG */
 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3) && \
     (defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM))
