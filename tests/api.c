@@ -42805,7 +42805,7 @@ static int test_wc_SetSubjectKeyIdFromPublicKey_ex(void)
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
     WC_RNG      rng;
     Cert        cert;
-#if !defined(NO_RSA)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey      rsaKey;
     int         bits = 2048;
 #endif
@@ -42887,7 +42887,7 @@ static int test_wc_SetAuthKeyIdFromPublicKey_ex(void)
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN)
     WC_RNG      rng;
     Cert        cert;
-#if !defined(NO_RSA)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey      rsaKey;
     int         bits = 2048;
 #endif
