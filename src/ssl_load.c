@@ -137,6 +137,7 @@ static int DataToDerBuffer(const unsigned char* buff, word32 len, int format,
             FreeDer(der);
         }
     #else
+        (void)algId;
         ret = NOT_COMPILED_IN;
     #endif
     }
