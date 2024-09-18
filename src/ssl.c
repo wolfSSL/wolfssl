@@ -6007,6 +6007,17 @@ int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
         return BAD_FUNC_ARG;
 }
 
+int wolfSSL_SetCRL_ErrorCb(WOLFSSL* ssl, crlErrorCb cb, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
+        return wolfSSL_CertManagerSetCRL_ErrorCb(SSL_CM(ssl), cb, ctx);
+    }
+    else
+        return BAD_FUNC_ARG;
+}
+
 #ifdef HAVE_CRL_IO
 int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb)
 {
@@ -6068,6 +6079,15 @@ int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb)
     WOLFSSL_ENTER("wolfSSL_CTX_SetCRL_Cb");
     if (ctx)
         return wolfSSL_CertManagerSetCRL_Cb(ctx->cm, cb);
+    else
+        return BAD_FUNC_ARG;
+}
+
+int wolfSSL_CTX_SetCRL_ErrorCb(WOLFSSL_CTX* ctx, crlErrorCb cb, void* cbCtx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetCRL_ErrorCb");
+    if (ctx)
+        return wolfSSL_CertManagerSetCRL_ErrorCb(ctx->cm, cb, cbCtx);
     else
         return BAD_FUNC_ARG;
 }

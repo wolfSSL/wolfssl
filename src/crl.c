@@ -536,6 +536,13 @@ int CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash, byte* serial,
 
             crl->cm->cbMissingCRL(url);
         }
+
+        if (crl->cm != NULL && crl->cm->crlCb &&
+                crl->cm->crlCb(ret, crl, crl->cm, crl->cm->crlCbCtx)) {
+            if (ret != 0)
+                WOLFSSL_MSG("Overriding CRL error");
+            ret = 0;
+        }
     }
 
     return ret;

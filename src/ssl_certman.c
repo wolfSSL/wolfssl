@@ -1858,6 +1858,26 @@ int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm, CbMissingCRL cb)
     return ret;
 }
 
+int wolfSSL_CertManagerSetCRL_ErrorCb(WOLFSSL_CERT_MANAGER* cm, crlErrorCb cb,
+                                      void* ctx)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRL_Cb");
+
+    /* Validate parameters. */
+    if (cm == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Store callback. */
+        cm->crlCb = cb;
+        cm->crlCbCtx = ctx;
+    }
+
+    return ret;
+}
+
 #ifdef HAVE_CRL_IO
 /* Set the CRL I/O callback.
  *

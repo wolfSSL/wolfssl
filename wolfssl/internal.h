@@ -2617,6 +2617,8 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
     CallbackCACache caCacheCallback;       /* CA cache addition callback */
     CbMissingCRL    cbMissingCRL;          /* notify thru cb of missing crl */
+    crlErrorCb      crlCb;                 /* Allow user to override error */
+    void*           crlCbCtx;
     CbOCSPIO        ocspIOCb;              /* I/O callback for OCSP lookup */
     CbOCSPRespFree  ocspRespFreeCb;        /* Frees OCSP Response from IO Cb */
     wolfSSL_Mutex   caLock;                /* CA list lock */
