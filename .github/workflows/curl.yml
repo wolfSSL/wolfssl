@@ -72,4 +72,4 @@ jobs:
 
     - name: Test curl
       working-directory: curl
-      run: make -j test-ci
+      run: make -j $(nproc) test-ci
