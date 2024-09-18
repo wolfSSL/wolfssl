@@ -777,7 +777,8 @@ static CRL_Entry* DupCRL_Entry(const CRL_Entry* ent, void* heap)
     #endif
         if (dupl->toBeSigned == NULL || dupl->signature == NULL
         #ifdef WC_RSA_PSS
-            || dupl->sigParams == NULL
+            /* allow sigParamsSz is zero and malloc(0) to return NULL */
+            || (dupl->sigParams == NULL && dupl->sigParamsSz != 0)
         #endif
         ) {
             CRL_Entry_free(dupl, heap);
