@@ -633,7 +633,7 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
         else {
             if (out == NULL) {
                 *outSz = ret;
-                return LENGTH_ONLY_E;
+                return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
             if ((word32)ret > *outSz) {
                 WOLFSSL_MSG("Output buffer not large enough for object");

@@ -728,6 +728,11 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
 WOLFSSL_API void wc_AesFree(Aes* aes);
 
 #ifdef WOLFSSL_AES_SIV
+typedef struct AesSivAssoc {
+    const byte* assoc;
+    word32 assocSz;
+} AesSivAssoc;
+
 WOLFSSL_API
 int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
@@ -736,6 +741,15 @@ WOLFSSL_API
 int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out);
+
+WOLFSSL_API
+int wc_AesSivEncrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
+                        word32 numAssoc, const byte* nonce, word32 nonceSz,
+                        const byte* in, word32 inSz, byte* siv, byte* out);
+WOLFSSL_API
+int wc_AesSivDecrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
+                        word32 numAssoc, const byte* nonce, word32 nonceSz,
+                        const byte* in, word32 inSz, byte* siv, byte* out);
 #endif
 
 #ifdef WOLFSSL_AES_EAX

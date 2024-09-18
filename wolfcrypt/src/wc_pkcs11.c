@@ -657,7 +657,7 @@ int wc_Pkcs11Token_Init(Pkcs11Token* token, Pkcs11Dev* dev, int slotId,
         tokenNameSz = XSTRLEN(tokenName);
     }
     ret = Pkcs11Token_Init(token, dev, slotId, tokenName, tokenNameSz);
-    if (ret == 0) {
+    if (ret == 0 && userPin != NULL) {
         token->userPin = (CK_UTF8CHAR_PTR)userPin;
         token->userPinSz = (CK_ULONG)userPinSz;
         token->userPinLogin = 1;
@@ -708,7 +708,7 @@ int wc_Pkcs11Token_InitName(Pkcs11Token* token, Pkcs11Dev* dev,
     const unsigned char* userPin, int userPinSz)
 {
     int ret = Pkcs11Token_Init(token, dev, -1, tokenName, (size_t)tokenNameSz);
-    if (ret == 0) {
+    if (ret == 0 && userPin != NULL) {
         token->userPin = (CK_UTF8CHAR_PTR)userPin;
         token->userPinSz = (CK_ULONG)userPinSz;
         token->userPinLogin = 1;

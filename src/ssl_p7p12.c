@@ -602,7 +602,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
             canonLineLen = (word32)lineLen;
             if ((canonLine = wc_MIME_single_canonicalize(
                                 line, &canonLineLen)) == NULL) {
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
 
@@ -612,7 +612,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
             }
 
             if (wolfSSL_BIO_write(out, canonLine, (int)canonLineLen) < 0) {
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
             XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
@@ -621,7 +621,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
         else {
             /* no line ending in current line, write direct to out */
             if (wolfSSL_BIO_write(out, line, lineLen) < 0) {
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
         }

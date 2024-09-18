@@ -161,7 +161,7 @@ static const char* sdk_memory_segment_text[SDK_MEMORY_SEGMENT_COUNT + 1] = {
 int sdk_log_meminfo(enum sdk_memory_segment m, void* start, void* end)
 {
     const char* str;
-    int len = 0;
+    word32 len = 0;
     str = sdk_memory_segment_text[m];
     sdk_memory_segment_start[m] = start;
     sdk_memory_segment_end[m] = end;
@@ -173,7 +173,7 @@ int sdk_log_meminfo(enum sdk_memory_segment m, void* start, void* end)
         ESP_LOGI(TAG, "                  Start         End          Length");
     }
     else {
-        len = (uint32_t)end - (uint32_t)start;
+        len = (word32)end - (word32)start;
         ESP_LOGI(TAG, "%s: %p ~ %p : 0x%05x (%d)", str, start, end, len, len );
     }
     return ESP_OK;

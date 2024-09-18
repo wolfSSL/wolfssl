@@ -3886,7 +3886,7 @@ int TLSX_CSR2_AddPendingSigner(TLSX *extensions, Signer *s)
 
     csr2 = TLSX_CSR2_GetMulti(extensions);
     if (!csr2)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
 
     s->next = csr2->pendingSigners;
     csr2->pendingSigners = s;
@@ -9559,14 +9559,14 @@ static int TLSX_KeyShare_GroupRank(const WOLFSSL* ssl, int group)
 
 #ifdef HAVE_LIBOQS
       if (!TLSX_KeyShare_IsSupported(group))
-          return -1;
+          return WOLFSSL_FATAL_ERROR;
 #endif
 
     for (i = 0; i < numGroups; i++)
         if (groups[i] == (word16)group)
             return i;
 
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 }
 
 /* Set a key share that is supported by the client into extensions.

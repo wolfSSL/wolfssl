@@ -1641,7 +1641,7 @@ int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx)
                         reqLen - ctx->sent);
                 if (sent <= 0) {
                     if (wolfSSL_BIO_should_retry(ctx->bio))
-                        return -1;
+                        return WOLFSSL_FATAL_ERROR;
                     WOLFSSL_MSG("wolfSSL_BIO_write error");
                     ctx->ioState = ORIOS_INVALID;
                     return 0;
@@ -1670,7 +1670,7 @@ int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx)
                 if (ret == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ) ||
                     ret == WC_NO_ERR_TRACE(OCSP_WANT_READ))
                 {
-                    return -1;
+                    return WOLFSSL_FATAL_ERROR;
                 }
                 return WOLFSSL_FAILURE;
             }
@@ -1898,7 +1898,7 @@ int wolfSSL_OCSP_check_nonce(OcspRequest* req, WOLFSSL_OCSP_BASICRESP* bs)
 
     /* nonce present in req only */
     if (reqNonce != NULL && rspNonce == NULL)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
 
     /* nonces are present and equal, return 1. Extra NULL check for fixing
         scan-build warning. */

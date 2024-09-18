@@ -2108,7 +2108,7 @@ int wolfSSL_session_export_internal(WOLFSSL* ssl, byte* buf, word32* sz,
         if (type == WOLFSSL_EXPORT_TLS) {
             *sz += AES_BLOCK_SIZE*2;
         }
-        ret = LENGTH_ONLY_E;
+        ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (ret == 0) {
@@ -10467,7 +10467,7 @@ static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
 
     if (ssl->CBIORecv == NULL) {
         WOLFSSL_MSG("Your IO Recv callback is null, please set");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
 retry:
@@ -10486,7 +10486,7 @@ retry:
                     }
                 #endif
                 #endif
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
 
             case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ):
                 if (retryLimit > 0 && ssl->ctx->autoRetry &&
@@ -10503,7 +10503,7 @@ retry:
                 }
                 #endif
                 ssl->options.connReset = 1;
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
 
             case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_ISR): /* interrupt */
                 /* see if we got our timeout */
@@ -10527,7 +10527,7 @@ retry:
 
             case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_CLOSE):
                 ssl->options.isClosed = 1;
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
 
             case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT):
             #ifdef WOLFSSL_DTLS
@@ -10537,7 +10537,7 @@ retry:
                     if (Dtls13RtxTimeout(ssl) < 0) {
                         WOLFSSL_MSG(
                             "Error trying to retransmit DTLS buffered message");
-                        return -1;
+                        return WOLFSSL_FATAL_ERROR;
                     }
                     goto retry;
                 }
@@ -10552,7 +10552,7 @@ retry:
                     goto retry;
                 }
             #endif
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
 
             default:
                 WOLFSSL_MSG("Unexpected recv return code");
@@ -12641,6 +12641,45 @@ static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
 #endif
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(WOLFSSL_ACERT)
+    static int CopyAltNames(DNS_entry** to, DNS_entry* from, int type, void* heap)
+{
+    /* Copy from to the beginning of to */
+    DNS_entry** prev_next = to;
+    DNS_entry* next;
+
+    if (to == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    next = *to;
+
+    for (; from != NULL; from = from->next) {
+        DNS_entry* dnsEntry;
+
+        if (type != -1 && from->type != type)
+            continue;
+
+        dnsEntry = AltNameDup(from, heap);
+        if (dnsEntry == NULL) {
+            WOLFSSL_MSG("\tOut of Memory");
+            return MEMORY_E;
+        }
+
+        dnsEntry->next = next;
+        *prev_next = dnsEntry;
+        prev_next = &dnsEntry->next;
+    }
+
+    return 0;
+}
+#endif /* KEEP_PEER_CERT || SESSION_CERTS ||
+        * OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL ||
+        * WOLFSSL_ACERT */
+
+
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
 {
@@ -12672,38 +12711,6 @@ void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType)
         }
 #endif
     }
-}
-
-static int CopyAltNames(DNS_entry** to, DNS_entry* from, int type, void* heap)
-{
-    /* Copy from to the beginning of to */
-    DNS_entry** prev_next = to;
-    DNS_entry* next;
-
-    if (to == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    next = *to;
-
-    for (; from != NULL; from = from->next) {
-        DNS_entry* dnsEntry;
-
-        if (type != -1 && from->type != type)
-            continue;
-
-        dnsEntry = AltNameDup(from, heap);
-        if (dnsEntry == NULL) {
-            WOLFSSL_MSG("\tOut of Memory");
-            return MEMORY_E;
-        }
-
-        dnsEntry->next = next;
-        *prev_next = dnsEntry;
-        prev_next = &dnsEntry->next;
-    }
-
-    return 0;
 }
 
 #ifdef WOLFSSL_CERT_REQ
@@ -13211,6 +13218,122 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 }
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
+
+#if defined(WOLFSSL_ACERT)
+/* Copy a DecodedAcert structure to an X509_ACERT.
+ *
+ * @param [out]     x509        the dst X509 acert structure
+ * @param [in]      dAcert      the src decoded acert structure
+ *
+ * @return  0   on success
+ * @return  < 0 on error
+ * */
+int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
+{
+    int ret = 0;
+
+    if (x509 == NULL || dAcert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Copy version and serial number. */
+    x509->version = dAcert->version + 1;
+
+    XMEMCPY(x509->serial, dAcert->serial, EXTERNAL_SERIAL_SIZE);
+    x509->serialSz = dAcert->serialSz;
+
+    if (dAcert->holderSerialSz > 0) {
+        /* This ACERT Holder field had a serial number. Copy it. */
+        XMEMCPY(x509->holderSerial, dAcert->holderSerial,
+                dAcert->holderSerialSz);
+        x509->holderSerialSz = dAcert->holderSerialSz;
+    }
+
+    /* Copy before and after dates. */
+    {
+        int minSz = 0;
+
+        if (dAcert->beforeDateLen > 0) {
+            minSz = (int)min(dAcert->beforeDate[1], MAX_DATE_SZ);
+            x509->notBefore.type = dAcert->beforeDate[0];
+            x509->notBefore.length = minSz;
+            XMEMCPY(x509->notBefore.data, &dAcert->beforeDate[2], minSz);
+        }
+        else {
+            x509->notBefore.length = 0;
+        }
+
+        if (dAcert->afterDateLen > 0) {
+            minSz = (int)min(dAcert->afterDate[1], MAX_DATE_SZ);
+            x509->notAfter.type = dAcert->afterDate[0];
+            x509->notAfter.length = minSz;
+            XMEMCPY(x509->notAfter.data, &dAcert->afterDate[2], minSz);
+        }
+        else {
+            x509->notAfter.length = 0;
+        }
+    }
+
+    /* Copy the signature. */
+    if (dAcert->signature != NULL && dAcert->sigLength != 0 &&
+            dAcert->sigLength <= MAX_ENCODED_SIG_SZ) {
+        x509->sig.buffer = (byte*)XMALLOC(
+                          dAcert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
+        if (x509->sig.buffer == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(x509->sig.buffer, dAcert->signature, dAcert->sigLength);
+            x509->sig.length = dAcert->sigLength;
+            x509->sigOID = (int)dAcert->signatureOID;
+        }
+    }
+
+    /* if der contains original source buffer then store for potential
+     * retrieval */
+    if (dAcert->source != NULL && dAcert->maxIdx > 0) {
+        if (AllocDer(&x509->derCert, dAcert->maxIdx, CERT_TYPE, x509->heap)
+                                                                         == 0) {
+            XMEMCPY(x509->derCert->buffer, dAcert->source, dAcert->maxIdx);
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
+
+    /* Copy holder and att cert issuer names if present. */
+    if (CopyAltNames(&x509->holderIssuerName, dAcert->holderIssuerName,
+                ASN_DIR_TYPE, x509->heap) != 0) {
+        return MEMORY_E;
+    }
+
+    if (CopyAltNames(&x509->holderEntityName, dAcert->holderEntityName,
+                ASN_DIR_TYPE, x509->heap) != 0) {
+        return MEMORY_E;
+    }
+
+    if (CopyAltNames(&x509->AttCertIssuerName, dAcert->AttCertIssuerName,
+                ASN_DIR_TYPE, x509->heap) != 0) {
+        return MEMORY_E;
+    }
+
+    if (dAcert->rawAttr && dAcert->rawAttrLen > 0) {
+        /* Allocate space for the raw Attributes field, then copy it in. */
+        x509->rawAttr = (byte*)XMALLOC(dAcert->rawAttrLen, x509->heap,
+                                       DYNAMIC_TYPE_X509_EXT);
+        if (x509->rawAttr != NULL) {
+            XMEMCPY(x509->rawAttr, dAcert->rawAttr, dAcert->rawAttrLen);
+            x509->rawAttrLen = dAcert->rawAttrLen;
+        }
+        else {
+            ret = MEMORY_E;
+        }
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_ACERT */
+
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
      (defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12))
@@ -27580,7 +27703,7 @@ static int CmpEccStrength(int hashAlgo, int curveSz)
 {
     int dgstSz = GetMacDigestSize((byte)hashAlgo);
     if (dgstSz <= 0)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     return dgstSz - (curveSz & (~0x3));
 }
 #endif
@@ -38207,7 +38330,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         diff -= ticketSeen;
         if (diff > timeout * 1000 ||
             diff > (sword64)TLS13_MAX_TICKET_AGE * 1000)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 #else
         sword64 diff;
         sword64 ticketSeen; /* Time ticket seen (ms) */
@@ -38225,7 +38348,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         diff -= ticketSeen;
         if (diff > timeout * 1000 ||
             diff > (sword64)TLS13_MAX_TICKET_AGE * 1000)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 #endif
         ato32(psk->it->ageAdd, &ticketAdd);
         /* Subtract client's ticket age and unobfuscate. */
@@ -38235,7 +38358,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
          * Allow +/- 1000 milliseconds on ticket age.
          */
         if (diff < -1000 || diff - MAX_TICKET_AGE_DIFF * 1000 > 1000)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 
 #if !defined(WOLFSSL_PSK_ONE_ID) && !defined(WOLFSSL_PRIORITIZE_PSK)
         /* Check whether resumption is possible based on suites in SSL and
@@ -38243,18 +38366,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
          */
         (void)ssl;
         if (XMEMCMP(suite, psk->it->suite, SUITE_LEN) != 0)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 #else
         (void)suite;
         if (!FindSuiteSSL(ssl, psk->it->suite))
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 #endif
 #ifdef OPENSSL_EXTRA
         if (ssl->sessionCtxSz > 0 &&
                (psk->it->sessionCtxSz != ssl->sessionCtxSz ||
                 XMEMCMP(psk->it->sessionCtx, ssl->sessionCtx,
                         ssl->sessionCtxSz) != 0))
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 #endif
         return 0;
     }
@@ -41086,7 +41209,7 @@ int wolfSSL_sk_BY_DIR_HASH_find(
         }
         next = next->next;
     }
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 }
 /* return a number of WOLFSSL_BY_DIR_HASH in stack */
 int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
@@ -41094,7 +41217,7 @@ int wolfSSL_sk_BY_DIR_HASH_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_HASH) *sk)
     WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_HASH_num");
 
     if (sk == NULL)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     return (int)sk->num;
 }
 /* return WOLFSSL_BY_DIR_HASH instance at i */
@@ -41277,7 +41400,7 @@ int wolfSSL_sk_BY_DIR_entry_num(const WOLF_STACK_OF(WOLFSSL_BY_DIR_entry) *sk)
     WOLFSSL_ENTER("wolfSSL_sk_BY_DIR_entry_num");
 
     if (sk == NULL)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     return (int)sk->num;
 }
 /* return WOLFSSL_BY_DIR_entry instance at i */

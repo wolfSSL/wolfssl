@@ -4,6 +4,8 @@ CONFIG_WOLFSSL_EXAMPLE_NAME_TEMPLATE=y
 CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
 
+# Set the known example app config to TLS Client (see user_settings.h)
+CONFIG_WOLFSSL_EXAMPLE_NAME_TEMPLATE=y
 #
 # Default main stack size
 #

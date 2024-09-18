@@ -4145,7 +4145,7 @@ int EchConfigGetSupportedCipherSuite(WOLFSSL_EchConfig* config)
             return i;
     }
 
-    return -1;
+    return WOLFSSL_FATAL_ERROR;
 }
 
 /* returns status after we hash the ech inner */
@@ -4418,11 +4418,11 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     if (ssl->options.useEch == 1 && !ssl->options.disableECH) {
         TLSX* echX = TLSX_Find(ssl->extensions, TLSX_ECH);
         if (echX == NULL)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 
         args->ech = (WOLFSSL_ECH*)echX->data;
         if (args->ech == NULL)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 
         /* set the type to inner */
         args->ech->type = ECH_TYPE_INNER;
@@ -4816,7 +4816,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
                 break;
 #endif /* WOLFSSL_SM3 */
             default:
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
         }
     }
@@ -4954,7 +4954,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
                 break;
 #endif /* WOLFSSL_SM3 */
             default:
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
         }
 
@@ -6938,7 +6938,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
 
         if (echX == NULL)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
 
         ((WOLFSSL_ECH*)echX->data)->aad = input + HANDSHAKE_HEADER_SZ;
         ((WOLFSSL_ECH*)echX->data)->aadLen = helloSz;
@@ -7409,7 +7409,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
                 echX = TLSX_Find(ssl->extensions, TLSX_ECH);
 
                 if (echX == NULL)
-                    return -1;
+                    return WOLFSSL_FATAL_ERROR;
 
                 /* replace the last 8 bytes of server random with the accept */
                 if (((WOLFSSL_ECH*)echX->data)->state == ECH_PARSED_INTERNAL) {
@@ -8761,6 +8761,10 @@ typedef struct Scv13Args {
     byte   sigAlgo;
     byte*  sigData;
     word16 sigDataSz;
+#ifndef NO_RSA
+    byte*  toSign; /* not allocated */
+    word32 toSignSz;
+#endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     byte   altSigAlgo;
     word32 altSigLen;    /* Only used in the case of both native and alt. */
@@ -9315,7 +9319,17 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         #endif /* HAVE_DILITHIUM */
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-                ret = RsaSign(ssl, rsaSigBuf->buffer, (word32)rsaSigBuf->length,
+                args->toSign = rsaSigBuf->buffer;
+                args->toSignSz = (word32)rsaSigBuf->length;
+            #if defined(HAVE_PK_CALLBACKS) && \
+                defined(TLS13_RSA_PSS_SIGN_CB_NO_PREHASH)
+                /* Pass full data to sign (args->sigData), not hash of */
+                if (ssl->ctx->RsaPssSignCb) {
+                    args->toSign = args->sigData;
+                    args->toSignSz = args->sigDataSz;
+                }
+            #endif
+                ret = RsaSign(ssl, (const byte*)args->toSign, args->toSignSz,
                               sigOut, &args->sigLen, args->sigAlgo,
                               ssl->options.hashAlgo, (RsaKey*)ssl->hsKey,
                               ssl->buffers.key);
@@ -9359,10 +9373,20 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             #endif /* HAVE_ECC */
             #ifndef NO_RSA
                 if (ssl->hsAltType == DYNAMIC_TYPE_RSA) {
-                    ret = RsaSign(ssl, rsaSigBuf->buffer,
-                                  (word32)rsaSigBuf->length, sigOut,
-                                  &args->altSigLen, args->altSigAlgo,
-                                  ssl->options.hashAlgo, (RsaKey*)ssl->hsAltKey,
+                    args->toSign = rsaSigBuf->buffer;
+                    args->toSignSz = (word32)rsaSigBuf->length;
+                #if defined(HAVE_PK_CALLBACKS) && \
+                    defined(TLS13_RSA_PSS_SIGN_CB_NO_PREHASH)
+                    /* Pass full data to sign (args->altSigData), not hash of */
+                    if (ssl->ctx->RsaPssSignCb) {
+                        args->toSign = args->altSigData;
+                        args->toSignSz = (word32)args->altSigDataSz;
+                    }
+                #endif
+                    ret = RsaSign(ssl, (const byte*)args->toSign,
+                                  args->toSignSz, sigOut, &args->altSigLen,
+                                  args->altSigAlgo, ssl->options.hashAlgo,
+                                  (RsaKey*)ssl->hsAltKey,
                                   ssl->buffers.altKey);
 
                     if (ret == 0) {

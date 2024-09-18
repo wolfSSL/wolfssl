@@ -13609,7 +13609,7 @@ int wc_AesXtsDecryptConsecutiveSectors(XtsAes* aes, byte* out, const byte* in,
  * See RFC 5297 Section 2.4.
  */
 static WARN_UNUSED_RESULT int S2V(
-    const byte* key, word32 keySz, const byte* assoc, word32 assocSz,
+    const byte* key, word32 keySz, const AesSivAssoc* assoc, word32 numAssoc,
     const byte* nonce, word32 nonceSz, const byte* data,
     word32 dataSz, byte* out)
 {
@@ -13623,6 +13623,8 @@ static WARN_UNUSED_RESULT int S2V(
 #endif
     word32 macSz = AES_BLOCK_SIZE;
     int ret = 0;
+    byte tmpi = 0;
+    word32 ai;
     word32 zeroBytes;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -13635,32 +13637,48 @@ static WARN_UNUSED_RESULT int S2V(
     }
     if (ret == 0)
 #endif
-    {
+
+    if ((numAssoc > 126) || ((nonceSz > 0) && (numAssoc > 125))) {
+        /* See RFC 5297 Section 7. */
+        WOLFSSL_MSG("Maximum number of ADs (including the nonce) for AES SIV is"
+                    " 126.");
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
         XMEMSET(tmp[1], 0, AES_BLOCK_SIZE);
         XMEMSET(tmp[2], 0, AES_BLOCK_SIZE);
 
         ret = wc_AesCmacGenerate(tmp[0], &macSz, tmp[1], AES_BLOCK_SIZE,
                                  key, keySz);
-        if (ret == 0) {
-            ShiftAndXorRb(tmp[1], tmp[0]);
-            ret = wc_AesCmacGenerate(tmp[0], &macSz, assoc, assocSz, key,
-                                     keySz);
-            if (ret == 0) {
-                xorbuf(tmp[1], tmp[0], AES_BLOCK_SIZE);
-            }
-        }
     }
 
     if (ret == 0) {
-        if (nonceSz > 0) {
-            ShiftAndXorRb(tmp[0], tmp[1]);
-            ret = wc_AesCmacGenerate(tmp[1], &macSz, nonce, nonceSz, key,
-                                     keySz);
-            if (ret == 0) {
-                xorbuf(tmp[0], tmp[1], AES_BLOCK_SIZE);
-            }
+        /* Loop over authenticated associated data AD1..ADn */
+        for (ai = 0; ai < numAssoc; ++ai) {
+            ShiftAndXorRb(tmp[1-tmpi], tmp[tmpi]);
+            ret = wc_AesCmacGenerate(tmp[tmpi], &macSz, assoc[ai].assoc,
+                                     assoc[ai].assocSz, key, keySz);
+            if (ret != 0)
+                break;
+            xorbuf(tmp[1-tmpi], tmp[tmpi], AES_BLOCK_SIZE);
+            tmpi = 1 - tmpi;
         }
-        else {
+
+        /* Add nonce as final AD. See RFC 5297 Section 3. */
+        if ((ret == 0) && (nonceSz > 0)) {
+            ShiftAndXorRb(tmp[1-tmpi], tmp[tmpi]);
+            ret = wc_AesCmacGenerate(tmp[tmpi], &macSz, nonce,
+                                     nonceSz, key, keySz);
+            if (ret == 0) {
+                xorbuf(tmp[1-tmpi], tmp[tmpi], AES_BLOCK_SIZE);
+            }
+            tmpi = 1 - tmpi;
+        }
+
+        /* For simplicity of the remaining code, make sure the "final" result
+           is always in tmp[0]. */
+        if (tmpi == 1) {
             XMEMCPY(tmp[0], tmp[1], AES_BLOCK_SIZE);
         }
     }
@@ -13727,8 +13745,8 @@ static WARN_UNUSED_RESULT int S2V(
 }
 
 static WARN_UNUSED_RESULT int AesSivCipher(
-    const byte* key, word32 keySz, const byte* assoc,
-    word32 assocSz, const byte* nonce, word32 nonceSz,
+    const byte* key, word32 keySz, const AesSivAssoc* assoc,
+    word32 numAssoc, const byte* nonce, word32 nonceSz,
     const byte* data, word32 dataSz, byte* siv, byte* out,
     int enc)
 {
@@ -13752,7 +13770,7 @@ static WARN_UNUSED_RESULT int AesSivCipher(
 
     if (ret == 0) {
         if (enc == 1) {
-            ret = S2V(key, keySz / 2, assoc, assocSz, nonce, nonceSz, data,
+            ret = S2V(key, keySz / 2, assoc, numAssoc, nonce, nonceSz, data,
                       dataSz, sivTmp);
             if (ret != 0) {
                 WOLFSSL_MSG("S2V failed.");
@@ -13799,7 +13817,7 @@ static WARN_UNUSED_RESULT int AesSivCipher(
     }
 
     if (ret == 0 && enc == 0) {
-        ret = S2V(key, keySz / 2, assoc, assocSz, nonce, nonceSz, out, dataSz,
+        ret = S2V(key, keySz / 2, assoc, numAssoc, nonce, nonceSz, out, dataSz,
                   sivTmp);
         if (ret != 0) {
             WOLFSSL_MSG("S2V failed.");
@@ -13826,7 +13844,10 @@ int wc_AesSivEncrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out)
 {
-    return AesSivCipher(key, keySz, assoc, assocSz, nonce, nonceSz, in, inSz,
+    AesSivAssoc ad;
+    ad.assoc = assoc;
+    ad.assocSz = assocSz;
+    return AesSivCipher(key, keySz, &ad, 1U, nonce, nonceSz, in, inSz,
                         siv, out, 1);
 }
 
@@ -13837,7 +13858,32 @@ int wc_AesSivDecrypt(const byte* key, word32 keySz, const byte* assoc,
                      word32 assocSz, const byte* nonce, word32 nonceSz,
                      const byte* in, word32 inSz, byte* siv, byte* out)
 {
-    return AesSivCipher(key, keySz, assoc, assocSz, nonce, nonceSz, in, inSz,
+    AesSivAssoc ad;
+    ad.assoc = assoc;
+    ad.assocSz = assocSz;
+    return AesSivCipher(key, keySz, &ad, 1U, nonce, nonceSz, in, inSz,
+                        siv, out, 0);
+}
+
+/*
+ * See RFC 5297 Section 2.6.
+ */
+int wc_AesSivEncrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
+                        word32 numAssoc, const byte* nonce, word32 nonceSz,
+                        const byte* in, word32 inSz, byte* siv, byte* out)
+{
+    return AesSivCipher(key, keySz, assoc, numAssoc, nonce, nonceSz, in, inSz,
+                        siv, out, 1);
+}
+
+/*
+ * See RFC 5297 Section 2.7.
+ */
+int wc_AesSivDecrypt_ex(const byte* key, word32 keySz, const AesSivAssoc* assoc,
+                        word32 numAssoc, const byte* nonce, word32 nonceSz,
+                        const byte* in, word32 inSz, byte* siv, byte* out)
+{
+    return AesSivCipher(key, keySz, assoc, numAssoc, nonce, nonceSz, in, inSz,
                         siv, out, 0);
 }
 

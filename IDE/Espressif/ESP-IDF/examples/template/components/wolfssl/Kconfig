@@ -19,7 +19,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 #
 
-# Kconfig File Version 5.7.0.001 for wolfssl_test
+# Kconfig File Version 5.7.2.001 for esp-idf integration
 
 # Kconfig Format Rules
 #
@@ -50,13 +50,9 @@
 # ---------------------------------------------------------------------------------------------------------------------
 # Begin main wolfSSL configuration menu
 # ---------------------------------------------------------------------------------------------------------------------
+#   See ESP-IDF esp-tls component for config TLS_STACK_WOLFSSL
+
 menu "wolfSSL"
-    config TLS_STACK_WOLFSSL
-        bool "Include wolfSSL in ESP-TLS"
-        default y
-        select FREERTOS_ENABLE_BACKWARD_COMPATIBILITY
-        help
-            Includes wolfSSL in ESP-TLS so that it can be compiled with wolfSSL as its SSL/TLS library.
 
     menu "Hardening"
         config ESP_WOLFSSL_WC_NO_HARDEN
@@ -101,7 +97,7 @@ menu "wolfSSL"
     # wolfCrypt Test
     # -----------------------------------------------------------------------------------------------------------------
     config ESP_WOLFSSL_ENABLE_TEST
-        bool "Enable wolfCrypt test Library"
+        bool "Enable wolfCrypt Test Library"
         default n
         help
             Enables wolfcrypt/test/test.c code for testing. Disables NO_CRYPT_TEST.
@@ -113,6 +109,14 @@ menu "wolfSSL"
             default n
             help
                 Enables HAVE_WOLFCRYPT_TEST_OPTIONS
+
+        config TEST_ESPIDF_ALL_WOLFSSL
+            bool "Enable all features to use in tests"
+            depends on ESP_WOLFSSL_ENABLE_TEST
+            default n
+            help
+                Enables TEST_ESPIDF_ALL_WOLFSSL
+
     endmenu # wolfCrypt tests
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -171,6 +175,13 @@ menu "wolfSSL"
             bool "Enable ALPN (Application Layer Protocol Negotiation) in wolfSSL"
             default y
 
+        config WOLFSSL_ALLOW_TLS13
+            bool "Allow TLS 1.3"
+            default y
+            help
+                Allow TLS to fallback to TLS1.2. Memory footprint will likely be larger for TLS1.2.
+                When disabled HTTPS and MQTT over TLS connections will fail if TLS1.3 not accepted.
+
         config WOLFSSL_ALLOW_TLS12
             bool "Allow TLS 1.2"
             default n
@@ -178,20 +189,123 @@ menu "wolfSSL"
                 Allow TLS to fallback to TLS1.2. Memory footprint will likely be larger for TLS1.2.
                 When disabled HTTPS and MQTT over TLS connections will fail if TLS1.3 not accepted.
 
+        config WOLFSSL_HAVE_TLS_EXTENSIONS
+            bool "Enable TLS Extensions"
+            default y
+            help
+                Sets HAVE_TLS_EXTENSIONS which is needed for TLS 1.3, SNI, ALPN, and more.
+
+        config WOLFSSL_ALT_CERT_CHAINS
+            bool "Enable Alternate Certificate Chains"
+            default n
+            help
+                The option relaxes the default strict wolfSSL certificate chain processing. This
+                will typically need to be enabled when loading only a CA file. Typically solves
+                the -188 ASN_NO_SIGNER_E error. Use with caution.
+
         config WOLFSSL_HAVE_OCSP
             bool "Enable OCSP (Online Certificate Status Protocol) in wolfSSL"
             default n
+            help
+                Sets HAVE_OCSP
+
     endmenu # Protocol Config
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
+    config TLS_STACK_WOLFSSL
+        # Invisible option that locks TLS_STACK_WOLFSSL to ESP_TLS_USING_WOLFSSL
+        bool
+        default n
+        select FREERTOS_ENABLE_BACKWARD_COMPATIBILITY
+        help
+            Includes wolfSSL in ESP-TLS so that it can be compiled with wolfSSL as its SSL/TLS library.
+            Enabled when wolfSSL is selected in ESP_TLS_LIBRARY_CHOOSE.
+
     menu "wolfSSL ESP-TLS"
-        config TLS_STACK_WOLFSSL
-            bool "Include wolfSSL in ESP-TLS"
-            default y
-            select FREERTOS_ENABLE_BACKWARD_COMPATIBILITY
-            help
-                Includes wolfSSL in ESP-TLS so that it can be compiled with wolfSSL as its SSL/TLS library.
+        depends on ESP_TLS_USING_WOLFSSL
+
+        menu "Certificate Bundle"
+            depends on ESP_TLS_USING_WOLFSSL
+
+            config WOLFSSL_CERTIFICATE_BUNDLE
+                bool "Enable trusted root certificate bundle"
+                default y if ESP_TLS_USING_WOLFSSL
+                default n
+                depends on ESP_TLS_USING_WOLFSSL
+                help
+                    Enable support for large number of default root certificates
+
+                    When enabled this option allows user to store default as well
+                    as customer specific root certificates in compressed format rather
+                    than storing full certificate. For the root certificates the public key and the subject name
+                    will be stored.
+
+            config WOLFSSL_NO_ASN_STRICT
+                bool "Relax Certificate ASN Strict Checks"
+                default n
+                depends on ESP_TLS_USING_WOLFSSL
+                help
+                    Allows sub-optimal certificate ASN checks. Unless using a bundle with known issues,
+                    it is recommended to NOT enable this.
+
+            config WOLFSSL_ASN_ALLOW_0_SERIAL
+                bool "Allow cert missing an ASN Serial Number"
+                default y
+                depends on ESP_TLS_USING_WOLFSSL
+                help
+                    Although not recommended, there may be certificates in the bundle that are missing
+                    a serial number. This option allows the missing value without having to fully
+                    disable strict ASN checking with WOLFSSL_NO_ASN_STRICT.
+
+            choice WOLFSSL_DEFAULT_CERTIFICATE_BUNDLE
+                bool "Default certificate bundle options"
+                depends on WOLFSSL_CERTIFICATE_BUNDLE && ESP_TLS_USING_WOLFSSL
+                default WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_FULL
+
+                config WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_FULL
+                    bool "Use the full default certificate bundle"
+                config WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_CMN
+                    bool "Use only the most common certificates from the default bundles"
+                    help
+                        Use only the most common certificates from the default bundles, reducing the size with 50%,
+                        while still having around 99% coverage.
+                config WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE
+                    bool "Do not use the default certificate bundle"
+            endchoice
+
+            config WOLFSSL_CUSTOM_CERTIFICATE_BUNDLE
+                depends on WOLFSSL_CERTIFICATE_BUNDLE && ESP_TLS_USING_WOLFSSL
+                default n
+                bool "Add custom certificates to the default bundle"
+            config WOLFSSL_CUSTOM_CERTIFICATE_BUNDLE_PATH
+                depends on WOLFSSL_CUSTOM_CERTIFICATE_BUNDLE && ESP_TLS_USING_WOLFSSL
+                string "Custom certificate bundle path"
+                help
+                    Name of the custom certificate directory or file. This path is evaluated
+                    relative to the project root directory.
+
+            config WOLFSSL_CERTIFICATE_BUNDLE_DEPRECATED_LIST
+                bool "Add deprecated root certificates"
+                depends on WOLFSSL_CERTIFICATE_BUNDLE && ESP_TLS_USING_WOLFSSL && !WOLFSSL_CERTIFICATE_BUNDLE_DEFAULT_NONE
+                help
+                    Include the deprecated list of root certificates in the bundle.
+                    This list gets updated when a certificate is removed from the Mozilla's
+                    NSS root certificate store. This config can be enabled if you would like
+                    to ensure that none of the certificates that were deployed in the product
+                    are affected because of the update to bundle. In turn, enabling this
+                    config keeps expired, retracted certificates in the bundle and it may
+                    pose a security risk.
+
+                    - Deprecated cert list may grow based based on sync with upstream bundle
+                    - Deprecated certs would be be removed in ESP-IDF (next) major release
+
+            config WOLFSSL_CERTIFICATE_BUNDLE_MAX_CERTS
+                int "Maximum no of certificates allowed in certificate bundle"
+                default 200
+                depends on WOLFSSL_CERTIFICATE_BUNDLE && ESP_TLS_USING_WOLFSSL
+
+        endmenu
     endmenu # wolfSSL ESP-TLS
     # -----------------------------------------------------------------------------------------------------------------
 
@@ -200,6 +314,9 @@ menu "wolfSSL"
         bool "Modify default hardware acceleration settings"
         default n
         help
+            When disabling all hardware acceleration for smaller memory footprint,
+            disabling TFM fast math provides faster wolfSSL software algorithms in an
+            even smaller flash memory footprint.
             Typically used for debugging, analysis, or optimizations. The default
             hardware acceleration features can be each manually adjusted.
 
@@ -327,6 +444,21 @@ menu "wolfSSL"
     endmenu # Component Config
     # -----------------------------------------------------------------------------------------------------------------
 
+    # -----------------------------------------------------------------------------------------------------------------
+    menu "Utility Config"
+        config USE_WOLFSSL_ESP_SDK_TIME
+            bool "Enable wolfSSL time helper functions"
+            default n
+            help
+                Enables use of various time and date setting functions found in the esp-sdk-lib.h file.
+
+        config USE_WOLFSSL_ESP_SDK_WIFI
+            bool "Enable wolfSSL WiFi helper functions"
+            default n
+            help
+                Enables use of various time and date setting functions found in the esp-sdk-lib.h file.
+
+    endmenu # Utility Config
 endmenu # wolfSSL
 # ---------------------------------------------------------------------------------------------------------------------
 

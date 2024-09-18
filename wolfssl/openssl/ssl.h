@@ -100,6 +100,7 @@ typedef WOLFSSL_CIPHER         SSL_CIPHER;
 typedef WOLFSSL_X509_LOOKUP    X509_LOOKUP;
 typedef WOLFSSL_X509_LOOKUP_METHOD X509_LOOKUP_METHOD;
 typedef WOLFSSL_X509_CRL       X509_CRL;
+typedef WOLFSSL_X509_ACERT     X509_ACERT;
 typedef WOLFSSL_X509_EXTENSION X509_EXTENSION;
 typedef WOLFSSL_X509_PUBKEY    X509_PUBKEY;
 typedef WOLFSSL_X509_ALGOR     X509_ALGOR;
@@ -398,7 +399,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 #define SSL_SESSION_get_max_early_data  wolfSSL_SESSION_get_max_early_data
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
     #define SSL_MODE_RELEASE_BUFFERS     0x00000010U
     #define ASN1_BOOLEAN                 WOLFSSL_ASN1_BOOLEAN
     #define X509_get_ext                 wolfSSL_X509_get_ext
@@ -744,6 +745,14 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_CRL_get_signature_nid      wolfSSL_X509_CRL_get_signature_nid
 #define X509_CRL_get_version            wolfSSL_X509_CRL_version
 #define X509_load_crl_file              wolfSSL_X509_load_crl_file
+
+#define X509_ACERT_free                 wolfSSL_X509_ACERT_free
+#define X509_ACERT_get_version          wolfSSL_X509_ACERT_get_version
+#define X509_ACERT_get_signature_nid    wolfSSL_X509_ACERT_get_signature_nid
+#define X509_ACERT_print                wolfSSL_X509_ACERT_print
+#define X509_ACERT_verify               wolfSSL_X509_ACERT_verify
+#define X509_ACERT_sign                 wolfSSL_X509_ACERT_sign
+#define PEM_read_bio_X509_ACERT         wolfSSL_PEM_read_bio_X509_ACERT
 
 #define X509_get_X509_PUBKEY            wolfSSL_X509_get_X509_PUBKEY
 #define X509_REQ_get_X509_PUBKEY        wolfSSL_X509_get_X509_PUBKEY

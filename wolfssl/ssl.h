@@ -149,6 +149,7 @@ typedef struct WOLFSSL_CTX      WOLFSSL_CTX;
 
 typedef struct WOLFSSL_STACK      WOLFSSL_STACK;
 typedef struct WOLFSSL_X509       WOLFSSL_X509;
+typedef struct WOLFSSL_X509_ACERT WOLFSSL_X509_ACERT;
 typedef struct WOLFSSL_X509_NAME  WOLFSSL_X509_NAME;
 typedef struct WOLFSSL_X509_NAME_ENTRY  WOLFSSL_X509_NAME_ENTRY;
 typedef struct WOLFSSL_X509_PUBKEY WOLFSSL_X509_PUBKEY;
@@ -2944,6 +2945,7 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int 
 /* free X509 */
 #define wolfSSL_FreeX509(x509) wolfSSL_X509_free((x509))
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509* x509);
+
 /* get index cert in PEM */
 WOLFSSL_API int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN* chain, int idx,
                                 unsigned char* buf, int inLen, int* outLen);
@@ -3001,6 +3003,37 @@ WOLFSSL_API int wolfSSL_X509_REVOKED_get_serial_number(RevokedCert* rev,
 #if defined(HAVE_CRL) && (defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL))
 WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_X509_CRL_dup(const WOLFSSL_X509_CRL* crl);
 WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
+#endif
+
+#if defined(WOLFSSL_ACERT)
+WOLFSSL_API void wolfSSL_X509_ACERT_init(WOLFSSL_X509_ACERT * x509,
+                                         void* heap);
+WOLFSSL_API void wolfSSL_X509_ACERT_free(WOLFSSL_X509_ACERT* x509);
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_API int  wolfSSL_X509_ACERT_sign(WOLFSSL_X509_ACERT * x509,
+                                        WOLFSSL_EVP_PKEY * pkey,
+                                        const WOLFSSL_EVP_MD * md);
+#endif /* !NO_WOLFSSL_STUB */
+WOLFSSL_API int  wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509,
+                                           WOLFSSL_EVP_PKEY* pkey);
+WOLFSSL_API int  wolfSSL_X509_ACERT_print(WOLFSSL_BIO* bio,
+                                          WOLFSSL_X509_ACERT* x509_acert);
+WOLFSSL_API int  wolfSSL_X509_ACERT_get_attr_buf(const WOLFSSL_X509_ACERT* x509,
+                                                 const byte ** rawAttr,
+                                                 word32 * rawAttrLen);
+WOLFSSL_API int  wolfSSL_X509_ACERT_get_serial_number(WOLFSSL_X509_ACERT* x509,
+                                                      unsigned char* in,
+                                                      int * inOutSz);
+WOLFSSL_API int  wolfSSL_X509_ACERT_version(WOLFSSL_X509_ACERT* x509);
+WOLFSSL_API long wolfSSL_X509_ACERT_get_version(const WOLFSSL_X509_ACERT *x);
+WOLFSSL_API int  wolfSSL_X509_ACERT_get_signature_nid(const WOLFSSL_X509_ACERT* x);
+WOLFSSL_API int  wolfSSL_X509_ACERT_get_signature(WOLFSSL_X509_ACERT* x509,
+                                                  unsigned char* buf,
+                                                  int* bufSz);
+WOLFSSL_API WOLFSSL_X509_ACERT * wolfSSL_PEM_read_bio_X509_ACERT(
+    WOLFSSL_BIO *bp, WOLFSSL_X509_ACERT **x, wc_pem_password_cb *cb, void *u);
+WOLFSSL_API WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer(
+    const unsigned char* buf, int sz, int format);
 #endif
 
 WOLFSSL_API

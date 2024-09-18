@@ -464,6 +464,12 @@
             #ifdef HAVE_OCSP
                 struct Signer* GetCAByKeyHash(void* vp, const unsigned char* keyHash);
             #endif /* HAVE_OCSP */
+            #ifdef WOLFSSL_AKID_NAME
+                struct Signer* GetCAByAKID(void* vp, const unsigned char* issuer,
+                                           unsigned int issuerSz,
+                                           const unsigned char* serial,
+                                           unsigned int serialSz);
+            #endif
         #endif /* NO_SKID */
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
@@ -636,6 +642,9 @@
         typeof(GetCAByKeyHash) *GetCAByKeyHash;
         #endif /* HAVE_OCSP */
         #endif /* NO_SKID */
+        #ifdef WOLFSSL_AKID_NAME
+        typeof(GetCAByAKID) *GetCAByAKID;
+        #endif /* WOLFSSL_AKID_NAME */
         #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
@@ -788,6 +797,9 @@
                 #define GetCAByKeyHash (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByKeyHash)
             #endif /* HAVE_OCSP */
         #endif /* NO_SKID */
+        #ifdef WOLFSSL_AKID_NAME
+            #define GetCAByAKID (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByAKID)
+        #endif
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES

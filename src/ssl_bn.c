@@ -64,7 +64,7 @@ static int wolfssl_bn_set_neg(WOLFSSL_BIGNUM* bn, int neg)
 
     if (BN_IS_NULL(bn)) {
         WOLFSSL_MSG("bn NULL error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 #if !defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_INT_NEGATIVE)
     else if (neg) {
@@ -102,17 +102,17 @@ int wolfssl_bn_get_value(WOLFSSL_BIGNUM* bn, mp_int* mpi)
     /* Validate parameters. */
     if (BN_IS_NULL(bn)) {
         WOLFSSL_MSG("bn NULL error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     else if (mpi == NULL) {
         WOLFSSL_MSG("mpi NULL error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     /* Copy the internal representation into MP integer. */
     if ((ret == 1) && mp_copy((mp_int*)bn->internal, mpi) != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     return ret;
@@ -145,7 +145,7 @@ int wolfssl_bn_set_value(WOLFSSL_BIGNUM** bn, mp_int* mpi)
     /* Validate parameters. */
     if ((bn == NULL) || (mpi == NULL)) {
         WOLFSSL_MSG("mpi or bn NULL error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     /* Allocate a new big number if one not passed in. */
@@ -153,7 +153,7 @@ int wolfssl_bn_set_value(WOLFSSL_BIGNUM** bn, mp_int* mpi)
         a = wolfSSL_BN_new();
         if (a == NULL) {
             WOLFSSL_MSG("wolfssl_bn_set_value alloc failed");
-            ret = -1;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         *bn = a;
     }
@@ -161,7 +161,7 @@ int wolfssl_bn_set_value(WOLFSSL_BIGNUM** bn, mp_int* mpi)
     /* Copy MP integer value into internal representation of big number. */
     if ((ret == 1) && (mp_copy(mpi, (mp_int*)((*bn)->internal)) != MP_OKAY)) {
         WOLFSSL_MSG("mp_copy error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     /* Dispose of any allocated big number on error. */
@@ -455,7 +455,7 @@ int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM* bn, unsigned char* r)
     /* Validate parameters. */
     if (BN_IS_NULL(bn)) {
         WOLFSSL_MSG("NULL bn error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
     else {
         /* Get the length of the encoding. */
@@ -464,7 +464,7 @@ int wolfSSL_BN_bn2bin(const WOLFSSL_BIGNUM* bn, unsigned char* r)
         if ((r != NULL) && (mp_to_unsigned_bin((mp_int*)bn->internal, r) !=
                 MP_OKAY)) {
             WOLFSSL_MSG("mp_to_unsigned_bin error");
-            ret = -1;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -1132,8 +1132,7 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
             ret = 0;
         }
         else {
-            /* NULL less than not NULL. */
-            ret = -1;
+            ret = -1; /* NULL less than not NULL. */
         }
     }
     else if (bIsNull) {
@@ -1150,8 +1149,11 @@ int wolfSSL_BN_cmp(const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b)
         else if (ret == MP_GT) {
             ret = 1;
         }
-        else {
+        else if (ret == MP_LT) {
             ret = -1;
+        }
+        else {
+            ret = WOLFSSL_FATAL_ERROR; /* also -1 */
         }
     }
 
@@ -2271,18 +2273,18 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int checks,
 
     if (BN_IS_NULL(bn)) {
         WOLFSSL_MSG("bn NULL error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     /* Create a new RNG or use global. */
     if ((ret == 1) && ((rng = wolfssl_make_rng(tmpRng, &localRng)) == NULL)) {
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if ((ret == 1) && (mp_prime_is_prime_ex((mp_int*)bn->internal, checks, &res,
             rng) != MP_OKAY)) {
         WOLFSSL_MSG("mp_prime_is_prime_ex error");
-        ret = -1;
+        ret = WOLFSSL_FATAL_ERROR;
     }
 
     if (localRng) {

@@ -2287,8 +2287,8 @@ WOLFSSL_LOCAL int SetShortInt(byte* input, word32* inOutIdx, word32 number,
                               word32 maxIdx);
 
 WOLFSSL_LOCAL const char* GetSigName(int oid);
-WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
-                           word32 maxIdx);
+WOLFSSL_ASN_API int GetLength(const byte* input, word32* inOutIdx, int* len,
+                              word32 maxIdx);
 WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx, int check);
 WOLFSSL_LOCAL int GetASNHeader(const byte* input, byte tag, word32* inOutIdx,
@@ -2332,8 +2332,8 @@ WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
                            word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL int GetAlgoIdEx(const byte* input, word32* inOutIdx, word32* oid,
                      word32 oidType, word32 maxIdx, byte *absentParams);
-WOLFSSL_LOCAL int GetASNTag(const byte* input, word32* idx, byte* tag,
-                            word32 inputSz);
+WOLFSSL_ASN_API int GetASNTag(const byte* input, word32* idx, byte* tag,
+                              word32 inputSz);
 WOLFSSL_LOCAL int GetASN_BitString(const byte* input, word32 idx, int length);
 
 WOLFSSL_LOCAL word32 SetASNLength(word32 length, byte* output);
@@ -2707,9 +2707,56 @@ WOLFSSL_LOCAL int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl,
                            const byte* buff, word32 sz, int verify, void* cm);
 WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
 
-
 #endif /* HAVE_CRL */
 
+#if defined(WOLFSSL_ACERT)
+/* Minimal structure for x509 attribute certificate (rfc 5755).
+ *
+ * The attributes field is not parsed, but is stored as raw buffer.
+ *
+ * */
+struct DecodedAcert {
+    word32       certBegin; /* Offset to start of acert. */
+    word32       sigIndex; /* Offset to start of signature. */
+    word32       sigLength; /* Signature length. */
+    word32       signatureOID; /* Sum of algorithm object id. */
+#ifdef WC_RSA_PSS
+    word32       sigParamsIndex; /* start of signature parameters */
+    word32       sigParamsLength; /* length of signature parameters */
+#endif
+    const byte * signature; /* Not owned, points into raw acert.  */
+    const byte * source; /* Byte buffer holding acert, NOT owned. */
+    word32       srcIdx; /* Current offset into buffer. */
+    word32       maxIdx; /* Max allowed offset. Set in init. */
+    void *       heap; /* For user memory overrides. */
+    int          version; /* attribute cert version. */
+    byte         serial[EXTERNAL_SERIAL_SIZE];  /* Raw serial number. */
+    int          serialSz;
+    const byte * beforeDate; /* Before and After dates. */
+    int          beforeDateLen;
+    const byte * afterDate;
+    int          afterDateLen;
+    byte         holderSerial[EXTERNAL_SERIAL_SIZE];
+    int          holderSerialSz;
+    DNS_entry *  holderEntityName;  /* Holder entityName from ACERT */
+    DNS_entry *  holderIssuerName;  /* Holder issuerName from ACERT */
+    DNS_entry *  AttCertIssuerName; /* AttCertIssuer name from ACERT */
+    const byte * rawAttr; /* Not owned, points into raw acert. */
+    word32       rawAttrLen;
+    SignatureCtx sigCtx;
+};
+
+typedef struct DecodedAcert DecodedAcert;
+
+WOLFSSL_LOCAL void InitDecodedAcert(DecodedAcert* acert,
+                                    const byte* source, word32 inSz,
+                                    void* heap);
+WOLFSSL_LOCAL void FreeDecodedAcert(DecodedAcert * acert);
+WOLFSSL_LOCAL int  ParseX509Acert(DecodedAcert* cert, int verify);
+WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
+                                   const byte* pubKey, word32 pubKeySz,
+                                   int pubKeyOID, void * heap);
+#endif /* WOLFSSL_ACERT */
 
 #ifdef __cplusplus
     } /* extern "C" */

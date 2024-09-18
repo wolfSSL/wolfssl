@@ -24,10 +24,9 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#if defined(OPENSSL_EXTRA) && !defined(_WIN32)
+#if defined(OPENSSL_EXTRA) && !defined(_WIN32) && !defined(_GNU_SOURCE)
     /* turn on GNU extensions for XVASPRINTF with wolfSSL_BIO_printf */
-    #undef  _GNU_SOURCE
-    #define _GNU_SOURCE
+    #define _GNU_SOURCE 1
 #endif
 
 #if !defined(WOLFSSL_BIO_INCLUDED)
@@ -1849,13 +1848,13 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
       WOLFSSL_ENTER("wolfSSL_BIO_seek");
 
       if (bio == NULL) {
-          return -1;
+          return WOLFSSL_FATAL_ERROR;
       }
 
       /* offset ofs from beginning of file */
       if (bio->type == WOLFSSL_BIO_FILE &&
               XFSEEK(bio->ptr.fh, ofs, SEEK_SET) < 0) {
-          return -1;
+          return WOLFSSL_FATAL_ERROR;
       }
 
       return 0;
@@ -1872,7 +1871,7 @@ int wolfSSL_BIO_tell(WOLFSSL_BIO* bio)
     WOLFSSL_ENTER("wolfSSL_BIO_tell");
 
     if (bio == NULL) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (bio->type != WOLFSSL_BIO_FILE) {
@@ -1881,7 +1880,7 @@ int wolfSSL_BIO_tell(WOLFSSL_BIO* bio)
 
     pos = (int)XFTELL(bio->ptr.fh);
     if (pos < 0)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     else
         return pos;
 }
@@ -3246,7 +3245,7 @@ int wolfSSL_BIO_vprintf(WOLFSSL_BIO* bio, const char* format, va_list args)
 #if !defined(NO_FILESYSTEM)
         case WOLFSSL_BIO_FILE:
             if (bio->ptr.fh == XBADFILE) {
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
             }
             ret = XVFPRINTF(bio->ptr.fh, format, args);
             break;

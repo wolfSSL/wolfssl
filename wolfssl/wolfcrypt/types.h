@@ -34,6 +34,10 @@ decouple library dependencies with standard string, memory and so on.
     #include <wolfssl/wolfcrypt/settings.h>
     #include <wolfssl/wolfcrypt/wc_port.h>
 
+    #ifdef __APPLE__
+        #include <AvailabilityMacros.h>
+    #endif
+
     #ifdef __cplusplus
         extern "C" {
     #endif
@@ -158,16 +162,16 @@ decouple library dependencies with standard string, memory and so on.
     #elif !defined(__BCPLUSPLUS__) && !defined(__EMSCRIPTEN__)
         #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
             #if (defined(__alpha__) || defined(__ia64__) || \
-                defined(_ARCH_PPC64) || defined(__mips64) || \
+                defined(_ARCH_PPC64) || defined(__ppc64__) || \
                 defined(__x86_64__)  || defined(__s390x__ ) || \
                 ((defined(sun) || defined(__sun)) && \
                  (defined(LP64) || defined(_LP64))) || \
                 (defined(__riscv_xlen) && (__riscv_xlen == 64)) || \
-                defined(__aarch64__) || \
+                defined(__aarch64__) || defined(__mips64) || \
                 (defined(__DCC__) && (defined(__LP64) || defined(__LP64__))))
                 /* long should be 64bit */
                 #define SIZEOF_LONG 8
-            #elif defined(__i386__) || defined(__CORTEX_M3__)
+            #elif defined(__i386__) || defined(__CORTEX_M3__) || defined(__ppc__)
                 /* long long should be 64bit */
                 #define SIZEOF_LONG_LONG 8
             #endif
@@ -230,7 +234,7 @@ decouple library dependencies with standard string, memory and so on.
          defined(__x86_64__) || defined(_M_X64)) || \
          defined(__aarch64__) || defined(__sparc64__) || defined(__s390x__ ) || \
         (defined(__riscv_xlen) && (__riscv_xlen == 64)) || defined(_M_ARM64) || \
-        defined(__aarch64__) || \
+        defined(__aarch64__) || defined(__ppc64__) || \
         (defined(__DCC__) && (defined(__LP64) || defined(__LP64__)))
         #define WC_64BIT_CPU
     #elif (defined(sun) || defined(__sun)) && \
@@ -1093,6 +1097,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_DEBUG_TAG    = 100,
         DYNAMIC_TYPE_LMS          = 101,
         DYNAMIC_TYPE_BIO          = 102,
+        DYNAMIC_TYPE_X509_ACERT   = 103,
         DYNAMIC_TYPE_SNIFFER_SERVER      = 1000,
         DYNAMIC_TYPE_SNIFFER_SESSION     = 1001,
         DYNAMIC_TYPE_SNIFFER_PB          = 1002,
@@ -1493,17 +1498,18 @@ typedef struct w64wrapper {
         typedef size_t        THREAD_TYPE;
         #define WOLFSSL_THREAD
     #elif defined(WOLFSSL_PTHREADS)
-        #ifndef __MACH__
-            #include <pthread.h>
-            typedef struct COND_TYPE {
-                pthread_mutex_t mutex;
-                pthread_cond_t cond;
-            } COND_TYPE;
-        #else
+        #if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 \
+            && !defined(__ppc__)
             #include <dispatch/dispatch.h>
             typedef struct COND_TYPE {
                 wolfSSL_Mutex mutex;
                 dispatch_semaphore_t cond;
+            } COND_TYPE;
+        #else
+            #include <pthread.h>
+            typedef struct COND_TYPE {
+                pthread_mutex_t mutex;
+                pthread_cond_t cond;
             } COND_TYPE;
         #endif
         typedef void*         THREAD_RETURN;

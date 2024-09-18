@@ -995,7 +995,7 @@ int wc_i2d_PKCS12(WC_PKCS12* pkcs12, byte** der, int* derSz)
             if (der == NULL && derSz != NULL) {
                 *derSz = (int)totalSz;
                 XFREE(sdBuf, pkcs12->heap, DYNAMIC_TYPE_PKCS);
-                return LENGTH_ONLY_E;
+                return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
             }
 
             if (*der == NULL) {
@@ -1809,7 +1809,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     }
     if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
         *outSz =  sz + MAX_LENGTH_SZ + 1;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
     if (ret < 0) {
         return ret;
@@ -1871,7 +1871,7 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
     if (out == NULL) {
         *outSz = MAX_SEQ_SZ + WC_PKCS12_DATA_OBJ_SZ + 1 + MAX_LENGTH_SZ +
             length;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     heap = wc_PKCS12_GetHeap(pkcs12);
@@ -1948,7 +1948,7 @@ static int wc_PKCS12_create_cert_bag(WC_PKCS12* pkcs12,
         *outSz = (word32)(MAX_SEQ_SZ + WC_CERTBAG_OBJECT_ID + 1 + MAX_LENGTH_SZ +
             MAX_SEQ_SZ + WC_CERTBAG1_OBJECT_ID + 1 + MAX_LENGTH_SZ + 1 +
             MAX_LENGTH_SZ + (int)certSz);
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     /* check buffer size able to handle max size */
@@ -2093,7 +2093,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
         totalSz += SetLength(outerSz, seq) + outerSz;
         if (out == NULL) {
             *outSz = totalSz + SetSequence(totalSz, seq);
-            return LENGTH_ONLY_E;
+            return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
 
         if (*outSz < totalSz + SetSequence(totalSz, seq)) {
@@ -2181,7 +2181,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
 
         if (out == NULL) {
             *outSz = totalSz + SetSequence(totalSz, seq);
-            return LENGTH_ONLY_E;
+            return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
 
         if (*outSz < (totalSz + SetSequence(totalSz, seq))) {

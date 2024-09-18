@@ -1981,7 +1981,7 @@ int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng,
 
 #ifndef WOLFSSL_KCAPI_DH
 static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
-    const byte* priv, word32 privSz, const byte* otherPub, word32 pubSz)
+    const byte* priv, word32 privSz, const byte* otherPub, word32 pubSz, int ct)
 {
     int ret = 0;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -2138,6 +2138,13 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
 
 #if !defined(WOLFSSL_SP_MATH)
+    if (ct) {
+        /* for the constant-time variant, we will probably use more bits in x for
+         * the modexp than we read from the private key, and those extra bits need
+         * to be zeroed.
+         */
+        XMEMSET(x, 0, sizeof *x);
+    }
     if (mp_init_multi(x, y, z, 0, 0, 0) != MP_OKAY) {
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(z, key->heap, DYNAMIC_TYPE_DH);
@@ -2159,8 +2166,17 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
         ret = MP_READ_E;
 
-    if (ret == 0 && mp_exptmod(y, x, &key->p, z) != MP_OKAY)
-        ret = MP_EXPTMOD_E;
+    if (ret == 0) {
+        if (ct)
+            ret = mp_exptmod_ex(y, x,
+                                ((int)*agreeSz + DIGIT_BIT - 1) / DIGIT_BIT,
+                                &key->p, z);
+        else
+            ret = mp_exptmod(y, x, &key->p, z);
+        if (ret != MP_OKAY)
+            ret = MP_EXPTMOD_E;
+    }
+
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     if (ret == 0)
         mp_memzero_add("wc_DhAgree_Sync z", z);
@@ -2170,11 +2186,16 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     if (ret == 0 && (mp_cmp_d(z, 1) == MP_EQ))
         ret = MP_VAL;
 
-    if (ret == 0 && mp_to_unsigned_bin(z, agree) != MP_OKAY)
-        ret = MP_TO_E;
-
-    if (ret == 0)
-        *agreeSz = (word32)mp_unsigned_bin_size(z);
+    if (ret == 0) {
+        if (ct) {
+            ret = mp_to_unsigned_bin_len_ct(z, agree, (int)*agreeSz);
+        }
+        else {
+            ret = mp_to_unsigned_bin(z, agree);
+            if (ret == MP_OKAY)
+                *agreeSz = (word32)mp_unsigned_bin_size(z);
+        }
+    }
 
     mp_forcezero(z);
     mp_clear(y);
@@ -2183,6 +2204,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     RESTORE_VECTOR_REGISTERS();
 
 #else
+    (void)ct;
     ret = WC_KEY_SIZE_E;
 #endif
 
@@ -2238,7 +2260,8 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
 #endif
 
     /* otherwise use software DH */
-    ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
+    ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz,
+                          0);
 
     return ret;
 }
@@ -2267,9 +2290,66 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
     else
 #endif
     {
-        ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub, pubSz);
+        ret = wc_DhAgree_Sync(key, agree, agreeSz, priv, privSz, otherPub,
+                              pubSz, 0);
     }
 #endif /* WOLFSSL_KCAPI_DH */
+
+    return ret;
+}
+
+int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
+            word32 privSz, const byte* otherPub, word32 pubSz)
+{
+    int ret;
+    word32 requested_agreeSz;
+#ifndef WOLFSSL_NO_MALLOC
+    byte *agree_buffer = NULL;
+#else
+    byte agree_buffer[DH_MAX_SIZE / 8];
+#endif
+
+    if (key == NULL || agree == NULL || agreeSz == NULL || priv == NULL ||
+                                                            otherPub == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    requested_agreeSz = *agreeSz;
+
+#ifndef WOLFSSL_NO_MALLOC
+    agree_buffer = (byte *)XMALLOC(requested_agreeSz, key->heap,
+                                   DYNAMIC_TYPE_DH);
+    if (agree_buffer == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMSET(agree, 0, requested_agreeSz);
+    XMEMSET(agree_buffer, 0, requested_agreeSz);
+
+    ret = wc_DhAgree_Sync(key, agree_buffer, agreeSz, priv, privSz, otherPub,
+                          pubSz, 1);
+
+    if (ret == 0) {
+        /* Arrange for correct fixed-length, right-justified key, even if the
+         * crypto back end doesn't support it.  This assures that the key is
+         * unconditionally agreed correctly.  With some crypto back ends,
+         * e.g. heapmath, there are no provisions for actual constant time, but
+         * with others the key computation and clamping is constant time, and
+         * the unclamping here is also constant time.
+         */
+        byte *agree_src = agree_buffer + *agreeSz - 1,
+            *agree_dst = agree + requested_agreeSz - 1;
+        while (agree_dst >= agree) {
+            word32 mask = (agree_src >= agree_buffer) - 1U;;
+            agree_src += (mask & requested_agreeSz);
+            *agree_dst-- = *agree_src--;
+        }
+        *agreeSz = requested_agreeSz;
+    }
+
+#ifndef WOLFSSL_NO_MALLOC
+    XFREE(agree_buffer, key->heap, DYNAMIC_TYPE_DH);
+#endif
 
     return ret;
 }
@@ -3149,7 +3229,7 @@ int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
             *pSz = pLen;
             *qSz = qLen;
             *gSz = gLen;
-            ret = LENGTH_ONLY_E;
+            ret = WC_NO_ERR_TRACE(LENGTH_ONLY_E);
         }
     }
 

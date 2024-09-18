@@ -121,7 +121,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
     wolfSSL_d2i_X509_NAME(&crle->issuer, (unsigned char**)&dcrl->issuer,
                           dcrl->issuerSz);
     if (crle->issuer == NULL) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 #endif
 #ifdef CRL_STATIC_REVOKED_LIST
@@ -141,13 +141,13 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         crle->toBeSigned = (byte*)XMALLOC(crle->tbsSz, heap,
                                           DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->toBeSigned == NULL)
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         crle->signature = (byte*)XMALLOC(crle->signatureSz, heap,
                                          DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->signature == NULL) {
             XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
             crle->toBeSigned = NULL;
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
 
     #ifdef WC_RSA_PSS
@@ -160,7 +160,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
                 crle->toBeSigned = NULL;
                 XFREE(crle->signature, heap, DYNAMIC_TYPE_CRL_ENTRY);
                 crle->signature = NULL;
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
             }
             XMEMCPY(crle->sigParams, buff + dcrl->sigParamsIndex,
                 crle->sigParamsSz);
@@ -563,7 +563,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
     WOLFSSL_ENTER("AddCRL");
 
     if (crl == NULL)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
 
     crle = crl->currentEntry;
 
@@ -578,7 +578,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
     if (InitCRL_Entry(crle, dcrl, buff, verified, crl->heap) < 0) {
         WOLFSSL_MSG("Init CRL Entry failed");
         CRL_Entry_free(crle, crl->heap);
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (wc_LockRwLock_Wr(&crl->crlLock) != 0) {
@@ -625,7 +625,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         else {
             WOLFSSL_MSG("Pem to Der failed");
             FreeDer(&der);
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
     #else
         ret = NOT_COMPILED_IN;
@@ -1018,7 +1018,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (crl->monitors[0].path) {
@@ -1029,7 +1029,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -1041,7 +1041,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-            return -1;
+            return WOLFSSL_FATAL_ERROR;
         }
     }
 
@@ -1051,7 +1051,7 @@ static int SwapLists(WOLFSSL_CRL* crl)
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     newList = tmp->crlList;
@@ -1100,10 +1100,14 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
     struct kevent change;
 
     /* trigger custom shutdown */
+#if defined(NOTE_TRIGGER)
     EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);
+#elif defined(EV_TRIGGER)
+    EV_SET(&change, CRL_CUSTOM_FD, EVFILT_USER, EV_TRIGGER, 0, 0, NULL);
+#endif
     if (kevent(mfd, &change, 1, NULL, 0, NULL) < 0) {
         WOLFSSL_MSG("kevent trigger customer event failed");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     return 0;
@@ -1235,7 +1239,7 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
     /* write to our custom event */
     if (write(mfd, &w64, sizeof(w64)) < 0) {
         WOLFSSL_MSG("StopMonitor write failed");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     return 0;
@@ -1378,7 +1382,7 @@ static int StopMonitor(wolfSSL_CRL_mfd_t mfd)
 {
     if (SetEvent(mfd) == 0) {
         WOLFSSL_MSG("SetEvent custom event trigger failed");
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
     return 0;
 }

@@ -29,10 +29,10 @@ This sample program uses the following hardware and software libraries. If a new
 |:--|:--|
 |Board|GR-ROSE|
 |Device|R5F565NEHxFP|
-|IDE| Renesas e2Studio Version:2022-01 |
+|IDE| Renesas e2Studio Version:2024-04 (24.4.0) |
 |Emulator| E1, E2 Emulator Lite |
-|Toolchain|CCRX v3.04.00|
-|TSIP| TSIP v1.17|
+|Toolchain|CCRX v3.06.00|
+|TSIP| TSIP v1.21|
 <br>
 
 The project of this sample program has a configuration file that uses the following FIT components.
@@ -47,10 +47,9 @@ However, the FIT components themselves are not included in the distribution of t
 |Generic system timer for RX MCUs|1.01|r_sys_time_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] - RX Ethernet Driver Interface|1.09|r_t4_driver_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] for Renesas MCUs|2.10|r_t4_rx|
-|TSIP(Trusted Secure IP) driver|1.17.l|r_tsip_rx|
+|TSIP(Trusted Secure IP) driver|1.21|r_tsip_rx|
 <br>
 
-Note) As of April 2022, TIPS v1.15 does not seem to be able to be added as a FIT component by adding a component in the Smart Configurator Perspective. Add it manually along the method described later.
 <br><br>
 
 ## 3. Importing sample application project into e2Studio
@@ -247,7 +246,7 @@ is generated. This executable program acts as a server application. If you execu
 <br> <br>
 
 ```
-$ examples / server / server -b -v4 -i
+$ examples / server / server -b -v 4 -i
 ```
 
 <br>
@@ -338,7 +337,7 @@ Define “WOLF_PRIVATE_KEY_ID” in your user_settings.h.
 ## 11. Limitations
 ----
 <br>
-wolfSSL, which supports TSIPv1.17, has the following functional restrictions.
+wolfSSL, which supports TSIPv1.21, has the following functional restrictions.
 <br><br>
 
 1. Handshake message packets exchanged with the server during the TLS handshake are stored in plaintext in memory. This is used to calculate the hash of handshake messages. The content will be deleted at the end of the session.

@@ -134,9 +134,16 @@ WOLFSSL_API int  wc_Des_EcbEncrypt(Des* des, byte* out,
 WOLFSSL_API int wc_Des3_EcbEncrypt(Des3* des, byte* out,
                                    const byte* in, word32 sz);
 
+#ifdef FREESCALE_MMCAU /* Has separate encrypt/decrypt functions */
+WOLFSSL_API int wc_Des_EcbDecrypt(Des* des, byte* out,
+                                   const byte* in, word32 sz);
+WOLFSSL_API int wc_Des3_EcbDecrypt(Des3* des, byte* out,
+                                   const byte* in, word32 sz);
+#else
 /* ECB decrypt same process as encrypt but with decrypt key */
 #define wc_Des_EcbDecrypt  wc_Des_EcbEncrypt
 #define wc_Des3_EcbDecrypt wc_Des3_EcbEncrypt
+#endif
 
 WOLFSSL_API int  wc_Des3_SetKey(Des3* des, const byte* key,
                                 const byte* iv,int dir);
