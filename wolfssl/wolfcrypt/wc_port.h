@@ -355,11 +355,20 @@
 #endif /* WOLFSSL_NO_ATOMICS */
 
 #ifdef WOLFSSL_ATOMIC_OPS
-    WOLFSSL_LOCAL void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
     /* Fetch* functions return the value of the counter immediately preceding
      * the effects of the function. */
-    WOLFSSL_LOCAL int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);
-    WOLFSSL_LOCAL int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
+#else
+    /* Code using these fallback macros needs to arrange its own fallback for
+     * wolfSSL_Atomic_Int, which is never defined if
+     * !defined(WOLFSSL_ATOMIC_OPS).  This forces local awareness of
+     * thread-unsafe semantics.
+     */
+    #define wolfSSL_Atomic_Int_Init(c, i) (*(c) = (i))
+    #define wolfSSL_Atomic_Int_FetchAdd(c, i) (*(c) += (i), *(c) - (i))
+    #define wolfSSL_Atomic_Int_FetchSub(c, i) (*(c) -= (i), *(c) + (i))
 #endif
 
 /* Reference counting. */
@@ -374,27 +383,7 @@ typedef struct wolfSSL_Ref {
 #endif
 } wolfSSL_Ref;
 
-#ifdef SINGLE_THREADED
-
-#define wolfSSL_RefInit(ref, err)            \
-    do {                                     \
-        (ref)->count = 1;                    \
-        *(err) = 0;                          \
-    } while(0)
-#define wolfSSL_RefFree(ref) WC_DO_NOTHING
-    #define wolfSSL_RefInc(ref, err)         \
-    do {                                     \
-        (ref)->count++;                      \
-        *(err) = 0;                          \
-    } while(0)
-#define wolfSSL_RefDec(ref, isZero, err)     \
-    do {                                     \
-        (ref)->count--;                      \
-        *(isZero) = ((ref)->count == 0);     \
-        *(err) = 0;                          \
-    } while(0)
-
-#elif defined(WOLFSSL_ATOMIC_OPS)
+#if defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)
 
 #define wolfSSL_RefInit(ref, err)            \
     do {                                     \
