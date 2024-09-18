@@ -51097,11 +51097,11 @@ static int test_wc_PKCS7_signed_enveloped(void)
 
     {
         /* arbitrary custom SKID */
-        byte customSKID[] = {
+        const byte customSKID[] = {
             0x40, 0x25, 0x77, 0x56
         };
 
-        wc_InitRng(&rng);
+        ExpectIntEQ(wc_InitRng(&rng), 0);
         sigSz = FOURK_BUF * 2;
         ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
         if (pkcs7 != NULL) {

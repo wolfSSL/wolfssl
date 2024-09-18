@@ -3443,7 +3443,7 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
 
 /* Sets a custom SKID in PKCS7 struct, used before calling an encode operation
  * Returns 0 on success, negative upon error. */
-int wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, byte* in, word16 inSz)
+int wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, const byte* in, word16 inSz)
 {
     int ret = 0;
 

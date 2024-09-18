@@ -395,7 +395,8 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /* CMS/PKCS#7 SignedData */
-WOLFSSL_API int  wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, byte* in, word16 inSz);
+WOLFSSL_API int  wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, const byte* in,
+                                        word16 inSz);
 WOLFSSL_API int  wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7);
 WOLFSSL_API int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag);
