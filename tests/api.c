@@ -15007,14 +15007,20 @@ static int test_Sha512_Family_Final(int type, int isRaw)
     hash_test[2] = hash3;
     times = sizeof(hash_test) / sizeof(byte *);
 
-    /* Good test args. */
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(finalFp(&sha512, hash_test[i]), 0);
+#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST) || \
+        defined(WOLFSSL_NO_HASH_RAW)
+    if (finalFp != NULL)
+#endif
+    {
+        /* Good test args. */
+        for (i = 0; i < times; i++) {
+            ExpectIntEQ(finalFp(&sha512, hash_test[i]), 0);
+        }
+        /* Test bad args. */
+        ExpectIntEQ(finalFp(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(finalFp(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(finalFp(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
-    /* Test bad args. */
-    ExpectIntEQ(finalFp(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(finalFp(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(finalFp(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     freeFp(&sha512);
 
