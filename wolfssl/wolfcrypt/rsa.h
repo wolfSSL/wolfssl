@@ -103,7 +103,11 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #endif
 
 #ifndef RSA_MIN_SIZE
-#define RSA_MIN_SIZE 2048
+    #if defined(HAVE_WOLFENGINE) || defined(HAVE_WOLFPROVIDER)
+        #define RSA_MIN_SIZE 1024
+    #else
+        #define RSA_MIN_SIZE 2048
+    #endif
 #endif
 
 #ifndef RSA_MAX_SIZE
