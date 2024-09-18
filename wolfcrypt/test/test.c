@@ -4092,7 +4092,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
     /* Unaligned memory access test */
     for (i = 1; i < 16; i++) {
         ret = wc_Sha512Update(&sha, (byte*)large_input + i,
-            LARGE_HASH_TEST_INPUT_SZ - i);
+            LARGE_HASH_TEST_INPUT_SZ - (word32)i);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
         ret = wc_Sha512Final(&sha, hash);
@@ -4250,7 +4250,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_224_test(void)
     /* Unaligned memory access test */
     for (i = 1; i < 16; i++) {
         ret = wc_Sha512_224Update(&sha, (byte*)large_input + i,
-            (word32)sizeof(large_input) - i);
+            (word32)sizeof(large_input) - (word32)i);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
         ret = wc_Sha512_224Final(&sha, hash);
@@ -4403,7 +4403,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_256_test(void)
     /* Unaligned memory access test */
     for (i = 1; i < 16; i++) {
         ret = wc_Sha512_256Update(&sha, (byte*)large_input + i,
-            (word32)sizeof(large_input) - i);
+            (word32)sizeof(large_input) - (word32)i);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), exit);
         ret = wc_Sha512_256Final(&sha, hash);
@@ -5985,14 +5985,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
             return WC_TEST_RET_ENC_I(i);
         if (exp_ret == 0) {
             ret = wc_Hash(typesGood[i], data, sizeof(data), hashOut,
-                                                                  digestSz - 1);
+                                                        (word32)digestSz - 1);
             if (ret != WC_NO_ERR_TRACE(BUFFER_E))
                 return WC_TEST_RET_ENC_I(i);
         }
         ret = wc_Hash(typesGood[i], data, sizeof(data), hashOut, (word32)digestSz);
         if (ret != exp_ret)
             return WC_TEST_RET_ENC_I(i);
-        if (exp_ret == 0 && XMEMCMP(out, hashOut, digestSz) != 0)
+        if (exp_ret == 0 && XMEMCMP(out, hashOut, (word32)digestSz) != 0)
             return WC_TEST_RET_ENC_I(i);
 
         ret = wc_HashGetBlockSize(typesGood[i]);
@@ -7790,10 +7790,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha_test(void)
         if (ret != 0)
             return ret;
 
-        if (XMEMCMP(plain_big, input_big, block_size))
+        if (XMEMCMP(plain_big, input_big, (word32)block_size))
             return WC_TEST_RET_ENC_I(i);
 
-        if (XMEMCMP(cipher_big, cipher_big_result, block_size))
+        if (XMEMCMP(cipher_big, cipher_big_result, (word32)block_size))
             return WC_TEST_RET_ENC_I(i);
     }
 
@@ -14464,18 +14464,18 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    ret = wc_AesGcmEncrypt(enc, resultC, plain, (word32)plainSz, iv, ivSz,
-                                     resultT, (word32)tagSz, aad, aadSz);
+    ret = wc_AesGcmEncrypt(enc, resultC, plain, (word32)plainSz, iv, (word32)ivSz,
+                                     resultT, (word32)tagSz, aad, (word32)aadSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (cipher != NULL) {
-        if (XMEMCMP(cipher, resultC, cipherSz))
+        if (XMEMCMP(cipher, resultC, (word32)cipherSz))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
-    if (XMEMCMP(tag, resultT, tagSz))
+    if (XMEMCMP(tag, resultT, (unsigned long)tagSz))
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
@@ -14489,7 +14489,7 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (cipher != NULL) {
-        if (XMEMCMP(cipher, resultC, cipherSz))
+        if (XMEMCMP(cipher, resultC, (unsigned long)cipherSz))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
     if (XMEMCMP(tag, resultT, tagSz))
@@ -14502,14 +14502,14 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     ret = wc_AesGcmDecrypt(dec, resultP, resultC, (word32)cipherSz,
-                   iv, (word32)ivSz, resultT, tagSz, aad, aadSz);
+                   iv, (word32)ivSz, resultT, (word32)tagSz, aad, (word32)aadSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &dec->asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (plain != NULL) {
-        if (XMEMCMP(plain, resultP, plainSz))
+        if (XMEMCMP(plain, resultP, (unsigned long)plainSz))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 
@@ -14524,7 +14524,7 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (plain != NULL) {
-        if (XMEMCMP(plain, resultP, plainSz))
+        if (XMEMCMP(plain, resultP, (unsigned long)plainSz))
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
     }
 #endif
@@ -17719,7 +17719,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t random_test(void)
 #endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) || !defined(WOLFSSL_NO_MALLOC)
-static int simple_mem_test(int sz)
+static int simple_mem_test(size_t sz)
 {
     int ret = 0;
     byte* b;
@@ -17730,11 +17730,11 @@ static int simple_mem_test(int sz)
         return WC_TEST_RET_ENC_NC;
     }
     /* utilize memory */
-    for (i = 0; i < sz; i++) {
+    for (i = 0; i < (int)sz; i++) {
         b[i] = (byte)i;
     }
     /* read back and verify */
-    for (i = 0; i < sz; i++) {
+    for (i = 0; i < (int)sz; i++) {
         if (b[i] != (byte)i) {
             ret = WC_TEST_RET_ENC_NC;
             break;
@@ -17894,7 +17894,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 
 #if defined(WOLFSSL_STATIC_MEMORY) || !defined(WOLFSSL_NO_MALLOC)
     /* simple test */
-    ret = simple_mem_test(MEM_TEST_SZ);
+    ret = simple_mem_test((size_t)MEM_TEST_SZ);
     if (ret != 0)
         return ret;
 #endif
@@ -17902,7 +17902,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #ifdef COMPLEX_MEM_TEST
     /* test various size blocks */
     for (i = 1; i < MEM_TEST_SZ; i*=2) {
-        ret = simple_mem_test(i);
+        ret = simple_mem_test((size_t)i);
         if (ret != 0)
             return ret;
     }
@@ -19800,7 +19800,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     #endif
         if (ret >= 0) {
             ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0],
-                mgf[0], digestSz + 1, key, rng);
+                mgf[0], (int)digestSz + 1, key, rng);
         }
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret != WC_NO_ERR_TRACE(PSS_SALTLEN_E))
@@ -19828,7 +19828,7 @@ static wc_test_ret_t rsa_pss_test(WC_RNG* rng, RsaKey* key)
     #endif
         if (ret >= 0) {
             ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0],
-                digestSz + 1, key);
+                (int)digestSz + 1, key);
         }
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret != WC_NO_ERR_TRACE(PSS_SALTLEN_E))
@@ -26470,7 +26470,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t pkcs12_pbkdf_test(void)
     if (ret < 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    if (XMEMCMP(derived, verify, kLen) != 0)
+    if (XMEMCMP(derived, verify, (unsigned long)kLen) != 0)
         return WC_TEST_RET_ENC_NC;
 
     iterations = 1000;
@@ -26755,7 +26755,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    if (XMEMCMP(okm1, res1, L) != 0)
+    if (XMEMCMP(okm1, res1, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
 
 #ifndef HAVE_FIPS
@@ -26766,7 +26766,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    if (XMEMCMP(okm1, res2, L) != 0)
+    if (XMEMCMP(okm1, res2, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
 #endif /* HAVE_FIPS */
 #endif /* !NO_SHA */
@@ -26777,7 +26777,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    if (XMEMCMP(okm1, res3, L) != 0)
+    if (XMEMCMP(okm1, res3, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
 
 #ifndef HAVE_FIPS
@@ -26787,7 +26787,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hkdf_test(void)
     if (ret != 0)
         return WC_TEST_RET_ENC_EC(ret);
 
-    if (XMEMCMP(okm1, res4, L) != 0)
+    if (XMEMCMP(okm1, res4, (unsigned long)L) != 0)
         return WC_TEST_RET_ENC_NC;
 #endif /* HAVE_FIPS */
 #endif /* !NO_SHA256 */
@@ -26994,7 +26994,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prf_test(void)
     int lblsdL = LBSL;
     int hash_type = sha384_mac;
 
-    ret = wc_PRF(dig, (word32)digL, secret, secL, lablSd, lblsdL, hash_type,
+    ret = wc_PRF(dig, (word32)digL, secret, (word32)secL, lablSd,
+                 (word32)lblsdL, hash_type,
                  HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         printf("Failed w/ code: %d\n", ret);
@@ -27645,111 +27646,117 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t tls13_kdf_test(void)
 
         ret = wc_Tls13_HKDF_Extract(secret, NULL, 0,
                 (tv->pskSz == 0) ? zeroes : (byte*)tv->psk,
-                tv->pskSz, tv->hashAlg);
+                tv->pskSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)ceTrafficLabel, (word32)XSTRLEN(ceTrafficLabel),
-                tv->hashHello1, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashHello1, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
-        ret = XMEMCMP(tv->clientEarlyTrafficSecret, output, hashAlgSz);
+        ret = XMEMCMP(tv->clientEarlyTrafficSecret, output,
+                (unsigned long)hashAlgSz);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)eExpMasterLabel, (word32)XSTRLEN(eExpMasterLabel),
-                tv->hashHello1, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashHello1, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
-        ret = XMEMCMP(tv->earlyExporterMasterSecret, output, hashAlgSz);
+        ret = XMEMCMP(tv->earlyExporterMasterSecret, output,
+                (unsigned long)hashAlgSz);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(salt, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)derivedLabel, (word32)XSTRLEN(derivedLabel),
-                hashZero, (word32)hashAlgSz, tv->hashAlg);
+                hashZero, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Extract(secret, salt, (word32)(word32)hashAlgSz,
                 (tv->dheSz == 0) ? zeroes : (byte*)tv->dhe,
-                tv->dheSz, tv->hashAlg);
+                tv->dheSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)cHsTrafficLabel, (word32)XSTRLEN(cHsTrafficLabel),
-                tv->hashHello2, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashHello2, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
         ret = XMEMCMP(tv->clientHandshakeTrafficSecret,
-                output, hashAlgSz);
+                output, (unsigned long)hashAlgSz);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)sHsTrafficLabel, (word32)XSTRLEN(sHsTrafficLabel),
-                tv->hashHello2, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashHello2, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
-        ret = XMEMCMP(tv->serverHandshakeTrafficSecret, output, hashAlgSz);
+        ret = XMEMCMP(tv->serverHandshakeTrafficSecret, output,
+                (unsigned long)hashAlgSz);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(salt, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)derivedLabel, (word32)XSTRLEN(derivedLabel),
-                hashZero, (word32)hashAlgSz, tv->hashAlg);
+                hashZero, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Extract(secret, salt, (word32)(word32)hashAlgSz,
-                zeroes, (word32)(word32)hashAlgSz, tv->hashAlg);
+                zeroes, (word32)(word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)cAppTrafficLabel, (word32)XSTRLEN(cAppTrafficLabel),
-                tv->hashFinished1, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashFinished1, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
-        ret = XMEMCMP(tv->clientApplicationTrafficSecret, output, hashAlgSz);
+        ret = XMEMCMP(tv->clientApplicationTrafficSecret, output,
+                (unsigned long)hashAlgSz);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)sAppTrafficLabel, (word32)XSTRLEN(sAppTrafficLabel),
-                tv->hashFinished1, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashFinished1, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
-        ret = XMEMCMP(tv->serverApplicationTrafficSecret, output, hashAlgSz);
+        ret = XMEMCMP(tv->serverApplicationTrafficSecret, output,
+                (unsigned long)hashAlgSz);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)expMasterLabel, (word32)XSTRLEN(expMasterLabel),
-                tv->hashFinished1, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashFinished1, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
-        ret = XMEMCMP(tv->exporterMasterSecret, output, hashAlgSz);
+        ret = XMEMCMP(tv->exporterMasterSecret, output, (unsigned long)hashAlgSz);
         if (ret != 0) break;
 
         ret = wc_Tls13_HKDF_Expand_Label(output, (word32)hashAlgSz,
                 secret, (word32)hashAlgSz,
                 (byte*)protocolLabel, (word32)XSTRLEN(protocolLabel),
                 (byte*)resMasterLabel, (word32)XSTRLEN(resMasterLabel),
-                tv->hashFinished2, (word32)hashAlgSz, tv->hashAlg);
+                tv->hashFinished2, (word32)hashAlgSz, (int)tv->hashAlg);
         if (ret != 0) break;
 
-        ret = XMEMCMP(tv->resumptionMasterSecret, output, hashAlgSz);
+        ret = XMEMCMP(tv->resumptionMasterSecret, output,
+                (unsigned long)hashAlgSz);
         if (ret != 0) break;
     }
 
