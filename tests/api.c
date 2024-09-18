@@ -93450,6 +93450,40 @@ static int test_revoked_loaded_int_cert_ctx_ready2(WOLFSSL_CTX* ctx)
             WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
     return EXPECT_RESULT();
 }
+
+static int test_revoked_loaded_int_cert_ctx_ready3_crl_missing_cb(int ret,
+        WOLFSSL_CRL* crl, WOLFSSL_CERT_MANAGER* cm, void* ctx)
+{
+    (void)crl;
+    (void)cm;
+    (void)ctx;
+    if (ret == WC_NO_ERR_TRACE(CRL_MISSING))
+        return 1;
+    return 0;
+}
+
+/* Here we are allowing missing CRL's but want to error out when its revoked */
+static int test_revoked_loaded_int_cert_ctx_ready3(WOLFSSL_CTX* ctx)
+{
+    EXPECT_DECLS;
+    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
+    myVerifyAction = VERIFY_USE_PREVERFIY;
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/ca-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx,
+            "./certs/intermediate/ca-int2-cert.pem", NULL, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL),
+            WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx,
+            "./certs/crl/extra-crls/ca-int-cert-revoked.pem",
+            WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_SetCRL_ErrorCb(ctx,
+            test_revoked_loaded_int_cert_ctx_ready3_crl_missing_cb, NULL),
+            WOLFSSL_SUCCESS);
+    return EXPECT_RESULT();
+}
 #endif
 
 static int test_revoked_loaded_int_cert(void)
@@ -93471,6 +93505,8 @@ static int test_revoked_loaded_int_cert(void)
             "./certs/server-key.pem", test_revoked_loaded_int_cert_ctx_ready2},
         {"./certs/intermediate/server-chain-short.pem",
             "./certs/server-key.pem", test_revoked_loaded_int_cert_ctx_ready2},
+        {"./certs/intermediate/server-chain-short.pem",
+            "./certs/server-key.pem", test_revoked_loaded_int_cert_ctx_ready3},
     };
     size_t i;
 
