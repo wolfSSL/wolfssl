@@ -1214,6 +1214,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #ifndef WOLFSSL_LEANPSK
     char* mystrnstr(const char* s1, const char* s2, unsigned int n);
 #endif
+    WOLFSSL_API void *mymemmem(const void *haystack, size_t haystacklen,
+                 const void *needle, size_t needlelen);
 
 #ifndef FILE_BUFFER_SIZE
     /* default static file buffer size for input, will use dynamic buffer if

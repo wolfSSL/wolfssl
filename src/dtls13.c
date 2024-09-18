@@ -1209,6 +1209,11 @@ int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
     return 0;
 }
 
+int Dtls13MinimumRecordLength(WOLFSSL* ssl)
+{
+    return Dtls13GetRlHeaderLength(ssl, 1) + DTLS13_MIN_CIPHERTEXT;
+}
+
 /**
  * Dtls13EncryptRecordNumber() - encrypt record number in the header
  * @ssl: ssl object
@@ -1225,9 +1230,15 @@ int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
     if (ssl == NULL || hdr == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef HAVE_NULL_CIPHER
+    /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_cipher_null)
+        return 0;
+#endif /*HAVE_NULL_CIPHER */
+
     /* we need at least a 16 bytes of ciphertext to encrypt record number see
        4.2.3*/
-    if (recordLength < Dtls13GetRlHeaderLength(ssl, 1) + DTLS13_MIN_CIPHERTEXT)
+    if (recordLength < Dtls13MinimumRecordLength(ssl))
         return BUFFER_ERROR;
 
     seqLength = (*hdr & DTLS13_LEN_BIT) ? DTLS13_SEQ_16_LEN : DTLS13_SEQ_8_LEN;
@@ -1453,17 +1464,22 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
         hdrInfo->recordLength = inputSize - idx;
     }
 
-    /* minimum size for a dtls1.3 packet is 16 bytes (to have enough ciphertext
-       to create record number xor mask). (draft 43 - Sec 4.2.3) */
-    if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
-        return LENGTH_ERROR;
-    if (inputSize < idx + DTLS13_RN_MASK_SIZE)
-        return BUFFER_ERROR;
+    /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
+    if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null)
+    {
+        /* minimum size for a dtls1.3 packet is 16 bytes (to have enough
+         * ciphertext to create record number xor mask).
+         * (draft 43 - Sec 4.2.3) */
+        if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
+            return LENGTH_ERROR;
+        if (inputSize < idx + DTLS13_RN_MASK_SIZE)
+            return BUFFER_ERROR;
 
-    ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
-        DEPROTECT);
-    if (ret != 0)
-        return ret;
+        ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
+            DEPROTECT);
+        if (ret != 0)
+            return ret;
+    }
 
     if (seqLen == DTLS13_SEQ_16_LEN) {
         hdrInfo->seqHiPresent = 1;

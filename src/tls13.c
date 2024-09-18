@@ -3199,6 +3199,7 @@ typedef struct BuildMsg13Args {
     word32 idx;
     word32 headerSz;
     word16 size;
+    word32 paddingSz;
 } BuildMsg13Args;
 
 static void FreeBuildMsg13Args(WOLFSSL* ssl, void* pArgs)
@@ -3304,7 +3305,14 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             args->sz++;
             /* Authentication data at the end. */
             args->sz += ssl->specs.aead_mac_size;
-
+#ifdef WOLFSSL_DTLS13
+            /* Pad to minimum length */
+            if (ssl->options.dtls &&
+                    args->sz < (word32)Dtls13MinimumRecordLength(ssl)) {
+                args->paddingSz = Dtls13MinimumRecordLength(ssl) - args->sz;
+                args->sz = Dtls13MinimumRecordLength(ssl);
+            }
+#endif
             if (sizeOnly)
                 return (int)args->sz;
 
@@ -3348,6 +3356,9 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
             /* The real record content type goes at the end of the data. */
             output[args->idx++] = (byte)type;
+            /* Double check that any necessary padding is zero'd out */
+            XMEMSET(output + args->idx, 0, args->paddingSz);
+            args->idx += args->paddingSz;
 
             ssl->options.buildMsgState = BUILD_MSG_ENCRYPT;
         }
@@ -3393,7 +3404,8 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #ifdef WOLFSSL_DTLS13
                 if (ret == 0 && ssl->options.dtls) {
                     /* AAD points to the header. Reuse the variable  */
-                    ret = Dtls13EncryptRecordNumber(ssl, (byte*)aad, (word16)args->sz);
+                    ret = Dtls13EncryptRecordNumber(ssl, (byte*)aad,
+                                                    (word16)args->sz);
                 }
 #endif /* WOLFSSL_DTLS13 */
             }
@@ -3940,7 +3952,7 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk, int clientHello)
                     MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
                     &cipherName);
             if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                                       &cipherSuite, &cipherSuiteFlags) != 0) {
+                            &cipherSuite, NULL, NULL, &cipherSuiteFlags) != 0) {
                 WOLFSSL_ERROR_VERBOSE(PSK_KEY_ERROR);
                 return PSK_KEY_ERROR;
             }
@@ -5852,7 +5864,7 @@ int FindPskSuite(const WOLFSSL* ssl, PreSharedKey* psk, byte* psk_key,
          if (*psk_keySz != 0) {
              int cipherSuiteFlags = WOLFSSL_CIPHER_SUITE_FLAG_NONE;
              *found = (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                 &cipherSuite, &cipherSuiteFlags) == 0);
+                 &cipherSuite, NULL, NULL, &cipherSuiteFlags) == 0);
              (void)cipherSuiteFlags;
          }
     }

@@ -8412,6 +8412,8 @@ static int CheckcipherList(const char* list)
         char   name[MAX_SUITE_NAME + 1];
         word32 length = MAX_SUITE_NAME;
         word32 current_length;
+        byte major = INVALID_BYTE;
+        byte minor = INVALID_BYTE;
 
         next   = XSTRSTR(next, ":");
 
@@ -8436,10 +8438,10 @@ static int CheckcipherList(const char* list)
             break;
         }
 
-        ret = wolfSSL_get_cipher_suite_from_name(name, &cipherSuite0,
-                                                        &cipherSuite1, &flags);
+        ret = GetCipherSuiteFromName(name, &cipherSuite0,
+                &cipherSuite1, &major, &minor, &flags);
         if (ret == 0) {
-            if (cipherSuite0 == TLS13_BYTE) {
+            if (cipherSuite0 == TLS13_BYTE || minor == TLSv1_3_MINOR) {
                 /* TLSv13 suite */
                 findTLSv13Suites = 1;
             }
@@ -14297,7 +14299,8 @@ int wolfSSL_get_cipher_suite_from_name(const char* name, byte* cipherSuite0,
         (cipherSuite == NULL) ||
         (flags == NULL))
         return BAD_FUNC_ARG;
-    return GetCipherSuiteFromName(name, cipherSuite0, cipherSuite, flags);
+    return GetCipherSuiteFromName(name, cipherSuite0, cipherSuite, NULL, NULL,
+                                  flags);
 }
 
 

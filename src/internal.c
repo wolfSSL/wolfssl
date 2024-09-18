@@ -11255,6 +11255,11 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     if (ret != 0)
         return ret;
 
+    if (ssl->dtls13CurRlLength > sizeof(ssl->dtls13CurRL)) {
+        WOLFSSL_MSG("Record header too long");
+        return SEQUENCE_ERROR;
+    }
+
     if (readSize < ssl->dtls13CurRlLength + DTLS13_RN_MASK_SIZE) {
         /* when using DTLS over a medium that does not guarantee that a full
          * message is received in a single read, we may end up without the full
@@ -24789,6 +24794,14 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         if (IsEncryptionOn(ssl, 1) || ssl->options.tls1_3)
             outputSz += cipherExtraData(ssl);
 
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+        if (ssl->options.dtls) {
+            unsigned int cidSz = 0;
+            if (wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz) == WOLFSSL_SUCCESS)
+                outputSz += cidSz;
+        }
+#endif
+
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
             return ssl->error = ret;
@@ -25935,7 +25948,7 @@ void SetErrorString(int error, char* str)
      */
 
     #ifndef NO_ERROR_STRINGS
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+        #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT) || \
             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(y),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
             #define SUITE_ALIAS(x,z,w,v,u) {(x),"",(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS},
@@ -25944,7 +25957,7 @@ void SetErrorString(int error, char* str)
             #define SUITE_ALIAS(x,z,w,v,u) {(x),"",(z),(w),WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS},
         #endif
     #else
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+        #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT) || \
             defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
             #define SUITE_INFO(x,y,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NONE}
             #define SUITE_ALIAS(x,z,w,v,u) {(x),(z),(w),(v),(u),WOLFSSL_CIPHER_SUITE_FLAG_NAMEALIAS},
@@ -26806,12 +26819,15 @@ const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl)
 }
 
 int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
-                           byte* cipherSuite, int* flags)
+                       byte* cipherSuite, byte* major, byte* minor, int* flags)
 {
     int           ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
     int           i;
     unsigned long len;
     const char*   nameDelim;
+
+    (void)major;
+    (void)minor;
 
     /* Support trailing : */
     nameDelim = XSTRSTR(name, ":");
@@ -26830,9 +26846,19 @@ int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
 #endif
 
         if (found) {
-            *cipherSuite0 = cipher_names[i].cipherSuite0;
-            *cipherSuite  = cipher_names[i].cipherSuite;
-            *flags = cipher_names[i].flags;
+            if (cipherSuite0 != NULL)
+                *cipherSuite0 = cipher_names[i].cipherSuite0;
+            if (cipherSuite != NULL)
+                *cipherSuite  = cipher_names[i].cipherSuite;
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
+            if (major != NULL)
+                *major = cipher_names[i].major;
+            if (minor != NULL)
+                *minor = cipher_names[i].minor;
+#endif
+            if (flags != NULL)
+                *flags = cipher_names[i].flags;
             ret = 0;
             break;
         }
