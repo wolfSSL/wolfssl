@@ -1076,23 +1076,23 @@ static byte Dtls13GetCidRxSize(WOLFSSL* ssl)
 
 static int Dtls13AddCID(WOLFSSL* ssl, byte* flags, byte* out, word16* idx)
 {
-    byte cidSize;
+    byte cidSz;
     int ret;
 
     if (!wolfSSL_dtls_cid_is_enabled(ssl))
         return 0;
 
-    cidSize = Dtls13GetCidTxSize(ssl);
+    cidSz = Dtls13GetCidTxSize(ssl);
 
     /* no cid */
-    if (cidSize == 0)
+    if (cidSz == 0)
         return 0;
     *flags |= DTLS13_CID_BIT;
-    /* we know that we have at least cidSize of space */
-    ret = wolfSSL_dtls_cid_get_tx(ssl, out + *idx, cidSize);
+    /* we know that we have at least cidSz of space */
+    ret = wolfSSL_dtls_cid_get_tx(ssl, out + *idx, cidSz);
     if (ret != WOLFSSL_SUCCESS)
         return ret;
-    *idx += cidSize;
+    *idx += cidSz;
     return 0;
 }
 
