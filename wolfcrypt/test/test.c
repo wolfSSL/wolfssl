@@ -34481,7 +34481,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
     } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret < 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
-TEST_SLEEP();
+    TEST_SLEEP();
 
     XMEMSET(plain, 0, sizeof(plain));
 

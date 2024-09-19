@@ -641,8 +641,15 @@ WOLFSSL_ABI WOLFSSL_API void wc_ecc_key_free(ecc_key* key);
 
 
 /* ECC predefined curve sets  */
-extern const ecc_set_type ecc_sets[];
-extern const size_t ecc_sets_count;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    extern const ecc_set_type ecc_sets[];
+    extern const size_t ecc_sets_count;
+#else
+    WOLFSSL_API const ecc_set_type *wc_ecc_get_sets(void);
+    WOLFSSL_API size_t wc_ecc_get_sets_count(void);
+    #define ecc_sets wc_ecc_get_sets()
+    #define ecc_sets_count wc_ecc_get_sets_count()
+#endif
 
 WOLFSSL_API
 const char* wc_ecc_get_name(int curve_id);
@@ -763,7 +770,7 @@ WOLFSSL_API
 int wc_ecc_set_flags(ecc_key* key, word32 flags);
 WOLFSSL_ABI WOLFSSL_API
 void wc_ecc_fp_free(void);
-WOLFSSL_LOCAL
+WOLFSSL_API
 void wc_ecc_fp_init(void);
 WOLFSSL_API
 int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng);
