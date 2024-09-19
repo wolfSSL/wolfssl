@@ -8439,9 +8439,16 @@ void bench_rsaKeyGen(int useDeviceID)
 #elif RSA_MAX_SIZE >= 4096
     #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
         (RSA_MIN_SIZE <= 1024)
-        static const word32  keySizes[3] = {1024, 2048, 4096 };
+        static const word32  keySizes[4] = {1024, 2048, 3072, 4096 };
     #else
-        static const word32  keySizes[2] = {2048, 4096};
+        static const word32  keySizes[3] = {2048, 3072, 4096};
+    #endif
+#elif RSA_MAX_SIZE >= 3072
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[3] = {1024, 2048, 3072 };
+    #else
+        static const word32  keySizes[2] = {2048, 3072 };
     #endif
 #elif RSA_MAX_SIZE >= 2048
     #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
