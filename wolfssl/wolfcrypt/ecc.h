@@ -654,10 +654,15 @@ WOLFSSL_ABI WOLFSSL_API void wc_ecc_key_free(ecc_key* key);
 WOLFSSL_API
 const char* wc_ecc_get_name(int curve_id);
 
-#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
-    #define ECC_API    WOLFSSL_API
-#else
-    #define ECC_API    WOLFSSL_LOCAL
+#define ECC_API    WOLFSSL_API
+#ifndef WOLFSSL_PUBLIC_ECC_ADD_DBL
+    #define ecc_mul2add wc_ecc_mul2add
+    #define ecc_map wc_ecc_map
+    #define ecc_map_ex wc_ecc_map_ex
+    #define ecc_projective_add_point wc_ecc_projective_add_point
+    #define ecc_projective_dbl_point wc_ecc_projective_dbl_point
+    #define ecc_projective_add_point_safe wc_ecc_projective_add_point_safe
+    #define ecc_projective_dbl_point_safe wc_ecc_projective_dbl_point_safe
 #endif
 
 ECC_API int ecc_mul2add(ecc_point* A, mp_int* kA,
@@ -761,7 +766,7 @@ WOLFSSL_API
 int wc_ecc_init_label(ecc_key* key, const char* label, void* heap, int devId);
 #endif
 #ifdef WOLFSSL_CUSTOM_CURVES
-WOLFSSL_LOCAL
+WOLFSSL_API
 void wc_ecc_free_curve(const ecc_set_type* curve, void* heap);
 #endif
 WOLFSSL_ABI WOLFSSL_API
@@ -830,10 +835,10 @@ int wc_ecc_point_is_on_curve(ecc_point *p, int curve_idx);
 WOLFSSL_API
 int wc_ecc_mulmod(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
-ECC_API
+WOLFSSL_API
 int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map, void* heap);
-ECC_API
+WOLFSSL_API
 int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
                       mp_int* modulus, mp_int* order, WC_RNG* rng, int map,
                       void* heap);
