@@ -271,5 +271,3 @@
 
 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
 
-/* use original ASN parsing */
-#define WOLFSSL_ASN_ORIGINAL
