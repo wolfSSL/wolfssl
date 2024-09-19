@@ -329,6 +329,7 @@ void sce_test(void)
     int j = 0;
     #endif
     int i = 0;
+    int ret = 0;
 
     printf("\n Start Client Example, ");
     printf("\n Connecting to %s\n\n", SERVER_IP);
@@ -398,7 +399,8 @@ void sce_test(void)
         XMEMSET(info[i].name, 0, sizeof(info[i].name));
         XSPRINTF(info[i].name, "wolfSSL_TLS_client_do(%02d)", i);
 
-        if(wolfSSL_TLS_client_do(&info[i]) == -116) {
+        ret = wolfSSL_TLS_client_do(&info[i]);
+        if(ret == -116 || ret == -128) {
             TCP_connect_retry++;
             continue;
         }
