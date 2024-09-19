@@ -4165,7 +4165,11 @@ static int EchHashHelloInner(WOLFSSL* ssl, WOLFSSL_ECH* ech)
 {
     int ret;
     HS_Hashes* tmpHashes;
+#ifdef WOLFSSL_DTLS13
+    byte falseHeader[DTLS13_HANDSHAKE_HEADER_SZ];
+#else
     byte falseHeader[HANDSHAKE_HEADER_SZ];
+#endif
 
     if (ssl == NULL || ech == NULL)
         return BAD_FUNC_ARG;

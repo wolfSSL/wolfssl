@@ -1694,6 +1694,24 @@ typedef struct w64wrapper {
         #define PRAGMA_DIAG_POP /* null expansion */
     #endif
 
+    #define WC_CPP_CAT_(a, b) a ## b
+    #define WC_CPP_CAT(a, b) WC_CPP_CAT_(a, b)
+    #ifndef static_assert
+        #if !defined(__cplusplus) && !defined(__STRICT_ANSI__) && \
+                !defined(WOLF_C89) && ((defined(__GNUC__) &&      \
+                __GNUC__ >= 5) || defined(__clang__))
+            #define __static_assert(expr, msg, ...) _Static_assert(expr, msg)
+            #define static_assert(expr, ...) \
+                __static_assert(expr, ##__VA_ARGS__, #expr)
+        #elif defined(__STRICT_ANSI__) || defined(WOLF_C89)
+            #define static_assert(expr) \
+                struct WC_CPP_CAT(dummy_struct_, __LINE__)
+        #else
+            #define static_assert(...) \
+                struct WC_CPP_CAT(wc_dummy_struct_L, __LINE__)
+        #endif
+    #endif
+
     #ifndef SAVE_VECTOR_REGISTERS
         #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
     #endif
