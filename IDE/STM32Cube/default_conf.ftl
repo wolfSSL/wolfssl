@@ -447,7 +447,7 @@ extern ${variable.value} ${variable.name};
 #endif
 
 /* AES */
-#if defined(WOLF_CONF_AESGCM) && WOLF_CONF_AESGCM == 1
+#if defined(WOLF_CONF_AESGCM) && WOLF_CONF_AESGCM >= 1
     #define HAVE_AESGCM
     #define HAVE_AES_DECRYPT
 
