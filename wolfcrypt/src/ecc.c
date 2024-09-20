@@ -10228,23 +10228,31 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
     }
 
     if (!err && (flags & WC_ECC_FLAG_DEC_SIGN)) {
+#ifndef WOLFSSL_SMALL_STACK
+        byte sig[MAX_ECC_BYTES + WC_SHA256_DIGEST_SIZE];
+#else
         byte* sig;
+#endif
         byte* digest;
         word32 sigLen, digestLen;
         int dynRng = 0, res = 0;
 
         sigLen = (word32)wc_ecc_sig_size(key);
         digestLen = WC_SHA256_DIGEST_SIZE;
-        sig = (byte*)XMALLOC(sigLen + digestLen, NULL, DYNAMIC_TYPE_ECC);
+#ifdef WOLFSSL_SMALL_STACK
+        sig = (byte*)XMALLOC(sigLen + digestLen, key->heap, DYNAMIC_TYPE_ECC);
         if (sig == NULL)
             return MEMORY_E;
+#endif
         digest = sig + sigLen;
 
         if (rng == NULL) {
             dynRng = 1;
-            rng = wc_rng_new(NULL, 0, NULL);
+            rng = wc_rng_new(NULL, 0, key->heap);
             if (rng == NULL) {
-                XFREE(sig, NULL, DYNAMIC_TYPE_ECC);
+#ifdef WOLFSSL_SMALL_STACK
+                XFREE(sig, key->heap, DYNAMIC_TYPE_ECC);
+#endif
                 return MEMORY_E;
             }
         }
@@ -10265,7 +10273,9 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
             wc_rng_free(rng);
         }
         ForceZero(sig, sigLen + digestLen);
-        XFREE(sig, NULL, DYNAMIC_TYPE_ECC);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(sig, key->heap, DYNAMIC_TYPE_ECC);
+#endif
     }
     (void)rng;
 
