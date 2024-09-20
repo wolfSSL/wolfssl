@@ -116,7 +116,9 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/Renesas/renesas_sync.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h \
                          wolfssl/wolfcrypt/port/Renesas/renesas_tsip_types.h \
-                         wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h
+                         wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h \
+                         wolfssl/wolfcrypt/port/maxim/max3266x.h \
+                         wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h
 
 if BUILD_CRYPTOAUTHLIB
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/atmel/atmel.h

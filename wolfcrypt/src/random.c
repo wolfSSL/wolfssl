@@ -136,6 +136,8 @@ This library contains implementation for the random number generator.
 #elif defined(WOLFSSL_GETRANDOM)
     #include <errno.h>
     #include <sys/random.h>
+#elif defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -3834,6 +3836,38 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return maxq10xx_random(output, sz);
     }
+#elif defined(MAX3266X_RNG)
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        #ifdef WOLFSSL_MAX3266X
+        int status;
+        #endif /* WOLFSSL_MAX3266X */
+        static int initDone = 0;
+        (void)os;
+        if (initDone == 0) {
+            #ifdef WOLFSSL_MAX3266X
+            status = wolfSSL_HwRngMutexLock();
+            if (status != 0) {
+                return status;
+            }
+            #endif /* WOLFSSL_MAX3266X */
+            if(MXC_TRNG_HealthTest() != 0) {
+                #ifdef DEBUG_WOLFSSL
+                WOLFSSL_MSG("TRNG HW Health Test Failed");
+                #endif /* DEBUG_WOLFSSL */
+                #ifdef WOLFSSL_MAX3266X
+                wolfSSL_HwRngMutexUnLock();
+                #endif /* WOLFSSL_MAX3266X */
+                return WC_HW_E;
+            }
+            #ifdef WOLFSSL_MAX3266X
+            wolfSSL_HwRngMutexUnLock();
+            #endif /* WOLFSSL_MAX3266X */
+            initDone = 1;
+        }
+        return wc_MXC_TRNG_Random(output, sz);
+    }
+
 #elif defined(WOLFSSL_GETRANDOM)
 
     /* getrandom() was added to the Linux kernel in version 3.17.

@@ -44,6 +44,13 @@
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
+#endif
+#endif
+
 #ifdef WOLFSSL_PSOC6_CRYPTO
     #include <wolfssl/wolfcrypt/port/cypress/psoc6_crypto.h>
 #endif
@@ -248,6 +255,22 @@ int wolfCrypt_Init(void)
         if (ret != 0) {
             WOLFSSL_MSG("KSDK port init failed");
             return ret;
+        }
+    #endif
+
+    /* Crypto Callbacks only works on AES for MAX32666/5 HW */
+    #if defined(MAX3266X_AES) && defined(WOLF_CRYPTO_CB)
+        ret = wc_CryptoCb_RegisterDevice(WOLFSSL_MAX3266X_DEVID, wc_MxcCryptoCb,
+                                            NULL);
+        if(ret != 0) {
+            return ret;
+        }
+    #endif
+    #if defined(MAX3266X_RTC)
+        ret = wc_MXC_RTC_Init();
+        if (ret != 0) {
+            WOLFSSL_MSG("MXC RTC Init Failed");
+            return WC_HW_E;
         }
     #endif
 
@@ -1349,6 +1372,196 @@ int wolfSSL_CryptHwMutexUnLock(void)
 }
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
 
+
+#if WOLFSSL_CRYPT_HW_MUTEX && defined(WOLFSSL_ALGO_HW_MUTEX)
+/* Mutex for protection of cryptography hardware */
+#ifndef NO_RNG_MUTEX
+static wolfSSL_Mutex wcCryptHwRngMutex \
+                        WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wcCryptHwRngMutex);
+#endif /* NO_RNG_MUTEX */
+#ifndef NO_AES_MUTEX
+static wolfSSL_Mutex wcCryptHwAesMutex \
+                        WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wcCryptHwAesMutex);
+#endif /* NO_AES_MUTEX */
+#ifndef NO_HASH_MUTEX
+static wolfSSL_Mutex wcCryptHwHashMutex \
+                        WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wcCryptHwHashMutex);
+#endif /* NO_HASH_MUTEX */
+#ifndef NO_PK_MUTEX
+static wolfSSL_Mutex wcCryptHwPkMutex \
+                        WOLFSSL_MUTEX_INITIALIZER_CLAUSE(wcCryptHwPkMutex);
+#endif /* NO_PK_MUTEX */
+
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+#ifndef NO_RNG_MUTEX
+static int wcCryptHwRngMutexInit = 0;
+#endif /* NO_RNG_MUTEX */
+#ifndef NO_AES_MUTEX
+static int wcCryptHwAesMutexInit = 0;
+#endif /* NO_AES_MUTEX */
+#ifndef NO_HASH_MUTEX
+static int wcCryptHwHashMutexInit = 0;
+#endif /* NO_HASH_MUTEX */
+#ifndef NO_PK_MUTEX
+static int wcCryptHwPkMutexInit = 0;
+#endif /* NO_PK_MUTEX */
+#endif /* WOLFSSL_MUTEX_INITIALIZER */
+
+
+/* Allows ability to switch to different mutex based on enum type */
+/* hw_mutex_algo, expects the dereferenced Ptrs to be set to NULL */
+static int hwAlgoPtrSet(hw_mutex_algo hwAlgo, wolfSSL_Mutex** wcHwAlgoMutexPtr,
+                                int** wcHwAlgoInitPtr)
+{
+    if (*wcHwAlgoMutexPtr != NULL || *wcHwAlgoInitPtr != NULL) {
+        return BAD_FUNC_ARG;
+    }
+    switch (hwAlgo) {
+        #ifndef NO_RNG_MUTEX
+        case rng_mutex:
+            *wcHwAlgoMutexPtr = &wcCryptHwRngMutex;
+            *wcHwAlgoInitPtr = &wcCryptHwRngMutexInit;
+            break;
+        #endif
+        #ifndef NO_AES_MUTEX
+        case aes_mutex:
+            *wcHwAlgoMutexPtr = &wcCryptHwAesMutex;
+            *wcHwAlgoInitPtr = &wcCryptHwAesMutexInit;
+            break;
+        #endif
+        #ifndef NO_HASH_MUTEX
+        case hash_mutex:
+            *wcHwAlgoMutexPtr = &wcCryptHwHashMutex;
+            *wcHwAlgoInitPtr = &wcCryptHwHashMutexInit;
+            break;
+        #endif
+        #ifndef NO_PK_MUTEX
+        case pk_mutex:
+            *wcHwAlgoMutexPtr = &wcCryptHwPkMutex;
+            *wcHwAlgoInitPtr = &wcCryptHwPkMutexInit;
+            break;
+        #endif
+        default:
+            return BAD_FUNC_ARG;
+    }
+    return 0;
+}
+
+static int hwAlgoMutexInit(hw_mutex_algo hwAlgo)
+{
+    int ret = 0;
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    wolfSSL_Mutex* wcHwAlgoMutexPtr = NULL;
+    int* wcHwAlgoInitPtr = NULL;
+    ret = hwAlgoPtrSet(hwAlgo, &wcHwAlgoMutexPtr, &wcHwAlgoInitPtr);
+    if (ret != 0) {
+        return ret;
+    }
+    if (*wcHwAlgoInitPtr == 0) {
+        ret = wc_InitMutex(wcHwAlgoMutexPtr);
+        if (ret == 0) {
+            *wcHwAlgoInitPtr = 1;
+        }
+    }
+#endif
+    return ret;
+}
+
+static int hwAlgoMutexLock(hw_mutex_algo hwAlgo)
+{
+    /* Make sure HW Mutex has been initialized */
+    int ret = 0;
+    wolfSSL_Mutex* wcHwAlgoMutexPtr = NULL;
+    int* wcHwAlgoInitPtr = NULL;
+    ret = hwAlgoPtrSet(hwAlgo, &wcHwAlgoMutexPtr, &wcHwAlgoInitPtr);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = hwAlgoMutexInit(hwAlgo);
+    if (ret == 0) {
+        ret = wc_LockMutex(wcHwAlgoMutexPtr);
+    }
+    return ret;
+}
+
+static int hwAlgoMutexUnLock(hw_mutex_algo hwAlgo)
+{
+    wolfSSL_Mutex* wcHwAlgoMutexPtr = NULL;
+    int* wcHwAlgoInitPtr = NULL;
+    if (hwAlgoPtrSet(hwAlgo, &wcHwAlgoMutexPtr, &wcHwAlgoInitPtr) != 0) {
+        return BAD_FUNC_ARG;
+    }
+    if (*wcHwAlgoInitPtr) {
+        return wc_UnLockMutex(wcHwAlgoMutexPtr);
+    }
+    else {
+        return BAD_MUTEX_E;
+    }
+}
+
+/* Wrap around generic hwAlgo* functions and use correct */
+/* global mutex to determine if it can be unlocked/locked */
+#ifndef NO_RNG_MUTEX
+int wolfSSL_HwRngMutexInit(void)
+{
+    return hwAlgoMutexInit(rng_mutex);
+}
+int wolfSSL_HwRngMutexLock(void)
+{
+    return hwAlgoMutexLock(rng_mutex);
+}
+int wolfSSL_HwRngMutexUnLock(void)
+{
+    return hwAlgoMutexUnLock(rng_mutex);
+}
+#endif /* NO_RNG_MUTEX */
+
+#ifndef NO_AES_MUTEX
+int wolfSSL_HwAesMutexInit(void)
+{
+    return hwAlgoMutexInit(aes_mutex);
+}
+int wolfSSL_HwAesMutexLock(void)
+{
+    return hwAlgoMutexLock(aes_mutex);
+}
+int wolfSSL_HwAesMutexUnLock(void)
+{
+    return hwAlgoMutexUnLock(aes_mutex);
+}
+#endif /* NO_AES_MUTEX */
+
+#ifndef NO_HASH_MUTEX
+int wolfSSL_HwHashMutexInit(void)
+{
+    return hwAlgoMutexInit(hash_mutex);
+}
+int wolfSSL_HwHashMutexLock(void)
+{
+    return hwAlgoMutexLock(hash_mutex);
+}
+int wolfSSL_HwHashMutexUnLock(void)
+{
+    return hwAlgoMutexUnLock(hash_mutex);
+}
+#endif /* NO_HASH_MUTEX */
+
+#ifndef NO_PK_MUTEX
+int wolfSSL_HwPkMutexInit(void)
+{
+    return hwAlgoMutexInit(pk_mutex);
+}
+int wolfSSL_HwPkMutexLock(void)
+{
+    return hwAlgoMutexLock(pk_mutex);
+}
+int wolfSSL_HwPkMutexUnLock(void)
+{
+    return hwAlgoMutexUnLock(pk_mutex);
+}
+#endif /* NO_PK_MUTEX */
+
+#endif /* WOLFSSL_CRYPT_HW_MUTEX && defined(WOLFSSL_ALGO_HW_MUTEX) */
 
 /* ---------------------------------------------------------------------------*/
 /* Mutex Ports */
@@ -3149,6 +3362,9 @@ time_t mqx_time(time_t* timer)
 
 #endif /* FREESCALE_MQX || FREESCALE_KSDK_MQX */
 
+#if defined(MAX3266X_RTC)
+    #define XTIME wc_MXC_RTC_Time
+#endif
 
 #if defined(WOLFSSL_TIRTOS) && defined(USER_TIME)
 

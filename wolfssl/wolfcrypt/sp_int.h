@@ -1150,27 +1150,22 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 #define mp_div_2                            sp_div_2
 #define mp_add                              sp_add
 #define mp_sub                              sp_sub
-#define mp_addmod                           sp_addmod
-#define mp_submod                           sp_submod
+
 #define mp_addmod_ct                        sp_addmod_ct
 #define mp_submod_ct                        sp_submod_ct
 #define mp_xor_ct                           sp_xor_ct
 #define mp_lshd                             sp_lshd
 #define mp_rshd                             sp_rshd
 #define mp_div                              sp_div
-#define mp_mod                              sp_mod
 #define mp_mul                              sp_mul
-#define mp_mulmod                           sp_mulmod
 #define mp_invmod                           sp_invmod
 #define mp_invmod_mont_ct                   sp_invmod_mont_ct
 #define mp_exptmod_ex                       sp_exptmod_ex
-#define mp_exptmod                          sp_exptmod
 #define mp_exptmod_nct                      sp_exptmod_nct
 #define mp_div_2d                           sp_div_2d
 #define mp_mod_2d                           sp_mod_2d
 #define mp_mul_2d                           sp_mul_2d
 #define mp_sqr                              sp_sqr
-#define mp_sqrmod                           sp_sqrmod
 
 #define mp_unsigned_bin_size                sp_unsigned_bin_size
 #define mp_read_unsigned_bin                sp_read_unsigned_bin
@@ -1192,6 +1187,17 @@ WOLFSSL_LOCAL void sp_memzero_check(sp_int* sp);
 
 #define mp_memzero_add                      sp_memzero_add
 #define mp_memzero_check                    sp_memzero_check
+
+/* Allow for Hardware Based Mod Math */
+/* Avoid redeclaration warnings */
+#ifndef WOLFSSL_USE_HW_MP
+    #define mp_mod                              sp_mod
+    #define mp_addmod                           sp_addmod
+    #define mp_submod                           sp_submod
+    #define mp_mulmod                           sp_mulmod
+    #define mp_exptmod                          sp_exptmod
+    #define mp_sqrmod                           sp_sqrmod
+#endif
 
 #ifdef WOLFSSL_DEBUG_MATH
 #define mp_dump(d, a, v)                    sp_print(a, d)

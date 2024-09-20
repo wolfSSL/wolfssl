@@ -57,6 +57,10 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
 #if defined(FREESCALE_MMCAU_SHA)
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
         #include "cau_api.h"
@@ -1513,25 +1517,44 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
 int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
 {
+    int ret = 0;
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
+    ret = InitSha256(sha256);
+    if (ret != 0)
+        return ret;
 
     sha256->heap = heap;
 #ifdef WOLF_CRYPTO_CB
     sha256->devId = devId;
+    sha256->devCtx = NULL;
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Init(&(sha256->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
 #endif
     (void)devId;
-
-    return InitSha256(sha256);
+    return ret;
 }
 
 int wc_InitSha256(wc_Sha256* sha256)
 {
-    return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
+    int devId = INVALID_DEVID;
+
+#ifdef WOLF_CRYPTO_CB
+    devId = wc_CryptoCb_DefaultDevID();
+#endif
+    return wc_InitSha256_ex(sha256, NULL, devId);
 }
 
 void wc_Sha256Free(wc_Sha256* sha256)
 {
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha256->mxcCtx));
+#endif
     (void)sha256;
 }
 
@@ -1540,6 +1563,18 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     if (sha256 == NULL || (data == NULL && len != 0)) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha256->devId != INVALID_DEVID)
+    #endif
+    {
+        int ret = wc_CryptoCb_Sha256Hash(sha256, data, len, NULL);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     return Sha256Update(sha256, data, len);
 }
@@ -1572,6 +1607,18 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     if (sha256 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (sha256->devId != INVALID_DEVID)
+    #endif
+    {
+        ret = wc_CryptoCb_Sha256Hash(sha256, NULL, 0, hash);
+        if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     ret = Sha256Final(sha256, hash);
     if (ret != 0)
@@ -1620,6 +1667,13 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
+#endif
 
     return ret;
 }
