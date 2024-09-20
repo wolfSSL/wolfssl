@@ -51,10 +51,11 @@
 /* Use SHA3-512 to generate 64-bytes of hash. */
 #define KYBER_HASH_G            kyber_hash512
 /* Use SHAKE-256 as a key derivation function (KDF). */
-#ifdef USE_INTEL_SPEEDUP
-#define KYBER_KDF               kyber_kdf
+#if defined(USE_INTEL_SPEEDUP) || \
+        (defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+    #define KYBER_KDF               kyber_kdf
 #else
-#define KYBER_KDF               wc_Shake256Hash
+    #define KYBER_KDF               wc_Shake256Hash
 #endif
 
 /******************************************************************************/
