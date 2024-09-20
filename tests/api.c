@@ -94164,10 +94164,10 @@ static int test_dtls13_basic_connection_id(void)
     size_t i;
 
     /* We check if the side included the CID in their output */
-#define CLIENT_CID() XMEMMEM(test_ctx.s_buff, test_ctx.s_len, \
-                             client_cid, sizeof(client_cid))
-#define SERVER_CID() XMEMMEM(test_ctx.c_buff, test_ctx.c_len, \
-                             server_cid, sizeof(server_cid))
+#define CLIENT_CID() mymemmem(test_ctx.s_buff, test_ctx.s_len, \
+                              client_cid, sizeof(client_cid))
+#define SERVER_CID() mymemmem(test_ctx.c_buff, test_ctx.c_len, \
+                              server_cid, sizeof(server_cid))
 
     printf("\n");
     for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
