@@ -1257,7 +1257,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         /* use user-supplied XFENCE definition. */
     #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
         #include <stdatomic.h>
-        #define XFENCE() atomic_thread_fence(__ATOMIC_SEQ_CST)
+        #define XFENCE() atomic_thread_fence(memory_order_seq_cst)
     #elif defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC__ < 5)
         #define XFENCE() __sync_synchronize()
     #elif (defined(__GNUC__) && (__GNUC__ >= 5)) || defined (__clang__)
