@@ -10135,9 +10135,8 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
 #endif /* WOLFSSL_DTLS13 */
         } else {
 #ifdef WOLFSSL_DTLS_CID
-            unsigned int cidSz = 0;
-            if (IsEncryptionOn(ssl, 1) &&
-                wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz) == WOLFSSL_SUCCESS) {
+            byte cidSz = DtlsGetCidTxSize(ssl);
+            if (IsEncryptionOn(ssl, 1) && cidSz > 0) {
                 adj += cidSz;
                 sz  -= cidSz + 1; /* +1 to not hash the real content type */
             }
@@ -10225,9 +10224,8 @@ static void AddRecordHeader(byte* output, word32 length, byte type,
         /* dtls record layer header extensions */
         DtlsRecordLayerHeader* dtls = (DtlsRecordLayerHeader*)output;
 #ifdef WOLFSSL_DTLS_CID
-        unsigned int cidSz = 0;
-        if (type == dtls12_cid &&
-                wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz) == WOLFSSL_SUCCESS) {
+        byte cidSz = 0;
+        if (type == dtls12_cid && (cidSz = DtlsGetCidTxSize(ssl)) > 0) {
             wolfSSL_dtls_cid_get_tx(ssl, output + DTLS12_CID_OFFSET, cidSz);
             c16toa((word16)length, output + DTLS12_CID_OFFSET + cidSz);
         }
@@ -11343,8 +11341,8 @@ static int GetDtls13RecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     RecordLayerHeader* rh, word16* size)
 {
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-    unsigned int cidSz = 0;
+#ifdef WOLFSSL_DTLS_CID
+    byte cidSz = 0;
 #endif
 
 #ifdef HAVE_FUZZER
@@ -11399,10 +11397,8 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     *inOutIdx += ENUM_LEN + VERSION_SZ;
     ato16(ssl->buffers.inputBuffer.buffer + *inOutIdx, &ssl->keys.curEpoch);
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-    if (rh->type == dtls12_cid &&
-            (wolfSSL_dtls_cid_get_rx_size(ssl, &cidSz) != WOLFSSL_SUCCESS ||
-                    cidSz == 0))
+#ifdef WOLFSSL_DTLS_CID
+    if (rh->type == dtls12_cid && (cidSz = DtlsGetCidRxSize(ssl)) == 0)
         return DTLS_CID_ERROR;
 #endif
 
@@ -11437,10 +11433,11 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
     ssl->keys.curSeq = w64From32(ssl->keys.curSeq_hi, ssl->keys.curSeq_lo);
 #endif /* WOLFSSL_DTLS13 */
 
-#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#ifdef WOLFSSL_DTLS_CID
     if (rh->type == dtls12_cid) {
         byte cid[DTLS_CID_MAX_SIZE];
-        if (ssl->buffers.inputBuffer.length - *inOutIdx < cidSz + LENGTH_SZ)
+        if (ssl->buffers.inputBuffer.length - *inOutIdx <
+                (word32)cidSz + LENGTH_SZ)
             return LENGTH_ERROR;
         if (cidSz > DTLS_CID_MAX_SIZE ||
                 wolfSSL_dtls_cid_get_rx(ssl, cid, cidSz) != WOLFSSL_SUCCESS)
@@ -18927,9 +18924,9 @@ typedef int (*Sm4AuthDecryptFunc)(wc_Sm4* sm4, byte* out, const byte* in,
 #endif
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-#define TLS_AEAD_CID_SZ(s, dec, c) \
-                ((dec) ? wolfSSL_dtls_cid_get_rx_size((s), (c)) \
-                       : wolfSSL_dtls_cid_get_tx_size((s), (c)))
+#define TLS_AEAD_CID_SZ(s, dec) \
+                ((dec) ? DtlsGetCidRxSize((s)) \
+                       : DtlsGetCidTxSize((s)))
 #define TLS_AEAD_CID(s, dec, b, c) \
                 ((dec) ? wolfSSL_dtls_cid_get_rx((s), (b), (c)) \
                        : wolfSSL_dtls_cid_get_tx((s), (b), (c)))
@@ -18941,17 +18938,16 @@ typedef int (*Sm4AuthDecryptFunc)(wc_Sm4* sm4, byte* out, const byte* in,
  * @param type          Record content type
  * @param additional    AAD output buffer. Assumed AEAD_AUTH_DATA_SZ length.
  * @param dec           Are we decrypting
- * @return > 0          length of auth data
- *         <=0          error
+ * @return >= 0         length of auth data
+ *         < 0          error
  */
 int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
         byte* additional, byte dec, byte** seq, int verifyOrder)
 {
     word32 idx = 0;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-    unsigned int cidSz = 0;
-    if (ssl->options.dtls &&
-            TLS_AEAD_CID_SZ(ssl, dec, &cidSz) == WOLFSSL_SUCCESS) {
+    byte cidSz = 0;
+    if (ssl->options.dtls && (cidSz = TLS_AEAD_CID_SZ(ssl, dec)) > 0) {
         if (cidSz > DTLS_CID_MAX_SIZE) {
             WOLFSSL_MSG("DTLS CID too large");
             return DTLS_CID_ERROR;
@@ -18960,7 +18956,7 @@ int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
         XMEMSET(additional + idx, 0xFF, SEQ_SZ);
         idx += SEQ_SZ;
         additional[idx++] = dtls12_cid;
-        additional[idx++] = (byte)cidSz;
+        additional[idx++] = cidSz;
         additional[idx++] = dtls12_cid;
         additional[idx++] = dec ? ssl->curRL.pvMajor : ssl->version.major;
         additional[idx++] = dec ? ssl->curRL.pvMinor : ssl->version.minor;
@@ -18968,7 +18964,7 @@ int writeAeadAuthData(WOLFSSL* ssl, word16 sz, byte type,
         if (seq != NULL)
             *seq = additional + idx;
         idx += SEQ_SZ;
-        if (TLS_AEAD_CID(ssl, dec, additional + idx, cidSz)
+        if (TLS_AEAD_CID(ssl, dec, additional + idx, (unsigned int)cidSz)
                 == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
             WOLFSSL_MSG("DTLS CID write failed");
             return DTLS_CID_ERROR;
@@ -21785,8 +21781,6 @@ default:
             }
        #if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
             if (IsEncryptionOn(ssl, 0) && ssl->options.startedETMRead) {
-                /* For TLS v1.1 the block size and explicit IV are added to idx,
-                 * so it needs to be included in this limit check */
                 if ((ssl->curSize - ssl->keys.padSz > MAX_PLAINTEXT_SZ)
 #ifdef WOLFSSL_ASYNC_CRYPT
                         && ssl->buffers.inputBuffer.length !=
@@ -21804,8 +21798,6 @@ default:
             else
        #endif
             /* TLS13 plaintext limit is checked earlier before decryption */
-            /* For TLS v1.1 the block size and explicit IV are added to idx,
-             * so it needs to be included in this limit check */
             if (!IsAtLeastTLSv1_3(ssl->version)
                     && ssl->curSize - ssl->keys.padSz > MAX_PLAINTEXT_SZ
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -22816,9 +22808,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 args->headerSz += DTLS_RECORD_EXTRA;
         #ifdef WOLFSSL_DTLS_CID
                 if (ssl->options.dtls) {
-                    unsigned int cidSz = 0;
-                    if (wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz)
-                            == WOLFSSL_SUCCESS) {
+                    byte cidSz = 0;
+                    if ((cidSz = DtlsGetCidTxSize(ssl)) > 0) {
                         args->sz       += cidSz;
                         args->idx      += cidSz;
                         args->headerSz += cidSz;
@@ -22909,8 +22900,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             args->size = (word16)(args->sz - args->headerSz);    /* include mac and digest */
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-            if (ssl->options.dtls &&
-                    wolfSSL_dtls_cid_get_tx_size(ssl, NULL) == WOLFSSL_SUCCESS)
+            if (ssl->options.dtls && DtlsGetCidTxSize(ssl) > 0)
                 args->type = dtls12_cid;
 #endif
             AddRecordHeader(output, args->size, args->type, ssl, epochOrder);
@@ -22924,8 +22914,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             XMEMCPY(output + args->idx, input, inSz);
             args->idx += (word32)inSz;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-            if (ssl->options.dtls &&
-                   wolfSSL_dtls_cid_get_tx_size(ssl, NULL) == WOLFSSL_SUCCESS) {
+            if (ssl->options.dtls && DtlsGetCidTxSize(ssl) > 0) {
                 output[args->idx++] = (byte)type; /* type goes after input */
                 inSz++;
             }
@@ -23238,8 +23227,8 @@ int SendFinished(WOLFSSL* ssl)
     outputSz = sizeof(input) + MAX_MSG_EXTRA;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
     if (ssl->options.dtls) {
-        unsigned int cidSz = 0;
-        if (wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz) == WOLFSSL_SUCCESS)
+        byte cidSz = 0;
+        if ((cidSz = DtlsGetCidTxSize(ssl)) > 0)
             outputSz += cidSz + 1; /* +1 for inner content type */
     }
 #endif
@@ -23549,8 +23538,8 @@ int cipherExtraData(WOLFSSL* ssl)
     /* Add space needed for the CID */
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
     if (ssl->options.dtls) {
-        unsigned int cidSz = 0;
-        if (wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz) == WOLFSSL_SUCCESS)
+        byte cidSz = 0;
+        if ((cidSz = DtlsGetCidTxSize(ssl)) > 0)
             cipherExtra += cidSz + 1; /* +1 for inner content type */
     }
 #endif
@@ -24757,8 +24746,8 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
         if (ssl->options.dtls) {
-            unsigned int cidSz = 0;
-            if (wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz) == WOLFSSL_SUCCESS)
+            byte cidSz = 0;
+            if ((cidSz = DtlsGetCidTxSize(ssl)) > 0)
                 outputSz += cidSz + 1; /* +1 for inner content type */
         }
 #endif

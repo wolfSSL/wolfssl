@@ -762,8 +762,7 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
 
     if (content == dtls12_cid
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-       || (ssl->options.dtls &&
-            wolfSSL_dtls_cid_get_tx_size(ssl, NULL) == WOLFSSL_SUCCESS)
+       || (ssl->options.dtls && DtlsGetCidTxSize(ssl) > 0)
 #endif
     ) {
         WOLFSSL_MSG("wolfSSL_SetTlsHmacInner doesn't support CID");
@@ -915,6 +914,7 @@ static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
         if (ret == 0)
             ret = wc_HashFinal(&hash, hashType, mac);
     }
+    wc_HashFree(&hash, hashType);
 
     return ret;
 }
@@ -1221,9 +1221,9 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
 #endif
 
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-#define TLS_HMAC_CID_SZ(s, v, c) \
-                ((v) ? wolfSSL_dtls_cid_get_rx_size((s), (c)) \
-                     : wolfSSL_dtls_cid_get_tx_size((s), (c)))
+#define TLS_HMAC_CID_SZ(s, v) \
+                ((v) ? DtlsGetCidRxSize((s)) \
+                     : DtlsGetCidTxSize((s)))
 #define TLS_HMAC_CID(s, v, b, c) \
                 ((v) ? wolfSSL_dtls_cid_get_rx((s), (b), (c)) \
                      : wolfSSL_dtls_cid_get_tx((s), (b), (c)))
@@ -1234,8 +1234,7 @@ static int TLS_hmac_SetInner(WOLFSSL* ssl, byte* inner, word32* innerSz,
 {
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
     unsigned int cidSz = 0;
-    if (ssl->options.dtls &&
-            TLS_HMAC_CID_SZ(ssl, verify, &cidSz) == WOLFSSL_SUCCESS) {
+    if (ssl->options.dtls && (cidSz = TLS_HMAC_CID_SZ(ssl, verify)) > 0) {
         word32 idx = 0;
         if (cidSz > DTLS_CID_MAX_SIZE) {
             WOLFSSL_MSG("DTLS CID too large");

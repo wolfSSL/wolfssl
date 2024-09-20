@@ -1063,7 +1063,7 @@ static int DtlsCidGetSize(WOLFSSL* ssl, unsigned int* size, int rx)
     ConnectionID* id;
     CIDInfo* info;
 
-    if (ssl == NULL)
+    if (ssl == NULL || size == NULL)
         return BAD_FUNC_ARG;
 
     info = DtlsCidGetInfo(ssl);
@@ -1071,14 +1071,12 @@ static int DtlsCidGetSize(WOLFSSL* ssl, unsigned int* size, int rx)
         return WOLFSSL_FAILURE;
 
     id = rx ? info->rx : info->tx;
-    if (id == NULL || id->length == 0) {
-        if (size != NULL)
-            *size = 0;
-        return WOLFSSL_FAILURE;
+    if (id == NULL) {
+        *size = 0;
+        return WOLFSSL_SUCCESS;
     }
 
-    if (size != NULL)
-        *size = id->length;
+    *size = id->length;
     return WOLFSSL_SUCCESS;
 }
 
@@ -1234,24 +1232,6 @@ int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         }
     }
 
-    info = DtlsCidGetInfo(ssl);
-    if (info == NULL)
-        return BAD_STATE_E;
-
-    /* it may happen if we process two ClientHello because the server sent an
-     * HRR/HVR request */
-    if (info->tx != NULL) {
-        if (ssl->options.side != WOLFSSL_SERVER_END &&
-            ssl->options.serverState != SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
-            !IsSCR(ssl))
-            return BAD_STATE_E;
-
-        if (!info->negotiated) {
-            XFREE(info->tx, ssl->heap, DYNAMIC_TYPE_TLSX);
-            info->tx = NULL;
-        }
-    }
-
     if (length < OPAQUE8_LEN)
         return BUFFER_ERROR;
 
@@ -1259,21 +1239,35 @@ int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     if (cidSz + OPAQUE8_LEN > length)
         return BUFFER_ERROR;
 
-    if (cidSz > 0) {
-        if (!info->negotiated) {
-            ConnectionID* id = (ConnectionID*)XMALLOC(sizeof(*id) + cidSz,
-                    ssl->heap, DYNAMIC_TYPE_TLSX);
-            if (id == NULL)
-                return MEMORY_ERROR;
-            XMEMCPY(id->id, input + OPAQUE8_LEN, cidSz);
-            id->length = cidSz;
-            info->tx = id;
-        }
-        else {
-            /* For now we don't support changing the CID on a rehandshake */
-            if (XMEMCMP(info->tx->id, input + OPAQUE8_LEN, cidSz) != 0)
-                return DTLS_CID_ERROR;
-        }
+    info = DtlsCidGetInfo(ssl);
+    if (info == NULL)
+        return BAD_STATE_E;
+
+    /* it may happen if we process two ClientHello because the server sent an
+     * HRR/HVR request */
+    if (info->tx != NULL || info->negotiated) {
+        if (ssl->options.side != WOLFSSL_SERVER_END &&
+            ssl->options.serverState != SERVER_HELLO_RETRY_REQUEST_COMPLETE &&
+            !IsSCR(ssl))
+            return BAD_STATE_E;
+
+        /* Should not be null if negotiated */
+        if (info->tx == NULL)
+            return BAD_STATE_E;
+
+        /* For now we don't support changing the CID on a rehandshake */
+        if (cidSz != info->tx->length ||
+                XMEMCMP(info->tx->id, input + OPAQUE8_LEN, cidSz) != 0)
+            return DTLS_CID_ERROR;
+    }
+    else if (cidSz > 0) {
+        ConnectionID* id = (ConnectionID*)XMALLOC(sizeof(*id) + cidSz,
+                ssl->heap, DYNAMIC_TYPE_TLSX);
+        if (id == NULL)
+            return MEMORY_ERROR;
+        XMEMCPY(id->id, input + OPAQUE8_LEN, cidSz);
+        id->length = cidSz;
+        info->tx = id;
     }
 
     info->negotiated = 1;
@@ -1382,8 +1376,38 @@ int wolfSSL_dtls_cid_max_size(void)
 {
     return DTLS_CID_MAX_SIZE;
 }
-
 #endif /* WOLFSSL_DTLS_CID */
+
+byte DtlsGetCidTxSize(WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_DTLS_CID
+    unsigned int cidSz;
+    int ret;
+    ret = wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz);
+    if (ret != WOLFSSL_SUCCESS)
+        return 0;
+    return (byte)cidSz;
+#else
+    (void)ssl;
+    return 0;
+#endif
+}
+
+byte DtlsGetCidRxSize(WOLFSSL* ssl)
+{
+#ifdef WOLFSSL_DTLS_CID
+    unsigned int cidSz;
+    int ret;
+    ret = wolfSSL_dtls_cid_get_rx_size(ssl, &cidSz);
+    if (ret != WOLFSSL_SUCCESS)
+        return 0;
+    return (byte)cidSz;
+#else
+    (void)ssl;
+    return 0;
+#endif
+}
+
 #endif /* WOLFSSL_DTLS */
 
 #endif /* WOLFCRYPT_ONLY */

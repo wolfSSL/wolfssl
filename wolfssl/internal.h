@@ -3694,6 +3694,8 @@ WOLFSSL_LOCAL void DtlsCIDOnExtensionsParsed(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input,
     word16 inputSize);
 #endif /* WOLFSSL_DTLS_CID */
+WOLFSSL_LOCAL byte DtlsGetCidTxSize(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsGetCidRxSize(WOLFSSL* ssl);
 
 #ifdef OPENSSL_EXTRA
 enum SetCBIO {
@@ -7013,7 +7015,7 @@ WOLFSSL_LOCAL int tlsShowSecrets(WOLFSSL* ssl, void* secret,
 /* Optional Pre-Master-Secret logging for Wireshark */
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_SSLKEYLOGFILE)
 #ifndef WOLFSSL_SSLKEYLOGFILE_OUTPUT
-    #define WOLFSSL_SSLKEYLOGFILE_OUTPUT "/tmp/secrets"
+    #define WOLFSSL_SSLKEYLOGFILE_OUTPUT "sslkeylog.log"
 #endif
 #endif
 
