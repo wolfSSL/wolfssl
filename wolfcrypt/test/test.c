@@ -810,10 +810,16 @@ static void render_error_message(const char* msg, wc_test_ret_t es)
 #ifdef NO_ERROR_STRINGS
         err_sys_printf("%s error L=%d code=%d\n", msg,
                        WC_TEST_RET_DEC_LN(es), -WC_TEST_RET_DEC_I(es));
+#elif defined(WOLFCRYPT_ONLY) || !defined(WOLFSSL_TYPES_DEFINED)
+        err_sys_printf("%s error L=%d code=%d (%s)\n", msg,
+                       WC_TEST_RET_DEC_LN(es), -WC_TEST_RET_DEC_I(es),
+                       wc_GetErrorString(-WC_TEST_RET_DEC_I(es))
+            );
 #else
         err_sys_printf("%s error L=%d code=%d (%s)\n", msg,
                        WC_TEST_RET_DEC_LN(es), -WC_TEST_RET_DEC_I(es),
-                       wc_GetErrorString(-WC_TEST_RET_DEC_I(es)));
+                       wolfSSL_ERR_reason_error_string(-WC_TEST_RET_DEC_I(es))
+            );
 #endif
         break;
     case WC_TEST_RET_TAG_ERRNO:
@@ -29327,7 +29333,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
                 0xA8
     };
 #endif
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     WOLFSSL_SMALL_STACK_STATIC const byte expSig384[] = {
         0x30, 0x44, /* CONSTRUCTED SEQUENCE: (0x20 | 0x10) = 68 bytes */
             0x02, 0x20, /* ASN_INTEGER = 0x02 (32 bytes) - SIG R */
@@ -29342,7 +29348,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
                 0x26, 0x1f, 0x13, 0xab, 0xde, 0x94, 0x09, 0x54
     };
 #endif
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     WOLFSSL_SMALL_STACK_STATIC const byte expSig512[] = {
         0x30, 0x45, /* CONSTRUCTED SEQUENCE: (0x20 | 0x10) = 68 bytes */
             0x02, 0x21, /* ASN_INTEGER = 0x02 (32 bytes) - SIG R */
@@ -29385,7 +29391,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif /* !NO_SHA256 */
 
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     /* Test for SHA2-384 */
     ret = ecdsa_test_deterministic_k_sig(key, WC_HASH_TYPE_SHA384, msg, rng,
         expSig384, sizeof(expSig384));
@@ -29393,7 +29399,7 @@ static wc_test_ret_t ecc_test_deterministic_k(WC_RNG* rng)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 #endif /* WOLFSSL_SHA384 */
 
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     /* Test for SHA2-512 */
     ret = ecdsa_test_deterministic_k_sig(key, WC_HASH_TYPE_SHA512, msg, rng,
         expSig512, sizeof(expSig512));
@@ -29491,7 +29497,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
        "F3AA443FB107745BF4BD77CB3891674632068A10CA67E3D45DB2266FA7D1FEEB"
        "EFDC63ECCD1AC42EC0CB8668A4FA0AB0";
 #endif
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     WOLFSSL_SMALL_STACK_STATIC const char* expRstr384 =
         "94EDBB92A5ECB8AAD4736E56C691916B3F88140666CE9FA73D64C4EA95AD133C"
         "81A648152E44ACF96E36DD1E80FABE46";
@@ -29499,7 +29505,7 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
         "99EF4AEB15F178CEA1FE40DB2603138F130E740A19624526203B6351D0A3A94F"
         "A329C145786E679E7B82C71A38628AC8";
 #endif
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     WOLFSSL_SMALL_STACK_STATIC const char* expRstr512 =
         "ED0959D5880AB2D869AE7F6C2915C6D60F96507F9CB3E047C0046861DA4A799C"
         "FE30F35CC900056D7C99CD7882433709";
@@ -29549,27 +29555,27 @@ static wc_test_ret_t ecc384_test_deterministic_k(WC_RNG* rng)
     ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA256, msg, rng,
         r, s, expR, expS);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif /* NO_SHA256 */
 
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     /* Test for SHA2-384 */
     mp_read_radix(expR, expRstr384, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr384, MP_RADIX_HEX);
     ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA384, msg, rng,
         r, s, expR, expS);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif /* WOLFSSL_SHA384 */
 
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     /* Test for SHA2-512 */
     mp_read_radix(expR, expRstr512, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr512, MP_RADIX_HEX);
     ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA512, msg, rng,
         r, s, expR, expS);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif /* WOLFSSL_SHA512 */
 
 done:
@@ -29630,7 +29636,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
         "E4F7A72930B1BC06DBE22CE3F58264AFD23704CBB63B29B931F7DE6C9D949A7E"
         "CFC";
 #endif
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     WOLFSSL_SMALL_STACK_STATIC const char* expRstr384 =
         "1EA842A0E17D2DE4F92C15315C63DDF72685C18195C2BB95E572B9C5136CA4B4"
         "B576AD712A52BE9730627D16054BA40CC0B8D3FF035B12AE75168397F5D50C67"
@@ -29640,7 +29646,7 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
         "FDE143FA85DC394A7DEE766523393784484BDF3E00114A1C857CDE1AA203DB65"
         "D61";
 #endif
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     WOLFSSL_SMALL_STACK_STATIC const char* expRstr512 =
         "0C328FAFCBD79DD77850370C46325D987CB525569FB63C5D3BC53950E6D4C5F1"
         "74E25A1EE9017B5D450606ADD152B534931D7D4E8455CC91F9B15BF05EC36E37"
@@ -29693,27 +29699,27 @@ static wc_test_ret_t ecc521_test_deterministic_k(WC_RNG* rng)
     ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA256, msg, rng,
         r, s, expR, expS);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif /* NO_SHA256 */
 
-#ifdef WOLFSSL_SHA384
+#if defined(WOLFSSL_SHA384) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     /* Test for SHA2-384 */
     mp_read_radix(expR, expRstr384, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr384, MP_RADIX_HEX);
     ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA384, msg, rng,
         r, s, expR, expS);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif /* WOLFSSL_SHA384 */
 
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) && (!defined(HAVE_FIPS) || FIPS_VERSION_GE(6,0))
     /* Test for SHA2-512 */
     mp_read_radix(expR, expRstr512, MP_RADIX_HEX);
     mp_read_radix(expS, expSstr512, MP_RADIX_HEX);
     ret = ecdsa_test_deterministic_k_rs(key, WC_HASH_TYPE_SHA512, msg, rng,
         r, s, expR, expS);
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
+        ERROR_OUT(ret, done);
 #endif /* WOLFSSL_SHA512 */
 
 done:
@@ -48821,7 +48827,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
 
         XMEMSET(tag, 0, sizeof(tag));
         tagSz = sizeof(tag);
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0)
         ret = wc_AesCmacGenerate_ex(cmac, tag, &tagSz, tc->m, tc->mSz,
                                tc->k, tc->kSz, NULL, devId);
 #else
@@ -48832,7 +48838,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(tag, tc->t, AES_BLOCK_SIZE) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0)
         ret = wc_AesCmacVerify_ex(cmac, tc->t, tc->tSz, tc->m, tc->mSz,
                              tc->k, tc->kSz, HEAP_HINT, devId);
 #else
@@ -48842,7 +48848,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t cmac_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)
+#if !defined(HAVE_FIPS) || FIPS_VERSION_GE(6, 0)
         /* Test that keyless generate with init is the same */
         XMEMSET(tag, 0, sizeof(tag));
         tagSz = sizeof(tag);

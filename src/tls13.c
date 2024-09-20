@@ -221,7 +221,7 @@ static int Tls13HKDFExpandLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
 #endif
     (void)ssl;
     PRIVATE_KEY_UNLOCK();
-#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
     ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
                                      protocol, protocolLen,
                                      label, labelLen,
@@ -261,7 +261,7 @@ static int Tls13HKDFExpandKeyLabel(WOLFSSL* ssl, byte* okm, word32 okmLen,
         return ret;
 #endif
 
-#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+#if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
     ret = wc_Tls13_HKDF_Expand_Label_ex(okm, okmLen, prk, prkLen,
                                       protocol, protocolLen,
                                       label, labelLen,
@@ -1137,7 +1137,7 @@ static int Tls13_HKDF_Extract(WOLFSSL *ssl, byte* prk, const byte* salt,
 #endif
     {
     #if !defined(HAVE_FIPS) || \
-        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
         ret = wc_Tls13_HKDF_Extract_ex(prk, salt, (word32)saltLen, ikm, (word32)ikmLen, digest,
             ssl->heap, ssl->devId);
     #else
@@ -4840,7 +4840,7 @@ static int EchCheckAcceptance(WOLFSSL* ssl, const byte* input,
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
     #if !defined(HAVE_FIPS) || \
-        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
         ret = wc_HKDF_Extract_ex(digestType, zeros, (word32)digestSize,
             ssl->arrays->clientRandomInner, RAN_LEN, expandLabelPrk,
             ssl->heap, ssl->devId);
@@ -4978,7 +4978,7 @@ static int EchWriteAcceptance(WOLFSSL* ssl, byte* output,
     if (ret == 0) {
         PRIVATE_KEY_UNLOCK();
     #if !defined(HAVE_FIPS) || \
-        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
+        (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0))
         ret = wc_HKDF_Extract_ex(digestType, zeros, (word32)digestSize,
             ssl->arrays->clientRandom, RAN_LEN, expandLabelPrk,
             ssl->heap, ssl->devId);
