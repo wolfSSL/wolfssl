@@ -11,7 +11,7 @@
             </toolchain>
         </configuration>
         <platform id="R5F565NEHxFP"/>
-        <option id="board" value="GR-ROSE-RX65N (v1.02)"/>
+        <option id="board" value="GR-ROSE-RX65N (V1.03)"/>
     </general>
     <tool id="Clock">
         <option enabled="true" id="vccinput" selection="textinputitem">
