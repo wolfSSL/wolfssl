@@ -438,9 +438,9 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
        however it's recommended to call this directly on Hw init to avoid possible
        race condition where two calls to wolfSSL_CryptHwMutexLock are made at
        the same time. */
-    int wolfSSL_CryptHwMutexInit(void);
-    int wolfSSL_CryptHwMutexLock(void);
-    int wolfSSL_CryptHwMutexUnLock(void);
+    WOLFSSL_LOCAL int wolfSSL_CryptHwMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_CryptHwMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_CryptHwMutexUnLock(void);
 #else
     /* Define stubs, since HW mutex is disabled */
     #define wolfSSL_CryptHwMutexInit()      0 /* Success */
@@ -474,9 +474,9 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
 /* to using the generic wolfSSL_CryptHwMutex */
 #if (!defined(NO_RNG_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
     WOLFSSL_CRYPT_HW_MUTEX
-    int wolfSSL_HwRngMutexInit(void);
-    int wolfSSL_HwRngMutexLock(void);
-    int wolfSSL_HwRngMutexUnLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwRngMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwRngMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwRngMutexUnLock(void);
 #else
     #define wolfSSL_HwRngMutexInit    wolfSSL_CryptHwMutexInit
     #define wolfSSL_HwRngMutexLock    wolfSSL_CryptHwMutexLock
@@ -485,9 +485,9 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
 
 #if (!defined(NO_AES_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
     WOLFSSL_CRYPT_HW_MUTEX
-    int wolfSSL_HwAesMutexInit(void);
-    int wolfSSL_HwAesMutexLock(void);
-    int wolfSSL_HwAesMutexUnLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwAesMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwAesMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwAesMutexUnLock(void);
 #else
     #define wolfSSL_HwAesMutexInit    wolfSSL_CryptHwMutexInit
     #define wolfSSL_HwAesMutexLock    wolfSSL_CryptHwMutexLock
@@ -496,9 +496,9 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
 
 #if (!defined(NO_HASH_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
     WOLFSSL_CRYPT_HW_MUTEX
-    int wolfSSL_HwHashMutexInit(void);
-    int wolfSSL_HwHashMutexLock(void);
-    int wolfSSL_HwHashMutexUnLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwHashMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwHashMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwHashMutexUnLock(void);
 #else
     #define wolfSSL_HwHashMutexInit   wolfSSL_CryptHwMutexInit
     #define wolfSSL_HwHashMutexLock   wolfSSL_CryptHwMutexLock
@@ -507,9 +507,9 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
 
 #if (!defined(NO_PK_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
     WOLFSSL_CRYPT_HW_MUTEX
-    int wolfSSL_HwPkMutexInit(void);
-    int wolfSSL_HwPkMutexLock(void);
-    int wolfSSL_HwPkMutexUnLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwPkMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwPkMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwPkMutexUnLock(void);
 #else
     #define wolfSSL_HwPkMutexInit     wolfSSL_CryptHwMutexInit
     #define wolfSSL_HwPkMutexLock     wolfSSL_CryptHwMutexLock
