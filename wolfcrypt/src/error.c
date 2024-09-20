@@ -364,13 +364,13 @@ const char* wc_GetErrorString(int error)
         return "ECC is point on curve failed";
 
     case ECC_INF_E:
-        return " ECC point at infinity error";
+        return "ECC point at infinity error";
 
     case ECC_OUT_OF_RANGE_E:
-        return " ECC Qx or Qy out of range error";
+        return "ECC Qx or Qy out of range error";
 
     case ECC_PRIV_KEY_E:
-        return " ECC private key is not valid error";
+        return "ECC private key is not valid error";
 
     case SRP_CALL_ORDER_E:
         return "SRP function called in the wrong order error";
