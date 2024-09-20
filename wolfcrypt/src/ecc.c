@@ -856,6 +856,14 @@ enum {
 /* This holds the key settings.
    ***MUST*** be organized by size from smallest to largest. */
 
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+    #undef ecc_sets
+    #undef ecc_sets_count
+#endif
+
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+static
+#endif
 const ecc_set_type ecc_sets[] = {
 #ifdef ECC112
     #ifndef NO_ECC_SECP
@@ -1399,8 +1407,17 @@ const ecc_set_type ecc_sets[] = {
     }
 };
 #define ECC_SET_COUNT   (sizeof(ecc_sets)/sizeof(ecc_set_type))
+#if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
+static
+#endif
 const size_t ecc_sets_count = ECC_SET_COUNT - 1;
 
+const ecc_set_type *wc_ecc_get_sets(void) {
+    return ecc_sets;
+}
+size_t wc_ecc_get_sets_count(void) {
+    return ecc_sets_count;
+}
 
 #ifdef HAVE_OID_ENCODING
     /* encoded OID cache */

@@ -2323,7 +2323,6 @@ int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
         return MEMORY_E;
 #endif
 
-    XMEMSET(agree, 0, requested_agreeSz);
     XMEMSET(agree_buffer, 0, requested_agreeSz);
 
     ret = wc_DhAgree_Sync(key, agree_buffer, agreeSz, priv, privSz, otherPub,
@@ -2340,7 +2339,7 @@ int wc_DhAgree_ct(DhKey* key, byte* agree, word32 *agreeSz, const byte* priv,
         byte *agree_src = agree_buffer + *agreeSz - 1,
             *agree_dst = agree + requested_agreeSz - 1;
         while (agree_dst >= agree) {
-            word32 mask = (agree_src >= agree_buffer) - 1U;;
+            word32 mask = (agree_src >= agree_buffer) - 1U;
             agree_src += (mask & requested_agreeSz);
             *agree_dst-- = *agree_src--;
         }

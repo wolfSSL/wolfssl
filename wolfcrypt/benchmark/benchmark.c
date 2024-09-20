@@ -8433,11 +8433,37 @@ exit:
 void bench_rsaKeyGen(int useDeviceID)
 {
     int    k;
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL) && \
-    (RSA_MIN_SIZE <= 1024)
-    static const word32  keySizes[2] = {1024, 2048};
+
+#if !defined(RSA_MAX_SIZE) || !defined(RSA_MIN_SIZE)
+    static const word32  keySizes[2] = {1024, 2048 };
+#elif RSA_MAX_SIZE >= 4096
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[4] = {1024, 2048, 3072, 4096 };
+    #else
+        static const word32  keySizes[3] = {2048, 3072, 4096};
+    #endif
+#elif RSA_MAX_SIZE >= 3072
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[3] = {1024, 2048, 3072 };
+    #else
+        static const word32  keySizes[2] = {2048, 3072 };
+    #endif
+#elif RSA_MAX_SIZE >= 2048
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[2] = {1024, 2048 };
+    #else
+        static const word32  keySizes[1] = {2048};
+    #endif
 #else
-    static const word32  keySizes[1] = {2048};
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[1] = {1024 };
+    #else
+        #error No candidate RSA key sizes to benchmark.
+    #endif
 #endif
 
     for (k = 0; k < (int)(sizeof(keySizes)/sizeof(int)); k++) {

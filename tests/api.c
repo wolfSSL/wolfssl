@@ -532,15 +532,6 @@ int tmpDirNameSet = 0;
  | Constants
  *----------------------------------------------------------------------------*/
 
-/* Test result constants and macros. */
-
-/* Test succeeded. */
-#define TEST_SUCCESS    (1)
-/* Test failed. */
-#define TEST_FAIL       (0)
-/* Test skipped - not run. */
-#define TEST_SKIPPED    (-7777)
-
 /* Returns the result based on whether check is true.
  *
  * @param [in] check  Condition for success.
@@ -7291,7 +7282,7 @@ static WC_INLINE int test_ssl_memio_read_cb(WOLFSSL *ssl, char *data, int sz,
 
 static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
 {
-    EXPECT_DECLS;
+    EXPECT_DECLS_NO_MSGS(-2000);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
     int c_sharedCtx = 0;
     int s_sharedCtx = 0;
@@ -7564,7 +7555,7 @@ static int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
 
 static int test_ssl_memio_read_write(test_ssl_memio_ctx* ctx)
 {
-    EXPECT_DECLS;
+    EXPECT_DECLS_NO_MSGS(-3000);
     char input[1024];
     int idx = 0;
     const char* msg_c = "hello wolfssl!";
@@ -7653,7 +7644,14 @@ static void test_ssl_memio_cleanup(test_ssl_memio_ctx* ctx)
 int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_cbf* server_cb, cbType client_on_handshake)
 {
-    EXPECT_DECLS;
+    /* We use EXPECT_DECLS_NO_MSGS() here because this helper routine is used
+     * for numerous but varied expected-to-fail scenarios that should not emit
+     * error messages on the expected failures.  Instead, we return a distinct
+     * code for each failure point, allowing the caller to assert on a
+     * particular mode of expected failure.  On success, the usual TEST_SUCCESS
+     * is returned.
+     */
+    EXPECT_DECLS_NO_MSGS(-1000);
     struct test_ssl_memio_ctx test_ctx;
 #ifdef WOLFSSL_HAVE_TLS_UNIQUE
     size_t msg_len;
@@ -7665,8 +7663,8 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
 
     test_ctx.c_ctx = client_cb->ctx;
     test_ctx.s_ctx = server_cb->ctx;
-    test_ctx.c_cb.return_code = TEST_FAIL;
-    test_ctx.s_cb.return_code = TEST_FAIL;
+    test_ctx.c_cb.return_code = EXPECT_FAILURE_CODEPOINT_ID;
+    test_ctx.s_cb.return_code = EXPECT_FAILURE_CODEPOINT_ID;
 
     ExpectIntEQ(test_ssl_memio_setup(&test_ctx), TEST_SUCCESS);
     ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
@@ -9575,10 +9573,10 @@ static int test_wolfSSL_CTX_verifyDepth_ServerClient_3(void)
      * therefore, handshake becomes failure.
      */
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
-        &server_cbf, NULL), TEST_FAIL);
+        &server_cbf, NULL), -1001);
 
-    ExpectIntEQ(client_cbf.return_code, TEST_FAIL);
-    ExpectIntEQ(server_cbf.return_code, TEST_FAIL);
+    ExpectIntEQ(client_cbf.return_code, -1000);
+    ExpectIntEQ(server_cbf.return_code, -1000);
     ExpectIntEQ(client_cbf.last_err, WC_NO_ERR_TRACE(MAX_CHAIN_ERROR));
     ExpectIntEQ(server_cbf.last_err, WC_NO_ERR_TRACE(FATAL_ERROR));
 #endif /* OPENSSL_EXTRA && HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
@@ -14120,7 +14118,7 @@ static int test_wolfSSL_X509_TLS_version_test_1(void)
 
 #ifndef OPENSSL_COMPATIBLE_DEFAULTS
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
-        &func_cb_server, NULL), TEST_FAIL);
+        &func_cb_server, NULL), -1001);
 #else
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
         &func_cb_server, NULL), TEST_SUCCESS);
@@ -15009,14 +15007,20 @@ static int test_Sha512_Family_Final(int type, int isRaw)
     hash_test[2] = hash3;
     times = sizeof(hash_test) / sizeof(byte *);
 
-    /* Good test args. */
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(finalFp(&sha512, hash_test[i]), 0);
+#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST) || \
+        defined(WOLFSSL_NO_HASH_RAW)
+    if (finalFp != NULL)
+#endif
+    {
+        /* Good test args. */
+        for (i = 0; i < times; i++) {
+            ExpectIntEQ(finalFp(&sha512, hash_test[i]), 0);
+        }
+        /* Test bad args. */
+        ExpectIntEQ(finalFp(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(finalFp(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+        ExpectIntEQ(finalFp(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     }
-    /* Test bad args. */
-    ExpectIntEQ(finalFp(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(finalFp(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(finalFp(&sha512, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
     freeFp(&sha512);
 
@@ -61861,7 +61865,7 @@ static int test_wolfSSL_curves_mismatch(void)
         func_cb_server.method = test_params[i].server_meth;
 
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
-            &func_cb_server, NULL), TEST_FAIL);
+            &func_cb_server, NULL), -1001);
         ExpectIntEQ(func_cb_client.last_err, test_params[i].client_last_err);
         ExpectIntEQ(func_cb_server.last_err, test_params[i].server_last_err);
 
@@ -69656,10 +69660,16 @@ static int test_wolfSSL_SESSION_expire_downgrade(void)
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
     defined(HAVE_EX_DATA) && !defined(NO_SESSION_CACHE)
-static int clientSessRemCountMalloc = 0;
-static int serverSessRemCountMalloc = 0;
-static int clientSessRemCountFree = 0;
-static int serverSessRemCountFree = 0;
+#ifdef WOLFSSL_ATOMIC_OPS
+    typedef wolfSSL_Atomic_Int SessRemCounter_t;
+#else
+    typedef int SessRemCounter_t;
+#endif
+static SessRemCounter_t clientSessRemCountMalloc;
+static SessRemCounter_t serverSessRemCountMalloc;
+static SessRemCounter_t clientSessRemCountFree;
+static SessRemCounter_t serverSessRemCountFree;
+
 static WOLFSSL_CTX* serverSessCtx = NULL;
 static WOLFSSL_SESSION* serverSess = NULL;
 #if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
@@ -69680,9 +69690,9 @@ static void SessRemCtxCb(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *sess)
     side = (int*)SSL_SESSION_get_ex_data(sess, serverSessRemIdx);
     if (side != NULL) {
         if (*side == WOLFSSL_CLIENT_END)
-            clientSessRemCountFree++;
+            (void)wolfSSL_Atomic_Int_FetchAdd(&clientSessRemCountFree, 1);
         else
-            serverSessRemCountFree++;
+            (void)wolfSSL_Atomic_Int_FetchAdd(&serverSessRemCountFree, 1);
 
         SSL_SESSION_set_ex_data(sess, serverSessRemIdx, NULL);
     }
@@ -69719,14 +69729,14 @@ static int SessRemSslSetupCb(WOLFSSL* ssl)
 
     if (SSL_is_server(ssl)) {
         side = &sessRemCtx_Server;
-        serverSessRemCountMalloc++;
+        (void)wolfSSL_Atomic_Int_FetchAdd(&serverSessRemCountMalloc, 1);
         ExpectNotNull(serverSess = SSL_get1_session(ssl));
         ExpectIntEQ(SSL_CTX_up_ref(serverSessCtx = SSL_get_SSL_CTX(ssl)),
                 SSL_SUCCESS);
     }
     else {
         side = &sessRemCtx_Client;
-        clientSessRemCountMalloc++;
+        (void)wolfSSL_Atomic_Int_FetchAdd(&clientSessRemCountMalloc, 1);
     #if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
         !defined(NO_SESSION_CACHE_REF)
         ExpectNotNull(clientSess = SSL_get1_session(ssl));
@@ -69749,6 +69759,11 @@ static int test_wolfSSL_CTX_sess_set_remove_cb(void)
     /* Check that the remove callback gets called for external data in a
      * session object */
     test_ssl_cbf func_cb;
+
+    wolfSSL_Atomic_Int_Init(&clientSessRemCountMalloc, 0);
+    wolfSSL_Atomic_Int_Init(&serverSessRemCountMalloc, 0);
+    wolfSSL_Atomic_Int_Init(&clientSessRemCountFree, 0);
+    wolfSSL_Atomic_Int_Init(&serverSessRemCountFree, 0);
 
     XMEMSET(&func_cb, 0, sizeof(func_cb));
     func_cb.ctx_ready = SessRemCtxSetupCb;
@@ -78615,7 +78630,7 @@ static int test_DhCallbacks(void)
     func_cb_server.method = wolfTLSv1_2_server_method;
 
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&func_cb_client,
-        &func_cb_server, NULL), TEST_FAIL);
+        &func_cb_server, NULL), -1001);
 #endif
     return EXPECT_RESULT();
 }
@@ -85792,7 +85807,7 @@ static int test_multiple_crls_same_issuer(void)
         client_cbs.ctx_ready = test_multiple_crls_same_issuer_ctx_ready;
 
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
-            &server_cbs, NULL), TEST_FAIL);
+            &server_cbs, NULL), -1001);
     }
 #endif
     return EXPECT_RESULT();
@@ -90339,7 +90354,7 @@ static int test_wolfSSL_CRL_CERT_REVOKED_alert(void)
     server_cbs.on_cleanup = test_wolfSSL_CRL_CERT_REVOKED_alert_on_cleanup;
 
     ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
-        &server_cbs, NULL), TEST_FAIL);
+        &server_cbs, NULL), -1001);
 
     return EXPECT_RESULT();
 }
@@ -91146,7 +91161,7 @@ static int test_override_alt_cert_chain(void)
         {test_override_alt_cert_chain_client_ctx_ready,
                 test_override_alt_cert_chain_server_ctx_ready, TEST_SUCCESS},
         {test_override_alt_cert_chain_client_ctx_ready2,
-                test_override_alt_cert_chain_server_ctx_ready, TEST_FAIL},
+                test_override_alt_cert_chain_server_ctx_ready, -1001},
     };
 
     for (i = 0; i < sizeof(params)/sizeof(*params); i++) {
@@ -91162,8 +91177,10 @@ static int test_override_alt_cert_chain(void)
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
             &server_cbs, NULL), params[i].result);
 
-        ExpectIntEQ(client_cbs.return_code, params[i].result);
-        ExpectIntEQ(server_cbs.return_code, params[i].result);
+        ExpectIntEQ(client_cbs.return_code,
+                    params[i].result <= 0 ? -1000 : TEST_SUCCESS);
+        ExpectIntEQ(server_cbs.return_code,
+                    params[i].result <= 0 ? -1000 : TEST_SUCCESS);
     }
 
     return EXPECT_RESULT();
@@ -93766,7 +93783,7 @@ static int test_revoked_loaded_int_cert(void)
         client_cbf.ctx_ready = test_params[i].client_ctx_ready;
 
         ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbf,
-            &server_cbf, NULL), TEST_FAIL);
+            &server_cbf, NULL), -1001);
         ExpectIntEQ(client_cbf.last_err, WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
         ExpectIntEQ(server_cbf.last_err, WC_NO_ERR_TRACE(FATAL_ERROR));
 

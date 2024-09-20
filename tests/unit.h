@@ -20,8 +20,8 @@
  */
 
 
-#ifndef CyaSSL_UNIT_H
-#define CyaSSL_UNIT_H
+#ifndef TESTS_UNIT_H
+#define TESTS_UNIT_H
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/test.h>    /* thread and tcp stuff */
@@ -121,27 +121,55 @@
 #define AssertPtrGE(x, y) AssertPtr(x, y, >=,  <)
 #define AssertPtrLE(x, y) AssertPtr(x, y, <=,  >)
 
+#define TEST_FAIL               0
+#define TEST_SUCCESS            1
+#define TEST_SUCCESS_NO_MSGS    2
+#define TEST_SKIPPED            3  /* Test skipped - not run. */
+#define TEST_SKIPPED_NO_MSGS    4  /* Test skipped - not run. */
 
 #define EXPECT_DECLS \
-    int _ret = TEST_SKIPPED
+    int _ret = TEST_SKIPPED, _fail_codepoint_id = TEST_FAIL
+#define EXPECT_DECLS_NO_MSGS(fail_codepoint_offset)     \
+    int _ret = TEST_SKIPPED_NO_MSGS,                    \
+        _fail_codepoint_id = (fail_codepoint_offset)
+#define EXPECT_FAILURE_CODEPOINT_ID _fail_codepoint_id
 #define EXPECT_RESULT() \
-    _ret
+    ((void)_fail_codepoint_id,                                          \
+     _ret == TEST_SUCCESS_NO_MSGS ? TEST_SUCCESS :                      \
+     _ret == TEST_SKIPPED_NO_MSGS ? TEST_SKIPPED :                      \
+     _ret)
 #define EXPECT_SUCCESS() \
-    ((_ret == TEST_SUCCESS) || (_ret == TEST_SKIPPED))
+    ((_ret == TEST_SUCCESS) ||                                          \
+     (_ret == TEST_SKIPPED) ||                                          \
+     (_ret == TEST_SUCCESS_NO_MSGS) ||                                  \
+     (_ret == TEST_SKIPPED_NO_MSGS))
 #define EXPECT_FAIL() \
-    (_ret == TEST_FAIL)
+    (! EXPECT_SUCCESS())
 
-#define ExpFail(description, result) do {                                      \
-    printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
-    fputs("\n    expected: ", stdout); printf description;                     \
-    fputs("\n    result:   ", stdout); printf result; fputs("\n\n", stdout);   \
-    fflush(stdout);                                                            \
-    _ret = TEST_FAIL;                                                          \
+#define ExpFail(description, result) do {                                    \
+    if ((_ret == TEST_SUCCESS_NO_MSGS) || (_ret == TEST_SKIPPED_NO_MSGS))    \
+        _ret = _fail_codepoint_id;                                           \
+    else {                                                                   \
+        printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);     \
+        fputs("\n    expected: ", stdout); printf description;               \
+        fputs("\n    result:   ", stdout); printf result;                    \
+        fputs("\n\n", stdout);                                               \
+        fflush(stdout);                                                      \
+        _ret = TEST_FAIL;                                                    \
+    }                                                                        \
 } while (0)
 
-#define Expect(test, description, result) do {                                 \
-    if (_ret != TEST_FAIL) { if (!(test)) ExpFail(description, result);        \
-                             else _ret = TEST_SUCCESS; }                       \
+#define Expect(test, description, result) do {                               \
+    if (EXPECT_SUCCESS()) {                                                  \
+        if (!(test))                                                         \
+            ExpFail(description, result);                                    \
+        else if (_ret == TEST_SKIPPED_NO_MSGS)                               \
+            _ret = TEST_SUCCESS_NO_MSGS;                                     \
+        else                                                                 \
+            _ret = TEST_SUCCESS;                                             \
+    }                                                                        \
+    if (_ret == TEST_SUCCESS_NO_MSGS)                                        \
+        --_fail_codepoint_id;                                                \
 } while (0)
 
 #define ExpectTrue(x)    Expect( (x), ("%s is true",     #x), (#x " => FALSE"))
@@ -149,14 +177,14 @@
 #define ExpectNotNull(x) Expect( (x), ("%s is not null", #x), (#x " => NULL"))
 
 #define ExpectNull(x) do {                                                     \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         PEDANTIC_EXTENSION void* _x = (void*)(x);                              \
         Expect(!_x, ("%s is null", #x), (#x " => %p", _x));                    \
     }                                                                          \
 } while(0)
 
 #define ExpectInt(x, y, op, er) do {                                           \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         int _x = (int)(x);                                                     \
         int _y = (int)(y);                                                     \
         Expect(_x op _y, ("%s " #op " %s", #x, #y), ("%d " #er " %d", _x, _y));\
@@ -171,7 +199,7 @@
 #define ExpectIntLE(x, y) ExpectInt(x, y, <=,  >)
 
 #define ExpectStr(x, y, op, er) do {                                           \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         const char* _x = (const char*)(x);                                     \
         const char* _y = (const char*)(y);                                     \
         int         _z = (_x && _y) ? XSTRCMP(_x, _y) : -1;                    \
@@ -188,7 +216,7 @@
 #define ExpectStrLE(x, y) ExpectStr(x, y, <=,  >)
 
 #define ExpectPtr(x, y, op, er) do {                                           \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         PRAGMA_DIAG_PUSH                                                       \
           /* remarkably, without this inhibition, */                           \
           /* the _Pragma()s make the declarations warn. */                     \
@@ -211,7 +239,7 @@
 #define ExpectPtrLE(x, y) ExpectPtr(x, y, <=,  >)
 
 #define ExpectBuf(x, y, z, op, er) do {                                        \
-    if (_ret != TEST_FAIL) {                                                   \
+    if (EXPECT_SUCCESS()) {                                                    \
         const byte* _x = (const byte*)(x);                                     \
         const byte* _y = (const byte*)(y);                                     \
         int         _z = (int)(z);                                             \
@@ -306,4 +334,4 @@ int w64wrapper_test(void);
 int QuicTest(void);
 
 
-#endif /* CyaSSL_UNIT_H */
+#endif /* TESTS_UNIT_H */

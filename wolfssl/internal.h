@@ -1637,6 +1637,7 @@ enum Misc {
 #endif
 
     HANDSHAKE_HEADER_SZ   = 4,  /* type + length(3)        */
+    DTLS13_HANDSHAKE_HEADER_SZ   = 12, /* sizeof(Dtls13HandshakeHeader) */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */
     CERT_HEADER_SZ        = 3,  /* always 3 bytes          */
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
