@@ -8421,7 +8421,7 @@ static word32 NextCert(byte* data, word32 length, word32* idx)
     return len;
 }
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
 /* Write certificate status request into certificate to buffer.
  *
  * ssl       SSL/TLS object.
@@ -8546,7 +8546,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 {
     int    ret = 0;
     word32 certSz, certChainSz, headerSz, listSz, payloadSz;
-    word16 extSz[1 + MAX_CERT_EXTENSIONS];
+    word16 extSz[MAX_CERT_EXTENSIONS];
     word16 extIdx = 0;
     word32 maxFragment;
     word32 totalextSz = 0;
@@ -8614,7 +8614,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         for (extIdx = 0; extIdx < (word16)XELEM_CNT(extSz); extIdx++)
             extSz[extIdx] = OPAQUE16_LEN;
 
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(NO_WOLFSSL_SERVER)
         /* We only send CSR on the server side. On client side, the CSR data
          * is populated with the server response. We would be sending the server
          * its own stapling data. */
@@ -8747,14 +8747,14 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             if (certSz > 0 && ssl->fragOffset < certSz + extSz[0]) {
                 /* Put in the leaf certificate with extensions. */
                 word32 copySz = AddCertExt(ssl, ssl->buffers.certificate->buffer,
-                                certSz, extSz[extIdx], ssl->fragOffset, fragSz,
-                                output + i, extIdx);
+                                certSz, extSz[0], ssl->fragOffset, fragSz,
+                                output + i, 0);
                 i += copySz;
                 ssl->fragOffset += copySz;
                 length -= copySz;
                 fragSz -= copySz;
-                if (ssl->fragOffset == certSz + extSz[extIdx])
-                    FreeDer(&ssl->buffers.certExts[extIdx]);
+                if (ssl->fragOffset == certSz + extSz[0])
+                    FreeDer(&ssl->buffers.certExts[0]);
             }
         }
         if (certChainSz > 0 && fragSz > 0) {
@@ -8771,8 +8771,11 @@ static int SendTls13Certificate(WOLFSSL* ssl)
                             ssl->buffers.certChain->length, &idx);
                     if (len == 0)
                         break;
+                #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+                        !defined(NO_WOLFSSL_SERVER)
                     if (MAX_CERT_EXTENSIONS > extIdx)
                         extIdx++;
+                #endif
                 }
                 /* Write out certificate and extension. */
                 l = AddCertExt(ssl, p, len, extSz[extIdx], offset, fragSz,

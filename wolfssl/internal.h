@@ -2024,6 +2024,13 @@ enum Misc {
     #define MAX_CHAIN_DEPTH 9
 #endif
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    #if !defined(HAVE_OCSP)
+        #error OCSP Stapling and Stapling V2 needs OCSP. Please define HAVE_OCSP.
+    #endif
+#endif
+
 /* Max certificate extensions in TLS1.3 */
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
     /* Number of extensions to set each OCSP response */
