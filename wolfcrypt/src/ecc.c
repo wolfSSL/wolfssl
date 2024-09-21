@@ -10229,7 +10229,8 @@ static int _ecc_pairwise_consistency_test(ecc_key* key, WC_RNG* rng)
 
     if (!err && (flags & WC_ECC_FLAG_DEC_SIGN)) {
 #ifndef WOLFSSL_SMALL_STACK
-        byte sig[MAX_ECC_BYTES + WC_SHA256_DIGEST_SIZE];
+        #define SIG_SZ ((MAX_ECC_BYTES * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ)
+        byte sig[SIG_SZ + WC_SHA256_DIGEST_SIZE];
 #else
         byte* sig;
 #endif
