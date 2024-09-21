@@ -30,7 +30,6 @@
 #include "platform/iot_network.h"
 #include "platform.h"
 
-
 #include <wolfssl/wolfcrypt/settings.h>
 #include "wolfssl/ssl.h"
 #include <wolfssl/wolfio.h>
@@ -59,14 +58,32 @@
     static WOLFSSL_CTX* client_ctx;
 #endif /* TLS_CLIENT */
 
-#define TLSSERVER_IP      "192.168.1.14"
+#define TLSSERVER_IP      "192.168.10.6"
 #define TLSSERVER_PORT    11111
-#define YEAR 2023
-#define MON  3
 #define FREQ 10000 /* Hz */
 
 static long         tick;
 static int          tmTick;
+
+#define YEAR  ( \
+    ((__DATE__)[7]  - '0') * 1000 + \
+    ((__DATE__)[8]  - '0') * 100  + \
+    ((__DATE__)[9]  - '0') * 10   + \
+    ((__DATE__)[10] - '0') * 1      \
+)
+
+#define MONTH ( \
+    __DATE__[2] == 'n' ? (__DATE__[1] == 'a' ? 1 : 6) \
+  : __DATE__[2] == 'b' ? 2 \
+  : __DATE__[2] == 'r' ? (__DATE__[0] == 'M' ? 3 : 4) \
+  : __DATE__[2] == 'y' ? 5 \
+  : __DATE__[2] == 'l' ? 7 \
+  : __DATE__[2] == 'g' ? 8 \
+  : __DATE__[2] == 'p' ? 9 \
+  : __DATE__[2] == 't' ? 10 \
+  : __DATE__[2] == 'v' ? 11 \
+  : 12 \
+	)
 
 /* time
  * returns seconds from EPOCH
@@ -74,7 +91,7 @@ static int          tmTick;
 time_t time(time_t *t)
 {
     (void)t;
-    return ((YEAR-1970)*365+30*MON)*24*60*60 + tmTick++;
+    return ((YEAR-1970)*365+30*MONTH)*24*60*60 + tmTick++;
 }
 
 /* timeTick
@@ -93,8 +110,6 @@ double current_time(int reset)
       if(reset) tick = 0 ;
       return ((double)tick/FREQ) ;
 }
-
-
 
 /* --------------------------------------------------------*/
 /*  Benchmark_demo                                         */

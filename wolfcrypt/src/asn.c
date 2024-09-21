@@ -9490,6 +9490,42 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 #endif /* NO_PWDBASED */
 
 #ifndef NO_RSA
+#ifdef WOLFSSL_ASN_TEMPLATE
+/* ASN.1 template for an RSA public key.
+ * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
+ * PKCS #1: RFC 8017, A.1.1 - RSAPublicKey
+ */
+static const ASNItem rsaPublicKeyASN[] = {
+/*  SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
+/*  ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
+/*  ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
+/*  ALGOID_NULL    */         { 2, ASN_TAG_NULL, 0, 0, 1 },
+#ifdef WC_RSA_PSS
+/*  ALGOID_P_SEQ   */         { 2, ASN_SEQUENCE, 1, 0, 1 },
+#endif
+/*  PUBKEY         */     { 1, ASN_BIT_STRING, 0, 1, 0 },
+                                                  /* RSAPublicKey */
+/*  PUBKEY_RSA_SEQ */         { 2, ASN_SEQUENCE, 1, 1, 0 },
+/*  PUBKEY_RSA_N   */             { 3, ASN_INTEGER, 0, 0, 0 },
+/*  PUBKEY_RSA_E   */             { 3, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    RSAPUBLICKEYASN_IDX_SEQ = 0,
+    RSAPUBLICKEYASN_IDX_ALGOID_SEQ,
+    RSAPUBLICKEYASN_IDX_ALGOID_OID,
+    RSAPUBLICKEYASN_IDX_ALGOID_NULL,
+#ifdef WC_RSA_PSS
+    RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ,
+#endif
+    RSAPUBLICKEYASN_IDX_PUBKEY,
+    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ,
+    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N,
+    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E
+};
+
+/* Number of items in ASN.1 template for an RSA public key. */
+#define rsaPublicKeyASN_Length (sizeof(rsaPublicKeyASN) / sizeof(ASNItem))
+#endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
 /* This function is to retrieve key position information in a cert.*
@@ -9500,9 +9536,10 @@ static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
                                       word32* key_n_len, word32* key_e,
                                       word32* key_e_len)
 {
-
+#ifndef WOLFSSL_ASN_TEMPLATE
     int ret = 0;
     int length = 0;
+
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
@@ -9565,48 +9602,31 @@ static int RsaPublicKeyDecodeRawIndex(const byte* input, word32* inOutIdx,
     }
     if (key_e_len)
         *key_e_len = length;
-
     return ret;
+#else
+    int ret = 0;
+    const byte*  n   = NULL;
+    const byte*  e   = NULL; /* pointer to modulus/exponent */
+    word32 rawIndex = 0;
+
+    ret = wc_RsaPublicKeyDecode_ex(input, inOutIdx, (word32)inSz,
+                                                &n, key_n_len, &e, key_e_len);
+    if (ret == 0) {
+        /* convert pointer to offset */
+        if (key_n != NULL) {
+            rawIndex = n - input;
+            *key_n += rawIndex;
+        }
+        if (key_e != NULL) {
+            rawIndex = e - input;
+            *key_e += rawIndex;
+        }
+    }
+    return ret;
+#endif
+
 }
 #endif /* WOLFSSL_RENESAS_TSIP */
-
-#ifdef WOLFSSL_ASN_TEMPLATE
-/* ASN.1 template for an RSA public key.
- * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
- * PKCS #1: RFC 8017, A.1.1 - RSAPublicKey
- */
-static const ASNItem rsaPublicKeyASN[] = {
-/*  SEQ            */ { 0, ASN_SEQUENCE, 1, 1, 0 },
-/*  ALGOID_SEQ     */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-/*  ALGOID_OID     */         { 2, ASN_OBJECT_ID, 0, 0, 0 },
-/*  ALGOID_NULL    */         { 2, ASN_TAG_NULL, 0, 0, 1 },
-#ifdef WC_RSA_PSS
-/*  ALGOID_P_SEQ   */         { 2, ASN_SEQUENCE, 1, 0, 1 },
-#endif
-/*  PUBKEY         */     { 1, ASN_BIT_STRING, 0, 1, 0 },
-                                                  /* RSAPublicKey */
-/*  PUBKEY_RSA_SEQ */         { 2, ASN_SEQUENCE, 1, 1, 0 },
-/*  PUBKEY_RSA_N   */             { 3, ASN_INTEGER, 0, 0, 0 },
-/*  PUBKEY_RSA_E   */             { 3, ASN_INTEGER, 0, 0, 0 },
-};
-enum {
-    RSAPUBLICKEYASN_IDX_SEQ = 0,
-    RSAPUBLICKEYASN_IDX_ALGOID_SEQ,
-    RSAPUBLICKEYASN_IDX_ALGOID_OID,
-    RSAPUBLICKEYASN_IDX_ALGOID_NULL,
-#ifdef WC_RSA_PSS
-    RSAPUBLICKEYASN_IDX_ALGOID_P_SEQ,
-#endif
-    RSAPUBLICKEYASN_IDX_PUBKEY,
-    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_SEQ,
-    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_N,
-    RSAPUBLICKEYASN_IDX_PUBKEY_RSA_E
-};
-
-/* Number of items in ASN.1 template for an RSA public key. */
-#define rsaPublicKeyASN_Length (sizeof(rsaPublicKeyASN) / sizeof(ASNItem))
-#endif
-
 /* Decode RSA public key.
  *
  * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
