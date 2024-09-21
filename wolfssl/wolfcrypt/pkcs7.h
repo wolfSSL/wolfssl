@@ -359,6 +359,14 @@ struct PKCS7 {
     word16 contentCRLF:1; /* have content line endings been converted to CRLF */
     word16 contentIsPkcs7Type:1; /* eContent follows PKCS#7 RFC not CMS */
     word16 hashParamsAbsent:1;
+
+    /* RFC 5280 section-4.2.1.2 lists a possible method for creating the SKID as
+     * a SHA1 hash of the public key, but leaves it open to other methods as
+     * long as it is a unique ID. This allows for setting a custom SKID when
+     * creating PKCS7 bundles*/
+    byte* customSKID;
+    word16 customSKIDSz;
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
@@ -387,6 +395,8 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /* CMS/PKCS#7 SignedData */
+WOLFSSL_API int  wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, const byte* in,
+                                        word16 inSz);
 WOLFSSL_API int  wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7);
 WOLFSSL_API int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag);

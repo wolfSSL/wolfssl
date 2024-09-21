@@ -51094,6 +51094,36 @@ static int test_wc_PKCS7_signed_enveloped(void)
     pkcs7 = NULL;
 #endif /* !NO_PKCS7_STREAM */
 #endif
+
+    {
+        /* arbitrary custom SKID */
+        const byte customSKID[] = {
+            0x40, 0x25, 0x77, 0x56
+        };
+
+        ExpectIntEQ(wc_InitRng(&rng), 0);
+        sigSz = FOURK_BUF * 2;
+        ExpectNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, testDevId));
+        if (pkcs7 != NULL) {
+            ExpectIntEQ(wc_PKCS7_InitWithCert(pkcs7, cert, (word32)certSz), 0);
+            pkcs7->content    = cert;
+            pkcs7->contentSz  = (word32)certSz;
+            pkcs7->contentOID = DATA;
+            pkcs7->privateKey   = key;
+            pkcs7->privateKeySz = (word32)keySz;
+            pkcs7->encryptOID   = RSAk;
+            pkcs7->hashOID      = SHA256h;
+            pkcs7->rng          = &rng;
+            ExpectIntEQ(wc_PKCS7_SetSignerIdentifierType(pkcs7, CMS_SKID), 0);
+            ExpectIntEQ(wc_PKCS7_SetCustomSKID(pkcs7, customSKID,
+                        sizeof(customSKID)), 0);
+            ExpectIntGT((sigSz = wc_PKCS7_EncodeSignedData(pkcs7, sig,
+                (word32)sigSz)), 0);
+        }
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
+        wc_FreeRng(&rng);
+    }
 #endif /* HAVE_PKCS7 && !NO_RSA && !NO_AES */
     return EXPECT_RESULT();
 }
