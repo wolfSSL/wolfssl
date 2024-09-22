@@ -3411,7 +3411,7 @@ static int dilithium_check_hint(const byte* h, byte k, byte omega)
             }
         }
         /* Ensure the last hint is less than the current hint. */
-        else if (h[i - 1] > h[i]) {
+        else if (h[i - 1] >= h[i]) {
             ret = SIG_VERIFY_E;
             break;
         }
@@ -9654,7 +9654,7 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = dilitihium_get_der_length(input, &idx, &length, inSz);
             }
             if (ret == 0) {
-                if (input[idx] != 0) {
+                if ((input[idx] != 0) || (length == 0)) {
                     ret = ASN_PARSE_E;
                 }
                 idx++;
