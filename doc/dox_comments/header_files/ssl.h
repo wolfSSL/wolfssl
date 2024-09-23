@@ -10014,6 +10014,85 @@ int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm,
 
 /*!
     \ingroup CertManager
+    \brief This function sets the CRL Update callback. If
+    HAVE_CRL and HAVE_CRL_UPDATE_CB is defined , and an entry with the same
+    issuer and a lower CRL number exists when a CRL is added, then the
+    CbUpdateCRL is called with the details of the existing entry and the
+    new one replacing it.
+
+    \return SSL_SUCCESS returned upon successful execution of the function and
+    subroutines.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CERT_MANAGER structure is NULL.
+
+    \param cm the WOLFSSL_CERT_MANAGER structure holding the information for
+    the certificate.
+    \param cb a function pointer to (*CbUpdateCRL) that is set to the
+    cbUpdateCRL member of the WOLFSSL_CERT_MANAGER.
+    Signature requirement:
+	void (*CbUpdateCRL)(CrlInfo *old, CrlInfo *new);
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    WOLFSSL_CTX* ctx = wolfSSL_CTX_new(protocol method);
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    …
+    void cb(CrlInfo *old, CrlInfo *new){
+	    Function body.
+    }
+    …
+    CbUpdateCRL cb = CbUpdateCRL;
+    …
+    if(ctx){
+        return wolfSSL_CertManagerSetCRLUpdate_Cb(SSL_CM(ssl), cb);
+    }
+    \endcode
+
+    \sa CbUpdateCRL
+*/
+int wolfSSL_CertManagerSetCRLUpdate_Cb(WOLFSSL_CERT_MANAGER* cm,
+                                       CbUpdateCRL cb);
+
+/*!
+    \ingroup CertManager
+    \brief This function yields a structure with parsed CRL information from
+    an encoded CRL buffer.
+
+    \return SSL_SUCCESS returned upon successful execution of the function and
+    subroutines.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CERT_MANAGER structure is NULL.
+
+    \param cm   the WOLFSSL_CERT_MANAGER structure..
+    \param info pointer to caller managed CrlInfo structure that will receive
+                the CRL information.
+    \param buff input buffer containing encoded CRL.
+    \param sz   the length in bytes of the input CRL data in buff.
+    \param type WOLFSSL_FILETYPE_PEM or WOLFSSL_FILETYPE_DER
+
+    _Example_
+    \code
+    #include <wolfssl/ssl.h>
+
+    CrlInfo info;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    cm = wolfSSL_CertManagerNew();
+
+    // Read crl data from file into buffer
+
+    wolfSSL_CertManagerGetCRLInfo(cm, &info, crlData, crlDataLen,
+                                  WOLFSSL_FILETYPE_PEM);
+    \endcode
+
+    \sa CbUpdateCRL
+    \sa wolfSSL_SetCRL_Cb
+*/
+int wolfSSL_CertManagerGetCRLInfo(WOLFSSL_CERT_MANAGER* cm, CrlInfo* info,
+    const byte* buff, long sz, int type)
+
+/*!
+    \ingroup CertManager
     \brief This function frees the CRL stored in the Cert Manager. An
     application can update the CRL by calling wolfSSL_CertManagerFreeCRL
     and then loading the new CRL.

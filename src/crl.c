@@ -560,7 +560,8 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 }
 
 #ifdef HAVE_CRL_UPDATE_CB
-static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info) {
+static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info)
+{
     info->issuerHash = (byte *)entry->issuerHash;
     info->issuerHashLen = CRL_DIGEST_SIZE;
     info->lastDate = (byte *)entry->lastDate;
@@ -572,7 +573,8 @@ static void SetCrlInfo(CRL_Entry* entry, CrlInfo *info) {
     info->crlNumber = (sword32)entry->crlNumber;
 }
 
-static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info) {
+static void SetCrlInfoFromDecoded(DecodedCRL* entry, CrlInfo *info)
+{
     info->issuerHash = (byte *)entry->issuerHash;
     info->issuerHashLen = SIGNER_DIGEST_SIZE;
     info->lastDate = (byte *)entry->lastDate;
