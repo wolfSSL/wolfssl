@@ -3581,6 +3581,11 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_COPY_CERT
 #endif
 
+#if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_KEY)
+    #undef WOLFSSL_COPY_KEY
+    #define WOLFSSL_COPY_KEY
+#endif
+
 /*
  * Keeps the "Finished" messages after a TLS handshake for use as the so-called
  * "tls-unique" channel binding. See comment in internal.h around clientFinished

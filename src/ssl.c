@@ -20410,7 +20410,14 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
+#ifdef WOLFSSL_COPY_KEY
+    AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
+        ctx->privateKey->length, ctx->privateKey->type,
+        ctx->privateKey->heap);
+    ssl->buffers.weOwnKey = 1;
+#else
     ssl->buffers.key      = ctx->privateKey;
+#endif
 #else
     if (ctx->privateKey != NULL) {
         AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
