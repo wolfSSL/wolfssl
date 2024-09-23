@@ -85769,46 +85769,130 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_CRL) && \
-    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
-static int test_multiple_crls_same_issuer_ctx_ready(WOLFSSL_CTX* ctx)
+#if defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_CRL_UPDATE_CB)
+int crlUpdateTestStatus = 0;
+WOLFSSL_CERT_MANAGER* updateCrlTestCm = NULL;
+static void updateCrlCb(CrlInfo* old, CrlInfo* new)
 {
-    EXPECT_DECLS;
-    wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
-    ExpectIntEQ(wolfSSL_CTX_LoadCRLFile(ctx, "./certs/crl/crl.pem",
-        WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
-    return EXPECT_RESULT();
+    const char* crl1 = "./certs/crl/crl.pem";
+    const char* crlRevoked = "./certs/crl/crl.revoked";
+    byte *crl1Buff = NULL;
+    word32 crl1Sz;
+    byte *crlRevBuff = NULL;
+    word32  crlRevSz;
+    WOLFSSL_CERT_MANAGER* cm = updateCrlTestCm;
+    XFILE f;
+    word32 sz;
+    CrlInfo crl1Info;
+    CrlInfo crlRevInfo;
+
+    crlUpdateTestStatus = 0;
+    if (old == NULL || new == NULL) {
+        return;
+    }
+
+    AssertTrue((f = XFOPEN(crl1, "rb")) != XBADFILE);
+    AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
+    AssertIntGE(sz = (size_t) XFTELL(f), 1);
+    AssertTrue(XFSEEK(f, 0, XSEEK_SET) == 0);
+    AssertTrue( \
+        (crl1Buff = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE)) != NULL);
+    AssertTrue(XFREAD(crl1Buff, 1, sz, f) == sz);
+    XFCLOSE(f);
+    crl1Sz = sz;
+
+    AssertTrue((f = XFOPEN(crlRevoked, "rb")) != XBADFILE);
+    AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
+    AssertIntGE(sz = (size_t) XFTELL(f), 1);
+    AssertTrue(XFSEEK(f, 0, XSEEK_SET) == 0);
+    AssertTrue( \
+        (crlRevBuff = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE)) != NULL);
+    AssertTrue(XFREAD(crlRevBuff, 1, sz, f) == sz);
+    XFCLOSE(f);
+    crlRevSz = sz;
+
+    AssertIntEQ(wolfSSL_CertManagerGetCRLInfo(
+        cm, &crl1Info, crl1Buff, crl1Sz, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CertManagerGetCRLInfo(
+        cm, &crlRevInfo, crlRevBuff, crlRevSz, WOLFSSL_FILETYPE_PEM),
+        WOLFSSL_SUCCESS);
+
+    /* Old entry being replaced should match crl1 */
+    AssertIntEQ(crl1Info.issuerHashLen,  old->issuerHashLen);
+    AssertIntEQ(crl1Info.lastDateMaxLen, old->lastDateMaxLen);
+    AssertIntEQ(crl1Info.lastDateFormat, old->lastDateFormat);
+    AssertIntEQ(crl1Info.nextDateMaxLen, old->nextDateMaxLen);
+    AssertIntEQ(crl1Info.nextDateFormat, old->nextDateFormat);
+    AssertIntEQ(crl1Info.crlNumber,      old->crlNumber);
+    AssertIntEQ(XMEMCMP(
+        crl1Info.issuerHash, old->issuerHash, old->issuerHashLen), 0);
+    AssertIntEQ(XMEMCMP(
+        crl1Info.lastDate, old->lastDate, old->lastDateMaxLen), 0);
+    AssertIntEQ(XMEMCMP(
+        crl1Info.nextDate, old->nextDate, old->nextDateMaxLen), 0);
+
+    /* Newer entry should match crl revoked */
+    AssertIntEQ(crlRevInfo.issuerHashLen,  new->issuerHashLen);
+    AssertIntEQ(crlRevInfo.lastDateMaxLen, new->lastDateMaxLen);
+    AssertIntEQ(crlRevInfo.lastDateFormat, new->lastDateFormat);
+    AssertIntEQ(crlRevInfo.nextDateMaxLen, new->nextDateMaxLen);
+    AssertIntEQ(crlRevInfo.nextDateFormat, new->nextDateFormat);
+    AssertIntEQ(crlRevInfo.crlNumber,      new->crlNumber);
+    AssertIntEQ(XMEMCMP(
+        crlRevInfo.issuerHash, new->issuerHash, new->issuerHashLen), 0);
+    AssertIntEQ(XMEMCMP(
+        crlRevInfo.lastDate, new->lastDate, new->lastDateMaxLen), 0);
+    AssertIntEQ(XMEMCMP(
+        crlRevInfo.nextDate, new->nextDate, new->nextDateMaxLen), 0);
+
+    XFREE(crl1Buff, NULL, DYNAMIC_TYPE_FILE);
+    XFREE(crlRevBuff, NULL, DYNAMIC_TYPE_FILE);
+    crlUpdateTestStatus = 1;
 }
 #endif
 
-static int test_multiple_crls_same_issuer(void)
+static int test_wolfSSL_crl_update_cb(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && defined(HAVE_CRL) && \
-    !defined(WOLFSSL_CRL_ALLOW_MISSING_CDP)
-    test_ssl_cbf client_cbs, server_cbs;
-    struct {
-        const char* server_cert;
-        const char* server_key;
-    } test_params[] = {
-        { "./certs/server-cert.pem", "./certs/server-key.pem" },
-        { "./certs/server-revoked-cert.pem", "./certs/server-revoked-key.pem" }
-    };
-    size_t i;
+#if defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_CRL_UPDATE_CB)
+    const char* crl1 =        "./certs/crl/crl.pem";
+    const char* crlRevoked =  "./certs/crl/crl.revoked";
+    const char* issuerCert =  "./certs/client-cert.pem";
+    const char* caCert     =  "./certs/ca-cert.pem";
+    const char* goodCert =    "./certs/server-cert.pem";
+    const char* revokedCert = "./certs/server-revoked-cert.pem";
+    int pemType = WOLFSSL_FILETYPE_PEM;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
 
-    for (i = 0; i < (sizeof(test_params)/sizeof(*test_params)); i++) {
-        XMEMSET(&client_cbs, 0, sizeof(client_cbs));
-        XMEMSET(&server_cbs, 0, sizeof(server_cbs));
-
-        server_cbs.certPemFile = test_params[i].server_cert;
-        server_cbs.keyPemFile = test_params[i].server_key;
-        client_cbs.crlPemFile = "./certs/crl/extra-crls/general-server-crl.pem";
-
-        client_cbs.ctx_ready = test_multiple_crls_same_issuer_ctx_ready;
-
-        ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cbs,
-            &server_cbs, NULL), -1001);
-    }
+    updateCrlTestCm = wolfSSL_CertManagerNew();
+    ExpectNotNull(updateCrlTestCm);
+    cm = updateCrlTestCm;
+    ExpectIntEQ(wolfSSL_CertManagerSetCRLUpdate_Cb(cm, updateCrlCb),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, caCert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, issuerCert, NULL),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crl1, pemType),
+        WOLFSSL_SUCCESS);
+    /* CRL1 does not have good cert revoked */
+    ExpectIntEQ(wolfSSL_CertManagerVerify(cm, goodCert, pemType),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, revokedCert, pemType),
+        WOLFSSL_SUCCESS);
+    /* Load newer CRL from same issuer, callback verifies CRL entry details */
+    ExpectIntEQ(wolfSSL_CertManagerLoadCRLFile(cm, crlRevoked, pemType),
+        WOLFSSL_SUCCESS);
+    /* CRL callback verified entry info was as expected */
+    ExpectIntEQ(crlUpdateTestStatus, 1);
+    /* Ensure that both certs fail with newer CRL */
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, goodCert, pemType),
+        WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_CertManagerVerify(cm, revokedCert, pemType),
+        WOLFSSL_SUCCESS);
 #endif
     return EXPECT_RESULT();
 }
@@ -96461,7 +96545,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_use_certificate_chain_file),
     TEST_DECL(test_wolfSSL_CTX_trust_peer_cert),
     TEST_DECL(test_wolfSSL_CTX_LoadCRL),
-    TEST_DECL(test_multiple_crls_same_issuer),
+    TEST_DECL(test_wolfSSL_crl_update_cb),
     TEST_DECL(test_wolfSSL_CTX_SetTmpDH_file),
     TEST_DECL(test_wolfSSL_CTX_SetTmpDH_buffer),
     TEST_DECL(test_wolfSSL_CTX_SetMinMaxDhKey_Sz),

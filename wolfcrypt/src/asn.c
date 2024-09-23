@@ -38280,6 +38280,41 @@ static int ParseCRL_AuthKeyIdExt(const byte* input, int sz, DecodedCRL* dcrl)
 }
 #endif
 
+#ifdef WOLFSSL_ASN_TEMPLATE
+
+static const ASNItem crlNumASN[] = {
+/* CRL NUM */          {0, ASN_INTEGER, 0, 0, 0 },
+};
+enum {
+    CRLNUMASN_IDX_CRL_NUM = 0
+};
+
+/* Number of items in ASN.1 template for CrlNumber. */
+#define crlNumASN_Length (sizeof(crlNumASN) / sizeof(ASNItem))
+
+static int ParseCRL_CrlNumExt(const byte* input, int sz, DecodedCRL* dcrl)
+{
+    DECL_ASNGETDATA(dataASN, crlNumASN_Length);
+    int ret = 0;
+    word32 idx = 0;
+
+    WOLFSSL_ENTER("ParseCRL_CrlNumExt");
+
+    CALLOC_ASNGETDATA(dataASN, crlNumASN_Length, ret, dcrl->heap);
+
+    if (ret == 0) {
+        GetASN_Int32Bit(&dataASN[CRLNUMASN_IDX_CRL_NUM], (word32 *)&dcrl->crlNumber);
+
+        /* Parse a CRL number. */
+        ret = GetASN_Items(crlNumASN, dataASN, crlNumASN_Length, 0, input,
+                           &idx, (word32)sz);
+    }
+
+    FREE_ASNGETDATA(dataASN, dcrl->heap);
+    return ret;
+#endif /* WOLFSSL_ASN_TEMPLATE */
+}
+
 
 #ifndef WOLFSSL_ASN_TEMPLATE
 static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf,
@@ -38472,7 +38507,14 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                 }
             #endif
             }
-            /* TODO: Parse CRL Number extension */
+            else if (oid == CRL_NUMBER_OID) {
+                /* Parse CRL Number extension.
+                 * idx is at start of OCTET_STRING data. */
+                ret = ParseCRL_CrlNumExt(buf + idx, length, dcrl);
+                if (ret != 0) {
+                    WOLFSSL_MSG("\tcouldn't parse CRL Number extension");
+                }
+            }
             /* TODO: check criticality */
             /* Move index on to next extension. */
             idx += (word32)length;
