@@ -6830,10 +6830,18 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
 #ifdef WOLFSSL_COPY_KEY
-    AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
-        ctx->privateKey->length, ctx->privateKey->type,
-        ctx->privateKey->heap);
-    ssl->buffers.weOwnKey = 1;
+    if (ctx->privateKey != NULL) {
+        if (ssl->buffers.key != NULL) {
+            FreeDer(&ssl->buffers.key);
+        }
+        AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
+            ctx->privateKey->length, ctx->privateKey->type,
+            ctx->privateKey->heap);
+        ssl->buffers.weOwnKey = 1;
+    }
+    else {
+        ssl->buffers.key      = ctx->privateKey;
+    }
 #else
     ssl->buffers.key      = ctx->privateKey;
 #endif
