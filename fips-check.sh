@@ -334,6 +334,9 @@ function copy_fips_files() {
     done
 }
 
+# Check to make sure this is not a shallow repo
+$GIT fetch --unshallow 2>/dev/null
+
 if ! $GIT clone . "$TEST_DIR"; then
     echo "fips-check: Couldn't duplicate current working directory."
     exit 1
