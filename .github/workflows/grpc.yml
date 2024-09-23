@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
@@ -50,6 +51,7 @@ jobs:
               test_core_security_ssl_credentials_test test_cpp_end2end_ssl_credentials_test
               h2_ssl_cert_test h2_ssl_session_reuse_test
     name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 30

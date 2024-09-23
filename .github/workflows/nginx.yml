@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
@@ -105,6 +106,7 @@ jobs:
               stream_proxy_protocol_ssl.t stream_proxy_ssl_conf_command.t stream_proxy_ssl.t
               stream_proxy_ssl_verify.t
     name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6

@@ -27,6 +27,7 @@ jobs:
               --enable-wpas-dpp --enable-brainpool --with-eccminsz=192
               --enable-tlsv10 --enable-oldtls
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
@@ -64,6 +65,7 @@ jobs:
 
   build_uml_linux:
     name: Build UML (UserMode Linux)
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
@@ -140,6 +142,7 @@ jobs:
             }
     name: hwsim test
     # For openssl 1.1
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 45

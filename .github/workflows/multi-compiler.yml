@@ -46,6 +46,7 @@ jobs:
           - CC: clang-14
             CXX: clang++-14
             OS: ubuntu-latest
+    if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.OS }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4

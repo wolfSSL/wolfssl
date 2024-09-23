@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Package wolfSSL
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
