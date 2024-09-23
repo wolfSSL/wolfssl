@@ -38312,8 +38312,8 @@ static int ParseCRL_CrlNumExt(const byte* input, int sz, DecodedCRL* dcrl)
 
     FREE_ASNGETDATA(dataASN, dcrl->heap);
     return ret;
-#endif /* WOLFSSL_ASN_TEMPLATE */
 }
+#endif /* WOLFSSL_ASN_TEMPLATE */
 
 
 #ifndef WOLFSSL_ASN_TEMPLATE
