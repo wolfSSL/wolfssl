@@ -2465,10 +2465,10 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         if(rmode->viTVMode&VI_NON_INTERLACE) VIDEO_WaitVSync();
 #endif
 #ifdef NDS
-        // Init Console output
+        /* Init Console output */
         consoleDemoInit();
 
-        // Init the Filesystem
+        /* Init the Filesystem */
         fatInitDefault();
 #endif
 
@@ -2517,7 +2517,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 #endif
 
 #ifdef NDS
-        // in Nintendo DS returning from main shuts down the Device without letting you see the Results.
+        /* in Nintendo DS returning from main shuts down the Device without letting you see the Results. */
         printf("args.return_code: %d\n", args.return_code);
         printf("Testing complete. Press Start to exit the Program\n");
         while(1) {
