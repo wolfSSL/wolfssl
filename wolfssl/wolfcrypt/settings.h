@@ -479,14 +479,7 @@
     #define socklen_t int
     #define IPPROTO_UDP 17
     #define IPPROTO_TCP 6
-
-    /* Libnds doesn't include sys/uio.h.  */
-    /* Structure for scatter/gather I/O.  */
-    struct iovec
-    {
-        void *iov_base;        /* Pointer to data.  */
-        size_t iov_len;        /* Length of data.  */
-    };
+    #define NO_WRITEV
 #endif
 
 #if defined(ARDUINO)
