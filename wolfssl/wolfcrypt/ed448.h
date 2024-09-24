@@ -97,7 +97,7 @@ struct ed448_key {
     void *heap;
 #ifdef WOLFSSL_ED448_PERSISTENT_SHA
     wc_Shake sha;
-    int sha_clean_flag;
+    unsigned int sha_clean_flag : 1;
 #endif
 };
 

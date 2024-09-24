@@ -354,7 +354,7 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
     int ret = 0;
     int paddingSz = 0;
     word32 idx;
-    word32 cipherInfoSz;
+    word32 cipherInfoSz = 0;
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -3300,7 +3300,7 @@ static int wolfssl_rsa_generate_key_native(WOLFSSL_RSA* rsa, int bits,
 #endif
     int initTmpRng = 0;
     WC_RNG* rng = NULL;
-    long en;
+    long en = 0;
 #endif
 
     (void)cb;

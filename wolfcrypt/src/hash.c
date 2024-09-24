@@ -686,6 +686,22 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         NULL, INVALID_DEVID);
 }
 
+wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId)
+{
+    wc_HashAlg* hash = (wc_HashAlg*)XMALLOC(sizeof(wc_HashAlg), heap,
+                        DYNAMIC_TYPE_HASHES);
+    if (hash != NULL) {
+        if (wc_HashInit_ex(hash, type, heap, devId) != 0) {
+            XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
+            hash = NULL;
+        }
+        else {
+            hash->isAllocated = 1;
+        }
+    }
+    return hash;
+}
+
 int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
     int devId)
 {
@@ -1008,43 +1024,53 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
 int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
 {
     int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
+    int isAllocated = 0;
+    void* heap = NULL;
 
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
+    isAllocated = hash->isAllocated;
+
     switch (type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
+            heap = hash->md5.heap;
             wc_Md5Free(&hash->md5);
             ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
+            heap = hash->sha.heap;
             wc_ShaFree(&hash->sha);
             ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA224:
 #ifdef WOLFSSL_SHA224
+            heap = hash->sha224.heap;
             wc_Sha224Free(&hash->sha224);
             ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
 #ifndef NO_SHA256
+            heap = hash->sha256.heap;
             wc_Sha256Free(&hash->sha256);
             ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA384:
 #ifdef WOLFSSL_SHA384
+            heap = hash->sha384.heap;
             wc_Sha384Free(&hash->sha384);
             ret = 0;
 #endif
             break;
         case WC_HASH_TYPE_SHA512:
 #ifdef WOLFSSL_SHA512
+            heap = hash->sha512.heap;
             wc_Sha512Free(&hash->sha512);
             ret = 0;
 #endif
@@ -1071,6 +1097,7 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
     #endif
         case WC_HASH_TYPE_SHA3_224:
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+            heap = hash->sha3.heap;
             wc_Sha3_224_Free(&hash->sha3);
             ret = 0;
 #endif
@@ -1096,6 +1123,7 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
 
     #ifdef WOLFSSL_SM3
         case WC_HASH_TYPE_SM3:
+            heap = hash->sm3.heap;
             wc_Sm3Free(&hash->sm3);
             ret = 0;
             break;
@@ -1117,6 +1145,9 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
         default:
             ret = BAD_FUNC_ARG;
     };
+
+    if (isAllocated && heap)
+        XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
 
     return ret;
 }

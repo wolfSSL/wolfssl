@@ -10539,6 +10539,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
         if (ret == 0)
             ret = wc_AesGcmEncrypt_ex(aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
+        aes->isAllocated = 0;
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
@@ -10580,6 +10581,8 @@ int wc_GmacVerify(const byte* key, word32 keySz,
         if (ret == 0)
             ret = wc_AesGcmDecrypt(aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
+
+        aes->isAllocated = 0;
         wc_AesFree(aes);
     }
     ForceZero(aes, sizeof *aes);
@@ -11296,6 +11299,20 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif /* HAVE_AESCCM */
 
+Aes* wc_AesNew(void* heap, int devId)
+{
+    Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
+    if (aes != NULL) {
+        if (wc_AesInit(aes, heap, devId) != 0) {
+            XFREE(aes, heap, DYNAMIC_TYPE_AES);
+            aes = NULL;
+        }
+        else {
+            aes->isAllocated = 1;
+        }
+    }
+    return aes;
+}
 
 /* Initialize Aes for use with async hardware */
 int wc_AesInit(Aes* aes, void* heap, int devId)
@@ -11305,6 +11322,7 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     if (aes == NULL)
         return BAD_FUNC_ARG;
 
+    aes->isAllocated = 0;
     aes->heap = heap;
     aes->rounds = 0;
 
@@ -11430,8 +11448,13 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 /* Free Aes from use with async hardware */
 void wc_AesFree(Aes* aes)
 {
-    if (aes == NULL)
+    unsigned int isAllocated;
+
+    if (aes == NULL) {
         return;
+    }
+
+    isAllocated = aes->isAllocated;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, aes->heap, 1);
@@ -11499,6 +11522,11 @@ void wc_AesFree(Aes* aes)
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(aes, sizeof(Aes));
 #endif
+
+    if (isAllocated) {
+        XFREE(aes, aes->heap, DYNAMIC_TYPE_AES);
+    }
+
 }
 
 int wc_AesGetKeySize(Aes* aes, word32* keySize)
@@ -14032,6 +14060,7 @@ static WARN_UNUSED_RESULT int AesSivCipher(
         }
     }
 
+    aes->isAllocated = 0;
     wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(aes, NULL, DYNAMIC_TYPE_AES);

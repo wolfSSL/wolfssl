@@ -154,9 +154,24 @@ static void wc_RsaCleanup(RsaKey* key)
 #endif
 }
 
+RsaKey* wc_NewRsaKey(void* heap, int devId)
+{
+    RsaKey* key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
+    if (key != NULL) {
+        if (wc_InitRsaKey_ex(key, heap, devId) != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_RSA);
+            key = NULL;
+        }
+        else {
+            key->isAllocated = 1;
+        }
+    }
+    return key;
+}
+
 int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
 {
-    int ret      = 0;
+    int ret = 0;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
@@ -527,10 +542,15 @@ int wc_RsaGetKeyId(RsaKey* key, word32* keyId)
 int wc_FreeRsaKey(RsaKey* key)
 {
     int ret = 0;
+    int isAllocated = 0;
+    void* heap;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
+
+    isAllocated = key->isAllocated;
+    heap = key->heap;
 
     wc_RsaCleanup(key);
 
@@ -594,6 +614,11 @@ int wc_FreeRsaKey(RsaKey* key)
 #if defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY)
     wc_fspsm_RsaKeyFree(key);
 #endif
+
+    if (isAllocated) {
+        XFREE(key, heap, DYNAMIC_TYPE_RSA);
+        (void)heap;
+    }
 
     return ret;
 }

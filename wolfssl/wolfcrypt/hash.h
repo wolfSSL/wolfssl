@@ -119,6 +119,7 @@ typedef union {
     #ifdef WOLFSSL_SM3
         wc_Sm3 sm3;
     #endif
+    unsigned int isAllocated:1; /* flag indicates if structure was allocated */
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
 
@@ -175,6 +176,8 @@ WOLFSSL_API int wc_Hash_ex(enum wc_HashType hash_type,
     byte* hash, word32 hash_len, void* heap, int devId);
 
 /* generic hash operation wrappers */
+WOLFSSL_API wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap,
+                                   int devId);
 WOLFSSL_API int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type,
     void* heap, int devId);
 WOLFSSL_API int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type);

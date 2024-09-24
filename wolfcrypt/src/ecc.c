@@ -4103,7 +4103,7 @@ static int wc_ecc_new_point_ex(ecc_point** point, void* heap)
    #ifndef WOLFSSL_NO_MALLOC
       XFREE(p, heap, DYNAMIC_TYPE_ECC);
    #endif
-      return err;
+      p = NULL;
    }
 #else
    p->x = (mp_int*)&p->xyz[0];
@@ -13908,15 +13908,25 @@ int wc_ecc_ctx_set_kdf_salt(ecEncCtx* ctx, const byte* salt, word32 sz)
     if (ctx == NULL || (salt == NULL && sz != 0))
         return BAD_FUNC_ARG;
 
-    ctx->kdfSalt   = salt;
-    ctx->kdfSaltSz = sz;
+    /* truncate salt if exceeds max */
+    if (sz > EXCHANGE_SALT_SZ)
+        sz = EXCHANGE_SALT_SZ;
 
+    /* using a custom kdf salt, so borrow clientSalt/serverSalt for it,
+     * since wc_ecc_ctx_set_peer_salt will set kdf and mac salts */
     if (ctx->protocol == REQ_RESP_CLIENT) {
         ctx->cliSt = ecCLI_SALT_SET;
+        ctx->kdfSalt = ctx->clientSalt;
     }
     else if (ctx->protocol == REQ_RESP_SERVER) {
         ctx->srvSt = ecSRV_SALT_SET;
+        ctx->kdfSalt = ctx->serverSalt;
     }
+
+    if (salt != NULL) {
+        XMEMCPY((byte*)ctx->kdfSalt, salt, sz);
+    }
+    ctx->kdfSaltSz = sz;
 
     return 0;
 }
@@ -14764,8 +14774,9 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                     if (ret == 0)
                         ret = wc_HmacFinal(hmac, verify);
                     if ((ret == 0) && (XMEMCMP(verify, msg + msgSz - digestSz,
-                                                              digestSz) != 0)) {
-                        ret = -1;
+                                                             digestSz) != 0)) {
+                        ret = HASH_TYPE_E;
+                        WOLFSSL_MSG("ECC Decrypt HMAC Check failed!");
                     }
 
                     wc_HmacFree(hmac);

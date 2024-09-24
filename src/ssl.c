@@ -16138,11 +16138,14 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         else {
             /* Only preserve overlapping suites */
             Suites tmpSuites;
-            word16 in, out, haveECDSAsig = 0;
-            word16 haveStaticECC = ssl->options.haveStaticECC;
+            word16 in, out;
+            word16 haveECDSAsig, haveStaticECC;
 #ifdef NO_RSA
             haveECDSAsig = 1;
             haveStaticECC = 1;
+#else
+            haveECDSAsig = 0;
+            haveStaticECC = ssl->options.haveStaticECC;
 #endif
             XMEMSET(&tmpSuites, 0, sizeof(Suites));
             /* Get all possible ciphers and sigalgs for the version. Following
@@ -21962,9 +21965,9 @@ int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names,
     #endif /* HAVE_SUPPORTED_CURVES */
     }
 
-    if (ssl)
+    if (ssl != NULL)
         ssl->disabledCurves = disabled;
-    else
+    else if (ctx != NULL)
         ctx->disabledCurves = disabled;
     ret = WOLFSSL_SUCCESS;
 
