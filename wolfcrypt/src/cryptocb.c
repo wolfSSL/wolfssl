@@ -144,7 +144,7 @@ static const char* GetHashTypeStr(int hash)
     return NULL;
 }
 
-#ifdef WOLFSSL_CMAC 
+#ifdef WOLFSSL_CMAC
 static const char* GetCmacTypeStr(int type)
 {
     switch (type) {
