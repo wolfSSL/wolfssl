@@ -12016,7 +12016,7 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
 #ifdef WOLFSSL_ASN_TEMPLATE
 #if defined(WC_ENABLE_ASYM_KEY_EXPORT) || defined(WC_ENABLE_ASYM_KEY_IMPORT)
 /* ASN.1 template for the SubjectPublicKeyInfo of a general asymmetric key.
- * Used with Ed448/Ed25519, Curve448/Curve25519, sphincs, falcon, dilithium,
+ * Used with Ed448/Ed25519, Curve448/Curve25519, SPHINCS+, falcon, dilithium,
  * etc.
  *
  * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
