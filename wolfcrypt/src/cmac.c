@@ -318,7 +318,8 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
         else {
             /* ensure we will have a valid remainder value */
             if (cmac->bufferSz > AES_BLOCK_SIZE) {
-                return BAD_STATE_E;
+                ret = BAD_STATE_E;
+                break;
             }
             remainder = AES_BLOCK_SIZE - cmac->bufferSz;
 
