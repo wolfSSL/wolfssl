@@ -4292,8 +4292,8 @@ static int KeyWatchCall(SnifferSession* session, const byte* data, int dataSz,
     char* error)
 {
     int ret;
-    Sha256 sha;
-    byte digest[SHA256_DIGEST_SIZE];
+    wc_Sha256 sha;
+    byte digest[WC_SHA256_DIGEST_SIZE];
 
     if (WatchCb == NULL) {
         SetError(WATCH_CB_MISSING_STR, error, session, FATAL_ERROR_STATE);
