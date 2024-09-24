@@ -27,7 +27,9 @@
 
 #ifdef WOLFSSL_CMAC
 
+#ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
+#endif
 
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)

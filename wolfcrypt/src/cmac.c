@@ -297,9 +297,11 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, cmac->type, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
+        /* Clear CRYPTOCB_UNAVAILABLE return code */
+       ret = 0;
+
         /* fall-through when unavailable */
     }
-    ret = 0;
 #endif
     switch (cmac->type) {
 #if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
@@ -343,7 +345,8 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
     return ret;
 }
 
-int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz) {
+int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
+{
     int ret = 0;
 
     if (cmac == NULL)
