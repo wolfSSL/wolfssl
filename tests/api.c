@@ -94147,8 +94147,9 @@ static int test_dtls12_basic_connection_id(void)
     unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5 };
     unsigned char readBuf[40];
     const char* params[] = {
+#ifndef NO_RSA
 #ifndef NO_SHA256
-#ifdef WOLFSSL_AES_128
+#if defined(WOLFSSL_AES_128) && defined(WOLFSSL_STATIC_RSA)
         "AES128-SHA256",
 #ifdef HAVE_AESCCM
         "AES128-CCM8",
@@ -94159,8 +94160,9 @@ static int test_dtls12_basic_connection_id(void)
         "DHE-RSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-GCM-SHA256",
 #endif
-#endif
-#endif
+#endif /* WOLFSSL_AES_128 && WOLFSSL_STATIC_RSA */
+#endif /* NO_SHA256 */
+#endif /* NO_RSA */
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         "DHE-RSA-CHACHA20-POLY1305",
         "DHE-RSA-CHACHA20-POLY1305-OLD",
@@ -94225,8 +94227,10 @@ static int test_dtls12_basic_connection_id(void)
             }
 #endif
 
+#ifdef HAVE_SECURE_RENEGOTIATION
             ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_c), 1);
             ExpectIntEQ(wolfSSL_UseSecureRenegotiation(ssl_s), 1);
+#endif
 
             /* CH1 */
             wolfSSL_SetLoggingPrefix("client");
@@ -94325,6 +94329,7 @@ static int test_dtls12_basic_connection_id(void)
             ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 1);
             ExpectIntEQ(readBuf[0], params[i][0]);
 
+#ifdef HAVE_SECURE_RENEGOTIATION
             /* do two SCR's */
             wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_Rehandshake(ssl_c), -1);
@@ -94442,7 +94447,7 @@ static int test_dtls12_basic_connection_id(void)
             ExpectNull(CLIENT_CID());
             ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_c), 0);
             ExpectIntEQ(wolfSSL_SSL_renegotiate_pending(ssl_s), 0);
-
+#endif
             /* Close connection */
             wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
@@ -94455,7 +94460,9 @@ static int test_dtls12_basic_connection_id(void)
             wolfSSL_SetLoggingPrefix("server");
             ExpectIntEQ(wolfSSL_shutdown(ssl_s), 1);
 
+#ifdef HAVE_SECURE_RENEGOTIATION
 loop_exit:
+#endif
             wolfSSL_SetLoggingPrefix(NULL);
             wolfSSL_free(ssl_c);
             wolfSSL_CTX_free(ctx_c);
