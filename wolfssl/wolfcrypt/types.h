@@ -1695,7 +1695,8 @@ typedef struct w64wrapper {
 
     #define WC_CPP_CAT_(a, b) a ## b
     #define WC_CPP_CAT(a, b) WC_CPP_CAT_(a, b)
-    #if defined(__cplusplus) && (__cplusplus >= 201103L)
+    #if (defined(__cplusplus) && (__cplusplus >= 201103L)) || \
+          (defined(_MSVC_LANG) && (_MSVC_LANG >= 201103L))
         #ifndef static_assert2
             #define static_assert2 static_assert
         #endif
