@@ -42,8 +42,8 @@
  *
  * @param [in] w  Winternitz width.
  */
-#define LMS_U(w)                    \
-    (8 * WC_SHA256_DIGEST_SIZE / (w))
+#define LMS_U(w, hLen)              \
+    (8 * (hLen) / (w))
 /* Calculate u. Appendix B. Works for w of 1, 2, 4, or 8.
  *
  * @param [in] w   Winternitz width.
@@ -63,17 +63,17 @@
  * @param [in] w   Winternitz width.
  * @param [in] wb  Winternitz width length in bits.
  */
-#define LMS_P(w, wb)                \
-    (LMS_U(w) + LMS_V(w, wb))
+#define LMS_P(w, wb, hLen)          \
+    (LMS_U(w, hLen) + LMS_V(w, wb))
 /* Calculate signature length.
  *
  * @param [in] l  Number of levels.
  * @param [in] h  Height of the trees.
  * @param [in] p  Number of n-byte string elements in signature for a tree.
  */
-#define LMS_PARAMS_SIG_LEN(l, h, p)                                     \
-    (4 + (l) * (4 + 4 + 4 + WC_SHA256_DIGEST_SIZE * (1 + (p) + (h))) +  \
-     ((l) - 1) * LMS_PUBKEY_LEN)
+#define LMS_PARAMS_SIG_LEN(l, h, p, hLen)               \
+    (4 + (l) * (4 + 4 + 4 + (hLen) * (1 + (p) + (h))) + \
+     ((l) - 1) * LMS_PUBKEY_LEN(hLen))
 
 #ifndef WOLFSSL_WC_LMS_SMALL
     /* Root levels and leaf cache bits. */
@@ -94,9 +94,10 @@
  * @param [in] t   LMS type.
  * @param [in] t2  LM-OTS type.
  */
-#define LMS_PARAMS(l, h, w, wb, t, t2)                              \
-    { l, h, w, LMS_LS(w, wb), LMS_P(w, wb), t, t2,                  \
-      LMS_PARAMS_SIG_LEN(l, h, LMS_P(w, wb)), LMS_PARAMS_CACHE(h) }
+#define LMS_PARAMS(l, h, w, wb, t, t2, hLen)                \
+    { l, h, w, LMS_LS(w, wb), LMS_P(w, wb, hLen), t, t2,    \
+      LMS_PARAMS_SIG_LEN(l, h, LMS_P(w, wb, hLen), hLen),   \
+      (hLen), LMS_PARAMS_CACHE(h) }
 
 
 /* Initialize the working state for LMS operations.
@@ -138,112 +139,230 @@ static void wc_lmskey_state_free(LmsState* state)
 
 /* Supported LMS parameters. */
 static const wc_LmsParamsMap wc_lms_map[] = {
+#ifndef WOLFSSL_NO_LMS_SHA256_256
 #if LMS_MAX_HEIGHT >= 15
     { WC_LMS_PARM_NONE     , "LMS_NONE"         ,
-      LMS_PARAMS(1, 15, 2, 1, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(1, 15, 2, 1, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H15_W2, "LMS/HSS L1_H15_W2",
-      LMS_PARAMS(1, 15, 2, 1, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(1, 15, 2, 1, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H15_W4, "LMS/HSS L1_H15_W4",
-      LMS_PARAMS(1, 15, 4, 2, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(1, 15, 4, 2, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #if LMS_MAX_LEVELS >= 2
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_L2_H10_W2, "LMS/HSS L2_H10_W2",
-      LMS_PARAMS(2, 10, 2, 1, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(2, 10, 2, 1, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H10_W4, "LMS/HSS L2_H10_W4",
-      LMS_PARAMS(2, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(2, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H10_W8, "LMS/HSS L2_H10_W8",
-      LMS_PARAMS(2, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(2, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #endif
 #if LMS_MAX_LEVELS >= 3
     { WC_LMS_PARM_L3_H5_W2 , "LMS/HSS L3_H5_W2" ,
-      LMS_PARAMS(3,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(3,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L3_H5_W4 , "LMS/HSS L3_H5_W4" ,
-      LMS_PARAMS(3,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(3,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L3_H5_W8 , "LMS/HSS L3_H5_W8" ,
-      LMS_PARAMS(3,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(3,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_L3_H10_W4, "LMS/HSS L3_H10_W4",
-      LMS_PARAMS(3, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(3, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #endif
 #if LMS_MAX_LEVELS >= 4
     { WC_LMS_PARM_L4_H5_W8 , "LMS/HSS L4_H5_W8" ,
-      LMS_PARAMS(4,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(4,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 
     /* For when user sets L, H, W explicitly. */
     { WC_LMS_PARM_L1_H5_W1 , "LMS/HSS_L1_H5_W1" ,
-      LMS_PARAMS(1,  5, 1, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W1) },
+      LMS_PARAMS(1,  5, 1, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W1,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H5_W2 , "LMS/HSS_L1_H5_W2" ,
-      LMS_PARAMS(1,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(1,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H5_W4 , "LMS/HSS_L1_H5_W4" ,
-      LMS_PARAMS(1,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(1,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H5_W8 , "LMS/HSS_L1_H5_W8" ,
-      LMS_PARAMS(1,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(1,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_L1_H10_W2 , "LMS/HSS_L1_H10_W2",
-      LMS_PARAMS(1, 10, 2, 1, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(1, 10, 2, 1, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H10_W4 , "LMS/HSS_L1_H10_W4",
-      LMS_PARAMS(1, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(1, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H10_W8 , "LMS/HSS_L1_H10_W8",
-      LMS_PARAMS(1, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(1, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #if LMS_MAX_HEIGHT >= 15
     { WC_LMS_PARM_L1_H15_W8 , "LMS/HSS L1_H15_W8",
-      LMS_PARAMS(1, 15, 8, 3, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(1, 15, 8, 3, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #if LMS_MAX_HEIGHT >= 20
     { WC_LMS_PARM_L1_H20_W2 , "LMS/HSS_L1_H20_W2",
-      LMS_PARAMS(1, 20, 2, 1, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(1, 20, 2, 1, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H20_W4 , "LMS/HSS_L1_H20_W4",
-      LMS_PARAMS(1, 20, 4, 2, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(1, 20, 4, 2, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L1_H20_W8 , "LMS/HSS_L1_H20_W8",
-      LMS_PARAMS(1, 20, 8, 3, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(1, 20, 8, 3, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #if LMS_MAX_LEVELS >= 2
     { WC_LMS_PARM_L2_H5_W2 , "LMS/HSS_L2_H5_W2" ,
-      LMS_PARAMS(2,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(2,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H5_W4 , "LMS/HSS_L2_H5_W4" ,
-      LMS_PARAMS(2,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(2,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H5_W8 , "LMS/HSS_L2_H5_W8" ,
-      LMS_PARAMS(2,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(2,  5, 8, 3, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #if LMS_MAX_HEIGHT >= 15
     { WC_LMS_PARM_L2_H15_W2 , "LMS/HSS_L2_H15_W2",
-      LMS_PARAMS(2, 15, 2, 1, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(2, 15, 2, 1, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H15_W4 , "LMS/HSS_L2_H15_W4",
-      LMS_PARAMS(2, 15, 4, 2, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(2, 15, 4, 2, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H15_W8 , "LMS/HSS_L2_H15_W8",
-      LMS_PARAMS(2, 15, 8, 3, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(2, 15, 8, 3, LMS_SHA256_M32_H15, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #if LMS_MAX_HEIGHT >= 20
     { WC_LMS_PARM_L2_H20_W2 , "LMS/HSS_L2_H20_W2",
-      LMS_PARAMS(2, 20, 2, 1, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(2, 20, 2, 1, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H20_W4 , "LMS/HSS_L2_H20_W4",
-      LMS_PARAMS(2, 20, 4, 2, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(2, 20, 4, 2, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L2_H20_W8 , "LMS/HSS_L2_H20_W8",
-      LMS_PARAMS(2, 20, 8, 3, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(2, 20, 8, 3, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #endif
 #if LMS_MAX_LEVELS >= 3
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_L3_H10_W8 , "LMS/HSS L3_H10_W8",
-      LMS_PARAMS(3, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(3, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #endif
 #if LMS_MAX_LEVELS >= 4
     { WC_LMS_PARM_L4_H5_W2 , "LMS/HSS L4_H5_W2" ,
-      LMS_PARAMS(4,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2) },
+      LMS_PARAMS(4,  5, 2, 1, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W2,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L4_H5_W4 , "LMS/HSS L4_H5_W4" ,
-      LMS_PARAMS(4,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(4,  5, 4, 2, LMS_SHA256_M32_H5 , LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
 #if LMS_MAX_HEIGHT >= 10
     { WC_LMS_PARM_L4_H10_W4 , "LMS/HSS L4_H10_W4",
-      LMS_PARAMS(4, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4) },
+      LMS_PARAMS(4, 10, 4, 2, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_DIGEST_SIZE) },
     { WC_LMS_PARM_L4_H10_W8 , "LMS/HSS L4_H10_W8",
-      LMS_PARAMS(4, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8) },
+      LMS_PARAMS(4, 10, 8, 3, LMS_SHA256_M32_H10, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_DIGEST_SIZE) },
 #endif
 #endif
+#endif /* !WOLFSSL_NO_LMS_SHA256_256 */
+
+#ifdef WOLFSSL_LMS_SHA256_192
+#if LMS_MAX_HEIGHT >= 15
+    { WC_LMS_PARM_SHA256_192_L1_H15_W2, "LMS/HSS_SHA256/192 L1_H15_W2",
+      LMS_PARAMS(1, 15, 2, 1, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H15_W4, "LMS/HSS_SHA256/192 L1_H15_W4",
+      LMS_PARAMS(1, 15, 4, 2, LMS_SHA256_M24_H15, LMOTS_SHA256_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_LEVELS >= 2
+#if LMS_MAX_HEIGHT >= 10
+    { WC_LMS_PARM_SHA256_192_L2_H10_W2, "LMS/HSS SHA256/192 L2_H10_W2",
+      LMS_PARAMS(2, 10, 2, 1, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L2_H10_W4, "LMS/HSS SHA256/192 L2_H10_W4",
+      LMS_PARAMS(2, 10, 4, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L2_H10_W8, "LMS/HSS SHA256/192 L2_H10_W8",
+      LMS_PARAMS(2, 10, 8, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#endif
+#if LMS_MAX_LEVELS >= 3
+    { WC_LMS_PARM_SHA256_192_L3_H5_W2 , "LMS/HSS_SHA256/192 L3_H5_W2" ,
+      LMS_PARAMS(3,  5, 2, 1, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L3_H5_W4 , "LMS/HSS_SHA256/192 L3_H5_W4" ,
+      LMS_PARAMS(3,  5, 4, 2, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L3_H5_W8 , "LMS/HSS_SHA256/192 L3_H5_W8" ,
+      LMS_PARAMS(3,  5, 8, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#if LMS_MAX_HEIGHT >= 10
+    { WC_LMS_PARM_SHA256_192_L3_H10_W4, "LMS/HSS_SHA256/192 L3_H10_W4",
+      LMS_PARAMS(3, 10, 4, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#endif
+#if LMS_MAX_LEVELS >= 4
+    { WC_LMS_PARM_SHA256_192_L4_H5_W8 , "LMS/HSS_SHA256/192 L4_H5_W8" ,
+      LMS_PARAMS(4,  5, 8, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+
+    { WC_LMS_PARM_SHA256_192_L1_H5_W1 , "LMS/HSS_SHA256/192_L1_H5_W1" ,
+      LMS_PARAMS(1,  5, 1, 1, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W1,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H5_W2 , "LMS/HSS_SHA256/192_L1_H5_W2" ,
+      LMS_PARAMS(1,  5, 2, 1, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H5_W4 , "LMS/HSS_SHA256/192_L1_H5_W4" ,
+      LMS_PARAMS(1,  5, 4, 2, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H5_W8 , "LMS/HSS_SHA256/192_L1_H5_W8" ,
+      LMS_PARAMS(1,  5, 8, 3, LMS_SHA256_M24_H5 , LMOTS_SHA256_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#if LMS_MAX_HEIGHT >= 10
+    { WC_LMS_PARM_SHA256_192_L1_H10_W2 , "LMS/HSS_SHA256/192_L1_H10_W2",
+      LMS_PARAMS(1, 10, 2, 1, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H10_W4 , "LMS/HSS_SHA256/192_L1_H10_W4",
+      LMS_PARAMS(1, 10, 4, 2, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_SHA256_192_L1_H10_W8 , "LMS/HSS_SHA256/192_L1_H10_W8",
+      LMS_PARAMS(1, 10, 8, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#if LMS_MAX_HEIGHT >= 20
+    { WC_LMS_PARM_L1_H20_W2 , "LMS/HSS_SHA256/192_L1_H20_W2",
+      LMS_PARAMS(1, 20, 2, 1, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W2,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_L1_H20_W4 , "LMS/HSS_SHA256/192_L1_H20_W4",
+      LMS_PARAMS(1, 20, 4, 2, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W4,
+                 WC_SHA256_192_DIGEST_SIZE) },
+    { WC_LMS_PARM_L1_H20_W8 , "LMS/HSS_SHA256/192_L1_H20_W8",
+      LMS_PARAMS(1, 20, 8, 3, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W8,
+                 WC_SHA256_192_DIGEST_SIZE) },
+#endif
+#endif /* WOLFSSL_LMS_SHA256_192 */
 };
 /* Number of parameter sets supported. */
 #define WC_LMS_MAP_LEN      ((int)(sizeof(wc_lms_map) / sizeof(*wc_lms_map)))
@@ -476,7 +595,7 @@ void wc_LmsKey_Free(LmsKey* key)
 
             ForceZero(key->priv_data, LMS_PRIV_DATA_LEN(params->levels,
                 params->height, params->p, params->rootLevels,
-                params->cacheBits));
+                params->cacheBits, params->hash_len));
 
             XFREE(key->priv_data, key->heap, DYNAMIC_TYPE_LMS);
         }
@@ -630,8 +749,8 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 
         /* Allocate memory for the private key data. */
         key->priv_data = (byte *)XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
-            params->height, params->p, params->rootLevels, params->cacheBits),
-            key->heap, DYNAMIC_TYPE_LMS);
+            params->height, params->p, params->rootLevels, params->cacheBits,
+            params->hash_len), key->heap, DYNAMIC_TYPE_LMS);
         /* Check pointer is valid. */
         if (key->priv_data == NULL) {
             ret = MEMORY_E;
@@ -669,8 +788,8 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
     }
     if (ret == 0) {
         /* Write private key to storage. */
-        int rv = key->write_private_key(key->priv_raw, HSS_PRIVATE_KEY_LEN,
-            key->context);
+        int rv = key->write_private_key(key->priv_raw,
+            HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
             ret = IO_FAILED_E;
         }
@@ -729,8 +848,8 @@ int wc_LmsKey_Reload(LmsKey* key)
 
         /* Allocate memory for the private key data. */
         key->priv_data = (byte *)XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
-            params->height, params->p, params->rootLevels, params->cacheBits),
-            key->heap, DYNAMIC_TYPE_LMS);
+            params->height, params->p, params->rootLevels, params->cacheBits,
+            params->hash_len), key->heap, DYNAMIC_TYPE_LMS);
         /* Check pointer is valid. */
         if (key->priv_data == NULL) {
             ret = MEMORY_E;
@@ -738,8 +857,8 @@ int wc_LmsKey_Reload(LmsKey* key)
     }
     if (ret == 0) {
         /* Load private key. */
-        int rv = key->read_private_key(key->priv_raw, HSS_PRIVATE_KEY_LEN,
-            key->context);
+        int rv = key->read_private_key(key->priv_raw,
+            HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
         if (rv != WC_LMS_RC_READ_TO_MEMORY) {
             ret = IO_FAILED_E;
         }
@@ -808,7 +927,7 @@ int wc_LmsKey_GetPrivLen(const LmsKey* key, word32* len)
 
     if (ret == 0) {
         /* Return private key length from parameter set. */
-        *len = HSS_PRIVATE_KEY_LEN;
+        *len = HSS_PRIVATE_KEY_LEN(key->params->hash_len);
     }
 
     return ret;
@@ -885,8 +1004,8 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
     }
     if (ret == 0) {
         /* Write private key to storage. */
-        int rv = key->write_private_key(key->priv_raw, HSS_PRIVATE_KEY_LEN,
-            key->context);
+        int rv = key->write_private_key(key->priv_raw,
+            HSS_PRIVATE_KEY_LEN(key->params->hash_len), key->context);
         if (rv != WC_LMS_RC_SAVED_TO_NV_MEMORY) {
             ret = IO_FAILED_E;
         }
@@ -933,7 +1052,7 @@ int wc_LmsKey_GetPubLen(const LmsKey* key, word32* len)
     }
 
     if (ret == 0) {
-        *len = HSS_PUBLIC_KEY_LEN;
+        *len = HSS_PUBLIC_KEY_LEN(key->params->hash_len);
     }
 
     return ret;
@@ -996,14 +1115,15 @@ int wc_LmsKey_ExportPubRaw(const LmsKey* key, byte* out, word32* outLen)
         ret = BAD_FUNC_ARG;
     }
     /* Check size of out is sufficient. */
-    if ((ret == 0) && (*outLen < HSS_PUBLIC_KEY_LEN)) {
+    if ((ret == 0) &&
+            (*outLen < (word32)HSS_PUBLIC_KEY_LEN(key->params->hash_len))) {
         ret = BUFFER_E;
     }
 
     if (ret == 0) {
         /* Return encoded public key. */
-        XMEMCPY(out, key->pub, HSS_PUBLIC_KEY_LEN);
-        *outLen = HSS_PUBLIC_KEY_LEN;
+        XMEMCPY(out, key->pub, HSS_PUBLIC_KEY_LEN(key->params->hash_len));
+        *outLen = HSS_PUBLIC_KEY_LEN(key->params->hash_len);
     }
 
     return ret;
@@ -1032,7 +1152,8 @@ int wc_LmsKey_ImportPubRaw(LmsKey* key, const byte* in, word32 inLen)
     if ((key == NULL) || (in == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (inLen != HSS_PUBLIC_KEY_LEN)) {
+    if ((ret == 0) &&
+            (inLen != (word32)HSS_PUBLIC_KEY_LEN(key->params->hash_len))) {
         /* Something inconsistent. Parameters weren't set, or input
          * pub key is wrong.*/
         return BUFFER_E;
