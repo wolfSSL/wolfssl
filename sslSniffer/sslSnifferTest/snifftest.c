@@ -1305,8 +1305,7 @@ int main(int argc, char** argv)
                 /* packet doesn't contain minimum ip/tcp header */
                 continue;
             }
-            int ptype = pcap_datalink(pcap);
-            if (ptype == DLT_LINUX_SLL) {
+            if (pcap_datalink(pcap) == DLT_LINUX_SLL) {
                 packet += 2;
                 header->caplen -= 2;
             }
