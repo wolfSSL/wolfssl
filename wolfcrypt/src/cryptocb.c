@@ -1838,7 +1838,7 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif /* WOLFSSL_CMAC && !NO_AES */
+#endif /* WOLFSSL_CMAC */
 
 /* returns the default dev id for the current build */
 int wc_CryptoCb_DefaultDevID(void)
