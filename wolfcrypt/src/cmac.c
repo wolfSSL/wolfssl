@@ -239,7 +239,8 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
                 if (cmac->totalSz != 0) {
                     xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
                 }
-                ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
+                ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest,
+                        cmac->buffer);
                 if (ret == 0) {
                     cmac->totalSz += AES_BLOCK_SIZE;
                     cmac->bufferSz = 0;
@@ -294,7 +295,8 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
     if (cmac->devId != INVALID_DEVID)
     #endif
     {
-        ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, cmac->type, NULL);
+        ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, cmac->type,
+                NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* Clear CRYPTOCB_UNAVAILABLE return code */
@@ -324,7 +326,8 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
                 remainder = AES_BLOCK_SIZE;
             }
             if (remainder > 1) {
-                XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0, remainder);
+                XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0,
+                        remainder);
             }
 
             cmac->buffer[AES_BLOCK_SIZE - remainder] = 0x80;
@@ -472,7 +475,8 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
     word32 aSz = sizeof(a);
     int compareRet;
 
-    if (cmac == NULL || check == NULL || checkSz == 0 || (in == NULL && inSz != 0)) {
+    if (cmac == NULL || check == NULL || checkSz == 0 ||
+            (in == NULL && inSz != 0)) {
         return BAD_FUNC_ARG;
     }
 
