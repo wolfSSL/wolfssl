@@ -52,7 +52,6 @@ typedef enum CmacType {
     #define WC_CMAC_TYPE_DEFINED
 #endif
 struct Cmac {
-    CmacType type;
 #ifndef NO_AES
     Aes aes;
     byte buffer[AES_BLOCK_SIZE]; /* partially stored block */
@@ -80,6 +79,7 @@ struct Cmac {
 #ifdef WOLFSSL_SE050
     byte   useSWCrypt; /* Use SW crypt instead of SE050, before SCP03 auth */
 #endif
+    CmacType type;
 };
 
 
