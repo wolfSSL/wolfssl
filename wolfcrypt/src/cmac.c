@@ -178,7 +178,6 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
         break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
     default:
-
         return BAD_FUNC_ARG;
     }
 
@@ -249,7 +248,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
         }
     }; break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
-    default :
+    default:
         ret = BAD_FUNC_ARG;
     }
     return ret;
@@ -271,7 +270,7 @@ int wc_CmacFree(Cmac* cmac)
         wc_AesFree(&cmac->aes);
         break;
 #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
-    default :
+    default:
         /* Nothing to do */
         (void)cmac;
     }
@@ -344,7 +343,7 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
             }
         }; break;
     #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
-        default :
+        default:
             ret = BAD_FUNC_ARG;
         }
     }
