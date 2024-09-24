@@ -299,53 +299,55 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
                 NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
+
         /* Clear CRYPTOCB_UNAVAILABLE return code */
        ret = 0;
 
         /* fall-through when unavailable */
     }
 #endif
-    switch (cmac->type) {
-#if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
-    case WC_CMAC_AES:
-    {
-        const byte* subKey;
-        word32 remainder;
+    if (ret == 0) {
+        switch (cmac->type) {
+    #if !defined(NO_AES) && defined(WOLFSSL_AES_DIRECT)
+        case WC_CMAC_AES:
+        {
+            const byte* subKey;
+            word32 remainder;
 
-        if (cmac->bufferSz == AES_BLOCK_SIZE) {
-            subKey = cmac->k1;
-        }
-        else {
-            /* ensure we will have a valid remainder value */
-            if (cmac->bufferSz > AES_BLOCK_SIZE) {
-                ret = BAD_STATE_E;
-                break;
+            if (cmac->bufferSz == AES_BLOCK_SIZE) {
+                subKey = cmac->k1;
             }
-            remainder = AES_BLOCK_SIZE - cmac->bufferSz;
+            else {
+                /* ensure we will have a valid remainder value */
+                if (cmac->bufferSz > AES_BLOCK_SIZE) {
+                    ret = BAD_STATE_E;
+                    break;
+                }
+                remainder = AES_BLOCK_SIZE - cmac->bufferSz;
 
-            if (remainder == 0) {
-                remainder = AES_BLOCK_SIZE;
-            }
-            if (remainder > 1) {
-                XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0,
-                        remainder);
-            }
+                if (remainder == 0) {
+                    remainder = AES_BLOCK_SIZE;
+                }
+                if (remainder > 1) {
+                    XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0,
+                            remainder);
+                }
 
-            cmac->buffer[AES_BLOCK_SIZE - remainder] = 0x80;
-            subKey = cmac->k2;
+                cmac->buffer[AES_BLOCK_SIZE - remainder] = 0x80;
+                subKey = cmac->k2;
+            }
+            xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
+            xorbuf(cmac->buffer, subKey, AES_BLOCK_SIZE);
+            ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
+            if (ret == 0) {
+                XMEMCPY(out, cmac->digest, *outSz);
+            }
+        }; break;
+    #endif /* !NO_AES && WOLFSSL_AES_DIRECT */
+        default :
+            ret = BAD_FUNC_ARG;
         }
-        xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
-        xorbuf(cmac->buffer, subKey, AES_BLOCK_SIZE);
-        ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
-        if (ret == 0) {
-            XMEMCPY(out, cmac->digest, *outSz);
-        }
-    }; break;
-#endif /* !NO_AES && WOLFSSL_AES_DIRECT */
-    default :
-        ret = BAD_FUNC_ARG;
     }
-
     return ret;
 }
 
