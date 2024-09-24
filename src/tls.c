@@ -15606,6 +15606,26 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         return m;
     }
     #endif /* !WOLFSSL_NO_TLS12 */
+    #ifdef WOLFSSL_DTLS13
+    WOLFSSL_METHOD* wolfDTLSv1_3_method(void)
+    {
+        return wolfDTLSv1_3_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_3_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("DTLSv1_3_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfDTLSv1_3_client_method_ex(heap);
+    #else
+        m = wolfDTLSv1_3_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+    #endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 

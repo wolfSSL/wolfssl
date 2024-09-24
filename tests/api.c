@@ -1194,6 +1194,9 @@ static int test_wolfSSL_Method_Allocators(void)
         #ifndef WOLFSSL_NO_TLS12
             TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_method);
         #endif /* !WOLFSSL_NO_TLS12 */
+        #ifdef WOLFSSL_DTLS13
+            TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_3_method);
+        #endif /* WOLFSSL_DTLS13 */
     #endif /* WOLFSSL_DTLS */
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
