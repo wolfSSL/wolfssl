@@ -245,6 +245,7 @@ linuxkm/libwolfssl.mod.c
 linuxkm/libwolfssl.lds
 linuxkm/module_exports.c
 linuxkm/linuxkm/get_thread_size
+*.nds
 
 # autotools generated
 scripts/unit.test

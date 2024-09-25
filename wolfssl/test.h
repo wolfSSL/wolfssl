@@ -203,7 +203,9 @@
     #include <netinet/in.h>
     #include <netinet/tcp.h>
     #include <arpa/inet.h>
-    #include <sys/ioctl.h>
+    #ifndef NDS
+        #include <sys/ioctl.h>
+    #endif
     #include <sys/time.h>
     #include <sys/socket.h>
     #ifdef HAVE_PTHREAD

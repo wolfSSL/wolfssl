@@ -262,6 +262,9 @@
 /* Uncomment next line if building for Dolphin Emulator */
 /* #define DOLPHIN_EMULATOR */
 
+/* Uncomment next line if building for NDS */
+/* #define NDS */
+
 /* Uncomment next line if using MAXQ1065 */
 /* #define WOLFSSL_MAXQ1065 */
 
@@ -468,6 +471,16 @@
         #include <types.h>
     #endif
     #include <nx_api.h>
+#endif
+
+
+#ifdef NDS
+    #include <stddef.h>
+    #define SIZEOF_LONG_LONG 8
+    #define socklen_t int
+    #define IPPROTO_UDP 17
+    #define IPPROTO_TCP 6
+    #define NO_WRITEV
 #endif
 
 #if defined(ARDUINO)
