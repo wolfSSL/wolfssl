@@ -14490,7 +14490,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             WOLFSSL_LEAVE("wolfSSL_accept", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
 
-        default :
+        default:
             WOLFSSL_MSG("Unknown accept state ERROR");
             return WOLFSSL_FATAL_ERROR;
     }
