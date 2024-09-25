@@ -1186,6 +1186,9 @@ enum Key_Sum {
     DILITHIUM_LEVEL2k = 218,    /* 1.3.6.1.4.1.2.267.12.4.4 */
     DILITHIUM_LEVEL3k = 221,    /* 1.3.6.1.4.1.2.267.12.6.5 */
     DILITHIUM_LEVEL5k = 225,    /* 1.3.6.1.4.1.2.267.12.8.7 */
+    ML_DSA_LEVEL2k    = 431,    /* 2.16.840.1.101.3.4.3.17 */
+    ML_DSA_LEVEL3k    = 432,    /* 2.16.840.1.101.3.4.3.18 */
+    ML_DSA_LEVEL5k    = 433,    /* 2.16.840.1.101.3.4.3.19 */
     SPHINCS_FAST_LEVEL1k   = 281, /* 1 3 9999 6 7 4 */
     SPHINCS_FAST_LEVEL3k   = 283, /* 1 3 9999 6 8 3 + 2 (See GetOID() in asn.c) */
     SPHINCS_FAST_LEVEL5k   = 282, /* 1 3 9999 6 9 3 */
@@ -2468,6 +2471,9 @@ enum cert_enums {
     DILITHIUM_LEVEL2_KEY     = 18,
     DILITHIUM_LEVEL3_KEY     = 19,
     DILITHIUM_LEVEL5_KEY     = 20,
+    ML_DSA_LEVEL2_KEY        = 21,
+    ML_DSA_LEVEL3_KEY        = 22,
+    ML_DSA_LEVEL5_KEY        = 23,
     SPHINCS_FAST_LEVEL1_KEY  = 24,
     SPHINCS_FAST_LEVEL3_KEY  = 25,
     SPHINCS_FAST_LEVEL5_KEY  = 26,

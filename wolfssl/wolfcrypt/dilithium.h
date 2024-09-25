@@ -128,6 +128,26 @@
     (DILITHIUM_LEVEL5_PUB_KEY_SIZE + DILITHIUM_LEVEL5_KEY_SIZE)
 
 
+#define ML_DSA_LEVEL2_KEY_SIZE          2560
+#define ML_DSA_LEVEL2_SIG_SIZE          2420
+#define ML_DSA_LEVEL2_PUB_KEY_SIZE      1312
+#define ML_DSA_LEVEL2_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL2_PUB_KEY_SIZE + ML_DSA_LEVEL2_KEY_SIZE)
+
+#define ML_DSA_LEVEL3_KEY_SIZE          4032
+#define ML_DSA_LEVEL3_SIG_SIZE          3309
+#define ML_DSA_LEVEL3_PUB_KEY_SIZE      1952
+#define ML_DSA_LEVEL3_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL3_PUB_KEY_SIZE + ML_DSA_LEVEL3_KEY_SIZE)
+
+#define ML_DSA_LEVEL5_KEY_SIZE          4896
+#define ML_DSA_LEVEL5_SIG_SIZE          4627
+#define ML_DSA_LEVEL5_PUB_KEY_SIZE      2592
+#define ML_DSA_LEVEL5_PRV_KEY_SIZE   \
+    (ML_DSA_LEVEL5_PUB_KEY_SIZE + ML_DSA_LEVEL5_KEY_SIZE)
+
+
+
 /* Modulus. */
 #define DILITHIUM_Q                     0x7fe001
 /* Number of bits in modulus. */
@@ -496,6 +516,25 @@
 #define DILITHIUM_LEVEL5_PRV_KEY_SIZE \
     (DILITHIUM_LEVEL5_PUB_KEY_SIZE+DILITHIUM_LEVEL5_KEY_SIZE)
 
+
+#define ML_DSA_LEVEL2_KEY_SIZE        OQS_SIG_ml_dsa_44_ipd_length_secret_key
+#define ML_DSA_LEVEL2_SIG_SIZE        OQS_SIG_ml_dsa_44_ipd_length_signature
+#define ML_DSA_LEVEL2_PUB_KEY_SIZE    OQS_SIG_ml_dsa_44_ipd_length_public_key
+#define ML_DSA_LEVEL2_PRV_KEY_SIZE    \
+    (ML_DSA_LEVEL2_PUB_KEY_SIZE+ML_DSA_LEVEL2_KEY_SIZE)
+
+#define ML_DSA_LEVEL3_KEY_SIZE        OQS_SIG_ml_dsa_65_ipd_length_secret_key
+#define ML_DSA_LEVEL3_SIG_SIZE        OQS_SIG_ml_dsa_65_ipd_length_signature
+#define ML_DSA_LEVEL3_PUB_KEY_SIZE    OQS_SIG_ml_dsa_65_ipd_length_public_key
+#define ML_DSA_LEVEL3_PRV_KEY_SIZE    \
+    (ML_DSA_LEVEL3_PUB_KEY_SIZE+ML_DSA_LEVEL3_KEY_SIZE)
+
+#define ML_DSA_LEVEL5_KEY_SIZE        OQS_SIG_ml_dsa_87_ipd_length_secret_key
+#define ML_DSA_LEVEL5_SIG_SIZE        OQS_SIG_ml_dsa_87_ipd_length_signature
+#define ML_DSA_LEVEL5_PUB_KEY_SIZE    OQS_SIG_ml_dsa_87_ipd_length_public_key
+#define ML_DSA_LEVEL5_PRV_KEY_SIZE    \
+    (ML_DSA_LEVEL5_PUB_KEY_SIZE+ML_DSA_LEVEL5_KEY_SIZE)
+
 #endif
 
 #define DILITHIUM_MAX_KEY_SIZE     DILITHIUM_LEVEL5_KEY_SIZE
@@ -760,10 +799,14 @@ WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
 #endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
 
 
+#define WC_ML_DSA_DRAFT         10
 
 #define WC_ML_DSA_44            2
 #define WC_ML_DSA_65            3
 #define WC_ML_DSA_87            5
+#define WC_ML_DSA_44_DRAFT      (2 + WC_ML_DSA_DRAFT)
+#define WC_ML_DSA_65_DRAFT      (3 + WC_ML_DSA_DRAFT)
+#define WC_ML_DSA_87_DRAFT      (5 + WC_ML_DSA_DRAFT)
 
 #define DILITHIUM_ML_DSA_44_KEY_SIZE        2560
 #define DILITHIUM_ML_DSA_44_SIG_SIZE        2420
