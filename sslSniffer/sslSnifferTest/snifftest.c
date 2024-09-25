@@ -1006,9 +1006,10 @@ int main(int argc, char** argv)
         }
 #endif /* THREADED_SNIFFTEST */
         else {
-            fprintf(stderr, "Invalid option or missing argument: %s\n", argv[i]);
+            fprintf(stderr, "Error parsing: %s\n", argv[i]);
             fprintf(stderr, "Usage: %s -pcap pcap_arg -key key_arg"
-                    " [-password password_arg] [-server server_arg] [-port port_arg]"
+                    " [-password password_arg] [-server server_arg]"
+                    " [-port port_arg]"
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
                     " [-keylogfile keylogfile_arg]"
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
@@ -1099,21 +1100,26 @@ int main(int argc, char** argv)
         }
 
         ret = pcap_set_snaplen(pcap, 65536);
-        if (ret != 0) fprintf(stderr, "pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
+        if (ret != 0)
+            fprintf(stderr, "pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_set_timeout(pcap, 1000);
-        if (ret != 0) fprintf(stderr, "pcap_set_timeout failed %s\n", pcap_geterr(pcap));
+        if (ret != 0)
+            fprintf(stderr, "pcap_set_timeout failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_set_buffer_size(pcap, 1000000);
         if (ret != 0)
-            fprintf(stderr, "pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
+            fprintf(stderr, "pcap_set_buffer_size failed %s\n",
+                    pcap_geterr(pcap));
 
         ret = pcap_set_promisc(pcap, 1);
-        if (ret != 0) fprintf(stderr,"pcap_set_promisc failed %s\n", pcap_geterr(pcap));
+        if (ret != 0)
+            fprintf(stderr,"pcap_set_promisc failed %s\n", pcap_geterr(pcap));
 
 
         ret = pcap_activate(pcap);
-        if (ret != 0) fprintf(stderr, "pcap_activate failed %s\n", pcap_geterr(pcap));
+        if (ret != 0)
+            fprintf(stderr, "pcap_activate failed %s\n", pcap_geterr(pcap));
 
     }
     else {
@@ -1124,13 +1130,14 @@ int main(int argc, char** argv)
             err_sys(err);
         }
     }
-    
+
     if (server == NULL) {
         server = DEFAULT_SERVER_IP;
     }
 
     if (port < 0) {
-        printf("Enter the port to scan [default: %d, '0' for all]: ", DEFAULT_SERVER_PORT);
+        printf("Enter the port to scan [default: %d, '0' for all]: ",
+                DEFAULT_SERVER_PORT);
         XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
         if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin)) {
             port = XATOI(cmdLineArg);
@@ -1148,20 +1155,23 @@ int main(int argc, char** argv)
     /* If we offer keylog support, then user must provide EITHER a pubkey
      * OR a keylog file but NOT both */
     if (keyFilesSrc && sslKeyLogFile) {
-        fprintf(stderr, "Error: either -key OR -keylogfile option but NOT both.\n");
+        fprintf(stderr,
+                "Error: either -key OR -keylogfile option but NOT both.\n");
         exit(EXIT_FAILURE);
     }
 
     if (sslKeyLogFile != NULL) {
         ret = ssl_LoadSecretsFromKeyLogFile(sslKeyLogFile, err);
         if (ret != 0) {
-            fprintf(stderr, "ERROR=%d, unable to load secrets from keylog file\n",ret);
+            fprintf(stderr,
+                    "ERROR=%d, unable to load secrets from keylog file\n",ret);
             err_sys(err);
         }
 
         ret = ssl_CreateKeyLogSnifferServer(server, port, err);
         if (ret != 0) {
-            fprintf(stderr, "ERROR=%d, unable to create keylog sniffer server\n",ret);
+            fprintf(stderr,
+                    "ERROR=%d, unable to create keylog sniffer server\n",ret);
             err_sys(err);
         }
     }
