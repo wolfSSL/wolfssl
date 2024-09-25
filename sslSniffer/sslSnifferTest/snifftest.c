@@ -166,6 +166,7 @@ static const byte eccHash[] = {
 static pcap_t* pcap = NULL;
 static pcap_if_t* alldevs = NULL;
 static struct bpf_program pcap_fp;
+static const char *traceFile = "./tracefile.txt";
 
 static void FreeAll(void)
 {
@@ -843,7 +844,7 @@ static void* snifferWorker(void* arg)
     char err[PCAP_ERRBUF_SIZE];
 
     ssl_InitSniffer_ex2(worker->id);
-    ssl_Trace("./tracefile.txt", err);
+    ssl_Trace(traceFile, err);
     ssl_EnableRecovery(1, -1, err);
 #ifdef WOLFSSL_SNIFFER_WATCH
     ssl_SetWatchKeyCallback(myWatchCb, err);
@@ -951,39 +952,79 @@ int main(int argc, char** argv)
     int          i = 0, defDev = 0;
     int          packetNumber = 0;
     int          frame = ETHER_IF_FRAME_LEN;
+    char         cmdLineArg[128];
+    char        *pcapFile = NULL;
     char         err[PCAP_ERRBUF_SIZE];
-    char         filter[32];
+    char         filter[128];
     const char  *keyFilesSrc = NULL;
 #ifdef WOLFSSL_SNIFFER_KEYLOGFILE
     const char  *sslKeyLogFile = NULL;
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
     char         keyFilesBuf[MAX_FILENAME_SZ];
     char         keyFilesUser[MAX_FILENAME_SZ];
-    const char  *server = DEFAULT_SERVER_IP;
-    int          port   = DEFAULT_SERVER_PORT;
+    const char  *server = NULL;
+    int          port   = 0;
     const char  *sniName = NULL;
     const char  *passwd = NULL;
     pcap_if_t   *d;
     pcap_addr_t *a;
 #ifdef THREADED_SNIFFTEST
     int workerThreadCount;
-#ifdef HAVE_SESSION_TICKET
-    /* Multiple threads on resume not yet supported */
-    workerThreadCount = 1;
-#else
-    workerThreadCount = 5;
-#endif
 #endif
 
     show_appinfo();
 
     signal(SIGINT, sig_handler);
 
+    for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-pcap") == 0 && i + 1 < argc) {
+            pcapFile = argv[++i];
+        }
+        else if (strcmp(argv[i], "-key") == 0 && i + 1 < argc) {
+            keyFilesSrc = argv[++i];
+        }
+        else if (strcmp(argv[i], "-server") == 0 && i + 1 < argc) {
+            server = argv[++i];
+        }
+        else if (strcmp(argv[i], "-port") == 0 && i + 1 < argc) {
+            port = XATOI(argv[++i]);
+        }
+        else if (strcmp(argv[i], "-password") == 0 && i + 1 < argc) {
+            passwd = argv[++i];
+        }
+        else if (strcmp(argv[i], "-tracefile") == 0 && i + 1 < argc) {
+            traceFile = argv[++i];
+        }
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+        else if (strcmp(argv[i], "-keylogfile") == 0 && i + 1 < argc) {
+            sslKeyLogFile = argv[++i];
+        }
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+#if defined(THREADED_SNIFFTEST)
+        else if (strcmp(argv[i], "-threads") == 0 && i + 1 < argc) {
+            workerThreadCount = XATOI(argv[++i]);
+        }
+#endif /* THREADED_SNIFFTEST */
+        else {
+            fprintf(stderr, "Invalid option or missing argument: %s\n", argv[i]);
+            fprintf(stderr, "Usage: %s -pcap pcap_arg -key key_arg"
+                    " [-password password_arg] [-server server_arg] [-port port_arg]"
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+                    " [-keylogfile keylogfile_arg]"
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+#if defined(THREADED_SNIFFTEST)
+                    " [-threads threads_arg]"
+#endif /* THREADED_SNIFFTEST */
+                    "\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
 #ifndef THREADED_SNIFFTEST
     #ifndef _WIN32
     ssl_InitSniffer();   /* dll load on Windows */
     #endif
-    ssl_Trace("./tracefile.txt", err);
+    ssl_Trace(traceFile, err);
     ssl_EnableRecovery(1, -1, err);
     #ifdef WOLFSSL_SNIFFER_WATCH
     ssl_SetWatchKeyCallback(myWatchCb, err);
@@ -991,17 +1032,25 @@ int main(int argc, char** argv)
     #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
     ssl_SetStoreDataCallback(myStoreDataCb);
     #endif
+#else
+#ifdef HAVE_SESSION_TICKET
+    /* Multiple threads on resume not yet supported */
+    workerThreadCount = 1;
+#else
+    workerThreadCount = 5;
 #endif
+#endif
+    SNPRINTF(filter, sizeof(filter), "(ip6 or ip) and tcp");
 
-    if (argc == 1) {
-        char cmdLineArg[128];
+
+    if (pcapFile == NULL) {
         /* normal case, user chooses device and port */
 
         if (pcap_findalldevs(&alldevs, err) == -1)
             err_sys("Error in pcap_findalldevs");
 
         for (d = alldevs; d; d=d->next) {
-            printf("%d. %s", ++i, d->name);
+            printf("%d. %s", i++, d->name);
             if (strcmp(d->name, "lo0") == 0) {
                 defDev = i;
             }
@@ -1031,21 +1080,23 @@ int main(int argc, char** argv)
 
         if (pcap == NULL) printf("pcap_create failed %s\n", err);
 
-        /* print out addresses for selected interface */
-        for (a = d->addresses; a; a = a->next) {
-            if (a->addr->sa_family == AF_INET) {
-                server =
-                    iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
-                printf("server = %s\n", server);
+        if (server == NULL) {
+            /* print out addresses for selected interface */
+            for (a = d->addresses; a; a = a->next) {
+                if (a->addr->sa_family == AF_INET) {
+                    server =
+                        iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
+                    printf("server = %s\n", server);
+                }
+                else if (a->addr->sa_family == AF_INET6) {
+                    server =
+                        ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
+                    printf("server = %s\n", server);
+                }
             }
-            else if (a->addr->sa_family == AF_INET6) {
-                server =
-                    ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
-                printf("server = %s\n", server);
-            }
+            if (server == NULL)
+                err_sys("Unable to get device IPv4 or IPv6 address");
         }
-        if (server == NULL)
-            err_sys("Unable to get device IPv4 or IPv6 address");
 
         ret = pcap_set_snaplen(pcap, 65536);
         if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
@@ -1064,28 +1115,70 @@ int main(int argc, char** argv)
         ret = pcap_activate(pcap);
         if (ret != 0) printf("pcap_activate failed %s\n", pcap_geterr(pcap));
 
-        printf("Enter the port to scan [default: 11111]: ");
+    }
+    else {
+        saveFile = 1;
+        pcap = pcap_open_offline(pcapFile , err);
+        if (pcap == NULL) {
+            fprintf(stderr, "pcap_open_offline failed %s\n", err);
+            err_sys(err);
+        }
+    }
+    
+    if (server == NULL) {
+        server = DEFAULT_SERVER_IP;
+    }
+
+    if (port == 0) {
+        printf("Enter the port to scan [default: %d]: ", DEFAULT_SERVER_PORT);
         XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
         if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin)) {
             port = XATOI(cmdLineArg);
         }
         if (port <= 0)
-            port = 11111;
+            port = DEFAULT_SERVER_PORT;
 
-        SNPRINTF(filter, sizeof(filter), "tcp and port %d", port);
+        SNPRINTF(cmdLineArg, sizeof(filter), " and port %d", port);
+        XSTRNCAT(filter, cmdLineArg, sizeof(filter) - XSTRLEN(filter));
+    }
 
-        ret = pcap_compile(pcap, &pcap_fp, filter, 0, 0);
-        if (ret != 0) printf("pcap_compile failed %s\n", pcap_geterr(pcap));
+#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
+    /* If we offer keylog support, then user must provide EITHER a pubkey
+     * OR a keylog file but NOT both */
+    if (keyFilesSrc && sslKeyLogFile) {
+        fprintf(stderr, "Error: either -key OR -keylogfile option but NOT both.\n");
+        exit(EXIT_FAILURE);
+    }
 
-        ret = pcap_setfilter(pcap, &pcap_fp);
-        if (ret != 0) printf("pcap_setfilter failed %s\n", pcap_geterr(pcap));
+    if (sslKeyLogFile != NULL) {
+        ret = ssl_LoadSecretsFromKeyLogFile(sslKeyLogFile, err);
+        if (ret != 0) {
+            fprintf(stderr, "ERROR=%d, unable to load secrets from keylog file\n",ret);
+            err_sys(err);
+        }
 
+        ret = ssl_CreateKeyLogSnifferServer(server, port, err);
+        if (ret != 0) {
+            fprintf(stderr, "ERROR=%d, unable to create keylog sniffer server\n",ret);
+            err_sys(err);
+        }
+    }
+    else
+#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
+    if (keyFilesSrc) {
+        ret = load_key(NULL, server, port, keyFilesSrc, passwd, err);
+        if (ret != 0) {
+            fprintf(stderr, "Failed to load key\n");
+            err_sys(err);
+        }
+    }
+    else {
         /* optionally enter the private key to use */
-    #if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(DEFAULT_SERVER_EPH_KEY)
+#if defined(WOLFSSL_STATIC_EPHEMERAL) && defined(DEFAULT_SERVER_EPH_KEY)
         keyFilesSrc = DEFAULT_SERVER_EPH_KEY;
-    #else
+#else
         keyFilesSrc = DEFAULT_SERVER_KEY;
-    #endif
+#endif
         printf("Enter the server key [default: %s]: ", keyFilesSrc);
         XMEMSET(keyFilesBuf, 0, sizeof(keyFilesBuf));
         XMEMSET(keyFilesUser, 0, sizeof(keyFilesUser));
@@ -1109,137 +1202,23 @@ int main(int argc, char** argv)
         }
     #endif /* !WOLFSSL_SNIFFER_WATCH && HAVE_SNI */
 
-        /* get IPv4 or IPv6 addresses for selected interface */
-        for (a = d->addresses; a; a = a->next) {
-            server = NULL;
-            if (a->addr->sa_family == AF_INET) {
-                server =
-                    iptos(&((struct sockaddr_in *)a->addr)->sin_addr);
-            }
-            else if (a->addr->sa_family == AF_INET6) {
-                server =
-                    ip6tos(&((struct sockaddr_in6 *)a->addr)->sin6_addr);
-            }
-
-            if (server) {
-                XSTRNCPY(keyFilesBuf, keyFilesSrc, sizeof(keyFilesBuf));
-                ret = load_key(sniName, server, port, keyFilesBuf, NULL, err);
-                if (ret != 0) {
-                    exit(EXIT_FAILURE);
-                }
-            }
+        ret = load_key(sniName, server, port, keyFilesBuf, NULL, err);
+        if (ret != 0) {
+            exit(EXIT_FAILURE);
         }
     }
-    else {
-        char *pcapFile = NULL;
 
-        for (i = 1; i < argc; i++) {
-            if (strcmp(argv[i], "-pcap") == 0 && i + 1 < argc) {
-                pcapFile = argv[++i];
-            }
-            else if (strcmp(argv[i], "-key") == 0 && i + 1 < argc) {
-                keyFilesSrc = argv[++i];
-            }
-            else if (strcmp(argv[i], "-server") == 0 && i + 1 < argc) {
-                server = argv[++i];
-            }
-            else if (strcmp(argv[i], "-port") == 0 && i + 1 < argc) {
-                port = XATOI(argv[++i]);
-            }
-            else if (strcmp(argv[i], "-password") == 0 && i + 1 < argc) {
-                passwd = argv[++i];
-            }
-#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
-            else if (strcmp(argv[i], "-keylogfile") == 0 && i + 1 < argc) {
-                sslKeyLogFile = argv[++i];
-            }
-#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
-#if defined(THREADED_SNIFFTEST)
-            else if (strcmp(argv[i], "-threads") == 0 && i + 1 < argc) {
-                workerThreadCount = XATOI(argv[++i]);
-            }
-#endif /* THREADED_SNIFFTEST */
-            else {
-                fprintf(stderr, "Invalid option or missing argument: %s\n", argv[i]);
-                fprintf(stderr, "Usage: %s -pcap pcap_arg -key key_arg"
-                        " [-password password_arg] [-server server_arg] [-port port_arg]"
-#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
-                        " [-keylogfile keylogfile_arg]"
-#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
-#if defined(THREADED_SNIFFTEST)
-                        " [-threads threads_arg]"
-#endif /* THREADED_SNIFFTEST */
-                        "\n", argv[0]);
-                exit(EXIT_FAILURE);
-            }
-        }
+    /* Only let through TCP/IP packets */
+    ret = pcap_compile(pcap, &pcap_fp, filter, 0, 0);
+    if (ret != 0) {
+        fprintf(stderr, "pcap_compile failed %s\n", pcap_geterr(pcap));
+        exit(EXIT_FAILURE);
+    }
 
-        if (!pcapFile) {
-            fprintf(stderr, "Error: -pcap option is required.\n");
-            exit(EXIT_FAILURE);
-        }
-
-#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
-        /* If we offer keylog support, then user must provide EITHER a pubkey
-         * OR a keylog file but NOT both */
-        if ((!keyFilesSrc && !sslKeyLogFile) || (keyFilesSrc && sslKeyLogFile)) {
-            fprintf(stderr, "Error: either -key OR -keylogfile option required but NOT both.\n");
-            exit(EXIT_FAILURE);
-        }
-#else
-        if (!keyFilesSrc) {
-            fprintf(stderr, "Error: -key option is required.\n");
-            exit(EXIT_FAILURE);
-        }
-#endif
-
-        saveFile = 1;
-        pcap = pcap_open_offline(pcapFile , err);
-        if (pcap == NULL) {
-            fprintf(stderr, "pcap_open_offline failed %s\n", err);
-            err_sys(err);
-        }
-        else {
-#if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
-            if (sslKeyLogFile != NULL) {
-                ret = ssl_LoadSecretsFromKeyLogFile(sslKeyLogFile, err);
-                if (ret != 0) {
-                    fprintf(stderr, "ERROR=%d, unable to load secrets from keylog file\n",ret);
-                    err_sys(err);
-                }
-
-                ret = ssl_CreateKeyLogSnifferServer(server, port, err);
-                if (ret != 0) {
-                    fprintf(stderr, "ERROR=%d, unable to create keylog sniffer server\n",ret);
-                    err_sys(err);
-                }
-            }
-            else
-#endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
-            {
-                ret = load_key(NULL, server, port, keyFilesSrc, passwd, err);
-                if (ret != 0) {
-                    fprintf(stderr, "Failed to load key\n");
-                    err_sys(err);
-                }
-            }
-
-
-            /* Only let through TCP/IP packets */
-            ret = pcap_compile(pcap, &pcap_fp, "(ip6 or ip) and tcp", 0, 0);
-            if (ret != 0) {
-                fprintf(stderr, "pcap_compile failed %s\n", pcap_geterr(pcap));
-                exit(EXIT_FAILURE);
-            }
-
-            ret = pcap_setfilter(pcap, &pcap_fp);
-            if (ret != 0) {
-                fprintf(stderr, "pcap_setfilter failed %s\n", pcap_geterr(pcap));
-                exit(EXIT_FAILURE);
-            }
-
-
-        }
+    ret = pcap_setfilter(pcap, &pcap_fp);
+    if (ret != 0) {
+        fprintf(stderr, "pcap_setfilter failed %s\n", pcap_geterr(pcap));
+        exit(EXIT_FAILURE);
     }
 
     if (ret != 0)
