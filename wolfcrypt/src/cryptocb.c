@@ -84,6 +84,7 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_RNG:    return "RNG";
         case WC_ALGO_TYPE_SEED:   return "Seed";
         case WC_ALGO_TYPE_HMAC:   return "HMAC";
+        case WC_ALGO_TYPE_CMAC:   return "CMAC";
     }
     return NULL;
 }
@@ -103,6 +104,7 @@ static const char* GetPkTypeStr(int pk)
     }
     return NULL;
 }
+#if !defined(NO_AES) || !defined(NO_DES3)
 static const char* GetCipherTypeStr(int cipher)
 {
     switch (cipher) {
@@ -118,6 +120,7 @@ static const char* GetCipherTypeStr(int cipher)
     }
     return NULL;
 }
+#endif /* !NO_AES || !NO_DES3 */
 static const char* GetHashTypeStr(int hash)
 {
     switch (hash) {
@@ -139,6 +142,16 @@ static const char* GetHashTypeStr(int hash)
     }
     return NULL;
 }
+
+#ifdef WOLFSSL_CMAC
+static const char* GetCmacTypeStr(int type)
+{
+    switch (type) {
+        case WC_CMAC_AES: return "AES";
+    }
+    return NULL;
+}
+#endif  /* WOLFSSL_CMAC */
 
 #ifndef NO_RSA
 static const char* GetRsaType(int type)
@@ -185,12 +198,14 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
                 GetPkTypeStr(info->pk.type), info->pk.type);
         }
     }
+#if !defined(NO_AES) || !defined(NO_DES3)
     else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
         printf("Crypto CB: %s %s (%d) (%p ctx)\n",
             GetAlgoTypeStr(info->algo_type),
             GetCipherTypeStr(info->cipher.type),
             info->cipher.type, info->cipher.ctx);
     }
+#endif /* !NO_AES || !NO_DES3 */
     else if (info->algo_type == WC_ALGO_TYPE_HASH) {
         printf("Crypto CB: %s %s (%d) (%p ctx) %s\n",
             GetAlgoTypeStr(info->algo_type),
@@ -205,6 +220,17 @@ WOLFSSL_API void wc_CryptoCb_InfoString(wc_CryptoInfo* info)
             info->hmac.macType, info->hmac.hmac,
             (info->hmac.in != NULL) ? "Update" : "Final");
     }
+#ifdef WOLFSSL_CMAC
+    else if (info->algo_type == WC_ALGO_TYPE_CMAC) {
+        printf("Crypto CB: %s %s (%d) (%p ctx) %s %s %s\n",
+            GetAlgoTypeStr(info->algo_type),
+            GetCmacTypeStr(info->cmac.type),
+            info->cmac.type, info->cmac.cmac,
+            (info->cmac.key != NULL) ? "Init " : "",
+            (info->cmac.in != NULL) ? "Update " : "",
+            (info->cmac.out != NULL) ? "Final" : "");
+    }
+#endif
 #ifdef WOLF_CRYPTO_CB_CMD
     else if (info->algo_type == WC_ALGO_TYPE_NONE) {
         printf("Crypto CB: %s %s (%d)\n",
@@ -1774,7 +1800,8 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !WC_NO_RNG */
-#ifdef WOLFSSL_CMAC
+
+#if defined(WOLFSSL_CMAC)
 int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
         const byte* in, word32 inSz, byte* out, word32* outSz, int type,
         void* ctx)
@@ -1790,7 +1817,6 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
         /* locate first callback and try using it */
         dev = wc_CryptoCb_FindDeviceByIndex(0);
     }
-
     if (dev && dev->cb) {
         wc_CryptoInfo cryptoInfo;
         XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
@@ -1811,7 +1837,7 @@ int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif
+#endif /* WOLFSSL_CMAC */
 
 /* returns the default dev id for the current build */
 int wc_CryptoCb_DefaultDevID(void)
