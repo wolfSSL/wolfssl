@@ -963,7 +963,7 @@ int main(int argc, char** argv)
     char         keyFilesBuf[MAX_FILENAME_SZ];
     char         keyFilesUser[MAX_FILENAME_SZ];
     const char  *server = NULL;
-    int          port   = 0;
+    int          port   = -1;
     const char  *sniName = NULL;
     const char  *passwd = NULL;
     pcap_if_t   *d;
@@ -1129,15 +1129,17 @@ int main(int argc, char** argv)
         server = DEFAULT_SERVER_IP;
     }
 
-    if (port == 0) {
-        printf("Enter the port to scan [default: %d]: ", DEFAULT_SERVER_PORT);
+    if (port < 0) {
+        printf("Enter the port to scan [default: %d, '0' for all]: ", DEFAULT_SERVER_PORT);
         XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
         if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin)) {
             port = XATOI(cmdLineArg);
         }
-        if (port <= 0)
+        if ((port < 0) || (cmdLineArg[0] == '\n'))
             port = DEFAULT_SERVER_PORT;
 
+    }
+    if (port > 0) {
         SNPRINTF(cmdLineArg, sizeof(filter), " and port %d", port);
         XSTRNCAT(filter, cmdLineArg, sizeof(filter) - XSTRLEN(filter));
     }
@@ -1209,6 +1211,7 @@ int main(int argc, char** argv)
     }
 
     /* Only let through TCP/IP packets */
+    printf("Using packet filter: %s\n", filter);
     ret = pcap_compile(pcap, &pcap_fp, filter, 0, 0);
     if (ret != 0) {
         fprintf(stderr, "pcap_compile failed %s\n", pcap_geterr(pcap));
