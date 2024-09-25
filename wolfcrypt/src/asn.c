@@ -57,7 +57,7 @@ ASN Options:
  * WOLFSSL_NO_ASN_STRICT: Disable strict RFC compliance checks to
     restore 3.13.0 behavior.
  * WOLFSSL_ASN_ALLOW_0_SERIAL: Even if WOLFSSL_NO_ASN_STRICT is not defined,
-    allow a length=1, but zero value serial numnber.
+    allow a length=1, but zero value serial number.
  * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
     must still be trusted)
  * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for situation where entire cert
@@ -12015,34 +12015,38 @@ int wc_EccPublicKeyDerSize(ecc_key* key, int with_AlgCurve)
 
 #ifdef WOLFSSL_ASN_TEMPLATE
 #if defined(WC_ENABLE_ASYM_KEY_EXPORT) || defined(WC_ENABLE_ASYM_KEY_IMPORT)
-/* ASN.1 template for Ed25519 and Ed448 public key (SubkectPublicKeyInfo).
+/* ASN.1 template for the SubjectPublicKeyInfo of a general asymmetric key.
+ * Used with Ed448/Ed25519, Curve448/Curve25519, SPHINCS+, falcon, dilithium,
+ * etc.
+ *
+ * X.509: RFC 5280, 4.1 - SubjectPublicKeyInfo
  * RFC 8410, 4 - Subject Public Key Fields
  */
-static const ASNItem edPubKeyASN[] = {
+static const ASNItem publicKeyASN[] = {
             /* SubjectPublicKeyInfo */
 /* SEQ        */ { 0, ASN_SEQUENCE, 1, 1, 0 },
                                      /* AlgorithmIdentifier */
 /* ALGOID_SEQ */     { 1, ASN_SEQUENCE, 1, 1, 0 },
-                                         /* Ed25519/Ed448 OID */
+                                         /* Ed25519/Ed448 OID, etc. */
 /* ALGOID_OID */         { 2, ASN_OBJECT_ID, 0, 0, 1 },
                                      /* Public key stream */
 /* PUBKEY     */     { 1, ASN_BIT_STRING, 0, 0, 0 },
 };
 enum {
-    EDPUBKEYASN_IDX_SEQ = 0,
-    EDPUBKEYASN_IDX_ALGOID_SEQ,
-    EDPUBKEYASN_IDX_ALGOID_OID,
-    EDPUBKEYASN_IDX_PUBKEY
+    PUBKEYASN_IDX_SEQ = 0,
+    PUBKEYASN_IDX_ALGOID_SEQ,
+    PUBKEYASN_IDX_ALGOID_OID,
+    PUBKEYASN_IDX_PUBKEY
 };
 
-/* Number of items in ASN.1 template for Ed25519 and Ed448 public key. */
-#define edPubKeyASN_Length (sizeof(edPubKeyASN) / sizeof(ASNItem))
+/* Number of items in ASN.1 template for public key SubjectPublicKeyInfo. */
+#define publicKeyASN_Length (sizeof(publicKeyASN) / sizeof(ASNItem))
 #endif /* WC_ENABLE_ASYM_KEY_EXPORT || WC_ENABLE_ASYM_KEY_IMPORT */
 #endif /* WOLFSSL_ASN_TEMPLATE */
 
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 
-/* Build ASN.1 formatted public key based on RFC 8410
+/* Build ASN.1 formatted public key based on RFC 5280 and RFC 8410
  *
  * Pass NULL for output to get the size of the encoding.
  *
@@ -12066,7 +12070,7 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     word32 sz;
 #else
     int sz = 0;
-    DECL_ASNSETDATA(dataASN, edPubKeyASN_Length);
+    DECL_ASNSETDATA(dataASN, publicKeyASN_Length);
 #endif
 
     /* validate parameters */
@@ -12118,25 +12122,26 @@ int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     }
 #else
     if (withHeader) {
-        CALLOC_ASNSETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
+        CALLOC_ASNSETDATA(dataASN, publicKeyASN_Length, ret, NULL);
 
         if (ret == 0) {
             /* Set the OID. */
-            SetASN_OID(&dataASN[EDPUBKEYASN_IDX_ALGOID_OID], (word32)keyType,
+            SetASN_OID(&dataASN[PUBKEYASN_IDX_ALGOID_OID], (word32)keyType,
                     oidKeyType);
             /* Leave space for public point. */
-            SetASN_Buffer(&dataASN[EDPUBKEYASN_IDX_PUBKEY], NULL, pubKeyLen);
+            SetASN_Buffer(&dataASN[PUBKEYASN_IDX_PUBKEY], NULL, pubKeyLen);
             /* Calculate size of public key encoding. */
-            ret = SizeASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, &sz);
+            ret = SizeASN_Items(publicKeyASN, dataASN, publicKeyASN_Length,
+                                &sz);
         }
         if ((ret == 0) && (output != NULL) && (sz > (int)outLen)) {
             ret = BUFFER_E;
         }
         if ((ret == 0) && (output != NULL)) {
             /* Encode public key. */
-            SetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, output);
+            SetASN_Items(publicKeyASN, dataASN, publicKeyASN_Length, output);
             /* Set location to encode public point. */
-            output = (byte*)dataASN[EDPUBKEYASN_IDX_PUBKEY].data.buffer.data;
+            output = (byte*)dataASN[PUBKEYASN_IDX_PUBKEY].data.buffer.data;
         }
 
         FREE_ASNSETDATA(dataASN, NULL);
@@ -35234,7 +35239,7 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     word32 oid;
 #else
     word32 len;
-    DECL_ASNGETDATA(dataASN, edPubKeyASN_Length);
+    DECL_ASNGETDATA(dataASN, publicKeyASN_Length);
 #endif
 
     if (input == NULL || inSz == 0 || inOutIdx == NULL ||
@@ -35269,17 +35274,17 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
 #else
     len = inSz - *inOutIdx;
 
-    CALLOC_ASNGETDATA(dataASN, edPubKeyASN_Length, ret, NULL);
+    CALLOC_ASNGETDATA(dataASN, publicKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
         /* Require OID. */
         word32 oidSz;
         const byte* oid = OidFromId((word32)keyType, oidKeyType, &oidSz);
 
-        GetASN_ExpBuffer(&dataASN[EDPUBKEYASN_IDX_ALGOID_OID], oid, oidSz);
+        GetASN_ExpBuffer(&dataASN[PUBKEYASN_IDX_ALGOID_OID], oid, oidSz);
         /* Decode Ed25519 private key. */
-        ret = GetASN_Items(edPubKeyASN, dataASN, edPubKeyASN_Length, 1, input,
-                inOutIdx, inSz);
+        ret = GetASN_Items(publicKeyASN, dataASN, publicKeyASN_Length, 1,
+                           input, inOutIdx, inSz);
         if (ret != 0)
             ret = ASN_PARSE_E;
         /* check that input buffer is exhausted */
@@ -35288,12 +35293,12 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     }
     /* Check that the all the buffer was used. */
     if ((ret == 0) &&
-            (GetASNItem_Length(dataASN[EDPUBKEYASN_IDX_SEQ], input) != len)) {
+            (GetASNItem_Length(dataASN[PUBKEYASN_IDX_SEQ], input) != len)) {
         ret = ASN_PARSE_E;
     }
     if (ret == 0) {
-        *pubKeyLen = dataASN[EDPUBKEYASN_IDX_PUBKEY].data.ref.length;
-        *pubKey = dataASN[EDPUBKEYASN_IDX_PUBKEY].data.ref.data;
+        *pubKeyLen = dataASN[PUBKEYASN_IDX_PUBKEY].data.ref.length;
+        *pubKey = dataASN[PUBKEYASN_IDX_PUBKEY].data.ref.data;
     }
 
     FREE_ASNGETDATA(dataASN, NULL);
