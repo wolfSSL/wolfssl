@@ -710,6 +710,7 @@ int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
+    hash->isAllocated = 0;
     switch (type) {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
@@ -1146,8 +1147,9 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
             ret = BAD_FUNC_ARG;
     };
 
-    if (isAllocated && heap)
+    if (isAllocated) {
         XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
+    }
 
     return ret;
 }
