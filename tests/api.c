@@ -1577,11 +1577,12 @@ static int test_wolfSSL_CTX_new(void)
 {
     EXPECT_DECLS;
     WOLFSSL_CTX *ctx;
-    WOLFSSL_METHOD* method;
+    WOLFSSL_METHOD* method = NULL;
 
     ExpectNull(ctx = wolfSSL_CTX_new(NULL));
     ExpectNotNull(method = wolfSSLv23_server_method());
-    ExpectNotNull(ctx = wolfSSL_CTX_new(method));
+    if (method != NULL)
+        ExpectNotNull(ctx = wolfSSL_CTX_new(method));
 
     wolfSSL_CTX_free(ctx);
 
@@ -21281,7 +21282,7 @@ static int test_wc_RsaKeyToPublicDer(void)
     int    bits = 2048;
     word32 derLen = 294;
 #endif
-    int    ret;
+    int    ret = 0;
 
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));
@@ -24489,7 +24490,7 @@ static int test_wc_curve25519_make_key(void)
 #if defined(HAVE_CURVE25519)
     curve25519_key key;
     WC_RNG         rng;
-    int            keysize;
+    int            keysize = 0;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
@@ -25193,7 +25194,7 @@ static int test_wc_curve448_make_key(void)
 #if defined(HAVE_CURVE448)
     curve448_key key;
     WC_RNG       rng;
-    int          keysize;
+    int          keysize = 0;
 
     XMEMSET(&rng, 0, sizeof(WC_RNG));
 
@@ -25623,7 +25624,7 @@ static int test_wc_ecc_params(void)
     /* FIPS/CAVP self-test modules do not have `wc_ecc_get_curve_params`.
         It was added after certifications */
 #if defined(HAVE_ECC) && !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)
-    const ecc_set_type* ecc_set;
+    const ecc_set_type* ecc_set = NULL;
 #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
     /* Test for SECP256R1 curve */
     int curve_id = ECC_SECP256R1;
@@ -53232,7 +53233,7 @@ static int test_wolfSSL_ASN1_TIME(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME)
     WOLFSSL_ASN1_TIME* asn_time = NULL;
-    unsigned char *data;
+    unsigned char *data = NULL;
 
     ExpectNotNull(asn_time = ASN1_TIME_new());
 
@@ -54136,7 +54137,7 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
         ExpectIntEQ(ASN1_INTEGER_set(nested_asn1->asn1_obj->expNum, 22222), 1);
         /* nested_asn1->asn1_obj->strList */
         for (i = 10; i >= 0; i--) {
-            ASN1_GENERALSTRING* genStr;
+            ASN1_GENERALSTRING* genStr = NULL;
             char fmtStr[20];
 
             ExpectIntGT(snprintf(fmtStr, sizeof(fmtStr), "Bonjour #%d", i), 0);
@@ -54177,7 +54178,7 @@ static int test_wolfSSL_IMPLEMENT_ASN1_FUNCTIONS(void)
 
         ExpectNotNull(asn1_item = TEST_ASN1_ITEM_new());
         for (i = 0; i < 11; i++) {
-            ASN1_INTEGER* asn1_num;
+            ASN1_INTEGER* asn1_num = NULL;
 
             ExpectNotNull(asn1_num = ASN1_INTEGER_new());
             ExpectIntEQ(ASN1_INTEGER_set(asn1_num, i), 1);
@@ -62069,7 +62070,7 @@ static int test_wolfSSL_PEM_read_bio(void)
    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     byte buff[6000];
     XFILE f = XBADFILE;
-    int  bytes;
+    int  bytes = 0;
     X509* x509 = NULL;
     BIO*  bio = NULL;
     BUF_MEM* buf = NULL;
@@ -64135,7 +64136,7 @@ static int test_wolfSSL_PKCS8_Compat(void)
     PKCS8_PRIV_KEY_INFO* pt = NULL;
     BIO* bio = NULL;
     XFILE f = XBADFILE;
-    int bytes;
+    int bytes = 0;
     char pkcs8_buffer[512];
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL)
     EVP_PKEY *pkey = NULL;
@@ -65156,7 +65157,7 @@ static int test_wolfSSL_SHA224(void)
          "\x50\xb0\xc6\x45\x5c\xb4\xf5\x8b\x19\x52\x52\x25\x25";
     size_t inLen;
     byte hash[WC_SHA224_DIGEST_SIZE];
-    unsigned char* p;
+    unsigned char* p = NULL;
 
     inLen  = XSTRLEN((char*)input);
 
@@ -70176,7 +70177,7 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
     GENERAL_NAME* gn = NULL;
     unsigned char buf[4096];
     const unsigned char* bufPt = NULL;
-    int bytes;
+    int bytes = 0;
     XFILE f = XBADFILE;
     STACK_OF(GENERAL_NAME)* sk = NULL;
     BIO* out = NULL;
@@ -70532,7 +70533,7 @@ static int test_wolfSSL_verify_depth(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL*     ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
-    long         depth;
+    long         depth = 0;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectIntGT((depth = SSL_CTX_get_verify_depth(ctx)), 0);
@@ -74168,7 +74169,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     BN_CTX* ctx;
     EC_GROUP* curve = NULL;
     EC_KEY* ephemeral_key = NULL;
-    const EC_POINT* h;
+    const EC_POINT* h = NULL;
 
     /* Generate an x963 key pair and get public part into pub_buf */
     ExpectNotNull(ctx = BN_CTX_new());
@@ -75216,7 +75217,7 @@ static int test_wc_SetIssuerRaw(void)
     const char* joiCertFile = "./certs/test/cert-ext-joi.der";
     WOLFSSL_X509* x509 = NULL;
     int peerCertSz;
-    const byte* peerCertBuf;
+    const byte* peerCertBuf = NULL;
     Cert forgedCert;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile,
@@ -75241,7 +75242,7 @@ static int test_wc_SetIssueBuffer(void)
     const char* joiCertFile = "./certs/test/cert-ext-joi.der";
     WOLFSSL_X509* x509 = NULL;
     int peerCertSz;
-    const byte* peerCertBuf;
+    const byte* peerCertBuf = NULL;
     Cert forgedCert;
 
     ExpectNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile,
@@ -83258,7 +83259,7 @@ static int test_wolfSSL_DH_check(void)
     byte buf[6000];
     char file[] = "./certs/dsaparams.pem";
     XFILE f = XBADFILE;
-    int  bytes;
+    int  bytes = 0;
     BIO* bio = NULL;
     DSA* dsa = NULL;
 #elif !defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0)
@@ -85479,7 +85480,7 @@ static int test_openssl_make_self_signed_certificate(EVP_PKEY* pkey,
     BIGNUM* serial_number = NULL;
     X509_NAME* name = NULL;
     time_t epoch_off = 0;
-    ASN1_INTEGER* asn1_serial_number;
+    ASN1_INTEGER* asn1_serial_number = NULL;
     long not_before, not_after;
     int derSz;
 
