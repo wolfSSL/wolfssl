@@ -1078,7 +1078,7 @@ int main(int argc, char** argv)
 
         pcap = pcap_create(d->name, err);
 
-        if (pcap == NULL) printf("pcap_create failed %s\n", err);
+        if (pcap == NULL) fprintf(stderr, "pcap_create failed %s\n", err);
 
         if (server == NULL) {
             /* print out addresses for selected interface */
@@ -1099,21 +1099,21 @@ int main(int argc, char** argv)
         }
 
         ret = pcap_set_snaplen(pcap, 65536);
-        if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
+        if (ret != 0) fprintf(stderr, "pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_set_timeout(pcap, 1000);
-        if (ret != 0) printf("pcap_set_timeout failed %s\n", pcap_geterr(pcap));
+        if (ret != 0) fprintf(stderr, "pcap_set_timeout failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_set_buffer_size(pcap, 1000000);
         if (ret != 0)
-            printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
+            fprintf(stderr, "pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
 
         ret = pcap_set_promisc(pcap, 1);
-        if (ret != 0) printf("pcap_set_promisc failed %s\n", pcap_geterr(pcap));
+        if (ret != 0) fprintf(stderr,"pcap_set_promisc failed %s\n", pcap_geterr(pcap));
 
 
         ret = pcap_activate(pcap);
-        if (ret != 0) printf("pcap_activate failed %s\n", pcap_geterr(pcap));
+        if (ret != 0) fprintf(stderr, "pcap_activate failed %s\n", pcap_geterr(pcap));
 
     }
     else {
