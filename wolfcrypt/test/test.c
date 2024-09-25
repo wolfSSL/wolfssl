@@ -29284,7 +29284,7 @@ static wc_test_ret_t ecdsa_test_deterministic_k_sig(ecc_key *key,
         goto done;
     }
 
-    /* Verificiation */
+    /* Verification */
     verify = 0;
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -29451,7 +29451,7 @@ static wc_test_ret_t ecdsa_test_deterministic_k_rs(ecc_key *key,
         ERROR_OUT(WC_TEST_RET_ENC_NC, done);
     }
 
-    /* Verificiation */
+    /* Verification */
     verify = 0;
     ret = wc_ecc_verify_hash_ex(r, s, hash, wc_HashGetDigestSize(hashType),
         &verify, key);

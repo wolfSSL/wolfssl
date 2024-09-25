@@ -515,7 +515,7 @@
      * in the Kconfig file. At cmake time, the Kconfig is processed and an
      * sdkconfig.h file is created by the ESP-IDF. Any configured options are
      * named CONFIG_[Kconfig name] and thus CONFIG_[macro name]. Those that
-     * are expected to be ESP-IDF specific and may be ambigous can named
+     * are expected to be ESP-IDF specific and may be ambiguous can named
      * with an ESP prefix, for example CONFIG_[ESP_(Kconfig name)]
      *
      * Note there are some inconsistent macro names that may have been
@@ -582,7 +582,7 @@
     #endif
 
     #if defined(CONFIG_TLS_STACK_WOLFSSL) && (CONFIG_TLS_STACK_WOLFSSL)
-        /* When using ESP-TLS, some old algoritms such as SHA1 are no longer
+        /* When using ESP-TLS, some old algorithms such as SHA1 are no longer
          * enabled in wolfSSL, except for the OpenSSL compatibility. So enable
          * that here: */
         #define OPENSSL_EXTRA
@@ -4035,7 +4035,7 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(CONFIG_WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_NO_ASN_STRICT)
     /* The settings.h and/or user_settings.h should have detected config
-     * valuse from Kconfig and set the appropriate wolfSSL macro: */
+     * values from Kconfig and set the appropriate wolfSSL macro: */
     #error "CONFIG_WOLFSSL_NO_ASN_STRICT found without WOLFSSL_NO_ASN_STRICT"
 #endif
 

@@ -450,7 +450,7 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
 
 #if defined(WOLFSSL_ALGO_HW_MUTEX) && (defined(NO_RNG_MUTEX) && \
         defined(NO_AES_MUTEX) && defined(NO_HASH_MUTEX) && defined(NO_PK_MUTEX))
-        #error WOLFSSL_ALGO_HW_MUTEX does not support having all mutexs off
+        #error WOLFSSL_ALGO_HW_MUTEX does not support having all mutexes off
 #endif
 /* To support HW that can do different Crypto in parallel */
 #if WOLFSSL_CRYPT_HW_MUTEX && defined(WOLFSSL_ALGO_HW_MUTEX)
