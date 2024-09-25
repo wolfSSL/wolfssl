@@ -3817,7 +3817,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
-#elif defined(DOLPHIN_EMULATOR) || defined (NDS)
+#elif defined(DOLPHIN_EMULATOR) || defined (WOLFSSL_NDS)
 
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {

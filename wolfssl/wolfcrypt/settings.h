@@ -262,8 +262,8 @@
 /* Uncomment next line if building for Dolphin Emulator */
 /* #define DOLPHIN_EMULATOR */
 
-/* Uncomment next line if building for NDS */
-/* #define NDS */
+/* Uncomment next line if building for WOLFSSL_NDS */
+/* #define WOLFSSL_NDS */
 
 /* Uncomment next line if using MAXQ1065 */
 /* #define WOLFSSL_MAXQ1065 */
@@ -474,7 +474,7 @@
 #endif
 
 
-#ifdef NDS
+#ifdef WOLFSSL_NDS
     #include <stddef.h>
     #define SIZEOF_LONG_LONG 8
     #define socklen_t int

@@ -429,7 +429,7 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #ifdef DEVKITPRO
     #include <wiiuse/wpad.h>
 #endif
-#ifdef NDS
+#ifdef WOLFSSL_NDS
     #include <nds/ndstypes.h>
     #include <nds/arm9/console.h>
     #include <nds/arm9/input.h>
@@ -2473,7 +2473,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         VIDEO_WaitVSync();
         if(rmode->viTVMode&VI_NON_INTERLACE) VIDEO_WaitVSync();
 #endif
-#ifdef NDS
+#ifdef WOLFSSL_NDS
         /* Init Console output */
         consoleDemoInit();
 
@@ -2525,7 +2525,7 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
         while (1);
 #endif
 
-#ifdef NDS
+#ifdef WOLFSSL_NDS
         /* in Nintendo DS returning from main shuts down the Device without letting you see the Results. */
         printf("args.return_code: %d\n", args.return_code);
         printf("Testing complete. Press Start to exit the Program\n");
@@ -18109,7 +18109,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #elif defined(_WIN32_WCE)
     #define CERT_PREFIX "\\windows\\"
     #define CERT_PATH_SEP "\\"
-#elif defined(NDS)
+#elif defined(WOLFSSL_NDS)
     #undef CERT_PREFIX
     #define CERT_PREFIX "fat:/_nds/"
     #define CERT_PATH_SEP "/"
