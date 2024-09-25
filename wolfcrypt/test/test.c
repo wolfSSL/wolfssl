@@ -6265,8 +6265,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    hash->isAllocated = 1; /* free manually */
-    (void)wc_HashFree(hash, WC_HASH_TYPE_NONE);
+    if (hash != NULL) {
+        hash->isAllocated = 1; /* free manually */
+        (void)wc_HashFree(hash, hash->type);
+    }
 #endif
 
     return 0;
@@ -15686,7 +15688,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t gmac_test(void)
 
 static wc_test_ret_t aesccm_256_test(void)
 {
-    wc_test_ret_t ret;
+    wc_test_ret_t ret = 0;
     /* Test vectors from NIST AES CCM 256-bit CAST Example #1 */
     WOLFSSL_SMALL_STACK_STATIC const byte in_key[32] = {
         0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
@@ -15708,15 +15710,14 @@ static wc_test_ret_t aesccm_256_test(void)
     byte atag[sizeof(exp_tag)];
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    Aes* aes = (Aes*)XMALLOC(sizeof(Aes), HEAP_HINT, DYNAMIC_TYPE_AES);
+    Aes* aes = wc_AesNew(HEAP_HINT, devId);
     if (aes == NULL) {
-        return MEMORY_E;
+        ret = WC_TEST_RET_ENC_EC(MEMORY_E);
     }
 #else
     Aes aes[1];
-#endif
-
     ret = wc_AesInit(aes, HEAP_HINT, devId);
+#endif
     if (ret == 0) {
         ret = wc_AesCcmSetKey(aes, in_key, sizeof(in_key));
     }
@@ -15751,10 +15752,6 @@ static wc_test_ret_t aesccm_256_test(void)
 
     wc_AesFree(aes);
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
-#endif
-
     return ret;
 }
 
@@ -15766,7 +15763,7 @@ static wc_test_ret_t aesccm_128_test(void)
 {
     wc_test_ret_t ret;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    Aes *enc;
+    Aes *enc = NULL;
 #else
     Aes enc[1];
 #endif
@@ -15867,7 +15864,7 @@ static wc_test_ret_t aesccm_128_test(void)
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     enc = wc_AesNew(HEAP_HINT, devId);
     if (enc == NULL)
-        return WC_TEST_RET_ENC_ERRNO;
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
 #else
     XMEMSET(enc, 0, sizeof(Aes));
     ret = wc_AesInit(enc, HEAP_HINT, devId);
@@ -15911,15 +15908,22 @@ static wc_test_ret_t aesccm_128_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif
 
-    XMEMSET(enc, 0, sizeof(Aes)); /* clear context */
     XMEMSET(t2, 0, sizeof(t2));
     XMEMSET(c2, 0, sizeof(c2));
     XMEMSET(p2, 0, sizeof(p2));
     XMEMSET(iv2, 0, sizeof(iv2));
 
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    wc_AesFree(enc);
+    enc = wc_AesNew(HEAP_HINT, devId);
+    if (enc == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);
+#else
+    XMEMSET(enc, 0, sizeof(Aes));
     ret = wc_AesInit(enc, HEAP_HINT, devId);
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
 #ifndef HAVE_SELFTEST
     /* selftest build does not have wc_AesCcmSetNonce() or
