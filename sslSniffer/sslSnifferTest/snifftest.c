@@ -1050,8 +1050,8 @@ int main(int argc, char** argv)
         if (pcap_findalldevs(&alldevs, err) == -1)
             err_sys("Error in pcap_findalldevs");
 
-        for (d = alldevs; d; d=d->next) {
-            printf("%d. %s", i++, d->name);
+        for (d = alldevs, i = 0; d; d=d->next) {
+            printf("%d. %s", ++i, d->name);
             if (strcmp(d->name, "lo0") == 0) {
                 defDev = i;
             }
@@ -1076,6 +1076,7 @@ int main(int argc, char** argv)
 
         /* Jump to the selected adapter */
         for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
+        printf("Selected %s\n", d->name);
 
         pcap = pcap_create(d->name, err);
 
