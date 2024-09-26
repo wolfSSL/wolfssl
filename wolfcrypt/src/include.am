@@ -123,6 +123,12 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Espressif/esp_sdk_mem_lib.c \
               wolfcrypt/src/port/Espressif/esp_sdk_time_lib.c \
               wolfcrypt/src/port/Espressif/esp_sdk_wifi_lib.c \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/README.md \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_all.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_deprecated.pem \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/esp_crt_bundle.c \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/gen_crt_bundle.py \
+              wolfcrypt/src/port/Espressif/esp_crt_bundle/cacrt_local.pem \
               wolfcrypt/src/port/Espressif/README.md \
               wolfcrypt/src/port/arm/cryptoCell.c \
               wolfcrypt/src/port/arm/cryptoCellHash.c \

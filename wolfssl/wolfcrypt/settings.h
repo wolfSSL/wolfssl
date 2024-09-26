@@ -551,6 +551,12 @@
      * been processed. The following settings are additive; Enabled settings
      * from user_settings are not disabled here.
      */
+    #if defined(CONFIG_ESP_WOLFSSL_TEST_LOOP) && \
+                CONFIG_ESP_WOLFSSL_TEST_LOOP
+        #define            WOLFSSL_TEST_LOOP 1
+    #else
+        #define            WOLFSSL_TEST_LOOP 0
+    #endif
     #if (defined(CONFIG_DEBUG_WOLFSSL) &&             \
                  CONFIG_DEBUG_WOLFSSL) ||             \
         (defined(CONFIG_ESP_WOLFSSL_DEBUG_WOLFSSL) && \
@@ -592,6 +598,14 @@
     #if defined(CONFIG_WOLFSSL_APPLE_HOMEKIT) && \
                 CONFIG_WOLFSSL_APPLE_HOMEKIT
         #define        WOLFSSL_APPLE_HOMEKIT
+    #endif
+    #if defined(CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS) && \
+                CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
+        #define            WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
+    #endif
+    #if defined(CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS) && \
+                CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+        #define            WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
     #endif
 
     #if defined(CONFIG_TLS_STACK_WOLFSSL) && (CONFIG_TLS_STACK_WOLFSSL)
@@ -917,7 +931,58 @@
         #undef  HAVE_AESGCM
         #define HAVE_AESGCM
     #endif /* SM */
+
 #endif /* defined(WOLFSSL_ESP32) || defined(WOLFSSL_ESPWROOM32SE) */
+    /* Final device-specific hardware settings. user_settings.h loaded above. */
+
+    /* Counters for RSA wait timeout. CPU and frequency specific. */
+    #define ESP_RSA_WAIT_TIMEOUT_CNT          0x000020
+    #if defined(CONFIG_IDF_TARGET_ESP32) || defined(WOLFSSL_ESPWROOM32SE)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            /* Observed: 0xAE8C8F @ 80MHz */
+            #define ESP_RSA_TIMEOUT_CNT      0xAF0000
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32C2)
+        /* See also CONFIG_IDF_TARGET_ESP8684 equivalent */
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            /* Observed: 0x2624B2 @ 80MHz */
+            #define ESP_RSA_TIMEOUT_CNT      0x280000
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32C6)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            /* Observed: 144323 @ 80MHz */
+            #define ESP_RSA_TIMEOUT_CNT      0x160000
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP8266)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP8684)
+        /* See also CONFIG_IDF_TARGET_ESP8684 equivalent */
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #else
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #endif
 #endif /* WOLFSSL_ESPIDF */
 
 #if defined(WOLFSSL_RENESAS_TSIP)
