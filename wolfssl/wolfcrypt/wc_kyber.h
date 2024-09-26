@@ -163,7 +163,8 @@ WOLFSSL_LOCAL
 int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1, sword16* vec2,
     sword16* poly, byte* seed);
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || \
+        (defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 WOLFSSL_LOCAL
 int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen);
 #endif
@@ -288,6 +289,27 @@ void kyber_decompress_5_avx2(sword16* p, const byte* r);
 
 WOLFSSL_LOCAL
 int kyber_cmp_avx2(const byte* a, const byte* b, int sz);
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+WOLFSSL_LOCAL void kyber_ntt(sword16* r);
+WOLFSSL_LOCAL void kyber_invntt(sword16* r);
+WOLFSSL_LOCAL void kyber_basemul_mont(sword16* r, const sword16* a,
+    const sword16* b);
+WOLFSSL_LOCAL void kyber_basemul_mont_add(sword16* r, const sword16* a,
+    const sword16* b);
+WOLFSSL_LOCAL void kyber_add_reduce(sword16* r, const sword16* a);
+WOLFSSL_LOCAL void kyber_add3_reduce(sword16* r, const sword16* a,
+    const sword16* b);
+WOLFSSL_LOCAL void kyber_rsub_reduce(sword16* r, const sword16* a);
+WOLFSSL_LOCAL void kyber_to_mont(sword16* p);
+WOLFSSL_LOCAL void kyber_sha3_blocksx3_neon(word64* state);
+WOLFSSL_LOCAL void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed);
+WOLFSSL_LOCAL void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed);
+WOLFSSL_LOCAL unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
+WOLFSSL_LOCAL int kyber_cmp_neon(const byte* a, const byte* b, int sz);
+WOLFSSL_LOCAL void kyber_csubq_neon(sword16* p);
+WOLFSSL_LOCAL void kyber_from_msg_neon(sword16* p, const byte* msg);
+WOLFSSL_LOCAL void kyber_to_msg_neon(byte* msg, sword16* p);
 #endif
 
 #ifdef __cplusplus

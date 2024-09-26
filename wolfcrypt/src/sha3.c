@@ -62,8 +62,7 @@
     }
 #endif
 
-#if (!defined(WOLFSSL_ARMASM) || (!defined(__arm__) && \
-     !defined(WOLFSSL_ARMASM_CRYPTO_SHA3))) && !defined(WOLFSSL_RISCV_ASM)
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
 
 #ifdef USE_INTEL_SPEEDUP
     #include <wolfssl/wolfcrypt/cpuid.h>

@@ -167,6 +167,7 @@ const sword16 zetas_inv[KYBER_N / 2] = {
 };
 
 
+#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
 /* Number-Theoretic Transform.
  *
  * @param  [in, out]  r  Polynomial to transform.
@@ -1045,6 +1046,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
     }
 #endif
 }
+#endif
 
 /* Pointwise multiply elements of a and b, into r, and multiply by 2^-16.
  *
@@ -1077,6 +1079,110 @@ void kyber_init(void)
 }
 
 /******************************************************************************/
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+
+/* Generate a public-private key pair from randomly generated data.
+ *
+ * @param  [in, out]  priv  Private key vector of polynomials.
+ * @param  [out]      pub   Public key vector of polynomials.
+ * @param  [in]       e     Error values as a vector of polynomials. Modified.
+ * @param  [in]       a     Random values in an array of vectors of polynomials.
+ * @param  [in]       kp    Number of polynomials in vector.
+ */
+void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
+    int kp)
+{
+    int i;
+
+    /* Transform private key. All of result used in public key calculation */
+    for (i = 0; i < kp; ++i) {
+        kyber_ntt(priv + i * KYBER_N);
+    }
+
+    /* For each polynomial in the vectors. */
+    for (i = 0; i < kp; ++i) {
+        /* Multiply a by private into public polynomial. */
+        kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N, priv,
+            kp);
+        /* Convert public polynomial to Montgomery form. */
+        kyber_to_mont(pub + i * KYBER_N);
+        /* Transform error values polynomial. */
+        kyber_ntt(e + i * KYBER_N);
+        /* Add errors to public key and reduce. */
+        kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+    }
+}
+
+/* Encapsuluate message.
+ *
+ * @param  [in]   pub  Public key vector of polynomials.
+ * @param  [out]  bp   Vector of polynomials.
+ * @param  [out]  v    Polynomial.
+ * @param  [in]   at   Array of vector of polynomials.
+ * @param  [in]   sp   Vector of polynomials.
+ * @param  [in]   ep   Error Vector of polynomials.
+ * @param  [in]   epp  Error polynomial.
+ * @param  [in]   m    Message polynomial.
+ * @param  [in]   kp   Number of polynomials in vector.
+ */
+void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
+    const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
+    const sword16* m, int kp)
+{
+    int i;
+
+    /* Transform sp. All of result used in calculation of bp and v. */
+    for (i = 0; i < kp; ++i) {
+        kyber_ntt(sp + i * KYBER_N);
+    }
+
+    /* For each polynomial in the vectors. */
+    for (i = 0; i < kp; ++i) {
+        /* Multiply at by sp into bp polynomial. */
+        kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N, sp,
+            kp);
+        /* Inverse transform bp polynomial. */
+        kyber_invntt(bp + i * KYBER_N);
+        /* Add errors to bp and reduce. */
+        kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
+    }
+
+    /* Multiply public key by sp into v polynomial. */
+    kyber_pointwise_acc_mont(v, pub, sp, kp);
+    /* Inverse transform v. */
+    kyber_invntt(v);
+    /* Add errors and message to v and reduce. */
+    kyber_add3_reduce(v, epp, m);
+}
+
+/* Decapsulate message.
+ *
+ * @param  [in]   priv  Private key vector of polynomials.
+ * @param  [out]  mp    Message polynomial.
+ * @param  [in]   bp    Vector of polynomials containing error.
+ * @param  [in]   v     Encapsulated message polynomial.
+ * @param  [in]   kp    Number of polynomials in vector.
+ */
+void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
+    const sword16* v, int kp)
+{
+    int i;
+
+    /* Transform bp. All of result used in calculation of mp. */
+    for (i = 0; i < kp; ++i) {
+        kyber_ntt(bp + i * KYBER_N);
+    }
+
+    /* Multiply private key by bp into mp polynomial. */
+    kyber_pointwise_acc_mont(mp, priv, bp, kp);
+    /* Inverse transform mp. */
+    kyber_invntt(mp);
+    /* Subtract errors (mp) out of v and reduce into mp. */
+    kyber_rsub_reduce(mp, v);
+}
+
+#else
 
 /* Generate a public-private key pair from randomly generated data.
  *
@@ -1268,6 +1374,8 @@ void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
         kyber_decapsulate_c(priv, mp, bp, v, kp);
     }
 }
+
+#endif
 
 /******************************************************************************/
 
@@ -1578,8 +1686,237 @@ static int kyber_gen_matrix_k4_avx2(sword16* a, byte* seed, int transposed)
     return 0;
 }
 #endif /* KYBER1024 */
+#elif defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+#ifdef WOLFSSL_KYBER512
+/* Deterministically generate a matrix (or transpose) of uniform integers mod q.
+ *
+ * Seed used with XOF to generate random bytes.
+ *
+ * @param  [out]  a           Matrix of uniform integers.
+ * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   transposed  Whether A or A^T is generated.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ * WOLFSSL_SMALL_STACK is defined.
+ */
+static int kyber_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
+{
+    word64 state[3 * 25];
+    word64* st = (word64*)state;
+    unsigned int ctr0;
+    unsigned int ctr1;
+    unsigned int ctr2;
+    byte* p;
+
+    if (!transposed) {
+        state[0*25 + 4] = 0x1f0000 + (0 << 8) + 0;
+        state[1*25 + 4] = 0x1f0000 + (0 << 8) + 1;
+        state[2*25 + 4] = 0x1f0000 + (1 << 8) + 0;
+    }
+    else {
+        state[0*25 + 4] = 0x1f0000 + (0 << 8) + 0;
+        state[1*25 + 4] = 0x1f0000 + (1 << 8) + 0;
+        state[2*25 + 4] = 0x1f0000 + (0 << 8) + 1;
+    }
+
+    kyber_shake128_blocksx3_seed_neon(state, seed);
+    /* Sample random bytes to create a polynomial. */
+    p = (byte*)st;
+    ctr0 = kyber_rej_uniform_neon(a + 0 * KYBER_N, KYBER_N, p, XOF_BLOCK_SIZE);
+    p += 25 * 8;
+    ctr1 = kyber_rej_uniform_neon(a + 1 * KYBER_N, KYBER_N, p, XOF_BLOCK_SIZE);
+    p += 25 * 8;
+    ctr2 = kyber_rej_uniform_neon(a + 2 * KYBER_N, KYBER_N, p, XOF_BLOCK_SIZE);
+    while ((ctr0 < KYBER_N) || (ctr1 < KYBER_N) || (ctr2 < KYBER_N)) {
+        kyber_sha3_blocksx3_neon(st);
+
+        p = (byte*)st;
+        ctr0 += kyber_rej_uniform_neon(a + 0 * KYBER_N + ctr0, KYBER_N - ctr0,
+            p, XOF_BLOCK_SIZE);
+        p += 25 * 8;
+        ctr1 += kyber_rej_uniform_neon(a + 1 * KYBER_N + ctr1, KYBER_N - ctr1,
+            p, XOF_BLOCK_SIZE);
+        p += 25 * 8;
+        ctr2 += kyber_rej_uniform_neon(a + 2 * KYBER_N + ctr2, KYBER_N - ctr2,
+            p, XOF_BLOCK_SIZE);
+    }
+
+    a += 3 * KYBER_N;
+
+    state[0] = ((word64*)seed)[0];
+    state[1] = ((word64*)seed)[1];
+    state[2] = ((word64*)seed)[2];
+    state[3] = ((word64*)seed)[3];
+    /* Transposed value same as not. */
+    state[4] = 0x1f0000 + (1 << 8) + 1;
+    XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
+    state[20] = 0x8000000000000000UL;
+    BlockSha3(state);
+    p = (byte*)state;
+    ctr0 = kyber_rej_uniform_neon(a, KYBER_N, p, XOF_BLOCK_SIZE);
+    while (ctr0 < KYBER_N) {
+        BlockSha3(state);
+        ctr0 += kyber_rej_uniform_neon(a + ctr0, KYBER_N - ctr0, p,
+            XOF_BLOCK_SIZE);
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef WOLFSSL_KYBER768
+/* Deterministically generate a matrix (or transpose) of uniform integers mod q.
+ *
+ * Seed used with XOF to generate random bytes.
+ *
+ * @param  [out]  a           Matrix of uniform integers.
+ * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   transposed  Whether A or A^T is generated.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ * WOLFSSL_SMALL_STACK is defined.
+ */
+static int kyber_gen_matrix_k3_aarch64(sword16* a, byte* seed, int transposed)
+{
+    int i;
+    int k;
+    word64 state[3 * 25];
+    word64* st = (word64*)state;
+    unsigned int ctr0;
+    unsigned int ctr1;
+    unsigned int ctr2;
+    byte* p;
+
+    for (k = 0; k < 3; k++) {
+        for (i = 0; i < 3; i++) {
+            if (!transposed) {
+                state[i*25 + 4] = 0x1f0000 + ((k << 8) + i);
+            }
+            else {
+                state[i*25 + 4] = 0x1f0000 + ((i << 8) + k);
+            }
+        }
+
+        kyber_shake128_blocksx3_seed_neon(state, seed);
+        /* Sample random bytes to create a polynomial. */
+        p = (byte*)st;
+        ctr0 = kyber_rej_uniform_neon(a + 0 * KYBER_N, KYBER_N, p,
+            XOF_BLOCK_SIZE);
+        p += 25 * 8;
+        ctr1 = kyber_rej_uniform_neon(a + 1 * KYBER_N, KYBER_N, p,
+            XOF_BLOCK_SIZE);
+        p +=25 * 8;
+        ctr2 = kyber_rej_uniform_neon(a + 2 * KYBER_N, KYBER_N, p,
+            XOF_BLOCK_SIZE);
+        /* Create more blocks if too many rejected. */
+        while ((ctr0 < KYBER_N) || (ctr1 < KYBER_N) || (ctr2 < KYBER_N)) {
+            kyber_sha3_blocksx3_neon(st);
+
+            p = (byte*)st;
+            ctr0 += kyber_rej_uniform_neon(a + 0 * KYBER_N + ctr0,
+                KYBER_N - ctr0, p, XOF_BLOCK_SIZE);
+            p += 25 * 8;
+            ctr1 += kyber_rej_uniform_neon(a + 1 * KYBER_N + ctr1,
+                KYBER_N - ctr1, p, XOF_BLOCK_SIZE);
+            p += 25 * 8;
+            ctr2 += kyber_rej_uniform_neon(a + 2 * KYBER_N + ctr2,
+                KYBER_N - ctr2, p, XOF_BLOCK_SIZE);
+        }
+
+        a += 3 * KYBER_N;
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef WOLFSSL_KYBER1024
+/* Deterministically generate a matrix (or transpose) of uniform integers mod q.
+ *
+ * Seed used with XOF to generate random bytes.
+ *
+ * @param  [out]  a           Matrix of uniform integers.
+ * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   transposed  Whether A or A^T is generated.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ * WOLFSSL_SMALL_STACK is defined.
+ */
+static int kyber_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
+{
+    int i;
+    int k;
+    word64 state[3 * 25];
+    word64* st = (word64*)state;
+    unsigned int ctr0;
+    unsigned int ctr1;
+    unsigned int ctr2;
+    byte* p;
+
+    for (k = 0; k < 5; k++) {
+        for (i = 0; i < 3; i++) {
+            byte bi = ((k * 3) + i) / 4;
+            byte bj = ((k * 3) + i) % 4;
+            if (!transposed) {
+                state[i*25 + 4] = 0x1f0000 + (bi << 8) + bj;
+            }
+            else {
+                state[i*25 + 4] = 0x1f0000 + (bj << 8) + bi;
+            }
+        }
+
+        kyber_shake128_blocksx3_seed_neon(state, seed);
+        /* Sample random bytes to create a polynomial. */
+        p = (byte*)st;
+        ctr0 = kyber_rej_uniform_neon(a + 0 * KYBER_N, KYBER_N, p,
+            XOF_BLOCK_SIZE);
+        p += 25 * 8;
+        ctr1 = kyber_rej_uniform_neon(a + 1 * KYBER_N, KYBER_N, p,
+            XOF_BLOCK_SIZE);
+        p += 25 * 8;
+        ctr2 = kyber_rej_uniform_neon(a + 2 * KYBER_N, KYBER_N, p,
+            XOF_BLOCK_SIZE);
+        /* Create more blocks if too many rejected. */
+        while ((ctr0 < KYBER_N) || (ctr1 < KYBER_N) || (ctr2 < KYBER_N)) {
+            kyber_sha3_blocksx3_neon(st);
+
+            p = (byte*)st;
+            ctr0 += kyber_rej_uniform_neon(a + 0 * KYBER_N + ctr0,
+                KYBER_N - ctr0, p, XOF_BLOCK_SIZE);
+            p += 25 * 8;
+            ctr1 += kyber_rej_uniform_neon(a + 1 * KYBER_N + ctr1,
+                KYBER_N - ctr1, p, XOF_BLOCK_SIZE);
+            p += 25 * 8;
+            ctr2 += kyber_rej_uniform_neon(a + 2 * KYBER_N + ctr2,
+                KYBER_N - ctr2, p, XOF_BLOCK_SIZE);
+        }
+
+        a += 3 * KYBER_N;
+    }
+
+    state[0] = ((word64*)seed)[0];
+    state[1] = ((word64*)seed)[1];
+    state[2] = ((word64*)seed)[2];
+    state[3] = ((word64*)seed)[3];
+    /* Transposed value same as not. */
+    state[4] = 0x1f0000 + (3 << 8) + 3;
+    XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
+    state[20] = 0x8000000000000000UL;
+    BlockSha3(state);
+    p = (byte*)state;
+    ctr0 = kyber_rej_uniform_neon(a, KYBER_N, p, XOF_BLOCK_SIZE);
+    while (ctr0 < KYBER_N) {
+        BlockSha3(state);
+        ctr0 += kyber_rej_uniform_neon(a + ctr0, KYBER_N - ctr0, p,
+            XOF_BLOCK_SIZE);
+    }
+
+    return 0;
+}
+#endif
 #endif /* USE_INTEL_SPEEDUP */
 
+#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 /* Absorb the seed data for squeezing out pseudo-random data.
  *
  * @param  [in, out]  shake128  SHAKE-128 object.
@@ -1610,6 +1947,7 @@ static int kyber_xof_squeezeblocks(wc_Shake* shake128, byte* out, int blocks)
 {
     return wc_Shake128_SqueezeBlocks(shake128, out, blocks);
 }
+#endif
 
 /* New/Initialize SHA-3 object.
  *
@@ -1690,6 +2028,7 @@ void kyber_prf_free(wc_Shake* prf)
     wc_Shake256_Free(prf);
 }
 
+#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 /* Create pseudo-random data from the key using SHAKE-256.
  *
  * @param  [in, out]  shake256  SHAKE-256 object.
@@ -1739,6 +2078,7 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
     return ret;
 #endif
 }
+#endif
 
 #ifdef USE_INTEL_SPEEDUP
 /* Create pseudo-random key from the seed using SHAKE-256.
@@ -1777,6 +2117,36 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 }
 #endif
 
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+/* Create pseudo-random key from the seed using SHAKE-256.
+ *
+ * @param  [in]  seed      Data to derive from.
+ * @param  [in]  seedLen   Length of data to derive from in bytes.
+ * @param  [out] out       Buffer to write to.
+ * @param  [in]  outLen    Number of bytes to derive.
+ * @return  0 on success always.
+ */
+int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
+{
+    word64 state[25];
+    int i;
+    int len64 = seedLen / 8;
+
+    for (i = 0; i < len64; i++) {
+        state[i] = ((word64*)seed)[i];
+    }
+    state[len64] = 0x1f;
+    XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
+    state[WC_SHA3_256_COUNT - 1] = 0x8000000000000000UL;
+
+    BlockSha3(state);
+    XMEMCPY(out, state, outLen);
+
+    return 0;
+}
+#endif
+
+#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 /* Rejection sampling on uniform random bytes to generate uniform random
  * integers mod q.
  *
@@ -1792,6 +2162,7 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
     unsigned int i;
     unsigned int j;
 
+#if defined(WOLFSSL_KYBER_SMALL) || !defined(WC_64BIT_CPU)
     /* Keep sampling until maximum number of integers reached or buffer used up.
      */
     for (i = 0, j = 0; (i < len) && (j <= rLen - 3); j += 3) {
@@ -1812,10 +2183,90 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
         /* Move over used bytes. */
         r += 3;
     }
+#else
+    unsigned int minJ;
+
+    minJ = len / 4 * 6;
+    if (minJ > rLen)
+        minJ = rLen;
+    i = 0;
+    for (j = 0; j < minJ; j += 6) {
+        /* Use 48 bits (6 bytes) as four 12-bit integers. */
+        sword16 v0 =  (*(word64*)r)        & 0xfff;
+        sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
+        sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
+        sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+
+        p[i] = v0 & (0 - (v0 < KYBER_Q));
+        i += v0 < KYBER_Q;
+        p[i] = v1 & (0 - (v1 < KYBER_Q));
+        i += v1 < KYBER_Q;
+        p[i] = v2 & (0 - (v2 < KYBER_Q));
+        i += v2 < KYBER_Q;
+        p[i] = v3 & (0 - (v3 < KYBER_Q));
+        i += v3 < KYBER_Q;
+
+        /* Move over used bytes. */
+        r += 6;
+    }
+    if (j < rLen) {
+        for (; (i + 4 < len) && (j < rLen); j += 6) {
+            /* Use 48 bits (6 bytes) as four 12-bit integers. */
+            sword16 v0 =  (*(word64*)r)        & 0xfff;
+            sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
+            sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
+            sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+
+            p[i] = v0;
+            i += v0 < KYBER_Q;
+            p[i] = v1;
+            i += v1 < KYBER_Q;
+            p[i] = v2;
+            i += v2 < KYBER_Q;
+            p[i] = v3;
+            i += v3 < KYBER_Q;
+
+            /* Move over used bytes. */
+            r += 6;
+        }
+        for (; (i < len) && (j < rLen); j += 6) {
+            /* Use 48 bits (6 bytes) as four 12-bit integers. */
+            sword16 v0 =  (*(word64*)r)        & 0xfff;
+            sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
+            sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
+            sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+
+            /* Reject first 12-bit integer if greater than or equal to q. */
+            if (v0 < KYBER_Q) {
+                p[i++] = v0;
+            }
+            /* Check second if we don't have enough integers yet.
+             * Reject second 12-bit integer if greater than or equal to q. */
+            if ((i < len) && (v1 < KYBER_Q)) {
+                p[i++] = v1;
+            }
+            /* Check second if we don't have enough integers yet.
+             * Reject third 12-bit integer if greater than or equal to q. */
+            if ((i < len) && (v2 < KYBER_Q)) {
+                p[i++] = v2;
+            }
+            /* Check second if we don't have enough integers yet.
+             * Reject fourth 12-bit integer if greater than or equal to q. */
+            if ((i < len) && (v3 < KYBER_Q)) {
+                p[i++] = v3;
+            }
+
+            /* Move over used bytes. */
+            r += 6;
+        }
+    }
+#endif
 
     return i;
 }
+#endif
 
+#if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
  * Seed used with XOF to generate random bytes.
@@ -1851,6 +2302,12 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
     }
 #endif
 
+#if !defined(WOLFSSL_KYBER_SMALL) && defined(WC_64BIT_CPU)
+    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    rand[GEN_MATRIX_SIZE+0] = 0xff;
+    rand[GEN_MATRIX_SIZE+1] = 0xff;
+#endif
+
     /* Generate each vector of polynomials. */
     for (i = 0; (ret == 0) && (i < kp); i++, a += kp * KYBER_N) {
         int j;
@@ -1871,35 +2328,17 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
                 ret = kyber_xof_squeezeblocks(prf, rand, GEN_MATRIX_NBLOCKS);
             }
             if (ret == 0) {
-            #if (GEN_MATRIX_SIZE % 3) != 0
-                unsigned int randLen;
-            #endif
                 unsigned int ctr;
 
                 /* Sample random bytes to create a polynomial. */
                 ctr = kyber_rej_uniform_c(a + j * KYBER_N, KYBER_N, rand,
                     GEN_MATRIX_SIZE);
                 /* Create more blocks if too many rejected. */
-            #if (GEN_MATRIX_SIZE % 3) != 0
-                randLen = GEN_MATRIX_SIZE;
-                while (ctr < KYBER_N) {
-                    int off = randLen % 3;
-                    int k;
-                    for (k = 0; k < off; k++) {
-                        rand[k] = rand[randLen - off + k];
-                    }
-                    kyber_xof_squeezeblocks(prf, rand + off, 1);
-                    randLen = off + XOF_BLOCK_SIZE;
-                    ctr += kyber_rej_uniform_c(a + j * KYBER_N + ctr,
-                        KYBER_N - ctr, rand, randLen);
-                }
-            #else
                 while (ctr < KYBER_N) {
                     kyber_xof_squeezeblocks(prf, rand, 1);
                     ctr += kyber_rej_uniform_c(a + j * KYBER_N + ctr,
                         KYBER_N - ctr, rand, XOF_BLOCK_SIZE);
                 }
-            #endif
             }
         }
     }
@@ -1911,6 +2350,7 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
     return ret;
 }
+#endif
 
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
@@ -1932,6 +2372,9 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
 #ifdef WOLFSSL_KYBER512
     if (kp == KYBER512_K) {
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+        ret = kyber_gen_matrix_k2_aarch64(a, seed, transposed);
+#else
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags)) {
             ret = kyber_gen_matrix_k2_avx2(a, seed, transposed);
@@ -1941,11 +2384,15 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
         {
             ret = kyber_gen_matrix_c(prf, a, KYBER512_K, seed, transposed);
         }
+#endif
     }
     else
 #endif
 #ifdef WOLFSSL_KYBER768
     if (kp == KYBER768_K) {
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+        ret = kyber_gen_matrix_k3_aarch64(a, seed, transposed);
+#else
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags)) {
             ret = kyber_gen_matrix_k3_avx2(a, seed, transposed);
@@ -1955,11 +2402,15 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
         {
             ret = kyber_gen_matrix_c(prf, a, KYBER768_K, seed, transposed);
         }
+#endif
     }
     else
 #endif
 #ifdef WOLFSSL_KYBER1024
     if (kp == KYBER1024_K) {
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+        ret = kyber_gen_matrix_k4_aarch64(a, seed, transposed);
+#else
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags)) {
             ret = kyber_gen_matrix_k4_avx2(a, seed, transposed);
@@ -1969,12 +2420,15 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
         {
             ret = kyber_gen_matrix_c(prf, a, KYBER1024_K, seed, transposed);
         }
+#endif
     }
     else
 #endif
     {
         ret = BAD_STATE_E;
     }
+
+    (void)prf;
 
     return ret;
 }
@@ -2240,6 +2694,8 @@ static void kyber_cbd_eta3(sword16* p, const byte* r)
 }
 #endif
 
+#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -2305,6 +2761,8 @@ static int kyber_get_noise_eta2_c(KYBER_PRF_T* prf, sword16* p,
 
     return ret;
 }
+
+#endif
 
 #ifdef USE_INTEL_SPEEDUP
 #define PRF_RAND_SZ   (2 * SHA3_256_BYTES)
@@ -2488,6 +2946,206 @@ static int kyber_get_noise_k4_avx2(KYBER_PRF_T* prf, sword16* vec1,
 #endif
 #endif /* USE_INTEL_SPEEDUP */
 
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+
+#define PRF_RAND_SZ   (2 * SHA3_256_BYTES)
+
+/* Get the noise/error by calculating random bytes.
+ *
+ * @param  [out]  rand  Random number byte array.
+ * @param  [in]   seed  Seed to generate random from.
+ * @param  [in]   o     Offset of seed count.
+ */
+static void kyber_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
+{
+    word64* state = (word64*)rand;
+
+    state[0*25 + 4] = 0x1f00 + 0 + o;
+    state[1*25 + 4] = 0x1f00 + 1 + o;
+    state[2*25 + 4] = 0x1f00 + 2 + o;
+
+    kyber_shake256_blocksx3_seed_neon(state, seed);
+}
+
+#ifdef WOLFSSL_KYBER512
+/* Get the noise/error by calculating random bytes.
+ *
+ * @param  [out]  rand  Random number byte array.
+ * @param  [in]   seed  Seed to generate random from.
+ * @param  [in]   o     Offset of seed count.
+ */
+static void kyber_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
+{
+    word64 state[3 * 25];
+
+    state[0*25 + 4] = 0x1f00 + 0 + o;
+    state[1*25 + 4] = 0x1f00 + 1 + o;
+    state[2*25 + 4] = 0x1f00 + 2 + o;
+
+    kyber_shake256_blocksx3_seed_neon(state, seed);
+    XMEMCPY(rand + 0 * ETA3_RAND_SIZE, state + 0*25, SHA3_256_BYTES);
+    XMEMCPY(rand + 1 * ETA3_RAND_SIZE, state + 1*25, SHA3_256_BYTES);
+    XMEMCPY(rand + 2 * ETA3_RAND_SIZE, state + 2*25, SHA3_256_BYTES);
+    kyber_sha3_blocksx3_neon(state);
+    rand += SHA3_256_BYTES;
+    XMEMCPY(rand + 0 * ETA3_RAND_SIZE, state + 0*25,
+        ETA3_RAND_SIZE - SHA3_256_BYTES);
+    XMEMCPY(rand + 1 * ETA3_RAND_SIZE, state + 1*25,
+        ETA3_RAND_SIZE - SHA3_256_BYTES);
+    XMEMCPY(rand + 2 * ETA3_RAND_SIZE, state + 2*25,
+        ETA3_RAND_SIZE - SHA3_256_BYTES);
+}
+
+/* Get the noise/error by calculating random bytes.
+ *
+ * @param  [out]  rand  Random number byte array.
+ * @param  [in]   seed  Seed to generate random from.
+ * @param  [in]   o     Offset of seed count.
+ * @return  0 on success.
+ */
+static void kyber_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
+{
+    word64 state[25];
+
+    state[0] = ((word64*)seed)[0];
+    state[1] = ((word64*)seed)[1];
+    state[2] = ((word64*)seed)[2];
+    state[3] = ((word64*)seed)[3];
+    state[4] = 0x1f00 + o;
+    XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
+    state[16] = 0x8000000000000000UL;
+    BlockSha3(state);
+    XMEMCPY(rand                 , state, SHA3_256_BYTES);
+    BlockSha3(state);
+    XMEMCPY(rand + SHA3_256_BYTES, state, ETA3_RAND_SIZE - SHA3_256_BYTES);
+}
+
+/* Get the noise/error by calculating random bytes and sampling to a binomial
+ * distribution.
+ *
+ * @param  [out]      vec1  First Vector of polynomials.
+ * @param  [out]      vec2  Second Vector of polynomials.
+ * @param  [out]      poly  Polynomial.
+ * @param  [in]       seed  Seed to use when calculating random.
+ * @return  0 on success.
+ */
+static int kyber_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
+    sword16* poly, byte* seed)
+{
+    int ret = 0;
+    byte rand[3 * 25 * 8];
+
+    kyber_get_noise_x3_eta3_aarch64(rand, seed, 0);
+    kyber_cbd_eta3(vec1          , rand + 0 * ETA3_RAND_SIZE);
+    kyber_cbd_eta3(vec1 + KYBER_N, rand + 1 * ETA3_RAND_SIZE);
+    if (poly == NULL) {
+        kyber_cbd_eta3(vec2          , rand + 2 * ETA3_RAND_SIZE);
+        kyber_get_noise_eta3_aarch64(rand, seed, 3);
+        kyber_cbd_eta3(vec2 + KYBER_N, rand                     );
+    }
+    else {
+        kyber_get_noise_x3_eta2_aarch64(rand, seed, 2);
+        kyber_cbd_eta2(vec2          , rand + 0 * 25 * 8);
+        kyber_cbd_eta2(vec2 + KYBER_N, rand + 1 * 25 * 8);
+        kyber_cbd_eta2(poly          , rand + 2 * 25 * 8);
+    }
+
+    return ret;
+}
+#endif
+
+#ifdef WOLFSSL_KYBER768
+/* Get the noise/error by calculating random bytes.
+ *
+ * @param  [out]  rand  Random number byte array.
+ * @param  [in]   seed  Seed to generate random from.
+ * @param  [in]   o     Offset of seed count.
+ * @return  0 on success.
+ */
+static void kyber_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
+{
+    word64* state = (word64*)rand;
+
+    state[0] = ((word64*)seed)[0];
+    state[1] = ((word64*)seed)[1];
+    state[2] = ((word64*)seed)[2];
+    state[3] = ((word64*)seed)[3];
+    /* Transposed value same as not. */
+    state[4] = 0x1f00 + o;
+    XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
+    state[16] = 0x8000000000000000UL;
+    BlockSha3(state);
+}
+
+/* Get the noise/error by calculating random bytes and sampling to a binomial
+ * distribution.
+ *
+ * @param  [out]      vec1  First Vector of polynomials.
+ * @param  [out]      vec2  Second Vector of polynomials.
+ * @param  [out]      poly  Polynomial.
+ * @param  [in]       seed  Seed to use when calculating random.
+ * @return  0 on success.
+ */
+static int kyber_get_noise_k3_aarch64(sword16* vec1, sword16* vec2,
+     sword16* poly, byte* seed)
+{
+    byte rand[3 * 25 * 8];
+
+    kyber_get_noise_x3_eta2_aarch64(rand, seed, 0);
+    kyber_cbd_eta2(vec1              , rand + 0 * 25 * 8);
+    kyber_cbd_eta2(vec1 + 1 * KYBER_N, rand + 1 * 25 * 8);
+    kyber_cbd_eta2(vec1 + 2 * KYBER_N, rand + 2 * 25 * 8);
+    kyber_get_noise_x3_eta2_aarch64(rand, seed, 3);
+    kyber_cbd_eta2(vec2              , rand + 0 * 25 * 8);
+    kyber_cbd_eta2(vec2 + 1 * KYBER_N, rand + 1 * 25 * 8);
+    kyber_cbd_eta2(vec2 + 2 * KYBER_N, rand + 2 * 25 * 8);
+    if (poly != NULL) {
+        kyber_get_noise_eta2_aarch64(rand, seed, 6);
+        kyber_cbd_eta2(poly              , rand + 0 * 25 * 8);
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef WOLFSSL_KYBER1024
+/* Get the noise/error by calculating random bytes and sampling to a binomial
+ * distribution.
+ *
+ * @param  [out]      vec1  First Vector of polynomials.
+ * @param  [out]      vec2  Second Vector of polynomials.
+ * @param  [out]      poly  Polynomial.
+ * @param  [in]       seed  Seed to use when calculating random.
+ * @return  0 on success.
+ */
+static int kyber_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
+    sword16* poly, byte* seed)
+{
+    int ret = 0;
+    byte rand[3 * 25 * 8];
+
+    kyber_get_noise_x3_eta2_aarch64(rand, seed, 0);
+    kyber_cbd_eta2(vec1              , rand + 0 * 25 * 8);
+    kyber_cbd_eta2(vec1 + 1 * KYBER_N, rand + 1 * 25 * 8);
+    kyber_cbd_eta2(vec1 + 2 * KYBER_N, rand + 2 * 25 * 8);
+    kyber_get_noise_x3_eta2_aarch64(rand, seed, 3);
+    kyber_cbd_eta2(vec1 + 3 * KYBER_N, rand + 0 * 25 * 8);
+    kyber_cbd_eta2(vec2              , rand + 1 * 25 * 8);
+    kyber_cbd_eta2(vec2 + 1 * KYBER_N, rand + 2 * 25 * 8);
+    kyber_get_noise_x3_eta2_aarch64(rand, seed, 6);
+    kyber_cbd_eta2(vec2 + 2 * KYBER_N, rand + 0 * 25 * 8);
+    kyber_cbd_eta2(vec2 + 3 * KYBER_N, rand + 1 * 25 * 8);
+    if (poly != NULL) {
+        kyber_cbd_eta2(poly,               rand + 2 * 25 * 8);
+    }
+
+    return ret;
+}
+#endif
+#endif /* __aarch64__ && WOLFSSL_ARMASM */
+
+#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -2531,6 +3189,8 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
     return ret;
 }
 
+#endif /* __aarch64__ && WOLFSSL_ARMASM */
+
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
@@ -2549,6 +3209,9 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
 
 #ifdef WOLFSSL_KYBER512
     if (kp == KYBER512_K) {
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+        ret = kyber_get_noise_k2_aarch64(vec1, vec2, poly, seed);
+#else
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags)) {
             ret = kyber_get_noise_k2_avx2(prf, vec1, vec2, poly, seed);
@@ -2563,11 +3226,15 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
             ret = kyber_get_noise_c(prf, kp, vec1, KYBER_CBD_ETA3, vec2,
                 KYBER_CBD_ETA2, poly, seed);
         }
+#endif
     }
     else
 #endif
 #ifdef WOLFSSL_KYBER768
     if (kp == KYBER768_K) {
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+        ret = kyber_get_noise_k3_aarch64(vec1, vec2, poly, seed);
+#else
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags)) {
             ret = kyber_get_noise_k3_avx2(vec1, vec2, poly, seed);
@@ -2578,11 +3245,15 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
             ret = kyber_get_noise_c(prf, kp, vec1, KYBER_CBD_ETA2, vec2,
                 KYBER_CBD_ETA2, poly, seed);
         }
+#endif
     }
     else
 #endif
 #ifdef WOLFSSL_KYBER1024
     if (kp == KYBER1024_K) {
+#if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
+        ret = kyber_get_noise_k4_aarch64(vec1, vec2, poly, seed);
+#else
     #ifdef USE_INTEL_SPEEDUP
         if (IS_INTEL_AVX2(cpuid_flags)) {
             ret = kyber_get_noise_k4_avx2(prf, vec1, vec2, poly, seed);
@@ -2593,6 +3264,7 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
             ret = kyber_get_noise_c(prf, kp, vec1, KYBER_CBD_ETA2, vec2,
                 KYBER_CBD_ETA2, poly, seed);
         }
+#endif
     }
     else
 #endif
@@ -2600,11 +3272,14 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
         ret = BAD_STATE_E;
     }
 
+    (void)prf;
+
     return ret;
 }
 
 /******************************************************************************/
 
+#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
 /* Compare two byte arrays of equal size.
  *
  * @param [in]  a   First array to compare.
@@ -2624,6 +3299,7 @@ static int kyber_cmp_c(const byte* a, const byte* b, int sz)
     }
     return 0 - ((-(word32)r) >> 31);
 }
+#endif
 
 /* Compare two byte arrays of equal size.
  *
@@ -2635,6 +3311,9 @@ static int kyber_cmp_c(const byte* a, const byte* b, int sz)
  */
 int kyber_cmp(const byte* a, const byte* b, int sz)
 {
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+    return kyber_cmp_neon(a, b, sz);
+#else
     int fail;
 
 #ifdef USE_INTEL_SPEEDUP
@@ -2648,9 +3327,12 @@ int kyber_cmp(const byte* a, const byte* b, int sz)
     }
 
     return fail;
+#endif
 }
 
 /******************************************************************************/
+
+#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
 
 /* Conditional subtraction of q to each coefficient of a polynomial.
  *
@@ -2666,6 +3348,12 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
         p[i] = ((t >> 15) & KYBER_Q) + t;
     }
 }
+
+#else
+
+#define kyber_csubq_c   kyber_csubq_neon
+
+#endif
 
 /******************************************************************************/
 
@@ -3511,6 +4199,7 @@ void kyber_decompress_5(sword16* p, const unsigned char* b)
 
 /******************************************************************************/
 
+#if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
 /* Convert bit from byte to 0 or (KYBER_Q + 1) / 2.
  *
  * Constant time implementation.
@@ -3622,7 +4311,7 @@ static void kyber_to_msg_c(byte* msg, sword16* p)
 
     /* Reduce each coefficient to mod q. */
     kyber_csubq_c(p);
-    /* All values are now positive. */
+    /* All values are now in range. */
 
     for (i = 0; i < KYBER_N / 8; i++) {
     #ifdef WOLFSSL_KYBER_SMALL
@@ -3663,6 +4352,27 @@ void kyber_to_msg(byte* msg, sword16* p)
         kyber_to_msg_c(msg, p);
     }
 }
+#else
+/* Convert message to polynomial.
+ *
+ * @param  [out]  p    Polynomial.
+ * @param  [in]   msg  Message as a byte array.
+ */
+void kyber_from_msg(sword16* p, const byte* msg)
+{
+    kyber_from_msg_neon(p, msg);
+}
+
+/* Convert polynomial to message.
+ *
+ * @param  [out]  msg  Message as a byte array.
+ * @param  [in]   p    Polynomial.
+ */
+void kyber_to_msg(byte* msg, sword16* p)
+{
+    kyber_to_msg_neon(msg, p);
+}
+#endif
 
 /******************************************************************************/
 
