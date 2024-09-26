@@ -49,7 +49,6 @@ Fixed in github pull request https://github.com/wolfSSL/wolfssl/pull/7702
 * Support for NIST 800-56C Option 1 KDF, using the macro WC_KDF_NIST_SP_800_56C added (PR 7589)
 * AES-XTS streaming mode added, along with hardware acceleration and kernel module use (PR 7522, 7560, 7424)
 * PlatformIO FreeRTOS with ESP build and addition of benchmark and test example applications (PR 7528, 7413, 7559, 7542)
-* Add support for (DevkitPro)libnds
 
 
 ## Enhancements and Optimizations

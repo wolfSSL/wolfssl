@@ -18,7 +18,7 @@ $ ./configure \
     LDFLAGS="-L/opt/devkitpro/libnds/lib" \
     --prefix=$DEVKITPRO/portlibs/nds \
     CFLAGS="-march=armv5te -mtune=arm946e-s \
-        --specs=ds_arm9.specs -DARM9 -DNDS \
+        --specs=ds_arm9.specs -DARM9 -DWOLFSSL_NDS \
         -DWOLFSSL_USER_IO \
         -I$DEVKITPRO/libnds/include" \
     --enable-fastmath --disable-benchmark \

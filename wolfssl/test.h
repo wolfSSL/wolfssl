@@ -203,7 +203,7 @@
     #include <netinet/in.h>
     #include <netinet/tcp.h>
     #include <arpa/inet.h>
-    #ifndef NDS
+    #ifndef WOLFSSL_NDS
         #include <sys/ioctl.h>
     #endif
     #include <sys/time.h>
