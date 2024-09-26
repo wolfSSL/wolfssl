@@ -1283,7 +1283,6 @@ int main(int argc, char** argv)
         /* grab next pcap packet */
             packetNumber++;
             if(pcap_next_ex(pcap, &header, &packet) < 0) {
-                hadBadPacket = 1;
                 break;
             }
         }
