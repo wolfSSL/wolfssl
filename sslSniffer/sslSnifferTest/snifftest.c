@@ -145,7 +145,7 @@ enum {
 #endif
 
 #define DEFAULT_SERVER_IP   "127.0.0.1"
-#define DEFAULT_SERVER_PORT (443)
+#define DEFAULT_SERVER_PORT (11111)
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 static const byte rsaHash[] = {
