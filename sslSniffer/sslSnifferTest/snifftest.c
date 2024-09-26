@@ -1148,7 +1148,7 @@ int main(int argc, char** argv)
     }
     if (port > 0) {
         SNPRINTF(cmdLineArg, sizeof(filter), " and port %d", port);
-        XSTRNCAT(filter, cmdLineArg, sizeof(filter) - XSTRLEN(filter));
+        XSTRLCAT(filter, cmdLineArg, sizeof(filter));
     }
 
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
