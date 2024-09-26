@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./chacha/chacha.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-chacha-asm.S
+ *   ruby ./chacha/chacha.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-chacha-asm.S
  */
 
 #ifdef HAVE_CONFIG_H

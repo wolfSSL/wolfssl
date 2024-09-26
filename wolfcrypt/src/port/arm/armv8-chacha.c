@@ -166,7 +166,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
         ret = BAD_FUNC_ARG;
     }
 
-    if (ret == 0) { 
+    if (ret == 0) {
         ctx->left = 0;
 
         wc_chacha_setkey(ctx->X, key, keySz);

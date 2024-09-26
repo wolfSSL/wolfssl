@@ -164,13 +164,11 @@ if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
 endif BUILD_ARMASM
 if BUILD_ARMASM_NEON
-if !BUILD_ARMASM_CRYPTO
 if BUILD_ARMASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-aes-asm.S
 endif !BUILD_ARMASM_INLINE
-endif !BUILD_ARMASM_CRYPTO
 else
 if BUILD_ARMASM
 if BUILD_ARMASM_INLINE
@@ -336,13 +334,11 @@ if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
 endif BUILD_ARMASM
 if BUILD_ARMASM_NEON
-if !BUILD_ARMASM_CRYPTO
 if BUILD_ARMASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c
 else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-aes-asm.S
 endif !BUILD_ARMASM_INLINE
-endif !BUILD_ARMASM_CRYPTO
 else
 if BUILD_ARMASM
 if BUILD_ARMASM_INLINE
@@ -701,7 +697,6 @@ if BUILD_ARMASM
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
 endif BUILD_ARMASM
 if BUILD_ARMASM_NEON
-if !BUILD_ARMASM_CRYPTO
 if BUILD_ARMASM_INLINE
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-aes-asm_c.c
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-aes-asm_c.c
@@ -709,7 +704,6 @@ else
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/armv8-32-aes-asm.S
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/arm/thumb2-aes-asm.S
 endif !BUILD_ARMASM_INLINE
-endif !BUILD_ARMASM_CRYPTO
 else
 if BUILD_ARMASM
 if BUILD_ARMASM_INLINE

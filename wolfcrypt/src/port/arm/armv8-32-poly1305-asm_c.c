@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./poly1305/poly1305.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-poly1305-asm.c
+ *   ruby ./poly1305/poly1305.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-poly1305-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -54,7 +55,8 @@
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
 
-void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p, int notLast_p)
+void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
+    int notLast_p)
 {
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const byte* m asm ("r1") = (const byte*)m_p;
@@ -66,7 +68,7 @@ void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p, in
         "cmp	%[len], #0\n\t"
         "beq	L_poly1305_arm32_16_done_%=\n\t"
         "add	lr, sp, #12\n\t"
-        "stm	lr, {%[ctx], %[m], %[len], %[notLast]}\n\t"
+        "stm	lr, {r0, r1, r2, r3}\n\t"
         /* Get h pointer */
         "add	lr, %[ctx], #16\n\t"
         "ldm	lr, {r4, r5, r6, r7, r8}\n\t"
@@ -187,7 +189,7 @@ void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p, in
         "mov	r12, %[ctx]\n\t"
         "mla	r11, %[notLast], %[len], r11\n\t"
 #else
-        "ldm	%[m], {%[ctx], %[m], %[len], %[notLast]}\n\t"
+        "ldm	%[m], {r0, r1, r2, r3}\n\t"
         /* r[0] * h[0] */
         "umull	r10, r11, %[ctx], r4\n\t"
         /* r[1] * h[0] */
@@ -270,9 +272,11 @@ void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p, in
         "\n"
     "L_poly1305_arm32_16_done_%=: \n\t"
         "add	sp, sp, #28\n\t"
-        : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len), [notLast] "+r" (notLast)
+        : [ctx] "+r" (ctx),  [m] "+r" (m),  [len] "+r" (len),
+             [notLast] "+r" (notLast)
         :
-        : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
+            "r10", "r11"
     );
 }
 
@@ -284,7 +288,8 @@ void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
 {
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const byte* key asm ("r1") = (const byte*)key_p;
-    register uint32_t* L_poly1305_arm32_clamp_c asm ("r2") = (uint32_t*)&L_poly1305_arm32_clamp;
+    register uint32_t* L_poly1305_arm32_clamp_c asm ("r2") =
+        (uint32_t*)&L_poly1305_arm32_clamp;
 
     __asm__ __volatile__ (
         /* Load mask. */
@@ -318,9 +323,10 @@ void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
         "stm	lr, {r5, r6, r7, r8, r12}\n\t"
         /* Zero leftover */
         "str	r5, [%[ctx], #52]\n\t"
-        : [ctx] "+r" (ctx), [key] "+r" (key), [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
+        : [ctx] "+r" (ctx),  [key] "+r" (key),
+            [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
         :
-        : "memory", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "cc"
+        : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8"
     );
 }
 
@@ -373,9 +379,10 @@ void poly1305_final(Poly1305* ctx_p, byte* mac_p)
         /* Zero out padding. */
         "add	r9, %[ctx], #36\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
-        : [ctx] "+r" (ctx), [mac] "+r" (mac)
+        : [ctx] "+r" (ctx),  [mac] "+r" (mac)
         :
-        : "memory", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
+        : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
+            "r9"
     );
 }
 

@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./chacha/chacha.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-chacha-asm.c
+ *   ruby ./chacha/chacha.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-chacha-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -72,9 +73,9 @@ void wc_chacha_setiv(word32* x_p, const byte* iv_p, word32 counter_p)
         "rev	lr, lr\n\t"
 #endif /* BIG_ENDIAN_ORDER */
         "stm	r3, {r4, r12, lr}\n\t"
-        : [x] "+r" (x), [iv] "+r" (iv), [counter] "+r" (counter)
+        : [x] "+r" (x),  [iv] "+r" (iv),  [counter] "+r" (counter)
         :
-        : "memory", "r3", "r12", "lr", "r4", "cc"
+        : "memory", "cc", "r3", "r12", "lr", "r4"
     );
 }
 
@@ -88,7 +89,8 @@ void wc_chacha_setkey(word32* x_p, const byte* key_p, word32 keySz_p)
     register word32* x asm ("r0") = (word32*)x_p;
     register const byte* key asm ("r1") = (const byte*)key_p;
     register word32 keySz asm ("r2") = (word32)keySz_p;
-    register uint32_t* L_chacha_arm32_constants_c asm ("r3") = (uint32_t*)&L_chacha_arm32_constants;
+    register uint32_t* L_chacha_arm32_constants_c asm ("r3") =
+        (uint32_t*)&L_chacha_arm32_constants;
 
     __asm__ __volatile__ (
         "subs	%[keySz], %[keySz], #16\n\t"
@@ -119,14 +121,16 @@ void wc_chacha_setkey(word32* x_p, const byte* key_p, word32 keySz_p)
         "\n"
     "L_chacha_arm32_setkey_same_keyb_ytes_%=: \n\t"
         "stm	%[x], {r4, r5, r12, lr}\n\t"
-        : [x] "+r" (x), [key] "+r" (key), [keySz] "+r" (keySz), [L_chacha_arm32_constants] "+r" (L_chacha_arm32_constants_c)
+        : [x] "+r" (x),  [key] "+r" (key),  [keySz] "+r" (keySz),
+            [L_chacha_arm32_constants] "+r" (L_chacha_arm32_constants_c)
         :
-        : "memory", "r12", "lr", "r4", "r5", "cc"
+        : "memory", "cc", "r12", "lr", "r4", "r5"
     );
 }
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p, word32 len_p)
+void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p,
+    word32 len_p)
 {
     register ChaCha* ctx asm ("r0") = (ChaCha*)ctx_p;
     register byte* c asm ("r1") = (byte*)c_p;
@@ -176,7 +180,7 @@ void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p, word32 len
         "strd	r6, r7, [sp, #24]\n\t"
 #endif
         /* Load x[0]..x[12] into registers. */
-        "ldm	lr, {%[ctx], %[c], %[m], %[len], r4, r5, r6, r7, r8, r9, r10, r11, r12}\n\t"
+        "ldm	lr, {r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12}\n\t"
         /* 10x 2 full rounds to perform. */
         "mov	lr, #10\n\t"
         "str	lr, [sp, #48]\n\t"
@@ -414,9 +418,9 @@ void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p, word32 len
         /* Store in over field of ChaCha. */
         "ldr	lr, [sp, #32]\n\t"
         "add	r12, lr, #0x44\n\t"
-        "stm	r12!, {%[ctx], %[c], %[m], %[len], r4, r5, r6, r7}\n\t"
-        "ldm	sp, {%[ctx], %[c], %[m], %[len], r4, r5, r6, r7}\n\t"
-        "stm	r12, {%[ctx], %[c], %[m], %[len], r4, r5, r6, r7}\n\t"
+        "stm	r12!, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
+        "ldm	sp, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
+        "stm	r12, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "ldr	%[m], [sp, #40]\n\t"
         "ldr	%[len], [sp, #44]\n\t"
@@ -482,13 +486,15 @@ void wc_chacha_crypt_bytes(ChaCha* ctx_p, byte* c_p, const byte* m_p, word32 len
         "\n"
     "L_chacha_arm32_crypt_done_%=: \n\t"
         "add	sp, sp, #52\n\t"
-        : [ctx] "+r" (ctx), [c] "+r" (c), [m] "+r" (m), [len] "+r" (len)
+        : [ctx] "+r" (ctx),  [c] "+r" (c),  [m] "+r" (m),  [len] "+r" (len)
         :
-        : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
+            "r10", "r11"
     );
 }
 
-void wc_chacha_use_over(byte* over_p, byte* output_p, const byte* input_p, word32 len_p)
+void wc_chacha_use_over(byte* over_p, byte* output_p, const byte* input_p,
+    word32 len_p)
 {
     register byte* over asm ("r0") = (byte*)over_p;
     register byte* output asm ("r1") = (byte*)output_p;
@@ -553,9 +559,10 @@ void wc_chacha_use_over(byte* over_p, byte* output_p, const byte* input_p, word3
         "b	L_chacha_arm32_over_byte_loop_%=\n\t"
         "\n"
     "L_chacha_arm32_over_done_%=: \n\t"
-        : [over] "+r" (over), [output] "+r" (output), [input] "+r" (input), [len] "+r" (len)
+        : [over] "+r" (over),  [output] "+r" (output),  [input] "+r" (input),
+             [len] "+r" (len)
         :
-        : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
+        : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9"
     );
 }
 

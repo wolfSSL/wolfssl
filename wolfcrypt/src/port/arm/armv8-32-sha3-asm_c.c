@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha3/sha3.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha3-asm.c
+ *   ruby ./sha3/sha3.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha3-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -73,7 +74,8 @@ static const uint64_t L_sha3_arm2_neon_rt[] = {
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
-    register uint64_t* L_sha3_arm2_neon_rt_c asm ("r1") = (uint64_t*)&L_sha3_arm2_neon_rt;
+    register uint64_t* L_sha3_arm2_neon_rt_c asm ("r1") =
+        (uint64_t*)&L_sha3_arm2_neon_rt;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
@@ -333,9 +335,13 @@ void BlockSha3(word64* state_p)
         "vst1.8	{d20-d23}, [%[state]]!\n\t"
         "vst1.8	{d24}, [%[state]]\n\t"
         "add	sp, sp, #16\n\t"
-        : [state] "+r" (state), [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c)
+        : [state] "+r" (state),
+            [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c)
         :
-        : "memory", "r2", "r3", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23", "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31", "cc"
+        : "memory", "cc", "r2", "r3", "d0", "d1", "d2", "d3", "d4", "d5", "d6",
+            "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "d16",
+            "d17", "d18", "d19", "d20", "d21", "d22", "d23", "d24", "d25",
+            "d26", "d27", "d28", "d29", "d30", "d31"
     );
 }
 
@@ -361,12 +367,11 @@ static const uint64_t L_sha3_arm2_rt[] = {
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
-    register uint64_t* L_sha3_arm2_neon_rt_c asm ("r1") = (uint64_t*)&L_sha3_arm2_neon_rt;
-    register uint64_t* L_sha3_arm2_rt_c asm ("r2") = (uint64_t*)&L_sha3_arm2_rt;
+    register uint64_t* L_sha3_arm2_rt_c asm ("r1") =
+        (uint64_t*)&L_sha3_arm2_rt;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xcc\n\t"
-        "mov	r1, %[L_sha3_arm2_rt]\n\t"
         "mov	r2, #12\n\t"
         "\n"
     "L_sha3_arm32_begin_%=: \n\t"
@@ -2341,9 +2346,10 @@ void BlockSha3(word64* state_p)
         "subs	r2, r2, #1\n\t"
         "bne	L_sha3_arm32_begin_%=\n\t"
         "add	sp, sp, #0xcc\n\t"
-        : [state] "+r" (state), [L_sha3_arm2_neon_rt] "+r" (L_sha3_arm2_neon_rt_c), [L_sha3_arm2_rt] "+r" (L_sha3_arm2_rt_c)
+        : [state] "+r" (state), [L_sha3_arm2_rt] "+r" (L_sha3_arm2_rt_c)
         :
-        : "memory", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
+            "r9", "r10", "r11"
     );
 }
 
