@@ -40,6 +40,7 @@ jobs:
            --enable-dtls-mtu',
         ]
     name: make check
+    if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -60,6 +61,7 @@ jobs:
           'examples/configs/user_settings_all.h',
         ]
     name: make user_setting.h
+    if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -85,6 +87,7 @@ jobs:
           'examples/configs/user_settings_tls12.h',
         ]
     name: make user_setting.h (testwolfcrypt only)
+    if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -106,6 +109,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
     name: make user_setting.h (with sed)
+    if: github.repository_owner == 'wolfssl'
     runs-on: ${{ matrix.os }}
     # This should be a safe limit for the tests to run.
     timeout-minutes: 14
@@ -124,6 +128,7 @@ jobs:
 
   windows_build:
     name: Windows Build Test
+    if: github.repository_owner == 'wolfssl'
     runs-on: windows-latest
     strategy:
       fail-fast: false

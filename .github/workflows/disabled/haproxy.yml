@@ -20,6 +20,7 @@ jobs:
         # List of refs to test
         ref: [ master ]
     name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     steps:
       - name: Build wolfSSL
