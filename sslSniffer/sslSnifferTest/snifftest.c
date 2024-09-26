@@ -1096,8 +1096,6 @@ int main(int argc, char** argv)
                     printf("server = %s\n", server);
                 }
             }
-            if (server == NULL)
-                err_sys("Unable to get device IPv4 or IPv6 address");
         }
 
         ret = pcap_set_snaplen(pcap, 65536);
