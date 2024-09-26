@@ -6866,11 +6866,15 @@ int ssl_Trace(const char* traceFile, char* error)
     if (traceFile) {
         /* Don't try to reopen the file */
         if (TraceFile == NULL) {
-            TraceFile = XFOPEN(traceFile, "a");
-            if (!TraceFile) {
-                SetError(BAD_TRACE_FILE_STR, error, NULL, 0);
-                return WOLFSSL_FATAL_ERROR;
-             }
+            if (XSTRCMP(traceFile, "-") == 0) {
+                TraceFile = stdout;
+            } else {
+                TraceFile = XFOPEN(traceFile, "a");
+                if (!TraceFile) {
+                    SetError(BAD_TRACE_FILE_STR, error, NULL, 0);
+                    return WOLFSSL_FATAL_ERROR;
+                }
+            }
             TraceOn = 1;
         }
     }
