@@ -3304,17 +3304,17 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
         return;      /* trust user settings, don't override */
 
 #ifdef WOLFSSL_TLS13
-#ifdef BUILD_TLS_AES_128_GCM_SHA256
-    if (tls1_3) {
-        suites->suites[idx++] = TLS13_BYTE;
-        suites->suites[idx++] = TLS_AES_128_GCM_SHA256;
-    }
-#endif
-
 #ifdef BUILD_TLS_AES_256_GCM_SHA384
     if (tls1_3) {
         suites->suites[idx++] = TLS13_BYTE;
         suites->suites[idx++] = TLS_AES_256_GCM_SHA384;
+    }
+#endif
+
+#ifdef BUILD_TLS_AES_128_GCM_SHA256
+    if (tls1_3) {
+        suites->suites[idx++] = TLS13_BYTE;
+        suites->suites[idx++] = TLS_AES_128_GCM_SHA256;
     }
 #endif
 
