@@ -46,6 +46,9 @@
 /* Define to 1 if the system has the type `__uint128_t'. */
 #cmakedefine HAVE___UINT128_T @HAVE___UINT128_T@
 
+/* Define to 1 if the system has the type `uintptr_t'. */
+#cmakedefine HAVE_UINTPTR_T @HAVE_UINTPTR_T@
+
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "@CMAKE_PROJECT_NAME@"
 
