@@ -8792,6 +8792,7 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
                 XMEMMOVE(key, key + (padded_keySz - keySz),
                          padded_keySz - keySz);
                 XMEMSET(key, 0, padded_keySz - keySz);
+                keySz = padded_keySz;
             }
         }
     }
