@@ -537,9 +537,16 @@ WOLFSSL_API int wc_SetMutexCb(mutex_cb* cb);
 WOLFSSL_API mutex_cb* wc_GetMutexCb(void);
 #endif
 
+#ifdef WOLFSSL_LEANPSK_STATIC
+    /* static PSK build (WOLFSSL_STATIC_PSK) that is single threaded
+     * and has no initializations */
+    #define wolfCrypt_Init() 0
+    #define wolfCrypt_Cleanup() 0
+#else
 /* main crypto initialization function */
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Init(void);
 WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
+#endif
 
 #ifdef WOLFSSL_TRACK_MEMORY_VERBOSE
     WOLFSSL_API long wolfCrypt_heap_peakAllocs_checkpoint(void);

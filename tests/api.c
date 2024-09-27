@@ -86750,13 +86750,13 @@ static word32 test_wolfSSL_dtls_stateless_HashWOLFSSL(const WOLFSSL* ssl)
     sslCopy.error = 0;
     sslCopy.curSize = 0;
     sslCopy.curStartIdx = 0;
-    sslCopy.keys.curSeq_lo = 0;
+    sslCopy.keys->curSeq_lo = 0;
     XMEMSET(&sslCopy.curRL, 0, sizeof(sslCopy.curRL));
 #ifdef WOLFSSL_DTLS13
-    XMEMSET(&sslCopy.keys.curSeq, 0, sizeof(sslCopy.keys.curSeq));
+    XMEMSET(&sslCopy.keys->curSeq, 0, sizeof(sslCopy.keys->curSeq));
     sslCopy.dtls13FastTimeout = 0;
 #endif
-    sslCopy.keys.dtls_peer_handshake_number = 0;
+    sslCopy.keys->dtls_peer_handshake_number = 0;
     XMEMSET(&sslCopy.alert_history, 0, sizeof(sslCopy.alert_history));
     sslCopy.hsHashes = NULL;
 #ifdef WOLFSSL_ASYNC_IO

@@ -554,7 +554,7 @@ typedef struct w64wrapper {
     #elif !defined(MICRIUM_MALLOC) && !defined(EBSNET) \
             && !defined(WOLFSSL_SAFERTOS) && !defined(FREESCALE_MQX) \
             && !defined(FREESCALE_KSDK_MQX) && !defined(FREESCALE_FREE_RTOS) \
-            && !defined(WOLFSSL_LEANPSK) && !defined(WOLFSSL_uITRON4)
+            && !defined(WOLFSSL_uITRON4)
         /* default C runtime, can install different routines at runtime via cbs */
         #ifndef WOLFSSL_MEMORY_H
             #include <wolfssl/wolfcrypt/memory.h>
@@ -726,8 +726,13 @@ typedef struct w64wrapper {
             #include <string.h>
         #endif
 
+    #ifdef __18CXX
+        #define XMEMCPY(d,s,l)    memcpy((void*)(d),(void*)(s),(size_t)(l))
+        #define XMEMSET(b,c,l)    memset((void*)(b),(c),(size_t)(l))
+    #else
         #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
         #define XMEMSET(b,c,l)    memset((b),(c),(l))
+    #endif
         #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
         #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
 
@@ -995,7 +1000,7 @@ typedef struct w64wrapper {
 
 
     /* memory allocation types for user hints */
-    enum {
+    enum dynamicTypes {
         DYNAMIC_TYPE_CA           = 1,
         DYNAMIC_TYPE_CERT         = 2,
         DYNAMIC_TYPE_KEY          = 3,

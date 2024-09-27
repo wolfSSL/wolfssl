@@ -256,7 +256,8 @@ static int wolfssl_file_len(XFILE fp, long* fileSz)
         ret = WOLFSSL_BAD_FILE;
     }
     /* Validate size. */
-    if ((ret == 0) && ((sz > MAX_WOLFSSL_FILE_SIZE) || (sz <= 0L))) {
+    if ((ret == 0) && (((unsigned long)sz > MAX_WOLFSSL_FILE_SIZE) ||
+            (sz <= 0L))) {
         ret = WOLFSSL_BAD_FILE;
     }
     if (ret == 0) {

@@ -1475,15 +1475,18 @@ static WC_INLINE void tcp_connect(SOCKET_T* sockfd, const char* ip, word16 port,
 {
     SOCKADDR_IN_T addr;
     build_addr(&addr, ip, port, udp, sctp);
+#ifdef WOLFSSL_DTLS
     if (udp) {
         wolfSSL_dtls_set_peer(ssl, &addr, sizeof(addr));
     }
+#endif
     tcp_socket(sockfd, udp, sctp);
 
     if (!udp) {
         if (connect(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
             err_sys_with_errno("tcp connect failed");
     }
+    (void)ssl; /* not used when compiled without DTLS support */
 }
 
 #endif /* WOLFSSL_WOLFSENTRY_HOOKS */
@@ -1853,7 +1856,9 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
     XSTRNCPY(identity, kIdentityStr, id_max_len);
 
+#ifdef WOLFSSL_TLS13
     if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+#endif
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
          * unsigned binary */
         key[0] = 0x1a;
@@ -1862,6 +1867,7 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
         key[3] = 0x4d;
 
         ret = 4;   /* length of key in octets or 0 for error */
+#ifdef WOLFSSL_TLS13
     }
     else {
         int i;
@@ -1875,6 +1881,7 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
 
         ret = 32;   /* length of key in octets or 0 for error */
     }
+#endif
 
 #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PSK)
     WOLFSSL_PKMSG("PSK Client using HW (Len %d, Hint %s)\n", ret, hint);

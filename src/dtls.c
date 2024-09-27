@@ -82,10 +82,10 @@ void DtlsResetState(WOLFSSL* ssl)
         sizeof(ssl->dtls13Epochs[0].window));
     Dtls13FreeFsmResources(ssl);
 #endif
-    ssl->keys.dtls_expected_peer_handshake_number = 0;
-    ssl->keys.dtls_handshake_number = 0;
-    ssl->keys.dtls_sequence_number_hi = 0;
-    ssl->keys.dtls_sequence_number_lo = 0;
+    ssl->keys->dtls_expected_peer_handshake_number = 0;
+    ssl->keys->dtls_handshake_number = 0;
+    ssl->keys->dtls_sequence_number_hi = 0;
+    ssl->keys->dtls_sequence_number_lo = 0;
 
     /* Reset states */
     ssl->options.serverState = NULL_STATE;
@@ -95,9 +95,9 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->options.handShakeState = NULL_STATE;
     ssl->options.seenUnifiedHdr = 0;
     ssl->msgsReceived.got_client_hello = 0;
-    ssl->keys.dtls_handshake_number = 0;
-    ssl->keys.dtls_expected_peer_handshake_number = 0;
-    XMEMSET(ssl->keys.peerSeq, 0, sizeof(ssl->keys.peerSeq));
+    ssl->keys->dtls_handshake_number = 0;
+    ssl->keys->dtls_expected_peer_handshake_number = 0;
+    XMEMSET(ssl->keys->peerSeq, 0, sizeof(ssl->keys->peerSeq));
     ssl->options.tls = 0;
     ssl->options.tls1_1 = 0;
     ssl->options.tls1_3 = 0;
@@ -127,18 +127,18 @@ void DtlsSetSeqNumForReply(WOLFSSL* ssl)
      * protocols. */
     /* We should continue with the same sequence number as the
      * Client Hello. */
-    ssl->keys.dtls_sequence_number_hi = ssl->keys.curSeq_hi;
-    ssl->keys.dtls_sequence_number_lo = ssl->keys.curSeq_lo;
+    ssl->keys->dtls_sequence_number_hi = ssl->keys->curSeq_hi;
+    ssl->keys->dtls_sequence_number_lo = ssl->keys->curSeq_lo;
 #ifdef WOLFSSL_DTLS13
     if (ssl->dtls13EncryptEpoch != NULL) {
         ssl->dtls13EncryptEpoch->nextSeqNumber =
-                w64From32(ssl->keys.curSeq_hi, ssl->keys.curSeq_lo);
+                w64From32(ssl->keys->curSeq_hi, ssl->keys->curSeq_lo);
     }
 #endif
     /* We should continue with the same handshake number as the
      * Client Hello. */
-    ssl->keys.dtls_handshake_number =
-            ssl->keys.dtls_peer_handshake_number;
+    ssl->keys->dtls_handshake_number =
+            ssl->keys->dtls_peer_handshake_number;
 }
 
 #if !defined(NO_WOLFSSL_SERVER)
@@ -1019,7 +1019,7 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
                 /* Set record numbers before current record number as read */
                 Dtls13Epoch* e;
                 ret = Dtls13UpdateWindowRecordRecvd(ssl);
-                e = Dtls13GetEpoch(ssl, ssl->keys.curEpoch64);
+                e = Dtls13GetEpoch(ssl, ssl->keys->curEpoch64);
                 if (e != NULL)
                     XMEMSET(e->window, 0xFF, sizeof(e->window));
             }
@@ -1027,8 +1027,8 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
 #endif
                 DtlsUpdateWindow(ssl);
             /* Set record numbers before current record number as read */
-            XMEMSET(ssl->keys.peerSeq->window, 0xFF,
-                    sizeof(ssl->keys.peerSeq->window));
+            XMEMSET(ssl->keys->peerSeq->window, 0xFF,
+                    sizeof(ssl->keys->peerSeq->window));
         }
     }
 
