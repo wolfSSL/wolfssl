@@ -12,7 +12,7 @@ Support for the ESP32 on-board cryptographic hardware acceleration for symmetric
 
 ## ESP32 Acceleration
 
-More details about ESP32 HW Accelerationcan be found in:
+More details about ESP32 HW Acceleration can be found in:
 
 * [ESP32 Technical Reference Manual](https://espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf)
 * [ESP32-S2 Technical Reference Manual](https://www.espressif.com/sites/default/files/documentation/esp32-s2_technical_reference_manual_en.pdf)

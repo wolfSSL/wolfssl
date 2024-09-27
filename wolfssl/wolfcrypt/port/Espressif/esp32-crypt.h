@@ -233,6 +233,14 @@ enum {
 ** WOLFSSL_DEBUG_ESP_RSA_MULM_BITS
 **   Shows a warning when mulm falls back for minimum number of bits.
 **
+** WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
+**   Shows a marning when multiplication math bits have exceeded hardware
+**   capabilities and will fall back to slower software.
+**
+** WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+**   Shows a marning when modular math bits have exceeded hardware capabilities
+**   and will fall back to slower software.
+**
 ** NO_HW_MATH_TEST
 **   Even if HW is enabled, do not run HW math tests. See HW_MATH_ENABLED.
 **
