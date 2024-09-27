@@ -67,6 +67,13 @@
 
 #ifdef WOLFSSL_WC_KYBER
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 /* Declared in wc_kyber.c to stop compiler optimizer from simplifying. */
 extern volatile sword16 kyber_opt_blocker;
 
@@ -1560,14 +1567,11 @@ static int kyber_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         a += 4 * KYBER_N;
     }
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     /* Transposed value same as not. */
     state[4] = 0x1f0000 + (2 << 8) + 2;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[20] = 0x8000000000000000UL;
+    state[20] = W64LIT(0x8000000000000000);
     for (i = 0; i < GEN_MATRIX_SIZE; i += SHA3_128_BYTES) {
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
@@ -1748,14 +1752,11 @@ static int kyber_gen_matrix_k2_aarch64(sword16* a, byte* seed, int transposed)
 
     a += 3 * KYBER_N;
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     /* Transposed value same as not. */
     state[4] = 0x1f0000 + (1 << 8) + 1;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[20] = 0x8000000000000000UL;
+    state[20] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     p = (byte*)state;
     ctr0 = kyber_rej_uniform_neon(a, KYBER_N, p, XOF_BLOCK_SIZE);
@@ -1899,14 +1900,11 @@ static int kyber_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
         a += 3 * KYBER_N;
     }
 
-    state[0] = ((word64*)seed)[0];
-    state[1] = ((word64*)seed)[1];
-    state[2] = ((word64*)seed)[2];
-    state[3] = ((word64*)seed)[3];
+    readUnalignedWords64(state, seed, 4);
     /* Transposed value same as not. */
     state[4] = 0x1f0000 + (3 << 8) + 3;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[20] = 0x8000000000000000UL;
+    state[20] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     p = (byte*)state;
     ctr0 = kyber_rej_uniform_neon(a, KYBER_N, p, XOF_BLOCK_SIZE);
@@ -2047,18 +2045,15 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
     const byte* key)
 {
 #ifdef USE_INTEL_SPEEDUP
-    int i;
     word64 state[25];
 
     (void)shake256;
 
-    for (i = 0; i < KYBER_SYM_SZ / 8; i++) {
-        state[i] = ((word64*)key)[i];
-    }
+    readUnalignedWords64(state, key, KYBER_SYM_SZ / sizeof(word64));
     state[KYBER_SYM_SZ / 8] = 0x1f00 | key[KYBER_SYM_SZ];
     XMEMSET(state + KYBER_SYM_SZ / 8 + 1, 0,
         (25 - KYBER_SYM_SZ / 8 - 1) * sizeof(word64));
-    state[WC_SHA3_256_COUNT - 1] = 0x8000000000000000UL;
+    state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
@@ -2098,15 +2093,12 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
 int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 {
     word64 state[25];
-    int i;
-    int len64 = seedLen / 8;
+    word32 len64 = seedLen / 8;
 
-    for (i = 0; i < len64; i++) {
-        state[i] = ((word64*)seed)[i];
-    }
+    readUnalignedWords64(state, seed, len64);
     state[len64] = 0x1f;
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
-    state[WC_SHA3_256_COUNT - 1] = 0x8000000000000000UL;
+    state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
@@ -2136,15 +2128,12 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 {
     word64 state[25];
-    int i;
-    int len64 = seedLen / 8;
+    word32 len64 = seedLen / 8;
 
-    for (i = 0; i < len64; i++) {
-        state[i] = ((word64*)seed)[i];
-    }
+    readUnalignedWords64(state, seed, len64);
     state[len64] = 0x1f;
     XMEMSET(state + len64 + 1, 0, (25 - len64 - 1) * sizeof(word64));
-    state[WC_SHA3_256_COUNT - 1] = 0x8000000000000000UL;
+    state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
     BlockSha3(state);
     XMEMCPY(out, state, outLen);
@@ -2199,10 +2188,11 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
     i = 0;
     for (j = 0; j < minJ; j += 6) {
         /* Use 48 bits (6 bytes) as four 12-bit integers. */
-        sword16 v0 =  (*(word64*)r)        & 0xfff;
-        sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
-        sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
-        sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+        word64 r_word = readUnalignedWord64(r);
+        sword16 v0 =  r_word        & 0xfff;
+        sword16 v1 = (r_word >> 12) & 0xfff;
+        sword16 v2 = (r_word >> 24) & 0xfff;
+        sword16 v3 = (r_word >> 36) & 0xfff;
 
         p[i] = v0 & (0 - (v0 < KYBER_Q));
         i += v0 < KYBER_Q;
@@ -2219,10 +2209,11 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
     if (j < rLen) {
         for (; (i + 4 < len) && (j < rLen); j += 6) {
             /* Use 48 bits (6 bytes) as four 12-bit integers. */
-            sword16 v0 =  (*(word64*)r)        & 0xfff;
-            sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
-            sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
-            sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+            word64 r_word = readUnalignedWord64(r);
+            sword16 v0 =  r_word        & 0xfff;
+            sword16 v1 = (r_word >> 12) & 0xfff;
+            sword16 v2 = (r_word >> 24) & 0xfff;
+            sword16 v3 = (r_word >> 36) & 0xfff;
 
             p[i] = v0;
             i += v0 < KYBER_Q;
@@ -2238,10 +2229,11 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
         }
         for (; (i < len) && (j < rLen); j += 6) {
             /* Use 48 bits (6 bytes) as four 12-bit integers. */
-            sword16 v0 =  (*(word64*)r)        & 0xfff;
-            sword16 v1 = ((*(word64*)r) >> 12) & 0xfff;
-            sword16 v2 = ((*(word64*)r) >> 24) & 0xfff;
-            sword16 v3 = ((*(word64*)r) >> 36) & 0xfff;
+            word64 r_word = readUnalignedWord64(r);
+            sword16 v0 =  r_word        & 0xfff;
+            sword16 v1 = (r_word >> 12) & 0xfff;
+            sword16 v2 = (r_word >> 24) & 0xfff;
+            sword16 v3 = (r_word >> 36) & 0xfff;
 
             /* Reject first 12-bit integer if greater than or equal to q. */
             if (v0 < KYBER_Q) {
@@ -2511,9 +2503,9 @@ static void kyber_cbd_eta2(sword16* p, const byte* r)
     #endif
         /* Take the next 8 bytes, little endian, as a 64 bit value. */
     #ifdef BIG_ENDIAN_ORDER
-        word64 t = ByteReverseWord64(*(word64*)r);
+        word64 t = ByteReverseWord64(readUnalignedWord64(r));
     #else
-        word64 t = *(word64*)r;
+        word64 t = readUnalignedWord64(r);
     #endif
         word64 d;
         /* Add second bits to first. */
@@ -3023,7 +3015,7 @@ static void kyber_get_noise_eta3_aarch64(byte* rand, byte* seed, byte o)
     state[3] = ((word64*)seed)[3];
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[16] = 0x8000000000000000UL;
+    state[16] = W64LIT(0x8000000000000000);
     BlockSha3(state);
     XMEMCPY(rand                 , state, SHA3_256_BYTES);
     BlockSha3(state);
@@ -3083,7 +3075,7 @@ static void kyber_get_noise_eta2_aarch64(byte* rand, byte* seed, byte o)
     /* Transposed value same as not. */
     state[4] = 0x1f00 + o;
     XMEMSET(state + 5, 0, sizeof(*state) * (25 - 5));
-    state[16] = 0x8000000000000000UL;
+    state[16] = W64LIT(0x8000000000000000);
     BlockSha3(state);
 }
 

@@ -1729,9 +1729,11 @@ typedef struct w64wrapper {
     #endif
     #ifndef SAVE_VECTOR_REGISTERS2
         #define SAVE_VECTOR_REGISTERS2() 0
+        #define SAVE_VECTOR_REGISTERS2_DOES_NOTHING
     #endif
     #ifndef CAN_SAVE_VECTOR_REGISTERS
         #define CAN_SAVE_VECTOR_REGISTERS() 1
+        #define CAN_SAVE_VECTOR_REGISTERS_ALWAYS_TRUE
     #endif
     #ifndef WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL
         #define WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(x) WC_DO_NOTHING
