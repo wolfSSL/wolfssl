@@ -1236,8 +1236,9 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     int kp)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if ((IS_INTEL_AVX2(cpuid_flags)) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_keygen_avx2(priv, pub, e, a, kp);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -1314,8 +1315,9 @@ void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* m, int kp)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_encapsulate_avx2(pub, bp, v, at, sp, ep, epp, m, kp);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -1365,8 +1367,9 @@ void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
     const sword16* v, int kp)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_decapsulate_avx2(priv, mp, bp, v, kp);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -1569,8 +1572,9 @@ static int kyber_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
         }
-        else if (IS_INTEL_AVX2(cpuid_flags)) {
+        else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             sha3_block_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
         else {
             BlockSha3(state);
@@ -1582,8 +1586,9 @@ static int kyber_gen_matrix_k3_avx2(sword16* a, byte* seed, int transposed)
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
         }
-        else if (IS_INTEL_AVX2(cpuid_flags)) {
+        else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             sha3_block_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
         }
         else {
             BlockSha3(state);
@@ -2058,8 +2063,9 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
     }
-    else if (IS_INTEL_AVX2(cpuid_flags)) {
+    else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         sha3_block_avx2(state);
+        RESTORE_VECTOR_REGISTERS();
     }
     else {
         BlockSha3(state);
@@ -2105,8 +2111,9 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
     if (IS_INTEL_BMI2(cpuid_flags)) {
         sha3_block_bmi2(state);
     }
-    else if (IS_INTEL_AVX2(cpuid_flags)) {
+    else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         sha3_block_avx2(state);
+        RESTORE_VECTOR_REGISTERS();
     }
     else {
         BlockSha3(state);
@@ -2376,8 +2383,9 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
         ret = kyber_gen_matrix_k2_aarch64(a, seed, transposed);
 #else
     #ifdef USE_INTEL_SPEEDUP
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = kyber_gen_matrix_k2_avx2(a, seed, transposed);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -2394,8 +2402,9 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
         ret = kyber_gen_matrix_k3_aarch64(a, seed, transposed);
 #else
     #ifdef USE_INTEL_SPEEDUP
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = kyber_gen_matrix_k3_avx2(a, seed, transposed);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -2412,8 +2421,9 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
         ret = kyber_gen_matrix_k4_aarch64(a, seed, transposed);
 #else
     #ifdef USE_INTEL_SPEEDUP
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = kyber_gen_matrix_k4_avx2(a, seed, transposed);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -3213,8 +3223,9 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
         ret = kyber_get_noise_k2_aarch64(vec1, vec2, poly, seed);
 #else
     #ifdef USE_INTEL_SPEEDUP
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = kyber_get_noise_k2_avx2(prf, vec1, vec2, poly, seed);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -3236,8 +3247,9 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
         ret = kyber_get_noise_k3_aarch64(vec1, vec2, poly, seed);
 #else
     #ifdef USE_INTEL_SPEEDUP
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = kyber_get_noise_k3_avx2(vec1, vec2, poly, seed);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -3255,8 +3267,9 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
         ret = kyber_get_noise_k4_aarch64(vec1, vec2, poly, seed);
 #else
     #ifdef USE_INTEL_SPEEDUP
-        if (IS_INTEL_AVX2(cpuid_flags)) {
+        if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
             ret = kyber_get_noise_k4_avx2(prf, vec1, vec2, poly, seed);
+            RESTORE_VECTOR_REGISTERS();
         }
         else
     #endif
@@ -3317,8 +3330,9 @@ int kyber_cmp(const byte* a, const byte* b, int sz)
     int fail;
 
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         fail = kyber_cmp_avx2(a, b, sz);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -3555,8 +3569,9 @@ static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int kp)
 void kyber_vec_compress_10(byte* r, sword16* v, unsigned int kp)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_compress_10_avx2(r, v, kp);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -3648,8 +3663,9 @@ static void kyber_vec_compress_11_c(byte* r, sword16* v)
 void kyber_vec_compress_11(byte* r, sword16* v)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_compress_11_avx2(r, v, 4);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -3746,8 +3762,9 @@ void kyber_vec_decompress_10(sword16* v, const unsigned char* b,
     unsigned int kp)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_decompress_10_avx2(v, b, kp);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -3829,8 +3846,9 @@ static void kyber_vec_decompress_11_c(sword16* v, const unsigned char* b)
 void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_decompress_11_avx2(v, b, 4);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -3979,8 +3997,9 @@ static void kyber_compress_4_c(byte* b, sword16* p)
 void kyber_compress_4(byte* b, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_compress_4_avx2(b, p);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -4052,8 +4071,9 @@ static void kyber_compress_5_c(byte* b, sword16* p)
 void kyber_compress_5(byte* b, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_compress_5_avx2(b, p);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -4112,8 +4132,9 @@ static void kyber_decompress_4_c(sword16* p, const unsigned char* b)
 void kyber_decompress_4(sword16* p, const unsigned char* b)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_decompress_4_avx2(p, b);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -4186,8 +4207,9 @@ static void kyber_decompress_5_c(sword16* p, const unsigned char* b)
 void kyber_decompress_5(sword16* p, const unsigned char* b)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_decompress_5_avx2(p, b);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -4253,8 +4275,9 @@ static void kyber_from_msg_c(sword16* p, const byte* msg)
 void kyber_from_msg(sword16* p, const byte* msg)
 {
 #ifdef USE_INTEL_SPEEDUP
-    if (IS_INTEL_AVX2(cpuid_flags)) {
+    if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         kyber_from_msg_avx2(p, msg);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -4342,9 +4365,10 @@ static void kyber_to_msg_c(byte* msg, sword16* p)
 void kyber_to_msg(byte* msg, sword16* p)
 {
 #ifdef USE_INTEL_SPEEDUP
-     if (IS_INTEL_AVX2(cpuid_flags)) {
+     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         /* Convert the polynomial into a array of bytes (message). */
         kyber_to_msg_avx2(msg, p);
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -4414,7 +4438,7 @@ static void kyber_from_bytes_c(sword16* p, const byte* b, int k)
 void kyber_from_bytes(sword16* p, const byte* b, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
-     if (IS_INTEL_AVX2(cpuid_flags)) {
+     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
 
         for (i = 0; i < k; i++) {
@@ -4422,6 +4446,8 @@ void kyber_from_bytes(sword16* p, const byte* b, int k)
             p += KYBER_N;
             b += KYBER_POLY_SIZE;
         }
+
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
@@ -4473,7 +4499,7 @@ static void kyber_to_bytes_c(byte* b, sword16* p, int k)
 void kyber_to_bytes(byte* b, sword16* p, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
-     if (IS_INTEL_AVX2(cpuid_flags)) {
+     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
         int i;
 
         for (i = 0; i < k; i++) {
@@ -4481,6 +4507,8 @@ void kyber_to_bytes(byte* b, sword16* p, int k)
             p += KYBER_N;
             b += KYBER_POLY_SIZE;
         }
+
+        RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
