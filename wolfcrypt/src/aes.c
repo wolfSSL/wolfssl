@@ -4759,7 +4759,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 #ifdef WC_C_DYNAMIC_FALLBACK
 
-#define VECTOR_REGISTERS_PUSH { \
+#define VECTOR_REGISTERS_PUSH {                                      \
         int orig_use_aesni = aes->use_aesni;                         \
         if (aes->use_aesni && (SAVE_VECTOR_REGISTERS2() != 0)) {     \
             aes->use_aesni = 0;                                      \
@@ -4771,6 +4771,15 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             RESTORE_VECTOR_REGISTERS();                              \
         else                                                         \
             aes->use_aesni = orig_use_aesni;                         \
+    }                                                                \
+    WC_DO_NOTHING
+
+#elif defined(SAVE_VECTOR_REGISTERS2_DOES_NOTHING)
+
+#define VECTOR_REGISTERS_PUSH { \
+        WC_DO_NOTHING
+
+#define VECTOR_REGISTERS_POP                                         \
     }                                                                \
     WC_DO_NOTHING
 
@@ -9796,7 +9805,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
     ASSERT_SAVED_VECTOR_REGISTERS();
 
     /* Hash in A, the Authentication Data */
-    ret = AesGcmAadUpdate_aesni(aes, a, aSz, (cSz > 0) && (c != NULL));
+    ret = AesGcmAadUpdate_aesni(aes, a, aSz, cSz > 0);
     if (ret != 0)
         return ret;
 
