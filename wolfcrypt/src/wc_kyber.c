@@ -631,7 +631,11 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 
     if (ret == 0) {
         /* Encapsulate the message using the key and the seed (coins). */
+#ifdef WOLFSSL_KYBER_ORIGINAL
+        ret = kyberkey_encapsulate(key, msg, kr + KYBER_SYM_SZ, ct);
+#else
         ret = kyberkey_encapsulate(key, rand, kr + KYBER_SYM_SZ, ct);
+#endif
     }
 
 #ifdef WOLFSSL_KYBER_ORIGINAL
