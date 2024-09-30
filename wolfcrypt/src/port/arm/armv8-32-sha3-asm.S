@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha3/sha3.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha3-asm.S
+ *   ruby ./sha3/sha3.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha3-asm.S
  */
 
 #ifdef HAVE_CONFIG_H
@@ -32,6 +33,8 @@
 #ifdef WOLFSSL_ARMASM
 #if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 #ifndef WOLFSSL_ARMASM_INLINE
+#ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.type	L_sha3_arm2_neon_rt, %object
 	.size	L_sha3_arm2_neon_rt, 192
@@ -85,60 +88,6 @@ L_sha3_arm2_neon_rt:
 	.word	0x0
 	.word	0x80008008
 	.word	0x80000000
-	.text
-	.type	L_sha3_arm2_rt, %object
-	.size	L_sha3_arm2_rt, 192
-	.align	4
-L_sha3_arm2_rt:
-	.word	0x1
-	.word	0x0
-	.word	0x8082
-	.word	0x0
-	.word	0x808a
-	.word	0x80000000
-	.word	0x80008000
-	.word	0x80000000
-	.word	0x808b
-	.word	0x0
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8009
-	.word	0x80000000
-	.word	0x8a
-	.word	0x0
-	.word	0x88
-	.word	0x0
-	.word	0x80008009
-	.word	0x0
-	.word	0x8000000a
-	.word	0x0
-	.word	0x8000808b
-	.word	0x0
-	.word	0x8b
-	.word	0x80000000
-	.word	0x8089
-	.word	0x80000000
-	.word	0x8003
-	.word	0x80000000
-	.word	0x8002
-	.word	0x80000000
-	.word	0x80
-	.word	0x80000000
-	.word	0x800a
-	.word	0x0
-	.word	0x8000000a
-	.word	0x80000000
-	.word	0x80008081
-	.word	0x80000000
-	.word	0x8080
-	.word	0x80000000
-	.word	0x80000001
-	.word	0x0
-	.word	0x80008008
-	.word	0x80000000
-#ifndef WOLFSSL_ARMASM_NO_NEON
 	.text
 	.align	4
 	.globl	BlockSha3
@@ -407,6 +356,59 @@ L_sha3_arm32_neon_begin:
 	.size	BlockSha3,.-BlockSha3
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
+	.text
+	.type	L_sha3_arm2_rt, %object
+	.size	L_sha3_arm2_rt, 192
+	.align	4
+L_sha3_arm2_rt:
+	.word	0x1
+	.word	0x0
+	.word	0x8082
+	.word	0x0
+	.word	0x808a
+	.word	0x80000000
+	.word	0x80008000
+	.word	0x80000000
+	.word	0x808b
+	.word	0x0
+	.word	0x80000001
+	.word	0x0
+	.word	0x80008081
+	.word	0x80000000
+	.word	0x8009
+	.word	0x80000000
+	.word	0x8a
+	.word	0x0
+	.word	0x88
+	.word	0x0
+	.word	0x80008009
+	.word	0x0
+	.word	0x8000000a
+	.word	0x0
+	.word	0x8000808b
+	.word	0x0
+	.word	0x8b
+	.word	0x80000000
+	.word	0x8089
+	.word	0x80000000
+	.word	0x8003
+	.word	0x80000000
+	.word	0x8002
+	.word	0x80000000
+	.word	0x80
+	.word	0x80000000
+	.word	0x800a
+	.word	0x0
+	.word	0x8000000a
+	.word	0x80000000
+	.word	0x80008081
+	.word	0x80000000
+	.word	0x8080
+	.word	0x80000000
+	.word	0x80000001
+	.word	0x0
+	.word	0x80008008
+	.word	0x80000000
 	.text
 	.align	4
 	.globl	BlockSha3
@@ -2391,6 +2393,7 @@ L_sha3_arm32_begin:
 	pop	{r4, r5, r6, r7, r8, r9, r10, r11, pc}
 	.size	BlockSha3,.-BlockSha3
 #endif /* WOLFSSL_ARMASM_NO_NEON */
+#endif /* WOLFSSL_SHA3 */
 #endif /* !__aarch64__ && __arm__ && !__thumb__ */
 #endif /* WOLFSSL_ARMASM */
 
