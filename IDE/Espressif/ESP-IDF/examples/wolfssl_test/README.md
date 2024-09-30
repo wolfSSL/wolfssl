@@ -28,7 +28,7 @@ No wolfSSL setup is needed. You may need to adjust your specific COM port. The d
     1-1. Example Configuration ->
 
     TEST_ARG : argument that you want to use. Default is "-lng 0"
-    The list of argument can be find in help.
+    The list of arguments can be found in help.
 
 When you want to run the test program
 
