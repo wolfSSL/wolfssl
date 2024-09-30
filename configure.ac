@@ -1237,7 +1237,7 @@ AC_ARG_WITH([liboqs],
                 tryliboqsdir="/usr/local"
             fi
 
-            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include"
+            CPPFLAGS="$AM_CPPFLAGS -DHAVE_LIBOQS -DHAVE_TLS_EXTENSIONS -I$tryliboqsdir/include -pthread"
             LDFLAGS="$AM_LDFLAGS $LDFLAGS -L$tryliboqsdir/lib"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <oqs/common.h>]], [[ OQS_init(); ]])], [ liboqs_linked=yes ],[ liboqs_linked=no ])

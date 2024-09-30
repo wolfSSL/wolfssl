@@ -3654,9 +3654,20 @@ extern void uITRON4_free(void *p) ;
     #define KEEP_PEER_CERT
 #endif
 
+/* Always copy certificate(s) from SSL CTX to each SSL object on creation,
+ * if this is not defined then each SSL object shares a pointer to the
+ * original certificate buffer owned by the SSL CTX. */
 #if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_CERT)
     #undef WOLFSSL_COPY_CERT
     #define WOLFSSL_COPY_CERT
+#endif
+
+/* Always copy private key from SSL CTX to each SSL object on creation,
+ * if this is not defined then each SSL object shares a pointer to the
+ * original key buffer owned by the SSL CTX. */
+#if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_KEY)
+    #undef WOLFSSL_COPY_KEY
+    #define WOLFSSL_COPY_KEY
 #endif
 
 /*
