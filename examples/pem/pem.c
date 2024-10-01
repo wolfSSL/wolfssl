@@ -1024,6 +1024,13 @@ int main(int argc, char* argv[])
     if (ret < 0) {
         fprintf(stderr, "%s\n", wc_GetErrorString(ret));
     }
+
+    if (in_file != stdin)
+        (void)fclose(in_file);
+
+    if (out_file != stdout)
+        (void)fclose(out_file);
+
     return (ret == 0) ? 0 : 1;
 }
 
