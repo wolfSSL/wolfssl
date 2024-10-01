@@ -1020,7 +1020,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         if (ret != 0)
             return ret;
         ret = Hmac_HashUpdate(hmac, in, (word32)(safeBlocks * blockSz -
-                                                     WOLFSSL_TLS_HMAC_INNER_SZ));
+                                WOLFSSL_TLS_HMAC_INNER_SZ));
         if (ret != 0)
             return ret;
     }
@@ -1278,7 +1278,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     #endif
             {
                 ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
-                                      (sz + hashSz + (word32)padSz + 1), (int)hashSz, myInner);
+                                      (sz + hashSz + (word32)padSz + 1),
+                                      (int)hashSz, myInner);
             }
 #else
             ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz + padSz + 1,

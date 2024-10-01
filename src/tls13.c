@@ -7604,7 +7604,8 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 
     /* This handshake message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
-                               (int)(idx - RECORD_HEADER_SZ), handshake, 1, 0, 0);
+                               (int)(idx - RECORD_HEADER_SZ),
+                               handshake, 1, 0, 0);
     if (sendSz < 0)
         return sendSz;
 
@@ -8701,7 +8702,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         {
             /* This message is always encrypted. */
             sendSz = BuildTls13Message(ssl, output, sendSz,
-                output + RECORD_HEADER_SZ, (int)(i - RECORD_HEADER_SZ), handshake, 1,
+                output + RECORD_HEADER_SZ, (int)(i - RECORD_HEADER_SZ),
+                handshake, 1,
                 0, 0);
             if (sendSz < 0)
                 return sendSz;
@@ -9152,7 +9154,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             if (ssl->hsType == DYNAMIC_TYPE_ECC) {
-                args->sigLen = (word32)args->sendSz - args->idx - HASH_SIG_SIZE -
+                args->sigLen = (word32)args->sendSz - args->idx -
+                               HASH_SIG_SIZE -
                                VERIFY_HEADER;
             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                 if (ssl->buffers.keyType != sm2_sa_algo)
@@ -10868,7 +10871,8 @@ static int SendTls13Finished(WOLFSSL* ssl)
         input = output + Dtls13GetRlHeaderLength(ssl, 1);
 #endif /* WOLFSSL_DTLS13 */
 
-    AddTls13HandShakeHeader(input, (word32)finishedSz, 0, (word32)finishedSz, finished, ssl);
+    AddTls13HandShakeHeader(input, (word32)finishedSz, 0, (word32)finishedSz,
+            finished, ssl);
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {

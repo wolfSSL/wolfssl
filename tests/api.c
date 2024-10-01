@@ -73124,7 +73124,7 @@ static int test_wolfSSL_TXT_DB(void)
     BIO_free(bio);
 
     /* Test index */
-    ExpectIntEQ(TXT_DB_create_index(db, 3, NULL, 
+    ExpectIntEQ(TXT_DB_create_index(db, 3, NULL,
         (wolf_sk_hash_cb)(long unsigned int)TXT_DB_hash,
         (wolf_lh_compare_cb)TXT_DB_cmp), 1);
     ExpectNotNull(TXT_DB_get_by_index(db, 3, (WOLFSSL_STRING*)fields));
