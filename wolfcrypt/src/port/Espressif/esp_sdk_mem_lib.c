@@ -93,8 +93,11 @@ extern wc_ptr_t _heap_start[];
 extern wc_ptr_t _heap_end[];
 extern wc_ptr_t _rtc_data_start[];
 extern wc_ptr_t _rtc_data_end[];
-extern void* _thread_local_start;
-extern void* _thread_local_end;
+
+#if defined(CONFIG_IDF_TARGET_ARCH_XTENSA) && CONFIG_IDF_TARGET_ARCH_XTENSA == 1
+    extern void* _thread_local_start;
+    extern void* _thread_local_end;
+#endif
 
 /* See https://github.com/esp8266/esp8266-wiki/wiki/Memory-Map */
 #define MEM_MAP_IO_START  ((void*)(0x3FF00000))
@@ -186,7 +189,9 @@ int sdk_init_meminfo(void) {
 
     sdk_log_meminfo(SDK_MEMORY_SEGMENT_COUNT, NULL, NULL); /* print header */
     sdk_log_meminfo(mem_map_io,    MEM_MAP_IO_START,    MEM_MAP_IO_END);
+#if defined(CONFIG_IDF_TARGET_ARCH_XTENSA) && CONFIG_IDF_TARGET_ARCH_XTENSA == 1
     sdk_log_meminfo(thread_local,  _thread_local_start, _thread_local_end);
+#endif
     sdk_log_meminfo(data,          _data_start,         _data_end);
     sdk_log_meminfo(user_data_ram, USER_DATA_START,     USER_DATA_END);
     sdk_log_meminfo(bss,           _bss_start,          _bss_end);
