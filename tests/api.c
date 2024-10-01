@@ -73076,7 +73076,7 @@ static int test_wolfSSL_OBJ_sn(void)
 #if !defined(NO_BIO)
 static word32 TXT_DB_hash(const WOLFSSL_STRING *s)
 {
-    return lh_strhash(s[3]);
+    return (word32)lh_strhash(s[3]);
 }
 
 static int TXT_DB_cmp(const WOLFSSL_STRING *a, const WOLFSSL_STRING *b)
@@ -73124,7 +73124,8 @@ static int test_wolfSSL_TXT_DB(void)
     BIO_free(bio);
 
     /* Test index */
-    ExpectIntEQ(TXT_DB_create_index(db, 3, NULL, (wolf_sk_hash_cb)TXT_DB_hash,
+    ExpectIntEQ(TXT_DB_create_index(db, 3, NULL, 
+        (wolf_sk_hash_cb)(long unsigned int)TXT_DB_hash,
         (wolf_lh_compare_cb)TXT_DB_cmp), 1);
     ExpectNotNull(TXT_DB_get_by_index(db, 3, (WOLFSSL_STRING*)fields));
     fields[3] = "12DA";
