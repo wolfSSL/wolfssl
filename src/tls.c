@@ -913,8 +913,8 @@ static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
                 (word32)digestSz);
         if (ret == 0)
             ret = wc_HashFinal(&hash, hashType, mac);
+        wc_HashFree(&hash, hashType);
     }
-    wc_HashFree(&hash, hashType);
 
     return ret;
 }

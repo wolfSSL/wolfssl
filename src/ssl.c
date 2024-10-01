@@ -4850,7 +4850,7 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-    if (ssl->version.major == SSLv3_MAJOR || ssl->version.major == DTLS_MAJOR) {
+    if (ssl->version.major == SSLv3_MAJOR) {
         switch (ssl->version.minor) {
             case SSLv3_MINOR :
                 return WOLFSSL_SSLV3;
@@ -4862,6 +4862,13 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
                 return WOLFSSL_TLSV1_2;
             case TLSv1_3_MINOR :
                 return WOLFSSL_TLSV1_3;
+            default:
+                break;
+        }
+    }
+#ifdef WOLFSSL_DTLS
+    if (ssl->version.major == DTLS_MAJOR) {
+        switch (ssl->version.minor) {
             case DTLS_MINOR :
                 return WOLFSSL_DTLSV1;
             case DTLSv1_2_MINOR :
@@ -4872,6 +4879,7 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
                 break;
         }
     }
+#endif /* WOLFSSL_DTLS */
 
     return VERSION_ERROR;
 }
