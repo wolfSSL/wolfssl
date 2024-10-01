@@ -1054,45 +1054,26 @@ static WC_INLINE word8 Dtls13GetEpochBits(w64wrapper epoch)
 }
 
 #ifdef WOLFSSL_DTLS_CID
-static byte Dtls13GetCidTxSize(WOLFSSL* ssl)
-{
-    unsigned int cidSz;
-    int ret;
-    ret = wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz);
-    if (ret != WOLFSSL_SUCCESS)
-        return 0;
-    return (byte)cidSz;
-}
-
-static byte Dtls13GetCidRxSize(WOLFSSL* ssl)
-{
-    unsigned int cidSz;
-    int ret;
-    ret = wolfSSL_dtls_cid_get_rx_size(ssl, &cidSz);
-    if (ret != WOLFSSL_SUCCESS)
-        return 0;
-    return (byte)cidSz;
-}
 
 static int Dtls13AddCID(WOLFSSL* ssl, byte* flags, byte* out, word16* idx)
 {
-    byte cidSize;
+    byte cidSz;
     int ret;
 
     if (!wolfSSL_dtls_cid_is_enabled(ssl))
         return 0;
 
-    cidSize = Dtls13GetCidTxSize(ssl);
+    cidSz = DtlsGetCidTxSize(ssl);
 
     /* no cid */
-    if (cidSize == 0)
+    if (cidSz == 0)
         return 0;
     *flags |= DTLS13_CID_BIT;
-    /* we know that we have at least cidSize of space */
-    ret = wolfSSL_dtls_cid_get_tx(ssl, out + *idx, cidSize);
+    /* we know that we have at least cidSz of space */
+    ret = wolfSSL_dtls_cid_get_tx(ssl, out + *idx, cidSz);
     if (ret != WOLFSSL_SUCCESS)
         return ret;
-    *idx += cidSize;
+    *idx += cidSz;
     return 0;
 }
 
@@ -1138,8 +1119,6 @@ static int Dtls13UnifiedHeaderParseCID(WOLFSSL* ssl, byte flags,
 
 #else
 #define Dtls13AddCID(a, b, c, d) 0
-#define Dtls13GetCidRxSize(a) 0
-#define Dtls13GetCidTxSize(a) 0
 #define Dtls13UnifiedHeaderParseCID(a, b, c, d, e) 0
 #endif /* WOLFSSL_DTLS_CID */
 
@@ -1245,7 +1224,7 @@ int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
 
     seqLength = (*hdr & DTLS13_LEN_BIT) ? DTLS13_SEQ_16_LEN : DTLS13_SEQ_8_LEN;
 
-    cidSz = Dtls13GetCidTxSize(ssl);
+    cidSz = DtlsGetCidTxSize(ssl);
     /* header flags + seq number + CID size*/
     hdrLength = OPAQUE8_LEN + seqLength + cidSz;
 
@@ -1276,7 +1255,7 @@ word16 Dtls13GetRlHeaderLength(WOLFSSL* ssl, byte isEncrypted)
     if (!isEncrypted)
         return DTLS_RECORD_HEADER_SZ;
 
-    return DTLS13_UNIFIED_HEADER_SIZE + Dtls13GetCidTxSize(ssl);
+    return DTLS13_UNIFIED_HEADER_SIZE + DtlsGetCidTxSize(ssl);
 }
 
 /**
@@ -1403,7 +1382,7 @@ int Dtls13GetUnifiedHeaderSize(WOLFSSL* ssl, const byte input, word16* size)
         return BAD_FUNC_ARG;
 
     /* flags (1) + CID + seq 8bit (1) */
-    *size = OPAQUE8_LEN + Dtls13GetCidRxSize(ssl) + OPAQUE8_LEN;
+    *size = OPAQUE8_LEN + DtlsGetCidRxSize(ssl) + OPAQUE8_LEN;
     if (input & DTLS13_SEQ_LEN_BIT)
         *size += OPAQUE8_LEN;
     if (input & DTLS13_LEN_BIT)

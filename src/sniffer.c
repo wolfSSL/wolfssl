@@ -6495,6 +6495,7 @@ doPart:
         case ack:
             /* TODO */
 #endif /* WOLFSSL_DTLS13 */
+        case dtls12_cid:
         case no_type:
         default:
             SetError(GOT_UNKNOWN_RECORD_STR, error, session, FATAL_ERROR_STATE);

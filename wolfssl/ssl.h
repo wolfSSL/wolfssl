@@ -3394,7 +3394,7 @@ enum {
     WOLFSSL_BLOCK_TYPE = 2,
     WOLFSSL_STREAM_TYPE = 3,
     WOLFSSL_AEAD_TYPE = 4,
-    WOLFSSL_TLS_HMAC_INNER_SZ = 13      /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
+    WOLFSSL_TLS_HMAC_INNER_SZ = 13, /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
 };
 
 /* for GetBulkCipher and internal use
@@ -5476,6 +5476,7 @@ WOLFSSL_API int wolfSSL_dtls_cid_get_tx_size(WOLFSSL* ssl,
     unsigned int* size);
 WOLFSSL_API int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+WOLFSSL_API int wolfSSL_dtls_cid_max_size(void);
 #endif /* defined(WOLFSSL_DTLS_CID) */
 
 #ifdef WOLFSSL_DTLS_CH_FRAG

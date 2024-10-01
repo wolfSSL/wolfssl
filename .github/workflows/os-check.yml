@@ -38,6 +38,8 @@ jobs:
           '--enable-all --enable-dtls13 --enable-dtls-frag-ch',
           '--enable-dtls --enable-dtls13 --enable-dtls-frag-ch
            --enable-dtls-mtu',
+          '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation
+            --enable-psk --enable-aesccm --enable-nullcipher CPPFLAGS=-DWOLFSSL_STATIC_RSA',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'

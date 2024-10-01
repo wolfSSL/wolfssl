@@ -1853,7 +1853,8 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
     XSTRNCPY(identity, kIdentityStr, id_max_len);
 
-    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+    if (wolfSSL_GetVersion(ssl) != WOLFSSL_TLSV1_3 &&
+            wolfSSL_GetVersion(ssl) != WOLFSSL_DTLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
          * unsigned binary */
         key[0] = 0x1a;
@@ -1897,7 +1898,8 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
     if (XSTRCMP(identity, kIdentityStr) != 0)
         return 0;
 
-    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+    if (wolfSSL_GetVersion(ssl) != WOLFSSL_TLSV1_3 &&
+            wolfSSL_GetVersion(ssl) != WOLFSSL_DTLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
          * unsigned binary */
         key[0] = 0x1a;

@@ -4866,6 +4866,20 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
                 break;
         }
     }
+#ifdef WOLFSSL_DTLS
+    if (ssl->version.major == DTLS_MAJOR) {
+        switch (ssl->version.minor) {
+            case DTLS_MINOR :
+                return WOLFSSL_DTLSV1;
+            case DTLSv1_2_MINOR :
+                return WOLFSSL_DTLSV1_2;
+            case DTLSv1_3_MINOR :
+                return WOLFSSL_DTLSV1_3;
+            default:
+                break;
+        }
+    }
+#endif /* WOLFSSL_DTLS */
 
     return VERSION_ERROR;
 }
@@ -8983,11 +8997,11 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     int result = WOLFSSL_SUCCESS;
     WOLFSSL_ENTER("wolfSSL_dtls_got_timeout");
 
-    if (ssl == NULL)
+    if (ssl == NULL || !ssl->options.dtls)
         return WOLFSSL_FATAL_ERROR;
 
 #ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+    if (IsAtLeastTLSv1_3(ssl->version)) {
         result = Dtls13RtxTimeout(ssl);
         if (result < 0) {
             if (result == WC_NO_ERR_TRACE(WANT_WRITE))
@@ -9001,7 +9015,8 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if ((IsSCR(ssl) || !ssl->options.handShakeDone)) {
+    /* Do we have any 1.2 messages stored? */
+    if (ssl->dtls_tx_msg_list != NULL || ssl->dtls_tx_msg != NULL) {
         if (DtlsMsgPoolTimeout(ssl) < 0){
             ssl->error = SOCKET_ERROR_E;
             WOLFSSL_ERROR(ssl->error);
@@ -13176,6 +13191,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         }
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
+
+        FreeCiphers(ssl);
+        InitCiphers(ssl);
+        InitCipherSpecs(&ssl->specs);
 
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
