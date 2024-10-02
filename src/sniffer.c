@@ -6614,7 +6614,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
 {
     TcpInfo           tcpInfo;
     IpInfo            ipInfo;
-    byte*             tmpPacket = NULL;
+    byte*             tmpPacket = NULL;        /* Assemble the chain */
     const byte*       sslFrame;
     const byte*       end;
     int               sslBytes;                /* ssl bytes unconsumed */
@@ -6634,16 +6634,16 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         chain = (struct iovec*)vChain;
         length = 0;
         for (i = 0; i < chainSz; i++) length += chain[i].iov_len;
-        /* Assemble the chain */
-        {
-            tmpPacket = (byte*)XMALLOC(length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            length = 0;
-            for (i = 0; i < chainSz; i++) {
-                XMEMCPY(tmpPacket+length,chain[i].iov_base,chain[i].iov_len);
-                length += chain[i].iov_len;
-            }
-            packet = (const byte*)tmpPacket;
+
+        tmpPacket = (byte*)XMALLOC(length, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpPacket == NULL) return MEMORY_E;
+
+        length = 0;
+        for (i = 0; i < chainSz; i++) {
+            XMEMCPY(tmpPacket+length,chain[i].iov_base,chain[i].iov_len);
+            length += chain[i].iov_len;
         }
+        packet = (const byte*)tmpPacket;
 #else
         SetError(BAD_INPUT_STR, error, session, FATAL_ERROR_STATE);
         return WOLFSSL_SNIFFER_ERROR;
