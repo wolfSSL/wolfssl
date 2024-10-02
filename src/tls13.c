@@ -7028,7 +7028,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ret != 0)
         goto exit_dch;
 #else
-    if ((ret = HashInput(ssl, input + args->begin, helloSz)) != 0)
+    if ((ret = HashInput(ssl, input + args->begin, (int)helloSz)) != 0)
         goto exit_dch;
 #endif
 
@@ -7472,7 +7472,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    ssl->buffers.outputBuffer.length += sendSz;
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
 
     if (!ssl->options.groupMessages || extMsgType != server_hello)
         ret = SendBuffered(ssl);
@@ -7620,11 +7620,12 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 
     /* This handshake message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
-                               idx - RECORD_HEADER_SZ, handshake, 1, 0, 0);
+                               (int)(idx - RECORD_HEADER_SZ),
+                               handshake, 1, 0, 0);
     if (sendSz < 0)
         return sendSz;
 
-    ssl->buffers.outputBuffer.length += sendSz;
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
     ssl->options.buildingMsg = 0;
     ssl->options.serverState = SERVER_ENCRYPTED_EXTENSIONS_COMPLETE;
 
@@ -7650,7 +7651,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
  * returns 0 on success, otherwise failure.
  */
 static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
-                                       int reqCtxLen)
+                                       word32 reqCtxLen)
 {
     byte*   output;
     int    ret;
@@ -7738,7 +7739,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 
     /* Always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
-                               i - RECORD_HEADER_SZ, handshake, 1, 0, 0);
+                               (int)(i - RECORD_HEADER_SZ), handshake, 1, 0, 0);
     if (sendSz < 0)
         return sendSz;
 
@@ -7753,7 +7754,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
         }
     #endif
 
-    ssl->buffers.outputBuffer.length += sendSz;
+    ssl->buffers.outputBuffer.length += (word32)sendSz;
     ssl->options.buildingMsg = 0;
     if (!ssl->options.groupMessages)
         ret = SendBuffered(ssl);
@@ -8524,7 +8525,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         certSz = 0;
         certChainSz = 0;
         headerSz = OPAQUE8_LEN + certReqCtxLen + CERT_HEADER_SZ;
-        length = headerSz;
+        length = (sword32)headerSz;
         listSz = 0;
     }
     else {
@@ -8556,7 +8557,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         }
 
         /* Length of message data with one certificate and extensions. */
-        length = headerSz + certSz + extSz;
+        length = (sword32)(headerSz + certSz + extSz);
         /* Length of list data with one certificate and extensions. */
         listSz = CERT_HEADER_SZ + certSz + extSz;
 
@@ -8565,7 +8566,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             p = ssl->buffers.certChain->buffer;
             /* Chain length including extensions. */
             certChainSz = ssl->buffers.certChain->length +
-                          OPAQUE16_LEN * ssl->buffers.certChainCnt;
+                          OPAQUE16_LEN * (word32)ssl->buffers.certChainCnt;
             length += certChainSz;
             listSz += certChainSz;
         }
@@ -8573,7 +8574,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             certChainSz = 0;
     }
 
-    payloadSz = length;
+    payloadSz = (word32)length;
 
     if (ssl->fragOffset != 0)
         length -= (ssl->fragOffset + headerSz);
@@ -8717,7 +8718,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
         {
             /* This message is always encrypted. */
             sendSz = BuildTls13Message(ssl, output, sendSz,
-                output + RECORD_HEADER_SZ, i - RECORD_HEADER_SZ, handshake, 1,
+                output + RECORD_HEADER_SZ, (int)(i - RECORD_HEADER_SZ),
+                handshake, 1,
                 0, 0);
             if (sendSz < 0)
                 return sendSz;
@@ -8733,7 +8735,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
             }
 #endif
 
-            ssl->buffers.outputBuffer.length += sendSz;
+            ssl->buffers.outputBuffer.length += (word32)sendSz;
             ssl->options.buildingMsg = 0;
             if (!ssl->options.groupMessages)
                 ret = SendBuffered(ssl);
@@ -9168,7 +9170,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             if (ssl->hsType == DYNAMIC_TYPE_ECC) {
-                args->sigLen = args->sendSz - args->idx - HASH_SIG_SIZE -
+                args->sigLen = (word32)args->sendSz - args->idx -
+                               HASH_SIG_SIZE -
                                VERIFY_HEADER;
             #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                 if (ssl->buffers.keyType != sm2_sa_algo)
@@ -9593,7 +9596,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
         #endif
 
-            ssl->buffers.outputBuffer.length += args->sendSz;
+            ssl->buffers.outputBuffer.length += (word32)args->sendSz;
             ssl->options.buildingMsg = 0;
             if (!ssl->options.groupMessages)
                 ret = SendBuffered(ssl);
@@ -10884,7 +10887,8 @@ static int SendTls13Finished(WOLFSSL* ssl)
         input = output + Dtls13GetRlHeaderLength(ssl, 1);
 #endif /* WOLFSSL_DTLS13 */
 
-    AddTls13HandShakeHeader(input, (word32)finishedSz, 0, finishedSz, finished, ssl);
+    AddTls13HandShakeHeader(input, (word32)finishedSz, 0, (word32)finishedSz,
+            finished, ssl);
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
@@ -10969,7 +10973,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
             }
         #endif
 
-        ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
         ssl->options.buildingMsg = 0;
     }
 
@@ -11178,7 +11182,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
             }
         #endif
 
-        ssl->buffers.outputBuffer.length += sendSz;
+        ssl->buffers.outputBuffer.length += (word32)sendSz;
 
         ret = SendBuffered(ssl);
 

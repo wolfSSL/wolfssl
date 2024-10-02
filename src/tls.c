@@ -939,7 +939,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     int          blockBits, blockMask;
     int          lastBlockLen, extraLen, eocIndex;
     int          blocks, safeBlocks, lenBlock, eocBlock;
-    unsigned int maxLen;
+    word32       maxLen;
     int          blockSz, padSz;
     int          ret;
     word32       realLen;
@@ -992,29 +992,30 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     blockMask = blockSz - 1;
 
     /* Size of data to HMAC if padding length byte is zero. */
-    maxLen = headerSz + sz - 1 - macLen;
+    maxLen = WOLFSSL_TLS_HMAC_INNER_SZ + sz - 1 - (word32)macLen;
+
     /* Complete data (including padding) has block for EOC and/or length. */
-    extraBlock = ctSetLTE((maxLen + padSz) & blockMask, padSz);
+    extraBlock = ctSetLTE(((int)maxLen + padSz) & blockMask, padSz);
     /* Total number of blocks for data including padding. */
-    blocks = ((maxLen + blockSz - 1) >> blockBits) + extraBlock;
+    blocks = ((int)(maxLen + (word32)blockSz - 1) >> blockBits) + extraBlock;
     /* Up to last 6 blocks can be hashed safely. */
     safeBlocks = blocks - 6;
 
     /* Length of message data. */
     realLen = maxLen - in[sz - 1];
     /* Number of message bytes in last block. */
-    lastBlockLen = realLen & blockMask;
+    lastBlockLen = (int)realLen & blockMask;
     /* Number of padding bytes in last block. */
     extraLen = ((blockSz * 2 - padSz - lastBlockLen) & blockMask) + 1;
     /* Number of blocks to create for hash. */
-    lenBlock = (realLen + extraLen) >> blockBits;
+    lenBlock = ((int)realLen + extraLen) >> blockBits;
     /* Block containing EOC byte. */
-    eocBlock = realLen >> blockBits;
+    eocBlock = (int)(realLen >> (word32)blockBits);
     /* Index of EOC byte in block. */
-    eocIndex = realLen & blockMask;
+    eocIndex = (int)(realLen & (word32)blockMask);
 
     /* Add length of hmac's ipad to total length. */
-    realLen += blockSz;
+    realLen += (word32)blockSz;
     /* Length as bits - 8 bytes bigendian. */
     c32toa(realLen >> ((sizeof(word32) * 8) - 3), lenBytes);
     c32toa(realLen << 3, lenBytes + sizeof(word32));
@@ -1029,7 +1030,9 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
         ret = Hmac_HashUpdate(hmac, header, headerSz);
         if (ret != 0)
             return ret;
-        ret = Hmac_HashUpdate(hmac, in, safeBlocks * blockSz - headerSz);
+        ret = Hmac_HashUpdate(hmac, in, (word32)(safeBlocks * blockSz -
+                                WOLFSSL_TLS_HMAC_INNER_SZ));
+
         if (ret != 0)
             return ret;
     }
@@ -1341,7 +1344,9 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     #endif
             {
                 ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
-                        sz + hashSz + padSz + 1, hashSz, myInner, innerSz);
+                                      (sz + hashSz + (word32)padSz + 1),
+                                      (int)hashSz, myInner, innerSz);
+
             }
 #else
             ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz + padSz + 1,
@@ -7726,7 +7731,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         #endif
             {
                 /* set curve info for EccMakeKey "peer" info */
-                ret = wc_ecc_set_curve(eccKey, kse->keyLen, curveId);
+                ret = wc_ecc_set_curve(eccKey, (int)kse->keyLen, curveId);
                 if (ret == 0) {
             #ifdef WOLFSSL_ASYNC_CRYPT
                     /* Detect when private key generation is done */
@@ -12572,7 +12577,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
             continue; /* skip! */
 
         /* ssl level extensions are expected to override ctx level ones. */
-        if (!IS_OFF(semaphore, TLSX_ToSemaphore(extension->type)))
+        if (!IS_OFF(semaphore, TLSX_ToSemaphore((word16)extension->type)))
             continue; /* skip! */
 
         /* extension type + extension data length. */
@@ -12741,7 +12746,7 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
 
         /* marks the extension as processed so ctx level */
         /* extensions don't overlap with ssl level ones. */
-        TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
+        TURN_ON(semaphore, TLSX_ToSemaphore((word16)extension->type));
     }
 
     *pLength += length;
@@ -12768,11 +12773,11 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             continue; /* skip! */
 
         /* ssl level extensions are expected to override ctx level ones. */
-        if (!IS_OFF(semaphore, TLSX_ToSemaphore(extension->type)))
+        if (!IS_OFF(semaphore, TLSX_ToSemaphore((word16)extension->type)))
             continue; /* skip! */
 
         /* writes extension type. */
-        c16toa(extension->type, output + offset);
+        c16toa((word16)extension->type, output + offset);
         offset += HELLO_EXT_TYPE_SZ + OPAQUE16_LEN;
         length_offset = offset;
 
@@ -12995,7 +13000,7 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
         /* marks the extension as processed so ctx level */
         /* extensions don't overlap with ssl level ones. */
-        TURN_ON(semaphore, TLSX_ToSemaphore(extension->type));
+        TURN_ON(semaphore, TLSX_ToSemaphore((word16)extension->type));
 
         /* if we encountered an error propagate it */
         if (ret != 0)

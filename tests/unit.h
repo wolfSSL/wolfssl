@@ -243,7 +243,7 @@
         const byte* _x = (const byte*)(x);                                     \
         const byte* _y = (const byte*)(y);                                     \
         int         _z = (int)(z);                                             \
-        int         _w = ((_x) && (_y)) ? XMEMCMP(_x, _y, _z) : -1;            \
+        int _w = ((_x) && (_y)) ? XMEMCMP(_x, _y, (unsigned long)_z) : -1;     \
         Expect(_w op 0, ("%s " #op " %s for %s", #x, #y, #z),                  \
                              ("\"%p\" " #er " \"%p\" for \"%d\"",              \
                                 (const void *)_x, (const void *)_y, _z));      \
