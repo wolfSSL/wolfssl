@@ -292,6 +292,44 @@ static const wc_dilithium_params dilithium_params[] = {
       PARAMS_ML_DSA_87_Z_ENC_SIZE,
       PARAMS_ML_DSA_87_PK_SIZE, PARAMS_ML_DSA_87_SIG_SIZE },
 #endif
+#if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+#ifndef WOLFSSL_NO_ML_DSA_44
+    { WC_ML_DSA_44_DRAFT, PARAMS_ML_DSA_44_K, PARAMS_ML_DSA_44_L,
+      PARAMS_ML_DSA_44_ETA, PARAMS_ML_DSA_44_ETA_BITS,
+      PARAMS_ML_DSA_44_TAU, PARAMS_ML_DSA_44_BETA, PARAMS_ML_DSA_44_OMEGA,
+      PARAMS_ML_DSA_44_LAMBDA,
+      PARAMS_ML_DSA_44_GAMMA1_BITS, PARAMS_ML_DSA_44_GAMMA2,
+      PARAMS_ML_DSA_44_W1_ENC_SZ, PARAMS_ML_DSA_44_A_SIZE,
+      PARAMS_ML_DSA_44_S1_SIZE, PARAMS_ML_DSA_44_S1_ENC_SIZE,
+      PARAMS_ML_DSA_44_S2_SIZE, PARAMS_ML_DSA_44_S2_ENC_SIZE,
+      PARAMS_ML_DSA_44_Z_ENC_SIZE,
+      PARAMS_ML_DSA_44_PK_SIZE, PARAMS_ML_DSA_44_SIG_SIZE },
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+    { WC_ML_DSA_65_DRAFT, PARAMS_ML_DSA_65_K, PARAMS_ML_DSA_65_L,
+      PARAMS_ML_DSA_65_ETA, PARAMS_ML_DSA_65_ETA_BITS,
+      PARAMS_ML_DSA_65_TAU, PARAMS_ML_DSA_65_BETA, PARAMS_ML_DSA_65_OMEGA,
+      PARAMS_ML_DSA_65_LAMBDA,
+      PARAMS_ML_DSA_65_GAMMA1_BITS, PARAMS_ML_DSA_65_GAMMA2,
+      PARAMS_ML_DSA_65_W1_ENC_SZ, PARAMS_ML_DSA_65_A_SIZE,
+      PARAMS_ML_DSA_65_S1_SIZE, PARAMS_ML_DSA_65_S1_ENC_SIZE,
+      PARAMS_ML_DSA_65_S2_SIZE, PARAMS_ML_DSA_65_S2_ENC_SIZE,
+      PARAMS_ML_DSA_65_Z_ENC_SIZE,
+      PARAMS_ML_DSA_65_PK_SIZE, PARAMS_ML_DSA_65_SIG_SIZE },
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+    { WC_ML_DSA_87_DRAFT, PARAMS_ML_DSA_87_K, PARAMS_ML_DSA_87_L,
+      PARAMS_ML_DSA_87_ETA, PARAMS_ML_DSA_87_ETA_BITS,
+      PARAMS_ML_DSA_87_TAU, PARAMS_ML_DSA_87_BETA, PARAMS_ML_DSA_87_OMEGA,
+      PARAMS_ML_DSA_87_LAMBDA,
+      PARAMS_ML_DSA_87_GAMMA1_BITS, PARAMS_ML_DSA_87_GAMMA2,
+      PARAMS_ML_DSA_87_W1_ENC_SZ, PARAMS_ML_DSA_87_A_SIZE,
+      PARAMS_ML_DSA_87_S1_SIZE, PARAMS_ML_DSA_87_S1_ENC_SIZE,
+      PARAMS_ML_DSA_87_S2_SIZE, PARAMS_ML_DSA_87_S2_ENC_SIZE,
+      PARAMS_ML_DSA_87_Z_ENC_SIZE,
+      PARAMS_ML_DSA_87_PK_SIZE, PARAMS_ML_DSA_87_SIG_SIZE },
+#endif
+#endif
 };
 /* Number of ML-DSA parameter sets compiled in. */
 #define DILITHIUM_PARAMS_CNT \
@@ -354,9 +392,6 @@ static int dilithium_shake256(wc_Shake* shake256, const byte* data,
     return ret;
 }
 
-#if !defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT) || \
-    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
-     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
 /* 256-bit hash using SHAKE-256.
  *
  * FIPS 204. 8.3: H(v,d) <- SHAKE256(v,d)
@@ -394,9 +429,7 @@ static int dilithium_hash256(wc_Shake* shake256, const byte* data1,
 
     return ret;
 }
-#endif
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
 /* 256-bit hash of context and message using SHAKE-256.
  *
@@ -586,7 +619,6 @@ static int dilithium_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
     return ret;
 }
 #endif
-#endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
 
 #ifndef WOLFSSL_DILITHIUM_SMALL
 /* 128-bit hash using SHAKE-128.
@@ -2772,8 +2804,8 @@ static int dilithium_vec_expand_mask(wc_Shake* shake256, byte* seed,
  * @return  0 on success.
  * @return  Negative on hash error.
  */
-static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
-   word32 seedLen, byte tau, sword32* c, byte* block)
+static int dilithium_sample_in_ball_ex(int level, wc_Shake* shake256,
+   const byte* seed, word32 seedLen, byte tau, sword32* c, byte* block)
 {
     int ret = 0;
     unsigned int k;
@@ -2786,14 +2818,18 @@ static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
         XMEMSET(c, 0, DILITHIUM_POLY_SIZE);
 
         /* Generate a block of data from seed. */
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        ret = dilithium_shake256(shake256, seed, seedLen, block,
-            DILITHIUM_GEN_C_BLOCK_BYTES);
-#else
-        (void)seedLen;
-        ret = dilithium_shake256(shake256, seed, DILITHIUM_SEED_SZ, block,
-            DILITHIUM_GEN_C_BLOCK_BYTES);
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        if (level >= WC_ML_DSA_DRAFT) {
+            ret = dilithium_shake256(shake256, seed, DILITHIUM_SEED_SZ, block,
+                DILITHIUM_GEN_C_BLOCK_BYTES);
+        }
+        else
 #endif
+        {
+            (void)level;
+            ret = dilithium_shake256(shake256, seed, seedLen, block,
+                DILITHIUM_GEN_C_BLOCK_BYTES);
+        }
     }
     if (ret == 0) {
         /* Copy first 8 bytes of first hash block as random sign bits. */
@@ -2850,8 +2886,8 @@ static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
  * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Negative on hash error.
  */
-static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
-   word32 seedLen, byte tau, sword32* c, void* heap)
+static int dilithium_sample_in_ball(int level, wc_Shake* shake256,
+   const byte* seed, word32 seedLen, byte tau, sword32* c, void* heap)
 {
     int ret = 0;
 #if defined(WOLFSSL_SMALL_STACK)
@@ -2871,8 +2907,8 @@ static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
 #endif
 
     if (ret == 0) {
-        ret = dilithium_sample_in_ball_ex(shake256, seed, seedLen, tau, c,
-            block);
+        ret = dilithium_sample_in_ball_ex(level, shake256, seed, seedLen, tau,
+            c, block);
     }
 
 #if defined(WOLFSSL_SMALL_STACK)
@@ -5478,9 +5514,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     sword32* s2 = NULL;
     sword32* t = NULL;
     byte* pub_seed = key->k;
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     byte kl[2];
-#endif
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
@@ -5541,19 +5575,25 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #endif
 
     if (ret == 0) {
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        kl[0] = params->k;
-        kl[1] = params->l;
-        /* Step 1: Create public seed, private seed and K from seed.
-         * Step 9; Alg 24, Step 1: Public seed is placed into private key. */
-        ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
-            pub_seed, DILITHIUM_SEEDS_SZ);
-#else
-        /* Step 2: Create public seed, private seed and K from seed.
-         * Step 9; Alg 18, Step 1: Public seed is placed into private key. */
-        ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ, pub_seed,
-            DILITHIUM_SEEDS_SZ);
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        if (key->params->level >= WC_ML_DSA_DRAFT) {
+            /* Step 2: Create public seed, private seed and K from seed.
+             * Step 9; Alg 18, Step 1: Public seed is placed into private key.
+             */
+            ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ,
+                pub_seed, DILITHIUM_SEEDS_SZ);
+        }
+        else
 #endif
+        {
+            kl[0] = params->k;
+            kl[1] = params->l;
+            /* Step 1: Create public seed, private seed and K from seed.
+             * Step 9; Alg 24, Step 1: Public seed is placed into private key.
+             */
+            ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
+                pub_seed, DILITHIUM_SEEDS_SZ);
+        }
     }
     if (ret == 0) {
         /* Step 7; Alg 22 Step 1: Copy public seed into public key. */
@@ -5637,9 +5677,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     byte* pub_seed = key->k;
     unsigned int r;
     unsigned int s;
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     byte kl[2];
-#endif
 
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
@@ -5668,19 +5706,25 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     }
 
     if (ret == 0) {
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        kl[0] = params->k;
-        kl[1] = params->l;
-        /* Step 1: Create public seed, private seed and K from seed.
-         * Step 9; Alg 24, Step 1: Public seed is placed into private key. */
-        ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
-            pub_seed, DILITHIUM_SEEDS_SZ);
-#else
-        /* Step 2: Create public seed, private seed and K from seed.
-         * Step 9; Alg 18, Step 1: Public seed is placed into private key. */
-        ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ, pub_seed,
-            DILITHIUM_SEEDS_SZ);
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        if (key->params->level >= WC_ML_DSA_DRAFT) {
+            /* Step 2: Create public seed, private seed and K from seed.
+             * Step 9; Alg 18, Step 1: Public seed is placed into private key.
+             */
+            ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ,
+                pub_seed, DILITHIUM_SEEDS_SZ);
+        }
+        else
 #endif
+        {
+            kl[0] = params->k;
+            kl[1] = params->l;
+            /* Step 1: Create public seed, private seed and K from seed.
+             * Step 9; Alg 24, Step 1: Public seed is placed into private key.
+             */
+            ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
+                pub_seed, DILITHIUM_SEEDS_SZ);
+        }
     }
     if (ret == 0) {
         byte* priv_seed = key->k + DILITHIUM_PUB_SEED_SZ;
@@ -6150,8 +6194,8 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                     w1e, params->w1EncSz, commit, params->lambda / 4);
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
-                    ret = dilithium_sample_in_ball(&key->shake, commit,
-                        params->lambda / 4, params->tau, c, key->heap);
+                    ret = dilithium_sample_in_ball(params->level, &key->shake,
+                        commit, params->lambda / 4, params->tau, c, key->heap);
                 }
                 if (ret == 0) {
                     sword32 hi;
@@ -6561,8 +6605,9 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
                     w1e, params->w1EncSz, commit, params->lambda / 4);
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
-                    ret = dilithium_sample_in_ball_ex(&key->shake, commit,
-                        params->lambda / 4, params->tau, c, blocks);
+                    ret = dilithium_sample_in_ball_ex(params->level,
+                        &key->shake, commit, params->lambda / 4, params->tau, c,
+                        blocks);
                 }
                 if (ret == 0) {
                     /* Step 18: NTT(c). */
@@ -6739,7 +6784,6 @@ static int dilithium_sign_with_seed_mu(dilithium_key* key,
 #endif
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign a message with the key and a seed.
  *
  * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
@@ -6790,7 +6834,6 @@ static int dilithium_sign_ctx_msg_with_seed(dilithium_key* key,
 
     return ret;
 }
-#endif
 
 /* Sign a message with the key and a seed.
  *
@@ -6840,7 +6883,6 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     return ret;
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign a message with the key and a random number generator.
  *
  * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
@@ -6904,7 +6946,6 @@ static int dilithium_sign_ctx_msg(dilithium_key* key, WC_RNG* rng,
 
     return ret;
 }
-#endif
 
 /* Sign a message with the key and a random number generator.
  *
@@ -6967,7 +7008,6 @@ static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng,
     return ret;
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign a pre-hashed message with the key and a seed.
  *
  * FIPS 204. 5.4.1: Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
@@ -7088,7 +7128,6 @@ static int dilithium_sign_ctx_hash(dilithium_key* key, WC_RNG* rng,
 
     return ret;
 }
-#endif
 
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
@@ -7268,8 +7307,8 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
     }
     if ((ret == 0) && valid) {
         /* Step 9: Compute c from commit. */
-        ret = dilithium_sample_in_ball(&key->shake, commit, params->lambda / 4,
-            params->tau, c, key->heap);
+        ret = dilithium_sample_in_ball(params->level, &key->shake, commit,
+            params->lambda / 4, params->tau, c, key->heap);
     }
     if ((ret == 0) && valid) {
         /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
@@ -7386,10 +7425,10 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
 
          /* Step 9: Compute c from first 256 bits of commit. */
 #ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-         ret = dilithium_sample_in_ball_ex(&key->shake, commit,
+         ret = dilithium_sample_in_ball_ex(params->level, &key->shake, commit,
              params->lambda / 4, params->tau, c, key->block);
 #else
-         ret = dilithium_sample_in_ball_ex(&key->shake, commit,
+         ret = dilithium_sample_in_ball_ex(params->level, &key->shake, commit,
              params->lambda / 4, params->tau, c, block);
 #endif
     }
@@ -7553,7 +7592,6 @@ static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
 #endif /* !WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM */
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify signature of message using public key.
  *
  * @param [in, out] key     Dilithium key.
@@ -7599,7 +7637,6 @@ static int dilithium_verify_ctx_msg(dilithium_key* key, const byte* ctx,
 
     return ret;
 }
-#endif
 
 /* Verify signature of message using public key.
  *
@@ -7644,7 +7681,6 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     return ret;
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify signature of message using public key.
  *
  * @param [in, out] key       Dilithium key.
@@ -7699,7 +7735,6 @@ static int dilithium_verify_ctx_hash(dilithium_key* key, const byte* ctx,
 
     return ret;
 }
-#endif
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
 #elif defined(HAVE_LIBOQS)
@@ -7779,18 +7814,18 @@ static int oqs_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
     /* check and set up out length */
     if (ret == 0) {
         if ((key->level == WC_ML_DSA_44) &&
-                (*sigLen < DILITHIUM_LEVEL2_SIG_SIZE)) {
-            *sigLen = DILITHIUM_LEVEL2_SIG_SIZE;
+                (*sigLen < ML_DSA_LEVEL2_SIG_SIZE)) {
+            *sigLen = ML_DSA_LEVEL2_SIG_SIZE;
             ret = BUFFER_E;
         }
         else if ((key->level == WC_ML_DSA_65) &&
-                 (*sigLen < DILITHIUM_LEVEL3_SIG_SIZE)) {
-            *sigLen = DILITHIUM_LEVEL3_SIG_SIZE;
+                 (*sigLen < ML_DSA_LEVEL3_SIG_SIZE)) {
+            *sigLen = ML_DSA_LEVEL3_SIG_SIZE;
             ret = BUFFER_E;
         }
         else if ((key->level == WC_ML_DSA_87) &&
-                 (*sigLen < DILITHIUM_LEVEL5_SIG_SIZE)) {
-            *sigLen = DILITHIUM_LEVEL5_SIG_SIZE;
+                 (*sigLen < ML_DSA_LEVEL5_SIG_SIZE)) {
+            *sigLen = ML_DSA_LEVEL5_SIG_SIZE;
             ret = BUFFER_E;
         }
         localOutLen = *sigLen;
@@ -7945,7 +7980,6 @@ int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #endif
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign the message using the dilithium private key.
  *
  *  ctx         [in]      Context of signature.
@@ -8002,7 +8036,6 @@ int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
 
     return ret;
 }
-#endif
 
 /* Sign the message using the dilithium private key.
  *
@@ -8054,7 +8087,6 @@ int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
     return ret;
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign the message hash using the dilithium private key.
  *
  *  ctx         [in]      Context of signature.
@@ -8145,7 +8177,6 @@ int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
 
     return ret;
 }
-#endif
 
 /* Sign the message using the dilithium private key.
  *
@@ -8183,7 +8214,6 @@ int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
     return ret;
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign the message using the dilithium private key.
  *
  *  ctx         [in]      Context of signature.
@@ -8230,11 +8260,9 @@ int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
 
     return ret;
 }
-#endif
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify the message using the dilithium public key.
  *
  *  sig         [in]  Signature to verify.
@@ -8278,7 +8306,6 @@ int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
 
     return ret;
 }
-#endif
 
 /* Verify the message using the dilithium public key.
  *
@@ -8330,7 +8357,6 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
     return ret;
 }
 
-#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Verify the message using the dilithium public key.
  *
  *  sig         [in]  Signature to verify.
@@ -8377,7 +8403,6 @@ int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
 
     return ret;
 }
-#endif
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
 /* Initialize the dilithium private/public key.
@@ -8498,8 +8523,17 @@ int wc_dilithium_set_level(dilithium_key* key, byte level)
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (level != WC_ML_DSA_44) && (level != WC_ML_DSA_65) &&
-            (level != WC_ML_DSA_87)) {
+    if ((ret == 0) && ((level == WC_ML_DSA_44) || (level == WC_ML_DSA_65) ||
+            (level == WC_ML_DSA_87))) {
+        /* Nothing to do. */
+    }
+#if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+    else if ((ret == 0) && ((level == WC_ML_DSA_44_DRAFT) ||
+             (level == WC_ML_DSA_65_DRAFT) || (level == WC_ML_DSA_87_DRAFT))) {
+        /* Nothing to do. */
+    }
+#endif
+    else {
         ret = BAD_FUNC_ARG;
     }
 
@@ -8532,7 +8566,7 @@ int wc_dilithium_set_level(dilithium_key* key, byte level)
 #endif /* WOLFSSL_WC_DILITHIUM */
 
         /* Store level and indicate public and private key are not set. */
-        key->level = level;
+        key->level = level % WC_ML_DSA_DRAFT;
         key->pubKeySet = 0;
         key->prvKeySet = 0;
     }
@@ -8607,14 +8641,29 @@ int wc_dilithium_size(dilithium_key* key)
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             ret = DILITHIUM_LEVEL2_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             ret = DILITHIUM_LEVEL3_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             ret = DILITHIUM_LEVEL5_KEY_SIZE;
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            ret = ML_DSA_LEVEL2_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            ret = ML_DSA_LEVEL3_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            ret = ML_DSA_LEVEL5_KEY_SIZE;
         }
     }
 
@@ -8633,14 +8682,28 @@ int wc_dilithium_priv_size(dilithium_key* key)
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             ret = DILITHIUM_LEVEL2_PRV_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             ret = DILITHIUM_LEVEL3_PRV_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             ret = DILITHIUM_LEVEL5_PRV_KEY_SIZE;
+        }
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            ret = ML_DSA_LEVEL2_PRV_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            ret = ML_DSA_LEVEL3_PRV_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            ret = ML_DSA_LEVEL5_PRV_KEY_SIZE;
         }
     }
 
@@ -8680,14 +8743,29 @@ int wc_dilithium_pub_size(dilithium_key* key)
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             ret = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             ret = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             ret = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            ret = ML_DSA_LEVEL2_PUB_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            ret = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            ret = ML_DSA_LEVEL5_PUB_KEY_SIZE;
         }
     }
 
@@ -8726,14 +8804,29 @@ int wc_dilithium_sig_size(dilithium_key* key)
     int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             ret = DILITHIUM_LEVEL2_SIG_SIZE;
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             ret = DILITHIUM_LEVEL3_SIG_SIZE;
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             ret = DILITHIUM_LEVEL5_SIG_SIZE;
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            ret = ML_DSA_LEVEL2_SIG_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            ret = ML_DSA_LEVEL3_SIG_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            ret = ML_DSA_LEVEL5_SIG_SIZE;
         }
     }
 
@@ -8947,7 +9040,11 @@ int wc_dilithium_export_public(dilithium_key* key, byte* out, word32* outLen)
     if (ret == 0) {
         /* Get length passed in for checking. */
         inLen = *outLen;
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             /* Set out length. */
             *outLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
             /* Validate length passed in. */
@@ -8955,7 +9052,7 @@ int wc_dilithium_export_public(dilithium_key* key, byte* out, word32* outLen)
                 ret = BUFFER_E;
             }
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             /* Set out length. */
             *outLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
             /* Validate length passed in. */
@@ -8963,11 +9060,37 @@ int wc_dilithium_export_public(dilithium_key* key, byte* out, word32* outLen)
                 ret = BUFFER_E;
             }
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             /* Set out length. */
             *outLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
             /* Validate length passed in. */
             if (inLen < DILITHIUM_LEVEL5_PUB_KEY_SIZE) {
+                ret = BUFFER_E;
+            }
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            /* Set out length. */
+            *outLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
+            /* Validate length passed in. */
+            if (inLen < ML_DSA_LEVEL2_PUB_KEY_SIZE) {
+                ret = BUFFER_E;
+            }
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            /* Set out length. */
+            *outLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+            /* Validate length passed in. */
+            if (inLen < ML_DSA_LEVEL3_PUB_KEY_SIZE) {
+                ret = BUFFER_E;
+            }
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            /* Set out length. */
+            *outLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
+            /* Validate length passed in. */
+            if (inLen < ML_DSA_LEVEL5_PUB_KEY_SIZE) {
                 ret = BUFFER_E;
             }
         }
@@ -9009,21 +9132,45 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             /* Check length. */
             if (inLen != DILITHIUM_LEVEL2_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             /* Check length. */
             if (inLen != DILITHIUM_LEVEL3_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             /* Check length. */
             if (inLen != DILITHIUM_LEVEL5_PUB_KEY_SIZE) {
+                ret = BAD_FUNC_ARG;
+            }
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            /* Check length. */
+            if (inLen != ML_DSA_LEVEL2_PUB_KEY_SIZE) {
+                ret = BAD_FUNC_ARG;
+            }
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            /* Check length. */
+            if (inLen != ML_DSA_LEVEL3_PUB_KEY_SIZE) {
+                ret = BAD_FUNC_ARG;
+            }
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            /* Check length. */
+            if (inLen != ML_DSA_LEVEL5_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
@@ -9109,9 +9256,9 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
 #endif
 
     /* Validate parameters. */
-    if ((privSz != DILITHIUM_LEVEL2_KEY_SIZE) &&
-            (privSz != DILITHIUM_LEVEL3_KEY_SIZE) &&
-            (privSz != DILITHIUM_LEVEL5_KEY_SIZE)) {
+    if ((privSz != ML_DSA_LEVEL2_KEY_SIZE) &&
+            (privSz != ML_DSA_LEVEL3_KEY_SIZE) &&
+            (privSz != ML_DSA_LEVEL5_KEY_SIZE)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -9277,14 +9424,29 @@ int wc_dilithium_export_private(dilithium_key* key, byte* out,
     if (ret == 0) {
         inLen = *outLen;
         /* check and set up out length */
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             *outLen = DILITHIUM_LEVEL2_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             *outLen = DILITHIUM_LEVEL3_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             *outLen = DILITHIUM_LEVEL5_KEY_SIZE;
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            *outLen = ML_DSA_LEVEL2_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            *outLen = ML_DSA_LEVEL3_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            *outLen = ML_DSA_LEVEL5_KEY_SIZE;
         }
         else {
             /* Level not set. */
@@ -9370,14 +9532,29 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (ret == 0) {
         /* Get OID sum for level. */
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             keytype = DILITHIUM_LEVEL2k;
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             keytype = DILITHIUM_LEVEL3k;
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             keytype = DILITHIUM_LEVEL5k;
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            keytype = ML_DSA_LEVEL2k;
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            keytype = ML_DSA_LEVEL3k;
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            keytype = ML_DSA_LEVEL5k;
         }
         else {
             /* Level not set. */
@@ -9392,23 +9569,47 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     }
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
-        if ((key->level == WC_ML_DSA_44) &&
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if ((key->params->level == WC_ML_DSA_44_DRAFT) &&
             (privKeyLen == DILITHIUM_LEVEL2_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL2_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
             privKeyLen -= DILITHIUM_LEVEL2_PUB_KEY_SIZE;
         }
-        else if ((key->level == WC_ML_DSA_65) &&
+        else if ((key->params->level == WC_ML_DSA_65_DRAFT) &&
                  (privKeyLen == DILITHIUM_LEVEL3_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL3_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
             privKeyLen -= DILITHIUM_LEVEL3_PUB_KEY_SIZE;
         }
-        else if ((key->level == WC_ML_DSA_87) &&
+        else if ((key->params->level == WC_ML_DSA_87_DRAFT) &&
                  (privKeyLen == DILITHIUM_LEVEL5_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL5_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
             privKeyLen -= DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+        }
+        else
+    #endif
+        if ((key->level == WC_ML_DSA_44) &&
+            (privKeyLen == ML_DSA_LEVEL2_PRV_KEY_SIZE)) {
+            pubKey = privKey + ML_DSA_LEVEL2_KEY_SIZE;
+            pubKeyLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
+            privKeyLen -= ML_DSA_LEVEL2_PUB_KEY_SIZE;
+        }
+        else if ((key->level == WC_ML_DSA_65) &&
+                 (privKeyLen == ML_DSA_LEVEL3_PRV_KEY_SIZE)) {
+            pubKey = privKey + ML_DSA_LEVEL3_KEY_SIZE;
+            pubKeyLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+            privKeyLen -= ML_DSA_LEVEL3_PUB_KEY_SIZE;
+        }
+        else if ((key->level == WC_ML_DSA_87) &&
+                 (privKeyLen == ML_DSA_LEVEL5_PRV_KEY_SIZE)) {
+            pubKey = privKey + ML_DSA_LEVEL5_KEY_SIZE;
+            pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
+            privKeyLen -= ML_DSA_LEVEL5_PUB_KEY_SIZE;
         }
     }
 
@@ -9444,22 +9645,37 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
 #if defined(WOLFSSL_DILITHIUM_NO_ASN1)
 #ifndef WOLFSSL_NO_ML_DSA_44
+static unsigned char ml_dsa_oid_44[] = {
+    0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x11
+};
+#if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
 static unsigned char dilithium_oid_44[] = {
     0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
     0x0c, 0x04, 0x04
 };
 #endif
+#endif
 #ifndef WOLFSSL_NO_ML_DSA_65
+static unsigned char ml_dsa_oid_65[] = {
+    0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x12
+};
+#if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
 static unsigned char dilithium_oid_65[] = {
     0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
     0x0c, 0x06, 0x05
 };
 #endif
+#endif
 #ifndef WOLFSSL_NO_ML_DSA_87
+static unsigned char ml_dsa_oid_87[] = {
+    0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03, 0x13
+};
+#if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
 static unsigned char dilithium_oid_87[] = {
     0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
     0x0c, 0x08, 0x07
 };
+#endif
 #endif
 
 static int dilitihium_get_der_length(const byte* input, word32* inOutIdx,
@@ -9577,14 +9793,29 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
 
     #if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
             /* Get OID sum for level. */
-            if (key->level == WC_ML_DSA_44) {
+        #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+            if (key->params == NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else if (key->params->level == WC_ML_DSA_44_DRAFT) {
                 keytype = DILITHIUM_LEVEL2k;
             }
-            else if (key->level == WC_ML_DSA_65) {
+            else if (key->params->level == WC_ML_DSA_65_DRAFT) {
                 keytype = DILITHIUM_LEVEL3k;
             }
-            else if (key->level == WC_ML_DSA_87) {
+            else if (key->params->level == WC_ML_DSA_87_DRAFT) {
                 keytype = DILITHIUM_LEVEL5k;
+            }
+            else
+        #endif
+            if (key->level == WC_ML_DSA_44) {
+                keytype = ML_DSA_LEVEL2k;
+            }
+            else if (key->level == WC_ML_DSA_65) {
+                keytype = ML_DSA_LEVEL3k;
+            }
+            else if (key->level == WC_ML_DSA_87) {
+                keytype = ML_DSA_LEVEL5k;
             }
             else {
                 /* Level not set. */
@@ -9597,24 +9828,51 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
             }
     #else
             /* Get OID sum for level. */
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+            if (key->params == NULL) {
+                ret = BAD_FUNC_ARG;
+            }
+            else
         #ifndef WOLFSSL_NO_ML_DSA_44
-            if (key->level == WC_ML_DSA_44) {
+            if (key->params->level == WC_ML_DSA_44_DRAFT) {
                 oid = dilithium_oid_44;
                 oidLen = (int)sizeof(dilithium_oid_44);
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_65
-            if (key->level == WC_ML_DSA_65) {
+            if (key->params->level == WC_ML_DSA_65_DRAFT) {
                 oid = dilithium_oid_65;
                 oidLen = (int)sizeof(dilithium_oid_65);
             }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_DSA_87
-            if (key->level == WC_ML_DSA_87) {
+            if (key->params->level == WC_ML_DSA_87_DRAFT) {
                 oid = dilithium_oid_87;
                 oidLen = (int)sizeof(dilithium_oid_87);
+            }
+            else
+        #endif
+    #endif
+        #ifndef WOLFSSL_NO_ML_DSA_44
+            if (key->level == WC_ML_DSA_44) {
+                oid = ml_dsa_oid_44;
+                oidLen = (int)sizeof(ml_dsa_oid_44);
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_65
+            if (key->level == WC_ML_DSA_65) {
+                oid = ml_dsa_oid_65;
+                oidLen = (int)sizeof(ml_dsa_oid_65);
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_87
+            if (key->level == WC_ML_DSA_87) {
+                oid = ml_dsa_oid_87;
+                oidLen = (int)sizeof(ml_dsa_oid_87);
             }
             else
         #endif
@@ -9708,17 +9966,35 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 len,
 
     if (ret == 0) {
         /* Get OID and length for level. */
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             keytype = DILITHIUM_LEVEL2k;
             pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             keytype = DILITHIUM_LEVEL3k;
             pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             keytype = DILITHIUM_LEVEL5k;
             pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            keytype = ML_DSA_LEVEL2k;
+            pubKeyLen = ML_DSA_LEVEL2_PUB_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            keytype = ML_DSA_LEVEL3k;
+            pubKeyLen = ML_DSA_LEVEL3_PUB_KEY_SIZE;
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            keytype = ML_DSA_LEVEL5k;
+            pubKeyLen = ML_DSA_LEVEL5_PUB_KEY_SIZE;
         }
         else {
             /* Level not set. */
@@ -9762,17 +10038,35 @@ int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output, word32 len)
     /* Validate parameters and check public and private key set. */
     if ((key != NULL) && key->prvKeySet && key->pubKeySet) {
         /* Create DER for level. */
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, key->p,
                 DILITHIUM_LEVEL2_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL2k);
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, key->p,
                 DILITHIUM_LEVEL3_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL3k);
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, key->p,
                 DILITHIUM_LEVEL5_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL5k);
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL2_KEY_SIZE, key->p,
+                ML_DSA_LEVEL2_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL2k);
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL3_KEY_SIZE, key->p,
+                ML_DSA_LEVEL3_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL3k);
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL5_KEY_SIZE, key->p,
+                ML_DSA_LEVEL5_PUB_KEY_SIZE, output, len, ML_DSA_LEVEL5k);
         }
     }
 
@@ -9798,17 +10092,35 @@ int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output, word32 len)
     /* Validate parameters and check private key set. */
     if ((key != NULL) && key->prvKeySet) {
         /* Create DER for level. */
-        if (key->level == WC_ML_DSA_44) {
+    #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
+        if (key->params == NULL) {
+            ret = BAD_FUNC_ARG;
+        }
+        else if (key->params->level == WC_ML_DSA_44_DRAFT) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL2k);
         }
-        else if (key->level == WC_ML_DSA_65) {
+        else if (key->params->level == WC_ML_DSA_65_DRAFT) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL3k);
         }
-        else if (key->level == WC_ML_DSA_87) {
+        else if (key->params->level == WC_ML_DSA_87_DRAFT) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL5k);
+        }
+        else
+    #endif
+        if (key->level == WC_ML_DSA_44) {
+            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL2_KEY_SIZE, NULL, 0, output,
+                len, ML_DSA_LEVEL2k);
+        }
+        else if (key->level == WC_ML_DSA_65) {
+            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL3_KEY_SIZE, NULL, 0, output,
+                len, ML_DSA_LEVEL3k);
+        }
+        else if (key->level == WC_ML_DSA_87) {
+            ret = SetAsymKeyDer(key->k, ML_DSA_LEVEL5_KEY_SIZE, NULL, 0, output,
+                len, ML_DSA_LEVEL5k);
         }
     }
 

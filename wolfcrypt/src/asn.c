@@ -4233,6 +4233,7 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte sigFalcon_Level5Oid[] = {43, 206, 15, 3, 9};
 #endif /* HAVE_FACON */
 #ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     /* Dilithium Level 2: 1.3.6.1.4.1.2.267.12.4.4 */
     static const byte sigDilithium_Level2Oid[] =
         {43, 6, 1, 4, 1, 2, 130, 11, 12, 4, 4};
@@ -4244,6 +4245,19 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     /* Dilithium Level 5: 1.3.6.1.4.1.2.267.12.8.7 */
     static const byte sigDilithium_Level5Oid[] =
         {43, 6, 1, 4, 1, 2, 130, 11, 12, 8, 7};
+#endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
+
+    /* ML-DSA Level 2: 2.16.840.1.101.3.4.3.17 */
+    static const byte sigMlDsa_Level2Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 3, 17};
+
+    /* ML-DSA Level 3: 2.16.840.1.101.3.4.3.18 */
+    static const byte sigMlDsa_Level3Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 3, 18};
+
+    /* ML-DSA Level 5: 2.16.840.1.101.3.4.3.19 */
+    static const byte sigMlDsa_Level5Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_SPHINCS
     /* Sphincs Fast Level 1: 1 3 9999 6 7 4 */
@@ -4307,6 +4321,7 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     static const byte keyFalcon_Level5Oid[] = {43, 206, 15, 3, 9};
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     /* Dilithium Level 2: 1.3.6.1.4.1.2.267.12.4.4 */
     static const byte keyDilithium_Level2Oid[] =
         {43, 6, 1, 4, 1, 2, 130, 11, 12, 4, 4};
@@ -4318,6 +4333,19 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     /* Dilithium Level 5: 1.3.6.1.4.1.2.267.12.8.7 */
     static const byte keyDilithium_Level5Oid[] =
         {43, 6, 1, 4, 1, 2, 130, 11, 12, 8, 7};
+#endif
+
+    /* ML-DSA Level 2: 2.16.840.1.101.3.4.3.17 */
+    static const byte keyMlDsa_Level2Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 3, 17};
+
+    /* ML-DSA Level 3: 2.16.840.1.101.3.4.3.18 */
+    static const byte keyMlDsa_Level3Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 3, 18};
+
+    /* ML-DSA Level 5: 2.16.840.1.101.3.4.3.19 */
+    static const byte keyMlDsa_Level5Oid[] =
+        {96, 134, 72, 1, 101, 3, 4, 3, 19};
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_SPHINCS
     /* Sphincs Fast Level 1: 1 3 9999 6 7 4 */
@@ -4861,7 +4889,8 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(sigFalcon_Level5Oid);
                     break;
                 #endif /* HAVE_FALCON */
-                #ifdef HAVE_DILITHIUM
+            #ifdef HAVE_DILITHIUM
+                #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
                 case CTC_DILITHIUM_LEVEL2:
                     oid = sigDilithium_Level2Oid;
                     *oidSz = sizeof(sigDilithium_Level2Oid);
@@ -4874,7 +4903,20 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = sigDilithium_Level5Oid;
                     *oidSz = sizeof(sigDilithium_Level5Oid);
                     break;
-                #endif /* HAVE_DILITHIUM */
+                #endif
+                case CTC_ML_DSA_LEVEL2:
+                    oid = sigMlDsa_Level2Oid;
+                    *oidSz = sizeof(sigMlDsa_Level2Oid);
+                    break;
+                case CTC_ML_DSA_LEVEL3:
+                    oid = sigMlDsa_Level3Oid;
+                    *oidSz = sizeof(sigMlDsa_Level3Oid);
+                    break;
+                case CTC_ML_DSA_LEVEL5:
+                    oid = sigMlDsa_Level5Oid;
+                    *oidSz = sizeof(sigMlDsa_Level5Oid);
+                    break;
+            #endif /* HAVE_DILITHIUM */
                 #ifdef HAVE_SPHINCS
                 case CTC_SPHINCS_FAST_LEVEL1:
                     oid = sigSphincsFast_Level1Oid;
@@ -4972,7 +5014,8 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(keyFalcon_Level5Oid);
                     break;
                 #endif /* HAVE_FALCON */
-                #ifdef HAVE_DILITHIUM
+            #ifdef HAVE_DILITHIUM
+                #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
                 case DILITHIUM_LEVEL2k:
                     oid = keyDilithium_Level2Oid;
                     *oidSz = sizeof(keyDilithium_Level2Oid);
@@ -4985,7 +5028,20 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = keyDilithium_Level5Oid;
                     *oidSz = sizeof(keyDilithium_Level5Oid);
                     break;
-                #endif /* HAVE_DILITHIUM */
+                #endif
+                case ML_DSA_LEVEL2k:
+                    oid = keyMlDsa_Level2Oid;
+                    *oidSz = sizeof(keyMlDsa_Level2Oid);
+                    break;
+                case ML_DSA_LEVEL3k:
+                    oid = keyMlDsa_Level3Oid;
+                    *oidSz = sizeof(keyMlDsa_Level3Oid);
+                    break;
+                case ML_DSA_LEVEL5k:
+                    oid = keyMlDsa_Level5Oid;
+                    *oidSz = sizeof(keyMlDsa_Level5Oid);
+                    break;
+            #endif /* HAVE_DILITHIUM */
                 #ifdef HAVE_SPHINCS
                 case SPHINCS_FAST_LEVEL1k:
                     oid = keySphincsFast_Level1Oid;
@@ -7712,9 +7768,15 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
     #endif /* HAVE_FALCON */
 #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
-    if ((ks == DILITHIUM_LEVEL2k) ||
-        (ks == DILITHIUM_LEVEL3k) ||
-        (ks == DILITHIUM_LEVEL5k)) {
+    if ((ks == ML_DSA_LEVEL2k) ||
+        (ks == ML_DSA_LEVEL3k) ||
+        (ks == ML_DSA_LEVEL5k)
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+     || (ks == DILITHIUM_LEVEL2k)
+     || (ks == DILITHIUM_LEVEL3k)
+     || (ks == DILITHIUM_LEVEL5k)
+    #endif
+        ) {
     #ifdef WOLFSSL_SMALL_STACK
         dilithium_key* key_pair = NULL;
     #else
@@ -7736,15 +7798,27 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
             return ret;
         }
 
-        if (ks == DILITHIUM_LEVEL2k) {
-            ret = wc_dilithium_set_level(key_pair, 2);
+
+        if (ks == ML_DSA_LEVEL2k) {
+            ret = wc_dilithium_set_level(key_pair, WC_ML_DSA_44);
+        }
+        else if (ks == ML_DSA_LEVEL3k) {
+            ret = wc_dilithium_set_level(key_pair, WC_ML_DSA_65);
+        }
+        else if (ks == ML_DSA_LEVEL5k) {
+            ret = wc_dilithium_set_level(key_pair, WC_ML_DSA_87);
+        }
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        else if (ks == DILITHIUM_LEVEL2k) {
+            ret = wc_dilithium_set_level(key_pair, WC_ML_DSA_44_DRAFT);
         }
         else if (ks == DILITHIUM_LEVEL3k) {
-            ret = wc_dilithium_set_level(key_pair, 3);
+            ret = wc_dilithium_set_level(key_pair, WC_ML_DSA_65_DRAFT);
         }
         else if (ks == DILITHIUM_LEVEL5k) {
-            ret = wc_dilithium_set_level(key_pair, 5);
+            ret = wc_dilithium_set_level(key_pair, WC_ML_DSA_87_DRAFT);
         }
+    #endif
 
         if (ret  < 0) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -8230,31 +8304,28 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 
         if (wc_dilithium_init(dilithium) != 0) {
             tmpIdx = 0;
-            if (wc_dilithium_set_level(dilithium, 2)
-                == 0) {
+            if (wc_dilithium_set_level(dilithium, WC_ML_DSA_44) == 0) {
                 if (wc_Dilithium_PrivateKeyDecode(key, &tmpIdx, dilithium,
-                    keySz) == 0) {
-                    *algoID = DILITHIUM_LEVEL2k;
+                        keySz) == 0) {
+                    *algoID = ML_DSA_LEVEL2k;
                 }
                 else {
                     WOLFSSL_MSG("Not Dilithium Level 2 DER key");
                 }
             }
-            else if (wc_dilithium_set_level(dilithium, 3)
-                == 0) {
+            else if (wc_dilithium_set_level(dilithium, WC_ML_DSA_65) == 0) {
                 if (wc_Dilithium_PrivateKeyDecode(key, &tmpIdx, dilithium,
-                    keySz) == 0) {
-                    *algoID = DILITHIUM_LEVEL3k;
+                        keySz) == 0) {
+                    *algoID = ML_DSA_LEVEL3k;
                 }
                 else {
                     WOLFSSL_MSG("Not Dilithium Level 3 DER key");
                 }
             }
-            else if (wc_dilithium_set_level(dilithium, 5)
-                == 0) {
+            else if (wc_dilithium_set_level(dilithium, WC_ML_DSA_87) == 0) {
                 if (wc_Dilithium_PrivateKeyDecode(key, &tmpIdx, dilithium,
-                    keySz) == 0) {
-                    *algoID = DILITHIUM_LEVEL5k;
+                        keySz) == 0) {
+                    *algoID = ML_DSA_LEVEL5k;
                 }
                 else {
                     WOLFSSL_MSG("Not Dilithium Level 5 DER key");
@@ -12749,16 +12820,15 @@ static int GetCertKey(DecodedCert* cert, const byte* source, word32* inOutIdx,
             break;
     #endif /* HAVE_FALCON */
     #ifdef HAVE_DILITHIUM
+        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         case DILITHIUM_LEVEL2k:
-            cert->pkCurveOID = DILITHIUM_LEVEL2k;
-            ret = StoreKey(cert, source, &srcIdx, maxIdx);
-            break;
         case DILITHIUM_LEVEL3k:
-            cert->pkCurveOID = DILITHIUM_LEVEL3k;
-            ret = StoreKey(cert, source, &srcIdx, maxIdx);
-            break;
         case DILITHIUM_LEVEL5k:
-            cert->pkCurveOID = DILITHIUM_LEVEL5k;
+        #endif
+        case ML_DSA_LEVEL2k:
+        case ML_DSA_LEVEL3k:
+        case ML_DSA_LEVEL5k:
+            cert->pkCurveOID = cert->keyOID;
             ret = StoreKey(cert, source, &srcIdx, maxIdx);
             break;
     #endif /* HAVE_DILITHIUM */
@@ -16119,9 +16189,14 @@ static WC_INLINE int IsSigAlgoECC(word32 algoOID)
               || (algoOID == FALCON_LEVEL5k)
         #endif
         #ifdef HAVE_DILITHIUM
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
               || (algoOID == DILITHIUM_LEVEL2k)
               || (algoOID == DILITHIUM_LEVEL3k)
               || (algoOID == DILITHIUM_LEVEL5k)
+            #endif
+              || (algoOID == ML_DSA_LEVEL2k)
+              || (algoOID == ML_DSA_LEVEL3k)
+              || (algoOID == ML_DSA_LEVEL5k)
         #endif
         #ifdef HAVE_SPHINCS
               || (algoOID == SPHINCS_FAST_LEVEL1k)
@@ -16480,9 +16555,14 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
                 break;
         #endif /* HAVE_FALCON */
         #if defined(HAVE_DILITHIUM)
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
             case DILITHIUM_LEVEL2k:
             case DILITHIUM_LEVEL3k:
             case DILITHIUM_LEVEL5k:
+            #endif
+            case ML_DSA_LEVEL2k:
+            case ML_DSA_LEVEL3k:
+            case ML_DSA_LEVEL5k:
                 wc_dilithium_free(sigCtx->key.dilithium);
                 XFREE(sigCtx->key.dilithium, sigCtx->heap,
                       DYNAMIC_TYPE_DILITHIUM);
@@ -16654,9 +16734,14 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
             break;
     #endif
     #ifdef HAVE_DILITHIUM
+        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         case CTC_DILITHIUM_LEVEL2:
         case CTC_DILITHIUM_LEVEL3:
         case CTC_DILITHIUM_LEVEL5:
+        #endif
+        case CTC_ML_DSA_LEVEL2:
+        case CTC_ML_DSA_LEVEL3:
+        case CTC_ML_DSA_LEVEL5:
             /* Hashes done in signing operation. */
             break;
     #endif
@@ -17108,83 +17193,55 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             #if defined(HAVE_DILITHIUM) && \
                 !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
                 !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+                #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
                 case DILITHIUM_LEVEL2k:
-                {
-                    word32 idx = 0;
-                    sigCtx->verify = 0;
-                    sigCtx->key.dilithium =
-                        (dilithium_key*)XMALLOC(sizeof(dilithium_key),
-                                             sigCtx->heap,
-                                             DYNAMIC_TYPE_DILITHIUM);
-                    if (sigCtx->key.dilithium == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_cs);
-                    }
-                    if ((ret = wc_dilithium_init_ex(sigCtx->key.dilithium,
-                                            sigCtx->heap, sigCtx->devId)) < 0) {
-                        goto exit_cs;
-                    }
-                    if ((ret = wc_dilithium_set_level(
-                                   sigCtx->key.dilithium, 2))
-                        < 0) {
-                        goto exit_cs;
-                    }
-                    if ((ret = wc_Dilithium_PublicKeyDecode(key, &idx,
-                        sigCtx->key.dilithium, keySz)) < 0) {
-                        WOLFSSL_MSG("ASN Key import error Dilithium Level 2");
-                        goto exit_cs;
-                    }
-                    break;
-                }
                 case DILITHIUM_LEVEL3k:
-                {
-                    word32 idx = 0;
-                    sigCtx->verify = 0;
-                    sigCtx->key.dilithium =
-                        (dilithium_key*)XMALLOC(sizeof(dilithium_key),
-                                             sigCtx->heap,
-                                             DYNAMIC_TYPE_DILITHIUM);
-                    if (sigCtx->key.dilithium == NULL) {
-                        ERROR_OUT(MEMORY_E, exit_cs);
-                    }
-                    if ((ret = wc_dilithium_init_ex(sigCtx->key.dilithium,
-                                            sigCtx->heap, sigCtx->devId)) < 0) {
-                        goto exit_cs;
-                    }
-                    if ((ret = wc_dilithium_set_level(
-                                   sigCtx->key.dilithium, 3))
-                        < 0) {
-                        goto exit_cs;
-                    }
-                    if ((ret = wc_Dilithium_PublicKeyDecode(key, &idx,
-                        sigCtx->key.dilithium, keySz)) < 0) {
-                        WOLFSSL_MSG("ASN Key import error Dilithium Level 3");
-                        goto exit_cs;
-                    }
-                    break;
-                }
                 case DILITHIUM_LEVEL5k:
+                #endif
+                case ML_DSA_LEVEL2k:
+                case ML_DSA_LEVEL3k:
+                case ML_DSA_LEVEL5k:
                 {
                     word32 idx = 0;
+                    int level;
+                    if (keyOID == ML_DSA_LEVEL2k) {
+                        level = WC_ML_DSA_44;
+                    }
+                    else if (keyOID == ML_DSA_LEVEL3k) {
+                        level = WC_ML_DSA_65;
+                    }
+                    else if (keyOID == ML_DSA_LEVEL5k) {
+                        level = WC_ML_DSA_87;
+                    }
+                #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+                    else if (keyOID == DILITHIUM_LEVEL2k) {
+                        level = WC_ML_DSA_44_DRAFT;
+                    }
+                    else if (keyOID == DILITHIUM_LEVEL3k) {
+                        level = WC_ML_DSA_65_DRAFT;
+                    }
+                    else if (keyOID == DILITHIUM_LEVEL5k) {
+                        level = WC_ML_DSA_87_DRAFT;
+                    }
+                #endif
                     sigCtx->verify = 0;
-                    sigCtx->key.dilithium =
-                        (dilithium_key*)XMALLOC(sizeof(dilithium_key),
-                                             sigCtx->heap,
-                                             DYNAMIC_TYPE_DILITHIUM);
+                    sigCtx->key.dilithium = (dilithium_key*)XMALLOC(
+                        sizeof(dilithium_key), sigCtx->heap,
+                        DYNAMIC_TYPE_DILITHIUM);
                     if (sigCtx->key.dilithium == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
                     if ((ret = wc_dilithium_init_ex(sigCtx->key.dilithium,
-                                            sigCtx->heap, sigCtx->devId)) < 0) {
+                            sigCtx->heap, sigCtx->devId)) < 0) {
                         goto exit_cs;
                     }
-                    if ((ret = wc_dilithium_set_level(
-                                   sigCtx->key.dilithium, 5))
-                        < 0) {
+                    if ((ret = wc_dilithium_set_level(sigCtx->key.dilithium,
+                            level)) < 0) {
                         goto exit_cs;
                     }
                     if ((ret = wc_Dilithium_PublicKeyDecode(key, &idx,
                         sigCtx->key.dilithium, keySz)) < 0) {
-                        WOLFSSL_MSG("ASN Key import error Dilithium Level 5");
+                        WOLFSSL_MSG("ASN Key import error Dilithium");
                         goto exit_cs;
                     }
                     break;
@@ -17514,6 +17571,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 }
             #endif /* HAVE_FALCON */
             #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+                #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
                 case DILITHIUM_LEVEL2k:
                 case DILITHIUM_LEVEL3k:
                 case DILITHIUM_LEVEL5k:
@@ -17521,6 +17579,15 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     ret = wc_dilithium_verify_msg(sig, sigSz, buf, bufSz,
                                                &sigCtx->verify,
                                                sigCtx->key.dilithium);
+                    break;
+                }
+                #endif
+                case ML_DSA_LEVEL2k:
+                case ML_DSA_LEVEL3k:
+                case ML_DSA_LEVEL5k:
+                {
+                    ret = wc_dilithium_verify_ctx_msg(sig, sigSz, NULL, 0, buf,
+                        bufSz, &sigCtx->verify, sigCtx->key.dilithium);
                     break;
                 }
             #endif /* HAVE_DILITHIUM */
@@ -17717,39 +17784,22 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 }
             #endif /* HAVE_FALCON */
             #ifdef HAVE_DILITHIUM
+                #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
                 case DILITHIUM_LEVEL2k:
-                {
-                    if (sigCtx->verify == 1) {
-                        ret = 0;
-                    }
-                    else {
-                        WOLFSSL_MSG("DILITHIUM_LEVEL2 Verify didn't match");
-                        ret = ASN_SIG_CONFIRM_E;
-                    }
-                    break;
-                }
                 case DILITHIUM_LEVEL3k:
-                {
-                    if (sigCtx->verify == 1) {
-                        ret = 0;
-                    }
-                    else {
-                        WOLFSSL_MSG("DILITHIUM_LEVEL3 Verify didn't match");
-                        ret = ASN_SIG_CONFIRM_E;
-                    }
-                    break;
-                }
                 case DILITHIUM_LEVEL5k:
-                {
+                #endif
+                case ML_DSA_LEVEL2k:
+                case ML_DSA_LEVEL3k:
+                case ML_DSA_LEVEL5k:
                     if (sigCtx->verify == 1) {
                         ret = 0;
                     }
                     else {
-                        WOLFSSL_MSG("DILITHIUM_LEVEL5 Verify didn't match");
+                        WOLFSSL_MSG("DILITHIUM Verify didn't match");
                         ret = ASN_SIG_CONFIRM_E;
                     }
                     break;
-                }
             #endif /* HAVE_DILITHIUM */
             #ifdef HAVE_SPHINCS
                 case SPHINCS_FAST_LEVEL1k:
@@ -24725,12 +24775,20 @@ wcchar END_PUB_KEY          = "-----END PUBLIC KEY-----";
     wcchar END_FALCON_LEVEL5_PRIV   = "-----END FALCON_LEVEL5 PRIVATE KEY-----";
 #endif /* HAVE_FALCON */
 #if defined(HAVE_DILITHIUM)
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     wcchar BEGIN_DILITHIUM_LEVEL2_PRIV = "-----BEGIN DILITHIUM_LEVEL2 PRIVATE KEY-----";
     wcchar END_DILITHIUM_LEVEL2_PRIV   = "-----END DILITHIUM_LEVEL2 PRIVATE KEY-----";
     wcchar BEGIN_DILITHIUM_LEVEL3_PRIV = "-----BEGIN DILITHIUM_LEVEL3 PRIVATE KEY-----";
     wcchar END_DILITHIUM_LEVEL3_PRIV   = "-----END DILITHIUM_LEVEL3 PRIVATE KEY-----";
     wcchar BEGIN_DILITHIUM_LEVEL5_PRIV = "-----BEGIN DILITHIUM_LEVEL5 PRIVATE KEY-----";
     wcchar END_DILITHIUM_LEVEL5_PRIV   = "-----END DILITHIUM_LEVEL5 PRIVATE KEY-----";
+    #endif
+    wcchar BEGIN_ML_DSA_LEVEL2_PRIV = "-----BEGIN ML_DSA_LEVEL2 PRIVATE KEY-----";
+    wcchar END_ML_DSA_LEVEL2_PRIV   = "-----END ML_DSA_LEVEL2 PRIVATE KEY-----";
+    wcchar BEGIN_ML_DSA_LEVEL3_PRIV = "-----BEGIN ML_DSA_LEVEL3 PRIVATE KEY-----";
+    wcchar END_ML_DSA_LEVEL3_PRIV   = "-----END ML_DSA_LEVEL3 PRIVATE KEY-----";
+    wcchar BEGIN_ML_DSA_LEVEL5_PRIV = "-----BEGIN ML_DSA_LEVEL5 PRIVATE KEY-----";
+    wcchar END_ML_DSA_LEVEL5_PRIV   = "-----END ML_DSA_LEVEL5 PRIVATE KEY-----";
 #endif /* HAVE_DILITHIUM */
 #if defined(HAVE_SPHINCS)
     wcchar BEGIN_SPHINCS_FAST_LEVEL1_PRIV = "-----BEGIN SPHINCS_FAST_LEVEL1 PRIVATE KEY-----";
@@ -24881,6 +24939,7 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
             break;
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         case DILITHIUM_LEVEL2_TYPE:
             if (header) *header = BEGIN_DILITHIUM_LEVEL2_PRIV;
             if (footer) *footer = END_DILITHIUM_LEVEL2_PRIV;
@@ -24894,6 +24953,22 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
         case DILITHIUM_LEVEL5_TYPE:
             if (header) *header = BEGIN_DILITHIUM_LEVEL5_PRIV;
             if (footer) *footer = END_DILITHIUM_LEVEL5_PRIV;
+            ret = 0;
+            break;
+    #endif
+        case ML_DSA_LEVEL2_TYPE:
+            if (header) *header = BEGIN_ML_DSA_LEVEL2_PRIV;
+            if (footer) *footer = END_ML_DSA_LEVEL2_PRIV;
+            ret = 0;
+            break;
+        case ML_DSA_LEVEL3_TYPE:
+            if (header) *header = BEGIN_ML_DSA_LEVEL3_PRIV;
+            if (footer) *footer = END_ML_DSA_LEVEL3_PRIV;
+            ret = 0;
+            break;
+        case ML_DSA_LEVEL5_TYPE:
+            if (header) *header = BEGIN_ML_DSA_LEVEL5_PRIV;
+            if (footer) *footer = END_ML_DSA_LEVEL5_PRIV;
             ret = 0;
             break;
 #endif /* HAVE_DILITHIUM */
@@ -28787,9 +28862,14 @@ static int EncodePublicKey(int keyType, byte* output, int outLen,
             break;
     #endif /* HAVE_FALCON */
     #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+        #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         case DILITHIUM_LEVEL2_KEY:
         case DILITHIUM_LEVEL3_KEY:
         case DILITHIUM_LEVEL5_KEY:
+        #endif
+        case ML_DSA_LEVEL2_KEY:
+        case ML_DSA_LEVEL3_KEY:
+        case ML_DSA_LEVEL5_KEY:
             ret = wc_Dilithium_PublicKeyToDer(dilithiumKey, output,
                                               (word32)outLen, 1);
             if (ret <= 0) {
@@ -29611,9 +29691,15 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 #endif /* HAVE_FALCON */
 #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
-    if ((cert->keyType == DILITHIUM_LEVEL2_KEY) ||
-        (cert->keyType == DILITHIUM_LEVEL3_KEY) ||
-        (cert->keyType == DILITHIUM_LEVEL5_KEY)) {
+    if ((cert->keyType == ML_DSA_LEVEL2_KEY) ||
+        (cert->keyType == ML_DSA_LEVEL3_KEY) ||
+        (cert->keyType == ML_DSA_LEVEL5_KEY)
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+     || (cert->keyType == DILITHIUM_LEVEL2_KEY)
+     || (cert->keyType == DILITHIUM_LEVEL3_KEY)
+     || (cert->keyType == DILITHIUM_LEVEL5_KEY)
+    #endif
+        ) {
         if (dilithiumKey == NULL)
             return PUBLIC_KEY_E;
 
@@ -30154,9 +30240,23 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buf, word32 sz,
         if (!rsaKey && !eccKey && !ed25519Key && !ed448Key && !falconKey &&
             dilithiumKey) {
             word32 outSz = sigSz;
-            ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey, rng);
-            if (ret == 0)
-                ret = outSz;
+            #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+            if ((dilithiumKey->params->level == WC_ML_DSA_44_DRAFT) ||
+                    (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT) ||
+                    (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
+                ret = wc_dilithium_sign_msg(buf, sz, sig, &outSz, dilithiumKey,
+                    rng);
+                if (ret == 0)
+                    ret = outSz;
+            }
+            else
+            #endif
+            {
+                ret = wc_dilithium_sign_ctx_msg(NULL, 0, buf, sz, sig,
+                    &outSz, dilithiumKey, rng);
+                if (ret == 0)
+                    ret = outSz;
+            }
         }
     #endif /* HAVE_DILITHIUM */
     #if defined(HAVE_SPHINCS)
@@ -30391,12 +30491,32 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = FALCON_LEVEL5_KEY;
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
-    else if ((dilithiumKey != NULL) && (dilithiumKey->level == 2))
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_44_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL2_KEY;
-    else if ((dilithiumKey != NULL) && (dilithiumKey->level == 3))
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL3_KEY;
-    else if ((dilithiumKey != NULL) && (dilithiumKey->level == 5))
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL5_KEY;
+    }
+    #endif
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_44)) {
+        cert->keyType = ML_DSA_LEVEL2_KEY;
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_65)) {
+        cert->keyType = ML_DSA_LEVEL3_KEY;
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_87)) {
+        cert->keyType = ML_DSA_LEVEL5_KEY;
+    }
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_SPHINCS
     else if ((sphincsKey != NULL) && (sphincsKey->level == 1)
@@ -30486,14 +30606,31 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
         }
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
-        else if ((dilithiumKey != NULL) && (dilithiumKey->level == 2)) {
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->params->level == WC_ML_DSA_44_DRAFT)) {
             cert->keyType = DILITHIUM_LEVEL2_KEY;
         }
-        else if ((dilithiumKey != NULL) && (dilithiumKey->level == 3)) {
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT)) {
             cert->keyType = DILITHIUM_LEVEL3_KEY;
         }
-        else if ((dilithiumKey != NULL) && (dilithiumKey->level == 5)) {
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
             cert->keyType = DILITHIUM_LEVEL5_KEY;
+        }
+    #endif
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->level == WC_ML_DSA_44)) {
+            cert->keyType = ML_DSA_LEVEL2_KEY;
+        }
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->level == WC_ML_DSA_65)) {
+            cert->keyType = ML_DSA_LEVEL3_KEY;
+        }
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->level == WC_ML_DSA_87)) {
+            cert->keyType = ML_DSA_LEVEL5_KEY;
         }
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_SPHINCS
@@ -30799,11 +30936,19 @@ int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
         falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
         falconKey = (falcon_key*)key;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     else if (keyType == DILITHIUM_LEVEL2_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL3_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL5_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+#endif
+    else if (keyType == ML_DSA_LEVEL2_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL3_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL5_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
         sphincsKey = (sphincs_key*)key;
@@ -31106,9 +31251,15 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     }
 #endif
 #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_ASN1)
-    if ((cert->keyType == DILITHIUM_LEVEL2_KEY) ||
-        (cert->keyType == DILITHIUM_LEVEL3_KEY) ||
-        (cert->keyType == DILITHIUM_LEVEL5_KEY)) {
+    if ((cert->keyType == ML_DSA_LEVEL2_KEY) ||
+        (cert->keyType == ML_DSA_LEVEL3_KEY) ||
+        (cert->keyType == ML_DSA_LEVEL5_KEY)
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+     || (cert->keyType == DILITHIUM_LEVEL2_KEY)
+     || (cert->keyType == DILITHIUM_LEVEL3_KEY)
+     || (cert->keyType == DILITHIUM_LEVEL5_KEY)
+   #endif
+        ) {
         if (dilithiumKey == NULL)
             return PUBLIC_KEY_E;
         der->publicKeySz = wc_Dilithium_PublicKeyToDer(dilithiumKey,
@@ -31460,12 +31611,32 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         cert->keyType = FALCON_LEVEL5_KEY;
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
-    else if ((dilithiumKey != NULL) && (dilithiumKey->level == 2))
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_44_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL2_KEY;
-    else if ((dilithiumKey != NULL) && (dilithiumKey->level == 3))
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL3_KEY;
-    else if ((dilithiumKey != NULL) && (dilithiumKey->level == 5))
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
         cert->keyType = DILITHIUM_LEVEL5_KEY;
+    }
+    #endif
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_44)) {
+        cert->keyType = ML_DSA_LEVEL2_KEY;
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_65)) {
+        cert->keyType = ML_DSA_LEVEL3_KEY;
+    }
+    else if ((dilithiumKey != NULL) &&
+                (dilithiumKey->params->level == WC_ML_DSA_87)) {
+        cert->keyType = ML_DSA_LEVEL5_KEY;
+    }
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_SPHINCS
     else if ((sphincsKey != NULL) && (sphincsKey->level == 1)
@@ -31556,14 +31727,31 @@ static int MakeCertReq(Cert* cert, byte* derBuffer, word32 derSz,
         }
 #endif /* HAVE_FALCON */
 #ifdef HAVE_DILITHIUM
-        else if ((dilithiumKey != NULL) && (dilithiumKey->level == 2)) {
+    #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->params->level == WC_ML_DSA_44_DRAFT)) {
             cert->keyType = DILITHIUM_LEVEL2_KEY;
         }
-        else if ((dilithiumKey != NULL) && (dilithiumKey->level == 3)) {
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->params->level == WC_ML_DSA_65_DRAFT)) {
             cert->keyType = DILITHIUM_LEVEL3_KEY;
         }
-        else if ((dilithiumKey != NULL) && (dilithiumKey->level == 5)) {
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->params->level == WC_ML_DSA_87_DRAFT)) {
             cert->keyType = DILITHIUM_LEVEL5_KEY;
+        }
+    #endif
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->level == WC_ML_DSA_44)) {
+            cert->keyType = ML_DSA_LEVEL2_KEY;
+        }
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->level == WC_ML_DSA_65)) {
+            cert->keyType = ML_DSA_LEVEL3_KEY;
+        }
+        else if ((dilithiumKey != NULL) &&
+                    (dilithiumKey->level == WC_ML_DSA_87)) {
+            cert->keyType = ML_DSA_LEVEL5_KEY;
         }
 #endif /* HAVE_DILITHIUM */
 #ifdef HAVE_SPHINCS
@@ -31776,11 +31964,19 @@ int wc_MakeCertReq_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
         falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
         falconKey = (falcon_key*)key;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     else if (keyType == DILITHIUM_LEVEL2_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL3_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL5_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+#endif
+    else if (keyType == ML_DSA_LEVEL2_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL3_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL5_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
         sphincsKey = (sphincs_key*)key;
@@ -31922,9 +32118,14 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
         case FALCON_LEVEL5_TYPE:
             falconKey = (falcon_key*)key;
             break;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
         case DILITHIUM_LEVEL2_TYPE:
         case DILITHIUM_LEVEL3_TYPE:
         case DILITHIUM_LEVEL5_TYPE:
+#endif
+        case ML_DSA_LEVEL2_TYPE:
+        case ML_DSA_LEVEL3_TYPE:
+        case ML_DSA_LEVEL5_TYPE:
             dilithiumKey = (dilithium_key*)key;
             break;
         case SPHINCS_FAST_LEVEL1_TYPE:
@@ -32025,11 +32226,19 @@ int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
         falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
         falconKey = (falcon_key*)key;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     else if (keyType == DILITHIUM_LEVEL2_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL3_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL5_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+#endif
+    else if (keyType == ML_DSA_LEVEL2_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL3_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL5_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
         sphincsKey = (sphincs_key*)key;
@@ -32204,11 +32413,19 @@ int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
         falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
         falconKey = (falcon_key*)key;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     else if (keyType == DILITHIUM_LEVEL2_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL3_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL5_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+#endif
+    else if (keyType == ML_DSA_LEVEL2_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL3_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL5_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
         sphincsKey = (sphincs_key*)key;
@@ -32257,11 +32474,19 @@ int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType, void* key)
         falconKey = (falcon_key*)key;
     else if (keyType == FALCON_LEVEL5_TYPE)
         falconKey = (falcon_key*)key;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     else if (keyType == DILITHIUM_LEVEL2_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL3_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == DILITHIUM_LEVEL5_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+#endif
+    else if (keyType == ML_DSA_LEVEL2_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL3_TYPE)
+        dilithiumKey = (dilithium_key*)key;
+    else if (keyType == ML_DSA_LEVEL5_TYPE)
         dilithiumKey = (dilithium_key*)key;
     else if (keyType == SPHINCS_FAST_LEVEL1_TYPE)
         sphincsKey = (sphincs_key*)key;
