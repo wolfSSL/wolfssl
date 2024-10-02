@@ -7355,7 +7355,7 @@ void wolfSSL_X509_ACERT_free(WOLFSSL_X509_ACERT* x509)
 
     /* Finally memset and free x509 acert structure. */
     XMEMSET(x509, 0, sizeof(*x509));
-    XFREE(x509, x509->heap, NULL);
+    XFREE(x509, NULL, DYNAMIC_TYPE_X509_ACERT);
 
     return;
 }
