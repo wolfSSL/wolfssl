@@ -6643,18 +6643,27 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
 
     if (CheckHeaders(&ipInfo, &tcpInfo, packet, length, &sslFrame, &sslBytes,
                      error, 1, 1) != 0) {
-        return WOLFSSL_SNIFFER_ERROR;
+        ret = WOLFSSL_SNIFFER_ERROR;
+        goto exit_decode;
     }
 
     end = sslFrame + sslBytes;
 
     ret = CheckSession(&ipInfo, &tcpInfo, sslBytes, &session, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
-        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) {
+        ret = WOLFSSL_SNIFFER_FATAL_ERROR;
+        goto exit_decode;
+    }
 #ifdef WOLFSSL_ASYNC_CRYPT
-    else if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) return WC_PENDING_E;
+    else if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
+        ret = WC_PENDING_E;
+        goto exit_decode;
+    }
 #endif
-    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
+    else if (ret == -1) {
+        ret = WOLFSSL_SNIFFER_ERROR;
+        goto exit_decode;
+    }
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         if (sslBytes > 0) {
@@ -6666,8 +6675,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         else {
             INC_STAT(SnifferStats.sslDecryptedPackets);
         }
+        ret = 0;
+        goto exit_decode; /* done for now */
 #endif
-         return 0; /* done for now */
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -6675,30 +6685,41 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
 #endif
 
     ret = CheckSequence(&ipInfo, &tcpInfo, session, &sslBytes, &sslFrame,error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
-        return WOLFSSL_SNIFFER_FATAL_ERROR;
-    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) {
+        ret = WOLFSSL_SNIFFER_FATAL_ERROR;
+        goto exit_decode;
+    }
+    else if (ret == -1) {
+        ret = WOLFSSL_SNIFFER_ERROR;
+        goto exit_decode;
+    }
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
 #endif
-        return 0; /* done for now */
+        ret = 0;
+        goto exit_decode; /* done for now */
     }
     else if (ret != 0) {
-        /* return specific error case */
-        return ret;
+        goto exit_decode; /* return specific error case */
     }
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
                          &end, vChain, chainSz, error);
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
-        return WOLFSSL_SNIFFER_FATAL_ERROR;
-    else if (ret == -1) return WOLFSSL_SNIFFER_ERROR;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) {
+        ret = WOLFSSL_SNIFFER_FATAL_ERROR;
+        goto exit_decode;
+    }
+    else if (ret == -1) {
+        ret = WOLFSSL_SNIFFER_ERROR;
+        goto exit_decode;
+    }
     else if (ret ==  1) {
 #ifdef WOLFSSL_SNIFFER_STATS
         INC_STAT(SnifferStats.sslDecryptedPackets);
 #endif
-        return 0; /* done for now */
+        ret = 0;
+        goto exit_decode; /* done for now */
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -6706,7 +6727,8 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
     if (asyncOkay &&
         session->sslServer->error == WC_NO_ERR_TRACE(WC_PENDING_E) &&
         !session->flags.wasPolled) {
-        return WC_PENDING_E;
+        ret = WC_PENDING_E;
+        goto exit_decode;
     }
 #endif
 
@@ -6743,7 +6765,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
                 wolfSSL_AsyncPoll(session->sslServer, WOLF_POLL_FLAG_CHECK_HW);
             }
             else {
-                return ret; /* return to caller */
+                goto exit_decode; /* return to caller */
             }
         }
         else {
@@ -6754,12 +6776,15 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
     (void)asyncOkay;
 #endif
 
-    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error))
-        return WOLFSSL_SNIFFER_FATAL_ERROR;
+    if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) {
+        ret = WOLFSSL_SNIFFER_FATAL_ERROR;
+        goto exit_decode;
+    }
     if (CheckFinCapture(&ipInfo, &tcpInfo, session) == 0) {
         CopySessionInfo(session, sslInfo);
     }
 
+exit_decode:
     return ret;
 }
 
