@@ -322,6 +322,11 @@
             #error "Nano newlib formatting must not be enabled for benchmark"
         #endif
     #endif
+    #if ESP_IDF_VERSION_MAJOR >= 5
+        #define TFMT "%lu"
+    #else
+        #define TFMT "%d"
+    #endif
 
     #ifdef configTICK_RATE_HZ
         /* Define CPU clock cycles per tick of FreeRTOS clock
@@ -336,6 +341,27 @@
             #ifndef CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
                 #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ configCPU_CLOCK_HZ
             #endif
+        #endif
+        #ifndef CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
+            /* This section is for pre-v5 ESP-IDF */
+            #if defined(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32C2_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32C2_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32H2_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32H2_DEFAULT_CPU_FREQ_MHZ
+            #else
+                /* TODO unsupported */
+            #endif /* older CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ */
         #endif
         #define CPU_TICK_CYCLES (                               \
               (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE) \
@@ -354,9 +380,12 @@
     #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)
         #include <esp_cpu.h>
-        #include "driver/gptimer.h"
+        #if ESP_IDF_VERSION_MAJOR >= 5
+            #include <driver/gptimer.h>
+        #endif
         #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
             #define RESOLUTION_SCALE 100
+            /* CONFIG_XTAL_FREQ = 40, CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = 160  */
             static gptimer_handle_t esp_gptimer = NULL;
             static gptimer_config_t esp_timer_config = {
                 .clk_src = GPTIMER_CLK_SRC_DEFAULT,
@@ -375,6 +404,9 @@
     #elif defined(CONFIG_IDF_TARGET_ESP8266)
         /* no CPU HAL for ESP8266, we'll use RTOS tick calc estimates */
         #include <FreeRTOS.h>
+        #include <esp_system.h>
+        #include <esp_timer.h>
+        #include <xtensa/hal.h>
     #elif defined(CONFIG_IDF_TARGET_ESP32H2)
         /* TODO add ESP32-H2 benchmark support */
     #else
@@ -1446,10 +1478,16 @@ static const char* bench_result_words3[][5] = {
             thisTimerVal = thisTimerVal * RESOLUTION_SCALE;
         #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
 
-        thisVal = esp_cpu_get_cycle_count();
+        #if ESP_IDF_VERSION_MAJOR >= 5
+            thisVal = esp_cpu_get_cycle_count();
+        #else
+            thisVal = cpu_hal_get_cycle_count();
+        #endif
 
     #elif defined(CONFIG_IDF_TARGET_ESP32H2)
         thisVal = esp_cpu_get_cycle_count();
+    #elif defined(CONFIG_IDF_TARGET_ESP8266)
+        thisVal = esp_timer_get_time();
     #else
         /* TODO: Why doesn't esp_cpu_get_cycle_count work for Xtensa?
          * Calling current_time(1) to reset time causes thisVal overflow,
@@ -1478,7 +1516,7 @@ static const char* bench_result_words3[][5] = {
             expected_diff = CPU_TICK_CYCLES * tickDiff; /* CPU expected count */
             ESP_LOGV(TAG, "CPU_TICK_CYCLES = %d", (int)CPU_TICK_CYCLES);
             ESP_LOGV(TAG, "tickCount           = %llu", tickCount);
-            ESP_LOGV(TAG, "last_tickCount      = %u",   last_tickCount);
+            ESP_LOGV(TAG, "last_tickCount      = " TFMT, last_tickCount);
             ESP_LOGV(TAG, "tickDiff            = %llu", tickDiff);
             ESP_LOGV(TAG, "expected_diff1      = %llu", expected_diff);
         }
@@ -1514,9 +1552,16 @@ static const char* bench_result_words3[][5] = {
 
             /* double check expected diff calc */
             #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-              expected_diff = (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE)
-                              * tickDiff / configTICK_RATE_HZ;
-              ESP_LOGI(TAG, "expected_diff2      = %llu", expected_diff);
+                #if  defined(CONFIG_IDF_TARGET_ESP8266)
+                    expected_diff = (CONFIG_ESP8266_DEFAULT_CPU_FREQ_MHZ
+                                     * MILLION_VALUE)
+                                     * tickDiff / configTICK_RATE_HZ;
+                #else
+                    expected_diff = (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE)
+                                    * tickDiff / configTICK_RATE_HZ;
+
+                #endif
+                ESP_LOGI(TAG, "expected_diff2      = %llu", expected_diff);
             #endif
             if (expected_diff > UINT_MAX) {
                 /* The number of cycles expected from FreeRTOS ticks is
@@ -1540,7 +1585,7 @@ static const char* bench_result_words3[][5] = {
                 ESP_LOGI(TAG, "expected_diff       = %llu", expected_diff);
                 ESP_LOGI(TAG, "tickBeginDiff       = %llu", tickBeginDiff);
 
-                ESP_LOGW(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
+                ESP_LOGW(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
             }
             #endif
         }
@@ -1593,7 +1638,13 @@ static const char* bench_result_words3[][5] = {
                 ESP_LOGI(TAG, "diffDiff                 = %llu", diffDiff);
                 ESP_LOGI(TAG, "_xthal_get_ccount_exDiff = %llu", _xthal_get_ccount_exDiff);
             #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
-            _esp_cpu_count_last = esp_cpu_get_cycle_count();
+
+            #if ESP_IDF_VERSION_MAJOR >= 5
+                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            #else
+                _esp_cpu_count_last = cpu_hal_get_cycle_count();
+            #endif
+
             ESP_LOGV(TAG, "_xthal_get_ccount_last   = %llu", _esp_cpu_count_last);
         }
         #elif defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -2243,8 +2294,9 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 
 #ifdef WOLFSSL_ESPIDF
     #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-        ESP_LOGI(TAG, "bench_stats_start total_cycles = %llu, start=" FLT_FMT,
-                       total_cycles, FLT_FMT_ARGS(*start) );
+        ESP_LOGI(TAG, "bench_stats_start total_cycles = %llu"
+                      ", start=" FLT_FMT,
+                      total_cycles, FLT_FMT_ARGS(*start) );
     #endif
     BEGIN_ESP_CYCLES
 #else
@@ -2264,12 +2316,14 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 static WC_INLINE int bench_stats_check(double start)
 {
     int ret = 0;
-    double this_current_time;
+    double this_current_time = 0.0;
     this_current_time = current_time(0); /* get the timestamp, no reset */
 
 #if defined(DEBUG_WOLFSSL_BENCHMARK_TIMING) && defined(WOLFSSL_ESPIDF)
-    ESP_LOGV(TAG, "bench_stats_check: Current time %f, start %f",
-                    this_current_time, start );
+    #if defined(WOLFSSL_ESPIDF)
+        ESP_LOGI(TAG, "bench_stats_check Current time = %f, start = %f",
+                       this_current_time, start );
+    #endif
 #endif
 
     ret = ((this_current_time - start) < BENCH_MIN_RUNTIME_SEC
@@ -14179,8 +14233,13 @@ void bench_sphincsKeySign(byte level, byte optim)
             #ifdef __XTENSA__
                 _esp_cpu_count_last = xthal_get_ccount();
             #else
-                esp_cpu_set_cycle_count((esp_cpu_cycle_count_t)0);
-                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+                #if ESP_IDF_VERSION_MAJOR >= 5
+                    esp_cpu_set_cycle_count((esp_cpu_cycle_count_t)0);
+                    _esp_cpu_count_last = esp_cpu_get_cycle_count();
+                #else
+                    cpu_hal_set_cycle_count((uint32_t)0);
+                    _esp_cpu_count_last = cpu_hal_get_cycle_count();
+                #endif
             #endif
        }
     #endif
@@ -14191,9 +14250,9 @@ void bench_sphincsKeySign(byte level, byte optim)
       typiclly in app_startup.c */
 
     #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-        ESP_LOGV(TAG, "tickCount = %d", tickCount);
+        ESP_LOGV(TAG, "tickCount = " TFMT, tickCount);
         if (tickCount == last_tickCount) {
-            ESP_LOGW(TAG, "last_tickCount unchanged? %d", tickCount);
+            ESP_LOGW(TAG, "last_tickCount unchanged?" TFMT, tickCount);
 
         }
         if (tickCount < last_tickCount) {
@@ -14203,13 +14262,13 @@ void bench_sphincsKeySign(byte level, byte optim)
 
     if (reset) {
         #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-            ESP_LOGW(TAG, "Assign last_tickCount = %d", tickCount);
+            ESP_LOGW(TAG, "Assign last_tickCount = " TFMT, tickCount);
         #endif
         last_tickCount = tickCount;
     }
     else {
         #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-            ESP_LOGV(TAG, "No Reset last_tickCount = %d", tickCount);
+            ESP_LOGV(TAG, "No Reset last_tickCount = " TFMT, tickCount);
         #endif
     }
 
