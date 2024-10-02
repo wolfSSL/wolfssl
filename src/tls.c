@@ -1345,7 +1345,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
             {
                 ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
                                       (sz + hashSz + (word32)padSz + 1),
-                                      (int)hashSz, myInner);
+                                      (int)hashSz, myInner, innerSz);
 
             }
 #else
