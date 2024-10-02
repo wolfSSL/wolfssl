@@ -6684,9 +6684,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         else {
             INC_STAT(SnifferStats.sslDecryptedPackets);
         }
+#endif
         ret = 0;
         goto exit_decode; /* done for now */
-#endif
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
