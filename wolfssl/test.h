@@ -203,7 +203,9 @@
     #include <netinet/in.h>
     #include <netinet/tcp.h>
     #include <arpa/inet.h>
-    #include <sys/ioctl.h>
+    #ifndef WOLFSSL_NDS
+        #include <sys/ioctl.h>
+    #endif
     #include <sys/time.h>
     #include <sys/socket.h>
     #ifdef HAVE_PTHREAD
@@ -1851,7 +1853,8 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
     XSTRNCPY(identity, kIdentityStr, id_max_len);
 
-    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+    if (wolfSSL_GetVersion(ssl) != WOLFSSL_TLSV1_3 &&
+            wolfSSL_GetVersion(ssl) != WOLFSSL_DTLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
          * unsigned binary */
         key[0] = 0x1a;
@@ -1895,7 +1898,8 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
     if (XSTRCMP(identity, kIdentityStr) != 0)
         return 0;
 
-    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+    if (wolfSSL_GetVersion(ssl) != WOLFSSL_TLSV1_3 &&
+            wolfSSL_GetVersion(ssl) != WOLFSSL_DTLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
          * unsigned binary */
         key[0] = 0x1a;
@@ -4852,5 +4856,24 @@ void DEBUG_WRITE_DER(const byte* der, int derSz, const char* fileName);
 #endif
 
 #define DTLS_CID_BUFFER_SIZE 256
+
+static WC_MAYBE_UNUSED void *mymemmem(const void *haystack, size_t haystacklen,
+                                      const void *needle, size_t needlelen)
+{
+    size_t i, j;
+    const char* h = (const char*)haystack;
+    const char* n = (const char*)needle;
+    if (needlelen > haystacklen)
+        return NULL;
+    for (i = 0; i <= haystacklen - needlelen; i++) {
+        for (j = 0; j < needlelen; j++) {
+            if (h[i + j] != n[j])
+                break;
+        }
+        if (j == needlelen)
+            return (void*)(h + i);
+    }
+    return NULL;
+}
 
 #endif /* wolfSSL_TEST_H */

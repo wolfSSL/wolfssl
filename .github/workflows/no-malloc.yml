@@ -21,6 +21,7 @@ jobs:
           '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024"',
         ]
     name: make check
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6

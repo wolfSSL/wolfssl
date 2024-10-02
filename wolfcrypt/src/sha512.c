@@ -96,6 +96,11 @@
     #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 
+#if defined(MAX3266X_SHA)
+    /* Already brought in by sha512.h */
+    /* #include <wolfssl/wolfcrypt/port/maxim/max3266x.h> */
+#endif
+
 #if defined(WOLFSSL_X86_64_BUILD) && defined(USE_INTEL_SPEEDUP)
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
@@ -148,6 +153,9 @@
 #elif defined(WOLFSSL_RENESAS_RSIP) && \
      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
     /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+
+#elif defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
 
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     int wc_InitSha512(wc_Sha512* sha512)
@@ -765,6 +773,12 @@ int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     sha512->ctx.mode = ESP32_SHA_INIT;
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    if (wc_MXC_TPU_SHA_Init(&(sha512->mxcCtx)) != 0){
+        return BAD_FUNC_ARG;
+    }
+#endif
+
     return InitSha512_Family(sha512, heap, devId, InitSha512);
 }
 
@@ -1158,6 +1172,9 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     /* functions defined in wolfcrypt/src/port/renesas/renesas_fspsm_sha.c */
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
 
+#elif defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
+
 #else
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
@@ -1318,6 +1335,9 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
     /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
+#elif defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
+
 #else
 
 static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, size_t digestSz)
@@ -1394,6 +1414,10 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
 
 #endif /* WOLFSSL_KCAPI_HASH */
 
+#if defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
+
+#else
 #if !defined(WOLFSSL_SE050) || !defined(WOLFSSL_SE050_HASH)
 int wc_InitSha512(wc_Sha512* sha512)
 {
@@ -1436,12 +1460,18 @@ void wc_Sha512Free(wc_Sha512* sha512)
     }
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha512->mxcCtx));
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     ForceZero(sha512, sizeof(*sha512));
 }
+#endif
+
 #if (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) \
     && !defined(WOLFSSL_KCAPI_HASH)
 /* Apply SHA512 transformation to the data                */
@@ -1559,6 +1589,9 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 #elif defined(WOLFSSL_RENESAS_RSIP) && \
      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
     /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+
+#elif defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
 
 #else
 
@@ -1736,6 +1769,13 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     sha384->ctx.mode = ESP32_SHA_INIT;
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Init(&(sha384->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
     ret = InitSha384(sha384);
     if (ret != 0) {
         return ret;
@@ -1755,6 +1795,10 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
 
 #endif /* WOLFSSL_IMX6_CAAM || WOLFSSL_SILABS_SHA512 || WOLFSSL_KCAPI_HASH */
 
+#if defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
+
+#else
 int wc_InitSha384(wc_Sha384* sha384)
 {
     int devId = INVALID_DEVID;
@@ -1810,9 +1854,14 @@ void wc_Sha384Free(wc_Sha384* sha384)
     }
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha384->mxcCtx));
+#endif
+
     ForceZero(sha384, sizeof(*sha384));
 }
 
+#endif
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_SHA512
@@ -1823,6 +1872,9 @@ void wc_Sha384Free(wc_Sha384* sha384)
 #elif defined(WOLFSSL_RENESAS_RSIP) && \
      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
     /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
+
+#elif defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
 
 #else
 
@@ -1924,6 +1976,13 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
         if (dst->msg == NULL)
             return MEMORY_E;
         XMEMCPY(dst->msg, src->msg, src->len);
+    }
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
     }
 #endif
 
@@ -2115,6 +2174,8 @@ int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
 #elif defined(WOLFSSL_RENESAS_RSIP) && \
      !defined(NO_WOLFSSL_RENESAS_FSPSM_HASH)
     /* functions defined in wolfcrypt/src/port/renesas/renesas_fspsm_sha.c */
+#elif defined(MAX3266X_SHA)
+    /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
 #else
 
 int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
@@ -2211,6 +2272,13 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
         if (dst->msg == NULL)
             return MEMORY_E;
         XMEMCPY(dst->msg, src->msg, src->len);
+    }
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
     }
 #endif
 

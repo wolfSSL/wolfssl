@@ -4866,6 +4866,20 @@ int wolfSSL_GetVersion(const WOLFSSL* ssl)
                 break;
         }
     }
+#ifdef WOLFSSL_DTLS
+    if (ssl->version.major == DTLS_MAJOR) {
+        switch (ssl->version.minor) {
+            case DTLS_MINOR :
+                return WOLFSSL_DTLSV1;
+            case DTLSv1_2_MINOR :
+                return WOLFSSL_DTLSV1_2;
+            case DTLSv1_3_MINOR :
+                return WOLFSSL_DTLSV1_3;
+            default:
+                break;
+        }
+    }
+#endif /* WOLFSSL_DTLS */
 
     return VERSION_ERROR;
 }
@@ -6007,6 +6021,17 @@ int wolfSSL_SetCRL_Cb(WOLFSSL* ssl, CbMissingCRL cb)
         return BAD_FUNC_ARG;
 }
 
+int wolfSSL_SetCRL_ErrorCb(WOLFSSL* ssl, crlErrorCb cb, void* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_SetCRL_Cb");
+    if (ssl) {
+        SSL_CM_WARNING(ssl);
+        return wolfSSL_CertManagerSetCRL_ErrorCb(SSL_CM(ssl), cb, ctx);
+    }
+    else
+        return BAD_FUNC_ARG;
+}
+
 #ifdef HAVE_CRL_IO
 int wolfSSL_SetCRL_IOCb(WOLFSSL* ssl, CbCrlIO cb)
 {
@@ -6068,6 +6093,15 @@ int wolfSSL_CTX_SetCRL_Cb(WOLFSSL_CTX* ctx, CbMissingCRL cb)
     WOLFSSL_ENTER("wolfSSL_CTX_SetCRL_Cb");
     if (ctx)
         return wolfSSL_CertManagerSetCRL_Cb(ctx->cm, cb);
+    else
+        return BAD_FUNC_ARG;
+}
+
+int wolfSSL_CTX_SetCRL_ErrorCb(WOLFSSL_CTX* ctx, crlErrorCb cb, void* cbCtx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_SetCRL_ErrorCb");
+    if (ctx)
+        return wolfSSL_CertManagerSetCRL_ErrorCb(ctx->cm, cb, cbCtx);
     else
         return BAD_FUNC_ARG;
 }
@@ -8412,6 +8446,8 @@ static int CheckcipherList(const char* list)
         char   name[MAX_SUITE_NAME + 1];
         word32 length = MAX_SUITE_NAME;
         word32 current_length;
+        byte major = INVALID_BYTE;
+        byte minor = INVALID_BYTE;
 
         next   = XSTRSTR(next, ":");
 
@@ -8436,10 +8472,10 @@ static int CheckcipherList(const char* list)
             break;
         }
 
-        ret = wolfSSL_get_cipher_suite_from_name(name, &cipherSuite0,
-                                                        &cipherSuite1, &flags);
+        ret = GetCipherSuiteFromName(name, &cipherSuite0,
+                &cipherSuite1, &major, &minor, &flags);
         if (ret == 0) {
-            if (cipherSuite0 == TLS13_BYTE) {
+            if (cipherSuite0 == TLS13_BYTE || minor == TLSv1_3_MINOR) {
                 /* TLSv13 suite */
                 findTLSv13Suites = 1;
             }
@@ -8961,11 +8997,11 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     int result = WOLFSSL_SUCCESS;
     WOLFSSL_ENTER("wolfSSL_dtls_got_timeout");
 
-    if (ssl == NULL)
+    if (ssl == NULL || !ssl->options.dtls)
         return WOLFSSL_FATAL_ERROR;
 
 #ifdef WOLFSSL_DTLS13
-    if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
+    if (IsAtLeastTLSv1_3(ssl->version)) {
         result = Dtls13RtxTimeout(ssl);
         if (result < 0) {
             if (result == WC_NO_ERR_TRACE(WANT_WRITE))
@@ -8979,7 +9015,8 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    if ((IsSCR(ssl) || !ssl->options.handShakeDone)) {
+    /* Do we have any 1.2 messages stored? */
+    if (ssl->dtls_tx_msg_list != NULL || ssl->dtls_tx_msg != NULL) {
         if (DtlsMsgPoolTimeout(ssl) < 0){
             ssl->error = SOCKET_ERROR_E;
             WOLFSSL_ERROR(ssl->error);
@@ -10175,7 +10212,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_LEAVE("wolfSSL_accept", WOLFSSL_SUCCESS);
             return WOLFSSL_SUCCESS;
 
-        default :
+        default:
             WOLFSSL_MSG("Unknown accept state ERROR");
             return WOLFSSL_FATAL_ERROR;
         }
@@ -11425,7 +11462,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_BIO* bio = NULL;
             WOLFSSL_X509 *cert = NULL;
             WOLFSSL_X509_NAME *nameCopy = NULL;
-            unsigned long err = WOLFSSL_FAILURE;
+            unsigned long err = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
             WOLFSSL_ENTER("wolfSSL_load_client_CA_file");
 
@@ -13155,6 +13192,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
+        FreeCiphers(ssl);
+        InitCiphers(ssl);
+        InitCipherSpecs(&ssl->specs);
+
         if (InitSSL_Suites(ssl) != WOLFSSL_SUCCESS)
             return WOLFSSL_FAILURE;
 
@@ -14297,7 +14338,8 @@ int wolfSSL_get_cipher_suite_from_name(const char* name, byte* cipherSuite0,
         (cipherSuite == NULL) ||
         (flags == NULL))
         return BAD_FUNC_ARG;
-    return GetCipherSuiteFromName(name, cipherSuite0, cipherSuite, flags);
+    return GetCipherSuiteFromName(name, cipherSuite0, cipherSuite, NULL, NULL,
+                                  flags);
 }
 
 
@@ -20387,7 +20429,22 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
 #ifndef WOLFSSL_BLIND_PRIVATE_KEY
+#ifdef WOLFSSL_COPY_KEY
+    if (ctx->privateKey != NULL) {
+        if (ssl->buffers.key != NULL) {
+            FreeDer(&ssl->buffers.key);
+        }
+        AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
+            ctx->privateKey->length, ctx->privateKey->type,
+            ctx->privateKey->heap);
+        ssl->buffers.weOwnKey = 1;
+    }
+    else {
+        ssl->buffers.key      = ctx->privateKey;
+    }
+#else
     ssl->buffers.key      = ctx->privateKey;
+#endif
 #else
     if (ctx->privateKey != NULL) {
         AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
@@ -23961,7 +24018,7 @@ int wolfSSL_RAND_seed(const void* seed, int len)
  */
 const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 {
-#if !defined(NO_FILESYSTEM) && defined(XGETENV)
+#if !defined(NO_FILESYSTEM) && defined(XGETENV) && !defined(NO_GETENV)
     char* rt;
 
     WOLFSSL_ENTER("wolfSSL_RAND_file_name");
@@ -23972,6 +24029,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 
     XMEMSET(fname, 0, len);
 
+/* // NOLINTBEGIN(concurrency-mt-unsafe) */
     if ((rt = XGETENV("RANDFILE")) != NULL) {
         if (len > XSTRLEN(rt)) {
             XMEMCPY(fname, rt, XSTRLEN(rt));
@@ -23981,6 +24039,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
             rt = NULL;
         }
     }
+/* // NOLINTEND(concurrency-mt-unsafe) */
 
     /* $RANDFILE was not set or is too large, check $HOME */
     if (rt == NULL) {
@@ -23988,6 +24047,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
 
         WOLFSSL_MSG("Environment variable RANDFILE not set");
 
+/* // NOLINTBEGIN(concurrency-mt-unsafe) */
         if ((rt = XGETENV("HOME")) == NULL) {
             #ifdef XALTHOMEVARNAME
             if ((rt = XGETENV(XALTHOMEVARNAME)) == NULL) {
@@ -24000,6 +24060,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
             return NULL;
             #endif
         }
+/* // NOLINTEND(concurrency-mt-unsafe) */
 
         if (len > XSTRLEN(rt) + XSTRLEN(ap)) {
             fname[0] = '\0';

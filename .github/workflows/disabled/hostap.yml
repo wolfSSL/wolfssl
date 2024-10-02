@@ -22,6 +22,7 @@ jobs:
           - build_id: hostap-build2
             wolf_extra_config: --enable-brainpool --enable-wpas-dpp
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
     runs-on: ubuntu-20.04
     # This should be a safe limit for the tests to run.
@@ -99,6 +100,7 @@ jobs:
               build_id: hostap-build2
             }
     name: hwsim test
+    if: github.repository_owner == 'wolfssl'
     # For openssl 1.1
     runs-on: ubuntu-20.04
     # This should be a safe limit for the tests to run.

@@ -1693,14 +1693,47 @@ typedef struct w64wrapper {
         #define PRAGMA_DIAG_POP /* null expansion */
     #endif
 
+    #define WC_CPP_CAT_(a, b) a ## b
+    #define WC_CPP_CAT(a, b) WC_CPP_CAT_(a, b)
+    #if (defined(__cplusplus) && (__cplusplus >= 201103L)) || \
+          (defined(_MSVC_LANG) && (_MSVC_LANG >= 201103L))
+        #ifndef static_assert2
+            #define static_assert2 static_assert
+        #endif
+    #elif !defined(static_assert)
+        #if !defined(__cplusplus) &&                \
+                !defined(__STRICT_ANSI__) &&        \
+                !defined(WOLF_C89) &&               \
+                defined(__STDC_VERSION__) &&        \
+                (__STDC_VERSION__ >= 201112L) &&    \
+                ((defined(__GNUC__) &&              \
+                  (__GNUC__ >= 5)) ||               \
+                 defined(__clang__))
+            #define static_assert(expr) _Static_assert(expr, #expr)
+            #ifndef static_assert2
+                #define static_assert2(expr, msg) _Static_assert(expr, msg)
+            #endif
+        #else
+            #define static_assert(expr) \
+                struct WC_CPP_CAT(wc_dummy_struct_L, __LINE__)
+            #ifndef static_assert2
+                #define static_assert2(expr, msg) static_assert(expr)
+            #endif
+        #endif
+    #elif !defined(static_assert2)
+         #define static_assert2(expr, msg) static_assert(expr)
+    #endif
+
     #ifndef SAVE_VECTOR_REGISTERS
         #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
     #endif
     #ifndef SAVE_VECTOR_REGISTERS2
         #define SAVE_VECTOR_REGISTERS2() 0
+        #define SAVE_VECTOR_REGISTERS2_DOES_NOTHING
     #endif
     #ifndef CAN_SAVE_VECTOR_REGISTERS
         #define CAN_SAVE_VECTOR_REGISTERS() 1
+        #define CAN_SAVE_VECTOR_REGISTERS_ALWAYS_TRUE
     #endif
     #ifndef WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL
         #define WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(x) WC_DO_NOTHING

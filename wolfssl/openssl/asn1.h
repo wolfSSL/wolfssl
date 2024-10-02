@@ -270,8 +270,8 @@ typedef struct WOLFSSL_ASN1_ITEM WOLFSSL_ASN1_ITEM;
       (WolfsslAsn1FreeCb)member_type##_free, \
       (WolfsslAsn1i2dCb)i2d_##member_type, \
       (WolfsslAsn1d2iCb)d2i_##member_type, \
-      0, flags & ASN1_TFLG_TAG_MASK ? tag : -1, 0, \
-      !!(flags & ASN1_TFLG_EXPLICIT), TRUE }
+      0, (flags) & ASN1_TFLG_TAG_MASK ? (tag) : -1, 0, \
+      !!((flags) & ASN1_TFLG_EXPLICIT), TRUE }
 
 WOLFSSL_API void *wolfSSL_ASN1_item_new(const WOLFSSL_ASN1_ITEM *tpl);
 WOLFSSL_API void wolfSSL_ASN1_item_free(void *obj,
@@ -282,7 +282,7 @@ WOLFSSL_API void* wolfSSL_ASN1_item_d2i(void** dst, const byte **src, long len,
         const WOLFSSL_ASN1_ITEM* item);
 
 /* Need function declaration otherwise compiler complains */
-/* // NOLINTBEGIN(readability-named-parameter) */
+/* // NOLINTBEGIN(readability-named-parameter,bugprone-macro-parentheses) */
 #define IMPLEMENT_ASN1_FUNCTIONS(type) \
     type *type##_new(void); \
     type *type##_new(void){ \
@@ -303,7 +303,7 @@ WOLFSSL_API void* wolfSSL_ASN1_item_d2i(void** dst, const byte **src, long len,
         return (type*)wolfSSL_ASN1_item_d2i((void**)dst, src, len, \
                 &type##_template_data); \
     }
-/* // NOLINTEND(readability-named-parameter) */
+/* // NOLINTEND(readability-named-parameter,bugprone-macro-parentheses) */
 
 #endif /* OPENSSL_ALL */
 

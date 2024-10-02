@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha256.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha256-asm.c
+ *   ruby ./sha2/sha256.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha256-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -74,13 +75,14 @@ static const uint32_t L_SHA256_transform_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p);
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
-    register uint32_t* L_SHA256_transform_len_k_c asm ("r3") = (uint32_t*)&L_SHA256_transform_len_k;
+    register uint32_t* L_SHA256_transform_len_k_c asm ("r3") =
+        (uint32_t*)&L_SHA256_transform_len_k;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
@@ -1732,9 +1734,11 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "add	%[data], %[data], #0x40\n\t"
         "bne	L_SHA256_transform_len_begin_%=\n\t"
         "add	sp, sp, #0xc0\n\t"
-        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len), [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
+        : [sha256] "+r" (sha256),  [data] "+r" (data),  [len] "+r" (len),
+            [L_SHA256_transform_len_k] "+r" (L_SHA256_transform_len_k_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cc"
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12"
     );
 }
 
@@ -1761,13 +1765,14 @@ static const uint32_t L_SHA256_transform_neon_len_k[] = {
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 };
 
-void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len);
+void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p);
 void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha256* sha256 asm ("r0") = (wc_Sha256*)sha256_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
-    register uint32_t* L_SHA256_transform_neon_len_k_c asm ("r3") = (uint32_t*)&L_SHA256_transform_neon_len_k;
+    register uint32_t* L_SHA256_transform_neon_len_k_c asm ("r3") =
+        (uint32_t*)&L_SHA256_transform_neon_len_k;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #24\n\t"
@@ -2794,9 +2799,12 @@ void Transform_Sha256_Len(wc_Sha256* sha256_p, const byte* data_p, word32 len_p)
         "str	r10, [sp, #8]\n\t"
         "bne	L_SHA256_transform_neon_len_begin_%=\n\t"
         "add	sp, sp, #24\n\t"
-        : [sha256] "+r" (sha256), [data] "+r" (data), [len] "+r" (len), [L_SHA256_transform_neon_len_k] "+r" (L_SHA256_transform_neon_len_k_c)
+        : [sha256] "+r" (sha256),  [data] "+r" (data),  [len] "+r" (len),
+            [L_SHA256_transform_neon_len_k] "+r" (L_SHA256_transform_neon_len_k_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr", "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "cc"
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r12", "lr",
+            "r10", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9",
+            "d10", "d11"
     );
 }
 

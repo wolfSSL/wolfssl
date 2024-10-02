@@ -54,6 +54,10 @@
     #endif
 #endif
 
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
+#endif
+
 #ifdef WOLFSSL_LINUXKM
     #include "../../linuxkm/linuxkm_wc_port.h"
 #endif /* WOLFSSL_LINUXKM */
@@ -355,11 +359,20 @@
 #endif /* WOLFSSL_NO_ATOMICS */
 
 #ifdef WOLFSSL_ATOMIC_OPS
-    WOLFSSL_LOCAL void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
     /* Fetch* functions return the value of the counter immediately preceding
      * the effects of the function. */
-    WOLFSSL_LOCAL int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);
-    WOLFSSL_LOCAL int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);
+    WOLFSSL_API int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
+#else
+    /* Code using these fallback macros needs to arrange its own fallback for
+     * wolfSSL_Atomic_Int, which is never defined if
+     * !defined(WOLFSSL_ATOMIC_OPS).  This forces local awareness of
+     * thread-unsafe semantics.
+     */
+    #define wolfSSL_Atomic_Int_Init(c, i) (*(c) = (i))
+    #define wolfSSL_Atomic_Int_FetchAdd(c, i) (*(c) += (i), *(c) - (i))
+    #define wolfSSL_Atomic_Int_FetchSub(c, i) (*(c) -= (i), *(c) + (i))
 #endif
 
 /* Reference counting. */
@@ -374,27 +387,7 @@ typedef struct wolfSSL_Ref {
 #endif
 } wolfSSL_Ref;
 
-#ifdef SINGLE_THREADED
-
-#define wolfSSL_RefInit(ref, err)            \
-    do {                                     \
-        (ref)->count = 1;                    \
-        *(err) = 0;                          \
-    } while(0)
-#define wolfSSL_RefFree(ref) WC_DO_NOTHING
-    #define wolfSSL_RefInc(ref, err)         \
-    do {                                     \
-        (ref)->count++;                      \
-        *(err) = 0;                          \
-    } while(0)
-#define wolfSSL_RefDec(ref, isZero, err)     \
-    do {                                     \
-        (ref)->count--;                      \
-        *(isZero) = ((ref)->count == 0);     \
-        *(err) = 0;                          \
-    } while(0)
-
-#elif defined(WOLFSSL_ATOMIC_OPS)
+#if defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)
 
 #define wolfSSL_RefInit(ref, err)            \
     do {                                     \
@@ -429,7 +422,8 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
 
 /* Enable crypt HW mutex for Freescale MMCAU, PIC32MZ or STM32 */
 #if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ) || \
-    defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG)
+    defined(STM32_CRYPTO) || defined(STM32_HASH) || defined(STM32_RNG) || \
+    defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -444,15 +438,83 @@ WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
        however it's recommended to call this directly on Hw init to avoid possible
        race condition where two calls to wolfSSL_CryptHwMutexLock are made at
        the same time. */
-    int wolfSSL_CryptHwMutexInit(void);
-    int wolfSSL_CryptHwMutexLock(void);
-    int wolfSSL_CryptHwMutexUnLock(void);
+    WOLFSSL_LOCAL int wolfSSL_CryptHwMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_CryptHwMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_CryptHwMutexUnLock(void);
 #else
     /* Define stubs, since HW mutex is disabled */
     #define wolfSSL_CryptHwMutexInit()      0 /* Success */
     #define wolfSSL_CryptHwMutexLock()      0 /* Success */
     #define wolfSSL_CryptHwMutexUnLock()    (void)0 /* Success */
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
+
+#if defined(WOLFSSL_ALGO_HW_MUTEX) && (defined(NO_RNG_MUTEX) && \
+        defined(NO_AES_MUTEX) && defined(NO_HASH_MUTEX) && defined(NO_PK_MUTEX))
+        #error WOLFSSL_ALGO_HW_MUTEX does not support having all mutexes off
+#endif
+/* To support HW that can do different Crypto in parallel */
+#if WOLFSSL_CRYPT_HW_MUTEX && defined(WOLFSSL_ALGO_HW_MUTEX)
+    typedef enum {
+        #ifndef NO_RNG_MUTEX
+        rng_mutex,
+        #endif
+        #ifndef NO_AES_MUTEX
+        aes_mutex,
+        #endif
+        #ifndef NO_HASH_MUTEX
+        hash_mutex,
+        #endif
+        #ifndef NO_PK_MUTEX
+        pk_mutex,
+        #endif
+    } hw_mutex_algo;
+#endif
+
+/* If algo mutex is off, or WOLFSSL_ALGO_HW_MUTEX is not define, default */
+/* to using the generic wolfSSL_CryptHwMutex */
+#if (!defined(NO_RNG_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
+    WOLFSSL_CRYPT_HW_MUTEX
+    WOLFSSL_LOCAL int wolfSSL_HwRngMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwRngMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwRngMutexUnLock(void);
+#else
+    #define wolfSSL_HwRngMutexInit    wolfSSL_CryptHwMutexInit
+    #define wolfSSL_HwRngMutexLock    wolfSSL_CryptHwMutexLock
+    #define wolfSSL_HwRngMutexUnLock  wolfSSL_CryptHwMutexUnLock
+#endif /* !defined(NO_RNG_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX) */
+
+#if (!defined(NO_AES_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
+    WOLFSSL_CRYPT_HW_MUTEX
+    WOLFSSL_LOCAL int wolfSSL_HwAesMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwAesMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwAesMutexUnLock(void);
+#else
+    #define wolfSSL_HwAesMutexInit    wolfSSL_CryptHwMutexInit
+    #define wolfSSL_HwAesMutexLock    wolfSSL_CryptHwMutexLock
+    #define wolfSSL_HwAesMutexUnLock  wolfSSL_CryptHwMutexUnLock
+#endif /* !defined(NO_AES_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX) */
+
+#if (!defined(NO_HASH_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
+    WOLFSSL_CRYPT_HW_MUTEX
+    WOLFSSL_LOCAL int wolfSSL_HwHashMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwHashMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwHashMutexUnLock(void);
+#else
+    #define wolfSSL_HwHashMutexInit   wolfSSL_CryptHwMutexInit
+    #define wolfSSL_HwHashMutexLock   wolfSSL_CryptHwMutexLock
+    #define wolfSSL_HwHashMutexUnLock wolfSSL_CryptHwMutexUnLock
+#endif /* !defined(NO_HASH_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX) */
+
+#if (!defined(NO_PK_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX)) && \
+    WOLFSSL_CRYPT_HW_MUTEX
+    WOLFSSL_LOCAL int wolfSSL_HwPkMutexInit(void);
+    WOLFSSL_LOCAL int wolfSSL_HwPkMutexLock(void);
+    WOLFSSL_LOCAL int wolfSSL_HwPkMutexUnLock(void);
+#else
+    #define wolfSSL_HwPkMutexInit     wolfSSL_CryptHwMutexInit
+    #define wolfSSL_HwPkMutexLock     wolfSSL_CryptHwMutexLock
+    #define wolfSSL_HwPkMutexUnLock   wolfSSL_CryptHwMutexUnLock
+#endif /* !defined(NO_PK_MUTEX) && defined(WOLFSSL_ALGO_HW_MUTEX) */
 
 /* Mutex functions */
 WOLFSSL_API int wc_InitMutex(wolfSSL_Mutex* m);
@@ -1268,7 +1330,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
         /* use user-supplied XFENCE definition. */
     #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
         #include <stdatomic.h>
-        #define XFENCE() atomic_thread_fence(__ATOMIC_SEQ_CST)
+        #define XFENCE() atomic_thread_fence(memory_order_seq_cst)
     #elif defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC__ < 5)
         #define XFENCE() __sync_synchronize()
     #elif (defined(__GNUC__) && (__GNUC__ >= 5)) || defined (__clang__)

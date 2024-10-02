@@ -760,6 +760,15 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
     if (ssl == NULL || inner == NULL)
         return BAD_FUNC_ARG;
 
+    if (content == dtls12_cid
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+       || (ssl->options.dtls && DtlsGetCidTxSize(ssl) > 0)
+#endif
+    ) {
+        WOLFSSL_MSG("wolfSSL_SetTlsHmacInner doesn't support CID");
+        return BAD_FUNC_ARG;
+    }
+
     XMEMSET(inner, 0, WOLFSSL_TLS_HMAC_INNER_SZ);
 
     WriteSEQ(ssl, verify, inner);
@@ -918,10 +927,11 @@ static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
  * in      Message data.
  * sz      Size of the message data.
  * header  Constructed record header with length of handshake data.
+ * headerSz Length of header
  * returns 0 on success, otherwise failure.
  */
 static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
-                               word32 sz, int macLen, byte* header)
+                           word32 sz, int macLen, byte* header, word32 headerSz)
 {
     byte         lenBytes[8];
     int          i, j;
@@ -983,6 +993,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
 
     /* Size of data to HMAC if padding length byte is zero. */
     maxLen = WOLFSSL_TLS_HMAC_INNER_SZ + sz - 1 - (word32)macLen;
+
     /* Complete data (including padding) has block for EOC and/or length. */
     extraBlock = ctSetLTE(((int)maxLen + padSz) & blockMask, padSz);
     /* Total number of blocks for data including padding. */
@@ -1016,11 +1027,12 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     XMEMSET(hmac->innerHash, 0, macLen);
 
     if (safeBlocks > 0) {
-        ret = Hmac_HashUpdate(hmac, header, WOLFSSL_TLS_HMAC_INNER_SZ);
+        ret = Hmac_HashUpdate(hmac, header, headerSz);
         if (ret != 0)
             return ret;
         ret = Hmac_HashUpdate(hmac, in, (word32)(safeBlocks * blockSz -
                                 WOLFSSL_TLS_HMAC_INNER_SZ));
+
         if (ret != 0)
             return ret;
     }
@@ -1039,10 +1051,10 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
             unsigned char pastEoc = ctMaskGT(j, eocIndex) & isEocBlock;
             unsigned char b = 0;
 
-            if (k < WOLFSSL_TLS_HMAC_INNER_SZ)
+            if (k < headerSz)
                 b = header[k];
             else if (k < maxLen)
-                b = in[k - WOLFSSL_TLS_HMAC_INNER_SZ];
+                b = in[k - headerSz];
             k++;
 
             b = ctMaskSel(atEoc, 0x80, b);
@@ -1085,10 +1097,11 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
  * in      Message data.
  * sz      Size of the message data.
  * header  Constructed record header with length of handshake data.
+ * headerSz Length of header
  * returns 0 on success, otherwise failure.
  */
 static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
-                            word32 sz, byte* header)
+                            word32 sz, byte* header, word32 headerSz)
 {
     byte       dummy[WC_MAX_BLOCK_SIZE] = {0};
     int        ret = 0;
@@ -1174,7 +1187,7 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     /* Calculate whole blocks. */
     msgBlocks--;
 
-    ret = wc_HmacUpdate(hmac, header, WOLFSSL_TLS_HMAC_INNER_SZ);
+    ret = wc_HmacUpdate(hmac, header, headerSz);
     if (ret == 0) {
         /* Fill the rest of the block with any available data. */
         word32 currSz = ctMaskLT((int)msgSz, blockSz) & msgSz;
@@ -1210,11 +1223,66 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
 
 #endif
 
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#define TLS_HMAC_CID_SZ(s, v) \
+                ((v) ? DtlsGetCidRxSize((s)) \
+                     : DtlsGetCidTxSize((s)))
+#define TLS_HMAC_CID(s, v, b, c) \
+                ((v) ? wolfSSL_dtls_cid_get_rx((s), (b), (c)) \
+                     : wolfSSL_dtls_cid_get_tx((s), (b), (c)))
+#endif
+
+static int TLS_hmac_SetInner(WOLFSSL* ssl, byte* inner, word32* innerSz,
+        word32 sz, int content, int verify, int epochOrder)
+{
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    unsigned int cidSz = 0;
+    if (ssl->options.dtls && (cidSz = TLS_HMAC_CID_SZ(ssl, verify)) > 0) {
+        word32 idx = 0;
+        if (cidSz > DTLS_CID_MAX_SIZE) {
+            WOLFSSL_MSG("DTLS CID too large");
+            return DTLS_CID_ERROR;
+        }
+
+        XMEMSET(inner + idx, 0xFF, SEQ_SZ);
+        idx += SEQ_SZ;
+        inner[idx++] = dtls12_cid;
+        inner[idx++] = (byte)cidSz;
+        inner[idx++] = dtls12_cid;
+        inner[idx++] = ssl->version.major;
+        inner[idx++] = ssl->version.minor;
+        WriteSEQ(ssl, epochOrder, inner + idx);
+        idx += SEQ_SZ;
+        if (TLS_HMAC_CID(ssl, verify, inner + idx, cidSz) ==
+                WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+            WOLFSSL_MSG("DTLS CID write failed");
+            return DTLS_CID_ERROR;
+        }
+        idx += cidSz;
+        c16toa((word16)sz, inner + idx);
+        idx += LENGTH_SZ;
+
+        *innerSz = idx;
+        return 0;
+    }
+#endif
+    *innerSz = WOLFSSL_TLS_HMAC_INNER_SZ;
+    return wolfSSL_SetTlsHmacInner(ssl, inner, sz, content,
+            !ssl->options.dtls ? verify : epochOrder);
+}
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#define TLS_HMAC_INNER_SZ WOLFSSL_TLS_HMAC_CID_INNER_SZ
+#else
+#define TLS_HMAC_INNER_SZ WOLFSSL_TLS_HMAC_INNER_SZ
+#endif
+
 int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
              int content, int verify, int epochOrder)
 {
     Hmac   hmac;
-    byte   myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
+    byte   myInner[TLS_HMAC_INNER_SZ];
+    word32 innerSz = TLS_HMAC_INNER_SZ;
     int    ret = 0;
     const byte* macSecret = NULL;
     word32 hashSz = 0;
@@ -1242,10 +1310,10 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     }
 #endif
 
-    if (!ssl->options.dtls)
-        wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
-    else
-        wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, epochOrder);
+    ret = TLS_hmac_SetInner(ssl, myInner, &innerSz, sz, content, verify,
+                            epochOrder);
+    if (ret != 0)
+        return ret;
 
     ret = wc_HmacInit(&hmac, ssl->heap, ssl->devId);
     if (ret != 0)
@@ -1256,10 +1324,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     if (ssl->options.dtls)
         macSecret = wolfSSL_GetDtlsMacSecret(ssl, verify, epochOrder);
     else
-        macSecret = wolfSSL_GetMacSecret(ssl, verify);
-#else
-    macSecret = wolfSSL_GetMacSecret(ssl, verify);
 #endif
+        macSecret = wolfSSL_GetMacSecret(ssl, verify);
     ret = wc_HmacSetKey(&hmac, wolfSSL_GetHmacType(ssl),
                                               macSecret,
                                               ssl->specs.hash_size);
@@ -1272,7 +1338,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     #ifdef HAVE_BLAKE2
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(&hmac, digest, in,
-                                              sz + hashSz + padSz + 1, myInner);
+                        sz + hashSz + padSz + 1, myInner, innerSz);
             }
             else
     #endif
@@ -1280,14 +1346,15 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
                 ret = Hmac_UpdateFinal_CT(&hmac, digest, in,
                                       (sz + hashSz + (word32)padSz + 1),
                                       (int)hashSz, myInner);
+
             }
 #else
             ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz + padSz + 1,
-                                                                       myInner);
+                    myInner, innerSz);
 #endif
         }
         else {
-            ret = wc_HmacUpdate(&hmac, myInner, sizeof(myInner));
+            ret = wc_HmacUpdate(&hmac, myInner, innerSz);
             if (ret == 0)
                 ret = wc_HmacUpdate(&hmac, in, sz);                /* content */
             if (ret == 0)
@@ -12388,6 +12455,26 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 WOLFSSL_MSG("Encrypt-Then-Mac extension free");
                 break;
 #endif
+
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            case TLSX_PRE_SHARED_KEY:
+                WOLFSSL_MSG("Pre-Shared Key extension free");
+                PSK_FREE_ALL((PreSharedKey*)extension->data, heap);
+                break;
+
+        #ifdef WOLFSSL_TLS13
+            case TLSX_PSK_KEY_EXCHANGE_MODES:
+                WOLFSSL_MSG("PSK Key Exchange Modes extension free");
+                break;
+        #endif
+    #endif
+
+            case TLSX_KEY_SHARE:
+                WOLFSSL_MSG("Key Share extension free");
+                KS_FREE_ALL((KeyShareEntry*)extension->data, heap);
+                break;
+#endif
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Supported Versions extension free");
@@ -12397,17 +12484,6 @@ void TLSX_FreeAll(TLSX* list, void* heap)
             case TLSX_COOKIE:
                 WOLFSSL_MSG("Cookie extension free");
                 CKE_FREE_ALL((Cookie*)extension->data, heap);
-                break;
-    #endif
-
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            case TLSX_PRE_SHARED_KEY:
-                WOLFSSL_MSG("Pre-Shared Key extension free");
-                PSK_FREE_ALL((PreSharedKey*)extension->data, heap);
-                break;
-
-            case TLSX_PSK_KEY_EXCHANGE_MODES:
-                WOLFSSL_MSG("PSK Key Exchange Modes extension free");
                 break;
     #endif
 
@@ -12428,11 +12504,6 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 WOLFSSL_MSG("Signature Algorithms extension free");
                 break;
     #endif
-
-            case TLSX_KEY_SHARE:
-                WOLFSSL_MSG("Key Share extension free");
-                KS_FREE_ALL((KeyShareEntry*)extension->data, heap);
-                break;
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 WOLFSSL_MSG("Certificate Authorities extension free");
@@ -12583,6 +12654,24 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 ret = ETM_GET_SIZE(msgType, &length);
                 break;
 #endif /* HAVE_ENCRYPT_THEN_MAC */
+
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+            case TLSX_PRE_SHARED_KEY:
+                ret = PSK_GET_SIZE((PreSharedKey*)extension->data, msgType,
+                                                                       &length);
+                break;
+        #ifdef WOLFSSL_TLS13
+            case TLSX_PSK_KEY_EXCHANGE_MODES:
+                ret = PKM_GET_SIZE((byte)extension->val, msgType, &length);
+                break;
+        #endif
+    #endif
+            case TLSX_KEY_SHARE:
+                length += KS_GET_SIZE((KeyShareEntry*)extension->data, msgType);
+                break;
+#endif
+
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
                 ret = SV_GET_SIZE(extension->data, msgType, &length);
@@ -12591,17 +12680,6 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
     #ifdef WOLFSSL_SEND_HRR_COOKIE
             case TLSX_COOKIE:
                 ret = CKE_GET_SIZE((Cookie*)extension->data, msgType, &length);
-                break;
-    #endif
-
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            case TLSX_PRE_SHARED_KEY:
-                ret = PSK_GET_SIZE((PreSharedKey*)extension->data, msgType,
-                                                                       &length);
-                break;
-
-            case TLSX_PSK_KEY_EXCHANGE_MODES:
-                ret = PKM_GET_SIZE((byte)extension->val, msgType, &length);
                 break;
     #endif
 
@@ -12623,9 +12701,6 @@ static int TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType,
                 break;
     #endif
 
-            case TLSX_KEY_SHARE:
-                length += KS_GET_SIZE((KeyShareEntry*)extension->data, msgType);
-                break;
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 length += CAN_GET_SIZE(extension->data);
@@ -12807,20 +12882,8 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 ret = ETM_WRITE(extension->data, output, msgType, &offset);
                 break;
 #endif /* HAVE_ENCRYPT_THEN_MAC */
-#ifdef WOLFSSL_TLS13
-            case TLSX_SUPPORTED_VERSIONS:
-                WOLFSSL_MSG("Supported Versions extension to write");
-                ret = SV_WRITE(extension->data, output + offset, msgType, &offset);
-                break;
 
-    #ifdef WOLFSSL_SEND_HRR_COOKIE
-            case TLSX_COOKIE:
-                WOLFSSL_MSG("Cookie extension to write");
-                ret = CKE_WRITE((Cookie*)extension->data, output + offset,
-                                msgType, &offset);
-                break;
-    #endif
-
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             case TLSX_PRE_SHARED_KEY:
                 WOLFSSL_MSG("Pre-Shared Key extension to write");
@@ -12828,10 +12891,32 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                                                               msgType, &offset);
                 break;
 
+        #ifdef WOLFSSL_TLS13
             case TLSX_PSK_KEY_EXCHANGE_MODES:
                 WOLFSSL_MSG("PSK Key Exchange Modes extension to write");
                 ret = PKM_WRITE((byte)extension->val, output + offset, msgType,
                                                                        &offset);
+                break;
+        #endif
+    #endif
+            case TLSX_KEY_SHARE:
+                WOLFSSL_MSG("Key Share extension to write");
+                offset += KS_WRITE((KeyShareEntry*)extension->data,
+                                                      output + offset, msgType);
+                break;
+#endif
+#ifdef WOLFSSL_TLS13
+            case TLSX_SUPPORTED_VERSIONS:
+                WOLFSSL_MSG("Supported Versions extension to write");
+                ret = SV_WRITE(extension->data, output + offset, msgType,
+                                                                       &offset);
+                break;
+
+    #ifdef WOLFSSL_SEND_HRR_COOKIE
+            case TLSX_COOKIE:
+                WOLFSSL_MSG("Cookie extension to write");
+                ret = CKE_WRITE((Cookie*)extension->data, output + offset,
+                                msgType, &offset);
                 break;
     #endif
 
@@ -12857,11 +12942,6 @@ static int TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
     #endif
 
-            case TLSX_KEY_SHARE:
-                WOLFSSL_MSG("Key Share extension to write");
-                offset += KS_WRITE((KeyShareEntry*)extension->data,
-                                                      output + offset, msgType);
-                break;
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CA_NAMES)
             case TLSX_CERTIFICATE_AUTHORITIES:
                 WOLFSSL_MSG("Certificate Authorities extension to write");
@@ -13501,7 +13581,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                         ssl->arrays->client_identity, MAX_PSK_ID_LEN,
                         ssl->arrays->psk_key, MAX_PSK_KEY_LEN, &cipherName);
                     if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
-                                        &cipherSuite, &cipherSuiteFlags) != 0) {
+                            &cipherSuite, NULL, NULL, &cipherSuiteFlags) != 0) {
                         return PSK_KEY_ERROR;
                     }
                 }
@@ -14124,9 +14204,6 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
                 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
                 #endif
-                #ifdef WOLFSSL_DTLS_CID
-                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
-                #endif
                 }
             #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
                 else {
@@ -14137,6 +14214,9 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
                 #endif
                 }
+            #endif
+            #ifdef WOLFSSL_DTLS_CID
+                TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
             #endif
         #endif /* WOLFSSL_TLS13 */
             break;
@@ -14251,7 +14331,7 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
 #ifndef NO_WOLFSSL_SERVER
             case server_hello:
                 PF_VALIDATE_RESPONSE(ssl, semaphore);
-    #ifdef WOLFSSL_TLS13
+        #ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                     TURN_OFF(semaphore,
@@ -14268,21 +14348,23 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
             #endif
-            #ifdef WOLFSSL_DTLS_CID
-                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
-            #endif /* WOLFSSL_DTLS_CID */
                 }
+                else
+        #endif /* WOLFSSL_TLS13 */
+                {
         #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
-                else {
             #ifdef HAVE_SUPPORTED_CURVES
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
             #endif
             #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
             #endif
-                }
         #endif
-    #endif
+                    WC_DO_NOTHING; /* avoid empty brackets */
+                }
+        #ifdef WOLFSSL_DTLS_CID
+                TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_CONNECTION_ID));
+        #endif /* WOLFSSL_DTLS_CID */
                 break;
 
     #ifdef WOLFSSL_TLS13
@@ -15188,10 +15270,6 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #endif /* WOLFSSL_QUIC */
 #if defined(WOLFSSL_DTLS_CID)
             case TLSX_CONNECTION_ID:
-                /* connection ID not supported in DTLSv1.2 */
-                if (!IsAtLeastTLSv1_3(ssl->version))
-                    break;
-
                 if (msgType != client_hello && msgType != server_hello)
                     return EXT_NOT_ALLOWED;
 
@@ -15607,6 +15685,26 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         return m;
     }
     #endif /* !WOLFSSL_NO_TLS12 */
+    #ifdef WOLFSSL_DTLS13
+    WOLFSSL_METHOD* wolfDTLSv1_3_method(void)
+    {
+        return wolfDTLSv1_3_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_3_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("DTLSv1_3_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfDTLSv1_3_client_method_ex(heap);
+    #else
+        m = wolfDTLSv1_3_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+    #endif /* WOLFSSL_DTLS13 */
 #endif /* WOLFSSL_DTLS */
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 

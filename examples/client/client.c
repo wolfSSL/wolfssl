@@ -4184,10 +4184,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         printf("CID extension was negotiated\n");
         ret = wolfSSL_dtls_cid_get_tx_size(ssl, &receivedCIDSz);
-        if (ret != WOLFSSL_SUCCESS)
-            err_sys("Can't get negotiated DTLS CID size\n");
-
-        if (receivedCIDSz > 0) {
+        if (ret == WOLFSSL_SUCCESS && receivedCIDSz > 0) {
             ret = wolfSSL_dtls_cid_get_tx(ssl, receivedCID,
                 DTLS_CID_BUFFER_SIZE - 1);
             if (ret != WOLFSSL_SUCCESS)

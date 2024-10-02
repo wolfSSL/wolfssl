@@ -181,6 +181,222 @@ void BlockSha3(unsigned long* state)
     );
 }
 
+#else
+static const uint64_t L_SHA3_transform_base_r[] = {
+    0x1UL,
+    0x8082UL,
+    0x800000000000808aUL,
+    0x8000000080008000UL,
+    0x808bUL,
+    0x80000001UL,
+    0x8000000080008081UL,
+    0x8000000000008009UL,
+    0x8aUL,
+    0x88UL,
+    0x80008009UL,
+    0x8000000aUL,
+    0x8000808bUL,
+    0x800000000000008bUL,
+    0x8000000000008089UL,
+    0x8000000000008003UL,
+    0x8000000000008002UL,
+    0x8000000000000080UL,
+    0x800aUL,
+    0x800000008000000aUL,
+    0x8000000080008081UL,
+    0x8000000000008080UL,
+    0x80000001UL,
+    0x8000000080008008UL,
+};
+
+void BlockSha3(unsigned long* state)
+{
+    __asm__ __volatile__ (
+        "stp	x29, x30, [sp, #-64]!\n\t"
+        "add	x29, sp, #0\n\t"
+#ifndef __APPLE__
+        "adrp x27, %[L_SHA3_transform_base_r]\n\t"
+        "add  x27, x27, :lo12:%[L_SHA3_transform_base_r]\n\t"
+#else
+        "adrp x27, %[L_SHA3_transform_base_r]@PAGE\n\t"
+        "add  x27, x27, %[L_SHA3_transform_base_r]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+        "ldp	x1, x2, [%x[state]]\n\t"
+        "ldp	x3, x4, [%x[state], #16]\n\t"
+        "ldp	x5, x6, [%x[state], #32]\n\t"
+        "ldp	x7, x8, [%x[state], #48]\n\t"
+        "ldp	x9, x10, [%x[state], #64]\n\t"
+        "ldp	x11, x12, [%x[state], #80]\n\t"
+        "ldp	x13, x14, [%x[state], #96]\n\t"
+        "ldp	x15, x16, [%x[state], #112]\n\t"
+        "ldp	x17, x19, [%x[state], #128]\n\t"
+        "ldp	x20, x21, [%x[state], #144]\n\t"
+        "ldp	x22, x23, [%x[state], #160]\n\t"
+        "ldp	x24, x25, [%x[state], #176]\n\t"
+        "ldr	x26, [%x[state], #192]\n\t"
+        "str	%x[state], [x29, #40]\n\t"
+        "mov	x28, #24\n\t"
+        /* Start of 24 rounds */
+        "\n"
+    "L_SHA3_transform_base_begin_%=: \n\t"
+        "stp	x27, x28, [x29, #48]\n\t"
+        "eor	%x[state], x5, x10\n\t"
+        "eor	x30, x1, x6\n\t"
+        "eor	x28, x3, x8\n\t"
+        "eor	%x[state], %x[state], x15\n\t"
+        "eor	x30, x30, x11\n\t"
+        "eor	x28, x28, x13\n\t"
+        "eor	%x[state], %x[state], x21\n\t"
+        "eor	x30, x30, x16\n\t"
+        "eor	x28, x28, x19\n\t"
+        "eor	%x[state], %x[state], x26\n\t"
+        "eor	x30, x30, x22\n\t"
+        "eor	x28, x28, x24\n\t"
+        "str	%x[state], [x29, #32]\n\t"
+        "str	x28, [x29, #24]\n\t"
+        "eor	x27, x2, x7\n\t"
+        "eor	x28, x4, x9\n\t"
+        "eor	x27, x27, x12\n\t"
+        "eor	x28, x28, x14\n\t"
+        "eor	x27, x27, x17\n\t"
+        "eor	x28, x28, x20\n\t"
+        "eor	x27, x27, x23\n\t"
+        "eor	x28, x28, x25\n\t"
+        "eor	%x[state], %x[state], x27, ror 63\n\t"
+        "eor	x27, x27, x28, ror 63\n\t"
+        "eor	x1, x1, %x[state]\n\t"
+        "eor	x6, x6, %x[state]\n\t"
+        "eor	x11, x11, %x[state]\n\t"
+        "eor	x16, x16, %x[state]\n\t"
+        "eor	x22, x22, %x[state]\n\t"
+        "eor	x3, x3, x27\n\t"
+        "eor	x8, x8, x27\n\t"
+        "eor	x13, x13, x27\n\t"
+        "eor	x19, x19, x27\n\t"
+        "eor	x24, x24, x27\n\t"
+        "ldr	%x[state], [x29, #32]\n\t"
+        "ldr	x27, [x29, #24]\n\t"
+        "eor	x28, x28, x30, ror 63\n\t"
+        "eor	x30, x30, x27, ror 63\n\t"
+        "eor	x27, x27, %x[state], ror 63\n\t"
+        "eor	x5, x5, x28\n\t"
+        "eor	x10, x10, x28\n\t"
+        "eor	x15, x15, x28\n\t"
+        "eor	x21, x21, x28\n\t"
+        "eor	x26, x26, x28\n\t"
+        "eor	x2, x2, x30\n\t"
+        "eor	x7, x7, x30\n\t"
+        "eor	x12, x12, x30\n\t"
+        "eor	x17, x17, x30\n\t"
+        "eor	x23, x23, x30\n\t"
+        "eor	x4, x4, x27\n\t"
+        "eor	x9, x9, x27\n\t"
+        "eor	x14, x14, x27\n\t"
+        "eor	x20, x20, x27\n\t"
+        "eor	x25, x25, x27\n\t"
+        /* Swap Rotate */
+        "ror	%x[state], x2, #63\n\t"
+        "ror	x2, x7, #20\n\t"
+        "ror	x7, x10, #44\n\t"
+        "ror	x10, x24, #3\n\t"
+        "ror	x24, x15, #25\n\t"
+        "ror	x15, x22, #46\n\t"
+        "ror	x22, x3, #2\n\t"
+        "ror	x3, x13, #21\n\t"
+        "ror	x13, x14, #39\n\t"
+        "ror	x14, x21, #56\n\t"
+        "ror	x21, x25, #8\n\t"
+        "ror	x25, x16, #23\n\t"
+        "ror	x16, x5, #37\n\t"
+        "ror	x5, x26, #50\n\t"
+        "ror	x26, x23, #62\n\t"
+        "ror	x23, x9, #9\n\t"
+        "ror	x9, x17, #19\n\t"
+        "ror	x17, x6, #28\n\t"
+        "ror	x6, x4, #36\n\t"
+        "ror	x4, x20, #43\n\t"
+        "ror	x20, x19, #49\n\t"
+        "ror	x19, x12, #54\n\t"
+        "ror	x12, x8, #58\n\t"
+        "ror	x8, x11, #61\n\t"
+        /* Row Mix */
+        "bic	x11, x3, x2\n\t"
+        "bic	x27, x4, x3\n\t"
+        "bic	x28, x1, x5\n\t"
+        "bic	x30, x2, x1\n\t"
+        "eor	x1, x1, x11\n\t"
+        "eor	x2, x2, x27\n\t"
+        "bic	x11, x5, x4\n\t"
+        "eor	x4, x4, x28\n\t"
+        "eor	x3, x3, x11\n\t"
+        "eor	x5, x5, x30\n\t"
+        "bic	x11, x8, x7\n\t"
+        "bic	x27, x9, x8\n\t"
+        "bic	x28, x6, x10\n\t"
+        "bic	x30, x7, x6\n\t"
+        "eor	x6, x6, x11\n\t"
+        "eor	x7, x7, x27\n\t"
+        "bic	x11, x10, x9\n\t"
+        "eor	x9, x9, x28\n\t"
+        "eor	x8, x8, x11\n\t"
+        "eor	x10, x10, x30\n\t"
+        "bic	x11, x13, x12\n\t"
+        "bic	x27, x14, x13\n\t"
+        "bic	x28, %x[state], x15\n\t"
+        "bic	x30, x12, %x[state]\n\t"
+        "eor	x11, %x[state], x11\n\t"
+        "eor	x12, x12, x27\n\t"
+        "bic	%x[state], x15, x14\n\t"
+        "eor	x14, x14, x28\n\t"
+        "eor	x13, x13, %x[state]\n\t"
+        "eor	x15, x15, x30\n\t"
+        "bic	%x[state], x19, x17\n\t"
+        "bic	x27, x20, x19\n\t"
+        "bic	x28, x16, x21\n\t"
+        "bic	x30, x17, x16\n\t"
+        "eor	x16, x16, %x[state]\n\t"
+        "eor	x17, x17, x27\n\t"
+        "bic	%x[state], x21, x20\n\t"
+        "eor	x20, x20, x28\n\t"
+        "eor	x19, x19, %x[state]\n\t"
+        "eor	x21, x21, x30\n\t"
+        "bic	%x[state], x24, x23\n\t"
+        "bic	x27, x25, x24\n\t"
+        "bic	x28, x22, x26\n\t"
+        "bic	x30, x23, x22\n\t"
+        "eor	x22, x22, %x[state]\n\t"
+        "eor	x23, x23, x27\n\t"
+        "bic	%x[state], x26, x25\n\t"
+        "eor	x25, x25, x28\n\t"
+        "eor	x24, x24, %x[state]\n\t"
+        "eor	x26, x26, x30\n\t"
+        /* Done tranforming */
+        "ldp	x27, x28, [x29, #48]\n\t"
+        "ldr	%x[state], [x27], #8\n\t"
+        "subs	x28, x28, #1\n\t"
+        "eor	x1, x1, %x[state]\n\t"
+        "bne	L_SHA3_transform_base_begin_%=\n\t"
+        "ldr	%x[state], [x29, #40]\n\t"
+        "stp	x1, x2, [%x[state]]\n\t"
+        "stp	x3, x4, [%x[state], #16]\n\t"
+        "stp	x5, x6, [%x[state], #32]\n\t"
+        "stp	x7, x8, [%x[state], #48]\n\t"
+        "stp	x9, x10, [%x[state], #64]\n\t"
+        "stp	x11, x12, [%x[state], #80]\n\t"
+        "stp	x13, x14, [%x[state], #96]\n\t"
+        "stp	x15, x16, [%x[state], #112]\n\t"
+        "stp	x17, x19, [%x[state], #128]\n\t"
+        "stp	x20, x21, [%x[state], #144]\n\t"
+        "stp	x22, x23, [%x[state], #160]\n\t"
+        "stp	x24, x25, [%x[state], #176]\n\t"
+        "str	x26, [%x[state], #192]\n\t"
+        "ldp	x29, x30, [sp], #0x40\n\t"
+        : [state] "+r" (state)
+        : [L_SHA3_transform_base_r] "S" (L_SHA3_transform_base_r)
+        : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
+    );
+}
+
 #endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #endif /* WOLFSSL_SHA3 */
 #endif /* __aarch64__ */

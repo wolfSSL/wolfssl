@@ -24,15 +24,13 @@
 #endif
 
 /* wolfSSL */
-/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
-/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
-#ifdef WOLFSSL_USER_SETTINGS
-    #include <wolfssl/wolfcrypt/settings.h>
-#endif
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.     */
+/* Reminder: settings.h pulls in user_settings.h                          */
+/*   Do not explicitly include user_settings.h here.                      */
+#include <wolfssl/wolfcrypt/settings.h>
 
-
-#if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
-#include "sdkconfig.h" /* programmatically generated from sdkconfig */
+#if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF. */
+#include "sdkconfig.h"      /* programmatically generated from sdkconfig. */
 
 #if defined(USE_WOLFSSL_ESP_SDK_TIME)
 /* Espressif */
@@ -121,6 +119,41 @@ esp_err_t esp_sdk_time_lib_init(void)
     #define CONFIG_LWIP_SNTP_MAX_SERVERS NTP_SERVER_COUNT
 #endif
 
+/* When reproducible builds are enabled in ESP-IDF
+ * (starting from version 4.0 and above),
+ * the __DATE__ and __TIME__ macros are deliberately disabled. */
+#ifndef  __DATE__
+    #define YEAR  2024
+    #define MONTH 9
+    #define DAY   25
+#else
+    /* e.g. __DATE__ "Sep 25 2024" */
+    #define YEAR  ( \
+        ((__DATE__)[7]  - '0') * 1000 + \
+        ((__DATE__)[8]  - '0') * 100  + \
+        ((__DATE__)[9]  - '0') * 10   + \
+        ((__DATE__)[10] - '0') * 1      \
+    )
+
+    #define MONTH ( \
+        __DATE__[2] == 'n' ? (__DATE__[1] == 'a' ? 1 : 6) \
+      : __DATE__[2] == 'b' ? 2 \
+      : __DATE__[2] == 'r' ? (__DATE__[0] == 'M' ? 3 : 4) \
+      : __DATE__[2] == 'y' ? 5 \
+      : __DATE__[2] == 'l' ? 7 \
+      : __DATE__[2] == 'g' ? 8 \
+      : __DATE__[2] == 'p' ? 9 \
+      : __DATE__[2] == 't' ? 10 \
+      : __DATE__[2] == 'v' ? 11 \
+      : 12 \
+    )
+
+    #define DAY ( \
+        ((__DATE__)[4]  - '0') * 10 + \
+        ((__DATE__)[5]  - '0') * 1   \
+    )
+#endif
+
 /* our NTP server list is global info */
 extern char* ntpServerList[NTP_SERVER_COUNT];
 
@@ -149,9 +182,9 @@ int set_fixed_default_time(void)
     /* ideally, we'd like to set time from network,
      * but let's set a default time, just in case */
     struct tm timeinfo = {
-        .tm_year = 2024 - 1900,
-        .tm_mon  =  9 - 1, /* Month, where 0 = Jan */
-        .tm_mday =  3 ,    /* Day of the month 30  */
+        .tm_year = YEAR,
+        .tm_mon  = MONTH, /* Month, where 0 = Jan */
+        .tm_mday = DAY,   /* Numeric decimal day of the month */
         .tm_hour = 13,
         .tm_min  =  1,
         .tm_sec  =  5

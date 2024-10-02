@@ -1430,10 +1430,10 @@ enum {
 
 #ifdef WOLFSSL_DTLS_CID
 #ifndef DTLS_CID_MAX_SIZE
-/* DTLSv1.3 parsing code copies the record header in a static buffer to decrypt
+/* DTLS parsing code copies the record header in a static buffer to decrypt
  * the record. Increasing the CID max size does increase also this buffer,
  * impacting on per-session runtime memory footprint. */
-#define DTLS_CID_MAX_SIZE 2
+#define DTLS_CID_MAX_SIZE 10
 #endif
 #else
 #undef DTLS_CID_MAX_SIZE
@@ -1443,6 +1443,30 @@ enum {
 #if DTLS_CID_MAX_SIZE > 255
 #error "Max size for DTLS CID is 255 bytes"
 #endif
+
+/* Record Payload Protection Section 5
+ *   https://www.rfc-editor.org/rfc/rfc9146.html#section-5 */
+#define WOLFSSL_TLS_HMAC_CID_INNER_SZ                               \
+           (8 +                 /* seq_num_placeholder */           \
+            1 +                 /* tls12_cid */                     \
+            1 +                 /* cid_length */                    \
+            1 +                 /* tls12_cid */                     \
+            2 +                 /* DTLSCiphertext.version */        \
+            2 +                 /* epoch */                         \
+            6 +                 /* sequence_number */               \
+            DTLS_CID_MAX_SIZE + /* cid */                           \
+            2)                  /* length_of_DTLSInnerPlaintext */
+
+#define WOLFSSL_TLS_AEAD_CID_AAD_SZ                                 \
+           (8 +                 /* seq_num_placeholder */           \
+            1 +                 /* tls12_cid */                     \
+            1 +                 /* cid_length */                    \
+            1 +                 /* tls12_cid */                     \
+            2 +                 /* DTLSCiphertext.version */        \
+            2 +                 /* epoch */                         \
+            6 +                 /* sequence_number */               \
+            DTLS_CID_MAX_SIZE + /* cid */                           \
+            2)                  /* length_of_DTLSInnerPlaintext */
 
 #ifndef MAX_TICKET_AGE_DIFF
 /* maximum ticket age difference in seconds, 10 seconds */
@@ -1637,6 +1661,7 @@ enum Misc {
 #endif
 
     HANDSHAKE_HEADER_SZ   = 4,  /* type + length(3)        */
+    DTLS13_HANDSHAKE_HEADER_SZ   = 12, /* sizeof(Dtls13HandshakeHeader) */
     RECORD_HEADER_SZ      = 5,  /* type + version + len(2) */
     CERT_HEADER_SZ        = 3,  /* always 3 bytes          */
     REQ_HEADER_SZ         = 2,  /* cert request header sz  */
@@ -1649,6 +1674,7 @@ enum Misc {
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
+    DTLS12_CID_OFFSET        = 11,
     DTLS_UNIFIED_HEADER_MIN_SZ = 2,
     /* flags + seq_number(2) + length(2) + CID */
     DTLS_RECVD_RL_HEADER_MAX_SZ = 5 + DTLS_CID_MAX_SIZE,
@@ -1749,6 +1775,7 @@ enum Misc {
     CHACHA20_IMP_IV_SZ  = 12,  /* Size of ChaCha20 AEAD implicit IV */
     CHACHA20_NONCE_SZ   = 12,  /* Size of ChacCha20 nonce           */
     CHACHA20_OLD_OFFSET = 4,   /* Offset for seq # in old poly1305  */
+    CHACHA20_OFFSET     = 4,   /* Offset for seq # in poly1305  */
 
     /* For any new implicit/explicit IV size adjust AEAD_MAX_***_SZ */
 
@@ -1857,6 +1884,14 @@ enum Misc {
     WRITE_PROTO        = 1,    /* writing a protocol message */
     READ_PROTO         = 0     /* reading a protocol message */
 };
+
+
+/* Size of the data to authenticate */
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#define AEAD_AUTH_DATA_SZ WOLFSSL_TLS_AEAD_CID_AAD_SZ
+#else
+#define AEAD_AUTH_DATA_SZ 13
+#endif
 
 #define WOLFSSL_NAMED_GROUP_IS_FFHDE(group) \
     (MIN_FFHDE_GROUP <= (group) && (group) <= MAX_FFHDE_GROUP)
@@ -2238,7 +2273,7 @@ WOLFSSL_LOCAL int ALPN_Select(WOLFSSL* ssl);
 #endif
 
 WOLFSSL_LOCAL int ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
-                              word16 sz); /* needed by sniffer */
+                              word16 sz, byte type); /* needed by sniffer */
 WOLFSSL_LOCAL int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                               word16 sz); /* needed by sniffer */
 
@@ -2617,6 +2652,8 @@ struct WOLFSSL_CERT_MANAGER {
 #endif
     CallbackCACache caCacheCallback;       /* CA cache addition callback */
     CbMissingCRL    cbMissingCRL;          /* notify thru cb of missing crl */
+    crlErrorCb      crlCb;                 /* Allow user to override error */
+    void*           crlCbCtx;
     CbOCSPIO        ocspIOCb;              /* I/O callback for OCSP lookup */
     CbOCSPRespFree  ocspRespFreeCb;        /* Frees OCSP Response from IO Cb */
     wolfSSL_Mutex   caLock;                /* CA list lock */
@@ -2957,9 +2994,6 @@ typedef enum {
     TLSX_EXTENDED_MASTER_SECRET     = TLSXT_EXTENDED_MASTER_SECRET,
     TLSX_SESSION_TICKET             = TLSXT_SESSION_TICKET,
 #ifdef WOLFSSL_TLS13
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    TLSX_PRE_SHARED_KEY             = TLSXT_PRE_SHARED_KEY,
-    #endif
     #ifdef WOLFSSL_EARLY_DATA
     TLSX_EARLY_DATA                 = TLSXT_EARLY_DATA,
     #endif
@@ -2979,7 +3013,6 @@ typedef enum {
     #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_SIGALG)
     TLSX_SIGNATURE_ALGORITHMS_CERT  = TLSXT_SIGNATURE_ALGORITHMS_CERT,
     #endif
-    TLSX_KEY_SHARE                  = TLSXT_KEY_SHARE,
     #if defined(WOLFSSL_DTLS_CID)
     TLSX_CONNECTION_ID              = TLSXT_CONNECTION_ID,
     #endif /* defined(WOLFSSL_DTLS_CID) */
@@ -2989,6 +3022,12 @@ typedef enum {
     #ifdef HAVE_ECH
     TLSX_ECH                        = TLSXT_ECH,
     #endif
+#endif
+#if defined(WOLFSSL_TLS13) || !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS)
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    TLSX_PRE_SHARED_KEY             = TLSXT_PRE_SHARED_KEY,
+    #endif
+    TLSX_KEY_SHARE                  = TLSXT_KEY_SHARE,
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_DUAL_ALG_CERTS)
     TLSX_CKS                        = TLSXT_CKS,
@@ -3655,6 +3694,8 @@ WOLFSSL_LOCAL void DtlsCIDOnExtensionsParsed(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input,
     word16 inputSize);
 #endif /* WOLFSSL_DTLS_CID */
+WOLFSSL_LOCAL byte DtlsGetCidTxSize(WOLFSSL* ssl);
+WOLFSSL_LOCAL byte DtlsGetCidRxSize(WOLFSSL* ssl);
 
 #ifdef OPENSSL_EXTRA
 enum SetCBIO {
@@ -5477,6 +5518,7 @@ typedef struct BuildMsgArgs {
     word32 headerSz;
     word16 size;
     word32 ivSz;      /* TLSv1.1  IV */
+    byte   type;
     byte*  iv;
     ALIGN16 byte staticIvBuffer[MAX_IV_SZ];
 } BuildMsgArgs;
@@ -5623,7 +5665,21 @@ typedef struct Dtls13Rtx {
 #endif /* WOLFSSL_DTLS13 */
 
 #ifdef WOLFSSL_DTLS_CID
-typedef struct CIDInfo CIDInfo;
+typedef struct ConnectionID {
+    byte length;
+/* Ignore "nonstandard extension used : zero-sized array in struct/union"
+ * MSVC warning */
+#ifdef _MSC_VER
+#pragma warning(disable: 4200)
+#endif
+    byte id[];
+} ConnectionID;
+
+typedef struct CIDInfo {
+    ConnectionID* tx;
+    ConnectionID* rx;
+    byte negotiated : 1;
+} CIDInfo;
 #endif /* WOLFSSL_DTLS_CID */
 
 /* The idea is to reuse the context suites object whenever possible to save
@@ -6233,6 +6289,7 @@ enum ContentType {
     alert              = 21,
     handshake          = 22,
     application_data   = 23,
+    dtls12_cid         = 25,
 #ifdef WOLFSSL_DTLS13
     ack                = 26,
 #endif /* WOLFSSL_DTLS13 */
@@ -6522,6 +6579,7 @@ WOLFSSL_LOCAL void DoCertFatalAlert(WOLFSSL* ssl, int ret);
 #endif
 
 WOLFSSL_LOCAL int cipherExtraData(WOLFSSL* ssl);
+WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
 
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_LOCAL int HaveUniqueSessionObj(WOLFSSL* ssl);
@@ -6647,7 +6705,7 @@ typedef struct CipherSuiteInfo {
 #endif
     byte cipherSuite0;
     byte cipherSuite;
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT) || \
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT) || \
     defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_NGINX)
     byte minor;
     byte major;
@@ -6677,7 +6735,7 @@ WOLFSSL_LOCAL const char* GetCipherNameIana(byte cipherSuite0, byte cipherSuite)
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 WOLFSSL_LOCAL int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
-                                         byte* cipherSuite, int* flags);
+                       byte* cipherSuite, byte* major, byte* minor, int* flags);
 
 
 enum encrypt_side {
@@ -6828,6 +6886,7 @@ WOLFSSL_LOCAL int Dtls13RlAddCiphertextHeader(WOLFSSL* ssl, byte* out,
     word16 length);
 WOLFSSL_LOCAL int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
     enum ContentType content_type, word16 length);
+WOLFSSL_LOCAL int Dtls13MinimumRecordLength(WOLFSSL* ssl);
 WOLFSSL_LOCAL int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr,
     word16 recordLength);
 WOLFSSL_LOCAL int Dtls13IsUnifiedHeader(byte header_flags);

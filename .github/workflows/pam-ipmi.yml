@@ -16,6 +16,7 @@ concurrency:
 jobs:
   build_wolfssl:
     name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
     # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
@@ -46,6 +47,7 @@ jobs:
       matrix:
         git_ref: [ e4b13e6725abb178f62ee897fe1c0e81b06a9431 ]
     name: ${{ matrix.git_ref }}
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     needs: build_wolfssl
     steps:

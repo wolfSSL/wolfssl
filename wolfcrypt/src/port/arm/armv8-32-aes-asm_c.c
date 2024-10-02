@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./aes/aes.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-aes-asm.c
+ *   ruby ./aes/aes.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-aes-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -123,7 +124,9 @@ static const uint32_t L_AES_ARM32_td_data[] = {
 };
 
 #endif /* HAVE_AES_DECRYPT */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
+        defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 static const uint32_t L_AES_ARM32_te_data[] = {
     0xa5c66363, 0x84f87c7c, 0x99ee7777, 0x8df67b7b,
     0x0dfff2f2, 0xbdd66b6b, 0xb1de6f6f, 0x5491c5c5,
@@ -191,15 +194,19 @@ static const uint32_t L_AES_ARM32_te_data[] = {
     0xcb7bb0b0, 0xfca85454, 0xd66dbbbb, 0x3a2c1616,
 };
 
-#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
+        * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 static const uint32_t* L_AES_ARM32_td = L_AES_ARM32_td_data;
 #endif /* HAVE_AES_DECRYPT */
-#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || \
+        defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 static const uint32_t* L_AES_ARM32_te = L_AES_ARM32_te_data;
-#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM ||
+        * WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-void AES_invert_key(unsigned char* ks, word32 rounds);
+void AES_invert_key(unsigned char* ks_p, word32 rounds_p);
 void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
 {
     register unsigned char* ks asm ("r0") = (unsigned char*)ks_p;
@@ -401,9 +408,12 @@ void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
         "str	r8, [%[ks]], #4\n\t"
         "subs	r11, r11, #1\n\t"
         "bne	L_AES_invert_key_mix_loop_%=\n\t"
-        : [ks] "+r" (ks), [rounds] "+r" (rounds), [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c), [L_AES_ARM32_td] "+r" (L_AES_ARM32_td_c)
+        : [ks] "+r" (ks),  [rounds] "+r" (rounds),
+            [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c),
+            [L_AES_ARM32_td] "+r" (L_AES_ARM32_td_c)
         :
-        : "memory", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
+            "r10", "r11"
     );
 }
 
@@ -411,17 +421,20 @@ void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
 static const uint32_t L_AES_ARM32_rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
-    0x1b000000, 0x36000000,
+    0x1b000000, 0x36000000
 };
 
-void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks);
-void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char* ks_p)
+void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
+    unsigned char* ks_p);
+void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
+    unsigned char* ks_p)
 {
     register const unsigned char* key asm ("r0") = (const unsigned char*)key_p;
     register word32 len asm ("r1") = (word32)len_p;
     register unsigned char* ks asm ("r2") = (unsigned char*)ks_p;
     register uint32_t* L_AES_ARM32_te_c asm ("r3") = (uint32_t*)L_AES_ARM32_te;
-    register uint32_t* L_AES_ARM32_rcon_c asm ("r4") = (uint32_t*)&L_AES_ARM32_rcon;
+    register uint32_t* L_AES_ARM32_rcon_c asm ("r4") =
+        (uint32_t*)&L_AES_ARM32_rcon;
 
     __asm__ __volatile__ (
         "mov	r8, %[L_AES_ARM32_te]\n\t"
@@ -922,14 +935,18 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p, unsigned char
         "bne	L_AES_set_encrypt_key_loop_128_%=\n\t"
         "\n"
     "L_AES_set_encrypt_key_end_%=: \n\t"
-        : [key] "+r" (key), [len] "+r" (len), [ks] "+r" (ks), [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c), [L_AES_ARM32_rcon] "+r" (L_AES_ARM32_rcon_c)
+        : [key] "+r" (key),  [len] "+r" (len),  [ks] "+r" (ks),
+            [L_AES_ARM32_te] "+r" (L_AES_ARM32_te_c),
+            [L_AES_ARM32_rcon] "+r" (L_AES_ARM32_rcon_c)
         :
-        : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "cc"
+        : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8"
     );
 }
 
-void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks);
-void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p, const uint32_t* ks_p)
+void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p,
+    const uint32_t* ks_p);
+void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p,
+    const uint32_t* ks_p)
 {
     register const uint32_t* te asm ("r0") = (const uint32_t*)te_p;
     register int nr asm ("r1") = (int)nr_p;
@@ -1573,23 +1590,27 @@ void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p, const uint32_t
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r10\n\t"
         "eor	r7, r7, r11\n\t"
-        : [te] "+r" (te), [nr] "+r" (nr), [len] "+r" (len), [ks] "+r" (ks)
+        : [te] "+r" (te),  [nr] "+r" (nr),  [len] "+r" (len),  [ks] "+r" (ks)
         :
-        : "memory", "lr", "cc"
+        : "memory", "cc", "lr"
     );
 }
 
-#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
+#if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || \
+        defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 static const uint32_t* L_AES_ARM32_te_ecb = L_AES_ARM32_te_data;
-void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr);
-void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p)
+void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p);
+void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p)
 {
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
     register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
     register int nr asm ("r4") = (int)nr_p;
-    register uint32_t* L_AES_ARM32_te_ecb_c asm ("r5") = (uint32_t*)L_AES_ARM32_te_ecb;
+    register uint32_t* L_AES_ARM32_te_ecb_c asm ("r5") =
+        (uint32_t*)L_AES_ARM32_te_ecb;
 
     __asm__ __volatile__ (
         "mov	lr, %[in]\n\t"
@@ -1822,17 +1843,23 @@ void AES_ECB_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "\n"
     "L_AES_ECB_encrypt_end_%=: \n\t"
         "pop	{%[ks]}\n\t"
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [L_AES_ARM32_te_ecb] "+r" (L_AES_ARM32_te_ecb_c)
+        : [in] "+r" (in),  [out] "+r" (out),  [len] "+r" (len),  [ks] "+r" (ks),
+             [nr] "+r" (nr), [L_AES_ARM32_te_ecb] "+r" (L_AES_ARM32_te_ecb_c)
         :
-        : "memory", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r6", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
-#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
+#endif /* HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT ||
+        * WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_CBC
 static const uint32_t* L_AES_ARM32_te_cbc = L_AES_ARM32_te_data;
-void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
-void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* iv_p)
+void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* iv_p);
+void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* iv_p)
 {
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
@@ -1840,7 +1867,8 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
     register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
     register int nr asm ("r4") = (int)nr_p;
     register unsigned char* iv asm ("r5") = (unsigned char*)iv_p;
-    register uint32_t* L_AES_ARM32_te_cbc_c asm ("r6") = (uint32_t*)L_AES_ARM32_te_cbc;
+    register uint32_t* L_AES_ARM32_te_cbc_c asm ("r6") =
+        (uint32_t*)L_AES_ARM32_te_cbc;
 
     __asm__ __volatile__ (
         "mov	r8, r4\n\t"
@@ -2088,17 +2116,23 @@ void AES_CBC_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
     "L_AES_CBC_encrypt_end_%=: \n\t"
         "pop	{%[ks], r9}\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv), [L_AES_ARM32_te_cbc] "+r" (L_AES_ARM32_te_cbc_c)
+        : [in] "+r" (in),  [out] "+r" (out),  [len] "+r" (len),  [ks] "+r" (ks),
+             [nr] "+r" (nr),  [iv] "+r" (iv),
+            [L_AES_ARM32_te_cbc] "+r" (L_AES_ARM32_te_cbc_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
 #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
 static const uint32_t* L_AES_ARM32_te_ctr = L_AES_ARM32_te_data;
-void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
-void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* ctr_p)
+void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* ctr_p);
+void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* ctr_p)
 {
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
@@ -2106,7 +2140,8 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
     register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
     register int nr asm ("r4") = (int)nr_p;
     register unsigned char* ctr asm ("r5") = (unsigned char*)ctr_p;
-    register uint32_t* L_AES_ARM32_te_ctr_c asm ("r6") = (uint32_t*)L_AES_ARM32_te_ctr;
+    register uint32_t* L_AES_ARM32_te_ctr_c asm ("r6") =
+        (uint32_t*)L_AES_ARM32_te_ctr;
 
     __asm__ __volatile__ (
         "mov	r12, r4\n\t"
@@ -2356,16 +2391,19 @@ void AES_CTR_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "rev	r7, r7\n\t"
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
         "stm	r8, {r4, r5, r6, r7}\n\t"
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr), [L_AES_ARM32_te_ctr] "+r" (L_AES_ARM32_te_ctr_c)
+        : [in] "+r" (in),  [out] "+r" (out),  [len] "+r" (len),  [ks] "+r" (ks),
+             [nr] "+r" (nr),  [ctr] "+r" (ctr),
+            [L_AES_ARM32_te_ctr] "+r" (L_AES_ARM32_te_ctr_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
-void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4);
+#if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || \
+        defined(HAVE_AES_CBC)
+void AES_decrypt_block(const uint32_t* td_p, int nr_p, const uint8_t* td4_p);
 void AES_decrypt_block(const uint32_t* td_p, int nr_p, const uint8_t* td4_p)
 {
     register const uint32_t* td asm ("r0") = (const uint32_t*)td_p;
@@ -3009,9 +3047,9 @@ void AES_decrypt_block(const uint32_t* td_p, int nr_p, const uint8_t* td4_p)
         "eor	r5, r5, r9\n\t"
         "eor	r6, r6, r10\n\t"
         "eor	r7, r7, r11\n\t"
-        : [td] "+r" (td), [nr] "+r" (nr), [td4] "+r" (td4)
+        : [td] "+r" (td),  [nr] "+r" (nr),  [td4] "+r" (td4)
         :
-        : "memory", "lr", "cc"
+        : "memory", "cc", "lr"
     );
 }
 
@@ -3052,16 +3090,20 @@ static const unsigned char L_AES_ARM32_td4[] = {
 };
 
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
-void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr);
-void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p)
+void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p);
+void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p)
 {
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
     register unsigned long len asm ("r2") = (unsigned long)len_p;
     register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
     register int nr asm ("r4") = (int)nr_p;
-    register uint32_t* L_AES_ARM32_td_ecb_c asm ("r5") = (uint32_t*)L_AES_ARM32_td_ecb;
-    register unsigned char* L_AES_ARM32_td4_c asm ("r6") = (unsigned char*)&L_AES_ARM32_td4;
+    register uint32_t* L_AES_ARM32_td_ecb_c asm ("r5") =
+        (uint32_t*)L_AES_ARM32_td_ecb;
+    register unsigned char* L_AES_ARM32_td4_c asm ("r6") =
+        (unsigned char*)&L_AES_ARM32_td4;
 
     __asm__ __volatile__ (
         "mov	r8, r4\n\t"
@@ -3291,16 +3333,22 @@ void AES_ECB_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "bne	L_AES_ECB_decrypt_loop_block_128_%=\n\t"
         "\n"
     "L_AES_ECB_decrypt_end_%=: \n\t"
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c), [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
+        : [in] "+r" (in),  [out] "+r" (out),  [len] "+r" (len),  [ks] "+r" (ks),
+             [nr] "+r" (nr), [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c),
+            [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
 
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_CBC
-void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* iv);
-void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* iv_p)
+void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* iv_p);
+void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* iv_p)
 {
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
@@ -3308,8 +3356,10 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
     register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
     register int nr asm ("r4") = (int)nr_p;
     register unsigned char* iv asm ("r5") = (unsigned char*)iv_p;
-    register uint32_t* L_AES_ARM32_td_ecb_c asm ("r6") = (uint32_t*)L_AES_ARM32_td_ecb;
-    register unsigned char* L_AES_ARM32_td4_c asm ("r7") = (unsigned char*)&L_AES_ARM32_td4;
+    register uint32_t* L_AES_ARM32_td_ecb_c asm ("r6") =
+        (uint32_t*)L_AES_ARM32_td_ecb;
+    register unsigned char* L_AES_ARM32_td4_c asm ("r7") =
+        (unsigned char*)&L_AES_ARM32_td4;
 
     __asm__ __volatile__ (
         "mov	r8, r4\n\t"
@@ -3923,9 +3973,12 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "\n"
     "L_AES_CBC_decrypt_end_%=: \n\t"
         "pop	{%[ks]-r4}\n\t"
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [iv] "+r" (iv), [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c), [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
+        : [in] "+r" (in),  [out] "+r" (out),  [len] "+r" (len),  [ks] "+r" (ks),
+             [nr] "+r" (nr),  [iv] "+r" (iv),
+            [L_AES_ARM32_td_ecb] "+r" (L_AES_ARM32_td_ecb_c),
+            [L_AES_ARM32_td4] "+r" (L_AES_ARM32_td4_c)
         :
-        : "memory", "r12", "lr", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r8", "r9", "r10", "r11"
     );
 }
 
@@ -3940,14 +3993,18 @@ static const uint32_t L_GCM_gmult_len_r[] = {
     0x91800000, 0x8da00000, 0xa9c00000, 0xb5e00000,
 };
 
-void GCM_gmult_len(unsigned char* x, const unsigned char** m, const unsigned char* data, unsigned long len);
-void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p, const unsigned char* data_p, unsigned long len_p)
+void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
+    const unsigned char* data_p, unsigned long len_p);
+void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p,
+    const unsigned char* data_p, unsigned long len_p)
 {
     register unsigned char* x asm ("r0") = (unsigned char*)x_p;
     register const unsigned char** m asm ("r1") = (const unsigned char**)m_p;
-    register const unsigned char* data asm ("r2") = (const unsigned char*)data_p;
+    register const unsigned char* data asm ("r2") =
+        (const unsigned char*)data_p;
     register unsigned long len asm ("r3") = (unsigned long)len_p;
-    register uint32_t* L_GCM_gmult_len_r_c asm ("r4") = (uint32_t*)&L_GCM_gmult_len_r;
+    register uint32_t* L_GCM_gmult_len_r_c asm ("r4") =
+        (uint32_t*)&L_GCM_gmult_len_r;
 
     __asm__ __volatile__ (
         "mov	lr, %[L_GCM_gmult_len_r]\n\t"
@@ -4521,15 +4578,21 @@ void GCM_gmult_len(unsigned char* x_p, const unsigned char** m_p, const unsigned
         "subs	%[len], %[len], #16\n\t"
         "add	%[data], %[data], #16\n\t"
         "bne	L_GCM_gmult_len_start_block_%=\n\t"
-        : [x] "+r" (x), [m] "+r" (m), [data] "+r" (data), [len] "+r" (len), [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
+        : [x] "+r" (x),  [m] "+r" (m),  [data] "+r" (data),  [len] "+r" (len),
+            [L_GCM_gmult_len_r] "+r" (L_GCM_gmult_len_r_c)
         :
-        : "memory", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8", "r9", "r10",
+            "r11"
     );
 }
 
 static const uint32_t* L_AES_ARM32_te_gcm = L_AES_ARM32_te_data;
-void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
-void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned long len_p, const unsigned char* ks_p, int nr_p, unsigned char* ctr_p)
+void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* ctr_p);
+void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p,
+    unsigned long len_p, const unsigned char* ks_p, int nr_p,
+    unsigned char* ctr_p)
 {
     register const unsigned char* in asm ("r0") = (const unsigned char*)in_p;
     register unsigned char* out asm ("r1") = (unsigned char*)out_p;
@@ -4537,7 +4600,8 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
     register const unsigned char* ks asm ("r3") = (const unsigned char*)ks_p;
     register int nr asm ("r4") = (int)nr_p;
     register unsigned char* ctr asm ("r5") = (unsigned char*)ctr_p;
-    register uint32_t* L_AES_ARM32_te_gcm_c asm ("r6") = (uint32_t*)L_AES_ARM32_te_gcm;
+    register uint32_t* L_AES_ARM32_te_gcm_c asm ("r6") =
+        (uint32_t*)L_AES_ARM32_te_gcm;
 
     __asm__ __volatile__ (
         "mov	r12, r4\n\t"
@@ -4778,9 +4842,11 @@ void AES_GCM_encrypt(const unsigned char* in_p, unsigned char* out_p, unsigned l
         "rev	r7, r7\n\t"
 #endif /* WOLFSSL_ARM_ARCH && WOLFSSL_ARM_ARCH < 6 */
         "stm	r8, {r4, r5, r6, r7}\n\t"
-        : [in] "+r" (in), [out] "+r" (out), [len] "+r" (len), [ks] "+r" (ks), [nr] "+r" (nr), [ctr] "+r" (ctr), [L_AES_ARM32_te_gcm] "+r" (L_AES_ARM32_te_gcm_c)
+        : [in] "+r" (in),  [out] "+r" (out),  [len] "+r" (len),  [ks] "+r" (ks),
+             [nr] "+r" (nr),  [ctr] "+r" (ctr),
+            [L_AES_ARM32_te_gcm] "+r" (L_AES_ARM32_te_gcm_c)
         :
-        : "memory", "r12", "lr", "r7", "r8", "r9", "r10", "r11", "cc"
+        : "memory", "cc", "r12", "lr", "r7", "r8", "r9", "r10", "r11"
     );
 }
 

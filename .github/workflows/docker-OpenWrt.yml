@@ -17,6 +17,7 @@ concurrency:
 jobs:
     build_library:
         name: Compile libwolfssl.so
+        if: github.repository_owner == 'wolfssl'
         runs-on: ubuntu-latest
         # This should be a safe limit for the tests to run.
         timeout-minutes: 4
@@ -40,6 +41,7 @@ jobs:
                 retention-days: 5
     compile_container:
         name: Compile container
+        if: github.repository_owner == 'wolfssl'
         runs-on: ubuntu-latest
         # This should be a safe limit for the tests to run.
         timeout-minutes: 2

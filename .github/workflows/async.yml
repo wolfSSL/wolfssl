@@ -23,6 +23,7 @@ jobs:
           '--enable-ocsp CFLAGS="-DTEST_NONBLOCK_CERTS"',
         ]
     name: make check
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 6

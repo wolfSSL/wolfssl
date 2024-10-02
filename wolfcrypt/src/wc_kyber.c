@@ -51,10 +51,11 @@
 /* Use SHA3-512 to generate 64-bytes of hash. */
 #define KYBER_HASH_G            kyber_hash512
 /* Use SHAKE-256 as a key derivation function (KDF). */
-#ifdef USE_INTEL_SPEEDUP
-#define KYBER_KDF               kyber_kdf
+#if defined(USE_INTEL_SPEEDUP) || \
+        (defined(WOLFSSL_ARMASM) && defined(__aarch64__))
+    #define KYBER_KDF               kyber_kdf
 #else
-#define KYBER_KDF               wc_Shake256Hash
+    #define KYBER_KDF               wc_Shake256Hash
 #endif
 
 /******************************************************************************/
@@ -630,7 +631,11 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 
     if (ret == 0) {
         /* Encapsulate the message using the key and the seed (coins). */
+#ifdef WOLFSSL_KYBER_ORIGINAL
+        ret = kyberkey_encapsulate(key, msg, kr + KYBER_SYM_SZ, ct);
+#else
         ret = kyberkey_encapsulate(key, rand, kr + KYBER_SYM_SZ, ct);
+#endif
     }
 
 #ifdef WOLFSSL_KYBER_ORIGINAL

@@ -5099,7 +5099,7 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
 int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
 {
     int ret;
-#ifdef XGETENV
+#if defined(XGETENV) && !defined(NO_GETENV)
     char* certDir = NULL;
     char* certFile = NULL;
     word32 flags = 0;
@@ -5109,7 +5109,8 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
 
     WOLFSSL_ENTER("wolfSSL_CTX_set_default_verify_paths");
 
-#ifdef XGETENV
+#if defined(XGETENV) && !defined(NO_GETENV)
+    /* // NOLINTBEGIN(concurrency-mt-unsafe) */
     certDir = wc_strdup_ex(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
     certFile = wc_strdup_ex(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
     flags = WOLFSSL_LOAD_FLAG_PEM_CA_ONLY;
@@ -5133,6 +5134,7 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
             ret = 0;
         }
     }
+    /* // NOLINTEND(concurrency-mt-unsafe) */
     else
 #endif
 
@@ -5157,7 +5159,7 @@ int wolfSSL_CTX_set_default_verify_paths(WOLFSSL_CTX* ctx)
     #endif
     }
 
-#ifdef XGETENV
+#if defined(XGETENV) && !defined(NO_GETENV)
     XFREE(certFile, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(certDir, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif

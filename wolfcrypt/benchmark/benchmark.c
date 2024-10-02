@@ -220,6 +220,9 @@
     #ifdef HAVE_RENESAS_SYNC
         #include <wolfssl/wolfcrypt/port/renesas/renesas_sync.h>
     #endif
+    #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+        #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3167,8 +3170,9 @@ static void* benchmarks_do(void* args)
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
-         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) && \
-        !defined(NO_HW_BENCH)
+         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) || \
+         ((defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)) && \
+         defined(WOLF_CRYPTO_CB)) && !defined(NO_HW_BENCH)
         bench_aes_aad_options_wrap(bench_aesgcm, 1);
     #endif
     #ifndef NO_SW_BENCH
@@ -8433,11 +8437,37 @@ exit:
 void bench_rsaKeyGen(int useDeviceID)
 {
     int    k;
-#if !defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL) && \
-    (RSA_MIN_SIZE <= 1024)
-    static const word32  keySizes[2] = {1024, 2048};
+
+#if !defined(RSA_MAX_SIZE) || !defined(RSA_MIN_SIZE)
+    static const word32  keySizes[2] = {1024, 2048 };
+#elif RSA_MAX_SIZE >= 4096
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[4] = {1024, 2048, 3072, 4096 };
+    #else
+        static const word32  keySizes[3] = {2048, 3072, 4096};
+    #endif
+#elif RSA_MAX_SIZE >= 3072
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[3] = {1024, 2048, 3072 };
+    #else
+        static const word32  keySizes[2] = {2048, 3072 };
+    #endif
+#elif RSA_MAX_SIZE >= 2048
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[2] = {1024, 2048 };
+    #else
+        static const word32  keySizes[1] = {2048};
+    #endif
 #else
-    static const word32  keySizes[1] = {2048};
+    #if (!defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) &&      \
+        (RSA_MIN_SIZE <= 1024)
+        static const word32  keySizes[1] = {1024 };
+    #else
+        #error No candidate RSA key sizes to benchmark.
+    #endif
 #endif
 
     for (k = 0; k < (int)(sizeof(keySizes)/sizeof(int)); k++) {
@@ -14226,6 +14256,15 @@ void bench_sphincsKeySign(byte level, byte optim)
         _time_get(&tv);
 
         return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
+    }
+
+#elif (defined(WOLFSSL_MAX3266X_OLD) || defined(WOLFSSL_MAX3266X)) \
+            && defined(MAX3266X_RTC)
+
+    double current_time(int reset)
+    {
+        (void)reset;
+        return wc_MXC_RTC_Time();
     }
 
 #elif defined(FREESCALE_KSDK_BM)

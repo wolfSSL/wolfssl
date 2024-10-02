@@ -211,6 +211,52 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 
 #if defined(WORD64_AVAILABLE) && !defined(WOLFSSL_NO_WORD64_OPS)
 
+WC_MISC_STATIC WC_INLINE word64 readUnalignedWord64(const byte *in)
+{
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0)
+        return *(word64 *)in;
+    else {
+        word64 out;
+        XMEMCPY(&out, in, sizeof(word64));
+        return out;
+    }
+}
+
+WC_MISC_STATIC WC_INLINE word64 writeUnalignedWord64(void *out, word64 in)
+{
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0)
+        *(word64 *)out = in;
+    else {
+        XMEMCPY(out, &in, sizeof(word64));
+    }
+    return in;
+}
+
+WC_MISC_STATIC WC_INLINE void readUnalignedWords64(word64 *out, const byte *in,
+                                                   size_t count)
+{
+    if (((wc_ptr_t)in & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
+        const word64 *in_word64 = (const word64 *)in;
+        while (count-- > 0)
+            *out++ = *in_word64++;
+    }
+    else {
+        XMEMCPY(out, in, count * sizeof(word64));
+    }
+}
+
+WC_MISC_STATIC WC_INLINE void writeUnalignedWords64(byte *out, const word64 *in,
+                                                    size_t count)
+{
+    if (((wc_ptr_t)out & (wc_ptr_t)(sizeof(word64) - 1U)) == (wc_ptr_t)0) {
+        word64 *out_word64 = (word64 *)out;
+        while (count-- > 0)
+            *out_word64++ = *in++;
+    }
+    else {
+        XMEMCPY(out, in, count * sizeof(word64));
+    }
+}
 
 WC_MISC_STATIC WC_INLINE word64 rotlFixed64(word64 x, word64 y)
 {

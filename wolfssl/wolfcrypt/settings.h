@@ -262,6 +262,9 @@
 /* Uncomment next line if building for Dolphin Emulator */
 /* #define DOLPHIN_EMULATOR */
 
+/* Uncomment next line if building for WOLFSSL_NDS */
+/* #define WOLFSSL_NDS */
+
 /* Uncomment next line if using MAXQ1065 */
 /* #define WOLFSSL_MAXQ1065 */
 
@@ -470,6 +473,16 @@
     #include <nx_api.h>
 #endif
 
+
+#ifdef WOLFSSL_NDS
+    #include <stddef.h>
+    #define SIZEOF_LONG_LONG 8
+    #define socklen_t int
+    #define IPPROTO_UDP 17
+    #define IPPROTO_TCP 6
+    #define NO_WRITEV
+#endif
+
 #if defined(ARDUINO)
     #if defined(ESP32)
         #ifndef NO_ARDUINO_DEFAULT
@@ -515,7 +528,7 @@
      * in the Kconfig file. At cmake time, the Kconfig is processed and an
      * sdkconfig.h file is created by the ESP-IDF. Any configured options are
      * named CONFIG_[Kconfig name] and thus CONFIG_[macro name]. Those that
-     * are expected to be ESP-IDF specific and may be ambigous can named
+     * are expected to be ESP-IDF specific and may be ambiguous can named
      * with an ESP prefix, for example CONFIG_[ESP_(Kconfig name)]
      *
      * Note there are some inconsistent macro names that may have been
@@ -538,6 +551,12 @@
      * been processed. The following settings are additive; Enabled settings
      * from user_settings are not disabled here.
      */
+    #if defined(CONFIG_ESP_WOLFSSL_TEST_LOOP) && \
+                CONFIG_ESP_WOLFSSL_TEST_LOOP
+        #define            WOLFSSL_TEST_LOOP 1
+    #else
+        #define            WOLFSSL_TEST_LOOP 0
+    #endif
     #if (defined(CONFIG_DEBUG_WOLFSSL) &&             \
                  CONFIG_DEBUG_WOLFSSL) ||             \
         (defined(CONFIG_ESP_WOLFSSL_DEBUG_WOLFSSL) && \
@@ -580,9 +599,17 @@
                 CONFIG_WOLFSSL_APPLE_HOMEKIT
         #define        WOLFSSL_APPLE_HOMEKIT
     #endif
+    #if defined(CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS) && \
+                CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
+        #define            WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
+    #endif
+    #if defined(CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS) && \
+                CONFIG_ESP_WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+        #define            WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+    #endif
 
     #if defined(CONFIG_TLS_STACK_WOLFSSL) && (CONFIG_TLS_STACK_WOLFSSL)
-        /* When using ESP-TLS, some old algoritms such as SHA1 are no longer
+        /* When using ESP-TLS, some old algorithms such as SHA1 are no longer
          * enabled in wolfSSL, except for the OpenSSL compatibility. So enable
          * that here: */
         #define OPENSSL_EXTRA
@@ -904,7 +931,58 @@
         #undef  HAVE_AESGCM
         #define HAVE_AESGCM
     #endif /* SM */
+
 #endif /* defined(WOLFSSL_ESP32) || defined(WOLFSSL_ESPWROOM32SE) */
+    /* Final device-specific hardware settings. user_settings.h loaded above. */
+
+    /* Counters for RSA wait timeout. CPU and frequency specific. */
+    #define ESP_RSA_WAIT_TIMEOUT_CNT          0x000020
+    #if defined(CONFIG_IDF_TARGET_ESP32) || defined(WOLFSSL_ESPWROOM32SE)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            /* Observed: 0xAE8C8F @ 80MHz */
+            #define ESP_RSA_TIMEOUT_CNT      0xAF0000
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32C2)
+        /* See also CONFIG_IDF_TARGET_ESP8684 equivalent */
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            /* Observed: 0x2624B2 @ 80MHz */
+            #define ESP_RSA_TIMEOUT_CNT      0x280000
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32C6)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            /* Observed: 144323 @ 80MHz */
+            #define ESP_RSA_TIMEOUT_CNT      0x160000
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP8266)
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #elif defined(CONFIG_IDF_TARGET_ESP8684)
+        /* See also CONFIG_IDF_TARGET_ESP8684 equivalent */
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #else
+        #ifndef ESP_RSA_TIMEOUT_CNT
+            #define ESP_RSA_TIMEOUT_CNT      0x349F00
+        #endif
+    #endif
 #endif /* WOLFSSL_ESPIDF */
 
 #if defined(WOLFSSL_RENESAS_TSIP)
@@ -1971,7 +2049,8 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32L4) || defined(WOLFSSL_STM32L5) || \
     defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
     defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5) || \
-    defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WL)
+    defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WL) || \
+    defined(WOLFSSL_STM32G4)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2027,6 +2106,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32wlxx_hal.h"
         #elif defined(WOLFSSL_STM32G0)
             #include "stm32g0xx_hal.h"
+        #elif defined(WOLFSSL_STM32G4)
+            #include "stm32g4xx_hal.h"
         #elif defined(WOLFSSL_STM32U5)
             #include "stm32u5xx_hal.h"
         #elif defined(WOLFSSL_STM32H5)
@@ -2085,10 +2166,7 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f1xx.h"
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
-#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 ||
-          WOLFSSL_STM32L5 || WOLFSSL_STM32F7 || WOLFSSL_STMWB ||
-          WOLFSSL_STM32H7 || WOLFSSL_STM32G0 || WOLFSSL_STM32U5 ||
-          WOLFSSL_STM32H5 */
+#endif /* WOLFSSL_STM32* */
 #ifdef WOLFSSL_DEOS
     #include <deos.h>
     #include <timeout.h>
@@ -3576,9 +3654,20 @@ extern void uITRON4_free(void *p) ;
     #define KEEP_PEER_CERT
 #endif
 
+/* Always copy certificate(s) from SSL CTX to each SSL object on creation,
+ * if this is not defined then each SSL object shares a pointer to the
+ * original certificate buffer owned by the SSL CTX. */
 #if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_CERT)
     #undef WOLFSSL_COPY_CERT
     #define WOLFSSL_COPY_CERT
+#endif
+
+/* Always copy private key from SSL CTX to each SSL object on creation,
+ * if this is not defined then each SSL object shares a pointer to the
+ * original key buffer owned by the SSL CTX. */
+#if defined(OPENSSL_ALL) && !defined(WOLFSSL_NO_COPY_KEY)
+    #undef WOLFSSL_COPY_KEY
+    #define WOLFSSL_COPY_KEY
 #endif
 
 /*
@@ -4035,7 +4124,7 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(CONFIG_WOLFSSL_NO_ASN_STRICT) && !defined(WOLFSSL_NO_ASN_STRICT)
     /* The settings.h and/or user_settings.h should have detected config
-     * valuse from Kconfig and set the appropriate wolfSSL macro: */
+     * values from Kconfig and set the appropriate wolfSSL macro: */
     #error "CONFIG_WOLFSSL_NO_ASN_STRICT found without WOLFSSL_NO_ASN_STRICT"
 #endif
 

@@ -520,7 +520,7 @@ WOLFSSL_API  int wolfIO_RecvFrom(SOCKET_T sd, WOLFSSL_BIO_ADDR *addr, char *buf,
 #endif
 #endif /* WOLFSSL_NO_SOCK */
 
-/* Preseve API previously exposed */
+/* Preserve API previously exposed */
 WOLFSSL_API int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
 WOLFSSL_API int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 

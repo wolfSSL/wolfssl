@@ -71,6 +71,8 @@ typedef struct Dtls13HandshakeHeader {
     byte fragmentLength[3];
 } Dtls13HandshakeHeader;
 
+static_assert(sizeof(Dtls13HandshakeHeader) == DTLS13_HANDSHAKE_HEADER_SZ);
+
 /**
  * struct Dtls13Recordplaintextheader: represent header of unprotected DTLSv1.3
  * record
@@ -1052,45 +1054,26 @@ static WC_INLINE word8 Dtls13GetEpochBits(w64wrapper epoch)
 }
 
 #ifdef WOLFSSL_DTLS_CID
-static byte Dtls13GetCidTxSize(WOLFSSL* ssl)
-{
-    unsigned int cidSz;
-    int ret;
-    ret = wolfSSL_dtls_cid_get_tx_size(ssl, &cidSz);
-    if (ret != WOLFSSL_SUCCESS)
-        return 0;
-    return (byte)cidSz;
-}
-
-static byte Dtls13GetCidRxSize(WOLFSSL* ssl)
-{
-    unsigned int cidSz;
-    int ret;
-    ret = wolfSSL_dtls_cid_get_rx_size(ssl, &cidSz);
-    if (ret != WOLFSSL_SUCCESS)
-        return 0;
-    return (byte)cidSz;
-}
 
 static int Dtls13AddCID(WOLFSSL* ssl, byte* flags, byte* out, word16* idx)
 {
-    byte cidSize;
+    byte cidSz;
     int ret;
 
     if (!wolfSSL_dtls_cid_is_enabled(ssl))
         return 0;
 
-    cidSize = Dtls13GetCidTxSize(ssl);
+    cidSz = DtlsGetCidTxSize(ssl);
 
     /* no cid */
-    if (cidSize == 0)
+    if (cidSz == 0)
         return 0;
     *flags |= DTLS13_CID_BIT;
-    /* we know that we have at least cidSize of space */
-    ret = wolfSSL_dtls_cid_get_tx(ssl, out + *idx, cidSize);
+    /* we know that we have at least cidSz of space */
+    ret = wolfSSL_dtls_cid_get_tx(ssl, out + *idx, cidSz);
     if (ret != WOLFSSL_SUCCESS)
         return ret;
-    *idx += cidSize;
+    *idx += cidSz;
     return 0;
 }
 
@@ -1136,8 +1119,6 @@ static int Dtls13UnifiedHeaderParseCID(WOLFSSL* ssl, byte flags,
 
 #else
 #define Dtls13AddCID(a, b, c, d) 0
-#define Dtls13GetCidRxSize(a) 0
-#define Dtls13GetCidTxSize(a) 0
 #define Dtls13UnifiedHeaderParseCID(a, b, c, d, e) 0
 #endif /* WOLFSSL_DTLS_CID */
 
@@ -1209,6 +1190,11 @@ int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
     return 0;
 }
 
+int Dtls13MinimumRecordLength(WOLFSSL* ssl)
+{
+    return Dtls13GetRlHeaderLength(ssl, 1) + DTLS13_MIN_CIPHERTEXT;
+}
+
 /**
  * Dtls13EncryptRecordNumber() - encrypt record number in the header
  * @ssl: ssl object
@@ -1225,14 +1211,20 @@ int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
     if (ssl == NULL || hdr == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef HAVE_NULL_CIPHER
+    /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_cipher_null)
+        return 0;
+#endif /*HAVE_NULL_CIPHER */
+
     /* we need at least a 16 bytes of ciphertext to encrypt record number see
        4.2.3*/
-    if (recordLength < Dtls13GetRlHeaderLength(ssl, 1) + DTLS13_MIN_CIPHERTEXT)
+    if (recordLength < Dtls13MinimumRecordLength(ssl))
         return BUFFER_ERROR;
 
     seqLength = (*hdr & DTLS13_LEN_BIT) ? DTLS13_SEQ_16_LEN : DTLS13_SEQ_8_LEN;
 
-    cidSz = Dtls13GetCidTxSize(ssl);
+    cidSz = DtlsGetCidTxSize(ssl);
     /* header flags + seq number + CID size*/
     hdrLength = OPAQUE8_LEN + seqLength + cidSz;
 
@@ -1263,7 +1255,7 @@ word16 Dtls13GetRlHeaderLength(WOLFSSL* ssl, byte isEncrypted)
     if (!isEncrypted)
         return DTLS_RECORD_HEADER_SZ;
 
-    return DTLS13_UNIFIED_HEADER_SIZE + Dtls13GetCidTxSize(ssl);
+    return DTLS13_UNIFIED_HEADER_SIZE + DtlsGetCidTxSize(ssl);
 }
 
 /**
@@ -1390,7 +1382,7 @@ int Dtls13GetUnifiedHeaderSize(WOLFSSL* ssl, const byte input, word16* size)
         return BAD_FUNC_ARG;
 
     /* flags (1) + CID + seq 8bit (1) */
-    *size = OPAQUE8_LEN + Dtls13GetCidRxSize(ssl) + OPAQUE8_LEN;
+    *size = OPAQUE8_LEN + DtlsGetCidRxSize(ssl) + OPAQUE8_LEN;
     if (input & DTLS13_SEQ_LEN_BIT)
         *size += OPAQUE8_LEN;
     if (input & DTLS13_LEN_BIT)
@@ -1453,17 +1445,22 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
         hdrInfo->recordLength = inputSize - idx;
     }
 
-    /* minimum size for a dtls1.3 packet is 16 bytes (to have enough ciphertext
-       to create record number xor mask). (draft 43 - Sec 4.2.3) */
-    if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
-        return LENGTH_ERROR;
-    if (inputSize < idx + DTLS13_RN_MASK_SIZE)
-        return BUFFER_ERROR;
+    /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
+    if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null)
+    {
+        /* minimum size for a dtls1.3 packet is 16 bytes (to have enough
+         * ciphertext to create record number xor mask).
+         * (draft 43 - Sec 4.2.3) */
+        if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
+            return LENGTH_ERROR;
+        if (inputSize < idx + DTLS13_RN_MASK_SIZE)
+            return BUFFER_ERROR;
 
-    ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
-        DEPROTECT);
-    if (ret != 0)
-        return ret;
+        ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
+            DEPROTECT);
+        if (ret != 0)
+            return ret;
+    }
 
     if (seqLen == DTLS13_SEQ_16_LEN) {
         hdrInfo->seqHiPresent = 1;

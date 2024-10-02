@@ -1376,6 +1376,12 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
         pkcs7->cachedEncryptedContentSz = 0;
     }
 
+    if (pkcs7->customSKID) {
+        XFREE(pkcs7->customSKID, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        pkcs7->customSKID = NULL;
+        pkcs7->customSKIDSz = 0;
+    }
+
     if (pkcs7->isDynamic) {
         pkcs7->isDynamic = 0;
         XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -2816,6 +2822,15 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
     keyIdSize = KEYID_SIZE;
 #endif
 
+    /* use custom SKID if set */
+    if (pkcs7->customSKIDSz > 0) {
+        if (pkcs7->customSKID == NULL) {
+            WOLFSSL_MSG("Bad custom SKID setup, size > 0 and was NULL");
+            return BAD_FUNC_ARG;
+        }
+        keyIdSize = pkcs7->customSKIDSz;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
     signedDataOid = (byte *)XMALLOC(MAX_OID_SZ, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (signedDataOid == NULL) {
@@ -3264,8 +3279,15 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
         wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
                 esd->issuerSKID, esd->issuerSKIDSz);
         idx += (int)esd->issuerSKIDSz;
-        wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+
+        if (pkcs7->customSKID) {
+            wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
+                pkcs7->customSKID, (word32)keyIdSize);
+        }
+        else {
+            wc_PKCS7_WriteOut(pkcs7, (output2)? (output2 + idx) : NULL,
                 pkcs7->issuerSubjKeyId, (word32)keyIdSize);
+        }
         idx += keyIdSize;
     } else if (pkcs7->sidType == DEGENERATE_SID) {
         /* no signer infos in degenerate case */
@@ -3417,6 +3439,40 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
 
     return ret;
 }
+
+
+/* Sets a custom SKID in PKCS7 struct, used before calling an encode operation
+ * Returns 0 on success, negative upon error. */
+int wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, const byte* in, word16 inSz)
+{
+    int ret = 0;
+
+    if (pkcs7 == NULL || (in == NULL && inSz > 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (in == NULL) {
+        if (pkcs7->customSKID != NULL) {
+            XFREE(pkcs7->customSKID, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        }
+        pkcs7->customSKIDSz = 0;
+        pkcs7->customSKID   = NULL;
+    }
+    else {
+        pkcs7->customSKID = (byte*)XMALLOC(inSz, pkcs7->heap,
+            DYNAMIC_TYPE_PKCS7);
+        if (pkcs7->customSKID == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            XMEMCPY(pkcs7->customSKID, in, inSz);
+            pkcs7->customSKIDSz = inSz;
+        }
+    }
+
+    return ret;
+}
+
 
 /* Toggle detached signature mode on/off for PKCS#7/CMS SignedData content type.
  * By default wolfCrypt includes the data to be signed in the SignedData
@@ -9589,8 +9645,9 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
 #ifndef ASN_BER_TO_DER
-    if (output == NULL || outputSz == 0)
+    if (output == NULL || outputSz == 0) {
         return BAD_FUNC_ARG;
+    }
 #else
     /* if both output and callback are not set then error out */
     if ((output == NULL || outputSz == 0) && (pkcs7->streamOutCb == NULL)) {

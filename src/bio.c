@@ -1332,7 +1332,7 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
 long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
 {
     WOLFSSL_BIO* front = bio;
-    long ret = WOLFSSL_FAILURE;
+    long ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     WOLFSSL_ENTER("wolfSSL_BIO_get_mem_ptr");
 
@@ -1358,7 +1358,10 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
         bio = bio->prev;
     }
 
-    return ret;
+    if (ret == WOLFSSL_SUCCESS)
+        return ret;
+    else
+        return WOLFSSL_FAILURE;
 }
 
 #ifdef OPENSSL_ALL
@@ -2231,7 +2234,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             ret = WOLFSSL_SUCCESS;
         }
 
-        return ret;
+        if (ret == WOLFSSL_SUCCESS)
+            return ret;
+        else
+            return WOLFSSL_FAILURE;
     }
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_buffer(void)
@@ -2600,7 +2606,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
 
     long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int closeF)
     {
-        long ret = WOLFSSL_FAILURE;
+        long ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
         WOLFSSL_ENTER("wolfSSL_BIO_set_ssl");
 
@@ -2613,7 +2619,10 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             ret = WOLFSSL_SUCCESS;
         }
 
-        return ret;
+        if (ret == WOLFSSL_SUCCESS)
+            return ret;
+        else
+            return WOLFSSL_FAILURE;
     }
 
     long wolfSSL_BIO_get_ssl(WOLFSSL_BIO* bio, WOLFSSL** ssl)
