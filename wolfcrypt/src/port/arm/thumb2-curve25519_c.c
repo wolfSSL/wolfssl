@@ -1667,7 +1667,7 @@ void fe_cmov_table(fe* r, fe* base, signed char b)
 #endif /* WC_NO_CACHE_RESISTANT */
 #endif /* HAVE_ED25519_MAKE_KEY || HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 void fe_mul_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul_op()
@@ -2193,7 +2193,7 @@ void fe_mul_op()
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul(fe r_p, const fe a_p, const fe b_p)
 #else
@@ -2214,7 +2214,7 @@ void fe_mul(fe r, const fe a, const fe b)
     );
 }
 
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 void fe_sq_op(void);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq_op()
@@ -2619,7 +2619,7 @@ void fe_sq_op()
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq(fe r_p, const fe a_p)
 #else
@@ -2640,7 +2640,7 @@ void fe_sq(fe r, const fe a)
 }
 
 #ifdef HAVE_CURVE25519
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_mul121666(fe r_p, fe a_p)
 #else
@@ -2745,7 +2745,7 @@ void fe_mul121666(fe r, fe a)
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #ifndef WC_NO_CACHE_RESISTANT
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
@@ -3907,7 +3907,7 @@ void fe_invert(fe r, const fe a)
     );
 }
 
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_sq2(fe r_p, const fe a_p)
 #else
@@ -4384,7 +4384,7 @@ void fe_sq2(fe r, const fe a)
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void fe_pow22523(fe r_p, const fe a_p)
 #else
@@ -5126,7 +5126,7 @@ void ge_sub(ge_p1p1 * r, const ge_p3 * p, const ge_cached* q)
     );
 }
 
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void sc_reduce(byte* s_p)
 #else
@@ -5865,9 +5865,9 @@ void sc_reduce(byte* s)
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #ifdef HAVE_ED25519_SIGN
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
 void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
@@ -7099,7 +7099,7 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #endif /* HAVE_ED25519_SIGN */
 #endif /* HAVE_ED25519 */
 

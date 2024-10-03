@@ -240,7 +240,7 @@ static void sp_2048_to_bin_64(sp_digit* r, byte* a)
 #define sp_2048_norm_64(a)
 
 #ifndef WOLFSSL_SP_SMALL
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -736,7 +736,7 @@ SP_NOINLINE static void sp_2048_mul_8(sp_digit* r, const sp_digit* a, const sp_d
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 /* Add b to a into r. (r = a + b)
  *
  * r  A single precision integer.
@@ -1533,7 +1533,7 @@ SP_NOINLINE static void sp_2048_mul_64(sp_digit* r, const sp_digit* a,
     (void)sp_2048_add_32(r + 96, r + 96, a1);
 }
 
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
@@ -1899,7 +1899,7 @@ SP_NOINLINE static void sp_2048_sqr_8(sp_digit* r, const sp_digit* a)
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 /* Sub b from a into r. (r = a - b)
  *
  * r  A single precision integer.
@@ -31605,7 +31605,7 @@ static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_digit* b)
 }
 
 #else
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A single precision integer.
@@ -32101,7 +32101,7 @@ SP_NOINLINE static void sp_256_mul_8(sp_digit* r, const sp_digit* a, const sp_di
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #endif /* WOLFSSL_SP_SMALL */
 #ifdef WOLFSSL_SP_SMALL
 /* Square a and put result in r. (r = a * a)
@@ -32222,7 +32222,7 @@ static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
 }
 
 #else
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 /* Square a and put result in r. (r = a * a)
  *
  * r  A single precision integer.
@@ -32588,7 +32588,7 @@ SP_NOINLINE static void sp_256_sqr_8(sp_digit* r, const sp_digit* a)
     );
 }
 
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 #endif /* WOLFSSL_SP_SMALL */
 #ifdef WOLFSSL_SP_SMALL
 /* Add b to a into r. (r = a + b)
