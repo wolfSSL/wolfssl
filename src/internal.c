@@ -21730,16 +21730,19 @@ default:
                 else
 #endif
                 {
-#ifdef HAVE_ENCRYPT_THEN_MAC
-                    word16 startedETMRead = ssl->options.startedETMRead;
-#else
-                    word16 startedETMRead = 0;
-#endif
                     /* With atomicUser the callback should have already included
                      * the mac in the padding size. The ETM callback doesn't do
                      * this for some reason. */
-                    if (ssl->specs.cipher_type != aead &&
-                            (!atomicUser || startedETMRead)) {
+                    if (ssl->specs.cipher_type != aead
+#ifdef ATOMIC_USER
+                             && (!atomicUser
+#ifdef HAVE_ENCRYPT_THEN_MAC
+                                 || ssl->options.startedETMRead
+#endif /* HAVE_ENCRYPT_THEN_MAC */
+                                )
+#endif /* !ATOMIC_USER */
+                       )
+                    {
                         /* consider MAC as padding */
                         ssl->keys.padSz += MacSize(ssl);
                     }
