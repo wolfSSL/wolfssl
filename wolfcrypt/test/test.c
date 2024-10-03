@@ -42117,13 +42117,22 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
 {
     byte msg[512];
     dilithium_key* key;
+    byte * pubExported = NULL;
     wc_test_ret_t ret;
     int i;
     int res = 0;
+    word32 lenExported = pubKeyLen;
+    int n_diff = 0;
 
     key = (dilithium_key*)XMALLOC(sizeof(*key), HEAP_HINT,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (key == NULL) {
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+    }
+
+    pubExported = (byte*)XMALLOC(pubKeyLen, HEAP_HINT,
+        DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubExported == NULL) {
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     }
 
@@ -42160,9 +42169,27 @@ static wc_test_ret_t dilithium_param_vfy_test(int param, const byte* pubKey,
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     if (res != 1)
         ERROR_OUT(WC_TEST_RET_ENC_EC(res), out);
+
+    /* Now test the export pub raw API, verify we recover the original pub. */
+    ret = wc_dilithium_export_public(key, pubExported, &lenExported);
+    if (ret != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
+
+    if (lenExported <= 0 || lenExported != pubKeyLen) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(lenExported), out);
+    }
+
+    n_diff = XMEMCMP(pubExported, pubKey, pubKeyLen);
+
+    if (n_diff) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(n_diff), out);
+    }
+
 out:
     wc_dilithium_free(key);
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pubExported, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 

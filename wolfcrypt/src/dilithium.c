@@ -70,7 +70,7 @@
  *   but is slower.
  * WOLFSSL_DILITHIUM_SMALL_MEM_POLY64                         Default: OFF
  *   Compiles the small memory implementations to use a 64-bit polynomial.
- *   Uses 2KB of memory but is slighlty quicker (2.75-7%).
+ *   Uses 2KB of memory but is slightly quicker (2.75-7%).
  *
  * WOLFSSL_DILITHIUM_ALIGNMENT                                Default: 8
  *   Use to indicate whether loading and storing of words needs to be aligned.
