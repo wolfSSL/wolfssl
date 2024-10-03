@@ -3942,7 +3942,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     __asm__ __volatile__ (                               \
         "mulhwu	%[h], %[a], %[b]	\n\t"            \
         "mullw	%[l], %[a], %[b]	\n\t"            \
-        "li	%[o], 0			\n\t"            \
+        "xor	%[o], %[o], %[o]	\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
     )
@@ -4045,7 +4045,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #define SP_ASM_SUBB(vl, vh, va)                          \
     __asm__ __volatile__ (                               \
         "subfc	%[l], %[a], %[l]	\n\t"            \
-        "li	16, 0			\n\t"            \
+        "xor	16, 16, 16		\n\t"            \
         "subfe	%[h], 16, %[h]		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va)                                   \
