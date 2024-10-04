@@ -76,7 +76,7 @@ Public domain.
     /* implementation is located in wolfcrypt/src/port/arm/armv8-chacha.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
-    /* implementation located in wolfcrypt/src/port/rsicv/riscv-64-chacha.c */
+    /* implementation located in wolfcrypt/src/port/riscv/riscv-64-chacha.c */
 
 #else
 

@@ -1390,10 +1390,10 @@ static void sp_256_mont_inv_10(sp_digit* r, const sp_digit* a, sp_digit* td)
 }
 
 
-/* Map the Montgomery form projective co-ordinate point to an affine point.
+/* Map the Montgomery form projective coordinate point to an affine point.
  *
- * r  Resulting affine co-ordinate point.
- * p  Montgomery form projective co-ordinate point.
+ * r  Resulting affine coordinate point.
+ * p  Montgomery form projective coordinate point.
  * t  Temporary ordinate data.
  */
 static void sp_256_map_10(sp_point* r, const sp_point* p, sp_digit* t)
@@ -1910,7 +1910,7 @@ static void sp_256_proj_point_add_10(sp_point* r, const sp_point* p, const sp_po
 
 #ifdef WOLFSSL_SP_SMALL
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -2006,7 +2006,7 @@ static int sp_256_ecc_mulmod_10(sp_point* r, const sp_point* g, const sp_digit* 
 
 #elif !defined(WC_NO_CACHE_RESISTANT)
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -2119,7 +2119,7 @@ typedef struct sp_table_entry {
 } sp_table_entry;
 
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -2517,7 +2517,7 @@ static int sp_256_gen_stripe_table_10(const sp_point* a,
 
 #endif /* FP_ECC */
 /* Multiply the point by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * k     Scalar to multiply by.
@@ -2679,7 +2679,7 @@ static void sp_ecc_get_cache(const sp_point* g, sp_cache_t** cache)
 #endif /* FP_ECC */
 
 /* Multiply the base point of P256 by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * g     Point to multiply.
@@ -2735,7 +2735,7 @@ static int sp_256_ecc_mulmod_10(sp_point* r, const sp_point* g, const sp_digit* 
 
 #ifdef WOLFSSL_SP_SMALL
 /* Multiply the base point of P256 by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * k     Scalar to multiply by.
@@ -4033,7 +4033,7 @@ static const sp_table_entry p256_table[256] = {
 };
 
 /* Multiply the base point of P256 by the scalar and return the result.
- * If map is true then convert result to affine co-ordinates.
+ * If map is true then convert result to affine coordinates.
  *
  * r     Resulting point.
  * k     Scalar to multiply by.

@@ -327,7 +327,7 @@ struct Aes {
     int alFd; /* server socket to bind to */
     int rdFd; /* socket to read from */
     struct msghdr msg;
-    int dir;  /* flag for encrpyt or decrypt */
+    int dir;  /* flag for encrypt or decrypt */
 #ifdef WOLFSSL_AFALG_XILINX_AES
     word32 msgBuf[CMSG_SPACE(4) + CMSG_SPACE(sizeof(struct af_alg_iv) +
                   GCM_NONCE_MID_SZ)];
