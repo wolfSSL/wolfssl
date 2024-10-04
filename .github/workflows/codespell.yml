@@ -1,0 +1,21 @@
+name: Codespell test
+
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+jobs:
+  coverity:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: master
+
+    - uses: codespell-project/actions-codespell@v2.1
+      with:
+        check_filenames: true
+        check_hidden: true
+        ignore_words_file: .codespellignore
