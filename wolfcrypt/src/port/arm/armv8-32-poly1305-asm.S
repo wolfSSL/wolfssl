@@ -218,7 +218,7 @@ L_poly1305_arm32_16_loop:
 	# Load length
 	ldr	r2, [sp, #20]
 	# Reduce mod 2^130 - 5
-	bic	r3, r8, #3
+	bic	r3, r8, #0x3
 	and	r8, r8, #3
 	adds	r4, r4, r3
 	lsr	r3, r3, #2

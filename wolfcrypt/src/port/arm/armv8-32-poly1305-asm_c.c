@@ -243,7 +243,7 @@ void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
         /* Load length */
         "ldr	%[len], [sp, #20]\n\t"
         /* Reduce mod 2^130 - 5 */
-        "bic	%[notLast], r8, #3\n\t"
+        "bic	%[notLast], r8, #0x3\n\t"
         "and	r8, r8, #3\n\t"
         "adds	r4, r4, %[notLast]\n\t"
         "lsr	%[notLast], %[notLast], #2\n\t"

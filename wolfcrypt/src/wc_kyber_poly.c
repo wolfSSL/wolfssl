@@ -182,7 +182,7 @@ const sword16 zetas_inv[KYBER_N / 2] = {
         "SSUB16     " #a ", " #a ", r10\n\t"
 
 
-#if !(defined(__thumb__) || (defined(__aarch64__)) && defined(WOLFSSL_ARMASM))
+#if !defined(WOLFSSL_ARMASM)
 /* Number-Theoretic Transform.
  *
  * @param  [in, out]  r  Polynomial to transform.
@@ -2154,7 +2154,7 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
 }
 #endif
 
-#if !(defined(WOLFSSL_ARMASM) && (defined(__aarch64__) || defined(__thumb__)))
+#if !defined(WOLFSSL_ARMASM)
 /* Rejection sampling on uniform random bytes to generate uniform random
  * integers mod q.
  *
@@ -3350,7 +3350,7 @@ int kyber_cmp(const byte* a, const byte* b, int sz)
 
 /******************************************************************************/
 
-#if !(defined(__thumb__) || (defined(__aarch64__)) && defined(WOLFSSL_ARMASM))
+#if !defined(WOLFSSL_ARMASM)
 
 /* Conditional subtraction of q to each coefficient of a polynomial.
  *
@@ -3371,9 +3371,13 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
 
 #define kyber_csubq_c   kyber_csubq_neon
 
-#else
+#elif defined(__thumb__)
 
 #define kyber_csubq_c   kyber_thumb2_csubq
+
+#else
+
+#define kyber_csubq_c   kyber_arm32_csubq
 
 #endif
 
