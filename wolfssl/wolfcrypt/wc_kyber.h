@@ -320,12 +320,28 @@ WOLFSSL_LOCAL void kyber_to_msg_neon(byte* msg, sword16* p);
 WOLFSSL_LOCAL void kyber_thumb2_ntt(sword16* r);
 WOLFSSL_LOCAL void kyber_thumb2_invntt(sword16* r);
 WOLFSSL_LOCAL void kyber_thumb2_basemul_mont(sword16* r, const sword16* a,
-     const sword16* b);
+    const sword16* b);
 WOLFSSL_LOCAL void kyber_thumb2_basemul_mont_add(sword16* r, const sword16* a,
-     const sword16* b);
+    const sword16* b);
 WOLFSSL_LOCAL void kyber_thumb2_csubq(sword16* p);
 WOLFSSL_LOCAL unsigned int kyber_thumb2_rej_uniform(sword16* p,
     unsigned int len, const byte* r, unsigned int rLen);
+#elif defined(WOLFSSL_ARMASM)
+#define kyber_ntt                   kyber_arm32_ntt
+#define kyber_invntt                kyber_arm32_invntt
+#define kyber_basemul_mont          kyber_arm32_basemul_mont
+#define kyber_basemul_mont_add      kyber_arm32_basemul_mont_add
+#define kyber_rej_uniform_c         kyber_arm32_rej_uniform
+
+WOLFSSL_LOCAL void kyber_arm32_ntt(sword16* r);
+WOLFSSL_LOCAL void kyber_arm32_invntt(sword16* r);
+WOLFSSL_LOCAL void kyber_arm32_basemul_mont(sword16* r, const sword16* a,
+    const sword16* b);
+WOLFSSL_LOCAL void kyber_arm32_basemul_mont_add(sword16* r, const sword16* a,
+    const sword16* b);
+WOLFSSL_LOCAL void kyber_arm32_csubq(sword16* p);
+WOLFSSL_LOCAL unsigned int kyber_arm32_rej_uniform(sword16* p, unsigned int len,
+    const byte* r, unsigned int rLen);
 #endif
 
 #ifdef __cplusplus

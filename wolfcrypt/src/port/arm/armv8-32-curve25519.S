@@ -617,7 +617,7 @@ fe_cmov_table:
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r3, r2, #24
-	asr	r3, r2, #31
+	asr	r3, r3, #31
 #else
 	sbfx	r3, r2, #7, #1
 #endif
@@ -1045,7 +1045,7 @@ fe_cmov_table:
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r3, r2, #24
-	asr	r3, r2, #31
+	asr	r3, r3, #31
 #else
 	sbfx	r3, r2, #7, #1
 #endif
@@ -1474,7 +1474,7 @@ fe_cmov_table:
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r3, r2, #24
-	asr	r3, r2, #31
+	asr	r3, r3, #31
 #else
 	sbfx	r3, r2, #7, #1
 #endif
@@ -1903,7 +1903,7 @@ fe_cmov_table:
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r3, r2, #24
-	asr	r3, r2, #31
+	asr	r3, r3, #31
 #else
 	sbfx	r3, r2, #7, #1
 #endif
@@ -2346,7 +2346,7 @@ fe_cmov_table:
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	lsl	r3, r2, #24
-	asr	r3, r2, #31
+	asr	r3, r3, #31
 #else
 	sbfx	r3, r2, #7, #1
 #endif
@@ -3418,7 +3418,11 @@ fe_mul121666:
 #else
 	mov	r10, #0xdb42
 #endif
-	movt	r10, #1
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x10000
+#else
+	movt	r10, #0x1
+#endif
 #endif
 	umull	r2, r12, r10, r2
 	umull	r3, lr, r10, r3
@@ -3485,7 +3489,11 @@ fe_mul121666:
 #else
 	mov	lr, #0xdb42
 #endif
-	movt	lr, #1
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	lr, lr, #0x10000
+#else
+	movt	lr, #0x1
+#endif
 #endif
 	umull	r2, r10, lr, r2
 	sub	r12, lr, #1
@@ -5479,7 +5487,12 @@ sc_reduce:
 #else
 	mov	r10, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0xa3000000
+	orr	r10, r10, #0xa0000
+#else
 	movt	r10, #0xa30a
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xa7
@@ -5497,7 +5510,12 @@ sc_reduce:
 #else
 	mov	r11, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xa7000000
+	orr	r11, r11, #0xed0000
+#else
 	movt	r11, #0xa7ed
+#endif
 #endif
 	mov	r1, #0
 	umlal	r2, r1, r10, lr
@@ -5521,7 +5539,12 @@ sc_reduce:
 #else
 	mov	r10, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5d000000
+	orr	r10, r10, #0x80000
+#else
 	movt	r10, #0x5d08
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xeb
@@ -5539,7 +5562,12 @@ sc_reduce:
 #else
 	mov	r11, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xeb000000
+	orr	r11, r11, #0x210000
+#else
 	movt	r11, #0xeb21
+#endif
 #endif
 	adds	r4, r4, r1
 	mov	r1, #0
@@ -5575,7 +5603,12 @@ sc_reduce:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0!, {r10, r11}
@@ -5638,7 +5671,12 @@ sc_reduce:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -5695,7 +5733,12 @@ sc_reduce:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -5752,7 +5795,12 @@ sc_reduce:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -5836,7 +5884,12 @@ sc_reduce:
 #else
 	mov	r2, #0xba7d
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r2, r2, #0x4b000000
+	orr	r2, r2, #0x9e0000
+#else
 	movt	r2, #0x4b9e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r3, #0xcb
@@ -5854,7 +5907,12 @@ sc_reduce:
 #else
 	mov	r3, #0x4c63
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r3, r3, #0xcb000000
+	orr	r3, r3, #0x20000
+#else
 	movt	r3, #0xcb02
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r4, #0xd4
@@ -5872,7 +5930,12 @@ sc_reduce:
 #else
 	mov	r4, #0xf39a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r4, r4, #0xd4000000
+	orr	r4, r4, #0x5e0000
+#else
 	movt	r4, #0xd45e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r5, #2
@@ -5890,7 +5953,12 @@ sc_reduce:
 #else
 	mov	r5, #0xdf3b
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r5, r5, #0x2000000
+	orr	r5, r5, #0x9b0000
+#else
 	movt	r5, #0x29b
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r9, #0x20000
@@ -5962,7 +6030,12 @@ sc_reduce:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -5998,7 +6071,12 @@ sc_reduce:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	r10, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -6034,7 +6112,12 @@ sc_reduce:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	r11, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -6070,7 +6153,12 @@ sc_reduce:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	r12, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -6124,7 +6212,12 @@ sc_reduce:
 #else
 	mov	r10, #0xd3ed
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
 	movt	r10, #0x5cf5
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0x58
@@ -6142,7 +6235,12 @@ sc_reduce:
 #else
 	mov	r11, #0x631a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0x58000000
+	orr	r11, r11, #0x120000
+#else
 	movt	r11, #0x5812
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r12, #0xa2
@@ -6160,7 +6258,12 @@ sc_reduce:
 #else
 	mov	r12, #0x9cd6
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r12, r12, #0xa2000000
+	orr	r12, r12, #0xf70000
+#else
 	movt	r12, #0xa2f7
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	lr, #20
@@ -6178,7 +6281,12 @@ sc_reduce:
 #else
 	mov	lr, #0xf9de
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	lr, lr, #0x14000000
+	orr	lr, lr, #0xde0000
+#else
 	movt	lr, #0x14de
+#endif
 #endif
 	and	r10, r10, r1
 	and	r11, r11, r1
@@ -6256,7 +6364,12 @@ sc_reduce:
 #else
 	mov	r10, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0xa3000000
+	orr	r10, r10, #0xa0000
+#else
 	movt	r10, #0xa30a
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xa7
@@ -6274,7 +6387,12 @@ sc_reduce:
 #else
 	mov	r11, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xa7000000
+	orr	r11, r11, #0xed0000
+#else
 	movt	r11, #0xa7ed
+#endif
 #endif
 	mov	r1, #0
 	umlal	r2, r1, r10, lr
@@ -6295,7 +6413,12 @@ sc_reduce:
 #else
 	mov	r10, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5d000000
+	orr	r10, r10, #0x80000
+#else
 	movt	r10, #0x5d08
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xeb
@@ -6313,7 +6436,12 @@ sc_reduce:
 #else
 	mov	r11, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xeb000000
+	orr	r11, r11, #0x210000
+#else
 	movt	r11, #0xeb21
+#endif
 #endif
 	umaal	r4, r1, r10, lr
 	umaal	r5, r1, r11, lr
@@ -6343,7 +6471,12 @@ sc_reduce:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0!, {r10, r11}
@@ -6385,7 +6518,12 @@ sc_reduce:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -6421,7 +6559,12 @@ sc_reduce:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -6457,7 +6600,12 @@ sc_reduce:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -6520,7 +6668,12 @@ sc_reduce:
 #else
 	mov	r2, #0xba7d
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r2, r2, #0x4b000000
+	orr	r2, r2, #0x9e0000
+#else
 	movt	r2, #0x4b9e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r3, #0xcb
@@ -6538,7 +6691,12 @@ sc_reduce:
 #else
 	mov	r3, #0x4c63
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r3, r3, #0xcb000000
+	orr	r3, r3, #0x20000
+#else
 	movt	r3, #0xcb02
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r4, #0xd4
@@ -6556,7 +6714,12 @@ sc_reduce:
 #else
 	mov	r4, #0xf39a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r4, r4, #0xd4000000
+	orr	r4, r4, #0x5e0000
+#else
 	movt	r4, #0xd45e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r5, #2
@@ -6574,7 +6737,12 @@ sc_reduce:
 #else
 	mov	r5, #0xdf3b
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r5, r5, #0x2000000
+	orr	r5, r5, #0x9b0000
+#else
 	movt	r5, #0x29b
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r9, #0x20000
@@ -6646,7 +6814,12 @@ sc_reduce:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -6673,7 +6846,12 @@ sc_reduce:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	r10, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -6700,7 +6878,12 @@ sc_reduce:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	r11, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -6727,7 +6910,12 @@ sc_reduce:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	r12, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -6772,7 +6960,12 @@ sc_reduce:
 #else
 	mov	r10, #0xd3ed
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
 	movt	r10, #0x5cf5
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0x58
@@ -6790,7 +6983,12 @@ sc_reduce:
 #else
 	mov	r11, #0x631a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0x58000000
+	orr	r11, r11, #0x120000
+#else
 	movt	r11, #0x5812
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r12, #0xa2
@@ -6808,7 +7006,12 @@ sc_reduce:
 #else
 	mov	r12, #0x9cd6
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r12, r12, #0xa2000000
+	orr	r12, r12, #0xf70000
+#else
 	movt	r12, #0xa2f7
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	lr, #20
@@ -6826,7 +7029,12 @@ sc_reduce:
 #else
 	mov	lr, #0xf9de
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	lr, lr, #0x14000000
+	orr	lr, lr, #0xde0000
+#else
 	movt	lr, #0x14de
+#endif
 #endif
 	and	r10, r10, r1
 	and	r11, r11, r1
@@ -7256,7 +7464,12 @@ sc_muladd:
 #else
 	mov	r10, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0xa3000000
+	orr	r10, r10, #0xa0000
+#else
 	movt	r10, #0xa30a
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xa7
@@ -7274,7 +7487,12 @@ sc_muladd:
 #else
 	mov	r11, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xa7000000
+	orr	r11, r11, #0xed0000
+#else
 	movt	r11, #0xa7ed
+#endif
 #endif
 	mov	r1, #0
 	umlal	r2, r1, r10, lr
@@ -7298,7 +7516,12 @@ sc_muladd:
 #else
 	mov	r10, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5d000000
+	orr	r10, r10, #0x80000
+#else
 	movt	r10, #0x5d08
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xeb
@@ -7316,7 +7539,12 @@ sc_muladd:
 #else
 	mov	r11, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xeb000000
+	orr	r11, r11, #0x210000
+#else
 	movt	r11, #0xeb21
+#endif
 #endif
 	adds	r4, r4, r1
 	mov	r1, #0
@@ -7352,7 +7580,12 @@ sc_muladd:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0!, {r10, r11}
@@ -7415,7 +7648,12 @@ sc_muladd:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -7472,7 +7710,12 @@ sc_muladd:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -7529,7 +7772,12 @@ sc_muladd:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -7613,7 +7861,12 @@ sc_muladd:
 #else
 	mov	r2, #0xba7d
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r2, r2, #0x4b000000
+	orr	r2, r2, #0x9e0000
+#else
 	movt	r2, #0x4b9e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r3, #0xcb
@@ -7631,7 +7884,12 @@ sc_muladd:
 #else
 	mov	r3, #0x4c63
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r3, r3, #0xcb000000
+	orr	r3, r3, #0x20000
+#else
 	movt	r3, #0xcb02
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r4, #0xd4
@@ -7649,7 +7907,12 @@ sc_muladd:
 #else
 	mov	r4, #0xf39a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r4, r4, #0xd4000000
+	orr	r4, r4, #0x5e0000
+#else
 	movt	r4, #0xd45e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r5, #2
@@ -7667,7 +7930,12 @@ sc_muladd:
 #else
 	mov	r5, #0xdf3b
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r5, r5, #0x2000000
+	orr	r5, r5, #0x9b0000
+#else
 	movt	r5, #0x29b
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r9, #0x20000
@@ -7739,7 +8007,12 @@ sc_muladd:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -7775,7 +8048,12 @@ sc_muladd:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	r10, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -7811,7 +8089,12 @@ sc_muladd:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	r11, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -7847,7 +8130,12 @@ sc_muladd:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	r12, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -7901,7 +8189,12 @@ sc_muladd:
 #else
 	mov	r10, #0xd3ed
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
 	movt	r10, #0x5cf5
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0x58
@@ -7919,7 +8212,12 @@ sc_muladd:
 #else
 	mov	r11, #0x631a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0x58000000
+	orr	r11, r11, #0x120000
+#else
 	movt	r11, #0x5812
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r12, #0xa2
@@ -7937,7 +8235,12 @@ sc_muladd:
 #else
 	mov	r12, #0x9cd6
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r12, r12, #0xa2000000
+	orr	r12, r12, #0xf70000
+#else
 	movt	r12, #0xa2f7
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	lr, #20
@@ -7955,7 +8258,12 @@ sc_muladd:
 #else
 	mov	lr, #0xf9de
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	lr, lr, #0x14000000
+	orr	lr, lr, #0xde0000
+#else
 	movt	lr, #0x14de
+#endif
 #endif
 	and	r10, r10, r1
 	and	r11, r11, r1
@@ -8163,7 +8471,12 @@ sc_muladd:
 #else
 	mov	r10, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0xa3000000
+	orr	r10, r10, #0xa0000
+#else
 	movt	r10, #0xa30a
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xa7
@@ -8181,7 +8494,12 @@ sc_muladd:
 #else
 	mov	r11, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xa7000000
+	orr	r11, r11, #0xed0000
+#else
 	movt	r11, #0xa7ed
+#endif
 #endif
 	mov	r1, #0
 	umlal	r2, r1, r10, lr
@@ -8202,7 +8520,12 @@ sc_muladd:
 #else
 	mov	r10, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5d000000
+	orr	r10, r10, #0x80000
+#else
 	movt	r10, #0x5d08
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0xeb
@@ -8220,7 +8543,12 @@ sc_muladd:
 #else
 	mov	r11, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0xeb000000
+	orr	r11, r11, #0x210000
+#else
 	movt	r11, #0xeb21
+#endif
 #endif
 	umaal	r4, r1, r10, lr
 	umaal	r5, r1, r11, lr
@@ -8250,7 +8578,12 @@ sc_muladd:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0!, {r10, r11}
@@ -8292,7 +8625,12 @@ sc_muladd:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -8328,7 +8666,12 @@ sc_muladd:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -8364,7 +8707,12 @@ sc_muladd:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	lr, #0
 	ldm	r12, {r10, r11}
@@ -8427,7 +8775,12 @@ sc_muladd:
 #else
 	mov	r2, #0xba7d
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r2, r2, #0x4b000000
+	orr	r2, r2, #0x9e0000
+#else
 	movt	r2, #0x4b9e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r3, #0xcb
@@ -8445,7 +8798,12 @@ sc_muladd:
 #else
 	mov	r3, #0x4c63
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r3, r3, #0xcb000000
+	orr	r3, r3, #0x20000
+#else
 	movt	r3, #0xcb02
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r4, #0xd4
@@ -8463,7 +8821,12 @@ sc_muladd:
 #else
 	mov	r4, #0xf39a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r4, r4, #0xd4000000
+	orr	r4, r4, #0x5e0000
+#else
 	movt	r4, #0xd45e
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r5, #2
@@ -8481,7 +8844,12 @@ sc_muladd:
 #else
 	mov	r5, #0xdf3b
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r5, r5, #0x2000000
+	orr	r5, r5, #0x9b0000
+#else
 	movt	r5, #0x29b
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r9, #0x20000
@@ -8553,7 +8921,12 @@ sc_muladd:
 #else
 	mov	r1, #0x2c13
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa3000000
+	orr	r1, r1, #0xa0000
+#else
 	movt	r1, #0xa30a
+#endif
 #endif
 	mov	lr, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -8580,7 +8953,12 @@ sc_muladd:
 #else
 	mov	r1, #0x9ce5
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xa7000000
+	orr	r1, r1, #0xed0000
+#else
 	movt	r1, #0xa7ed
+#endif
 #endif
 	mov	r10, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -8607,7 +8985,12 @@ sc_muladd:
 #else
 	mov	r1, #0x6329
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0x5d000000
+	orr	r1, r1, #0x80000
+#else
 	movt	r1, #0x5d08
+#endif
 #endif
 	mov	r11, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -8634,7 +9017,12 @@ sc_muladd:
 #else
 	mov	r1, #0x621
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r1, r1, #0xeb000000
+	orr	r1, r1, #0x210000
+#else
 	movt	r1, #0xeb21
+#endif
 #endif
 	mov	r12, #0
 	ldm	r0, {r6, r7, r8, r9}
@@ -8679,7 +9067,12 @@ sc_muladd:
 #else
 	mov	r10, #0xd3ed
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r10, r10, #0x5c000000
+	orr	r10, r10, #0xf50000
+#else
 	movt	r10, #0x5cf5
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r11, #0x58
@@ -8697,7 +9090,12 @@ sc_muladd:
 #else
 	mov	r11, #0x631a
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r11, r11, #0x58000000
+	orr	r11, r11, #0x120000
+#else
 	movt	r11, #0x5812
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	r12, #0xa2
@@ -8715,7 +9113,12 @@ sc_muladd:
 #else
 	mov	r12, #0x9cd6
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	r12, r12, #0xa2000000
+	orr	r12, r12, #0xf70000
+#else
 	movt	r12, #0xa2f7
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	mov	lr, #20
@@ -8733,7 +9136,12 @@ sc_muladd:
 #else
 	mov	lr, #0xf9de
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+	orr	lr, lr, #0x14000000
+	orr	lr, lr, #0xde0000
+#else
 	movt	lr, #0x14de
+#endif
 #endif
 	and	r10, r10, r1
 	and	r11, r11, r1

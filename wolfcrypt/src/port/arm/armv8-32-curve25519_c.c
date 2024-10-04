@@ -697,7 +697,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r3, %[b], #24\n\t"
-        "asr	r3, %[b], #31\n\t"
+        "asr	r3, r3, #31\n\t"
 #else
         "sbfx	r3, %[b], #7, #1\n\t"
 #endif
@@ -1125,7 +1125,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r3, %[b], #24\n\t"
-        "asr	r3, %[b], #31\n\t"
+        "asr	r3, r3, #31\n\t"
 #else
         "sbfx	r3, %[b], #7, #1\n\t"
 #endif
@@ -1554,7 +1554,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r3, %[b], #24\n\t"
-        "asr	r3, %[b], #31\n\t"
+        "asr	r3, r3, #31\n\t"
 #else
         "sbfx	r3, %[b], #7, #1\n\t"
 #endif
@@ -1983,7 +1983,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r3, %[b], #24\n\t"
-        "asr	r3, %[b], #31\n\t"
+        "asr	r3, r3, #31\n\t"
 #else
         "sbfx	r3, %[b], #7, #1\n\t"
 #endif
@@ -2432,7 +2432,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "lsl	r3, %[b], #24\n\t"
-        "asr	r3, %[b], #31\n\t"
+        "asr	r3, r3, #31\n\t"
 #else
         "sbfx	r3, %[b], #7, #1\n\t"
 #endif
@@ -3528,7 +3528,11 @@ void fe_mul121666(fe r_p, fe a_p)
 #else
         "mov	r10, #0xdb42\n\t"
 #endif
-        "movt	r10, #1\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x10000\n\t"
+#else
+        "movt	r10, #0x1\n\t"
+#endif
 #endif
         "umull	r2, r12, r10, r2\n\t"
         "umull	r3, lr, r10, r3\n\t"
@@ -3600,7 +3604,11 @@ void fe_mul121666(fe r_p, fe a_p)
 #else
         "mov	lr, #0xdb42\n\t"
 #endif
-        "movt	lr, #1\n\t"
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	lr, lr, #0x10000\n\t"
+#else
+        "movt	lr, #0x1\n\t"
+#endif
 #endif
         "umull	r2, r10, lr, r2\n\t"
         "sub	r12, lr, #1\n\t"
@@ -5704,7 +5712,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r10, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0xa3000000\n\t"
+        "orr	r10, r10, #0xa0000\n\t"
+#else
         "movt	r10, #0xa30a\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xa7\n\t"
@@ -5722,7 +5735,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r11, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xa7000000\n\t"
+        "orr	r11, r11, #0xed0000\n\t"
+#else
         "movt	r11, #0xa7ed\n\t"
+#endif
 #endif
         "mov	r1, #0\n\t"
         "umlal	r2, r1, r10, lr\n\t"
@@ -5746,7 +5764,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r10, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5d000000\n\t"
+        "orr	r10, r10, #0x80000\n\t"
+#else
         "movt	r10, #0x5d08\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xeb\n\t"
@@ -5764,7 +5787,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r11, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xeb000000\n\t"
+        "orr	r11, r11, #0x210000\n\t"
+#else
         "movt	r11, #0xeb21\n\t"
+#endif
 #endif
         "adds	r4, r4, r1\n\t"
         "mov	r1, #0\n\t"
@@ -5800,7 +5828,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa3000000\n\t"
+        "orr	r1, r1, #0xa0000\n\t"
+#else
         "movt	r1, #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s]!, {r10, r11}\n\t"
@@ -5863,7 +5896,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa7000000\n\t"
+        "orr	r1, r1, #0xed0000\n\t"
+#else
         "movt	r1, #0xa7ed\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -5920,7 +5958,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0x5d000000\n\t"
+        "orr	r1, r1, #0x80000\n\t"
+#else
         "movt	r1, #0x5d08\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -5977,7 +6020,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xeb000000\n\t"
+        "orr	r1, r1, #0x210000\n\t"
+#else
         "movt	r1, #0xeb21\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -6061,7 +6109,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r2, #0xba7d\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r2, r2, #0x4b000000\n\t"
+        "orr	r2, r2, #0x9e0000\n\t"
+#else
         "movt	r2, #0x4b9e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r3, #0xcb\n\t"
@@ -6079,7 +6132,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r3, #0x4c63\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r3, r3, #0xcb000000\n\t"
+        "orr	r3, r3, #0x20000\n\t"
+#else
         "movt	r3, #0xcb02\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r4, #0xd4\n\t"
@@ -6097,7 +6155,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r4, #0xf39a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r4, r4, #0xd4000000\n\t"
+        "orr	r4, r4, #0x5e0000\n\t"
+#else
         "movt	r4, #0xd45e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r5, #2\n\t"
@@ -6115,7 +6178,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r5, #0xdf3b\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r5, r5, #0x2000000\n\t"
+        "orr	r5, r5, #0x9b0000\n\t"
+#else
         "movt	r5, #0x29b\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r9, #0x20000\n\t"
@@ -6187,7 +6255,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa3000000\n\t"
+        "orr	r1, r1, #0xa0000\n\t"
+#else
         "movt	r1, #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -6223,7 +6296,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa7000000\n\t"
+        "orr	r1, r1, #0xed0000\n\t"
+#else
         "movt	r1, #0xa7ed\n\t"
+#endif
 #endif
         "mov	r10, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -6259,7 +6337,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0x5d000000\n\t"
+        "orr	r1, r1, #0x80000\n\t"
+#else
         "movt	r1, #0x5d08\n\t"
+#endif
 #endif
         "mov	r11, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -6295,7 +6378,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xeb000000\n\t"
+        "orr	r1, r1, #0x210000\n\t"
+#else
         "movt	r1, #0xeb21\n\t"
+#endif
 #endif
         "mov	r12, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -6349,7 +6437,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r10, #0xd3ed\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
         "movt	r10, #0x5cf5\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0x58\n\t"
@@ -6367,7 +6460,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r11, #0x631a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0x58000000\n\t"
+        "orr	r11, r11, #0x120000\n\t"
+#else
         "movt	r11, #0x5812\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r12, #0xa2\n\t"
@@ -6385,7 +6483,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r12, #0x9cd6\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r12, r12, #0xa2000000\n\t"
+        "orr	r12, r12, #0xf70000\n\t"
+#else
         "movt	r12, #0xa2f7\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	lr, #20\n\t"
@@ -6403,7 +6506,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	lr, #0xf9de\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	lr, lr, #0x14000000\n\t"
+        "orr	lr, lr, #0xde0000\n\t"
+#else
         "movt	lr, #0x14de\n\t"
+#endif
 #endif
         "and	r10, r10, r1\n\t"
         "and	r11, r11, r1\n\t"
@@ -6485,7 +6593,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r10, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0xa3000000\n\t"
+        "orr	r10, r10, #0xa0000\n\t"
+#else
         "movt	r10, #0xa30a\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xa7\n\t"
@@ -6503,7 +6616,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r11, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xa7000000\n\t"
+        "orr	r11, r11, #0xed0000\n\t"
+#else
         "movt	r11, #0xa7ed\n\t"
+#endif
 #endif
         "mov	r1, #0\n\t"
         "umlal	r2, r1, r10, lr\n\t"
@@ -6524,7 +6642,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r10, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5d000000\n\t"
+        "orr	r10, r10, #0x80000\n\t"
+#else
         "movt	r10, #0x5d08\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xeb\n\t"
@@ -6542,7 +6665,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r11, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xeb000000\n\t"
+        "orr	r11, r11, #0x210000\n\t"
+#else
         "movt	r11, #0xeb21\n\t"
+#endif
 #endif
         "umaal	r4, r1, r10, lr\n\t"
         "umaal	r5, r1, r11, lr\n\t"
@@ -6572,7 +6700,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa3000000\n\t"
+        "orr	r1, r1, #0xa0000\n\t"
+#else
         "movt	r1, #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s]!, {r10, r11}\n\t"
@@ -6614,7 +6747,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa7000000\n\t"
+        "orr	r1, r1, #0xed0000\n\t"
+#else
         "movt	r1, #0xa7ed\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -6650,7 +6788,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0x5d000000\n\t"
+        "orr	r1, r1, #0x80000\n\t"
+#else
         "movt	r1, #0x5d08\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -6686,7 +6829,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xeb000000\n\t"
+        "orr	r1, r1, #0x210000\n\t"
+#else
         "movt	r1, #0xeb21\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -6749,7 +6897,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r2, #0xba7d\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r2, r2, #0x4b000000\n\t"
+        "orr	r2, r2, #0x9e0000\n\t"
+#else
         "movt	r2, #0x4b9e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r3, #0xcb\n\t"
@@ -6767,7 +6920,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r3, #0x4c63\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r3, r3, #0xcb000000\n\t"
+        "orr	r3, r3, #0x20000\n\t"
+#else
         "movt	r3, #0xcb02\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r4, #0xd4\n\t"
@@ -6785,7 +6943,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r4, #0xf39a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r4, r4, #0xd4000000\n\t"
+        "orr	r4, r4, #0x5e0000\n\t"
+#else
         "movt	r4, #0xd45e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r5, #2\n\t"
@@ -6803,7 +6966,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r5, #0xdf3b\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r5, r5, #0x2000000\n\t"
+        "orr	r5, r5, #0x9b0000\n\t"
+#else
         "movt	r5, #0x29b\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r9, #0x20000\n\t"
@@ -6875,7 +7043,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa3000000\n\t"
+        "orr	r1, r1, #0xa0000\n\t"
+#else
         "movt	r1, #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -6902,7 +7075,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xa7000000\n\t"
+        "orr	r1, r1, #0xed0000\n\t"
+#else
         "movt	r1, #0xa7ed\n\t"
+#endif
 #endif
         "mov	r10, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -6929,7 +7107,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0x5d000000\n\t"
+        "orr	r1, r1, #0x80000\n\t"
+#else
         "movt	r1, #0x5d08\n\t"
+#endif
 #endif
         "mov	r11, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -6956,7 +7139,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r1, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r1, r1, #0xeb000000\n\t"
+        "orr	r1, r1, #0x210000\n\t"
+#else
         "movt	r1, #0xeb21\n\t"
+#endif
 #endif
         "mov	r12, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -7001,7 +7189,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r10, #0xd3ed\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
         "movt	r10, #0x5cf5\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0x58\n\t"
@@ -7019,7 +7212,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r11, #0x631a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0x58000000\n\t"
+        "orr	r11, r11, #0x120000\n\t"
+#else
         "movt	r11, #0x5812\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r12, #0xa2\n\t"
@@ -7037,7 +7235,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	r12, #0x9cd6\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r12, r12, #0xa2000000\n\t"
+        "orr	r12, r12, #0xf70000\n\t"
+#else
         "movt	r12, #0xa2f7\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	lr, #20\n\t"
@@ -7055,7 +7258,12 @@ void sc_reduce(byte* s_p)
 #else
         "mov	lr, #0xf9de\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	lr, lr, #0x14000000\n\t"
+        "orr	lr, lr, #0xde0000\n\t"
+#else
         "movt	lr, #0x14de\n\t"
+#endif
 #endif
         "and	r10, r10, r1\n\t"
         "and	r11, r11, r1\n\t"
@@ -7492,7 +7700,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r10, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0xa3000000\n\t"
+        "orr	r10, r10, #0xa0000\n\t"
+#else
         "movt	r10, #0xa30a\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xa7\n\t"
@@ -7510,7 +7723,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r11, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xa7000000\n\t"
+        "orr	r11, r11, #0xed0000\n\t"
+#else
         "movt	r11, #0xa7ed\n\t"
+#endif
 #endif
         "mov	%[a], #0\n\t"
         "umlal	%[b], %[a], r10, lr\n\t"
@@ -7534,7 +7752,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r10, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5d000000\n\t"
+        "orr	r10, r10, #0x80000\n\t"
+#else
         "movt	r10, #0x5d08\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xeb\n\t"
@@ -7552,7 +7775,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r11, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xeb000000\n\t"
+        "orr	r11, r11, #0x210000\n\t"
+#else
         "movt	r11, #0xeb21\n\t"
+#endif
 #endif
         "adds	r4, r4, %[a]\n\t"
         "mov	%[a], #0\n\t"
@@ -7588,7 +7816,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa3000000\n\t"
+        "orr	%[a], %[a], #0xa0000\n\t"
+#else
         "movt	%[a], #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s]!, {r10, r11}\n\t"
@@ -7651,7 +7884,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa7000000\n\t"
+        "orr	%[a], %[a], #0xed0000\n\t"
+#else
         "movt	%[a], #0xa7ed\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -7708,7 +7946,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0x5d000000\n\t"
+        "orr	%[a], %[a], #0x80000\n\t"
+#else
         "movt	%[a], #0x5d08\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -7765,7 +8008,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xeb000000\n\t"
+        "orr	%[a], %[a], #0x210000\n\t"
+#else
         "movt	%[a], #0xeb21\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -7849,7 +8097,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[b], #0xba7d\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[b], %[b], #0x4b000000\n\t"
+        "orr	%[b], %[b], #0x9e0000\n\t"
+#else
         "movt	%[b], #0x4b9e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	%[c], #0xcb\n\t"
@@ -7867,7 +8120,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[c], #0x4c63\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[c], %[c], #0xcb000000\n\t"
+        "orr	%[c], %[c], #0x20000\n\t"
+#else
         "movt	%[c], #0xcb02\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r4, #0xd4\n\t"
@@ -7885,7 +8143,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r4, #0xf39a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r4, r4, #0xd4000000\n\t"
+        "orr	r4, r4, #0x5e0000\n\t"
+#else
         "movt	r4, #0xd45e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r5, #2\n\t"
@@ -7903,7 +8166,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r5, #0xdf3b\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r5, r5, #0x2000000\n\t"
+        "orr	r5, r5, #0x9b0000\n\t"
+#else
         "movt	r5, #0x29b\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r9, #0x20000\n\t"
@@ -7975,7 +8243,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa3000000\n\t"
+        "orr	%[a], %[a], #0xa0000\n\t"
+#else
         "movt	%[a], #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8011,7 +8284,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa7000000\n\t"
+        "orr	%[a], %[a], #0xed0000\n\t"
+#else
         "movt	%[a], #0xa7ed\n\t"
+#endif
 #endif
         "mov	r10, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8047,7 +8325,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0x5d000000\n\t"
+        "orr	%[a], %[a], #0x80000\n\t"
+#else
         "movt	%[a], #0x5d08\n\t"
+#endif
 #endif
         "mov	r11, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8083,7 +8366,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xeb000000\n\t"
+        "orr	%[a], %[a], #0x210000\n\t"
+#else
         "movt	%[a], #0xeb21\n\t"
+#endif
 #endif
         "mov	r12, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8137,7 +8425,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r10, #0xd3ed\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
         "movt	r10, #0x5cf5\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0x58\n\t"
@@ -8155,7 +8448,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r11, #0x631a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0x58000000\n\t"
+        "orr	r11, r11, #0x120000\n\t"
+#else
         "movt	r11, #0x5812\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r12, #0xa2\n\t"
@@ -8173,7 +8471,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r12, #0x9cd6\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r12, r12, #0xa2000000\n\t"
+        "orr	r12, r12, #0xf70000\n\t"
+#else
         "movt	r12, #0xa2f7\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	lr, #20\n\t"
@@ -8191,7 +8494,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	lr, #0xf9de\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	lr, lr, #0x14000000\n\t"
+        "orr	lr, lr, #0xde0000\n\t"
+#else
         "movt	lr, #0x14de\n\t"
+#endif
 #endif
         "and	r10, r10, %[a]\n\t"
         "and	r11, r11, %[a]\n\t"
@@ -8406,7 +8714,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r10, #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0xa3000000\n\t"
+        "orr	r10, r10, #0xa0000\n\t"
+#else
         "movt	r10, #0xa30a\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xa7\n\t"
@@ -8424,7 +8737,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r11, #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xa7000000\n\t"
+        "orr	r11, r11, #0xed0000\n\t"
+#else
         "movt	r11, #0xa7ed\n\t"
+#endif
 #endif
         "mov	%[a], #0\n\t"
         "umlal	%[b], %[a], r10, lr\n\t"
@@ -8445,7 +8763,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r10, #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5d000000\n\t"
+        "orr	r10, r10, #0x80000\n\t"
+#else
         "movt	r10, #0x5d08\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0xeb\n\t"
@@ -8463,7 +8786,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r11, #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0xeb000000\n\t"
+        "orr	r11, r11, #0x210000\n\t"
+#else
         "movt	r11, #0xeb21\n\t"
+#endif
 #endif
         "umaal	r4, %[a], r10, lr\n\t"
         "umaal	r5, %[a], r11, lr\n\t"
@@ -8493,7 +8821,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa3000000\n\t"
+        "orr	%[a], %[a], #0xa0000\n\t"
+#else
         "movt	%[a], #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s]!, {r10, r11}\n\t"
@@ -8535,7 +8868,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa7000000\n\t"
+        "orr	%[a], %[a], #0xed0000\n\t"
+#else
         "movt	%[a], #0xa7ed\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -8571,7 +8909,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0x5d000000\n\t"
+        "orr	%[a], %[a], #0x80000\n\t"
+#else
         "movt	%[a], #0x5d08\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -8607,7 +8950,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xeb000000\n\t"
+        "orr	%[a], %[a], #0x210000\n\t"
+#else
         "movt	%[a], #0xeb21\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	r12, {r10, r11}\n\t"
@@ -8670,7 +9018,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[b], #0xba7d\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[b], %[b], #0x4b000000\n\t"
+        "orr	%[b], %[b], #0x9e0000\n\t"
+#else
         "movt	%[b], #0x4b9e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	%[c], #0xcb\n\t"
@@ -8688,7 +9041,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[c], #0x4c63\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[c], %[c], #0xcb000000\n\t"
+        "orr	%[c], %[c], #0x20000\n\t"
+#else
         "movt	%[c], #0xcb02\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r4, #0xd4\n\t"
@@ -8706,7 +9064,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r4, #0xf39a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r4, r4, #0xd4000000\n\t"
+        "orr	r4, r4, #0x5e0000\n\t"
+#else
         "movt	r4, #0xd45e\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r5, #2\n\t"
@@ -8724,7 +9087,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r5, #0xdf3b\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r5, r5, #0x2000000\n\t"
+        "orr	r5, r5, #0x9b0000\n\t"
+#else
         "movt	r5, #0x29b\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r9, #0x20000\n\t"
@@ -8796,7 +9164,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x2c13\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa3000000\n\t"
+        "orr	%[a], %[a], #0xa0000\n\t"
+#else
         "movt	%[a], #0xa30a\n\t"
+#endif
 #endif
         "mov	lr, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8823,7 +9196,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x9ce5\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xa7000000\n\t"
+        "orr	%[a], %[a], #0xed0000\n\t"
+#else
         "movt	%[a], #0xa7ed\n\t"
+#endif
 #endif
         "mov	r10, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8850,7 +9228,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x6329\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0x5d000000\n\t"
+        "orr	%[a], %[a], #0x80000\n\t"
+#else
         "movt	%[a], #0x5d08\n\t"
+#endif
 #endif
         "mov	r11, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8877,7 +9260,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	%[a], #0x621\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	%[a], %[a], #0xeb000000\n\t"
+        "orr	%[a], %[a], #0x210000\n\t"
+#else
         "movt	%[a], #0xeb21\n\t"
+#endif
 #endif
         "mov	r12, #0\n\t"
         "ldm	%[s], {r6, r7, r8, r9}\n\t"
@@ -8922,7 +9310,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r10, #0xd3ed\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r10, r10, #0x5c000000\n\t"
+        "orr	r10, r10, #0xf50000\n\t"
+#else
         "movt	r10, #0x5cf5\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r11, #0x58\n\t"
@@ -8940,7 +9333,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r11, #0x631a\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r11, r11, #0x58000000\n\t"
+        "orr	r11, r11, #0x120000\n\t"
+#else
         "movt	r11, #0x5812\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	r12, #0xa2\n\t"
@@ -8958,7 +9356,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	r12, #0x9cd6\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	r12, r12, #0xa2000000\n\t"
+        "orr	r12, r12, #0xf70000\n\t"
+#else
         "movt	r12, #0xa2f7\n\t"
+#endif
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "mov	lr, #20\n\t"
@@ -8976,7 +9379,12 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
 #else
         "mov	lr, #0xf9de\n\t"
 #endif
+#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
+        "orr	lr, lr, #0x14000000\n\t"
+        "orr	lr, lr, #0xde0000\n\t"
+#else
         "movt	lr, #0x14de\n\t"
+#endif
 #endif
         "and	r10, r10, %[a]\n\t"
         "and	r11, r11, %[a]\n\t"
