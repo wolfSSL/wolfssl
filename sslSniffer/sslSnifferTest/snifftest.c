@@ -972,6 +972,10 @@ int main(int argc, char** argv)
     int workerThreadCount;
 #endif
 
+#ifdef DEBUG_WOLFSSL
+    wolfSSL_Debugging_ON();
+#endif
+
     show_appinfo();
 
     signal(SIGINT, sig_handler);
