@@ -18,4 +18,5 @@ jobs:
       with:
         check_filenames: true
         check_hidden: true
-        ignore_words_file: .codespellignore
+          # Add comma separated list of words to ignore
+        ignore_words_list:
