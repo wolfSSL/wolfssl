@@ -2399,7 +2399,10 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* Detect Cortex M3 (no UMAAL) */
-#if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(__ARM_ARCH_7M__)
+#if defined(__ARM_ARCH_7M__) && !defined(WOLFSSL_ARM_ARCH_7M)
+    #define WOLFSSL_ARM_ARCH_7M
+#endif
+#if defined(WOLFSSL_SP_ARM_CORTEX_M_ASM) && defined(WOLFSSL_ARM_ARCH_7M)
     #undef  WOLFSSL_SP_NO_UMAAL
     #define WOLFSSL_SP_NO_UMAAL
 #endif
