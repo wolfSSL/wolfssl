@@ -1693,15 +1693,22 @@ typedef struct w64wrapper {
         #define PRAGMA_DIAG_POP /* null expansion */
     #endif
 
-    #define WC_CPP_CAT_(a, b) a ## b
-    #define WC_CPP_CAT(a, b) WC_CPP_CAT_(a, b)
-    #if (defined(__cplusplus) && (__cplusplus >= 201103L)) || \
-          (defined(_MSVC_LANG) && (_MSVC_LANG >= 201103L))
-        #ifndef static_assert2
-            #define static_assert2 static_assert
-        #endif
-    #elif !defined(static_assert)
-        #if !defined(__cplusplus) &&                \
+    #ifndef wc_static_assert
+        #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
+               (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)) || \
+               (defined(_MSVC_LANG) && (_MSVC_LANG >= 201103L))
+            /* directly usable variadic declaration */
+            #define wc_static_assert static_assert
+            #ifndef wc_static_assert2
+                #define wc_static_assert2 static_assert
+            #endif
+        #elif defined(_MSC_VER) && (__STDC_VERSION__ >= 201112L)
+            /* native 2-argument static_assert() */
+            #define wc_static_assert(expr) static_assert(expr, #expr)
+            #ifndef wc_static_assert2
+                #define wc_static_assert2(expr, msg) static_assert(expr, msg)
+            #endif
+        #elif !defined(__cplusplus) &&              \
                 !defined(__STRICT_ANSI__) &&        \
                 !defined(WOLF_C89) &&               \
                 defined(__STDC_VERSION__) &&        \
@@ -1709,19 +1716,20 @@ typedef struct w64wrapper {
                 ((defined(__GNUC__) &&              \
                   (__GNUC__ >= 5)) ||               \
                  defined(__clang__))
-            #define static_assert(expr) _Static_assert(expr, #expr)
-            #ifndef static_assert2
-                #define static_assert2(expr, msg) _Static_assert(expr, msg)
+            /* native 2-argument _Static_assert() */
+            #define wc_static_assert(expr) _Static_assert(expr, #expr)
+            #ifndef wc_static_assert2
+                #define wc_static_assert2(expr, msg) _Static_assert(expr, msg)
             #endif
         #else
-            #define static_assert(expr) \
-                struct WC_CPP_CAT(wc_dummy_struct_L, __LINE__)
-            #ifndef static_assert2
-                #define static_assert2(expr, msg) static_assert(expr)
+            /* fallback -- map wc_static_assert*() to do-nothing. */
+            #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
+            #ifndef wc_static_assert2
+                #define wc_static_assert2(expr, msg) wc_static_assert(expr)
             #endif
         #endif
-    #elif !defined(static_assert2)
-         #define static_assert2(expr, msg) static_assert(expr)
+    #elif !defined(wc_static_assert2)
+         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
     #endif
 
     #ifndef SAVE_VECTOR_REGISTERS

@@ -841,11 +841,11 @@ static void render_error_message(const char* msg, wc_test_ret_t es)
  * stores an error string in the supplied buffer.  this is all most
  * infelicitous...
  */
-#if !defined(STRING_USER) && !defined(NO_ERROR_STRINGS) &&      \
+#if !defined(STRING_USER) && !defined(NO_ERROR_STRINGS) &&              \
     (defined(__STDC_VERSION__) && (__STDC_VERSION__ > 199901L)) &&      \
-    ((defined(__GLIBC__) && (__GLIBC__ >= 2)) ||                \
-     (defined(__USE_XOPEN2K) &&                                 \
-      defined(_POSIX_C_SOURCE) &&                               \
+    ((defined(__GLIBC__) && (__GLIBC__ >= 2) && defined(__USE_GNU)) ||  \
+     (defined(__USE_XOPEN2K) &&                                         \
+      defined(_POSIX_C_SOURCE) &&                                       \
       (_POSIX_C_SOURCE >= 200112L)))
 
         char errno_buf[64], *errno_string;
