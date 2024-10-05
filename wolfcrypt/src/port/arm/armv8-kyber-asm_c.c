@@ -12411,7 +12411,7 @@ void kyber_sha3_blocksx3_neon(word64* state)
         "eor	x25, x25, x28\n\t"
         "eor	x24, x24, %x[state]\n\t"
         "eor	x26, x26, x30\n\t"
-        /* Done tranforming */
+        /* Done transforming */
         "ldp	x27, x28, [x29, #48]\n\t"
         "ldr	%x[state], [x27], #8\n\t"
         "subs	x28, x28, #1\n\t"
@@ -12732,7 +12732,7 @@ void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	x26, x26, x28\n\t"
         "eor	x25, x25, %x[state]\n\t"
         "eor	x27, x27, x30\n\t"
-        /* Done tranforming */
+        /* Done transforming */
         "ldp	x28, %x[seed], [x29, #48]\n\t"
         "ldr	%x[state], [x28], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
@@ -13053,7 +13053,7 @@ void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	x26, x26, x28\n\t"
         "eor	x25, x25, %x[state]\n\t"
         "eor	x27, x27, x30\n\t"
-        /* Done tranforming */
+        /* Done transforming */
         "ldp	x28, %x[seed], [x29, #48]\n\t"
         "ldr	%x[state], [x28], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
@@ -13438,7 +13438,7 @@ void kyber_sha3_blocksx3_neon(word64* state)
         "eor	v22.16b, v22.16b, v27.16b\n\t"
         "eor	v23.16b, v23.16b, v28.16b\n\t"
         "eor	v24.16b, v24.16b, v29.16b\n\t"
-        /* Done tranforming */
+        /* Done transforming */
         "ldp	x27, x28, [x29, #48]\n\t"
         "ldr	%x[state], [x27], #8\n\t"
         "subs	x28, x28, #1\n\t"
@@ -13844,7 +13844,7 @@ void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v22.16b, v22.16b, v27.16b\n\t"
         "eor	v23.16b, v23.16b, v28.16b\n\t"
         "eor	v24.16b, v24.16b, v29.16b\n\t"
-        /* Done tranforming */
+        /* Done transforming */
         "ldp	x28, %x[seed], [x29, #48]\n\t"
         "ldr	%x[state], [x28], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
@@ -14250,7 +14250,7 @@ void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed)
         "eor	v22.16b, v22.16b, v27.16b\n\t"
         "eor	v23.16b, v23.16b, v28.16b\n\t"
         "eor	v24.16b, v24.16b, v29.16b\n\t"
-        /* Done tranforming */
+        /* Done transforming */
         "ldp	x28, %x[seed], [x29, #48]\n\t"
         "ldr	%x[state], [x28], #8\n\t"
         "subs	%x[seed], %x[seed], #1\n\t"
