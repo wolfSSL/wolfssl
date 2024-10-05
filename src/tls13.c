@@ -12797,7 +12797,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #ifdef WOLFSSL_QUIC
                 if (WOLFSSL_IS_QUIC(ssl) && ssl->earlyData != no_early_data) {
                     /* QUIC never sends/receives EndOfEarlyData, but having
-                     * early data means the last encrpytion keys had not been
+                     * early data means the last encryption keys had not been
                      * set yet. */
                     if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
                         return ret;
