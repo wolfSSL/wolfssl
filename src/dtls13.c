@@ -71,7 +71,7 @@ typedef struct Dtls13HandshakeHeader {
     byte fragmentLength[3];
 } Dtls13HandshakeHeader;
 
-static_assert(sizeof(Dtls13HandshakeHeader) == DTLS13_HANDSHAKE_HEADER_SZ);
+wc_static_assert(sizeof(Dtls13HandshakeHeader) == DTLS13_HANDSHAKE_HEADER_SZ);
 
 /**
  * struct Dtls13Recordplaintextheader: represent header of unprotected DTLSv1.3

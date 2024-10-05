@@ -2071,18 +2071,9 @@ enum Misc {
 
 #define MAX_ENCRYPT_SZ ENCRYPT_LEN
 
-/* A static check to assert a relation between x and y */
-#define WOLFSSL_ASSERT_TEST(x, y, op) do {         \
-    typedef char _args_test_[(x) op (y) ? 1 : -1]; \
-    (void)sizeof(_args_test_);                     \
-} while(0)
+#define WOLFSSL_ASSERT_EQ(x, y) wc_static_assert((x) == (y))
 
-#define WOLFSSL_ASSERT_EQ(x, y) WOLFSSL_ASSERT_TEST(x, y, ==)
-
-#define WOLFSSL_ASSERT_SIZEOF_TEST(x, y, op) \
-    WOLFSSL_ASSERT_TEST(sizeof(x), sizeof(y), op)
-
-#define WOLFSSL_ASSERT_SIZEOF_GE(x, y) WOLFSSL_ASSERT_SIZEOF_TEST(x, y, >=)
+#define WOLFSSL_ASSERT_SIZEOF_GE(x, y) wc_static_assert(sizeof(x) >= sizeof(y))
 
 /* states. Adding state before HANDSHAKE_DONE will break session importing */
 enum states {

@@ -2923,8 +2923,7 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
 static int wolfssl_aes_set_key(const unsigned char *key, const int bits,
     AES_KEY *aes, int enc)
 {
-    typedef char aes_test[sizeof(AES_KEY) >= sizeof(Aes) ? 1 : -1];
-    (void)sizeof(aes_test);
+    wc_static_assert(sizeof(AES_KEY) >= sizeof(Aes));
 
     /* Validate parameters. */
     if ((key == NULL) || (aes == NULL)) {
@@ -3438,8 +3437,7 @@ size_t wolfSSL_CRYPTO_cts128_decrypt(const unsigned char *in,
 void wolfSSL_RC4_set_key(WOLFSSL_RC4_KEY* key, int len,
     const unsigned char* data)
 {
-    typedef char rc4_test[sizeof(WOLFSSL_RC4_KEY) >= sizeof(Arc4) ? 1 : -1];
-    (void)sizeof(rc4_test);
+    wc_static_assert(sizeof(WOLFSSL_RC4_KEY) >= sizeof(Arc4));
 
     WOLFSSL_ENTER("wolfSSL_RC4_set_key");
 
