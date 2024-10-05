@@ -15913,8 +15913,8 @@ static wc_test_ret_t aesccm_128_test(void)
     XMEMSET(p2, 0, sizeof(p2));
     XMEMSET(iv2, 0, sizeof(iv2));
 
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     enc = wc_AesNew(HEAP_HINT, devId);
     if (enc == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_EC(MEMORY_E), out);

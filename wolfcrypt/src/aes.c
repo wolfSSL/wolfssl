@@ -14060,11 +14060,16 @@ static WARN_UNUSED_RESULT int AesSivCipher(
         }
     }
 
-    aes->isAllocated = 0;
-    wc_AesFree(aes);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    if (aes != NULL)
 #endif
+    {
+        aes->isAllocated = 0;
+        wc_AesFree(aes);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    #endif
+    }
 
     return ret;
 }
