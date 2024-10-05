@@ -116,7 +116,7 @@ Possible IO enable options:
  *
  * DTLS_RECEIVEFROM_NO_TIMEOUT_ON_INVALID_PEER: This flag has effect only if
  * ASN_NO_TIME is enabled. If enabled invalid peers messages are ignored
- * indefinetely. If not enabled EmbedReceiveFrom will return timeout after
+ * indefinitely. If not enabled EmbedReceiveFrom will return timeout after
  * DTLS_RECEIVEFROM_MAX_INVALID_PEER number of packets from invalid peers. When
  * enabled, without a timer, EmbedReceivefrom can't check if the timeout is
  * expired and it may never return under a continuous flow of invalid packets.

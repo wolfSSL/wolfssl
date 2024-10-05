@@ -2332,7 +2332,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff, long sz,
     #endif
     }
     else if (ret == 0) {
-        /* Processing a cerificate. */
+        /* Processing a certificate. */
         if (userChain) {
             /* Take original buffer and add to user chain to send in TLS
              * handshake. */
@@ -2707,7 +2707,7 @@ static int wolfssl_ctx_load_path(WOLFSSL_CTX* ctx, const char* path,
             /* Load file. */
             ret = wolfssl_ctx_load_path_file(ctx, name, verify, (int)flags,
                 &failCount, &successCount);
-            /* Get next filenmae. */
+            /* Get next filename. */
             fileRet = wc_ReadDirNext(readCtx, path, &name);
         }
         /* Cleanup directory reading context. */
@@ -4791,7 +4791,7 @@ int wolfSSL_CTX_add1_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
         /* Use the certificate. */
         ret = wolfSSL_CTX_use_certificate(ctx, x509);
     }
-    /* Increate reference count as we will store it. */
+    /* Increase reference count as we will store it. */
     else if ((ret == 1) && ((ret = wolfSSL_X509_up_ref(x509)) == 1)) {
         /* Load the DER encoding. */
         ret = wolfSSL_CTX_load_verify_buffer(ctx, x509->derCert->buffer,
@@ -5001,7 +5001,7 @@ int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX *ctx, int derSz,
     if ((ctx == NULL) || (der == NULL)) {
         ret = 0;
     }
-    /* Load DER encoded cerificate into SSL context. */
+    /* Load DER encoded certificate into SSL context. */
     if ((ret == 1) && (wolfSSL_CTX_use_certificate_buffer(ctx, der, derSz,
             WOLFSSL_FILETYPE_ASN1) != 1)) {
         ret = 0;
@@ -5060,7 +5060,7 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
     }
 
     if (ret == 1) {
-        /* Load DER encoded cerificate into SSL context. */
+        /* Load DER encoded certificate into SSL context. */
         ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, der, derSize,
             SSL_FILETYPE_ASN1);
         if (ret != WOLFSSL_SUCCESS) {
