@@ -10495,20 +10495,15 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                                const WOLFSSL_EVP_MD* md)
     {
         int ret = WOLFSSL_SUCCESS;
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        wc_static_assert(WC_ASYNC_DEV_SIZE >= sizeof(WC_ASYNC_DEV));
+    #endif
 
         WOLFSSL_ENTER("EVP_DigestInit");
 
         if (ctx == NULL) {
             return WOLFSSL_FAILURE;
         }
-
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        /* compile-time validation of ASYNC_CTX_SIZE */
-        typedef char async_test[WC_ASYNC_DEV_SIZE >= sizeof(WC_ASYNC_DEV) ?
-                                                                        1 : -1];
-        (void)sizeof(async_test);
-    #endif
 
         /* Set to 0 if no match */
         ctx->macType = EvpMd2MacType(md);

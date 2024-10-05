@@ -1693,11 +1693,16 @@ typedef struct w64wrapper {
         #define PRAGMA_DIAG_POP /* null expansion */
     #endif
 
-    #ifndef wc_static_assert
+    #define WC_CPP_CAT_(a, b) a ## b
+    #define WC_CPP_CAT(a, b) WC_CPP_CAT_(a, b)
+    #if defined(WC_NO_STATIC_ASSERT)
+        #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
+        #define wc_static_assert2(expr, msg) wc_static_assert(expr)
+    #elif !defined(wc_static_assert)
         #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
                (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)) || \
                (defined(_MSVC_LANG) && (_MSVC_LANG >= 201103L))
-            /* directly usable variadic declaration */
+            /* native variadic static_assert() */
             #define wc_static_assert static_assert
             #ifndef wc_static_assert2
                 #define wc_static_assert2 static_assert
@@ -1722,8 +1727,11 @@ typedef struct w64wrapper {
                 #define wc_static_assert2(expr, msg) _Static_assert(expr, msg)
             #endif
         #else
-            /* fallback -- map wc_static_assert*() to do-nothing. */
-            #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
+            /* C89-compatible fallback */
+            #define wc_static_assert(expr)                                     \
+                struct WC_CPP_CAT(wc_static_assert_dummy_struct_L, __LINE__) { \
+                    char t[(expr) ? 1 : -1];                                   \
+                }
             #ifndef wc_static_assert2
                 #define wc_static_assert2(expr, msg) wc_static_assert(expr)
             #endif
