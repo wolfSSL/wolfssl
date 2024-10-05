@@ -17,4 +17,4 @@ jobs:
         check_filenames: true
         check_hidden: true
           # Add comma separated list of words to ignore (sorted alphabetically, case sensitive)
-        ignore_words_list: adin,ADn,aNULL,carryIn,cconfiguration,ciph,cLen,cliKs,ede,Fo,haveA,larg,LEAPYEAR,inCreated,parm,parms,rIn,ser,siz,Te,te,TOOM,vie
+        ignore_words_list: adin,ADn,aNULL,carryIn,cconfiguration,ciph,cLen,cliKs,creen,ede,Fo,haveA,hashIn,larg,LEAPYEAR,inCreated,inOut,inout,Merget,parm,parms,rIn,ser,siz,Te,te,TOOM,userA,vie,vlaue
