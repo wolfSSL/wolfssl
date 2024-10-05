@@ -420,7 +420,7 @@ L_SHA3_transform_base_begin:
 	eor	x25, x25, x28
 	eor	x24, x24, x0
 	eor	x26, x26, x30
-	# Done tranforming
+	# Done transforming
 	ldp	x27, x28, [x29, #48]
 	ldr	x0, [x27], #8
 	subs	x28, x28, #1

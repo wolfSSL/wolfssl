@@ -8045,7 +8045,7 @@ L_SHA3_transform_blocksx3_neon_begin:
 	eor	x25, x25, x28
 	eor	x24, x24, x0
 	eor	x26, x26, x30
-	# Done tranforming
+	# Done transforming
 	ldp	x27, x28, [x29, #48]
 	ldr	x0, [x27], #8
 	subs	x28, x28, #1
@@ -8392,7 +8392,7 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 	eor	x26, x26, x28
 	eor	x25, x25, x0
 	eor	x27, x27, x30
-	# Done tranforming
+	# Done transforming
 	ldp	x28, x1, [x29, #48]
 	ldr	x0, [x28], #8
 	subs	x1, x1, #1
@@ -8739,7 +8739,7 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	eor	x26, x26, x28
 	eor	x25, x25, x0
 	eor	x27, x27, x30
-	# Done tranforming
+	# Done transforming
 	ldp	x28, x1, [x29, #48]
 	ldr	x0, [x28], #8
 	subs	x1, x1, #1
@@ -9150,7 +9150,7 @@ L_SHA3_transform_blocksx3_neon_begin:
 	eor	v22.16b, v22.16b, v27.16b
 	eor	v23.16b, v23.16b, v28.16b
 	eor	v24.16b, v24.16b, v29.16b
-	# Done tranforming
+	# Done transforming
 	ldp	x27, x28, [x29, #48]
 	ldr	x0, [x27], #8
 	subs	x28, x28, #1
@@ -9582,7 +9582,7 @@ L_SHA3_shake128_blocksx3_seed_neon_begin:
 	eor	v22.16b, v22.16b, v27.16b
 	eor	v23.16b, v23.16b, v28.16b
 	eor	v24.16b, v24.16b, v29.16b
-	# Done tranforming
+	# Done transforming
 	ldp	x28, x1, [x29, #48]
 	ldr	x0, [x28], #8
 	subs	x1, x1, #1
@@ -10014,7 +10014,7 @@ L_SHA3_shake256_blocksx3_seed_neon_begin:
 	eor	v22.16b, v22.16b, v27.16b
 	eor	v23.16b, v23.16b, v28.16b
 	eor	v24.16b, v24.16b, v29.16b
-	# Done tranforming
+	# Done transforming
 	ldp	x28, x1, [x29, #48]
 	ldr	x0, [x28], #8
 	subs	x1, x1, #1
