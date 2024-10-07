@@ -17,7 +17,7 @@ jobs:
         check_filenames: true
         check_hidden: true
           # Add comma separated list of words to ignore (sorted alphabetically, case sensitive)
-        ignore_words_list: adin,ADn,alph,aNULL,carryIn,cconfiguration,chainG,ciph,cLen,cliKs,creen,dout,ede,endianess,Endianess,Fo,haveA,hashIn,larg,LEAPYEAR,inCreated,inOut,inout,Merget,mot,optionA,optmization,parm,parms,rIn,rsource,ser,siz,Te,te,TOOM,userA,vie,vlaue
+        ignore_words_list: adin,ADn,alph,aNULL,carryIn,cconfiguration,chainG,ciph,cLen,cliKs,creen,dout,ede,Fo,haveA,hashIn,larg,LEAPYEAR,inCreated,inOut,inout,Merget,mot,optionA,parm,parms,rIn,rsource,ser,siz,Te,te,TOOM,userA,vie
         exclude_file:
            ./IDE/ECLIPSE/DEOS/tls_wolfssl.c
           ,./IDE/ECLIPSE/MICRIUM/client_wolfssl.c
