@@ -10505,6 +10505,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
             return WOLFSSL_FAILURE;
         }
 
+        wolfSSL_EVP_MD_CTX_init(ctx);
+
         /* Set to 0 if no match */
         ctx->macType = EvpMd2MacType(md);
         if (md == NULL) {
