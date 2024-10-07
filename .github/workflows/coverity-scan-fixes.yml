@@ -1,4 +1,4 @@
-name: Coverity Scan master branch on a weekly basis
+name: Coverity Scan master branch on a daily basis
 
 on:
   workflow_dispatch:
