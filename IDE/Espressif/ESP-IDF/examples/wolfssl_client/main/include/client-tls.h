@@ -87,7 +87,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args);
 
 /* init will create an RTOS task, otherwise server is simply function call. */
 #if defined(SINGLE_THREADED)
-    /* no init neded */
+    /* no init needed */
 #else
     WOLFSSL_ESP_TASK tls_smp_client_init(void* args);
 #endif
