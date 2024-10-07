@@ -6,8 +6,14 @@ on:
   pull_request:
     branches: [ '*' ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
 jobs:
   codespell:
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
