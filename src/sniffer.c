@@ -6022,8 +6022,7 @@ static int CheckSequence(IpInfo* ipInfo, TcpInfo* tcpInfo,
 /* returns 0 on success (continue), -1 on error, 1 on success (end) */
 static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
                           const byte** sslFrame, SnifferSession** pSession,
-                          int* sslBytes, const byte** end,
-                          void* vChain, word32 chainSz, char* error)
+                          int* sslBytes, const byte** end, char* error)
 {
     word32 length;
     SnifferSession* session = *pSession;
@@ -6093,53 +6092,12 @@ static int CheckPreRecord(IpInfo* ipInfo, TcpInfo* tcpInfo,
                 return WOLFSSL_FATAL_ERROR;
             }
         }
-        if (vChain == NULL) {
-            XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
-                    *sslFrame, *sslBytes);
-            *sslBytes += length;
-            ssl->buffers.inputBuffer.length = *sslBytes;
-            *sslFrame = ssl->buffers.inputBuffer.buffer;
-            *end = *sslFrame + *sslBytes;
-        }
-        else {
-    #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
-            struct iovec* chain = (struct iovec*)vChain;
-            word32 i, offset, headerSz, qty, remainder;
-
-            Trace(CHAIN_INPUT_STR);
-            headerSz = (word32)((const byte*)*sslFrame - (const byte*)chain[0].iov_base);
-            remainder = *sslBytes;
-
-            if ( (*sslBytes + length) > ssl->buffers.inputBuffer.bufferSize) {
-                if (GrowInputBuffer(ssl, *sslBytes, length) < 0) {
-                    SetError(MEMORY_STR, error, session, FATAL_ERROR_STATE);
-                    return WOLFSSL_FATAL_ERROR;
-                }
-            }
-
-            qty = min(*sslBytes, (word32)chain[0].iov_len - headerSz);
-            XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
-                (byte*)chain[0].iov_base + headerSz, qty);
-            offset = length;
-            for (i = 1; i < chainSz; i++) {
-                offset += qty;
-                remainder -= qty;
-
-                if (chain[i].iov_len > remainder)
-                    qty = remainder;
-                else
-                    qty = (word32)chain[i].iov_len;
-                XMEMCPY(ssl->buffers.inputBuffer.buffer + offset,
-                        chain[i].iov_base, qty);
-            }
-
-            *sslBytes += length;
-            ssl->buffers.inputBuffer.length = *sslBytes;
-            *sslFrame = ssl->buffers.inputBuffer.buffer;
-            *end = *sslFrame + *sslBytes;
-    #endif
-            (void)chainSz;
-        }
+        XMEMCPY(&ssl->buffers.inputBuffer.buffer[length],
+                *sslFrame, *sslBytes);
+        *sslBytes += length;
+        ssl->buffers.inputBuffer.length = *sslBytes;
+        *sslFrame = ssl->buffers.inputBuffer.buffer;
+        *end = *sslFrame + *sslBytes;
     }
 
     if (session->flags.clientHello == 0 && **sslFrame != handshake) {
@@ -6620,7 +6578,6 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
     int               sslBytes;                /* ssl bytes unconsumed */
     int               ret;
     SnifferSession*   session = NULL;
-    void* vChain = NULL;
     word32 chainSz = 0;
 
     if (isChain) {
@@ -6628,10 +6585,9 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
         struct iovec* chain;
         word32 i;
 
-        vChain = (void*)packet;
         chainSz = (word32)length;
 
-        chain = (struct iovec*)vChain;
+        chain = (struct iovec*)packet;
         length = 0;
         for (i = 0; i < chainSz; i++) length += chain[i].iov_len;
 
@@ -6714,7 +6670,7 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
     }
 
     ret = CheckPreRecord(&ipInfo, &tcpInfo, &sslFrame, &session, &sslBytes,
-                         &end, vChain, chainSz, error);
+                         &end, error);
     if (RemoveFatalSession(&ipInfo, &tcpInfo, session, error)) {
         ret = WOLFSSL_SNIFFER_FATAL_ERROR;
         goto exit_decode;
