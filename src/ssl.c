@@ -3304,6 +3304,11 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_P256_KYBER_LEVEL1:
         case WOLFSSL_P384_KYBER_LEVEL3:
         case WOLFSSL_P521_KYBER_LEVEL5:
+        case WOLFSSL_P384_KYBER_LEVEL5:
+        case WOLFSSL_X25519_KYBER_LEVEL1:
+        case WOLFSSL_X448_KYBER_LEVEL3:
+        case WOLFSSL_X25519_KYBER_LEVEL3:
+        case WOLFSSL_P256_KYBER_LEVEL3:
     #endif
 #endif
             return 1;
@@ -14467,37 +14472,67 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
      * check to override this result in the case of a hybrid. */
     if (IsAtLeastTLSv1_3(ssl->version)) {
         switch (ssl->namedGroup) {
-#ifdef HAVE_LIBOQS
-        case WOLFSSL_KYBER_LEVEL1:
-            return "KYBER_LEVEL1";
-        case WOLFSSL_KYBER_LEVEL3:
-            return "KYBER_LEVEL3";
-        case WOLFSSL_KYBER_LEVEL5:
-            return "KYBER_LEVEL5";
-        case WOLFSSL_P256_KYBER_LEVEL1:
-            return "P256_KYBER_LEVEL1";
-        case WOLFSSL_P384_KYBER_LEVEL3:
-            return "P384_KYBER_LEVEL3";
-        case WOLFSSL_P521_KYBER_LEVEL5:
-            return "P521_KYBER_LEVEL5";
-#elif defined(WOLFSSL_WC_KYBER)
+#if defined(WOLFSSL_WC_KYBER)
     #ifdef WOLFSSL_KYBER512
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
         case WOLFSSL_P256_KYBER_LEVEL1:
             return "P256_KYBER_LEVEL1";
+        #ifdef HAVE_CURVE25519
+        case WOLFSSL_X25519_KYBER_LEVEL1:
+            return "X25519_KYBER_LEVEL1";
+        #endif
     #endif
     #ifdef WOLFSSL_KYBER768
         case WOLFSSL_KYBER_LEVEL3:
             return "KYBER_LEVEL3";
         case WOLFSSL_P384_KYBER_LEVEL3:
             return "P384_KYBER_LEVEL3";
+        case WOLFSSL_P256_KYBER_LEVEL3:
+            return "P256_KYBER_LEVEL3";
+        #ifdef HAVE_CURVE25519
+        case WOLFSSL_X25519_KYBER_LEVEL3:
+            return "X25519_KYBER_LEVEL3";
+        #endif
+        #ifdef HAVE_CURVE448
+        case WOLFSSL_X448_KYBER_LEVEL3:
+            return "X448_KYBER_LEVEL3";
+        #endif
     #endif
     #ifdef WOLFSSL_KYBER1024
         case WOLFSSL_KYBER_LEVEL5:
             return "KYBER_LEVEL5";
         case WOLFSSL_P521_KYBER_LEVEL5:
             return "P521_KYBER_LEVEL5";
+        case WOLFSSL_P384_KYBER_LEVEL5:
+            return "P384_KYBER_LEVEL5";
+    #endif
+#elif defined (HAVE_LIBOQS)
+        case WOLFSSL_KYBER_LEVEL1:
+            return "KYBER_LEVEL1";
+        case WOLFSSL_KYBER_LEVEL3:
+            return "KYBER_LEVEL3";
+        case WOLFSSL_KYBER_LEVEL5:
+            return "KYBER_LEVEL5";
+        case WOLFSSL_P256_KYBER_LEVEL1:
+            return "P256_KYBER_LEVEL1";
+        case WOLFSSL_P384_KYBER_LEVEL3:
+            return "P384_KYBER_LEVEL3";
+        case WOLFSSL_P256_KYBER_LEVEL3:
+            return "P256_KYBER_LEVEL3";
+        case WOLFSSL_P521_KYBER_LEVEL5:
+            return "P521_KYBER_LEVEL5";
+        case WOLFSSL_P384_KYBER_LEVEL5:
+            return "P384_KYBER_LEVEL5";
+    #ifdef HAVE_CURVE25519
+        case WOLFSSL_X25519_KYBER_LEVEL1:
+            return "X25519_KYBER_LEVEL1";
+        case WOLFSSL_X25519_KYBER_LEVEL3:
+            return "X25519_KYBER_LEVEL3";
+    #endif
+    #ifdef HAVE_CURVE448
+        case WOLFSSL_X448_KYBER_LEVEL3:
+            return "X448_KYBER_LEVEL3";
     #endif
 #endif
         }
@@ -21809,7 +21844,12 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
 #if (defined(WOLFSSL_WC_KYBER) || defined(HAVE_LIBOQS)) && defined(HAVE_ECC)
     {CURVE_NAME("P256_KYBER_LEVEL1"), WOLFSSL_P256_KYBER_LEVEL1, WOLFSSL_P256_KYBER_LEVEL1},
     {CURVE_NAME("P384_KYBER_LEVEL3"), WOLFSSL_P384_KYBER_LEVEL3, WOLFSSL_P256_KYBER_LEVEL1},
+    {CURVE_NAME("P256_KYBER_LEVEL3"), WOLFSSL_P256_KYBER_LEVEL3, WOLFSSL_P256_KYBER_LEVEL1},
     {CURVE_NAME("P521_KYBER_LEVEL5"), WOLFSSL_P521_KYBER_LEVEL5, WOLFSSL_P256_KYBER_LEVEL1},
+    {CURVE_NAME("P384_KYBER_LEVEL5"), WOLFSSL_P384_KYBER_LEVEL5, WOLFSSL_P256_KYBER_LEVEL1},
+    {CURVE_NAME("X25519_KYBER_LEVEL1"), WOLFSSL_X25519_KYBER_LEVEL1, WOLFSSL_P256_KYBER_LEVEL1},
+    {CURVE_NAME("X448_KYBER_LEVEL3"), WOLFSSL_X448_KYBER_LEVEL3, WOLFSSL_P256_KYBER_LEVEL1},
+    {CURVE_NAME("X25519_KYBER_LEVEL3"), WOLFSSL_X25519_KYBER_LEVEL3, WOLFSSL_P256_KYBER_LEVEL1},
 #endif
 #endif
 #ifdef WOLFSSL_SM2

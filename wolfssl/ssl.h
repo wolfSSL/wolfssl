@@ -4113,51 +4113,54 @@ enum {
     WOLFSSL_FFDHE_8192    = 260,
 
 #ifdef HAVE_PQC
-    /* These group numbers were taken from OQS's openssl provider, see:
-     * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
-     * oqs-kem-info.md.
-     *
-     * The levels in the group name refer to the claimed NIST level of each
-     * parameter set. The associated parameter set name is listed as a comment
-     * beside the group number. Please see the NIST PQC Competition's submitted
-     * papers for more details.
-     *
-     * LEVEL1 means that an attack on that parameter set would require the same
-     * or more resources as a key search on AES 128. LEVEL3 would require the
-     * same or more resources as a key search on AES 192. LEVEL5 would require
-     * the same or more resources as a key search on AES 256. None of the
-     * algorithms have LEVEL2 and LEVEL4 because none of these submissions
-     * included them. */
 
-#ifndef WOLFSSL_ML_KEM
-    WOLFSSL_PQC_MIN               = 570,
-    WOLFSSL_PQC_SIMPLE_MIN        = 570,
+#ifdef WOLFSSL_KYBER_ORIGINAL
+    /* Old code points to keep compatibility with Kyber Round 3.
+     * To be removed in the future.
+     * Taken from OQS's openssl provider, see:
+     * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
+     *      oqs-kem-info.md
+     */
     WOLFSSL_KYBER_LEVEL1          = 570, /* KYBER_512 */
     WOLFSSL_KYBER_LEVEL3          = 572, /* KYBER_768 */
     WOLFSSL_KYBER_LEVEL5          = 573, /* KYBER_1024 */
-    WOLFSSL_PQC_SIMPLE_MAX        = 573,
 
-    WOLFSSL_PQC_HYBRID_MIN        = 12090,
     WOLFSSL_P256_KYBER_LEVEL1     = 12090,
     WOLFSSL_P384_KYBER_LEVEL3     = 12092,
     WOLFSSL_P521_KYBER_LEVEL5     = 12093,
-    WOLFSSL_PQC_HYBRID_MAX        = 12093,
-    WOLFSSL_PQC_MAX               = 12093,
-#else
-    WOLFSSL_PQC_MIN               = 583,
-    WOLFSSL_PQC_SIMPLE_MIN        = 583,
-    WOLFSSL_KYBER_LEVEL1          = 583, /* ML-KEM 512 */
-    WOLFSSL_KYBER_LEVEL3          = 584, /* ML-KEM 768 */
-    WOLFSSL_KYBER_LEVEL5          = 585, /* ML-KEM 1024 */
-    WOLFSSL_PQC_SIMPLE_MAX        = 585,
+    WOLFSSL_P384_KYBER_LEVEL5     = 12094, /* Not defined in OQS! */
+    WOLFSSL_X25519_KYBER_LEVEL1   = 12089,
+    WOLFSSL_X448_KYBER_LEVEL3     = 12176,
+    WOLFSSL_X25519_KYBER_LEVEL3   = 25497,
+    WOLFSSL_P256_KYBER_LEVEL3     = 25498,
 
-    WOLFSSL_PQC_HYBRID_MIN        = 12103,
-    WOLFSSL_P256_KYBER_LEVEL1     = 12103,
-    WOLFSSL_P384_KYBER_LEVEL3     = 12104,
-    WOLFSSL_P521_KYBER_LEVEL5     = 12105,
-    WOLFSSL_PQC_HYBRID_MAX        = 12105,
-    WOLFSSL_PQC_MAX               = 12105,
-#endif /* WOLFSSL_ML_KEM */
+#else
+    /* Taken from OQS's openssl provider, see:
+     * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
+     *      oqs-kem-info.md
+     */
+    WOLFSSL_KYBER_LEVEL1          = 586,  /* ML-KEM 512 */
+    WOLFSSL_KYBER_LEVEL3          = 1896, /* ML-KEM 768 */
+    WOLFSSL_KYBER_LEVEL5          = 4132, /* ML-KEM 1024 */
+
+    /* Taken from draft-kwiatkowski-tls-ecdhe-mlkem. see:
+     * https://github.com/post-quantum-cryptography/
+     *      draft-kwiatkowski-tls-ecdhe-mlkem/
+     */
+    WOLFSSL_P256_KYBER_LEVEL3     = 4587,
+    WOLFSSL_X25519_KYBER_LEVEL3   = 4588,
+    WOLFSSL_P384_KYBER_LEVEL5     = 4589,
+
+    /* Taken from OQS's openssl provider, see:
+     * https://github.com/open-quantum-safe/oqs-provider/blob/main/oqs-template/
+     *      oqs-kem-info.md
+     */
+    WOLFSSL_P256_KYBER_LEVEL1     = 12107,
+    WOLFSSL_P384_KYBER_LEVEL3     = 12108,
+    WOLFSSL_P521_KYBER_LEVEL5     = 12109,
+    WOLFSSL_X25519_KYBER_LEVEL1   = 12214,
+    WOLFSSL_X448_KYBER_LEVEL3     = 12215,
+#endif /* WOLFSSL_KYBER_ORIGINAL */
 #endif /* HAVE_PQC */
 };
 
