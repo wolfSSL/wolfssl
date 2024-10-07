@@ -786,7 +786,7 @@
     /***** END CONFIG_IDF_TARGET_ESP8684 *****/
 
 #else
-    /* Anything else encountered, disable HW accleration */
+    /* Anything else encountered, disable HW acceleration */
     #warning "Unexpected CONFIG_IDF_TARGET_NN value"
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
