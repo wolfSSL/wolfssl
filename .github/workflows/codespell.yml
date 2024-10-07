@@ -24,5 +24,8 @@ jobs:
         check_hidden: true
           # Add comma separated list of words to ignore (sorted alphabetically, case sensitive)
         ignore_words_list: adin,ADn,alph,aNULL,carryIn,cconfiguration,chainG,ciph,cLen,cliKs,creen,dout,ede,Fo,haveA,hashIn,larg,LEAPYEAR,inCreated,inOut,inout,Merget,mot,optionA,parm,parms,repid,rIn,rsource,ser,siz,Te,te,TOOM,userA,vie
-        exclude_file: ./IDE/ECLIPSE/DEOS/tls_wolfssl.c,./IDE/ECLIPSE/MICRIUM/client_wolfssl.c,./IDE/IAR-MSP430/main.c,./tests/api.c
+          # tls_wolfssl.c, client_wolfssl.c have a PEM as a byte array with word looking things
+          # IDE/IAR-MSP430/main.c has Ipsum Lorem which has word looking things
+          # tests/api.c has ASCII encoded strings with line-wraps
+        exclude_file: './IDE/ECLIPSE/DEOS/tls_wolfssl.c,./IDE/ECLIPSE/MICRIUM/client_wolfssl.c,./IDE/IAR-MSP430/main.c,./tests/api.c'
         skip: '*.cproject,*.der,*.pem'
