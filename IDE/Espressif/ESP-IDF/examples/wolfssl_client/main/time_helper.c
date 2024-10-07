@@ -204,7 +204,7 @@ int set_time_from_string(const char* time_buffer)
     int quote_offset = 0;
     int ret = 0;
 
-    /* perform some basic sanity checkes */
+    /* perform some basic sanity checks */
     ret = probably_valid_time_string(time_buffer);
     if (ret == ESP_OK) {
         /* we are expecting the string to be encapsulated in single quotes */
