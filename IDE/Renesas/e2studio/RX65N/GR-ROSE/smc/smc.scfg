@@ -564,125 +564,125 @@
             <allocatable id="TMR0">
                 <isocket id="CountingClock" selection="Clock.tool_clock_pclkb" value="3.0E7"/>
                 <option enabled="true" id="CountMode" selection="8bitMode">
-                    <item id="8bitMode" input="" vlaue="0"/>
-                    <item id="16bitMode" input="" vlaue="0"/>
+                    <item id="8bitMode" input="" value="0"/>
+                    <item id="16bitMode" input="" value="0"/>
                 </option>
                 <option enabled="true" id="ClockSourceOption" selection="PCLK">
-                    <item id="PCLK" input="" vlaue="0"/>
-                    <item id="PCLK2" input="" vlaue="0"/>
-                    <item id="PCLK8" input="" vlaue="0"/>
-                    <item id="PCLK32" input="" vlaue="0"/>
-                    <item id="PCLK64" input="" vlaue="0"/>
-                    <item id="PCLK1024" input="" vlaue="0"/>
-                    <item id="PCLK8192" input="" vlaue="0"/>
-                    <item id="ExternalClockRising" input="" vlaue="0"/>
-                    <item id="ExternalClockFalling" input="" vlaue="0"/>
-                    <item id="ExternalClockBoth" input="" vlaue="0"/>
+                    <item id="PCLK" input="" value="0"/>
+                    <item id="PCLK2" input="" value="0"/>
+                    <item id="PCLK8" input="" value="0"/>
+                    <item id="PCLK32" input="" value="0"/>
+                    <item id="PCLK64" input="" value="0"/>
+                    <item id="PCLK1024" input="" value="0"/>
+                    <item id="PCLK8192" input="" value="0"/>
+                    <item id="ExternalClockRising" input="" value="0"/>
+                    <item id="ExternalClockFalling" input="" value="0"/>
+                    <item id="ExternalClockBoth" input="" value="0"/>
                 </option>
                 <option enabled="true" id="CounterClearOption" selection="Disabled">
-                    <item id="Disabled" input="" vlaue="0"/>
-                    <item id="ClearedMatchA" input="" vlaue="0"/>
-                    <item id="ClearedMatchB" input="" vlaue="0"/>
-                    <item id="ClearedRisingReset" input="" vlaue="0"/>
-                    <item id="ClearedResetHigh" input="" vlaue="0"/>
+                    <item id="Disabled" input="" value="0"/>
+                    <item id="ClearedMatchA" input="" value="0"/>
+                    <item id="ClearedMatchB" input="" value="0"/>
+                    <item id="ClearedRisingReset" input="" value="0"/>
+                    <item id="ClearedResetHigh" input="" value="0"/>
                 </option>
                 <option enabled="true" id="CompareMatchAValue" selection="CompareMatchAValue">
-                    <item id="CompareMatchAValue" input="2" vlaue="59"/>
+                    <item id="CompareMatchAValue" input="2" value="59"/>
                 </option>
                 <option enabled="true" id="MatchValueOptionA" selection="us">
-                    <item id="ms" input="" vlaue="0"/>
-                    <item id="us" input="" vlaue="0"/>
-                    <item id="ns" input="" vlaue="0"/>
-                    <item id="count" input="" vlaue="0"/>
+                    <item id="ms" input="" value="0"/>
+                    <item id="us" input="" value="0"/>
+                    <item id="ns" input="" value="0"/>
+                    <item id="count" input="" value="0"/>
                 </option>
                 <option enabled="true" id="S12ADEnable" selection="Disable">
-                    <item id="Disable" input="" vlaue="0"/>
-                    <item id="Enable" input="" vlaue="0"/>
+                    <item id="Disable" input="" value="0"/>
+                    <item id="Enable" input="" value="0"/>
                 </option>
                 <option enabled="true" id="CompareMatchBValue" selection="CompareMatchBValue">
-                    <item id="CompareMatchBValue" input="2" vlaue="59"/>
+                    <item id="CompareMatchBValue" input="2" value="59"/>
                 </option>
                 <option enabled="true" id="TMO0OutputEnable" selection="Disable">
-                    <item id="Disable" input="" vlaue="0"/>
-                    <item id="Enable" input="" vlaue="0"/>
+                    <item id="Disable" input="" value="0"/>
+                    <item id="Enable" input="" value="0"/>
                 </option>
                 <option enabled="true" id="OutputMatchA" selection="Nochange">
-                    <item id="Nochange" input="" vlaue="0"/>
-                    <item id="Output0" input="" vlaue="0"/>
-                    <item id="Output1" input="" vlaue="0"/>
-                    <item id="ToggleOutput" input="" vlaue="0"/>
+                    <item id="Nochange" input="" value="0"/>
+                    <item id="Output0" input="" value="0"/>
+                    <item id="Output1" input="" value="0"/>
+                    <item id="ToggleOutput" input="" value="0"/>
                 </option>
                 <option enabled="true" id="OutputMatchB" selection="Nochange">
-                    <item id="Nochange" input="" vlaue="0"/>
-                    <item id="Output0" input="" vlaue="0"/>
-                    <item id="Output1" input="" vlaue="0"/>
-                    <item id="ToggleOutput" input="" vlaue="0"/>
+                    <item id="Nochange" input="" value="0"/>
+                    <item id="Output0" input="" value="0"/>
+                    <item id="Output1" input="" value="0"/>
+                    <item id="ToggleOutput" input="" value="0"/>
                 </option>
                 <option enabled="true" id="TCORAEnable" selection="Disable">
-                    <item id="Disable" input="" vlaue="0"/>
-                    <item id="Enable" input="" vlaue="0"/>
+                    <item id="Disable" input="" value="0"/>
+                    <item id="Enable" input="" value="0"/>
                 </option>
                 <option enabled="true" id="TCORAOption" selection="Level15">
-                    <item id="Level0" input="" vlaue="0"/>
-                    <item id="Level1" input="" vlaue="0"/>
-                    <item id="Level2" input="" vlaue="0"/>
-                    <item id="Level3" input="" vlaue="0"/>
-                    <item id="Level4" input="" vlaue="0"/>
-                    <item id="Level5" input="" vlaue="0"/>
-                    <item id="Level6" input="" vlaue="0"/>
-                    <item id="Level7" input="" vlaue="0"/>
-                    <item id="Level8" input="" vlaue="0"/>
-                    <item id="Level9" input="" vlaue="0"/>
-                    <item id="Level10" input="" vlaue="0"/>
-                    <item id="Level11" input="" vlaue="0"/>
-                    <item id="Level12" input="" vlaue="0"/>
-                    <item id="Level13" input="" vlaue="0"/>
-                    <item id="Level14" input="" vlaue="0"/>
-                    <item id="Level15" input="" vlaue="0"/>
+                    <item id="Level0" input="" value="0"/>
+                    <item id="Level1" input="" value="0"/>
+                    <item id="Level2" input="" value="0"/>
+                    <item id="Level3" input="" value="0"/>
+                    <item id="Level4" input="" value="0"/>
+                    <item id="Level5" input="" value="0"/>
+                    <item id="Level6" input="" value="0"/>
+                    <item id="Level7" input="" value="0"/>
+                    <item id="Level8" input="" value="0"/>
+                    <item id="Level9" input="" value="0"/>
+                    <item id="Level10" input="" value="0"/>
+                    <item id="Level11" input="" value="0"/>
+                    <item id="Level12" input="" value="0"/>
+                    <item id="Level13" input="" value="0"/>
+                    <item id="Level14" input="" value="0"/>
+                    <item id="Level15" input="" value="0"/>
                 </option>
                 <option enabled="true" id="TCORBEnable" selection="Disable">
-                    <item id="Disable" input="" vlaue="0"/>
-                    <item id="Enable" input="" vlaue="0"/>
+                    <item id="Disable" input="" value="0"/>
+                    <item id="Enable" input="" value="0"/>
                 </option>
                 <option enabled="true" id="TCORBOption" selection="Level15">
-                    <item id="Level0" input="" vlaue="0"/>
-                    <item id="Level1" input="" vlaue="0"/>
-                    <item id="Level2" input="" vlaue="0"/>
-                    <item id="Level3" input="" vlaue="0"/>
-                    <item id="Level4" input="" vlaue="0"/>
-                    <item id="Level5" input="" vlaue="0"/>
-                    <item id="Level6" input="" vlaue="0"/>
-                    <item id="Level7" input="" vlaue="0"/>
-                    <item id="Level8" input="" vlaue="0"/>
-                    <item id="Level9" input="" vlaue="0"/>
-                    <item id="Level10" input="" vlaue="0"/>
-                    <item id="Level11" input="" vlaue="0"/>
-                    <item id="Level12" input="" vlaue="0"/>
-                    <item id="Level13" input="" vlaue="0"/>
-                    <item id="Level14" input="" vlaue="0"/>
-                    <item id="Level15" input="" vlaue="0"/>
+                    <item id="Level0" input="" value="0"/>
+                    <item id="Level1" input="" value="0"/>
+                    <item id="Level2" input="" value="0"/>
+                    <item id="Level3" input="" value="0"/>
+                    <item id="Level4" input="" value="0"/>
+                    <item id="Level5" input="" value="0"/>
+                    <item id="Level6" input="" value="0"/>
+                    <item id="Level7" input="" value="0"/>
+                    <item id="Level8" input="" value="0"/>
+                    <item id="Level9" input="" value="0"/>
+                    <item id="Level10" input="" value="0"/>
+                    <item id="Level11" input="" value="0"/>
+                    <item id="Level12" input="" value="0"/>
+                    <item id="Level13" input="" value="0"/>
+                    <item id="Level14" input="" value="0"/>
+                    <item id="Level15" input="" value="0"/>
                 </option>
                 <option enabled="true" id="TCNTEnable" selection="Disable">
-                    <item id="Disable" input="" vlaue="0"/>
-                    <item id="Enable" input="" vlaue="0"/>
+                    <item id="Disable" input="" value="0"/>
+                    <item id="Enable" input="" value="0"/>
                 </option>
                 <option enabled="true" id="TCNTOption" selection="Level15">
-                    <item id="Level0" input="" vlaue="0"/>
-                    <item id="Level1" input="" vlaue="0"/>
-                    <item id="Level2" input="" vlaue="0"/>
-                    <item id="Level3" input="" vlaue="0"/>
-                    <item id="Level4" input="" vlaue="0"/>
-                    <item id="Level5" input="" vlaue="0"/>
-                    <item id="Level6" input="" vlaue="0"/>
-                    <item id="Level7" input="" vlaue="0"/>
-                    <item id="Level8" input="" vlaue="0"/>
-                    <item id="Level9" input="" vlaue="0"/>
-                    <item id="Level10" input="" vlaue="0"/>
-                    <item id="Level11" input="" vlaue="0"/>
-                    <item id="Level12" input="" vlaue="0"/>
-                    <item id="Level13" input="" vlaue="0"/>
-                    <item id="Level14" input="" vlaue="0"/>
-                    <item id="Level15" input="" vlaue="0"/>
+                    <item id="Level0" input="" value="0"/>
+                    <item id="Level1" input="" value="0"/>
+                    <item id="Level2" input="" value="0"/>
+                    <item id="Level3" input="" value="0"/>
+                    <item id="Level4" input="" value="0"/>
+                    <item id="Level5" input="" value="0"/>
+                    <item id="Level6" input="" value="0"/>
+                    <item id="Level7" input="" value="0"/>
+                    <item id="Level8" input="" value="0"/>
+                    <item id="Level9" input="" value="0"/>
+                    <item id="Level10" input="" value="0"/>
+                    <item id="Level11" input="" value="0"/>
+                    <item id="Level12" input="" value="0"/>
+                    <item id="Level13" input="" value="0"/>
+                    <item id="Level14" input="" value="0"/>
+                    <item id="Level15" input="" value="0"/>
                 </option>
             </allocatable>
             <component description="このソフトウェアコンポーネントは、8 ビットタイマ（TMR）の構成を提供します。&#10;&#10;外部イベントのカウントが可能なほか、2 本のレジスタとのコンペアマッチ信号により、カウンタのクリア、割り込み要求、任意のデューティ比のパルス出力など、多機能タイマとして種々の応用が可能です。" detailDescription="" display="8 ビットタイマ" id="com.renesas.smc.tools.swcomponent.codegenerator.tmr" version="1.10.0"/>
