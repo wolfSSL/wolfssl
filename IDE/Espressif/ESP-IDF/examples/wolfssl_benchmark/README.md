@@ -66,7 +66,7 @@ See the [feature request](https://sysprogs.com/w/forums/topic/feature-request-sh
     1-1. Example Configuration ->
 
     BENCH_ARG : argument that you want to use. Default is "-lng 0"
-    The list of argument can be find in help.
+    The list of arguments can be found in help.
 
 When you want to run the benchmark program
 
