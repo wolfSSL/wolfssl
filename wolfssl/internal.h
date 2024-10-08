@@ -2240,9 +2240,13 @@ WOLFSSL_LOCAL void FreeAsyncCtx(WOLFSSL* ssl, byte freeAsync);
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL void FreeSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz);
-WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str, word32 strLen);
+WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len,
+                                   const char* str, word32 strLen,
+                                   unsigned int flags);
 #if !defined(NO_CERTS) && !defined(NO_ASN)
-WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen, int* checkCN);
+WOLFSSL_LOCAL int  CheckForAltNames(DecodedCert* dCert, const char* domain,
+                                    word32 domainLen, int* checkCN,
+                                    unsigned int flags);
 WOLFSSL_LOCAL int  CheckIPAddr(DecodedCert* dCert, const char* ipasc);
 WOLFSSL_LOCAL void CopyDecodedName(WOLFSSL_X509_NAME* name, DecodedCert* dCert, int nameType);
 #endif
@@ -6252,7 +6256,7 @@ WOLFSSL_API   void SSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
 
     #ifndef NO_ASN
     WOLFSSL_LOCAL int CheckHostName(DecodedCert* dCert, const char *domainName,
-                                    size_t domainNameLen);
+                                    size_t domainNameLen, unsigned int flags);
     #endif
 #endif
 

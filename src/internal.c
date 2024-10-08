@@ -12508,16 +12508,20 @@ int CipherRequires(byte first, byte second, int requirement)
 
 #ifndef NO_CERTS
 
-
 /* Match names with wildcards, each wildcard can represent a single name
    component or fragment but not multiple names, i.e.,
    *.z.com matches y.z.com but not x.y.z.com
 
+   If flags contains WOLFSSL_LEFT_MOST_WILDCARD_ONLY, wildcard only applies
+   to left-most name component, compatible with RFC 2830 identity checking.
+
    return 1 on success */
 int MatchDomainName(const char* pattern, int patternLen, const char* str,
-                    word32 strLen)
+                    word32 strLen, unsigned int flags)
 {
     int ret = 0;
+    byte wildcardEligible = 1;
+    byte leftWildcardOnly = flags & WOLFSSL_LEFT_MOST_WILDCARD_ONLY;
 
     if (pattern == NULL || str == NULL || patternLen <= 0 || strLen == 0)
         return 0;
@@ -12530,10 +12534,15 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
 
         pattern++;
 
-        if (p == '*') {
+        if ((p == '*') && wildcardEligible) {
             char s;
             /* We will always match '*' */
             patternLen--;
+
+            /* Only single wildcard allowed with strict left only */
+            if (leftWildcardOnly) {
+                wildcardEligible = 0;
+            }
 
             /* Consume any extra '*' chars until the next non '*' char. */
             while (patternLen > 0) {
@@ -12543,6 +12552,10 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
                     return 0;
                 if (p != '*')
                     break;
+                if (leftWildcardOnly && (p == '*')) {
+                    /* RFC2830 only allows single left-most wildcard */
+                    return 0;
+                }
 
                 patternLen--;
             }
@@ -12574,6 +12587,11 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
             }
         }
         else {
+            /* Past left-most wildcard location, not eligible if flag set*/
+            if (leftWildcardOnly && wildcardEligible) {
+                wildcardEligible = 0;
+            }
+
             /* Simple case, pattern match exactly */
             if (p != (char)XTOLOWER((unsigned char) *str))
                 return 0;
@@ -12605,7 +12623,7 @@ int MatchDomainName(const char* pattern, int patternLen, const char* str,
  *          -1 : No matches and wild pattern match failed.
  */
 int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
-                     int* checkCN)
+                     int* checkCN, unsigned int flags)
 {
     int match = 0;
     DNS_entry* altName = NULL;
@@ -12636,7 +12654,7 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
             len = (word32)altName->len;
         }
 
-        if (MatchDomainName(buf, (int)len, domain, domainLen)) {
+        if (MatchDomainName(buf, (int)len, domain, domainLen, flags)) {
             match = 1;
             if (checkCN != NULL) {
                 *checkCN = 0;
@@ -12665,13 +12683,14 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
  * domainNameLen  The length of the domain name.
  * returns DOMAIN_NAME_MISMATCH when no match found and 0 on success.
  */
-int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameLen)
+int CheckHostName(DecodedCert* dCert, const char *domainName,
+                  size_t domainNameLen, unsigned int flags)
 {
     int checkCN;
     int ret = WC_NO_ERR_TRACE(DOMAIN_NAME_MISMATCH);
 
     if (CheckForAltNames(dCert, domainName, (word32)domainNameLen,
-                                            &checkCN) != 1) {
+                                            &checkCN, flags) != 1) {
         ret = DOMAIN_NAME_MISMATCH;
         WOLFSSL_MSG("DomainName match on alt names failed");
     }
@@ -12682,7 +12701,7 @@ int CheckHostName(DecodedCert* dCert, const char *domainName, size_t domainNameL
 #ifndef WOLFSSL_HOSTNAME_VERIFY_ALT_NAME_ONLY
     if (checkCN == 1) {
         if (MatchDomainName(dCert->subjectCN, dCert->subjectCNLen,
-                            domainName, (word32)domainNameLen) == 1) {
+                            domainName, (word32)domainNameLen, flags) == 1) {
             ret = 0;
         }
         else {
@@ -12699,7 +12718,7 @@ int CheckIPAddr(DecodedCert* dCert, const char* ipasc)
 {
     WOLFSSL_MSG("Checking IPAddr");
 
-    return CheckHostName(dCert, ipasc, (size_t)XSTRLEN(ipasc));
+    return CheckHostName(dCert, ipasc, (size_t)XSTRLEN(ipasc), 0);
 }
 
 
@@ -13843,7 +13862,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
             /* If altNames names is present, then subject common name is ignored */
             if (args->dCert->altNames != NULL) {
                 if (CheckForAltNames(args->dCert, ssl->param->hostName,
-                    (word32)XSTRLEN(ssl->param->hostName), NULL) != 1) {
+                    (word32)XSTRLEN(ssl->param->hostName), NULL, 0) != 1) {
                     if (cert_err == 0) {
                         ret = DOMAIN_NAME_MISMATCH;
                         WOLFSSL_ERROR_VERBOSE(ret);
@@ -13857,7 +13876,7 @@ int DoVerifyCallback(WOLFSSL_CERT_MANAGER* cm, WOLFSSL* ssl, int cert_err,
                             args->dCert->subjectCN,
                             args->dCert->subjectCNLen,
                             ssl->param->hostName,
-                            (word32)XSTRLEN(ssl->param->hostName)) == 0) {
+                            (word32)XSTRLEN(ssl->param->hostName), 0) == 0) {
                         if (cert_err == 0) {
                             ret = DOMAIN_NAME_MISMATCH;
                             WOLFSSL_ERROR_VERBOSE(ret);
@@ -15747,7 +15766,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 (ssl->buffers.domainName.buffer == NULL ? 0 :
                                 (word32)XSTRLEN(
                                 (const char *)ssl->buffers.domainName.buffer)),
-                                NULL) != 1) {
+                                NULL, 0) != 1) {
                             WOLFSSL_MSG("DomainName match on alt names failed");
                             /* try to get peer key still */
                             ret = DOMAIN_NAME_MISMATCH;
@@ -15762,7 +15781,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 (ssl->buffers.domainName.buffer == NULL ? 0 :
                                 (word32)XSTRLEN(
                                 (const char *)ssl->buffers.domainName.buffer)
-                                )) == 0)
+                                ), 0) == 0)
                         {
                             WOLFSSL_MSG("DomainName match on common name failed");
                             ret = DOMAIN_NAME_MISMATCH;
@@ -15775,14 +15794,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 args->dCert->subjectCNLen,
                                 (char*)ssl->buffers.domainName.buffer,
                                 (ssl->buffers.domainName.buffer == NULL ? 0 :
-                                (word32)XSTRLEN(ssl->buffers.domainName.buffer))) == 0)
+                                (word32)XSTRLEN(ssl->buffers.domainName.buffer)), 0) == 0)
                     {
                         WOLFSSL_MSG("DomainName match on common name failed");
                         if (CheckForAltNames(args->dCert,
                                  (char*)ssl->buffers.domainName.buffer,
                                  (ssl->buffers.domainName.buffer == NULL ? 0 :
                                  (word32)XSTRLEN(ssl->buffers.domainName.buffer)),
-                                 NULL) != 1) {
+                                 NULL, 0) != 1) {
                             WOLFSSL_MSG(
                                 "DomainName match on alt names failed too");
                             /* try to get peer key still */

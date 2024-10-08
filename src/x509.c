@@ -14338,7 +14338,6 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
     WOLFSSL_ENTER("wolfSSL_X509_check_host");
 
     /* flags and peername not needed for Nginx. */
-    (void)flags;
     (void)peername;
 
     if ((x == NULL) || (chk == NULL)) {
@@ -14390,7 +14389,7 @@ int wolfSSL_X509_check_host(WOLFSSL_X509 *x, const char *chk, size_t chklen,
         chklen--;
     }
 
-    ret = CheckHostName(dCert, (char *)chk, chklen);
+    ret = CheckHostName(dCert, (char *)chk, chklen, flags);
 
 out:
 
