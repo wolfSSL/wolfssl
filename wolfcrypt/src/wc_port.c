@@ -365,6 +365,13 @@ int wolfCrypt_Init(void)
             return ret;
         }
     #endif
+    #if defined(HAVE_OID_ENCODING) && (!defined(HAVE_FIPS) || \
+            (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0)))
+        if ((ret = wc_ecc_oid_cache_init()) != 0) {
+            WOLFSSL_MSG("Error creating ECC oid cache");
+            return ret;
+        }
+    #endif
 #endif
 
 #ifdef WOLFSSL_SCE
@@ -455,6 +462,10 @@ int wolfCrypt_Cleanup(void)
     #endif
     #ifdef ECC_CACHE_CURVE
         wc_ecc_curve_cache_free();
+    #endif
+    #if defined(HAVE_OID_ENCODING) && (!defined(HAVE_FIPS) || \
+            (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(6,0)))
+        wc_ecc_oid_cache_free();
     #endif
 #endif /* HAVE_ECC */
 
