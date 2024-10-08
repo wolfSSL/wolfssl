@@ -14133,6 +14133,8 @@ static int test_wolfSSL_X509_ACERT_asn(void)
         /* This cert has a 65 byte attributes field. */
         ExpectNotNull(acert->rawAttr);
         ExpectIntEQ(acert->rawAttrLen, 65);
+
+        wc_FreeDecodedAcert(acert);
     }
 
     #ifdef WOLFSSL_SMALL_STACK
