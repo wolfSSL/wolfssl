@@ -22,10 +22,9 @@ jobs:
       with:
         check_filenames: true
         check_hidden: true
-          # Add comma separated list of words to ignore (sorted alphabetically, case sensitive)
-        ignore_words_list: adin,ADn,alph,aNULL,carryIn,cconfiguration,chainG,ciph,cLen,cliKs,creen,dout,ede,Fo,haveA,hashIn,larg,LEAPYEAR,inCreated,inOut,inout,Merget,mot,optionA,parm,parms,repid,rIn,rsource,ser,siz,Te,te,TOOM,userA,vie
-          # tls_wolfssl.c, client_wolfssl.c have a PEM as a byte array with word looking things
-          # IDE/IAR-MSP430/main.c has Ipsum Lorem which has word looking things
-          # tests/api.c has ASCII encoded strings with line-wraps
-        exclude_file: './IDE/ECLIPSE/DEOS/tls_wolfssl.c,./IDE/ECLIPSE/MICRIUM/client_wolfssl.c,./IDE/IAR-MSP430/main.c,./tests/api.c'
-        skip: '*.cproject,*.der,*.pem'
+          # Add comma separated list of words that occur multiple times that should be ignored (sorted alphabetically, case sensitive)
+        ignore_words_list: adin,aNULL,carryIn,chainG,ciph,cLen,cliKs,dout,haveA,inCreated,inOut,inout,larg,LEAPYEAR,Merget,optionA,parm,parms,repid,rIn,userA,ser,siz,te,Te
+          # The exclude_file contains lines of code that should be ignored. This is useful for individual lines which have non-words that can safely be ignored.
+        exclude_file: '.codespellexclude'
+          # To skip files entirely from being processed, add it to the following list:
+        skip: '*.cproject,*.der,*.mtpj,*.pem,*.vcxproj'
