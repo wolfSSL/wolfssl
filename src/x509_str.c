@@ -869,6 +869,7 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
                 store->lookup.dirs = NULL;
             }
 #endif
+            wolfSSL_RefFree(&store->ref);
             XFREE(store, NULL, DYNAMIC_TYPE_X509_STORE);
         }
     }
