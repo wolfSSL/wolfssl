@@ -14033,6 +14033,13 @@ static WARN_UNUSED_RESULT int AesSivCipher(
         }
     }
 
+#ifndef WOLFSSL_SMALL_STACK
+    /* make aes has heap hint and isAllocated initialized for cleanup below */
+    if (ret != 0) {
+        XMEMSET(aes, 0, sizeof(Aes));
+    }
+#endif
+
     if (ret == 0 && dataSz > 0) {
         sivTmp[12] &= 0x7f;
         sivTmp[8] &= 0x7f;
@@ -14066,7 +14073,6 @@ static WARN_UNUSED_RESULT int AesSivCipher(
     if (aes != NULL)
 #endif
     {
-        aes->isAllocated = 0;
         wc_AesFree(aes);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(aes, NULL, DYNAMIC_TYPE_AES);
