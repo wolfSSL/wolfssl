@@ -1023,14 +1023,14 @@ int wc_ed25519_init(ed25519_key* key)
 /* clear memory of key */
 void wc_ed25519_free(ed25519_key* key)
 {
-    int isAllocated = 0;
     void* heap;
+    byte isAllocated = 0;
 
     if (key == NULL)
         return;
 
-    isAllocated = key->isAllocated;
     heap = key->heap;
+    isAllocated = key->isAllocated;
 
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     ed25519_hash_free(key, &key->sha);

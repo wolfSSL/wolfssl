@@ -125,7 +125,7 @@ typedef union {
 typedef struct {
     wc_Hashes alg;
     enum wc_HashType type; /* sanity check */
-    unsigned int isAllocated:1; /* flag indicates if structure was allocated */
+    byte isAllocated:1; /* flag indicates if structure was allocated */
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
 

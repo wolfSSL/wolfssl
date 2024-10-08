@@ -542,15 +542,15 @@ int wc_RsaGetKeyId(RsaKey* key, word32* keyId)
 int wc_FreeRsaKey(RsaKey* key)
 {
     int ret = 0;
-    int isAllocated = 0;
     void* heap;
+    byte isAllocated = 0;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    isAllocated = key->isAllocated;
     heap = key->heap;
+    isAllocated = key->isAllocated;
 
     wc_RsaCleanup(key);
 
@@ -587,7 +587,7 @@ int wc_FreeRsaKey(RsaKey* key)
     mp_clear(&key->n);
 
 #ifdef WOLFSSL_XILINX_CRYPT
-    XFREE(key->mod, key->heap, DYNAMIC_TYPE_KEY);
+    XFREE(key->mod, heap, DYNAMIC_TYPE_KEY);
     key->mod = NULL;
 #endif
 

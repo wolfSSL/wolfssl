@@ -707,14 +707,14 @@ int wc_curve25519_init(curve25519_key* key)
 /* Clean the memory of a key */
 void wc_curve25519_free(curve25519_key* key)
 {
-    int isAllocated = 0;
     void* heap;
+    byte isAllocated = 0;
 
     if (key == NULL)
        return;
 
-    isAllocated = key->isAllocated;
     heap = key->heap;
+    isAllocated = key->isAllocated;
 
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);

@@ -99,8 +99,7 @@ struct curve25519_key {
     /* bit fields */
     byte pubSet:1;
     byte privSet:1;
-
-    unsigned int isAllocated:1; /* flag indicates if structure was allocated */
+    byte isAllocated:1; /* flag indicates if structure was allocated */
 };
 
 enum {

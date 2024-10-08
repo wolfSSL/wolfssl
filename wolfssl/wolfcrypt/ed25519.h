@@ -106,10 +106,10 @@ struct ed25519_key {
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
-    unsigned int sha_clean_flag : 1;
+    byte sha_clean_flag : 1;
 #endif
     /* flag indicates if structure was allocated */
-    unsigned int isAllocated : 1;
+    byte isAllocated : 1;
 };
 
 #ifndef WC_ED25519KEY_TYPE_DEFINED

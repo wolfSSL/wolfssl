@@ -11448,16 +11448,18 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 /* Free Aes from use with async hardware */
 void wc_AesFree(Aes* aes)
 {
-    unsigned int isAllocated;
+    void* heap;
+    byte isAllocated;
 
     if (aes == NULL) {
         return;
     }
 
+    heap = aes->heap;
     isAllocated = aes->isAllocated;
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
-    (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, aes->heap, 1);
+    (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, heap, 1);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -11495,7 +11497,7 @@ void wc_AesFree(Aes* aes)
 #endif
 #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
     !defined(WOLFSSL_AESNI)
-    XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
+    XFREE(aes->streamData, heap, DYNAMIC_TYPE_AES);
     aes->streamData = NULL;
 #endif
 
@@ -11524,7 +11526,7 @@ void wc_AesFree(Aes* aes)
 #endif
 
     if (isAllocated) {
-        XFREE(aes, aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(aes, heap, DYNAMIC_TYPE_AES);
     }
 
 }

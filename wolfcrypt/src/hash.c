@@ -1041,8 +1041,8 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
 int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
 {
     int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
-    int isAllocated = 0;
     void* heap = NULL;
+    byte isAllocated = 0;
 
     if (hash == NULL)
         return BAD_FUNC_ARG;
@@ -1172,6 +1172,7 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
 
     if (isAllocated) {
         XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
+        (void)heap;
     }
 
     return ret;
