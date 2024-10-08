@@ -14071,8 +14071,7 @@ static int test_wolfSSL_X509_ACERT_buffer(void)
 static int test_wolfSSL_X509_ACERT_asn(void)
 {
     EXPECT_DECLS;
-#if defined(WOLFSSL_ACERT) && !defined(NO_CERTS) && \
-    !defined(NO_RSA) && defined(WC_RSA_PSS)
+#if defined(WOLFSSL_ACERT) && !defined(NO_CERTS)
     const byte acert_ietf[] = \
     "-----BEGIN ATTRIBUTE CERTIFICATE-----\n"
     "MIICPTCCASUCAQEwN6AWMBGkDzANMQswCQYDVQQDDAJDQQIBAqEdpBswGTEXMBUG\n"
@@ -14124,6 +14123,7 @@ static int test_wolfSSL_X509_ACERT_asn(void)
         if (der != NULL && der->buffer != NULL) {
             wc_InitDecodedAcert(acert, der->buffer, der->length, HEAP_HINT);
             rc = wc_ParseX509Acert(acert, VERIFY_SKIP_DATE);
+            ExpectIntEQ(rc, 0);
         }
 
         ExpectIntEQ(acert->serialSz, 20);
