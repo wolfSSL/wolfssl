@@ -4134,7 +4134,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
     }
 #endif
     } /* END LARGE HASH TEST */
-#undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
 exit:
