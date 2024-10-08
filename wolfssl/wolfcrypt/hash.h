@@ -93,32 +93,39 @@ enum wc_HashFlags {
     WOLF_ENUM_DUMMY_LAST_ELEMENT(WC_HASH)
 };
 
-#ifndef NO_HASH_WRAPPER
+/* hash union */
 typedef union {
-    #ifndef NO_MD5
-        wc_Md5 md5;
-    #endif
-    #ifndef NO_SHA
-        wc_Sha sha;
-    #endif
-    #ifdef WOLFSSL_SHA224
-        wc_Sha224 sha224;
-    #endif
-    #ifndef NO_SHA256
-        wc_Sha256 sha256;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        wc_Sha384 sha384;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        wc_Sha512 sha512;
-    #endif
-    #ifdef WOLFSSL_SHA3
-        wc_Sha3 sha3;
-    #endif
-    #ifdef WOLFSSL_SM3
-        wc_Sm3 sm3;
-    #endif
+#ifndef NO_MD5
+    wc_Md5 md5;
+#endif
+#ifndef NO_SHA
+    wc_Sha sha;
+#endif
+#ifdef WOLFSSL_SHA224
+    wc_Sha224 sha224;
+#endif
+#ifndef NO_SHA256
+    wc_Sha256 sha256;
+#endif
+#ifdef WOLFSSL_SHA384
+    wc_Sha384 sha384;
+#endif
+#ifdef WOLFSSL_SHA512
+    wc_Sha512 sha512;
+#endif
+#ifdef WOLFSSL_SHA3
+    wc_Sha3 sha3;
+#endif
+#ifdef WOLFSSL_SM3
+    wc_Sm3 sm3;
+#endif
+} wc_Hashes;
+
+#ifndef NO_HASH_WRAPPER
+typedef struct {
+    wc_Hashes alg;
+    enum wc_HashType type; /* sanity check */
+    byte isAllocated:1; /* flag indicates if structure was allocated */
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
 
@@ -175,6 +182,8 @@ WOLFSSL_API int wc_Hash_ex(enum wc_HashType hash_type,
     byte* hash, word32 hash_len, void* heap, int devId);
 
 /* generic hash operation wrappers */
+WOLFSSL_API wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap,
+                                   int devId);
 WOLFSSL_API int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type,
     void* heap, int devId);
 WOLFSSL_API int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type);

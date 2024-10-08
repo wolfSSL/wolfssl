@@ -106,8 +106,10 @@ struct ed25519_key {
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
-    int sha_clean_flag;
+    byte sha_clean_flag : 1;
 #endif
+    /* flag indicates if structure was allocated */
+    byte isAllocated : 1;
 };
 
 #ifndef WC_ED25519KEY_TYPE_DEFINED
@@ -175,7 +177,8 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
 #endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 #endif /* HAVE_ED25519_VERIFY */
 
-
+WOLFSSL_API
+ed25519_key* wc_ed25519_new(void* heap, int devId);
 WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
 WOLFSSL_API

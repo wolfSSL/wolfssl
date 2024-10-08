@@ -269,6 +269,7 @@ struct RsaKey {
 #if defined(WOLFSSL_RENESAS_FSPSM)
     FSPSM_RSA_CTX ctx;
 #endif
+    byte isAllocated:1; /* flag indicates if structure was allocated */
 };
 
 #ifndef WC_RSAKEY_TYPE_DEFINED
@@ -292,6 +293,7 @@ struct RsaPadding {
 typedef struct RsaPadding RsaPadding;
 #endif
 
+WOLFSSL_API RsaKey* wc_NewRsaKey(void* heap, int devId);
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);

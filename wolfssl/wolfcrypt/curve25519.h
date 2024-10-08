@@ -90,7 +90,7 @@ struct curve25519_key {
     void* devCtx;
     int devId;
 #endif
-
+    void *heap;
 #ifdef WOLFSSL_SE050
     word32 keyId;
     byte   keyIdSet;
@@ -99,6 +99,7 @@ struct curve25519_key {
     /* bit fields */
     byte pubSet:1;
     byte privSet:1;
+    byte isAllocated:1; /* flag indicates if structure was allocated */
 };
 
 enum {
@@ -131,6 +132,8 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian);
 
+WOLFSSL_API
+curve25519_key* wc_curve25519_new(void* heap, int devId);
 WOLFSSL_API
 int wc_curve25519_init(curve25519_key* key);
 WOLFSSL_API
