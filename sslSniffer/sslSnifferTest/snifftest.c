@@ -954,6 +954,7 @@ int main(int argc, char** argv)
     int          frame = ETHER_IF_FRAME_LEN;
     char         cmdLineArg[128];
     char        *pcapFile = NULL;
+    char        *deviceName = NULL;
     char         err[PCAP_ERRBUF_SIZE];
     char         filter[128];
     const char  *keyFilesSrc = NULL;
@@ -983,6 +984,9 @@ int main(int argc, char** argv)
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-pcap") == 0 && i + 1 < argc) {
             pcapFile = argv[++i];
+        }
+        else if (strcmp(argv[i], "-deviceName") == 0 && i + 1 < argc) {
+            deviceName = argv[++i];
         }
         else if (strcmp(argv[i], "-key") == 0 && i + 1 < argc) {
             keyFilesSrc = argv[++i];
@@ -1054,36 +1058,48 @@ int main(int argc, char** argv)
         if (pcap_findalldevs(&alldevs, err) == -1)
             err_sys("Error in pcap_findalldevs");
 
-        for (d = alldevs, i = 0; d; d=d->next) {
-            printf("%d. %s", ++i, d->name);
-            if (strcmp(d->name, "lo0") == 0) {
-                defDev = i;
+        if (deviceName == NULL) {
+            for (d = alldevs, i = 0; d; d=d->next) {
+                printf("%d. %s", ++i, d->name);
+                if (strcmp(d->name, "lo0") == 0) {
+                    defDev = i;
+                }
+                if (d->description)
+                    printf(" (%s)\n", d->description);
+                else
+                    printf(" (No description available)\n");
             }
-            if (d->description)
-                printf(" (%s)\n", d->description);
-            else
-                printf(" (No description available)\n");
+
+            if (i == 0)
+                err_sys("No interfaces found! Make sure pcap or WinPcap is"
+                        " installed correctly and you have sufficient permissions");
+
+            printf("Enter the interface number (1-%d) [default: %d]: ", i, defDev);
+            XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
+            if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin))
+                inum = XATOI(cmdLineArg);
+            if (inum == 0)
+                inum = defDev;
+            else if (inum < 1 || inum > i)
+                err_sys("Interface number out of range");
+
+            /* Jump to the selected adapter */
+            for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
+        } else {
+            int deviceNameSz = XSTRLEN(deviceName);
+            for (d = alldevs; d; d = d->next) {
+                if (XSTRNCMP(d->name,deviceName,deviceNameSz) == 0) {
+                    fprintf(stderr, "%s == %s\n", d->name, deviceName);
+                    break;
+                }
+            }
+            if (d == NULL) {
+                err_sys("Can't find the device you're looking for");
+            }
         }
 
-        if (i == 0)
-            err_sys("No interfaces found! Make sure pcap or WinPcap is"
-                    " installed correctly and you have sufficient permissions");
-
-        printf("Enter the interface number (1-%d) [default: %d]: ", i, defDev);
-        XMEMSET(cmdLineArg, 0, sizeof(cmdLineArg));
-        if (XFGETS(cmdLineArg, sizeof(cmdLineArg), stdin))
-            inum = XATOI(cmdLineArg);
-        if (inum == 0)
-            inum = defDev;
-        else if (inum < 1 || inum > i)
-            err_sys("Interface number out of range");
-
-        /* Jump to the selected adapter */
-        for (d = alldevs, i = 0; i < inum - 1; d = d->next, i++);
         printf("Selected %s\n", d->name);
-
         pcap = pcap_create(d->name, err);
-
         if (pcap == NULL) fprintf(stderr, "pcap_create failed %s\n", err);
 
         if (server == NULL) {
