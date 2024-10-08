@@ -41444,6 +41444,31 @@ int VerifyX509Acert(const byte* der, word32 derSz,
     FREE_ASNGETDATA(dataASN, heap);
     return ret;
 }
+
+void wc_InitDecodedAcert(DecodedAcert* acert, const byte* source, word32 inSz,
+                         void* heap)
+{
+    InitDecodedAcert(acert, source, inSz, heap);
+}
+
+void wc_FreeDecodedAcert(DecodedAcert * acert)
+{
+    FreeDecodedAcert(acert);
+}
+
+int wc_ParseX509Acert(DecodedAcert* acert, int verify)
+{
+    return ParseX509Acert(acert, verify);
+}
+
+int wc_VerifyX509Acert(const byte* acert, word32 acertSz,
+                       const byte* pubKey, word32 pubKeySz,
+                       int pubKeyOID, void * heap)
+{
+    return VerifyX509Acert(acert, acertSz, pubKey, pubKeySz,
+                           pubKeyOID, heap);
+}
+
 #endif /* WOLFSSL_ACERT && WOLFSSL_ASN_TEMPLATE */
 
 #ifdef WOLFSSL_SEP

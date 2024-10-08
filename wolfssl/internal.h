@@ -5367,7 +5367,8 @@ struct WOLFSSL_X509_ACERT {
 #ifndef NO_CERTS
     DerBuffer *       derCert;
 #endif
-    void*             heap;
+    void *            heap;
+    int               dynamic; /* whether struct was dynamically allocated */
     /* copy of raw Attributes field from */
     byte              holderSerial[EXTERNAL_SERIAL_SIZE];
     int               holderSerialSz;
