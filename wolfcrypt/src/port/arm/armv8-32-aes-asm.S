@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
+#if !defined(__aarch64__) && defined(__arm__) && (!defined(__thumb__) || defined(__THUMB_INTERWORK__))
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_AES
 #ifdef HAVE_AES_DECRYPT
