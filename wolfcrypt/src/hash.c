@@ -686,6 +686,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
         NULL, INVALID_DEVID);
 }
 
+#ifndef WOLFSSL_NO_MALLOC
 wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId)
 {
     wc_HashAlg* hash = (wc_HashAlg*)XMALLOC(sizeof(wc_HashAlg), heap,
@@ -701,6 +702,7 @@ wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId)
     }
     return hash;
 }
+#endif
 
 int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
     int devId)
@@ -1170,10 +1172,12 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
             ret = BAD_FUNC_ARG;
     };
 
+#ifndef WOLFSSL_NO_MALLOC
     if (isAllocated) {
         XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
         (void)heap;
     }
+#endif
 
     return ret;
 }
