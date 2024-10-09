@@ -6578,14 +6578,13 @@ static int ssl_DecodePacketInternal(const byte* packet, int length, int isChain,
     int               sslBytes;                /* ssl bytes unconsumed */
     int               ret;
     SnifferSession*   session = NULL;
-    word32 chainSz = 0;
 
     if (isChain) {
 #ifdef WOLFSSL_SNIFFER_CHAIN_INPUT
         struct iovec* chain;
         word32 i;
 
-        chainSz = (word32)length;
+        word32 chainSz = (word32)length;
 
         chain = (struct iovec*)packet;
         length = 0;
