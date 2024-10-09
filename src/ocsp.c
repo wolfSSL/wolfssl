@@ -536,6 +536,9 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     if (responseSz == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_WANT_READ)) {
         ret = OCSP_WANT_READ;
     }
+    else if (responseSz == WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_TIMEOUT)){
+        ret = HTTP_TIMEOUT;
+    }
 
     XFREE(request, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
 
