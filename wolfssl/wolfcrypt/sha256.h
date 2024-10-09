@@ -194,13 +194,13 @@ struct wc_Sha256 {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    void*   heap;
 
 #ifdef WC_C_DYNAMIC_FALLBACK
     int sha_method;
 #endif
 
 #endif
+    void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif

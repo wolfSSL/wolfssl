@@ -151,8 +151,8 @@ struct wc_Sha {
     #else
     word32  digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
     #endif
-    void*   heap;
 #endif
+    void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif
