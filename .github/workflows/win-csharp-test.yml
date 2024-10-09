@@ -9,6 +9,7 @@ on:
 jobs:
   build:
 
+    if: github.repository_owner == 'wolfssl'
     runs-on: windows-latest
 
     # This should be a safe limit for the tests to run.
