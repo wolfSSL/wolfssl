@@ -144,6 +144,7 @@ struct wc_Sha512 {
     cy_stc_crypto_sha_state_t hash_state;
     cy_en_crypto_sha_mode_t sha_mode;
     cy_stc_crypto_v2_sha512_buffers_t sha_buffers;
+    void*   heap;
 #else
     word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
