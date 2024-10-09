@@ -3026,7 +3026,8 @@ WOLFSSL_API int  wolfSSL_X509_ACERT_sign(WOLFSSL_X509_ACERT * x509,
 WOLFSSL_API int  wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509,
                                            WOLFSSL_EVP_PKEY* pkey);
 #if defined(OPENSSL_EXTRA)
-WOLFSSL_API int  wolfSSL_X509_ACERT_get_signature_nid(const WOLFSSL_X509_ACERT* x);
+WOLFSSL_API int  wolfSSL_X509_ACERT_get_signature_nid(
+                                                  const WOLFSSL_X509_ACERT* x);
 WOLFSSL_API int  wolfSSL_X509_ACERT_print(WOLFSSL_BIO* bio,
                                           WOLFSSL_X509_ACERT* x509_acert);
 WOLFSSL_API WOLFSSL_X509_ACERT * wolfSSL_PEM_read_bio_X509_ACERT(
