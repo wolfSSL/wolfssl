@@ -2162,7 +2162,8 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
     XFREE(path,       NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(domainName, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-
+    if (ret < 0)
+        ret = OCSP_INVALID_STATUS;
     return ret;
 }
 
