@@ -491,6 +491,12 @@ typedef struct testVector {
     size_t outLen;
 } testVector;
 
+#ifndef NO_LARGE_HASH_TEST
+    #ifndef LARGE_HASH_TEST_INPUT_SZ
+        #define LARGE_HASH_TEST_INPUT_SZ 1024
+    #endif
+#endif
+
 #ifndef WOLFSSL_TEST_SUBROUTINE
 #define WOLFSSL_TEST_SUBROUTINE
 #endif
@@ -3688,7 +3694,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     wc_Sha256  i_sha, i_shaCopy;
 #endif
 #ifndef NO_LARGE_HASH_TEST
-#define LARGE_HASH_TEST_INPUT_SZ 1024
 #ifdef WOLFSSL_SMALL_STACK
     byte *large_input = NULL;
 #else
@@ -3877,7 +3882,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha256_test(void)
     if (XMEMCMP(hash, large_digest, WC_SHA256_DIGEST_SIZE) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, exit);
     } /* END LARGE HASH TEST */
-#undef LARGE_HASH_TEST_INPUT_SZ
 #endif /* NO_LARGE_HASH_TEST */
 
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_FULL_HASH)
@@ -3940,7 +3944,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t sha512_test(void)
     testVector interleave_test_sha[3];
 #endif
 #ifndef NO_LARGE_HASH_TEST
-#define LARGE_HASH_TEST_INPUT_SZ 1024
 #ifdef WOLFSSL_SMALL_STACK
     byte *large_input = NULL;
 #else
