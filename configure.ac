@@ -5217,6 +5217,12 @@ AC_ARG_ENABLE([aeskeywrap],
     )
 
 # FIPS feature and macro setup
+
+AS_IF([test "$FIPS_VERSION" = "dev"],
+    [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_DEV"])
+AS_IF([test "$FIPS_VERSION" = "ready"],
+    [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_FIPS_READY"])
+
 AS_CASE([$FIPS_VERSION],
     [v6|ready|dev],[ # FIPS 140-3 SRTP-KDF
         AM_CFLAGS="$AM_CFLAGS \
