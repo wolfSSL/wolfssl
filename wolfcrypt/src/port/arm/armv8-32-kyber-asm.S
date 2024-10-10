@@ -31,7 +31,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && (!defined(__thumb__) || defined(__THUMB_INTERWORK__))
+#if !defined(__aarch64__) && defined(__arm__) && (!defined(__thumb__) || \
+        defined(__THUMB_INTERWORK__))
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_WC_KYBER
 	.text
@@ -9433,7 +9434,7 @@ L_kyber_arm32_rej_uniform_done:
 	pop	{r4, r5, r6, r7, r8, pc}
 	.size	kyber_arm32_rej_uniform,.-kyber_arm32_rej_uniform
 #endif /* WOLFSSL_WC_KYBER */
-#endif /* !__aarch64__ && __arm__ && !__thumb__ */
+#endif /* !__aarch64__ && __arm__ && (!__thumb__ || __THUMB_INTERWORK__) */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
