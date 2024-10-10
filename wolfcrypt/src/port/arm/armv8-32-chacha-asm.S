@@ -31,7 +31,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && (!defined(__thumb__) || defined(__THUMB_INTERWORK__))
+#if !defined(__aarch64__) && defined(__arm__) && (!defined(__thumb__) || \
+        defined(__THUMB_INTERWORK__))
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifdef HAVE_CHACHA
 	.text
@@ -514,7 +515,7 @@ L_chacha_arm32_over_done:
 	.size	wc_chacha_use_over,.-wc_chacha_use_over
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* HAVE_CHACHA */
-#endif /* !__aarch64__ && __arm__ && !__thumb__ */
+#endif /* !__aarch64__ && __arm__ && (!__thumb__ || __THUMB_INTERWORK__) */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)
