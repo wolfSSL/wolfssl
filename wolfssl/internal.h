@@ -2024,6 +2024,22 @@ enum Misc {
     #define MAX_CHAIN_DEPTH 9
 #endif
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+                    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    #if !defined(HAVE_OCSP)
+        #error OCSP Stapling and Stapling V2 needs OCSP. Please define HAVE_OCSP.
+    #endif
+#endif
+
+/* Max certificate extensions in TLS1.3 */
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    /* Number of extensions to set each OCSP response */
+    #define MAX_CERT_EXTENSIONS (1 + MAX_CHAIN_DEPTH)
+#else
+    /* Only empty extensions */
+    #define MAX_CERT_EXTENSIONS 1
+#endif
+
 /* max size of a certificate message payload */
 /* assumes MAX_CHAIN_DEPTH number of certificates at 2kb per certificate */
 #ifndef MAX_CERTIFICATE_SZ
@@ -3269,10 +3285,11 @@ typedef struct {
     byte options;
     WOLFSSL* ssl;
     union {
-        OcspRequest ocsp;
+        OcspRequest ocsp[MAX_CERT_EXTENSIONS];
     } request;
+    word16 requests;
 #ifdef WOLFSSL_TLS13
-    buffer response;
+    buffer responses[MAX_CERT_EXTENSIONS];
 #endif
 } CertificateStatusRequest;
 
@@ -3281,12 +3298,25 @@ WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequest(TLSX** extensions,
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert,
                                                                     void* heap);
+WOLFSSL_LOCAL int   TLSX_CSR_InitRequest_ex(TLSX* extensions, DecodedCert* cert,
+                                            void* heap, int idx);
 #endif
 WOLFSSL_LOCAL void* TLSX_CSR_GetRequest(TLSX* extensions);
 WOLFSSL_LOCAL int   TLSX_CSR_ForceRequest(WOLFSSL* ssl);
+WOLFSSL_LOCAL word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr,
+                                        byte isRequest,
+                                        int idx);
+WOLFSSL_LOCAL int TLSX_CSR_Write_ex(CertificateStatusRequest* csr, byte* output,
+                          byte isRequest, int idx);
+WOLFSSL_LOCAL void* TLSX_CSR_GetRequest_ex(TLSX* extensions, int idx);
 
 #endif
-
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+WOLFSSL_LOCAL int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
+                             DecodedCert* cert, byte* certData, word32 length,
+                             byte *ctxOwnsRequest);
+#endif
 /** Certificate Status Request v2 - RFC 6961 */
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
 
@@ -4766,7 +4796,7 @@ typedef struct Buffers {
                  /* chain after self, in DER, with leading size for each cert */
 #ifdef WOLFSSL_TLS13
     int             certChainCnt;
-    DerBuffer*      certExts;
+    DerBuffer*      certExts[MAX_CERT_EXTENSIONS];
 #endif
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
@@ -6035,6 +6065,9 @@ struct WOLFSSL {
             char*   url;
         #endif
     #endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+            word32 response_idx;
+#endif
 #endif
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */

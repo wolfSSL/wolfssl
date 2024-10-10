@@ -13210,7 +13210,11 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 #ifdef WOLFSSL_QUIC
         wolfSSL_quic_clear(ssl);
 #endif
-
+#ifdef HAVE_OCSP
+#if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+        ssl->response_idx = 0;
+#endif
+#endif
         return WOLFSSL_SUCCESS;
     }
 

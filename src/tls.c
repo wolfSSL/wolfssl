@@ -3184,51 +3184,64 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions, void* heap)
 
 static void TLSX_CSR_Free(CertificateStatusRequest* csr, void* heap)
 {
+    int i;
+
     switch (csr->status_type) {
         case WOLFSSL_CSR_OCSP:
-            FreeOcspRequest(&csr->request.ocsp);
+            for (i = 0; i <= csr->requests; i++) {
+                FreeOcspRequest(&csr->request.ocsp[i]);
+            }
         break;
     }
-
 #ifdef WOLFSSL_TLS13
-    if (csr->response.buffer != NULL) {
-        XFREE(csr->response.buffer, csr->ssl->heap,
+    for (i = 0; i < MAX_CERT_EXTENSIONS; i++) {
+        if (csr->responses[i].buffer != NULL) {
+            XFREE(csr->responses[i].buffer, heap,
                 DYNAMIC_TYPE_TMP_BUFFER);
+        }
     }
 #endif
     XFREE(csr, heap, DYNAMIC_TYPE_TLSX);
     (void)heap;
 }
 
-static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
+word16 TLSX_CSR_GetSize_ex(CertificateStatusRequest* csr, byte isRequest,
+                                                             int idx)
 {
     word16 size = 0;
 
     /* shut up compiler warnings */
     (void) csr; (void) isRequest;
-
 #ifndef NO_WOLFSSL_CLIENT
     if (isRequest) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
                 size += ENUM_LEN + 2 * OPAQUE16_LEN;
 
-                if (csr->request.ocsp.nonceSz)
+                if (csr->request.ocsp[0].nonceSz)
                     size += OCSP_NONCE_EXT_SZ;
             break;
         }
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    if (!isRequest && csr->ssl->options.tls1_3)
-        return OPAQUE8_LEN + OPAQUE24_LEN + csr->response.length;
+    if (!isRequest && IsAtLeastTLSv1_3(csr->ssl->version)) {
+        return (word16)(OPAQUE8_LEN + OPAQUE24_LEN +
+                csr->responses[idx].length);
+    }
+#else
+    (void)idx;
 #endif
-
     return size;
 }
 
-static int TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
-                          byte isRequest)
+static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
+{
+    return TLSX_CSR_GetSize_ex(csr, isRequest, 0);
+}
+
+int TLSX_CSR_Write_ex(CertificateStatusRequest* csr, byte* output,
+                          byte isRequest, int idx)
 {
     /* shut up compiler warnings */
     (void) csr; (void) output; (void) isRequest;
@@ -3249,8 +3262,8 @@ static int TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
                 offset += OPAQUE16_LEN;
 
                 /* request extensions */
-                if (csr->request.ocsp.nonceSz) {
-                    ret = (int)EncodeOcspRequestExtensions(&csr->request.ocsp,
+                if (csr->request.ocsp[0].nonceSz) {
+                    ret = (int)EncodeOcspRequestExtensions(&csr->request.ocsp[0],
                                                  output + offset + OPAQUE16_LEN,
                                                  OCSP_NONCE_EXT_SZ);
 
@@ -3272,19 +3285,111 @@ static int TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
     }
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
-    if (!isRequest && csr->ssl->options.tls1_3) {
+    if (!isRequest && IsAtLeastTLSv1_3(csr->ssl->version)) {
         word16 offset = 0;
         output[offset++] = csr->status_type;
-        c32to24(csr->response.length, output + offset);
+        c32to24(csr->responses[idx].length, output + offset);
         offset += OPAQUE24_LEN;
-        XMEMCPY(output + offset, csr->response.buffer, csr->response.length);
-        offset += csr->response.length;
+        XMEMCPY(output + offset, csr->responses[idx].buffer,
+                                        csr->responses[idx].length);
+        offset += (word16)csr->responses[idx].length;
         return offset;
     }
+#else
+    (void)idx;
 #endif
 
     return 0;
 }
+
+static int TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
+                          byte isRequest)
+{
+    return TLSX_CSR_Write_ex(csr, output, isRequest, 0);
+}
+
+#if !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
+    defined(WOLFSSL_TLS_OCSP_MULTI)
+/* Process OCSP request certificate chain
+ *
+ * ssl       SSL/TLS object.
+ * returns 0 on success, otherwise failure.
+ */
+static int ProcessChainOCSPRequest(WOLFSSL* ssl)
+{
+    DecodedCert* cert;
+    OcspRequest* request;
+    TLSX* extension;
+    CertificateStatusRequest* csr;
+    DerBuffer* chain;
+    word32 pos = 0;
+    buffer der;
+    int i = 1;
+    int ret = 0;
+    byte ctxOwnsRequest = 0;
+
+    /* use certChain if available, otherwise use peer certificate */
+    chain = ssl->buffers.certChain;
+    if (chain == NULL) {
+        chain = ssl->buffers.certificate;
+    }
+
+    extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
+    csr = extension ?
+                (CertificateStatusRequest*)extension->data : NULL;
+    if (csr == NULL)
+        return MEMORY_ERROR;
+
+    cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
+                                         DYNAMIC_TYPE_DCERT);
+    if (cert == NULL) {
+        return MEMORY_E;
+    }
+
+    if (chain && chain->buffer) {
+        while (ret == 0 && pos + OPAQUE24_LEN < chain->length) {
+            c24to32(chain->buffer + pos, &der.length);
+            pos += OPAQUE24_LEN;
+            der.buffer = chain->buffer + pos;
+            pos += der.length;
+
+            if (pos > chain->length)
+                break;
+            request = &csr->request.ocsp[i];
+            if (ret == 0) {
+                ret = CreateOcspRequest(ssl, request, cert,
+                        der.buffer, der.length, &ctxOwnsRequest);
+                if (ctxOwnsRequest) {
+                    wolfSSL_Mutex* ocspLock =
+                        &SSL_CM(ssl)->ocsp_stapling->ocspLock;
+                    if (wc_LockMutex(ocspLock) == 0) {
+                        /* the request is ours */
+                        ssl->ctx->certOcspRequest = NULL;
+                    }
+                    wc_UnLockMutex(ocspLock);
+                }
+            }
+
+            if (ret == 0) {
+                request->ssl = ssl;
+                ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
+                                 request, &csr->responses[i], ssl->heap);
+                /* Suppressing, not critical */
+                if (ret == WC_NO_ERR_TRACE(OCSP_CERT_REVOKED) ||
+                    ret == WC_NO_ERR_TRACE(OCSP_CERT_UNKNOWN) ||
+                    ret == WC_NO_ERR_TRACE(OCSP_LOOKUP_FAIL)) {
+                    ret = 0;
+                }
+                i++;
+                csr->requests++;
+            }
+        }
+    }
+    XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+
+    return ret;
+}
+#endif
 
 static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                           byte isRequest)
@@ -3340,14 +3445,14 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             switch (csr->status_type) {
                 case WOLFSSL_CSR_OCSP:
                     /* propagate nonce */
-                    if (csr->request.ocsp.nonceSz) {
+                    if (csr->request.ocsp[0].nonceSz) {
                         request =
                             (OcspRequest*)TLSX_CSR_GetRequest(ssl->extensions);
 
                         if (request) {
-                            XMEMCPY(request->nonce, csr->request.ocsp.nonce,
-                                                    csr->request.ocsp.nonceSz);
-                            request->nonceSz = csr->request.ocsp.nonceSz;
+                            XMEMCPY(request->nonce, csr->request.ocsp[0].nonce,
+                                                    csr->request.ocsp[0].nonceSz);
+                            request->nonceSz = csr->request.ocsp[0].nonceSz;
                         }
                     }
                 break;
@@ -3378,14 +3483,21 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                     ret = BUFFER_ERROR;
             }
             if (ret == 0) {
-                csr->response.buffer = (byte*)XMALLOC(resp_length, ssl->heap,
+                if (ssl->response_idx < (1 + MAX_CHAIN_DEPTH))
+                    csr->responses[ssl->response_idx].buffer =
+                    (byte*)XMALLOC(resp_length, ssl->heap,
                         DYNAMIC_TYPE_TMP_BUFFER);
-                if (csr->response.buffer == NULL)
+                else
+                    ret = BAD_FUNC_ARG;
+
+                if (ret == 0 &&
+                        csr->responses[ssl->response_idx].buffer == NULL)
                     ret = MEMORY_ERROR;
             }
             if (ret == 0) {
-                XMEMCPY(csr->response.buffer, input + offset, resp_length);
-                csr->response.length = resp_length;
+                XMEMCPY(csr->responses[ssl->response_idx].buffer,
+                                            input + offset, resp_length);
+                csr->responses[ssl->response_idx].length = resp_length;
             }
 
             return ret;
@@ -3450,6 +3562,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
     #if defined(WOLFSSL_TLS13)
         if (ssl->options.tls1_3) {
+
             if (ssl->buffers.certificate == NULL) {
                 WOLFSSL_MSG("Certificate buffer not set!");
                 return BUFFER_ERROR;
@@ -3480,19 +3593,33 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             }
             FreeDecodedCert(cert);
             XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
-
             extension = TLSX_Find(ssl->extensions, TLSX_STATUS_REQUEST);
             csr = extension ?
                 (CertificateStatusRequest*)extension->data : NULL;
             if (csr == NULL)
                 return MEMORY_ERROR;
 
-            request = &csr->request.ocsp;
-            ret = CreateOcspResponse(ssl, &request, &csr->response);
+            request = &csr->request.ocsp[0];
+            ret = CreateOcspResponse(ssl, &request, &csr->responses[0]);
+            if (request != &csr->request.ocsp[0] &&
+                    ssl->buffers.weOwnCert) {
+                /* request will be allocated in CreateOcspResponse() */
+                FreeOcspRequest(request);
+                XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            }
             if (ret != 0)
                 return ret;
-            if (csr->response.buffer)
+
+            if (csr->responses[0].buffer)
                 TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
+        #if defined(WOLFSSL_TLS_OCSP_MULTI)
+            /* process OCSP request in certificate chain */
+            if ((ret = ProcessChainOCSPRequest(ssl)) != 0) {
+                WOLFSSL_MSG("Process Cert Chain OCSP request failed");
+                WOLFSSL_ERROR_VERBOSE(ret);
+                return ret;
+            }
+        #endif
         }
         else
     #endif
@@ -3504,9 +3631,10 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
     return 0;
 }
 
-int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert, void* heap)
+int TLSX_CSR_InitRequest_ex(TLSX* extensions, DecodedCert* cert,
+                                                            void* heap, int idx)
 {
-    TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
+     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr = extension ?
         (CertificateStatusRequest*)extension->data : NULL;
     int ret = 0;
@@ -3515,18 +3643,33 @@ int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert, void* heap)
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP: {
                 byte nonce[MAX_OCSP_NONCE_SZ];
-                int  nonceSz = csr->request.ocsp.nonceSz;
+                int  req_cnt = idx == -1 ? csr->requests : idx;
+                int  nonceSz = csr->request.ocsp[0].nonceSz;
+                OcspRequest* request;
 
+                request = &csr->request.ocsp[req_cnt];
+                if (request->serial != NULL) {
+                    /* clear request contents before re-use */
+                    FreeOcspRequest(request);
+                    if (csr->requests > 0)
+                        csr->requests--;
+                }
                 /* preserve nonce */
-                XMEMCPY(nonce, csr->request.ocsp.nonce, nonceSz);
+                XMEMCPY(nonce, request->nonce, nonceSz);
 
-                if ((ret = InitOcspRequest(&csr->request.ocsp, cert, 0, heap))
-                                                                           != 0)
-                    return ret;
+                if (req_cnt < MAX_CERT_EXTENSIONS) {
+                    if ((ret = InitOcspRequest(request, cert, 0, heap)) != 0)
+                        return ret;
 
-                /* restore nonce */
-                XMEMCPY(csr->request.ocsp.nonce, nonce, nonceSz);
-                csr->request.ocsp.nonceSz = nonceSz;
+                    /* restore nonce */
+                    XMEMCPY(request->nonce, nonce, nonceSz);
+                    request->nonceSz = nonceSz;
+                    csr->requests++;
+                }
+                else {
+                    WOLFSSL_ERROR_VERBOSE(MAX_CERT_EXTENSIONS_ERR);
+                    return MAX_CERT_EXTENSIONS_ERR;
+                }
             }
             break;
         }
@@ -3535,20 +3678,35 @@ int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert, void* heap)
     return ret;
 }
 
-void* TLSX_CSR_GetRequest(TLSX* extensions)
+int TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert, void* heap)
+{
+    return TLSX_CSR_InitRequest_ex(extensions, cert, heap, -1);
+}
+
+void* TLSX_CSR_GetRequest_ex(TLSX* extensions, int idx)
 {
     TLSX* extension = TLSX_Find(extensions, TLSX_STATUS_REQUEST);
     CertificateStatusRequest* csr = extension ?
                               (CertificateStatusRequest*)extension->data : NULL;
 
-    if (csr) {
+    if (csr && csr->ssl) {
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
-                return &csr->request.ocsp;
+                if (IsAtLeastTLSv1_3(csr->ssl->version)) {
+                    return idx < csr->requests ? &csr->request.ocsp[idx] : NULL;
+                }
+                else {
+                    return idx == 0 ? &csr->request.ocsp[0] : NULL;
+                }
         }
     }
 
     return NULL;
+}
+
+void* TLSX_CSR_GetRequest(TLSX* extensions)
+{
+    return TLSX_CSR_GetRequest_ex(extensions, 0);
 }
 
 int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
@@ -3561,9 +3719,9 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
                 if (SSL_CM(ssl)->ocspEnabled) {
-                    csr->request.ocsp.ssl = ssl;
+                    csr->request.ocsp[0].ssl = ssl;
                     return CheckOcspRequest(SSL_CM(ssl)->ocsp,
-                                              &csr->request.ocsp, NULL, NULL);
+                                              &csr->request.ocsp[0], NULL, NULL);
                 }
                 else {
                     WOLFSSL_ERROR_VERBOSE(OCSP_LOOKUP_FAIL);
@@ -3591,7 +3749,9 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
         return MEMORY_E;
 
     ForceZero(csr, sizeof(CertificateStatusRequest));
-
+#if defined(WOLFSSL_TLS13)
+    XMEMSET(csr->responses, 0, sizeof(csr->responses));
+#endif
     csr->status_type = status_type;
     csr->options     = options;
     csr->ssl         = ssl;
@@ -3608,9 +3768,9 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
                 (void)devId;
             #endif
                 if (ret == 0) {
-                    if (wc_RNG_GenerateBlock(&rng, csr->request.ocsp.nonce,
+                    if (wc_RNG_GenerateBlock(&rng, csr->request.ocsp[0].nonce,
                                                         MAX_OCSP_NONCE_SZ) == 0)
-                        csr->request.ocsp.nonceSz = MAX_OCSP_NONCE_SZ;
+                        csr->request.ocsp[0].nonceSz = MAX_OCSP_NONCE_SZ;
 
                     wc_FreeRng(&rng);
                 }

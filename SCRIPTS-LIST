@@ -35,6 +35,7 @@ scripts/
  google.test   - example client test against google, part of tests
  resume.test   - example sessoin resume test, part of tests
  ocsp-stapling.test - example client test against globalsign, part of tests
+ ocsp-stapling1_tls13multi.text - example client test against example server, part of tests
  ocsp-stapling2.test - example client test against example server, part of tests
  sniffer-testsuite.test - runs snifftest on a pcap of testsuite, part of tests
                           in sniffer mode

@@ -43,7 +43,7 @@ fi
 if ./examples/client/client '-#' | fgrep -q -e ' -DTEST_IPV6 '; then
     if [[ "$IPV6_SUPPORTED" == "no" ]]; then
         echo 'Skipping IPV6 test in environment lacking IPV6 support.'
-        exit 0
+        exit 77
     fi
     LOCALHOST='[::1]'
     LOCALHOST_FOR_NC='-6 ::1'
