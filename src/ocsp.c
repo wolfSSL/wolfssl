@@ -480,31 +480,6 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     ioCtx = (ssl && ssl->ocspIOCtx != NULL) ?
                                         ssl->ocspIOCtx : ocsp->cm->ocspIOCtx;
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    if (ocsp->statusCb != NULL && ssl != NULL) {
-        WOLFSSL_MSG("Calling ocsp->statusCb");
-        ret = ocsp->statusCb(ssl, ioCtx);
-        switch (ret) {
-            case SSL_TLSEXT_ERR_OK:
-                ret = wolfSSL_get_ocsp_response(ssl, &response);
-                ret = CheckOcspResponse(ocsp, response, ret, responseBuffer,
-                                        status, entry, NULL, heap);
-                XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
-                break;
-            case SSL_TLSEXT_ERR_NOACK:
-                ret = OCSP_LOOKUP_FAIL;
-                break;
-            case SSL_TLSEXT_ERR_ALERT_FATAL:
-            default:
-                WOLFSSL_LEAVE("CheckOcspRequest", ocsp->error);
-                ret = WOLFSSL_FATAL_ERROR;
-                break;
-        }
-        WOLFSSL_LEAVE("CheckOcspRequest", ret);
-        return ret;
-    }
-#endif
-
     if (ocsp->cm->ocspUseOverrideURL) {
         url = ocsp->cm->ocspOverrideURL;
         if (url != NULL && url[0] != '\0')

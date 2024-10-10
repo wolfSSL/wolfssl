@@ -96580,6 +96580,195 @@ static int test_ocsp_callback_fails(void)
     defined(HAVE_CERTIFICATE_STATUS_REQUEST) */
 
 
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_OCSP) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
+
+struct _test_ocsp_status_callback_ctx {
+        byte *ocsp_resp;
+        int ocsp_resp_sz;
+        int invoked;
+};
+
+static int test_ocsp_status_callback_cb(WOLFSSL *ssl, void *ctx)
+{
+    struct _test_ocsp_status_callback_ctx *_ctx = (struct _test_ocsp_status_callback_ctx*)ctx;
+    byte *allocated;
+
+    _ctx->invoked++;
+    allocated = (byte*)XMALLOC(_ctx->ocsp_resp_sz, NULL, 0);
+    if (allocated == NULL)
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    XMEMCPY(allocated, _ctx->ocsp_resp, _ctx->ocsp_resp_sz);
+    SSL_set_tlsext_status_ocsp_resp(ssl, allocated, _ctx->ocsp_resp_sz);
+    return SSL_TLSEXT_ERR_OK;
+}
+
+static int test_ocsp_status_callback_cb_noack(WOLFSSL *ssl, void *ctx)
+{
+    struct _test_ocsp_status_callback_ctx *_ctx = (struct _test_ocsp_status_callback_ctx*)ctx;
+    (void)ssl;
+
+    _ctx->invoked++;
+    return SSL_TLSEXT_ERR_NOACK;
+}
+
+static int test_ocsp_status_callback_cb_err(WOLFSSL *ssl, void *ctx)
+{
+    struct _test_ocsp_status_callback_ctx *_ctx = (struct _test_ocsp_status_callback_ctx*)ctx;
+    (void)ssl;
+
+    _ctx->invoked++;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+
+static int test_ocsp_status_callback_test_setup(struct _test_ocsp_status_callback_ctx *cb_ctx,
+    struct test_ssl_memio_ctx *test_ctx, method_provider cm, method_provider sm)
+{
+    int ret;
+
+    cb_ctx->invoked = 0;
+    XMEMSET(test_ctx, 0, sizeof(*test_ctx));
+    test_ctx->c_cb.caPemFile = "./certs/ocsp/root-ca-cert.pem";
+    test_ctx->s_cb.certPemFile = "./certs/ocsp/server1-cert.pem";
+    test_ctx->s_cb.keyPemFile = "./certs/ocsp/server1-key.pem";
+    test_ctx->c_cb.method = cm;
+    test_ctx->s_cb.method = sm;
+    ret = test_ssl_memio_setup(test_ctx);
+    wolfSSL_set_verify(test_ctx->c_ssl, WOLFSSL_VERIFY_DEFAULT, NULL);
+    return ret;
+}
+
+static int test_ocsp_status_callback(void)
+{
+    struct test_params {
+            method_provider c_method;
+            method_provider s_method;
+    };
+
+    const char* responseFile = "./certs/ocsp/test-leaf-response.der";
+    struct _test_ocsp_status_callback_ctx cb_ctx;
+    struct test_ssl_memio_ctx test_ctx;
+    int enable_client_ocsp;
+    int enable_must_staple;
+    XFILE f = XBADFILE;
+    byte data[4096];
+    unsigned int i;
+    EXPECT_DECLS;
+
+    struct test_params params[] =  {
+        { wolfTLSv1_2_client_method, wolfTLSv1_2_server_method },
+#if defined(WOLFSSL_TLS13)
+        { wolfTLSv1_3_client_method, wolfTLSv1_3_server_method },
+#endif
+#if defined(WOLFSSL_DTLS)
+        { wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method },
+#endif
+#if defined(WOLFSSL_DTLS13)
+        { wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method },
+#endif
+    };
+
+    XMEMSET(&cb_ctx, 0, sizeof(cb_ctx));
+    f = XFOPEN(responseFile, "rb");
+    if (f == XBADFILE)
+        return -1;
+    cb_ctx.ocsp_resp_sz = (word32)XFREAD(data, 1, 4096, f);
+    if (f != XBADFILE) {
+        XFCLOSE(f);
+        f = XBADFILE;
+    }
+    cb_ctx.ocsp_resp = data;
+
+    for (i = 0; i < sizeof(params)/sizeof(params[0]); i++) {
+        for (enable_client_ocsp = 0; enable_client_ocsp <= 1; enable_client_ocsp++) {
+            ExpectIntEQ(test_ocsp_status_callback_test_setup(&cb_ctx,
+                &test_ctx, params[i].c_method, params[i].s_method), TEST_SUCCESS);
+            ExpectIntEQ(SSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx, test_ocsp_status_callback_cb), SSL_SUCCESS);
+            ExpectIntEQ(SSL_CTX_set_tlsext_status_arg(test_ctx.s_ctx, (void*)&cb_ctx), SSL_SUCCESS);
+            if (enable_client_ocsp) {
+                ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl, WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+                ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+            }
+            ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+            ExpectIntEQ(cb_ctx.invoked, enable_client_ocsp ? 1 : 0);
+            test_ssl_memio_cleanup(&test_ctx);
+            if (!EXPECT_SUCCESS())
+                return EXPECT_RESULT();
+        }
+    }
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    /* test client sending both OCSPv1 and OCSPv2/MultiOCSP */
+    /* StatusCb only supports OCSPv1 */
+    ExpectIntEQ(test_ocsp_status_callback_test_setup(&cb_ctx, &test_ctx, wolfTLSv1_2_client_method, wolfTLSv1_2_server_method), TEST_SUCCESS);
+    ExpectIntEQ(SSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx, test_ocsp_status_callback_cb), SSL_SUCCESS);
+    ExpectIntEQ(SSL_CTX_set_tlsext_status_arg(test_ctx.s_ctx, (void*)&cb_ctx), SSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl, WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_UseOCSPStaplingV2(test_ctx.c_ssl, WOLFSSL_CSR2_OCSP_MULTI, 0), WOLFSSL_SUCCESS);
+    wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT, NULL);
+    ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), TEST_SUCCESS);
+    ExpectIntEQ(cb_ctx.invoked, 1);
+    test_ssl_memio_cleanup(&test_ctx);
+
+    if (!EXPECT_SUCCESS())
+        return EXPECT_RESULT();
+#endif /* defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) */
+    /* test cb returning NO_ACK, not acking the OCSP */
+    for (i = 0; i < sizeof(params)/sizeof(params[0]); i++) {
+        for (enable_must_staple = 0; enable_must_staple <= 1; enable_must_staple++) {
+            ExpectIntEQ(test_ocsp_status_callback_test_setup(&cb_ctx, &test_ctx, params[i].c_method, params[i].s_method), TEST_SUCCESS);
+            ExpectIntEQ(SSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx, test_ocsp_status_callback_cb_noack), SSL_SUCCESS);
+            ExpectIntEQ(SSL_CTX_set_tlsext_status_arg(test_ctx.s_ctx, (void*)&cb_ctx), SSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl, WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+            if (enable_must_staple)
+                ExpectIntEQ(wolfSSL_CTX_EnableOCSPMustStaple(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+            wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT, NULL);
+            ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), enable_must_staple ? TEST_FAIL : TEST_SUCCESS);
+            ExpectIntEQ(cb_ctx.invoked, 1);
+            test_ssl_memio_cleanup(&test_ctx);
+            if (!EXPECT_SUCCESS())
+                return EXPECT_RESULT();
+        }
+    }
+
+    /* test cb returning err aborting handshake */
+    for (i = 0; i < sizeof(params)/sizeof(params[0]); i++) {
+        for (enable_client_ocsp = 0; enable_client_ocsp <= 1; enable_client_ocsp++) {
+            ExpectIntEQ(test_ocsp_status_callback_test_setup(&cb_ctx, &test_ctx, params[i].c_method, params[i].s_method), TEST_SUCCESS);
+            ExpectIntEQ(SSL_CTX_set_tlsext_status_cb(test_ctx.s_ctx, test_ocsp_status_callback_cb_err), SSL_SUCCESS);
+            ExpectIntEQ(SSL_CTX_set_tlsext_status_arg(test_ctx.s_ctx, (void*)&cb_ctx), SSL_SUCCESS);
+            if (enable_client_ocsp)
+                ExpectIntEQ(wolfSSL_CTX_EnableOCSPStapling(test_ctx.c_ctx), WOLFSSL_SUCCESS);
+            ExpectIntEQ(wolfSSL_UseOCSPStapling(test_ctx.c_ssl, WOLFSSL_CSR_OCSP, 0), WOLFSSL_SUCCESS);
+            wolfSSL_set_verify(test_ctx.c_ssl, WOLFSSL_VERIFY_DEFAULT, NULL);
+            ExpectIntEQ(test_ssl_memio_do_handshake(&test_ctx, 10, NULL), enable_client_ocsp ? TEST_FAIL : TEST_SUCCESS);
+            ExpectIntEQ(cb_ctx.invoked, enable_client_ocsp ? 1: 0);
+            test_ssl_memio_cleanup(&test_ctx);
+            if (!EXPECT_SUCCESS())
+                return EXPECT_RESULT();
+        }
+    }
+
+    return EXPECT_RESULT();
+}
+
+#else
+static int test_ocsp_status_callback(void)
+{
+    return TEST_SKIPPED;
+}
+#endif /* defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && \
+    defined(HAVE_OCSP) && \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    !defined(WOLFSSL_NO_TLS12) && \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) */
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -97832,6 +98021,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_UseOCSPStaplingV2),
     TEST_DECL(test_self_signed_stapling),
     TEST_DECL(test_ocsp_callback_fails),
+    TEST_DECL(test_ocsp_status_callback),
 
     /* Multicast */
     TEST_DECL(test_wolfSSL_mcast),
