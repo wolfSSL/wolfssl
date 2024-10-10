@@ -1545,6 +1545,12 @@ do
   small)
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WC_LMS_SMALL"
     ;;
+  no-sha256-256)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_LMS_SHA256_256"
+    ;;
+  sha256-192)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LMS_SHA256_192"
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for LMS []: $ENABLED_LMS.])
     break;;

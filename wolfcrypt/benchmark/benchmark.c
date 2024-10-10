@@ -1743,7 +1743,8 @@ static const char* bench_result_words3[][5] = {
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
     defined(HAVE_ECC) || !defined(NO_DH) || \
     !defined(NO_RSA) || defined(HAVE_SCRYPT) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_LMS)
     #define BENCH_ASYM
 #endif
 
@@ -1751,7 +1752,8 @@ static const char* bench_result_words3[][5] = {
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_LMS)
 static const char* bench_result_words2[][5] = {
 #ifdef BENCH_MICROSECOND
     { "ops took", "μsec"     , "avg" , "ops/μsec", NULL },   /* 0 English
@@ -2710,7 +2712,8 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_LMS)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
     double start, int ret)
@@ -9496,6 +9499,7 @@ void bench_kyber(int type)
 #endif
 
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#ifndef WOLFSSL_NO_LMS_SHA256_256
 /* WC_LMS_PARM_L2_H10_W2
  * signature length: 9300 */
 static const byte lms_priv_L2_H10_W2[64] =
@@ -9651,6 +9655,7 @@ static const byte lms_pub_L4_H5_W8[60] =
     0x85,0x1A,0x7A,0xD8,0xD5,0x46,0x74,0x3B,
     0x74,0x24,0x12,0xC8
 };
+#endif
 
 static int lms_write_key_mem(const byte* priv, word32 privSz, void* context)
 {
@@ -9811,6 +9816,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     }
 
     switch (parm) {
+#ifndef WOLFSSL_NO_LMS_SHA256_256
     case WC_LMS_PARM_L2_H10_W2:
         XMEMCPY(lms_priv, lms_priv_L2_H10_W2, sizeof(lms_priv_L2_H10_W2));
         XMEMCPY(key.pub, lms_pub_L2_H10_W2, HSS_MAX_PUBLIC_KEY_LEN);
@@ -9871,6 +9877,28 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     case WC_LMS_PARM_L4_H5_W4:
     case WC_LMS_PARM_L4_H10_W4:
     case WC_LMS_PARM_L4_H10_W8:
+#endif
+
+#ifdef WOLFSSL_LMS_SHA256_192
+    case WC_LMS_PARM_SHA256_192_L1_H5_W1:
+    case WC_LMS_PARM_SHA256_192_L1_H5_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H5_W4:
+    case WC_LMS_PARM_SHA256_192_L1_H5_W8:
+    case WC_LMS_PARM_SHA256_192_L1_H10_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H10_W4:
+    case WC_LMS_PARM_SHA256_192_L1_H10_W8:
+    case WC_LMS_PARM_SHA256_192_L1_H15_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H15_W4:
+    case WC_LMS_PARM_SHA256_192_L2_H10_W2:
+    case WC_LMS_PARM_SHA256_192_L2_H10_W4:
+    case WC_LMS_PARM_SHA256_192_L2_H10_W8:
+    case WC_LMS_PARM_SHA256_192_L3_H5_W2:
+    case WC_LMS_PARM_SHA256_192_L3_H5_W4:
+    case WC_LMS_PARM_SHA256_192_L3_H5_W8:
+    case WC_LMS_PARM_SHA256_192_L3_H10_W4:
+    case WC_LMS_PARM_SHA256_192_L4_H5_W8:
+#endif
+
     default:
         XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
         break;
@@ -10045,6 +10073,7 @@ void bench_lms(void)
 {
     byte pub[HSS_MAX_PUBLIC_KEY_LEN];
 
+#ifndef WOLFSSL_NO_LMS_SHA256_256
 #ifdef BENCH_LMS_SLOW_KEYGEN
 #if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_HEIGHT >= 15)
     bench_lms_keygen(WC_LMS_PARM_L1_H15_W2, pub);
@@ -10090,6 +10119,55 @@ void bench_lms(void)
     bench_lms_keygen(WC_LMS_PARM_L1_H5_W1, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W1, pub);
 #endif
+#endif /* !WOLFSSL_NO_LMS_SHA256_256 */
+
+#ifdef WOLFSSL_LMS_SHA256_192
+#ifdef BENCH_LMS_SLOW_KEYGEN
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_HEIGHT >= 15)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H15_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H15_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H15_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H15_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif
+#endif
+#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 2) && \
+        (LMS_MAX_HEIGHT >= 10))
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#ifdef BENCH_LMS_SLOW_KEYGEN
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W8, pub);
+#endif
+#endif
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 3)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H5_W4, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H5_W8, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif
+#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 3) && \
+        (LMS_MAX_HEIGHT >= 10))
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H10_W4, pub);
+#endif
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 4)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L4_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L4_H5_W8, pub);
+#endif
+
+#if defined(WOLFSSL_WC_LMS) && !defined(LMS_PARAMS_BENCHED)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
+#endif
+#endif /* WOLFSSL_LMS_SHA256_192 */
 
     return;
 }
