@@ -968,6 +968,7 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 }
 #endif /* HAVE_ED25519_VERIFY */
 
+#ifndef WOLFSSL_NO_MALLOC
 ed25519_key* wc_ed25519_new(void* heap, int devId)
 {
     ed25519_key* key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
@@ -983,6 +984,7 @@ ed25519_key* wc_ed25519_new(void* heap, int devId)
     }
     return key;
 }
+#endif
 
 /* initialize information and memory for key */
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId)
@@ -1024,13 +1026,16 @@ int wc_ed25519_init(ed25519_key* key)
 void wc_ed25519_free(ed25519_key* key)
 {
     void* heap;
+#ifndef WOLFSSL_NO_MALLOC
     byte isAllocated = 0;
-
+#endif
     if (key == NULL)
         return;
 
+#ifndef WOLFSSL_NO_MALLOC
     heap = key->heap;
     isAllocated = key->isAllocated;
+#endif
 
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     ed25519_hash_free(key, &key->sha);
@@ -1045,10 +1050,13 @@ void wc_ed25519_free(ed25519_key* key)
     wc_MemZero_Check(key, sizeof(ed25519_key));
 #endif
 
+#ifndef WOLFSSL_NO_MALLOC
     if (isAllocated) {
         XFREE(key, heap, DYNAMIC_TYPE_ED25519);
-        (void)heap;
     }
+#endif
+    (void)heap;
+
 }
 
 
