@@ -920,6 +920,38 @@ static void myFipsCb(int ok, int err, const char* hash)
 }
 #endif /* HAVE_FIPS && !WOLFSSL_LINUXKM */
 
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+
+#ifndef NO_AES
+static struct Aes *wc_AesNew(void *heap, int thisDevId) {
+    Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
+    if (aes != NULL) {
+        if (wc_AesInit(aes, heap, thisDevId) != 0) {
+            XFREE(aes, heap, DYNAMIC_TYPE_AES);
+            aes = NULL;
+        }
+    }
+    return aes;
+}
+#endif
+
+#ifndef NO_RSA
+static RsaKey* wc_NewRsaKey(void* heap, int thisDevId)
+{
+    RsaKey* key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
+    if (key != NULL) {
+        if (wc_InitRsaKey_ex(key, heap, thisDevId) != 0) {
+            XFREE(key, heap, DYNAMIC_TYPE_RSA);
+            key = NULL;
+        }
+    }
+    return key;
+}
+#endif
+
+#endif /* FIPS_VERSION3_LT(6,0,0) */
+
+
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(WOLFSSL_STATIC_MEMORY_TEST_SZ)
         static byte gTestMemory[WOLFSSL_STATIC_MEMORY_TEST_SZ];
@@ -9491,8 +9523,15 @@ EVP_TEST_END:
     out:
 
         wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
+
     #ifdef HAVE_AES_DECRYPT
         wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     #endif
 #endif /* WOLFSSL_AES_256 */
 
@@ -9812,8 +9851,14 @@ EVP_TEST_END:
   out:
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #endif
 
         return ret;
@@ -10066,8 +10111,14 @@ EVP_TEST_END:
   out:
 
         wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     #ifdef HAVE_AES_DECRYPT
         wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     #endif
 
         return ret;
@@ -10270,8 +10321,14 @@ EVP_TEST_END:
       out:
 
         wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     #ifdef HAVE_AES_DECRYPT
         wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+        XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     #endif
 
         return ret;
@@ -10407,6 +10464,9 @@ static wc_test_ret_t aes_key_size_test(void)
   out:
 
     wc_AesFree(aes);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }
@@ -13444,8 +13504,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
 
 out:
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #endif
     return ret;
 }
@@ -14010,8 +14076,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
   out:
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #endif
 
     return ret;
@@ -14080,7 +14152,13 @@ static wc_test_ret_t aes_ecb_direct_test(void)
   out:
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }
@@ -14272,8 +14350,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes192_test(void)
   out:
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #endif
 #endif /* HAVE_AES_CBC */
 
@@ -14471,8 +14555,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
   out:
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #endif
 #endif /* HAVE_AES_CBC */
 
@@ -14600,7 +14690,13 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
   out:
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }
@@ -15532,7 +15628,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 #endif
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
     wc_AesFree(dec);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(dec, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }
@@ -15751,6 +15853,9 @@ static wc_test_ret_t aesccm_256_test(void)
 #endif
 
     wc_AesFree(aes);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(aes, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }
@@ -15914,6 +16019,9 @@ static wc_test_ret_t aesccm_128_test(void)
     XMEMSET(iv2, 0, sizeof(iv2));
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     enc = wc_AesNew(HEAP_HINT, devId);
     if (enc == NULL)
@@ -16047,6 +16155,9 @@ static wc_test_ret_t aesccm_128_test(void)
   out:
 
     wc_AesFree(enc);
+#if defined(WOLFSSL_SMALL_STACK) && defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    XFREE(enc, HEAP_HINT, DYNAMIC_TYPE_AES);
+#endif
 
     return ret;
 }

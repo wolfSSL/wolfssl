@@ -328,6 +328,18 @@
 #include <wolfssl/wolfcrypt/visibility.h>
 
 /*------------------------------------------------------------*/
+#if defined(WOLFSSL_FIPS_READY) || defined(WOLFSSL_FIPS_DEV)
+    #undef HAVE_FIPS_VERSION_MAJOR
+    #define HAVE_FIPS_VERSION_MAJOR 7 /* always one more than major version */
+                                      /* of most recent FIPS certificate */
+    #undef HAVE_FIPS_VERSION
+    #define HAVE_FIPS_VERSION HAVE_FIPS_VERSION_MAJOR
+    #undef HAVE_FIPS_VERSION_MINOR
+    #define HAVE_FIPS_VERSION_MINOR 0 /* always 0 */
+    #undef HAVE_FIPS_VERSION_PATCH
+    #define HAVE_FIPS_VERSION_PATCH 0 /* always 0 */
+#endif
+
 #define WOLFSSL_MAKE_FIPS_VERSION3(major, minor, patch) \
                                 (((major) * 65536) + ((minor) * 256) + (patch))
 #define WOLFSSL_MAKE_FIPS_VERSION(major, minor) \
