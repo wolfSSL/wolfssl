@@ -132,6 +132,11 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
                                     cert->derCert->buffer,
                                     cert->derCert->length,
                                     WOLFSSL_FILETYPE_ASN1) == WOLFSSL_SUCCESS) {
+                    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+                        if (!cert->isCa)
+                            WOLFSSL_MSG("Skip to add a cert to CA cache");
+                        else
+                    #endif
                         ret = wolfSSL_X509_STORE_add_cert(store, cert);
                         if (ret < 0) {
                             wolfSSL_sk_free(head);
@@ -210,7 +215,11 @@ int GetX509Error(int e)
             return WOLFSSL_X509_V_ERR_CERT_HAS_EXPIRED;
         case WC_NO_ERR_TRACE(ASN_NO_SIGNER_E):
             /* get issuer error if no CA found locally */
+        #if defined(WOLFSSL_QT)
+            return X509_V_ERR_INVALID_CA;
+        #else
             return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY;
+        #endif
         case WC_NO_ERR_TRACE(ASN_SELF_SIGNED_E):
             return WOLFSSL_X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT;
         case WC_NO_ERR_TRACE(ASN_PATHLEN_INV_E):
@@ -1025,16 +1034,22 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
             /* AddCA() frees the buffer. */
             XMEMCPY(derCert->buffer,
                             x509->derCert->buffer, x509->derCert->length);
-            result = AddCA(store->cm, &derCert, WOLFSSL_USER_CA, VERIFY);
+            result = AddCA(store->cm, &derCert,
+        #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+            WOLFSSL_MUST_BE_CA,
+        #else
+            WOLFSSL_USER_CA,
+        #endif
+            VERIFY);
         }
     }
 
     WOLFSSL_LEAVE("wolfSSL_X509_STORE_add_cert", result);
-
+#if !defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
     if (result != WOLFSSL_SUCCESS) {
         result = WOLFSSL_FATAL_ERROR;
     }
-
+#endif
     return result;
 }
 
