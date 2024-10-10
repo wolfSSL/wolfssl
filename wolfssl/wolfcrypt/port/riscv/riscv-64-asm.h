@@ -232,15 +232,15 @@
 /* Store 8 Vector register. */
 #define VS8R_V(vs3, rs1)    VSR_V(vs3, rs1, 8)
 
-/* Move from vector register to vector registor. */
+/* Move from vector register to vector register. */
 #define VMV_V_V(vd, vs1)                                        \
     ASM_WORD((0b1010111 << 0) | (0b000 << 12) | (0b1 << 25) |   \
         (0b010111 << 26) | ((vd) << 7) | ((vs1) << 15))
-/* Splat register to each component of the vector registor. */
+/* Splat register to each component of the vector register. */
 #define VMV_V_X(vd, rs1)                                        \
     ASM_WORD((0b1010111 << 0) | (0b100 << 12) | (0b1 << 25) |   \
         (0b010111 << 26) | ((vd) << 7) | ((rs1) << 15))
-/* Splat immediate to each component of the vector registor. */
+/* Splat immediate to each component of the vector register. */
 #define VMV_V_I(vd, imm)                                        \
     ASM_WORD((0b1010111 << 0) | (0b011 << 12) | (0b1 << 25) |   \
         (0b010111 << 26) | ((vd) << 7) | ((imm) << 15))
@@ -403,19 +403,19 @@
  * Vector Bit Manipulation
  */
 
-/* Reverse order of bytes in words of vector regsiter. */
+/* Reverse order of bytes in words of vector register. */
 #define VREV8(vd, vs2) \
     ASM_WORD((0b010010 << 26) | (0b1 << 25) | (0b01001<< 15) | \
              (0b010 << 12) | (0b1010111 << 0) |                \
              (vs2 << 20) | (vd << 7))
 
-/* Rotate left bits of vector regsiter. */
+/* Rotate left bits of vector register. */
 #define VROL_VX(vd, vs2, rs) \
     ASM_WORD((0b010101 << 26) | (0b1 << 25) | (0b100 << 12) |    \
              (0b1010111 << 0) |                                  \
              (vs2 << 20) | (rs << 15) | (vd << 7))
 
-/* Rotate right bits of vector regsiter. */
+/* Rotate right bits of vector register. */
 #define VROR_VI(vd, imm, vs2) \
     ASM_WORD((0b01010 << 27) | (0b1 << 25) | (0b011 << 12) |    \
              (0b1010111 << 0) | ((imm >> 5) << 26) |            \

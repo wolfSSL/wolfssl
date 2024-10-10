@@ -129,7 +129,7 @@ static int InitSha512(wc_Sha512* sha512, void* heap, int devId)
     return ret;
 }
 
-/* Initialze SHA-512 object for hashing.
+/* Initialize SHA-512 object for hashing.
  *
  * @param [in, out] sha512  SHA-512 object.
  */
@@ -1493,7 +1493,7 @@ int wc_Sha512_256Transform(wc_Sha512* sha512, const unsigned char* data)
 
 #ifdef WOLFSSL_SHA384
 
-/* Initialze SHA-384 object for hashing.
+/* Initialize SHA-384 object for hashing.
  *
  * @param [in, out] sha384  SHA-384 object.
  */

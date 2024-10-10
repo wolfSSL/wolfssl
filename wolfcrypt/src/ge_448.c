@@ -10602,7 +10602,7 @@ int ge448_scalarmult_base(ge448_p2* r, const byte* a)
     e[112] = carry;
     /* each e[i] is between -8 and 8 */
 
-    /* Odd indeces first - sum based on even index so multiply by 16 */
+    /* Odd indices first - sum based on even index so multiply by 16 */
     ge448_select(t, 0, e[1]);
     fe448_copy(r->X, t->x);
     fe448_copy(r->Y, t->y);
@@ -10617,7 +10617,7 @@ int ge448_scalarmult_base(ge448_p2* r, const byte* a)
     ge448_dbl(r, r);
     ge448_dbl(r, r);
 
-    /* Add even indeces */
+    /* Add even indices */
     for (i = 0; i <= 112; i += 2) {
         ge448_select(t, i / 2, e[i]);
         ge448_madd(r, r, t);
@@ -10633,7 +10633,7 @@ int ge448_scalarmult_base(ge448_p2* r, const byte* a)
 
 /* Create to a sliding window for the scalar multiplicaton.
  *
- * r  [in]  Array of indeces.
+ * r  [in]  Array of indices.
  * a  [in]  Scalar to break up.
  */
 static void slide(sword8 *r, const byte *a)

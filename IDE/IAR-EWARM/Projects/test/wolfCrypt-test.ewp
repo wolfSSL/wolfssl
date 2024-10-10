@@ -937,7 +937,7 @@
         </option>
         <option>
           <name>IarchiveOutput</name>
-          <state>###Unitialized###</state>
+          <state>###Uninitialized###</state>
         </option>
       </data>
     </settings>
