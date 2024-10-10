@@ -1027,6 +1027,11 @@ WOLFSSL_API int wc_ecc_curve_cache_init(void);
 WOLFSSL_API void wc_ecc_curve_cache_free(void);
 #endif
 
+#ifdef HAVE_OID_ENCODING
+WOLFSSL_LOCAL int wc_ecc_oid_cache_init(void);
+WOLFSSL_LOCAL void wc_ecc_oid_cache_free(void);
+#endif
+
 WOLFSSL_API
 int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order);
 

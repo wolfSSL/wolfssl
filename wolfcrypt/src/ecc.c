@@ -1426,7 +1426,13 @@ size_t wc_ecc_get_sets_count(void) {
         byte oid[ECC_MAX_OID_LEN];
     } oid_cache_t;
     static oid_cache_t ecc_oid_cache[ECC_SET_COUNT];
+
+    static wolfSSL_Mutex ecc_oid_cache_lock
+        WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ecc_oid_cache_lock);
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+    static volatile int eccOidLockInit = 0;
 #endif
+#endif /* HAVE_OID_ENCODING */
 
 /* Forward declarations */
 #if defined(HAVE_COMP_KEY) && defined(HAVE_ECC_KEY_EXPORT)
@@ -15429,22 +15435,57 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 #endif /* HAVE_ECC_KEY_EXPORT */
 #endif /* HAVE_COMP_KEY */
 
+#ifdef HAVE_OID_ENCODING
+int wc_ecc_oid_cache_init(void)
+{
+    int ret = 0;
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+    ret = wc_InitMutex(&ecc_oid_cache_lock);
+#endif
+    return ret;
+}
+
+void wc_ecc_oid_cache_free(void)
+{
+#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+    wc_FreeMutex(&ecc_oid_cache_lock);
+#endif
+}
+#endif /* HAVE_OID_ENCODING */
 
 int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
 {
     int x;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+#ifdef HAVE_OID_ENCODING
+    oid_cache_t* o = NULL;
+#endif
 
     if (oidSum == 0) {
         return BAD_FUNC_ARG;
     }
 
+#ifdef HAVE_OID_ENCODING
+    #ifndef WOLFSSL_MUTEX_INITIALIZER
+        /* extra sanity check if wolfCrypt_Init not called */
+        if (eccOidLockInit == 0) {
+            wc_InitMutex(&ecc_oid_cache_lock);
+            eccOidLockInit = 1;
+        }
+    #endif
+
+    if (wc_LockMutex(&ecc_oid_cache_lock) != 0) {
+        return BAD_MUTEX_E;
+    }
+#endif
+
     /* find matching OID sum (based on encoded value) */
     for (x = 0; ecc_sets[x].size != 0; x++) {
         if (ecc_sets[x].oidSum == oidSum) {
         #ifdef HAVE_OID_ENCODING
-            int ret = 0;
             /* check cache */
-            oid_cache_t* o = &ecc_oid_cache[x];
+            ret = 0;
+            o = &ecc_oid_cache[x];
             if (o->oidSz == 0) {
                 o->oidSz = sizeof(o->oid);
                 ret = EncodeObjectId(ecc_sets[x].oid, ecc_sets[x].oidSz,
@@ -15456,11 +15497,12 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
             if (oid) {
                 *oid = o->oid;
             }
+
             /* on success return curve id */
             if (ret == 0) {
                 ret = ecc_sets[x].id;
             }
-            return ret;
+            break;
         #else
             if (oidSz) {
                 *oidSz = ecc_sets[x].oidSz;
@@ -15468,12 +15510,17 @@ int wc_ecc_get_oid(word32 oidSum, const byte** oid, word32* oidSz)
             if (oid) {
                 *oid = ecc_sets[x].oid;
             }
-            return ecc_sets[x].id;
+            ret = ecc_sets[x].id;
+            break;
         #endif
         }
     }
 
-    return NOT_COMPILED_IN;
+#ifdef HAVE_OID_ENCODING
+    wc_UnLockMutex(&ecc_oid_cache_lock);
+#endif
+
+    return ret;
 }
 
 #ifdef WOLFSSL_CUSTOM_CURVES
