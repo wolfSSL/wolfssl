@@ -92032,7 +92032,7 @@ static int test_override_alt_cert_chain_ocsp_cb(void* ioCtx, const char* url,
     (void)request;
     (void)requestSz;
     (void)response;
-    return -1;
+    return OCSP_INVALID_STATUS;
 }
 
 static int test_override_alt_cert_chain_client_ctx_ready(WOLFSSL_CTX* ctx)
@@ -96538,7 +96538,7 @@ static int test_ocsp_callback_fails_cb(void* ctx, const char* url, int urlSz,
     (void)ocspReqBuf;
     (void)ocspReqSz;
     (void)ocspRespBuf;
-    return -1;
+    return OCSP_INVALID_STATUS;
 }
 static int test_ocsp_callback_fails(void)
 {
