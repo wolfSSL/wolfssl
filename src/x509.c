@@ -6049,25 +6049,6 @@ static int X509_ACERT_print_name_entry(WOLFSSL_BIO* bio,
     return ret;
 }
 
-/* Sets buf pointer and len to raw Attribute buffer and buffer len
- * in X509 struct.
- *
- * Returns WOLFSSL_SUCCESS on success.
- * Returns BAD_FUNC_ARG if input pointers are null.
- * */
-WOLFSSL_API int wolfSSL_X509_ACERT_get_attr_buf(const WOLFSSL_X509_ACERT* x509,
-                                                const byte ** rawAttr,
-                                                word32 * rawAttrLen)
-{
-    if (x509 == NULL || rawAttr == NULL || rawAttrLen == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    *rawAttr = x509->rawAttr;
-    *rawAttrLen = x509->rawAttrLen;
-
-    return WOLFSSL_SUCCESS;
-}
 #endif /* if WOLFSSL_ACERT*/
 
 static int X509PrintSubjAltName(WOLFSSL_BIO* bio, WOLFSSL_X509* x509,
@@ -7220,168 +7201,6 @@ int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
 }
 
 #if defined(WOLFSSL_ACERT)
-WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer(
-    const unsigned char* buf, int sz, int format)
-{
-    int                  ret = 0;
-    WOLFSSL_X509_ACERT * x509 = NULL;
-    DerBuffer *          der = NULL;
-    #ifdef WOLFSSL_SMALL_STACK
-    DecodedAcert *       acert = NULL;
-    #else
-    DecodedAcert         acert[1];
-    #endif
-
-    WOLFSSL_ENTER("wolfSSL_X509_ACERT_load_certificate_buffer");
-
-    if (format == WOLFSSL_FILETYPE_PEM) {
-    #ifdef WOLFSSL_PEM_TO_DER
-        ret = PemToDer(buf, sz, ACERT_TYPE, &der, NULL, NULL, NULL);
-
-        if (ret != 0 || der == NULL || der->buffer == NULL) {
-            WOLFSSL_ERROR(ret);
-
-            if (der != NULL) {
-                FreeDer(&der);
-            }
-
-            return NULL;
-        }
-    #else
-        WOLFSSL_ERROR(NOT_COMPILED_IN);
-        return NULL;
-    #endif
-    }
-    else {
-        ret = AllocDer(&der, (word32)sz, ACERT_TYPE, NULL);
-
-        if (ret != 0 || der == NULL || der->buffer == NULL) {
-            WOLFSSL_ERROR(ret);
-            return NULL;
-        }
-
-        XMEMCPY(der->buffer, buf, sz);
-    }
-
-    #ifdef WOLFSSL_SMALL_STACK
-    acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), NULL,
-                                   DYNAMIC_TYPE_TMP_BUFFER);
-    if (acert == NULL) {
-        WOLFSSL_ERROR(MEMORY_ERROR);
-        FreeDer(&der);
-        return NULL;
-    }
-    #endif
-
-    InitDecodedAcert(acert, der->buffer, der->length, NULL);
-
-    ret = ParseX509Acert(acert, VERIFY_SKIP_DATE);
-
-    if (ret == 0) {
-        x509 = (WOLFSSL_X509_ACERT*)XMALLOC(sizeof(WOLFSSL_X509_ACERT), NULL,
-                                            DYNAMIC_TYPE_X509_ACERT);
-        if (x509 != NULL) {
-            wolfSSL_X509_ACERT_init(x509, NULL);
-            ret = CopyDecodedAcertToX509(x509, acert);
-
-            if (ret != 0) {
-                wolfSSL_X509_ACERT_free(x509);
-                x509 = NULL;
-            }
-        }
-        else {
-            ret = MEMORY_ERROR;
-        }
-    }
-
-    FreeDecodedAcert(acert);
-
-    #ifdef WOLFSSL_SMALL_STACK
-    XFREE(acert, NULL, DYNAMIC_TYPE_DCERT);
-    #endif
-
-    FreeDer(&der);
-
-    if (ret != 0) {
-        WOLFSSL_ERROR(ret);
-    }
-
-    return x509;
-}
-
-void wolfSSL_X509_ACERT_init(WOLFSSL_X509_ACERT * x509, void* heap)
-{
-    if (x509 == NULL) {
-        WOLFSSL_MSG("error: InitX509Acert: null parameter");
-        return;
-    }
-
-    XMEMSET(x509, 0, sizeof(*x509));
-
-    x509->heap = heap;
-}
-
-void wolfSSL_X509_ACERT_free(WOLFSSL_X509_ACERT* x509)
-{
-    if (x509 == NULL) {
-        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_free: null parameter");
-        return;
-    }
-
-    /* Free holder and att cert issuer structures. */
-    if (x509->holderIssuerName) {
-        FreeAltNames(x509->holderIssuerName, x509->heap);
-        x509->holderIssuerName = NULL;
-    }
-
-    if (x509->AttCertIssuerName) {
-        FreeAltNames(x509->AttCertIssuerName, x509->heap);
-        x509->AttCertIssuerName = NULL;
-    }
-
-    if (x509->rawAttr != NULL) {
-        XFREE(x509->rawAttr, x509->heap, DYNAMIC_TYPE_X509_EXT);
-        x509->rawAttr = NULL;
-        x509->rawAttrLen = 0;
-    }
-
-    /* Free derCert source and signature buffer. */
-    FreeDer(&x509->derCert);
-
-    if (x509->sig.buffer != NULL) {
-        XFREE(x509->sig.buffer, x509->heap, DYNAMIC_TYPE_SIGNATURE);
-        x509->sig.buffer = NULL;
-    }
-
-    /* Finally memset and free x509 acert structure. */
-    XMEMSET(x509, 0, sizeof(*x509));
-    XFREE(x509, NULL, DYNAMIC_TYPE_X509_ACERT);
-
-    return;
-}
-
-long wolfSSL_X509_ACERT_get_version(const WOLFSSL_X509_ACERT* x509)
-{
-    int version = 0;
-
-    if (x509 == NULL) {
-        return 0L;
-    }
-
-    version = x509->version;
-
-    return version != 0 ? (long)version - 1L : 0L;
-}
-
-int wolfSSL_X509_ACERT_version(WOLFSSL_X509_ACERT* x509)
-{
-    if (x509 == NULL) {
-        return 0;
-    }
-
-    return x509->version;
-}
-
 /* Retrieve sig NID from an ACERT.
  *
  * returns  NID on success
@@ -7394,43 +7213,6 @@ int wolfSSL_X509_ACERT_get_signature_nid(const WOLFSSL_X509_ACERT *x509)
     }
 
     return oid2nid((word32)x509->sigOID, oidSigType);
-}
-
-/* Retrieve the signature from an ACERT.
- *
- * @param [in]       x509    the x509 attribute certificate
- * @param [in, out]  buf     the signature buffer pointer
- * @param [in, out]  bufSz   the signature buffer size pointer
- *
- * buf may be null, but bufSz is required. On success, sets
- * bufSz pointer to signature length, and copies signature
- * to buf if provided.
- *
- * Returns  WWOLFSSL_FATAL_ERROR if bufSz is null or too small.
- * Returns  WOLFSSL_SUCCESS on success.
- */
-int wolfSSL_X509_ACERT_get_signature(WOLFSSL_X509_ACERT* x509,
-                                     unsigned char* buf, int* bufSz)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_ACERT_get_signature");
-
-    if (x509 == NULL || bufSz == NULL) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    /* If buf array is provided, it must be long enough. */
-    if (buf != NULL && *bufSz < (int)x509->sig.length) {
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    if (buf != NULL) {
-        /* Copy in buffer if provided. */
-        XMEMCPY(buf, x509->sig.buffer, x509->sig.length);
-    }
-
-    *bufSz = (int)x509->sig.length;
-
-    return WOLFSSL_SUCCESS;
 }
 
 static int X509AcertPrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509_ACERT* x509,
@@ -7471,43 +7253,6 @@ static int X509AcertPrintSignature(WOLFSSL_BIO* bio, WOLFSSL_X509_ACERT* x509,
         }
 
     }
-
-    return WOLFSSL_SUCCESS;
-}
-
-/* Retrieve the serial number from an ACERT.
- *
- * @param [in]       x509    the x509 attribute certificate
- * @param [in, out]  buf     the serial number buffer pointer
- * @param [in, out]  bufSz   the serial number buffer size pointer
- *
- * buf may be null, but bufSz is required. On success, sets
- * bufSz pointer to signature length, and copies signature
- * to buf if provided.
- *
- * Returns  WWOLFSSL_FATAL_ERROR if bufSz is null or too small.
- * Returns  WOLFSSL_SUCCESS on success.
- */
-int wolfSSL_X509_ACERT_get_serial_number(WOLFSSL_X509_ACERT* x509,
-                                         byte* buf, int* bufSz)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_ACERT_get_serial_number");
-
-    if (x509 == NULL || bufSz == NULL) {
-        WOLFSSL_MSG("error: null argument passed in");
-        return BAD_FUNC_ARG;
-    }
-
-    if (buf != NULL) {
-        if (*bufSz < x509->serialSz) {
-            WOLFSSL_MSG("error: serial buffer too small");
-            return BUFFER_E;
-        }
-
-        XMEMCPY(buf, x509->serial, x509->serialSz);
-    }
-
-    *bufSz = x509->serialSz;
 
     return WOLFSSL_SUCCESS;
 }
@@ -8384,95 +8129,6 @@ int wolfSSL_X509_REQ_verify(WOLFSSL_X509* x509, WOLFSSL_EVP_PKEY* pkey)
     return verifyX509orX509REQ(x509, pkey, 1);
 }
 #endif /* WOLFSSL_CERT_REQ */
-
-#if defined(WOLFSSL_ACERT)
-
-#ifndef NO_WOLFSSL_STUB
-WOLFSSL_API int wolfSSL_X509_ACERT_sign(WOLFSSL_X509_ACERT * x509,
-                                        WOLFSSL_EVP_PKEY * pkey,
-                                        const WOLFSSL_EVP_MD * md)
-{
-    WOLFSSL_STUB("X509_ACERT_sign");
-    (void) x509;
-    (void) pkey;
-    (void) md;
-    return WOLFSSL_NOT_IMPLEMENTED;
-}
-#endif /* NO_WOLFSSL_STUB */
-
-/* Helper function for ACERT_verify.
- *
- * @param [in]       x509    the x509 attribute certificate
- * @param [in, out]  outSz   the x509 der length
- *
- * @return  der buffer on success
- * @return  NULL on error
- * */
-static const byte* acert_get_der(WOLFSSL_X509_ACERT * x509, int* outSz)
-{
-    if (x509 == NULL || x509->derCert == NULL || outSz == NULL) {
-        return NULL;
-    }
-
-    *outSz = (int)x509->derCert->length;
-    return x509->derCert->buffer;
-}
-
-/* Given an X509_ACERT and EVP_PKEY, verify the acert's signature.
- *
- * @param [in]    x509    the x509 attribute certificate
- * @param [in]    pkey    the evp_pkey
- *
- * @return  WOLFSSL_SUCCESS on verify success
- * @return  < 0 on error
- * */
-int wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509, WOLFSSL_EVP_PKEY* pkey)
-{
-    int          ret = 0;
-    const byte * der = NULL;
-    int          derSz = 0;
-    int          pkey_type;
-
-    if (x509 == NULL || pkey == NULL) {
-        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_verify: bad arg");
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    WOLFSSL_ENTER("wolfSSL_X509_ACERT_verify");
-
-    der = acert_get_der(x509, &derSz);
-
-    if (der == NULL || derSz <= 0) {
-        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_verify: get der failed");
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-    switch (pkey->type) {
-    case EVP_PKEY_RSA:
-        pkey_type = RSAk;
-        break;
-
-    case EVP_PKEY_EC:
-        pkey_type = ECDSAk;
-        break;
-
-    case EVP_PKEY_DSA:
-        pkey_type = DSAk;
-        break;
-
-    default:
-        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_verify: unknown pkey type");
-        return WOLFSSL_FATAL_ERROR;
-    }
-
-
-    ret = VerifyX509Acert(der, (word32)derSz,
-                          (const byte *)pkey->pkey.ptr, pkey->pkey_sz,
-                          pkey_type, x509->heap);
-
-    return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
-}
-#endif /* WOLFSSL_ACERT */
 
 #if !defined(NO_FILESYSTEM)
 static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
@@ -15588,7 +15244,417 @@ void wolfSSL_X509_ATTRIBUTE_free(WOLFSSL_X509_ATTRIBUTE* attr)
         XFREE(attr, NULL, DYNAMIC_TYPE_OPENSSL);
     }
 }
-#endif
+#endif /* (OPENSSL_ALL || OPENSSL_EXTRA) &&
+          (WOLFSSL_CERT_GEN || WOLFSSL_CERT_REQ) */
+
+#if defined(WOLFSSL_ACERT) && \
+   (defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA))
+
+/* Allocate and return a new WOLFSSL_X509_ACERT struct pointer.
+ *
+ * @param [in]      heap        heap hint
+ *
+ * @return  pointer  on success
+ * @return  NULL     on error
+ * */
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_new_ex(void* heap)
+{
+    WOLFSSL_X509_ACERT* x509;
+
+    x509 = (WOLFSSL_X509_ACERT*) XMALLOC(sizeof(WOLFSSL_X509_ACERT), heap,
+                                         DYNAMIC_TYPE_X509_ACERT);
+
+    if (x509 != NULL) {
+        wolfSSL_X509_ACERT_init(x509, 1, heap);
+    }
+
+    return x509;
+}
+
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_new(void)
+{
+    return wolfSSL_X509_ACERT_new_ex(NULL);
+}
+
+/* Initialize a WOLFSSL_X509_ACERT struct.
+ *
+ * If dynamic == 1, then the x509 pointer will be freed
+ * in wolfSSL_X509_ACERT_free.
+ *
+ * @param [in]      x509        x509 acert pointer
+ * @param [in]      dynamic     dynamic mem flag
+ * @param [in]      heap        heap hint
+ *
+ * @return  void
+ * */
+void wolfSSL_X509_ACERT_init(WOLFSSL_X509_ACERT * x509, int dynamic, void* heap)
+{
+    if (x509 == NULL) {
+        WOLFSSL_MSG("error: InitX509Acert: null parameter");
+        return;
+    }
+
+    XMEMSET(x509, 0, sizeof(*x509));
+
+    x509->heap = heap;
+    x509->dynamic = dynamic;
+}
+
+/* Free a WOLFSSL_X509_ACERT struct and its sub-fields.
+ *
+ * If this ACERT was initialized with dynamic == 1, then
+ * the x509 pointer itself will be freed as well.
+ *
+ * @param [in]      x509        x509 acert pointer
+ *
+ * @return  void
+ * */
+void wolfSSL_X509_ACERT_free(WOLFSSL_X509_ACERT * x509)
+{
+    int    dynamic = 0;
+    void * heap = NULL;
+
+    if (x509 == NULL) {
+        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_free: null parameter");
+        return;
+    }
+
+    dynamic = x509->dynamic;
+    heap = x509->heap;
+
+    /* Free holder and att cert issuer structures. */
+    if (x509->holderIssuerName) {
+        FreeAltNames(x509->holderIssuerName, heap);
+        x509->holderIssuerName = NULL;
+    }
+
+    if (x509->AttCertIssuerName) {
+        FreeAltNames(x509->AttCertIssuerName, heap);
+        x509->AttCertIssuerName = NULL;
+    }
+
+    if (x509->rawAttr != NULL) {
+        XFREE(x509->rawAttr, heap, DYNAMIC_TYPE_X509_EXT);
+        x509->rawAttr = NULL;
+        x509->rawAttrLen = 0;
+    }
+
+    /* Free derCert source and signature buffer. */
+    FreeDer(&x509->derCert);
+
+    if (x509->sig.buffer != NULL) {
+        XFREE(x509->sig.buffer, heap, DYNAMIC_TYPE_SIGNATURE);
+        x509->sig.buffer = NULL;
+    }
+
+    /* Finally memset and free x509 acert structure. */
+    XMEMSET(x509, 0, sizeof(*x509));
+
+    if (dynamic == 1) {
+        XFREE(x509, heap, DYNAMIC_TYPE_X509_ACERT);
+    }
+
+    return;
+}
+
+#if defined(OPENSSL_EXTRA)
+long wolfSSL_X509_ACERT_get_version(const WOLFSSL_X509_ACERT* x509)
+{
+    int version = 0;
+
+    if (x509 == NULL) {
+        return 0L;
+    }
+
+    version = x509->version;
+
+    return version != 0 ? (long)version - 1L : 0L;
+}
+#endif /* OPENSSL_EXTRA */
+
+int wolfSSL_X509_ACERT_version(WOLFSSL_X509_ACERT* x509)
+{
+    if (x509 == NULL) {
+        return 0;
+    }
+
+    return x509->version;
+}
+
+/* Retrieve the serial number from an ACERT.
+ *
+ * @param [in]       x509    the x509 attribute certificate
+ * @param [in, out]  buf     the serial number buffer pointer
+ * @param [in, out]  bufSz   the serial number buffer size pointer
+ *
+ * buf may be null, but bufSz is required. On success, sets
+ * bufSz pointer to signature length, and copies signature
+ * to buf if provided.
+ *
+ * Returns  WWOLFSSL_FATAL_ERROR if bufSz is null or too small.
+ * Returns  WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_X509_ACERT_get_serial_number(WOLFSSL_X509_ACERT* x509,
+                                         byte* buf, int* bufSz)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_ACERT_get_serial_number");
+
+    if (x509 == NULL || bufSz == NULL) {
+        WOLFSSL_MSG("error: null argument passed in");
+        return BAD_FUNC_ARG;
+    }
+
+    if (buf != NULL) {
+        if (*bufSz < x509->serialSz) {
+            WOLFSSL_MSG("error: serial buffer too small");
+            return BUFFER_E;
+        }
+
+        XMEMCPY(buf, x509->serial, x509->serialSz);
+    }
+
+    *bufSz = x509->serialSz;
+
+    return WOLFSSL_SUCCESS;
+}
+
+/* Sets buf pointer and len to raw Attribute buffer and buffer len
+ * in X509 struct.
+ *
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns BAD_FUNC_ARG if input pointers are null.
+ * */
+WOLFSSL_API int wolfSSL_X509_ACERT_get_attr_buf(const WOLFSSL_X509_ACERT* x509,
+                                                const byte ** rawAttr,
+                                                word32 * rawAttrLen)
+{
+    if (x509 == NULL || rawAttr == NULL || rawAttrLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    *rawAttr = x509->rawAttr;
+    *rawAttrLen = x509->rawAttrLen;
+
+    return WOLFSSL_SUCCESS;
+}
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_API int wolfSSL_X509_ACERT_sign(WOLFSSL_X509_ACERT * x509,
+                                        WOLFSSL_EVP_PKEY * pkey,
+                                        const WOLFSSL_EVP_MD * md)
+{
+    WOLFSSL_STUB("X509_ACERT_sign");
+    (void) x509;
+    (void) pkey;
+    (void) md;
+    return WOLFSSL_NOT_IMPLEMENTED;
+}
+#endif /* NO_WOLFSSL_STUB */
+
+/* Helper function for ACERT_verify.
+ *
+ * @param [in]       x509    the x509 attribute certificate
+ * @param [in, out]  outSz   the x509 der length
+ *
+ * @return  der buffer on success
+ * @return  NULL on error
+ * */
+static const byte* acert_get_der(WOLFSSL_X509_ACERT * x509, int* outSz)
+{
+    if (x509 == NULL || x509->derCert == NULL || outSz == NULL) {
+        return NULL;
+    }
+
+    *outSz = (int)x509->derCert->length;
+    return x509->derCert->buffer;
+}
+
+/* Given an X509_ACERT and EVP_PKEY, verify the acert's signature.
+ *
+ * @param [in]    x509    the x509 attribute certificate
+ * @param [in]    pkey    the evp_pkey
+ *
+ * @return  WOLFSSL_SUCCESS on verify success
+ * @return  < 0 on error
+ * */
+int wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509, WOLFSSL_EVP_PKEY* pkey)
+{
+    int          ret = 0;
+    const byte * der = NULL;
+    int          derSz = 0;
+    int          pkey_type;
+
+    if (x509 == NULL || pkey == NULL) {
+        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_verify: bad arg");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    WOLFSSL_ENTER("wolfSSL_X509_ACERT_verify");
+
+    der = acert_get_der(x509, &derSz);
+
+    if (der == NULL || derSz <= 0) {
+        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_verify: get der failed");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    switch (pkey->type) {
+    case EVP_PKEY_RSA:
+        pkey_type = RSAk;
+        break;
+
+    case EVP_PKEY_EC:
+        pkey_type = ECDSAk;
+        break;
+
+    case EVP_PKEY_DSA:
+        pkey_type = DSAk;
+        break;
+
+    default:
+        WOLFSSL_MSG("error: wolfSSL_X509_ACERT_verify: unknown pkey type");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+
+    ret = VerifyX509Acert(der, (word32)derSz,
+                          (const byte *)pkey->pkey.ptr, pkey->pkey_sz,
+                          pkey_type, x509->heap);
+
+    return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+}
+
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer_ex(
+    const unsigned char* buf, int sz, int format, void * heap)
+{
+    int                  ret = 0;
+    WOLFSSL_X509_ACERT * x509 = NULL;
+    DerBuffer *          der = NULL;
+    #ifdef WOLFSSL_SMALL_STACK
+    DecodedAcert *       acert = NULL;
+    #else
+    DecodedAcert         acert[1];
+    #endif
+
+    WOLFSSL_ENTER("wolfSSL_X509_ACERT_load_certificate_buffer");
+
+    if (format == WOLFSSL_FILETYPE_PEM) {
+    #ifdef WOLFSSL_PEM_TO_DER
+        ret = PemToDer(buf, sz, ACERT_TYPE, &der, heap, NULL, NULL);
+
+        if (ret != 0 || der == NULL || der->buffer == NULL) {
+            WOLFSSL_ERROR(ret);
+
+            if (der != NULL) {
+                FreeDer(&der);
+            }
+
+            return NULL;
+        }
+    #else
+        WOLFSSL_ERROR(NOT_COMPILED_IN);
+        return NULL;
+    #endif
+    }
+    else {
+        ret = AllocDer(&der, (word32)sz, ACERT_TYPE, heap);
+
+        if (ret != 0 || der == NULL || der->buffer == NULL) {
+            WOLFSSL_ERROR(ret);
+            return NULL;
+        }
+
+        XMEMCPY(der->buffer, buf, sz);
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+    acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), heap,
+                                   DYNAMIC_TYPE_DCERT);
+    if (acert == NULL) {
+        WOLFSSL_ERROR(MEMORY_ERROR);
+        FreeDer(&der);
+        return NULL;
+    }
+    #endif
+
+    InitDecodedAcert(acert, der->buffer, der->length, heap);
+
+    ret = ParseX509Acert(acert, VERIFY_SKIP_DATE);
+
+    if (ret == 0) {
+        x509 = wolfSSL_X509_ACERT_new_ex(heap);
+
+        if (x509 != NULL) {
+            ret = CopyDecodedAcertToX509(x509, acert);
+
+            if (ret != 0) {
+                wolfSSL_X509_ACERT_free(x509);
+                x509 = NULL;
+            }
+        }
+        else {
+            ret = MEMORY_ERROR;
+        }
+    }
+
+    FreeDecodedAcert(acert);
+
+    #ifdef WOLFSSL_SMALL_STACK
+    XFREE(acert, heap, DYNAMIC_TYPE_DCERT);
+    #endif
+
+    FreeDer(&der);
+
+    if (ret != 0) {
+        WOLFSSL_ERROR(ret);
+    }
+
+    return x509;
+}
+
+WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer(
+    const unsigned char* buf, int sz, int format)
+{
+    return wolfSSL_X509_ACERT_load_certificate_buffer_ex(buf, sz, format, NULL);
+}
+
+/* Retrieve the signature from an ACERT.
+ *
+ * @param [in]       x509    the x509 attribute certificate
+ * @param [in, out]  buf     the signature buffer pointer
+ * @param [in, out]  bufSz   the signature buffer size pointer
+ *
+ * buf may be null, but bufSz is required. On success, sets
+ * bufSz pointer to signature length, and copies signature
+ * to buf if provided.
+ *
+ * Returns  WWOLFSSL_FATAL_ERROR if bufSz is null or too small.
+ * Returns  WOLFSSL_SUCCESS on success.
+ */
+int wolfSSL_X509_ACERT_get_signature(WOLFSSL_X509_ACERT* x509,
+                                     unsigned char* buf, int* bufSz)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_ACERT_get_signature");
+
+    if (x509 == NULL || bufSz == NULL) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    /* If buf array is provided, it must be long enough. */
+    if (buf != NULL && *bufSz < (int)x509->sig.length) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (buf != NULL) {
+        /* Copy in buffer if provided. */
+        XMEMCPY(buf, x509->sig.buffer, x509->sig.length);
+    }
+
+    *bufSz = (int)x509->sig.length;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_ACERT && (OPENSSL_EXTRA_X509_SMALL || OPENSSL_EXTRA) */
 
 #endif /* !NO_CERTS */
 
