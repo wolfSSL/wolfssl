@@ -14070,6 +14070,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
         #endif /* HAVE_AES_DECRYPT */
+
+        aes_cbc_oneshot_test();
     }
 #endif /* WOLFSSL_AES_128 && !HAVE_RENESAS_SYNC */
 
