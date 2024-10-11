@@ -14004,6 +14004,154 @@ static int test_wolfSSL_X509_ACERT_misc_api(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_X509_ACERT_buffer(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ACERT) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && defined(WC_RSA_PSS) && \
+    (defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA))
+    const byte acert_ietf[] = \
+    "-----BEGIN ATTRIBUTE CERTIFICATE-----\n"
+    "MIICPTCCASUCAQEwN6AWMBGkDzANMQswCQYDVQQDDAJDQQIBAqEdpBswGTEXMBUG\n"
+    "A1UEAwwOc2VydmVyLmV4YW1wbGWgLTArpCkwJzElMCMGA1UEAwwcQXR0cmlidXRl\n"
+    "IENlcnRpZmljYXRlIElzc3VlcjANBgkqhkiG9w0BAQsFAAIUA7WQWQKiqrVAIUS4\n"
+    "LE/ZgBtfV8IwIhgPMjAyMTA2MTUxMjM1MDBaGA8yMDMxMDYxMzEyMzUwMFowQTAj\n"
+    "BggrBgEFBQcKBDEXMBWgCYYHVGVzdHZhbDAIDAZncm91cDEwGgYDVQRIMRMwEaEP\n"
+    "gw1hZG1pbmlzdHJhdG9yMCwwHwYDVR0jBBgwFoAUYm7JaGdsZLtTgt0tqoCK2MrI\n"
+    "i10wCQYDVR04BAIFADANBgkqhkiG9w0BAQsFAAOCAQEAlIOJ2Dj3TEUj6BIv6vUs\n"
+    "GqFWms05i+d10XSzWrunlUTQPoJcUjYkifOWp/7RpZ2XnRl+6hH+nIbmwSmXWwBn\n"
+    "ERw2bQMmw/""/nWuN4Qv9t7ltuovWC0pJX6VMT1IRTuTV4SxuZpFL37vkmnFlPBlb+\n"
+    "mn3ESSxLTjThWFIq1tip4IaxE/i5Uh32GlJglatFHM1PCGoJtyLtYb6KHDlvknw6\n"
+    "coDyjIcj0FZwtQw41jLwxI8jWNmrpt978wdpprB/URrRs+m02HmeQoiHFi/qvdv8\n"
+    "d+5vHf3Pi/ulhz/+dvr0p1vEQSoFnYxLXuty2p5m3PJPZCFmT3gURgmgR3BN9d7A\n"
+    "Bw==\n"
+    "-----END ATTRIBUTE CERTIFICATE-----\n";
+    X509_ACERT * x509 = NULL;
+    int          rc = 0;
+    byte         ietf_serial[] = {0x03, 0xb5, 0x90, 0x59, 0x02,
+                                  0xa2, 0xaa, 0xb5, 0x40, 0x21,
+                                  0x44, 0xb8, 0x2c, 0x4f, 0xd9,
+                                  0x80, 0x1b, 0x5f, 0x57, 0xc2};
+    byte         serial[64];
+    int          serial_len = sizeof(serial);
+    const byte * raw_attr = NULL;
+    word32       attr_len = 0;
+
+    x509 = wolfSSL_X509_ACERT_load_certificate_buffer_ex(acert_ietf,
+                                                         sizeof(acert_ietf),
+                                                         WOLFSSL_FILETYPE_PEM,
+                                                         HEAP_HINT);
+
+    rc = wolfSSL_X509_ACERT_get_serial_number(x509, serial, &serial_len);
+    ExpectIntEQ(rc, SSL_SUCCESS);
+
+    ExpectIntEQ(serial_len, 20);
+    ExpectIntEQ(XMEMCMP(serial, ietf_serial, sizeof(ietf_serial)), 0);
+
+    /* Get the attributes buffer. */
+    rc = wolfSSL_X509_ACERT_get_attr_buf(x509, &raw_attr, &attr_len);
+    ExpectIntEQ(rc, SSL_SUCCESS);
+
+    /* This cert has a 65 byte attributes field. */
+    ExpectNotNull(raw_attr);
+    ExpectIntEQ(attr_len, 65);
+
+    ExpectNotNull(x509);
+
+    if (x509 != NULL) {
+        wolfSSL_X509_ACERT_free(x509);
+        x509 = NULL;
+    }
+#endif
+    return EXPECT_RESULT();
+}
+
+/* Test ACERT support, but with ASN functions only.
+ * */
+static int test_wolfSSL_X509_ACERT_asn(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ACERT) && !defined(NO_CERTS)
+    const byte acert_ietf[] = \
+    "-----BEGIN ATTRIBUTE CERTIFICATE-----\n"
+    "MIICPTCCASUCAQEwN6AWMBGkDzANMQswCQYDVQQDDAJDQQIBAqEdpBswGTEXMBUG\n"
+    "A1UEAwwOc2VydmVyLmV4YW1wbGWgLTArpCkwJzElMCMGA1UEAwwcQXR0cmlidXRl\n"
+    "IENlcnRpZmljYXRlIElzc3VlcjANBgkqhkiG9w0BAQsFAAIUA7WQWQKiqrVAIUS4\n"
+    "LE/ZgBtfV8IwIhgPMjAyMTA2MTUxMjM1MDBaGA8yMDMxMDYxMzEyMzUwMFowQTAj\n"
+    "BggrBgEFBQcKBDEXMBWgCYYHVGVzdHZhbDAIDAZncm91cDEwGgYDVQRIMRMwEaEP\n"
+    "gw1hZG1pbmlzdHJhdG9yMCwwHwYDVR0jBBgwFoAUYm7JaGdsZLtTgt0tqoCK2MrI\n"
+    "i10wCQYDVR04BAIFADANBgkqhkiG9w0BAQsFAAOCAQEAlIOJ2Dj3TEUj6BIv6vUs\n"
+    "GqFWms05i+d10XSzWrunlUTQPoJcUjYkifOWp/7RpZ2XnRl+6hH+nIbmwSmXWwBn\n"
+    "ERw2bQMmw/""/nWuN4Qv9t7ltuovWC0pJX6VMT1IRTuTV4SxuZpFL37vkmnFlPBlb+\n"
+    "mn3ESSxLTjThWFIq1tip4IaxE/i5Uh32GlJglatFHM1PCGoJtyLtYb6KHDlvknw6\n"
+    "coDyjIcj0FZwtQw41jLwxI8jWNmrpt978wdpprB/URrRs+m02HmeQoiHFi/qvdv8\n"
+    "d+5vHf3Pi/ulhz/+dvr0p1vEQSoFnYxLXuty2p5m3PJPZCFmT3gURgmgR3BN9d7A\n"
+    "Bw==\n"
+    "-----END ATTRIBUTE CERTIFICATE-----\n";
+    int            rc = 0;
+    byte           ietf_serial[] = {0x03, 0xb5, 0x90, 0x59, 0x02,
+                                    0xa2, 0xaa, 0xb5, 0x40, 0x21,
+                                    0x44, 0xb8, 0x2c, 0x4f, 0xd9,
+                                    0x80, 0x1b, 0x5f, 0x57, 0xc2};
+    DerBuffer *    der = NULL;
+    #ifdef WOLFSSL_SMALL_STACK
+    DecodedAcert * acert = NULL;
+    #else
+    DecodedAcert   acert[1];
+    #endif
+
+    rc = wc_PemToDer(acert_ietf, sizeof(acert_ietf), ACERT_TYPE, &der,
+                     HEAP_HINT, NULL, NULL);
+
+    ExpectIntEQ(rc, 0);
+    ExpectNotNull(der);
+
+    if (der != NULL) {
+        ExpectNotNull(der->buffer);
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+    acert = (DecodedAcert*)XMALLOC(sizeof(DecodedAcert), HEAP_HINT,
+                                   DYNAMIC_TYPE_DCERT);
+    ExpectNotNull(acert);
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+    if (acert != NULL)
+    #endif
+    {
+        if (der != NULL && der->buffer != NULL) {
+            wc_InitDecodedAcert(acert, der->buffer, der->length, HEAP_HINT);
+            rc = wc_ParseX509Acert(acert, VERIFY_SKIP_DATE);
+            ExpectIntEQ(rc, 0);
+        }
+
+        ExpectIntEQ(acert->serialSz, 20);
+        ExpectIntEQ(XMEMCMP(acert->serial, ietf_serial, sizeof(ietf_serial)),
+                    0);
+
+        /* This cert has a 65 byte attributes field. */
+        ExpectNotNull(acert->rawAttr);
+        ExpectIntEQ(acert->rawAttrLen, 65);
+
+        wc_FreeDecodedAcert(acert);
+    }
+
+    #ifdef WOLFSSL_SMALL_STACK
+    if (acert != NULL) {
+        XFREE(acert, HEAP_HINT, DYNAMIC_TYPE_DCERT);
+        acert = NULL;
+    }
+    #endif
+
+    if (der != NULL) {
+        wc_FreeDer(&der);
+    }
+
+#endif
+    return EXPECT_RESULT();
+}
+
 #if !defined(NO_DH) && !defined(NO_AES) && defined(WOLFSSL_CERT_GEN) && \
          defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) && \
          defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME)
@@ -97321,6 +97469,8 @@ TEST_CASE testCases[] = {
     /* X509 ACERT tests */
     TEST_DECL(test_wolfSSL_X509_ACERT_verify),
     TEST_DECL(test_wolfSSL_X509_ACERT_misc_api),
+    TEST_DECL(test_wolfSSL_X509_ACERT_buffer),
+    TEST_DECL(test_wolfSSL_X509_ACERT_asn),
 
 #ifndef NO_BIO
     TEST_DECL(test_wolfSSL_X509_INFO_multiple_info),

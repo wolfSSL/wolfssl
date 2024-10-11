@@ -2719,7 +2719,6 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL* dcrl);
 /* Minimal structure for x509 attribute certificate (rfc 5755).
  *
  * The attributes field is not parsed, but is stored as raw buffer.
- *
  * */
 struct DecodedAcert {
     word32       certBegin; /* Offset to start of acert. */

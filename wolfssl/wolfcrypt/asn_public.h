@@ -969,6 +969,19 @@ WOLFSSL_API int wc_GeneratePreTBS(struct DecodedCert* cert, byte *der,
                                   int derSz);
 #endif
 
+#if defined(WOLFSSL_ACERT)
+/* Forward declaration needed, as DecodedAcert is defined in asn.h.*/
+struct DecodedAcert;
+WOLFSSL_API void wc_InitDecodedAcert(struct DecodedAcert* acert,
+                                     const byte* source, word32 inSz,
+                                     void* heap);
+WOLFSSL_API void wc_FreeDecodedAcert(struct DecodedAcert * acert);
+WOLFSSL_API int  wc_ParseX509Acert(struct DecodedAcert* acert, int verify);
+WOLFSSL_API int  wc_VerifyX509Acert(const byte* acert, word32 acertSz,
+                                    const byte* pubKey, word32 pubKeySz,
+                                    int pubKeyOID, void * heap);
+#endif /* WOLFSSL_ACERT */
+
 #if !defined(XFPRINTF) || defined(NO_FILESYSTEM) || \
     defined(NO_STDIO_FILESYSTEM) && defined(WOLFSSL_ASN_PRINT)
 #undef WOLFSSL_ASN_PRINT
