@@ -943,8 +943,7 @@ typedef struct w64wrapper {
         WOLFSSL_API int wc_strncasecmp(const char *s1, const char *s2, size_t n);
     #endif
 
-    #if !defined(XSTRDUP) && !defined(USE_WOLF_STRDUP) &&\
-            !defined (WOLFSSL_NO_MALLOC)
+    #if !defined(XSTRDUP) && !defined(USE_WOLF_STRDUP)
         #define USE_WOLF_STRDUP
     #endif
     #ifdef USE_WOLF_STRDUP
