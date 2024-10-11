@@ -11299,7 +11299,6 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif /* HAVE_AESCCM */
 
-#ifndef WOLFSSL_NO_MALLOC
 Aes* wc_AesNew(void* heap, int devId)
 {
     Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
@@ -11314,7 +11313,6 @@ Aes* wc_AesNew(void* heap, int devId)
     }
     return aes;
 }
-#endif
 
 /* Initialize Aes for use with async hardware */
 int wc_AesInit(Aes* aes, void* heap, int devId)
@@ -11527,11 +11525,9 @@ void wc_AesFree(Aes* aes)
     wc_MemZero_Check(aes, sizeof(Aes));
 #endif
 
-#ifndef WOLFSSL_NO_MALLOC
     if (isAllocated) {
         XFREE(aes, heap, DYNAMIC_TYPE_AES);
     }
-#endif
 
 }
 
