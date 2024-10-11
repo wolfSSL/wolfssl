@@ -1172,12 +1172,10 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
             ret = BAD_FUNC_ARG;
     };
 
-#ifndef WOLFSSL_NO_MALLOC
     if (isAllocated) {
         XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
         (void)heap;
     }
-#endif
 
     return ret;
 }

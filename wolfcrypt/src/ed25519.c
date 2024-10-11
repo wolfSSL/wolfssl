@@ -1047,12 +1047,10 @@ void wc_ed25519_free(ed25519_key* key)
     wc_MemZero_Check(key, sizeof(ed25519_key));
 #endif
 
-#ifndef WOLFSSL_NO_MALLOC
     if (isAllocated) {
         XFREE(key, heap, DYNAMIC_TYPE_ED25519);
         (void)heap;
     }
-#endif
 
 }
 
