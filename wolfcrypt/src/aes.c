@@ -11451,18 +11451,14 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 void wc_AesFree(Aes* aes)
 {
     void* heap;
-#ifndef WOLFSSL_NO_MALLOC
     byte isAllocated;
-#endif
 
     if (aes == NULL) {
         return;
     }
 
-#ifndef WOLFSSL_NO_MALLOC
     heap = aes->heap;
     isAllocated = aes->isAllocated;
-#endif
 
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, heap, 1);
@@ -11536,7 +11532,6 @@ void wc_AesFree(Aes* aes)
         XFREE(aes, heap, DYNAMIC_TYPE_AES);
     }
 #endif
-    (void)heap;
 
 }
 
