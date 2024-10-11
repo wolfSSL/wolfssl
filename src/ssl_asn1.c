@@ -580,6 +580,7 @@ static void* d2i_generic(const WOLFSSL_ASN1_TEMPLATE* mem,
     if (impBuf != NULL) {
         tmp = *src + (tmp - impBuf); /* for the next calculation */
         XFREE(impBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        impBuf = NULL;
     }
     if (asnLen >= 0 && (int)(tmp - *src) != asnLen) {
         WOLFSSL_MSG("ptr not advanced enough");

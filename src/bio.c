@@ -834,7 +834,9 @@ exit_chain:
                                  (const char*)data, len, 0, ret);
     }
 
-    XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (front != NULL) {
+        XFREE(frmt, front->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
 
 #ifdef WOLFSSL_BASE64_ENCODE
     if (retB64 > 0 && ret > 0)
