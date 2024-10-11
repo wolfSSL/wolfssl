@@ -1242,66 +1242,70 @@ static const char* client_usage_msg[][78] = {
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n",     /* 41 */
         "            With 'm' at end indicates MUST staple\n",          /* 42 */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
+        "            -W 1 -v 4, Perform multi OCSP stapling for TLS13\n",
+                                                                       /* 43 */
+#endif
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
-        "-U          Atomic User Record Layer Callbacks\n",             /* 43 */
+        "-U          Atomic User Record Layer Callbacks\n",             /* 45 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          Public Key Callbacks\n",                           /* 44 */
+        "-P          Public Key Callbacks\n",                           /* 45 */
 #endif
 #ifdef HAVE_ANON
-        "-a          Anonymous client\n",                               /* 45 */
+        "-a          Anonymous client\n",                               /* 46 */
 #endif
 #ifdef HAVE_CRL
-        "-C          Disable CRL\n",                                    /* 46 */
+        "-C          Disable CRL\n",                                    /* 47 */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   Path to load trusted peer cert\n",                 /* 47 */
+        "-E <file>   Path to load trusted peer cert\n",                 /* 48 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood config file,      defaults\n",           /* 48 */
+        "-q <file>   Whitewood config file,      defaults\n",           /* 49 */
 #endif
         "-H <arg>    Internal tests"
-            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 49 */
-        "                            loadSSL, disallowETM]\n",          /* 50 */
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 50 */
+        "                            loadSSL, disallowETM]\n",          /* 51 */
 #ifdef WOLFSSL_TLS13
-        "-J          Use HelloRetryRequest to choose group for KE\n",   /* 51 */
-        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 52 */
-        "-I          Update keys and IVs before sending data\n",        /* 53 */
+        "-J          Use HelloRetryRequest to choose group for KE\n",   /* 52 */
+        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 53 */
+        "-I          Update keys and IVs before sending data\n",        /* 54 */
 #ifndef NO_DH
-        "-y          Key Share with FFDHE named groups only\n",         /* 54 */
+        "-y          Key Share with FFDHE named groups only\n",         /* 55 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          Key Share with ECC named groups only\n",           /* 55 */
+        "-Y          Key Share with ECC named groups only\n",           /* 56 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
-        "-t          Use X25519 for key exchange\n",                    /* 56 */
+        "-t          Use X25519 for key exchange\n",                    /* 57 */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          Support requesting certificate post-handshake\n",  /* 57 */
+        "-Q          Support requesting certificate post-handshake\n",  /* 58 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data sent to server (0-RTT handshake)\n",    /* 58 */
+        "-0          Early data sent to server (0-RTT handshake)\n",    /* 59 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 59 */
+        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 60 */
 #endif
         "-1 <num>    Display a result by specified language.\n"
-                               "            0: English, 1: Japanese\n", /* 60 */
+                               "            0: English, 1: Japanese\n", /* 61 */
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-        "-2          Disable DH Prime check\n",                         /* 61 */
+        "-2          Disable DH Prime check\n",                         /* 62 */
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-4          Use resumption for renegotiation\n",               /* 62 */
+        "-4          Use resumption for renegotiation\n",               /* 63 */
 #endif
 #ifdef HAVE_TRUSTED_CA
-        "-5          Use Trusted CA Key Indication\n",                  /* 63 */
+        "-5          Use Trusted CA Key Indication\n",                  /* 64 */
 #endif
         "-6          Simulate WANT_WRITE errors on every other IO send\n",
 #ifdef HAVE_CURVE448
-        "-8          Use X448 for key exchange\n",                      /* 66 */
+        "-8          Use X448 for key exchange\n",                      /* 65 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
@@ -1469,69 +1473,73 @@ static const char* client_usage_msg[][78] = {
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         "-W <num>    OCSP Staplingを使用する"
                                          " (1 v1, 2 v2, 3 v2 multi)\n", /* 41 */
-        "            'm' を最後に指定すると必ず staple を使用する\n"    /* 42 */
+        "            'm' を最後に指定すると必ず staple を使用する\n"       /* 42 */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
+        "            -W 1 -v 4, "
+        "TLS13 使用時に複数(Multi)の OCSP を実施します\n"                   /* 43 */
+#endif
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
         "-U          アトミック・ユーザー記録の"
-                                           "コールバックを利用する\n",  /* 43 */
+                                           "コールバックを利用する\n",  /* 44 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          公開鍵コールバック\n",                             /* 44 */
+        "-P          公開鍵コールバック\n",                             /* 45 */
 #endif
 #ifdef HAVE_ANON
-        "-a          匿名クライアント\n",                               /* 45 */
+        "-a          匿名クライアント\n",                               /* 46 */
 #endif
 #ifdef HAVE_CRL
-        "-C          CRLを無効\n",                                      /* 46 */
+        "-C          CRLを無効\n",                                      /* 47 */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 47 */
+        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 48 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 48 */
+        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 49 */
 #endif
         "-H <arg>    内部テスト"
-        " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 49 */
-        "                            loadSSL, disallowETM]\n",          /* 50 */
+        " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 50 */
+        "                            loadSSL, disallowETM]\n",          /* 51 */
 #ifdef WOLFSSL_TLS13
-        "-J          HelloRetryRequestをKEのグループ選択に使用する\n",  /* 51 */
-        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 52 */
-        "-I          データ送信前に、鍵とIVを更新する\n",               /* 53 */
+        "-J          HelloRetryRequestをKEのグループ選択に使用する\n",  /* 52 */
+        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 53 */
+        "-I          データ送信前に、鍵とIVを更新する\n",               /* 54 */
 #ifndef NO_DH
-        "-y          FFDHE名前付きグループとの鍵共有のみ\n",            /* 54 */
+        "-y          FFDHE名前付きグループとの鍵共有のみ\n",            /* 55 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          ECC名前付きグループとの鍵共有のみ\n",              /* 55 */
+        "-Y          ECC名前付きグループとの鍵共有のみ\n",              /* 56 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
-        "-t          X25519を鍵交換に使用する\n",                       /* 56 */
+        "-t          X25519を鍵交換に使用する\n",                       /* 57 */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          ポストハンドシェークの証明要求をサポートする\n",   /* 57 */
+        "-Q          ポストハンドシェークの証明要求をサポートする\n",   /* 58 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
         "-0          Early data をサーバーへ送信する"
-                            "（0-RTTハンドシェイク）\n",                /* 58 */
+                            "（0-RTTハンドシェイク）\n",                /* 59 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 59 */
+        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 60 */
 #endif
         "-1 <num>    指定された言語で結果を表示します。\n"
-                                   "            0: 英語、 1: 日本語\n", /* 60 */
+                                   "            0: 英語、 1: 日本語\n", /* 61 */
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-        "-2          DHプライム番号チェックを無効にする\n",             /* 61 */
+        "-2          DHプライム番号チェックを無効にする\n",             /* 62 */
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-4          再交渉に再開を使用\n",                             /* 62 */
+        "-4          再交渉に再開を使用\n",                             /* 63 */
 #endif
 #ifdef HAVE_TRUSTED_CA
-        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 63 */
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 64 */
 #endif
         "-6          WANT_WRITE エラーを全てのIO 送信でシミュレートします\n",
 #ifdef HAVE_CURVE448
-        "-8          鍵交換に X448 を使用する\n",                      /* 66 */
+        "-8          鍵交換に X448 を使用する\n",                      /* 65 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \

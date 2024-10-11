@@ -27,6 +27,9 @@ endif
 
 if BUILD_OCSP_STAPLING
 dist_noinst_SCRIPTS+= scripts/ocsp-stapling.test
+if BUILD_OCSP_STAPLING_MULTI
+dist_noinst_SCRIPTS+= scripts/ocsp-stapling_tls13multi.test
+endif
 if !BUILD_OCSP_STAPLING_V2
 testsuite/testsuite.log: scripts/ocsp-stapling.log scripts/ocsp-stapling-with-ca-as-responder.log
 endif
@@ -34,6 +37,9 @@ scripts/ocsp-stapling.log: scripts/ocsp.log
 dist_noinst_SCRIPTS+= scripts/ocsp-stapling-with-ca-as-responder.test
 scripts/ocsp-stapling-with-ca-as-responder.log: scripts/ocsp.log
 scripts/ocsp-stapling-with-ca-as-responder.log: scripts/ocsp-stapling.log
+if BUILD_OCSP_STAPLING_MULTI
+scripts/ocsp-stapling_tls13multi.log: scripts/ocsp-stapling-with-ca-as-responder.log
+endif
 endif
 
 if BUILD_OCSP_STAPLING_V2
