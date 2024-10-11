@@ -2652,7 +2652,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
     #ifndef WOLFSSL_NO_MALLOC
         byte* pem;
     #else
-        byte pem[1024];
+        byte pem[2048];
     #endif
         int pemSz;
 
@@ -2668,7 +2668,7 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
         }
     #else
         if (pemSz > (int)sizeof(pem))
-            return BAD_FUNC_ARG;
+            return WC_TEST_RET_ENC_EC(BAD_FUNC_ARG);
     #endif
         /* Convert to PEM */
         pemSz = wc_DerToPem(der, (word32)derSz, pem, (word32)pemSz, pemType);
@@ -18163,7 +18163,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
             #ifdef WOLFSSL_CERT_GEN
             static const char* rsaCaCertFile = CERT_ROOT "ca-cert.pem";
             #endif
-            #if defined(WOLFSSL_ALT_NAMES) || defined(HAVE_PKCS7)
+            #if (defined(WOLFSSL_ALT_NAMES) && !defined(WOLFSSL_NO_MALLOC)) || \
+                defined(HAVE_PKCS7)
             static const char* rsaCaCertDerFile = CERT_ROOT "ca-cert.der";
             #endif
             #ifdef HAVE_PKCS7
@@ -18208,7 +18209,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
             #ifndef NO_RSA
                 static const char* eccKeyPubFileDer = CERT_ROOT "ecc-keyPub.der";
             #endif
-            #ifndef NO_ASN_TIME
+            #if !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_MALLOC)
                 static const char* eccCaKeyFile  = CERT_ROOT "ca-ecc-key.der";
                 static const char* eccCaCertFile = CERT_ROOT "ca-ecc-cert.pem";
                 #ifdef ENABLE_ECC384_CERT_GEN_TEST
@@ -18264,7 +18265,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #ifndef NO_WRITE_TEMP_FILES
 #ifdef HAVE_ECC
     #ifndef NO_ECC_SECP
-        #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+        #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME) && \
+            !defined(WOLFSSL_NO_MALLOC)
         static const char* certEccPemFile = CERT_WRITE_TEMP_DIR "certecc.pem";
         static const char* certEccDerFile = CERT_WRITE_TEMP_DIR "certecc.der";
         #endif
@@ -18286,7 +18288,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA
-    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+    #if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME) && \
+        !defined(WOLFSSL_NO_MALLOC)
         static const char* otherCertDerFile = CERT_WRITE_TEMP_DIR "othercert.der";
         static const char* certDerFile = CERT_WRITE_TEMP_DIR "cert.der";
         static const char* otherCertPemFile = CERT_WRITE_TEMP_DIR "othercert.pem";
@@ -20482,7 +20485,7 @@ exit_rsa_even_mod:
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_MALLOC)
 static wc_test_ret_t rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -21969,7 +21972,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
         goto exit_rsa;
 #endif
 
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ASN_TIME) && \
+    !defined(WOLFSSL_NO_MALLOC)
     /* Make Cert / Sign example for RSA cert and RSA CA */
     ret = rsa_certgen_test(key, keypub, &rng, tmp);
     if (ret != 0)
@@ -32575,7 +32579,8 @@ static int test_sm2_verify(void)
 #endif /* WOLFSSL_SM2 */
 
 
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ECC_SECP) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ECC_SECP) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_MALLOC)
 
 /* Make Cert / Sign example for ECC cert and ECC CA */
 static wc_test_ret_t ecc_test_cert_gen(WC_RNG* rng)
@@ -33612,7 +33617,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test(void)
 #elif defined(HAVE_ECC_KEY_IMPORT)
     (void)ecc_test_make_pub; /* for compiler warning */
 #endif
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ECC_SECP) && !defined(NO_ASN_TIME)
+#if defined(WOLFSSL_CERT_GEN) && !defined(NO_ECC_SECP) && \
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_NO_MALLOC)
     ret = ecc_test_cert_gen(&rng);
     if (ret != 0) {
         printf("ecc_test_cert_gen failed!\n");
@@ -33646,6 +33652,8 @@ done:
 
 #if defined(HAVE_ECC_ENCRYPT) && defined(HAVE_AES_CBC) && \
     (defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_256))
+
+#if !defined(WOLFSSL_NO_MALLOC)
 
 #if ((! defined(HAVE_FIPS)) || FIPS_VERSION_GE(5,3))
 /* maximum encrypted message:
@@ -33764,6 +33772,8 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     return ret;
 }
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
+
+#endif /* !WOLFSSL_NO_MALLOC */
 
 /* ecc_encrypt_e2e_test() uses wc_ecc_ctx_set_algo(), which was added in
  * wolfFIPS 5.3.
@@ -34007,6 +34017,7 @@ static wc_test_ret_t ecc_encrypt_kat(WC_RNG *rng)
 }
 #endif
 
+#ifndef WOLFSSL_NO_MALLOC
 static wc_test_ret_t ecc_encrypt_e2e_test(WC_RNG* rng, ecc_key* userA, ecc_key* userB,
     byte encAlgo, byte kdfAlgo, byte macAlgo)
 {
@@ -34275,6 +34286,7 @@ done:
 
     return ret;
 }
+#endif
 
 #endif /* !HAVE_FIPS || FIPS_VERSION_GE(5,3) */
 
@@ -34350,7 +34362,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
 
 #if !defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3))
 
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_MALLOC)
 #ifdef WOLFSSL_AES_128
     if (ret == 0) {
         ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CBC,
@@ -34386,7 +34398,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
     }
 #endif
 #endif
-#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && !defined(WOLFSSL_NO_MALLOC)
 #ifdef WOLFSSL_AES_128
     if (ret == 0) {
         ret = ecc_encrypt_e2e_test(&rng, userA, userB, ecAES_128_CTR,
@@ -34406,7 +34418,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_encrypt_test(void)
     }
 #endif
 #endif /* !NO_AES && WOLFSSL_AES_COUNTER */
-#if !defined(NO_AES) && defined(HAVE_AES_CBC)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
         ret = ecc_ctx_kdf_salt_test(&rng, userA, userB);
     }
@@ -37865,15 +37877,20 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
 
         /* test api for import/exporting keys */
         {
-            byte   *exportPKey = NULL;
-            byte   *exportSKey = NULL;
             word32 exportPSz = ED448_KEY_SIZE;
             word32 exportSSz = ED448_KEY_SIZE;
+#ifdef WOLFSSL_NO_MALLOC
+            byte   exportPKey[exportPSz];
+            byte   exportSKey[exportSSz];
+#else
+            byte   *exportPKey = NULL;
+            byte   *exportSKey = NULL;
 
             exportPKey = (byte *)XMALLOC(exportPSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             exportSKey = (byte *)XMALLOC(exportSSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             if ((exportPKey == NULL) || (exportSKey == NULL))
                 ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#endif
 
             ret = 0;
 

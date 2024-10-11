@@ -28314,7 +28314,12 @@ int wc_EncodeNameCanonical(EncodedName* name, const char* nameStr,
 int ParseKeyUsageStr(const char* value, word16* keyUsage, void* heap)
 {
     int ret = 0;
-    char *token, *str, *ptr;
+#ifdef WOLFSSL_NO_MALLOC
+    char str[1024];
+#else
+    char *str;
+#endif
+    char *token, *ptr;
     word32 len = 0;
     word16 usage = 0;
 
@@ -28324,10 +28329,15 @@ int ParseKeyUsageStr(const char* value, word16* keyUsage, void* heap)
 
     /* duplicate string (including terminator) */
     len = (word32)XSTRLEN(value);
+#ifdef WOLFSSL_NO_MALLOC
+    if (len >= sizeof(str))
+        return MEMORY_E;
+#else
     str = (char*)XMALLOC(len + 1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL) {
         return MEMORY_E;
     }
+#endif
     XMEMCPY(str, value, len + 1);
 
     /* parse value, and set corresponding Key Usage value */
@@ -32302,7 +32312,11 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                  dilithium_key* dilithiumKey,
                                  sphincs_key *sphincsKey, int kid_type)
 {
+#ifdef WOLFSSL_NO_MALLOC
+    byte buf[MAX_PUBLIC_KEY_SZ];
+#else
     byte *buf;
+#endif
     int   bufferSz, ret;
 
     if (cert == NULL ||
@@ -32312,10 +32326,12 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
         (kid_type != SKID_TYPE && kid_type != AKID_TYPE))
         return BAD_FUNC_ARG;
 
+#ifndef WOLFSSL_NO_MALLOC
     buf = (byte *)XMALLOC(MAX_PUBLIC_KEY_SZ, cert->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL)
         return MEMORY_E;
+#endif
 
     /* Public Key */
     bufferSz = -1;
@@ -33322,7 +33338,12 @@ int wc_SetDatesBuffer(Cert* cert, const byte* der, int derSz)
 int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 {
     word32 idx = 0, nb_val;
-    char *token, *str, *ptr;
+#ifdef WOLFSSL_NO_MALLOC
+    char str[1024];
+#else
+    char *str;
+#endif
+    char *token, *ptr;
     word32 len;
 
     (void)heap;
@@ -33332,9 +33353,14 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
 
     /* duplicate string (including terminator) */
     len = (word32)XSTRLEN(in);
+#ifdef WOLFSSL_NO_MALLOC
+    if (len >= sizeof(str))
+        return MEMORY_E;
+#else
     str = (char *)XMALLOC(len+1, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return MEMORY_E;
+#endif
     XMEMCPY(str, in, len+1);
 
     nb_val = 0;

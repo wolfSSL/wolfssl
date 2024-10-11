@@ -12441,6 +12441,9 @@ static const struct {
 /* find a hole and free as required, return -1 if no hole found */
 static int find_hole(void)
 {
+#ifdef WOLFSSL_NO_MALLOC
+   return -1;
+#else
    int      x, y, z;
    for (z = -1, y = INT_MAX, x = 0; x < FP_ENTRIES; x++) {
        if (fp_cache[x].lru_count < y && fp_cache[x].lock == 0) {
@@ -12469,6 +12472,7 @@ static int find_hole(void)
       fp_cache[z].lru_count = 0;
    }
    return z;
+#endif /* !WOLFSSL_NO_MALLOC */
 }
 
 /* determine if a base is already in the cache and if so, where */

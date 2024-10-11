@@ -511,7 +511,7 @@ typedef struct w64wrapper {
         #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
             #define XFREE(p, h, t)       m2mb_os_free(xp)
         #else
-            #define XFREE(p, h, t)       {void* xp = (p); if (xp) m2mb_os_free(xp);}
+            #define XFREE(p, h, t)       do { void* xp = (p); if (xp) m2mb_os_free(xp); } while (0)
         #endif
         #define XREALLOC(p, n, h, t) m2mb_os_realloc((p), (n))
 
@@ -527,11 +527,11 @@ typedef struct w64wrapper {
                     return NULL;
                 };
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), malloc_check((s)))
-                #define XFREE(p, h, t)       (void)(h); (void)(t)
+                #define XFREE(p, h, t)       do { (void)(h); (void)(t); } while (0)
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), NULL)
             #else
                 #define XMALLOC(s, h, t)     ((void)(s), (void)(h), (void)(t), NULL)
-                #define XFREE(p, h, t)       (void)(p); (void)(h); (void)(t)
+                #define XFREE(p, h, t)       do { (void)(p); (void)(h); (void)(t); } while(0)
                 #define XREALLOC(p, n, h, t) ((void)(p), (void)(n), (void)(h), (void)(t), NULL)
             #endif
         #else
@@ -539,9 +539,9 @@ typedef struct w64wrapper {
             #include <stdlib.h>
             #define XMALLOC(s, h, t)     ((void)(h), (void)(t), malloc((size_t)(s)))
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                #define XFREE(p, h, t)       ((void)(h), (void)(t), free(p))
+                #define XFREE(p, h, t)       do { (void)(h); (void)(t); free(p); } while (0)
             #else
-                #define XFREE(p, h, t)       {void* xp = (p); (void)(h); if (xp) free(xp);}
+                #define XFREE(p, h, t)       do { void* xp = (p); (void)(h); if (xp) free(xp); } while (0)
             #endif
             #define XREALLOC(p, n, h, t) \
                 ((void)(h), (void)(t), realloc((p), (size_t)(n)))
@@ -565,7 +565,7 @@ typedef struct w64wrapper {
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                     #define XFREE(p, h, t)       wolfSSL_Free(xp, h, t, __func__, __LINE__)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp, h, t, __func__, __LINE__);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); if (xp) wolfSSL_Free(xp, h, t, __func__, __LINE__); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t), __func__, __LINE__)
             #else
@@ -573,7 +573,7 @@ typedef struct w64wrapper {
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                     #define XFREE(p, h, t)       wolfSSL_Free(xp, h, t)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp, h, t);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); if (xp) wolfSSL_Free(xp, h, t); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t))
             #endif /* WOLFSSL_DEBUG_MEMORY */
@@ -585,17 +585,17 @@ typedef struct w64wrapper {
             #ifdef WOLFSSL_DEBUG_MEMORY
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((s), __func__, __LINE__))
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                    #define XFREE(p, h, t)       ((void)(h), (void)(t), wolfSSL_Free(xp, __func__, __LINE__))
+                    #define XFREE(p, h, t)       do { (void)(h); (void)(t); wolfSSL_Free(xp, __func__, __LINE__); } while (0)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp, __func__, __LINE__);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp, __func__, __LINE__); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), wolfSSL_Realloc((p), (n), __func__, __LINE__))
             #else
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((s)))
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                    #define XFREE(p, h, t)       ((void)(h), (void)(t), wolfSSL_Free(p))
+                    #define XFREE(p, h, t)       do { (void)(h); (void)(t); wolfSSL_Free(p); } while (0)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), wolfSSL_Realloc((p), (n)))
             #endif /* WOLFSSL_DEBUG_MEMORY */
