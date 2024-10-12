@@ -32,6 +32,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /*
 Possible memory options:

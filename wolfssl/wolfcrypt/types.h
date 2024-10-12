@@ -602,6 +602,8 @@ typedef struct w64wrapper {
         #endif /* WOLFSSL_STATIC_MEMORY */
     #endif
 
+    #include <wolfssl/wolfcrypt/memory.h>
+
     /* declare/free variable handling for async and smallstack */
     #ifndef WC_ALLOC_DO_ON_FAILURE
         #define WC_ALLOC_DO_ON_FAILURE() WC_DO_NOTHING

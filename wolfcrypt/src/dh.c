@@ -2980,7 +2980,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     int     primeCheck = MP_NO,
             ret = 0;
 #ifdef WOLFSSL_NO_MALLOC
-    unsigned char buf[4096 / WOLFSSL_BIT_SIZE];
+    unsigned char buf[DH_MAX_SIZE / WOLFSSL_BIT_SIZE];
 #else
     unsigned char *buf = NULL;
 #endif
@@ -3181,9 +3181,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 #endif
     {
         ForceZero(buf, bufSz);
+#ifndef WOLFSSL_NO_MALLOC
         if (dh != NULL) {
             XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
+#endif
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)

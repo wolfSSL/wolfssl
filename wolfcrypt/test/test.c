@@ -2673,23 +2673,31 @@ static wc_test_ret_t _SaveDerAndPem(const byte* der, int derSz,
         /* Convert to PEM */
         pemSz = wc_DerToPem(der, (word32)derSz, pem, (word32)pemSz, pemType);
         if (pemSz < 0) {
+            #ifndef WOLFSSL_NO_MALLOC
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             return WC_TEST_RET_ENC(calling_line, 4, WC_TEST_RET_TAG_I);
         }
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = XFOPEN(filePem, "wb");
         if (!pemFile) {
+            #ifndef WOLFSSL_NO_MALLOC
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             return WC_TEST_RET_ENC(calling_line, 5, WC_TEST_RET_TAG_I);
         }
         ret = (int)XFWRITE(pem, 1, (size_t)pemSz, pemFile);
         XFCLOSE(pemFile);
         if (ret != pemSz) {
+            #ifndef WOLFSSL_NO_MALLOC
             XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
             return WC_TEST_RET_ENC(calling_line, 6, WC_TEST_RET_TAG_I);
         }
     #endif
+        #ifndef WOLFSSL_NO_MALLOC
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
     }
 #endif /* WOLFSSL_DER_TO_PEM */
 
@@ -37926,8 +37934,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed448_test(void)
                 }
             } while(0);
 
+            #ifndef WOLFSSL_NO_MALLOC
             XFREE(exportPKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             XFREE(exportSKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
 
             if (ret != 0)
                 goto out;
