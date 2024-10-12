@@ -1124,7 +1124,7 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][78] = {
+static const char* client_usage_msg[][77] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1244,11 +1244,11 @@ static const char* client_usage_msg[][78] = {
         "            With 'm' at end indicates MUST staple\n",          /* 42 */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
         "            -W 1 -v 4, Perform multi OCSP stapling for TLS13\n",
-                                                                       /* 43 */
+                                                                        /* 43 */
 #endif
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
-        "-U          Atomic User Record Layer Callbacks\n",             /* 45 */
+        "-U          Atomic User Record Layer Callbacks\n",             /* 44 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
         "-P          Public Key Callbacks\n",                           /* 45 */
@@ -1266,44 +1266,44 @@ static const char* client_usage_msg[][78] = {
         "-q <file>   Whitewood config file,      defaults\n",           /* 49 */
 #endif
         "-H <arg>    Internal tests"
-            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 50 */
-        "                            loadSSL, disallowETM]\n",          /* 51 */
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n",      /* 50 */
 #ifdef WOLFSSL_TLS13
-        "-J          Use HelloRetryRequest to choose group for KE\n",   /* 52 */
-        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 53 */
-        "-I          Update keys and IVs before sending data\n",        /* 54 */
+        "-J          Use HelloRetryRequest to choose group for KE\n",   /* 51 */
+        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 52 */
+        "-I          Update keys and IVs before sending data\n",        /* 53 */
 #ifndef NO_DH
-        "-y          Key Share with FFDHE named groups only\n",         /* 55 */
+        "-y          Key Share with FFDHE named groups only\n",         /* 54 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          Key Share with ECC named groups only\n",           /* 56 */
+        "-Y          Key Share with ECC named groups only\n",           /* 55 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
-        "-t          Use X25519 for key exchange\n",                    /* 57 */
+        "-t          Use X25519 for key exchange\n",                    /* 56 */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          Support requesting certificate post-handshake\n",  /* 58 */
+        "-Q          Support requesting certificate post-handshake\n",  /* 57 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data sent to server (0-RTT handshake)\n",    /* 59 */
+        "-0          Early data sent to server (0-RTT handshake)\n",    /* 58 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 60 */
+        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 59 */
 #endif
         "-1 <num>    Display a result by specified language.\n"
-                               "            0: English, 1: Japanese\n", /* 61 */
+                               "            0: English, 1: Japanese\n", /* 60 */
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-        "-2          Disable DH Prime check\n",                         /* 62 */
+        "-2          Disable DH Prime check\n",                         /* 61 */
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-4          Use resumption for renegotiation\n",               /* 63 */
+        "-4          Use resumption for renegotiation\n",               /* 62 */
 #endif
 #ifdef HAVE_TRUSTED_CA
-        "-5          Use Trusted CA Key Indication\n",                  /* 64 */
+        "-5          Use Trusted CA Key Indication\n",                  /* 63 */
 #endif
-        "-6          Simulate WANT_WRITE errors on every other IO send\n",
+        "-6          Simulate WANT_WRITE errors on every other IO send\n", /* 64 */
 #ifdef HAVE_CURVE448
         "-8          Use X448 for key exchange\n",                      /* 65 */
 #endif
@@ -1311,47 +1311,47 @@ static const char* client_usage_msg[][78] = {
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
         "-9          Use hash dir look up for certificate loading\n"
-        "            loading from <wolfSSL home>/certs folder\n"
-        "            files in the folder would have the form \"hash.N\" file name\n"
-        "            e.g symbolic link to the file at certs folder\n"
-        "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
-                                                                        /* 67 */
+            "            loading from <wolfSSL home>/certs folder\n"
+            "            files in the folder would have the form \"hash.N\" file name\n"
+            "            e.g symbolic link to the file at certs folder\n"
+            "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
+                                                                        /* 66 */
 #endif
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
-                                                                        /* 68 */
+                                                                        /* 67 */
 #endif
 #ifndef WOLFSSL_TLS13
         "-7          Set minimum downgrade protocol version [0-3] "
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          Set minimum downgrade protocol version [0-4] "
-           " SSLv3(0) - TLS1.3(4)\n",                                   /* 69 */
+           " SSLv3(0) - TLS1.3(4)\n",                                   /* 68 */
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n",  /* 70 */
+            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n",  /* 69 */
 #endif
 #ifdef WOLFSSL_SRTP
-        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 71 */
+        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 70 */
 #endif
 #ifdef WOLFSSL_SYS_CA_CERTS
-        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
+        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 71 */
 #endif
 #ifdef HAVE_SUPPORTED_CURVES
-        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 72 */
 #endif
 #ifndef NO_PSK
-        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
+        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 73 */
 #endif
 #ifdef HAVE_RPK
-        "--rpk  Use RPK for the defined certificates\n", /* 75 */
+        "--rpk  Use RPK for the defined certificates\n", /* 74 */
 #endif
-        "--files-are-der Specified files are in DER, not PEM format\n", /* 76 */
+        "--files-are-der Specified files are in DER, not PEM format\n", /* 75 */
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 76 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1499,45 +1499,45 @@ static const char* client_usage_msg[][78] = {
         "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 49 */
 #endif
         "-H <arg>    内部テスト"
-        " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 50 */
-        "                            loadSSL, disallowETM]\n",          /* 51 */
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n",  /* 50 */
 #ifdef WOLFSSL_TLS13
-        "-J          HelloRetryRequestをKEのグループ選択に使用する\n",  /* 52 */
-        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 53 */
-        "-I          データ送信前に、鍵とIVを更新する\n",               /* 54 */
+        "-J          HelloRetryRequestをKEのグループ選択に使用する\n",  /* 51 */
+        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 52 */
+        "-I          データ送信前に、鍵とIVを更新する\n",               /* 53 */
 #ifndef NO_DH
-        "-y          FFDHE名前付きグループとの鍵共有のみ\n",            /* 55 */
+        "-y          FFDHE名前付きグループとの鍵共有のみ\n",            /* 54 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          ECC名前付きグループとの鍵共有のみ\n",              /* 56 */
+        "-Y          ECC名前付きグループとの鍵共有のみ\n",              /* 55 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
-        "-t          X25519を鍵交換に使用する\n",                       /* 57 */
+        "-t          X25519を鍵交換に使用する\n",                       /* 56 */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          ポストハンドシェークの証明要求をサポートする\n",   /* 58 */
+        "-Q          ポストハンドシェークの証明要求をサポートする\n",   /* 57 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
         "-0          Early data をサーバーへ送信する"
-                            "（0-RTTハンドシェイク）\n",                /* 59 */
+                            "（0-RTTハンドシェイク）\n",                /* 58 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 60 */
+        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 59 */
 #endif
         "-1 <num>    指定された言語で結果を表示します。\n"
-                                   "            0: 英語、 1: 日本語\n", /* 61 */
+                                   "            0: 英語、 1: 日本語\n", /* 60 */
 #if !defined(NO_DH) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST) && !defined(WOLFSSL_OLD_PRIME_CHECK)
-        "-2          DHプライム番号チェックを無効にする\n",             /* 62 */
+        "-2          DHプライム番号チェックを無効にする\n",             /* 61 */
 #endif
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-4          再交渉に再開を使用\n",                             /* 63 */
+        "-4          再交渉に再開を使用\n",                             /* 62 */
 #endif
 #ifdef HAVE_TRUSTED_CA
-        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 64 */
+        "-5          信頼できる認証局の鍵表示を使用する\n",             /* 63 */
 #endif
-        "-6          WANT_WRITE エラーを全てのIO 送信でシミュレートします\n",
+        "-6          WANT_WRITE エラーを全てのIO 送信でシミュレートします\n", /* 64 */
 #ifdef HAVE_CURVE448
         "-8          鍵交換に X448 を使用する\n",                      /* 65 */
 #endif
@@ -1549,44 +1549,44 @@ static const char* client_usage_msg[][78] = {
         "            フォルダー中のファイルは、\"hash.N\"[N:0-9]名である必要があります\n"
         "            以下の例ではca-cert.pemにシンボリックリンクを設定します\n"
         "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
-                                                                        /* 67 */
+                                                                        /* 66 */
 #endif
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
-                                                                      /* 68 */
+                                                                      /* 67 */
 #endif
 #ifndef WOLFSSL_TLS13
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-3] "
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
+        " SSLv3(0) - TLS1.3(4)\n",                            /* 68 */
 #endif
 #ifdef HAVE_PQC
         "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n", /* 70 */
+            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n", /* 69 */
 #endif
 #ifdef WOLFSSL_SRTP
-        "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 71 */
+        "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 70 */
 #endif
 #ifdef WOLFSSL_SYS_CA_CERTS
-        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
+        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 71 */
 #endif
 #ifdef HAVE_SUPPORTED_CURVES
-        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 72 */
 #endif
 #ifndef NO_PSK
-        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
+        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 73 */
 #endif
 #ifdef HAVE_RPK
-        "--rpk  Use RPK for the defined certificates\n", /* 75 */
+        "--rpk  Use RPK for the defined certificates\n", /* 74 */
 #endif
-        "--files-are-der Specified files are in DER, not PEM format\n", /* 76 */
+        "--files-are-der Specified files are in DER, not PEM format\n", /* 75 */
         "\n"
         "より簡単なwolfSSL TLS クライアントの例については"
                                          "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 76 */
         NULL,
     },
 #endif
