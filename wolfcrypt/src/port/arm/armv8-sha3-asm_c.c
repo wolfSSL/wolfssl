@@ -370,7 +370,7 @@ void BlockSha3(unsigned long* state)
         "eor	x25, x25, x28\n\t"
         "eor	x24, x24, %x[state]\n\t"
         "eor	x26, x26, x30\n\t"
-        /* Done tranforming */
+        /* Done transforming */
         "ldp	x27, x28, [x29, #48]\n\t"
         "ldr	%x[state], [x27], #8\n\t"
         "subs	x28, x28, #1\n\t"

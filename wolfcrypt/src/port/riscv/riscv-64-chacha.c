@@ -698,7 +698,7 @@ static WC_INLINE void wc_chacha_encrypt_384(const word32* input, const byte* m,
          * v12-v15 - fourth block
          * v16-v19 - fifth block
          * v20-v24 - temp/message
-         * v25-v27 - indeces for rotating words in vector
+         * v25-v27 - indices for rotating words in vector
          * v28-v31 - input
          *
          * v0  0  1  2  3
@@ -1342,7 +1342,7 @@ static WC_INLINE int wc_chacha_encrypt_256(const word32* input, const byte* m,
          * v12-v15 - message
          * v16-v19 - input
          * v20-v22 - temp
-         * v23-v25 - indeces for rotating words in vector
+         * v23-v25 - indices for rotating words in vector
          *
          * v0  0  1  2  3
          * v1  4  5  6  7
@@ -1588,7 +1588,7 @@ static WC_INLINE int wc_chacha_encrypt_128(const word32* input, const byte* m,
          * v12-v15 - message
          * v16-v19 - input
          * v20-v22 - temp
-         * v23-v25 - indeces for rotating words in vector
+         * v23-v25 - indices for rotating words in vector
          *
          * v0  0  1  2  3
          * v1  4  5  6  7

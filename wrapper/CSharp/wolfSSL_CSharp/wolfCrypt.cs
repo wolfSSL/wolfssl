@@ -1630,7 +1630,7 @@ namespace wolfSSL.CSharp
             }
             finally
             {
-                /* Clenup */
+                /* Cleanup */
                 if (inMsgPtr != IntPtr.Zero) Marshal.FreeHGlobal(inMsgPtr);
                 if (outMsgPtr != IntPtr.Zero) Marshal.FreeHGlobal(outMsgPtr);
             }

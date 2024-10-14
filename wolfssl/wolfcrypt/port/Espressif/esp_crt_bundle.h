@@ -28,7 +28,7 @@
 #define __ESP_CRT_BUNDLE_wolfssl_LIB_H__
 
 /* This file is typically NOT directly used by applications utilizing the
- * wolfSSL libraries. It is used when the wolfssl libary component is configured
+ * wolfSSL libraries. It is used when the wolfssl library component is configured
  * to be utilized by the Espressif ESP-IDF, specifically the esp-tls layer.
  *
  * See:
@@ -67,7 +67,7 @@
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF   */
 
 #ifndef WOLFSSL_USER_SETTINGS
-    #error "WOLFSSL_USER_SETTINGS must be defined for Espressif targts"
+    #error "WOLFSSL_USER_SETTINGS must be defined for Espressif targets"
 #endif
 
 #if defined(CONFIG_ESP_TLS_USING_WOLFSSL) || \
@@ -129,7 +129,7 @@ esp_err_t esp_crt_bundle_attach(void *conf);
 esp_err_t esp_crt_bundle_is_valid(void);
 
 /**
- * @brief      Return 1 if Cert Bundle loaded, otheriwse 0.
+ * @brief      Return 1 if Cert Bundle loaded, otherwise 0.
  *
  * Specific to wolfSSL. Not used by ESP-IDF esp-tls layer.
  */
@@ -170,7 +170,7 @@ void esp_crt_bundle_detach(wolfssl_ssl_config *conf);
  *
  * @return
  *             - ESP_OK  if adding certificates was successful.
- *             - Other   if an error occured or an action must be taken
+ *             - Other   if an error occurred or an action must be taken
  *                       by the calling process.
  */
 esp_err_t esp_crt_bundle_set(const uint8_t *x509_bundle, size_t bundle_size);
