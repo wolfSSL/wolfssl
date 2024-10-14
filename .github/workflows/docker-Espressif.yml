@@ -15,7 +15,7 @@ jobs:
   espressif_latest:
     name: latest Docker container
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 12
     container:
@@ -27,7 +27,7 @@ jobs:
   espressif_v4_4:
     name: v4.4 Docker container
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: espressif/idf:release-v4.4
     steps:
@@ -37,7 +37,7 @@ jobs:
   espressif_v5_0:
     name: v5.0 Docker container
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: espressif/idf:release-v5.0
     steps:
