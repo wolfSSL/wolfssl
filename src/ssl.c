@@ -19793,11 +19793,15 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
         return;
 
     /* ctx still owns certificate, certChain, key, dh, and cm */
-    if (ssl->buffers.weOwnCert)
+    if (ssl->buffers.weOwnCert) {
         FreeDer(&ssl->buffers.certificate);
+        ssl->buffers.weOwnCert = 0;
+    }
     ssl->buffers.certificate = NULL;
-    if (ssl->buffers.weOwnCertChain)
+    if (ssl->buffers.weOwnCertChain) {
         FreeDer(&ssl->buffers.certChain);
+        ssl->buffers.weOwnCertChain = 0;
+    }
     ssl->buffers.certChain = NULL;
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = 0;
@@ -19807,6 +19811,7 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.keyMask);
     #endif
+        ssl->buffers.weOwnKey = 0;
     }
     ssl->buffers.key      = NULL;
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
@@ -19823,6 +19828,7 @@ void wolfSSL_certs_clear(WOLFSSL* ssl)
     #ifdef WOLFSSL_BLIND_PRIVATE_KEY
         FreeDer(&ssl->buffers.altKeyMask);
     #endif
+        ssl->buffers.weOwnAltKey = 0;
     }
     ssl->buffers.altKey     = NULL;
 #ifdef WOLFSSL_BLIND_PRIVATE_KEY
@@ -20402,11 +20408,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ctx->certificate != NULL) {
         if (ssl->buffers.certificate != NULL) {
             FreeDer(&ssl->buffers.certificate);
+            ssl->buffers.certificate = NULL;
         }
         ret = AllocCopyDer(&ssl->buffers.certificate, ctx->certificate->buffer,
             ctx->certificate->length, ctx->certificate->type,
             ctx->certificate->heap);
         if (ret != 0) {
+            ssl->buffers.weOwnCert = 0;
             return NULL;
         }
 
@@ -20416,11 +20424,13 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ctx->certChain != NULL) {
         if (ssl->buffers.certChain != NULL) {
             FreeDer(&ssl->buffers.certChain);
+            ssl->buffers.certChain = NULL;
         }
         ret = AllocCopyDer(&ssl->buffers.certChain, ctx->certChain->buffer,
             ctx->certChain->length, ctx->certChain->type,
             ctx->certChain->heap);
         if (ret != 0) {
+            ssl->buffers.weOwnCertChain = 0;
             return NULL;
         }
 
@@ -20440,10 +20450,15 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     if (ctx->privateKey != NULL) {
         if (ssl->buffers.key != NULL) {
             FreeDer(&ssl->buffers.key);
+            ssl->buffers.key = NULL;
         }
-        AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
+        ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,
             ctx->privateKey->heap);
+        if (ret != 0) {
+            ssl->buffers.weOwnKey = 0;
+            return NULL;
+        }
         ssl->buffers.weOwnKey = 1;
     }
     else {
@@ -20454,15 +20469,18 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 #else
     if (ctx->privateKey != NULL) {
-        AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
+        ret = AllocCopyDer(&ssl->buffers.key, ctx->privateKey->buffer,
             ctx->privateKey->length, ctx->privateKey->type,
             ctx->privateKey->heap);
+        if (ret != 0) {
+            return NULL;
+        }
         /* Blind the private key for the SSL with new random mask. */
         wolfssl_priv_der_unblind(ssl->buffers.key, ctx->privateKeyMask);
         ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.key,
             &ssl->buffers.keyMask);
         if (ret != 0) {
-            return ret;
+            return NULL;
         }
     }
 #endif
@@ -20484,15 +20502,18 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
     ssl->buffers.altKey   = ctx->altPrivateKey;
 #else
     if (ctx->altPrivateKey != NULL) {
-        AllocCopyDer(&ssl->buffers.altkey, ctx->altPrivateKey->buffer,
+        ret = AllocCopyDer(&ssl->buffers.altkey, ctx->altPrivateKey->buffer,
             ctx->altPrivateKey->length, ctx->altPrivateKey->type,
             ctx->altPrivateKey->heap);
+        if (ret != 0) {
+            return NULL;
+        }
         /* Blind the private key for the SSL with new random mask. */
         wolfssl_priv_der_unblind(ssl->buffers.altKey, ctx->altPrivateKeyMask);
         ret = wolfssl_priv_der_blind(ssl->rng, ssl->buffers.altKey,
             &ssl->buffers.altKeyMask);
         if (ret != 0) {
-            return ret;
+            return NULL;
         }
     }
 #endif

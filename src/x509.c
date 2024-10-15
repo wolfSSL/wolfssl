@@ -562,7 +562,6 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
     /* Create a WOLFSSL_ASN1_STRING from the DER. */
     str = wolfSSL_ASN1_STRING_type_new(tag);
     if (str == NULL) {
-        wolfSSL_ASN1_OBJECT_free(obj);
         goto err;
     }
     wolfSSL_ASN1_STRING_set(str, p, (int)len);
@@ -15087,12 +15086,14 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
                 req->reqAttributes->type = STACK_TYPE_X509_REQ_ATTR;
             }
         }
-        if (req->reqAttributes->type == STACK_TYPE_X509_REQ_ATTR) {
+        if ((req->reqAttributes != NULL) &&
+                (req->reqAttributes->type == STACK_TYPE_X509_REQ_ATTR)) {
             ret = wolfSSL_sk_push(req->reqAttributes, attr) > 0
                     ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
         }
-        else
+        else {
             ret = WOLFSSL_FAILURE;
+        }
         if (ret != WOLFSSL_SUCCESS)
             wolfSSL_X509_ATTRIBUTE_free(attr);
     }
