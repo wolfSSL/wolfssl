@@ -25402,9 +25402,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 {
     const char* header      = NULL;
     const char* footer      = NULL;
-    const char* headerEnd;
-    const char* footerEnd;
-    const char* consumedEnd;
+    const char* headerEnd   = NULL;
+    const char* footerEnd   = NULL;
+    const char* consumedEnd = NULL;
     const char* bufferEnd   = (const char*)(buff + longSz);
     long        neededSz;
     int         ret         = 0;

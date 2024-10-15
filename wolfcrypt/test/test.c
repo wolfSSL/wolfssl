@@ -15005,8 +15005,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
     byte resultC[sizeof(p) + AES_BLOCK_SIZE];
     wc_test_ret_t ret = 0;
 
-    int  alen;
-    int  plen;
+    int  alen = 0;
+    int  plen = 0;
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     byte buf[sizeof(p) + AES_BLOCK_SIZE];
     byte bufA[sizeof(a) + 1];
@@ -21482,7 +21482,7 @@ exit_rsa:
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 {
     wc_test_ret_t ret;
-    size_t bytes;
+    size_t bytes = 0;
     WC_RNG rng;
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte*  tmp = NULL;
@@ -22781,7 +22781,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dh_test(void)
 {
     wc_test_ret_t ret;
     word32 bytes;
-    word32 idx = 0, privSz, pubSz, privSz2, pubSz2;
+    word32 idx = 0;
+    word32 privSz = 0;
+    word32 pubSz = 0;
+    word32 privSz2 = 0;
+    word32 pubSz2 = 0;
 #ifndef WC_NO_RNG
     WC_RNG rng;
     int rngInit = 0;

@@ -5031,7 +5031,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
     WOLFSSL* ssl = NULL;
     const char* cert = "./certs/server-cert.pem";
     unsigned char* buf = NULL;
-    size_t len;
+    size_t len = 0;
 
     ExpectIntEQ(load_file(cert, &buf, &len), 0);
 
@@ -21014,7 +21014,7 @@ static int test_RsaDecryptBoundsCheck(void)
     WC_RNG rng;
     RsaKey key;
     byte flatC[256];
-    word32 flatCSz;
+    word32 flatCSz = 0;
     byte out[256];
     word32 outSz = sizeof(out);
 
@@ -23432,7 +23432,7 @@ static int test_wc_DsaSignVerify(void)
     byte   hash[WC_SHA_DIGEST_SIZE];
     word32 idx = 0;
     word32 bytes;
-    int    answer;
+    int    answer = 0;
 #ifdef USE_CERT_BUFFERS_1024
     byte   tmp[ONEK_BUF];
 
@@ -25778,7 +25778,7 @@ static int test_wc_ecc_params(void)
 #if !defined(NO_ECC256) && !defined(NO_ECC_SECP)
     /* Test for SECP256R1 curve */
     int curve_id = ECC_SECP256R1;
-    int curve_idx;
+    int curve_idx = 0;
 
     ExpectIntNE(curve_idx = wc_ecc_get_curve_idx(curve_id), ECC_CURVE_INVALID);
     ExpectNotNull(ecc_set = wc_ecc_get_curve_params(curve_idx));
