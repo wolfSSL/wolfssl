@@ -20411,7 +20411,6 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
 
         ssl->buffers.weOwnCert = 1;
-        ret = WOLFSSL_SUCCESS;
     }
     if (ctx->certChain != NULL) {
         if (ssl->buffers.certChain != NULL) {
@@ -20425,7 +20424,6 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         }
 
         ssl->buffers.weOwnCertChain = 1;
-        ret = WOLFSSL_SUCCESS;
     }
 #else
     /* ctx owns certificate, certChain and key */

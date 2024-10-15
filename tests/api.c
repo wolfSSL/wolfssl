@@ -5031,7 +5031,7 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
     WOLFSSL* ssl = NULL;
     const char* cert = "./certs/server-cert.pem";
     unsigned char* buf = NULL;
-    size_t len;
+    size_t len = 0;
 
     ExpectIntEQ(load_file(cert, &buf, &len), 0);
 

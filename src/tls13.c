@@ -8568,6 +8568,8 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
     WOLFSSL_ENTER("SendTls13Certificate");
 
+    XMEMSET(extSz, 0, sizeof(extSz));
+
     ssl->options.buildingMsg = 1;
 
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
