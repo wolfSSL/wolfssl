@@ -789,35 +789,35 @@ WOLFSSL_API int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     }
     (void)heap;
     (void)devId;
-    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha);
+    return wc_MXC_TPU_SHA_Init(&(sha->mxcCtx));
 }
 
 WOLFSSL_API int wc_ShaUpdate(wc_Sha* sha, const unsigned char* data,
                                         unsigned int len)
 {
-    return wc_MXC_TPU_SHA_Update(sha, data, len);
+    return wc_MXC_TPU_SHA_Update(&(sha->mxcCtx), data, len);
 }
 
 WOLFSSL_API int wc_ShaFinal(wc_Sha* sha, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha, hash,
+    return wc_MXC_TPU_SHA_Final(&(sha->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA1);
 }
 
 WOLFSSL_API int wc_ShaGetHash(wc_Sha* sha, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha, hash,
+    return wc_MXC_TPU_SHA_GetHash(&(sha->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA1);
 }
 
 WOLFSSL_API int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
 {
-    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+    return wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
 }
 
 WOLFSSL_API void wc_ShaFree(wc_Sha* sha)
 {
-    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha);
+    wc_MXC_TPU_SHA_Free(&(sha->mxcCtx));
     return;
 }
 
@@ -832,7 +832,7 @@ WOLFSSL_API int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
     }
     (void)heap;
     (void)devId;
-    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha224);
+    return wc_MXC_TPU_SHA_Init(&(sha224->mxcCtx));
 }
 
 WOLFSSL_API int wc_InitSha224(wc_Sha224* sha224)
@@ -843,29 +843,29 @@ WOLFSSL_API int wc_InitSha224(wc_Sha224* sha224)
 WOLFSSL_API int wc_Sha224Update(wc_Sha224* sha224, const unsigned char* data,
                                         unsigned int len)
 {
-    return wc_MXC_TPU_SHA_Update(sha224, data, len);
+    return wc_MXC_TPU_SHA_Update(&(sha224->mxcCtx), data, len);
 }
 
 WOLFSSL_API int wc_Sha224Final(wc_Sha224* sha224, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha224, hash,
+    return wc_MXC_TPU_SHA_Final(&(sha224->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA224);
 }
 
 WOLFSSL_API int wc_Sha224GetHash(wc_Sha224* sha224, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha224, hash,
+    return wc_MXC_TPU_SHA_GetHash(&(sha224->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA224);
 }
 
 WOLFSSL_API int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst)
 {
-    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+    return wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
 }
 
 WOLFSSL_API void wc_Sha224Free(wc_Sha224* sha224)
 {
-    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha224);
+    wc_MXC_TPU_SHA_Free(&(sha224->mxcCtx));
     return;
 }
 
@@ -880,7 +880,7 @@ WOLFSSL_API int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     }
     (void)heap;
     (void)devId;
-    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha256);
+    return wc_MXC_TPU_SHA_Init(&(sha256->mxcCtx));
 }
 
 WOLFSSL_API int wc_InitSha256(wc_Sha256* sha256)
@@ -891,29 +891,29 @@ WOLFSSL_API int wc_InitSha256(wc_Sha256* sha256)
 WOLFSSL_API int wc_Sha256Update(wc_Sha256* sha256, const unsigned char* data,
                                         unsigned int len)
 {
-    return wc_MXC_TPU_SHA_Update(sha256, data, len);
+    return wc_MXC_TPU_SHA_Update(&(sha256->mxcCtx), data, len);
 }
 
 WOLFSSL_API int wc_Sha256Final(wc_Sha256* sha256, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha256, hash,
+    return wc_MXC_TPU_SHA_Final(&(sha256->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA256);
 }
 
 WOLFSSL_API int wc_Sha256GetHash(wc_Sha256* sha256, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha256, hash,
+    return wc_MXC_TPU_SHA_GetHash(&(sha256->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA256);
 }
 
 WOLFSSL_API int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 {
-    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+    return wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
 }
 
 WOLFSSL_API void wc_Sha256Free(wc_Sha256* sha256)
 {
-    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha256);
+    wc_MXC_TPU_SHA_Free(&(sha256->mxcCtx));
     return;
 }
 
@@ -928,7 +928,7 @@ WOLFSSL_API int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     }
     (void)heap;
     (void)devId;
-    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha384);
+    return wc_MXC_TPU_SHA_Init(&(sha384->mxcCtx));
 }
 
 WOLFSSL_API int wc_InitSha384(wc_Sha384* sha384)
@@ -939,29 +939,29 @@ WOLFSSL_API int wc_InitSha384(wc_Sha384* sha384)
 WOLFSSL_API int wc_Sha384Update(wc_Sha384* sha384, const unsigned char* data,
                                         unsigned int len)
 {
-    return wc_MXC_TPU_SHA_Update(sha384, data, len);
+    return wc_MXC_TPU_SHA_Update(&(sha384->mxcCtx), data, len);
 }
 
 WOLFSSL_API int wc_Sha384Final(wc_Sha384* sha384, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha384, hash,
+    return wc_MXC_TPU_SHA_Final(&(sha384->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA384);
 }
 
 WOLFSSL_API int wc_Sha384GetHash(wc_Sha384* sha384, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha384, hash,
+    return wc_MXC_TPU_SHA_GetHash(&(sha384->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA384);
 }
 
 WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 {
-    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+    return wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
 }
 
 WOLFSSL_API void wc_Sha384Free(wc_Sha384* sha384)
 {
-    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha384);
+    wc_MXC_TPU_SHA_Free(&(sha384->mxcCtx));
     return;
 }
 
@@ -976,7 +976,7 @@ WOLFSSL_API int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     }
     (void)heap;
     (void)devId;
-    return wc_MXC_TPU_SHA_Init((wc_MXC_Sha *)sha512);
+    return wc_MXC_TPU_SHA_Init(&(sha512->mxcCtx));
 }
 
 WOLFSSL_API int wc_InitSha512(wc_Sha512* sha512)
@@ -987,29 +987,29 @@ WOLFSSL_API int wc_InitSha512(wc_Sha512* sha512)
 WOLFSSL_API int wc_Sha512Update(wc_Sha512* sha512, const unsigned char* data,
                                         unsigned int len)
 {
-    return wc_MXC_TPU_SHA_Update(sha512, data, len);
+    return wc_MXC_TPU_SHA_Update(&(sha512->mxcCtx), data, len);
 }
 
 WOLFSSL_API int wc_Sha512Final(wc_Sha512* sha512, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_Final((wc_MXC_Sha *)sha512, hash,
+    return wc_MXC_TPU_SHA_Final(&(sha512->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA512);
 }
 
 WOLFSSL_API int wc_Sha512GetHash(wc_Sha512* sha512, unsigned char* hash)
 {
-    return wc_MXC_TPU_SHA_GetHash((wc_MXC_Sha *)sha512, hash,
+    return wc_MXC_TPU_SHA_GetHash(&(sha512->mxcCtx), hash,
                                         MXC_TPU_HASH_SHA512);
 }
 
 WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 {
-    return wc_MXC_TPU_SHA_Copy((wc_MXC_Sha *)src, (wc_MXC_Sha *)dst);
+    return wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
 }
 
 WOLFSSL_API void wc_Sha512Free(wc_Sha512* sha512)
 {
-    wc_MXC_TPU_SHA_Free((wc_MXC_Sha *)sha512);
+    wc_MXC_TPU_SHA_Free(&(sha512->mxcCtx));
     return;
 }
 

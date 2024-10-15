@@ -2917,7 +2917,7 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
                                     outBlock, (unsigned int)keySize);
     }
 #endif
-#ifdef MAX3266X_CB /* Can do a basic ECB block */
+#if defined(MAX3266X_CB) && defined(HAVE_AES_ECB) /* Can do a basic ECB block */
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
     #endif
@@ -3668,7 +3668,7 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     }
 #endif
 
-#ifdef MAX3266X_CB /* Can do a basic ECB block */
+#if defined(MAX3266X_CB) && defined(HAVE_AES_ECB) /* Can do a basic ECB block */
     #ifndef WOLF_CRYPTO_CB_FIND
     if (aes->devId != INVALID_DEVID)
     #endif

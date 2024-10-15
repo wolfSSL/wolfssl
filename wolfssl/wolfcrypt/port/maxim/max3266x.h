@@ -236,21 +236,16 @@
 
 #if defined(MAX3266X_SHA) || defined(MAX3266X_SHA_CB)
 
+    /* Need to update this struct accordingly if other SHA Structs change */
+    /* This is a generic struct to use so only this is needed */
+
     typedef struct {
         unsigned char   *msg;
         unsigned int    used;
         unsigned int    size;
-        #ifdef WOLFSSL_HASH_FLAGS
-        unsigned int    flags; /* enum wc_HashFlags in hash.h */
-        #endif
     } wc_MXC_Sha;
 
     #if !defined(NO_SHA)
-    #ifndef MAX3266X_SHA_CB
-        typedef wc_MXC_Sha wc_Sha;
-        #define WC_SHA_TYPE_DEFINED
-    #endif /* !MAX3266X_SHA_CB */
-
         /* Define the SHA digest for an empty string */
         /* as a constant byte array */
         static const unsigned char MXC_EMPTY_DIGEST_SHA1[20] = {
@@ -260,11 +255,6 @@
     #endif /* NO_SHA */
 
     #if defined(WOLFSSL_SHA224)
-    #ifndef MAX3266X_SHA_CB
-        typedef wc_MXC_Sha wc_Sha224;
-        #define WC_SHA224_TYPE_DEFINED
-    #endif /* !MAX3266X_SHA_CB */
-
         /* Define the SHA-224 digest for an empty string */
         /* as a constant byte array */
         static const unsigned char MXC_EMPTY_DIGEST_SHA224[28] = {
@@ -275,11 +265,6 @@
     #endif /* WOLFSSL_SHA224 */
 
     #if !defined(NO_SHA256)
-    #ifndef MAX3266X_SHA_CB
-        typedef wc_MXC_Sha wc_Sha256;
-        #define WC_SHA256_TYPE_DEFINED
-    #endif /* !MAX3266X_SHA_CB */
-
         /* Define the SHA-256 digest for an empty string */
         /* as a constant byte array */
         static const unsigned char MXC_EMPTY_DIGEST_SHA256[32] = {
@@ -290,11 +275,6 @@
     #endif /* NO_SHA256 */
 
     #if defined(WOLFSSL_SHA384)
-    #ifndef MAX3266X_SHA_CB
-        typedef wc_MXC_Sha wc_Sha384;
-        #define WC_SHA384_TYPE_DEFINED
-    #endif /* !MAX3266X_SHA_CB */
-
         /* Define the SHA-384 digest for an empty string */
         /* as a constant byte array */
         static const unsigned char MXC_EMPTY_DIGEST_SHA384[48] = {
@@ -307,13 +287,6 @@
     #endif /* WOLFSSL_SHA384 */
 
     #if defined(WOLFSSL_SHA512)
-    #ifndef MAX3266X_SHA_CB
-        typedef wc_MXC_Sha wc_Sha512;
-        typedef wc_MXC_Sha wc_Sha512_224;
-        typedef wc_MXC_Sha wc_Sha512_256;
-        #define WC_SHA512_TYPE_DEFINED
-    #endif /* !MAX3266X_SHA_CB */
-
         /* Does not support these SHA512 Macros */
         #ifndef WOLFSSL_NOSHA512_224
             #warning "MAX3266X Port does not support SHA-512/224"
