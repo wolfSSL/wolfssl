@@ -332,7 +332,7 @@ typedef struct EncryptedInfo {
     char     name[NAME_SZ];    /* cipher name, such as "DES-CBC" */
     byte     iv[IV_SZ];        /* salt or encrypted IV */
 
-    word16   set:1;            /* if encryption set */
+    WC_BITFIELD set:1;         /* if encryption set */
 #endif
 } EncryptedInfo;
 
@@ -347,7 +347,7 @@ typedef struct WOLFSSL_ASN1_INTEGER {
 
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
-    unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
+    WC_BITFIELD    isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 
     int length;   /* Length of DER encoding. */
     int type;     /* ASN.1 type. Includes negative flag. */
@@ -549,13 +549,13 @@ typedef struct Cert {
     void*   decodedCert;      /* internal DecodedCert allocated from heap */
     byte*   der;              /* Pointer to buffer of current DecodedCert cache */
     void*   heap;             /* heap hint */
-    byte    basicConstSet:1;  /* Indicator for when Basic Constraint is set */
+    WC_BITFIELD basicConstSet:1;  /* Indicator for when Basic Constraint is set */
 #ifdef WOLFSSL_ALLOW_ENCODING_CA_FALSE
-    byte    isCaSet:1;        /* Indicator for when isCA is set */
+    WC_BITFIELD isCaSet:1;        /* Indicator for when isCA is set */
 #endif
-    byte    pathLenSet:1;     /* Indicator for when path length is set */
+    WC_BITFIELD pathLenSet:1;     /* Indicator for when path length is set */
 #ifdef WOLFSSL_ALT_NAMES
-    byte    altNamesCrit:1;   /* Indicator of criticality of SAN extension */
+    WC_BITFIELD altNamesCrit:1;   /* Indicator of criticality of SAN extension */
 #endif
 } Cert;
 
@@ -937,9 +937,9 @@ typedef struct _wc_CertPIV {
     word32       signedNonceSz; /* Identiv Only */
 
     /* flags */
-    word16       compression:2;
-    word16       isX509:1;
-    word16       isIdentiv:1;
+    WC_BITFIELD  compression:2;
+    WC_BITFIELD  isX509:1;
+    WC_BITFIELD  isIdentiv:1;
 } wc_CertPIV;
 
 WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalSz);
@@ -1007,7 +1007,7 @@ enum Asn1PrintOpt {
     /* Don't show text representations of primitive types. */
     ASN1_PRINT_OPT_SHOW_NO_TEXT,
     /* Don't show dump text representations of primitive types. */
-    ASN1_PRINT_OPT_SHOW_NO_DUMP_TEXT,
+    ASN1_PRINT_OPT_SHOW_NO_DUMP_TEXT
 };
 
 /* ASN.1 print options. */
@@ -1019,17 +1019,17 @@ typedef struct Asn1PrintOptions {
     /* Number of spaces to indent for each change in depth. */
     word8 indent;
     /* Draw branches instead of indenting. */
-    word8 draw_branch:1;
+    WC_BITFIELD draw_branch:1;
     /* Show raw data of primitive types as octets. */
-    word8 show_data:1;
+    WC_BITFIELD show_data:1;
     /* Show header data as octets. */
-    word8 show_header_data:1;
+    WC_BITFIELD show_header_data:1;
     /* Show the wolfSSL OID value for OBJECT_ID. */
-    word8 show_oid:1;
+    WC_BITFIELD show_oid:1;
     /* Don't show text representations of primitive types. */
-    word8 show_no_text:1;
+    WC_BITFIELD show_no_text:1;
     /* Don't show dump text representations of primitive types. */
-    word8 show_no_dump_text:1;
+    WC_BITFIELD show_no_dump_text:1;
 } Asn1PrintOptions;
 
 /* ASN.1 item data. */

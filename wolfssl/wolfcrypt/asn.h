@@ -224,11 +224,11 @@ typedef struct ASNItem {
     /* BER/DER tag to expect. */
     byte tag;
     /* Whether the ASN.1 item is constructed. */
-    byte constructed:1;
+    WC_BITFIELD constructed:1;
     /* Whether to parse the header only or skip data. If
      * ASNSetData.data.buffer.data is supplied then this option gets
      * overwritten and the child nodes get ignored. */
-    byte headerOnly:1;
+    WC_BITFIELD headerOnly:1;
     /* Whether ASN.1 item is optional.
      *  - 0 means not optional
      *  - 1 means is optional
@@ -1273,8 +1273,9 @@ enum Extensions_Sum {
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     SUBJ_ALT_PUB_KEY_INFO_OID = 186, /* 2.5.29.72 subject alt public key info */
     ALT_SIG_ALG_OID           = 187, /* 2.5.29.73 alt sig alg */
-    ALT_SIG_VAL_OID           = 188  /* 2.5.29.74 alt sig val */
+    ALT_SIG_VAL_OID           = 188,  /* 2.5.29.74 alt sig val */
 #endif
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(Extensions_Sum)
 };
 
 enum CertificatePolicy_Sum {
@@ -1941,63 +1942,63 @@ struct DecodedCert {
     int criticalExt;
 
     /* Option Bits */
-    byte subjectCNStored : 1;      /* have we saved a copy we own */
-    byte extSubjKeyIdSet : 1;      /* Set when the SKID was read from cert */
-    byte extAuthKeyIdSet : 1;      /* Set when the AKID was read from cert */
+    WC_BITFIELD subjectCNStored:1;      /* have we saved a copy we own */
+    WC_BITFIELD extSubjKeyIdSet:1;      /* Set when the SKID was read from cert */
+    WC_BITFIELD extAuthKeyIdSet:1;      /* Set when the AKID was read from cert */
 #ifndef IGNORE_NAME_CONSTRAINTS
-    byte extNameConstraintSet : 1;
+    WC_BITFIELD extNameConstraintSet:1;
 #endif
-    byte isCA : 1;                 /* CA basic constraint true */
-    byte pathLengthSet : 1;        /* CA basic const path length set */
-    byte weOwnAltNames : 1;        /* altNames haven't been given to copy */
-    byte extKeyUsageSet : 1;
-    byte extExtKeyUsageSet : 1;    /* Extended Key Usage set */
+    WC_BITFIELD isCA:1;                 /* CA basic constraint true */
+    WC_BITFIELD pathLengthSet:1;        /* CA basic const path length set */
+    WC_BITFIELD weOwnAltNames:1;        /* altNames haven't been given to copy */
+    WC_BITFIELD extKeyUsageSet:1;
+    WC_BITFIELD extExtKeyUsageSet:1;    /* Extended Key Usage set */
 #ifdef HAVE_OCSP
-    byte ocspNoCheckSet : 1;       /* id-pkix-ocsp-nocheck set */
+    WC_BITFIELD ocspNoCheckSet:1;       /* id-pkix-ocsp-nocheck set */
 #endif
-    byte extCRLdistSet : 1;
-    byte extAuthInfoSet : 1;
-    byte extBasicConstSet : 1;
-    byte extPolicyConstSet : 1;
-    byte extPolicyConstRxpSet : 1; /* requireExplicitPolicy set */
-    byte extPolicyConstIpmSet : 1; /* inhibitPolicyMapping set */
-    byte extSubjAltNameSet : 1;
-    byte inhibitAnyOidSet : 1;
-    byte selfSigned : 1;           /* Indicates subject and issuer are same */
+    WC_BITFIELD extCRLdistSet:1;
+    WC_BITFIELD extAuthInfoSet:1;
+    WC_BITFIELD extBasicConstSet:1;
+    WC_BITFIELD extPolicyConstSet:1;
+    WC_BITFIELD extPolicyConstRxpSet:1; /* requireExplicitPolicy set */
+    WC_BITFIELD extPolicyConstIpmSet:1; /* inhibitPolicyMapping set */
+    WC_BITFIELD extSubjAltNameSet:1;
+    WC_BITFIELD inhibitAnyOidSet:1;
+    WC_BITFIELD selfSigned:1;           /* Indicates subject and issuer are same */
 #ifdef WOLFSSL_SEP
-    byte extCertPolicySet : 1;
+    WC_BITFIELD extCertPolicySet:1;
 #endif
-    byte extCRLdistCrit : 1;
-    byte extAuthInfoCrit : 1;
-    byte extBasicConstCrit : 1;
-    byte extPolicyConstCrit : 1;
-    byte extSubjAltNameCrit : 1;
-    byte extAuthKeyIdCrit : 1;
+    WC_BITFIELD extCRLdistCrit:1;
+    WC_BITFIELD extAuthInfoCrit:1;
+    WC_BITFIELD extBasicConstCrit:1;
+    WC_BITFIELD extPolicyConstCrit:1;
+    WC_BITFIELD extSubjAltNameCrit:1;
+    WC_BITFIELD extAuthKeyIdCrit:1;
 #ifndef IGNORE_NAME_CONSTRAINTS
-    byte extNameConstraintCrit : 1;
+    WC_BITFIELD extNameConstraintCrit:1;
 #endif
-    byte extSubjKeyIdCrit : 1;
-    byte extKeyUsageCrit : 1;
-    byte extExtKeyUsageCrit : 1;
+    WC_BITFIELD extSubjKeyIdCrit:1;
+    WC_BITFIELD extKeyUsageCrit:1;
+    WC_BITFIELD extExtKeyUsageCrit:1;
 #ifdef WOLFSSL_SUBJ_DIR_ATTR
-    byte extSubjDirAttrSet : 1;
+    WC_BITFIELD extSubjDirAttrSet:1;
 #endif
 #ifdef WOLFSSL_SUBJ_INFO_ACC
-    byte extSubjInfoAccSet : 1;
+    WC_BITFIELD extSubjInfoAccSet:1;
 #endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
-    byte extSapkiSet : 1;
-    byte extAltSigAlgSet : 1;
-    byte extAltSigValSet : 1;
+    WC_BITFIELD extSapkiSet:1;
+    WC_BITFIELD extAltSigAlgSet:1;
+    WC_BITFIELD extAltSigValSet:1;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #ifdef WOLFSSL_SEP
-    byte extCertPolicyCrit : 1;
+    WC_BITFIELD extCertPolicyCrit:1;
 #endif
 #ifdef WOLFSSL_CERT_REQ
-    byte isCSR : 1;                /* Do we intend on parsing a CSR? */
+    WC_BITFIELD isCSR:1;                /* Do we intend on parsing a CSR? */
 #endif
 #ifdef HAVE_RPK
-    byte isRPK : 1;   /* indicate the cert is Raw-Public-Key cert in RFC7250 */
+    WC_BITFIELD isRPK:1;   /* indicate the cert is Raw-Public-Key cert in RFC7250 */
 #endif
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
@@ -2034,7 +2035,7 @@ struct Signer {
     word32  keyOID;                  /* key type */
     word16  keyUsage;
     byte    maxPathLen;
-    byte    selfSigned : 1;
+    WC_BITFIELD selfSigned:1;
     const byte* publicKey;
     int     nameLen;
     char*   name;                    /* common name */
@@ -2572,10 +2573,10 @@ struct OcspEntry
     byte* rawCertId;                      /* raw bytes of the CertID   */
     int rawCertIdSize;                    /* num bytes in raw CertID   */
     /* option bits - using 32-bit for alignment */
-    word32 ownStatus:1;                   /* do we need to free the status
+    WC_BITFIELD ownStatus:1;              /* do we need to free the status
                                            * response list */
-    word32 isDynamic:1;                   /* was dynamically allocated */
-    word32 used:1;                        /* entry used                */
+    WC_BITFIELD isDynamic:1;              /* was dynamically allocated */
+    WC_BITFIELD used:1;                   /* entry used                */
 };
 
 /* TODO: Long-term, it would be helpful if we made this struct and other OCSP

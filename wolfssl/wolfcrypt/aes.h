@@ -388,11 +388,11 @@ struct Aes {
     byte         over;
     byte         aOver;
     byte         cOver;
-    byte         gcmKeySet:1;
-    byte         nonceSet:1;
-    byte         ctrSet:1;
+    WC_BITFIELD  gcmKeySet:1;
+    WC_BITFIELD  nonceSet:1;
+    WC_BITFIELD  ctrSet:1;
 #endif
-    byte         isAllocated:1; /* flag indicates if structure was allocated */
+    WC_BITFIELD  isAllocated:1; /* flag indicates if structure was allocated */
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     void *CipherLifecycleTag; /* used for dummy allocation and initialization,
                                * trackable by sanitizers.

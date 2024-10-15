@@ -85,8 +85,8 @@ struct ed448_key {
     byte pointX[ED448_KEY_SIZE]; /* recovered X coordinate */
     byte pointY[ED448_KEY_SIZE]; /* Y coordinate is the public key with The most significant bit of the final octet always zero. */
 #endif
-    word16 privKeySet:1;
-    word16 pubKeySet:1;
+    WC_BITFIELD privKeySet:1;
+    WC_BITFIELD pubKeySet:1;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif

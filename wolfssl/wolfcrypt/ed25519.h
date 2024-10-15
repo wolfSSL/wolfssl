@@ -94,8 +94,11 @@ struct ed25519_key {
     word32 flags;
     byte   keyIdSet;
 #endif
-    word16 privKeySet:1;
-    word16 pubKeySet:1;
+    WC_BITFIELD privKeySet:1;
+    WC_BITFIELD pubKeySet:1;
+    WC_BITFIELD sha_clean_flag:1; /* only used if WOLFSSL_ED25519_PERSISTENT_SHA */
+    /* flag indicates if structure was allocated */
+    WC_BITFIELD isAllocated:1;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
@@ -106,10 +109,7 @@ struct ed25519_key {
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
-    byte sha_clean_flag : 1;
 #endif
-    /* flag indicates if structure was allocated */
-    byte isAllocated : 1;
 };
 
 #ifndef WC_ED25519KEY_TYPE_DEFINED

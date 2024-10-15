@@ -112,6 +112,10 @@ decouple library dependencies with standard string, memory and so on.
         typedef const char* const wcchar;
     #endif
 
+    #ifndef WC_BITFIELD
+        #define WC_BITFIELD byte
+    #endif
+
     #ifndef HAVE_ANONYMOUS_INLINE_AGGREGATES
         /* if a version is available, pivot on the version, otherwise guess it's
          * allowed, subject to override.
@@ -1108,7 +1112,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SNIFFER_NAMED_KEY   = 1005,
         DYNAMIC_TYPE_SNIFFER_KEY         = 1006,
         DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE = 1007,
-        DYNAMIC_TYPE_AES_EAX = 1008,
+        DYNAMIC_TYPE_AES_EAX = 1008
     };
 
     /* max error buffer string size */

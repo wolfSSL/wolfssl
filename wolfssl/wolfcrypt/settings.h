@@ -2743,7 +2743,7 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_SP_INT_DIGIT_ALIGN
     #define WOLFSSL_SP_INT_DIGIT_ALIGN
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(WOLF_C89)
     #define WOLFSSL_SP_NO_DYN_STACK
 #endif
 

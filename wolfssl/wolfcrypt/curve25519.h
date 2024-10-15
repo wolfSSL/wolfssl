@@ -97,9 +97,9 @@ struct curve25519_key {
 #endif
 
     /* bit fields */
-    byte pubSet:1;
-    byte privSet:1;
-    byte isAllocated:1; /* flag indicates if structure was allocated */
+    WC_BITFIELD pubSet:1;
+    WC_BITFIELD privSet:1;
+    WC_BITFIELD isAllocated:1; /* flag indicates if structure was allocated */
 };
 
 enum {
