@@ -4092,23 +4092,23 @@ static int wc_ecc_new_point_ex(ecc_point** point, void* heap)
    }
 
    p = *point;
-#ifndef WOLFSSL_NO_MALLOC
    if (p == NULL) {
       p = (ecc_point*)XMALLOC(sizeof(ecc_point), heap, DYNAMIC_TYPE_ECC);
    }
-#endif
    if (p == NULL) {
       return MEMORY_E;
    }
    XMEMSET(p, 0, sizeof(ecc_point));
 
+   if (*point == NULL)
+       p->isAllocated = 1;
+
 #ifndef ALT_ECC_SIZE
    err = mp_init_multi(p->x, p->y, p->z, NULL, NULL, NULL);
    if (err != MP_OKAY) {
       WOLFSSL_MSG("mp_init_multi failed.");
-   #ifndef WOLFSSL_NO_MALLOC
-      XFREE(p, heap, DYNAMIC_TYPE_ECC);
-   #endif
+      if (p->isAllocated)
+          XFREE(p, heap, DYNAMIC_TYPE_ECC);
       p = NULL;
    }
 #else
@@ -4148,9 +4148,8 @@ static void wc_ecc_del_point_ex(ecc_point* p, void* heap)
       mp_clear(p->x);
       mp_clear(p->y);
       mp_clear(p->z);
-   #ifndef WOLFSSL_NO_MALLOC
-      XFREE(p, heap, DYNAMIC_TYPE_ECC);
-   #endif
+      if (p->isAllocated)
+          XFREE(p, heap, DYNAMIC_TYPE_ECC);
    }
    (void)heap;
 }
@@ -12441,6 +12440,9 @@ static const struct {
 /* find a hole and free as required, return -1 if no hole found */
 static int find_hole(void)
 {
+#ifdef WOLFSSL_NO_MALLOC
+   return -1;
+#else
    int      x, y, z;
    for (z = -1, y = INT_MAX, x = 0; x < FP_ENTRIES; x++) {
        if (fp_cache[x].lru_count < y && fp_cache[x].lock == 0) {
@@ -12469,6 +12471,7 @@ static int find_hole(void)
       fp_cache[z].lru_count = 0;
    }
    return z;
+#endif /* !WOLFSSL_NO_MALLOC */
 }
 
 /* determine if a base is already in the cache and if so, where */

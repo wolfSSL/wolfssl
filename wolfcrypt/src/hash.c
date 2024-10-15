@@ -712,9 +712,7 @@ int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type, void* heap,
     if (hash == NULL)
         return BAD_FUNC_ARG;
 
-#ifndef WOLFSSL_NO_MALLOC
     hash->isAllocated = 0;
-#endif
     hash->type = type;
 
     switch (type) {
@@ -1046,12 +1044,10 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
 {
     int ret = WC_NO_ERR_TRACE(HASH_TYPE_E); /* Default to hash type error */
     void* heap = NULL;
-#ifndef WOLFSSL_NO_MALLOC
     byte isAllocated = 0;
-#endif
+
     if (hash == NULL)
         return BAD_FUNC_ARG;
-
 
 #ifdef DEBUG_WOLFSSL
     if (hash->type != type) {
@@ -1060,9 +1056,7 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
     }
 #endif
 
-#ifndef WOLFSSL_NO_MALLOC
     isAllocated = hash->isAllocated;
-#endif
 
     switch (type) {
         case WC_HASH_TYPE_MD5:
@@ -1178,12 +1172,10 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
             ret = BAD_FUNC_ARG;
     };
 
-#ifndef WOLFSSL_NO_MALLOC
     if (isAllocated) {
         XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
+        (void)heap;
     }
-#endif
-    (void)heap;
 
     return ret;
 }

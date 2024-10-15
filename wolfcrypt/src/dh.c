@@ -2979,7 +2979,11 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
             primeCheckCount = 0;
     int     primeCheck = MP_NO,
             ret = 0;
+#ifdef WOLFSSL_NO_MALLOC
+    unsigned char buf[DH_MAX_SIZE / WOLFSSL_BIT_SIZE];
+#else
     unsigned char *buf = NULL;
+#endif
 
 #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_NO_MALLOC)
     XMEMSET(tmp, 0, sizeof(tmp));
@@ -3029,11 +3033,16 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     if (ret == 0) {
         bufSz = (word32)modSz - groupSz;
 
+#ifdef WOLFSSL_NO_MALLOC
+        if (bufSz > sizeof(buf))
+            ret = MEMORY_E;
+#else
         /* allocate ram */
         buf = (unsigned char *)XMALLOC(bufSz,
                                        dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (buf == NULL)
             ret = MEMORY_E;
+#endif
     }
 
     /* make a random string that will be multiplied against q */
@@ -3167,11 +3176,16 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 
     RESTORE_VECTOR_REGISTERS();
 
-    if (buf != NULL) {
+#ifndef WOLFSSL_NO_MALLOC
+    if (buf != NULL)
+#endif
+    {
         ForceZero(buf, bufSz);
+#ifndef WOLFSSL_NO_MALLOC
         if (dh != NULL) {
             XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
+#endif
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)

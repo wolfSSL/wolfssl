@@ -4041,7 +4041,13 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     RsaKey* key;
     DecodedCert* dCert;
 #else
+#ifdef WOLFSSL_NO_MALLOC
+    byte digest[RSA_MAX_SIZE / WOLFSSL_BIT_SIZE]; /* accessed in-place with size
+                                                   * key->dataLen
+                                                   */
+#else
     byte digest[MAX_PKCS7_DIGEST_SZ];
+#endif
     RsaKey key[1];
     DecodedCert stack_dCert;
     DecodedCert* dCert = &stack_dCert;

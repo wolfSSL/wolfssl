@@ -467,6 +467,7 @@ struct ecc_point {
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
     ecc_key* key;
 #endif
+    byte isAllocated:1;
 };
 
 /* ECC Flags */
