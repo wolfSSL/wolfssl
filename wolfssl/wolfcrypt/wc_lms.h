@@ -134,6 +134,9 @@
 /* Length of numeric types when encoding. */
 #define LMS_TYPE_LEN                4
 
+/* Size of digest output when truncatint SHA-256 to 192 bits. */
+#define WC_SHA256_192_DIGEST_SIZE   24
+
 /* Maximum size of a node hash. */
 #define LMS_MAX_NODE_LEN            WC_SHA256_DIGEST_SIZE
 /* Maximum size of SEED (produced by hash). */
@@ -142,8 +145,6 @@
  * Value of P when N=32 and W=1.
  */
 #define LMS_MAX_P                   265
-/* Length of SEED and I in bytes. */
-#define LMS_SEED_I_LEN              (LMS_SEED_LEN + LMS_I_LEN)
 
 
 #ifndef WOLFSSL_LMS_ROOT_LEVELS
@@ -192,33 +193,32 @@
     (HSS_COMPRESS_PARAM_SET_LEN * HSS_MAX_LEVELS)
 
 /* Private key length for one level. */
-#define LMS_PRIV_LEN                \
-    (LMS_Q_LEN + LMS_SEED_LEN + LMS_I_LEN)
+#define LMS_PRIV_LEN(hLen)          \
+    (LMS_Q_LEN + (hLen) + LMS_I_LEN)
 /* Public key length in signature. */
-#define LMS_PUBKEY_LEN              \
-    (LMS_TYPE_LEN + LMS_TYPE_LEN + LMS_I_LEN + LMS_MAX_NODE_LEN)
+#define LMS_PUBKEY_LEN(hLen)        \
+    (LMS_TYPE_LEN + LMS_TYPE_LEN + LMS_I_LEN + (hLen))
 
 /* LMS signature data length. */
-#define LMS_SIG_LEN(h, p)                                                   \
-    (LMS_Q_LEN + LMS_TYPE_LEN + LMS_MAX_NODE_LEN + (p) * LMS_MAX_NODE_LEN + \
-     LMS_TYPE_LEN + (h) * LMS_MAX_NODE_LEN)
+#define LMS_SIG_LEN(h, p, hLen)                                                \
+    (LMS_Q_LEN + LMS_TYPE_LEN + (hLen) + (p) * (hLen) + LMS_TYPE_LEN +         \
+     (h) * (hLen))
 
 /* Length of public key. */
-#define HSS_PUBLIC_KEY_LEN          (LMS_L_LEN + LMS_PUBKEY_LEN)
+#define HSS_PUBLIC_KEY_LEN(hLen)        (LMS_L_LEN + LMS_PUBKEY_LEN(hLen))
 /* Length of private key. */
-#define HSS_PRIVATE_KEY_LEN         \
-    (HSS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN + LMS_SEED_LEN + LMS_I_LEN)
+#define HSS_PRIVATE_KEY_LEN(hLen)   \
+    (HSS_Q_LEN + HSS_PRIV_KEY_PARAM_SET_LEN + (hLen) + LMS_I_LEN)
 /* Maximum public key length - length is constant for all parameters. */
-#define HSS_MAX_PRIVATE_KEY_LEN     HSS_PRIVATE_KEY_LEN
+#define HSS_MAX_PRIVATE_KEY_LEN     HSS_PRIVATE_KEY_LEN(LMS_MAX_NODE_LEN)
 /* Maximum private key length - length is constant for all parameters. */
-#define HSS_MAX_PUBLIC_KEY_LEN      HSS_PUBLIC_KEY_LEN
+#define HSS_MAX_PUBLIC_KEY_LEN      HSS_PUBLIC_KEY_LEN(LMS_MAX_NODE_LEN)
 /* Maximum signature length. */
 #define HSS_MAX_SIG_LEN                                                        \
     (LMS_TYPE_LEN +                                                            \
      LMS_MAX_LEVELS * (LMS_Q_LEN + LMS_TYPE_LEN + LMS_TYPE_LEN +               \
                        LMS_MAX_NODE_LEN * (1 + LMS_MAX_P + LMS_MAX_HEIGHT)) +  \
-     (LMS_MAX_LEVELS - 1) * LMS_PUBKEY_LEN                                     \
-     )
+     (LMS_MAX_LEVELS - 1) * LMS_PUBKEY_LEN(LMS_MAX_NODE_LEN))
 
 /* Maximum buffer length required for use when hashing. */
 #define LMS_MAX_BUFFER_LEN          \
@@ -229,20 +229,20 @@
  *
  * HSSPrivKey.priv
  */
-#define LMS_PRIV_KEY_LEN(l) \
-    ((l) * LMS_PRIV_LEN)
+#define LMS_PRIV_KEY_LEN(l, hLen)           \
+    ((l) * LMS_PRIV_LEN(hLen))
 
 /* Stack of nodes. */
-#define LMS_STACK_CACHE_LEN(h)              \
-     (((h) + 1) * LMS_MAX_NODE_LEN)
+#define LMS_STACK_CACHE_LEN(h, hLen)        \
+     (((h) + 1) * (hLen))
 
 /* Root cache length. */
-#define LMS_ROOT_CACHE_LEN(rl)              \
-    (((1 << (rl)) - 1) * LMS_MAX_NODE_LEN)
+#define LMS_ROOT_CACHE_LEN(rl, hLen)        \
+    (((1 << (rl)) - 1) * (hLen))
 
 /* Leaf cache length. */
-#define LMS_LEAF_CACHE_LEN(cb)              \
-    ((1 << (cb)) * LMS_MAX_NODE_LEN)
+#define LMS_LEAF_CACHE_LEN(cb, hLen)        \
+    ((1 << (cb)) * (hLen))
 
 /* Length of LMS private key state.
  *
@@ -252,75 +252,103 @@
  *   stack.stack + stack.offset +
  *   cache.leaf + cache.index + cache.offset
  */
-#define LMS_PRIV_STATE_LEN(h, rl, cb)   \
-    (((h) * LMS_MAX_NODE_LEN) +         \
-     LMS_STACK_CACHE_LEN(h) + 4 +       \
-     LMS_ROOT_CACHE_LEN(rl) +           \
-     LMS_LEAF_CACHE_LEN(cb) + 4 + 4)
+#define LMS_PRIV_STATE_LEN(h, rl, cb, hLen)     \
+    (((h) * (hLen)) +                           \
+     LMS_STACK_CACHE_LEN(h, hLen) + 4 +         \
+     LMS_ROOT_CACHE_LEN(rl, hLen) +             \
+     LMS_LEAF_CACHE_LEN(cb, hLen) + 4 + 4)
 
 #ifndef WOLFSSL_WC_LMS_SMALL
     /* Private key data state for all levels. */
-    #define LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb)    \
-         ((l) * LMS_PRIV_STATE_LEN(h, rl, cb))
+    #define LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb, hLen)  \
+         ((l) * LMS_PRIV_STATE_LEN(h, rl, cb, hLen))
 #else
     /* Private key data state for all levels. */
-    #define LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb)    0
+    #define LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb, hLen)  0
 #endif
 
 #ifndef WOLFSSL_LMS_NO_SIGN_SMOOTHING
     /* Extra private key data for smoothing. */
-    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb)       \
-        (LMS_PRIV_KEY_LEN(l) +                      \
-         ((l) - 1) * LMS_PRIV_STATE_LEN(h, rl, cb))
+    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb, hLen)         \
+        (LMS_PRIV_KEY_LEN(l, hLen) +                        \
+         ((l) - 1) * LMS_PRIV_STATE_LEN(h, rl, cb, hLen))
 #else
     /* Extra private key data for smoothing. */
-    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb)       0
+    #define LMS_PRIV_SMOOTH_LEN(l, h, rl, cb, hLen)     0
 #endif
 
 #ifndef WOLFSSL_LMS_NO_SIG_CACHE
-    #define LMS_PRIV_Y_TREE_LEN(p)                                  \
-        (LMS_MAX_NODE_LEN + (p) * LMS_MAX_NODE_LEN)
+    #define LMS_PRIV_Y_TREE_LEN(p, hLen)                            \
+        ((hLen) + (p) * (hLen))
     /* Length of the y data cached in private key data. */
-    #define LMS_PRIV_Y_LEN(l, p)                                    \
-        (((l) - 1) * (LMS_MAX_NODE_LEN + (p) * LMS_MAX_NODE_LEN))
+    #define LMS_PRIV_Y_LEN(l, p, hLen)                              \
+        (((l) - 1) * ((hLen) + (p) * (hLen)))
 #else
     /* Length of the y data cached in private key data. */
-    #define LMS_PRIV_Y_LEN(l, p)    0
+    #define LMS_PRIV_Y_LEN(l, p, hLen)      0
 #endif
 
 #ifndef WOLFSSL_WC_LMS_SMALL
 /* Length of private key data. */
-#define LMS_PRIV_DATA_LEN(l, h, p, rl, cb)   \
-    (LMS_PRIV_KEY_LEN(l) +                   \
-     LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb) +  \
-     LMS_PRIV_SMOOTH_LEN(l, h, rl, cb) +     \
-     LMS_PRIV_Y_LEN(l, p))
+#define LMS_PRIV_DATA_LEN(l, h, p, rl, cb, hLen)    \
+    (LMS_PRIV_KEY_LEN(l, hLen) +                    \
+     LMS_PRIV_STATE_ALL_LEN(l, h, rl, cb, hLen) +   \
+     LMS_PRIV_SMOOTH_LEN(l, h, rl, cb, hLen) +      \
+     LMS_PRIV_Y_LEN(l, p, hLen))
 #else
-#define LMS_PRIV_DATA_LEN(l, h, p, rl, cb)   \
-    LMS_PRIV_KEY_LEN(l)
+#define LMS_PRIV_DATA_LEN(l, h, p, rl, cb, hLen)    \
+    LMS_PRIV_KEY_LEN(l, hLen)
 #endif
 
+/* Indicates using SHA-256 for hashing. */
+#define LMS_SHA256                  0x00
+/* Indicates using SHA-256/192 for hashing. */
+#define LMS_SHA256_192              0x10
+/* Mask to get hashing algorithm from type. */
+#define LMS_HASH_MASK               0xf0
+/* Mask to get height or Winternitz width from type. */
+#define LMS_H_W_MASK                0x0f
 
 /* LMS Parameters. */
 /* SHA-256 hash, 32-bytes of hash used, tree height of 5. */
-#define LMS_SHA256_M32_H5           5
+#define LMS_SHA256_M32_H5           0x05
 /* SHA-256 hash, 32-bytes of hash used, tree height of 10. */
-#define LMS_SHA256_M32_H10          6
+#define LMS_SHA256_M32_H10          0x06
 /* SHA-256 hash, 32-bytes of hash used, tree height of 15. */
-#define LMS_SHA256_M32_H15          7
+#define LMS_SHA256_M32_H15          0x07
 /* SHA-256 hash, 32-bytes of hash used, tree height of 20. */
-#define LMS_SHA256_M32_H20          8
+#define LMS_SHA256_M32_H20          0x08
 /* SHA-256 hash, 32-bytes of hash used, tree height of 25. */
-#define LMS_SHA256_M32_H25          9
+#define LMS_SHA256_M32_H25          0x09
 
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 1 bit. */
-#define LMOTS_SHA256_N32_W1         1
+#define LMOTS_SHA256_N32_W1         0x01
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 2 bits. */
-#define LMOTS_SHA256_N32_W2         2
+#define LMOTS_SHA256_N32_W2         0x02
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 4 bits. */
-#define LMOTS_SHA256_N32_W4         3
+#define LMOTS_SHA256_N32_W4         0x03
 /* SHA-256 hash, 32-bytes of hash used, Winternitz width of 8 bits. */
-#define LMOTS_SHA256_N32_W8         4
+#define LMOTS_SHA256_N32_W8         0x04
+
+/* SHA-256 hash, 32-bytes of hash used, tree height of 5. */
+#define LMS_SHA256_M24_H5           (0x05 | LMS_SHA256_192)
+/* SHA-256 hash, 32-bytes of hash used, tree height of 10. */
+#define LMS_SHA256_M24_H10          (0x06 | LMS_SHA256_192)
+/* SHA-256 hash, 32-bytes of hash used, tree height of 15. */
+#define LMS_SHA256_M24_H15          (0x07 | LMS_SHA256_192)
+/* SHA-256 hash, 32-bytes of hash used, tree height of 20. */
+#define LMS_SHA256_M24_H20          (0x08 | LMS_SHA256_192)
+/* SHA-256 hash, 32-bytes of hash used, tree height of 25. */
+#define LMS_SHA256_M24_H25          (0x09 | LMS_SHA256_192)
+
+/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 1 bit. */
+#define LMOTS_SHA256_N24_W1         (0x01 | LMS_SHA256_192)
+/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 2 bits. */
+#define LMOTS_SHA256_N24_W2         (0x02 | LMS_SHA256_192)
+/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 4 bits. */
+#define LMOTS_SHA256_N24_W4         (0x03 | LMS_SHA256_192)
+/* SHA-256 hash, 32-bytes of hash used, Winternitz width of 8 bits. */
+#define LMOTS_SHA256_N24_W8         (0x04 | LMS_SHA256_192)
 
 typedef struct LmsParams {
     /* Number of tree levels. */
@@ -339,6 +367,8 @@ typedef struct LmsParams {
     word16 lmOtsType;
     /* Length of LM-OTS signature. */
     word16 sig_len;
+    /* Length of seed. */
+    word16 hash_len;
 #ifndef WOLFSSL_WC_LMS_SMALL
     /* Number of root levels of interior nodes to store. */
     word8 rootLevels;
@@ -426,10 +456,10 @@ typedef struct HssPrivKey {
 
 struct LmsKey {
     /* Public key. */
-    ALIGN16 byte pub[HSS_PUBLIC_KEY_LEN];
+    ALIGN16 byte pub[HSS_PUBLIC_KEY_LEN(LMS_MAX_NODE_LEN)];
 #ifndef WOLFSSL_LMS_VERIFY_ONLY
     /* Encoded private key. */
-    ALIGN16 byte priv_raw[HSS_PRIVATE_KEY_LEN];
+    ALIGN16 byte priv_raw[HSS_MAX_PRIVATE_KEY_LEN];
 
     /* Packed private key data. */
     byte* priv_data;

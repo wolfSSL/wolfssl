@@ -678,8 +678,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t scrypt_test(void);
 #endif
 #if defined(WOLFSSL_HAVE_LMS)
     #if !defined(WOLFSSL_SMALL_STACK)
-        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)) || \
-             defined(HAVE_LIBLMS)
+        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
+             !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
     WOLFSSL_TEST_SUBROUTINE wc_test_ret_t  lms_test_verify_only(void);
         #endif
     #endif
@@ -2263,8 +2263,8 @@ options: [-s max_relative_stack_bytes] [-m max_relative_heap_memory_bytes]\n\
 
 #if defined(WOLFSSL_HAVE_LMS)
     #if !defined(WOLFSSL_SMALL_STACK)
-        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)) || \
-             defined(HAVE_LIBLMS)
+        #if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
+             !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
     if ( (ret = lms_test_verify_only()) != 0)
         TEST_FAIL("LMS Vfy  test failed!\n", ret);
     else
@@ -46179,7 +46179,11 @@ static int lms_read_key_mem(byte * priv, word32 privSz, void *context)
 
 /* LMS signature sizes are a function of their parameters. This
  * test has a signature of 8688 bytes. */
+#ifndef WOLFSSL_NO_LMS_SHA256_256
 #define WC_TEST_LMS_SIG_LEN (8688)
+#else
+#define WC_TEST_LMS_SIG_LEN (4984)
+#endif
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 {
@@ -46322,8 +46326,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
 #endif /* if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY) */
 
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_SMALL_STACK)
-#if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10)) || \
-             defined(HAVE_LIBLMS)
+#if (defined(WOLFSSL_WC_LMS) && (LMS_MAX_HEIGHT >= 10) && \
+     !defined(WOLFSSL_NO_LMS_SHA256_256)) || defined(HAVE_LIBLMS)
 
 /* A simple LMS verify only test.
  *
