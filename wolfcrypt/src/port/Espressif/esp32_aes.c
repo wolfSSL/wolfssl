@@ -637,7 +637,7 @@ int esp_hw_show_aes_metrics(void)
 #if defined(WOLFSSL_HW_METRICS)
 
     ESP_LOGI(TAG, "--------------------------------------------------------");
-    ESP_LOGI(TAG, "------------- wolfSSL ESP HW AES Metrics----------------");
+    ESP_LOGI(TAG, "-------------  wolfSSL ESP HW AES Metrics  -------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
 
     ESP_LOGI(TAG, "esp_aes_unsupported_length_usage_ct = %lu",
