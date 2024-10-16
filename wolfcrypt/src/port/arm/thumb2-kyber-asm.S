@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
@@ -3894,7 +3894,7 @@ L_kyber_thumb2_rej_uniform_done:
 	/* Cycle Count = 225 */
 	.size	kyber_thumb2_rej_uniform,.-kyber_thumb2_rej_uniform
 #endif /* WOLFSSL_WC_KYBER */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

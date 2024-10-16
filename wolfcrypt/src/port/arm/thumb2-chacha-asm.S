@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
@@ -566,7 +566,7 @@ L_chacha_thumb2_over_done:
 	/* Cycle Count = 108 */
 	.size	wc_chacha_use_over,.-wc_chacha_use_over
 #endif /* HAVE_CHACHA */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

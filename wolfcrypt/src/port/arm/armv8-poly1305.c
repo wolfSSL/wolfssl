@@ -1120,7 +1120,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 }
 
 #else
-#ifdef __thumb__
+#ifdef WOLFSSL_ARMASM_THUMB2
 /* Process 16 bytes of message at a time.
  *
  * @param [in] ctx    Poly1305 context.
@@ -1226,7 +1226,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
              for (; i < POLY1305_BLOCK_SIZE; i++) {
                  ctx->buffer[i] = 0;
              }
-        #ifdef __thumb__
+        #ifdef WOLFSSL_ARMASM_THUMB2
              poly1305_blocks_thumb2_16(ctx, ctx->buffer, POLY1305_BLOCK_SIZE,
                  0);
         #else

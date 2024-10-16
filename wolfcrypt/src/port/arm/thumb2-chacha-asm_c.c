@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -726,6 +726,6 @@ void wc_chacha_use_over(byte* over, byte* output, const byte* input, word32 len)
 }
 
 #endif /* HAVE_CHACHA */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

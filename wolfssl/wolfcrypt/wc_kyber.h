@@ -310,7 +310,7 @@ WOLFSSL_LOCAL int kyber_cmp_neon(const byte* a, const byte* b, int sz);
 WOLFSSL_LOCAL void kyber_csubq_neon(sword16* p);
 WOLFSSL_LOCAL void kyber_from_msg_neon(sword16* p, const byte* msg);
 WOLFSSL_LOCAL void kyber_to_msg_neon(byte* msg, sword16* p);
-#elif defined(__thumb__) && defined(WOLFSSL_ARMASM)
+#elif defined(WOLFSSL_ARMASM_THUMB2) && defined(WOLFSSL_ARMASM)
 #define kyber_ntt                   kyber_thumb2_ntt
 #define kyber_invntt                kyber_thumb2_invntt
 #define kyber_basemul_mont          kyber_thumb2_basemul_mont

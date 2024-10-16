@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
@@ -360,7 +360,7 @@ poly1305_final:
 	/* Cycle Count = 82 */
 	.size	poly1305_final,.-poly1305_final
 #endif /* HAVE_POLY1305 */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

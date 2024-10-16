@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_ARMASM) && defined(__thumb__)
+#if defined(WOLFSSL_ARMASM) && defined(WOLFSSL_ARMASM_THUMB2)
 #ifdef HAVE_CHACHA
 
 #include <wolfssl/wolfcrypt/chacha.h>
