@@ -600,6 +600,9 @@ struct WOLFSSL_X509_STORE {
     WOLFSSL_X509_CRL *crl; /* points to cm->crl */
 #endif
     wolfSSL_Ref     ref;
+    WOLF_STACK_OF(WOLFSSL_X509)* certs;
+    WOLF_STACK_OF(WOLFSSL_X509)* trusted;
+    WOLF_STACK_OF(WOLFSSL_X509)* owned;
 };
 
 #define WOLFSSL_ALWAYS_CHECK_SUBJECT 0x1
@@ -697,6 +700,11 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_BUFFER_INFO* certs;  /* peer certs */
     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb; /* verify callback */
     void* heap;
+    WOLF_STACK_OF(WOLFSSL_X509)* ctxIntermediates; /* Intermediates specified
+                                                    * on store ctx init */
+    WOLF_STACK_OF(WOLFSSL_X509)* setTrustedSk;/* A trusted stack override
+                                               * set with
+                                               * X509_STORE_CTX_trusted_stack*/
 };
 
 typedef char* WOLFSSL_STRING;
@@ -3313,7 +3321,8 @@ enum {
     WOLFSSL_DTLSV1_3 = 7,
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
-    WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
+    WOLFSSL_CHAIN_CA = 2,          /* added to cache from trusted chain */
+    WOLFSSL_INTER_CA = 3           /* Intermediate CA */
 };
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);

@@ -5559,7 +5559,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
  * size of this subset and its memory usage */
 #endif /* OPENSSL_EXTRA_X509_SMALL || KEEP_PEER_CERT || SESSION_CERTS */
 
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
 /*
  * Converts a and b to DER and then does an XMEMCMP to check if they match.
  * Returns 0 when certificates match and WOLFSSL_FATAL_ERROR when they don't.
@@ -7536,7 +7536,6 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     byte*         pem = NULL;
     byte*         curr = NULL;
     byte*         prev = NULL;
-    WOLFSSL_X509* x509;
     const char* header = NULL;
     const char* footer = NULL;
 
@@ -7597,12 +7596,8 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
         }
         else if (wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer) == 0 &&
                 XSTRNSTR((char*)curr, header, (unsigned int)sz) != NULL) {
-            x509 = wolfSSL_X509_load_certificate_buffer(curr, (int)sz,
-                                                        WOLFSSL_FILETYPE_PEM);
-            if (x509 == NULL)
-                 goto end;
-            ret = wolfSSL_X509_STORE_add_cert(lookup->store, x509);
-            wolfSSL_X509_free(x509);
+            ret = wolfSSL_X509_STORE_load_cert_buffer(lookup->store, curr, sz,
+                                                      WOLFSSL_FILETYPE_PEM);
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
             curr = (byte*)XSTRNSTR((char*)curr, footer, (unsigned int)sz);

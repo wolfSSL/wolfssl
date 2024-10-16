@@ -59821,11 +59821,9 @@ static int test_wolfSSL_X509_STORE_CTX(void)
     ExpectNotNull((ctx = X509_STORE_CTX_new()));
     ExpectIntEQ(X509_STORE_CTX_init(ctx, str, x5092, sk), 1);
     ExpectNull((sk2 = X509_STORE_CTX_get_chain(NULL)));
-    ExpectNotNull((sk2 = X509_STORE_CTX_get_chain(ctx)));
-    ExpectIntEQ(sk_num(sk2), 1); /* sanity, make sure chain has 1 cert */
+    ExpectNull((sk2 = X509_STORE_CTX_get_chain(ctx)));
     ExpectNull((sk3 = X509_STORE_CTX_get1_chain(NULL)));
-    ExpectNotNull((sk3 = X509_STORE_CTX_get1_chain(ctx)));
-    ExpectIntEQ(sk_num(sk3), 1); /* sanity, make sure chain has 1 cert */
+    ExpectNull((sk3 = X509_STORE_CTX_get1_chain(ctx)));
     X509_STORE_CTX_free(ctx);
     ctx = NULL;
     X509_STORE_free(str);
@@ -59891,6 +59889,373 @@ static int test_wolfSSL_X509_STORE_CTX(void)
 
     return EXPECT_RESULT();
 }
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+
+typedef struct {
+    const char *caFile;
+    const char *caIntFile;
+    const char *caInt2File;
+    const char *leafFile;
+    X509 *x509Ca;
+    X509 *x509CaInt;
+    X509 *x509CaInt2;
+    X509 *x509Leaf;
+    STACK_OF(X509)* expectedChain;
+} X509_STORE_test_data;
+
+static X509 * test_wolfSSL_X509_STORE_CTX_ex_helper(const char *file)
+{
+    XFILE fp = XBADFILE;
+    X509 *x = NULL;
+
+    fp = XFOPEN(file, "rb");
+    if (fp == NULL) {
+        return NULL;
+    }
+    x = PEM_read_X509(fp, 0, 0, 0);
+    XFCLOSE(fp);
+
+    return x;
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex1(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i = 0;
+
+    /* Test case 1, add X509 certs to store and verify */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509Ca), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex2(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i = 0;
+
+    /* Test case 2, add certs by filename to store and verify */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_load_locations(
+        store, testData->caFile, NULL), 1);
+    ExpectIntEQ(X509_STORE_load_locations(
+        store, testData->caIntFile, NULL), 1);
+    ExpectIntEQ(X509_STORE_load_locations(
+        store, testData->caInt2File, NULL), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex3(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i = 0;
+
+    /* Test case 3, mix and match X509 with files */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectIntEQ(X509_STORE_load_locations(
+        store, testData->caFile, NULL), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex4(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    STACK_OF(X509)* inter = NULL;
+    int i = 0;
+
+    /* Test case 4, CA loaded by file, intermediates passed on init */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_load_locations(
+        store, testData->caFile, NULL), 1);
+    ExpectNotNull(inter = sk_X509_new_null());
+    ExpectIntGE(sk_X509_push(inter, testData->x509CaInt), 1);
+    ExpectIntGE(sk_X509_push(inter, testData->x509CaInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, inter), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(inter);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex5(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    int i = 0;
+
+    /* Test case 5, manually set trusted stack */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectIntGE(sk_X509_push(trusted, testData->x509Ca), 1);
+    ExpectIntGE(sk_X509_push(trusted, testData->x509CaInt), 1);
+    ExpectIntGE(sk_X509_push(trusted, testData->x509CaInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(trusted);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex6(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    STACK_OF(X509)* trusted = NULL;
+    STACK_OF(X509)* inter = NULL;
+    int i = 0;
+
+    /* Test case 6, manually set trusted stack will be unified with
+     * any intermediates provided on init */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectNotNull(inter = sk_X509_new_null());
+    ExpectIntGE(sk_X509_push(trusted, testData->x509Ca), 1);
+    ExpectIntGE(sk_X509_push(inter, testData->x509CaInt), 1);
+    ExpectIntGE(sk_X509_push(inter, testData->x509CaInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, inter), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    sk_X509_free(trusted);
+    sk_X509_free(inter);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex7(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i = 0;
+
+    /* Test case 7, certs added to store after ctx init are still used */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509Ca), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex8(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+    int i = 0;
+
+    /* Test case 8, Only full chain verifies */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509Ca), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    ExpectIntEQ(sk_X509_num(chain), sk_X509_num(testData->expectedChain));
+    for (i = 0; i < sk_X509_num(chain); i++) {
+        ExpectIntEQ(X509_cmp(sk_X509_value(chain, i),
+                             sk_X509_value(testData->expectedChain, i)), 0);
+    }
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex9(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    X509_STORE_CTX* ctx2 = NULL;
+    STACK_OF(X509)* trusted = NULL;
+
+    /* Test case 9, certs added to store should not be reflected in ctx that
+     * has been manually set with a trusted stack, but are reflected in ctx
+     * that has not set trusted stack */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNotNull(ctx2 = X509_STORE_CTX_new());
+    ExpectNotNull(trusted = sk_X509_new_null());
+    ExpectIntGE(sk_X509_push(trusted, testData->x509Ca), 1);
+    ExpectIntGE(sk_X509_push(trusted, testData->x509CaInt), 1);
+    ExpectIntGE(sk_X509_push(trusted, testData->x509CaInt2), 1);
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    ExpectIntEQ(X509_STORE_CTX_init(ctx2, store, testData->x509Leaf, NULL), 1);
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntNE(X509_verify_cert(ctx2), 1);
+    X509_STORE_CTX_trusted_stack(ctx, trusted);
+    /* CTX1 should now verify */
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntNE(X509_verify_cert(ctx2), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509Ca), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    /* CTX2 should now verify */
+    ExpectIntEQ(X509_verify_cert(ctx2), 1);
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_CTX_free(ctx2);
+    X509_STORE_free(store);
+    sk_X509_free(trusted);
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_wolfSSL_X509_STORE_CTX_ex(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+    X509_STORE_test_data testData = {0};
+    testData.caFile =     "./certs/ca-cert.pem";
+    testData.caIntFile =  "./certs/intermediate/ca-int-cert.pem";
+    testData.caInt2File = "./certs/intermediate/ca-int2-cert.pem";
+    testData.leafFile =   "./certs/intermediate/server-chain.pem";
+
+    ExpectNotNull(testData.x509Ca = \
+                  test_wolfSSL_X509_STORE_CTX_ex_helper(testData.caFile));
+    ExpectNotNull(testData.x509CaInt = \
+                  test_wolfSSL_X509_STORE_CTX_ex_helper(testData.caIntFile));
+    ExpectNotNull(testData.x509CaInt2 = \
+                  test_wolfSSL_X509_STORE_CTX_ex_helper(testData.caInt2File));
+    ExpectNotNull(testData.x509Leaf = \
+                  test_wolfSSL_X509_STORE_CTX_ex_helper(testData.leafFile));
+    ExpectNotNull(testData.expectedChain = sk_X509_new_null());
+    ExpectIntGE(sk_X509_push(testData.expectedChain, testData.x509Leaf), 1);
+    ExpectIntGE(sk_X509_push(testData.expectedChain, testData.x509CaInt2), 1);
+    ExpectIntGE(sk_X509_push(testData.expectedChain, testData.x509CaInt), 1);
+    ExpectIntGE(sk_X509_push(testData.expectedChain, testData.x509Ca), 1);
+
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex1(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex2(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex3(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex4(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex5(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex6(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex7(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex8(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
+
+    if(testData.x509Ca) {
+        X509_free(testData.x509Ca);
+    }
+    if(testData.x509CaInt) {
+        X509_free(testData.x509CaInt);
+    }
+    if(testData.x509CaInt2) {
+        X509_free(testData.x509CaInt2);
+    }
+    if(testData.x509Leaf) {
+        X509_free(testData.x509Leaf);
+    }
+    if (testData.expectedChain) {
+        sk_X509_free(testData.expectedChain);
+    }
+
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+        * !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+
+    return EXPECT_RESULT();
+}
+
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
 static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
@@ -59994,9 +60359,9 @@ static int test_X509_STORE_untrusted(void)
     /* Succeeds because path to loaded CA is available. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted2, 1, 0, 1),
             TEST_SUCCESS);
-    /* Fails because root CA is in the untrusted stack */
-    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
-            X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 0), TEST_SUCCESS);
+    /* Root CA in untrusted chain is OK */
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 1),
+            TEST_SUCCESS);
     /* Succeeds because path to loaded CA is available. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted4, 1, 0, 1),
             TEST_SUCCESS);
@@ -80147,7 +80512,7 @@ static int test_wolfSSL_X509_load_crl_file(void)
 #ifdef WC_RSA_PSS
         ExpectIntEQ(wolfSSL_CertManagerVerify(store->cm,
             "certs/rsapss/server-rsapss-cert.pem", WOLFSSL_FILETYPE_PEM),
-            WC_NO_ERR_TRACE(CRL_CERT_REVOKED));
+            WC_NO_ERR_TRACE(ASN_NO_SIGNER_E));
 #endif
     }
     /* once feeing store */
@@ -97559,6 +97924,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_TBS),
 
     TEST_DECL(test_wolfSSL_X509_STORE_CTX),
+    TEST_DECL(test_wolfSSL_X509_STORE_CTX_ex),
     TEST_DECL(test_X509_STORE_untrusted),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_get0_current_issuer),
