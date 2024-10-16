@@ -1009,9 +1009,9 @@ WOLFSSL_LOCAL int esp_sha_stack_check(WC_ESP32SHA* sha);
 
 /*
  * Errata Mitigation. See
- * https://www.espressif.com/sites/default/files/documentation/esp32_errata_en.pdf
- * https://www.espressif.com/sites/default/files/documentation/esp32-c3_errata_en.pdf
- * https://www.espressif.com/sites/default/files/documentation/esp32-s3_errata_en.pdf
+ *   esp32_errata_en.pdf
+ *   esp32-c3_errata_en.pdf
+ *   esp32-s3_errata_en.pdf
  */
 #define ESP_MP_HW_LOCK_MAX_DELAY ( TickType_t ) 0xffUL
 

@@ -3039,12 +3039,16 @@ int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
     }
 
     /* 8. clear and release HW                    */
+    #ifdef WOLFSSL_ESP32_HW_LOCK_DEBUG
         ESP_LOGI(TAG, "Unlock esp_mp_exptmod");
+    #endif
     if (exptmod_lock_called) {
         ret = esp_mp_hw_unlock();
     }
     else {
+    #ifdef WOLFSSL_ESP32_HW_LOCK_DEBUG
         ESP_LOGV(TAG, "Lock not called");
+    #endif
     }
     /* end if CONFIG_IDF_TARGET_ESP32C6 */
 

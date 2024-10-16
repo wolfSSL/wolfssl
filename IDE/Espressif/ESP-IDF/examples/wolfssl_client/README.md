@@ -10,9 +10,7 @@ For general information on [wolfSSL examples for Espressif](../README.md), see t
 
 ## Quick Start
 
-Use the [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html)
-for ESP32 or [RTOS SDK](https://docs.espressif.com/projects/esp8266-rtos-sdk/en/latest/get-started/index.html)
-for the ESP8266.
+Use the `ESP-IDF` for ESP32 or `RTOS SDK` for the ESP8266.
 
 Run `menuconfig` utility (`idf.py menuconfig` for ESP32 or `make menuconfig` for the ESP8266)
 and set the various parameters for the target device, along with local WiFi settings:
@@ -49,7 +47,7 @@ Difficulty flashing:
 * Check that quality USB cables are being used.
 * Try lowering the flash baud rate in the `menuconfig`. The 115200 is typically reliable.
 * Review board specifications: some require manual boot mode via on-board buttons.
-* See [Espressif ESP Frequently Asked Questions](https://docs.espressif.com/projects/esp-faq/en/latest/esp-faq-en-master.pdf)
+* See Espressif ESP Frequently Asked Questions `esp-faq-en-master.pdf`.
 
 ## ESP-IDF Commandline v5.x
 
