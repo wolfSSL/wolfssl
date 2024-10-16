@@ -61624,6 +61624,11 @@ static int test_wolfSSL_BN_enc_dec(void)
     ExpectNull(BN_bn2dec(NULL));
     ExpectNull(BN_bn2dec(&emptyBN));
 
+    ExpectNotNull(c = BN_bin2bn(NULL, 0, NULL));
+    BN_clear(c);
+    BN_free(c);
+    c = NULL;
+
     ExpectNotNull(BN_bin2bn(NULL, sizeof(binNum), a));
     BN_free(a);
     a = NULL;
