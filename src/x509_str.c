@@ -1628,7 +1628,9 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
     WOLFSSL_STACK* ret = NULL;
     WOLFSSL_STACK* cert_stack = NULL;
     WOLFSSL_X509* x509 = NULL;
+#if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
     int i = 0;
+#endif
     WOLFSSL_ENTER("wolfSSL_X509_STORE_get0_objects");
 
     if (store == NULL || store->cm == NULL) {
