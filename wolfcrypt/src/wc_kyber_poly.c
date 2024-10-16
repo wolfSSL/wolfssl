@@ -3371,7 +3371,7 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
 
 #define kyber_csubq_c   kyber_csubq_neon
 
-#elif defined(__thumb__)
+#elif defined(WOLFSSL_ARMASM_THUMB2)
 
 #define kyber_csubq_c   kyber_thumb2_csubq
 

@@ -3030,7 +3030,8 @@ then
             ;;
         armv7m*)
             # QEMU doesn't work with armv7-m
-            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -D__thumb__ -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_THUMB2"
+            AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -DWOLFSSL_ARMASM_THUMB2 -fomit-frame-pointer -DWOLFSSL_ARMASM_NO_HW_CRYPTO -DWOLFSSL_ARM_ARCH=7"
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
             ENABLED_ARMASM_CRYPTO=no
@@ -8388,7 +8389,8 @@ if test "$ENABLED_SP_ASM" = "yes" && test "$ENABLED_SP" = "yes"; then
     ;;
   *cortex* | *armv7m*)
     if test "$ENABLED_ARMASM" = "no"; then
-        AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -D__thumb__ -DWOLFSSL_ARM_ARCH=7"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_THUMB2"
+        AM_CPPFLAGS="$AM_CPPFLAGS -march=armv7-r -DWOLFSSL_ARMASM_THUMB2 -DWOLFSSL_ARM_ARCH=7"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_SP_ARM_CORTEX_M_ASM"

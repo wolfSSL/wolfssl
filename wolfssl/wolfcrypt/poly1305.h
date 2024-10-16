@@ -156,7 +156,7 @@ void poly1305_blocks_aarch64(Poly1305* ctx, const unsigned char *m,
     size_t bytes);
 void poly1305_block_aarch64(Poly1305* ctx, const unsigned char *m);
 #else
-#if defined(__thumb__)
+#if defined(WOLFSSL_ARMASM_THUMB2)
 #define poly1305_blocks     poly1305_blocks_thumb2
 #define poly1305_block      poly1305_block_thumb2
 

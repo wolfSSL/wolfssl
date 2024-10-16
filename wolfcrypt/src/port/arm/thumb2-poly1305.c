@@ -27,7 +27,7 @@
 #include <wolfssl/wolfcrypt/types.h>
 
 #ifdef WOLFSSL_ARMASM
-#ifdef __thumb__
+#ifdef WOLFSSL_ARMASM_THUMB2
 
 #ifdef HAVE_POLY1305
 #include <wolfssl/wolfcrypt/poly1305.h>
@@ -138,5 +138,5 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 }
 
 #endif /* HAVE_POLY1305 */
-#endif /* __aarch64__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
