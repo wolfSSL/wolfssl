@@ -282,7 +282,7 @@ static int wolfssl_i2d_asn1_items(const void* obj, byte* buf,
             len = 0;
             break;
         }
-        if (buf != NULL && !mem->ex && mem->tag >= 0) {
+        if (buf != NULL && tmp != NULL && !mem->ex && mem->tag >= 0) {
             /* Encode the implicit tag */
             byte imp[ASN_TAG_SZ + MAX_LENGTH_SZ];
             SetImplicit(tmp[0], mem->tag, 0, imp, 0);
