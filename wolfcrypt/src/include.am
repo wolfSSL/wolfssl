@@ -223,6 +223,10 @@ src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/psa/psa_pkcbs.c
 endif
 EXTRA_DIST += wolfcrypt/src/port/psa/README.md
 
+if BUILD_PSA_ENGINE
+src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/psa/psa_engine.c
+endif
+
 if BUILD_MAXQ10XX
 src_libwolfssl@LIBSUFFIX@_la_SOURCES += wolfcrypt/src/port/maxim/maxq10xx.c
 endif

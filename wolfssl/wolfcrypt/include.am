@@ -219,6 +219,10 @@ if BUILD_PSA
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/psa/psa.h
 endif
 
+if BUILD_PSA_ENGINE
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/psa/crypto.h
+endif
+
 if BUILD_SE050
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/nxp/se050_port.h
 endif
