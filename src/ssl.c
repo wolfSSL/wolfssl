@@ -3418,7 +3418,7 @@ int  wolfSSL_set1_groups(WOLFSSL* ssl, int* groups, int count)
 #ifdef HAVE_ALPN
 
 WOLFSSL_ABI
-int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
+int wolfSSL_UseALPN(WOLFSSL* ssl, const char *protocol_name_list,
                     word32 protocol_name_listSz, byte options)
 {
     char    *list, *ptr, **token;
