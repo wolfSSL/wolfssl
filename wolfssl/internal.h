@@ -2701,6 +2701,9 @@ struct WOLFSSL_CERT_MANAGER {
 #ifdef WC_ASN_UNKNOWN_EXT_CB
     wc_UnknownExtCallback unknownExtCallback;
 #endif
+#ifdef HAVE_CRL_UPDATE_CB
+    CbUpdateCRL    cbUpdateCRL; /* notify thru cb that crl has updated */
+#endif
 };
 
 WOLFSSL_LOCAL int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm,

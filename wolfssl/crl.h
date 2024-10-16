@@ -45,7 +45,10 @@ WOLFSSL_LOCAL int  CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert);
 WOLFSSL_LOCAL int  CheckCertCRL_ex(WOLFSSL_CRL* crl, byte* issuerHash,
         byte* serial, int serialSz, byte* serialHash, const byte* extCrlInfo,
         int extCrlInfoSz, void* issuerName);
-
+#ifdef HAVE_CRL_UPDATE_CB
+WOLFSSL_LOCAL int  GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
+        long sz, int type);
+#endif
 
 #ifdef __cplusplus
     }  /* extern "C" */
