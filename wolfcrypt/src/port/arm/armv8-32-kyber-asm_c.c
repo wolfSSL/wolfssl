@@ -3312,7 +3312,7 @@ void kyber_arm32_ntt(sword16* r_p)
         "bne	L_kyber_arm32_ntt_loop_567_%=\n\t"
         "add	sp, sp, #8\n\t"
         : [r] "+r" (r),
-            [L_kyber_arm32_ntt_zetas] "+r" (L_kyber_arm32_ntt_zetas_c)
+          [L_kyber_arm32_ntt_zetas] "+r" (L_kyber_arm32_ntt_zetas_c)
         :
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
@@ -8076,7 +8076,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "bne	L_kyber_arm32_invntt_loop_321_%=\n\t"
         "add	sp, sp, #8\n\t"
         : [r] "+r" (r),
-            [L_kyber_arm32_invntt_zetas_inv] "+r" (L_kyber_arm32_invntt_zetas_inv_c)
+          [L_kyber_arm32_invntt_zetas_inv] "+r" (L_kyber_arm32_invntt_zetas_inv_c)
         :
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
@@ -8405,8 +8405,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
         "stm	%[r]!, {r4, r5}\n\t"
         "pop	{r8}\n\t"
         "bne	L_kyber_arm32_basemul_mont_loop_%=\n\t"
-        : [r] "+r" (r),  [a] "+r" (a),  [b] "+r" (b),
-            [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
+          [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
         :
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
@@ -8738,8 +8738,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
         "stm	%[r]!, {r4, r5}\n\t"
         "pop	{r8}\n\t"
         "bne	L_kyber_arm32_basemul_mont_add_loop_%=\n\t"
-        : [r] "+r" (r),  [a] "+r" (a),  [b] "+r" (b),
-            [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b),
+          [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
         :
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
@@ -8948,7 +8948,7 @@ void kyber_arm32_csubq(sword16* p_p)
         "subs	r1, r1, #8\n\t"
         "bne	L_kyber_arm32_csubq_loop_%=\n\t"
         : [p] "+r" (p),
-            [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
+          [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
         :
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
@@ -9220,8 +9220,8 @@ unsigned int kyber_arm32_rej_uniform(sword16* p_p, unsigned int len_p,
         "\n"
     "L_kyber_arm32_rej_uniform_done_%=: \n\t"
         "lsr	r0, r12, #1\n\t"
-        : [p] "+r" (p),  [len] "+r" (len),  [r] "+r" (r),  [rLen] "+r" (rLen),
-            [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
+        : [p] "+r" (p), [len] "+r" (len), [r] "+r" (r), [rLen] "+r" (rLen),
+          [L_kyber_arm32_basemul_mont_zetas] "+r" (L_kyber_arm32_basemul_mont_zetas_c)
         :
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8"
     );

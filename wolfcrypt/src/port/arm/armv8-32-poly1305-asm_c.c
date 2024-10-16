@@ -270,8 +270,8 @@ void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
         "\n"
     "L_poly1305_arm32_16_done_%=: \n\t"
         "add	sp, sp, #28\n\t"
-        : [ctx] "+r" (ctx),  [m] "+r" (m),  [len] "+r" (len),
-             [notLast] "+r" (notLast)
+        : [ctx] "+r" (ctx), [m] "+r" (m), [len] "+r" (len),
+          [notLast] "+r" (notLast)
         :
         : "memory", "cc", "r12", "lr", "r4", "r5", "r6", "r7", "r8", "r9",
             "r10", "r11"
@@ -321,8 +321,8 @@ void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
         "stm	lr, {r5, r6, r7, r8, r12}\n\t"
         /* Zero leftover */
         "str	r5, [%[ctx], #52]\n\t"
-        : [ctx] "+r" (ctx),  [key] "+r" (key),
-            [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
+        : [ctx] "+r" (ctx), [key] "+r" (key),
+          [L_poly1305_arm32_clamp] "+r" (L_poly1305_arm32_clamp_c)
         :
         : "memory", "cc", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8"
     );
@@ -377,7 +377,7 @@ void poly1305_final(Poly1305* ctx_p, byte* mac_p)
         /* Zero out padding. */
         "add	r9, %[ctx], #36\n\t"
         "stm	r9, {r4, r5, r6, r7}\n\t"
-        : [ctx] "+r" (ctx),  [mac] "+r" (mac)
+        : [ctx] "+r" (ctx), [mac] "+r" (mac)
         :
         : "memory", "cc", "r2", "r3", "r12", "lr", "r4", "r5", "r6", "r7", "r8",
             "r9"

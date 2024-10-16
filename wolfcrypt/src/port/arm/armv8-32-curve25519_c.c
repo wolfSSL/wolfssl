@@ -335,7 +335,7 @@ void fe_sub(fe r_p, const fe a_p, const fe b_p)
 
     __asm__ __volatile__ (
         "bl	fe_sub_op\n\t"
-        : [r] "+r" (r),  [a] "+r" (a),  [b] "+r" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -393,7 +393,7 @@ void fe_add(fe r_p, const fe a_p, const fe b_p)
 
     __asm__ __volatile__ (
         "bl	fe_add_op\n\t"
-        : [r] "+r" (r),  [a] "+r" (a),  [b] "+r" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -428,7 +428,7 @@ void fe_frombytes(fe out_p, const unsigned char* in_p)
         "str	r7, [%[out], #20]\n\t"
         "str	r8, [%[out], #24]\n\t"
         "str	r9, [%[out], #28]\n\t"
-        : [out] "+r" (out),  [in] "+r" (in)
+        : [out] "+r" (out), [in] "+r" (in)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9"
     );
@@ -472,7 +472,7 @@ void fe_tobytes(unsigned char* out_p, const fe n_p)
         "str	r7, [%[out], #20]\n\t"
         "str	r8, [%[out], #24]\n\t"
         "str	r9, [%[out], #28]\n\t"
-        : [out] "+r" (out),  [n] "+r" (n)
+        : [out] "+r" (out), [n] "+r" (n)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12"
     );
@@ -575,7 +575,7 @@ void fe_copy(fe r_p, const fe a_p)
 #else
         "strd	r4, r5, [%[r], #24]\n\t"
 #endif
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5"
     );
@@ -602,7 +602,7 @@ void fe_neg(fe r_p, const fe a_p)
         "sbcs	r4, lr, r4\n\t"
         "sbc	r5, r12, r5\n\t"
         "stm	%[r]!, {r2, r3, r4, r5}\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5", "r12", "lr"
     );
@@ -2407,7 +2407,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
 #else
         "strd	r8, r9, [%[r], #88]\n\t"
 #endif
-        : [r] "+r" (r),  [base] "+r" (base),  [b] "+r" (b)
+        : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r3", "r10",
             "r11", "r12", "lr"
@@ -2528,7 +2528,7 @@ void fe_cmov_table(fe* r_p, fe* base_p, signed char b_p)
         "and	r7, r7, lr\n\t"
         "stm	%[r]!, {r4, r5, r6, r7}\n\t"
         "sub	%[base], %[base], %[b]\n\t"
-        : [r] "+r" (r),  [base] "+r" (base),  [b] "+r" (b)
+        : [r] "+r" (r), [base] "+r" (base), [b] "+r" (b)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -3074,7 +3074,7 @@ void fe_mul(fe r_p, const fe a_p, const fe b_p)
 
     __asm__ __volatile__ (
         "bl	fe_mul_op\n\t"
-        : [r] "+r" (r),  [a] "+r" (a),  [b] "+r" (b)
+        : [r] "+r" (r), [a] "+r" (a), [b] "+r" (b)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -3495,7 +3495,7 @@ void fe_sq(fe r_p, const fe a_p)
 
     __asm__ __volatile__ (
         "bl	fe_sq_op\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12",
             "lr", "r10", "r11"
@@ -3572,7 +3572,7 @@ void fe_mul121666(fe r_p, fe a_p)
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, #0\n\t"
         "stm	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12",
             "lr", "r10"
@@ -3635,7 +3635,7 @@ void fe_mul121666(fe r_p, fe a_p)
         "adcs	r8, r8, #0\n\t"
         "adc	r9, r9, #0\n\t"
         "stm	%[r], {r2, r3, r4, r5, r6, r7, r8, r9}\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r12",
             "lr", "r10"
@@ -4026,7 +4026,7 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "bl	fe_mul_op\n\t"
         "mov	r0, #0\n\t"
         "add	sp, sp, #0xbc\n\t"
-        : [r] "+r" (r),  [n] "+r" (n),  [a] "+r" (a)
+        : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
@@ -4340,7 +4340,7 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         "stm	%[r], {r4, r5, r6, r7, r8, r9, r10, r11}\n\t"
         "mov	r0, #0\n\t"
         "add	sp, sp, #0xc0\n\t"
-        : [r] "+r" (r),  [n] "+r" (n),  [a] "+r" (a)
+        : [r] "+r" (r), [n] "+r" (n), [a] "+r" (a)
         :
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
@@ -4515,7 +4515,7 @@ void fe_invert(fe r_p, const fe a_p)
         "ldr	%[a], [sp, #132]\n\t"
         "ldr	%[r], [sp, #128]\n\t"
         "add	sp, sp, #0x88\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
@@ -4836,7 +4836,7 @@ void fe_sq2(fe r_p, const fe a_p)
         "ldr	r0, [sp, #64]\n\t"
         "stm	r0, {r1, r2, r3, r4, r5, r6, r7, r8}\n\t"
         "add	sp, sp, #0x44\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "lr"
     );
@@ -5015,7 +5015,7 @@ void fe_sq2(fe r_p, const fe a_p)
         "stm	r12, {r0, r1, r2, r3, r4, r5, r6, r7}\n\t"
         "mov	r0, r12\n\t"
         "mov	r1, lr\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "lr"
     );
@@ -5186,7 +5186,7 @@ void fe_pow22523(fe r_p, const fe a_p)
         "ldr	%[a], [sp, #100]\n\t"
         "ldr	%[r], [sp, #96]\n\t"
         "add	sp, sp, #0x68\n\t"
-        : [r] "+r" (r),  [a] "+r" (a)
+        : [r] "+r" (r), [a] "+r" (a)
         :
         : "memory", "cc", "lr", "r12", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
@@ -5217,7 +5217,7 @@ void ge_p1p1_to_p2(ge_p2 * r_p, const ge_p1p1 * p_p)
         "add	r0, r0, #0x40\n\t"
         "bl	fe_mul_op\n\t"
         "add	sp, sp, #8\n\t"
-        : [r] "+r" (r),  [p] "+r" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "cc", "lr", "r2", "r3", "r12", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
@@ -5253,7 +5253,7 @@ void ge_p1p1_to_p3(ge_p3 * r_p, const ge_p1p1 * p_p)
         "add	r0, r0, #0x60\n\t"
         "bl	fe_mul_op\n\t"
         "add	sp, sp, #8\n\t"
-        : [r] "+r" (r),  [p] "+r" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "cc", "lr", "r2", "r3", "r12", "r4", "r5", "r6", "r7", "r8",
             "r9", "r10", "r11"
@@ -5301,7 +5301,7 @@ void ge_p2_dbl(ge_p1p1 * r_p, const ge_p2 * p_p)
         "mov	r1, r0\n\t"
         "bl	fe_sub_op\n\t"
         "add	sp, sp, #8\n\t"
-        : [r] "+r" (r),  [p] "+r" (p)
+        : [r] "+r" (r), [p] "+r" (p)
         :
         : "memory", "cc", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -5388,7 +5388,7 @@ void ge_madd(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
         "add	r1, r0, #32\n\t"
         "bl	fe_add_sub_op\n\t"
         "add	sp, sp, #12\n\t"
-        : [r] "+r" (r),  [p] "+r" (p),  [q] "+r" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -5476,7 +5476,7 @@ void ge_msub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_precomp * q_p)
         "add	r0, r0, #32\n\t"
         "bl	fe_add_sub_op\n\t"
         "add	sp, sp, #12\n\t"
-        : [r] "+r" (r),  [p] "+r" (p),  [q] "+r" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -5564,7 +5564,7 @@ void ge_add(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
         "add	r0, r0, #32\n\t"
         "bl	fe_add_sub_op\n\t"
         "add	sp, sp, #44\n\t"
-        : [r] "+r" (r),  [p] "+r" (p),  [q] "+r" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -5652,7 +5652,7 @@ void ge_sub(ge_p1p1 * r_p, const ge_p3 * p_p, const ge_cached* q_p)
         "add	r0, r0, #0x40\n\t"
         "bl	fe_add_sub_op\n\t"
         "add	sp, sp, #44\n\t"
-        : [r] "+r" (r),  [p] "+r" (p),  [q] "+r" (q)
+        : [r] "+r" (r), [p] "+r" (p), [q] "+r" (q)
         :
         : "memory", "cc", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
             "r11", "r12", "lr"
@@ -8528,7 +8528,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "str	r8, [%[s], #24]\n\t"
         "str	r9, [%[s], #28]\n\t"
         "add	sp, sp, #0x50\n\t"
-        : [s] "+r" (s),  [a] "+r" (a),  [b] "+r" (b),  [c] "+r" (c)
+        : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
@@ -9413,7 +9413,7 @@ void sc_muladd(byte* s_p, const byte* a_p, const byte* b_p, const byte* c_p)
         "str	r8, [%[s], #24]\n\t"
         "str	r9, [%[s], #28]\n\t"
         "add	sp, sp, #0x50\n\t"
-        : [s] "+r" (s),  [a] "+r" (a),  [b] "+r" (b),  [c] "+r" (c)
+        : [s] "+r" (s), [a] "+r" (a), [b] "+r" (b), [c] "+r" (c)
         :
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r12", "lr"
