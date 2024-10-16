@@ -56315,16 +56315,24 @@ static wc_test_ret_t mp_test_mont(mp_int* a, mp_int* m, mp_int* n, mp_int* r, WC
         /* a = 2^(bits*2) - 1 */
         mp_zero(a);
         mp_set_bit(a, bits[i] * 2);
-        mp_sub_d(a, 1, a);
+        ret = mp_sub_d(a, 1, a);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
+
         /* m = 2^(bits) - 1 */
         mp_zero(m);
         mp_set_bit(m, bits[i]);
-        mp_sub_d(m, 1, m);
+        ret = mp_sub_d(m, 1, m);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
+
         mp = 1;
         /* result = r = 2^(bits) - 1 */
         mp_zero(r);
         mp_set_bit(r, bits[i]);
-        mp_sub_d(r, 1, r);
+        ret = mp_sub_d(r, 1, r);
+        if (ret != MP_OKAY)
+            return WC_TEST_RET_ENC_EC(ret);
 
         ret = mp_montgomery_reduce(a, m, mp);
         if (ret != MP_OKAY)
