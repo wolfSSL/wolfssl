@@ -55178,8 +55178,8 @@ static int test_wolfSSL_i2d_ASN1_TYPE(void)
 #if defined(OPENSSL_EXTRA)
     /* Taken from one of sssd's certs othernames */
     unsigned char str_bin[] = {
-      0x04, 0x10, 0xa4, 0x9b, 0xc8, 0xf4, 0x85, 0x8e, 0x89, 0x4d, 0x85, 0x8d,
-      0x27, 0xbd, 0x63, 0xaa, 0x93, 0x93
+        0x04, 0x10, 0xa4, 0x9b, 0xc8, 0xf4, 0x85, 0x8e, 0x89, 0x4d, 0x85, 0x8d,
+        0x27, 0xbd, 0x63, 0xaa, 0x93, 0x93
     };
     ASN1_TYPE* asn1type = NULL;
     unsigned char* der = NULL;
@@ -55190,10 +55190,12 @@ static int test_wolfSSL_i2d_ASN1_TYPE(void)
         ExpectNotNull(str = ASN1_STRING_type_new(V_ASN1_SEQUENCE));
         ExpectIntEQ(ASN1_STRING_set(str, str_bin, sizeof(str_bin)), 1);
         ExpectNotNull(asn1type = ASN1_TYPE_new());
-        if (EXPECT_FAIL()) {
+        if (asn1type != NULL) {
+            ASN1_TYPE_set(asn1type, V_ASN1_SEQUENCE, str);
+        }
+        else {
             ASN1_STRING_free(str);
         }
-        ASN1_TYPE_set(asn1type, V_ASN1_SEQUENCE, str);
     }
 
     ExpectIntEQ(i2d_ASN1_TYPE(asn1type, NULL), sizeof(str_bin));
