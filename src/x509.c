@@ -7596,8 +7596,8 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
         }
         else if (wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer) == 0 &&
                 XSTRNSTR((char*)curr, header, (unsigned int)sz) != NULL) {
-            ret = wolfSSL_X509_STORE_load_cert_buffer(lookup->store, curr, sz,
-                                                      WOLFSSL_FILETYPE_PEM);
+            ret = wolfSSL_X509_STORE_load_cert_buffer(lookup->store, curr,
+                                                    (word32)sz, WOLFSSL_FILETYPE_PEM);
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
             curr = (byte*)XSTRNSTR((char*)curr, footer, (unsigned int)sz);
