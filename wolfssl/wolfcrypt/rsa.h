@@ -269,7 +269,7 @@ struct RsaKey {
 #if defined(WOLFSSL_RENESAS_FSPSM)
     FSPSM_RSA_CTX ctx;
 #endif
-    byte isAllocated:1; /* flag indicates if structure was allocated */
+    WC_BITFIELD isAllocated:1; /* flag indicates if structure was allocated */
 };
 
 #ifndef WC_RSAKEY_TYPE_DEFINED

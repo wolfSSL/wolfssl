@@ -257,8 +257,8 @@ struct PKCS7 {
     CallbackStreamOut  streamOutCb;
     void*  streamCtx; /* passed to getcontentCb and streamOutCb */
 #endif
-    byte   encodeStream:1;        /* use BER when encoding */
-    byte   noCerts:1;             /* if certificates should be added into bundle
+    WC_BITFIELD encodeStream:1;   /* use BER when encoding */
+    WC_BITFIELD noCerts:1;        /* if certificates should be added into bundle
                                      during creation */
     byte*  cert[MAX_PKCS7_CERTS]; /* array of certs parsed from bundle */
     byte*  verifyCert;            /* cert from array used for verify */
@@ -296,9 +296,9 @@ struct PKCS7 {
     word32 certSz[MAX_PKCS7_CERTS];
 
      /* flags - up to 16-bits */
-    word16 isDynamic:1;
-    word16 noDegenerate:1; /* allow degenerate case in verify function */
-    word16 detached:1;     /* generate detached SignedData signature bundles */
+    WC_BITFIELD isDynamic:1;
+    WC_BITFIELD noDegenerate:1;   /* allow degenerate case in verify function */
+    WC_BITFIELD detached:1;       /* generate detached SignedData signature bundles */
 
     byte contentType[MAX_OID_SZ]; /* custom contentType byte array */
     word32 contentTypeSz;         /* size of contentType, bytes */
@@ -356,9 +356,9 @@ struct PKCS7 {
     /* used by DecodeEnvelopedData with multiple encrypted contents */
     byte*  cachedEncryptedContent;
     word32 cachedEncryptedContentSz;
-    word16 contentCRLF:1; /* have content line endings been converted to CRLF */
-    word16 contentIsPkcs7Type:1; /* eContent follows PKCS#7 RFC not CMS */
-    word16 hashParamsAbsent:1;
+    WC_BITFIELD contentCRLF:1; /* have content line endings been converted to CRLF */
+    WC_BITFIELD contentIsPkcs7Type:1; /* eContent follows PKCS#7 RFC not CMS */
+    WC_BITFIELD hashParamsAbsent:1;
 
     /* RFC 5280 section-4.2.1.2 lists a possible method for creating the SKID as
      * a SHA1 hash of the public key, but leaves it open to other methods as

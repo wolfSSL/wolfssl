@@ -20858,7 +20858,7 @@ static const ASNItem subjDirAttrASN[] = {
 enum {
     SUBJDIRATTRASN_IDX_SEQ = 0,
     SUBJDIRATTRASN_IDX_OID,
-    SUBJDIRATTRASN_IDX_SET,
+    SUBJDIRATTRASN_IDX_SET
 };
 
 /* Number of items in ASN.1 template for BasicConstraints. */
@@ -23526,9 +23526,9 @@ typedef struct DecodeInstr {
     /* Tag expected. */
     byte tag;
     /* Operation to perform: step in or go over */
-    byte op:1;
+    WC_BITFIELD op:1;
     /* ASN.1 item is optional. */
-    byte optional:1;
+    WC_BITFIELD optional:1;
 } DecodeInstr;
 
 /* Step into ASN.1 item. */
@@ -40761,7 +40761,7 @@ enum {
     HOLDER_IDX_ISSUERSERIAL_SEQ,
     HOLDER_IDX_GN_SEQ,
     HOLDER_IDX_SERIAL_INT,
-    HOLDER_IDX_GN_SEQ_OPT1,
+    HOLDER_IDX_GN_SEQ_OPT1
 };
 
 /* Number of items in ASN template for an X509 Acert. */
@@ -40885,7 +40885,7 @@ static const ASNItem AttCertIssuerASN[] =
 };
 
 enum {
-    ATTCERTISSUER_IDX_GN_SEQ,
+    ATTCERTISSUER_IDX_GN_SEQ
 };
 
 /* Number of items in ASN template for an X509 Acert. */

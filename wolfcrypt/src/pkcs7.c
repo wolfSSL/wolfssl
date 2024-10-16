@@ -118,12 +118,12 @@ struct PKCS7State {
     word32 peakUsed; /* most bytes used for struct at any one time */
     word32 peakRead; /* most bytes used by read buffer */
 #endif
-    byte   multi:1;  /* flag for if content is in multiple parts */
-    byte   flagOne:1;
-    byte   detached:1; /* flag to indicate detached signature is present */
-    byte   noContent:1;/* indicates content isn't included in bundle */
-    byte   degenerate:1;
-    byte   indefLen:1; /* flag to indicate indef-length encoding used */
+    WC_BITFIELD multi:1;  /* flag for if content is in multiple parts */
+    WC_BITFIELD flagOne:1;
+    WC_BITFIELD detached:1; /* flag to indicate detached signature is present */
+    WC_BITFIELD noContent:1;/* indicates content isn't included in bundle */
+    WC_BITFIELD degenerate:1;
+    WC_BITFIELD indefLen:1; /* flag to indicate indef-length encoding used */
 };
 
 
@@ -1523,7 +1523,7 @@ typedef struct ESD {
     wc_HashAlg  hash;
     enum wc_HashType hashType;
     byte contentDigest[WC_MAX_DIGEST_SIZE + 2]; /* content only + ASN.1 heading */
-    byte contentDigestSet:1;
+    WC_BITFIELD contentDigestSet:1;
     byte contentAttribsDigest[WC_MAX_DIGEST_SIZE];
     byte encContentDigest[MAX_ENCRYPTED_KEY_SZ];
 
@@ -6829,9 +6829,9 @@ typedef struct WC_PKCS7_KARI {
     word32   sharedInfoSz;         /* size of ECC-CMS-SharedInfo encoded */
     byte     ukmOwner;             /* do we own ukm buffer? 1:yes, 0:no */
     byte     direction;            /* WC_PKCS7_ENCODE | WC_PKCS7_DECODE */
-    byte     decodedInit : 1;      /* indicates decoded was initialized */
-    byte     recipKeyInit : 1;     /* indicates recipKey was initialized */
-    byte     senderKeyInit : 1;    /* indicates senderKey was initialized */
+    WC_BITFIELD decodedInit:1;     /* indicates decoded was initialized */
+    WC_BITFIELD recipKeyInit:1;    /* indicates recipKey was initialized */
+    WC_BITFIELD senderKeyInit:1;   /* indicates senderKey was initialized */
 } WC_PKCS7_KARI;
 
 

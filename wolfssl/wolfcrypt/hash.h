@@ -80,7 +80,7 @@ enum wc_MACAlgorithm {
     sha512_mac,
     rmd_mac,
     blake2b_mac,
-    sm3_mac,
+    sm3_mac
 };
 
 enum wc_HashFlags {
@@ -125,7 +125,7 @@ typedef union {
 typedef struct {
     wc_Hashes alg;
     enum wc_HashType type; /* sanity check */
-    byte isAllocated:1; /* flag indicates if structure was allocated */
+    WC_BITFIELD isAllocated:1; /* flag indicates if structure was allocated */
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
 
