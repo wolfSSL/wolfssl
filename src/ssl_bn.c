@@ -516,12 +516,14 @@ WOLFSSL_BIGNUM* wolfSSL_BN_bin2bn(const unsigned char* data, int len,
                 ret = NULL;
             }
             else {
-                /* Don't free bn as we may be returning it. */
+                /* Don't free bn as we are returning it. */
                 bn = NULL;
             }
         }
         else if (data == NULL) {
             wolfSSL_BN_zero(ret);
+            /* Don't free bn as we are returning it. */
+            bn = NULL;
         }
     }
 
