@@ -752,12 +752,25 @@ static int ecc_set_key(ecc_key* key, const byte* userKey, word32 keycomplen)
     LoadDefaultImportKey(sign_key, &sign_key_len, &sign_key_curve,
                          &sign_key_type);
 
+    #if defined(MAXQ10XX_MUTEX)
+    wolfSSL_CryptHwMutexUnLock();
+    #endif
+
     rc = ECDSA_sign(signature, &signature_len, sign_key, key_buff, key_buff_len,
                     sign_key_curve);
     if (rc) {
         WOLFSSL_ERROR_MSG("MAXQ: ECDSA_sign() failed");
-        goto end_EccSetKey;
+        goto end_EccSetKey_noUnlock;
     }
+
+    #if defined(MAXQ10XX_MUTEX)
+    rc = maxq_CryptHwMutexTryLock();
+    if (rc != 0) {
+        WOLFSSL_ERROR_MSG("MAXQ: ecc_set_key() lock could not be acquired");
+        rc = NOT_COMPILED_IN;
+        return rc;
+    }
+    #endif
 
     mxq_rc = MXQ_ImportKey(obj_id, getSignAlgoFromCurve(sign_key_curve),
                            PUBKEY_IMPORT_OBJID, key_buff, key_buff_len,
@@ -772,7 +785,10 @@ static int ecc_set_key(ecc_key* key, const byte* userKey, word32 keycomplen)
     key->maxq_ctx.key_pending = 0;
 
 end_EccSetKey:
+    #if defined(MAXQ10XX_MUTEX)
     wolfSSL_CryptHwMutexUnLock();
+    #endif
+end_EccSetKey_noUnlock:
     return rc;
 }
 #endif /* MAXQ_ECC */
@@ -1087,6 +1103,104 @@ static int maxq10xx_ecc_verify_local(
     *result = (mxq_rc ? 0 : 1);
     return 0;
 }
+
+static int maxq10xx_ecc_key_gen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
+                int ecc_curve, void* ctx)
+{
+    int rc;
+    mxq_err_t mxq_rc;
+    unsigned char mxq_key[MAX_EC_KEY_SIZE];
+    (void)ctx;
+    (void)ssl;
+
+    WOLFSSL_ENTER("maxq10xx_ecc_key_gen");
+
+    if (tls13_ecc_obj_id == -1) {
+        tls13_ecc_obj_id = alloc_temp_key_id();
+        if (tls13_ecc_obj_id == -1) {
+            WOLFSSL_ERROR_MSG("MAXQ: alloc_temp_key_id() failed");
+            rc = NOT_COMPILED_IN;
+            return rc;
+        }
+    }
+
+    rc = wolfSSL_CryptHwMutexLock();
+    if (rc != 0) {
+        return rc;
+    }
+    mxq_rc = MXQ_TLS13_Generate_Key(mxq_key, tls13_ecc_obj_id, MXQ_KEYTYPE_ECC,
+                                    getMaxqKeyParamFromCurve(key->dp->id),
+                                    keySz, NULL, 0, NULL);
+
+    wolfSSL_CryptHwMutexUnLock();
+    if (mxq_rc) {
+        WOLFSSL_ERROR_MSG("MAXQ: MXQ_TLS13_Generate_Key() failed");
+        return WC_HW_E;
+    }
+
+    rc = wc_ecc_import_unsigned(key, (byte*)mxq_key, (byte*)mxq_key + keySz,
+                                NULL, ecc_curve);
+    if (rc) {
+        WOLFSSL_ERROR_MSG("MAXQ: wc_ecc_import_raw_ex() failed");
+    }
+
+    return rc;
+}
+
+static int maxq10xx_compute_ecc_shared_secret(ecc_key *p_key,
+                                              mxq_u2 csid_param)
+{
+    int rc;
+    mxq_err_t mxq_rc;
+    byte result_public_key[1 + (2 * ECC256_KEYSIZE)];
+    mxq_length key_len_param = sizeof(result_public_key);
+    XMEMSET(result_public_key, 0, key_len_param);
+
+    rc = wolfSSL_CryptHwMutexLock();
+    if (rc != 0) {
+        return rc;
+    }
+
+    mxq_rc = MXQ_Ecdh_Compute_Shared(MXQ_KEYPARAM_EC_P256R1,
+                                     NULL, result_public_key,
+                                     key_len_param, csid_param);
+    wolfSSL_CryptHwMutexUnLock();
+    if (mxq_rc) {
+        WOLFSSL_ERROR_MSG("MAXQ: MXQ_Ecdh_Compute_Shared() failed");
+        return WC_HW_E;
+    }
+
+    /* client public key */
+    p_key->state = 0;
+
+    rc = wc_ecc_set_curve(p_key, ECC256_KEYSIZE, ECC_SECP256R1);
+    if (rc != 0) {
+        WOLFSSL_ERROR_MSG("MAXQ: wc_ecc_set_curve() failed");
+        return rc;
+    }
+
+    p_key->flags = WC_ECC_FLAG_NONE;
+    p_key->type = ECC_PUBLICKEY;
+
+    rc = mp_read_unsigned_bin(p_key->pubkey.x, &result_public_key[1],
+                              ECC256_KEYSIZE);
+    if (rc != 0) {
+        WOLFSSL_ERROR_MSG("MAXQ: mp_read_unsigned_bin() failed");
+        return rc;
+    }
+
+    rc = mp_read_unsigned_bin(p_key->pubkey.y,
+                              &result_public_key[1 + ECC256_KEYSIZE],
+                              ECC256_KEYSIZE);
+    if (rc != 0) {
+        WOLFSSL_ERROR_MSG("MAXQ: mp_read_unsigned_bin() failed");
+        return rc;
+    }
+
+    p_key->maxq_ctx.hw_storage = 1;
+    return rc;
+}
+
 #endif /* MAXQ_ECC */
 
 #ifdef MAXQ_RNG
@@ -1343,11 +1457,17 @@ int wolfSSL_MAXQ10XX_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
     else if (info->algo_type == WC_ALGO_TYPE_PK) {
     #if defined(HAVE_ECC) && defined(MAXQ_ECC)
         if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
-            /* TODO */
+            rc = maxq10xx_ecc_key_gen(NULL,
+                                      info->pk.eckg.key,
+                                      info->pk.eckg.size,
+                                      info->pk.eckg.curveId,
+                                      NULL);
             return CRYPTOCB_UNAVAILABLE;
         }
         else if (info->pk.type == WC_PK_TYPE_ECDH) {
-            /* TODO */
+            /* Note that 0xC02B is a dummy value: ECDHE-ECDSA-AES128-CCM-8 */
+            rc = maxq10xx_compute_ecc_shared_secret(info->pk.ecdh.public_key,
+                                                    0xC02B);
             return CRYPTOCB_UNAVAILABLE;
         }
         else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
@@ -2035,13 +2155,9 @@ static int maxq10xx_tls12_ecc_shared_secret(WOLFSSL* ssl, ecc_key* otherKey,
                int side, void* ctx)
 {
     int rc;
-    mxq_err_t mxq_rc;
     ecc_key *p_key = NULL;
-    mxq_length key_len_param;
-    mxq_u1* server_public_key_param;
     mxq_u2 csid_param = ssl->options.cipherSuite |
                         (ssl->options.cipherSuite0 << 8);
-    byte result_public_key[1 + (2 * ECC256_KEYSIZE)];
     (void)ctx;
     (void)otherKey;
     (void)out;
@@ -2066,61 +2182,16 @@ static int maxq10xx_tls12_ecc_shared_secret(WOLFSSL* ssl, ecc_key* otherKey,
         return rc;
     }
 
-    p_key = (ecc_key*)ssl->hsKey;
-
-    rc = wolfSSL_CryptHwMutexLock();
+    p_key = ssl->hsKey;
+    rc = maxq10xx_compute_ecc_shared_secret(p_key, csid_param);
     if (rc != 0) {
         return rc;
     }
 
-    XMEMSET(result_public_key, 0, sizeof(result_public_key));
-
-    server_public_key_param = NULL;
-    key_len_param = sizeof(result_public_key);
-
-    mxq_rc = MXQ_Ecdh_Compute_Shared(MXQ_KEYPARAM_EC_P256R1,
-                                     server_public_key_param, result_public_key,
-                                     key_len_param, csid_param);
-    if (mxq_rc) {
-        WOLFSSL_ERROR_MSG("MAXQ: MXQ_Ecdh_Compute_Shared() failed");
-        wolfSSL_CryptHwMutexUnLock();
-        return WC_HW_E;
-    }
-
-    wolfSSL_CryptHwMutexUnLock();
-
-    /* client public key */
-    p_key->state = 0;
-
-    rc = wc_ecc_set_curve(p_key, ECC256_KEYSIZE, ECC_SECP256R1);
-    if (rc != 0) {
-        WOLFSSL_ERROR_MSG("MAXQ: wc_ecc_set_curve() failed");
-        return rc;
-    }
-
-    p_key->flags = WC_ECC_FLAG_NONE;
-    p_key->type = ECC_PUBLICKEY;
-
-    rc = mp_read_unsigned_bin(p_key->pubkey.x, &result_public_key[1],
-                              ECC256_KEYSIZE);
-    if (rc != 0) {
-        WOLFSSL_ERROR_MSG("MAXQ: mp_read_unsigned_bin() failed");
-        return rc;
-    }
-
-    rc = mp_read_unsigned_bin(p_key->pubkey.y,
-                              &result_public_key[1 + ECC256_KEYSIZE],
-                              ECC256_KEYSIZE);
-    if (rc != 0) {
-        WOLFSSL_ERROR_MSG("MAXQ: mp_read_unsigned_bin() failed");
-        return rc;
-    }
-
-    p_key->maxq_ctx.hw_storage = 1;
-
-    PRIVATE_KEY_UNLOCK();
     rc = wc_ecc_export_x963(p_key, pubKeyDer, pubKeySz);
-    PRIVATE_KEY_LOCK();
+    if (rc != 0) {
+        return rc;
+    }
 
     return rc;
 }
@@ -2340,49 +2411,6 @@ static int maxq10xx_dh_agree(WOLFSSL* ssl, struct DhKey* key,
     tls13_dh_obj_id = -1;
     free_temp_key_id(tls13_ecc_obj_id);
     tls13_ecc_obj_id = -1;
-
-    return rc;
-}
-
-static int  maxq10xx_ecc_key_gen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
-                int ecc_curve, void* ctx)
-{
-    int rc;
-    mxq_err_t mxq_rc;
-    unsigned char mxq_key[MAX_EC_KEY_SIZE];
-    (void)ctx;
-    (void)ssl;
-
-    WOLFSSL_ENTER("maxq10xx_ecc_key_gen");
-
-    if (tls13_ecc_obj_id == -1) {
-        tls13_ecc_obj_id = alloc_temp_key_id();
-        if (tls13_ecc_obj_id == -1) {
-            WOLFSSL_ERROR_MSG("MAXQ: alloc_temp_key_id() failed");
-            rc = NOT_COMPILED_IN;
-            return rc;
-        }
-    }
-
-    rc = wolfSSL_CryptHwMutexLock();
-    if (rc != 0) {
-        return rc;
-    }
-    mxq_rc = MXQ_TLS13_Generate_Key(mxq_key, tls13_ecc_obj_id, MXQ_KEYTYPE_ECC,
-                                    getMaxqKeyParamFromCurve(key->dp->id),
-                                    keySz, NULL, 0, NULL);
-
-    wolfSSL_CryptHwMutexUnLock();
-    if (mxq_rc) {
-        WOLFSSL_ERROR_MSG("MAXQ: MXQ_TLS13_Generate_Key() failed");
-        return WC_HW_E;
-    }
-
-    rc = wc_ecc_import_unsigned(key, (byte*)mxq_key, (byte*)mxq_key + keySz,
-                                NULL, ecc_curve);
-    if (rc) {
-        WOLFSSL_ERROR_MSG("MAXQ: wc_ecc_import_raw_ex() failed");
-    }
 
     return rc;
 }
