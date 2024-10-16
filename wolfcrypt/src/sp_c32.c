@@ -357,29 +357,29 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
     t0 = ((sp_uint64)a[ 0]) * b[ 0];
     t1 = ((sp_uint64)a[ 0]) * b[ 1]
        + ((sp_uint64)a[ 1]) * b[ 0];
-    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 0] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 0]) * b[ 2]
        + ((sp_uint64)a[ 1]) * b[ 1]
        + ((sp_uint64)a[ 2]) * b[ 0];
-    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 1] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 0]) * b[ 3]
        + ((sp_uint64)a[ 1]) * b[ 2]
        + ((sp_uint64)a[ 2]) * b[ 1]
        + ((sp_uint64)a[ 3]) * b[ 0];
-    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 2] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 0]) * b[ 4]
        + ((sp_uint64)a[ 1]) * b[ 3]
        + ((sp_uint64)a[ 2]) * b[ 2]
        + ((sp_uint64)a[ 3]) * b[ 1]
        + ((sp_uint64)a[ 4]) * b[ 0];
-    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 3] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 0]) * b[ 5]
        + ((sp_uint64)a[ 1]) * b[ 4]
        + ((sp_uint64)a[ 2]) * b[ 3]
        + ((sp_uint64)a[ 3]) * b[ 2]
        + ((sp_uint64)a[ 4]) * b[ 1]
        + ((sp_uint64)a[ 5]) * b[ 0];
-    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 4] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 0]) * b[ 6]
        + ((sp_uint64)a[ 1]) * b[ 5]
        + ((sp_uint64)a[ 2]) * b[ 4]
@@ -387,7 +387,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 4]) * b[ 2]
        + ((sp_uint64)a[ 5]) * b[ 1]
        + ((sp_uint64)a[ 6]) * b[ 0];
-    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 5] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 0]) * b[ 7]
        + ((sp_uint64)a[ 1]) * b[ 6]
        + ((sp_uint64)a[ 2]) * b[ 5]
@@ -396,7 +396,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 5]) * b[ 2]
        + ((sp_uint64)a[ 6]) * b[ 1]
        + ((sp_uint64)a[ 7]) * b[ 0];
-    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 6] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 0]) * b[ 8]
        + ((sp_uint64)a[ 1]) * b[ 7]
        + ((sp_uint64)a[ 2]) * b[ 6]
@@ -406,7 +406,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 6]) * b[ 2]
        + ((sp_uint64)a[ 7]) * b[ 1]
        + ((sp_uint64)a[ 8]) * b[ 0];
-    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 7] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 0]) * b[ 9]
        + ((sp_uint64)a[ 1]) * b[ 8]
        + ((sp_uint64)a[ 2]) * b[ 7]
@@ -417,7 +417,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 7]) * b[ 2]
        + ((sp_uint64)a[ 8]) * b[ 1]
        + ((sp_uint64)a[ 9]) * b[ 0];
-    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 8] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 0]) * b[10]
        + ((sp_uint64)a[ 1]) * b[ 9]
        + ((sp_uint64)a[ 2]) * b[ 8]
@@ -429,7 +429,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 8]) * b[ 2]
        + ((sp_uint64)a[ 9]) * b[ 1]
        + ((sp_uint64)a[10]) * b[ 0];
-    t[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 9] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 0]) * b[11]
        + ((sp_uint64)a[ 1]) * b[10]
        + ((sp_uint64)a[ 2]) * b[ 9]
@@ -442,7 +442,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 9]) * b[ 2]
        + ((sp_uint64)a[10]) * b[ 1]
        + ((sp_uint64)a[11]) * b[ 0];
-    t[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[10] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 1]) * b[11]
        + ((sp_uint64)a[ 2]) * b[10]
        + ((sp_uint64)a[ 3]) * b[ 9]
@@ -454,7 +454,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 9]) * b[ 3]
        + ((sp_uint64)a[10]) * b[ 2]
        + ((sp_uint64)a[11]) * b[ 1];
-    t[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[11] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 2]) * b[11]
        + ((sp_uint64)a[ 3]) * b[10]
        + ((sp_uint64)a[ 4]) * b[ 9]
@@ -465,7 +465,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 9]) * b[ 4]
        + ((sp_uint64)a[10]) * b[ 3]
        + ((sp_uint64)a[11]) * b[ 2];
-    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[12] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 3]) * b[11]
        + ((sp_uint64)a[ 4]) * b[10]
        + ((sp_uint64)a[ 5]) * b[ 9]
@@ -475,7 +475,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 9]) * b[ 5]
        + ((sp_uint64)a[10]) * b[ 4]
        + ((sp_uint64)a[11]) * b[ 3];
-    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[13] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 4]) * b[11]
        + ((sp_uint64)a[ 5]) * b[10]
        + ((sp_uint64)a[ 6]) * b[ 9]
@@ -484,7 +484,7 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 9]) * b[ 6]
        + ((sp_uint64)a[10]) * b[ 5]
        + ((sp_uint64)a[11]) * b[ 4];
-    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[14] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 5]) * b[11]
        + ((sp_uint64)a[ 6]) * b[10]
        + ((sp_uint64)a[ 7]) * b[ 9]
@@ -492,35 +492,35 @@ SP_NOINLINE static void sp_2048_mul_12(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 9]) * b[ 7]
        + ((sp_uint64)a[10]) * b[ 6]
        + ((sp_uint64)a[11]) * b[ 5];
-    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[15] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 6]) * b[11]
        + ((sp_uint64)a[ 7]) * b[10]
        + ((sp_uint64)a[ 8]) * b[ 9]
        + ((sp_uint64)a[ 9]) * b[ 8]
        + ((sp_uint64)a[10]) * b[ 7]
        + ((sp_uint64)a[11]) * b[ 6];
-    r[16] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[16] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 7]) * b[11]
        + ((sp_uint64)a[ 8]) * b[10]
        + ((sp_uint64)a[ 9]) * b[ 9]
        + ((sp_uint64)a[10]) * b[ 8]
        + ((sp_uint64)a[11]) * b[ 7];
-    r[17] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[17] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[ 8]) * b[11]
        + ((sp_uint64)a[ 9]) * b[10]
        + ((sp_uint64)a[10]) * b[ 9]
        + ((sp_uint64)a[11]) * b[ 8];
-    r[18] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[18] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[ 9]) * b[11]
        + ((sp_uint64)a[10]) * b[10]
        + ((sp_uint64)a[11]) * b[ 9];
-    r[19] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[19] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_uint64)a[10]) * b[11]
        + ((sp_uint64)a[11]) * b[10];
-    r[20] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[20] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_uint64)a[11]) * b[11];
-    r[21] = t1 & 0x1fffffff; t0 += t1 >> 29;
-    r[22] = t0 & 0x1fffffff;
+    r[21] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
+    r[22] = (sp_digit)(t0 & 0x1fffffff);
     r[23] = (sp_digit)(t0 >> 29);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -874,105 +874,105 @@ SP_NOINLINE static void sp_2048_sqr_12(sp_digit* r, const sp_digit* a)
 
     t0 =  ((sp_uint64)a[ 0]) * a[ 0];
     t1 = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 0] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 0]) * a[ 2]) * 2
        +  ((sp_uint64)a[ 1]) * a[ 1];
-    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 1] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 0]) * a[ 3]
        +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 2] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 0]) * a[ 4]
        +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
        +  ((sp_uint64)a[ 2]) * a[ 2];
-    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 3] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 0]) * a[ 5]
        +  ((sp_uint64)a[ 1]) * a[ 4]
        +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 4] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 0]) * a[ 6]
        +  ((sp_uint64)a[ 1]) * a[ 5]
        +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
        +  ((sp_uint64)a[ 3]) * a[ 3];
-    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 5] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 0]) * a[ 7]
        +  ((sp_uint64)a[ 1]) * a[ 6]
        +  ((sp_uint64)a[ 2]) * a[ 5]
        +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 6] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 0]) * a[ 8]
        +  ((sp_uint64)a[ 1]) * a[ 7]
        +  ((sp_uint64)a[ 2]) * a[ 6]
        +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
        +  ((sp_uint64)a[ 4]) * a[ 4];
-    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 7] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 0]) * a[ 9]
        +  ((sp_uint64)a[ 1]) * a[ 8]
        +  ((sp_uint64)a[ 2]) * a[ 7]
        +  ((sp_uint64)a[ 3]) * a[ 6]
        +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 8] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 0]) * a[10]
        +  ((sp_uint64)a[ 1]) * a[ 9]
        +  ((sp_uint64)a[ 2]) * a[ 8]
        +  ((sp_uint64)a[ 3]) * a[ 7]
        +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
        +  ((sp_uint64)a[ 5]) * a[ 5];
-    t[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 9] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 0]) * a[11]
        +  ((sp_uint64)a[ 1]) * a[10]
        +  ((sp_uint64)a[ 2]) * a[ 9]
        +  ((sp_uint64)a[ 3]) * a[ 8]
        +  ((sp_uint64)a[ 4]) * a[ 7]
        +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    t[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[10] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 1]) * a[11]
        +  ((sp_uint64)a[ 2]) * a[10]
        +  ((sp_uint64)a[ 3]) * a[ 9]
        +  ((sp_uint64)a[ 4]) * a[ 8]
        +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
        +  ((sp_uint64)a[ 6]) * a[ 6];
-    t[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[11] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 2]) * a[11]
        +  ((sp_uint64)a[ 3]) * a[10]
        +  ((sp_uint64)a[ 4]) * a[ 9]
        +  ((sp_uint64)a[ 5]) * a[ 8]
        +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[12] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 3]) * a[11]
        +  ((sp_uint64)a[ 4]) * a[10]
        +  ((sp_uint64)a[ 5]) * a[ 9]
        +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
        +  ((sp_uint64)a[ 7]) * a[ 7];
-    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[13] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 4]) * a[11]
        +  ((sp_uint64)a[ 5]) * a[10]
        +  ((sp_uint64)a[ 6]) * a[ 9]
        +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[14] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 5]) * a[11]
        +  ((sp_uint64)a[ 6]) * a[10]
        +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
        +  ((sp_uint64)a[ 8]) * a[ 8];
-    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[15] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 6]) * a[11]
        +  ((sp_uint64)a[ 7]) * a[10]
        +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
-    r[16] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[16] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 7]) * a[11]
        +  ((sp_uint64)a[ 8]) * a[10]) * 2
        +  ((sp_uint64)a[ 9]) * a[ 9];
-    r[17] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[17] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[ 8]) * a[11]
        +  ((sp_uint64)a[ 9]) * a[10]) * 2;
-    r[18] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[18] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_uint64)a[ 9]) * a[11]) * 2
        +  ((sp_uint64)a[10]) * a[10];
-    r[19] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[19] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_uint64)a[10]) * a[11]) * 2;
-    r[20] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[20] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 =  ((sp_uint64)a[11]) * a[11];
-    r[21] = t1 & 0x1fffffff; t0 += t1 >> 29;
-    r[22] = t0 & 0x1fffffff;
+    r[21] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
+    r[22] = (sp_digit)(t0 & 0x1fffffff);
     r[23] = (sp_digit)(t0 >> 29);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -1626,26 +1626,26 @@ SP_NOINLINE static void sp_2048_mul_add_36(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[0]  = t[3] >> 29;
     }
     t[0] += (tb * a[32]) + r[32];
     t[1]  = (tb * a[33]) + r[33];
     t[2]  = (tb * a[34]) + r[34];
     t[3]  = (tb * a[35]) + r[35];
-    r[32] = t[0] & 0x1fffffff;
+    r[32] = (sp_digit)(t[0] & 0x1fffffff);
     t[1] += t[0] >> 29;
-    r[33] = t[1] & 0x1fffffff;
+    r[33] = (sp_digit)(t[1] & 0x1fffffff);
     t[2] += t[1] >> 29;
-    r[34] = t[2] & 0x1fffffff;
+    r[34] = (sp_digit)(t[2] & 0x1fffffff);
     t[3] += t[2] >> 29;
-    r[35] = t[3] & 0x1fffffff;
+    r[35] = (sp_digit)(t[3] & 0x1fffffff);
     r[36] +=  (sp_digit)(t[3] >> 29);
 #else
     sp_int64 tb = b;
@@ -1662,34 +1662,34 @@ SP_NOINLINE static void sp_2048_mul_add_36(sp_digit* r, const sp_digit* a,
         t[5]  = (tb * a[i+5]) + r[i+5];
         t[6]  = (tb * a[i+6]) + r[i+6];
         t[7]  = (tb * a[i+7]) + r[i+7];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[4] += t[3] >> 29;
-        r[i+4] = t[4] & 0x1fffffff;
+        r[i+4] = (sp_digit)(t[4] & 0x1fffffff);
         t[5] += t[4] >> 29;
-        r[i+5] = t[5] & 0x1fffffff;
+        r[i+5] = (sp_digit)(t[5] & 0x1fffffff);
         t[6] += t[5] >> 29;
-        r[i+6] = t[6] & 0x1fffffff;
+        r[i+6] = (sp_digit)(t[6] & 0x1fffffff);
         t[7] += t[6] >> 29;
-        r[i+7] = t[7] & 0x1fffffff;
+        r[i+7] = (sp_digit)(t[7] & 0x1fffffff);
         t[0]  = t[7] >> 29;
     }
     t[0] += (tb * a[32]) + r[32];
     t[1]  = (tb * a[33]) + r[33];
     t[2]  = (tb * a[34]) + r[34];
     t[3]  = (tb * a[35]) + r[35];
-    r[32] = t[0] & 0x1fffffff;
+    r[32] = (sp_digit)(t[0] & 0x1fffffff);
     t[1] += t[0] >> 29;
-    r[33] = t[1] & 0x1fffffff;
+    r[33] = (sp_digit)(t[1] & 0x1fffffff);
     t[2] += t[1] >> 29;
-    r[34] = t[2] & 0x1fffffff;
+    r[34] = (sp_digit)(t[2] & 0x1fffffff);
     t[3] += t[2] >> 29;
-    r[35] = t[3] & 0x1fffffff;
+    r[35] = (sp_digit)(t[3] & 0x1fffffff);
     r[36] +=  (sp_digit)(t[3] >> 29);
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* !WOLFSSL_SP_LARGE_CODE */
@@ -1708,7 +1708,7 @@ static void sp_2048_mont_shift_36(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[36]) << 20;
 
     for (i = 0; i < 35; i++) {
-        r[i] = n & 0x1fffffff;
+        r[i] = (sp_digit)(n & 0x1fffffff);
         n >>= 29;
         n += ((sp_int64)a[37 + i]) << 20;
     }
@@ -1718,26 +1718,26 @@ static void sp_2048_mont_shift_36(sp_digit* r, const sp_digit* a)
     sp_int64 n = a[35] >> 9;
     n += ((sp_int64)a[36]) << 20;
     for (i = 0; i < 32; i += 8) {
-        r[i + 0] = n & 0x1fffffff;
+        r[i + 0] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 37]) << 20;
-        r[i + 1] = n & 0x1fffffff;
+        r[i + 1] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 38]) << 20;
-        r[i + 2] = n & 0x1fffffff;
+        r[i + 2] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 39]) << 20;
-        r[i + 3] = n & 0x1fffffff;
+        r[i + 3] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 40]) << 20;
-        r[i + 4] = n & 0x1fffffff;
+        r[i + 4] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 41]) << 20;
-        r[i + 5] = n & 0x1fffffff;
+        r[i + 5] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 42]) << 20;
-        r[i + 6] = n & 0x1fffffff;
+        r[i + 6] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 43]) << 20;
-        r[i + 7] = n & 0x1fffffff;
+        r[i + 7] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 44]) << 20;
     }
-    r[32] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[69]) << 20;
-    r[33] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[70]) << 20;
-    r[34] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[71]) << 20;
+    r[32] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[69]) << 20;
+    r[33] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[70]) << 20;
+    r[34] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[71]) << 20;
     r[35] = (sp_digit)n;
 #endif /* WOLFSSL_SP_SMALL */
     XMEMSET(&r[36], 0, sizeof(*r) * 36U);
@@ -1758,11 +1758,11 @@ static void sp_2048_mont_reduce_36(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_2048_norm_36(a + 36);
 
     for (i=0; i<35; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
         sp_2048_mul_add_36(a+i, m, mu);
         a[i+1] += a[i] >> 29;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1ffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1ffL);
     sp_2048_mul_add_36(a+i, m, mu);
     a[i+1] += a[i] >> 29;
     a[i] &= 0x1fffffff;
@@ -1913,22 +1913,22 @@ SP_NOINLINE static void sp_2048_rshift_36(sp_digit* r, const sp_digit* a,
 
 #ifdef WOLFSSL_SP_SMALL
     for (i=0; i<35; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff);
     }
 #else
     for (i=0; i<32; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (29 - n)) & 0x1fffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (29 - n)) & 0x1fffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (29 - n)) & 0x1fffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (29 - n)) & 0x1fffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (29 - n)) & 0x1fffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (29 - n)) & 0x1fffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (29 - n)) & 0x1fffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (29 - n)) & 0x1fffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (29 - n)) & 0x1fffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (29 - n)) & 0x1fffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (29 - n)) & 0x1fffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (29 - n)) & 0x1fffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (29 - n)) & 0x1fffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (29 - n)) & 0x1fffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (29 - n)) & 0x1fffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (29 - n)) & 0x1fffffff);
     }
-    r[32] = (a[32] >> n) | ((a[33] << (29 - n)) & 0x1fffffff);
-    r[33] = (a[33] >> n) | ((a[34] << (29 - n)) & 0x1fffffff);
-    r[34] = (a[34] >> n) | ((a[35] << (29 - n)) & 0x1fffffff);
+    r[32] = (a[32] >> n) | (sp_digit)((a[33] << (29 - n)) & 0x1fffffff);
+    r[33] = (a[33] >> n) | (sp_digit)((a[34] << (29 - n)) & 0x1fffffff);
+    r[34] = (a[34] >> n) | (sp_digit)((a[35] << (29 - n)) & 0x1fffffff);
 #endif /* WOLFSSL_SP_SMALL */
     r[35] = a[35] >> n;
 }
@@ -2611,26 +2611,26 @@ SP_NOINLINE static void sp_2048_mul_add_72(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[0]  = t[3] >> 29;
     }
     t[0] += (tb * a[68]) + r[68];
     t[1]  = (tb * a[69]) + r[69];
     t[2]  = (tb * a[70]) + r[70];
     t[3]  = (tb * a[71]) + r[71];
-    r[68] = t[0] & 0x1fffffff;
+    r[68] = (sp_digit)(t[0] & 0x1fffffff);
     t[1] += t[0] >> 29;
-    r[69] = t[1] & 0x1fffffff;
+    r[69] = (sp_digit)(t[1] & 0x1fffffff);
     t[2] += t[1] >> 29;
-    r[70] = t[2] & 0x1fffffff;
+    r[70] = (sp_digit)(t[2] & 0x1fffffff);
     t[3] += t[2] >> 29;
-    r[71] = t[3] & 0x1fffffff;
+    r[71] = (sp_digit)(t[3] & 0x1fffffff);
     r[72] +=  (sp_digit)(t[3] >> 29);
 #else
     sp_int64 tb = b;
@@ -2647,21 +2647,21 @@ SP_NOINLINE static void sp_2048_mul_add_72(sp_digit* r, const sp_digit* a,
         t[5]  = (tb * a[i+5]) + r[i+5];
         t[6]  = (tb * a[i+6]) + r[i+6];
         t[7]  = (tb * a[i+7]) + r[i+7];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[4] += t[3] >> 29;
-        r[i+4] = t[4] & 0x1fffffff;
+        r[i+4] = (sp_digit)(t[4] & 0x1fffffff);
         t[5] += t[4] >> 29;
-        r[i+5] = t[5] & 0x1fffffff;
+        r[i+5] = (sp_digit)(t[5] & 0x1fffffff);
         t[6] += t[5] >> 29;
-        r[i+6] = t[6] & 0x1fffffff;
+        r[i+6] = (sp_digit)(t[6] & 0x1fffffff);
         t[7] += t[6] >> 29;
-        r[i+7] = t[7] & 0x1fffffff;
+        r[i+7] = (sp_digit)(t[7] & 0x1fffffff);
         t[0]  = t[7] >> 29;
     }
     t[0] += (tb * a[64]) + r[64];
@@ -2672,21 +2672,21 @@ SP_NOINLINE static void sp_2048_mul_add_72(sp_digit* r, const sp_digit* a,
     t[5]  = (tb * a[69]) + r[69];
     t[6]  = (tb * a[70]) + r[70];
     t[7]  = (tb * a[71]) + r[71];
-    r[64] = t[0] & 0x1fffffff;
+    r[64] = (sp_digit)(t[0] & 0x1fffffff);
     t[1] += t[0] >> 29;
-    r[65] = t[1] & 0x1fffffff;
+    r[65] = (sp_digit)(t[1] & 0x1fffffff);
     t[2] += t[1] >> 29;
-    r[66] = t[2] & 0x1fffffff;
+    r[66] = (sp_digit)(t[2] & 0x1fffffff);
     t[3] += t[2] >> 29;
-    r[67] = t[3] & 0x1fffffff;
+    r[67] = (sp_digit)(t[3] & 0x1fffffff);
     t[4] += t[3] >> 29;
-    r[68] = t[4] & 0x1fffffff;
+    r[68] = (sp_digit)(t[4] & 0x1fffffff);
     t[5] += t[4] >> 29;
-    r[69] = t[5] & 0x1fffffff;
+    r[69] = (sp_digit)(t[5] & 0x1fffffff);
     t[6] += t[5] >> 29;
-    r[70] = t[6] & 0x1fffffff;
+    r[70] = (sp_digit)(t[6] & 0x1fffffff);
     t[7] += t[6] >> 29;
-    r[71] = t[7] & 0x1fffffff;
+    r[71] = (sp_digit)(t[7] & 0x1fffffff);
     r[72] +=  (sp_digit)(t[7] >> 29);
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* !WOLFSSL_SP_LARGE_CODE */
@@ -2705,7 +2705,7 @@ static void sp_2048_mont_shift_72(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[71]) << 11;
 
     for (i = 0; i < 70; i++) {
-        r[i] = n & 0x1fffffff;
+        r[i] = (sp_digit)(n & 0x1fffffff);
         n >>= 29;
         n += ((sp_int64)a[72 + i]) << 11;
     }
@@ -2715,29 +2715,29 @@ static void sp_2048_mont_shift_72(sp_digit* r, const sp_digit* a)
     sp_int64 n = a[70] >> 18;
     n += ((sp_int64)a[71]) << 11;
     for (i = 0; i < 64; i += 8) {
-        r[i + 0] = n & 0x1fffffff;
+        r[i + 0] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 72]) << 11;
-        r[i + 1] = n & 0x1fffffff;
+        r[i + 1] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 73]) << 11;
-        r[i + 2] = n & 0x1fffffff;
+        r[i + 2] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 74]) << 11;
-        r[i + 3] = n & 0x1fffffff;
+        r[i + 3] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 75]) << 11;
-        r[i + 4] = n & 0x1fffffff;
+        r[i + 4] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 76]) << 11;
-        r[i + 5] = n & 0x1fffffff;
+        r[i + 5] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 77]) << 11;
-        r[i + 6] = n & 0x1fffffff;
+        r[i + 6] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 78]) << 11;
-        r[i + 7] = n & 0x1fffffff;
+        r[i + 7] = (sp_digit)(n & 0x1fffffff);
         n >>= 29; n += ((sp_int64)a[i + 79]) << 11;
     }
-    r[64] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[136]) << 11;
-    r[65] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[137]) << 11;
-    r[66] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[138]) << 11;
-    r[67] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[139]) << 11;
-    r[68] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[140]) << 11;
-    r[69] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[141]) << 11;
+    r[64] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[136]) << 11;
+    r[65] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[137]) << 11;
+    r[66] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[138]) << 11;
+    r[67] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[139]) << 11;
+    r[68] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[140]) << 11;
+    r[69] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[141]) << 11;
     r[70] = (sp_digit)n;
 #endif /* WOLFSSL_SP_SMALL */
     XMEMSET(&r[71], 0, sizeof(*r) * 71U);
@@ -2760,33 +2760,33 @@ static void sp_2048_mont_reduce_72(sp_digit* a, const sp_digit* m, sp_digit mp)
 #ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<70; i++) {
-            mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+            mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
             sp_2048_mul_add_72(a+i, m, mu);
             a[i+1] += a[i] >> 29;
         }
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffL;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffL);
         sp_2048_mul_add_72(a+i, m, mu);
         a[i+1] += a[i] >> 29;
         a[i] &= 0x1fffffff;
     }
     else {
         for (i=0; i<70; i++) {
-            mu = a[i] & 0x1fffffff;
+            mu = (sp_digit)(a[i] & 0x1fffffff);
             sp_2048_mul_add_72(a+i, m, mu);
             a[i+1] += a[i] >> 29;
         }
-        mu = a[i] & 0x3ffffL;
+        mu = (sp_digit)(a[i] & 0x3ffffL);
         sp_2048_mul_add_72(a+i, m, mu);
         a[i+1] += a[i] >> 29;
         a[i] &= 0x1fffffff;
     }
 #else
     for (i=0; i<70; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
         sp_2048_mul_add_72(a+i, m, mu);
         a[i+1] += a[i] >> 29;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffL);
     sp_2048_mul_add_72(a+i, m, mu);
     a[i+1] += a[i] >> 29;
     a[i] &= 0x1fffffff;
@@ -2967,26 +2967,26 @@ SP_NOINLINE static void sp_2048_rshift_72(sp_digit* r, const sp_digit* a,
 
 #ifdef WOLFSSL_SP_SMALL
     for (i=0; i<71; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff);
     }
 #else
     for (i=0; i<64; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (29 - n)) & 0x1fffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (29 - n)) & 0x1fffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (29 - n)) & 0x1fffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (29 - n)) & 0x1fffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (29 - n)) & 0x1fffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (29 - n)) & 0x1fffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (29 - n)) & 0x1fffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (29 - n)) & 0x1fffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (29 - n)) & 0x1fffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (29 - n)) & 0x1fffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (29 - n)) & 0x1fffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (29 - n)) & 0x1fffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (29 - n)) & 0x1fffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (29 - n)) & 0x1fffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (29 - n)) & 0x1fffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (29 - n)) & 0x1fffffff);
     }
-    r[64] = (a[64] >> n) | ((a[65] << (29 - n)) & 0x1fffffff);
-    r[65] = (a[65] >> n) | ((a[66] << (29 - n)) & 0x1fffffff);
-    r[66] = (a[66] >> n) | ((a[67] << (29 - n)) & 0x1fffffff);
-    r[67] = (a[67] >> n) | ((a[68] << (29 - n)) & 0x1fffffff);
-    r[68] = (a[68] >> n) | ((a[69] << (29 - n)) & 0x1fffffff);
-    r[69] = (a[69] >> n) | ((a[70] << (29 - n)) & 0x1fffffff);
-    r[70] = (a[70] >> n) | ((a[71] << (29 - n)) & 0x1fffffff);
+    r[64] = (a[64] >> n) | (sp_digit)((a[65] << (29 - n)) & 0x1fffffff);
+    r[65] = (a[65] >> n) | (sp_digit)((a[66] << (29 - n)) & 0x1fffffff);
+    r[66] = (a[66] >> n) | (sp_digit)((a[67] << (29 - n)) & 0x1fffffff);
+    r[67] = (a[67] >> n) | (sp_digit)((a[68] << (29 - n)) & 0x1fffffff);
+    r[68] = (a[68] >> n) | (sp_digit)((a[69] << (29 - n)) & 0x1fffffff);
+    r[69] = (a[69] >> n) | (sp_digit)((a[70] << (29 - n)) & 0x1fffffff);
+    r[70] = (a[70] >> n) | (sp_digit)((a[71] << (29 - n)) & 0x1fffffff);
 #endif /* WOLFSSL_SP_SMALL */
     r[71] = a[71] >> n;
 }
@@ -4340,7 +4340,7 @@ SP_NOINLINE static void sp_2048_lshift_72(sp_digit* r, const sp_digit* a,
 
     r[72] = a[71] >> (29 - n);
     for (i=71; i>0; i--) {
-        r[i] = ((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
     }
 #else
     sp_int_digit s;
@@ -4349,149 +4349,149 @@ SP_NOINLINE static void sp_2048_lshift_72(sp_digit* r, const sp_digit* a,
     s = (sp_int_digit)a[71];
     r[72] = s >> (29U - n);
     s = (sp_int_digit)(a[71]); t = (sp_int_digit)(a[70]);
-    r[71] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[71] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[70]); t = (sp_int_digit)(a[69]);
-    r[70] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[70] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[69]); t = (sp_int_digit)(a[68]);
-    r[69] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[69] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[68]); t = (sp_int_digit)(a[67]);
-    r[68] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[68] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[67]); t = (sp_int_digit)(a[66]);
-    r[67] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[67] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[66]); t = (sp_int_digit)(a[65]);
-    r[66] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[66] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[65]); t = (sp_int_digit)(a[64]);
-    r[65] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[65] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[64]); t = (sp_int_digit)(a[63]);
-    r[64] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[64] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[63]); t = (sp_int_digit)(a[62]);
-    r[63] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[63] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[62]); t = (sp_int_digit)(a[61]);
-    r[62] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[62] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[61]); t = (sp_int_digit)(a[60]);
-    r[61] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[61] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[60]); t = (sp_int_digit)(a[59]);
-    r[60] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[60] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[59]); t = (sp_int_digit)(a[58]);
-    r[59] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[59] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[58]); t = (sp_int_digit)(a[57]);
-    r[58] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[58] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[57]); t = (sp_int_digit)(a[56]);
-    r[57] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[57] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[56]); t = (sp_int_digit)(a[55]);
-    r[56] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[56] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[55]); t = (sp_int_digit)(a[54]);
-    r[55] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[55] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[54]); t = (sp_int_digit)(a[53]);
-    r[54] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[54] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[53]); t = (sp_int_digit)(a[52]);
-    r[53] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[53] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[52]); t = (sp_int_digit)(a[51]);
-    r[52] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[52] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[51]); t = (sp_int_digit)(a[50]);
-    r[51] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[51] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[50]); t = (sp_int_digit)(a[49]);
-    r[50] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[50] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[49]); t = (sp_int_digit)(a[48]);
-    r[49] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[49] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[48]); t = (sp_int_digit)(a[47]);
-    r[48] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[48] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[47]); t = (sp_int_digit)(a[46]);
-    r[47] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[47] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[46]); t = (sp_int_digit)(a[45]);
-    r[46] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[46] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[45]); t = (sp_int_digit)(a[44]);
-    r[45] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[45] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[44]); t = (sp_int_digit)(a[43]);
-    r[44] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[44] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[43]); t = (sp_int_digit)(a[42]);
-    r[43] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[43] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[42]); t = (sp_int_digit)(a[41]);
-    r[42] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[42] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[41]); t = (sp_int_digit)(a[40]);
-    r[41] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[41] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[40]); t = (sp_int_digit)(a[39]);
-    r[40] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[40] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[39]); t = (sp_int_digit)(a[38]);
-    r[39] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[39] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[38]); t = (sp_int_digit)(a[37]);
-    r[38] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[38] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[37]); t = (sp_int_digit)(a[36]);
-    r[37] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[37] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[36]); t = (sp_int_digit)(a[35]);
-    r[36] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[36] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[35]); t = (sp_int_digit)(a[34]);
-    r[35] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[35] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[34]); t = (sp_int_digit)(a[33]);
-    r[34] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[34] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[33]); t = (sp_int_digit)(a[32]);
-    r[33] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[33] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[32]); t = (sp_int_digit)(a[31]);
-    r[32] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[32] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[31]); t = (sp_int_digit)(a[30]);
-    r[31] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[31] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[30]); t = (sp_int_digit)(a[29]);
-    r[30] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[30] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[29]); t = (sp_int_digit)(a[28]);
-    r[29] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[29] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[28]); t = (sp_int_digit)(a[27]);
-    r[28] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[28] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[27]); t = (sp_int_digit)(a[26]);
-    r[27] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[27] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[26]); t = (sp_int_digit)(a[25]);
-    r[26] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[26] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[25]); t = (sp_int_digit)(a[24]);
-    r[25] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[25] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[24]); t = (sp_int_digit)(a[23]);
-    r[24] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[24] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[23]); t = (sp_int_digit)(a[22]);
-    r[23] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[23] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[22]); t = (sp_int_digit)(a[21]);
-    r[22] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[22] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[21]); t = (sp_int_digit)(a[20]);
-    r[21] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[21] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[20]); t = (sp_int_digit)(a[19]);
-    r[20] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[20] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[19]); t = (sp_int_digit)(a[18]);
-    r[19] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[19] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[18]); t = (sp_int_digit)(a[17]);
-    r[18] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[18] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[17]); t = (sp_int_digit)(a[16]);
-    r[17] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[17] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[16]); t = (sp_int_digit)(a[15]);
-    r[16] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[16] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[15]); t = (sp_int_digit)(a[14]);
-    r[15] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[15] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[14]); t = (sp_int_digit)(a[13]);
-    r[14] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[14] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[13]); t = (sp_int_digit)(a[12]);
-    r[13] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[13] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[12]); t = (sp_int_digit)(a[11]);
-    r[12] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[12] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[11]); t = (sp_int_digit)(a[10]);
-    r[11] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[11] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[10]); t = (sp_int_digit)(a[9]);
-    r[10] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[10] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[9]); t = (sp_int_digit)(a[8]);
-    r[9] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[9] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[8]); t = (sp_int_digit)(a[7]);
-    r[8] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[8] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[7]); t = (sp_int_digit)(a[6]);
-    r[7] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[7] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[6]); t = (sp_int_digit)(a[5]);
-    r[6] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[6] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[5]); t = (sp_int_digit)(a[4]);
-    r[5] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[5] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[4]); t = (sp_int_digit)(a[3]);
-    r[4] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[4] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[3]); t = (sp_int_digit)(a[2]);
-    r[3] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[3] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[2]); t = (sp_int_digit)(a[1]);
-    r[2] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[2] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[1]); t = (sp_int_digit)(a[0]);
-    r[1] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[1] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
 #endif /* WOLFSSL_SP_SMALL */
-    r[0] = (a[0] << n) & 0x1fffffff;
+    r[0] = (sp_digit)((a[0] << n) & 0x1fffffff);
 }
 
 /* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
@@ -5324,17 +5324,17 @@ SP_NOINLINE static void sp_3072_mul_add_53(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[0]  = t[3] >> 29;
     }
     t[0] += (tb * a[52]) + r[52];
-    r[52] = t[0] & 0x1fffffff;
+    r[52] = (sp_digit)(t[0] & 0x1fffffff);
     r[53] +=  (sp_digit)(t[0] >> 29);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -5351,7 +5351,7 @@ static void sp_3072_mont_shift_53(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[53]) << 1;
 
     for (i = 0; i < 52; i++) {
-        r[i] = n & 0x1fffffff;
+        r[i] = (sp_digit)(n & 0x1fffffff);
         n >>= 29;
         n += ((sp_int64)a[54 + i]) << 1;
     }
@@ -5374,11 +5374,11 @@ static void sp_3072_mont_reduce_53(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_3072_norm_53(a + 53);
 
     for (i=0; i<52; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
         sp_3072_mul_add_53(a+i, m, mu);
         a[i+1] += a[i] >> 29;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffffL);
     sp_3072_mul_add_53(a+i, m, mu);
     a[i+1] += a[i] >> 29;
     a[i] &= 0x1fffffff;
@@ -5602,7 +5602,7 @@ SP_NOINLINE static void sp_3072_rshift_53(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<52; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff);
     }
     r[52] = a[52] >> n;
 }
@@ -6250,20 +6250,20 @@ SP_NOINLINE static void sp_3072_mul_add_106(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[0]  = t[3] >> 29;
     }
     t[0] += (tb * a[104]) + r[104];
     t[1]  = (tb * a[105]) + r[105];
-    r[104] = t[0] & 0x1fffffff;
+    r[104] = (sp_digit)(t[0] & 0x1fffffff);
     t[1] += t[0] >> 29;
-    r[105] = t[1] & 0x1fffffff;
+    r[105] = (sp_digit)(t[1] & 0x1fffffff);
     r[106] +=  (sp_digit)(t[1] >> 29);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -6280,7 +6280,7 @@ static void sp_3072_mont_shift_106(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[106]) << 2;
 
     for (i = 0; i < 105; i++) {
-        r[i] = n & 0x1fffffff;
+        r[i] = (sp_digit)(n & 0x1fffffff);
         n >>= 29;
         n += ((sp_int64)a[107 + i]) << 2;
     }
@@ -6305,33 +6305,33 @@ static void sp_3072_mont_reduce_106(sp_digit* a, const sp_digit* m, sp_digit mp)
 #ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<105; i++) {
-            mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+            mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
             sp_3072_mul_add_106(a+i, m, mu);
             a[i+1] += a[i] >> 29;
         }
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x7ffffffL;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x7ffffffL);
         sp_3072_mul_add_106(a+i, m, mu);
         a[i+1] += a[i] >> 29;
         a[i] &= 0x1fffffff;
     }
     else {
         for (i=0; i<105; i++) {
-            mu = a[i] & 0x1fffffff;
+            mu = (sp_digit)(a[i] & 0x1fffffff);
             sp_3072_mul_add_106(a+i, m, mu);
             a[i+1] += a[i] >> 29;
         }
-        mu = a[i] & 0x7ffffffL;
+        mu = (sp_digit)(a[i] & 0x7ffffffL);
         sp_3072_mul_add_106(a+i, m, mu);
         a[i+1] += a[i] >> 29;
         a[i] &= 0x1fffffff;
     }
 #else
     for (i=0; i<105; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
         sp_3072_mul_add_106(a+i, m, mu);
         a[i+1] += a[i] >> 29;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x7ffffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x7ffffffL);
     sp_3072_mul_add_106(a+i, m, mu);
     a[i+1] += a[i] >> 29;
     a[i] &= 0x1fffffff;
@@ -6437,7 +6437,7 @@ SP_NOINLINE static void sp_3072_rshift_106(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<105; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff);
     }
     r[105] = a[105] >> n;
 }
@@ -7786,9 +7786,9 @@ SP_NOINLINE static void sp_3072_lshift_106(sp_digit* r, const sp_digit* a,
 
     r[106] = a[105] >> (29 - n);
     for (i=105; i>0; i--) {
-        r[i] = ((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
     }
-    r[0] = (a[0] << n) & 0x1fffffff;
+    r[0] = (sp_digit)((a[0] << n) & 0x1fffffff);
 }
 
 /* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
@@ -8438,29 +8438,29 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
     t0 = ((sp_uint64)a[ 0]) * b[ 0];
     t1 = ((sp_uint64)a[ 0]) * b[ 1]
        + ((sp_uint64)a[ 1]) * b[ 0];
-    t[ 0] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 0] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 0]) * b[ 2]
        + ((sp_uint64)a[ 1]) * b[ 1]
        + ((sp_uint64)a[ 2]) * b[ 0];
-    t[ 1] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 1] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 0]) * b[ 3]
        + ((sp_uint64)a[ 1]) * b[ 2]
        + ((sp_uint64)a[ 2]) * b[ 1]
        + ((sp_uint64)a[ 3]) * b[ 0];
-    t[ 2] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 2] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 0]) * b[ 4]
        + ((sp_uint64)a[ 1]) * b[ 3]
        + ((sp_uint64)a[ 2]) * b[ 2]
        + ((sp_uint64)a[ 3]) * b[ 1]
        + ((sp_uint64)a[ 4]) * b[ 0];
-    t[ 3] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 3] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 0]) * b[ 5]
        + ((sp_uint64)a[ 1]) * b[ 4]
        + ((sp_uint64)a[ 2]) * b[ 3]
        + ((sp_uint64)a[ 3]) * b[ 2]
        + ((sp_uint64)a[ 4]) * b[ 1]
        + ((sp_uint64)a[ 5]) * b[ 0];
-    t[ 4] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 4] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 0]) * b[ 6]
        + ((sp_uint64)a[ 1]) * b[ 5]
        + ((sp_uint64)a[ 2]) * b[ 4]
@@ -8468,7 +8468,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 4]) * b[ 2]
        + ((sp_uint64)a[ 5]) * b[ 1]
        + ((sp_uint64)a[ 6]) * b[ 0];
-    t[ 5] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 5] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 0]) * b[ 7]
        + ((sp_uint64)a[ 1]) * b[ 6]
        + ((sp_uint64)a[ 2]) * b[ 5]
@@ -8477,7 +8477,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 5]) * b[ 2]
        + ((sp_uint64)a[ 6]) * b[ 1]
        + ((sp_uint64)a[ 7]) * b[ 0];
-    t[ 6] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 6] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 0]) * b[ 8]
        + ((sp_uint64)a[ 1]) * b[ 7]
        + ((sp_uint64)a[ 2]) * b[ 6]
@@ -8487,7 +8487,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 6]) * b[ 2]
        + ((sp_uint64)a[ 7]) * b[ 1]
        + ((sp_uint64)a[ 8]) * b[ 0];
-    t[ 7] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 7] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 0]) * b[ 9]
        + ((sp_uint64)a[ 1]) * b[ 8]
        + ((sp_uint64)a[ 2]) * b[ 7]
@@ -8498,7 +8498,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 7]) * b[ 2]
        + ((sp_uint64)a[ 8]) * b[ 1]
        + ((sp_uint64)a[ 9]) * b[ 0];
-    t[ 8] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 8] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 0]) * b[10]
        + ((sp_uint64)a[ 1]) * b[ 9]
        + ((sp_uint64)a[ 2]) * b[ 8]
@@ -8510,7 +8510,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 8]) * b[ 2]
        + ((sp_uint64)a[ 9]) * b[ 1]
        + ((sp_uint64)a[10]) * b[ 0];
-    t[ 9] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 9] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 0]) * b[11]
        + ((sp_uint64)a[ 1]) * b[10]
        + ((sp_uint64)a[ 2]) * b[ 9]
@@ -8523,7 +8523,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 9]) * b[ 2]
        + ((sp_uint64)a[10]) * b[ 1]
        + ((sp_uint64)a[11]) * b[ 0];
-    t[10] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[10] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 0]) * b[12]
        + ((sp_uint64)a[ 1]) * b[11]
        + ((sp_uint64)a[ 2]) * b[10]
@@ -8537,7 +8537,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[10]) * b[ 2]
        + ((sp_uint64)a[11]) * b[ 1]
        + ((sp_uint64)a[12]) * b[ 0];
-    t[11] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[11] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 0]) * b[13]
        + ((sp_uint64)a[ 1]) * b[12]
        + ((sp_uint64)a[ 2]) * b[11]
@@ -8552,7 +8552,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 2]
        + ((sp_uint64)a[12]) * b[ 1]
        + ((sp_uint64)a[13]) * b[ 0];
-    t[12] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[12] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 1]) * b[13]
        + ((sp_uint64)a[ 2]) * b[12]
        + ((sp_uint64)a[ 3]) * b[11]
@@ -8566,7 +8566,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 3]
        + ((sp_uint64)a[12]) * b[ 2]
        + ((sp_uint64)a[13]) * b[ 1];
-    t[13] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[13] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 2]) * b[13]
        + ((sp_uint64)a[ 3]) * b[12]
        + ((sp_uint64)a[ 4]) * b[11]
@@ -8579,7 +8579,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 4]
        + ((sp_uint64)a[12]) * b[ 3]
        + ((sp_uint64)a[13]) * b[ 2];
-    r[14] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[14] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 3]) * b[13]
        + ((sp_uint64)a[ 4]) * b[12]
        + ((sp_uint64)a[ 5]) * b[11]
@@ -8591,7 +8591,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 5]
        + ((sp_uint64)a[12]) * b[ 4]
        + ((sp_uint64)a[13]) * b[ 3];
-    r[15] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[15] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 4]) * b[13]
        + ((sp_uint64)a[ 5]) * b[12]
        + ((sp_uint64)a[ 6]) * b[11]
@@ -8602,7 +8602,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 6]
        + ((sp_uint64)a[12]) * b[ 5]
        + ((sp_uint64)a[13]) * b[ 4];
-    r[16] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[16] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 5]) * b[13]
        + ((sp_uint64)a[ 6]) * b[12]
        + ((sp_uint64)a[ 7]) * b[11]
@@ -8612,7 +8612,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 7]
        + ((sp_uint64)a[12]) * b[ 6]
        + ((sp_uint64)a[13]) * b[ 5];
-    r[17] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[17] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 6]) * b[13]
        + ((sp_uint64)a[ 7]) * b[12]
        + ((sp_uint64)a[ 8]) * b[11]
@@ -8621,7 +8621,7 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 8]
        + ((sp_uint64)a[12]) * b[ 7]
        + ((sp_uint64)a[13]) * b[ 6];
-    r[18] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[18] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 7]) * b[13]
        + ((sp_uint64)a[ 8]) * b[12]
        + ((sp_uint64)a[ 9]) * b[11]
@@ -8629,35 +8629,35 @@ SP_NOINLINE static void sp_3072_mul_14(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[11]) * b[ 9]
        + ((sp_uint64)a[12]) * b[ 8]
        + ((sp_uint64)a[13]) * b[ 7];
-    r[19] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[19] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[ 8]) * b[13]
        + ((sp_uint64)a[ 9]) * b[12]
        + ((sp_uint64)a[10]) * b[11]
        + ((sp_uint64)a[11]) * b[10]
        + ((sp_uint64)a[12]) * b[ 9]
        + ((sp_uint64)a[13]) * b[ 8];
-    r[20] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[20] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[ 9]) * b[13]
        + ((sp_uint64)a[10]) * b[12]
        + ((sp_uint64)a[11]) * b[11]
        + ((sp_uint64)a[12]) * b[10]
        + ((sp_uint64)a[13]) * b[ 9];
-    r[21] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[21] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[10]) * b[13]
        + ((sp_uint64)a[11]) * b[12]
        + ((sp_uint64)a[12]) * b[11]
        + ((sp_uint64)a[13]) * b[10];
-    r[22] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[22] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[11]) * b[13]
        + ((sp_uint64)a[12]) * b[12]
        + ((sp_uint64)a[13]) * b[11];
-    r[23] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[23] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = ((sp_uint64)a[12]) * b[13]
        + ((sp_uint64)a[13]) * b[12];
-    r[24] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[24] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = ((sp_uint64)a[13]) * b[13];
-    r[25] = t1 & 0xfffffff; t0 += t1 >> 28;
-    r[26] = t0 & 0xfffffff;
+    r[25] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
+    r[26] = (sp_digit)(t0 & 0xfffffff);
     r[27] = (sp_digit)(t0 >> 28);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -9010,57 +9010,57 @@ SP_NOINLINE static void sp_3072_sqr_14(sp_digit* r, const sp_digit* a)
 
     t0 =  ((sp_uint64)a[ 0]) * a[ 0];
     t1 = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    t[ 0] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 0] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 0]) * a[ 2]) * 2
        +  ((sp_uint64)a[ 1]) * a[ 1];
-    t[ 1] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 1] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 0]) * a[ 3]
        +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    t[ 2] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 2] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 0]) * a[ 4]
        +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
        +  ((sp_uint64)a[ 2]) * a[ 2];
-    t[ 3] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 3] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 0]) * a[ 5]
        +  ((sp_uint64)a[ 1]) * a[ 4]
        +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    t[ 4] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 4] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 0]) * a[ 6]
        +  ((sp_uint64)a[ 1]) * a[ 5]
        +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
        +  ((sp_uint64)a[ 3]) * a[ 3];
-    t[ 5] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 5] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 0]) * a[ 7]
        +  ((sp_uint64)a[ 1]) * a[ 6]
        +  ((sp_uint64)a[ 2]) * a[ 5]
        +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    t[ 6] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 6] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 0]) * a[ 8]
        +  ((sp_uint64)a[ 1]) * a[ 7]
        +  ((sp_uint64)a[ 2]) * a[ 6]
        +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
        +  ((sp_uint64)a[ 4]) * a[ 4];
-    t[ 7] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 7] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 0]) * a[ 9]
        +  ((sp_uint64)a[ 1]) * a[ 8]
        +  ((sp_uint64)a[ 2]) * a[ 7]
        +  ((sp_uint64)a[ 3]) * a[ 6]
        +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    t[ 8] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[ 8] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 0]) * a[10]
        +  ((sp_uint64)a[ 1]) * a[ 9]
        +  ((sp_uint64)a[ 2]) * a[ 8]
        +  ((sp_uint64)a[ 3]) * a[ 7]
        +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
        +  ((sp_uint64)a[ 5]) * a[ 5];
-    t[ 9] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[ 9] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 0]) * a[11]
        +  ((sp_uint64)a[ 1]) * a[10]
        +  ((sp_uint64)a[ 2]) * a[ 9]
        +  ((sp_uint64)a[ 3]) * a[ 8]
        +  ((sp_uint64)a[ 4]) * a[ 7]
        +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    t[10] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[10] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 0]) * a[12]
        +  ((sp_uint64)a[ 1]) * a[11]
        +  ((sp_uint64)a[ 2]) * a[10]
@@ -9068,7 +9068,7 @@ SP_NOINLINE static void sp_3072_sqr_14(sp_digit* r, const sp_digit* a)
        +  ((sp_uint64)a[ 4]) * a[ 8]
        +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
        +  ((sp_uint64)a[ 6]) * a[ 6];
-    t[11] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[11] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 0]) * a[13]
        +  ((sp_uint64)a[ 1]) * a[12]
        +  ((sp_uint64)a[ 2]) * a[11]
@@ -9076,7 +9076,7 @@ SP_NOINLINE static void sp_3072_sqr_14(sp_digit* r, const sp_digit* a)
        +  ((sp_uint64)a[ 4]) * a[ 9]
        +  ((sp_uint64)a[ 5]) * a[ 8]
        +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    t[12] = t0 & 0xfffffff; t1 += t0 >> 28;
+    t[12] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 1]) * a[13]
        +  ((sp_uint64)a[ 2]) * a[12]
        +  ((sp_uint64)a[ 3]) * a[11]
@@ -9084,62 +9084,62 @@ SP_NOINLINE static void sp_3072_sqr_14(sp_digit* r, const sp_digit* a)
        +  ((sp_uint64)a[ 5]) * a[ 9]
        +  ((sp_uint64)a[ 6]) * a[ 8]) * 2
        +  ((sp_uint64)a[ 7]) * a[ 7];
-    t[13] = t1 & 0xfffffff; t0 += t1 >> 28;
+    t[13] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 2]) * a[13]
        +  ((sp_uint64)a[ 3]) * a[12]
        +  ((sp_uint64)a[ 4]) * a[11]
        +  ((sp_uint64)a[ 5]) * a[10]
        +  ((sp_uint64)a[ 6]) * a[ 9]
        +  ((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    r[14] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[14] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 3]) * a[13]
        +  ((sp_uint64)a[ 4]) * a[12]
        +  ((sp_uint64)a[ 5]) * a[11]
        +  ((sp_uint64)a[ 6]) * a[10]
        +  ((sp_uint64)a[ 7]) * a[ 9]) * 2
        +  ((sp_uint64)a[ 8]) * a[ 8];
-    r[15] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[15] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 4]) * a[13]
        +  ((sp_uint64)a[ 5]) * a[12]
        +  ((sp_uint64)a[ 6]) * a[11]
        +  ((sp_uint64)a[ 7]) * a[10]
        +  ((sp_uint64)a[ 8]) * a[ 9]) * 2;
-    r[16] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[16] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 5]) * a[13]
        +  ((sp_uint64)a[ 6]) * a[12]
        +  ((sp_uint64)a[ 7]) * a[11]
        +  ((sp_uint64)a[ 8]) * a[10]) * 2
        +  ((sp_uint64)a[ 9]) * a[ 9];
-    r[17] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[17] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 6]) * a[13]
        +  ((sp_uint64)a[ 7]) * a[12]
        +  ((sp_uint64)a[ 8]) * a[11]
        +  ((sp_uint64)a[ 9]) * a[10]) * 2;
-    r[18] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[18] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 7]) * a[13]
        +  ((sp_uint64)a[ 8]) * a[12]
        +  ((sp_uint64)a[ 9]) * a[11]) * 2
        +  ((sp_uint64)a[10]) * a[10];
-    r[19] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[19] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[ 8]) * a[13]
        +  ((sp_uint64)a[ 9]) * a[12]
        +  ((sp_uint64)a[10]) * a[11]) * 2;
-    r[20] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[20] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[ 9]) * a[13]
        +  ((sp_uint64)a[10]) * a[12]) * 2
        +  ((sp_uint64)a[11]) * a[11];
-    r[21] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[21] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[10]) * a[13]
        +  ((sp_uint64)a[11]) * a[12]) * 2;
-    r[22] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[22] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 = (((sp_uint64)a[11]) * a[13]) * 2
        +  ((sp_uint64)a[12]) * a[12];
-    r[23] = t1 & 0xfffffff; t0 += t1 >> 28;
+    r[23] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
     t1 = (((sp_uint64)a[12]) * a[13]) * 2;
-    r[24] = t0 & 0xfffffff; t1 += t0 >> 28;
+    r[24] = (sp_digit)(t0 & 0xfffffff); t1 += t0 >> 28;
     t0 =  ((sp_uint64)a[13]) * a[13];
-    r[25] = t1 & 0xfffffff; t0 += t1 >> 28;
-    r[26] = t0 & 0xfffffff;
+    r[25] = (sp_digit)(t1 & 0xfffffff); t0 += t1 >> 28;
+    r[26] = (sp_digit)(t0 & 0xfffffff);
     r[27] = (sp_digit)(t0 >> 28);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -9397,21 +9397,21 @@ SP_NOINLINE static void sp_3072_mul_add_56(sp_digit* r, const sp_digit* a,
         t[5]  = (tb * a[i+5]) + r[i+5];
         t[6]  = (tb * a[i+6]) + r[i+6];
         t[7]  = (tb * a[i+7]) + r[i+7];
-        r[i+0] = t[0] & 0xfffffff;
+        r[i+0] = (sp_digit)(t[0] & 0xfffffff);
         t[1] += t[0] >> 28;
-        r[i+1] = t[1] & 0xfffffff;
+        r[i+1] = (sp_digit)(t[1] & 0xfffffff);
         t[2] += t[1] >> 28;
-        r[i+2] = t[2] & 0xfffffff;
+        r[i+2] = (sp_digit)(t[2] & 0xfffffff);
         t[3] += t[2] >> 28;
-        r[i+3] = t[3] & 0xfffffff;
+        r[i+3] = (sp_digit)(t[3] & 0xfffffff);
         t[4] += t[3] >> 28;
-        r[i+4] = t[4] & 0xfffffff;
+        r[i+4] = (sp_digit)(t[4] & 0xfffffff);
         t[5] += t[4] >> 28;
-        r[i+5] = t[5] & 0xfffffff;
+        r[i+5] = (sp_digit)(t[5] & 0xfffffff);
         t[6] += t[5] >> 28;
-        r[i+6] = t[6] & 0xfffffff;
+        r[i+6] = (sp_digit)(t[6] & 0xfffffff);
         t[7] += t[6] >> 28;
-        r[i+7] = t[7] & 0xfffffff;
+        r[i+7] = (sp_digit)(t[7] & 0xfffffff);
         t[0]  = t[7] >> 28;
     }
     t[0] += (tb * a[48]) + r[48];
@@ -9422,21 +9422,21 @@ SP_NOINLINE static void sp_3072_mul_add_56(sp_digit* r, const sp_digit* a,
     t[5]  = (tb * a[53]) + r[53];
     t[6]  = (tb * a[54]) + r[54];
     t[7]  = (tb * a[55]) + r[55];
-    r[48] = t[0] & 0xfffffff;
+    r[48] = (sp_digit)(t[0] & 0xfffffff);
     t[1] += t[0] >> 28;
-    r[49] = t[1] & 0xfffffff;
+    r[49] = (sp_digit)(t[1] & 0xfffffff);
     t[2] += t[1] >> 28;
-    r[50] = t[2] & 0xfffffff;
+    r[50] = (sp_digit)(t[2] & 0xfffffff);
     t[3] += t[2] >> 28;
-    r[51] = t[3] & 0xfffffff;
+    r[51] = (sp_digit)(t[3] & 0xfffffff);
     t[4] += t[3] >> 28;
-    r[52] = t[4] & 0xfffffff;
+    r[52] = (sp_digit)(t[4] & 0xfffffff);
     t[5] += t[4] >> 28;
-    r[53] = t[5] & 0xfffffff;
+    r[53] = (sp_digit)(t[5] & 0xfffffff);
     t[6] += t[5] >> 28;
-    r[54] = t[6] & 0xfffffff;
+    r[54] = (sp_digit)(t[6] & 0xfffffff);
     t[7] += t[6] >> 28;
-    r[55] = t[7] & 0xfffffff;
+    r[55] = (sp_digit)(t[7] & 0xfffffff);
     r[56] +=  (sp_digit)(t[7] >> 28);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -9452,29 +9452,29 @@ static void sp_3072_mont_shift_56(sp_digit* r, const sp_digit* a)
     sp_int64 n = a[54] >> 24;
     n += ((sp_int64)a[55]) << 4;
     for (i = 0; i < 48; i += 8) {
-        r[i + 0] = n & 0xfffffff;
+        r[i + 0] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 56]) << 4;
-        r[i + 1] = n & 0xfffffff;
+        r[i + 1] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 57]) << 4;
-        r[i + 2] = n & 0xfffffff;
+        r[i + 2] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 58]) << 4;
-        r[i + 3] = n & 0xfffffff;
+        r[i + 3] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 59]) << 4;
-        r[i + 4] = n & 0xfffffff;
+        r[i + 4] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 60]) << 4;
-        r[i + 5] = n & 0xfffffff;
+        r[i + 5] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 61]) << 4;
-        r[i + 6] = n & 0xfffffff;
+        r[i + 6] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 62]) << 4;
-        r[i + 7] = n & 0xfffffff;
+        r[i + 7] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 63]) << 4;
     }
-    r[48] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[104]) << 4;
-    r[49] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[105]) << 4;
-    r[50] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[106]) << 4;
-    r[51] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[107]) << 4;
-    r[52] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[108]) << 4;
-    r[53] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[109]) << 4;
+    r[48] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[104]) << 4;
+    r[49] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[105]) << 4;
+    r[50] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[106]) << 4;
+    r[51] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[107]) << 4;
+    r[52] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[108]) << 4;
+    r[53] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[109]) << 4;
     r[54] = (sp_digit)n;
     XMEMSET(&r[55], 0, sizeof(*r) * 55U);
 }
@@ -9494,11 +9494,11 @@ static void sp_3072_mont_reduce_56(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_3072_norm_56(a + 55);
 
     for (i=0; i<54; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffff);
         sp_3072_mul_add_56(a+i, m, mu);
         a[i+1] += a[i] >> 28;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xffffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xffffffL);
     sp_3072_mul_add_56(a+i, m, mu);
     a[i+1] += a[i] >> 28;
     a[i] &= 0xfffffff;
@@ -9611,22 +9611,22 @@ SP_NOINLINE static void sp_3072_rshift_56(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<48; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (28 - n)) & 0xfffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (28 - n)) & 0xfffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (28 - n)) & 0xfffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (28 - n)) & 0xfffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (28 - n)) & 0xfffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (28 - n)) & 0xfffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (28 - n)) & 0xfffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (28 - n)) & 0xfffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (28 - n)) & 0xfffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (28 - n)) & 0xfffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (28 - n)) & 0xfffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (28 - n)) & 0xfffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (28 - n)) & 0xfffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (28 - n)) & 0xfffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (28 - n)) & 0xfffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (28 - n)) & 0xfffffff);
     }
-    r[48] = (a[48] >> n) | ((a[49] << (28 - n)) & 0xfffffff);
-    r[49] = (a[49] >> n) | ((a[50] << (28 - n)) & 0xfffffff);
-    r[50] = (a[50] >> n) | ((a[51] << (28 - n)) & 0xfffffff);
-    r[51] = (a[51] >> n) | ((a[52] << (28 - n)) & 0xfffffff);
-    r[52] = (a[52] >> n) | ((a[53] << (28 - n)) & 0xfffffff);
-    r[53] = (a[53] >> n) | ((a[54] << (28 - n)) & 0xfffffff);
-    r[54] = (a[54] >> n) | ((a[55] << (28 - n)) & 0xfffffff);
+    r[48] = (a[48] >> n) | (sp_digit)((a[49] << (28 - n)) & 0xfffffff);
+    r[49] = (a[49] >> n) | (sp_digit)((a[50] << (28 - n)) & 0xfffffff);
+    r[50] = (a[50] >> n) | (sp_digit)((a[51] << (28 - n)) & 0xfffffff);
+    r[51] = (a[51] >> n) | (sp_digit)((a[52] << (28 - n)) & 0xfffffff);
+    r[52] = (a[52] >> n) | (sp_digit)((a[53] << (28 - n)) & 0xfffffff);
+    r[53] = (a[53] >> n) | (sp_digit)((a[54] << (28 - n)) & 0xfffffff);
+    r[54] = (a[54] >> n) | (sp_digit)((a[55] << (28 - n)) & 0xfffffff);
     r[55] = a[55] >> n;
 }
 
@@ -10287,21 +10287,21 @@ SP_NOINLINE static void sp_3072_mul_add_112(sp_digit* r, const sp_digit* a,
         t[5]  = (tb * a[i+5]) + r[i+5];
         t[6]  = (tb * a[i+6]) + r[i+6];
         t[7]  = (tb * a[i+7]) + r[i+7];
-        r[i+0] = t[0] & 0xfffffff;
+        r[i+0] = (sp_digit)(t[0] & 0xfffffff);
         t[1] += t[0] >> 28;
-        r[i+1] = t[1] & 0xfffffff;
+        r[i+1] = (sp_digit)(t[1] & 0xfffffff);
         t[2] += t[1] >> 28;
-        r[i+2] = t[2] & 0xfffffff;
+        r[i+2] = (sp_digit)(t[2] & 0xfffffff);
         t[3] += t[2] >> 28;
-        r[i+3] = t[3] & 0xfffffff;
+        r[i+3] = (sp_digit)(t[3] & 0xfffffff);
         t[4] += t[3] >> 28;
-        r[i+4] = t[4] & 0xfffffff;
+        r[i+4] = (sp_digit)(t[4] & 0xfffffff);
         t[5] += t[4] >> 28;
-        r[i+5] = t[5] & 0xfffffff;
+        r[i+5] = (sp_digit)(t[5] & 0xfffffff);
         t[6] += t[5] >> 28;
-        r[i+6] = t[6] & 0xfffffff;
+        r[i+6] = (sp_digit)(t[6] & 0xfffffff);
         t[7] += t[6] >> 28;
-        r[i+7] = t[7] & 0xfffffff;
+        r[i+7] = (sp_digit)(t[7] & 0xfffffff);
         t[0]  = t[7] >> 28;
     }
     t[0] += (tb * a[104]) + r[104];
@@ -10312,21 +10312,21 @@ SP_NOINLINE static void sp_3072_mul_add_112(sp_digit* r, const sp_digit* a,
     t[5]  = (tb * a[109]) + r[109];
     t[6]  = (tb * a[110]) + r[110];
     t[7]  = (tb * a[111]) + r[111];
-    r[104] = t[0] & 0xfffffff;
+    r[104] = (sp_digit)(t[0] & 0xfffffff);
     t[1] += t[0] >> 28;
-    r[105] = t[1] & 0xfffffff;
+    r[105] = (sp_digit)(t[1] & 0xfffffff);
     t[2] += t[1] >> 28;
-    r[106] = t[2] & 0xfffffff;
+    r[106] = (sp_digit)(t[2] & 0xfffffff);
     t[3] += t[2] >> 28;
-    r[107] = t[3] & 0xfffffff;
+    r[107] = (sp_digit)(t[3] & 0xfffffff);
     t[4] += t[3] >> 28;
-    r[108] = t[4] & 0xfffffff;
+    r[108] = (sp_digit)(t[4] & 0xfffffff);
     t[5] += t[4] >> 28;
-    r[109] = t[5] & 0xfffffff;
+    r[109] = (sp_digit)(t[5] & 0xfffffff);
     t[6] += t[5] >> 28;
-    r[110] = t[6] & 0xfffffff;
+    r[110] = (sp_digit)(t[6] & 0xfffffff);
     t[7] += t[6] >> 28;
-    r[111] = t[7] & 0xfffffff;
+    r[111] = (sp_digit)(t[7] & 0xfffffff);
     r[112] +=  (sp_digit)(t[7] >> 28);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -10342,28 +10342,28 @@ static void sp_3072_mont_shift_112(sp_digit* r, const sp_digit* a)
     sp_int64 n = a[109] >> 20;
     n += ((sp_int64)a[110]) << 8;
     for (i = 0; i < 104; i += 8) {
-        r[i + 0] = n & 0xfffffff;
+        r[i + 0] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 111]) << 8;
-        r[i + 1] = n & 0xfffffff;
+        r[i + 1] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 112]) << 8;
-        r[i + 2] = n & 0xfffffff;
+        r[i + 2] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 113]) << 8;
-        r[i + 3] = n & 0xfffffff;
+        r[i + 3] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 114]) << 8;
-        r[i + 4] = n & 0xfffffff;
+        r[i + 4] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 115]) << 8;
-        r[i + 5] = n & 0xfffffff;
+        r[i + 5] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 116]) << 8;
-        r[i + 6] = n & 0xfffffff;
+        r[i + 6] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 117]) << 8;
-        r[i + 7] = n & 0xfffffff;
+        r[i + 7] = (sp_digit)(n & 0xfffffff);
         n >>= 28; n += ((sp_int64)a[i + 118]) << 8;
     }
-    r[104] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[215]) << 8;
-    r[105] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[216]) << 8;
-    r[106] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[217]) << 8;
-    r[107] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[218]) << 8;
-    r[108] = n & 0xfffffff; n >>= 28; n += ((sp_int64)a[219]) << 8;
+    r[104] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[215]) << 8;
+    r[105] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[216]) << 8;
+    r[106] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[217]) << 8;
+    r[107] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[218]) << 8;
+    r[108] = (sp_digit)(n & 0xfffffff); n >>= 28; n += ((sp_int64)a[219]) << 8;
     r[109] = (sp_digit)n;
     XMEMSET(&r[110], 0, sizeof(*r) * 110U);
 }
@@ -10385,33 +10385,33 @@ static void sp_3072_mont_reduce_112(sp_digit* a, const sp_digit* m, sp_digit mp)
 #ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<109; i++) {
-            mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffff;
+            mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffff);
             sp_3072_mul_add_112(a+i, m, mu);
             a[i+1] += a[i] >> 28;
         }
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL);
         sp_3072_mul_add_112(a+i, m, mu);
         a[i+1] += a[i] >> 28;
         a[i] &= 0xfffffff;
     }
     else {
         for (i=0; i<109; i++) {
-            mu = a[i] & 0xfffffff;
+            mu = (sp_digit)(a[i] & 0xfffffff);
             sp_3072_mul_add_112(a+i, m, mu);
             a[i+1] += a[i] >> 28;
         }
-        mu = a[i] & 0xfffffL;
+        mu = (sp_digit)(a[i] & 0xfffffL);
         sp_3072_mul_add_112(a+i, m, mu);
         a[i+1] += a[i] >> 28;
         a[i] &= 0xfffffff;
     }
 #else
     for (i=0; i<109; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffff);
         sp_3072_mul_add_112(a+i, m, mu);
         a[i+1] += a[i] >> 28;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL);
     sp_3072_mul_add_112(a+i, m, mu);
     a[i+1] += a[i] >> 28;
     a[i] &= 0xfffffff;
@@ -10525,22 +10525,22 @@ SP_NOINLINE static void sp_3072_rshift_112(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<104; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (28 - n)) & 0xfffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (28 - n)) & 0xfffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (28 - n)) & 0xfffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (28 - n)) & 0xfffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (28 - n)) & 0xfffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (28 - n)) & 0xfffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (28 - n)) & 0xfffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (28 - n)) & 0xfffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (28 - n)) & 0xfffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (28 - n)) & 0xfffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (28 - n)) & 0xfffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (28 - n)) & 0xfffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (28 - n)) & 0xfffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (28 - n)) & 0xfffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (28 - n)) & 0xfffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (28 - n)) & 0xfffffff);
     }
-    r[104] = (a[104] >> n) | ((a[105] << (28 - n)) & 0xfffffff);
-    r[105] = (a[105] >> n) | ((a[106] << (28 - n)) & 0xfffffff);
-    r[106] = (a[106] >> n) | ((a[107] << (28 - n)) & 0xfffffff);
-    r[107] = (a[107] >> n) | ((a[108] << (28 - n)) & 0xfffffff);
-    r[108] = (a[108] >> n) | ((a[109] << (28 - n)) & 0xfffffff);
-    r[109] = (a[109] >> n) | ((a[110] << (28 - n)) & 0xfffffff);
-    r[110] = (a[110] >> n) | ((a[111] << (28 - n)) & 0xfffffff);
+    r[104] = (a[104] >> n) | (sp_digit)((a[105] << (28 - n)) & 0xfffffff);
+    r[105] = (a[105] >> n) | (sp_digit)((a[106] << (28 - n)) & 0xfffffff);
+    r[106] = (a[106] >> n) | (sp_digit)((a[107] << (28 - n)) & 0xfffffff);
+    r[107] = (a[107] >> n) | (sp_digit)((a[108] << (28 - n)) & 0xfffffff);
+    r[108] = (a[108] >> n) | (sp_digit)((a[109] << (28 - n)) & 0xfffffff);
+    r[109] = (a[109] >> n) | (sp_digit)((a[110] << (28 - n)) & 0xfffffff);
+    r[110] = (a[110] >> n) | (sp_digit)((a[111] << (28 - n)) & 0xfffffff);
     r[111] = a[111] >> n;
 }
 
@@ -11895,228 +11895,228 @@ SP_NOINLINE static void sp_3072_lshift_112(sp_digit* r, const sp_digit* a,
     s = (sp_int_digit)a[111];
     r[112] = s >> (28U - n);
     s = (sp_int_digit)(a[111]); t = (sp_int_digit)(a[110]);
-    r[111] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[111] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[110]); t = (sp_int_digit)(a[109]);
-    r[110] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[110] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[109]); t = (sp_int_digit)(a[108]);
-    r[109] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[109] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[108]); t = (sp_int_digit)(a[107]);
-    r[108] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[108] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[107]); t = (sp_int_digit)(a[106]);
-    r[107] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[107] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[106]); t = (sp_int_digit)(a[105]);
-    r[106] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[106] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[105]); t = (sp_int_digit)(a[104]);
-    r[105] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[105] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[104]); t = (sp_int_digit)(a[103]);
-    r[104] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[104] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[103]); t = (sp_int_digit)(a[102]);
-    r[103] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[103] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[102]); t = (sp_int_digit)(a[101]);
-    r[102] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[102] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[101]); t = (sp_int_digit)(a[100]);
-    r[101] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[101] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[100]); t = (sp_int_digit)(a[99]);
-    r[100] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[100] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[99]); t = (sp_int_digit)(a[98]);
-    r[99] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[99] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[98]); t = (sp_int_digit)(a[97]);
-    r[98] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[98] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[97]); t = (sp_int_digit)(a[96]);
-    r[97] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[97] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[96]); t = (sp_int_digit)(a[95]);
-    r[96] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[96] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[95]); t = (sp_int_digit)(a[94]);
-    r[95] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[95] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[94]); t = (sp_int_digit)(a[93]);
-    r[94] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[94] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[93]); t = (sp_int_digit)(a[92]);
-    r[93] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[93] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[92]); t = (sp_int_digit)(a[91]);
-    r[92] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[92] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[91]); t = (sp_int_digit)(a[90]);
-    r[91] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[91] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[90]); t = (sp_int_digit)(a[89]);
-    r[90] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[90] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[89]); t = (sp_int_digit)(a[88]);
-    r[89] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[89] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[88]); t = (sp_int_digit)(a[87]);
-    r[88] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[88] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[87]); t = (sp_int_digit)(a[86]);
-    r[87] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[87] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[86]); t = (sp_int_digit)(a[85]);
-    r[86] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[86] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[85]); t = (sp_int_digit)(a[84]);
-    r[85] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[85] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[84]); t = (sp_int_digit)(a[83]);
-    r[84] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[84] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[83]); t = (sp_int_digit)(a[82]);
-    r[83] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[83] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[82]); t = (sp_int_digit)(a[81]);
-    r[82] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[82] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[81]); t = (sp_int_digit)(a[80]);
-    r[81] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[81] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[80]); t = (sp_int_digit)(a[79]);
-    r[80] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[80] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[79]); t = (sp_int_digit)(a[78]);
-    r[79] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[79] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[78]); t = (sp_int_digit)(a[77]);
-    r[78] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[78] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[77]); t = (sp_int_digit)(a[76]);
-    r[77] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[77] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[76]); t = (sp_int_digit)(a[75]);
-    r[76] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[76] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[75]); t = (sp_int_digit)(a[74]);
-    r[75] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[75] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[74]); t = (sp_int_digit)(a[73]);
-    r[74] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[74] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[73]); t = (sp_int_digit)(a[72]);
-    r[73] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[73] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[72]); t = (sp_int_digit)(a[71]);
-    r[72] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[72] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[71]); t = (sp_int_digit)(a[70]);
-    r[71] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[71] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[70]); t = (sp_int_digit)(a[69]);
-    r[70] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[70] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[69]); t = (sp_int_digit)(a[68]);
-    r[69] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[69] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[68]); t = (sp_int_digit)(a[67]);
-    r[68] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[68] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[67]); t = (sp_int_digit)(a[66]);
-    r[67] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[67] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[66]); t = (sp_int_digit)(a[65]);
-    r[66] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[66] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[65]); t = (sp_int_digit)(a[64]);
-    r[65] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[65] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[64]); t = (sp_int_digit)(a[63]);
-    r[64] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[64] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[63]); t = (sp_int_digit)(a[62]);
-    r[63] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[63] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[62]); t = (sp_int_digit)(a[61]);
-    r[62] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[62] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[61]); t = (sp_int_digit)(a[60]);
-    r[61] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[61] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[60]); t = (sp_int_digit)(a[59]);
-    r[60] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[60] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[59]); t = (sp_int_digit)(a[58]);
-    r[59] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[59] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[58]); t = (sp_int_digit)(a[57]);
-    r[58] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[58] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[57]); t = (sp_int_digit)(a[56]);
-    r[57] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[57] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[56]); t = (sp_int_digit)(a[55]);
-    r[56] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[56] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[55]); t = (sp_int_digit)(a[54]);
-    r[55] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[55] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[54]); t = (sp_int_digit)(a[53]);
-    r[54] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[54] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[53]); t = (sp_int_digit)(a[52]);
-    r[53] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[53] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[52]); t = (sp_int_digit)(a[51]);
-    r[52] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[52] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[51]); t = (sp_int_digit)(a[50]);
-    r[51] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[51] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[50]); t = (sp_int_digit)(a[49]);
-    r[50] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[50] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[49]); t = (sp_int_digit)(a[48]);
-    r[49] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[49] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[48]); t = (sp_int_digit)(a[47]);
-    r[48] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[48] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[47]); t = (sp_int_digit)(a[46]);
-    r[47] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[47] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[46]); t = (sp_int_digit)(a[45]);
-    r[46] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[46] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[45]); t = (sp_int_digit)(a[44]);
-    r[45] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[45] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[44]); t = (sp_int_digit)(a[43]);
-    r[44] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[44] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[43]); t = (sp_int_digit)(a[42]);
-    r[43] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[43] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[42]); t = (sp_int_digit)(a[41]);
-    r[42] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[42] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[41]); t = (sp_int_digit)(a[40]);
-    r[41] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[41] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[40]); t = (sp_int_digit)(a[39]);
-    r[40] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[40] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[39]); t = (sp_int_digit)(a[38]);
-    r[39] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[39] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[38]); t = (sp_int_digit)(a[37]);
-    r[38] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[38] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[37]); t = (sp_int_digit)(a[36]);
-    r[37] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[37] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[36]); t = (sp_int_digit)(a[35]);
-    r[36] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[36] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[35]); t = (sp_int_digit)(a[34]);
-    r[35] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[35] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[34]); t = (sp_int_digit)(a[33]);
-    r[34] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[34] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[33]); t = (sp_int_digit)(a[32]);
-    r[33] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[33] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[32]); t = (sp_int_digit)(a[31]);
-    r[32] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[32] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[31]); t = (sp_int_digit)(a[30]);
-    r[31] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[31] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[30]); t = (sp_int_digit)(a[29]);
-    r[30] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[30] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[29]); t = (sp_int_digit)(a[28]);
-    r[29] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[29] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[28]); t = (sp_int_digit)(a[27]);
-    r[28] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[28] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[27]); t = (sp_int_digit)(a[26]);
-    r[27] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[27] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[26]); t = (sp_int_digit)(a[25]);
-    r[26] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[26] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[25]); t = (sp_int_digit)(a[24]);
-    r[25] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[25] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[24]); t = (sp_int_digit)(a[23]);
-    r[24] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[24] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[23]); t = (sp_int_digit)(a[22]);
-    r[23] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[23] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[22]); t = (sp_int_digit)(a[21]);
-    r[22] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[22] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[21]); t = (sp_int_digit)(a[20]);
-    r[21] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[21] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[20]); t = (sp_int_digit)(a[19]);
-    r[20] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[20] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[19]); t = (sp_int_digit)(a[18]);
-    r[19] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[19] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[18]); t = (sp_int_digit)(a[17]);
-    r[18] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[18] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[17]); t = (sp_int_digit)(a[16]);
-    r[17] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[17] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[16]); t = (sp_int_digit)(a[15]);
-    r[16] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[16] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[15]); t = (sp_int_digit)(a[14]);
-    r[15] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[15] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[14]); t = (sp_int_digit)(a[13]);
-    r[14] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[14] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[13]); t = (sp_int_digit)(a[12]);
-    r[13] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[13] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[12]); t = (sp_int_digit)(a[11]);
-    r[12] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[12] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[11]); t = (sp_int_digit)(a[10]);
-    r[11] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[11] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[10]); t = (sp_int_digit)(a[9]);
-    r[10] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[10] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[9]); t = (sp_int_digit)(a[8]);
-    r[9] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[9] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[8]); t = (sp_int_digit)(a[7]);
-    r[8] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[8] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[7]); t = (sp_int_digit)(a[6]);
-    r[7] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[7] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[6]); t = (sp_int_digit)(a[5]);
-    r[6] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[6] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[5]); t = (sp_int_digit)(a[4]);
-    r[5] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[5] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[4]); t = (sp_int_digit)(a[3]);
-    r[4] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[4] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[3]); t = (sp_int_digit)(a[2]);
-    r[3] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[3] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[2]); t = (sp_int_digit)(a[1]);
-    r[2] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
+    r[2] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
     s = (sp_int_digit)(a[1]); t = (sp_int_digit)(a[0]);
-    r[1] = ((s << n) | (t >> (28U - n))) & 0xfffffff;
-    r[0] = (a[0] << n) & 0xfffffff;
+    r[1] = (sp_digit)(((s << n) | (t >> (28U - n))) & 0xfffffff);
+    r[0] = (sp_digit)((a[0] << n) & 0xfffffff);
 }
 
 /* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
@@ -12953,23 +12953,23 @@ SP_NOINLINE static void sp_4096_mul_add_71(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[0]  = t[3] >> 29;
     }
     t[0] += (tb * a[68]) + r[68];
     t[1]  = (tb * a[69]) + r[69];
     t[2]  = (tb * a[70]) + r[70];
-    r[68] = t[0] & 0x1fffffff;
+    r[68] = (sp_digit)(t[0] & 0x1fffffff);
     t[1] += t[0] >> 29;
-    r[69] = t[1] & 0x1fffffff;
+    r[69] = (sp_digit)(t[1] & 0x1fffffff);
     t[2] += t[1] >> 29;
-    r[70] = t[2] & 0x1fffffff;
+    r[70] = (sp_digit)(t[2] & 0x1fffffff);
     r[71] +=  (sp_digit)(t[2] >> 29);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -12986,7 +12986,7 @@ static void sp_4096_mont_shift_71(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[71]) << 11;
 
     for (i = 0; i < 70; i++) {
-        r[i] = n & 0x1fffffff;
+        r[i] = (sp_digit)(n & 0x1fffffff);
         n >>= 29;
         n += ((sp_int64)a[72 + i]) << 11;
     }
@@ -13009,11 +13009,11 @@ static void sp_4096_mont_reduce_71(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_4096_norm_71(a + 71);
 
     for (i=0; i<70; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
         sp_4096_mul_add_71(a+i, m, mu);
         a[i+1] += a[i] >> 29;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffL);
     sp_4096_mul_add_71(a+i, m, mu);
     a[i+1] += a[i] >> 29;
     a[i] &= 0x1fffffff;
@@ -13237,7 +13237,7 @@ SP_NOINLINE static void sp_4096_rshift_71(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<70; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff);
     }
     r[70] = a[70] >> n;
 }
@@ -13886,20 +13886,20 @@ SP_NOINLINE static void sp_4096_mul_add_142(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[0]  = t[3] >> 29;
     }
     t[0] += (tb * a[140]) + r[140];
     t[1]  = (tb * a[141]) + r[141];
-    r[140] = t[0] & 0x1fffffff;
+    r[140] = (sp_digit)(t[0] & 0x1fffffff);
     t[1] += t[0] >> 29;
-    r[141] = t[1] & 0x1fffffff;
+    r[141] = (sp_digit)(t[1] & 0x1fffffff);
     r[142] +=  (sp_digit)(t[1] >> 29);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -13916,7 +13916,7 @@ static void sp_4096_mont_shift_142(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[142]) << 22;
 
     for (i = 0; i < 141; i++) {
-        r[i] = n & 0x1fffffff;
+        r[i] = (sp_digit)(n & 0x1fffffff);
         n >>= 29;
         n += ((sp_int64)a[143 + i]) << 22;
     }
@@ -13941,33 +13941,33 @@ static void sp_4096_mont_reduce_142(sp_digit* a, const sp_digit* m, sp_digit mp)
 #ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<141; i++) {
-            mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+            mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
             sp_4096_mul_add_142(a+i, m, mu);
             a[i+1] += a[i] >> 29;
         }
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x7fL;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x7fL);
         sp_4096_mul_add_142(a+i, m, mu);
         a[i+1] += a[i] >> 29;
         a[i] &= 0x1fffffff;
     }
     else {
         for (i=0; i<141; i++) {
-            mu = a[i] & 0x1fffffff;
+            mu = (sp_digit)(a[i] & 0x1fffffff);
             sp_4096_mul_add_142(a+i, m, mu);
             a[i+1] += a[i] >> 29;
         }
-        mu = a[i] & 0x7fL;
+        mu = (sp_digit)(a[i] & 0x7fL);
         sp_4096_mul_add_142(a+i, m, mu);
         a[i+1] += a[i] >> 29;
         a[i] &= 0x1fffffff;
     }
 #else
     for (i=0; i<141; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
         sp_4096_mul_add_142(a+i, m, mu);
         a[i+1] += a[i] >> 29;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x7fL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x7fL);
     sp_4096_mul_add_142(a+i, m, mu);
     a[i+1] += a[i] >> 29;
     a[i] &= 0x1fffffff;
@@ -14073,7 +14073,7 @@ SP_NOINLINE static void sp_4096_rshift_142(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<141; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff);
     }
     r[141] = a[141] >> n;
 }
@@ -15422,9 +15422,9 @@ SP_NOINLINE static void sp_4096_lshift_142(sp_digit* r, const sp_digit* a,
 
     r[142] = a[141] >> (29 - n);
     for (i=141; i>0; i--) {
-        r[i] = ((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
     }
-    r[0] = (a[0] << n) & 0x1fffffff;
+    r[0] = (sp_digit)((a[0] << n) & 0x1fffffff);
 }
 
 /* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
@@ -15921,29 +15921,29 @@ SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
     t0 = ((sp_uint64)a[ 0]) * b[ 0];
     t1 = ((sp_uint64)a[ 0]) * b[ 1]
        + ((sp_uint64)a[ 1]) * b[ 0];
-    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 0] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 0]) * b[ 2]
        + ((sp_uint64)a[ 1]) * b[ 1]
        + ((sp_uint64)a[ 2]) * b[ 0];
-    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 1] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_uint64)a[ 0]) * b[ 3]
        + ((sp_uint64)a[ 1]) * b[ 2]
        + ((sp_uint64)a[ 2]) * b[ 1]
        + ((sp_uint64)a[ 3]) * b[ 0];
-    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 2] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 0]) * b[ 4]
        + ((sp_uint64)a[ 1]) * b[ 3]
        + ((sp_uint64)a[ 2]) * b[ 2]
        + ((sp_uint64)a[ 3]) * b[ 1]
        + ((sp_uint64)a[ 4]) * b[ 0];
-    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 3] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_uint64)a[ 0]) * b[ 5]
        + ((sp_uint64)a[ 1]) * b[ 4]
        + ((sp_uint64)a[ 2]) * b[ 3]
        + ((sp_uint64)a[ 3]) * b[ 2]
        + ((sp_uint64)a[ 4]) * b[ 1]
        + ((sp_uint64)a[ 5]) * b[ 0];
-    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 4] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 0]) * b[ 6]
        + ((sp_uint64)a[ 1]) * b[ 5]
        + ((sp_uint64)a[ 2]) * b[ 4]
@@ -15951,7 +15951,7 @@ SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 4]) * b[ 2]
        + ((sp_uint64)a[ 5]) * b[ 1]
        + ((sp_uint64)a[ 6]) * b[ 0];
-    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 5] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_uint64)a[ 0]) * b[ 7]
        + ((sp_uint64)a[ 1]) * b[ 6]
        + ((sp_uint64)a[ 2]) * b[ 5]
@@ -15960,7 +15960,7 @@ SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 5]) * b[ 2]
        + ((sp_uint64)a[ 6]) * b[ 1]
        + ((sp_uint64)a[ 7]) * b[ 0];
-    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 6] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 0]) * b[ 8]
        + ((sp_uint64)a[ 1]) * b[ 7]
        + ((sp_uint64)a[ 2]) * b[ 6]
@@ -15970,7 +15970,7 @@ SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 6]) * b[ 2]
        + ((sp_uint64)a[ 7]) * b[ 1]
        + ((sp_uint64)a[ 8]) * b[ 0];
-    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 7] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_uint64)a[ 1]) * b[ 8]
        + ((sp_uint64)a[ 2]) * b[ 7]
        + ((sp_uint64)a[ 3]) * b[ 6]
@@ -15979,7 +15979,7 @@ SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 6]) * b[ 3]
        + ((sp_uint64)a[ 7]) * b[ 2]
        + ((sp_uint64)a[ 8]) * b[ 1];
-    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 8] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 2]) * b[ 8]
        + ((sp_uint64)a[ 3]) * b[ 7]
        + ((sp_uint64)a[ 4]) * b[ 6]
@@ -15987,35 +15987,35 @@ SP_NOINLINE static void sp_4096_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_uint64)a[ 6]) * b[ 4]
        + ((sp_uint64)a[ 7]) * b[ 3]
        + ((sp_uint64)a[ 8]) * b[ 2];
-    r[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[ 9] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_uint64)a[ 3]) * b[ 8]
        + ((sp_uint64)a[ 4]) * b[ 7]
        + ((sp_uint64)a[ 5]) * b[ 6]
        + ((sp_uint64)a[ 6]) * b[ 5]
        + ((sp_uint64)a[ 7]) * b[ 4]
        + ((sp_uint64)a[ 8]) * b[ 3];
-    r[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[10] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 4]) * b[ 8]
        + ((sp_uint64)a[ 5]) * b[ 7]
        + ((sp_uint64)a[ 6]) * b[ 6]
        + ((sp_uint64)a[ 7]) * b[ 5]
        + ((sp_uint64)a[ 8]) * b[ 4];
-    r[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[11] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_uint64)a[ 5]) * b[ 8]
        + ((sp_uint64)a[ 6]) * b[ 7]
        + ((sp_uint64)a[ 7]) * b[ 6]
        + ((sp_uint64)a[ 8]) * b[ 5];
-    r[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[12] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 6]) * b[ 8]
        + ((sp_uint64)a[ 7]) * b[ 7]
        + ((sp_uint64)a[ 8]) * b[ 6];
-    r[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[13] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_uint64)a[ 7]) * b[ 8]
        + ((sp_uint64)a[ 8]) * b[ 7];
-    r[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[14] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_uint64)a[ 8]) * b[ 8];
-    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
-    r[16] = t0 & 0x3ffffff;
+    r[15] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
+    r[16] = (sp_digit)(t0 & 0x3ffffff);
     r[17] = (sp_digit)(t0 >> 26);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -16529,66 +16529,66 @@ SP_NOINLINE static void sp_4096_sqr_9(sp_digit* r, const sp_digit* a)
 
     t0 =  ((sp_uint64)a[ 0]) * a[ 0];
     t1 = (((sp_uint64)a[ 0]) * a[ 1]) * 2;
-    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 0] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_uint64)a[ 0]) * a[ 2]) * 2
        +  ((sp_uint64)a[ 1]) * a[ 1];
-    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 1] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_uint64)a[ 0]) * a[ 3]
        +  ((sp_uint64)a[ 1]) * a[ 2]) * 2;
-    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 2] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_uint64)a[ 0]) * a[ 4]
        +  ((sp_uint64)a[ 1]) * a[ 3]) * 2
        +  ((sp_uint64)a[ 2]) * a[ 2];
-    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 3] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_uint64)a[ 0]) * a[ 5]
        +  ((sp_uint64)a[ 1]) * a[ 4]
        +  ((sp_uint64)a[ 2]) * a[ 3]) * 2;
-    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 4] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_uint64)a[ 0]) * a[ 6]
        +  ((sp_uint64)a[ 1]) * a[ 5]
        +  ((sp_uint64)a[ 2]) * a[ 4]) * 2
        +  ((sp_uint64)a[ 3]) * a[ 3];
-    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 5] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_uint64)a[ 0]) * a[ 7]
        +  ((sp_uint64)a[ 1]) * a[ 6]
        +  ((sp_uint64)a[ 2]) * a[ 5]
        +  ((sp_uint64)a[ 3]) * a[ 4]) * 2;
-    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 6] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_uint64)a[ 0]) * a[ 8]
        +  ((sp_uint64)a[ 1]) * a[ 7]
        +  ((sp_uint64)a[ 2]) * a[ 6]
        +  ((sp_uint64)a[ 3]) * a[ 5]) * 2
        +  ((sp_uint64)a[ 4]) * a[ 4];
-    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 7] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_uint64)a[ 1]) * a[ 8]
        +  ((sp_uint64)a[ 2]) * a[ 7]
        +  ((sp_uint64)a[ 3]) * a[ 6]
        +  ((sp_uint64)a[ 4]) * a[ 5]) * 2;
-    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 8] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_uint64)a[ 2]) * a[ 8]
        +  ((sp_uint64)a[ 3]) * a[ 7]
        +  ((sp_uint64)a[ 4]) * a[ 6]) * 2
        +  ((sp_uint64)a[ 5]) * a[ 5];
-    r[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[ 9] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_uint64)a[ 3]) * a[ 8]
        +  ((sp_uint64)a[ 4]) * a[ 7]
        +  ((sp_uint64)a[ 5]) * a[ 6]) * 2;
-    r[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[10] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_uint64)a[ 4]) * a[ 8]
        +  ((sp_uint64)a[ 5]) * a[ 7]) * 2
        +  ((sp_uint64)a[ 6]) * a[ 6];
-    r[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[11] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_uint64)a[ 5]) * a[ 8]
        +  ((sp_uint64)a[ 6]) * a[ 7]) * 2;
-    r[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[12] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_uint64)a[ 6]) * a[ 8]) * 2
        +  ((sp_uint64)a[ 7]) * a[ 7];
-    r[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[13] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_uint64)a[ 7]) * a[ 8]) * 2;
-    r[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[14] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 =  ((sp_uint64)a[ 8]) * a[ 8];
-    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
-    r[16] = t0 & 0x3ffffff;
+    r[15] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
+    r[16] = (sp_digit)(t0 & 0x3ffffff);
     r[17] = (sp_digit)(t0 >> 26);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -16936,25 +16936,25 @@ SP_NOINLINE static void sp_4096_mul_add_81(sp_digit* r, const sp_digit* a,
         t[5]  = (tb * a[i+5]) + r[i+5];
         t[6]  = (tb * a[i+6]) + r[i+6];
         t[7]  = (tb * a[i+7]) + r[i+7];
-        r[i+0] = t[0] & 0x3ffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x3ffffff);
         t[1] += t[0] >> 26;
-        r[i+1] = t[1] & 0x3ffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x3ffffff);
         t[2] += t[1] >> 26;
-        r[i+2] = t[2] & 0x3ffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x3ffffff);
         t[3] += t[2] >> 26;
-        r[i+3] = t[3] & 0x3ffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x3ffffff);
         t[4] += t[3] >> 26;
-        r[i+4] = t[4] & 0x3ffffff;
+        r[i+4] = (sp_digit)(t[4] & 0x3ffffff);
         t[5] += t[4] >> 26;
-        r[i+5] = t[5] & 0x3ffffff;
+        r[i+5] = (sp_digit)(t[5] & 0x3ffffff);
         t[6] += t[5] >> 26;
-        r[i+6] = t[6] & 0x3ffffff;
+        r[i+6] = (sp_digit)(t[6] & 0x3ffffff);
         t[7] += t[6] >> 26;
-        r[i+7] = t[7] & 0x3ffffff;
+        r[i+7] = (sp_digit)(t[7] & 0x3ffffff);
         t[0]  = t[7] >> 26;
     }
     t[0] += (tb * a[80]) + r[80];
-    r[80] = t[0] & 0x3ffffff;
+    r[80] = (sp_digit)(t[0] & 0x3ffffff);
     r[81] +=  (sp_digit)(t[0] >> 26);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -16970,29 +16970,29 @@ static void sp_4096_mont_shift_81(sp_digit* r, const sp_digit* a)
     sp_int64 n = a[78] >> 20;
     n += ((sp_int64)a[79]) << 6;
     for (i = 0; i < 72; i += 8) {
-        r[i + 0] = n & 0x3ffffff;
+        r[i + 0] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 80]) << 6;
-        r[i + 1] = n & 0x3ffffff;
+        r[i + 1] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 81]) << 6;
-        r[i + 2] = n & 0x3ffffff;
+        r[i + 2] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 82]) << 6;
-        r[i + 3] = n & 0x3ffffff;
+        r[i + 3] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 83]) << 6;
-        r[i + 4] = n & 0x3ffffff;
+        r[i + 4] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 84]) << 6;
-        r[i + 5] = n & 0x3ffffff;
+        r[i + 5] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 85]) << 6;
-        r[i + 6] = n & 0x3ffffff;
+        r[i + 6] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 86]) << 6;
-        r[i + 7] = n & 0x3ffffff;
+        r[i + 7] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 87]) << 6;
     }
-    r[72] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[152]) << 6;
-    r[73] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[153]) << 6;
-    r[74] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[154]) << 6;
-    r[75] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[155]) << 6;
-    r[76] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[156]) << 6;
-    r[77] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[157]) << 6;
+    r[72] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[152]) << 6;
+    r[73] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[153]) << 6;
+    r[74] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[154]) << 6;
+    r[75] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[155]) << 6;
+    r[76] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[156]) << 6;
+    r[77] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[157]) << 6;
     r[78] = (sp_digit)n;
     XMEMSET(&r[79], 0, sizeof(*r) * 79U);
 }
@@ -17012,11 +17012,11 @@ static void sp_4096_mont_reduce_81(sp_digit* a, const sp_digit* m, sp_digit mp)
     sp_4096_norm_81(a + 79);
 
     for (i=0; i<78; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff);
         sp_4096_mul_add_81(a+i, m, mu);
         a[i+1] += a[i] >> 26;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL);
     sp_4096_mul_add_81(a+i, m, mu);
     a[i+1] += a[i] >> 26;
     a[i] &= 0x3ffffff;
@@ -17133,14 +17133,14 @@ SP_NOINLINE static void sp_4096_rshift_81(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<80; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (26 - n)) & 0x3ffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (26 - n)) & 0x3ffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (26 - n)) & 0x3ffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (26 - n)) & 0x3ffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (26 - n)) & 0x3ffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (26 - n)) & 0x3ffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (26 - n)) & 0x3ffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (26 - n)) & 0x3ffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (26 - n)) & 0x3ffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (26 - n)) & 0x3ffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (26 - n)) & 0x3ffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (26 - n)) & 0x3ffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (26 - n)) & 0x3ffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (26 - n)) & 0x3ffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (26 - n)) & 0x3ffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (26 - n)) & 0x3ffffff);
     }
     r[80] = a[80] >> n;
 }
@@ -17810,28 +17810,28 @@ SP_NOINLINE static void sp_4096_mul_add_162(sp_digit* r, const sp_digit* a,
         t[5]  = (tb * a[i+5]) + r[i+5];
         t[6]  = (tb * a[i+6]) + r[i+6];
         t[7]  = (tb * a[i+7]) + r[i+7];
-        r[i+0] = t[0] & 0x3ffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x3ffffff);
         t[1] += t[0] >> 26;
-        r[i+1] = t[1] & 0x3ffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x3ffffff);
         t[2] += t[1] >> 26;
-        r[i+2] = t[2] & 0x3ffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x3ffffff);
         t[3] += t[2] >> 26;
-        r[i+3] = t[3] & 0x3ffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x3ffffff);
         t[4] += t[3] >> 26;
-        r[i+4] = t[4] & 0x3ffffff;
+        r[i+4] = (sp_digit)(t[4] & 0x3ffffff);
         t[5] += t[4] >> 26;
-        r[i+5] = t[5] & 0x3ffffff;
+        r[i+5] = (sp_digit)(t[5] & 0x3ffffff);
         t[6] += t[5] >> 26;
-        r[i+6] = t[6] & 0x3ffffff;
+        r[i+6] = (sp_digit)(t[6] & 0x3ffffff);
         t[7] += t[6] >> 26;
-        r[i+7] = t[7] & 0x3ffffff;
+        r[i+7] = (sp_digit)(t[7] & 0x3ffffff);
         t[0]  = t[7] >> 26;
     }
     t[0] += (tb * a[160]) + r[160];
     t[1]  = (tb * a[161]) + r[161];
-    r[160] = t[0] & 0x3ffffff;
+    r[160] = (sp_digit)(t[0] & 0x3ffffff);
     t[1] += t[0] >> 26;
-    r[161] = t[1] & 0x3ffffff;
+    r[161] = (sp_digit)(t[1] & 0x3ffffff);
     r[162] +=  (sp_digit)(t[1] >> 26);
 #endif /* !WOLFSSL_SP_LARGE_CODE */
 }
@@ -17847,28 +17847,28 @@ static void sp_4096_mont_shift_162(sp_digit* r, const sp_digit* a)
     sp_int64 n = a[157] >> 14;
     n += ((sp_int64)a[158]) << 12;
     for (i = 0; i < 152; i += 8) {
-        r[i + 0] = n & 0x3ffffff;
+        r[i + 0] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 159]) << 12;
-        r[i + 1] = n & 0x3ffffff;
+        r[i + 1] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 160]) << 12;
-        r[i + 2] = n & 0x3ffffff;
+        r[i + 2] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 161]) << 12;
-        r[i + 3] = n & 0x3ffffff;
+        r[i + 3] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 162]) << 12;
-        r[i + 4] = n & 0x3ffffff;
+        r[i + 4] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 163]) << 12;
-        r[i + 5] = n & 0x3ffffff;
+        r[i + 5] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 164]) << 12;
-        r[i + 6] = n & 0x3ffffff;
+        r[i + 6] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 165]) << 12;
-        r[i + 7] = n & 0x3ffffff;
+        r[i + 7] = (sp_digit)(n & 0x3ffffff);
         n >>= 26; n += ((sp_int64)a[i + 166]) << 12;
     }
-    r[152] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[311]) << 12;
-    r[153] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[312]) << 12;
-    r[154] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[313]) << 12;
-    r[155] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[314]) << 12;
-    r[156] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[315]) << 12;
+    r[152] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[311]) << 12;
+    r[153] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[312]) << 12;
+    r[154] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[313]) << 12;
+    r[155] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[314]) << 12;
+    r[156] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[315]) << 12;
     r[157] = (sp_digit)n;
     XMEMSET(&r[158], 0, sizeof(*r) * 158U);
 }
@@ -17890,33 +17890,33 @@ static void sp_4096_mont_reduce_162(sp_digit* a, const sp_digit* m, sp_digit mp)
 #ifdef WOLFSSL_SP_DH
     if (mp != 1) {
         for (i=0; i<157; i++) {
-            mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff;
+            mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff);
             sp_4096_mul_add_162(a+i, m, mu);
             a[i+1] += a[i] >> 26;
         }
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3fffL;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3fffL);
         sp_4096_mul_add_162(a+i, m, mu);
         a[i+1] += a[i] >> 26;
         a[i] &= 0x3ffffff;
     }
     else {
         for (i=0; i<157; i++) {
-            mu = a[i] & 0x3ffffff;
+            mu = (sp_digit)(a[i] & 0x3ffffff);
             sp_4096_mul_add_162(a+i, m, mu);
             a[i+1] += a[i] >> 26;
         }
-        mu = a[i] & 0x3fffL;
+        mu = (sp_digit)(a[i] & 0x3fffL);
         sp_4096_mul_add_162(a+i, m, mu);
         a[i+1] += a[i] >> 26;
         a[i] &= 0x3ffffff;
     }
 #else
     for (i=0; i<157; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff);
         sp_4096_mul_add_162(a+i, m, mu);
         a[i+1] += a[i] >> 26;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3fffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3fffL);
     sp_4096_mul_add_162(a+i, m, mu);
     a[i+1] += a[i] >> 26;
     a[i] &= 0x3ffffff;
@@ -18032,16 +18032,16 @@ SP_NOINLINE static void sp_4096_rshift_162(sp_digit* r, const sp_digit* a,
     int i;
 
     for (i=0; i<160; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (26 - n)) & 0x3ffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (26 - n)) & 0x3ffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (26 - n)) & 0x3ffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (26 - n)) & 0x3ffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (26 - n)) & 0x3ffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (26 - n)) & 0x3ffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (26 - n)) & 0x3ffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (26 - n)) & 0x3ffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (26 - n)) & 0x3ffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (26 - n)) & 0x3ffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (26 - n)) & 0x3ffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (26 - n)) & 0x3ffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (26 - n)) & 0x3ffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (26 - n)) & 0x3ffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (26 - n)) & 0x3ffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (26 - n)) & 0x3ffffff);
     }
-    r[160] = (a[160] >> n) | ((a[161] << (26 - n)) & 0x3ffffff);
+    r[160] = (a[160] >> n) | (sp_digit)((a[161] << (26 - n)) & 0x3ffffff);
     r[161] = a[161] >> n;
 }
 
@@ -19398,328 +19398,328 @@ SP_NOINLINE static void sp_4096_lshift_162(sp_digit* r, const sp_digit* a,
     s = (sp_int_digit)a[161];
     r[162] = s >> (26U - n);
     s = (sp_int_digit)(a[161]); t = (sp_int_digit)(a[160]);
-    r[161] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[161] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[160]); t = (sp_int_digit)(a[159]);
-    r[160] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[160] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[159]); t = (sp_int_digit)(a[158]);
-    r[159] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[159] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[158]); t = (sp_int_digit)(a[157]);
-    r[158] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[158] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[157]); t = (sp_int_digit)(a[156]);
-    r[157] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[157] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[156]); t = (sp_int_digit)(a[155]);
-    r[156] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[156] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[155]); t = (sp_int_digit)(a[154]);
-    r[155] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[155] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[154]); t = (sp_int_digit)(a[153]);
-    r[154] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[154] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[153]); t = (sp_int_digit)(a[152]);
-    r[153] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[153] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[152]); t = (sp_int_digit)(a[151]);
-    r[152] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[152] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[151]); t = (sp_int_digit)(a[150]);
-    r[151] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[151] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[150]); t = (sp_int_digit)(a[149]);
-    r[150] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[150] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[149]); t = (sp_int_digit)(a[148]);
-    r[149] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[149] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[148]); t = (sp_int_digit)(a[147]);
-    r[148] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[148] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[147]); t = (sp_int_digit)(a[146]);
-    r[147] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[147] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[146]); t = (sp_int_digit)(a[145]);
-    r[146] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[146] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[145]); t = (sp_int_digit)(a[144]);
-    r[145] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[145] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[144]); t = (sp_int_digit)(a[143]);
-    r[144] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[144] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[143]); t = (sp_int_digit)(a[142]);
-    r[143] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[143] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[142]); t = (sp_int_digit)(a[141]);
-    r[142] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[142] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[141]); t = (sp_int_digit)(a[140]);
-    r[141] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[141] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[140]); t = (sp_int_digit)(a[139]);
-    r[140] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[140] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[139]); t = (sp_int_digit)(a[138]);
-    r[139] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[139] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[138]); t = (sp_int_digit)(a[137]);
-    r[138] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[138] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[137]); t = (sp_int_digit)(a[136]);
-    r[137] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[137] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[136]); t = (sp_int_digit)(a[135]);
-    r[136] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[136] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[135]); t = (sp_int_digit)(a[134]);
-    r[135] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[135] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[134]); t = (sp_int_digit)(a[133]);
-    r[134] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[134] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[133]); t = (sp_int_digit)(a[132]);
-    r[133] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[133] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[132]); t = (sp_int_digit)(a[131]);
-    r[132] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[132] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[131]); t = (sp_int_digit)(a[130]);
-    r[131] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[131] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[130]); t = (sp_int_digit)(a[129]);
-    r[130] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[130] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[129]); t = (sp_int_digit)(a[128]);
-    r[129] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[129] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[128]); t = (sp_int_digit)(a[127]);
-    r[128] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[128] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[127]); t = (sp_int_digit)(a[126]);
-    r[127] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[127] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[126]); t = (sp_int_digit)(a[125]);
-    r[126] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[126] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[125]); t = (sp_int_digit)(a[124]);
-    r[125] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[125] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[124]); t = (sp_int_digit)(a[123]);
-    r[124] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[124] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[123]); t = (sp_int_digit)(a[122]);
-    r[123] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[123] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[122]); t = (sp_int_digit)(a[121]);
-    r[122] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[122] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[121]); t = (sp_int_digit)(a[120]);
-    r[121] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[121] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[120]); t = (sp_int_digit)(a[119]);
-    r[120] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[120] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[119]); t = (sp_int_digit)(a[118]);
-    r[119] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[119] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[118]); t = (sp_int_digit)(a[117]);
-    r[118] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[118] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[117]); t = (sp_int_digit)(a[116]);
-    r[117] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[117] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[116]); t = (sp_int_digit)(a[115]);
-    r[116] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[116] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[115]); t = (sp_int_digit)(a[114]);
-    r[115] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[115] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[114]); t = (sp_int_digit)(a[113]);
-    r[114] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[114] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[113]); t = (sp_int_digit)(a[112]);
-    r[113] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[113] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[112]); t = (sp_int_digit)(a[111]);
-    r[112] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[112] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[111]); t = (sp_int_digit)(a[110]);
-    r[111] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[111] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[110]); t = (sp_int_digit)(a[109]);
-    r[110] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[110] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[109]); t = (sp_int_digit)(a[108]);
-    r[109] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[109] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[108]); t = (sp_int_digit)(a[107]);
-    r[108] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[108] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[107]); t = (sp_int_digit)(a[106]);
-    r[107] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[107] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[106]); t = (sp_int_digit)(a[105]);
-    r[106] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[106] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[105]); t = (sp_int_digit)(a[104]);
-    r[105] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[105] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[104]); t = (sp_int_digit)(a[103]);
-    r[104] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[104] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[103]); t = (sp_int_digit)(a[102]);
-    r[103] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[103] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[102]); t = (sp_int_digit)(a[101]);
-    r[102] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[102] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[101]); t = (sp_int_digit)(a[100]);
-    r[101] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[101] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[100]); t = (sp_int_digit)(a[99]);
-    r[100] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[100] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[99]); t = (sp_int_digit)(a[98]);
-    r[99] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[99] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[98]); t = (sp_int_digit)(a[97]);
-    r[98] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[98] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[97]); t = (sp_int_digit)(a[96]);
-    r[97] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[97] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[96]); t = (sp_int_digit)(a[95]);
-    r[96] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[96] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[95]); t = (sp_int_digit)(a[94]);
-    r[95] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[95] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[94]); t = (sp_int_digit)(a[93]);
-    r[94] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[94] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[93]); t = (sp_int_digit)(a[92]);
-    r[93] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[93] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[92]); t = (sp_int_digit)(a[91]);
-    r[92] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[92] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[91]); t = (sp_int_digit)(a[90]);
-    r[91] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[91] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[90]); t = (sp_int_digit)(a[89]);
-    r[90] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[90] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[89]); t = (sp_int_digit)(a[88]);
-    r[89] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[89] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[88]); t = (sp_int_digit)(a[87]);
-    r[88] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[88] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[87]); t = (sp_int_digit)(a[86]);
-    r[87] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[87] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[86]); t = (sp_int_digit)(a[85]);
-    r[86] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[86] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[85]); t = (sp_int_digit)(a[84]);
-    r[85] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[85] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[84]); t = (sp_int_digit)(a[83]);
-    r[84] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[84] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[83]); t = (sp_int_digit)(a[82]);
-    r[83] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[83] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[82]); t = (sp_int_digit)(a[81]);
-    r[82] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[82] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[81]); t = (sp_int_digit)(a[80]);
-    r[81] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[81] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[80]); t = (sp_int_digit)(a[79]);
-    r[80] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[80] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[79]); t = (sp_int_digit)(a[78]);
-    r[79] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[79] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[78]); t = (sp_int_digit)(a[77]);
-    r[78] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[78] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[77]); t = (sp_int_digit)(a[76]);
-    r[77] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[77] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[76]); t = (sp_int_digit)(a[75]);
-    r[76] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[76] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[75]); t = (sp_int_digit)(a[74]);
-    r[75] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[75] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[74]); t = (sp_int_digit)(a[73]);
-    r[74] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[74] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[73]); t = (sp_int_digit)(a[72]);
-    r[73] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[73] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[72]); t = (sp_int_digit)(a[71]);
-    r[72] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[72] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[71]); t = (sp_int_digit)(a[70]);
-    r[71] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[71] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[70]); t = (sp_int_digit)(a[69]);
-    r[70] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[70] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[69]); t = (sp_int_digit)(a[68]);
-    r[69] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[69] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[68]); t = (sp_int_digit)(a[67]);
-    r[68] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[68] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[67]); t = (sp_int_digit)(a[66]);
-    r[67] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[67] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[66]); t = (sp_int_digit)(a[65]);
-    r[66] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[66] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[65]); t = (sp_int_digit)(a[64]);
-    r[65] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[65] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[64]); t = (sp_int_digit)(a[63]);
-    r[64] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[64] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[63]); t = (sp_int_digit)(a[62]);
-    r[63] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[63] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[62]); t = (sp_int_digit)(a[61]);
-    r[62] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[62] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[61]); t = (sp_int_digit)(a[60]);
-    r[61] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[61] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[60]); t = (sp_int_digit)(a[59]);
-    r[60] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[60] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[59]); t = (sp_int_digit)(a[58]);
-    r[59] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[59] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[58]); t = (sp_int_digit)(a[57]);
-    r[58] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[58] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[57]); t = (sp_int_digit)(a[56]);
-    r[57] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[57] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[56]); t = (sp_int_digit)(a[55]);
-    r[56] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[56] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[55]); t = (sp_int_digit)(a[54]);
-    r[55] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[55] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[54]); t = (sp_int_digit)(a[53]);
-    r[54] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[54] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[53]); t = (sp_int_digit)(a[52]);
-    r[53] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[53] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[52]); t = (sp_int_digit)(a[51]);
-    r[52] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[52] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[51]); t = (sp_int_digit)(a[50]);
-    r[51] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[51] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[50]); t = (sp_int_digit)(a[49]);
-    r[50] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[50] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[49]); t = (sp_int_digit)(a[48]);
-    r[49] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[49] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[48]); t = (sp_int_digit)(a[47]);
-    r[48] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[48] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[47]); t = (sp_int_digit)(a[46]);
-    r[47] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[47] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[46]); t = (sp_int_digit)(a[45]);
-    r[46] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[46] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[45]); t = (sp_int_digit)(a[44]);
-    r[45] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[45] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[44]); t = (sp_int_digit)(a[43]);
-    r[44] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[44] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[43]); t = (sp_int_digit)(a[42]);
-    r[43] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[43] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[42]); t = (sp_int_digit)(a[41]);
-    r[42] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[42] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[41]); t = (sp_int_digit)(a[40]);
-    r[41] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[41] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[40]); t = (sp_int_digit)(a[39]);
-    r[40] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[40] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[39]); t = (sp_int_digit)(a[38]);
-    r[39] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[39] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[38]); t = (sp_int_digit)(a[37]);
-    r[38] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[38] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[37]); t = (sp_int_digit)(a[36]);
-    r[37] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[37] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[36]); t = (sp_int_digit)(a[35]);
-    r[36] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[36] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[35]); t = (sp_int_digit)(a[34]);
-    r[35] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[35] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[34]); t = (sp_int_digit)(a[33]);
-    r[34] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[34] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[33]); t = (sp_int_digit)(a[32]);
-    r[33] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[33] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[32]); t = (sp_int_digit)(a[31]);
-    r[32] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[32] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[31]); t = (sp_int_digit)(a[30]);
-    r[31] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[31] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[30]); t = (sp_int_digit)(a[29]);
-    r[30] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[30] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[29]); t = (sp_int_digit)(a[28]);
-    r[29] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[29] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[28]); t = (sp_int_digit)(a[27]);
-    r[28] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[28] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[27]); t = (sp_int_digit)(a[26]);
-    r[27] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[27] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[26]); t = (sp_int_digit)(a[25]);
-    r[26] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[26] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[25]); t = (sp_int_digit)(a[24]);
-    r[25] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[25] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[24]); t = (sp_int_digit)(a[23]);
-    r[24] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[24] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[23]); t = (sp_int_digit)(a[22]);
-    r[23] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[23] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[22]); t = (sp_int_digit)(a[21]);
-    r[22] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[22] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[21]); t = (sp_int_digit)(a[20]);
-    r[21] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[21] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[20]); t = (sp_int_digit)(a[19]);
-    r[20] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[20] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[19]); t = (sp_int_digit)(a[18]);
-    r[19] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[19] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[18]); t = (sp_int_digit)(a[17]);
-    r[18] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[18] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[17]); t = (sp_int_digit)(a[16]);
-    r[17] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[17] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[16]); t = (sp_int_digit)(a[15]);
-    r[16] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[16] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[15]); t = (sp_int_digit)(a[14]);
-    r[15] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[15] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[14]); t = (sp_int_digit)(a[13]);
-    r[14] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[14] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[13]); t = (sp_int_digit)(a[12]);
-    r[13] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[13] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[12]); t = (sp_int_digit)(a[11]);
-    r[12] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[12] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[11]); t = (sp_int_digit)(a[10]);
-    r[11] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[11] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[10]); t = (sp_int_digit)(a[9]);
-    r[10] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[10] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[9]); t = (sp_int_digit)(a[8]);
-    r[9] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[9] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[8]); t = (sp_int_digit)(a[7]);
-    r[8] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[8] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[7]); t = (sp_int_digit)(a[6]);
-    r[7] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[7] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[6]); t = (sp_int_digit)(a[5]);
-    r[6] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[6] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[5]); t = (sp_int_digit)(a[4]);
-    r[5] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[5] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[4]); t = (sp_int_digit)(a[3]);
-    r[4] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[4] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[3]); t = (sp_int_digit)(a[2]);
-    r[3] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[3] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[2]); t = (sp_int_digit)(a[1]);
-    r[2] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[2] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[1]); t = (sp_int_digit)(a[0]);
-    r[1] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
-    r[0] = (a[0] << n) & 0x3ffffff;
+    r[1] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
+    r[0] = (sp_digit)((a[0] << n) & 0x3ffffff);
 }
 
 /* Modular exponentiate 2 to the e mod m. (r = 2^e mod m)
@@ -20084,29 +20084,29 @@ SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
     t0 = ((sp_int64)a[ 0]) * b[ 0];
     t1 = ((sp_int64)a[ 0]) * b[ 1]
        + ((sp_int64)a[ 1]) * b[ 0];
-    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 0] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 0]) * b[ 2]
        + ((sp_int64)a[ 1]) * b[ 1]
        + ((sp_int64)a[ 2]) * b[ 0];
-    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 1] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_int64)a[ 0]) * b[ 3]
        + ((sp_int64)a[ 1]) * b[ 2]
        + ((sp_int64)a[ 2]) * b[ 1]
        + ((sp_int64)a[ 3]) * b[ 0];
-    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 2] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 0]) * b[ 4]
        + ((sp_int64)a[ 1]) * b[ 3]
        + ((sp_int64)a[ 2]) * b[ 2]
        + ((sp_int64)a[ 3]) * b[ 1]
        + ((sp_int64)a[ 4]) * b[ 0];
-    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 3] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_int64)a[ 0]) * b[ 5]
        + ((sp_int64)a[ 1]) * b[ 4]
        + ((sp_int64)a[ 2]) * b[ 3]
        + ((sp_int64)a[ 3]) * b[ 2]
        + ((sp_int64)a[ 4]) * b[ 1]
        + ((sp_int64)a[ 5]) * b[ 0];
-    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 4] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 0]) * b[ 6]
        + ((sp_int64)a[ 1]) * b[ 5]
        + ((sp_int64)a[ 2]) * b[ 4]
@@ -20114,7 +20114,7 @@ SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 4]) * b[ 2]
        + ((sp_int64)a[ 5]) * b[ 1]
        + ((sp_int64)a[ 6]) * b[ 0];
-    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 5] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_int64)a[ 0]) * b[ 7]
        + ((sp_int64)a[ 1]) * b[ 6]
        + ((sp_int64)a[ 2]) * b[ 5]
@@ -20123,7 +20123,7 @@ SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 5]) * b[ 2]
        + ((sp_int64)a[ 6]) * b[ 1]
        + ((sp_int64)a[ 7]) * b[ 0];
-    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 6] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 0]) * b[ 8]
        + ((sp_int64)a[ 1]) * b[ 7]
        + ((sp_int64)a[ 2]) * b[ 6]
@@ -20133,7 +20133,7 @@ SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 6]) * b[ 2]
        + ((sp_int64)a[ 7]) * b[ 1]
        + ((sp_int64)a[ 8]) * b[ 0];
-    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 7] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_int64)a[ 1]) * b[ 8]
        + ((sp_int64)a[ 2]) * b[ 7]
        + ((sp_int64)a[ 3]) * b[ 6]
@@ -20142,7 +20142,7 @@ SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 6]) * b[ 3]
        + ((sp_int64)a[ 7]) * b[ 2]
        + ((sp_int64)a[ 8]) * b[ 1];
-    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 8] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 2]) * b[ 8]
        + ((sp_int64)a[ 3]) * b[ 7]
        + ((sp_int64)a[ 4]) * b[ 6]
@@ -20150,35 +20150,35 @@ SP_NOINLINE static void sp_256_mul_9(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 6]) * b[ 4]
        + ((sp_int64)a[ 7]) * b[ 3]
        + ((sp_int64)a[ 8]) * b[ 2];
-    r[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[ 9] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_int64)a[ 3]) * b[ 8]
        + ((sp_int64)a[ 4]) * b[ 7]
        + ((sp_int64)a[ 5]) * b[ 6]
        + ((sp_int64)a[ 6]) * b[ 5]
        + ((sp_int64)a[ 7]) * b[ 4]
        + ((sp_int64)a[ 8]) * b[ 3];
-    r[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[10] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 4]) * b[ 8]
        + ((sp_int64)a[ 5]) * b[ 7]
        + ((sp_int64)a[ 6]) * b[ 6]
        + ((sp_int64)a[ 7]) * b[ 5]
        + ((sp_int64)a[ 8]) * b[ 4];
-    r[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[11] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_int64)a[ 5]) * b[ 8]
        + ((sp_int64)a[ 6]) * b[ 7]
        + ((sp_int64)a[ 7]) * b[ 6]
        + ((sp_int64)a[ 8]) * b[ 5];
-    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[12] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 6]) * b[ 8]
        + ((sp_int64)a[ 7]) * b[ 7]
        + ((sp_int64)a[ 8]) * b[ 6];
-    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[13] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = ((sp_int64)a[ 7]) * b[ 8]
        + ((sp_int64)a[ 8]) * b[ 7];
-    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[14] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = ((sp_int64)a[ 8]) * b[ 8];
-    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
-    r[16] = t0 & 0x1fffffff;
+    r[15] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
+    r[16] = (sp_digit)(t0 & 0x1fffffff);
     r[17] = (sp_digit)(t0 >> 29);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -20240,66 +20240,66 @@ SP_NOINLINE static void sp_256_sqr_9(sp_digit* r, const sp_digit* a)
 
     t0 =  ((sp_int64)a[ 0]) * a[ 0];
     t1 = (((sp_int64)a[ 0]) * a[ 1]) * 2;
-    t[ 0] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 0] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_int64)a[ 0]) * a[ 2]) * 2
        +  ((sp_int64)a[ 1]) * a[ 1];
-    t[ 1] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 1] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_int64)a[ 0]) * a[ 3]
        +  ((sp_int64)a[ 1]) * a[ 2]) * 2;
-    t[ 2] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 2] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_int64)a[ 0]) * a[ 4]
        +  ((sp_int64)a[ 1]) * a[ 3]) * 2
        +  ((sp_int64)a[ 2]) * a[ 2];
-    t[ 3] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 3] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_int64)a[ 0]) * a[ 5]
        +  ((sp_int64)a[ 1]) * a[ 4]
        +  ((sp_int64)a[ 2]) * a[ 3]) * 2;
-    t[ 4] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 4] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_int64)a[ 0]) * a[ 6]
        +  ((sp_int64)a[ 1]) * a[ 5]
        +  ((sp_int64)a[ 2]) * a[ 4]) * 2
        +  ((sp_int64)a[ 3]) * a[ 3];
-    t[ 5] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 5] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_int64)a[ 0]) * a[ 7]
        +  ((sp_int64)a[ 1]) * a[ 6]
        +  ((sp_int64)a[ 2]) * a[ 5]
        +  ((sp_int64)a[ 3]) * a[ 4]) * 2;
-    t[ 6] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 6] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_int64)a[ 0]) * a[ 8]
        +  ((sp_int64)a[ 1]) * a[ 7]
        +  ((sp_int64)a[ 2]) * a[ 6]
        +  ((sp_int64)a[ 3]) * a[ 5]) * 2
        +  ((sp_int64)a[ 4]) * a[ 4];
-    t[ 7] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    t[ 7] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_int64)a[ 1]) * a[ 8]
        +  ((sp_int64)a[ 2]) * a[ 7]
        +  ((sp_int64)a[ 3]) * a[ 6]
        +  ((sp_int64)a[ 4]) * a[ 5]) * 2;
-    t[ 8] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    t[ 8] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_int64)a[ 2]) * a[ 8]
        +  ((sp_int64)a[ 3]) * a[ 7]
        +  ((sp_int64)a[ 4]) * a[ 6]) * 2
        +  ((sp_int64)a[ 5]) * a[ 5];
-    r[ 9] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[ 9] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_int64)a[ 3]) * a[ 8]
        +  ((sp_int64)a[ 4]) * a[ 7]
        +  ((sp_int64)a[ 5]) * a[ 6]) * 2;
-    r[10] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[10] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_int64)a[ 4]) * a[ 8]
        +  ((sp_int64)a[ 5]) * a[ 7]) * 2
        +  ((sp_int64)a[ 6]) * a[ 6];
-    r[11] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[11] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_int64)a[ 5]) * a[ 8]
        +  ((sp_int64)a[ 6]) * a[ 7]) * 2;
-    r[12] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[12] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 = (((sp_int64)a[ 6]) * a[ 8]) * 2
        +  ((sp_int64)a[ 7]) * a[ 7];
-    r[13] = t1 & 0x1fffffff; t0 += t1 >> 29;
+    r[13] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
     t1 = (((sp_int64)a[ 7]) * a[ 8]) * 2;
-    r[14] = t0 & 0x1fffffff; t1 += t0 >> 29;
+    r[14] = (sp_digit)(t0 & 0x1fffffff); t1 += t0 >> 29;
     t0 =  ((sp_int64)a[ 8]) * a[ 8];
-    r[15] = t1 & 0x1fffffff; t0 += t1 >> 29;
-    r[16] = t0 & 0x1fffffff;
+    r[15] = (sp_digit)(t1 & 0x1fffffff); t0 += t1 >> 29;
+    r[16] = (sp_digit)(t0 & 0x1fffffff);
     r[17] = (sp_digit)(t0 >> 29);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -20679,17 +20679,17 @@ SP_NOINLINE static void sp_256_mul_add_9(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[0]  = t[3] >> 29;
     }
     t[0] += (tb * a[8]) + r[8];
-    r[8] = t[0] & 0x1fffffff;
+    r[8] = (sp_digit)(t[0] & 0x1fffffff);
     r[9] +=  (sp_digit)(t[0] >> 29);
 #else
     sp_int64 tb = b;
@@ -20706,25 +20706,25 @@ SP_NOINLINE static void sp_256_mul_add_9(sp_digit* r, const sp_digit* a,
         t[5]  = (tb * a[i+5]) + r[i+5];
         t[6]  = (tb * a[i+6]) + r[i+6];
         t[7]  = (tb * a[i+7]) + r[i+7];
-        r[i+0] = t[0] & 0x1fffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1fffffff);
         t[1] += t[0] >> 29;
-        r[i+1] = t[1] & 0x1fffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1fffffff);
         t[2] += t[1] >> 29;
-        r[i+2] = t[2] & 0x1fffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1fffffff);
         t[3] += t[2] >> 29;
-        r[i+3] = t[3] & 0x1fffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1fffffff);
         t[4] += t[3] >> 29;
-        r[i+4] = t[4] & 0x1fffffff;
+        r[i+4] = (sp_digit)(t[4] & 0x1fffffff);
         t[5] += t[4] >> 29;
-        r[i+5] = t[5] & 0x1fffffff;
+        r[i+5] = (sp_digit)(t[5] & 0x1fffffff);
         t[6] += t[5] >> 29;
-        r[i+6] = t[6] & 0x1fffffff;
+        r[i+6] = (sp_digit)(t[6] & 0x1fffffff);
         t[7] += t[6] >> 29;
-        r[i+7] = t[7] & 0x1fffffff;
+        r[i+7] = (sp_digit)(t[7] & 0x1fffffff);
         t[0]  = t[7] >> 29;
     }
     t[0] += (tb * a[8]) + r[8];
-    r[8] = t[0] & 0x1fffffff;
+    r[8] = (sp_digit)(t[0] & 0x1fffffff);
     r[9] +=  (sp_digit)(t[0] >> 29);
 #endif /* WOLFSSL_SP_SMALL */
 #endif /* !WOLFSSL_SP_LARGE_CODE */
@@ -20767,7 +20767,7 @@ static void sp_256_mont_shift_9(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[9]) << 5;
 
     for (i = 0; i < 8; i++) {
-        r[i] = n & 0x1fffffff;
+        r[i] = (sp_digit)(n & 0x1fffffff);
         n >>= 29;
         n += ((sp_int64)a[10 + i]) << 5;
     }
@@ -20775,14 +20775,14 @@ static void sp_256_mont_shift_9(sp_digit* r, const sp_digit* a)
 #else
     sp_int64 n = a[8] >> 24;
     n += ((sp_int64)a[9]) << 5;
-    r[ 0] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[10]) << 5;
-    r[ 1] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[11]) << 5;
-    r[ 2] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[12]) << 5;
-    r[ 3] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[13]) << 5;
-    r[ 4] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[14]) << 5;
-    r[ 5] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[15]) << 5;
-    r[ 6] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[16]) << 5;
-    r[ 7] = n & 0x1fffffff; n >>= 29; n += ((sp_int64)a[17]) << 5;
+    r[ 0] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[10]) << 5;
+    r[ 1] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[11]) << 5;
+    r[ 2] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[12]) << 5;
+    r[ 3] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[13]) << 5;
+    r[ 4] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[14]) << 5;
+    r[ 5] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[15]) << 5;
+    r[ 6] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[16]) << 5;
+    r[ 7] = (sp_digit)(n & 0x1fffffff); n >>= 29; n += ((sp_int64)a[17]) << 5;
     r[8] = (sp_digit)n;
 #endif /* WOLFSSL_SP_SMALL */
     XMEMSET(&r[9], 0, sizeof(*r) * 9U);
@@ -20803,11 +20803,11 @@ static void sp_256_mont_reduce_order_9(sp_digit* a, const sp_digit* m, sp_digit 
     sp_256_norm_9(a + 9);
 
     for (i=0; i<8; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffff);
         sp_256_mul_add_9(a+i, m, mu);
         a[i+1] += a[i] >> 29;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xffffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xffffffL);
     sp_256_mul_add_9(a+i, m, mu);
     a[i+1] += a[i] >> 29;
     a[i] &= 0x1fffffff;
@@ -20832,32 +20832,32 @@ static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
     (void)mp;
 
     for (i = 0; i < 8; i++) {
-        am = a[i] & 0x1fffffff;
-        a[i + 3] += (am << 9) & 0x1fffffff;
+        am = (sp_digit)(a[i] & 0x1fffffff);
+        a[i + 3] += (sp_digit)((am << 9) & 0x1fffffff);
         a[i + 4] += am >> 20;
-        a[i + 6] += (am << 18) & 0x1fffffff;
-        a[i + 7] += (am >> 11) - ((am << 21) & 0x1fffffff);
-        a[i + 8] += -(am >> 8) + ((am << 24) & 0x1fffffff);
+        a[i + 6] += (sp_digit)((am << 18) & 0x1fffffff);
+        a[i + 7] += (am >> 11) - (sp_digit)((am << 21) & 0x1fffffff);
+        a[i + 8] += -(am >> 8) + (sp_digit)((am << 24) & 0x1fffffff);
         a[i + 9] += am >> 5;
 
         a[i + 1] += a[i] >> 29;
     }
-    am = a[8] & 0xffffff;
-    a[8 + 3] += (am << 9) & 0x1fffffff;
+    am = (sp_digit)(a[8] & 0xffffff);
+    a[8 + 3] += (sp_digit)((am << 9) & 0x1fffffff);
     a[8 + 4] += am >> 20;
-    a[8 + 6] += (am << 18) & 0x1fffffff;
-    a[8 + 7] += (am >> 11) - ((am << 21) & 0x1fffffff);
-    a[8 + 8] += -(am >> 8) + ((am << 24) & 0x1fffffff);
+    a[8 + 6] += (sp_digit)((am << 18) & 0x1fffffff);
+    a[8 + 7] += (am >> 11) - (sp_digit)((am << 21) & 0x1fffffff);
+    a[8 + 8] += -(am >> 8) + (sp_digit)((am << 24) & 0x1fffffff);
     a[8 + 9] += am >> 5;
 
-    a[0] = (a[ 8] >> 24) + ((a[ 9] << 5) & 0x1fffffff);
-    a[1] = (a[ 9] >> 24) + ((a[10] << 5) & 0x1fffffff);
-    a[2] = (a[10] >> 24) + ((a[11] << 5) & 0x1fffffff);
-    a[3] = (a[11] >> 24) + ((a[12] << 5) & 0x1fffffff);
-    a[4] = (a[12] >> 24) + ((a[13] << 5) & 0x1fffffff);
-    a[5] = (a[13] >> 24) + ((a[14] << 5) & 0x1fffffff);
-    a[6] = (a[14] >> 24) + ((a[15] << 5) & 0x1fffffff);
-    a[7] = (a[15] >> 24) + ((a[16] << 5) & 0x1fffffff);
+    a[0] = (a[ 8] >> 24) + (sp_digit)((a[ 9] << 5) & 0x1fffffff);
+    a[1] = (a[ 9] >> 24) + (sp_digit)((a[10] << 5) & 0x1fffffff);
+    a[2] = (a[10] >> 24) + (sp_digit)((a[11] << 5) & 0x1fffffff);
+    a[3] = (a[11] >> 24) + (sp_digit)((a[12] << 5) & 0x1fffffff);
+    a[4] = (a[12] >> 24) + (sp_digit)((a[13] << 5) & 0x1fffffff);
+    a[5] = (a[13] >> 24) + (sp_digit)((a[14] << 5) & 0x1fffffff);
+    a[6] = (a[14] >> 24) + (sp_digit)((a[15] << 5) & 0x1fffffff);
+    a[7] = (a[15] >> 24) + (sp_digit)((a[16] << 5) & 0x1fffffff);
     a[8] = (a[16] >> 24) +  (a[17] << 5);
 
     a[1] += a[0] >> 29; a[0] &= 0x1fffffff;
@@ -20874,15 +20874,15 @@ static void sp_256_mont_reduce_9(sp_digit* a, const sp_digit* m, sp_digit mp)
     /* Create mask. */
     am = 0 - am;
 
-    a[0] -= 0x1fffffff & am;
-    a[1] -= 0x1fffffff & am;
-    a[2] -= 0x1fffffff & am;
-    a[3] -= 0x000001ff & am;
+    a[0] -= (sp_digit)(0x1fffffff & am);
+    a[1] -= (sp_digit)(0x1fffffff & am);
+    a[2] -= (sp_digit)(0x1fffffff & am);
+    a[3] -= (sp_digit)(0x000001ff & am);
     /* p256_mod[4] is zero */
     /* p256_mod[5] is zero */
-    a[6] -= 0x00040000 & am;
-    a[7] -= 0x1fe00000 & am;
-    a[8] -= 0x00ffffff & am;
+    a[6] -= (sp_digit)(0x00040000 & am);
+    a[7] -= (sp_digit)(0x1fe00000 & am);
+    a[8] -= (sp_digit)(0x00ffffff & am);
 
     a[1] += a[0] >> 29; a[0] &= 0x1fffffff;
     a[2] += a[1] >> 29; a[1] &= 0x1fffffff;
@@ -21187,17 +21187,17 @@ SP_NOINLINE static void sp_256_rshift1_9(sp_digit* r, const sp_digit* a)
     int i;
 
     for (i=0; i<8; i++) {
-        r[i] = (a[i] >> 1) + ((a[i + 1] << 28) & 0x1fffffff);
+        r[i] = (a[i] >> 1) + (sp_digit)((a[i + 1] << 28) & 0x1fffffff);
     }
 #else
-    r[0] = (a[0] >> 1) + ((a[1] << 28) & 0x1fffffff);
-    r[1] = (a[1] >> 1) + ((a[2] << 28) & 0x1fffffff);
-    r[2] = (a[2] >> 1) + ((a[3] << 28) & 0x1fffffff);
-    r[3] = (a[3] >> 1) + ((a[4] << 28) & 0x1fffffff);
-    r[4] = (a[4] >> 1) + ((a[5] << 28) & 0x1fffffff);
-    r[5] = (a[5] >> 1) + ((a[6] << 28) & 0x1fffffff);
-    r[6] = (a[6] >> 1) + ((a[7] << 28) & 0x1fffffff);
-    r[7] = (a[7] >> 1) + ((a[8] << 28) & 0x1fffffff);
+    r[0] = (a[0] >> 1) + (sp_digit)((a[1] << 28) & 0x1fffffff);
+    r[1] = (a[1] >> 1) + (sp_digit)((a[2] << 28) & 0x1fffffff);
+    r[2] = (a[2] >> 1) + (sp_digit)((a[3] << 28) & 0x1fffffff);
+    r[3] = (a[3] >> 1) + (sp_digit)((a[4] << 28) & 0x1fffffff);
+    r[4] = (a[4] >> 1) + (sp_digit)((a[5] << 28) & 0x1fffffff);
+    r[5] = (a[5] >> 1) + (sp_digit)((a[6] << 28) & 0x1fffffff);
+    r[6] = (a[6] >> 1) + (sp_digit)((a[7] << 28) & 0x1fffffff);
+    r[7] = (a[7] >> 1) + (sp_digit)((a[8] << 28) & 0x1fffffff);
 #endif
     r[8] = a[8] >> 1;
 }
@@ -25203,18 +25203,18 @@ SP_NOINLINE static void sp_256_rshift_9(sp_digit* r, const sp_digit* a,
 
 #ifdef WOLFSSL_SP_SMALL
     for (i=0; i<8; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (29 - n))) & 0x1fffffff);
     }
 #else
     for (i=0; i<8; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (29 - n)) & 0x1fffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (29 - n)) & 0x1fffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (29 - n)) & 0x1fffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (29 - n)) & 0x1fffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (29 - n)) & 0x1fffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (29 - n)) & 0x1fffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (29 - n)) & 0x1fffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (29 - n)) & 0x1fffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (29 - n)) & 0x1fffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (29 - n)) & 0x1fffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (29 - n)) & 0x1fffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (29 - n)) & 0x1fffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (29 - n)) & 0x1fffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (29 - n)) & 0x1fffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (29 - n)) & 0x1fffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (29 - n)) & 0x1fffffff);
     }
 #endif /* WOLFSSL_SP_SMALL */
     r[8] = a[8] >> n;
@@ -25274,7 +25274,7 @@ SP_NOINLINE static void sp_256_lshift_18(sp_digit* r, const sp_digit* a,
 
     r[18] = a[17] >> (29 - n);
     for (i=17; i>0; i--) {
-        r[i] = ((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff;
+        r[i] = (sp_digit)(((a[i] << n) | (a[i-1] >> (29 - n))) & 0x1fffffff);
     }
 #else
     sp_int_digit s;
@@ -25283,41 +25283,41 @@ SP_NOINLINE static void sp_256_lshift_18(sp_digit* r, const sp_digit* a,
     s = (sp_int_digit)a[17];
     r[18] = s >> (29U - n);
     s = (sp_int_digit)(a[17]); t = (sp_int_digit)(a[16]);
-    r[17] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[17] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[16]); t = (sp_int_digit)(a[15]);
-    r[16] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[16] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[15]); t = (sp_int_digit)(a[14]);
-    r[15] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[15] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[14]); t = (sp_int_digit)(a[13]);
-    r[14] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[14] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[13]); t = (sp_int_digit)(a[12]);
-    r[13] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[13] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[12]); t = (sp_int_digit)(a[11]);
-    r[12] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[12] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[11]); t = (sp_int_digit)(a[10]);
-    r[11] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[11] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[10]); t = (sp_int_digit)(a[9]);
-    r[10] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[10] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[9]); t = (sp_int_digit)(a[8]);
-    r[9] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[9] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[8]); t = (sp_int_digit)(a[7]);
-    r[8] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[8] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[7]); t = (sp_int_digit)(a[6]);
-    r[7] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[7] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[6]); t = (sp_int_digit)(a[5]);
-    r[6] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[6] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[5]); t = (sp_int_digit)(a[4]);
-    r[5] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[5] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[4]); t = (sp_int_digit)(a[3]);
-    r[4] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[4] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[3]); t = (sp_int_digit)(a[2]);
-    r[3] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[3] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[2]); t = (sp_int_digit)(a[1]);
-    r[2] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[2] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
     s = (sp_int_digit)(a[1]); t = (sp_int_digit)(a[0]);
-    r[1] = ((s << n) | (t >> (29U - n))) & 0x1fffffff;
+    r[1] = (sp_digit)(((s << n) | (t >> (29U - n))) & 0x1fffffff);
 #endif /* WOLFSSL_SP_SMALL */
-    r[0] = (a[0] << n) & 0x1fffffff;
+    r[0] = (sp_digit)((a[0] << n) & 0x1fffffff);
 }
 
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -27168,29 +27168,29 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
     t0 = ((sp_int64)a[ 0]) * b[ 0];
     t1 = ((sp_int64)a[ 0]) * b[ 1]
        + ((sp_int64)a[ 1]) * b[ 0];
-    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 0] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 0]) * b[ 2]
        + ((sp_int64)a[ 1]) * b[ 1]
        + ((sp_int64)a[ 2]) * b[ 0];
-    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 1] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 0]) * b[ 3]
        + ((sp_int64)a[ 1]) * b[ 2]
        + ((sp_int64)a[ 2]) * b[ 1]
        + ((sp_int64)a[ 3]) * b[ 0];
-    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 2] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 0]) * b[ 4]
        + ((sp_int64)a[ 1]) * b[ 3]
        + ((sp_int64)a[ 2]) * b[ 2]
        + ((sp_int64)a[ 3]) * b[ 1]
        + ((sp_int64)a[ 4]) * b[ 0];
-    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 3] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 0]) * b[ 5]
        + ((sp_int64)a[ 1]) * b[ 4]
        + ((sp_int64)a[ 2]) * b[ 3]
        + ((sp_int64)a[ 3]) * b[ 2]
        + ((sp_int64)a[ 4]) * b[ 1]
        + ((sp_int64)a[ 5]) * b[ 0];
-    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 4] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 0]) * b[ 6]
        + ((sp_int64)a[ 1]) * b[ 5]
        + ((sp_int64)a[ 2]) * b[ 4]
@@ -27198,7 +27198,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 4]) * b[ 2]
        + ((sp_int64)a[ 5]) * b[ 1]
        + ((sp_int64)a[ 6]) * b[ 0];
-    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 5] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 0]) * b[ 7]
        + ((sp_int64)a[ 1]) * b[ 6]
        + ((sp_int64)a[ 2]) * b[ 5]
@@ -27207,7 +27207,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 5]) * b[ 2]
        + ((sp_int64)a[ 6]) * b[ 1]
        + ((sp_int64)a[ 7]) * b[ 0];
-    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 6] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 0]) * b[ 8]
        + ((sp_int64)a[ 1]) * b[ 7]
        + ((sp_int64)a[ 2]) * b[ 6]
@@ -27217,7 +27217,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 6]) * b[ 2]
        + ((sp_int64)a[ 7]) * b[ 1]
        + ((sp_int64)a[ 8]) * b[ 0];
-    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 7] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 0]) * b[ 9]
        + ((sp_int64)a[ 1]) * b[ 8]
        + ((sp_int64)a[ 2]) * b[ 7]
@@ -27228,7 +27228,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 7]) * b[ 2]
        + ((sp_int64)a[ 8]) * b[ 1]
        + ((sp_int64)a[ 9]) * b[ 0];
-    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 8] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 0]) * b[10]
        + ((sp_int64)a[ 1]) * b[ 9]
        + ((sp_int64)a[ 2]) * b[ 8]
@@ -27240,7 +27240,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 8]) * b[ 2]
        + ((sp_int64)a[ 9]) * b[ 1]
        + ((sp_int64)a[10]) * b[ 0];
-    t[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 9] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 0]) * b[11]
        + ((sp_int64)a[ 1]) * b[10]
        + ((sp_int64)a[ 2]) * b[ 9]
@@ -27253,7 +27253,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[ 9]) * b[ 2]
        + ((sp_int64)a[10]) * b[ 1]
        + ((sp_int64)a[11]) * b[ 0];
-    t[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[10] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 0]) * b[12]
        + ((sp_int64)a[ 1]) * b[11]
        + ((sp_int64)a[ 2]) * b[10]
@@ -27267,7 +27267,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[10]) * b[ 2]
        + ((sp_int64)a[11]) * b[ 1]
        + ((sp_int64)a[12]) * b[ 0];
-    t[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[11] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 0]) * b[13]
        + ((sp_int64)a[ 1]) * b[12]
        + ((sp_int64)a[ 2]) * b[11]
@@ -27282,7 +27282,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[11]) * b[ 2]
        + ((sp_int64)a[12]) * b[ 1]
        + ((sp_int64)a[13]) * b[ 0];
-    t[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[12] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 0]) * b[14]
        + ((sp_int64)a[ 1]) * b[13]
        + ((sp_int64)a[ 2]) * b[12]
@@ -27298,7 +27298,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 2]
        + ((sp_int64)a[13]) * b[ 1]
        + ((sp_int64)a[14]) * b[ 0];
-    t[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[13] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 1]) * b[14]
        + ((sp_int64)a[ 2]) * b[13]
        + ((sp_int64)a[ 3]) * b[12]
@@ -27313,7 +27313,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 3]
        + ((sp_int64)a[13]) * b[ 2]
        + ((sp_int64)a[14]) * b[ 1];
-    t[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[14] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 2]) * b[14]
        + ((sp_int64)a[ 3]) * b[13]
        + ((sp_int64)a[ 4]) * b[12]
@@ -27327,7 +27327,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 4]
        + ((sp_int64)a[13]) * b[ 3]
        + ((sp_int64)a[14]) * b[ 2];
-    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[15] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 3]) * b[14]
        + ((sp_int64)a[ 4]) * b[13]
        + ((sp_int64)a[ 5]) * b[12]
@@ -27340,7 +27340,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 5]
        + ((sp_int64)a[13]) * b[ 4]
        + ((sp_int64)a[14]) * b[ 3];
-    r[16] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[16] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 4]) * b[14]
        + ((sp_int64)a[ 5]) * b[13]
        + ((sp_int64)a[ 6]) * b[12]
@@ -27352,7 +27352,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 6]
        + ((sp_int64)a[13]) * b[ 5]
        + ((sp_int64)a[14]) * b[ 4];
-    r[17] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[17] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 5]) * b[14]
        + ((sp_int64)a[ 6]) * b[13]
        + ((sp_int64)a[ 7]) * b[12]
@@ -27363,7 +27363,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 7]
        + ((sp_int64)a[13]) * b[ 6]
        + ((sp_int64)a[14]) * b[ 5];
-    r[18] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[18] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 6]) * b[14]
        + ((sp_int64)a[ 7]) * b[13]
        + ((sp_int64)a[ 8]) * b[12]
@@ -27373,7 +27373,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 8]
        + ((sp_int64)a[13]) * b[ 7]
        + ((sp_int64)a[14]) * b[ 6];
-    r[19] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[19] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 7]) * b[14]
        + ((sp_int64)a[ 8]) * b[13]
        + ((sp_int64)a[ 9]) * b[12]
@@ -27382,7 +27382,7 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[ 9]
        + ((sp_int64)a[13]) * b[ 8]
        + ((sp_int64)a[14]) * b[ 7];
-    r[20] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[20] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[ 8]) * b[14]
        + ((sp_int64)a[ 9]) * b[13]
        + ((sp_int64)a[10]) * b[12]
@@ -27390,35 +27390,35 @@ SP_NOINLINE static void sp_384_mul_15(sp_digit* r, const sp_digit* a,
        + ((sp_int64)a[12]) * b[10]
        + ((sp_int64)a[13]) * b[ 9]
        + ((sp_int64)a[14]) * b[ 8];
-    r[21] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[21] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[ 9]) * b[14]
        + ((sp_int64)a[10]) * b[13]
        + ((sp_int64)a[11]) * b[12]
        + ((sp_int64)a[12]) * b[11]
        + ((sp_int64)a[13]) * b[10]
        + ((sp_int64)a[14]) * b[ 9];
-    r[22] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[22] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[10]) * b[14]
        + ((sp_int64)a[11]) * b[13]
        + ((sp_int64)a[12]) * b[12]
        + ((sp_int64)a[13]) * b[11]
        + ((sp_int64)a[14]) * b[10];
-    r[23] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[23] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[11]) * b[14]
        + ((sp_int64)a[12]) * b[13]
        + ((sp_int64)a[13]) * b[12]
        + ((sp_int64)a[14]) * b[11];
-    r[24] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[24] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[12]) * b[14]
        + ((sp_int64)a[13]) * b[13]
        + ((sp_int64)a[14]) * b[12];
-    r[25] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[25] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = ((sp_int64)a[13]) * b[14]
        + ((sp_int64)a[14]) * b[13];
-    r[26] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[26] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = ((sp_int64)a[14]) * b[14];
-    r[27] = t1 & 0x3ffffff; t0 += t1 >> 26;
-    r[28] = t0 & 0x3ffffff;
+    r[27] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
+    r[28] = (sp_digit)(t0 & 0x3ffffff);
     r[29] = (sp_digit)(t0 >> 26);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -27480,57 +27480,57 @@ SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
 
     t0 =  ((sp_int64)a[ 0]) * a[ 0];
     t1 = (((sp_int64)a[ 0]) * a[ 1]) * 2;
-    t[ 0] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 0] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 0]) * a[ 2]) * 2
        +  ((sp_int64)a[ 1]) * a[ 1];
-    t[ 1] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 1] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 0]) * a[ 3]
        +  ((sp_int64)a[ 1]) * a[ 2]) * 2;
-    t[ 2] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 2] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 0]) * a[ 4]
        +  ((sp_int64)a[ 1]) * a[ 3]) * 2
        +  ((sp_int64)a[ 2]) * a[ 2];
-    t[ 3] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 3] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 0]) * a[ 5]
        +  ((sp_int64)a[ 1]) * a[ 4]
        +  ((sp_int64)a[ 2]) * a[ 3]) * 2;
-    t[ 4] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 4] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 0]) * a[ 6]
        +  ((sp_int64)a[ 1]) * a[ 5]
        +  ((sp_int64)a[ 2]) * a[ 4]) * 2
        +  ((sp_int64)a[ 3]) * a[ 3];
-    t[ 5] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 5] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 0]) * a[ 7]
        +  ((sp_int64)a[ 1]) * a[ 6]
        +  ((sp_int64)a[ 2]) * a[ 5]
        +  ((sp_int64)a[ 3]) * a[ 4]) * 2;
-    t[ 6] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 6] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 0]) * a[ 8]
        +  ((sp_int64)a[ 1]) * a[ 7]
        +  ((sp_int64)a[ 2]) * a[ 6]
        +  ((sp_int64)a[ 3]) * a[ 5]) * 2
        +  ((sp_int64)a[ 4]) * a[ 4];
-    t[ 7] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 7] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 0]) * a[ 9]
        +  ((sp_int64)a[ 1]) * a[ 8]
        +  ((sp_int64)a[ 2]) * a[ 7]
        +  ((sp_int64)a[ 3]) * a[ 6]
        +  ((sp_int64)a[ 4]) * a[ 5]) * 2;
-    t[ 8] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[ 8] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 0]) * a[10]
        +  ((sp_int64)a[ 1]) * a[ 9]
        +  ((sp_int64)a[ 2]) * a[ 8]
        +  ((sp_int64)a[ 3]) * a[ 7]
        +  ((sp_int64)a[ 4]) * a[ 6]) * 2
        +  ((sp_int64)a[ 5]) * a[ 5];
-    t[ 9] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[ 9] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 0]) * a[11]
        +  ((sp_int64)a[ 1]) * a[10]
        +  ((sp_int64)a[ 2]) * a[ 9]
        +  ((sp_int64)a[ 3]) * a[ 8]
        +  ((sp_int64)a[ 4]) * a[ 7]
        +  ((sp_int64)a[ 5]) * a[ 6]) * 2;
-    t[10] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[10] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 0]) * a[12]
        +  ((sp_int64)a[ 1]) * a[11]
        +  ((sp_int64)a[ 2]) * a[10]
@@ -27538,7 +27538,7 @@ SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
        +  ((sp_int64)a[ 4]) * a[ 8]
        +  ((sp_int64)a[ 5]) * a[ 7]) * 2
        +  ((sp_int64)a[ 6]) * a[ 6];
-    t[11] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[11] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 0]) * a[13]
        +  ((sp_int64)a[ 1]) * a[12]
        +  ((sp_int64)a[ 2]) * a[11]
@@ -27546,7 +27546,7 @@ SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
        +  ((sp_int64)a[ 4]) * a[ 9]
        +  ((sp_int64)a[ 5]) * a[ 8]
        +  ((sp_int64)a[ 6]) * a[ 7]) * 2;
-    t[12] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[12] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 0]) * a[14]
        +  ((sp_int64)a[ 1]) * a[13]
        +  ((sp_int64)a[ 2]) * a[12]
@@ -27555,7 +27555,7 @@ SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
        +  ((sp_int64)a[ 5]) * a[ 9]
        +  ((sp_int64)a[ 6]) * a[ 8]) * 2
        +  ((sp_int64)a[ 7]) * a[ 7];
-    t[13] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    t[13] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 1]) * a[14]
        +  ((sp_int64)a[ 2]) * a[13]
        +  ((sp_int64)a[ 3]) * a[12]
@@ -27563,7 +27563,7 @@ SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
        +  ((sp_int64)a[ 5]) * a[10]
        +  ((sp_int64)a[ 6]) * a[ 9]
        +  ((sp_int64)a[ 7]) * a[ 8]) * 2;
-    t[14] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    t[14] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 2]) * a[14]
        +  ((sp_int64)a[ 3]) * a[13]
        +  ((sp_int64)a[ 4]) * a[12]
@@ -27571,62 +27571,62 @@ SP_NOINLINE static void sp_384_sqr_15(sp_digit* r, const sp_digit* a)
        +  ((sp_int64)a[ 6]) * a[10]
        +  ((sp_int64)a[ 7]) * a[ 9]) * 2
        +  ((sp_int64)a[ 8]) * a[ 8];
-    r[15] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[15] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 3]) * a[14]
        +  ((sp_int64)a[ 4]) * a[13]
        +  ((sp_int64)a[ 5]) * a[12]
        +  ((sp_int64)a[ 6]) * a[11]
        +  ((sp_int64)a[ 7]) * a[10]
        +  ((sp_int64)a[ 8]) * a[ 9]) * 2;
-    r[16] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[16] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 4]) * a[14]
        +  ((sp_int64)a[ 5]) * a[13]
        +  ((sp_int64)a[ 6]) * a[12]
        +  ((sp_int64)a[ 7]) * a[11]
        +  ((sp_int64)a[ 8]) * a[10]) * 2
        +  ((sp_int64)a[ 9]) * a[ 9];
-    r[17] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[17] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 5]) * a[14]
        +  ((sp_int64)a[ 6]) * a[13]
        +  ((sp_int64)a[ 7]) * a[12]
        +  ((sp_int64)a[ 8]) * a[11]
        +  ((sp_int64)a[ 9]) * a[10]) * 2;
-    r[18] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[18] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 6]) * a[14]
        +  ((sp_int64)a[ 7]) * a[13]
        +  ((sp_int64)a[ 8]) * a[12]
        +  ((sp_int64)a[ 9]) * a[11]) * 2
        +  ((sp_int64)a[10]) * a[10];
-    r[19] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[19] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 7]) * a[14]
        +  ((sp_int64)a[ 8]) * a[13]
        +  ((sp_int64)a[ 9]) * a[12]
        +  ((sp_int64)a[10]) * a[11]) * 2;
-    r[20] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[20] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[ 8]) * a[14]
        +  ((sp_int64)a[ 9]) * a[13]
        +  ((sp_int64)a[10]) * a[12]) * 2
        +  ((sp_int64)a[11]) * a[11];
-    r[21] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[21] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[ 9]) * a[14]
        +  ((sp_int64)a[10]) * a[13]
        +  ((sp_int64)a[11]) * a[12]) * 2;
-    r[22] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[22] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[10]) * a[14]
        +  ((sp_int64)a[11]) * a[13]) * 2
        +  ((sp_int64)a[12]) * a[12];
-    r[23] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[23] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[11]) * a[14]
        +  ((sp_int64)a[12]) * a[13]) * 2;
-    r[24] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[24] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 = (((sp_int64)a[12]) * a[14]) * 2
        +  ((sp_int64)a[13]) * a[13];
-    r[25] = t1 & 0x3ffffff; t0 += t1 >> 26;
+    r[25] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
     t1 = (((sp_int64)a[13]) * a[14]) * 2;
-    r[26] = t0 & 0x3ffffff; t1 += t0 >> 26;
+    r[26] = (sp_digit)(t0 & 0x3ffffff); t1 += t0 >> 26;
     t0 =  ((sp_int64)a[14]) * a[14];
-    r[27] = t1 & 0x3ffffff; t0 += t1 >> 26;
-    r[28] = t0 & 0x3ffffff;
+    r[27] = (sp_digit)(t1 & 0x3ffffff); t0 += t1 >> 26;
+    r[28] = (sp_digit)(t0 & 0x3ffffff);
     r[29] = (sp_digit)(t0 >> 26);
     XMEMCPY(r, t, sizeof(t));
 }
@@ -28017,23 +28017,23 @@ SP_NOINLINE static void sp_384_mul_add_15(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x3ffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x3ffffff);
         t[1] += t[0] >> 26;
-        r[i+1] = t[1] & 0x3ffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x3ffffff);
         t[2] += t[1] >> 26;
-        r[i+2] = t[2] & 0x3ffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x3ffffff);
         t[3] += t[2] >> 26;
-        r[i+3] = t[3] & 0x3ffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x3ffffff);
         t[0]  = t[3] >> 26;
     }
     t[0] += (tb * a[12]) + r[12];
     t[1]  = (tb * a[13]) + r[13];
     t[2]  = (tb * a[14]) + r[14];
-    r[12] = t[0] & 0x3ffffff;
+    r[12] = (sp_digit)(t[0] & 0x3ffffff);
     t[1] += t[0] >> 26;
-    r[13] = t[1] & 0x3ffffff;
+    r[13] = (sp_digit)(t[1] & 0x3ffffff);
     t[2] += t[1] >> 26;
-    r[14] = t[2] & 0x3ffffff;
+    r[14] = (sp_digit)(t[2] & 0x3ffffff);
     r[15] +=  (sp_digit)(t[2] >> 26);
 #else
     sp_int64 tb = b;
@@ -28116,7 +28116,7 @@ static void sp_384_mont_shift_15(sp_digit* r, const sp_digit* a)
     n += ((sp_int64)a[15]) << 6;
 
     for (i = 0; i < 14; i++) {
-        r[i] = n & 0x3ffffff;
+        r[i] = (sp_digit)(n & 0x3ffffff);
         n >>= 26;
         n += ((sp_int64)a[16 + i]) << 6;
     }
@@ -28124,20 +28124,20 @@ static void sp_384_mont_shift_15(sp_digit* r, const sp_digit* a)
 #else
     sp_int64 n = a[14] >> 20;
     n += ((sp_int64)a[15]) << 6;
-    r[ 0] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[16]) << 6;
-    r[ 1] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[17]) << 6;
-    r[ 2] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[18]) << 6;
-    r[ 3] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[19]) << 6;
-    r[ 4] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[20]) << 6;
-    r[ 5] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[21]) << 6;
-    r[ 6] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[22]) << 6;
-    r[ 7] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[23]) << 6;
-    r[ 8] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[24]) << 6;
-    r[ 9] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[25]) << 6;
-    r[10] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[26]) << 6;
-    r[11] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[27]) << 6;
-    r[12] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[28]) << 6;
-    r[13] = n & 0x3ffffff; n >>= 26; n += ((sp_int64)a[29]) << 6;
+    r[ 0] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[16]) << 6;
+    r[ 1] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[17]) << 6;
+    r[ 2] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[18]) << 6;
+    r[ 3] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[19]) << 6;
+    r[ 4] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[20]) << 6;
+    r[ 5] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[21]) << 6;
+    r[ 6] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[22]) << 6;
+    r[ 7] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[23]) << 6;
+    r[ 8] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[24]) << 6;
+    r[ 9] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[25]) << 6;
+    r[10] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[26]) << 6;
+    r[11] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[27]) << 6;
+    r[12] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[28]) << 6;
+    r[13] = (sp_digit)(n & 0x3ffffff); n >>= 26; n += ((sp_int64)a[29]) << 6;
     r[14] = (sp_digit)n;
 #endif /* WOLFSSL_SP_SMALL */
     XMEMSET(&r[15], 0, sizeof(*r) * 15U);
@@ -28158,11 +28158,11 @@ static void sp_384_mont_reduce_order_15(sp_digit* a, const sp_digit* m, sp_digit
     sp_384_norm_15(a + 15);
 
     for (i=0; i<14; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x3ffffff);
         sp_384_mul_add_15(a+i, m, mu);
         a[i+1] += a[i] >> 26;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0xfffffL);
     sp_384_mul_add_15(a+i, m, mu);
     a[i+1] += a[i] >> 26;
     a[i] &= 0x3ffffff;
@@ -28187,42 +28187,42 @@ static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
     (void)mp;
 
     for (i = 0; i < 14; i++) {
-        am = (a[i] * 0x1) & 0x3ffffff;
-        a[i +  1] += (am << 6) & 0x3ffffff;
+        am = (sp_digit)((a[i] * 0x1) & 0x3ffffff);
+        a[i +  1] += (sp_digit)((am << 6) & 0x3ffffff);
         a[i +  2] += am >> 20;
-        a[i +  3] -= (am << 18) & 0x3ffffff;
+        a[i +  3] -= (sp_digit)((am << 18) & 0x3ffffff);
         a[i +  4] -= am >> 8;
-        a[i +  4] -= (am << 24) & 0x3ffffff;
+        a[i +  4] -= (sp_digit)((am << 24) & 0x3ffffff);
         a[i +  5] -= am >> 2;
-        a[i + 14] += (am << 20) & 0x3ffffff;
+        a[i + 14] += (sp_digit)((am << 20) & 0x3ffffff);
         a[i + 15] += am >> 6;
 
         a[i +  1] += a[i] >> 26;
     }
-    am = (a[14] * 0x1) & 0xfffff;
-    a[14 +  1] += (am << 6) & 0x3ffffff;
+    am = (sp_digit)((a[14] * 0x1) & 0xfffff);
+    a[14 +  1] += (sp_digit)((am << 6) & 0x3ffffff);
     a[14 +  2] += am >> 20;
-    a[14 +  3] -= (am << 18) & 0x3ffffff;
+    a[14 +  3] -= (sp_digit)((am << 18) & 0x3ffffff);
     a[14 +  4] -= am >> 8;
-    a[14 +  4] -= (am << 24) & 0x3ffffff;
+    a[14 +  4] -= (sp_digit)((am << 24) & 0x3ffffff);
     a[14 +  5] -= am >> 2;
-    a[14 + 14] += (am << 20) & 0x3ffffff;
+    a[14 + 14] += (sp_digit)((am << 20) & 0x3ffffff);
     a[14 + 15] += am >> 6;
 
-    a[0] = (a[14] >> 20) + ((a[15] << 6) & 0x3ffffff);
-    a[1] = (a[15] >> 20) + ((a[16] << 6) & 0x3ffffff);
-    a[2] = (a[16] >> 20) + ((a[17] << 6) & 0x3ffffff);
-    a[3] = (a[17] >> 20) + ((a[18] << 6) & 0x3ffffff);
-    a[4] = (a[18] >> 20) + ((a[19] << 6) & 0x3ffffff);
-    a[5] = (a[19] >> 20) + ((a[20] << 6) & 0x3ffffff);
-    a[6] = (a[20] >> 20) + ((a[21] << 6) & 0x3ffffff);
-    a[7] = (a[21] >> 20) + ((a[22] << 6) & 0x3ffffff);
-    a[8] = (a[22] >> 20) + ((a[23] << 6) & 0x3ffffff);
-    a[9] = (a[23] >> 20) + ((a[24] << 6) & 0x3ffffff);
-    a[10] = (a[24] >> 20) + ((a[25] << 6) & 0x3ffffff);
-    a[11] = (a[25] >> 20) + ((a[26] << 6) & 0x3ffffff);
-    a[12] = (a[26] >> 20) + ((a[27] << 6) & 0x3ffffff);
-    a[13] = (a[27] >> 20) + ((a[28] << 6) & 0x3ffffff);
+    a[0] = (a[14] >> 20) + (sp_digit)((a[15] << 6) & 0x3ffffff);
+    a[1] = (a[15] >> 20) + (sp_digit)((a[16] << 6) & 0x3ffffff);
+    a[2] = (a[16] >> 20) + (sp_digit)((a[17] << 6) & 0x3ffffff);
+    a[3] = (a[17] >> 20) + (sp_digit)((a[18] << 6) & 0x3ffffff);
+    a[4] = (a[18] >> 20) + (sp_digit)((a[19] << 6) & 0x3ffffff);
+    a[5] = (a[19] >> 20) + (sp_digit)((a[20] << 6) & 0x3ffffff);
+    a[6] = (a[20] >> 20) + (sp_digit)((a[21] << 6) & 0x3ffffff);
+    a[7] = (a[21] >> 20) + (sp_digit)((a[22] << 6) & 0x3ffffff);
+    a[8] = (a[22] >> 20) + (sp_digit)((a[23] << 6) & 0x3ffffff);
+    a[9] = (a[23] >> 20) + (sp_digit)((a[24] << 6) & 0x3ffffff);
+    a[10] = (a[24] >> 20) + (sp_digit)((a[25] << 6) & 0x3ffffff);
+    a[11] = (a[25] >> 20) + (sp_digit)((a[26] << 6) & 0x3ffffff);
+    a[12] = (a[26] >> 20) + (sp_digit)((a[27] << 6) & 0x3ffffff);
+    a[13] = (a[27] >> 20) + (sp_digit)((a[28] << 6) & 0x3ffffff);
     a[14] = (a[14 + 14] >> 20) +  (a[29] << 6);
 
     a[1] += a[0] >> 26; a[0] &= 0x3ffffff;
@@ -28245,21 +28245,21 @@ static void sp_384_mont_reduce_15(sp_digit* a, const sp_digit* m, sp_digit mp)
     /* Create mask. */
     am = 0 - am;
 
-    a[0] -= 0x03ffffff & am;
-    a[1] -= 0x0000003f & am;
+    a[0] -= (sp_digit)(0x03ffffff & am);
+    a[1] -= (sp_digit)(0x0000003f & am);
     /* p384_mod[2] is zero */
-    a[3] -= 0x03fc0000 & am;
-    a[4] -= 0x02ffffff & am;
-    a[5] -= 0x03ffffff & am;
-    a[6] -= 0x03ffffff & am;
-    a[7] -= 0x03ffffff & am;
-    a[8] -= 0x03ffffff & am;
-    a[9] -= 0x03ffffff & am;
-    a[10] -= 0x03ffffff & am;
-    a[11] -= 0x03ffffff & am;
-    a[12] -= 0x03ffffff & am;
-    a[13] -= 0x03ffffff & am;
-    a[14] -= 0x000fffff & am;
+    a[3] -= (sp_digit)(0x03fc0000 & am);
+    a[4] -= (sp_digit)(0x02ffffff & am);
+    a[5] -= (sp_digit)(0x03ffffff & am);
+    a[6] -= (sp_digit)(0x03ffffff & am);
+    a[7] -= (sp_digit)(0x03ffffff & am);
+    a[8] -= (sp_digit)(0x03ffffff & am);
+    a[9] -= (sp_digit)(0x03ffffff & am);
+    a[10] -= (sp_digit)(0x03ffffff & am);
+    a[11] -= (sp_digit)(0x03ffffff & am);
+    a[12] -= (sp_digit)(0x03ffffff & am);
+    a[13] -= (sp_digit)(0x03ffffff & am);
+    a[14] -= (sp_digit)(0x000fffff & am);
 
     a[1] += a[0] >> 26; a[0] &= 0x3ffffff;
     a[2] += a[1] >> 26; a[1] &= 0x3ffffff;
@@ -28592,23 +28592,23 @@ SP_NOINLINE static void sp_384_rshift1_15(sp_digit* r, const sp_digit* a)
     int i;
 
     for (i=0; i<14; i++) {
-        r[i] = (a[i] >> 1) + ((a[i + 1] << 25) & 0x3ffffff);
+        r[i] = (a[i] >> 1) + (sp_digit)((a[i + 1] << 25) & 0x3ffffff);
     }
 #else
-    r[0] = (a[0] >> 1) + ((a[1] << 25) & 0x3ffffff);
-    r[1] = (a[1] >> 1) + ((a[2] << 25) & 0x3ffffff);
-    r[2] = (a[2] >> 1) + ((a[3] << 25) & 0x3ffffff);
-    r[3] = (a[3] >> 1) + ((a[4] << 25) & 0x3ffffff);
-    r[4] = (a[4] >> 1) + ((a[5] << 25) & 0x3ffffff);
-    r[5] = (a[5] >> 1) + ((a[6] << 25) & 0x3ffffff);
-    r[6] = (a[6] >> 1) + ((a[7] << 25) & 0x3ffffff);
-    r[7] = (a[7] >> 1) + ((a[8] << 25) & 0x3ffffff);
-    r[8] = (a[8] >> 1) + ((a[9] << 25) & 0x3ffffff);
-    r[9] = (a[9] >> 1) + ((a[10] << 25) & 0x3ffffff);
-    r[10] = (a[10] >> 1) + ((a[11] << 25) & 0x3ffffff);
-    r[11] = (a[11] >> 1) + ((a[12] << 25) & 0x3ffffff);
-    r[12] = (a[12] >> 1) + ((a[13] << 25) & 0x3ffffff);
-    r[13] = (a[13] >> 1) + ((a[14] << 25) & 0x3ffffff);
+    r[0] = (a[0] >> 1) + (sp_digit)((a[1] << 25) & 0x3ffffff);
+    r[1] = (a[1] >> 1) + (sp_digit)((a[2] << 25) & 0x3ffffff);
+    r[2] = (a[2] >> 1) + (sp_digit)((a[3] << 25) & 0x3ffffff);
+    r[3] = (a[3] >> 1) + (sp_digit)((a[4] << 25) & 0x3ffffff);
+    r[4] = (a[4] >> 1) + (sp_digit)((a[5] << 25) & 0x3ffffff);
+    r[5] = (a[5] >> 1) + (sp_digit)((a[6] << 25) & 0x3ffffff);
+    r[6] = (a[6] >> 1) + (sp_digit)((a[7] << 25) & 0x3ffffff);
+    r[7] = (a[7] >> 1) + (sp_digit)((a[8] << 25) & 0x3ffffff);
+    r[8] = (a[8] >> 1) + (sp_digit)((a[9] << 25) & 0x3ffffff);
+    r[9] = (a[9] >> 1) + (sp_digit)((a[10] << 25) & 0x3ffffff);
+    r[10] = (a[10] >> 1) + (sp_digit)((a[11] << 25) & 0x3ffffff);
+    r[11] = (a[11] >> 1) + (sp_digit)((a[12] << 25) & 0x3ffffff);
+    r[12] = (a[12] >> 1) + (sp_digit)((a[13] << 25) & 0x3ffffff);
+    r[13] = (a[13] >> 1) + (sp_digit)((a[14] << 25) & 0x3ffffff);
 #endif
     r[14] = a[14] >> 1;
 }
@@ -33244,25 +33244,25 @@ SP_NOINLINE static void sp_384_rshift_15(sp_digit* r, const sp_digit* a,
 
 #ifdef WOLFSSL_SP_SMALL
     for (i=0; i<14; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (26 - n))) & 0x3ffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (26 - n))) & 0x3ffffff);
     }
 #else
     for (i=0; i<8; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (26 - n)) & 0x3ffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (26 - n)) & 0x3ffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (26 - n)) & 0x3ffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (26 - n)) & 0x3ffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (26 - n)) & 0x3ffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (26 - n)) & 0x3ffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (26 - n)) & 0x3ffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (26 - n)) & 0x3ffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (26 - n)) & 0x3ffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (26 - n)) & 0x3ffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (26 - n)) & 0x3ffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (26 - n)) & 0x3ffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (26 - n)) & 0x3ffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (26 - n)) & 0x3ffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (26 - n)) & 0x3ffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (26 - n)) & 0x3ffffff);
     }
-    r[8] = (a[8] >> n) | ((a[9] << (26 - n)) & 0x3ffffff);
-    r[9] = (a[9] >> n) | ((a[10] << (26 - n)) & 0x3ffffff);
-    r[10] = (a[10] >> n) | ((a[11] << (26 - n)) & 0x3ffffff);
-    r[11] = (a[11] >> n) | ((a[12] << (26 - n)) & 0x3ffffff);
-    r[12] = (a[12] >> n) | ((a[13] << (26 - n)) & 0x3ffffff);
-    r[13] = (a[13] >> n) | ((a[14] << (26 - n)) & 0x3ffffff);
+    r[8] = (a[8] >> n) | (sp_digit)((a[9] << (26 - n)) & 0x3ffffff);
+    r[9] = (a[9] >> n) | (sp_digit)((a[10] << (26 - n)) & 0x3ffffff);
+    r[10] = (a[10] >> n) | (sp_digit)((a[11] << (26 - n)) & 0x3ffffff);
+    r[11] = (a[11] >> n) | (sp_digit)((a[12] << (26 - n)) & 0x3ffffff);
+    r[12] = (a[12] >> n) | (sp_digit)((a[13] << (26 - n)) & 0x3ffffff);
+    r[13] = (a[13] >> n) | (sp_digit)((a[14] << (26 - n)) & 0x3ffffff);
 #endif /* WOLFSSL_SP_SMALL */
     r[14] = a[14] >> n;
 }
@@ -33333,7 +33333,7 @@ SP_NOINLINE static void sp_384_lshift_30(sp_digit* r, const sp_digit* a,
 
     r[30] = a[29] >> (26 - n);
     for (i=29; i>0; i--) {
-        r[i] = ((a[i] << n) | (a[i-1] >> (26 - n))) & 0x3ffffff;
+        r[i] = (sp_digit)(((a[i] << n) | (a[i-1] >> (26 - n))) & 0x3ffffff);
     }
 #else
     sp_int_digit s;
@@ -33342,65 +33342,65 @@ SP_NOINLINE static void sp_384_lshift_30(sp_digit* r, const sp_digit* a,
     s = (sp_int_digit)a[29];
     r[30] = s >> (26U - n);
     s = (sp_int_digit)(a[29]); t = (sp_int_digit)(a[28]);
-    r[29] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[29] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[28]); t = (sp_int_digit)(a[27]);
-    r[28] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[28] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[27]); t = (sp_int_digit)(a[26]);
-    r[27] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[27] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[26]); t = (sp_int_digit)(a[25]);
-    r[26] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[26] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[25]); t = (sp_int_digit)(a[24]);
-    r[25] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[25] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[24]); t = (sp_int_digit)(a[23]);
-    r[24] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[24] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[23]); t = (sp_int_digit)(a[22]);
-    r[23] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[23] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[22]); t = (sp_int_digit)(a[21]);
-    r[22] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[22] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[21]); t = (sp_int_digit)(a[20]);
-    r[21] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[21] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[20]); t = (sp_int_digit)(a[19]);
-    r[20] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[20] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[19]); t = (sp_int_digit)(a[18]);
-    r[19] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[19] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[18]); t = (sp_int_digit)(a[17]);
-    r[18] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[18] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[17]); t = (sp_int_digit)(a[16]);
-    r[17] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[17] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[16]); t = (sp_int_digit)(a[15]);
-    r[16] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[16] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[15]); t = (sp_int_digit)(a[14]);
-    r[15] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[15] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[14]); t = (sp_int_digit)(a[13]);
-    r[14] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[14] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[13]); t = (sp_int_digit)(a[12]);
-    r[13] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[13] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[12]); t = (sp_int_digit)(a[11]);
-    r[12] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[12] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[11]); t = (sp_int_digit)(a[10]);
-    r[11] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[11] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[10]); t = (sp_int_digit)(a[9]);
-    r[10] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[10] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[9]); t = (sp_int_digit)(a[8]);
-    r[9] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[9] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[8]); t = (sp_int_digit)(a[7]);
-    r[8] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[8] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[7]); t = (sp_int_digit)(a[6]);
-    r[7] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[7] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[6]); t = (sp_int_digit)(a[5]);
-    r[6] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[6] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[5]); t = (sp_int_digit)(a[4]);
-    r[5] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[5] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[4]); t = (sp_int_digit)(a[3]);
-    r[4] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[4] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[3]); t = (sp_int_digit)(a[2]);
-    r[3] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[3] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[2]); t = (sp_int_digit)(a[1]);
-    r[2] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[2] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
     s = (sp_int_digit)(a[1]); t = (sp_int_digit)(a[0]);
-    r[1] = ((s << n) | (t >> (26U - n))) & 0x3ffffff;
+    r[1] = (sp_digit)(((s << n) | (t >> (26U - n))) & 0x3ffffff);
 #endif /* WOLFSSL_SP_SMALL */
-    r[0] = (a[0] << n) & 0x3ffffff;
+    r[0] = (sp_digit)((a[0] << n) & 0x3ffffff);
 }
 
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -35264,7 +35264,7 @@ SP_NOINLINE static void sp_521_mul_21(sp_digit* r, const sp_digit* a,
         }
     }
     for (i=0; i<41; i++) {
-        r[i] = t[i] & 0x1ffffff;
+        r[i] = (sp_digit)(t[i] & 0x1ffffff);
         t[i+1] += t[i] >> 25;
     }
     r[41] = (sp_digit)t[41];
@@ -35333,7 +35333,7 @@ SP_NOINLINE static void sp_521_sqr_21(sp_digit* r, const sp_digit* a)
         t[i+i] += ((sp_int64)a[i]) * a[i];
     }
     for (i=0; i<41; i++) {
-        r[i] = t[i] & 0x1ffffff;
+        r[i] = (sp_digit)(t[i] & 0x1ffffff);
         t[i+1] += t[i] >> 25;
     }
     r[41] = (sp_digit)t[41];
@@ -35681,10 +35681,10 @@ static void sp_521_mont_reduce_21(sp_digit* a, const sp_digit* m, sp_digit mp)
     (void)mp;
 
     for (i = 0; i < 20; i++) {
-        a[i] += ((a[20 + i] >> 21) + (a[20 + i + 1] << 4)) & 0x1ffffff;
+        a[i] += (sp_digit)(((a[20 + i] >> 21) + (a[20 + i + 1] << 4)) & 0x1ffffff);
     }
     a[20] &= 0x1fffff;
-    a[20] += ((a[40] >> 21) + (a[41] << 4)) & 0x1ffffff;
+    a[20] += (sp_digit)(((a[40] >> 21) + (a[41] << 4)) & 0x1ffffff);
 
     sp_521_norm_21(a);
 
@@ -35789,17 +35789,17 @@ SP_NOINLINE static void sp_521_mul_add_21(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1ffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1ffffff);
         t[1] += t[0] >> 25;
-        r[i+1] = t[1] & 0x1ffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1ffffff);
         t[2] += t[1] >> 25;
-        r[i+2] = t[2] & 0x1ffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1ffffff);
         t[3] += t[2] >> 25;
-        r[i+3] = t[3] & 0x1ffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1ffffff);
         t[0]  = t[3] >> 25;
     }
     t[0] += (tb * a[20]) + r[20];
-    r[20] = t[0] & 0x1ffffff;
+    r[20] = (sp_digit)(t[0] & 0x1ffffff);
     r[21] +=  (sp_digit)(t[0] >> 25);
 #else
     sp_int64 tb = b;
@@ -35852,8 +35852,8 @@ static void sp_521_mont_shift_21(sp_digit* r, const sp_digit* a)
     s = a[21];
     n = a[20] >> 21;
     for (i = 0; i < 20; i++) {
-        n += (s & 0x1ffffff) << 4;
-        r[i] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4);
+        r[i] = (sp_digit)(n & 0x1ffffff);
         n >>= 25;
         s = a[22 + i] + (s >> 25);
     }
@@ -35866,30 +35866,30 @@ static void sp_521_mont_shift_21(sp_digit* r, const sp_digit* a)
 
     s = a[21]; n = a[20] >> 21;
     for (i = 0; i < 16; i += 8) {
-        n += (s & 0x1ffffff) << 4; r[i+0] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+0] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+22] + (s >> 25);
-        n += (s & 0x1ffffff) << 4; r[i+1] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+1] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+23] + (s >> 25);
-        n += (s & 0x1ffffff) << 4; r[i+2] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+2] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+24] + (s >> 25);
-        n += (s & 0x1ffffff) << 4; r[i+3] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+3] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+25] + (s >> 25);
-        n += (s & 0x1ffffff) << 4; r[i+4] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+4] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+26] + (s >> 25);
-        n += (s & 0x1ffffff) << 4; r[i+5] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+5] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+27] + (s >> 25);
-        n += (s & 0x1ffffff) << 4; r[i+6] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+6] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+28] + (s >> 25);
-        n += (s & 0x1ffffff) << 4; r[i+7] = n & 0x1ffffff;
+        n += (sp_digit)((s & 0x1ffffff) << 4); r[i+7] = (sp_digit)(n & 0x1ffffff);
         n >>= 25; s = a[i+29] + (s >> 25);
     }
-    n += (s & 0x1ffffff) << 4; r[16] = n & 0x1ffffff;
+    n += (sp_digit)((s & 0x1ffffff) << 4); r[16] = (sp_digit)(n & 0x1ffffff);
     n >>= 25; s = a[38] + (s >> 25);
-    n += (s & 0x1ffffff) << 4; r[17] = n & 0x1ffffff;
+    n += (sp_digit)((s & 0x1ffffff) << 4); r[17] = (sp_digit)(n & 0x1ffffff);
     n >>= 25; s = a[39] + (s >> 25);
-    n += (s & 0x1ffffff) << 4; r[18] = n & 0x1ffffff;
+    n += (sp_digit)((s & 0x1ffffff) << 4); r[18] = (sp_digit)(n & 0x1ffffff);
     n >>= 25; s = a[40] + (s >> 25);
-    n += (s & 0x1ffffff) << 4; r[19] = n & 0x1ffffff;
+    n += (sp_digit)((s & 0x1ffffff) << 4); r[19] = (sp_digit)(n & 0x1ffffff);
     n >>= 25; s = a[41] + (s >> 25);
     n += s << 4;              r[20] = n;
 #endif /* WOLFSSL_SP_SMALL */
@@ -35911,11 +35911,11 @@ static void sp_521_mont_reduce_order_21(sp_digit* a, const sp_digit* m, sp_digit
     sp_521_norm_21(a + 21);
 
     for (i=0; i<20; i++) {
-        mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1ffffff;
+        mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1ffffff);
         sp_521_mul_add_21(a+i, m, mu);
         a[i+1] += a[i] >> 25;
     }
-    mu = ((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffL;
+    mu = (sp_digit)(((sp_uint32)a[i] * (sp_uint32)mp) & 0x1fffffL);
     sp_521_mul_add_21(a+i, m, mu);
     a[i+1] += a[i] >> 25;
     a[i] &= 0x1ffffff;
@@ -36239,29 +36239,29 @@ SP_NOINLINE static void sp_521_rshift1_21(sp_digit* r, const sp_digit* a)
     int i;
 
     for (i=0; i<20; i++) {
-        r[i] = (a[i] >> 1) + ((a[i + 1] << 24) & 0x1ffffff);
+        r[i] = (a[i] >> 1) + (sp_digit)((a[i + 1] << 24) & 0x1ffffff);
     }
 #else
-    r[0] = (a[0] >> 1) + ((a[1] << 24) & 0x1ffffff);
-    r[1] = (a[1] >> 1) + ((a[2] << 24) & 0x1ffffff);
-    r[2] = (a[2] >> 1) + ((a[3] << 24) & 0x1ffffff);
-    r[3] = (a[3] >> 1) + ((a[4] << 24) & 0x1ffffff);
-    r[4] = (a[4] >> 1) + ((a[5] << 24) & 0x1ffffff);
-    r[5] = (a[5] >> 1) + ((a[6] << 24) & 0x1ffffff);
-    r[6] = (a[6] >> 1) + ((a[7] << 24) & 0x1ffffff);
-    r[7] = (a[7] >> 1) + ((a[8] << 24) & 0x1ffffff);
-    r[8] = (a[8] >> 1) + ((a[9] << 24) & 0x1ffffff);
-    r[9] = (a[9] >> 1) + ((a[10] << 24) & 0x1ffffff);
-    r[10] = (a[10] >> 1) + ((a[11] << 24) & 0x1ffffff);
-    r[11] = (a[11] >> 1) + ((a[12] << 24) & 0x1ffffff);
-    r[12] = (a[12] >> 1) + ((a[13] << 24) & 0x1ffffff);
-    r[13] = (a[13] >> 1) + ((a[14] << 24) & 0x1ffffff);
-    r[14] = (a[14] >> 1) + ((a[15] << 24) & 0x1ffffff);
-    r[15] = (a[15] >> 1) + ((a[16] << 24) & 0x1ffffff);
-    r[16] = (a[16] >> 1) + ((a[17] << 24) & 0x1ffffff);
-    r[17] = (a[17] >> 1) + ((a[18] << 24) & 0x1ffffff);
-    r[18] = (a[18] >> 1) + ((a[19] << 24) & 0x1ffffff);
-    r[19] = (a[19] >> 1) + ((a[20] << 24) & 0x1ffffff);
+    r[0] = (a[0] >> 1) + (sp_digit)((a[1] << 24) & 0x1ffffff);
+    r[1] = (a[1] >> 1) + (sp_digit)((a[2] << 24) & 0x1ffffff);
+    r[2] = (a[2] >> 1) + (sp_digit)((a[3] << 24) & 0x1ffffff);
+    r[3] = (a[3] >> 1) + (sp_digit)((a[4] << 24) & 0x1ffffff);
+    r[4] = (a[4] >> 1) + (sp_digit)((a[5] << 24) & 0x1ffffff);
+    r[5] = (a[5] >> 1) + (sp_digit)((a[6] << 24) & 0x1ffffff);
+    r[6] = (a[6] >> 1) + (sp_digit)((a[7] << 24) & 0x1ffffff);
+    r[7] = (a[7] >> 1) + (sp_digit)((a[8] << 24) & 0x1ffffff);
+    r[8] = (a[8] >> 1) + (sp_digit)((a[9] << 24) & 0x1ffffff);
+    r[9] = (a[9] >> 1) + (sp_digit)((a[10] << 24) & 0x1ffffff);
+    r[10] = (a[10] >> 1) + (sp_digit)((a[11] << 24) & 0x1ffffff);
+    r[11] = (a[11] >> 1) + (sp_digit)((a[12] << 24) & 0x1ffffff);
+    r[12] = (a[12] >> 1) + (sp_digit)((a[13] << 24) & 0x1ffffff);
+    r[13] = (a[13] >> 1) + (sp_digit)((a[14] << 24) & 0x1ffffff);
+    r[14] = (a[14] >> 1) + (sp_digit)((a[15] << 24) & 0x1ffffff);
+    r[15] = (a[15] >> 1) + (sp_digit)((a[16] << 24) & 0x1ffffff);
+    r[16] = (a[16] >> 1) + (sp_digit)((a[17] << 24) & 0x1ffffff);
+    r[17] = (a[17] >> 1) + (sp_digit)((a[18] << 24) & 0x1ffffff);
+    r[18] = (a[18] >> 1) + (sp_digit)((a[19] << 24) & 0x1ffffff);
+    r[19] = (a[19] >> 1) + (sp_digit)((a[20] << 24) & 0x1ffffff);
 #endif
     r[20] = a[20] >> 1;
 }
@@ -41332,23 +41332,23 @@ SP_NOINLINE static void sp_521_rshift_21(sp_digit* r, const sp_digit* a,
 
 #ifdef WOLFSSL_SP_SMALL
     for (i=0; i<20; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (25 - n))) & 0x1ffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (25 - n))) & 0x1ffffff);
     }
 #else
     for (i=0; i<16; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (25 - n)) & 0x1ffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (25 - n)) & 0x1ffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (25 - n)) & 0x1ffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (25 - n)) & 0x1ffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (25 - n)) & 0x1ffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (25 - n)) & 0x1ffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (25 - n)) & 0x1ffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (25 - n)) & 0x1ffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (25 - n)) & 0x1ffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (25 - n)) & 0x1ffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (25 - n)) & 0x1ffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (25 - n)) & 0x1ffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (25 - n)) & 0x1ffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (25 - n)) & 0x1ffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (25 - n)) & 0x1ffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (25 - n)) & 0x1ffffff);
     }
-    r[16] = (a[16] >> n) | ((a[17] << (25 - n)) & 0x1ffffff);
-    r[17] = (a[17] >> n) | ((a[18] << (25 - n)) & 0x1ffffff);
-    r[18] = (a[18] >> n) | ((a[19] << (25 - n)) & 0x1ffffff);
-    r[19] = (a[19] >> n) | ((a[20] << (25 - n)) & 0x1ffffff);
+    r[16] = (a[16] >> n) | (sp_digit)((a[17] << (25 - n)) & 0x1ffffff);
+    r[17] = (a[17] >> n) | (sp_digit)((a[18] << (25 - n)) & 0x1ffffff);
+    r[18] = (a[18] >> n) | (sp_digit)((a[19] << (25 - n)) & 0x1ffffff);
+    r[19] = (a[19] >> n) | (sp_digit)((a[20] << (25 - n)) & 0x1ffffff);
 #endif /* WOLFSSL_SP_SMALL */
     r[20] = a[20] >> n;
 }
@@ -41419,7 +41419,7 @@ SP_NOINLINE static void sp_521_lshift_42(sp_digit* r, const sp_digit* a,
 
     r[42] = a[41] >> (25 - n);
     for (i=41; i>0; i--) {
-        r[i] = ((a[i] << n) | (a[i-1] >> (25 - n))) & 0x1ffffff;
+        r[i] = (sp_digit)(((a[i] << n) | (a[i-1] >> (25 - n))) & 0x1ffffff);
     }
 #else
     sp_int_digit s;
@@ -41428,89 +41428,89 @@ SP_NOINLINE static void sp_521_lshift_42(sp_digit* r, const sp_digit* a,
     s = (sp_int_digit)a[41];
     r[42] = s >> (25U - n);
     s = (sp_int_digit)(a[41]); t = (sp_int_digit)(a[40]);
-    r[41] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[41] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[40]); t = (sp_int_digit)(a[39]);
-    r[40] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[40] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[39]); t = (sp_int_digit)(a[38]);
-    r[39] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[39] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[38]); t = (sp_int_digit)(a[37]);
-    r[38] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[38] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[37]); t = (sp_int_digit)(a[36]);
-    r[37] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[37] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[36]); t = (sp_int_digit)(a[35]);
-    r[36] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[36] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[35]); t = (sp_int_digit)(a[34]);
-    r[35] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[35] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[34]); t = (sp_int_digit)(a[33]);
-    r[34] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[34] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[33]); t = (sp_int_digit)(a[32]);
-    r[33] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[33] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[32]); t = (sp_int_digit)(a[31]);
-    r[32] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[32] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[31]); t = (sp_int_digit)(a[30]);
-    r[31] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[31] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[30]); t = (sp_int_digit)(a[29]);
-    r[30] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[30] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[29]); t = (sp_int_digit)(a[28]);
-    r[29] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[29] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[28]); t = (sp_int_digit)(a[27]);
-    r[28] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[28] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[27]); t = (sp_int_digit)(a[26]);
-    r[27] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[27] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[26]); t = (sp_int_digit)(a[25]);
-    r[26] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[26] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[25]); t = (sp_int_digit)(a[24]);
-    r[25] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[25] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[24]); t = (sp_int_digit)(a[23]);
-    r[24] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[24] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[23]); t = (sp_int_digit)(a[22]);
-    r[23] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[23] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[22]); t = (sp_int_digit)(a[21]);
-    r[22] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[22] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[21]); t = (sp_int_digit)(a[20]);
-    r[21] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[21] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[20]); t = (sp_int_digit)(a[19]);
-    r[20] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[20] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[19]); t = (sp_int_digit)(a[18]);
-    r[19] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[19] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[18]); t = (sp_int_digit)(a[17]);
-    r[18] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[18] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[17]); t = (sp_int_digit)(a[16]);
-    r[17] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[17] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[16]); t = (sp_int_digit)(a[15]);
-    r[16] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[16] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[15]); t = (sp_int_digit)(a[14]);
-    r[15] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[15] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[14]); t = (sp_int_digit)(a[13]);
-    r[14] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[14] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[13]); t = (sp_int_digit)(a[12]);
-    r[13] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[13] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[12]); t = (sp_int_digit)(a[11]);
-    r[12] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[12] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[11]); t = (sp_int_digit)(a[10]);
-    r[11] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[11] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[10]); t = (sp_int_digit)(a[9]);
-    r[10] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[10] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[9]); t = (sp_int_digit)(a[8]);
-    r[9] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[9] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[8]); t = (sp_int_digit)(a[7]);
-    r[8] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[8] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[7]); t = (sp_int_digit)(a[6]);
-    r[7] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[7] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[6]); t = (sp_int_digit)(a[5]);
-    r[6] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[6] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[5]); t = (sp_int_digit)(a[4]);
-    r[5] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[5] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[4]); t = (sp_int_digit)(a[3]);
-    r[4] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[4] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[3]); t = (sp_int_digit)(a[2]);
-    r[3] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[3] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[2]); t = (sp_int_digit)(a[1]);
-    r[2] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[2] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
     s = (sp_int_digit)(a[1]); t = (sp_int_digit)(a[0]);
-    r[1] = ((s << n) | (t >> (25U - n))) & 0x1ffffff;
+    r[1] = (sp_digit)(((s << n) | (t >> (25U - n))) & 0x1ffffff);
 #endif /* WOLFSSL_SP_SMALL */
-    r[0] = (a[0] << n) & 0x1ffffff;
+    r[0] = (sp_digit)((a[0] << n) & 0x1ffffff);
 }
 
 /* Divide d in a and put remainder into r (m*d + r = a)
@@ -43281,20 +43281,20 @@ SP_NOINLINE static void sp_1024_mul_7(sp_digit* r, const sp_digit* a,
                  + ((sp_int64)a[ 6]) * b[ 5];
     sp_int64 t12  = ((sp_int64)a[ 6]) * b[ 6];
 
-    t1   += t0  >> 25; r[ 0] = t0  & 0x1ffffff;
-    t2   += t1  >> 25; r[ 1] = t1  & 0x1ffffff;
-    t3   += t2  >> 25; r[ 2] = t2  & 0x1ffffff;
-    t4   += t3  >> 25; r[ 3] = t3  & 0x1ffffff;
-    t5   += t4  >> 25; r[ 4] = t4  & 0x1ffffff;
-    t6   += t5  >> 25; r[ 5] = t5  & 0x1ffffff;
-    t7   += t6  >> 25; r[ 6] = t6  & 0x1ffffff;
-    t8   += t7  >> 25; r[ 7] = t7  & 0x1ffffff;
-    t9   += t8  >> 25; r[ 8] = t8  & 0x1ffffff;
-    t10  += t9  >> 25; r[ 9] = t9  & 0x1ffffff;
-    t11  += t10 >> 25; r[10] = t10 & 0x1ffffff;
-    t12  += t11 >> 25; r[11] = t11 & 0x1ffffff;
+    t1   += t0  >> 25; r[ 0] = (sp_digit)(t0  & 0x1ffffff);
+    t2   += t1  >> 25; r[ 1] = (sp_digit)(t1  & 0x1ffffff);
+    t3   += t2  >> 25; r[ 2] = (sp_digit)(t2  & 0x1ffffff);
+    t4   += t3  >> 25; r[ 3] = (sp_digit)(t3  & 0x1ffffff);
+    t5   += t4  >> 25; r[ 4] = (sp_digit)(t4  & 0x1ffffff);
+    t6   += t5  >> 25; r[ 5] = (sp_digit)(t5  & 0x1ffffff);
+    t7   += t6  >> 25; r[ 6] = (sp_digit)(t6  & 0x1ffffff);
+    t8   += t7  >> 25; r[ 7] = (sp_digit)(t7  & 0x1ffffff);
+    t9   += t8  >> 25; r[ 8] = (sp_digit)(t8  & 0x1ffffff);
+    t10  += t9  >> 25; r[ 9] = (sp_digit)(t9  & 0x1ffffff);
+    t11  += t10 >> 25; r[10] = (sp_digit)(t10 & 0x1ffffff);
+    t12  += t11 >> 25; r[11] = (sp_digit)(t11 & 0x1ffffff);
     r[13] = (sp_digit)(t12 >> 25);
-                       r[12] = t12 & 0x1ffffff;
+                       r[12] = (sp_digit)(t12 & 0x1ffffff);
 }
 
 /* Square a and put result in r. (r = a * a)
@@ -43333,20 +43333,20 @@ SP_NOINLINE static void sp_1024_sqr_7(sp_digit* r, const sp_digit* a)
     sp_int64 t11  = (((sp_int64)a[ 5]) * a[ 6]) * 2;
     sp_int64 t12  =  ((sp_int64)a[ 6]) * a[ 6];
 
-    t1   += t0  >> 25; r[ 0] = t0  & 0x1ffffff;
-    t2   += t1  >> 25; r[ 1] = t1  & 0x1ffffff;
-    t3   += t2  >> 25; r[ 2] = t2  & 0x1ffffff;
-    t4   += t3  >> 25; r[ 3] = t3  & 0x1ffffff;
-    t5   += t4  >> 25; r[ 4] = t4  & 0x1ffffff;
-    t6   += t5  >> 25; r[ 5] = t5  & 0x1ffffff;
-    t7   += t6  >> 25; r[ 6] = t6  & 0x1ffffff;
-    t8   += t7  >> 25; r[ 7] = t7  & 0x1ffffff;
-    t9   += t8  >> 25; r[ 8] = t8  & 0x1ffffff;
-    t10  += t9  >> 25; r[ 9] = t9  & 0x1ffffff;
-    t11  += t10 >> 25; r[10] = t10 & 0x1ffffff;
-    t12  += t11 >> 25; r[11] = t11 & 0x1ffffff;
+    t1   += t0  >> 25; r[ 0] = (sp_digit)(t0  & 0x1ffffff);
+    t2   += t1  >> 25; r[ 1] = (sp_digit)(t1  & 0x1ffffff);
+    t3   += t2  >> 25; r[ 2] = (sp_digit)(t2  & 0x1ffffff);
+    t4   += t3  >> 25; r[ 3] = (sp_digit)(t3  & 0x1ffffff);
+    t5   += t4  >> 25; r[ 4] = (sp_digit)(t4  & 0x1ffffff);
+    t6   += t5  >> 25; r[ 5] = (sp_digit)(t5  & 0x1ffffff);
+    t7   += t6  >> 25; r[ 6] = (sp_digit)(t6  & 0x1ffffff);
+    t8   += t7  >> 25; r[ 7] = (sp_digit)(t7  & 0x1ffffff);
+    t9   += t8  >> 25; r[ 8] = (sp_digit)(t8  & 0x1ffffff);
+    t10  += t9  >> 25; r[ 9] = (sp_digit)(t9  & 0x1ffffff);
+    t11  += t10 >> 25; r[10] = (sp_digit)(t10 & 0x1ffffff);
+    t12  += t11 >> 25; r[11] = (sp_digit)(t11 & 0x1ffffff);
     r[13] = (sp_digit)(t12 >> 25);
-                       r[12] = t12 & 0x1ffffff;
+                       r[12] = (sp_digit)(t12 & 0x1ffffff);
 }
 
 /* Add b to a into r. (r = a + b)
@@ -44051,20 +44051,20 @@ SP_NOINLINE static void sp_1024_rshift_42(sp_digit* r, const sp_digit* a,
 
 #ifdef WOLFSSL_SP_SMALL
     for (i=0; i<41; i++) {
-        r[i] = ((a[i] >> n) | (a[i + 1] << (25 - n))) & 0x1ffffff;
+        r[i] = (sp_digit)(((a[i] >> n) | (a[i + 1] << (25 - n))) & 0x1ffffff);
     }
 #else
     for (i=0; i<40; i += 8) {
-        r[i+0] = (a[i+0] >> n) | ((a[i+1] << (25 - n)) & 0x1ffffff);
-        r[i+1] = (a[i+1] >> n) | ((a[i+2] << (25 - n)) & 0x1ffffff);
-        r[i+2] = (a[i+2] >> n) | ((a[i+3] << (25 - n)) & 0x1ffffff);
-        r[i+3] = (a[i+3] >> n) | ((a[i+4] << (25 - n)) & 0x1ffffff);
-        r[i+4] = (a[i+4] >> n) | ((a[i+5] << (25 - n)) & 0x1ffffff);
-        r[i+5] = (a[i+5] >> n) | ((a[i+6] << (25 - n)) & 0x1ffffff);
-        r[i+6] = (a[i+6] >> n) | ((a[i+7] << (25 - n)) & 0x1ffffff);
-        r[i+7] = (a[i+7] >> n) | ((a[i+8] << (25 - n)) & 0x1ffffff);
+        r[i+0] = (a[i+0] >> n) | (sp_digit)((a[i+1] << (25 - n)) & 0x1ffffff);
+        r[i+1] = (a[i+1] >> n) | (sp_digit)((a[i+2] << (25 - n)) & 0x1ffffff);
+        r[i+2] = (a[i+2] >> n) | (sp_digit)((a[i+3] << (25 - n)) & 0x1ffffff);
+        r[i+3] = (a[i+3] >> n) | (sp_digit)((a[i+4] << (25 - n)) & 0x1ffffff);
+        r[i+4] = (a[i+4] >> n) | (sp_digit)((a[i+5] << (25 - n)) & 0x1ffffff);
+        r[i+5] = (a[i+5] >> n) | (sp_digit)((a[i+6] << (25 - n)) & 0x1ffffff);
+        r[i+6] = (a[i+6] >> n) | (sp_digit)((a[i+7] << (25 - n)) & 0x1ffffff);
+        r[i+7] = (a[i+7] >> n) | (sp_digit)((a[i+8] << (25 - n)) & 0x1ffffff);
     }
-    r[40] = (a[40] >> n) | ((a[41] << (25 - n)) & 0x1ffffff);
+    r[40] = (a[40] >> n) | (sp_digit)((a[41] << (25 - n)) & 0x1ffffff);
 #endif /* WOLFSSL_SP_SMALL */
     r[41] = a[41] >> n;
 }
@@ -44623,20 +44623,20 @@ SP_NOINLINE static void sp_1024_mul_add_42(sp_digit* r, const sp_digit* a,
         t[1]  = (tb * a[i+1]) + r[i+1];
         t[2]  = (tb * a[i+2]) + r[i+2];
         t[3]  = (tb * a[i+3]) + r[i+3];
-        r[i+0] = t[0] & 0x1ffffff;
+        r[i+0] = (sp_digit)(t[0] & 0x1ffffff);
         t[1] += t[0] >> 25;
-        r[i+1] = t[1] & 0x1ffffff;
+        r[i+1] = (sp_digit)(t[1] & 0x1ffffff);
         t[2] += t[1] >> 25;
-        r[i+2] = t[2] & 0x1ffffff;
+        r[i+2] = (sp_digit)(t[2] & 0x1ffffff);
         t[3] += t[2] >> 25;
-        r[i+3] = t[3] & 0x1ffffff;
+        r[i+3] = (sp_digit)(t[3] & 0x1ffffff);
         t[0]  = t[3] >> 25;
     }
     t[0] += (tb * a[40]) + r[40];
     t[1]  = (tb * a[41]) + r[41];
-    r[40] = t[0] & 0x1ffffff;
+    r[40] = (sp_digit)(t[0] & 0x1ffffff);
     t[1] += t[0] >> 25;
-    r[41] = t[1] & 0x1ffffff;
+    r[41] = (sp_digit)(t[1] & 0x1ffffff);
     r[42] +=  (sp_digit)(t[1] >> 25);
 #else
     sp_int64 tb = b;
@@ -44710,7 +44710,7 @@ static void sp_1024_mont_shift_42(sp_digit* r, const sp_digit* a)
     n = a[40] >> 24;
     for (i = 0; i < 40; i++) {
         n += (sp_uint32)a[41 + i] << 1;
-        r[i] = n & 0x1ffffff;
+        r[i] = (sp_digit)(n & 0x1ffffff);
         n >>= 25;
     }
     n += (sp_uint32)a[81] << 1;
@@ -44722,14 +44722,14 @@ static void sp_1024_mont_shift_42(sp_digit* r, const sp_digit* a)
     n  = (sp_uint32)a[40];
     n  = n >> 24U;
     for (i = 0; i < 40; i += 8) {
-        n += (sp_uint32)a[i+41] << 1U; r[i+0] = n & 0x1ffffff; n >>= 25U;
-        n += (sp_uint32)a[i+42] << 1U; r[i+1] = n & 0x1ffffff; n >>= 25U;
-        n += (sp_uint32)a[i+43] << 1U; r[i+2] = n & 0x1ffffff; n >>= 25U;
-        n += (sp_uint32)a[i+44] << 1U; r[i+3] = n & 0x1ffffff; n >>= 25U;
-        n += (sp_uint32)a[i+45] << 1U; r[i+4] = n & 0x1ffffff; n >>= 25U;
-        n += (sp_uint32)a[i+46] << 1U; r[i+5] = n & 0x1ffffff; n >>= 25U;
-        n += (sp_uint32)a[i+47] << 1U; r[i+6] = n & 0x1ffffff; n >>= 25U;
-        n += (sp_uint32)a[i+48] << 1U; r[i+7] = n & 0x1ffffff; n >>= 25U;
+        n += (sp_uint32)a[i+41] << 1U; r[i+0] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
+        n += (sp_uint32)a[i+42] << 1U; r[i+1] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
+        n += (sp_uint32)a[i+43] << 1U; r[i+2] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
+        n += (sp_uint32)a[i+44] << 1U; r[i+3] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
+        n += (sp_uint32)a[i+45] << 1U; r[i+4] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
+        n += (sp_uint32)a[i+46] << 1U; r[i+5] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
+        n += (sp_uint32)a[i+47] << 1U; r[i+6] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
+        n += (sp_uint32)a[i+48] << 1U; r[i+7] = (sp_digit)(n & 0x1ffffff); n >>= 25U;
     }
     n += (sp_uint32)a[81] << 1U; r[40] = n;
 #endif /* WOLFSSL_SP_SMALL */
@@ -44752,22 +44752,22 @@ static void sp_1024_mont_reduce_42(sp_digit* a, const sp_digit* m, sp_digit mp)
 
     if (mp != 1) {
         for (i=0; i<40; i++) {
-            mu = (a[i] * mp) & 0x1ffffff;
+            mu = (sp_digit)((a[i] * mp) & 0x1ffffff);
             sp_1024_mul_add_42(a+i, m, mu);
             a[i+1] += a[i] >> 25;
         }
-        mu = (a[i] * mp) & 0xffffffL;
+        mu = (sp_digit)((a[i] * mp) & 0xffffffL);
         sp_1024_mul_add_42(a+i, m, mu);
         a[i+1] += a[i] >> 25;
         a[i] &= 0x1ffffff;
     }
     else {
         for (i=0; i<40; i++) {
-            mu = a[i] & 0x1ffffff;
+            mu = (sp_digit)(a[i] & 0x1ffffff);
             sp_1024_mul_add_42(a+i, m, mu);
             a[i+1] += a[i] >> 25;
         }
-        mu = a[i] & 0xffffffL;
+        mu = (sp_digit)(a[i] & 0xffffffL);
         sp_1024_mul_add_42(a+i, m, mu);
         a[i+1] += a[i] >> 25;
         a[i] &= 0x1ffffff;
@@ -44993,50 +44993,50 @@ SP_NOINLINE static void sp_1024_rshift1_42(sp_digit* r, const sp_digit* a)
     int i;
 
     for (i=0; i<41; i++) {
-        r[i] = (a[i] >> 1) + ((a[i + 1] << 24) & 0x1ffffff);
+        r[i] = (a[i] >> 1) + (sp_digit)((a[i + 1] << 24) & 0x1ffffff);
     }
 #else
-    r[0] = (a[0] >> 1) + ((a[1] << 24) & 0x1ffffff);
-    r[1] = (a[1] >> 1) + ((a[2] << 24) & 0x1ffffff);
-    r[2] = (a[2] >> 1) + ((a[3] << 24) & 0x1ffffff);
-    r[3] = (a[3] >> 1) + ((a[4] << 24) & 0x1ffffff);
-    r[4] = (a[4] >> 1) + ((a[5] << 24) & 0x1ffffff);
-    r[5] = (a[5] >> 1) + ((a[6] << 24) & 0x1ffffff);
-    r[6] = (a[6] >> 1) + ((a[7] << 24) & 0x1ffffff);
-    r[7] = (a[7] >> 1) + ((a[8] << 24) & 0x1ffffff);
-    r[8] = (a[8] >> 1) + ((a[9] << 24) & 0x1ffffff);
-    r[9] = (a[9] >> 1) + ((a[10] << 24) & 0x1ffffff);
-    r[10] = (a[10] >> 1) + ((a[11] << 24) & 0x1ffffff);
-    r[11] = (a[11] >> 1) + ((a[12] << 24) & 0x1ffffff);
-    r[12] = (a[12] >> 1) + ((a[13] << 24) & 0x1ffffff);
-    r[13] = (a[13] >> 1) + ((a[14] << 24) & 0x1ffffff);
-    r[14] = (a[14] >> 1) + ((a[15] << 24) & 0x1ffffff);
-    r[15] = (a[15] >> 1) + ((a[16] << 24) & 0x1ffffff);
-    r[16] = (a[16] >> 1) + ((a[17] << 24) & 0x1ffffff);
-    r[17] = (a[17] >> 1) + ((a[18] << 24) & 0x1ffffff);
-    r[18] = (a[18] >> 1) + ((a[19] << 24) & 0x1ffffff);
-    r[19] = (a[19] >> 1) + ((a[20] << 24) & 0x1ffffff);
-    r[20] = (a[20] >> 1) + ((a[21] << 24) & 0x1ffffff);
-    r[21] = (a[21] >> 1) + ((a[22] << 24) & 0x1ffffff);
-    r[22] = (a[22] >> 1) + ((a[23] << 24) & 0x1ffffff);
-    r[23] = (a[23] >> 1) + ((a[24] << 24) & 0x1ffffff);
-    r[24] = (a[24] >> 1) + ((a[25] << 24) & 0x1ffffff);
-    r[25] = (a[25] >> 1) + ((a[26] << 24) & 0x1ffffff);
-    r[26] = (a[26] >> 1) + ((a[27] << 24) & 0x1ffffff);
-    r[27] = (a[27] >> 1) + ((a[28] << 24) & 0x1ffffff);
-    r[28] = (a[28] >> 1) + ((a[29] << 24) & 0x1ffffff);
-    r[29] = (a[29] >> 1) + ((a[30] << 24) & 0x1ffffff);
-    r[30] = (a[30] >> 1) + ((a[31] << 24) & 0x1ffffff);
-    r[31] = (a[31] >> 1) + ((a[32] << 24) & 0x1ffffff);
-    r[32] = (a[32] >> 1) + ((a[33] << 24) & 0x1ffffff);
-    r[33] = (a[33] >> 1) + ((a[34] << 24) & 0x1ffffff);
-    r[34] = (a[34] >> 1) + ((a[35] << 24) & 0x1ffffff);
-    r[35] = (a[35] >> 1) + ((a[36] << 24) & 0x1ffffff);
-    r[36] = (a[36] >> 1) + ((a[37] << 24) & 0x1ffffff);
-    r[37] = (a[37] >> 1) + ((a[38] << 24) & 0x1ffffff);
-    r[38] = (a[38] >> 1) + ((a[39] << 24) & 0x1ffffff);
-    r[39] = (a[39] >> 1) + ((a[40] << 24) & 0x1ffffff);
-    r[40] = (a[40] >> 1) + ((a[41] << 24) & 0x1ffffff);
+    r[0] = (a[0] >> 1) + (sp_digit)((a[1] << 24) & 0x1ffffff);
+    r[1] = (a[1] >> 1) + (sp_digit)((a[2] << 24) & 0x1ffffff);
+    r[2] = (a[2] >> 1) + (sp_digit)((a[3] << 24) & 0x1ffffff);
+    r[3] = (a[3] >> 1) + (sp_digit)((a[4] << 24) & 0x1ffffff);
+    r[4] = (a[4] >> 1) + (sp_digit)((a[5] << 24) & 0x1ffffff);
+    r[5] = (a[5] >> 1) + (sp_digit)((a[6] << 24) & 0x1ffffff);
+    r[6] = (a[6] >> 1) + (sp_digit)((a[7] << 24) & 0x1ffffff);
+    r[7] = (a[7] >> 1) + (sp_digit)((a[8] << 24) & 0x1ffffff);
+    r[8] = (a[8] >> 1) + (sp_digit)((a[9] << 24) & 0x1ffffff);
+    r[9] = (a[9] >> 1) + (sp_digit)((a[10] << 24) & 0x1ffffff);
+    r[10] = (a[10] >> 1) + (sp_digit)((a[11] << 24) & 0x1ffffff);
+    r[11] = (a[11] >> 1) + (sp_digit)((a[12] << 24) & 0x1ffffff);
+    r[12] = (a[12] >> 1) + (sp_digit)((a[13] << 24) & 0x1ffffff);
+    r[13] = (a[13] >> 1) + (sp_digit)((a[14] << 24) & 0x1ffffff);
+    r[14] = (a[14] >> 1) + (sp_digit)((a[15] << 24) & 0x1ffffff);
+    r[15] = (a[15] >> 1) + (sp_digit)((a[16] << 24) & 0x1ffffff);
+    r[16] = (a[16] >> 1) + (sp_digit)((a[17] << 24) & 0x1ffffff);
+    r[17] = (a[17] >> 1) + (sp_digit)((a[18] << 24) & 0x1ffffff);
+    r[18] = (a[18] >> 1) + (sp_digit)((a[19] << 24) & 0x1ffffff);
+    r[19] = (a[19] >> 1) + (sp_digit)((a[20] << 24) & 0x1ffffff);
+    r[20] = (a[20] >> 1) + (sp_digit)((a[21] << 24) & 0x1ffffff);
+    r[21] = (a[21] >> 1) + (sp_digit)((a[22] << 24) & 0x1ffffff);
+    r[22] = (a[22] >> 1) + (sp_digit)((a[23] << 24) & 0x1ffffff);
+    r[23] = (a[23] >> 1) + (sp_digit)((a[24] << 24) & 0x1ffffff);
+    r[24] = (a[24] >> 1) + (sp_digit)((a[25] << 24) & 0x1ffffff);
+    r[25] = (a[25] >> 1) + (sp_digit)((a[26] << 24) & 0x1ffffff);
+    r[26] = (a[26] >> 1) + (sp_digit)((a[27] << 24) & 0x1ffffff);
+    r[27] = (a[27] >> 1) + (sp_digit)((a[28] << 24) & 0x1ffffff);
+    r[28] = (a[28] >> 1) + (sp_digit)((a[29] << 24) & 0x1ffffff);
+    r[29] = (a[29] >> 1) + (sp_digit)((a[30] << 24) & 0x1ffffff);
+    r[30] = (a[30] >> 1) + (sp_digit)((a[31] << 24) & 0x1ffffff);
+    r[31] = (a[31] >> 1) + (sp_digit)((a[32] << 24) & 0x1ffffff);
+    r[32] = (a[32] >> 1) + (sp_digit)((a[33] << 24) & 0x1ffffff);
+    r[33] = (a[33] >> 1) + (sp_digit)((a[34] << 24) & 0x1ffffff);
+    r[34] = (a[34] >> 1) + (sp_digit)((a[35] << 24) & 0x1ffffff);
+    r[35] = (a[35] >> 1) + (sp_digit)((a[36] << 24) & 0x1ffffff);
+    r[36] = (a[36] >> 1) + (sp_digit)((a[37] << 24) & 0x1ffffff);
+    r[37] = (a[37] >> 1) + (sp_digit)((a[38] << 24) & 0x1ffffff);
+    r[38] = (a[38] >> 1) + (sp_digit)((a[39] << 24) & 0x1ffffff);
+    r[39] = (a[39] >> 1) + (sp_digit)((a[40] << 24) & 0x1ffffff);
+    r[40] = (a[40] >> 1) + (sp_digit)((a[41] << 24) & 0x1ffffff);
 #endif
     r[41] = a[41] >> 1;
 }
