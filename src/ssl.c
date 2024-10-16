@@ -6347,7 +6347,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
     if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
 #endif /* WOLF_PRIVATE_KEY_ID */
     {
-        ret = wc_CheckPrivateKeyCert(buff, size, der, 0);
+        ret = wc_CheckPrivateKeyCert(buff, size, der, 0, heap);
         ret = (ret == 1) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
     }
 
@@ -6407,7 +6407,7 @@ static int check_cert_key(DerBuffer* cert, DerBuffer* key, DerBuffer* altKey,
         if (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
 #endif /* WOLF_PRIVATE_KEY_ID */
         {
-            ret = wc_CheckPrivateKeyCert(buff, size, der, 1);
+            ret = wc_CheckPrivateKeyCert(buff, size, der, 1, heap);
             ret = (ret == 1) ? WOLFSSL_SUCCESS: WOLFSSL_FAILURE;
         }
     }
