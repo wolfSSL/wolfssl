@@ -13698,6 +13698,7 @@ authenv_atrbend:
             /* free memory, zero out keys */
             ForceZero(encryptedContent, (word32)encryptedContentSz);
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            encryptedContent = NULL;
             ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -13726,8 +13727,11 @@ authenv_atrbend:
     }
 #else
     if (ret < 0) {
-        ForceZero(encryptedContent, (word32)encryptedContentSz);
-        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (encryptedContent != NULL) {
+            ForceZero(encryptedContent, (word32)encryptedContentSz);
+            XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            encryptedContent = NULL;
+        }
         ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
     }
 #endif
