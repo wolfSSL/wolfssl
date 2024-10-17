@@ -26,5 +26,9 @@ endif
 
 EXTRA_DIST += wolfcrypt/test/test.sln
 EXTRA_DIST += wolfcrypt/test/test.vcproj
+EXTRA_DIST += wolfcrypt/test/test-VS2022.sln
+EXTRA_DIST += wolfcrypt/test/test-VS2022.vcxproj
+EXTRA_DIST += wolfcrypt/test/test-VS2022.vcxproj.user
+
 EXTRA_DIST += wolfcrypt/test/README.md
 DISTCLEANFILES+= wolfcrypt/test/.libs/testwolfcrypt
