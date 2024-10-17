@@ -19,11 +19,29 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* See https://tf.nist.gov/tf-cgi/servers.cgi */
-
-/* common Espressif time_helper v5.6.6.001 */
-#include "sdkconfig.h"
+/* common Espressif time_helper */
 #include "time_helper.h"
+
+
+#include "sdkconfig.h"
+/* wolfSSL */
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
+/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+    #ifndef WOLFSSL_ESPIDF
+        #warning "Problem with wolfSSL user_settings."
+        #warning "Check components/wolfssl/include"
+    #endif
+    /* This project not yet using the library */
+    #undef USE_WOLFSSL_ESP_SDK_WIFI
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#else
+    /* Define WOLFSSL_USER_SETTINGS project wide for settings.h to include   */
+    /* wolfSSL user settings in ./components/wolfssl/include/user_settings.h */
+    #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile:\
+    CFLAGS +=-DWOLFSSL_USER_SETTINGS"
+#endif
 
 #include <esp_log.h>
 #include <esp_idf_version.h>
@@ -41,8 +59,8 @@
     /* TODO Consider non ESP-IDF environments */
 #endif
 
-/* ESP-IDF uses a 64-bit signed integer to represent time_t starting from release v5.0
- * See: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#year-2036-and-2038-overflow-issues
+/* ESP-IDF uses a 64-bit signed integer to represent time_t starting from
+ * release v5.0. See: Espressif api-reference/system/system_time
  */
 
 /* see https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html */
@@ -285,7 +303,7 @@ int set_time(void)
     if (NTP_SERVER_COUNT) {
         /* next, let's setup NTP time servers
          *
-         * see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#sntp-time-synchronization
+         * see Espressif api-reference/system/system_time
          *
          * WARNING: do not set operating mode while SNTP client is running!
          */

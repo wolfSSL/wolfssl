@@ -85,6 +85,9 @@
 /* Turn on messages that are useful to see only in examples. */
 #define WOLFSSL_EXAMPLE_VERBOSITY
 
+/* Paths can be long, ensure the entire value printed during debug */
+#define WOLFSSL_MAX_ERROR_SZ 500
+
 /* wolfSSL Examples: set macros used in example applications.
  *
  * These Settings NOT available in ESP-IDF (e.g. esp-tls)
@@ -153,8 +156,13 @@
 
 /* Other applications detected by cmake */
 #elif defined(APP_ESP_HTTP_CLIENT_EXAMPLE)
-    /* The wolfSSL Version */
-    #define FP_MAX_BITS (8192 * 2)
+    /* The wolfSSL Version of the client example */
+    #if defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32C2)
+        /* Less memory available, so smaller key sizes: */
+        #define FP_MAX_BITS (4096 * 2)
+    #else
+        #define FP_MAX_BITS (8192 * 2)
+    #endif
     #define HAVE_ALPN
     #define HAVE_SNI
     #define OPENSSL_EXTRA_X509_SMALL
@@ -240,9 +248,23 @@
 /* Used by ESP-IDF components: */
 #if defined(CONFIG_ESP_TLS_USING_WOLFSSL)
     /* The ESP-TLS */
-    #define FP_MAX_BITS (8192 * 2)
+    #ifndef FP_MAX_BITS
+        #if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+            defined(CONFIG_IDF_TARGET_ESP8684) || \
+            defined(CONFIG_IDF_TARGET_ESP8266)
+            /* Optionally set smaller size here */
+            #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
+        #else
+            #define FP_MAX_BITS (4096 * 2)
+        #endif
+    #endif
     #define HAVE_ALPN
-    #define HAVE_SNI
+    #ifndef CONFIG_IDF_TARGET_ESP8266
+        /* Unless installed in the ESP8266 RTOS SDK locally, the wolfSSL
+         * API for SNI will not be seen in the components/esp-tls layer.
+         * Only enable SNI for non-ESP8266 targets by default: */
+        #define HAVE_SNI
+    #endif
     #define OPENSSL_EXTRA_X509_SMALL
 
     #define HAVE_TLS_EXTENSIONS
@@ -349,18 +371,25 @@
     /* Required for RSA */
     #define WC_RSA_PSS
 
-    /* TLS 1.3 normally requires HAVE_FFDHE. For now just syntax highlight: */
+    /* TLS 1.3 normally requires HAVE_FFDHE */
     #if defined(HAVE_FFDHE_2048) || \
         defined(HAVE_FFDHE_3072) || \
         defined(HAVE_FFDHE_4096) || \
         defined(HAVE_FFDHE_6144) || \
         defined(HAVE_FFDHE_8192)
     #else
+        #define HAVE_FFDHE_2048
         /* #error "TLS 1.3 requires HAVE_FFDHE_[nnnn]" */
     #endif
 #endif
 
-
+#if defined(CONFIG_IDF_TARGET_ESP32C2) || \
+    defined(CONFIG_IDF_TARGET_ESP8684)
+    /* Optionally set smaller size here */
+    #define HAVE_FFDHE_4096
+#else
+    #define HAVE_FFDHE_4096
+#endif
 
 #define NO_FILESYSTEM
 
@@ -477,8 +506,11 @@
 /* #define XTIME time */
 
 
-/* adjust wait-timeout count if you see timeout in RSA HW acceleration */
-#define ESP_RSA_TIMEOUT_CNT    0x349F00
+/* Adjust wait-timeout count if you see timeout in RSA HW acceleration.
+ * Set to very large number and enable WOLFSSL_HW_METRICS to determine max. */
+#ifndef ESP_RSA_TIMEOUT_CNT
+	#define ESP_RSA_TIMEOUT_CNT 0xFF0000
+#endif
 
 /* hash limit for test.c */
 #define HASH_SIZE_LIMIT
@@ -733,12 +765,16 @@
     #define WOLFSSL_ESP8266
 
     /* There's no hardware encryption on the ESP8266 */
-    /* Consider using the ESP32-C2/C3/C6
-     * See https://www.espressif.com/en/products/socs/esp32-c2 */
+    /* Consider using the ESP32-C2/C3/C6             */
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
     #define NO_WOLFSSL_ESP32_CRYPT_AES
     #define NO_WOLFSSL_ESP32_CRYPT_RSA_PRI
+    #ifndef FP_MAX_BITS
+        /* FP_MAX_BITS matters in wolfssl_test, not just TLS setting.   */
+        /* MIN_FFDHE_FP_MAX_BITS = (MIN_FFDHE_BITS * 2); see settings.h */
+        #define FP_MAX_BITS MIN_FFDHE_FP_MAX_BITS
+    #endif
     /***** END CONFIG_IDF_TARGET_ESP266 *****/
 
 #elif defined(CONFIG_IDF_TARGET_ESP8684)
@@ -791,7 +827,7 @@ See wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h for details on debug options
 optionally increase error message size for very long paths.
 #define WOLFSSL_MAX_ERROR_SZ 500
 
-Turn debugging on/off:
+Turn wolfSSL debugging on/off:
     wolfSSL_Debugging_ON();
     wolfSSL_Debugging_OFF();
 
@@ -801,6 +837,7 @@ Turn debugging on/off:
 #define DEBUG_WOLFSSL_SHA_MUTEX
 #define WOLFSSL_DEBUG_IGNORE_ASN_TIME
 #define WOLFSSL_DEBUG_CERT_BUNDLE
+#define WOLFSSL_DEBUG_CERT_BUNDLE_NAME
 #define WOLFSSL_ESP32_CRYPT_DEBUG
 #define WOLFSSL_ESP32_CRYPT_HASH_SHA224_DEBUG
 #define NO_RECOVER_SOFTWARE_CALC
@@ -809,6 +846,8 @@ Turn debugging on/off:
 #define WOLFSSL_ESP32_HW_LOCK_DEBUG
 #define WOLFSSL_DEBUG_MUTEX
 #define WOLFSSL_DEBUG_ESP_RSA_MULM_BITS
+#define WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+#define WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
 #define ESP_DISABLE_HW_TASK_LOCK
 #define ESP_MONITOR_HW_TASK_LOCK
 #define USE_ESP_DPORT_ACCESS_READ_BUFFER

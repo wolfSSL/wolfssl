@@ -3,6 +3,7 @@
 #
 # wolfssl client test
 #
+message("Begin wolfSSL main CMakeLists.txt")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
 
 if(WIN32)
@@ -83,24 +84,27 @@ function ( LIBWOLFSSL_SAVE_INFO VAR_OUPUT THIS_VAR VAR_RESULT )
         add_definitions(-D${VAR_OUPUT}=\"${VAR_VALUE}\")
     else()
         # if we get here, check the execute_process command and parameters.
-        message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT")
+        message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT.")
+        message(STATUS "Setting ${VAR_OUPUT} to \"Unknown\"")
         set(${VAR_OUPUT} "Unknown")
     endif()
 endfunction() # LIBWOLFSSL_SAVE_INFO
 
+# Save some project-specific details. Repo may be different than component, or may not even be a repo at all:
 if(NOT CMAKE_BUILD_EARLY_EXPANSION)
-    # LIBWOLFSSL_VERSION_GIT_HASH
+    # WOLFSSL_EXAMPLE_VERSION_GIT_HASH
     execute_process(COMMAND ${git_cmd} "rev-parse" "HEAD" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )
-    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH "${TMP_OUT}" "${TMP_RES}")
+    LIBWOLFSSL_SAVE_INFO(WOLFSSL_EXAMPLE_VERSION_GIT_HASH "${TMP_OUT}" "${TMP_RES}")
 
-    # LIBWOLFSSL_VERSION_GIT_SHORT_HASH
+    # WOLFSSL_EXAMPLE_VERSION_GIT_SHORT_HASH
     execute_process(COMMAND ${git_cmd} "rev-parse" "--short" "HEAD" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )
-    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_SHORT_HASH "${TMP_OUT}" "${TMP_RES}")
+    LIBWOLFSSL_SAVE_INFO(WOLFSSL_EXAMPLE_VERSION_GIT_SHORT_HASH "${TMP_OUT}" "${TMP_RES}")
 
-    # LIBWOLFSSL_VERSION_GIT_HASH_DATE
+    # WOLFSSL_EXAMPLE_VERSION_GIT_HASH_DATE
     execute_process(COMMAND ${git_cmd} "show" "--no-patch" "--no-notes" "--pretty=\'\%cd\'" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES  )
-    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH_DATE "${TMP_OUT}" "${TMP_RES}")
+    LIBWOLFSSL_SAVE_INFO(WOLFSSL_EXAMPLE_VERSION_GIT_HASH_DATE "${TMP_OUT}" "${TMP_RES}")
 endif()
 
 message(STATUS "")
+message("End wolfSSL main CMakeLists.txt")
 

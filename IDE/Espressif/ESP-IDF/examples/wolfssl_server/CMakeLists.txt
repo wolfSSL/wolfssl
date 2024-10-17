@@ -3,6 +3,8 @@
 #
 # The following lines of boilerplate have to be in your project's
 # CMakeLists in this exact order for cmake to work correctly
+message(STATUS "Begin project ${CMAKE_PROJECT_NAME}")
+
 cmake_minimum_required(VERSION 3.16)
 
 # The wolfSSL CMake file should be able to find the source code.
@@ -48,7 +50,8 @@ endif()
 # End optional WOLFSSL_CMAKE_SYSTEM_NAME
 
 # This example uses an extra component for common functions such as Wi-Fi and Ethernet connection.
-set (PROTOCOL_EXAMPLES_DIR $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
+# set (PROTOCOL_EXAMPLES_DIR $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
+string(REPLACE "\\" "/" PROTOCOL_EXAMPLES_DIR "$ENV{IDF_PATH}/examples/common_components/protocol_examples_common")
 
 if (EXISTS "${PROTOCOL_EXAMPLES_DIR}")
     message("Found PROTOCOL_EXAMPLES_DIR=${PROTOCOL_EXAMPLES_DIR}")
@@ -80,17 +83,20 @@ else()
 endif()
 
 
-# This example uses an extra component for common functions such as Wi-Fi and Ethernet connection.
-set (PROTOCOL_EXAMPLES_DIR $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
+message(STATUS "begin include")
+if(0)
+    # This example uses an extra component for common functions such as Wi-Fi and Ethernet connection.
+    set (PROTOCOL_EXAMPLES_DIR $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
 
-if (EXISTS "${PROTOCOL_EXAMPLES_DIR}")
-    message("Found PROTOCOL_EXAMPLES_DIR=${PROTOCOL_EXAMPLES_DIR}")
-    set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DFOUND_PROTOCOL_EXAMPLES_DIR")
-else()
-    message("NOT FOUND: PROTOCOL_EXAMPLES_DIR=${PROTOCOL_EXAMPLES_DIR}")
+    if (EXISTS "${PROTOCOL_EXAMPLES_DIR}")
+        message("Found PROTOCOL_EXAMPLES_DIR=${PROTOCOL_EXAMPLES_DIR}")
+        set(EXTRA_COMPONENT_DIRS $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DFOUND_PROTOCOL_EXAMPLES_DIR")
+    else()
+        message("NOT FOUND: PROTOCOL_EXAMPLES_DIR=${PROTOCOL_EXAMPLES_DIR}")
+    endif()
 endif()
-
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-
+message(STATUS "end include")
 project(wolfssl_server)
+message(STATUS "end project")

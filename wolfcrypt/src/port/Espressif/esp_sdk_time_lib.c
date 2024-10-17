@@ -74,10 +74,10 @@ esp_err_t esp_sdk_time_lib_init(void)
 
 /* ESP-IDF uses a 64-bit signed integer to represent time_t
  * starting from release v5.0
- * See: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#year-2036-and-2038-overflow-issues
+ * See: Espressif api-reference system_time (year-2036-and-2038-overflow-issues)
  */
 
-/* see https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html */
+/* see gnu TZ-Variable */
 #ifndef TIME_ZONE
     /*
      * PST represents Pacific Standard Time.
@@ -379,7 +379,7 @@ int set_time(void)
     if (NTP_SERVER_COUNT) {
         /* next, let's setup NTP time servers
          *
-         * see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#sntp-time-synchronization
+         * see Espressif api-reference system_time (sntp-time-synchronization)
          *
          * WARNING: do not set operating mode while SNTP client is running!
          */

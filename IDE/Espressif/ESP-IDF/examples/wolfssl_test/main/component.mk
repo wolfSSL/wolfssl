@@ -6,4 +6,4 @@
 # in the build directory. This behavior is entirely configurable,
 # please read the ESP-IDF documents if you need to do this.
 #
-# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
+# (Uses default behavior of compiling all source files in directory, adding 'include' to include path.)

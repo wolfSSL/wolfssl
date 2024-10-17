@@ -1,9 +1,94 @@
-menu "Example Configuration"
+menu "Example wolfSSL Configuration"
+
+choice WOLFSSL_EXAMPLE_CHOOSE
+    prompt "Choose Example (See wolfssl/include/user_settings.h)"
+    default WOLFSSL_EXAMPLE_NAME_NONE
+    help
+        The user settings file can be adjusted to specific wolfSSL examples.
+
+    config WOLFSSL_EXAMPLE_NAME_TEMPLATE
+        bool "wolfSSL Template"
+        help
+            The sample template app compiles in wolfSSL and prints the current wolfSSL Version. Nothing more.
+
+    config WOLFSSL_EXAMPLE_NAME_TEST
+        bool "wolfSSL Test"
+        help
+            This app tests all cryptographic functions currently enabled. See also Benchmark performance app.
+
+    config WOLFSSL_EXAMPLE_NAME_BENCHMARK
+        bool "wolfSSL Benchmark"
+        help
+            Benchmark performance app. See also cryptographic test.
+
+    config WOLFSSL_EXAMPLE_NAME_TLS_CLIENT
+        bool "TLS Client"
+        help
+            TLS Client Example app. Needs WiFi and a listening server on port 11111.
+
+    config WOLFSSL_EXAMPLE_NAME_TLS_SERVER
+        bool "TLS Server"
+        help
+            TLS Server Example app. Needs WiFi. More interesting with a TLS client using port 11111.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFSSH_TEMPLATE
+        bool "SSH Template App"
+        help
+            Bare-bones Hellow World app that only compiles in wolfSSL and wolfSSH.
+            See wolfSSL/wolfssh on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFSSH_ECHOSERVER
+        bool "SSH Echo Server"
+        help
+            See wolfSSL/wolfssh on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFSSH_ECHOSERVER
+        bool "SSH Echo Server"
+        help
+            See wolfSSL/wolfssh on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_ESP32_SSH_SERVER
+        bool "SSH to UART Server for the ESP32"
+        help
+            See wolfSSL/wolfssh-examples on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_ESP8266_SSH_SERVER
+        bool "SSH to UART Server for the ESP8266"
+        help
+            See wolfSSL/wolfssh-examples on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFMQTT_TEMPLATE
+        bool "MQTT Template"
+        help
+            See wolfSSL/wolfmqtt on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_WOLFMQTT_AWS_IOT_MQTT
+        bool "MQTT AWS IoT"
+        help
+            See wolfSSL/wolfmqtt on GitHub.
+
+    config WOLFTPM_EXAMPLE_NAME_ESPRESSIF
+        bool "TPM Test Example for the ESP32"
+        help
+            See wolfSSL/wolfTPM on GitHub.
+
+    config WOLFSSL_EXAMPLE_NAME_NONE
+        bool "Other"
+        help
+            A specific example app is not defined.
+
+endchoice
+
+config WOLFSSL_TARGET_HOST
+    string "Target host"
+    default "127.0.0.1"
+    help
+        host address for the example to connect
 
 config WOLFSSL_TARGET_PORT
     int "Target port"
     default 11111
     help
-        Host listening port for the example to connect.
+        host port for the example to connect
 
 endmenu

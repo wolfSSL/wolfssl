@@ -31,8 +31,7 @@
  * wolfSSL libraries. It is used when the wolfssl libary component is configured
  * to be utilized by the Espressif ESP-IDF, specifically the esp-tls layer.
  *
- * See:
- * https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/protocols/esp_tls.html
+ * See: esp-idf api-reference for esp_tls.
  * https://github.com/espressif/esp-idf/blob/master/components/esp-tls/esp_tls.h
  *
  *******************************************************************************

@@ -28,7 +28,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
-#if defined(USE_WOLFSSL_ESP_SDK_WIFI)
+#if defined(USE_WOLFSSL_ESP_SDK_WIFI) && ESP_IDF_VERSION_MAJOR > 4
 
 /* Espressif */
 #include "sdkconfig.h" /* programmatically generated from sdkconfig */
@@ -59,8 +59,8 @@ esp_err_t esp_sdk_wifi_lib_init(void)
 #if defined(CONFIG_IDF_TARGET_ESP8266)
 #elif ESP_IDF_VERSION_MAJOR >= 5 && defined(FOUND_PROTOCOL_EXAMPLES_DIR)
     /* example path set in cmake file */
-#elif ESP_IDF_VERSION_MAJOR >= 4
-    #include "protocol_examples_common.h"
+#elif ESP_IDF_VERSION_MAJOR > 4
+/*    #include "protocol_examples_common.h" */
 #else
     const static int CONNECTED_BIT = BIT0;
     static EventGroupHandle_t wifi_event_group;
@@ -266,7 +266,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         ESP_LOGI(TAG, "got ip:%s",
                  ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
     #endif
-        /* see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html */
+        /* see Espressif api-reference freertos_idf */
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:

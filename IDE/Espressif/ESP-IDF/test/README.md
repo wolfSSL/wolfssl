@@ -7,4 +7,4 @@ When you want to run the app
 2. `idf.py menuconfig` to configure unit test app.
 3. `idf.py -T wolfssl build` to build wolfssl unit test app.
 
-See [https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/unit-tests.html] for more information about unit test app.
+See Espressif for more information about unit test app.

@@ -6,7 +6,7 @@ and with the intention of using Certificate Bundles in the esp-tls component.
 See the ESP-IDF `idf.py menuconfig`. A recent version of the [wolfSSL Kconfig](https://github.com/wolfSSL/wolfssl/blob/master/IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/Kconfig)
 file is needed. The [template example](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples/template)
 can be use for creating a project-specific [wolfSSL component](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples/template/components/wolfssl)
-when not using a [Managed Component](https://components.espressif.com/components/wolfssl/wolfssl).
+when not using a [Managed Component](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/).
 
 ## Getting Started
 

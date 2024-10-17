@@ -28,22 +28,32 @@
 
 /* wolfSSL */
 /* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
-/* Reminder: settings.h pulls in user_settings.h; don't include it here */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
-#ifndef WOLFSSL_ESPIDF
-    #warning "Problem with wolfSSL user_settings."
-    #warning "Check components/wolfssl/include"
+/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
+#ifdef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/wolfcrypt/settings.h>
+    #ifndef WOLFSSL_ESPIDF
+        #warning "Problem with wolfSSL user_settings."
+        #warning "Check components/wolfssl/include"
+    #endif
+    /* This project not yet using the library */
+    #undef USE_WOLFSSL_ESP_SDK_WIFI
+    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+#else
+    /* Define WOLFSSL_USER_SETTINGS project wide for settings.h to include   */
+    /* wolfSSL user settings in ./components/wolfssl/include/user_settings.h */
+    #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile:\
+    CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
 
 /* this project */
 #include "client-tls.h"
 #include "time_helper.h"
 
-#ifndef CONFIG_IDF_TARGET_ESP32H2
+#ifdef CONFIG_IDF_TARGET_ESP32H2
     /* There's no WiFi on ESP32-H2.
      * For wired ethernet, see:
      * https://github.com/wolfSSL/wolfssl-examples/tree/master/ESP32/TLS13-ENC28J60-client */
+#else
     #include "wifi_connect.h"
     /*
      * Note ModBus TCP cannot be disabled on ESP8266 tos-sdk/v3.4
@@ -123,8 +133,12 @@ void my_atmel_free(int slotId)
 /* Entry for FreeRTOS */
 void app_main(void)
 {
+#if !defined(SINGLE_THREADED) && INCLUDE_uxTaskGetStackHighWaterMark
     int stack_start = 0;
+#endif
+#if !defined(SINGLE_THREADED)
     int this_heap = 0;
+#endif
     esp_err_t ret = 0;
     ESP_LOGI(TAG, "---------------- wolfSSL TLS Client Example ------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
@@ -132,6 +146,9 @@ void app_main(void)
     ESP_LOGI(TAG, "---------------------- BEGIN MAIN ----------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
+#if !defined(CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_CLIENT)
+    ESP_LOGW(TAG, "Warning: Example wolfSSL misconfigured? Check menuconfig.");
+#endif
 #ifdef ESP_SDK_MEM_LIB_VERSION
     sdk_init_meminfo();
 #endif
@@ -155,7 +172,7 @@ void app_main(void)
          * the minimum free stack space there has been (in bytes not words, unlike
          * vanilla FreeRTOS) since the task started. The smaller the returned
          * number the closer the task has come to overflowing its stack.
-         * see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html
+         * see Espressif api-reference/system/freertos_idf
          */
         stack_start = uxTaskGetStackHighWaterMark(NULL);
         #ifdef ESP_SDK_MEM_LIB_VERSION
@@ -172,7 +189,15 @@ void app_main(void)
 #ifdef HAVE_VERSION_EXTENDED_INFO
     esp_ShowExtendedSystemInfo();
 #endif
-
+#ifdef DEBUG_WOLFSSL
+    wolfSSL_Debugging_OFF();
+#endif
+#ifdef CONFIG_IDF_TARGET_ESP32H2
+    ESP_LOGE(TAG, "No WiFi on the ESP32-H2 and ethernet not yet supported");
+    while (1) {
+        vTaskDelay(60000);
+    }
+#endif
     /* Set time for cert validation.
      * Some lwIP APIs, including SNTP functions, are not thread safe. */
     ret = set_time(); /* need to setup NTP before WiFi */
@@ -267,7 +292,6 @@ void app_main(void)
                    - (uxTaskGetStackHighWaterMark(NULL))
             );
     ESP_LOGI(TAG, "Starting TLS Client task ...\n");
-
     ESP_LOGI(TAG, "main tls_smp_client_init heap @ %p = %d",
                   &this_heap, this_heap);
     tls_smp_client_init(args);

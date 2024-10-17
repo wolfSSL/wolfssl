@@ -27,19 +27,26 @@
 /* The wolfSSL user_settings.h file is automatically included by the settings.h
  * file and should never be explicitly included in any other source files.
  * The settings.h should also be listed above wolfssl library include files. */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/version.h>
-#include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
-#include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
-#ifndef WOLFSSL_ESPIDF
-    #error "Problem with wolfSSL user_settings. "           \
-           "Check components/wolfssl/include "              \
-           "and confirm WOLFSSL_USER_SETTINGS is defined, " \
-           "typically in the component CMakeLists.txt"
+#if defined(WOLFSSL_USER_SETTINGS)
+    #include <wolfssl/wolfcrypt/settings.h>
+    #if defined(WOLFSSL_ESPIDF)
+        #include <wolfssl/version.h>
+        #include <wolfssl/wolfcrypt/types.h>
+        #include <wolfcrypt/benchmark/benchmark.h>
+        #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
+        #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+    #else
+        #error "Problem with wolfSSL user_settings. "           \
+               "Check components/wolfssl/include "              \
+               "and confirm WOLFSSL_USER_SETTINGS is defined, " \
+               "typically in the component CMakeLists.txt"
+    #endif
+#else
+    /* Define WOLFSSL_USER_SETTINGS project wide for settings.h to include   */
+    /* wolfSSL user settings in ./components/wolfssl/include/user_settings.h */
+    #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile:\
+    CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
-
-#include <wolfssl/wolfcrypt/types.h>
-#include <wolfcrypt/benchmark/benchmark.h>
 
 /* Hardware; include after other libraries,
  * particularly after freeRTOS from settings.h */
@@ -152,6 +159,7 @@ char* __argv[WOLFSSL_BENCH_ARGV_MAX_ARGUMENTS];
 
 int construct_argv()
 {
+    #define ARG_BUFF_SIZE 16
     int cnt = 0;
     int i = 0;
     int len = 0;
@@ -212,15 +220,16 @@ int construct_argv()
 /* entry point */
 void app_main(void)
 {
-    int stack_start = 0;
-
     uart_config_t uart_config = {
         .baud_rate = THIS_MONITOR_UART_BAUD_DATE,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
     };
+    int stack_start = 0;
+    word32 loops = 0;
     esp_err_t ret = 0;
+
     stack_start = esp_sdk_stack_pointer();
 
     /* uart_set_pin(UART_NUM_0, TX_PIN, RX_PIN,
@@ -270,7 +279,7 @@ void app_main(void)
     ESP_LOGI(TAG, "NO_CRYPT_BENCHMARK defined, skipping wolf_benchmark_task")
 #else
 
-    /* although wolfCrypt_Init() may be explicitly called above,
+    /* Although wolfCrypt_Init() may be explicitly called above,
     ** note it is still always called in wolf_benchmark_task.
     */
     stack_start = uxTaskGetStackHighWaterMark(NULL);
@@ -278,16 +287,29 @@ void app_main(void)
     do {
         ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 
-        wolf_benchmark_task(); /* TODO capture return value! */
+#ifdef WOLFSSL_BENCH_ARGV
+        ret = benchmark_test(__argv);
+#else
+        ret = benchmark_test(NULL);
+#endif
         ESP_LOGI(TAG, "Stack used: %d\n",
                       stack_start - uxTaskGetStackHighWaterMark(NULL));
 
-        #if defined(WOLFSSL_HW_METRICS) && defined(WOLFSSL_HAS_METRICS)
-            esp_hw_show_metrics();
-        #endif
-    } while (BENCHMARK_LOOP);
-    /* Reminder: wolfCrypt_Cleanup should always be called at completion,
+        esp_hw_show_metrics();
+
+        loops++; /* count of the number of tests run before fail. */
+        ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
+        ESP_LOGI(TAG, "loops = %d", loops);
+
+    } while (BENCHMARK_LOOP && (ret == 0));
+
+    /* Reminder: wolfCrypt_Cleanup() should always be called at completion,
     ** and is called in wolf_benchmark_task().  */
+
+#if defined BENCHMARK_LOOP && (BENCHMARK_LOOP == 1)
+    /* If BENCHMARK_LOOP enabled and we get here, there was likely an error. */
+    ESP_LOGI(TAG, "Benchmark loops completed: %d", loops);
+#endif
 
 #if defined(SINGLE_THREADED)
     /* need stack monitor for single thread */
@@ -295,19 +317,11 @@ void app_main(void)
     ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
 #endif
 
-    /* note wolfCrypt_Cleanup() should always be called when finished.
-    ** This is called at the end of wolf_test_task();
-    */
-
-#if defined(DEBUG_WOLFSSL) && defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
-    esp_hw_show_mp_metrics();
-#endif
-
 #ifdef INCLUDE_uxTaskGetStackHighWaterMark
-        ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
+    ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
 
-        ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                        - (uxTaskGetStackHighWaterMark(NULL)));
+    ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
+                                    - (uxTaskGetStackHighWaterMark(NULL)));
 #endif
 
 #ifdef WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE
@@ -318,19 +332,19 @@ void app_main(void)
         ESP_LOGE(TAG, WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE("Failed!", ret));
     }
 #elif defined(WOLFSSL_ESPIDF_EXIT_MESSAGE)
-     ESP_LOGI(TAG, WOLFSSL_ESPIDF_EXIT_MESSAGE);
+    ESP_LOGI(TAG, WOLFSSL_ESPIDF_EXIT_MESSAGE);
 #else
     ESP_LOGI(TAG, "\n\nDone!\n\n"
                   "If running from idf.py monitor, press twice: Ctrl+]");
 #endif
 
-    /* after the test, we'll just wait */
+    /* After completion, we'll just wait */
     while (1) {
-        /* do something other than nothing to help next program/debug session*/
-#ifndef SINGLE_THREADED
-        vTaskDelay(1000);
+#if defined(SINGLE_THREADED)
+        while (1);
+#else
+        vTaskDelay(60000);
 #endif
-    }
-
+    } /* done while */
 #endif /* NO_CRYPT_BENCHMARK */
-} /* main */
+}

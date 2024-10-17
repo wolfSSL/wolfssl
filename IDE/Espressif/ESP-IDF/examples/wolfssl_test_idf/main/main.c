@@ -24,14 +24,25 @@
 #include "sdkconfig.h"
 
 /* wolfSSL */
-#include <wolfssl/wolfcrypt/settings.h>
-#include <user_settings.h>
-#include <wolfssl/version.h>
-#ifndef WOLFSSL_ESPIDF
-#warning "problem with wolfSSL user settings. Check components/wolfssl/include"
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
+/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
+#ifdef WOLFSSL_USER_SETTINGS
+    /* Unlike other examples with wolfSSL as a local component, this */
+    /* example tests wolSSL *in* the ESP-IDF. If you get an error:   */
+    /*    wolfssl/wolfcrypt/settings.h: No such file or directory    */
+    /* Then wolfSSL is missing from the ESP-IDF components           */
+    #include <wolfssl/wolfcrypt/settings.h>
+    #ifndef WOLFSSL_ESPIDF
+        #warning "Problem with wolfSSL user_settings."
+        #warning "Check components/wolfssl/include"
+    #endif
+    #include <wolfcrypt/benchmark/benchmark.h>
+    #include <wolfssl/version.h>
+    #include <wolfcrypt/test/test.h>
+#else
+    #error "Missing WOLFSSL_USER_SETTINGS in CMakeLists or Makefile: \
+CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
-
-#include <wolfcrypt/test/test.h>
 
 /*
 ** the wolfssl component can be installed in either:
@@ -152,8 +163,8 @@ void app_main(void)
 
 
     /* some interesting settings are target specific (ESP32, -C3, -S3, etc */
-#if defined(CONFIG_IDF_TARGET_ESP32C3)
-    /* not available for C3 at this time */
+#if defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32C3)
+    /* TODO CPU_FREQ_MHZ not available for C2/C3 at this time */
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
     ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
                    CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
@@ -173,7 +184,7 @@ void app_main(void)
 #if defined(NO_ESP32_CRYPT)
     ESP_LOGI(TAG, "NO_ESP32_CRYPT defined! HW acceleration DISABLED.");
 #else
-    #if defined(CONFIG_IDF_TARGET_ESP32C3)
+    #if defined(CONFIG_IDF_TARGET_ESP32C2) || defined(CONFIG_IDF_TARGET_ESP32C3)
         #error "ESP32_CRYPT not yet supported on ESP32-C3"
     #elif defined(CONFIG_IDF_TARGET_ESP32S2)
         #error "ESP32_CRYPT not yet supported on ESP32-S2"

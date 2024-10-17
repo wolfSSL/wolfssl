@@ -78,7 +78,7 @@ wolfSSL to be installed.
 If you want to install wolfSSL, see the setup for [wolfSSL](https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF#setup-for-linux)
 and [wolfSSH](https://github.com/wolfSSL/wolfssh/tree/master/ide/Espressif#setup-for-linux).
 
-The [Espressif Managed Component for wolfSSL](https://components.espressif.com/components/wolfssl/wolfssl)
+The [Espressif Managed Component for wolfSSL](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/)
 also installs source code locally, instead of pointing to a source repository.
 
 ## VisualGDB
@@ -114,7 +114,4 @@ It may be helpful to also delete the `sdkconfig` file. (Save a backup if you've 
 
 - esp32.com: [GPIO6,GPIO7,GPIO8,and GPIO9 changed for ESP32-WROOM-32E](https://esp32.com/viewtopic.php?t=29058)
 
-See also [this ESP-FAQ Handbook](https://docs.espressif.com/projects/esp-faq/en/latest/esp-faq-en-master.pdf).
-
-
-
+See also the `ESP-FAQ Handbook`.

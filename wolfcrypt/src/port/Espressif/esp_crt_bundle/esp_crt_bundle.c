@@ -67,7 +67,7 @@ esp_err_t esp_crt_bundle_attach(void *conf)
  *
  * See the latest code at:
  * https://github.com/wolfSSL/wolfssl or
- * https://components.espressif.com/components/wolfssl/wolfssl
+ * https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/
  */
 #if defined(WOLFSSL_ESPIDF_COMPONENT_VERSION)
     #if (WOLFSSL_ESPIDF_COMPONENT_VERSION > 0)

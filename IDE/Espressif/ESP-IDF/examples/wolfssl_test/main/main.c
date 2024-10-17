@@ -1,4 +1,4 @@
-/* main.c
+/* test main.c
  *
  * Copyright (C) 2006-2024 wolfSSL Inc.
  *
@@ -26,17 +26,20 @@
 /* wolfSSL */
 /* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
 /* Reminder: settings.h pulls in user_settings.h; don't include it here. */
-#ifdef WOLFSSL_USER_SETTINGS
+#if defined(WOLFSSL_USER_SETTINGS)
     #include <wolfssl/wolfcrypt/settings.h>
-    #ifndef WOLFSSL_ESPIDF
-        #warning "Problem with wolfSSL user_settings."
-        #warning "Check components/wolfssl/include"
+    #if defined(WOLFSSL_ESPIDF)
+        #include <wolfssl/version.h>
+        #include <wolfssl/wolfcrypt/types.h>
+        #include <wolfcrypt/test/test.h>
+        #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
+        #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
+    #else
+        #error "Problem with wolfSSL user_settings. "           \
+               "Check components/wolfssl/include "              \
+               "and confirm WOLFSSL_USER_SETTINGS is defined, " \
+               "typically in the component CMakeLists.txt"
     #endif
-    #include <wolfssl/version.h>
-    #include <wolfssl/wolfcrypt/types.h>
-    #include <wolfcrypt/test/test.h>
-    #include <wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h>
-    #include <wolfssl/wolfcrypt/port/Espressif/esp32-crypt.h>
 #else
     /* Define WOLFSSL_USER_SETTINGS project wide for settings.h to include   */
     /* wolfSSL user settings in ./components/wolfssl/include/user_settings.h */
@@ -44,8 +47,9 @@
     CFLAGS +=-DWOLFSSL_USER_SETTINGS"
 #endif
 
-#include "driver/uart.h"
-
+/* Hardware; include after other libraries,
+ * particularly after freeRTOS from settings.h */
+#include <driver/uart.h>
 
 /* set to 0 for one test,
 ** set to 1 for continuous test loop */
@@ -76,9 +80,13 @@
 
 /*
 ** although the wolfcrypt/test includes a default time setting,
-** see wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h */
-
+** see the enclosed optional time helper for adding NNTP.
+** be sure to add "time_helper.c" in main/CMakeLists.txt
+*/
 #undef WOLFSSL_USE_TIME_HELPER
+#if defined(WOLFSSL_USE_TIME_HELPER)
+    #include "time_helper.h"
+#endif
 
 /* see wolfssl/wolfcrypt/test/test.h */
 extern void wolf_crypt_task();
@@ -155,13 +163,16 @@ void app_main(void)
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
     };
+    int stack_start = 0;
+    int loops = 0;
     esp_err_t ret = 0;
-    wc_ptr_t stack_start = esp_sdk_stack_pointer();
+
+    stack_start = esp_sdk_stack_pointer();
 
     /* uart_set_pin(UART_NUM_0, TX_PIN, RX_PIN,
      *              UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); */
 
-    /* Some targets may need to have UART speed set. TODO: which? */
+    /* Some targets may need to have UART speed set, such as ESP8266 */
     ESP_LOGI(TAG, "UART init");
     uart_param_config(UART_NUM_0, &uart_config);
     uart_driver_install(UART_NUM_0,
@@ -186,6 +197,7 @@ void app_main(void)
 #ifdef TASK_EXTRA_STACK_SIZE
      ESP_LOGI(TAG, "TASK_EXTRA_STACK_SIZE: %d", TASK_EXTRA_STACK_SIZE);
 #endif
+
 #ifdef INCLUDE_uxTaskGetStackHighWaterMark
     ESP_LOGI(TAG, "CONFIG_ESP_MAIN_TASK_STACK_SIZE = %d bytes (%d words)",
                    CONFIG_ESP_MAIN_TASK_STACK_SIZE,
@@ -195,13 +207,13 @@ void app_main(void)
      * the minimum free stack space there has been (in bytes not words, unlike
      * vanilla FreeRTOS) since the task started. The smaller the returned
      * number the closer the task has come to overflowing its stack.
-     * see https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/freertos_idf.html
+     * see Espressif esp32/api-reference/system/freertos_idf.html
      */
     stack_start = uxTaskGetStackHighWaterMark(NULL);
     ESP_LOGI(TAG, "Stack Start HWM: %d bytes", stack_start);
 #endif
 
-#ifdef HAVE_VERSION_EXTENDED_INFO
+#if defined(HAVE_VERSION_EXTENDED_INFO)
     esp_ShowExtendedSystemInfo();
 #endif
 
@@ -230,38 +242,45 @@ void app_main(void)
     ESP_LOGI(TAG, "NO_CRYPT_TEST defined, skipping wolf_test_task");
 #else
     /* Although wolfCrypt_Init() may be explicitly called above,
-    ** Note it is still always called in wolf_test_task.
+    ** note it is still always called in wolf_test_task.
     */
-    int loops = 0;
+    stack_start = uxTaskGetStackHighWaterMark(NULL);
+
     do {
-        #if defined(WOLFSSL_HW_METRICS) && defined(WOLFSSL_HAS_METRICS)
+        ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
+
+        ret = wolf_test_task();
+        #if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && defined(WOLFSSL_HW_METRICS)
             esp_hw_show_metrics();
         #endif
-        ret = wolf_test_task();
+        loops++; /* count of the number of tests run before fail. */
         ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
         ESP_LOGI(TAG, "loops = %d", loops);
 
-        loops++;
-    }
-    while (TEST_LOOP && (ret == 0));
+    } while (TEST_LOOP && (ret == 0));
+
+    /* Reminder: wolfCrypt_Cleanup() should always be called at completion,
+    ** and is called in wolf_test_task().  */
 
 #if defined TEST_LOOP && (TEST_LOOP == 1)
     ESP_LOGI(TAG, "Test loops completed: %d", loops);
 #endif
 
-    /* note wolfCrypt_Cleanup() should always be called when finished.
-    ** This is called at the end of wolf_test_task();
-    */
+#if defined(SINGLE_THREADED)
+    /* need stack monitor for single thread */
+#else
+    ESP_LOGI(TAG, "Stack HWM: %d\n", uxTaskGetStackHighWaterMark(NULL));
+#endif
 
 #if defined(DEBUG_WOLFSSL) && defined(WOLFSSL_ESP32_CRYPT_RSA_PRI)
     esp_hw_show_mp_metrics();
 #endif
 
 #ifdef INCLUDE_uxTaskGetStackHighWaterMark
-        ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
+    ESP_LOGI(TAG, "Stack HWM: %d", uxTaskGetStackHighWaterMark(NULL));
 
-        ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
-                                        - (uxTaskGetStackHighWaterMark(NULL)));
+    ESP_LOGI(TAG, "Stack used: %d", CONFIG_ESP_MAIN_TASK_STACK_SIZE
+                                    - (uxTaskGetStackHighWaterMark(NULL)));
 #endif
 
 #ifdef WOLFSSL_ESPIDF_VERBOSE_EXIT_MESSAGE
@@ -278,7 +297,7 @@ void app_main(void)
                   "If running from idf.py monitor, press twice: Ctrl+]");
 #endif
 
-    /* done */
+    /* After completion, we'll just wait */
     while (1) {
 #if defined(SINGLE_THREADED)
         while (1);
