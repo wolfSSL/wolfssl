@@ -13,32 +13,6 @@ concurrency:
 # END OF COMMON SECTION
 
 jobs:
-  build_wolfssl:
-    if: github.repository_owner == 'wolfssl'
-    name: Build wolfSSL
-    # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
-    # This should be a safe limit for the tests to run.
-    timeout-minutes: 4
-    steps:
-      - name: Build wolfSSL
-        uses: wolfSSL/actions-build-autotools-project@v1
-        with:
-          path: wolfssl
-          configure: --enable-all CFLAGS=-DWOLFSSL_NO_ASN_STRICT
-          install: true
-          check: false
-
-      - name: tar build-dir
-        run: tar -zcf build-dir.tgz build-dir
-
-      - name: Upload built lib
-        uses: actions/upload-artifact@v4
-        with:
-          name: wolf-install-sssd
-          path: build-dir.tgz
-          retention-days: 5
-
   sssd_check:
     if: github.repository_owner == 'wolfssl'
     strategy:
@@ -54,7 +28,6 @@ jobs:
         LD_LIBRARY_PATH: /usr/local/lib
     # This should be a safe limit for the tests to run.
     timeout-minutes: 20
-    needs: build_wolfssl
     steps:
       - name: Install dependencies
         run: |
@@ -71,13 +44,13 @@ jobs:
           ln -s samba-4.0/ldb_module.h /usr/include/ldb_module.h
           ln -s samba-4.0/ldb_version.h /usr/include/ldb_version.h
 
-      - name: Download lib
-        uses: actions/download-artifact@v4
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
         with:
-          name: wolf-install-sssd
-
-      - name: untar build-dir
-        run: tar -xf build-dir.tgz
+          path: wolfssl
+          configure: --enable-all CFLAGS=-DWOLFSSL_NO_ASN_STRICT
+          install: true
+          check: false
 
       - name: Checkout OSP
         uses: actions/checkout@v4
