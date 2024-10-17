@@ -10,7 +10,7 @@ ARG DEPS_WOLFSSL="build-essential autoconf libtool clang clang-tools zlib1g-dev 
 ARG DEPS_LIBOQS="astyle cmake gcc ninja-build libssl-dev python3-pytest python3-pytest-xdist unzip xsltproc doxygen graphviz python3-yaml valgrind git"
 ARG DEPS_UDP_PROXY="wget libevent-dev"
 ARG DEPS_TESTS="abi-dumper libcurl4-openssl-dev tcpdump libpsl-dev python3-pandas python3-tabulate libnl-genl-3-dev libcap-ng-dev python3-virtualenv curl jq"
-ARG DEPS_TOOLS="ccache clang-tidy maven"
+ARG DEPS_TOOLS="ccache clang-tidy maven libfile-util-perl"
 RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y apt-utils \
                     && apt install -y ${DEPS_WOLFSSL} ${DEPS_LIBOQS} ${DEPS_UDP_PROXY} ${DEPS_TESTS} ${DEPS_TOOLS} \
                     && apt clean -y && rm -rf /var/lib/apt/lists/*
