@@ -23,8 +23,11 @@
     #include <config.h>
 #endif
 
-/* Reminder: user_settings.h is needed and included from settings.h
- * Be sure to define WOLFSSL_USER_SETTINGS, typically in CMakeLists.txt */
+/* wolfSSL */
+/* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
+/* Be sure to define WOLFSSL_USER_SETTINGS, typically in CMakeLists.txt  */
+/* Reminder: settings.h pulls in user_settings.h                         */
+/*   Do not explicitly include user_settings.h here.                     */
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */

@@ -61,13 +61,18 @@ esp_err_t esp_crt_bundle_attach(void *conf)
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#include <esp_tls.h> /* needed only for esp_tls_free_global_ca_store() */
+#ifdef WOLFSSL_CMAKE_REQUIRED_ESP_TLS
+    /* We're already here since CONFIG_ESP_TLS_USING_WOLFSSL is enabled,    */
+    /* but do we have a recent version of wolfSSL CMakeLists.txt to support */
+    /* using wolfSSL in ESP-IDF? If so, include the esp-tls component here: */
+    #include <esp_tls.h> /* needed only for esp_tls_free_global_ca_store()  */
+#endif
 
 /* There's a minimum version of wolfSSL needed for Certificate Bundle Support.
  *
  * See the latest code at:
- * https://github.com/wolfSSL/wolfssl or
- * https://components.espressif.com/components/wolfssl/wolfssl
+ * https://github.com/wolfSSL/wolfssl or Managed Components at
+ * https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/
  */
 #if defined(WOLFSSL_ESPIDF_COMPONENT_VERSION)
     #if (WOLFSSL_ESPIDF_COMPONENT_VERSION > 0)
@@ -186,12 +191,10 @@ typedef struct crt_bundle_t {
 static WOLFSSL_X509* store_cert = NULL; /* will point to existing param values*/
 static WOLFSSL_X509* bundle_cert = NULL; /* the iterating cert being reviewed.*/
 
-static const uint8_t **crts = NULL;
-static uint16_t num_certs = 0;
-
-
-/* Found in <esp_tls.h> */
-void esp_tls_free_global_ca_store(void);
+#ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
+    static const uint8_t **crts = NULL;
+    static uint16_t num_certs = 0;
+#endif
 
 #ifdef CONFIG_WOLFSSL_CERTIFICATE_BUNDLE
 static esp_err_t wolfssl_esp_crt_bundle_init(const uint8_t *x509_bundle,
@@ -1514,7 +1517,12 @@ esp_err_t wolfSSL_bundle_cleanup(void)
         s_crt_bundle.crts = NULL;
     }
 
+#ifdef WOLFSSL_CMAKE_REQUIRED_ESP_TLS
+    /* When the esp-tls is linked as a requirement in CMake and used by the
+     * ESP-IDF in the esp-tls component, call at cleanup time: */
     esp_tls_free_global_ca_store();
+#endif
+
     /* Be sure to free the bundle_cert first, as it may be part of store. */
     if (bundle_cert != NULL) {
 #ifdef DEBUG_WOLFSSL_MALLOC
