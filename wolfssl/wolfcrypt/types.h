@@ -522,6 +522,12 @@ typedef struct w64wrapper {
     #elif defined(NO_WOLFSSL_MEMORY)
         #ifdef WOLFSSL_NO_MALLOC
             /* this platform does not support heap use */
+            #ifdef WOLFSSL_SMALL_STACK
+                #error WOLFSSL_SMALL_STACK requires a heap implementation.
+            #endif
+            #ifndef WC_NO_CONSTRUCTORS
+                #define WC_NO_CONSTRUCTORS
+            #endif
             #ifdef WOLFSSL_MALLOC_CHECK
                 #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
