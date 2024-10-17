@@ -2920,8 +2920,8 @@ typedef struct Keys {
     byte   encryptionOn;          /* true after change cipher spec */
     byte   decryptedCur;          /* only decrypt current record once */
 #ifdef WOLFSSL_TLS13
-    byte   updateResponseReq:1;   /* KeyUpdate response from peer required. */
-    byte   keyUpdateRespond:1;    /* KeyUpdate is to be responded to. */
+    byte   updateResponseReq;     /* KeyUpdate response from peer required. */
+    byte   keyUpdateRespond;      /* KeyUpdate is to be responded to. */
 #endif
 #ifdef WOLFSSL_RENESAS_TSIP_TLS
 
@@ -4744,10 +4744,34 @@ enum AcceptStateTls13 {
     TLS13_TICKET_SENT
 };
 
+#ifdef WOLFSSL_THREADED_CRYPT
+
+#include <pthread.h>
+
+typedef struct ThreadCrypt {
+    Ciphers encrypt;
+    bufferStatic buffer;
+    unsigned char nonce[AESGCM_NONCE_SZ];
+    unsigned char additional[AEAD_AUTH_DATA_SZ];
+    int init;
+    int offset;
+    int cryptLen;
+    int done;
+    int avail;
+    int stop;
+    WOLFSSL_THREAD_SIGNAL signal;
+    void*                 signalCtx;
+} ThreadCrypt;
+
+#endif
+
 /* buffers for struct WOLFSSL */
 typedef struct Buffers {
     bufferStatic    inputBuffer;
     bufferStatic    outputBuffer;
+#ifdef WOLFSSL_THREADED_CRYPT
+    ThreadCrypt     encrypt[WOLFSSL_THREADED_CRYPT_CNT];
+#endif
     buffer          domainName;            /* for client check */
     buffer          clearOutputBuffer;
     buffer          sig;                   /* signature data */
@@ -4901,7 +4925,6 @@ struct Options {
     word16            tls:1;              /* using TLS ? */
     word16            tls1_1:1;           /* using TLSv1.1+ ? */
     word16            tls1_3:1;           /* using TLSv1.3+ ? */
-    word16            seenUnifiedHdr:1;   /* received msg with unified header */
     word16            dtls:1;             /* using datagrams ? */
 #ifdef WOLFSSL_DTLS
     word16            dtlsStateful:1;     /* allow stateful processing ? */
@@ -4910,7 +4933,6 @@ struct Options {
     word16            isClosed:1;         /* if we consider conn closed */
     word16            closeNotify:1;      /* we've received a close notify */
     word16            sentNotify:1;       /* we've sent a close notify */
-    word16            shutdownDone:1;     /* we've completed a shutdown */
     word16            usingCompression:1; /* are we using compression */
     word16            haveRSA:1;          /* RSA available */
     word16            haveECC:1;          /* ECC available */
@@ -4958,7 +4980,6 @@ struct Options {
 #endif
     word16            dtlsUseNonblock:1;  /* are we using nonblocking socket */
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
-    word16            haveMcast:1;        /* using multicast ? */
 #ifdef WOLFSSL_SCTP
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
@@ -5011,8 +5032,6 @@ struct Options {
     word16            buildArgsSet:1;         /* buildArgs are set and need to
                                                * be free'd */
 #endif
-    word16            buildingMsg:1;      /* If set then we need to re-enter the
-                                           * handshake logic. */
 #ifdef WOLFSSL_DTLS13
     word16            dtls13SendMoreAcks:1;  /* Send more acks during the
                                               * handshake process */
@@ -5039,6 +5058,14 @@ struct Options {
 #if defined(HAVE_DANE)
     word16            useDANE:1;
 #endif /* HAVE_DANE */
+#ifdef WOLFSSL_DTLS
+    byte              haveMcast;          /* using multicast ? */
+#endif
+    byte              buildingMsg;        /* If set then we need to re-enter the
+                                           * handshake logic. */
+    byte              seenUnifiedHdr;     /* received msg with unified header */
+    byte              shutdownDone;       /* we've completed a shutdown */
+    byte              sendKeyUpdate;      /* Key Update to write */
 #if defined(HAVE_RPK)
     RpkConfig         rpkConfig;
     RpkState          rpkState;
@@ -5678,14 +5705,17 @@ typedef struct Dtls13RecordNumber {
 } Dtls13RecordNumber;
 
 typedef struct Dtls13Rtx {
-    enum Dtls13RtxFsmState state;
+#ifdef WOLFSSL_RW_THREADED
+    wolfSSL_Mutex mutex;
+#endif
+    enum Dtls13RtxFsmState state; /* Unused? */
     Dtls13RtxRecord *rtxRecords;
     Dtls13RtxRecord **rtxRecordTailPtr;
     Dtls13RecordNumber *seenRecords;
     word32 lastRtx;
-    byte triggeredRtxs;
-    byte sendAcks:1;
-    byte retransmit:1;
+    byte triggeredRtxs; /* Unused? */
+    byte sendAcks;
+    byte retransmit;
 } Dtls13Rtx;
 
 #endif /* WOLFSSL_DTLS13 */
@@ -5963,10 +5993,10 @@ struct WOLFSSL {
     /* used to store the message if it needs to be fragmented */
     buffer dtls13FragmentsBuffer;
     byte dtls13SendingFragments:1;
-    byte dtls13SendingAckOrRtx:1;
+    byte dtls13SendingAckOrRtx;
     byte dtls13FastTimeout:1;
-    byte dtls13WaitKeyUpdateAck:1;
-    byte dtls13DoKeyUpdate:1;
+    byte dtls13WaitKeyUpdateAck;
+    byte dtls13DoKeyUpdate;
     word32 dtls13MessageLength;
     word32 dtls13FragOffset;
     byte dtls13FragHandshakeType;
@@ -6423,6 +6453,9 @@ WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
 #endif /* HAVE_SESSION_TICKET */
 WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
+#ifdef WOLFSSL_THREADED_CRYPT
+WOLFSSL_LOCAL int SendAsyncData(WOLFSSL* ssl);
+#endif
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType);
 #endif
@@ -6627,6 +6660,10 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
     WOLFSSL_LOCAL int SendServerHelloDone(WOLFSSL* ssl);
 #endif /* NO_WOLFSSL_SERVER */
 
+#ifdef WOLFSSL_TLS13
+    WOLFSSL_LOCAL int SendTls13KeyUpdate(WOLFSSL* ssl);
+#endif
+
 #ifdef WOLFSSL_DTLS
     WOLFSSL_LOCAL DtlsMsg* DtlsMsgNew(word32 sz, byte tx, void* heap);
     WOLFSSL_LOCAL void DtlsMsgDelete(DtlsMsg* item, void* heap);
@@ -6773,6 +6810,9 @@ enum encrypt_side {
     ENCRYPT_AND_DECRYPT_SIDE
 };
 
+WOLFSSL_LOCAL int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys,
+    CipherSpecs* specs, int side, void* heap, int devId, WC_RNG* rng,
+    int tls13);
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
 
 /* Set*Internal and Set*External functions */
@@ -6933,6 +6973,7 @@ WOLFSSL_LOCAL int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
     enum HandShakeType msg_type, word32 length);
 #define EE_MASK (0x3)
 WOLFSSL_LOCAL int Dtls13FragmentsContinue(WOLFSSL* ssl);
+WOLFSSL_LOCAL int DoDtls13KeyUpdateAck(WOLFSSL* ssl);
 WOLFSSL_LOCAL int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
     word32* processedSize);
 WOLFSSL_LOCAL int Dtls13ReconstructEpochNumber(WOLFSSL* ssl, byte epochBits,

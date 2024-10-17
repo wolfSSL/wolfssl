@@ -11210,7 +11210,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
  * ssl  The SSL/TLS object.
  * returns 0 on success, otherwise failure.
  */
-static int SendTls13KeyUpdate(WOLFSSL* ssl)
+int SendTls13KeyUpdate(WOLFSSL* ssl)
 {
     byte*  input;
     byte*  output;
@@ -11387,7 +11387,12 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif /* WOLFSSL_DTLS13 */
 
+#ifndef WOLFSSL_RW_THREADED
         return SendTls13KeyUpdate(ssl);
+#else
+        ssl->options.sendKeyUpdate = 1;
+        return 0;
+#endif
     }
 
     WOLFSSL_LEAVE("DoTls13KeyUpdate", ret);
