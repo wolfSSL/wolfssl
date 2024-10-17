@@ -90819,7 +90819,9 @@ static int test_wolfSSL_dtls_stateless_maxfrag(void)
         WOLFSSL_SUCCESS);
     wolfSSL_SetIOWriteCtx(ssl_c2, &test_ctx);
     wolfSSL_SetIOReadCtx(ssl_c2, &test_ctx);
-    max_fragment = ssl_s->max_fragment;
+    if (EXPECT_SUCCESS()) {
+        max_fragment = ssl_s->max_fragment;
+    }
     /* send CH */
     ExpectTrue((wolfSSL_connect(ssl_c2) == WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) &&
         (ssl_c2->error == WC_NO_ERR_TRACE(WANT_READ)));
