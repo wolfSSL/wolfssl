@@ -11471,8 +11471,8 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         if (ssl->options.tls1_3) {
             ret = GetDtls13RecordHeader(ssl, inOutIdx, rh, size);
             if (ret == 0 ||
-                ret != WC_NO_ERR_TRACE(SEQUENCE_ERROR) ||
-                ret != WC_NO_ERR_TRACE(DTLS_CID_ERROR))
+                ((ret != WC_NO_ERR_TRACE(SEQUENCE_ERROR)) &&
+                 (ret != WC_NO_ERR_TRACE(DTLS_CID_ERROR))))
                 return ret;
         }
 

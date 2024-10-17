@@ -495,22 +495,25 @@ int Dtls13HashClientHello(const WOLFSSL* ssl, byte* hash, int* hashSz,
     wc_HashAlg hashCtx;
     int type = wolfSSL_GetHmacType_ex(specs);
 
+    if (type < 0)
+        return type;
+
     header[0] = (byte)client_hello;
     c32to24(length, header + 1);
 
-    ret = wc_HashInit_ex(&hashCtx, type, ssl->heap, ssl->devId);
+    ret = wc_HashInit_ex(&hashCtx, (enum wc_HashType)type, ssl->heap, ssl->devId);
     if (ret == 0) {
-        ret = wc_HashUpdate(&hashCtx, type, header, OPAQUE32_LEN);
+        ret = wc_HashUpdate(&hashCtx, (enum wc_HashType)type, header, OPAQUE32_LEN);
         if (ret == 0)
-            ret = wc_HashUpdate(&hashCtx, type, body, length);
+            ret = wc_HashUpdate(&hashCtx, (enum wc_HashType)type, body, length);
         if (ret == 0)
-            ret = wc_HashFinal(&hashCtx, type, hash);
+            ret = wc_HashFinal(&hashCtx, (enum wc_HashType)type, hash);
         if (ret == 0) {
-            *hashSz = wc_HashGetDigestSize(type);
+            *hashSz = wc_HashGetDigestSize((enum wc_HashType)type);
             if (*hashSz < 0)
                 ret = *hashSz;
         }
-        wc_HashFree(&hashCtx, type);
+        wc_HashFree(&hashCtx, (enum wc_HashType)type);
     }
     return ret;
 }
@@ -567,9 +570,6 @@ static int Dtls13SendFragment(WOLFSSL* ssl, byte* output, word16 output_size,
     }
     else {
         msg = output + recordHeaderLength;
-
-        if (length <= recordHeaderLength)
-            return BUFFER_ERROR;
 
         if (hashOutput) {
             ret = Dtls13HashHandshake(ssl, msg, recordLength);
@@ -1713,7 +1713,7 @@ static int _Dtls13HandshakeRecv(WOLFSSL* ssl, byte* input, word32 size,
     isFirst = fragOff == 0;
     isComplete = isFirst && fragLength == messageLength;
 
-    if (!isComplete && !Dtls13AcceptFragmented(ssl, handshakeType)) {
+    if (!isComplete && !Dtls13AcceptFragmented(ssl, (enum HandShakeType)handshakeType)) {
 #ifdef WOLFSSL_DTLS_CH_FRAG
         byte tls13 = 0;
         /* check if the first CH fragment contains a valid cookie */

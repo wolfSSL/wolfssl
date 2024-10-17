@@ -87647,6 +87647,7 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
         /* Test the sending limit for AEAD ciphers */
         Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->nextSeqNumber = sendLimit;
         test_AEAD_seq_num = 1;
+        XMEMSET(msgBuf, 0, sizeof(msgBuf));
         ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         AssertIntGT(ret, 0);
         didReKey = 0;
@@ -90812,12 +90813,13 @@ static int test_wolfSSL_dtls_stateless_maxfrag(void)
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
         wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+    ExpectNotNull(ssl_s);
     ExpectNotNull(ssl_c2 = wolfSSL_new(ctx_c));
     ExpectIntEQ(wolfSSL_UseMaxFragment(ssl_c2, WOLFSSL_MFL_2_8),
         WOLFSSL_SUCCESS);
     wolfSSL_SetIOWriteCtx(ssl_c2, &test_ctx);
     wolfSSL_SetIOReadCtx(ssl_c2, &test_ctx);
-    if (ssl_s != NULL) {
+    if (EXPECT_SUCCESS()) {
         max_fragment = ssl_s->max_fragment;
     }
     /* send CH */
@@ -95173,11 +95175,12 @@ static int test_dtls_frag_ch(void)
     /* Limit options to make the CH a fixed length */
     /* See wolfSSL_parse_cipher_list for reason why we provide 1.3 AND 1.2
      * ciphersuite. This is only necessary when building with OPENSSL_EXTRA. */
-    ExpectTrue(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"
 #ifdef OPENSSL_EXTRA
-            ":DHE-RSA-AES256-GCM-SHA384"
+    ExpectTrue(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"
+                                       ":DHE-RSA-AES256-GCM-SHA384"));
+#else
+    ExpectTrue(wolfSSL_set_cipher_list(ssl_c, "TLS13-AES256-GCM-SHA384"));
 #endif
-            ));
 
     /* CH1 */
     ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
