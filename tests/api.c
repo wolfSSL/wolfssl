@@ -2564,7 +2564,7 @@ static int test_wolfSSL_CTX_load_verify_locations(void)
         WC_NO_ERR_TRACE(WOLFSSL_FAILURE));
 
     /* Test loading expired CA certificates */
-    #ifdef NO_RSA
+    #if defined(NO_RSA) || defined(WOLFSSL_X509_STRICT)
     ExpectIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL,
         load_expired_path,
         WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY),
@@ -2997,7 +2997,11 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
       !defined(NO_ASN_TIME)
     ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
 #else
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+        ExpectIntEQ(ret, NOT_CA_ERROR);
+    #else
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    #endif
 #endif
 #endif
     return EXPECT_RESULT();
@@ -3030,9 +3034,17 @@ static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
 #elif !(WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) && \
       !defined(NO_ASN_TIME) && defined(WOLFSSL_TRUST_PEER_CERT) && \
       defined(OPENSSL_COMPATIBLE_DEFAULTS)
-    ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    #if defined(WOLFSSL_X509_STRICT)
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(NOT_CA_ERROR));
+    #else
+        ExpectIntEQ(ret, WC_NO_ERR_TRACE(ASN_AFTER_DATE_E));
+    #endif
 #else
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+        ExpectIntEQ(ret, NOT_CA_ERROR);
+    #else
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    #endif
 #endif
 
 #endif
@@ -4892,14 +4904,26 @@ static int test_wolfSSL_CTX_load_verify_buffer_ex(void)
             sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
             WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
 #else
-    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+            sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
+            WOLFSSL_LOAD_FLAG_NONE), NOT_CA_ERROR);
+    #else
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
             sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
             WOLFSSL_LOAD_FLAG_NONE), WOLFSSL_SUCCESS);
+    #endif
 #endif
     /* test expired CA success */
-    ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
-            sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
-            WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WOLFSSL_SUCCESS);
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+                sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
+                WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), NOT_CA_ERROR);
+    #else
+        ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(ctx, ca_expired_cert,
+                sizeof_ca_expired_cert, WOLFSSL_FILETYPE_ASN1, 0,
+                WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WOLFSSL_SUCCESS);
+    #endif
 
     /* Fail when ctx is NULL. */
     ExpectIntEQ(wolfSSL_CTX_load_verify_buffer_ex(NULL, ca_expired_cert,
@@ -59902,6 +59926,79 @@ static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+
+static int last_errcode;
+static int last_errdepth;
+
+static int X509Callback(int ok, X509_STORE_CTX *ctx)
+{
+
+    if (!ok) {
+        last_errcode  = X509_STORE_CTX_get_error(ctx);
+        last_errdepth = X509_STORE_CTX_get_error_depth(ctx);
+    }
+    /* Always return OK to allow verification to continue.*/
+    return 1;
+}
+
+static int test_X509_STORE_InvalidCa(void)
+{
+    EXPECT_DECLS;
+    const char* filename = "./certs/intermediate/ca_false_intermediate/"
+                                                    "test_int_not_cacert.pem";
+    const char* srvfile = "./certs/intermediate/ca_false_intermediate/"
+                                            "test_sign_bynoca_srv.pem";
+    X509_STORE_CTX* ctx = NULL;
+    X509_STORE* str = NULL;
+    XFILE fp = XBADFILE;
+    X509* cert = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    last_errcode = 0;
+    last_errdepth = 0;
+
+    ExpectTrue((fp = XFOPEN(srvfile, "rb"))
+            != XBADFILE);
+    ExpectNotNull(cert = PEM_read_X509(fp, 0, 0, 0 ));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectNotNull(str = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNotNull(untrusted = sk_X509_new_null());
+
+    /* create cert chain stack */
+    ExpectIntEQ(test_X509_STORE_untrusted_load_cert_to_stack(filename,
+                untrusted), TEST_SUCCESS);
+
+    X509_STORE_set_verify_cb(str, X509Callback);
+
+    ExpectIntEQ(X509_STORE_load_locations(str,
+                "./certs/intermediate/ca_false_intermediate/test_ca.pem",
+                                                                    NULL), 1);
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, str, cert, untrusted), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+#if defined(WOLFSSL_QT)
+    ExpectIntEQ(last_errcode, X509_V_ERR_INVALID_CA);
+#else
+    ExpectIntEQ(last_errcode, X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+#endif
+
+    X509_free(cert);
+    X509_STORE_free(str);
+    X509_STORE_CTX_free(ctx);
+    sk_X509_pop_free(untrusted, NULL);
+
+    return EXPECT_RESULT();
+}
+#endif /* OPENSSL_ALL */
+
+
+
 static int test_X509_STORE_untrusted_certs(const char** filenames, int ret,
         int err, int loadCA)
 {
@@ -59911,6 +60008,8 @@ static int test_X509_STORE_untrusted_certs(const char** filenames, int ret,
     XFILE fp = XBADFILE;
     X509* cert = NULL;
     STACK_OF(X509)* untrusted = NULL;
+
+
 
     ExpectTrue((fp = XFOPEN("./certs/intermediate/server-int-cert.pem", "rb"))
             != XBADFILE);
@@ -59977,14 +60076,24 @@ static int test_X509_STORE_untrusted(void)
 
     /* Only immediate issuer in untrusted chain. Fails since can't build chain
      * to loaded CA. */
+#if defined(WOLFSSL_QT)
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted1, 0,
+            X509_V_ERR_INVALID_CA, 1), TEST_SUCCESS);
+#else
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted1, 0,
             X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 1), TEST_SUCCESS);
+#endif
     /* Succeeds because path to loaded CA is available. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted2, 1, 0, 1),
             TEST_SUCCESS);
     /* Fails because root CA is in the untrusted stack */
+#if defined(WOLFSSL_QT)
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
+            X509_V_ERR_INVALID_CA, 0), TEST_SUCCESS);
+#else
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
             X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 0), TEST_SUCCESS);
+#endif
     /* Succeeds because path to loaded CA is available. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted4, 1, 0, 1),
             TEST_SUCCESS);
@@ -60001,9 +60110,15 @@ static int test_wolfSSL_X509_STORE_set_flags(void)
     X509* x509 = NULL;
 
     ExpectNotNull((store = wolfSSL_X509_STORE_new()));
+#if defined(OPENSSL_EXTRA)
+    ExpectNotNull((x509 = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM)));
+    ExpectIntEQ(X509_STORE_add_cert(store, x509), WOLFSSL_SUCCESS);
+#else
     ExpectNotNull((x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
         WOLFSSL_FILETYPE_PEM)));
     ExpectIntEQ(X509_STORE_add_cert(store, x509), WOLFSSL_SUCCESS);
+#endif
 
 #ifdef HAVE_CRL
     ExpectIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL),
@@ -72136,13 +72251,22 @@ static int test_wolfSSL_X509_CA_num(void)
     int ca_num = 0;
 
     ExpectNotNull(store = wolfSSL_X509_STORE_new());
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+    ExpectNotNull(x509_1 = wolfSSL_X509_load_certificate_file(caCertFile,
+        WOLFSSL_FILETYPE_PEM));
+#else
     ExpectNotNull(x509_1 = wolfSSL_X509_load_certificate_file(svrCertFile,
         WOLFSSL_FILETYPE_PEM));
+#endif
     ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, x509_1), 1);
     ExpectIntEQ(ca_num = wolfSSL_X509_CA_num(store), 1);
-
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+    ExpectNotNull(x509_2 = wolfSSL_X509_load_certificate_file(caEccCertFile,
+        WOLFSSL_FILETYPE_PEM));
+#else
     ExpectNotNull(x509_2 = wolfSSL_X509_load_certificate_file(eccCertFile,
         WOLFSSL_FILETYPE_PEM));
+#endif
     ExpectIntEQ(wolfSSL_X509_STORE_add_cert(store, x509_2), 1);
     ExpectIntEQ(ca_num = wolfSSL_X509_CA_num(store), 2);
 
@@ -75717,7 +75841,7 @@ static int test_wolfSSL_OCSP_parse_url(void)
 
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && \
     defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_ASN_TIME)
+    !defined(NO_ASN_TIME) && !defined(WOLFSSL_X509_STRICT)
 static time_t test_wolfSSL_OCSP_REQ_CTX_time_cb(time_t* t)
 {
     if (t != NULL) {
@@ -75732,7 +75856,8 @@ static int test_wolfSSL_OCSP_REQ_CTX(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_ALL) && defined(HAVE_OCSP) && \
-    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
+    defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM) && \
+    !defined(WOLFSSL_X509_STRICT)
     /* This buffer was taken from the ocsp-stapling.test test case 1. The ocsp
      * response was captured in wireshark. It contains both the http and binary
      * parts. The time test_wolfSSL_OCSP_REQ_CTX_time_cb is set exactly so that
@@ -97523,6 +97648,9 @@ TEST_CASE testCases[] = {
 
     TEST_DECL(test_wolfSSL_X509_STORE_CTX),
     TEST_DECL(test_X509_STORE_untrusted),
+#if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+    TEST_DECL(test_X509_STORE_InvalidCa),
+#endif
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_get0_current_issuer),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),

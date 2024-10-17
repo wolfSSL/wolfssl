@@ -263,7 +263,11 @@ static int IsValidCA(const char* line)
 {
     int ret = 1;
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+    X509_STORE* str = NULL;
+    #else
     WOLFSSL_CTX* ctx;
+    #endif
     size_t i;
     const char* begin;
     char cert[80];
@@ -277,11 +281,23 @@ static int IsValidCA(const char* line)
         cert[i] = *(begin++);
     cert[i] = '\0';
 
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+    str = X509_STORE_new();
+    if (str == NULL)
+        return 0;
+    #else
     ctx = wolfSSL_CTX_new(wolfSSLv23_server_method_ex(NULL));
     if (ctx == NULL)
         return 0;
+    #endif
+    #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+    /* skip if CA: at basic constraints sets to FALSE */
+    ret = wolfSSL_X509_STORE_load_locations(str, cert, NULL) == WOLFSSL_SUCCESS;
+    X509_STORE_free(str);
+    #else
     ret = wolfSSL_CTX_use_certificate_chain_file(ctx, cert) == WOLFSSL_SUCCESS;
     wolfSSL_CTX_free(ctx);
+    #endif
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
     (void)line;
