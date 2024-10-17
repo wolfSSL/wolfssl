@@ -56,8 +56,7 @@ jobs:
           # Don't prompt for anything
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          sudo apt-get install libpam-dev ninja-build
-          sudo pip3 install meson
+          sudo apt-get install libpam-dev ninja-build python3-meson
 
       - name: Download lib
         uses: actions/download-artifact@v4

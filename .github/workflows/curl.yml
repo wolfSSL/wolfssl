@@ -52,8 +52,7 @@ jobs:
     - name: Install test dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install nghttp2 libpsl5 libpsl-dev
-        sudo pip install impacket
+        sudo apt-get install nghttp2 libpsl5 libpsl-dev python3-impacket
 
     - name: Download lib
       uses: actions/download-artifact@v4

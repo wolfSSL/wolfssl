@@ -51,6 +51,8 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
+      - name: Install dependencies
+        run: export DEBIAN_FRONTEND=noninteractive && sudo apt-get update && sudo apt-get install -y ${{ matrix.CC }}
       - uses: actions/checkout@v4
       - name: Build
         env:

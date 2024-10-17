@@ -68,8 +68,7 @@ jobs:
         run: |
             export DEBIAN_FRONTEND=noninteractive
             sudo apt-get update
-            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make
-            sudo pip install --upgrade psutil
+            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make python3-psutil
 
       - name: Checkout mosquitto
         uses: actions/checkout@v4
