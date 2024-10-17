@@ -99,7 +99,9 @@ struct curve25519_key {
     /* bit fields */
     WC_BITFIELD pubSet:1;
     WC_BITFIELD privSet:1;
-    WC_BITFIELD isAllocated:1; /* flag indicates if structure was allocated */
+#ifndef WC_NO_CONSTRUCTORS
+    WC_BITFIELD isAllocated:1;
+#endif
 };
 
 enum {
@@ -133,8 +135,6 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    byte* out, word32* outlen, int endian);
 
 WOLFSSL_API
-curve25519_key* wc_curve25519_new(void* heap, int devId);
-WOLFSSL_API
 int wc_curve25519_init(curve25519_key* key);
 WOLFSSL_API
 int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId);
@@ -142,6 +142,12 @@ int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_curve25519_free(curve25519_key* key);
 
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API
+curve25519_key* wc_curve25519_new(void* heap, int devId);
+WOLFSSL_API
+int wc_curve25519_delete(curve25519_key** key);
+#endif
 
 /* raw key helpers */
 WOLFSSL_API

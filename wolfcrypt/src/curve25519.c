@@ -655,6 +655,7 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
 
 #endif /* HAVE_CURVE25519_KEY_IMPORT */
 
+#ifndef WC_NO_CONSTRUCTORS
 curve25519_key* wc_curve25519_new(void* heap, int devId)
 {
     curve25519_key* key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), heap,
@@ -670,6 +671,16 @@ curve25519_key* wc_curve25519_new(void* heap, int devId)
     }
     return key;
 }
+
+int wc_curve25519_delete(curve25519_key** key) {
+    if ((key == NULL) || (*key == NULL))
+        return BAD_FUNC_ARG;
+    wc_curve25519_free(*key);
+    XFREE(*key, (*key)->heap, DYNAMIC_TYPE_CURVE25519);
+    *key = NULL;
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
 
 int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId)
 {
@@ -707,14 +718,8 @@ int wc_curve25519_init(curve25519_key* key)
 /* Clean the memory of a key */
 void wc_curve25519_free(curve25519_key* key)
 {
-    void* heap;
-    byte isAllocated = 0;
-
     if (key == NULL)
        return;
-
-    heap = key->heap;
-    isAllocated = key->isAllocated;
 
 #ifdef WOLFSSL_SE050
     se050_curve25519_free_key(key);
@@ -729,11 +734,6 @@ void wc_curve25519_free(curve25519_key* key)
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(key, sizeof(curve25519_key));
 #endif
-
-    if (isAllocated) {
-        XFREE(key, heap, DYNAMIC_TYPE_CURVE25519);
-        (void)heap;
-    }
 }
 
 /* get key size */

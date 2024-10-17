@@ -11299,6 +11299,7 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #endif /* HAVE_AESCCM */
 
+#ifndef WC_NO_CONSTRUCTORS
 Aes* wc_AesNew(void* heap, int devId)
 {
     Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
@@ -11313,6 +11314,17 @@ Aes* wc_AesNew(void* heap, int devId)
     }
     return aes;
 }
+
+int wc_AesDelete(Aes** aes)
+{
+    if ((aes == NULL) || (*aes == NULL))
+        return BAD_FUNC_ARG;
+    wc_AesFree(*aes);
+    XFREE(*aes, (*aes)->heap, DYNAMIC_TYPE_AES);
+    *aes = NULL;
+    return 0;
+}
+#endif /* !WC_NO_CONSTRUCTORS */
 
 /* Initialize Aes for use with async hardware */
 int wc_AesInit(Aes* aes, void* heap, int devId)
@@ -11448,18 +11460,12 @@ int wc_AesInit_Label(Aes* aes, const char* label, void* heap, int devId)
 /* Free Aes from use with async hardware */
 void wc_AesFree(Aes* aes)
 {
-    void* heap;
-    byte isAllocated;
-
     if (aes == NULL) {
         return;
     }
 
-    heap = aes->heap;
-    isAllocated = aes->isAllocated;
-
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
-    (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, heap, 1);
+    (void)wc_debug_CipherLifecycleFree(&aes->CipherLifecycleTag, aes->heap, 1);
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
@@ -11497,7 +11503,7 @@ void wc_AesFree(Aes* aes)
 #endif
 #if defined(WOLFSSL_AESGCM_STREAM) && defined(WOLFSSL_SMALL_STACK) && \
     !defined(WOLFSSL_AESNI)
-    XFREE(aes->streamData, heap, DYNAMIC_TYPE_AES);
+    XFREE(aes->streamData, aes->heap, DYNAMIC_TYPE_AES);
     aes->streamData = NULL;
 #endif
 
@@ -11524,11 +11530,6 @@ void wc_AesFree(Aes* aes)
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(aes, sizeof(Aes));
 #endif
-
-    if (isAllocated) {
-        XFREE(aes, heap, DYNAMIC_TYPE_AES);
-    }
-
 }
 
 int wc_AesGetKeySize(Aes* aes, word32* keySize)
