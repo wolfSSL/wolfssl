@@ -27,6 +27,7 @@
 
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 
@@ -190,6 +191,8 @@ WOLFSSL_API int wolfSSL_RSA_set_ex_data_with_cleanup(
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#define OPENSSL_RSA_MAX_MODULUS_BITS RSA_MAX_SIZE
+
 #define WOLFSSL_RSA_LOAD_PRIVATE 1
 #define WOLFSSL_RSA_LOAD_PUBLIC  2
 #define WOLFSSL_RSA_F4           0x10001L
