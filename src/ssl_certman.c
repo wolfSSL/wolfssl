@@ -456,7 +456,7 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
 }
 
 static int wolfSSL_CertManagerUnloadIntermediateCertsEx(WOLFSSL_CERT_MANAGER* cm,
-                                                 int type)
+                                                 byte type)
 {
     int ret = WOLFSSL_SUCCESS;
 
