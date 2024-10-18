@@ -403,6 +403,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * a trusted CA in the CM */
             ret = wolfSSL_X509_verify_cert_ex(ctx);
             if (ret != WOLFSSL_SUCCESS) {
+                if ((ctx->store->param->flags & X509_V_FLAG_PARTIAL_CHAIN) &&
+                    (added == 1)) {
+                    wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
+                    ret = WOLFSSL_SUCCESS;
+                }
                 goto exit;
             }
 
