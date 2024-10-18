@@ -1011,6 +1011,7 @@ err_exit:
     return NULL;
 }
 
+#ifdef OPENSSL_ALL
 static void X509StoreFreeObjList(WOLFSSL_X509_STORE* store,
                   WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* objs)
 {
@@ -1032,6 +1033,7 @@ static void X509StoreFreeObjList(WOLFSSL_X509_STORE* store,
 
     wolfSSL_sk_X509_OBJECT_pop_free(objs, NULL);
 }
+#endif
 
 void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
 {
