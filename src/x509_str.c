@@ -315,7 +315,6 @@ static int wolfSSL_X509_verify_cert_ex(WOLFSSL_X509_STORE_CTX* ctx)
  */
 int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 {
-    WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     int done = 0;
     int added = 0;
@@ -325,6 +324,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     WOLFSSL_X509 *issuer = NULL;
     WOLFSSL_X509 *orig = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
+    WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx == NULL || ctx->store == NULL || ctx->store->cm == NULL
          || ctx->current_cert == NULL || ctx->current_cert->derCert == NULL) {
