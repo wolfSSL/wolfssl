@@ -119,7 +119,9 @@ namespace wolfSSL.CSharp
          * RSA
          */
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr wc_NewRsaKey(IntPtr heap, int devId);
+        private static extern IntPtr wc_NewRsaKey(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_DeleteRsaKey(IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_InitRsaKey(IntPtr key, IntPtr heap);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -153,7 +155,9 @@ namespace wolfSSL.CSharp
          * ED25519
          */
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr wc_ed25519_new(IntPtr heap, int devId);
+        private static extern IntPtr wc_ed25519_new(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_ed25519_delete(IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private static extern int wc_ed25519_init(IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -194,7 +198,9 @@ namespace wolfSSL.CSharp
          * Curve25519
          */
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr wc_curve25519_new(IntPtr heap, int devId);
+        private static extern IntPtr wc_curve25519_new(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private static extern int wc_curve25519_delete(IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_curve25519_init(IntPtr key);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -235,7 +241,9 @@ namespace wolfSSL.CSharp
          * AES-GCM
          */
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static IntPtr wc_AesNew(IntPtr heap, int devId);
+        private extern static IntPtr wc_AesNew(IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wc_AesDelete(IntPtr aes);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_AesFree(IntPtr aes);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -254,7 +262,9 @@ namespace wolfSSL.CSharp
          * HASH
          */
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static IntPtr wc_HashNew(uint hashType, IntPtr heap, int devId);
+        private extern static IntPtr wc_HashNew(uint hashType, IntPtr heap, int devId, IntPtr result_code);
+        [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static int wc_HashDelete(IntPtr hash);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wc_HashInit(IntPtr hash, uint hashType);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -1322,7 +1332,7 @@ namespace wolfSSL.CSharp
             try
             {
                 /* Allocate and init new RSA key structure */
-                key = wc_NewRsaKey(heap, devId);
+                key = wc_NewRsaKey(heap, devId, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     rng = RandomNew();
@@ -1370,7 +1380,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_NewRsaKey(IntPtr.Zero, INVALID_DEVID);
+                key = wc_NewRsaKey(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     IntPtr idx = Marshal.AllocHGlobal(sizeof(uint));
@@ -1548,7 +1558,7 @@ namespace wolfSSL.CSharp
         {
             if (key != IntPtr.Zero)
             {
-                wc_FreeRsaKey(key);
+                wc_DeleteRsaKey(key);
             }
         }
         /* END RSA */
@@ -1578,7 +1588,7 @@ namespace wolfSSL.CSharp
                     throw new Exception("Failed to create RNG.");
                 }
 
-                key = wc_ed25519_new(heap, devId);
+                key = wc_ed25519_new(heap, devId, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     ret = wc_ed25519_make_key(rng, 32, key);
@@ -1595,7 +1605,7 @@ namespace wolfSSL.CSharp
                 if (rng != IntPtr.Zero) RandomFree(rng);
                 if (ret != 0)
                 {
-                    wc_ed25519_free(key);
+                    wc_ed25519_delete(key);
                     key = IntPtr.Zero;
                 }
             }
@@ -1700,7 +1710,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID);
+                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     ret = wc_Ed25519PrivateKeyDecode(input, ref idx, key, (uint)input.Length);
@@ -1734,7 +1744,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID);
+                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     ret = wc_Ed25519PublicKeyDecode(input, ref idx, key, (uint)input.Length);
@@ -1878,7 +1888,7 @@ namespace wolfSSL.CSharp
         /// <param name="key">Key to be freed</param>
         public static void Ed25519FreeKey(IntPtr key)
         {
-            wc_ed25519_free(key);
+            wc_ed25519_delete(key);
         }
         /* END ED25519 */
 
@@ -2104,7 +2114,7 @@ namespace wolfSSL.CSharp
                     throw new Exception("Failed to create RNG.");
                 }
 
-                key = wc_curve25519_new(heap, devId);
+                key = wc_curve25519_new(heap, devId, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     ret = wc_curve25519_make_key(rng, 32, key);
@@ -2121,7 +2131,7 @@ namespace wolfSSL.CSharp
                 if (rng != IntPtr.Zero) RandomFree(rng);
                 if (ret != 0)
                 {
-                    wc_curve25519_free(key);
+                    wc_curve25519_delete(key);
                     key = IntPtr.Zero;
                 }
             }
@@ -2142,7 +2152,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID);
+                key = wc_ed25519_new(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     ret = wc_Ed25519PrivateKeyDecode(input, ref idx, key, (uint)input.Length);
@@ -2176,7 +2186,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                key = wc_curve25519_new(IntPtr.Zero, INVALID_DEVID);
+                key = wc_curve25519_new(IntPtr.Zero, INVALID_DEVID, IntPtr.Zero);
                 if (key != IntPtr.Zero)
                 {
                     ret = wc_Curve25519PublicKeyDecode(input, ref idx, key, (uint)input.Length);
@@ -2280,7 +2290,7 @@ namespace wolfSSL.CSharp
         /// <param name="key">Key to be freed</param>
         public static void Curve25519FreeKey(IntPtr key)
         {
-            wc_curve25519_free(key);
+            wc_curve25519_delete(key);
         }
         /* END Curve25519 */
 
@@ -2449,7 +2459,7 @@ namespace wolfSSL.CSharp
 
             try
             {
-                aesPtr = wc_AesNew(heap, devId);
+                aesPtr = wc_AesNew(heap, devId, IntPtr.Zero);
 
                 if (aesPtr == IntPtr.Zero)
                 {
@@ -2676,7 +2686,7 @@ namespace wolfSSL.CSharp
         {
             if (aes != IntPtr.Zero)
             {
-                wc_AesFree(aes);
+                wc_AesDelete(aes);
             }
         }
         /* END AES-GCM */
@@ -2700,7 +2710,7 @@ namespace wolfSSL.CSharp
             try
             {
                 /* Allocate new hash */
-                hash = wc_HashNew(hashType, heap, devId);
+                hash = wc_HashNew(hashType, heap, devId, IntPtr.Zero);
                 if (hash == IntPtr.Zero)
                 {
                     throw new Exception("Failed to allocate new hash context.");
@@ -2740,7 +2750,7 @@ namespace wolfSSL.CSharp
             {
                 /* Cleanup */
                 log(ERROR_LOG, "InitHash Exception: " + e.ToString());
-                if (hash != IntPtr.Zero) wc_HashFree(hash, hashType);
+                if (hash != IntPtr.Zero) wc_HashDelete(hash);
             }
 
             return ret;
@@ -2856,7 +2866,7 @@ namespace wolfSSL.CSharp
                     throw new Exception("Hash context is null, cannot free.");
 
                 /* Free hash */
-                ret = wc_HashFree(hash, hashType);
+                ret = wc_HashDelete(hash);
                 if (ret != 0)
                 {
                     throw new Exception($"Failed to free hash context. Error code: {ret}");

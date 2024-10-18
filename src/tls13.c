@@ -2534,7 +2534,6 @@ static int Tls13IntegrityOnly_Encrypt(WOLFSSL* ssl, byte* output,
     /* Copy the input to output if not the same buffer */
     if (ret == 0 && output != input)
         XMEMCPY(output, input, sz);
-
     return ret;
 }
 #endif
@@ -2930,7 +2929,6 @@ static int Tls13IntegrityOnly_Decrypt(WOLFSSL* ssl, byte* output,
     /* Copy the input to output if not the same buffer */
     if (ret == 0 && output != input)
         XMEMCPY(output, input, sz);
-
     return ret;
 }
 #endif
@@ -3612,7 +3610,7 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
     macSz = WC_SHA256_DIGEST_SIZE;
 #endif /* NO_SHA256 */
 
-    ret = wc_HmacInit(&cookieHmac, ssl->heap, INVALID_DEVID);
+    ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(&cookieHmac, cookieType,
                             ssl->buffers.tls13CookieSecret.buffer,
@@ -6394,7 +6392,7 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
         return HRR_COOKIE_ERROR;
     cookieSz -= macSz;
 
-    ret = wc_HmacInit(&cookieHmac, ssl->heap, INVALID_DEVID);
+    ret = wc_HmacInit(&cookieHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(&cookieHmac, cookieType,
                             ssl->buffers.tls13CookieSecret.buffer,
