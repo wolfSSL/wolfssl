@@ -155,18 +155,24 @@ static void wc_RsaCleanup(RsaKey* key)
 }
 
 #ifndef WC_NO_CONSTRUCTORS
-RsaKey* wc_NewRsaKey(void* heap, int devId)
+RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
 {
+    int ret;
     RsaKey* key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
-    if (key != NULL) {
-        if (wc_InitRsaKey_ex(key, heap, devId) != 0) {
+    if (key == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_InitRsaKey_ex(key, heap, devId);
+        if (ret != 0) {
             XFREE(key, heap, DYNAMIC_TYPE_RSA);
             key = NULL;
         }
-        else {
-            key->isAllocated = 1;
-        }
     }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
     return key;
 }
 

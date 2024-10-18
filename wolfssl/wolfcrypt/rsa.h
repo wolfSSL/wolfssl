@@ -269,9 +269,6 @@ struct RsaKey {
 #if defined(WOLFSSL_RENESAS_FSPSM)
     FSPSM_RSA_CTX ctx;
 #endif
-#ifndef WC_NO_CONSTRUCTORS
-    WC_BITFIELD isAllocated:1;
-#endif
 };
 
 #ifndef WC_RSAKEY_TYPE_DEFINED
@@ -299,7 +296,7 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 #ifndef WC_NO_CONSTRUCTORS
-WOLFSSL_API RsaKey* wc_NewRsaKey(void* heap, int devId);
+WOLFSSL_API RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code);
 WOLFSSL_API int  wc_DeleteRsaKey(RsaKey** key);
 #endif
 

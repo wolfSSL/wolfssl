@@ -3318,9 +3318,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                                            DYNAMIC_TYPE_CIPHER);
                 if (enc->hmac == NULL)
                     return MEMORY_E;
-            }
 
-            if (enc) {
                 if (wc_HmacInit(enc->hmac, heap, devId) != 0) {
                     WOLFSSL_MSG("HmacInit failed in SetKeys");
                     XFREE(enc->hmac, heap, DYNAMIC_TYPE_CIPHER);
@@ -3334,9 +3332,7 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                                            DYNAMIC_TYPE_CIPHER);
                 if (dec->hmac == NULL)
                     return MEMORY_E;
-            }
 
-            if (dec) {
                 if (wc_HmacInit(dec->hmac, heap, devId) != 0) {
                     WOLFSSL_MSG("HmacInit failed in SetKeys");
                     XFREE(dec->hmac, heap, DYNAMIC_TYPE_CIPHER);

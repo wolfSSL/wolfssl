@@ -97,9 +97,6 @@ struct ed25519_key {
     WC_BITFIELD privKeySet:1;
     WC_BITFIELD pubKeySet:1;
     WC_BITFIELD sha_clean_flag:1; /* only used if WOLFSSL_ED25519_PERSISTENT_SHA */
-#ifndef WC_NO_CONSTRUCTORS
-    WC_BITFIELD isAllocated:1;
-#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
@@ -186,10 +183,11 @@ WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API
-ed25519_key* wc_ed25519_new(void* heap, int devId);
+ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code);
 WOLFSSL_API
 int wc_ed25519_delete(ed25519_key** key);
 #endif
+WOLFSSL_API
 
 #ifdef HAVE_ED25519_KEY_IMPORT
 WOLFSSL_API

@@ -969,19 +969,25 @@ int wc_ed25519ph_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 #endif /* HAVE_ED25519_VERIFY */
 
 #ifndef WC_NO_CONSTRUCTORS
-ed25519_key* wc_ed25519_new(void* heap, int devId)
+ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code)
 {
+    int ret;
     ed25519_key* key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
                         DYNAMIC_TYPE_ED25519);
-    if (key != NULL) {
-        if (wc_ed25519_init_ex(key, heap, devId) != 0) {
+    if (key == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_ed25519_init_ex(key, heap, devId);
+        if (ret != 0) {
             XFREE(key, heap, DYNAMIC_TYPE_ED25519);
             key = NULL;
         }
-        else {
-            key->isAllocated = 1;
-        }
     }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
     return key;
 }
 

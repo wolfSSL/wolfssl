@@ -127,7 +127,6 @@ typedef struct {
     enum wc_HashType type; /* sanity check */
 #ifndef WC_NO_CONSTRUCTORS
     void *heap;
-    WC_BITFIELD isAllocated:1;
 #endif
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
@@ -195,7 +194,7 @@ WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
 WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap,
-                                   int devId);
+                                   int devId, int *result_code);
 WOLFSSL_API int wc_HashDelete(wc_HashAlg **hash);
 #endif
 

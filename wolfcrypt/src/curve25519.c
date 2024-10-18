@@ -656,19 +656,25 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
 #endif /* HAVE_CURVE25519_KEY_IMPORT */
 
 #ifndef WC_NO_CONSTRUCTORS
-curve25519_key* wc_curve25519_new(void* heap, int devId)
+curve25519_key* wc_curve25519_new(void* heap, int devId, int *result_code)
 {
+    int ret;
     curve25519_key* key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), heap,
                            DYNAMIC_TYPE_CURVE25519);
-    if (key != NULL) {
-        if (wc_curve25519_init_ex(key, heap, devId) != 0) {
+    if (key == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_curve25519_init_ex(key, heap, devId);
+        if (ret != 0) {
             XFREE(key, heap, DYNAMIC_TYPE_CURVE25519);
             key = NULL;
         }
-        else {
-            key->isAllocated = 1;
-        }
     }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
     return key;
 }
 
@@ -725,11 +731,7 @@ void wc_curve25519_free(curve25519_key* key)
     se050_curve25519_free_key(key);
 #endif
 
-    key->dp = NULL;
-    ForceZero(key->k, sizeof(key->k));
-    XMEMSET(&key->p, 0, sizeof(key->p));
-    key->pubSet = 0;
-    key->privSet = 0;
+    ForceZero(key, sizeof(*key));
 
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(key, sizeof(curve25519_key));

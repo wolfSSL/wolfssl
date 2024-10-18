@@ -687,19 +687,26 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
 }
 
 #ifndef WC_NO_CONSTRUCTORS
-wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId)
+wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId,
+                       int *result_code)
 {
+    int ret;
     wc_HashAlg* hash = (wc_HashAlg*)XMALLOC(sizeof(wc_HashAlg), heap,
                         DYNAMIC_TYPE_HASHES);
-    if (hash != NULL) {
-        if (wc_HashInit_ex(hash, type, heap, devId) != 0) {
+    if (hash == NULL) {
+        ret = MEMORY_E;
+    }
+    else {
+        ret = wc_HashInit_ex(hash, type, heap, devId);
+        if (ret != 0) {
             XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
             hash = NULL;
         }
-        else {
-            hash->isAllocated = 1;
-        }
     }
+
+    if (result_code != NULL)
+        *result_code = ret;
+
     return hash;
 }
 

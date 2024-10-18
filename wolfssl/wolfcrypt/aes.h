@@ -327,7 +327,7 @@ struct Aes {
     int alFd; /* server socket to bind to */
     int rdFd; /* socket to read from */
     struct msghdr msg;
-    int dir;  /* flag for encrpyt or decrypt */
+    int dir;  /* flag for encrypt or decrypt */
 #ifdef WOLFSSL_AFALG_XILINX_AES
     word32 msgBuf[CMSG_SPACE(4) + CMSG_SPACE(sizeof(struct af_alg_iv) +
                   GCM_NONCE_MID_SZ)];
@@ -382,6 +382,7 @@ struct Aes {
     ALIGN16 byte streamData[5 * AES_BLOCK_SIZE];
 #else
     byte*        streamData;
+    word32       streamData_sz;
 #endif
     word32       aSz;
     word32       cSz;
@@ -392,7 +393,6 @@ struct Aes {
     WC_BITFIELD  nonceSet:1;
     WC_BITFIELD  ctrSet:1;
 #endif
-    WC_BITFIELD  isAllocated:1; /* flag indicates if structure was allocated */
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     void *CipherLifecycleTag; /* used for dummy allocation and initialization,
                                * trackable by sanitizers.
@@ -728,7 +728,7 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
 #endif
 WOLFSSL_API void wc_AesFree(Aes* aes);
 #ifndef WC_NO_CONSTRUCTORS
-WOLFSSL_API Aes* wc_AesNew(void* heap, int devId);
+WOLFSSL_API Aes* wc_AesNew(void* heap, int devId, int *result_code);
 WOLFSSL_API int wc_AesDelete(Aes** aes);
 #endif
 

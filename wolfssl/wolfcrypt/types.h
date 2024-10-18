@@ -612,6 +612,10 @@ typedef struct w64wrapper {
         #endif /* WOLFSSL_STATIC_MEMORY */
     #endif
 
+    #if defined(WOLFSSL_SMALL_STACK) && defined(WC_NO_CONSTRUCTORS)
+        #error WOLFSSL_SMALL_STACK requires constructors.
+    #endif
+
     #include <wolfssl/wolfcrypt/memory.h>
 
     /* declare/free variable handling for async and smallstack */
