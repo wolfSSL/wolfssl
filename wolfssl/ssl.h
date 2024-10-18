@@ -603,6 +603,7 @@ struct WOLFSSL_X509_STORE {
     WOLF_STACK_OF(WOLFSSL_X509)* certs;
     WOLF_STACK_OF(WOLFSSL_X509)* trusted;
     WOLF_STACK_OF(WOLFSSL_X509)* owned;
+    word32 numAdded; /* Number of objs in objs that are in certs sk */
 };
 
 #define WOLFSSL_ALWAYS_CHECK_SUBJECT 0x1
@@ -677,7 +678,7 @@ typedef struct WOLFSSL_BUFFER_INFO {
 struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
     WOLFSSL_X509* current_cert;   /* current X509 (OPENSSL_EXTRA) */
-#ifdef WOLFSSL_ASIO
+#if defined(WOLFSSL_ASIO) || defined(OPENSSL_EXTRA)
     WOLFSSL_X509* current_issuer; /* asio dereference */
 #endif
     WOLFSSL_X509_CHAIN* sesChain; /* pointer to WOLFSSL_SESSION peer chain */

@@ -59555,8 +59555,12 @@ static int test_wolfSSL_X509_LOOKUP_ctrl_file(void)
 
     ExpectNull(X509_STORE_CTX_get0_current_issuer(NULL));
     issuer = X509_STORE_CTX_get0_current_issuer(ctx);
-    ExpectNotNull(issuer);
+    ExpectNull(issuer);
 
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+
+    issuer = X509_STORE_CTX_get0_current_issuer(ctx);
+    ExpectNotNull(issuer);
     caName = X509_get_subject_name(x509Ca);
     ExpectNotNull(caName);
     issuerName = X509_get_subject_name(issuer);
@@ -59565,7 +59569,6 @@ static int test_wolfSSL_X509_LOOKUP_ctrl_file(void)
     ExpectIntEQ(cmp, 0);
 
     /* load der format */
-    X509_free(issuer);
     issuer = NULL;
     X509_STORE_CTX_free(ctx);
     ctx = NULL;
@@ -59643,7 +59646,7 @@ static int test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup(void)
     return res;
 }
 
-static int test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
+static int test_wolfSSL_X509_STORE_CTX_get_issuer(void)
 {
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
@@ -59665,16 +59668,23 @@ static int test_wolfSSL_X509_STORE_CTX_get0_current_issuer(void)
 
     ExpectIntEQ(X509_STORE_CTX_init(ctx, str, x509Svr, NULL), SSL_SUCCESS);
 
+    /* Issuer0 is not set until chain is built for verification */
     ExpectNull(X509_STORE_CTX_get0_current_issuer(NULL));
-    ExpectNotNull(issuer = X509_STORE_CTX_get0_current_issuer(ctx));
+    ExpectNull(issuer = X509_STORE_CTX_get0_current_issuer(ctx));
 
+    /* Issuer1 will use the store to make a new issuer */
+    ExpectIntEQ(X509_STORE_CTX_get1_issuer(&issuer, ctx, x509Svr), 1);
+    ExpectNotNull(issuer);
+    X509_free(issuer);
+
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(issuer = X509_STORE_CTX_get0_current_issuer(ctx));
     ExpectNotNull(caName = X509_get_subject_name(x509Ca));
     ExpectNotNull(issuerName = X509_get_subject_name(issuer));
 #ifdef WOLFSSL_SIGNER_DER_CERT
     ExpectIntEQ(X509_NAME_cmp(caName, issuerName), 0);
 #endif
 
-    X509_free(issuer);
     X509_STORE_CTX_free(ctx);
     X509_free(x509Svr);
     X509_STORE_free(str);
@@ -60204,7 +60214,8 @@ static int test_wolfSSL_X509_STORE_CTX_ex(void)
     EXPECT_DECLS;
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-    X509_STORE_test_data testData = {0};
+    X509_STORE_test_data testData;
+    XMEMSET((void *)&testData, 0, sizeof(X509_STORE_test_data));
     testData.caFile =     "./certs/ca-cert.pem";
     testData.caIntFile =  "./certs/intermediate/ca-int-cert.pem";
     testData.caInt2File = "./certs/intermediate/ca-int2-cert.pem";
@@ -97927,7 +97938,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_ex),
     TEST_DECL(test_X509_STORE_untrusted),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup),
-    TEST_DECL(test_wolfSSL_X509_STORE_CTX_get0_current_issuer),
+    TEST_DECL(test_wolfSSL_X509_STORE_CTX_get_issuer),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),
     TEST_DECL(test_wolfSSL_X509_LOOKUP_load_file),
     TEST_DECL(test_wolfSSL_X509_Name_canon),

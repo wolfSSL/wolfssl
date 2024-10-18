@@ -7596,7 +7596,7 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
         }
         else if (wc_PemGetHeaderFooter(CERT_TYPE, &header, &footer) == 0 &&
                 XSTRNSTR((char*)curr, header, (unsigned int)sz) != NULL) {
-            ret = wolfSSL_X509_STORE_load_cert_buffer(lookup->store, curr,
+            ret = X509StoreLoadCertBuffer(lookup->store, curr,
                                                     (word32)sz, WOLFSSL_FILETYPE_PEM);
             if (ret != WOLFSSL_SUCCESS)
                 goto end;
@@ -14205,6 +14205,8 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
+#if defined(OPENSSL_EXTRA) && (defined(SESSION_CERTS) || \
+                               defined(WOLFSSL_SIGNER_DER_CERT))
 
 /**
  * Find the issuing cert of the input cert. On a self-signed cert this
@@ -14275,6 +14277,8 @@ static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
 
     return WOLFSSL_SUCCESS;
 }
+#endif /* if defined(OPENSSL_EXTRA) && (defined(SESSION_CERTS) || \
+                               defined(WOLFSSL_SIGNER_DER_CERT)) */
 
 void wolfSSL_X509_email_free(WOLF_STACK_OF(WOLFSSL_STRING) *sk)
 {
