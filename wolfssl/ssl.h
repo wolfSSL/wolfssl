@@ -1269,11 +1269,18 @@ WOLFSSL_API int  wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char* id, int 
 WOLFSSL_API int  wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO** bio1_p, size_t writebuf1,
                      WOLFSSL_BIO** bio2_p, size_t writebuf2);
 
+WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
+        unsigned char *em, const unsigned char *mHash,
+        const WOLFSSL_EVP_MD *hashAlg, const WOLFSSL_EVP_MD *mgf1Hash,
+        int saltLen);
 WOLFSSL_API int wolfSSL_RSA_padding_add_PKCS1_PSS(WOLFSSL_RSA *rsa,
                                                   unsigned char *EM,
                                                   const unsigned char *mHash,
                                                   const WOLFSSL_EVP_MD *hashAlg,
                                                   int saltLen);
+WOLFSSL_API int wolfSSL_RSA_verify_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa,
+        const unsigned char *mHash, const WOLFSSL_EVP_MD *hashAlg,
+        const WOLFSSL_EVP_MD *mgf1Hash, const unsigned char *em, int saltLen);
 WOLFSSL_API int wolfSSL_RSA_verify_PKCS1_PSS(WOLFSSL_RSA *rsa, const unsigned char *mHash,
                                           const WOLFSSL_EVP_MD *hashAlg,
                                           const unsigned char *EM, int saltLen);
@@ -2088,6 +2095,8 @@ WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(
         WOLFSSL_BIO* bio, WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey);
 WOLFSSL_API WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
         WOLFSSL_PKCS8_PRIV_KEY_INFO** pkey, const unsigned char** keyBuf, long keyLen);
+WOLFSSL_API int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key,
+        unsigned char** pp);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY_bio(WOLFSSL_BIO* bio,
                                          WOLFSSL_EVP_PKEY** out);
 WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** key,
@@ -5382,6 +5391,8 @@ WOLFSSL_API int wolfSSL_X509_get_signature_nid(const WOLFSSL_X509* x);
 WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS8PrivateKey(WOLFSSL_BIO* bio,
     WOLFSSL_EVP_PKEY* pkey, const WOLFSSL_EVP_CIPHER* enc, char* passwd,
     int passwdSz, wc_pem_password_cb* cb, void* ctx);
+WOLFSSL_API int wolfSSL_PEM_write_bio_PKCS8_PRIV_KEY_INFO(WOLFSSL_BIO* bio,
+        PKCS8_PRIV_KEY_INFO* keyInfo);
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 WOLFSSL_API int wolfSSL_PEM_write_PKCS8PrivateKey(
     XFILE fp, WOLFSSL_EVP_PKEY* pkey, const WOLFSSL_EVP_CIPHER* enc,

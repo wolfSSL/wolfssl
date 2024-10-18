@@ -26,6 +26,7 @@
 #define WOLFSSL_DH_H_
 
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/opensslv.h>
 
 #ifdef __cplusplus
@@ -101,6 +102,8 @@ typedef WOLFSSL_DH                   DH;
 #define DH_get0_key     wolfSSL_DH_get0_key
 #define DH_set0_key     wolfSSL_DH_set0_key
 #define DH_bits(x)      (BN_num_bits((x)->p))
+
+#define OPENSSL_DH_MAX_MODULUS_BITS     DH_MAX_SIZE
 
 #define DH_GENERATOR_2                  2
 #define DH_CHECK_P_NOT_PRIME            0x01
