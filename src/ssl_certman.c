@@ -455,8 +455,8 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
-static int wolfSSL_CertManagerUnloadIntermediateCertsEx(WOLFSSL_CERT_MANAGER* cm,
-                                                 byte type)
+static int wolfSSL_CertManagerUnloadIntermediateCertsEx(
+                                WOLFSSL_CERT_MANAGER* cm, byte type)
 {
     int ret = WOLFSSL_SUCCESS;
 
@@ -483,14 +483,16 @@ static int wolfSSL_CertManagerUnloadIntermediateCertsEx(WOLFSSL_CERT_MANAGER* cm
 }
 
 #if defined(OPENSSL_EXTRA)
-static int wolfSSL_CertManagerUnloadTempIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
+static int wolfSSL_CertManagerUnloadTempIntermediateCerts(
+    WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTempIntermediateCerts");
     return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_INTER_CA);
 }
 #endif
 
-int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
+int wolfSSL_CertManagerUnloadIntermediateCerts(
+    WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCerts");
     return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_CHAIN_CA);
