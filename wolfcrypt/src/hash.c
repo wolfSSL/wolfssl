@@ -710,15 +710,16 @@ wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId,
     return hash;
 }
 
-int wc_HashDelete(wc_HashAlg **hash) {
+int wc_HashDelete(wc_HashAlg *hash, wc_HashAlg **hash_p) {
     int ret;
-    if ((hash == NULL) || (*hash == NULL))
+    if (hash == NULL)
         return BAD_FUNC_ARG;
-    ret = wc_HashFree(*hash, (*hash)->type);
+    ret = wc_HashFree(hash, hash->type);
     if (ret < 0)
         return ret;
-    XFREE(*hash, (*hash)->heap, DYNAMIC_TYPE_HASHES);
-    *hash = NULL;
+    XFREE(hash, hash->heap, DYNAMIC_TYPE_HASHES);
+    if (hash_p != NULL)
+        *hash_p = NULL;
     return 0;
 }
 #endif /* !WC_NO_CONSTRUCTORS */

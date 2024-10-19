@@ -10542,7 +10542,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
                                   authTag, authTagSz, authIn, authInSz);
 
 #ifdef WOLFSSL_SMALL_STACK
-    wc_AesDelete(&aes);
+    wc_AesDelete(aes, NULL);
 #else
     wc_AesFree(aes);
 #endif
@@ -10582,7 +10582,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
 
     }
 #ifdef WOLFSSL_SMALL_STACK
-    wc_AesDelete(&aes);
+    wc_AesDelete(aes, NULL);
 #else
     wc_AesFree(aes);
 #endif
@@ -11318,13 +11318,14 @@ Aes* wc_AesNew(void* heap, int devId, int *result_code)
     return aes;
 }
 
-int wc_AesDelete(Aes** aes)
+int wc_AesDelete(Aes *aes, Aes** aes_p)
 {
-    if ((aes == NULL) || (*aes == NULL))
+    if (aes == NULL)
         return BAD_FUNC_ARG;
-    wc_AesFree(*aes);
-    XFREE(*aes, (*aes)->heap, DYNAMIC_TYPE_AES);
-    *aes = NULL;
+    wc_AesFree(aes);
+    XFREE(aes, aes->heap, DYNAMIC_TYPE_AES);
+    if (aes_p != NULL)
+        *aes_p = NULL;
     return 0;
 }
 #endif /* !WC_NO_CONSTRUCTORS */
@@ -14028,7 +14029,7 @@ static WARN_UNUSED_RESULT int AesSivCipher(
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    wc_AesDelete(&aes);
+    wc_AesDelete(aes, NULL);
 #else
     wc_AesFree(aes);
 #endif

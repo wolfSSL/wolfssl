@@ -195,7 +195,7 @@ WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap,
                                    int devId, int *result_code);
-WOLFSSL_API int wc_HashDelete(wc_HashAlg **hash);
+WOLFSSL_API int wc_HashDelete(wc_HashAlg *hash, wc_HashAlg **hash_p);
 #endif
 
 #ifdef WOLFSSL_HASH_FLAGS

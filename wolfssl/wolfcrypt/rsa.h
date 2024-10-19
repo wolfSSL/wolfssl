@@ -297,7 +297,7 @@ WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code);
-WOLFSSL_API int  wc_DeleteRsaKey(RsaKey** key);
+WOLFSSL_API int  wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p);
 #endif
 
 #ifdef WOLF_PRIVATE_KEY_ID

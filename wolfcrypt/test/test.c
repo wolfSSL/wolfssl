@@ -938,7 +938,7 @@ static void myFipsCb(int ok, int err, const char* hash)
 #if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0) && !defined(WC_NO_CONSTRUCTORS)
 
 #if !defined(NO_AES)
-static WC_MAYBE_UNUSED Aes* wc_AesNew(void* heap, int devId, int *result_code)
+static WC_MAYBE_UNUSED Aes* wc_AesNew(void* heap, int thisDevId, int *result_code)
 {
     int ret;
     Aes* aes = (Aes*)XMALLOC(sizeof(Aes), heap, DYNAMIC_TYPE_AES);
@@ -946,7 +946,7 @@ static WC_MAYBE_UNUSED Aes* wc_AesNew(void* heap, int devId, int *result_code)
         ret = MEMORY_E;
     }
     else {
-        ret = wc_AesInit(aes, heap, devId);
+        ret = wc_AesInit(aes, heap, thisDevId);
         if (ret != 0) {
             XFREE(aes, heap, DYNAMIC_TYPE_AES);
             aes = NULL;
@@ -958,27 +958,28 @@ static WC_MAYBE_UNUSED Aes* wc_AesNew(void* heap, int devId, int *result_code)
 
     return aes;
 }
-static WC_MAYBE_UNUSED int wc_AesDelete(Aes** aes)
+static WC_MAYBE_UNUSED int wc_AesDelete(Aes *aes, Aes** aes_p)
 {
-    if ((aes == NULL) || (*aes == NULL))
+    if (aes == NULL)
         return BAD_FUNC_ARG;
-    wc_AesFree(*aes);
-    XFREE(*aes, (*aes)->heap, DYNAMIC_TYPE_AES);
-    *aes = NULL;
+    wc_AesFree(aes);
+    XFREE(aes, aes->heap, DYNAMIC_TYPE_AES);
+    if (aes_p != NULL)
+        *aes_p = NULL;
     return 0;
 }
 #endif /* !NO_AES */
 
 #if !defined(NO_RSA)
-static WC_MAYBE_UNUSED RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
+static WC_MAYBE_UNUSED RsaKey* wc_NewRsaKey(void* heap, int thisDevId, int *result_code)
 {
     int ret;
     RsaKey* key = (RsaKey*)XMALLOC(sizeof(RsaKey), heap, DYNAMIC_TYPE_RSA);
-    if (key = NULL) {
+    if (key == NULL) {
         ret = MEMORY_E;
     }
     else {
-        ret = wc_InitRsaKey_ex(key, heap, devId);
+        ret = wc_InitRsaKey_ex(key, heap, thisDevId);
         if (ret != 0) {
             XFREE(key, heap, DYNAMIC_TYPE_RSA);
             key = NULL;
@@ -990,119 +991,17 @@ static WC_MAYBE_UNUSED RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_c
 
     return key;
 }
-static WC_MAYBE_UNUSED int wc_DeleteRsaKey(RsaKey** key)
+static WC_MAYBE_UNUSED int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 {
-    if ((key == NULL) || (*key == NULL))
+    if (key == NULL)
         return BAD_FUNC_ARG;
-    wc_FreeRsaKey(*key);
-    XFREE(*key, (*key)->heap, DYNAMIC_TYPE_RSA);
-    *key = NULL;
+    wc_FreeRsaKey(key);
+    XFREE(key, key->heap, DYNAMIC_TYPE_RSA);
+    if (key_p != NULL)
+        *key_p = NULL;
     return 0;
 }
 #endif /* !NO_RSA */
-
-#if !defined(NO_HASH_WRAPPER)
-static WC_MAYBE_UNUSED wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap, int devId,
-                       int *result_code)
-{
-    int ret;
-    wc_HashAlg* hash = (wc_HashAlg*)XMALLOC(sizeof(wc_HashAlg), heap,
-                        DYNAMIC_TYPE_HASHES);
-    if (hash == NULL) {
-        ret = MEMORY_E;
-    }
-    else {
-        ret = wc_HashInit_ex(hash, type, heap, devId);
-        if (ret != 0) {
-            XFREE(hash, heap, DYNAMIC_TYPE_HASHES);
-            hash = NULL;
-        }
-    }
-
-    if (result_code != NULL)
-        *result_code = ret;
-
-    return hash;
-}
-
-static WC_MAYBE_UNUSED int wc_HashDelete(wc_HashAlg **hash) {
-    int ret;
-    if ((hash == NULL) || (*hash == NULL))
-        return BAD_FUNC_ARG;
-    ret = wc_HashFree(*hash, (*hash)->type);
-    if (ret < 0)
-        return ret;
-    XFREE(*hash, (*hash)->heap, DYNAMIC_TYPE_HASHES);
-    *hash = NULL;
-    return 0;
-}
-#endif  /* !NO_HASH_WRAPPER */
-
-#if defined(HAVE_CURVE25519)
-static WC_MAYBE_UNUSED curve25519_key* wc_curve25519_new(void* heap, int devId, int *result_code)
-{
-    int ret;
-    curve25519_key* key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), heap,
-                           DYNAMIC_TYPE_CURVE25519);
-    if (key == NULL) {
-        ret = MEMORY_E;
-    }
-    else {
-        ret = wc_curve25519_init_ex(key, heap, devId);
-        if (ret != 0) {
-            XFREE(key, heap, DYNAMIC_TYPE_CURVE25519);
-            key = NULL;
-        }
-    }
-
-    if (result_code != NULL)
-        *result_code = ret;
-
-    return key;
-}
-
-static WC_MAYBE_UNUSED int wc_curve25519_delete(curve25519_key** key) {
-    if ((key == NULL) || (*key == NULL))
-        return BAD_FUNC_ARG;
-    wc_curve25519_free(*key);
-    XFREE(*key, (*key)->heap, DYNAMIC_TYPE_CURVE25519);
-    *key = NULL;
-    return 0;
-}
-#endif /* HAVE_CURVE25519 */
-
-#if defined(HAVE_ED25519)
-static WC_MAYBE_UNUSED ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code)
-{
-    int ret;
-    ed25519_key* key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
-                        DYNAMIC_TYPE_ED25519);
-    if (key == NULL) {
-        ret = MEMORY_E;
-    }
-    else {
-        ret = wc_ed25519_init_ex(key, heap, devId);
-        if (ret != 0) {
-            XFREE(key, heap, DYNAMIC_TYPE_ED25519);
-            key = NULL;
-        }
-    }
-
-    if (result_code != NULL)
-        *result_code = ret;
-
-    return key;
-}
-
-static WC_MAYBE_UNUSED int wc_ed25519_delete(ed25519_key** key) {
-    if ((key == NULL) || (*key == NULL))
-        return BAD_FUNC_ARG;
-    wc_ed25519_free(*key);
-    XFREE(*key, (*key)->heap, DYNAMIC_TYPE_ED25519);
-    *key = NULL;
-    return 0;
-}
-#endif /* HAVE_ED25519 */
 
 #endif /* FIPS_VERSION3_LT(6,0,0) && !WC_NO_CONSTRUCTORS */
 
@@ -6457,7 +6356,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t hash_test(void)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    (void)wc_HashDelete(&hash);
+    (void)wc_HashDelete(hash, &hash);
 #endif
 
     return 0;
@@ -9680,14 +9579,14 @@ EVP_TEST_END:
     out:
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        wc_AesDelete(&enc);
+        wc_AesDelete(enc, &enc);
     #else
         wc_AesFree(enc);
     #endif
 
     #ifdef HAVE_AES_DECRYPT
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        wc_AesDelete(&dec);
+        wc_AesDelete(dec, &dec);
     #else
         wc_AesFree(dec);
     #endif
@@ -10010,13 +9909,13 @@ EVP_TEST_END:
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
+    wc_AesDelete(enc, &enc);
 #else
     wc_AesFree(enc);
 #endif
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&dec);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
 #endif
@@ -10272,13 +10171,13 @@ EVP_TEST_END:
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        wc_AesDelete(&enc);
+        wc_AesDelete(enc, &enc);
 #else
         wc_AesFree(enc);
 #endif
     #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        wc_AesDelete(&dec);
+        wc_AesDelete(dec, &dec);
 #else
         wc_AesFree(dec);
 #endif
@@ -10484,13 +10383,13 @@ EVP_TEST_END:
       out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        wc_AesDelete(&enc);
+        wc_AesDelete(enc, &enc);
 #else
         wc_AesFree(enc);
 #endif
     #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-        wc_AesDelete(&dec);
+        wc_AesDelete(dec, &dec);
 #else
         wc_AesFree(dec);
 #endif
@@ -10629,7 +10528,7 @@ static wc_test_ret_t aes_key_size_test(void)
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&aes);
+    wc_AesDelete(aes, &aes);
 #else
     wc_AesFree(aes);
 #endif
@@ -13670,13 +13569,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
 
 out:
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
+    wc_AesDelete(enc, &enc);
 #else
     wc_AesFree(enc);
 #endif
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&dec);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
 #endif
@@ -14246,13 +14145,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
+    wc_AesDelete(enc, &enc);
 #else
     wc_AesFree(enc);
 #endif
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&dec);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
 #endif
@@ -14324,8 +14223,8 @@ static wc_test_ret_t aes_ecb_direct_test(void)
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
-    wc_AesDelete(&dec);
+    wc_AesDelete(enc, &enc);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(enc);
     wc_AesFree(dec);
@@ -14521,13 +14420,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes192_test(void)
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
+    wc_AesDelete(enc, &enc);
 #else
     wc_AesFree(enc);
 #endif
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&dec);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
 #endif
@@ -14728,13 +14627,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes256_test(void)
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
+    wc_AesDelete(enc, &enc);
 #else
     wc_AesFree(enc);
 #endif
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&dec);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(dec);
 #endif
@@ -14865,8 +14764,8 @@ static wc_test_ret_t aesgcm_default_test_helper(byte* key, int keySz, byte* iv, 
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
-    wc_AesDelete(&dec);
+    wc_AesDelete(enc, &enc);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(enc);
     wc_AesFree(dec);
@@ -15802,8 +15701,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aesgcm_test(void)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
-    wc_AesDelete(&dec);
+    wc_AesDelete(enc, &enc);
+    wc_AesDelete(dec, &dec);
 #else
     wc_AesFree(enc);
     wc_AesFree(dec);
@@ -16026,7 +15925,7 @@ static wc_test_ret_t aesccm_256_test(void)
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&aes);
+    wc_AesDelete(aes, &aes);
 #else
     wc_AesFree(aes);
 #endif
@@ -16319,7 +16218,7 @@ static wc_test_ret_t aesccm_128_test(void)
   out:
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_AesDelete(&enc);
+    wc_AesDelete(enc, &enc);
 #else
     wc_AesFree(enc);
 #endif
@@ -22278,9 +22177,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 exit_rsa:
 
     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_DeleteRsaKey(&key);
+    wc_DeleteRsaKey(key, &key);
     #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_CERT_GEN)
-    wc_DeleteRsaKey(&keypub);
+    wc_DeleteRsaKey(keypub, &keypub);
     #endif
     #ifdef WOLFSSL_TEST_CERT
     XFREE(cert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -35361,9 +35260,9 @@ cleanup:
 
     /* clean up keys when done */
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_curve25519_delete(&pubKey);
-    wc_curve25519_delete(&userB);
-    wc_curve25519_delete(&userA);
+    wc_curve25519_delete(pubKey, &pubKey);
+    wc_curve25519_delete(userB, &userB);
+    wc_curve25519_delete(userA, &userA);
 #else
     wc_curve25519_free(pubKey);
     wc_curve25519_free(userB);
@@ -36544,7 +36443,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_NC, cleanup);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_ed25519_delete(&key3);
+    wc_ed25519_delete(key3, &key3);
 #else
     wc_ed25519_free(key3);
 #endif
@@ -36569,8 +36468,8 @@ cleanup:
 
     /* clean up keys when done */
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_ed25519_delete(&key);
-    wc_ed25519_delete(&key2);
+    wc_ed25519_delete(key, &key);
+    wc_ed25519_delete(key2, &key2);
 #else
     wc_ed25519_free(key);
     wc_ed25519_free(key2);

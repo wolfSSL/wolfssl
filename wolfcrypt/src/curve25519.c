@@ -678,12 +678,13 @@ curve25519_key* wc_curve25519_new(void* heap, int devId, int *result_code)
     return key;
 }
 
-int wc_curve25519_delete(curve25519_key** key) {
-    if ((key == NULL) || (*key == NULL))
+int wc_curve25519_delete(curve25519_key* key, curve25519_key** key_p) {
+    if (key == NULL)
         return BAD_FUNC_ARG;
-    wc_curve25519_free(*key);
-    XFREE(*key, (*key)->heap, DYNAMIC_TYPE_CURVE25519);
-    *key = NULL;
+    wc_curve25519_free(key);
+    XFREE(key, key->heap, DYNAMIC_TYPE_CURVE25519);
+    if (key_p != NULL)
+        *key_p = NULL;
     return 0;
 }
 #endif /* !WC_NO_CONSTRUCTORS */

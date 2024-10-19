@@ -176,13 +176,14 @@ RsaKey* wc_NewRsaKey(void* heap, int devId, int *result_code)
     return key;
 }
 
-int wc_DeleteRsaKey(RsaKey** key)
+int wc_DeleteRsaKey(RsaKey* key, RsaKey** key_p)
 {
-    if ((key == NULL) || (*key == NULL))
+    if (key == NULL)
         return BAD_FUNC_ARG;
-    wc_FreeRsaKey(*key);
-    XFREE(*key, (*key)->heap, DYNAMIC_TYPE_RSA);
-    *key = NULL;
+    wc_FreeRsaKey(key);
+    XFREE(key, key->heap, DYNAMIC_TYPE_RSA);
+    if (key_p != NULL)
+        *key_p = NULL;
     return 0;
 }
 #endif /* !WC_NO_CONSTRUCTORS */

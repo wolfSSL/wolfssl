@@ -729,7 +729,7 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
 WOLFSSL_API void wc_AesFree(Aes* aes);
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API Aes* wc_AesNew(void* heap, int devId, int *result_code);
-WOLFSSL_API int wc_AesDelete(Aes** aes);
+WOLFSSL_API int wc_AesDelete(Aes* aes, Aes** aes_p);
 #endif
 
 #ifdef WOLFSSL_AES_SIV

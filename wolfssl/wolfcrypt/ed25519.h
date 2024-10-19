@@ -185,7 +185,7 @@ void wc_ed25519_free(ed25519_key* key);
 WOLFSSL_API
 ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code);
 WOLFSSL_API
-int wc_ed25519_delete(ed25519_key** key);
+int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p);
 #endif
 WOLFSSL_API
 
