@@ -522,6 +522,12 @@ typedef struct w64wrapper {
     #elif defined(NO_WOLFSSL_MEMORY)
         #ifdef WOLFSSL_NO_MALLOC
             /* this platform does not support heap use */
+            #ifdef WOLFSSL_SMALL_STACK
+                #error WOLFSSL_SMALL_STACK requires a heap implementation.
+            #endif
+            #ifndef WC_NO_CONSTRUCTORS
+                #define WC_NO_CONSTRUCTORS
+            #endif
             #ifdef WOLFSSL_MALLOC_CHECK
                 #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
@@ -604,6 +610,10 @@ typedef struct w64wrapper {
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), wolfSSL_Realloc((p), (n)))
             #endif /* WOLFSSL_DEBUG_MEMORY */
         #endif /* WOLFSSL_STATIC_MEMORY */
+    #endif
+
+    #if defined(WOLFSSL_SMALL_STACK) && defined(WC_NO_CONSTRUCTORS)
+        #error WOLFSSL_SMALL_STACK requires constructors.
     #endif
 
     #include <wolfssl/wolfcrypt/memory.h>

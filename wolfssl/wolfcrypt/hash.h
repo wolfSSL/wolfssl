@@ -125,7 +125,9 @@ typedef union {
 typedef struct {
     wc_Hashes alg;
     enum wc_HashType type; /* sanity check */
-    WC_BITFIELD isAllocated:1; /* flag indicates if structure was allocated */
+#ifndef WC_NO_CONSTRUCTORS
+    void *heap;
+#endif
 } wc_HashAlg;
 #endif /* !NO_HASH_WRAPPER */
 
@@ -182,8 +184,6 @@ WOLFSSL_API int wc_Hash_ex(enum wc_HashType hash_type,
     byte* hash, word32 hash_len, void* heap, int devId);
 
 /* generic hash operation wrappers */
-WOLFSSL_API wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap,
-                                   int devId);
 WOLFSSL_API int wc_HashInit_ex(wc_HashAlg* hash, enum wc_HashType type,
     void* heap, int devId);
 WOLFSSL_API int wc_HashInit(wc_HashAlg* hash, enum wc_HashType type);
@@ -192,6 +192,11 @@ WOLFSSL_API int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type,
 WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
     byte* out);
 WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API wc_HashAlg* wc_HashNew(enum wc_HashType type, void* heap,
+                                   int devId, int *result_code);
+WOLFSSL_API int wc_HashDelete(wc_HashAlg *hash, wc_HashAlg **hash_p);
+#endif
 
 #ifdef WOLFSSL_HASH_FLAGS
     WOLFSSL_API int wc_HashSetFlags(wc_HashAlg* hash, enum wc_HashType type,
