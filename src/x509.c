@@ -12984,7 +12984,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
     #ifndef NO_CHECK_PRIVATE_KEY
         return wc_CheckPrivateKey((byte*)key->pkey.ptr, key->pkey_sz,
                 x509->pubKey.buffer, x509->pubKey.length,
-                (enum Key_Sum)x509->pubKeyOID) == 1 ?
+                (enum Key_Sum)x509->pubKeyOID, key->heap) == 1 ?
                         WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
     #else
         /* not compiled in */
