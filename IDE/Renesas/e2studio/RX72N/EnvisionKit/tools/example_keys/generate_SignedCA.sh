@@ -37,7 +37,7 @@ openssl dgst -sha256 -sign $1 -sigopt $SIGOPT -sigopt $SIGOPT2 -out ${CURRENT}/$
 
 echo Verify by private key
 openssl dgst -sha256 -prverify $1 -sigopt $SIGOPT -sigopt $SIGOPT2 -signature ${CURRENT}/${signed_file}.sign $3
-echo Verifiy by public key
+echo Verify by public key
 openssl dgst -sha256 -verify $2 -sigopt $SIGOPT -sigopt $SIGOPT2 -signature ${CURRENT}/${signed_file}.sign $3
 
 # Convert Signed CA to c source

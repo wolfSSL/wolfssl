@@ -20149,7 +20149,7 @@ static int test_wc_AesGcmEncryptDecrypt(void)
 } /* END test_wc_AesGcmEncryptDecrypt */
 
 /*
- * test function for mixed (one-shot encrpytion + stream decryption) AES GCM
+ * test function for mixed (one-shot encryption + stream decryption) AES GCM
  * using a long IV (older FIPS does NOT support long IVs).  Relates to zd15423
  */
 static int test_wc_AesGcmMixedEncDecLongIV(void)
@@ -33007,7 +33007,7 @@ static int test_wc_dilithium_verify(void)
         ExpectIntEQ(res, 0);
         sig[100] ^= 0x80;
 
-        /* Set all indeces to 0. */
+        /* Set all indices to 0. */
         XMEMSET(sig + sigLen - 4, 0, 4);
         ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
             WC_NO_ERR_TRACE(SIG_VERIFY_E));

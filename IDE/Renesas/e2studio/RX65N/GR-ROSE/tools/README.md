@@ -1,7 +1,7 @@
 # Create/Update Signed CA
 This document describes how to create/update Signed CA data that is used at an example program.
 
-## Signed CA Creatation
+## Signed CA Creation
 ### Generate RSA Key pair
 ```
 2048 bit RSA key pair
@@ -35,5 +35,5 @@ There are multiple example keys for testing in the `example_keys` folder.
 |
 +----+ rsa_private.pem  an example 2048-bit rsa private key for signing CA cert
      + rsa_public.pem   an example 2048-bit rsa public key for verifying CA cert
-     + generate_signCA.sh an example script to genearte signed-certificate data for the example program
+     + generate_signCA.sh an example script to generate signed-certificate data for the example program
 ```

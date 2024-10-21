@@ -199,7 +199,7 @@ int set_time_from_string(const char* time_buffer)
                     &day, &hour, &minute, &second, &year, &offset);
 
         if (ret == 8) {
-            /* we found a match for all componets */
+            /* we found a match for all components */
 
             const char *months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"

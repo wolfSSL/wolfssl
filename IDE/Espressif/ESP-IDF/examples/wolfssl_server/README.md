@@ -82,7 +82,7 @@ After the server exits, remove the port proxy forward:
 netsh interface portproxy delete v4tov4 listenport=11111 listenaddress=0.0.0.0
 ```
 
-Cipers to consider
+Ciphers to consider
 
 ```
 TLS13-AES128-GCM-SHA256:

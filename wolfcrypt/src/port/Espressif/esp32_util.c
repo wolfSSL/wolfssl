@@ -100,7 +100,7 @@ int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
 /*
  * Call the ESP-IDF mutex lock; xSemaphoreTake
  * this is a general mutex locker, used for different mutex objects for
- * different HW acclerators or other single-use HW features.
+ * different HW accelerators or other single-use HW features.
  *
  * We should already have known if the resource is in use or not.
  *
@@ -988,7 +988,7 @@ int hexToBinary(byte* toVar, const char* fromHexString, size_t szHexString ) {
         sscanf(&fromHexString[i], "%2x", &decimalValue);
         size_t index = i / 2;
 #if (0)
-        /* Optionall peek at new values */
+        /* Optionally peek at new values */
         byte new_val =  (decimalValue & 0x0F) << ((i % 2) * 4);
         ESP_LOGI("hex", "Current char = %d", toVar[index]);
         ESP_LOGI("hex", "New val = %d", decimalValue);
