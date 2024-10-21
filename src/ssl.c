@@ -5020,8 +5020,13 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
         return  ret;
     tp = cm->tpTable[row];
     while (tp) {
-        if (XMEMCMP(cert->subjectHash, tp->subjectNameHash,
+        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
                 SIGNER_DIGEST_SIZE) == 0)
+    #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+         && (XMEMCMP(cert->issuerHash, tp->issuerHash,
+                SIGNER_DIGEST_SIZE) == 0)
+    #endif
+        )
             ret = 1;
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet) {
@@ -5061,8 +5066,13 @@ TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
 
     tp = cm->tpTable[row];
     while (tp) {
-        if (XMEMCMP(cert->subjectHash, tp->subjectNameHash,
+        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
                 SIGNER_DIGEST_SIZE) == 0)
+        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+             && (XMEMCMP(cert->issuerHash, tp->issuerHash,
+                SIGNER_DIGEST_SIZE) == 0)
+        #endif
+            )
             ret = tp;
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet) {
@@ -5328,6 +5338,10 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
         #endif
             XMEMCPY(peerCert->subjectNameHash, cert->subjectHash,
                     SIGNER_DIGEST_SIZE);
+        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+            XMEMCPY(peerCert->issuerHash, cert->issuerHash,
+                    SIGNER_DIGEST_SIZE);
+        #endif
             /* If Key Usage not set, all uses valid. */
             peerCert->next    = NULL;
             cert->subjectCN = 0;
@@ -5540,8 +5554,9 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         ret = NOT_CA_ERROR;
     }
 #ifndef ALLOW_INVALID_CERTSIGN
-    else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
-        !cert->selfSigned && (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
+    else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_MUST_BE_CA &&
+        type != WOLFSSL_USER_CA && !cert->selfSigned &&
+        (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
         /* Intermediate CA certs are required to have the keyCertSign
         * extension set. User loaded root certs are not. */
         WOLFSSL_MSG("\tDoesn't have key usage certificate signing");

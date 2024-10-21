@@ -202,7 +202,13 @@ static int ProcessUserCert(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer,
 
         if (type == CA_TYPE) {
             /* Add CA to certificate manager */
-            ret = AddCA(cm, pDer, WOLFSSL_USER_CA, verify);
+            ret = AddCA(cm, pDer,
+        #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+            WOLFSSL_MUST_BE_CA,
+        #else
+            WOLFSSL_USER_CA,
+        #endif
+            verify);
             if (ret == 1) {
                 ret = 0;
             }
@@ -2054,7 +2060,13 @@ static int ProcessBufferCertHandleDer(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     /* CA certificate to verify with. */
     if (type == CA_TYPE) {
         /* verify CA unless user set to no verify */
-        ret = AddCA(ctx->cm, &der, WOLFSSL_USER_CA, verify);
+        ret = AddCA(ctx->cm, &der,
+        #if defined(OPENSSL_ALL) && defined(WOLFSSL_X509_STRICT)
+            WOLFSSL_MUST_BE_CA,
+        #else
+            WOLFSSL_USER_CA,
+        #endif
+            verify);
         if (ret == 1) {
             ret = 0;
         }

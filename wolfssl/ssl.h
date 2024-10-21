@@ -3304,7 +3304,8 @@ enum {
     WOLFSSL_DTLSV1_3 = 7,
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
-    WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
+    WOLFSSL_CHAIN_CA = 2,          /* added to cache from trusted chain */
+    WOLFSSL_MUST_BE_CA = 3,        /* openssl compatible */
 };
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);

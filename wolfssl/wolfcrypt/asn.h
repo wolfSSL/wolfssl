@@ -2089,6 +2089,10 @@ struct TrustedPeerCert {
     #endif /* IGNORE_NAME_CONSTRAINTS */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
+    #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+    byte    issuerHash[SIGNER_DIGEST_SIZE];
+                                    /* sha hash of issuer name in certificate */
+    #endif
     #ifndef NO_SKID
         byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of SKID in certificate */
