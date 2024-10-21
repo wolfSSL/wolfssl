@@ -33731,6 +33731,8 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     word32 plaintextLen;
     word32 encryptLen = MAX_ECIES_TEST_SZ;
     word32 decryptLen = MAX_ECIES_TEST_SZ;
+    int    aInit = 0;
+    int    bInit = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     plaintext = XMALLOC(MAX_ECIES_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -33742,12 +33744,22 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     wc_ecc_free(b);
 
     ret = wc_ecc_init(a);
-    if (ret != 0)
+    if (ret != 0) {
         ret = WC_TEST_RET_ENC_EC(ret);
+    }
+    else {
+        aInit = 1;
+    }
+
+
     if (ret == 0) {
         ret = wc_ecc_init(b);
-        if (ret != 0)
+        if (ret != 0) {
             ret = WC_TEST_RET_ENC_EC(ret);
+        }
+        else {
+            bInit = 1;
+        }
     }
 
     if (ret == 0)
@@ -33809,8 +33821,13 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     if (ret == 0 && XMEMCMP(decrypted, plaintext, plaintextLen) != 0)
         ret = WC_TEST_RET_ENC_NC;
 
-    wc_ecc_free(a);
-    wc_ecc_free(b);
+    if (aInit) {
+        wc_ecc_free(a);
+    }
+
+    if (bInit) {
+        wc_ecc_free(b);
+    }
 
     wc_ecc_ctx_free(aCtx);
     wc_ecc_ctx_free(bCtx);
