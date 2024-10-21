@@ -28,8 +28,9 @@
 #define __ESP_CRT_BUNDLE_wolfssl_LIB_H__
 
 /* This file is typically NOT directly used by applications utilizing the
- * wolfSSL libraries. It is used when the wolfssl libary component is configured
- * to be utilized by the Espressif ESP-IDF, specifically the esp-tls layer.
+ * wolfSSL libraries. It is used when the wolfssl library component is
+ * configured to be utilized by the Espressif ESP-IDF, specifically the
+ * esp-tls layer.
  *
  * See: esp-idf api-reference for esp_tls.
  * https://github.com/espressif/esp-idf/blob/master/components/esp-tls/esp_tls.h
@@ -53,7 +54,16 @@
  *   Normally on, this uses the compiler `inline` decorator for bundle functions
  *   to be optimized, since they are called during a TLS connection.
  *
- * See Kconfig file (or use idy.py menufconfig) for other bundle settings.
+ * See Kconfig file (or use idy.py menuconfig) for other bundle settings.
+ *
+ *******************************************************************************
+ ** Other Settings:
+ *******************************************************************************
+ * WOLFSSL_CMAKE_REQUIRED_ESP_TLS
+ *  This is defined in the wolfssl component cmake file when the esp-tls
+ *  component is required. This is typically when Certificate Bundles are
+ *  enabled, and the esp_tls_free_global_ca_store() in the esp-tls needs
+ *  to be called from the wolfSSL wolfSSL_bundle_cleanup().
  */
 
 /* wolfSSL */
@@ -121,14 +131,14 @@ esp_err_t esp_crt_bundle_attach(void *conf);
 
 #else
 /**
- * @brief      Return ESP_OK for valid bunder, otherwise ESP_FAIL.
+ * @brief      Return ESP_OK for valid bundle, otherwise ESP_FAIL.
  *
  * Specific to wolfSSL. Not used by ESP-IDF esp-tls layer.
  */
 esp_err_t esp_crt_bundle_is_valid(void);
 
 /**
- * @brief      Return 1 if Cert Bundle loaded, otheriwse 0.
+ * @brief      Return 1 if Cert Bundle loaded, otherwise 0.
  *
  * Specific to wolfSSL. Not used by ESP-IDF esp-tls layer.
  */
@@ -169,7 +179,7 @@ void esp_crt_bundle_detach(wolfssl_ssl_config *conf);
  *
  * @return
  *             - ESP_OK  if adding certificates was successful.
- *             - Other   if an error occured or an action must be taken
+ *             - Other   if an error occurred or an action must be taken
  *                       by the calling process.
  */
 esp_err_t esp_crt_bundle_set(const uint8_t *x509_bundle, size_t bundle_size);
@@ -179,7 +189,7 @@ esp_err_t esp_crt_bundle_set(const uint8_t *x509_bundle, size_t bundle_size);
  * @brief      Set the issuer and subject values given the current cert.
  *
  * Used internally by ESP-IDF esp-tls layer. Also helpful for debugging
- * and general visibiity to certificate attributes.
+ * and general visibility to certificate attributes.
  *
  * The CERT_TAG can be used at the esp-tls or application layer to indicate
  * the usage of the respective cert (e.g. the string "peer").
