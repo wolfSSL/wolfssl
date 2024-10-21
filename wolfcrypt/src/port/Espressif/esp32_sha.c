@@ -2384,7 +2384,7 @@ int esp_hw_show_sha_metrics(void)
     int ret = 0;
 #if defined(WOLFSSL_ESP32_CRYPT) && !defined(NO_WOLFSSL_ESP32_CRYPT_HASH)
     ESP_LOGI(TAG, "--------------------------------------------------------");
-    ESP_LOGI(TAG, "------------- wolfSSL ESP HW SHA Metrics----------------");
+    ESP_LOGI(TAG, "-------------  wolfSSL ESP HW SHA Metrics  -------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
 
     ESP_LOGI(TAG, "esp_sha_hw_copy_ct            = %lu",
