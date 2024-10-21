@@ -13629,10 +13629,13 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     *inOutIdx += status_length;
 
+    /* FreeOcspResponse frees status and single only if
+     * single->isDynamic is set. */
     FreeOcspResponse(response);
 
     #ifdef WOLFSSL_SMALL_STACK
-    /* FreeOcspResponse frees status and single. */
+    XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+    XFREE(single,   ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
     XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     #endif
 
