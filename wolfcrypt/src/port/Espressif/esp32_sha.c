@@ -20,7 +20,7 @@
  */
 
 /*
- * ESP32-C3: https://www.espressif.com/sites/default/files/documentation/esp32-c3_technical_reference_manual_en.pdf
+ * ESP32-C3: esp32-c3_technical_reference_manual_en.pdf
  *  see page 335: no SHA-512
  *
  */
