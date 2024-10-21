@@ -12429,8 +12429,10 @@ static int _sp_invmod_div(const sp_int* a, const sp_int* m, sp_int* x,
 
     ALLOC_SP_INT(d, m->used + 1, err, NULL);
     if (err == MP_OKAY) {
-        sp_init_size(d, m->used + 1);
+        err = sp_init_size(d, m->used + 1);
+    }
 
+    if (err == MP_OKAY) {
         /* 1. x = m, y = a, b = 1, c = 0 */
         if (a != y) {
             _sp_copy(a, y);
