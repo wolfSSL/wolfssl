@@ -146,7 +146,7 @@ int wifi_init_sta(void)
     };
 
     /* Setting a password implies station will connect to all security modes including WEP/WPA.
-        * However these modes are deprecated and not advisable to be used. Incase your Access point
+        * However these modes are deprecated and not advisable to be used. In case your Access point
         * doesn't support WPA2, these mode can be enabled by commenting below line */
 
     if (strlen((char *)wifi_config.sta.password)) {

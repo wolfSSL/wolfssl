@@ -13033,7 +13033,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     }
 
     /* make sure this wolfSSL object has arrays and rng setup. Protects
-     * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+     * case where the WOLFSSL object is reused via wolfSSL_clear() */
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
@@ -14134,7 +14134,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     }
 
     /* make sure this wolfSSL object has arrays and rng setup. Protects
-     * case where the WOLFSSL object is re-used via wolfSSL_clear() */
+     * case where the WOLFSSL object is reused via wolfSSL_clear() */
     if ((ret = ReinitSSL(ssl, ssl->ctx, 0)) != 0) {
         return ret;
     }
