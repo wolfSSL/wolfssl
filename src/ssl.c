@@ -7241,29 +7241,51 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
     WOLFSSL_PKCS8_PRIV_KEY_INFO* pkcs8 = NULL;
 #ifdef WOLFSSL_PEM_TO_DER
     int ret;
-    DerBuffer* der = NULL;
+    DerBuffer* pkcs8Der = NULL;
+    DerBuffer rawDer;
+    EncryptedInfo info;
+    int advanceLen = 0;
+
+    XMEMSET(&info, 0, sizeof(info));
+    XMEMSET(&rawDer, 0, sizeof(rawDer));
 
     if (keyBuf == NULL || *keyBuf == NULL || keyLen <= 0) {
         WOLFSSL_MSG("Bad key PEM/DER args");
         return NULL;
     }
 
-    ret = PemToDer(*keyBuf, keyLen, PRIVATEKEY_TYPE, &der, NULL, NULL, NULL);
+    ret = PemToDer(*keyBuf, keyLen, PRIVATEKEY_TYPE, &pkcs8Der, NULL, &info,
+                   NULL);
     if (ret < 0) {
         WOLFSSL_MSG("Not PEM format");
-        ret = AllocDer(&der, (word32)keyLen, PRIVATEKEY_TYPE, NULL);
+        ret = AllocDer(&pkcs8Der, (word32)keyLen, PRIVATEKEY_TYPE, NULL);
         if (ret == 0) {
-            XMEMCPY(der->buffer, *keyBuf, keyLen);
+            XMEMCPY(pkcs8Der->buffer, *keyBuf, keyLen);
         }
+    }
+    else {
+        advanceLen = (int)info.consumed;
     }
 
     if (ret == 0) {
         /* Verify this is PKCS8 Key */
         word32 inOutIdx = 0;
         word32 algId;
-        ret = ToTraditionalInline_ex(der->buffer, &inOutIdx, der->length,
-            &algId);
+        ret = ToTraditionalInline_ex(pkcs8Der->buffer, &inOutIdx,
+                pkcs8Der->length, &algId);
         if (ret >= 0) {
+            if (advanceLen == 0) /* Set only if not PEM */
+                advanceLen = inOutIdx + ret;
+            if (algId == DHk) {
+                /* Special case for DH as we expect the DER buffer to be always
+                 * be in PKCS8 format */
+                rawDer.buffer = pkcs8Der->buffer;
+                rawDer.length = inOutIdx + ret;
+            }
+            else {
+                rawDer.buffer = pkcs8Der->buffer + inOutIdx;
+                rawDer.length = ret;
+            }
             ret = 0; /* good DER */
         }
     }
@@ -7274,20 +7296,23 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        pkcs8->pkey.ptr = (char*)XMALLOC(der->length, NULL,
+        pkcs8->pkey.ptr = (char*)XMALLOC(rawDer.length, NULL,
             DYNAMIC_TYPE_PUBLIC_KEY);
         if (pkcs8->pkey.ptr == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        XMEMCPY(pkcs8->pkey.ptr, der->buffer, der->length);
-        pkcs8->pkey_sz = (int)der->length;
+        XMEMCPY(pkcs8->pkey.ptr, rawDer.buffer, rawDer.length);
+        pkcs8->pkey_sz = (int)rawDer.length;
     }
 
-    FreeDer(&der);
+    FreeDer(&pkcs8Der);
     if (ret != 0) {
         wolfSSL_EVP_PKEY_free(pkcs8);
         pkcs8 = NULL;
+    }
+    else {
+        *keyBuf += advanceLen;
     }
     if (pkey != NULL) {
         *pkey = pkcs8;
@@ -7301,6 +7326,48 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY(
     return pkcs8;
 }
 
+#ifdef OPENSSL_ALL
+int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key, unsigned char** pp)
+{
+    word32 keySz = 0;
+    unsigned char* out;
+    int len;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_PKCS8_PKEY");
+
+    if (key == NULL)
+        return WOLFSSL_FATAL_ERROR;
+
+    if (pkcs8_encode(key, NULL, &keySz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E))
+        return WOLFSSL_FATAL_ERROR;
+    len = (int)keySz;
+
+    if (pp == NULL)
+        return len;
+
+    if (*pp == NULL) {
+        out = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1);
+        if (out == NULL)
+            return WOLFSSL_FATAL_ERROR;
+    }
+    else {
+        out = *pp;
+    }
+
+    if (pkcs8_encode(key, out, &keySz) != len) {
+        if (*pp == NULL)
+            XFREE(out, NULL, DYNAMIC_TYPE_ASN1);
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (*pp == NULL)
+        *pp = out;
+    else
+        *pp += len;
+
+    return len;
+}
+#endif
 
 #ifndef NO_BIO
 /* put SSL type in extra for now, not very common */

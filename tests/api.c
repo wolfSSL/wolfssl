@@ -57416,13 +57416,22 @@ static int test_wolfSSL_PEM_PrivateKey_dsa(void)
 
     ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
 #if defined(OPENSSL_ALL) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+#ifdef WOLFSSL_ASN_TEMPLATE
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
-        NULL), 0);
+        NULL), 1216);
+#else
+    ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
+        NULL), 1212);
+#endif
 #endif
 
 #ifdef WOLFSSL_KEY_GEN
     ExpectIntEQ(PEM_write_bio_PUBKEY(bio, pkey), 1);
-    ExpectIntEQ(BIO_pending(bio), 1178);
+#ifdef WOLFSSL_ASN_TEMPLATE
+    ExpectIntEQ(BIO_pending(bio), 2394);
+#else
+    ExpectIntEQ(BIO_pending(bio), 2390);
+#endif
     BIO_reset(bio);
 #endif
 
@@ -57451,6 +57460,7 @@ static int test_wolfSSL_PEM_PrivateKey_dh(void)
      (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)))
     BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
+    int       expectedBytes = 0;
 
     ExpectNotNull(bio = BIO_new_file("./certs/dh-priv-2048.pem", "rb"));
     /* Private DH EVP_PKEY */
@@ -57462,8 +57472,9 @@ static int test_wolfSSL_PEM_PrivateKey_dh(void)
     ExpectNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
 
 #if defined(OPENSSL_ALL) && !defined(NO_PWDBASED) && defined(HAVE_PKCS8)
+    expectedBytes += 806;
     ExpectIntEQ(PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL,
-        NULL), 0);
+        NULL), expectedBytes);
 #endif
 #ifdef WOLFSSL_KEY_GEN
     ExpectIntEQ(PEM_write_bio_PUBKEY(bio, pkey), 0);
@@ -57471,7 +57482,8 @@ static int test_wolfSSL_PEM_PrivateKey_dh(void)
 
     ExpectIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
         1);
-    ExpectIntEQ(BIO_pending(bio), 806);
+    expectedBytes += 806;
+    ExpectIntEQ(BIO_pending(bio), expectedBytes);
 
     BIO_free(bio);
     bio = NULL;
@@ -65194,6 +65206,7 @@ static int test_wolfSSL_PKCS8_Compat(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC) && \
     !defined(NO_BIO)
     PKCS8_PRIV_KEY_INFO* pt = NULL;
+    PKCS8_PRIV_KEY_INFO* pt2 = NULL;
     BIO* bio = NULL;
     XFILE f = XBADFILE;
     int bytes = 0;
@@ -65216,13 +65229,14 @@ static int test_wolfSSL_PKCS8_Compat(void)
     ExpectIntEQ(EVP_PKEY_type(pkey->type), EVP_PKEY_EC);
 
     /* gets PKCS8 pointer to pkey */
-    ExpectNotNull(EVP_PKEY2PKCS8(pkey));
+    ExpectNotNull(pt2 = EVP_PKEY2PKCS8(pkey));
 
     EVP_PKEY_free(pkey);
 #endif
 
     BIO_free(bio);
     PKCS8_PRIV_KEY_INFO_free(pt);
+    PKCS8_PRIV_KEY_INFO_free(pt2);
 #endif
     return EXPECT_RESULT();
 }
@@ -83723,10 +83737,11 @@ static int test_wolfSSL_RSA_GenAdd(void)
     ExpectNotNull(d2i_RSAPrivateKey(&rsa, &der, privDerSz));
 
     ExpectIntEQ(wolfSSL_RSA_GenAdd(NULL), -1);
-#ifndef RSA_LOW_MEM
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || \
+    !defined(RSA_LOW_MEM)
     ExpectIntEQ(wolfSSL_RSA_GenAdd(rsa), 1);
 #else
-    /* dmp1 and dmq1 are not set (allocated) when RSA_LOW_MEM. */
+    /* dmp1 and dmq1 are not set (allocated) in this config */
     ExpectIntEQ(wolfSSL_RSA_GenAdd(rsa), -1);
 #endif
 
@@ -85315,6 +85330,28 @@ static int test_wolfSSL_PEM_read_bio_ECPKParameters(void)
         sizeof(ec_nc_bad_4)));
     ExpectNull(PEM_read_bio_ECPKParameters(bio, NULL, NULL, NULL));
     BIO_free(bio);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_i2d_ECPKParameters(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_EXTRA)
+    EC_GROUP* grp = NULL;
+    unsigned char p256_oid[] = {
+        0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
+    };
+    unsigned char *der = p256_oid;
+    unsigned char out_der[sizeof(p256_oid)];
+
+    XMEMSET(out_der, 0, sizeof(out_der));
+    ExpectNotNull(d2i_ECPKParameters(&grp, (const unsigned char **)&der,
+            sizeof(p256_oid)));
+    der = out_der;
+    ExpectIntEQ(i2d_ECPKParameters(grp, &der), sizeof(p256_oid));
+    ExpectBufEQ(p256_oid, out_der, sizeof(p256_oid));
+    EC_GROUP_free(grp);
 #endif
     return EXPECT_RESULT();
 }
@@ -97848,6 +97885,7 @@ TEST_CASE testCases[] = {
 
 #if defined(HAVE_ECC) && !defined(OPENSSL_NO_PK)
     TEST_DECL(test_wolfSSL_EC_GROUP),
+    TEST_DECL(test_wolfSSL_i2d_ECPKParameters),
     TEST_DECL(test_wolfSSL_PEM_read_bio_ECPKParameters),
     TEST_DECL(test_wolfSSL_EC_POINT),
     TEST_DECL(test_wolfSSL_SPAKE),
