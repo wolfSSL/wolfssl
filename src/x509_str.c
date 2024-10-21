@@ -547,6 +547,12 @@ int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
     WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_purpose (not implemented)");
     return 0;
 }
+#endif /* !NO_WOLFSSL_STUB */
+
+#endif /* WOLFSSL_QT || OPENSSL_ALL */
+#endif /* OPENSSL_EXTRA */
+
+#ifdef OPENSSL_EXTRA
 
 void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
         unsigned long flags)
@@ -555,12 +561,6 @@ void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
         ctx->flags |= X509_V_FLAG_PARTIAL_CHAIN;
     }
 }
-#endif /* !NO_WOLFSSL_STUB */
-
-#endif /* WOLFSSL_QT || OPENSSL_ALL */
-#endif /* OPENSSL_EXTRA */
-
-#ifdef OPENSSL_EXTRA
 
 /* set X509_STORE_CTX ex_data, max idx is MAX_EX_DATA. Return WOLFSSL_SUCCESS
  * on success, WOLFSSL_FAILURE on error. */
