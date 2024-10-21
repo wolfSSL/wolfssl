@@ -10,6 +10,7 @@ ctaocrypt/src/src/
 *.cache
 .dirstamp
 *.user
+!*-VS2022.vcxproj.user
 configure
 config.*
 !cmake/config.in
