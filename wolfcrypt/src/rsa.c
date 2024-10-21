@@ -601,7 +601,7 @@ int wc_FreeRsaKey(RsaKey* key)
     mp_clear(&key->n);
 
 #ifdef WOLFSSL_XILINX_CRYPT
-    XFREE(key->mod, heap, DYNAMIC_TYPE_KEY);
+    XFREE(key->mod, key->heap, DYNAMIC_TYPE_KEY);
     key->mod = NULL;
 #endif
 
