@@ -7921,6 +7921,7 @@ int wc_CheckPrivateKey(const byte* privKey, word32 privKeySz,
         ret = 0;
     }
     (void)ks;
+    (void)heap;
 
     return ret;
 }
