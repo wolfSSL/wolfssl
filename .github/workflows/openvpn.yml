@@ -43,7 +43,7 @@ jobs:
       fail-fast: false
       matrix:
         # List of refs to test
-        ref: [ release/2.6, v2.6.0, master ]
+        ref: [ release/2.6, master ]
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
