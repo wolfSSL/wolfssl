@@ -225,6 +225,7 @@
     #include <wolfssl/openssl/modes.h>
     #include <wolfssl/openssl/fips_rand.h>
     #include <wolfssl/openssl/kdf.h>
+    #include <wolfssl/openssl/x509_vfy.h>
 #ifdef OPENSSL_ALL
     #include <wolfssl/openssl/txt_db.h>
     #include <wolfssl/openssl/lhash.h>
@@ -60207,6 +60208,54 @@ static int test_wolfSSL_X509_STORE_CTX_ex9(X509_STORE_test_data *testData)
     sk_X509_free(trusted);
     return EXPECT_RESULT();
 }
+
+static int test_wolfSSL_X509_STORE_CTX_ex10(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+
+    /* Test case 10, ensure partial chain flag works */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    /* Fails because chain is incomplete */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(X509_STORE_set_flags(store, X509_V_FLAG_PARTIAL_CHAIN), 1);
+    /* Partial chain now OK */
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
+
+static int test_wolfSSL_X509_STORE_CTX_ex11(X509_STORE_test_data *testData)
+{
+    EXPECT_DECLS;
+    X509_STORE* store = NULL;
+    X509_STORE_CTX* ctx = NULL;
+    STACK_OF(X509)* chain = NULL;
+
+    /* Test case 11, test partial chain flag on ctx itself */
+    ExpectNotNull(store = X509_STORE_new());
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt), 1);
+    ExpectIntEQ(X509_STORE_add_cert(store, testData->x509CaInt2), 1);
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, store, testData->x509Leaf, NULL), 1);
+    /* Fails because chain is incomplete */
+    ExpectIntNE(X509_verify_cert(ctx), 1);
+    X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_PARTIAL_CHAIN);
+    /* Partial chain now OK */
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectNotNull(chain = X509_STORE_CTX_get_chain(ctx));
+    X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    return EXPECT_RESULT();
+}
 #endif
 
 static int test_wolfSSL_X509_STORE_CTX_ex(void)
@@ -60244,6 +60293,8 @@ static int test_wolfSSL_X509_STORE_CTX_ex(void)
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex7(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex8(&testData), 1);
     ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex9(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex10(&testData), 1);
+    ExpectIntEQ(test_wolfSSL_X509_STORE_CTX_ex11(&testData), 1);
 
     if(testData.x509Ca) {
         X509_free(testData.x509Ca);

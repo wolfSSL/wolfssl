@@ -384,7 +384,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * a trusted CA in the CM */
             ret = X509StoreVerifyCert(ctx);
             if (ret != WOLFSSL_SUCCESS) {
-                if ((ctx->store->param->flags & X509_V_FLAG_PARTIAL_CHAIN) &&
+                if (((ctx->flags & X509_V_FLAG_PARTIAL_CHAIN) ||
+                     (ctx->store->param->flags & X509_V_FLAG_PARTIAL_CHAIN)) &&
                     (added == 1)) {
                     wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
                     ret = WOLFSSL_SUCCESS;
@@ -550,9 +551,9 @@ int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
 void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
         unsigned long flags)
 {
-    (void)ctx;
-    (void)flags;
-    WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_flags (not implemented)");
+    if ((ctx != NULL) && (flags & X509_V_FLAG_PARTIAL_CHAIN)){
+        ctx->flags |= X509_V_FLAG_PARTIAL_CHAIN;
+    }
 }
 #endif /* !NO_WOLFSSL_STUB */
 
@@ -1329,6 +1330,9 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
         ret = wolfSSL_CertManagerDisableCRL(store->cm);
     }
 #endif
+    if (flag & X509_V_FLAG_PARTIAL_CHAIN) {
+        store->param->flags |= X509_V_FLAG_PARTIAL_CHAIN;
+    }
     return ret;
 }
 
