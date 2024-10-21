@@ -13587,21 +13587,28 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     #ifdef WOLFSSL_SMALL_STACK
         status = (CertStatus*)XMALLOC(sizeof(CertStatus), ssl->heap,
-                                                    DYNAMIC_TYPE_OCSP_STATUS);
+                                      DYNAMIC_TYPE_OCSP_STATUS);
         single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), ssl->heap,
-                                                    DYNAMIC_TYPE_OCSP_ENTRY);
+                                     DYNAMIC_TYPE_OCSP_ENTRY);
         response = (OcspResponse*)XMALLOC(sizeof(OcspResponse), ssl->heap,
-                                                    DYNAMIC_TYPE_OCSP_REQUEST);
+                                          DYNAMIC_TYPE_OCSP_REQUEST);
 
         if (status == NULL || single == NULL || response == NULL) {
-            XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
-            XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
-            XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            if (status != NULL) {
+                XFREE(status, ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
+            }
+            if (single != NULL) {
+                XFREE(single, ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
+            }
+            if (response != NULL) {
+                XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            }
 
             return MEMORY_ERROR;
         }
     #endif
 
+    /* InitOcspResponse sets single and status to response struct. */
     InitOcspResponse(response, single, status, input +*inOutIdx, status_length, ssl->heap);
 
     if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 0) != 0)
@@ -13625,9 +13632,8 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     FreeOcspResponse(response);
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(status,   ssl->heap, DYNAMIC_TYPE_OCSP_STATUS);
-        XFREE(single,   ssl->heap, DYNAMIC_TYPE_OCSP_ENTRY);
-        XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+    /* FreeOcspResponse frees status and single. */
+    XFREE(response, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     #endif
 
     WOLFSSL_LEAVE("ProcessCSR", ret);
