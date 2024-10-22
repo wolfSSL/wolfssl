@@ -305,6 +305,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int depth = 0;
     WOLFSSL_X509 *issuer = NULL;
     WOLFSSL_X509 *orig = NULL;
+    WOLFSSL_X509 *tmp = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
@@ -355,6 +356,25 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         /* Try to find an untrusted issuer first */
         ret = X509StoreGetIssuerEx(&issuer, certs,
                                                ctx->current_cert);
+        if (issuer != NULL &&
+            wolfSSL_X509_NAME_cmp(&issuer->issuer, &issuer->subject) == 0) {
+            ret = WOLFSSL_FAILURE;
+            /* Self signed allowed if in set trusted stack, otherwise
+             * ignore it and fall back to see if its in CM */
+            if ((certs == ctx->setTrustedSk) &&
+                (wolfSSL_sk_X509_num(certs) > numInterAdd)) {
+                for (i = wolfSSL_sk_X509_num(certs) - 1;
+                     i > (numInterAdd > 0 ? numInterAdd - 1 : 0);
+                     i++) {
+                        tmp = wolfSSL_sk_X509_value(certs, i);
+                        if (wolfSSL_X509_NAME_cmp(
+                            &issuer->subject, &tmp->subject) == 0) {
+                            ret = WOLFSSL_SUCCESS;
+                            break;
+                        }
+                }
+            }
+        }
         if (ret == WOLFSSL_SUCCESS) {
             if (ctx->current_cert == issuer) {
                 wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);

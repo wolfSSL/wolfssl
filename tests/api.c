@@ -60421,10 +60421,14 @@ static int test_X509_STORE_untrusted(void)
     /* Succeeds because path to loaded CA is available. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted2, 1, 0, 1),
             TEST_SUCCESS);
-    /* Root CA in untrusted chain is OK */
+    /* Root CA in untrusted chain is OK so long as CA has been loaded
+     * properly */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 1),
             TEST_SUCCESS);
-    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 0),
+    /* Still needs properly loaded CA, while including it in untrusted
+     * list is not an error, it also doesnt count for verify */
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
+                X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 0),
             TEST_SUCCESS);
     /* Succeeds because path to loaded CA is available. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted4, 1, 0, 1),
