@@ -68,7 +68,8 @@ jobs:
       - name: Checkout OSP
         uses: actions/checkout@v4
         with:
-          repository: wolfssl/osp
+          repository: bandi13/wolfssl-osp
+          ref: 'updateJWTpatch'
           path: osp
 
       - name: Checkout jwt-cpp
