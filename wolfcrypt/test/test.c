@@ -35108,7 +35108,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     ret = wc_InitRng(&rng);
 #endif
     if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
+        return WC_TEST_RET_ENC_EC(ret);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     userA = wc_curve25519_new(HEAP_HINT, devId, &ret);
