@@ -3324,7 +3324,8 @@ enum {
 
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2,          /* added to cache from trusted chain */
-    WOLFSSL_INTER_CA = 3           /* Intermediate CA */
+    WOLFSSL_INTER_CA = 3           /* Intermediate CA, only for use by
+                                    * X509_STORE */
 };
 
 WOLFSSL_ABI WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl);

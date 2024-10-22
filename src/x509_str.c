@@ -43,6 +43,7 @@ static int X509StoreAddCa(WOLFSSL_X509_STORE* store,
                                           WOLFSSL_X509* x509, int type);
 #endif
 
+/* Based on OpenSSL default max depth */
 #ifndef WOLFSSL_X509_STORE_DEFAULT_MAX_DEPTH
 #define WOLFSSL_X509_STORE_DEFAULT_MAX_DEPTH 100
 #endif
@@ -264,9 +265,9 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
         if (ret != WC_NO_ERR_TRACE(ASN_BEFORE_DATE_E) &&
             ret != WC_NO_ERR_TRACE(ASN_AFTER_DATE_E)) {
             /* wolfSSL_CertManagerVerifyBuffer only returns ASN_AFTER_DATE_E or
-            ASN_BEFORE_DATE_E if there are no additional errors found in the
-            cert. Therefore, check if the cert is expired or not yet valid
-            in order to return the correct expected error. */
+             * ASN_BEFORE_DATE_E if there are no additional errors found in the
+             * cert. Therefore, check if the cert is expired or not yet valid
+             * in order to return the correct expected error. */
             byte *afterDate = ctx->current_cert->notAfter.data;
             byte *beforeDate = ctx->current_cert->notBefore.data;
 
@@ -333,7 +334,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             ret = wolfSSL_sk_X509_push(certs,
                 wolfSSL_sk_X509_value(ctx->ctxIntermediates, i));
             if (ret <= 0) {
-                return WOLFSSL_FAILURE;
+                goto exit;
             }
 
             numInterAdd++;

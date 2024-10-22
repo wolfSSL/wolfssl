@@ -60424,6 +60424,8 @@ static int test_X509_STORE_untrusted(void)
     /* Root CA in untrusted chain is OK */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 1),
             TEST_SUCCESS);
+    ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 0),
+            TEST_SUCCESS);
     /* Succeeds because path to loaded CA is available. */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted4, 1, 0, 1),
             TEST_SUCCESS);
