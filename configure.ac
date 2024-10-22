@@ -573,16 +573,15 @@ then
         AM_CFLAGS="$AM_CFLAGS -ffile-prefix-map=\$(abs_top_srcdir)/= -ffile-prefix-map=\$(top_srcdir)/="
     fi
 
-    # opportunistically use linker option --build-id=none
-
-    if "$CC" -Wl,--build-id=none -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
+    # opportunistically force linker option --build-id=sha1 (usually the default)
+    if "$CC" -Wl,--build-id=sha1 -x c - -o /dev/null >/dev/null 2>&1 <<'        EOF'
         #include <stdlib.h>
         int main(int argc, char **argv) {
             (void)argc; (void)argv; return 0;
         }
         EOF
     then
-        AM_LDFLAGS="$AM_LDFLAGS -Wl,--build-id=none"
+        AM_LDFLAGS="$AM_LDFLAGS -Wl,--build-id=sha1"
     fi
 fi
 
