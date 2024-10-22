@@ -2128,9 +2128,9 @@ out:
  * nid : Extension OID to be found.
  * idx : if NULL return first extension found match, otherwise start search at
  *       idx location and set idx to the location of extension returned.
- * returns NULL or a pointer to an WOLFSSL_ASN1_BIT_STRING (for KEY_USAGE_OID)
- * or WOLFSSL_STACK (for other)
- * holding extension structure
+ * returns NULL or a pointer to an WOLFSSL_ASN1_STRING (for KEY_USAGE_OID and
+ * SUBJ_KEY_OID) or a pointer to an WOLFSSL_AUTHORITY_KEYID (for AUTH_KEY_OID)
+ * or WOLFSSL_STACK (for other) holding extension structure.
  *
  * NOTE code for decoding extensions is in asn.c DecodeCertExtensions --
  * use already decoded extension in this function to avoid decoding twice.
@@ -2359,54 +2359,75 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
             break;
 
         case AUTH_KEY_OID:
+        {
+            WOLFSSL_AUTHORITY_KEYID* akey = NULL;
             if (x509->authKeyIdSet) {
-                WOLFSSL_AUTHORITY_KEYID* akey = wolfSSL_AUTHORITY_KEYID_new();
+                if (c != NULL) {
+                    *c = x509->authKeyIdCrit;
+                }
+
+                akey = wolfSSL_AUTHORITY_KEYID_new();
                 if (!akey) {
                     WOLFSSL_MSG("Issue creating WOLFSSL_AUTHORITY_KEYID struct");
                     return NULL;
                 }
 
-                if (c != NULL) {
-                    *c = x509->authKeyIdCrit;
-                }
-                obj = wolfSSL_ASN1_OBJECT_new();
-                if (obj == NULL) {
-                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                akey->keyid = wolfSSL_ASN1_STRING_new();
+                if (akey->keyid == NULL) {
+                    WOLFSSL_MSG("ASN1_STRING_new() failed");
                     wolfSSL_AUTHORITY_KEYID_free(akey);
                     return NULL;
                 }
-                obj->type  = AUTH_KEY_OID;
-                obj->grp   = oidCertExtType;
-                obj->obj   = x509->authKeyId;
-                obj->objSz = x509->authKeyIdSz;
-                akey->issuer = obj;
-                return akey;
+
+                if (wolfSSL_ASN1_STRING_set(akey->keyid, x509->authKeyId,
+                        x509->authKeyIdSz) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
+                    wolfSSL_ASN1_STRING_free(akey->keyid);
+                    wolfSSL_AUTHORITY_KEYID_free(akey);
+                    return NULL;
+                }
+
+                /* For now, set issuer and serial to NULL. This may need to be
+                    updated for future use */
+                akey->issuer = NULL;
+                akey->serial = NULL;
+
+                akey->keyid->type = AUTH_KEY_OID;
             }
             else {
                 WOLFSSL_MSG("No Auth Key set");
             }
-            break;
-
+            return akey;
+        }
         case SUBJ_KEY_OID:
-            if (x509->subjKeyIdSet) {
+        {
+            WOLFSSL_ASN1_STRING* asn1str = NULL;
+	    if (x509->subjKeyIdSet) {
                 if (c != NULL) {
                     *c = x509->subjKeyIdCrit;
                 }
-                obj = wolfSSL_ASN1_OBJECT_new();
-                if (obj == NULL) {
-                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+
+                asn1str = wolfSSL_ASN1_STRING_new();
+                if (asn1str == NULL) {
+                    WOLFSSL_MSG("Failed to malloc ASN1_STRING");
                     return NULL;
                 }
-                obj->type  = SUBJ_KEY_OID;
-                obj->grp   = oidCertExtType;
-                obj->obj   = x509->subjKeyId;
-                obj->objSz = x509->subjKeyIdSz;
+
+                if (wolfSSL_ASN1_STRING_set(asn1str, x509->subjKeyId,
+                        x509->subjKeyIdSz) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
+                    wolfSSL_ASN1_STRING_free(asn1str);
+                    return NULL;
+                }
+
+                asn1str->type = SUBJ_KEY_OID;
             }
             else {
                 WOLFSSL_MSG("No Subject Key set");
             }
-            break;
-
+            /* don't add stack of and return bit string directly */
+            return asn1str;
+        }
         case CERT_POLICY_OID:
         {
         #ifdef WOLFSSL_CERT_EXT
