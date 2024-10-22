@@ -1481,7 +1481,7 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_WRITEV
         #define NO_WRITEV
     #endif
-    #ifndef HAVE_SHA512
+    #ifndef WOLFSSL_SHA512
         #ifndef NO_SHA512
             #define NO_SHA512
         #endif

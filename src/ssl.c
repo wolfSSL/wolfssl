@@ -15108,7 +15108,7 @@ static WC_INLINE const char* wolfssl_mac_to_string(int mac)
             macStr = "SHA1";
             break;
 #endif
-#ifdef HAVE_SHA224
+#ifdef WOLFSSL_SHA224
         case sha224_mac:
             macStr = "SHA224";
             break;
@@ -15118,12 +15118,12 @@ static WC_INLINE const char* wolfssl_mac_to_string(int mac)
             macStr = "SHA256";
             break;
 #endif
-#ifdef HAVE_SHA384
+#ifdef WOLFSSL_SHA384
         case sha384_mac:
             macStr = "SHA384";
             break;
 #endif
-#ifdef HAVE_SHA512
+#ifdef WOLFSSL_SHA512
         case sha512_mac:
             macStr = "SHA512";
             break;
