@@ -365,13 +365,14 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
                 (wolfSSL_sk_X509_num(certs) > numInterAdd)) {
                 for (i = wolfSSL_sk_X509_num(certs) - 1;
                      i > (numInterAdd > 0 ? numInterAdd - 1 : 0);
-                     i++) {
+                     i--) {
                         tmp = wolfSSL_sk_X509_value(certs, i);
-                        if (wolfSSL_X509_NAME_cmp(
+                        if (tmp != NULL && wolfSSL_X509_NAME_cmp(
                             &issuer->subject, &tmp->subject) == 0) {
                             ret = WOLFSSL_SUCCESS;
                             break;
                         }
+                        tmp = NULL;
                 }
             }
         }
