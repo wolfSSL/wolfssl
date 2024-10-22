@@ -498,8 +498,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     if (ret == 0) {
         /* Finish setting the AES object. */
         aes->keylen = keyLen;
-#if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(WOLFSSL_AES_OFB)
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
 #endif
     }
@@ -1770,8 +1770,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     if (ret == 0) {
         /* Finish setting the AES object. */
         aes->keylen = keyLen;
-#if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(WOLFSSL_AES_OFB)
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
 #endif
     }
@@ -2978,8 +2978,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
 
     if (ret == 0) {
         /* Initialize fields. */
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
         aes->keylen = (int)keyLen;

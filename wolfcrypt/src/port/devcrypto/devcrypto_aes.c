@@ -125,7 +125,8 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     aes->keylen = keylen;
     aes->rounds = keylen/4 + 6;
 
-#ifdef WOLFSSL_AES_COUNTER
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
     aes->left = 0;
 #endif
     aes->ctx.cfd = -1;
