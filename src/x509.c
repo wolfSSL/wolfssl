@@ -2445,6 +2445,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                         sk = NULL;
                     }
                 }
+
                 obj = wolfSSL_ASN1_OBJECT_new();
                 if (obj == NULL) {
                     WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
@@ -2455,6 +2456,15 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                 obj->grp   = oidCertExtType;
                 obj->obj   = (byte*)(x509->certPolicies[i]);
                 obj->objSz = MAX_CERTPOL_SZ;
+
+                if (wolfSSL_sk_ASN1_OBJECT_push(sk, obj) <= 0) {
+                    WOLFSSL_MSG("Error pushing ASN1 object onto stack");
+                    wolfSSL_ASN1_OBJECT_free(obj);
+                    wolfSSL_sk_ASN1_OBJECT_pop_free(sk, NULL);
+                    sk = NULL;
+                }
+
+                obj = NULL;
             }
             else {
                 WOLFSSL_MSG("No Cert Policy set");
