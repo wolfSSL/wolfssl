@@ -141,6 +141,7 @@ ACLOCAL_AMFLAGS= -I m4
 EXTRA_DIST+= .cyignore
 EXTRA_DIST+= wolfssl.vcproj
 EXTRA_DIST+= wolfssl.vcxproj
+EXTRA_DIST+= wolfssl-VS2022.vcxproj
 EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= valgrind-bash.supp
