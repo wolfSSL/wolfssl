@@ -9051,7 +9051,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     /* Get size of DER buffer only */
     if (havePublic && !havePrivate) {
         ret = wc_DhPubKeyToDer(dhkey, NULL, &derSz);
-    } else if (havePrivate && !havePublic) {
+    } else if (havePrivate) {
         ret = wc_DhPrivKeyToDer(dhkey, NULL, &derSz);
     } else {
         ret = wc_DhParamsToDer(dhkey,NULL,&derSz);
@@ -9071,7 +9071,7 @@ int wolfSSL_EVP_PKEY_set1_DH(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DH *key)
     /* Fill DER buffer */
     if (havePublic && !havePrivate) {
         ret = wc_DhPubKeyToDer(dhkey, derBuf, &derSz);
-    } else if (havePrivate && !havePublic) {
+    } else if (havePrivate) {
         ret = wc_DhPrivKeyToDer(dhkey, derBuf, &derSz);
     } else {
         ret = wc_DhParamsToDer(dhkey,derBuf,&derSz);
@@ -9770,7 +9770,12 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKCS82PKEY(const WOLFSSL_PKCS8_PRIV_KEY_INFO* p8)
 /* this function just casts and returns pointer */
 WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_EVP_PKEY2PKCS8(const WOLFSSL_EVP_PKEY* pkey)
 {
-    return (WOLFSSL_PKCS8_PRIV_KEY_INFO*)pkey;
+    if (pkey == NULL || pkey->pkey.ptr == NULL) {
+        return NULL;
+    }
+
+    return wolfSSL_d2i_PrivateKey_EVP(NULL, (unsigned char**)&pkey->pkey.ptr,
+        pkey->pkey_sz);
 }
 #endif
 

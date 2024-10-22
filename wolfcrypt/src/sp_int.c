@@ -5128,6 +5128,12 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
 #define WOLFSSL_SP_PRIME_GEN
 #endif
 
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || defined(OPENSSL_EXTRA)
+/* Determine when mp_mul_d is required */
+#define WOLFSSL_SP_MUL_D
+#endif
+
 /* Set the multi-precision number to zero.
  *
  * Assumes a is not NULL.
@@ -6553,7 +6559,8 @@ int sp_sub_d(const sp_int* a, sp_int_digit d, sp_int* r)
     !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA))
+    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || \
+    defined(WOLFSSL_SP_MUL_D)
 /* Multiply a by digit n and put result into r shifting up o digits.
  *   r = (a * n) << (o * SP_WORD_SIZE)
  *
@@ -6636,8 +6643,7 @@ static int _sp_mul_d(const sp_int* a, sp_int_digit d, sp_int* r, unsigned int o)
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
         *  WOLFSSL_SP_SMALL || (WOLFSSL_KEY_GEN && !NO_RSA) */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA))
+#ifdef WOLFSSL_SP_MUL_D
 /* Multiply a by digit n and put result into r. r = a * n
  *
  * @param  [in]   a  SP integer to multiply.
@@ -6675,8 +6681,7 @@ int sp_mul_d(const sp_int* a, sp_int_digit d, sp_int* r)
 
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
-        * (WOLFSSL_KEY_GEN && !NO_RSA) */
+#endif /* WOLFSSL_SP_MUL_D */
 
 /* Predefine complicated rules of when to compile in sp_div_d and sp_mod_d. */
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
