@@ -3726,8 +3726,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
     #if !defined(WOLFSSL_STM32_CUBEMX) || defined(STM32_HAL_V2)
         ByteReverseWords(rk, rk, keylen);
     #endif
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
         return wc_AesSetIV(aes, iv);
@@ -3807,8 +3807,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         if (iv)
             XMEMCPY(aes->reg, iv, AES_BLOCK_SIZE);
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
 
@@ -3838,8 +3838,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         aes->rounds = keylen/4 + 6;
         XMEMCPY(aes->key, userKey, keylen);
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
 
@@ -3890,8 +3890,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         if (rk == NULL)
             return BAD_FUNC_ARG;
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
 
@@ -3971,8 +3971,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         XMEMCPY(aes->key, userKey, keylen);
         ret = nrf51_aes_set_key(userKey);
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
 
@@ -4028,7 +4028,8 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         aes->rounds = keylen/4 + 6;
 
         XMEMCPY(aes->key, userKey, keylen);
-        #if defined(WOLFSSL_AES_COUNTER)
+        #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+            defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
             aes->left = 0;
         #endif
         return wc_AesSetIV(aes, iv);
@@ -4520,8 +4521,8 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         #endif
         }
 
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
 
