@@ -4554,13 +4554,11 @@ int wc_ecc_get_curve_id_from_oid(const byte* oid, word32 len)
     }
 #endif
 
-#if !defined(HAVE_OID_ENCODING) && !defined(HAVE_OID_DECODING)
     if (len == 0) {
         /* SAKKE has zero oidSz and will otherwise match with len==0. */
         WOLFSSL_MSG("zero oidSz");
         return ECC_CURVE_INVALID;
     }
-#endif
 
     for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
     #if defined(HAVE_OID_ENCODING) && !defined(HAVE_OID_DECODING)
