@@ -15232,7 +15232,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         else /* skips OCSP and force CRL check */
                     #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
                     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST)
-                        if (IsAtLeastTLSv1_3(ssl->version)) {
+                        if (IsAtLeastTLSv1_3(ssl->version) &&
+                            ssl->options.side == WOLFSSL_CLIENT_END &&
+                            ssl->status_request) {
+                            /* We check CSR in Certificate message sent from
+                             * Server. Server side will check client
+                             * certificates by traditional OCSP if enabled
+                             */
                             ret = TLSX_CSR_InitRequest_ex(ssl->extensions,
                                     args->dCert, ssl->heap, args->certIdx);
                         }
