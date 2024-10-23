@@ -14121,7 +14121,9 @@ int wolfSSL_X509_check_ip_asc(WOLFSSL_X509 *x, const char *ipasc,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(dCert, x->heap, DYNAMIC_TYPE_DCERT);
+    if (x != NULL) {
+        XFREE(dCert, x->heap, DYNAMIC_TYPE_DCERT);
+    }
 #endif
 
     return ret;

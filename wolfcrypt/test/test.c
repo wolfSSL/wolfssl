@@ -13939,6 +13939,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cbc_test(void)
         if ((bigCipher == NULL) ||
             (bigPlain == NULL)) {
             XFREE(bigCipher, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(bigPlain, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
         }
 #else
@@ -35116,6 +35117,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     (void)x;
     WOLFSSL_ENTER("curve25519_test");
 
+    /* wc_FreeRng is always called on exit. Therefore wc_InitRng should be
+     * called before any exit goto's */
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        return WC_TEST_RET_ENC_EC(ret);
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     userA = wc_curve25519_new(HEAP_HINT, devId, &ret);
     if (ret != 0)
@@ -35131,14 +35142,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     wc_curve25519_init_ex(userB, HEAP_HINT, devId);
     wc_curve25519_init_ex(pubKey, HEAP_HINT, devId);
 #endif
-
-#ifndef HAVE_FIPS
-    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
-#else
-    ret = wc_InitRng(&rng);
-#endif
-    if (ret != 0)
-        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 
     /* make curve25519 keys */
     ret = wc_curve25519_make_key(&rng, 32, userA);
