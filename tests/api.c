@@ -68600,7 +68600,7 @@ static int test_GENERAL_NAME_set0_othername(void) {
 /* Note the lack of wolfSSL_ prefix...this is a compatibility layer test. */
 static int test_othername_and_SID_ext(void) {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
     defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_REQ) && \
     defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ALT_NAMES) && \
     defined(WOLFSSL_CERT_EXT) && !defined(NO_FILESYSTEM) && \
