@@ -17471,6 +17471,18 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         case certificate_request:
         case server_hello_done:
             if (ssl->options.resuming) {
+                /* Client requested resumption, but server is doing a
+                 * full handshake */
+
+                /* The server's decision to resume isn't known until after the
+                 * "server_hello". If subsequent handshake messages like
+                 * "certificate" or "server_key_exchange" are recevied then we
+                 * are doing a full handshake */
+
+                /* If the server included a session id then we
+                 * treat this as a fatal error, since the server said it was
+                 * doing resumption, but did not. */
+
                 /* https://www.rfc-editor.org/rfc/rfc5077.html#section-3.4
                  *   Alternatively, the client MAY include an empty Session ID
                  *   in the ClientHello.  In this case, the client ignores the
@@ -17479,7 +17491,7 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                  *   messages.
                  */
 #ifndef WOLFSSL_WPAS
-                if (ssl->session->sessionIDSz != 0) {
+                if (ssl->arrays->sessionIDSz != 0) {
                     /* Fatal error. Only try to send an alert. RFC 5246 does not
                      * allow for reverting back to a full handshake after the
                      * server has indicated the intention to do a resumption. */
