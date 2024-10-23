@@ -539,7 +539,7 @@ extern ${variable.value} ${variable.name};
     //#define USE_SLOW_SHA512
 
     #define WOLFSSL_SHA512
-    #define HAVE_SHA512 /* freeRTOS settings.h requires this */
+    #define HAVE_SHA512 /* old freeRTOS settings.h requires this */
 #endif
 
 /* Sha2-384 */
