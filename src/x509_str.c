@@ -415,8 +415,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
              * a trusted CA in the CM */
             ret = X509StoreVerifyCert(ctx);
             if (ret != WOLFSSL_SUCCESS) {
-                if (((ctx->flags & X509_V_FLAG_PARTIAL_CHAIN) ||
-                     (ctx->store->param->flags & X509_V_FLAG_PARTIAL_CHAIN)) &&
+                if (((ctx->flags & WOLFSSL_PARTIAL_CHAIN) ||
+                     (ctx->store->param->flags & WOLFSSL_PARTIAL_CHAIN)) &&
                     (added == 1)) {
                     wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
                     ret = WOLFSSL_SUCCESS;
@@ -592,8 +592,8 @@ int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx,
 void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX *ctx,
         unsigned long flags)
 {
-    if ((ctx != NULL) && (flags & X509_V_FLAG_PARTIAL_CHAIN)){
-        ctx->flags |= X509_V_FLAG_PARTIAL_CHAIN;
+    if ((ctx != NULL) && (flags & WOLFSSL_PARTIAL_CHAIN)){
+        ctx->flags |= WOLFSSL_PARTIAL_CHAIN;
     }
 }
 
@@ -1059,9 +1059,9 @@ static void X509StoreFreeObjList(WOLFSSL_X509_STORE* store,
     i = wolfSSL_sk_X509_OBJECT_num(objs) - 1;
     while (cnt > 0 && i > 0) {
         /* The inner X509 is owned by somebody else, NULL out the reference */
-        obj = wolfSSL_sk_X509_OBJECT_value(objs, i);
+        obj = (WOLFSSL_X509_OBJECT *)wolfSSL_sk_X509_OBJECT_value(objs, i);
         if (obj != NULL) {
-            obj->type = 0;
+            obj->type = (WOLFSSL_X509_LOOKUP_TYPE)0;
             obj->data.ptr = NULL;
         }
         cnt--;
@@ -1363,8 +1363,8 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
         ret = wolfSSL_CertManagerDisableCRL(store->cm);
     }
 #endif
-    if (flag & X509_V_FLAG_PARTIAL_CHAIN) {
-        store->param->flags |= X509_V_FLAG_PARTIAL_CHAIN;
+    if (flag & WOLFSSL_PARTIAL_CHAIN) {
+        store->param->flags |= WOLFSSL_PARTIAL_CHAIN;
     }
     return ret;
 }
@@ -1753,7 +1753,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
     /* Do not modify stack until after we guarantee success to
      * simplify cleanup logic handling cert merging above */
     for (i = 0; i < wolfSSL_sk_X509_num(cert_stack); i++) {
-        x509 = wolfSSL_sk_value(cert_stack, i);
+        x509 = (WOLFSSL_X509 *)wolfSSL_sk_value(cert_stack, i);
         obj = wolfSSL_X509_OBJECT_new();
         if (obj == NULL) {
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
