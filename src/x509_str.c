@@ -72,7 +72,7 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new_ex(void* heap)
         if (ctx != NULL &&
             wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
                 WOLFSSL_SUCCESS) {
-            XFREE(ctx, heap, DYNAMIC_TYPE_X509_CTX);
+            wolfSSL_X509_STORE_CTX_free(ctx);
             ctx = NULL;
         }
 #endif
@@ -105,7 +105,6 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
         if (ctx->current_issuer != NULL) {
             wolfSSL_X509_free(ctx->current_issuer);
-            ctx->current_issuer = NULL;
         }
 #endif
 
@@ -395,7 +394,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
             /* We found our issuer in the non-trusted cert list, add it
              * to the CM and verify the current cert against it */
             ret = X509StoreAddCa(ctx->store, issuer,
-                                            WOLFSSL_INTER_CA);
+                                            WOLFSSL_TEMP_CA);
             if (ret != WOLFSSL_SUCCESS) {
                 goto exit;
             }
@@ -920,8 +919,7 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
 
     ret = X509StoreGetIssuerEx(issuer, ctx->store->certs, x);
     if ((ret == WOLFSSL_SUCCESS) && (*issuer != NULL)) {
-        *issuer = wolfSSL_X509_dup(*issuer);
-        return (*issuer != NULL) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        return wolfSSL_X509_up_ref(*issuer);
     }
 
 #ifdef WOLFSSL_SIGNER_DER_CERT
@@ -929,8 +927,7 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
 #else
     ret = X509StoreGetIssuerEx(issuer, ctx->store->trusted, x);
     if ((ret == WOLFSSL_SUCCESS) && (*issuer != NULL)) {
-        *issuer = wolfSSL_X509_dup(*issuer);
-        return (*issuer != NULL) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
+        return wolfSSL_X509_up_ref(*issuer);
     }
 #endif
 
@@ -1065,7 +1062,7 @@ static void X509StoreFreeObjList(WOLFSSL_X509_STORE* store,
         obj = wolfSSL_sk_X509_OBJECT_value(objs, i);
         if (obj != NULL) {
             obj->type = 0;
-            obj->data.x509 = NULL;
+            obj->data.ptr = NULL;
         }
         cnt--;
         i--;

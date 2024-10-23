@@ -5536,13 +5536,13 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
     }
 
     if (ret == 0 && cert->isCA == 0 && type != WOLFSSL_USER_CA &&
-        type != WOLFSSL_INTER_CA) {
+        type != WOLFSSL_TEMP_CA) {
         WOLFSSL_MSG("\tCan't add as CA if not actually one");
         ret = NOT_CA_ERROR;
     }
 #ifndef ALLOW_INVALID_CERTSIGN
     else if (ret == 0 && cert->isCA == 1 && type != WOLFSSL_USER_CA &&
-        type != WOLFSSL_INTER_CA && !cert->selfSigned &&
+        type != WOLFSSL_TEMP_CA && !cert->selfSigned &&
         (cert->extKeyUsage & KEYUSE_KEY_CERT_SIGN) == 0) {
         /* Intermediate CA certs are required to have the keyCertSign
         * extension set. User loaded root certs are not. */

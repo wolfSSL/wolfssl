@@ -487,7 +487,7 @@ static int wolfSSL_CertManagerUnloadTempIntermediateCerts(
     WOLFSSL_CERT_MANAGER* cm)
 {
     WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTempIntermediateCerts");
-    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_INTER_CA);
+    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_TEMP_CA);
 }
 #endif
 
