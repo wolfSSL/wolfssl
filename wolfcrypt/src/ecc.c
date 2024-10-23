@@ -2917,7 +2917,7 @@ done:
    if ((mp_count_bits(modulus) == 256) && (!mp_is_bit_set(modulus, 224))) {
        err = sp_ecc_map_sm2_256(P->x, P->y, P->z);
    }
-#elif defined(WOLFSSL_SP_NO_256)
+#elif !defined(WOLFSSL_SP_NO_256)
    if (mp_count_bits(modulus) == 256) {
        err = sp_ecc_map_256(P->x, P->y, P->z);
    }
