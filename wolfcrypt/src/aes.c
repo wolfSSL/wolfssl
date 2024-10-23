@@ -8063,6 +8063,8 @@ static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
     GHASH_LEN_BLOCK(aes);
     /* Copy the result into s. */
     XMEMCPY(s, AES_TAG(aes), sSz);
+    /* reset aes->gcm.H in case of re-use */
+    GHASH_INIT_EXTRA(aes);
 }
 #endif /* WOLFSSL_AESGCM_STREAM */
 
