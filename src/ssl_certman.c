@@ -455,11 +455,12 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     return ret;
 }
 
-int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
+static int wolfSSL_CertManagerUnloadIntermediateCertsEx(
+                                WOLFSSL_CERT_MANAGER* cm, byte type)
 {
     int ret = WOLFSSL_SUCCESS;
 
-    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCerts");
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCertsEx");
 
     /* Validate parameter. */
     if (cm == NULL) {
@@ -471,7 +472,7 @@ int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
     }
     if (ret == WOLFSSL_SUCCESS) {
         /* Dispose of CA table. */
-        FreeSignerTableType(cm->caTable, CA_TABLE_SIZE, WOLFSSL_CHAIN_CA,
+        FreeSignerTableType(cm->caTable, CA_TABLE_SIZE, type,
                 cm->heap);
 
         /* Unlock CA table. */
@@ -479,6 +480,22 @@ int wolfSSL_CertManagerUnloadIntermediateCerts(WOLFSSL_CERT_MANAGER* cm)
     }
 
     return ret;
+}
+
+#if defined(OPENSSL_EXTRA)
+static int wolfSSL_CertManagerUnloadTempIntermediateCerts(
+    WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadTempIntermediateCerts");
+    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_TEMP_CA);
+}
+#endif
+
+int wolfSSL_CertManagerUnloadIntermediateCerts(
+    WOLFSSL_CERT_MANAGER* cm)
+{
+    WOLFSSL_ENTER("wolfSSL_CertManagerUnloadIntermediateCerts");
+    return wolfSSL_CertManagerUnloadIntermediateCertsEx(cm, WOLFSSL_CHAIN_CA);
 }
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
