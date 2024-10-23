@@ -5905,14 +5905,25 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, const byte* input,
                     /* SERVER: ticket is peer auth. */
                     ssl->options.peerAuthGood = 1;
                 }
-            } else if (ret == WOLFSSL_TICKET_RET_REJECT) {
+            } else if (ret == WOLFSSL_TICKET_RET_REJECT ||
+                    ret == WC_NO_ERR_TRACE(VERSION_ERROR)) {
                 WOLFSSL_MSG("Process client ticket rejected, not using");
-                ssl->options.rejectTicket = 1;
+                if (ret == WC_NO_ERR_TRACE(VERSION_ERROR))
+                    WOLFSSL_MSG("\tbad TLS version");
                 ret = 0;  /* not fatal */
-            } else if (ret == WC_NO_ERR_TRACE(VERSION_ERROR)) {
-                WOLFSSL_MSG("Process client ticket rejected, bad TLS version");
+
                 ssl->options.rejectTicket = 1;
-                ret = 0;  /* not fatal */
+                /* If we have session tickets enabled then send a new ticket */
+                if (!TLSX_CheckUnsupportedExtension(ssl, TLSX_SESSION_TICKET)) {
+                    ret = TLSX_UseSessionTicket(&ssl->extensions, NULL,
+                                                ssl->heap);
+                    if (ret == WOLFSSL_SUCCESS) {
+                        ret = 0;
+                        TLSX_SetResponse(ssl, TLSX_SESSION_TICKET);
+                        ssl->options.createTicket = 1;
+                        ssl->options.useTicket    = 1;
+                    }
+                }
             } else if (ret == WOLFSSL_TICKET_RET_FATAL) {
                 WOLFSSL_MSG("Process client ticket fatal error, not using");
             } else if (ret < 0) {
