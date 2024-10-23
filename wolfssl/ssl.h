@@ -702,6 +702,7 @@ struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb; /* verify callback */
     void* heap;
     int   flags;
+    WOLF_STACK_OF(WOLFSSL_X509)* owned;  /* Certs owned by this CTX */
     WOLF_STACK_OF(WOLFSSL_X509)* ctxIntermediates; /* Intermediates specified
                                                     * on store ctx init */
     WOLF_STACK_OF(WOLFSSL_X509)* setTrustedSk;/* A trusted stack override

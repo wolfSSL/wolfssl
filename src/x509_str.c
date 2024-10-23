@@ -65,7 +65,12 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new_ex(void* heap)
         XMEMSET(ctx, 0, sizeof(WOLFSSL_X509_STORE_CTX));
         ctx->heap = heap;
 #ifdef OPENSSL_EXTRA
-        if (wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
+        if ((ctx->owned = wolfSSL_sk_X509_new_null()) == NULL) {
+            XFREE(ctx, heap, DYNAMIC_TYPE_X509_CTX);
+            ctx = NULL;
+        }
+        if (ctx != NULL &&
+            wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL) !=
                 WOLFSSL_SUCCESS) {
             XFREE(ctx, heap, DYNAMIC_TYPE_X509_CTX);
             ctx = NULL;
@@ -93,6 +98,9 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
         if (ctx->chain != NULL) {
             wolfSSL_sk_X509_free(ctx->chain);
+        }
+        if (ctx->owned != NULL) {
+            wolfSSL_sk_X509_pop_free(ctx->owned, NULL);
         }
 
         if (ctx->current_issuer != NULL) {
@@ -292,6 +300,32 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
     return ret;
 }
 
+static int addAllButSelfSigned(WOLF_STACK_OF(WOLFSSL_X509)*to,
+                               WOLF_STACK_OF(WOLFSSL_X509)*from, int *numAdded)
+{
+    int ret = WOLFSSL_SUCCESS;
+    int i = 0;
+    int cnt = 0;
+    WOLFSSL_X509 *x = NULL;
+
+    for (i = 0; i < wolfSSL_sk_X509_num(from); i++) {
+        x = wolfSSL_sk_X509_value(from, i);
+        if (wolfSSL_X509_NAME_cmp(&x->issuer, &x->subject) != 0) {
+            if (wolfSSL_sk_X509_push(to, x) <= 0) {
+                ret = WOLFSSL_FAILURE;
+                goto exit;
+            }
+            cnt++;
+        }
+    }
+
+exit:
+    if (numAdded != NULL) {
+        *numAdded = cnt;
+    }
+    return ret;
+}
+
 /* Verifies certificate chain using WOLFSSL_X509_STORE_CTX
  * returns 0 on success or < 0 on failure.
  */
@@ -305,8 +339,8 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     int depth = 0;
     WOLFSSL_X509 *issuer = NULL;
     WOLFSSL_X509 *orig = NULL;
-    WOLFSSL_X509 *tmp = NULL;
     WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509)* certsToUse = NULL;
     WOLFSSL_ENTER("wolfSSL_X509_verify_cert");
 
     if (ctx == NULL || ctx->store == NULL || ctx->store->cm == NULL
@@ -315,32 +349,28 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
     }
 
     certs = ctx->store->certs;
-    if (ctx->chain != NULL) {
-        wolfSSL_sk_X509_free(ctx->chain);
-    }
-    ctx->chain = wolfSSL_sk_X509_new_null();
-
     if (ctx->setTrustedSk != NULL) {
         certs = ctx->setTrustedSk;
     }
 
     if (certs == NULL &&
         wolfSSL_sk_X509_num(ctx->ctxIntermediates) > 0) {
-        certs = ctx->ctxIntermediates;
+        certsToUse = wolfSSL_sk_X509_new_null();
+        ret = addAllButSelfSigned(certsToUse, ctx->ctxIntermediates, NULL);
     }
     else {
         /* Add the intermediates provided on init to the list of untrusted
          * intermediates to be used */
-        for (i = 0; i < wolfSSL_sk_X509_num(ctx->ctxIntermediates); i++) {
-            ret = wolfSSL_sk_X509_push(certs,
-                wolfSSL_sk_X509_value(ctx->ctxIntermediates, i));
-            if (ret <= 0) {
-                goto exit;
-            }
-
-            numInterAdd++;
-        }
+        ret = addAllButSelfSigned(certs, ctx->ctxIntermediates, &numInterAdd);
     }
+    if (ret != WOLFSSL_SUCCESS) {
+        goto exit;
+    }
+
+    if (ctx->chain != NULL) {
+        wolfSSL_sk_X509_free(ctx->chain);
+    }
+    ctx->chain = wolfSSL_sk_X509_new_null();
 
     if (ctx->depth > 0) {
         depth = ctx->depth + 1;
@@ -356,26 +386,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
         /* Try to find an untrusted issuer first */
         ret = X509StoreGetIssuerEx(&issuer, certs,
                                                ctx->current_cert);
-        if (issuer != NULL &&
-            wolfSSL_X509_NAME_cmp(&issuer->issuer, &issuer->subject) == 0) {
-            ret = WOLFSSL_FAILURE;
-            /* Self signed allowed if in set trusted stack, otherwise
-             * ignore it and fall back to see if its in CM */
-            if ((certs == ctx->setTrustedSk) &&
-                (wolfSSL_sk_X509_num(certs) > numInterAdd)) {
-                for (i = wolfSSL_sk_X509_num(certs) - 1;
-                     i > (numInterAdd > 0 ? numInterAdd - 1 : 0);
-                     i--) {
-                        tmp = wolfSSL_sk_X509_value(certs, i);
-                        if (tmp != NULL && wolfSSL_X509_NAME_cmp(
-                            &issuer->subject, &tmp->subject) == 0) {
-                            ret = WOLFSSL_SUCCESS;
-                            break;
-                        }
-                        tmp = NULL;
-                }
-            }
-        }
         if (ret == WOLFSSL_SUCCESS) {
             if (ctx->current_cert == issuer) {
                 wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
@@ -417,10 +427,11 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             /* Cert verified, finish building the chain */
             wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
+            issuer = NULL;
     #ifdef WOLFSSL_SIGNER_DER_CERT
             x509GetIssuerFromCM(&issuer, ctx->store->cm, ctx->current_cert);
-            if (issuer != NULL && ctx->store->owned != NULL) {
-                wolfSSL_sk_X509_push(ctx->store->owned, issuer);
+            if (issuer != NULL && ctx->owned != NULL) {
+                wolfSSL_sk_X509_push(ctx->owned, issuer);
             }
     #else
             if (ctx->setTrustedSk == NULL) {
@@ -462,6 +473,9 @@ exit:
         if (orig != NULL) {
             ctx->current_cert = orig;
         }
+    }
+    if (certsToUse != NULL) {
+        wolfSSL_sk_X509_free(certsToUse);
     }
 
     return ret == WOLFSSL_SUCCESS ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
