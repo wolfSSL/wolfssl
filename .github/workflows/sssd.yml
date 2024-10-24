@@ -14,9 +14,10 @@ concurrency:
 
 jobs:
   build_wolfssl:
+    if: github.repository_owner == 'wolfssl'
     name: Build wolfSSL
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -39,13 +40,14 @@ jobs:
           retention-days: 5
 
   sssd_check:
+    if: github.repository_owner == 'wolfssl'
     strategy:
       fail-fast: false
       matrix:
         # List of releases to test
         ref: [ 2.9.1 ]
     name: ${{ matrix.ref }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     container:
       image: quay.io/sssd/ci-client-devel:ubuntu-latest
       env:
