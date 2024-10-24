@@ -1754,7 +1754,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
      * simplify cleanup logic handling cert merging above */
     for (i = 0; i < wolfSSL_sk_X509_num(cert_stack); i++) {
         x509 = (WOLFSSL_X509 *)wolfSSL_sk_value(cert_stack, i);
-        obj = wolfSSL_X509_OBJECT_new();
+        obj  = wolfSSL_X509_OBJECT_new();
         if (obj == NULL) {
             WOLFSSL_MSG("wolfSSL_X509_OBJECT_new error");
             goto err_cleanup;
@@ -1766,10 +1766,9 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
         }
         obj->type = WOLFSSL_X509_LU_X509;
         obj->data.x509 = x509;
-        x509 = NULL;
     }
 
-    while(wolfSSL_sk_X509_num(cert_stack) > 0) {
+    while (wolfSSL_sk_X509_num(cert_stack) > 0) {
         wolfSSL_sk_X509_pop(cert_stack);
     }
 #endif
@@ -1799,7 +1798,7 @@ err_cleanup:
     if (ret != NULL)
         X509StoreFreeObjList(store, ret);
     if (cert_stack != NULL) {
-        while(store->numAdded > 0) {
+        while (store->numAdded > 0) {
             wolfSSL_sk_X509_pop(cert_stack);
             store->numAdded--;
         }
