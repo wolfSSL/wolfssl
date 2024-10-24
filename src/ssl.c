@@ -5576,7 +5576,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         if ( ret == 0 && signer != NULL ) {
             signer->cm_idx = row;
             if (type == WOLFSSL_USER_CA) {
-                if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source, 
+                if ((ret = wc_Renesas_cmn_RootCertVerify(cert->source,
                         cert->maxIdx,
                         cert->sigCtx.CertAtt.pubkey_n_start,
                         cert->sigCtx.CertAtt.pubkey_n_len - 1,
