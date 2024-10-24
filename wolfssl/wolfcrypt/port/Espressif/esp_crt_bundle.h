@@ -76,7 +76,7 @@
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF   */
 
 #ifndef WOLFSSL_USER_SETTINGS
-    #error "WOLFSSL_USER_SETTINGS must be defined for Espressif targts"
+    #error "WOLFSSL_USER_SETTINGS must be defined for Espressif targets"
 #endif
 
 #if defined(CONFIG_ESP_TLS_USING_WOLFSSL) || \

@@ -3649,7 +3649,7 @@ int TLSX_CSR_InitRequest_ex(TLSX* extensions, DecodedCert* cert,
 
                 request = &csr->request.ocsp[req_cnt];
                 if (request->serial != NULL) {
-                    /* clear request contents before re-use */
+                    /* clear request contents before reuse */
                     FreeOcspRequest(request);
                     if (csr->requests > 0)
                         csr->requests--;

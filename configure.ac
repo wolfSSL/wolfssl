@@ -9612,7 +9612,7 @@ if test "$ENABLED_DH" != "no" && test "$ENABLED_DH" != "const"; then
    LT_LIB_M
 fi
 
-# mulitple OCSP stapling for TLS 1.3 Certificate extension
+# multiple OCSP stapling for TLS 1.3 Certificate extension
 if test "$ENABLED_CERTIFICATE_STATUS_REQUEST" = "yes"
 then
     if test "$ENABLED_TLS13" = "yes"

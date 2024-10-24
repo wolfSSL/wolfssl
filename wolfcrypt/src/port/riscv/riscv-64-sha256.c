@@ -76,7 +76,7 @@ static const FLASH_QUALIFIER ALIGN32 word32 K[64] = {
     0x90BEFFFAL, 0xA4506CEBL, 0xBEF9A3F7L, 0xC67178F2L
 };
 
-/* Initialze SHA-256 object for hashing.
+/* Initialize SHA-256 object for hashing.
  *
  * @param [in, out] sha256  SHA-256 object.
  */
@@ -1192,7 +1192,7 @@ int wc_Sha256HashBlock(wc_Sha256* sha256, const unsigned char* data,
 
 #ifdef WOLFSSL_SHA224
 
-/* Initialze SHA-224 object for hashing.
+/* Initialize SHA-224 object for hashing.
  *
  * @param [in, out] sha224  SHA-224 object.
  */

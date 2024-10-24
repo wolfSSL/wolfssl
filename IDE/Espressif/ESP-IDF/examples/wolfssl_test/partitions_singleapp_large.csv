@@ -13,7 +13,7 @@ factory, app,  factory, 0x10000, 1500K,
 # For other settings, see:
 # https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html#creating-custom-tables
 #
-# Here is the summary printed for the “Single factory app, no OTA” configuration:
+# Here is the summary printed for the "Single factory app, no OTA" configuration:
 #
 # # ESP-IDF Partition Table
 # # Name,   Type, SubType, Offset,  Size, Flags
@@ -22,7 +22,7 @@ factory, app,  factory, 0x10000, 1500K,
 # factory,  app,  factory, 0x10000, 1M,
 #
 #
-# Here is the summary printed for the “Factory app, two OTA definitions” configuration:
+# Here is the summary printed for the "Factory app, two OTA definitions" configuration:
 #
 # # ESP-IDF Partition Table
 # # Name,   Type, SubType, Offset,  Size, Flags
