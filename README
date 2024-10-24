@@ -138,7 +138,7 @@ PR stands for Pull Request, and PR <NUMBER> references a GitHub pull request
  support for RNG, ECC(ECIES and ECDHE), RSA, ED25519/Curve25519, AES-GCM, and
  Hashing (PR 3166)
 * Expand MMCAU support for use with DES ECB (PR 7960)
-* Update AES SIV to handle multiple associated data inputs (PR 7911) 
+* Update AES SIV to handle multiple associated data inputs (PR 7911)
 * Remove HAVE_NULL_CIPHER from --enable-openssh (PR 7811)
 * Removed duplicate if(NULL) checks when calling XFREE (macro does) (PR 7839)
 * Set RSA_MIN_SIZE default to 2048 bits (PR 7923)
