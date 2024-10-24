@@ -65,6 +65,7 @@ extern "C" {
 static long tick;
 static void timeTick(void *pdata)
 {
+	(void)pdata;
     tick++;
 }
 
