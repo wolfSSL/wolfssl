@@ -33,6 +33,16 @@
     extern "C" {
 #endif
 
+/* For platforms where the target OS is not Windows, but compilation is
+ * done on Windows/Visual Studio, enable a way to disable USE_WINDOWS_API.
+ * Examples: Micrium, TenAsus INtime, uTasker, FreeRTOS simulator */
+#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
+    !defined(FREERTOS_TCP) && !defined(EBSNET) && \
+    !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS) && \
+    !defined(WOLFSSL_NOT_WINDOWS_API)
+    #define USE_WINDOWS_API
+#endif
+
 /* Detect if compiler supports C99. "NO_WOLF_C99" can be defined in
  * user_settings.h to disable checking for C99 support. */
 #if !defined(WOLF_C99) && defined(__STDC_VERSION__) && \
@@ -75,7 +85,7 @@
         #ifndef WIN32_LEAN_AND_MEAN
             #define WIN32_LEAN_AND_MEAN
         #endif
-        #ifndef WOLFSSL_SGX
+        #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
             #if defined(_WIN32_WCE) || defined(WIN32_LEAN_AND_MEAN)
                 /* On WinCE winsock2.h must be included before windows.h */
                 #include <winsock2.h>
@@ -346,7 +356,7 @@
     #define WOLFSSL_ATOMIC_OPS
     #endif /* WOLFSSL_HAVE_ATOMIC_H */
 #endif
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)
     /* Use MSVC compiler intrinsics for atomic ops */
     #ifdef _WIN32_WCE
         #include <armintr.h>
@@ -1273,7 +1283,8 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif /* !NO_ASN_TIME */
 
 
-#ifndef WOLFSSL_LEANPSK
+#if (!defined(WOLFSSL_LEANPSK) && !defined(STRING_USER)) || \
+    defined(USE_WOLF_STRNSTR)
     char* mystrnstr(const char* s1, const char* s2, unsigned int n);
 #endif
 

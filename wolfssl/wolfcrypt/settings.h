@@ -1358,13 +1358,6 @@
         #define NO_SESSION_CACHE
 #endif
 
-/* Micrium will use Visual Studio for compilation but not the Win32 API */
-#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
-    !defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
-    !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS)
-    #define USE_WINDOWS_API
-#endif
-
 #if defined(WOLFSSL_uITRON4)
 
 #define XMALLOC_USER

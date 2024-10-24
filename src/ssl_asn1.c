@@ -456,7 +456,7 @@ static void* d2i_obj(const WOLFSSL_ASN1_TEMPLATE* mem, const byte** src,
         mem->free_func(ret); /* never a stack so we can call this directly */
         return NULL;
     }
-    *len -= (tmp - *src);
+    *len -= (long)(tmp - *src);
     *src = tmp;
     return ret;
 }
@@ -586,7 +586,7 @@ static void* d2i_generic(const WOLFSSL_ASN1_TEMPLATE* mem,
         WOLFSSL_MSG("ptr not advanced enough");
         goto error;
     }
-    *len -= tmp - *src;
+    *len -= (long)(tmp - *src);
     *src = tmp;
     return ret;
 error:

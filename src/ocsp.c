@@ -1634,7 +1634,8 @@ int wolfSSL_OCSP_REQ_CTX_nbio(WOLFSSL_OCSP_REQ_CTX *ctx)
         case ORIOS_WRITE:
         {
             const unsigned char *req;
-            int reqLen = wolfSSL_BIO_get_mem_data(ctx->reqResp, &req);
+            int reqLen = wolfSSL_BIO_get_mem_data(ctx->reqResp,
+                (unsigned char*)&req);
             if (reqLen <= 0) {
                 WOLFSSL_MSG("wolfSSL_BIO_get_mem_data error");
                 return WOLFSSL_FAILURE;
@@ -1710,7 +1711,8 @@ int wolfSSL_OCSP_sendreq_nbio(OcspResponse **presp, WOLFSSL_OCSP_REQ_CTX *ctx)
     if (ret != WOLFSSL_SUCCESS)
         return ret;
 
-    len = wolfSSL_BIO_get_mem_data(ctx->reqResp, &resp);
+    len = wolfSSL_BIO_get_mem_data(ctx->reqResp,
+        (unsigned char*)&resp);
     if (len <= 0)
         return WOLFSSL_FAILURE;
     return wolfSSL_d2i_OCSP_RESPONSE(presp, &resp, len) != NULL
