@@ -854,9 +854,9 @@ WOLFSSL_API int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output,
 #define wc_MlDsaKey_Verify(key, sig, sigSz, msg, msgSz, res)    \
     wc_dilithium_verify_msg(sig, sigSz, msg, msgSz, res, key)
 
-int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
-int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len);
-int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len);
+WOLFSSL_API int wc_MlDsaKey_GetSigLen(MlDsaKey* key, int* len);
 
 #ifdef __cplusplus
     }    /* extern "C" */
