@@ -16561,6 +16561,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 {
 #if defined(AES_MAX_KEY_SIZE)
     const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
+    word32 userKey_aligned[AES_MAX_KEY_SIZE / WOLFSSL_BIT_SIZE / sizeof(word32)];
 #endif
 
     if (((keylen != 16) && (keylen != 24) && (keylen != 32)) ||
@@ -16574,6 +16575,14 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         return BAD_FUNC_ARG;
     }
 #endif
+
+#if !defined(AES_MAX_KEY_SIZE)
+    /* Check alignment */
+    if ((unsigned long)userKey & (sizeof(aes->key[0]) - 1U)) {
+        return BAD_FUNC_ARG;
+    }
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     if (aes->devId != INVALID_DEVID) {
         if (keylen > sizeof(aes->devKey)) {
@@ -16590,7 +16599,17 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     aes->keylen = keylen;
     aes->rounds = keylen/4 + 6;
 
-    AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
+#if defined(AES_MAX_KEY_SIZE)
+    if ((unsigned long)userKey & (sizeof(aes->key[0]) - 1U)) {
+        XMEMCPY(userKey_aligned, userKey, keylen);
+        AES_set_encrypt_key((byte *)userKey_aligned, keylen * 8, (byte*)aes->key);
+    }
+    else
+#endif
+    {
+        AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
+    }
+
 #ifdef HAVE_AES_DECRYPT
     if (dir == AES_DECRYPTION) {
         AES_invert_key((byte*)aes->key, aes->rounds);

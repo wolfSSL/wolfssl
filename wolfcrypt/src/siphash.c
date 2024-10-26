@@ -69,14 +69,14 @@
  * @param [in] a  Little-endian byte array.
  * @return 64-bit number.
  */
-#define GET_U64(a)      (*(word64*)(a))
+#define GET_U64(a)      readUnalignedWord64(a)
 /**
  * Decode little-endian byte array to 32-bit number.
  *
  * @param [in] a  Little-endian byte array.
  * @return 32-bit number.
  */
-#define GET_U32(a)      (*(word32*)(a))
+#define GET_U32(a)      readUnalignedWord32(a)
 /**
  * Decode little-endian byte array to 16-bit number.
  *
@@ -90,7 +90,7 @@
  * @param [out] a  Byte array to write into.
  * @param [in]  n  Number to encode.
  */
-#define SET_U64(a, n)   ((*(word64*)(a)) = (n))
+#define SET_U64(a, n)   writeUnalignedWord64(a, n)
 #else
 /**
  * Decode little-endian byte array to 64-bit number.
@@ -112,7 +112,7 @@
  * @param [in] a  Little-endian byte array.
  * @return 32-bit number.
  */
-#define GET_U32(a)      (((word64)((a)[3]) << 24) |     \
+#define GET_U32(a)      (((word32)((a)[3]) << 24) |     \
                          ((word32)((a)[2]) << 16) |     \
                          ((word32)((a)[1]) <<  8) |     \
                          ((word32)((a)[0])      ))
