@@ -251,27 +251,34 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     }
 
     if (info->algo_type == WC_ALGO_TYPE_PK) {
-    #if !defined(NO_RSA)
+    #if !defined(NO_RSA) && defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
         #if defined(WOLFSSL_KEY_GEN)
         if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN &&
             (info->pk.rsakg.size == 1024 || info->pk.rsakg.size == 2048)) {
             ret = wc_tsip_MakeRsaKey(info->pk.rsakg.size, (void*)ctx);
-        }
+        } else
         #endif
-
-        /* RSA Signing
-         * Can handle only RSA PkCS#1v1.5 padding scheme here.
-         */
-        if (info->pk.rsa.type == RSA_PRIVATE_ENCRYPT) {
+        if (info->pk.type == WC_PK_TYPE_RSA &&
+        	(info->pk.rsa.type == RSA_PRIVATE_DECRYPT ||
+             info->pk.rsa.type == RSA_PUBLIC_ENCRYPT)) {
+            /* rsa public encrypt/private decrypt */
+           ret = wc_tsip_RsaFunction(info, cbInfo);
+        } else
+    #endif
+        if (info->pk.type == WC_PK_TYPE_RSA &&
+            info->pk.rsa.type == RSA_PRIVATE_ENCRYPT) {
+            /* RSA Signing
+            * Can handle only RSA PkCS#1v1.5 padding scheme here.
+            */
             ret = tsip_SignRsaPkcs(info, cbInfo);
         }
-        #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+    #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
         /* RSA Verify */
-        if (info->pk.rsa.type == RSA_PUBLIC_DECRYPT) {
+        else if (info->pk.type == WC_PK_TYPE_RSA &&
+        		 info->pk.rsa.type == RSA_PUBLIC_DECRYPT) {
             ret = wc_tsip_RsaVerifyPkcs(info, cbInfo);
         }
-        #endif
-    #endif /* !NO_RSA */
+    #endif
 
     #if defined(HAVE_ECC)
         #if defined(WOLFSSL_RENESAS_TSIP_TLS)

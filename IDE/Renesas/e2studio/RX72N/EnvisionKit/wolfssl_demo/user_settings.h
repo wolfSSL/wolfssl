@@ -240,11 +240,16 @@
 #if defined(WOLFSSL_RENESAS_TSIP)
     /*-- TSIP TLS and/or CRYPTONLY Definition --------------------------------*/
     /* Enable TSIP TLS (default)
-     *   TSIP CRYPTONLY is also enabled.
+     *   TSIP CRYPT is also enabled.
      * Disable TSIP TLS
+     *   TSIP CRYPT is also disabled
      *   TSIP CRYPTONLY is only enabled.
      */
     #define WOLFSSL_RENESAS_TSIP_TLS
+    
+    /* #define WOLFSSL_RENESAS_TSIP_CRYPTONLY */
+    /* #define WOLFSSL_KEY_GEN                */
+    /* #define RSA_MIN_SIZE 1024              */
 
     #if !defined(NO_RENESAS_TSIP_CRYPT)
         #define HAVE_PK_CALLBACKS
