@@ -2837,7 +2837,14 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
                 (bio->type == WOLFSSL_BIO_DGRAM))
             {
                 bio->num.fd = SOCKET_INVALID;
-            } else {
+            }
+            else if (bio->type == WOLFSSL_BIO_FILE) {
+#ifndef NO_FILESYSTEM
+                bio->ptr.fh = XBADFILE;
+#endif
+                bio->num.fd = SOCKET_INVALID;
+            }
+            else {
                 bio->num.length = 0;
             }
             bio->init = 1;

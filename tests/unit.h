@@ -158,6 +158,12 @@
 #define EXPECT_FAIL() \
     (! EXPECT_SUCCESS())
 
+#define EXPECT_TEST(ret) do {                                                  \
+    if (EXPECT_SUCCESS()) {                                                    \
+        _ret = (ret);                                                          \
+    }                                                                          \
+} while (0)
+
 #define ExpFail(description, result) do {                                    \
     if ((_ret == TEST_SUCCESS_NO_MSGS) || (_ret == TEST_SKIPPED_NO_MSGS))    \
         _ret = _fail_codepoint_id;                                           \
