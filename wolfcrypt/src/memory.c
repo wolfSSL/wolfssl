@@ -669,7 +669,7 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
 }
 
 static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
-        const unsigned int* sizeList, const unsigned int* distList)
+        const word32 *sizeList, const word32 *distList)
 {
     unsigned int i;
 
@@ -695,8 +695,8 @@ static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
 }
 
 int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
-        unsigned int listSz, const unsigned int* sizeList,
-        const unsigned int* distList, unsigned char* buf,
+        unsigned int listSz, const word32 *sizeList,
+        const word32 *distList, unsigned char *buf,
         unsigned int sz, int flag, int maxSz)
 {
     WOLFSSL_HEAP*      heap = NULL;
@@ -773,13 +773,8 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
 int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
     unsigned char* buf, unsigned int sz, int flag, int maxSz)
 {
-#ifdef WOLFSSL_LEAN_STATIC_PSK
-    word16 sizeList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
-    byte   distList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_DIST };
-#else
     word32 sizeList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
     word32 distList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_DIST };
-#endif
     int ret = 0;
 
     WOLFSSL_ENTER("wc_LoadStaticMemory");
@@ -817,7 +812,7 @@ int wolfSSL_MemoryPaddingSz(void)
 /* Used to calculate memory size for optimum use with buckets.
    returns the suggested size rounded down to the nearest bucket. */
 int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
-        const unsigned int *sizeList, const unsigned int *distList,
+        const word32 *sizeList, const word32 *distList,
         byte* buffer, word32 sz, int flag)
 {
     word32 ava = sz;
