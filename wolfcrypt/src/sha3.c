@@ -820,10 +820,10 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     ret = wolfAsync_DevCtxInit(&sha3->asyncDev,
                         WOLFSSL_ASYNC_MARKER_SHA3, sha3->heap, devId);
-#elif defined(WOLF_CRYPTO_CB)
+#endif
+#if defined(WOLF_CRYPTO_CB)
     sha3->devId = devId;
-#endif /* WOLFSSL_ASYNC_CRYPT */
-
+#endif
     (void)devId;
 
     return ret;

@@ -266,6 +266,7 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
         return BAD_FUNC_ARG;
     }
 
+    heap = hmac->heap;
 #if !defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)
     /* if set key has already been run then make sure and free existing */
     /* This is for async and PIC32MZ situations, and just normally OK,
@@ -273,7 +274,13 @@ int wc_HmacSetKey_ex(Hmac* hmac, int type, const byte* key, word32 length,
        available in FIPS builds. In current FIPS builds, the hashes are
        not allocating resources. */
     if (hmac->macType != WC_HASH_TYPE_NONE) {
+    #ifdef WOLF_CRYPTO_CB
+        int devId = hmac->devId;
+    #endif
         wc_HmacFree(hmac);
+    #ifdef WOLF_CRYPTO_CB
+        hmac->devId = devId;
+    #endif
     }
 #endif
 
