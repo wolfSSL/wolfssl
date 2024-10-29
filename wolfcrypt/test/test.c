@@ -35042,6 +35042,62 @@ static wc_test_ret_t curve255519_der_test(void)
         ret = WC_TEST_RET_ENC_NC;
     }
 
+
+    /* Test decode/encode of Curve25519 private key (only) using generic API */
+    if (ret == 0) {
+        /* clear key, since generic API will try to decode all fields */
+        XMEMSET(&key, 0, sizeof(key));
+
+        idx = 0;
+        ret = wc_Curve25519KeyDecode(kCurve25519PrivDer, &idx, &key,
+            (word32)sizeof(kCurve25519PrivDer));
+        if (ret < 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+    }
+    if (ret == 0) {
+        outputSz = (word32)sizeof(output);
+        ret = wc_Curve25519KeyToDer(&key, output, outputSz, 1);
+        if (ret >= 0) {
+            outputSz = (word32)ret;
+            ret = 0;
+        }
+        else {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+    }
+    if (ret == 0 && (outputSz != (word32)sizeof(kCurve25519PrivDer) ||
+                    XMEMCMP(output, kCurve25519PrivDer, outputSz) != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* Test decode/encode of Curve25519 public key (only) using generic API */
+    if (ret == 0) {
+        /* clear key, since generic API will try to decode all fields */
+        XMEMSET(&key, 0, sizeof(key));
+        idx = 0;
+        ret = wc_Curve25519KeyDecode(kCurve25519PubDer, &idx, &key,
+            (word32)sizeof(kCurve25519PubDer));
+        if (ret < 0) {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+    }
+    if (ret == 0) {
+        outputSz = (word32)sizeof(output);
+        ret = wc_Curve25519KeyToDer(&key, output, outputSz, 1);
+        if (ret >= 0) {
+            outputSz = (word32)ret;
+            ret = 0;
+        }
+        else {
+            ret = WC_TEST_RET_ENC_EC(ret);
+        }
+    }
+    if (ret == 0 && (outputSz != (word32)sizeof(kCurve25519PubDer) ||
+                    XMEMCMP(output, kCurve25519PubDer, outputSz) != 0)) {
+        ret = WC_TEST_RET_ENC_NC;
+    }
+
     wc_curve25519_free(&key);
 
     return ret;
