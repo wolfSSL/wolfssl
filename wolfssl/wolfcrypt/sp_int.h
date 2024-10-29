@@ -30,8 +30,9 @@ This library provides single precision (SP) integer math functions.
 #ifndef WOLFSSL_LINUXKM
 #include <limits.h>
 #endif
-#include  <wolfssl/wolfcrypt/settings.h>
-#include  <wolfssl/wolfcrypt/hash.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,6 +101,15 @@ extern "C" {
     #error "Size of unsigned int not detected"
 #endif
 
+#if defined(__WATCOMC__) && defined(__WATCOM_INT64__)
+    /* For older Watcom C compiler force types */
+    #define SP_ULLONG_BITS    64
+    typedef unsigned __int64 sp_uint64;
+    typedef          __int64  sp_int64;
+
+#else
+
+/* 32-bit type */
 #if defined(WOLF_C89) && !defined(NO_64BIT) && \
         ULONG_MAX == 18446744073709551615UL
     #define SP_ULONG_BITS    64
@@ -108,8 +118,8 @@ extern "C" {
     typedef          long  sp_int64;
 #elif !defined(WOLF_C89) && !defined(NO_64BIT) && \
         ULONG_MAX == 18446744073709551615ULL && \
-        4294967295UL != 18446744073709551615ULL /* verify pre-processor supports
-                                                 * 64-bit ULL types */
+        /* sanity check pre-processor supports 64-bit ULL types */ \
+        4294967295UL != 18446744073709551615ULL
     #define SP_ULONG_BITS    64
 
     typedef unsigned long sp_uint64;
@@ -132,6 +142,7 @@ extern "C" {
     #error "Size of unsigned long not detected"
 #endif
 
+/* 64-bit type */
 #ifdef ULLONG_MAX
     #if defined(WOLF_C89) && ULLONG_MAX == 18446744073709551615UL
         #define SP_ULLONG_BITS    64
@@ -165,6 +176,7 @@ extern "C" {
         #error "Size of unsigned long long not detected"
     #endif
 #elif (SP_ULONG_BITS == 32) && !defined(NO_64BIT)
+    #define SP_ULLONG_BITS    64
     /* Speculatively use long long as the 64-bit type as we don't have one
      * otherwise. */
     typedef unsigned long long sp_uint64;
@@ -173,6 +185,7 @@ extern "C" {
     #define SP_ULLONG_BITS    0
 #endif
 
+#endif /* __WATCOMC__ */
 
 #ifdef WOLFSSL_SP_DIV_32
 #define WOLFSSL_SP_DIV_WORD_HALF

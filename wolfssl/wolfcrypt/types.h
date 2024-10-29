@@ -182,7 +182,10 @@ decouple library dependencies with standard string, memory and so on.
          #endif
     #endif
 
-    #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
+    #if (defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
+           defined(__BCPLUSPLUS__) || \
+           (defined(__WATCOMC__) && defined(__WATCOM_INT64__))
+        /* windows types */
         #define WORD64_AVAILABLE
         #define W64LIT(x) x##ui64
         #define SW64LIT(x) x##i64
@@ -379,8 +382,8 @@ typedef struct w64wrapper {
     #endif
 
     /* set up rotate style */
-    #if (defined(_MSC_VER) || defined(__BCPLUSPLUS__)) && \
-        !defined(WOLFSSL_SGX) && !defined(INTIME_RTOS)
+    #if ((defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
+        defined(__BCPLUSPLUS__)) && !defined(WOLFSSL_SGX) && !defined(INTIME_RTOS)
         #define INTEL_INTRINSICS
         #define FAST_ROTATE
     #elif defined(__MWERKS__) && TARGET_CPU_PPC
@@ -426,16 +429,6 @@ typedef struct w64wrapper {
         /* use stub for fall through by default or for Microchip compiler */
         #undef  FALL_THROUGH
         #define FALL_THROUGH
-    #endif
-
-    /* For platforms where the target OS is not Windows, but compilation is
-     * done on Windows/Visual Studio, enable a way to disable USE_WINDOWS_API.
-     * Examples: Micrium, TenAsus INtime, uTasker, FreeRTOS simulator */
-    #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
-        !defined(FREERTOS_TCP) && !defined(EBSNET) && \
-        !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS) && \
-        !defined(WOLFSSL_NOT_WINDOWS_API)
-        #define USE_WINDOWS_API
     #endif
 
     #define XSTR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
@@ -1757,7 +1750,11 @@ typedef struct w64wrapper {
     #endif
 
     #ifndef SAVE_VECTOR_REGISTERS
+        #ifdef __WATCOMC__
+        #define SAVE_VECTOR_REGISTERS() WC_DO_NOTHING
+        #else
         #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+        #endif
     #endif
     #ifndef SAVE_VECTOR_REGISTERS2
         #define SAVE_VECTOR_REGISTERS2() 0

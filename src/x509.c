@@ -5926,8 +5926,8 @@ static int X509PrintDirType(char * dst, int max_len, const DNS_entry * entry)
                 /* Copy it in, decrement available space. */
                 XSTRNCPY(dst, pfx, bytes_left);
                 dst += XSTRLEN(pfx);
-                total_len += XSTRLEN(pfx);
-                bytes_left -= XSTRLEN(pfx);
+                total_len += (int)XSTRLEN(pfx);
+                bytes_left -= (int)XSTRLEN(pfx);
 
                 if (fld_len > bytes_left) {
                     /* Not enough space left. */
