@@ -16478,9 +16478,9 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
 int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
 {
     int ret = 0;
-    int algId;
+    int algId = 0;
     const byte* curveOid;
-    word32 oidSz;
+    word32 oidSz = 0;
 
     /* Get the details of the private key. */
 #ifdef HAVE_ECC
