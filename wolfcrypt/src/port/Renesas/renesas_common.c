@@ -259,7 +259,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         } else
         #endif
         if (info->pk.type == WC_PK_TYPE_RSA &&
-        	(info->pk.rsa.type == RSA_PRIVATE_DECRYPT ||
+            (info->pk.rsa.type == RSA_PRIVATE_DECRYPT ||
              info->pk.rsa.type == RSA_PUBLIC_ENCRYPT)) {
             /* rsa public encrypt/private decrypt */
            ret = wc_tsip_RsaFunction(info, cbInfo);
@@ -275,7 +275,7 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
     #if defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
         /* RSA Verify */
         else if (info->pk.type == WC_PK_TYPE_RSA &&
-        		 info->pk.rsa.type == RSA_PUBLIC_DECRYPT) {
+                 info->pk.rsa.type == RSA_PUBLIC_DECRYPT) {
             ret = wc_tsip_RsaVerifyPkcs(info, cbInfo);
         }
     #endif

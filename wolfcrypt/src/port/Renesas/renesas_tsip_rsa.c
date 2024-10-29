@@ -235,7 +235,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 plain.data_length = info->pk.rsa.inLen;
                 cipher.pdata = (uint8_t*)info->pk.rsa.out;
                 cipher.data_length = info->pk.rsa.outLen;
-                
+
                 if (keySize == TSIP_KEY_TYPE_RSA1024) {
                     ret = R_TSIP_RsaesPkcs1024Encrypt(&plain, &cipher,
                             tuc->rsa1024pub_keyIdx);
@@ -246,7 +246,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 }
                 else {
                     WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
-                                                            "1024 or 2048 bits.");
+                                                          "1024 or 2048 bits.");
                     return BAD_FUNC_ARG;
                 }
             }
@@ -255,7 +255,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 plain.data_length = info->pk.rsa.outLen;
                 cipher.pdata = (uint8_t*)info->pk.rsa.in;
                 cipher.data_length = info->pk.rsa.inLen;
-                
+
                 if (keySize == TSIP_KEY_TYPE_RSA1024) {
                     ret = R_TSIP_RsaesPkcs1024Decrypt(&cipher, &plain,
                             tuc->rsa1024pri_keyIdx);
@@ -266,7 +266,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 }
                 else {
                     WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
-                                                            "1024 or 2048 bits.");
+                                                          "1024 or 2048 bits.");
                     return BAD_FUNC_ARG;
                 }
             }
