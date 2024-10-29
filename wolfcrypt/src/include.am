@@ -146,7 +146,8 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/Renesas/README.md \
               wolfcrypt/src/port/cypress/psoc6_crypto.c \
               wolfcrypt/src/port/liboqs/liboqs.c \
-              wolfcrypt/src/port/maxim/max3266x.c
+              wolfcrypt/src/port/maxim/max3266x.c \
+              wolfcrypt/src/ASN_TEMPLATE.md
 
 $(ASYNC_FILES):
 	$(AM_V_at)touch $(srcdir)/$@
