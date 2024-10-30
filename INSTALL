@@ -1,3 +1,5 @@
+For FIPS builds not found here, see the IDE-FIPS directory.
+
 0. Building on *nix from git repository
 
     Run the autogen script to generate configure, then proceed to step 1.

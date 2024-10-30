@@ -1,0 +1,8 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+# For example, when WIN-SRTP-KDF-140-3 is ready:
+# include IDE-FIPS/WIN-SRTP-KDF-140-3/include.am
+
+EXTRA_DIST+= IDE-FIPS/README.md

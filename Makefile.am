@@ -198,6 +198,7 @@ include mcapi/wolfssl.X/nbproject/include.am
 include mcapi/zlib.X/nbproject/include.am
 include tirtos/include.am
 include IDE/include.am
+include IDE-FIPS/include.am
 endif
 include scripts/include.am
 
