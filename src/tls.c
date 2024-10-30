@@ -9957,6 +9957,16 @@ int TLSX_CKS_Parse(WOLFSSL* ssl, byte* input, word16 length,
         }
     }
 
+    /* This could be a situation where the client tried to start with TLS 1.3
+     * when it sent ClientHello and the server down-graded to TLS 1.2. In that
+     * case, erroring out because it is TLS 1.2 is not a reasonable thing to do.
+     * In the case of TLS 1.2, the CKS values will be ignored. */
+    if (!IsAtLeastTLSv1_3(ssl->version)) {
+        ssl->sigSpec = NULL;
+        ssl->sigSpecSz = 0;
+        return 0;
+    }
+
     /* Extension data is valid, but if we are the server and we don't have an
      * alt private key, do not respond with CKS extension. */
     if (wolfSSL_is_server(ssl) && ssl->buffers.altKey == NULL) {
@@ -15038,9 +15048,8 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
 #ifdef WOLFSSL_DUAL_ALG_CERTS
             case TLSX_CKS:
                 WOLFSSL_MSG("CKS extension received");
-                if (!IsAtLeastTLSv1_3(ssl->version) ||
-                    (msgType != client_hello &&
-                     msgType != encrypted_extensions)) {
+                if (msgType != client_hello &&
+                     msgType != encrypted_extensions) {
                         WOLFSSL_ERROR_VERBOSE(EXT_NOT_ALLOWED);
                         return EXT_NOT_ALLOWED;
                 }
