@@ -1557,6 +1557,137 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output,
 int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
                                      word32 inLen, int with_AlgCurve, int comp);
 
+
+/*!
+    \ingroup ASN
+
+    \brief This function decodes a Curve25519 private key (only) from a DER
+    encoded buffer
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returns if input, inOutIdx or key is null
+    \return ASN_PARSE_E Returns if there is an error parsing the DER encoded
+    data
+    \return ECC_BAD_ARG_E Returns if the key length is not CURVE25519_KEYSIZE or
+    the DER key contains other issues despite being properly formatted.
+    \return BUFFER_E Returns if the input buffer is too small to contain a
+    valid DER encoded key.
+
+    \param input Pointer to buffer containing DER encoded private key
+    \param inOutIdx Index to start reading input buffer from.  On output,
+    index is set to last position parsed of input buffer.
+    \param key Pointer to curve25519_key structure to store decoded key
+    \param inSz Size of input DER buffer
+*/
+int wc_Curve25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
+                                  curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function decodes a Curve25519 public key (only) from a DER
+    encoded buffer.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returns if input, inOutIdx or key is null
+    \return ASN_PARSE_E Returns if there is an error parsing the DER encoded
+    data
+    \return ECC_BAD_ARG_E Returns if the key length is not CURVE25519_KEYSIZE or
+    the DER key contains other issues despite being properly formatted.
+    \return BUFFER_E Returns if the input buffer is too small to contain a
+    valid DER encoded key.
+
+    \param input Pointer to buffer containing DER encoded public key
+    \param inOutIdx Index to start reading input buffer from.  On output,
+    index is set to last position parsed of input buffer.
+    \param key Pointer to curve25519_key structure to store decoded key
+    \param inSz Size of input DER buffer
+*/
+int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
+                                 curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function decodes a Curve25519 key from a DER encoded buffer. It
+    can decode either a private key, a public key, or both.
+
+    \return 0 Success
+    \return BAD_FUNC_ARG Returns if input, inOutIdx or key is null
+    \return ASN_PARSE_E Returns if there is an error parsing the DER encoded
+    data
+    \return ECC_BAD_ARG_E Returns if the key length is not CURVE25519_KEYSIZE or
+    the DER key contains other issues despite being properly formatted.
+    \return BUFFER_E Returns if the input buffer is too small to contain a
+    valid DER encoded key.
+
+    \param input Pointer to buffer containing DER encoded key
+    \param inOutIdx Index to start reading input buffer from.  On output,
+    index is set to last position parsed of input buffer.
+    \param key Pointer to curve25519_key structure to store decoded key
+    \param inSz Size of input DER buffer
+*/
+int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
+                           curve25519_key* key, word32 inSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a Curve25519 private key to DER format. If the
+    input key structure contains a public key, it will be ignored.
+
+    \return >0 Success, length of DER encoding
+    \return BAD_FUNC_ARG Returns if key or output is null
+    \return MEMORY_E Returns if there is an allocation failure
+    \return BUFFER_E Returns if output buffer is too small
+
+    \param key Pointer to curve25519_key structure containing private key to
+    encode
+    \param output Buffer to hold DER encoding
+    \param inLen Size of output buffer
+*/
+int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
+                                 word32 inLen);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a Curve25519 public key to DER format. If the
+    input key structure contains a private key, it will be ignored.
+
+    \return >0 Success, length of DER encoding
+    \return BAD_FUNC_ARG Returns if key or output is null
+    \return MEMORY_E Returns if there is an allocation failure
+    \return BUFFER_E Returns if output buffer is too small
+
+    \param key Pointer to curve25519_key structure containing public key to
+    encode
+    \param output Buffer to hold DER encoding
+    \param inLen Size of output buffer
+    \param withAlg Whether to include algorithm identifier
+*/
+int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                                int withAlg);
+
+/*!
+    \ingroup ASN
+
+    \brief This function encodes a Curve25519 key to DER format. It can encode
+    either a private key, a public key, or both.
+
+    \return >0 Success, length of DER encoding
+    \return BAD_FUNC_ARG Returns if key or output is null
+    \return MEMORY_E Returns if there is an allocation failure
+    \return BUFFER_E Returns if output buffer is too small
+
+    \param key Pointer to curve25519_key structure containing key to encode
+    \param output Buffer to hold DER encoding
+    \param inLen Size of output buffer
+    \param withAlg Whether to include algorithm identifier
+*/
+int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
+                          int withAlg);
+
 /*!
     \ingroup ASN
 
