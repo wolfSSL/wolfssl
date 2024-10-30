@@ -13739,7 +13739,7 @@ static int test_wolfSSL_X509_verify(void)
 }
 
 #if defined(WOLFSSL_ACERT) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
+    defined(WC_RSA_PSS) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA)
 /* Given acert file and its pubkey file, read them and then
  * attempt to verify signed acert.
  *
