@@ -76,7 +76,7 @@ void wc_chacha_setiv(word32* x_p, const byte* iv_p, word32 counter_p)
     );
 }
 
-static const uint32_t L_chacha_arm32_constants[] = {
+static const word32 L_chacha_arm32_constants[] = {
     0x61707865, 0x3120646e, 0x79622d36, 0x6b206574,
     0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
 };
@@ -86,8 +86,8 @@ void wc_chacha_setkey(word32* x_p, const byte* key_p, word32 keySz_p)
     register word32* x asm ("r0") = (word32*)x_p;
     register const byte* key asm ("r1") = (const byte*)key_p;
     register word32 keySz asm ("r2") = (word32)keySz_p;
-    register uint32_t* L_chacha_arm32_constants_c asm ("r3") =
-        (uint32_t*)&L_chacha_arm32_constants;
+    register word32* L_chacha_arm32_constants_c asm ("r3") =
+        (word32*)&L_chacha_arm32_constants;
 
     __asm__ __volatile__ (
         "subs	%[keySz], %[keySz], #16\n\t"

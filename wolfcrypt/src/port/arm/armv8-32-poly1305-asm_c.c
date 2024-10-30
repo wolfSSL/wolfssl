@@ -277,7 +277,7 @@ void poly1305_blocks_arm32_16(Poly1305* ctx_p, const byte* m_p, word32 len_p,
     );
 }
 
-static const uint32_t L_poly1305_arm32_clamp[] = {
+static const word32 L_poly1305_arm32_clamp[] = {
     0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc,
 };
 
@@ -285,8 +285,8 @@ void poly1305_set_key(Poly1305* ctx_p, const byte* key_p)
 {
     register Poly1305* ctx asm ("r0") = (Poly1305*)ctx_p;
     register const byte* key asm ("r1") = (const byte*)key_p;
-    register uint32_t* L_poly1305_arm32_clamp_c asm ("r2") =
-        (uint32_t*)&L_poly1305_arm32_clamp;
+    register word32* L_poly1305_arm32_clamp_c asm ("r2") =
+        (word32*)&L_poly1305_arm32_clamp;
 
     __asm__ __volatile__ (
         /* Load mask. */

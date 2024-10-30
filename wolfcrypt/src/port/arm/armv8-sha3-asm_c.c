@@ -63,7 +63,7 @@ static const uint64_t L_SHA3_transform_crypto_r[] = {
     0x8000000080008008UL,
 };
 
-void BlockSha3(unsigned long* state)
+void BlockSha3(word64* state)
 {
     __asm__ __volatile__ (
 #ifdef __APPLE__
@@ -209,7 +209,7 @@ static const uint64_t L_SHA3_transform_base_r[] = {
     0x8000000080008008UL,
 };
 
-void BlockSha3(unsigned long* state)
+void BlockSha3(word64* state)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"

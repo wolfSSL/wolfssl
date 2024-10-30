@@ -51,7 +51,7 @@
 #endif /* __KEIL__ */
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_ARMASM_NO_NEON
-static const uint64_t L_sha3_arm2_neon_rt[] = {
+static const word64 L_sha3_arm2_neon_rt[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
     0x000000000000808bUL, 0x0000000080000001UL,
@@ -71,8 +71,8 @@ static const uint64_t L_sha3_arm2_neon_rt[] = {
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
-    register uint64_t* L_sha3_arm2_neon_rt_c asm ("r1") =
-        (uint64_t*)&L_sha3_arm2_neon_rt;
+    register word64* L_sha3_arm2_neon_rt_c asm ("r1") =
+        (word64*)&L_sha3_arm2_neon_rt;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #16\n\t"
@@ -344,7 +344,7 @@ void BlockSha3(word64* state_p)
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const uint64_t L_sha3_arm2_rt[] = {
+static const word64 L_sha3_arm2_rt[] = {
     0x0000000000000001UL, 0x0000000000008082UL,
     0x800000000000808aUL, 0x8000000080008000UL,
     0x000000000000808bUL, 0x0000000080000001UL,
@@ -364,8 +364,7 @@ static const uint64_t L_sha3_arm2_rt[] = {
 void BlockSha3(word64* state_p)
 {
     register word64* state asm ("r0") = (word64*)state_p;
-    register uint64_t* L_sha3_arm2_rt_c asm ("r1") =
-        (uint64_t*)&L_sha3_arm2_rt;
+    register word64* L_sha3_arm2_rt_c asm ("r1") = (word64*)&L_sha3_arm2_rt;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xcc\n\t"

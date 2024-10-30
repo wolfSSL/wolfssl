@@ -294,7 +294,7 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len, int not
     );
 }
 
-XALIGNED(16) static const uint32_t L_poly1305_thumb2_clamp[] = {
+XALIGNED(16) static const word32 L_poly1305_thumb2_clamp[] = {
     0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc,
 };
 
@@ -307,7 +307,7 @@ void poly1305_set_key(Poly1305* ctx, const byte* key)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx __asm__ ("r0") = (Poly1305*)ctx_p;
     register const byte* key __asm__ ("r1") = (const byte*)key_p;
-    register uint32_t* L_poly1305_thumb2_clamp_c __asm__ ("r2") = (uint32_t*)&L_poly1305_thumb2_clamp;
+    register word32* L_poly1305_thumb2_clamp_c __asm__ ("r2") = (word32*)&L_poly1305_thumb2_clamp;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
