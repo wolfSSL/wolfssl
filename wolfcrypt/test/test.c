@@ -35110,12 +35110,14 @@ static wc_test_ret_t curve255519_der_test(void)
         if (ret < 0) {
             ret = WC_TEST_RET_ENC_EC(ret);
         }
-        /* Decode private key */
-        idx = 0;
-        ret = wc_Curve25519KeyDecode(kCurve25519PrivDer, &idx, &key,
-            (word32)sizeof(kCurve25519PrivDer));
-        if (ret < 0) {
-            ret = WC_TEST_RET_ENC_EC(ret);
+        if (ret == 0) {
+            /* Decode private key */
+            idx = 0;
+            ret = wc_Curve25519KeyDecode(kCurve25519PrivDer, &idx, &key,
+                (word32)sizeof(kCurve25519PrivDer));
+            if (ret < 0) {
+                ret = WC_TEST_RET_ENC_EC(ret);
+            }
         }
         /* Both public and private flags should be set */
         if ((ret == 0) && (!key.pubSet && !key.privSet)) {
@@ -35123,16 +35125,23 @@ static wc_test_ret_t curve255519_der_test(void)
         }
         if (ret == 0) {
             /* Export key to temporary DER */
-            ret = wc_Curve25519KeyToDer(&key, output, sizeof(output), 1);
-            if (ret < 0) {
+            outputSz = (word32)sizeof(output);
+            ret = wc_Curve25519KeyToDer(&key, output, outputSz, 1);
+            if (ret >= 0) {
+                outputSz = (word32)ret;
+                ret = 0;
+            }
+            else {
                 ret = WC_TEST_RET_ENC_EC(ret);
             }
 
             /* Re-import temporary DER */
-            idx = 0;
-            ret = wc_Curve25519KeyDecode(output, &idx, &key, sizeof(output));
-            if (ret < 0) {
-                ret = WC_TEST_RET_ENC_EC(ret);
+            if (ret == 0) {
+                idx = 0;
+                ret = wc_Curve25519KeyDecode(output, &idx, &key, sizeof(output));
+                if (ret < 0) {
+                    ret = WC_TEST_RET_ENC_EC(ret);
+                }
             }
 
             /* Ensure public and private keys survived combined keypair
