@@ -8261,6 +8261,11 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
+#ifdef WOLFSSL_DTLS_CID
+    XFREE(ssl->buffers.dtlsCtx.pendingPeer.sa, ssl->heap,
+            DYNAMIC_TYPE_SOCKADDR);
+    ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
+#endif
 #ifndef NO_WOLFSSL_SERVER
     if (ssl->buffers.dtlsCookieSecret.buffer != NULL) {
         ForceZero(ssl->buffers.dtlsCookieSecret.buffer,
@@ -11522,15 +11527,15 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS_CID
     if (rh->type == dtls12_cid) {
-        byte cid[DTLS_CID_MAX_SIZE];
+        byte* ourCid = NULL;
         if (ssl->buffers.inputBuffer.length - *inOutIdx <
                 (word32)cidSz + LENGTH_SZ)
             return LENGTH_ERROR;
-        if (cidSz > DTLS_CID_MAX_SIZE ||
-                wolfSSL_dtls_cid_get_rx(ssl, cid, cidSz) != WOLFSSL_SUCCESS)
+        if (cidSz != DtlsGetCidRxSize(ssl) ||
+                wolfSSL_dtls_cid_get0_rx(ssl, &ourCid)   != WOLFSSL_SUCCESS)
             return DTLS_CID_ERROR;
-        if (XMEMCMP(ssl->buffers.inputBuffer.buffer + *inOutIdx,
-                cid, cidSz) != 0)
+        if (XMEMCMP(ssl->buffers.inputBuffer.buffer + *inOutIdx, ourCid, cidSz)
+                != 0)
             return DTLS_CID_ERROR;
         *inOutIdx += cidSz;
     }
@@ -11740,7 +11745,7 @@ int GetDtlsHandShakeHeader(WOLFSSL* ssl, const byte* input,
 {
     word32 idx = *inOutIdx;
 
-    *inOutIdx += HANDSHAKE_HEADER_SZ + DTLS_HANDSHAKE_EXTRA;
+    *inOutIdx += DTLS_HANDSHAKE_HEADER_SZ;
     if (*inOutIdx > totalSz) {
         WOLFSSL_ERROR(BUFFER_E);
         return BUFFER_E;
@@ -21045,11 +21050,14 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
     int usedLength;
     int dtlsExtra = 0;
 
+    if (ssl->options.disableRead)
+        return WC_NO_ERR_TRACE(WANT_READ);
 
     /* check max input length */
-    usedLength = (int)(ssl->buffers.inputBuffer.length - ssl->buffers.inputBuffer.idx);
-    maxLength  = (int)(ssl->buffers.inputBuffer.bufferSize - (word32)usedLength);
-    inSz       = (int)(size - (word32)usedLength);      /* from last partial read */
+    usedLength = (int)(ssl->buffers.inputBuffer.length -
+                       ssl->buffers.inputBuffer.idx);
+    maxLength  = (int)(ssl->buffers.inputBuffer.bufferSize -
+                       (word32)usedLength);
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls && IsDtlsNotSctpMode(ssl)) {
@@ -21063,11 +21071,20 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
         if (size < (word32)inSz)
             dtlsExtra = (int)(inSz - size);
     }
+    else
 #endif
+    {
+        /* check that no lengths or size values are negative */
+        if (usedLength < 0 || maxLength < 0) {
+            return BUFFER_ERROR;
+        }
 
-    /* check that no lengths or size values are negative */
-    if (usedLength < 0 || maxLength < 0 || inSz <= 0) {
-        return BUFFER_ERROR;
+        /* Return if we have enough data already in the buffer */
+        if (size <= (word32)usedLength) {
+            return 0;
+        }
+
+        inSz = (int)(size - (word32)usedLength); /* from last partial read */
     }
 
     if (inSz > maxLength) {
@@ -21541,6 +21558,23 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
                                        &ssl->curRL, &ssl->curSize);
 
 #ifdef WOLFSSL_DTLS
+#ifdef WOLFSSL_DTLS_CID
+            if (ssl->options.dtls) {
+                if (!ssl->buffers.dtlsCtx.processingPendingRecord)
+                    ssl->buffers.dtlsCtx.processingPendingRecord = 1;
+                else {
+                    ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+                    if (ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
+                        /* Clear the pending peer */
+                        XFREE(ssl->buffers.dtlsCtx.pendingPeer.sa, ssl->heap,
+                              DYNAMIC_TYPE_SOCKADDR);
+                        ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
+                        ssl->buffers.dtlsCtx.pendingPeer.sz = 0;
+                        ssl->buffers.dtlsCtx.pendingPeer.bufSz = 0;
+                    }
+                }
+            }
+#endif
             if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
                     ssl->options.processReply = doProcessInit;
                     ssl->buffers.inputBuffer.length = 0;
@@ -21965,8 +21999,9 @@ default:
 
         /* the record layer is here */
         case runProcessingOneRecord:
-#ifdef WOLFSSL_DTLS13
+#ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
+#ifdef WOLFSSL_DTLS13
                 if (IsAtLeastTLSv1_3(ssl->version)) {
                     if (!Dtls13CheckWindow(ssl)) {
                         /* drop packet */
@@ -21990,11 +22025,27 @@ default:
                         }
                     }
                 }
-                else if (IsDtlsNotSctpMode(ssl)) {
+                else
+#endif /* WOLFSSL_DTLS13 */
+                if (IsDtlsNotSctpMode(ssl)) {
                     DtlsUpdateWindow(ssl);
                 }
+#ifdef WOLFSSL_DTLS_CID
+                /* Update the peer if we were able to de-protect the message */
+                if (IsEncryptionOn(ssl, 0) &&
+                        ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
+                    XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap,
+                          DYNAMIC_TYPE_SOCKADDR);
+                    ssl->buffers.dtlsCtx.peer =
+                            ssl->buffers.dtlsCtx.pendingPeer;
+                    ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
+                    ssl->buffers.dtlsCtx.pendingPeer.sz = 0;
+                    ssl->buffers.dtlsCtx.pendingPeer.bufSz = 0;
+                    ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+                }
+#endif
             }
-#endif /* WOLFSSL_DTLS13 */
+#endif /* WOLFSSL_DTLS */
             ssl->options.processReply = runProcessingOneMessage;
             FALL_THROUGH;
 

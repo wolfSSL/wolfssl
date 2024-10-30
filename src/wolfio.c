@@ -2351,6 +2351,20 @@ void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend)
     }
 }
 
+void wolfSSL_SSLDisableRead(WOLFSSL *ssl)
+{
+    if (ssl) {
+        ssl->options.disableRead = 1;
+    }
+}
+
+void wolfSSL_SSLEnableRead(WOLFSSL *ssl)
+{
+    if (ssl) {
+        ssl->options.disableRead = 0;
+    }
+}
+
 
 void wolfSSL_SetIOReadCtx(WOLFSSL* ssl, void *rctx)
 {

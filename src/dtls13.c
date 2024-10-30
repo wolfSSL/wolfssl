@@ -1151,6 +1151,11 @@ static int Dtls13UnifiedHeaderParseCID(WOLFSSL* ssl, byte flags,
     return 0;
 }
 
+int Dtls13UnifiedHeaderCIDPresent(byte flags)
+{
+    return Dtls13IsUnifiedHeader(flags) && (flags & DTLS13_CID_BIT);
+}
+
 #else
 #define Dtls13AddCID(a, b, c, d) 0
 #define Dtls13UnifiedHeaderParseCID(a, b, c, d, e) 0

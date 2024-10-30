@@ -101,6 +101,15 @@ void DtlsResetState(WOLFSSL* ssl)
     ssl->options.tls = 0;
     ssl->options.tls1_1 = 0;
     ssl->options.tls1_3 = 0;
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+    /* Clear the pending peer in case user set */
+    XFREE(ssl->buffers.dtlsCtx.pendingPeer.sa, ssl->heap,
+          DYNAMIC_TYPE_SOCKADDR);
+    ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
+    ssl->buffers.dtlsCtx.pendingPeer.sz = 0;
+    ssl->buffers.dtlsCtx.pendingPeer.bufSz = 0;
+#endif
 }
 
 int DtlsIgnoreError(int err)
@@ -1108,6 +1117,26 @@ static int DtlsCidGet(WOLFSSL* ssl, unsigned char* buf, int bufferSz, int rx)
     return WOLFSSL_SUCCESS;
 }
 
+static int DtlsCidGet0(WOLFSSL* ssl, unsigned char** cid, int rx)
+{
+    ConnectionID* id;
+    CIDInfo* info;
+
+    if (ssl == NULL || cid == NULL)
+        return BAD_FUNC_ARG;
+
+    info = DtlsCidGetInfo(ssl);
+    if (info == NULL)
+        return WOLFSSL_FAILURE;
+
+    id = rx ? info->rx : info->tx;
+    if (id == NULL || id->length == 0)
+        return WOLFSSL_SUCCESS;
+
+    *cid = id->id;
+    return WOLFSSL_SUCCESS;
+}
+
 static CIDInfo* DtlsCidGetInfoFromExt(byte* ext)
 {
     WOLFSSL** sslPtr;
@@ -1366,6 +1395,11 @@ int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buf,
     return DtlsCidGet(ssl, buf, bufferSz, 1);
 }
 
+int wolfSSL_dtls_cid_get0_rx(WOLFSSL* ssl, unsigned char** cid)
+{
+    return DtlsCidGet0(ssl, cid, 1);
+}
+
 int wolfSSL_dtls_cid_get_tx_size(WOLFSSL* ssl, unsigned int* size)
 {
     return DtlsCidGetSize(ssl, size, 0);
@@ -1377,9 +1411,39 @@ int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buf,
     return DtlsCidGet(ssl, buf, bufferSz, 0);
 }
 
+int wolfSSL_dtls_cid_get0_tx(WOLFSSL* ssl, unsigned char** cid)
+{
+    return DtlsCidGet0(ssl, cid, 0);
+}
+
 int wolfSSL_dtls_cid_max_size(void)
 {
     return DTLS_CID_MAX_SIZE;
+}
+
+void wolfSSL_dtls_cid_parse(const unsigned char* msg, unsigned int msgSz,
+        const unsigned char** cid, unsigned int cidSz)
+{
+    if (cid == NULL)
+        return;
+    *cid = NULL;
+    /* we need at least the first byte to check version */
+    if (msg == NULL || cidSz == 0 || msgSz < OPAQUE8_LEN + cidSz)
+        return;
+    if (msg[0] == dtls12_cid) {
+        /* DTLS 1.2 CID packet */
+        if (msgSz < DTLS_RECORD_HEADER_SZ + cidSz)
+            return;
+        /* content type(1) + version(2) + epoch(2) + sequence(6) */
+        *cid = msg + ENUM_LEN + VERSION_SZ + OPAQUE16_LEN + OPAQUE16_LEN +
+                OPAQUE32_LEN;
+    }
+    else if (Dtls13UnifiedHeaderCIDPresent(msg[0])) {
+        /* DTLS 1.3 CID packet */
+        if (msgSz < OPAQUE8_LEN + cidSz)
+            return;
+        *cid = msg + OPAQUE8_LEN;
+    }
 }
 #endif /* WOLFSSL_DTLS_CID */
 
@@ -1411,6 +1475,11 @@ byte DtlsGetCidRxSize(WOLFSSL* ssl)
     (void)ssl;
     return 0;
 #endif
+}
+
+byte wolfSSL_is_stateful(WOLFSSL* ssl)
+{
+    return (byte)(ssl != NULL ? ssl->options.dtlsStateful : 0);
 }
 
 #endif /* WOLFSSL_DTLS */

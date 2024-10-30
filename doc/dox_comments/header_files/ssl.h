@@ -1997,8 +1997,8 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 /*!
     \ingroup IO
 
-    \brief This function returns the file descriptor (fd) used as the
-    input/output facility for the SSL connection.  Typically this
+    \brief This function returns the read file descriptor (fd) used as the
+    input facility for the SSL connection.  Typically this
     will be a socket file descriptor.
 
     \return fd If successful the call will return the SSL session file
@@ -2016,8 +2016,37 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_set_fd
+    \sa wolfSSL_set_read_fd
+    \sa wolfSSL_set_write_fd
 */
 int  wolfSSL_get_fd(const WOLFSSL*);
+
+/*!
+    \ingroup IO
+
+    \brief This function returns the write file descriptor (fd) used as the
+    output facility for the SSL connection.  Typically this
+    will be a socket file descriptor.
+
+    \return fd If successful the call will return the SSL session file
+    descriptor.
+
+    \param ssl pointer to the SSL session, created with wolfSSL_new().
+
+    _Example_
+    \code
+    int sockfd;
+    WOLFSSL* ssl = 0;
+    ...
+    sockfd = wolfSSL_get_wfd(ssl);
+    ...
+    \endcode
+
+    \sa wolfSSL_set_fd
+    \sa wolfSSL_set_read_fd
+    \sa wolfSSL_set_write_fd
+*/
+int  wolfSSL_get_wfd(const WOLFSSL*);
 
 /*!
     \ingroup Setup
@@ -2288,6 +2317,48 @@ int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
     \sa wolfSSL_connect
 */
 int  wolfSSL_accept(WOLFSSL*);
+
+/*!
+    \ingroup IO
+
+    \brief This function is called on the server side and statelessly listens
+    for an SSL client to initiate the DTLS handshake.
+
+    \return WOLFSSL_SUCCESS ClientHello containing a valid cookie was received.
+    The connection can be continued with wolfSSL_accept().
+    \return WOLFSSL_FAILURE The I/O layer returned WANT_READ. This is either
+    because there is no data to read and we are using non-blocking sockets or
+    we sent a cookie request and we are waiting for a reply. The user should
+    call wolfDTLS_accept_stateless again after data becomes available in
+    the I/O layer.
+    \return WOLFSSL_FATAL_ERROR A fatal error occurred. The ssl object should be
+    free'd and allocated again to continue.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+
+    _Example_
+    \code
+    int ret = 0;
+    int err = 0;
+    WOLFSSL* ssl;
+    ...
+    do {
+        ret = wolfDTLS_accept_stateless(ssl);
+        if (ret == WOLFSSL_FATAL_ERROR)
+            // re-allocate the ssl object with wolfSSL_free() and wolfSSL_new()
+    } while (ret != WOLFSSL_SUCCESS);
+    ret = wolfSSL_accept(ssl);
+    if (ret != SSL_SUCCESS) {
+        err = wolfSSL_get_error(ssl, ret);
+        printf(“error = %d, %s\n”, err, wolfSSL_ERR_error_string(err, buffer));
+    }
+    \endcode
+
+    \sa wolfSSL_accept
+    \sa wolfSSL_get_error
+    \sa wolfSSL_connect
+*/
+int  wolfDTLS_accept_stateless(WOLFSSL* ssl);
 
 /*!
     \ingroup Setup
@@ -3856,11 +3927,51 @@ int  wolfSSL_dtls(WOLFSSL* ssl);
     \endcode
 
     \sa wolfSSL_dtls_get_current_timeout
+    \sa wolfSSL_dtls_set_pending_peer
     \sa wolfSSL_dtls_get_peer
     \sa wolfSSL_dtls_got_timeout
     \sa wolfSSL_dtls
 */
 int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
+
+/*!
+    \brief This function sets the pending DTLS peer, peer (sockaddr_in) with
+    size of peerSz. This sets the pending peer that will be upgraded to a
+    regular peer when we successfully de-protect the next record. This is useful
+    in scenarios where the peer's address can change to avoid off-path attackers
+    from changing the peer address. This should be used with Connection ID's to
+    allow seamless and safe transition to a new peer address.
+
+    \return SSL_SUCCESS will be returned upon success.
+    \return SSL_FAILURE will be returned upon failure.
+    \return SSL_NOT_IMPLEMENTED will be returned if wolfSSL was not compiled
+    with DTLS support.
+
+    \param ssl    a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param peer   pointer to peer’s sockaddr_in structure. If NULL then the peer
+                  information in ssl is cleared.
+    \param peerSz size of the sockaddr_in structure pointed to by peer. If 0
+                  then the peer information in ssl is cleared.
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl;
+    sockaddr_in addr;
+    ...
+    ret = wolfSSL_dtls_set_pending_peer(ssl, &addr, sizeof(addr));
+    if (ret != SSL_SUCCESS) {
+	    // failed to set DTLS peer
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_get_current_timeout
+    \sa wolfSSL_dtls_set_peer
+    \sa wolfSSL_dtls_get_peer
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls
+*/
+int  wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
 
 /*!
     \brief This function gets the sockaddr_in (of size peerSz) of the current
@@ -3898,6 +4009,40 @@ int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
     \sa wolfSSL_dtls
 */
 int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
+
+/*!
+    \brief This function gets the sockaddr_in (of size peerSz) of the current
+    DTLS peer.  This is a zero-copy alternative to wolfSSL_dtls_get_peer().
+
+    \return SSL_SUCCESS will be returned upon success.
+    \return SSL_FAILURE will be returned upon failure.
+    \return SSL_NOT_IMPLEMENTED will be returned if wolfSSL was not compiled
+    with DTLS support.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param peer pointer to return the internal buffer holding the peer address
+    \param peerSz output the size of the actual sockaddr_in structure
+    pointed to by peer.
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl;
+    sockaddr_in* addr;
+    unsigned int addrSz;
+    ...
+    ret = wolfSSL_dtls_get_peer(ssl, &addr, &addrSz);
+    if (ret != SSL_SUCCESS) {
+	    // failed to get DTLS peer
+    }
+    \endcode
+
+    \sa wolfSSL_dtls_get_current_timeout
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls_set_peer
+    \sa wolfSSL_dtls
+*/
+int  wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer, unsigned int* peerSz);
 
 /*!
     \ingroup Debug
@@ -14139,6 +14284,35 @@ int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
     int* outSz);
 
 /*!
+    \ingroup IO
+
+    \brief
+
+    \param [in] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param [in] data data to inject into the ssl object.
+    \param [in] sz number of bytes of data to inject.
+
+    \return BAD_FUNC_ARG if any pointer parameter is NULL or sz <= 0
+    \return APP_DATA_READY if there is application data left to read
+    \return MEMORY_E if allocation fails
+    \return WOLFSSL_SUCCESS on success
+
+    _Example_
+    \code
+    byte buf[2000]
+    sz = recv(fd, buf, sizeof(buf), 0);
+    if (sz <= 0)
+        // error
+    if (wolfSSL_inject(ssl, buf, sz) != WOLFSSL_SUCCESS)
+        // error
+    sz = wolfSSL_read(ssl, buf, sizeof(buf);
+    \endcode
+
+    \sa wolfSSL_read
+*/
+int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
+
+/*!
     \ingroup Setup
 
     \brief This function sets the Pre-Shared Key (PSK) client side callback
@@ -14955,6 +15129,7 @@ connection into the buffer pointed by the parameter buffer. See RFC 9146 and RFC
  \param buffer A buffer where the ConnectionID will be copied
  \param bufferSz available space in buffer
 
+ \sa wolfSSL_dtls_cid_get0_rx
  \sa wolfSSL_dtls_cid_use
  \sa wolfSSL_dtls_cid_is_enabled
  \sa wolfSSL_dtls_cid_set
@@ -14964,6 +15139,27 @@ connection into the buffer pointed by the parameter buffer. See RFC 9146 and RFC
 */
 int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+
+/*!
+
+\brief Get the ConnectionID used by the other peer. See RFC 9146 and RFC
+9147.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly copied, error code
+ otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param cid Pointer that will be set to the internal memory that holds the CID
+
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_tx_size
+ \sa wolfSSL_dtls_cid_get_tx
+*/
+int wolfSSL_dtls_cid_get0_rx(WOLFSSL* ssl, unsigned char** cid);
 
 /*!
 
@@ -14998,6 +15194,7 @@ available size need to be provided in bufferSz.
  \param buffer A buffer where the ConnectionID will be copied
  \param bufferSz available space in buffer
 
+ \sa wolfSSL_dtls_cid_get0_tx
  \sa wolfSSL_dtls_cid_use
  \sa wolfSSL_dtls_cid_is_enabled
  \sa wolfSSL_dtls_cid_set
@@ -15007,6 +15204,50 @@ available size need to be provided in bufferSz.
 */
 int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+
+/*!
+
+\brief Get the ConnectionID used when sending records in this connection. See
+RFC 9146 and RFC 9147.
+
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly retrieved, error code
+ otherwise
+
+ \param ssl A WOLFSSL object pointern
+ \param cid Pointer that will be set to the internal memory that holds the CID
+
+ \sa wolfSSL_dtls_cid_get_tx
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+*/
+int wolfSSL_dtls_cid_get0_tx(WOLFSSL* ssl, unsigned char** cid);
+
+/*!
+
+\brief Extract the ConnectionID from a record datagram/message. See
+RFC 9146 and RFC 9147.
+
+ \param msg buffer holding the datagram read from the network
+ \param msgSz size of msg in bytes
+ \param cid pointer to the start of the CID inside the msg buffer
+ \param cidSz the expected size of the CID. The record layer does not have a CID
+ size field so we have to know beforehand the size of the CID. It is recommended
+ to use a constant CID for all connections.
+
+ \sa wolfSSL_dtls_cid_get_tx
+ \sa wolfSSL_dtls_cid_use
+ \sa wolfSSL_dtls_cid_is_enabled
+ \sa wolfSSL_dtls_cid_set
+ \sa wolfSSL_dtls_cid_get_rx_size
+ \sa wolfSSL_dtls_cid_get_rx
+ \sa wolfSSL_dtls_cid_get_tx_size
+*/
+void wolfSSL_dtls_cid_parse(const unsigned char* msg, unsigned int msgSz,
+        const unsigned char** cid, unsigned int cidSz);
 
 /*!
     \ingroup TLS

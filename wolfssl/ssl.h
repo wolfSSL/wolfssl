@@ -1359,6 +1359,7 @@ WOLFSSL_API const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf,
     int len);
 WOLFSSL_API const char* wolfSSL_get_curve_name(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_get_fd(const WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_get_wfd(const WOLFSSL* ssl);
 /* please see note at top of README if you get an error from connect */
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_connect(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_write(
@@ -1366,6 +1367,7 @@ WOLFSSL_ABI WOLFSSL_API int  wolfSSL_write(
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
 WOLFSSL_API int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_accept(WOLFSSL* ssl);
+WOLFSSL_API int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);
 WOLFSSL_API int  wolfSSL_CTX_mutual_auth(WOLFSSL_CTX* ctx, int req);
 WOLFSSL_API int  wolfSSL_mutual_auth(WOLFSSL* ssl, int req);
 
@@ -1733,8 +1735,16 @@ WOLFSSL_API int  wolfSSL_dtls(WOLFSSL* ssl);
 WOLFSSL_API void* wolfSSL_dtls_create_peer(int port, char* ip);
 WOLFSSL_API int   wolfSSL_dtls_free_peer(void* addr);
 
-WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
-WOLFSSL_API int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
+WOLFSSL_API int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer,
+                                       unsigned int peerSz);
+WOLFSSL_API int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer,
+                                              unsigned int peerSz);
+WOLFSSL_API int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer,
+                                       unsigned int* peerSz);
+WOLFSSL_API int  wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer,
+                                        unsigned int* peerSz);
+
+WOLFSSL_API byte wolfSSL_is_stateful(WOLFSSL* ssl);
 
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_sctp(WOLFSSL_CTX* ctx);
@@ -4709,6 +4719,7 @@ WOLFSSL_API int wolfSSL_CTX_DisableExtendedMasterSecret(WOLFSSL_CTX* ctx);
 
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
+WOLFSSL_API int wolfDTLS_accept_stateless(WOLFSSL* ssl);
 /* notify user we parsed a verified ClientHello is done. This only has an effect
  * on the server end. */
 typedef int (*ClientHelloGoodCb)(WOLFSSL* ssl, void*);
@@ -5844,11 +5855,15 @@ WOLFSSL_API int wolfSSL_dtls_cid_get_rx_size(WOLFSSL* ssl,
     unsigned int* size);
 WOLFSSL_API int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+WOLFSSL_API int wolfSSL_dtls_cid_get0_rx(WOLFSSL* ssl, unsigned char** cid);
 WOLFSSL_API int wolfSSL_dtls_cid_get_tx_size(WOLFSSL* ssl,
     unsigned int* size);
 WOLFSSL_API int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
+WOLFSSL_API int wolfSSL_dtls_cid_get0_tx(WOLFSSL* ssl, unsigned char** cid);
 WOLFSSL_API int wolfSSL_dtls_cid_max_size(void);
+WOLFSSL_API void wolfSSL_dtls_cid_parse(const unsigned char* msg,
+        unsigned int msgSz, const unsigned char** cid, unsigned int cidSz);
 #endif /* defined(WOLFSSL_DTLS_CID) */
 
 #ifdef WOLFSSL_DTLS_CH_FRAG
