@@ -47,7 +47,7 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const uint64_t L_SHA512_transform_len_k[] = {
+static const word64 L_SHA512_transform_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
     0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
@@ -101,7 +101,7 @@ void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len)
     register wc_Sha512* sha512 __asm__ ("r0") = (wc_Sha512*)sha512_p;
     register const byte* data __asm__ ("r1") = (const byte*)data_p;
     register word32 len __asm__ ("r2") = (word32)len_p;
-    register uint64_t* L_SHA512_transform_len_k_c __asm__ ("r3") = (uint64_t*)&L_SHA512_transform_len_k;
+    register word64* L_SHA512_transform_len_k_c __asm__ ("r3") = (word64*)&L_SHA512_transform_len_k;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (

@@ -52,7 +52,7 @@
 #include <wolfssl/wolfcrypt/wc_kyber.h>
 
 #ifdef WOLFSSL_WC_KYBER
-static const uint16_t L_kyber_arm32_ntt_zetas[] = {
+static const word16 L_kyber_arm32_ntt_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714,
     0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6,
@@ -90,8 +90,8 @@ static const uint16_t L_kyber_arm32_ntt_zetas[] = {
 void kyber_arm32_ntt(sword16* r_p)
 {
     register sword16* r asm ("r0") = (sword16*)r_p;
-    register uint16_t* L_kyber_arm32_ntt_zetas_c asm ("r1") =
-        (uint16_t*)&L_kyber_arm32_ntt_zetas;
+    register word16* L_kyber_arm32_ntt_zetas_c asm ("r1") =
+        (word16*)&L_kyber_arm32_ntt_zetas;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -3318,7 +3318,7 @@ void kyber_arm32_ntt(sword16* r_p)
     );
 }
 
-static const uint16_t L_kyber_arm32_invntt_zetas_inv[] = {
+static const word16 L_kyber_arm32_invntt_zetas_inv[] = {
     0x06a5, 0x070f, 0x05b4, 0x0943,
     0x0922, 0x091d, 0x0134, 0x006c,
     0x0b23, 0x0366, 0x0356, 0x05e6,
@@ -3356,8 +3356,8 @@ static const uint16_t L_kyber_arm32_invntt_zetas_inv[] = {
 void kyber_arm32_invntt(sword16* r_p)
 {
     register sword16* r asm ("r0") = (sword16*)r_p;
-    register uint16_t* L_kyber_arm32_invntt_zetas_inv_c asm ("r1") =
-        (uint16_t*)&L_kyber_arm32_invntt_zetas_inv;
+    register word16* L_kyber_arm32_invntt_zetas_inv_c asm ("r1") =
+        (word16*)&L_kyber_arm32_invntt_zetas_inv;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #8\n\t"
@@ -8082,7 +8082,7 @@ void kyber_arm32_invntt(sword16* r_p)
     );
 }
 
-static const uint16_t L_kyber_arm32_basemul_mont_zetas[] = {
+static const word16 L_kyber_arm32_basemul_mont_zetas[] = {
     0x08ed, 0x0a0b, 0x0b9a, 0x0714,
     0x05d5, 0x058e, 0x011f, 0x00ca,
     0x0c56, 0x026e, 0x0629, 0x00b6,
@@ -8123,8 +8123,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
     register sword16* r asm ("r0") = (sword16*)r_p;
     register const sword16* a asm ("r1") = (const sword16*)a_p;
     register const sword16* b asm ("r2") = (const sword16*)b_p;
-    register uint16_t* L_kyber_arm32_basemul_mont_zetas_c asm ("r3") =
-        (uint16_t*)&L_kyber_arm32_basemul_mont_zetas;
+    register word16* L_kyber_arm32_basemul_mont_zetas_c asm ("r3") =
+        (word16*)&L_kyber_arm32_basemul_mont_zetas;
 
     __asm__ __volatile__ (
         "add	r3, r3, #0x80\n\t"
@@ -8418,8 +8418,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
     register sword16* r asm ("r0") = (sword16*)r_p;
     register const sword16* a asm ("r1") = (const sword16*)a_p;
     register const sword16* b asm ("r2") = (const sword16*)b_p;
-    register uint16_t* L_kyber_arm32_basemul_mont_zetas_c asm ("r3") =
-        (uint16_t*)&L_kyber_arm32_basemul_mont_zetas;
+    register word16* L_kyber_arm32_basemul_mont_zetas_c asm ("r3") =
+        (word16*)&L_kyber_arm32_basemul_mont_zetas;
 
     __asm__ __volatile__ (
         "add	r3, r3, #0x80\n\t"
@@ -8748,8 +8748,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
 void kyber_arm32_csubq(sword16* p_p)
 {
     register sword16* p asm ("r0") = (sword16*)p_p;
-    register uint16_t* L_kyber_arm32_basemul_mont_zetas_c asm ("r1") =
-        (uint16_t*)&L_kyber_arm32_basemul_mont_zetas;
+    register word16* L_kyber_arm32_basemul_mont_zetas_c asm ("r1") =
+        (word16*)&L_kyber_arm32_basemul_mont_zetas;
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
@@ -8961,8 +8961,8 @@ unsigned int kyber_arm32_rej_uniform(sword16* p_p, unsigned int len_p,
     register unsigned int len asm ("r1") = (unsigned int)len_p;
     register const byte* r asm ("r2") = (const byte*)r_p;
     register unsigned int rLen asm ("r3") = (unsigned int)rLen_p;
-    register uint16_t* L_kyber_arm32_basemul_mont_zetas_c asm ("r4") =
-        (uint16_t*)&L_kyber_arm32_basemul_mont_zetas;
+    register word16* L_kyber_arm32_basemul_mont_zetas_c asm ("r4") =
+        (word16*)&L_kyber_arm32_basemul_mont_zetas;
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
