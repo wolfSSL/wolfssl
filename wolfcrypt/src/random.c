@@ -1702,7 +1702,7 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
         if (ret != 0) {
 #if defined(DEBUG_WOLFSSL)
-            WOLFSSL_MSG_EX("_InitRng failed. err = ", ret);
+            WOLFSSL_MSG_EX("_InitRng failed. err = %d", ret);
 #endif
         }
         else {
