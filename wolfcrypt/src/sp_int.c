@@ -3458,7 +3458,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         :
         : "r3", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
     );
-    return (uint32_t)(size_t)hi;
+    return (sp_uint32)(size_t)hi;
 }
 
 #define SP_ASM_DIV_WORD

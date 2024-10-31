@@ -3842,7 +3842,7 @@ unsigned int kyber_thumb2_rej_uniform(sword16* p, unsigned int len, const byte* 
         : "memory", "r5", "r6", "r7", "r8", "r9", "r10", "cc"
 #endif /* WOLFSSL_NO_VAR_ASSIGN_REG */
     );
-    return (uint32_t)(size_t)p;
+    return (word32)(size_t)p;
 }
 
 #endif /* WOLFSSL_WC_KYBER */

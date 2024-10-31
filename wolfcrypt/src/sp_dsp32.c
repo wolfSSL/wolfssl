@@ -1309,7 +1309,7 @@ static void sp_256_mont_sqr_n_10(sp_digit* r, const sp_digit* a, int n,
 #endif /* !WOLFSSL_SP_SMALL || HAVE_COMP_KEY */
 #ifdef WOLFSSL_SP_SMALL
 /* Mod-2 for the P256 curve. */
-static const uint32_t p256_mod_2[8] = {
+static const word32 p256_mod_2[8] = {
     0xfffffffdU,0xffffffffU,0xffffffffU,0x00000000U,0x00000000U,0x00000000U,
     0x00000001U,0xffffffffU
 };
@@ -2607,7 +2607,7 @@ typedef struct sp_cache_t {
     sp_digit x[10] __attribute__((aligned(128)));
     sp_digit y[10] __attribute__((aligned(128)));
     sp_table_entry table[256] __attribute__((aligned(128)));
-    uint32_t cnt;
+    word32 cnt;
     int set;
 } sp_cache_t;
 
@@ -2625,7 +2625,7 @@ static THREAD_LS_T int sp_cache_inited = 0;
 static void sp_ecc_get_cache(const sp_point* g, sp_cache_t** cache)
 {
     int i, j;
-    uint32_t least;
+    word32 least;
 
     if (sp_cache_inited == 0) {
         for (i=0; i<FP_ENTRIES; i++) {
@@ -4251,13 +4251,13 @@ static int sp_256_mod_10(sp_digit* r, const sp_digit* a, const sp_digit* m)
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 #ifdef WOLFSSL_SP_SMALL
 /* Order-2 for the P256 curve. */
-static const uint32_t p256_order_2[8] = {
+static const word32 p256_order_2[8] = {
     0xfc63254fU,0xf3b9cac2U,0xa7179e84U,0xbce6faadU,0xffffffffU,0xffffffffU,
     0x00000000U,0xffffffffU
 };
 #else
 /* The low half of the order-2 of the P256 curve. */
-static const uint32_t p256_order_low[4] = {
+static const word32 p256_order_low[4] = {
     0xfc63254fU,0xf3b9cac2U,0xa7179e84U,0xbce6faadU
 };
 #endif /* WOLFSSL_SP_SMALL */

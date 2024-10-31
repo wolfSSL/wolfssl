@@ -648,7 +648,7 @@ int fe_isnonzero(const fe a_p)
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
             "r12"
     );
-    return (uint32_t)(size_t)a;
+    return (word32)(size_t)a;
 }
 
 int fe_isnegative(const fe a_p)
@@ -674,7 +674,7 @@ int fe_isnegative(const fe a_p)
         :
         : "memory", "cc", "r1", "r2", "r3", "r4", "r5"
     );
-    return (uint32_t)(size_t)a;
+    return (word32)(size_t)a;
 }
 
 #if defined(HAVE_ED25519_MAKE_KEY) || defined(HAVE_ED25519_SIGN)
@@ -4030,7 +4030,7 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
     );
-    return (uint32_t)(size_t)r;
+    return (word32)(size_t)r;
 }
 
 #else
@@ -4344,7 +4344,7 @@ int curve25519(byte* r_p, const byte* n_p, const byte* a_p)
         : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
             "r3", "r12", "lr"
     );
-    return (uint32_t)(size_t)r;
+    return (word32)(size_t)r;
 }
 
 #endif /* WC_NO_CACHE_RESISTANT */

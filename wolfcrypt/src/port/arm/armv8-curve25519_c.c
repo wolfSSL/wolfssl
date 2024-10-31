@@ -234,7 +234,7 @@ int fe_isnonzero(const fe a)
         :
         : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "cc"
     );
-    return (uint32_t)(size_t)a;
+    return (word32)(size_t)a;
 }
 
 int fe_isnegative(const fe a)
@@ -253,7 +253,7 @@ int fe_isnegative(const fe a)
         :
         : "memory", "x1", "x2", "x3", "x4", "x5", "x6", "cc"
     );
-    return (uint32_t)(size_t)a;
+    return (word32)(size_t)a;
 }
 
 void fe_cmov_table(fe* r, fe* base, signed char b)
@@ -3683,7 +3683,7 @@ int curve25519(byte* r, const byte* n, const byte* a)
         :
         : "memory", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26", "x27", "x28", "cc"
     );
-    return (uint32_t)(size_t)r;
+    return (word32)(size_t)r;
 }
 
 #ifdef HAVE_ED25519
