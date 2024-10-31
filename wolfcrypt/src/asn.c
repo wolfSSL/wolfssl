@@ -35670,9 +35670,9 @@ int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
 {
     int ret;
     byte privKey[CURVE25519_KEYSIZE];
-    byte pubKey[CURVE25519_KEYSIZE];
+    byte pubKey[CURVE25519_PUB_KEY_SIZE];
     word32 privKeyLen = CURVE25519_KEYSIZE;
-    word32 pubKeyLen = CURVE25519_KEYSIZE;
+    word32 pubKeyLen = CURVE25519_PUB_KEY_SIZE;
 
     /* sanity check */
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0) {
@@ -35925,9 +35925,9 @@ int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen, int w
 {
     int ret;
     byte privKey[CURVE25519_KEYSIZE];
-    byte pubKey[CURVE25519_KEYSIZE];
+    byte pubKey[CURVE25519_PUB_KEY_SIZE];
     word32 privKeyLen = CURVE25519_KEYSIZE;
-    word32 pubKeyLen = CURVE25519_KEYSIZE;
+    word32 pubKeyLen = CURVE25519_PUB_KEY_SIZE;
 
     if (key == NULL) {
         return BAD_FUNC_ARG;

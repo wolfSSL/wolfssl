@@ -1578,6 +1578,21 @@ int wc_EccPublicKeyToDer_ex(ecc_key* key, byte* output,
     index is set to last position parsed of input buffer.
     \param key Pointer to curve25519_key structure to store decoded key
     \param inSz Size of input DER buffer
+
+    \sa wc_Curve25519KeyDecode
+    \sa wc_Curve25519PublicKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DER encoded key };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+
+    if (wc_Curve25519PrivateKeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // Error decoding private key
+    }
+    \endcode
 */
 int wc_Curve25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
                                   curve25519_key* key, word32 inSz);
@@ -1602,6 +1617,20 @@ int wc_Curve25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
     index is set to last position parsed of input buffer.
     \param key Pointer to curve25519_key structure to store decoded key
     \param inSz Size of input DER buffer
+
+    \sa wc_Curve25519KeyDecode
+    \sa wc_Curve25519PrivateKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DER encoded key };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    if (wc_Curve25519PublicKeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // Error decoding public key
+    }
+    \endcode
 */
 int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
                                  curve25519_key* key, word32 inSz);
@@ -1626,6 +1655,20 @@ int wc_Curve25519PublicKeyDecode(const byte* input, word32* inOutIdx,
     index is set to last position parsed of input buffer.
     \param key Pointer to curve25519_key structure to store decoded key
     \param inSz Size of input DER buffer
+
+    \sa wc_Curve25519PrivateKeyDecode
+    \sa wc_Curve25519PublicKeyDecode
+
+    _Example_
+    \code
+    byte der[] = { // DER encoded key };
+    word32 idx = 0;
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    if (wc_Curve25519KeyDecode(der, &idx, &key, sizeof(der)) != 0) {
+        // Error decoding key
+    }
+    \endcode
 */
 int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
                            curve25519_key* key, word32 inSz);
@@ -1645,6 +1688,19 @@ int wc_Curve25519KeyDecode(const byte* input, word32* inOutIdx,
     encode
     \param output Buffer to hold DER encoding
     \param inLen Size of output buffer
+
+    \sa wc_Curve25519KeyToDer
+    \sa wc_Curve25519PublicKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // Some appropriate size for output DER
+    byte der[derSz];
+    wc_Curve25519PrivateKeyToDer(&key, der, derSz);
+    \endcode
 */
 int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
                                  word32 inLen);
@@ -1664,7 +1720,20 @@ int wc_Curve25519PrivateKeyToDer(curve25519_key* key, byte* output,
     encode
     \param output Buffer to hold DER encoding
     \param inLen Size of output buffer
-    \param withAlg Whether to include algorithm identifier
+    \param withAlg Whether to include algorithm identifier in the DER encoding
+
+    \sa wc_Curve25519KeyToDer
+    \sa wc_Curve25519PrivateKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // Some appropriate size for output DER
+    byte der[derSz];
+    wc_Curve25519PublicKeyToDer(&key, der, derSz, 1);
+    \endcode
 */
 int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
                                 int withAlg);
@@ -1683,7 +1752,20 @@ int wc_Curve25519PublicKeyToDer(curve25519_key* key, byte* output, word32 inLen,
     \param key Pointer to curve25519_key structure containing key to encode
     \param output Buffer to hold DER encoding
     \param inLen Size of output buffer
-    \param withAlg Whether to include algorithm identifier
+    \param withAlg Whether to include algorithm identifier in the DER encoding
+
+    \sa wc_Curve25519PrivateKeyToDer
+    \sa wc_Curve25519PublicKeyToDer
+
+    _Example_
+    \code
+    curve25519_key key;
+    wc_curve25519_init(&key);
+    ...
+    int derSz = 128; // Some appropriate size for output DER
+    byte der[derSz];
+    wc_Curve25519KeyToDer(&key, der, derSz, 1);
+    \endcode
 */
 int wc_Curve25519KeyToDer(curve25519_key* key, byte* output, word32 inLen,
                           int withAlg);

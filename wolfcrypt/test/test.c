@@ -35098,8 +35098,7 @@ static wc_test_ret_t curve255519_der_test(void)
         ret = WC_TEST_RET_ENC_NC;
     }
 
-    /* Test decode/encode of a key file containing both public and private
-     * fields */
+    /* Test decode/encode key data containing both public and private fields */
     if (ret == 0) {
         XMEMSET(&key, 0 , sizeof(key));
 
