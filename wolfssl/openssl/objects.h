@@ -35,8 +35,8 @@
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
-#define wc_NID_ad_OCSP                     178
-#define wc_NID_ad_ca_issuers               179
+#define WC_NID_ad_OCSP                     178
+#define WC_NID_ad_ca_issuers               179
 
 #ifndef OPENSSL_COEXIST
 
@@ -69,8 +69,8 @@
 /* not required for wolfSSL */
 #define OPENSSL_load_builtin_modules() WC_DO_NOTHING
 
-#define NID_ad_OCSP wc_NID_ad_OCSP
-#define NID_ad_ca_issuers wc_NID_ad_ca_issuers
+#define NID_ad_OCSP WC_NID_ad_OCSP
+#define NID_ad_ca_issuers WC_NID_ad_ca_issuers
 
 #endif /* !OPENSSL_COEXIST */
 

@@ -251,10 +251,10 @@ typedef int (*WOLFSSL_X509_STORE_CTX_get_crl_cb)(WOLFSSL_X509_STORE_CTX *,
 typedef int (*WOLFSSL_X509_STORE_CTX_check_crl_cb)(WOLFSSL_X509_STORE_CTX *,
         WOLFSSL_X509_CRL *);
 
-#define WOLFSSL_ASN1_TYPE_INTEGER                   0x02
-#define WOLFSSL_ASN1_TYPE_NEG                       0x100
-#define WOLFSSL_ASN1_TYPE_NEG_INTEGER               (2 | WOLFSSL_ASN1_TYPE_NEG)
-#define WOLFSSL_ASN1_TYPE_NEG_ENUMERATED            (10 | WOLFSSL_ASN1_TYPE_NEG)
+#define WOLFSSL_V_ASN1_INTEGER                   0x02
+#define WOLFSSL_V_ASN1_NEG                       0x100
+#define WOLFSSL_V_ASN1_NEG_INTEGER               (2 | WOLFSSL_V_ASN1_NEG)
+#define WOLFSSL_V_ASN1_NEG_ENUMERATED            (10 | WOLFSSL_V_ASN1_NEG)
 
 /* Type for ASN1_print_ex */
 #define WOLFSSL_ASN1_STRFLGS_ESC_2253           1
@@ -279,24 +279,24 @@ typedef int (*WOLFSSL_X509_STORE_CTX_check_crl_cb)(WOLFSSL_X509_STORE_CTX *,
 #define WOLFSSL_MBSTRING_BMP                     0x1002
 #define WOLFSSL_MBSTRING_UNIV                    0x1004
 
-#define WOLFSSL_ASN1_TYPE_EOC                      0
-#define WOLFSSL_ASN1_TYPE_BOOLEAN                  1
-#define WOLFSSL_ASN1_TYPE_OCTET_STRING             4
-#define WOLFSSL_ASN1_TYPE_NULL                     5
-#define WOLFSSL_ASN1_TYPE_OBJECT                   6
-#define WOLFSSL_ASN1_TYPE_UTF8STRING               12
-#define WOLFSSL_ASN1_TYPE_SEQUENCE                 16
-#define WOLFSSL_ASN1_TYPE_SET                      17
-#define WOLFSSL_ASN1_TYPE_PRINTABLESTRING          19
-#define WOLFSSL_ASN1_TYPE_T61STRING                20
-#define WOLFSSL_ASN1_TYPE_IA5STRING                22
-#define WOLFSSL_ASN1_TYPE_UTCTIME                  23
-#define WOLFSSL_ASN1_TYPE_GENERALIZEDTIME          24
-#define WOLFSSL_ASN1_TYPE_UNIVERSALSTRING          28
-#define WOLFSSL_ASN1_TYPE_BMPSTRING                30
+#define WOLFSSL_V_ASN1_EOC                      0
+#define WOLFSSL_V_ASN1_BOOLEAN                  1
+#define WOLFSSL_V_ASN1_OCTET_STRING             4
+#define WOLFSSL_V_ASN1_NULL                     5
+#define WOLFSSL_V_ASN1_OBJECT                   6
+#define WOLFSSL_V_ASN1_UTF8STRING               12
+#define WOLFSSL_V_ASN1_SEQUENCE                 16
+#define WOLFSSL_V_ASN1_SET                      17
+#define WOLFSSL_V_ASN1_PRINTABLESTRING          19
+#define WOLFSSL_V_ASN1_T61STRING                20
+#define WOLFSSL_V_ASN1_IA5STRING                22
+#define WOLFSSL_V_ASN1_UTCTIME                  23
+#define WOLFSSL_V_ASN1_GENERALIZEDTIME          24
+#define WOLFSSL_V_ASN1_UNIVERSALSTRING          28
+#define WOLFSSL_V_ASN1_BMPSTRING                30
 
 
-#define WOLFSSL_ASN1_TYPE_CONSTRUCTED              0x20
+#define WOLFSSL_V_ASN1_CONSTRUCTED              0x20
 
 #define WOLFSSL_ASN1_STRING_FLAG_BITS_LEFT       0x008
 #define WOLFSSL_ASN1_STRING_FLAG_NDEF            0x010

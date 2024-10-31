@@ -45,46 +45,46 @@ enum {
 #ifdef HAVE_ECC
     /* Use OpenSSL NIDs. NIDs can be mapped to ecc_curve_id enum values by
         calling NIDToEccEnum() in ssl.c */
-    wc_NID_X9_62_prime192v1 = 409,
-    wc_NID_X9_62_prime192v2 = 410,
-    wc_NID_X9_62_prime192v3 = 411,
-    wc_NID_X9_62_prime239v1 = 412,
-    wc_NID_X9_62_prime239v2 = 413,
-    wc_NID_X9_62_prime239v3 = 418, /* Previous value conflicted with AES128CBCb */
-    wc_NID_X9_62_prime256v1 = 415,
-    wc_NID_secp112r1 = 704,
-    wc_NID_secp112r2 = 705,
-    wc_NID_secp128r1 = 706,
-    wc_NID_secp128r2 = 707,
-    wc_NID_secp160r1 = 709,
-    wc_NID_secp160r2 = 710,
-    wc_NID_secp224r1 = 713,
-    wc_NID_secp384r1 = 715,
-    wc_NID_secp521r1 = 716,
-    wc_NID_secp160k1 = 708,
-    wc_NID_secp192k1 = 711,
-    wc_NID_secp224k1 = 712,
-    wc_NID_secp256k1 = 714,
-    wc_NID_brainpoolP160r1 = 921,
-    wc_NID_brainpoolP192r1 = 923,
-    wc_NID_brainpoolP224r1 = 925,
-    wc_NID_brainpoolP256r1 = 927,
-    wc_NID_brainpoolP320r1 = 929,
-    wc_NID_brainpoolP384r1 = 931,
-    wc_NID_brainpoolP512r1 = 933,
+    WC_NID_X9_62_prime192v1 = 409,
+    WC_NID_X9_62_prime192v2 = 410,
+    WC_NID_X9_62_prime192v3 = 411,
+    WC_NID_X9_62_prime239v1 = 412,
+    WC_NID_X9_62_prime239v2 = 413,
+    WC_NID_X9_62_prime239v3 = 418, /* Previous value conflicted with AES128CBCb */
+    WC_NID_X9_62_prime256v1 = 415,
+    WC_NID_secp112r1 = 704,
+    WC_NID_secp112r2 = 705,
+    WC_NID_secp128r1 = 706,
+    WC_NID_secp128r2 = 707,
+    WC_NID_secp160r1 = 709,
+    WC_NID_secp160r2 = 710,
+    WC_NID_secp224r1 = 713,
+    WC_NID_secp384r1 = 715,
+    WC_NID_secp521r1 = 716,
+    WC_NID_secp160k1 = 708,
+    WC_NID_secp192k1 = 711,
+    WC_NID_secp224k1 = 712,
+    WC_NID_secp256k1 = 714,
+    WC_NID_brainpoolP160r1 = 921,
+    WC_NID_brainpoolP192r1 = 923,
+    WC_NID_brainpoolP224r1 = 925,
+    WC_NID_brainpoolP256r1 = 927,
+    WC_NID_brainpoolP320r1 = 929,
+    WC_NID_brainpoolP384r1 = 931,
+    WC_NID_brainpoolP512r1 = 933,
 #endif
 
 #ifdef HAVE_ED448
-    wc_NID_ED448 = ED448k,
+    WC_NID_ED448 = ED448k,
 #endif
 #ifdef HAVE_CURVE448
-    wc_NID_X448 = X448k,
+    WC_NID_X448 = X448k,
 #endif
 #ifdef HAVE_ED25519
-    wc_NID_ED25519 = ED25519k,
+    WC_NID_ED25519 = ED25519k,
 #endif
 #ifdef HAVE_CURVE25519
-    wc_NID_X25519 = X25519k,
+    WC_NID_X25519 = X25519k,
 #endif
 
     WOLFSSL_EC_EXPLICIT_CURVE  = 0x000,
@@ -97,46 +97,46 @@ enum {
 #define POINT_CONVERSION_UNCOMPRESSED WC_POINT_CONVERSION_UNCOMPRESSED
 
 #ifdef HAVE_ECC
-#define NID_X9_62_prime192v1 wc_NID_X9_62_prime192v1
-#define NID_X9_62_prime192v2 wc_NID_X9_62_prime192v2
-#define NID_X9_62_prime192v3 wc_NID_X9_62_prime192v3
-#define NID_X9_62_prime239v1 wc_NID_X9_62_prime239v1
-#define NID_X9_62_prime239v2 wc_NID_X9_62_prime239v2
-#define NID_X9_62_prime239v3 wc_NID_X9_62_prime239v3
-#define NID_X9_62_prime256v1 wc_NID_X9_62_prime256v1
-#define NID_secp112r1 wc_NID_secp112r1
-#define NID_secp112r2 wc_NID_secp112r2
-#define NID_secp128r1 wc_NID_secp128r1
-#define NID_secp128r2 wc_NID_secp128r2
-#define NID_secp160r1 wc_NID_secp160r1
-#define NID_secp160r2 wc_NID_secp160r2
-#define NID_secp224r1 wc_NID_secp224r1
-#define NID_secp384r1 wc_NID_secp384r1
-#define NID_secp521r1 wc_NID_secp521r1
-#define NID_secp160k1 wc_NID_secp160k1
-#define NID_secp192k1 wc_NID_secp192k1
-#define NID_secp224k1 wc_NID_secp224k1
-#define NID_secp256k1 wc_NID_secp256k1
-#define NID_brainpoolP160r1 wc_NID_brainpoolP160r1
-#define NID_brainpoolP192r1 wc_NID_brainpoolP192r1
-#define NID_brainpoolP224r1 wc_NID_brainpoolP224r1
-#define NID_brainpoolP256r1 wc_NID_brainpoolP256r1
-#define NID_brainpoolP320r1 wc_NID_brainpoolP320r1
-#define NID_brainpoolP384r1 wc_NID_brainpoolP384r1
-#define NID_brainpoolP512r1 wc_NID_brainpoolP512r1
+#define NID_X9_62_prime192v1 WC_NID_X9_62_prime192v1
+#define NID_X9_62_prime192v2 WC_NID_X9_62_prime192v2
+#define NID_X9_62_prime192v3 WC_NID_X9_62_prime192v3
+#define NID_X9_62_prime239v1 WC_NID_X9_62_prime239v1
+#define NID_X9_62_prime239v2 WC_NID_X9_62_prime239v2
+#define NID_X9_62_prime239v3 WC_NID_X9_62_prime239v3
+#define NID_X9_62_prime256v1 WC_NID_X9_62_prime256v1
+#define NID_secp112r1 WC_NID_secp112r1
+#define NID_secp112r2 WC_NID_secp112r2
+#define NID_secp128r1 WC_NID_secp128r1
+#define NID_secp128r2 WC_NID_secp128r2
+#define NID_secp160r1 WC_NID_secp160r1
+#define NID_secp160r2 WC_NID_secp160r2
+#define NID_secp224r1 WC_NID_secp224r1
+#define NID_secp384r1 WC_NID_secp384r1
+#define NID_secp521r1 WC_NID_secp521r1
+#define NID_secp160k1 WC_NID_secp160k1
+#define NID_secp192k1 WC_NID_secp192k1
+#define NID_secp224k1 WC_NID_secp224k1
+#define NID_secp256k1 WC_NID_secp256k1
+#define NID_brainpoolP160r1 WC_NID_brainpoolP160r1
+#define NID_brainpoolP192r1 WC_NID_brainpoolP192r1
+#define NID_brainpoolP224r1 WC_NID_brainpoolP224r1
+#define NID_brainpoolP256r1 WC_NID_brainpoolP256r1
+#define NID_brainpoolP320r1 WC_NID_brainpoolP320r1
+#define NID_brainpoolP384r1 WC_NID_brainpoolP384r1
+#define NID_brainpoolP512r1 WC_NID_brainpoolP512r1
 #endif
 
 #ifdef HAVE_ED448
-#define NID_ED448 wc_NID_ED448
+#define NID_ED448 WC_NID_ED448
 #endif
 #ifdef HAVE_CURVE448
-#define NID_X448 wc_NID_X448
+#define NID_X448 WC_NID_X448
 #endif
 #ifdef HAVE_ED25519
-#define NID_ED25519 wc_NID_ED25519
+#define NID_ED25519 WC_NID_ED25519
 #endif
 #ifdef HAVE_CURVE25519
-#define NID_X25519 wc_NID_X25519
+#define NID_X25519 WC_NID_X25519
 #endif
 
 #define OPENSSL_EC_EXPLICIT_CURVE WOLFSSL_EC_EXPLICIT_CURVE

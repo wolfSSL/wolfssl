@@ -532,7 +532,7 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
             goto err;
         }
 
-        tag = WOLFSSL_ASN1_TYPE_UTF8STRING;
+        tag = WOLFSSL_V_ASN1_UTF8STRING;
     }
     else
 #endif
@@ -555,7 +555,7 @@ static int wolfssl_dns_entry_othername_to_gn(DNS_entry* dns,
         len -= idx;
 
         /* Set the tag to object so that it gets output in raw form */
-        tag = WOLFSSL_ASN1_TYPE_SEQUENCE;
+        tag = WOLFSSL_V_ASN1_SEQUENCE;
     }
 
 
@@ -922,7 +922,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     obj->obj = (byte*)x509->authInfoCaIssuer;
                     obj->objSz = (unsigned int)x509->authInfoCaIssuerSz;
                     obj->grp = oidCertAuthInfoType;
-                    obj->nid = wc_NID_ad_ca_issuers;
+                    obj->nid = WC_NID_ad_ca_issuers;
 
                     ret = wolfSSL_sk_ASN1_OBJECT_push(sk, obj) > 0
                             ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
@@ -958,7 +958,7 @@ WOLFSSL_X509_EXTENSION* wolfSSL_X509_set_ext(WOLFSSL_X509* x509, int loc)
                     obj->obj = x509->authInfo;
                     obj->objSz = (unsigned int)x509->authInfoSz;
                     obj->grp = oidCertAuthInfoType;
-                    obj->nid = wc_NID_ad_OCSP;
+                    obj->nid = WC_NID_ad_OCSP;
 
                     ret = wolfSSL_sk_ASN1_OBJECT_push(sk, obj) > 0
                             ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
@@ -1256,7 +1256,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
     nid = (ext->obj != NULL) ? ext->obj->type : ext->value.nid;
 
     switch (nid) {
-    case wc_NID_authority_key_identifier:
+    case WC_NID_authority_key_identifier:
         if (x509->authKeyIdSrc != NULL) {
             /* If authKeyId points into authKeyIdSrc then free it and
              * revert to old functionality */
@@ -1271,7 +1271,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         }
         x509->authKeyIdCrit = (byte)ext->crit;
         break;
-    case wc_NID_subject_key_identifier:
+    case WC_NID_subject_key_identifier:
         if (asn1_string_copy_to_buffer(&ext->value, &x509->subjKeyId,
                 &x509->subjKeyIdSz, x509->heap) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("asn1_string_copy_to_buffer error");
@@ -1279,7 +1279,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         }
         x509->subjKeyIdCrit = (byte)ext->crit;
         break;
-    case wc_NID_subject_alt_name:
+    case WC_NID_subject_alt_name:
     {
         WOLFSSL_GENERAL_NAMES* gns = ext->ext_sk;
         while (gns) {
@@ -1323,7 +1323,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
         x509->subjAltNameCrit = (byte)ext->crit;
         break;
     }
-    case wc_NID_key_usage:
+    case WC_NID_key_usage:
         if (ext && ext->value.data) {
             if (ext->value.length == sizeof(word16)) {
                 /* if ext->value is already word16, set directly */
@@ -1345,7 +1345,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
             }
         }
         break;
-    case wc_NID_ext_key_usage:
+    case WC_NID_ext_key_usage:
         if (ext && ext->value.data) {
             if (ext->value.length == sizeof(byte)) {
                 /* if ext->value is already word16, set directly */
@@ -1365,7 +1365,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext, int lo
             }
         }
         break;
-    case wc_NID_basic_constraints:
+    case WC_NID_basic_constraints:
         if (ext->obj) {
             x509->isCa = (byte)ext->obj->ca;
             x509->basicConstCrit = (byte)ext->crit;
@@ -1593,7 +1593,7 @@ int wolfSSL_X509_EXTENSION_set_critical(WOLFSSL_X509_EXTENSION* ex, int crit)
  * Returns NULL on error or pointer to the v3_ext_method populated with extension
  * type-specific X509V3_EXT_* function(s).
  *
- * NOTE: wc_NID_subject_key_identifier is currently the only extension implementing
+ * NOTE: WC_NID_subject_key_identifier is currently the only extension implementing
  * the X509V3_EXT_* functions, as it is the only type called directly by QT. The
  * other extension types return a pointer to a v3_ext_method struct that contains
  * only the NID.
@@ -1622,30 +1622,30 @@ WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     }
     XMEMSET(&method, 0, sizeof(WOLFSSL_v3_ext_method));
     switch (nid) {
-        case wc_NID_basic_constraints:
+        case WC_NID_basic_constraints:
             break;
-        case wc_NID_subject_key_identifier:
+        case WC_NID_subject_key_identifier:
             method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
             break;
-        case wc_NID_subject_alt_name:
+        case WC_NID_subject_alt_name:
             WOLFSSL_MSG("i2v function not yet implemented for Subject Alternative Name");
             break;
-        case wc_NID_key_usage:
+        case WC_NID_key_usage:
             WOLFSSL_MSG("i2v function not yet implemented for Key Usage");
             break;
-        case wc_NID_authority_key_identifier:
+        case WC_NID_authority_key_identifier:
             WOLFSSL_MSG("i2v function not yet implemented for Auth Key Id");
             break;
-        case wc_NID_info_access:
+        case WC_NID_info_access:
             WOLFSSL_MSG("i2v function not yet implemented for Info Access");
             break;
-        case wc_NID_ext_key_usage:
+        case WC_NID_ext_key_usage:
             WOLFSSL_MSG("i2v function not yet implemented for Ext Key Usage");
             break;
-        case wc_NID_certificate_policies:
+        case WC_NID_certificate_policies:
             WOLFSSL_MSG("r2i function not yet implemented for Cert Policies");
             break;
-        case wc_NID_crl_distribution_points:
+        case WC_NID_crl_distribution_points:
             WOLFSSL_MSG("r2i function not yet implemented for CRL Dist Points");
             break;
         default:
@@ -1832,7 +1832,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
     /* Return pointer to proper internal structure based on NID */
     switch (object->type) {
         /* basicConstraints */
-        case (wc_NID_basic_constraints):
+        case (WC_NID_basic_constraints):
             WOLFSSL_MSG("basicConstraints");
             /* Allocate new BASIC_CONSTRAINTS structure */
             bc = wolfSSL_BASIC_CONSTRAINTS_new();
@@ -1855,7 +1855,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             return bc;
 
         /* subjectKeyIdentifier */
-        case (wc_NID_subject_key_identifier):
+        case (WC_NID_subject_key_identifier):
             WOLFSSL_MSG("subjectKeyIdentifier");
             asn1String = wolfSSL_X509_EXTENSION_get_data(ext);
             if (asn1String == NULL) {
@@ -1878,7 +1878,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             return newString;
 
         /* authorityKeyIdentifier */
-        case (wc_NID_authority_key_identifier):
+        case (WC_NID_authority_key_identifier):
             WOLFSSL_MSG("AuthorityKeyIdentifier");
 
             akey = (WOLFSSL_AUTHORITY_KEYID*)
@@ -1921,7 +1921,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             return akey;
 
         /* keyUsage */
-        case (wc_NID_key_usage):
+        case (WC_NID_key_usage):
             WOLFSSL_MSG("keyUsage");
             /* This may need to be updated for future use. The i2v method for
                 keyUsage is not currently set. For now, return the ASN1_STRING
@@ -1947,21 +1947,21 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             return newString;
 
         /* extKeyUsage */
-        case (wc_NID_ext_key_usage):
+        case (WC_NID_ext_key_usage):
             WOLFSSL_MSG("extKeyUsage not supported yet");
             return NULL;
 
         /* certificatePolicies */
-        case (wc_NID_certificate_policies):
+        case (WC_NID_certificate_policies):
             WOLFSSL_MSG("certificatePolicies not supported yet");
             return NULL;
 
         /* cRLDistributionPoints */
-        case (wc_NID_crl_distribution_points):
+        case (WC_NID_crl_distribution_points):
             WOLFSSL_MSG("cRLDistributionPoints not supported yet");
             return NULL;
 
-        case wc_NID_subject_alt_name:
+        case WC_NID_subject_alt_name:
             if (ext->ext_sk == NULL) {
                 WOLFSSL_MSG("Subject alt name stack NULL");
                 return NULL;
@@ -1974,7 +1974,7 @@ void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ext)
             return sk;
 
         /* authorityInfoAccess */
-        case wc_NID_info_access:
+        case WC_NID_info_access:
             WOLFSSL_MSG("AuthorityInfoAccess");
             return wolfssl_x509v3_ext_aia_d2i(ext);
 
@@ -2258,7 +2258,7 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509, int nid, int* c,
                                 WOLFSSL_MSG("ASN1_STRING_set failed");
                                 goto err;
                             }
-                            gn->d.dNSName->type = WOLFSSL_ASN1_TYPE_IA5STRING;
+                            gn->d.dNSName->type = WOLFSSL_V_ASN1_IA5STRING;
                     }
 
                     dns = dns->next;
@@ -2754,8 +2754,8 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
     ext->value.nid = nid;
 
     switch (nid) {
-        case wc_NID_subject_key_identifier:
-        case wc_NID_authority_key_identifier:
+        case WC_NID_subject_key_identifier:
+        case WC_NID_authority_key_identifier:
             if (wolfSSL_ASN1_STRING_set(&ext->value, value, -1)
                     != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
@@ -2763,7 +2763,7 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
             }
             ext->value.type = CTC_UTF8;
             break;
-        case wc_NID_subject_alt_name:
+        case WC_NID_subject_alt_name:
         {
             WOLFSSL_GENERAL_NAMES* gns;
             WOLFSSL_GENERAL_NAME* gn;
@@ -2802,7 +2802,7 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
             gn->type = ASN_DNS_TYPE;
             break;
         }
-        case wc_NID_key_usage:
+        case WC_NID_key_usage:
             if (wolfSSL_ASN1_STRING_set(&ext->value, value, -1)
                     != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
@@ -2810,7 +2810,7 @@ static WOLFSSL_X509_EXTENSION* createExtFromStr(int nid, const char *value)
             }
             ext->value.type = KEY_USAGE_OID;
             break;
-        case wc_NID_ext_key_usage:
+        case WC_NID_ext_key_usage:
             if (wolfSSL_ASN1_STRING_set(&ext->value, value, -1)
                     != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("wolfSSL_ASN1_STRING_set error");
@@ -2901,22 +2901,22 @@ static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,
 
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_METHOD_populate");
     switch (nid) {
-    case wc_NID_subject_key_identifier:
+    case WC_NID_subject_key_identifier:
         method->i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
         FALL_THROUGH;
-    case wc_NID_authority_key_identifier:
-    case wc_NID_key_usage:
-    case wc_NID_certificate_policies:
-    case wc_NID_policy_mappings:
-    case wc_NID_subject_alt_name:
-    case wc_NID_issuer_alt_name:
-    case wc_NID_basic_constraints:
-    case wc_NID_name_constraints:
-    case wc_NID_policy_constraints:
-    case wc_NID_ext_key_usage:
-    case wc_NID_crl_distribution_points:
-    case wc_NID_inhibit_any_policy:
-    case wc_NID_info_access:
+    case WC_NID_authority_key_identifier:
+    case WC_NID_key_usage:
+    case WC_NID_certificate_policies:
+    case WC_NID_policy_mappings:
+    case WC_NID_subject_alt_name:
+    case WC_NID_issuer_alt_name:
+    case WC_NID_basic_constraints:
+    case WC_NID_name_constraints:
+    case WC_NID_policy_constraints:
+    case WC_NID_ext_key_usage:
+    case WC_NID_crl_distribution_points:
+    case WC_NID_inhibit_any_policy:
+    case WC_NID_info_access:
         WOLFSSL_MSG("Nothing to populate for current NID");
         break;
     default:
@@ -2928,7 +2928,7 @@ static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,
 }
 
 /**
- * @param nid One of the wc_NID_* constants defined in asn.h
+ * @param nid One of the WC_NID_* constants defined in asn.h
  * @param crit
  * @param data This data is copied to the returned extension.
  * @return
@@ -2952,9 +2952,9 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
     wolfSSL_X509V3_EXT_METHOD_populate(&ext->ext_method, nid);
 
     switch (nid) {
-    case wc_NID_subject_key_identifier:
+    case WC_NID_subject_key_identifier:
         /* WOLFSSL_ASN1_STRING */
-    case wc_NID_key_usage:
+    case WC_NID_key_usage:
         /* WOLFSSL_ASN1_STRING */
     {
         asn1str = (WOLFSSL_ASN1_STRING*)data;
@@ -2981,13 +2981,13 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
 
         break;
     }
-    case wc_NID_subject_alt_name:
+    case WC_NID_subject_alt_name:
         /* typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES */
-    case wc_NID_issuer_alt_name:
+    case WC_NID_issuer_alt_name:
         /* typedef STACK_OF(GENERAL_NAME) GENERAL_NAMES */
-    case wc_NID_ext_key_usage:
+    case WC_NID_ext_key_usage:
         /* typedef STACK_OF(ASN1_OBJECT) EXTENDED_KEY_USAGE */
-    case wc_NID_info_access:
+    case WC_NID_info_access:
         /* typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS */
     {
         WOLFSSL_STACK* sk = (WOLFSSL_STACK*)data;
@@ -3008,7 +3008,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
 
         break;
     }
-    case wc_NID_basic_constraints:
+    case WC_NID_basic_constraints:
     {
         /* WOLFSSL_BASIC_CONSTRAINTS */
         WOLFSSL_BASIC_CONSTRAINTS* bc = (WOLFSSL_BASIC_CONSTRAINTS*)data;
@@ -3028,7 +3028,7 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
         }
         break;
     }
-    case wc_NID_authority_key_identifier:
+    case WC_NID_authority_key_identifier:
     {
         /* AUTHORITY_KEYID */
         WOLFSSL_AUTHORITY_KEYID* akey = (WOLFSSL_AUTHORITY_KEYID*)data;
@@ -3055,22 +3055,22 @@ WOLFSSL_X509_EXTENSION *wolfSSL_X509V3_EXT_i2d(int nid, int crit,
             }
         }
         else {
-            WOLFSSL_MSG("wc_NID_authority_key_identifier empty data");
+            WOLFSSL_MSG("WC_NID_authority_key_identifier empty data");
             goto err_cleanup;
         }
         break;
     }
-    case wc_NID_inhibit_any_policy:
+    case WC_NID_inhibit_any_policy:
         /* ASN1_INTEGER */
-    case wc_NID_certificate_policies:
+    case WC_NID_certificate_policies:
         /* STACK_OF(POLICYINFO) */
-    case wc_NID_policy_mappings:
+    case WC_NID_policy_mappings:
         /* STACK_OF(POLICY_MAPPING) */
-    case wc_NID_name_constraints:
+    case WC_NID_name_constraints:
         /* NAME_CONSTRAINTS */
-    case wc_NID_policy_constraints:
+    case WC_NID_policy_constraints:
         /* POLICY_CONSTRAINTS */
-    case wc_NID_crl_distribution_points:
+    case WC_NID_crl_distribution_points:
         /* typedef STACK_OF(DIST_POINT) CRL_DIST_POINTS */
     default:
         WOLFSSL_MSG("Unknown or unsupported NID");
@@ -4388,7 +4388,7 @@ WOLFSSL_GENERAL_NAME* wolfSSL_GENERAL_NAME_dup(WOLFSSL_GENERAL_NAME* gn)
         }
         break;
     case WOLFSSL_GEN_OTHERNAME:
-        if (gn->d.otherName->value->type != WOLFSSL_ASN1_TYPE_UTF8STRING) {
+        if (gn->d.otherName->value->type != WOLFSSL_V_ASN1_UTF8STRING) {
             WOLFSSL_MSG("Unsupported othername value type");
             goto error;
         }
@@ -5606,17 +5606,17 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         if (x509 != NULL) {
             switch (nid) {
-                case wc_NID_basic_constraints: isSet = x509->basicConstSet; break;
-                case wc_NID_subject_alt_name: isSet = x509->subjAltNameSet; break;
-                case wc_NID_authority_key_identifier: isSet = x509->authKeyIdSet; break;
-                case wc_NID_subject_key_identifier: isSet = x509->subjKeyIdSet; break;
-                case wc_NID_key_usage: isSet = x509->keyUsageSet; break;
-                case wc_NID_crl_distribution_points: isSet = x509->CRLdistSet; break;
-                case wc_NID_ext_key_usage: isSet = ((x509->extKeyUsageSrc) ? 1 : 0);
+                case WC_NID_basic_constraints: isSet = x509->basicConstSet; break;
+                case WC_NID_subject_alt_name: isSet = x509->subjAltNameSet; break;
+                case WC_NID_authority_key_identifier: isSet = x509->authKeyIdSet; break;
+                case WC_NID_subject_key_identifier: isSet = x509->subjKeyIdSet; break;
+                case WC_NID_key_usage: isSet = x509->keyUsageSet; break;
+                case WC_NID_crl_distribution_points: isSet = x509->CRLdistSet; break;
+                case WC_NID_ext_key_usage: isSet = ((x509->extKeyUsageSrc) ? 1 : 0);
                     break;
-                case wc_NID_info_access: isSet = x509->authInfoSet; break;
+                case WC_NID_info_access: isSet = x509->authInfoSet; break;
                 #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
-                    case wc_NID_certificate_policies: isSet = x509->certPolicySet; break;
+                    case WC_NID_certificate_policies: isSet = x509->certPolicySet; break;
                 #endif /* WOLFSSL_SEP || WOLFSSL_QT */
                 default:
                     WOLFSSL_MSG("NID not in table");
@@ -5637,15 +5637,15 @@ int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
 
         if (x509 != NULL) {
             switch (nid) {
-                case wc_NID_basic_constraints: crit = x509->basicConstCrit; break;
-                case wc_NID_subject_alt_name: crit = x509->subjAltNameCrit; break;
-                case wc_NID_authority_key_identifier: crit = x509->authKeyIdCrit; break;
-                case wc_NID_subject_key_identifier: crit = x509->subjKeyIdCrit; break;
-                case wc_NID_key_usage: crit = x509->keyUsageCrit; break;
-                case wc_NID_crl_distribution_points: crit= x509->CRLdistCrit; break;
-                case wc_NID_ext_key_usage: crit= x509->extKeyUsageCrit; break;
+                case WC_NID_basic_constraints: crit = x509->basicConstCrit; break;
+                case WC_NID_subject_alt_name: crit = x509->subjAltNameCrit; break;
+                case WC_NID_authority_key_identifier: crit = x509->authKeyIdCrit; break;
+                case WC_NID_subject_key_identifier: crit = x509->subjKeyIdCrit; break;
+                case WC_NID_key_usage: crit = x509->keyUsageCrit; break;
+                case WC_NID_crl_distribution_points: crit= x509->CRLdistCrit; break;
+                case WC_NID_ext_key_usage: crit= x509->extKeyUsageCrit; break;
             #ifdef WOLFSSL_SEP
-                case wc_NID_certificate_policies: crit = x509->certPolicyCrit; break;
+                case WC_NID_certificate_policies: crit = x509->certPolicyCrit; break;
             #endif /* WOLFSSL_SEP */
             }
         }
@@ -6534,11 +6534,11 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
             }
             nid = wolfSSL_OBJ_obj2nid(obj);
             switch (nid) {
-            case wc_NID_subject_alt_name:
+            case WC_NID_subject_alt_name:
                 ret = X509PrintSubjAltName(bio, x509, indent + 8);
                 break;
 
-            case wc_NID_subject_key_identifier:
+            case WC_NID_subject_key_identifier:
                 if (!x509->subjKeyIdSet || x509->subjKeyId == NULL ||
                     x509->subjKeyIdSz == 0)
                 {
@@ -6583,7 +6583,7 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                 }
                 break;
 
-            case wc_NID_authority_key_identifier:
+            case WC_NID_authority_key_identifier:
                 if (!x509->authKeyIdSet || x509->authKeyId == NULL ||
                     x509->authKeyIdSz == 0) {
                     ret = WOLFSSL_FAILURE;
@@ -6632,7 +6632,7 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                 }
                 break;
 
-            case wc_NID_basic_constraints:
+            case WC_NID_basic_constraints:
                 if (!x509->basicConstSet) {
                     ret = WOLFSSL_FAILURE;
                     break;
@@ -6653,11 +6653,11 @@ static int X509PrintExtensions(WOLFSSL_BIO* bio, WOLFSSL_X509* x509, int indent)
                 }
                 break;
 
-            case wc_NID_key_usage:
+            case WC_NID_key_usage:
                 ret = X509PrintKeyUsage(bio, x509, indent + 8);
                 break;
 
-            case wc_NID_ext_key_usage:
+            case WC_NID_ext_key_usage:
                 ret = X509PrintExtendedKeyUsage(bio, x509, indent + 8);
                 break;
 
@@ -9733,8 +9733,8 @@ void wolfSSL_X509_ALGOR_get0(const WOLFSSL_ASN1_OBJECT **paobj, int *pptype,
             *pptype = algor->parameter->type;
         }
         else {
-            /* Default to WOLFSSL_ASN1_TYPE_OBJECT */
-            *pptype = WOLFSSL_ASN1_TYPE_OBJECT;
+            /* Default to WOLFSSL_V_ASN1_OBJECT */
+            *pptype = WOLFSSL_V_ASN1_OBJECT;
         }
     }
 }
@@ -10008,7 +10008,7 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
 #ifndef NO_RSA
     case WC_EVP_PKEY_RSA:
         pval = NULL;
-        ptype = WOLFSSL_ASN1_TYPE_NULL;
+        ptype = WOLFSSL_V_ASN1_NULL;
         pk->pubKeyOID = RSAk;
         break;
 #endif
@@ -10030,7 +10030,7 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
         str->isDynamic = 1;
 
         pval = str;
-        ptype = WOLFSSL_ASN1_TYPE_SEQUENCE;
+        ptype = WOLFSSL_V_ASN1_SEQUENCE;
         pk->pubKeyOID = DSAk;
         break;
 #endif
@@ -10051,7 +10051,7 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
         if (!pval)
             goto error;
 
-        ptype = WOLFSSL_ASN1_TYPE_OBJECT;
+        ptype = WOLFSSL_V_ASN1_OBJECT;
         pk->pubKeyOID = ECDSAk;
         break;
 #endif
@@ -10062,7 +10062,7 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
 
     keyTypeObj = wolfSSL_OBJ_nid2obj(key->type);
     if (keyTypeObj == NULL) {
-        if (ptype == WOLFSSL_ASN1_TYPE_OBJECT)
+        if (ptype == WOLFSSL_V_ASN1_OBJECT)
             ASN1_OBJECT_free((WOLFSSL_ASN1_OBJECT *)pval);
         else
             ASN1_STRING_free((WOLFSSL_ASN1_STRING *)pval);
@@ -10071,7 +10071,7 @@ int wolfSSL_X509_PUBKEY_set(WOLFSSL_X509_PUBKEY **x, WOLFSSL_EVP_PKEY *key)
     if (!wolfSSL_X509_ALGOR_set0(pk->algor, keyTypeObj, ptype, pval)) {
         WOLFSSL_MSG("Failed to create algorithm object");
         ASN1_OBJECT_free(keyTypeObj);
-        if (ptype == WOLFSSL_ASN1_TYPE_OBJECT)
+        if (ptype == WOLFSSL_V_ASN1_OBJECT)
             ASN1_OBJECT_free((WOLFSSL_ASN1_OBJECT *)pval);
         else
             ASN1_STRING_free((WOLFSSL_ASN1_STRING *)pval);
@@ -10347,7 +10347,7 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
 
         #if defined(OPENSSL_ALL)
             idx = wolfSSL_X509_REQ_get_attr_by_NID(req,
-                    wc_NID_pkcs9_unstructuredName, -1);
+                    WC_NID_pkcs9_unstructuredName, -1);
             if (idx != WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR)) {
                 WOLFSSL_X509_ATTRIBUTE *attr;
                 attr = wolfSSL_X509_REQ_get_attr(req, idx);
@@ -11326,7 +11326,7 @@ cleanup:
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
     defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_WPAS_SMALL)
-/* Converts from wc_NID_* value to wolfSSL value if needed.
+/* Converts from WC_NID_* value to wolfSSL value if needed.
  *
  * @param [in] nid  Numeric Id of a domain name component.
  * @return  Domain name tag values - wolfSSL internal values.
@@ -11335,28 +11335,28 @@ cleanup:
 static int ConvertNIDToWolfSSL(int nid)
 {
     switch (nid) {
-        case wc_NID_commonName : return ASN_COMMON_NAME;
+        case WC_NID_commonName : return ASN_COMMON_NAME;
     #ifdef WOLFSSL_CERT_NAME_ALL
-        case wc_NID_name :       return ASN_NAME;
-        case wc_NID_givenName:   return ASN_GIVEN_NAME;
-        case wc_NID_dnQualifier :   return ASN_DNQUALIFIER;
-        case wc_NID_initials:   return ASN_INITIALS;
+        case WC_NID_name :       return ASN_NAME;
+        case WC_NID_givenName:   return ASN_GIVEN_NAME;
+        case WC_NID_dnQualifier :   return ASN_DNQUALIFIER;
+        case WC_NID_initials:   return ASN_INITIALS;
     #endif /* WOLFSSL_CERT_NAME_ALL */
-        case wc_NID_surname :    return ASN_SUR_NAME;
-        case wc_NID_countryName: return ASN_COUNTRY_NAME;
-        case wc_NID_localityName: return ASN_LOCALITY_NAME;
-        case wc_NID_stateOrProvinceName: return ASN_STATE_NAME;
-        case wc_NID_streetAddress: return ASN_STREET_ADDR;
-        case wc_NID_organizationName: return ASN_ORG_NAME;
-        case wc_NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
-        case wc_NID_emailAddress: return ASN_EMAIL_NAME;
-        case wc_NID_pkcs9_contentType: return ASN_CONTENT_TYPE;
-        case wc_NID_serialNumber: return ASN_SERIAL_NUMBER;
-        case wc_NID_userId: return ASN_USER_ID;
-        case wc_NID_businessCategory: return ASN_BUS_CAT;
-        case wc_NID_domainComponent: return ASN_DOMAIN_COMPONENT;
-        case wc_NID_postalCode: return ASN_POSTAL_CODE;
-        case wc_NID_favouriteDrink: return ASN_FAVOURITE_DRINK;
+        case WC_NID_surname :    return ASN_SUR_NAME;
+        case WC_NID_countryName: return ASN_COUNTRY_NAME;
+        case WC_NID_localityName: return ASN_LOCALITY_NAME;
+        case WC_NID_stateOrProvinceName: return ASN_STATE_NAME;
+        case WC_NID_streetAddress: return ASN_STREET_ADDR;
+        case WC_NID_organizationName: return ASN_ORG_NAME;
+        case WC_NID_organizationalUnitName: return ASN_ORGUNIT_NAME;
+        case WC_NID_emailAddress: return ASN_EMAIL_NAME;
+        case WC_NID_pkcs9_contentType: return ASN_CONTENT_TYPE;
+        case WC_NID_serialNumber: return ASN_SERIAL_NUMBER;
+        case WC_NID_userId: return ASN_USER_ID;
+        case WC_NID_businessCategory: return ASN_BUS_CAT;
+        case WC_NID_domainComponent: return ASN_DOMAIN_COMPONENT;
+        case WC_NID_postalCode: return ASN_POSTAL_CODE;
+        case WC_NID_favouriteDrink: return ASN_FAVOURITE_DRINK;
         default:
             WOLFSSL_MSG("Attribute NID not found");
             return WOLFSSL_FATAL_ERROR;
@@ -11559,7 +11559,7 @@ int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
                     type = CTC_UTF8;
                     break;
                 case WOLFSSL_MBSTRING_ASC:
-                case WOLFSSL_ASN1_TYPE_PRINTABLESTRING:
+                case WOLFSSL_V_ASN1_PRINTABLESTRING:
                     type = CTC_PRINTABLE;
                     break;
                 default:
@@ -12579,7 +12579,7 @@ err:
         }
 
         nid = wolfSSL_OBJ_txt2nid(txt);
-        if (nid == wc_NID_undef) {
+        if (nid == WC_NID_undef) {
             WOLFSSL_MSG("Unable to find text");
             ne = NULL;
         }
@@ -12856,7 +12856,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
         if (name == NULL || field == NULL)
             return WOLFSSL_FAILURE;
 
-        if ((nid = wolfSSL_OBJ_txt2nid(field)) == wc_NID_undef) {
+        if ((nid = wolfSSL_OBJ_txt2nid(field)) == WC_NID_undef) {
             WOLFSSL_MSG("Unable convert text to NID");
             return WOLFSSL_FAILURE;
         }
@@ -13506,79 +13506,79 @@ static int get_dn_attr_by_nid(int n, const char** buf)
 
     switch(n)
     {
-        case wc_NID_commonName :
+        case WC_NID_commonName :
             str = "CN";
             len = 2;
             break;
-        case wc_NID_countryName:
+        case WC_NID_countryName:
             str = "C";
             len = 1;
             break;
-        case wc_NID_localityName:
+        case WC_NID_localityName:
             str = "L";
             len = 1;
             break;
-        case wc_NID_stateOrProvinceName:
+        case WC_NID_stateOrProvinceName:
             str = "ST";
             len = 2;
             break;
-        case wc_NID_streetAddress:
+        case WC_NID_streetAddress:
             str = "street";
             len = 6;
             break;
-        case wc_NID_organizationName:
+        case WC_NID_organizationName:
             str = "O";
             len = 1;
             break;
-        case wc_NID_organizationalUnitName:
+        case WC_NID_organizationalUnitName:
             str = "OU";
             len = 2;
             break;
-        case wc_NID_postalCode:
+        case WC_NID_postalCode:
             str = "postalCode";
             len = 10;
             break;
-        case wc_NID_emailAddress:
+        case WC_NID_emailAddress:
             str = "emailAddress";
             len = 12;
             break;
-        case wc_NID_surname:
+        case WC_NID_surname:
             str = "SN";
             len = 2;
             break;
-        case wc_NID_givenName:
+        case WC_NID_givenName:
             str = "GN";
             len = 2;
             break;
-        case wc_NID_dnQualifier:
+        case WC_NID_dnQualifier:
             str = "dnQualifier";
             len = 11;
             break;
-        case wc_NID_name:
+        case WC_NID_name:
             str = "name";
             len = 4;
             break;
-        case wc_NID_initials:
+        case WC_NID_initials:
             str = "initials";
             len = 8;
             break;
-        case wc_NID_domainComponent:
+        case WC_NID_domainComponent:
             str = "DC";
             len = 2;
             break;
-        case wc_NID_pkcs9_contentType:
+        case WC_NID_pkcs9_contentType:
             str = "contentType";
             len = 11;
             break;
-        case wc_NID_userId:
+        case WC_NID_userId:
             str = "UID";
             len = 3;
             break;
-        case wc_NID_serialNumber:
+        case WC_NID_serialNumber:
             str = "serialNumber";
             len = 12;
             break;
-        case wc_NID_title:
+        case WC_NID_title:
             str = "title";
             len = 5;
             break;
@@ -13926,7 +13926,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_new_index");
 
-    return wolfssl_get_ex_new_index(CRYPTO_EX_INDEX_X509, idx, arg,
+    return wolfssl_get_ex_new_index(WOLF_CRYPTO_EX_INDEX_X509, idx, arg,
                                     new_func, dup_func, free_func);
 }
 #endif
@@ -14147,7 +14147,7 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
         return WOLFSSL_FAILURE;
 
     /* Call with NULL buffer to get required length. */
-    emailLen = wolfSSL_X509_NAME_get_text_by_NID(subjName, wc_NID_emailAddress,
+    emailLen = wolfSSL_X509_NAME_get_text_by_NID(subjName, WC_NID_emailAddress,
                                                  NULL, 0);
     if (emailLen < 0)
         return WOLFSSL_FAILURE;
@@ -14158,7 +14158,7 @@ int wolfSSL_X509_check_email(WOLFSSL_X509 *x, const char *chk, size_t chkLen,
     if (emailBuf == NULL)
         return WOLFSSL_FAILURE;
 
-    emailLen = wolfSSL_X509_NAME_get_text_by_NID(subjName, wc_NID_emailAddress,
+    emailLen = wolfSSL_X509_NAME_get_text_by_NID(subjName, WC_NID_emailAddress,
                                                  emailBuf, emailLen);
     if (emailLen < 0) {
         XFREE(emailBuf, x->heap, DYNAMIC_TYPE_OPENSSL);
@@ -15047,7 +15047,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
     }
 
     switch (nid) {
-    case wc_NID_pkcs9_challengePassword:
+    case WC_NID_pkcs9_challengePassword:
         if (len < 0)
             len = (int)XSTRLEN((char*)bytes);
         if (len < CTC_NAME_SIZE) {
@@ -15060,7 +15060,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
             return WOLFSSL_FAILURE;
         }
         break;
-    case wc_NID_serialNumber:
+    case WC_NID_serialNumber:
         if (len < 0)
             len = (int)XSTRLEN((char*)bytes);
         if (len + 1 > EXTERNAL_SERIAL_SIZE) {
@@ -15072,12 +15072,12 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
         req->serialSz = len;
         break;
 
-    case wc_NID_pkcs9_unstructuredName:
-    case wc_NID_pkcs9_contentType:
-    case wc_NID_surname:
-    case wc_NID_initials:
-    case wc_NID_givenName:
-    case wc_NID_dnQualifier:
+    case WC_NID_pkcs9_unstructuredName:
+    case WC_NID_pkcs9_contentType:
+    case WC_NID_surname:
+    case WC_NID_initials:
+    case WC_NID_givenName:
+    case WC_NID_dnQualifier:
         break;
 
     default:
@@ -15087,7 +15087,7 @@ int wolfSSL_X509_REQ_add1_attr_by_NID(WOLFSSL_X509 *req,
 
     attr = wolfSSL_X509_ATTRIBUTE_new();
     ret = wolfSSL_X509_ATTRIBUTE_set(attr, (const char*)bytes, len,
-            WOLFSSL_ASN1_TYPE_PRINTABLESTRING, nid);
+            WOLFSSL_V_ASN1_PRINTABLESTRING, nid);
     if (ret != WOLFSSL_SUCCESS) {
         wolfSSL_X509_ATTRIBUTE_free(attr);
     }

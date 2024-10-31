@@ -12917,7 +12917,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
             x509->challengePw[dCert->cPwdLen] = '\0';
         #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN)
             if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_pkcs9_challengePassword,
+                                        WC_NID_pkcs9_challengePassword,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->cPwd,
                                         dCert->cPwdLen) != WOLFSSL_SUCCESS) {
@@ -12939,7 +12939,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
         }
     #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN)
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_pkcs9_contentType,
+                                        WC_NID_pkcs9_contentType,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->contentType,
                                         dCert->contentTypeLen) !=
@@ -12953,7 +12953,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN)
     if (dCert->sNum) {
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_serialNumber,
+                                        WC_NID_serialNumber,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->sNum,
                                         dCert->sNumLen) != WOLFSSL_SUCCESS) {
@@ -12963,7 +12963,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     if (dCert->unstructuredName) {
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_pkcs9_unstructuredName,
+                                        WC_NID_pkcs9_unstructuredName,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->unstructuredName,
                                         dCert->unstructuredNameLen)
@@ -12974,7 +12974,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     if (dCert->surname) {
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_surname,
+                                        WC_NID_surname,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->surname,
                                         dCert->surnameLen) != WOLFSSL_SUCCESS) {
@@ -12984,7 +12984,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     if (dCert->givenName) {
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_givenName,
+                                        WC_NID_givenName,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->givenName,
                                         dCert->givenNameLen) != WOLFSSL_SUCCESS) {
@@ -12994,7 +12994,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     if (dCert->dnQualifier) {
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_dnQualifier,
+                                        WC_NID_dnQualifier,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->dnQualifier,
                                         dCert->dnQualifierLen) != WOLFSSL_SUCCESS) {
@@ -13004,7 +13004,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     if (dCert->initials) {
         if (wolfSSL_X509_REQ_add1_attr_by_NID(x509,
-                                        NID_initials,
+                                        WC_NID_initials,
                                         MBSTRING_ASC,
                                         (const byte*)dCert->initials,
                                         dCert->initialsLen) != WOLFSSL_SUCCESS) {

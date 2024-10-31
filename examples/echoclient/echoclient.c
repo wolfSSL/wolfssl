@@ -29,16 +29,15 @@
     #include <wolfssl/options.h>
 #endif
 
-#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
-#ifdef OPENSSL_EXTRA
-    #undef OPENSSL_COEXIST /* can't use this option with this example */
+/* Force enable the compatibility macros for this example */
+#undef TEST_OPENSSL_COEXIST
+#undef OPENSSL_COEXIST
+#ifndef OPENSSL_EXTRA_X509_SMALL
+#define OPENSSL_EXTRA_X509_SMALL
 #endif
 
-/* let's use cyassl layer AND cyassl openssl layer */
-#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
 #include <wolfssl/ssl.h>
 
-/* Force enable the compatibility macros for this example */
 #ifdef WOLFSSL_DTLS
     #include <wolfssl/error-ssl.h>
 #endif
@@ -54,9 +53,6 @@
 
 #include <wolfssl/test.h>
 
-#ifndef OPENSSL_EXTRA_X509_SMALL
-#define OPENSSL_EXTRA_X509_SMALL
-#endif
 #include <wolfssl/openssl/ssl.h>
 
 #include <examples/echoclient/echoclient.h>

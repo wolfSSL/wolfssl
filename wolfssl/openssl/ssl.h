@@ -113,6 +113,20 @@
 
 #define WOLFSSL_TLSEXT_STATUSTYPE_ocsp  1
 
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
+    defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_WPAS_SMALL)
+
+#define WOLFSSL_NPN_UNSUPPORTED 0
+#define WOLFSSL_NPN_NEGOTIATED  1
+#define WOLFSSL_NPN_NO_OVERLAP  2
+
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || \
+    WOLFSSL_MYSQL_COMPATIBLE || OPENSSL_EXTRA || \
+    HAVE_LIGHTY || HAVE_STUNNEL || \
+    WOLFSSL_WPAS_SMALL */
+
 #if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 
 typedef WOLFSSL          SSL;
@@ -1615,9 +1629,9 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define TLSEXT_TYPE_application_layer_protocol_negotiation \
     TLSXT_APPLICATION_LAYER_PROTOCOL
 
-#define OPENSSL_NPN_UNSUPPORTED 0
-#define OPENSSL_NPN_NEGOTIATED  1
-#define OPENSSL_NPN_NO_OVERLAP  2
+#define OPENSSL_NPN_UNSUPPORTED WOLFSSL_NPN_UNSUPPORTED
+#define OPENSSL_NPN_NEGOTIATED  WOLFSSL_NPN_NEGOTIATED
+#define OPENSSL_NPN_NO_OVERLAP  WOLFSSL_NPN_NO_OVERLAP
 
 /* Nginx checks these to see if the error was a handshake error. */
 #define SSL_R_BAD_CHANGE_CIPHER_SPEC               LENGTH_ERROR
@@ -1714,7 +1728,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define ERR_NUM_ERRORS                  16
 #define SN_pkcs9_emailAddress           "Email"
 #define LN_pkcs9_emailAddress           "emailAddress"
-#define NID_pkcs9_emailAddress          48
+#define NID_pkcs9_emailAddress          WC_NID_pkcs9_emailAddress
 #define OBJ_pkcs9_emailAddress          1L,2L,840L,113539L,1L,9L,1L
 
 #define LN_basic_constraints            "X509v3 Basic Constraints"
@@ -1806,11 +1820,19 @@ typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
  * SSL_CIPHER_get_id(cipher)
  * used by QUIC implementations, such as HAProxy
  */
-#define TLS1_3_CK_AES_128_GCM_SHA256       0x1301
-#define TLS1_3_CK_AES_256_GCM_SHA384       0x1302
-#define TLS1_3_CK_CHACHA20_POLY1305_SHA256 0x1303
-#define TLS1_3_CK_AES_128_CCM_SHA256       0x1304
-#define TLS1_3_CK_AES_128_CCM_8_SHA256     0x1305
+#define WOLF_TLS1_3_CK_AES_128_GCM_SHA256       0x1301
+#define WOLF_TLS1_3_CK_AES_256_GCM_SHA384       0x1302
+#define WOLF_TLS1_3_CK_CHACHA20_POLY1305_SHA256 0x1303
+#define WOLF_TLS1_3_CK_AES_128_CCM_SHA256       0x1304
+#define WOLF_TLS1_3_CK_AES_128_CCM_8_SHA256     0x1305
+
+#ifndef OPENSSL_COEXIST
+
+#define TLS1_3_CK_AES_128_GCM_SHA256        WOLF_TLS1_3_CK_AES_128_GCM_SHA256
+#define TLS1_3_CK_AES_256_GCM_SHA384        WOLF_TLS1_3_CK_AES_256_GCM_SHA384
+#define TLS1_3_CK_CHACHA20_POLY1305_SHA256  WOLF_TLS1_3_CK_CHACHA20_POLY1305_SHA256
+#define TLS1_3_CK_AES_128_CCM_SHA256        WOLF_TLS1_3_CK_AES_128_CCM_SHA256
+#define TLS1_3_CK_AES_128_CCM_8_SHA256      WOLF_TLS1_3_CK_AES_128_CCM_8_SHA256
 
 #define SSL_R_MISSING_QUIC_TRANSPORT_PARAMETERS_EXTENSION   QUIC_TP_MISSING_E
 #define SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED               QUIC_WRONG_ENC_LEVEL
@@ -1851,6 +1873,8 @@ typedef WOLFSSL_ENCRYPTION_LEVEL        OSSL_ENCRYPTION_LEVEL;
 /* TODO: we do not have this in our QUIC api and HAProxy does not use it
 int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
 */
+
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* WOLFSSL_QUIC */
 

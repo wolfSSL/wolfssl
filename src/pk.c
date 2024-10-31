@@ -3858,7 +3858,7 @@ static int wolfssl_rsa_sig_encode(int hashAlg, const unsigned char* hash,
         ret = 0;
     }
 
-    if ((ret == 1) && (hashAlg != wc_NID_undef) &&
+    if ((ret == 1) && (hashAlg != WC_NID_undef) &&
             (padding == WC_RSA_PKCS1_PADDING)) {
         /* Convert hash algorithm to hash type for PKCS#1.5 padding. */
         hType = (int)nid2oid(hashAlg, oidHashType);
@@ -6509,17 +6509,17 @@ static int wolfssl_dh_set_nid(WOLFSSL_DH* dh, int nid)
      * FIPS v2 module */
     switch (nid) {
 #ifdef HAVE_FFDHE_2048
-    case wc_NID_ffdhe2048:
+    case WC_NID_ffdhe2048:
         params = wc_Dh_ffdhe2048_Get();
         break;
 #endif /* HAVE_FFDHE_2048 */
 #ifdef HAVE_FFDHE_3072
-    case wc_NID_ffdhe3072:
+    case WC_NID_ffdhe3072:
         params = wc_Dh_ffdhe3072_Get();
         break;
 #endif /* HAVE_FFDHE_3072 */
 #ifdef HAVE_FFDHE_4096
-    case wc_NID_ffdhe4096:
+    case WC_NID_ffdhe4096:
         params = wc_Dh_ffdhe4096_Get();
         break;
 #endif /* HAVE_FFDHE_4096 */
@@ -6605,17 +6605,17 @@ static int wolfssl_dh_set_nid(WOLFSSL_DH* dh, int nid)
 
     switch (nid) {
 #ifdef HAVE_FFDHE_2048
-    case NID_ffdhe2048:
+    case WC_NID_ffdhe2048:
         name = WC_FFDHE_2048;
         break;
 #endif /* HAVE_FFDHE_2048 */
 #ifdef HAVE_FFDHE_3072
-    case NID_ffdhe3072:
+    case WC_NID_ffdhe3072:
         name = WC_FFDHE_3072;
         break;
 #endif /* HAVE_FFDHE_3072 */
 #ifdef HAVE_FFDHE_4096
-    case NID_ffdhe4096:
+    case WC_NID_ffdhe4096:
         name = WC_FFDHE_4096;
         break;
 #endif /* HAVE_FFDHE_4096 */
@@ -9029,7 +9029,7 @@ int wolfSSL_EC_METHOD_get_field_type(const WOLFSSL_EC_METHOD *meth)
 
     if (meth != NULL) {
         /* Only field type supported by code base. */
-        nid = wc_NID_X9_62_prime_field;
+        nid = WC_NID_X9_62_prime_field;
     }
 
     return nid;
@@ -9053,62 +9053,62 @@ int EccEnumToNID(int n)
 
     switch(n) {
         case ECC_SECP192R1:
-            return wc_NID_X9_62_prime192v1;
+            return WC_NID_X9_62_prime192v1;
         case ECC_PRIME192V2:
-            return wc_NID_X9_62_prime192v2;
+            return WC_NID_X9_62_prime192v2;
         case ECC_PRIME192V3:
-            return wc_NID_X9_62_prime192v3;
+            return WC_NID_X9_62_prime192v3;
         case ECC_PRIME239V1:
-            return wc_NID_X9_62_prime239v1;
+            return WC_NID_X9_62_prime239v1;
         case ECC_PRIME239V2:
-            return wc_NID_X9_62_prime239v2;
+            return WC_NID_X9_62_prime239v2;
         case ECC_PRIME239V3:
-            return wc_NID_X9_62_prime239v3;
+            return WC_NID_X9_62_prime239v3;
         case ECC_SECP256R1:
-            return wc_NID_X9_62_prime256v1;
+            return WC_NID_X9_62_prime256v1;
         case ECC_SECP112R1:
-            return wc_NID_secp112r1;
+            return WC_NID_secp112r1;
         case ECC_SECP112R2:
-            return wc_NID_secp112r2;
+            return WC_NID_secp112r2;
         case ECC_SECP128R1:
-            return wc_NID_secp128r1;
+            return WC_NID_secp128r1;
         case ECC_SECP128R2:
-            return wc_NID_secp128r2;
+            return WC_NID_secp128r2;
         case ECC_SECP160R1:
-            return wc_NID_secp160r1;
+            return WC_NID_secp160r1;
         case ECC_SECP160R2:
-            return wc_NID_secp160r2;
+            return WC_NID_secp160r2;
         case ECC_SECP224R1:
-            return wc_NID_secp224r1;
+            return WC_NID_secp224r1;
         case ECC_SECP384R1:
-            return wc_NID_secp384r1;
+            return WC_NID_secp384r1;
         case ECC_SECP521R1:
-            return wc_NID_secp521r1;
+            return WC_NID_secp521r1;
         case ECC_SECP160K1:
-            return wc_NID_secp160k1;
+            return WC_NID_secp160k1;
         case ECC_SECP192K1:
-            return wc_NID_secp192k1;
+            return WC_NID_secp192k1;
         case ECC_SECP224K1:
-            return wc_NID_secp224k1;
+            return WC_NID_secp224k1;
         case ECC_SECP256K1:
-            return wc_NID_secp256k1;
+            return WC_NID_secp256k1;
         case ECC_BRAINPOOLP160R1:
-            return wc_NID_brainpoolP160r1;
+            return WC_NID_brainpoolP160r1;
         case ECC_BRAINPOOLP192R1:
-            return wc_NID_brainpoolP192r1;
+            return WC_NID_brainpoolP192r1;
         case ECC_BRAINPOOLP224R1:
-            return wc_NID_brainpoolP224r1;
+            return WC_NID_brainpoolP224r1;
         case ECC_BRAINPOOLP256R1:
-            return wc_NID_brainpoolP256r1;
+            return WC_NID_brainpoolP256r1;
         case ECC_BRAINPOOLP320R1:
-            return wc_NID_brainpoolP320r1;
+            return WC_NID_brainpoolP320r1;
         case ECC_BRAINPOOLP384R1:
-            return wc_NID_brainpoolP384r1;
+            return WC_NID_brainpoolP384r1;
         case ECC_BRAINPOOLP512R1:
-            return wc_NID_brainpoolP512r1;
+            return WC_NID_brainpoolP512r1;
     #ifdef WOLFSSL_SM2
         case ECC_SM2P256V1:
-            return wc_NID_sm2;
+            return WC_NID_sm2;
     #endif
         default:
             WOLFSSL_MSG("NID not found");
@@ -9133,85 +9133,85 @@ int NIDToEccEnum(int nid)
     WOLFSSL_ENTER("NIDToEccEnum");
 
     switch (nid) {
-        case wc_NID_X9_62_prime192v1:
+        case WC_NID_X9_62_prime192v1:
             id = ECC_SECP192R1;
             break;
-        case wc_NID_X9_62_prime192v2:
+        case WC_NID_X9_62_prime192v2:
             id = ECC_PRIME192V2;
             break;
-        case wc_NID_X9_62_prime192v3:
+        case WC_NID_X9_62_prime192v3:
             id = ECC_PRIME192V3;
             break;
-        case wc_NID_X9_62_prime239v1:
+        case WC_NID_X9_62_prime239v1:
             id = ECC_PRIME239V1;
             break;
-        case wc_NID_X9_62_prime239v2:
+        case WC_NID_X9_62_prime239v2:
             id = ECC_PRIME239V2;
             break;
-        case wc_NID_X9_62_prime239v3:
+        case WC_NID_X9_62_prime239v3:
             id = ECC_PRIME239V3;
             break;
-        case wc_NID_X9_62_prime256v1:
+        case WC_NID_X9_62_prime256v1:
             id = ECC_SECP256R1;
             break;
-        case wc_NID_secp112r1:
+        case WC_NID_secp112r1:
             id = ECC_SECP112R1;
             break;
-        case wc_NID_secp112r2:
+        case WC_NID_secp112r2:
             id = ECC_SECP112R2;
             break;
-        case wc_NID_secp128r1:
+        case WC_NID_secp128r1:
             id = ECC_SECP128R1;
             break;
-        case wc_NID_secp128r2:
+        case WC_NID_secp128r2:
             id = ECC_SECP128R2;
             break;
-        case wc_NID_secp160r1:
+        case WC_NID_secp160r1:
             id = ECC_SECP160R1;
             break;
-        case wc_NID_secp160r2:
+        case WC_NID_secp160r2:
             id = ECC_SECP160R2;
             break;
-        case wc_NID_secp224r1:
+        case WC_NID_secp224r1:
             id = ECC_SECP224R1;
             break;
-        case wc_NID_secp384r1:
+        case WC_NID_secp384r1:
             id = ECC_SECP384R1;
             break;
-        case wc_NID_secp521r1:
+        case WC_NID_secp521r1:
             id = ECC_SECP521R1;
             break;
-        case wc_NID_secp160k1:
+        case WC_NID_secp160k1:
             id = ECC_SECP160K1;
             break;
-        case wc_NID_secp192k1:
+        case WC_NID_secp192k1:
             id = ECC_SECP192K1;
             break;
-        case wc_NID_secp224k1:
+        case WC_NID_secp224k1:
             id = ECC_SECP224K1;
             break;
-        case wc_NID_secp256k1:
+        case WC_NID_secp256k1:
             id = ECC_SECP256K1;
             break;
-        case wc_NID_brainpoolP160r1:
+        case WC_NID_brainpoolP160r1:
             id = ECC_BRAINPOOLP160R1;
             break;
-        case wc_NID_brainpoolP192r1:
+        case WC_NID_brainpoolP192r1:
             id = ECC_BRAINPOOLP192R1;
             break;
-        case wc_NID_brainpoolP224r1:
+        case WC_NID_brainpoolP224r1:
             id = ECC_BRAINPOOLP224R1;
             break;
-        case wc_NID_brainpoolP256r1:
+        case WC_NID_brainpoolP256r1:
             id = ECC_BRAINPOOLP256R1;
             break;
-        case wc_NID_brainpoolP320r1:
+        case WC_NID_brainpoolP320r1:
             id = ECC_BRAINPOOLP320R1;
             break;
-        case wc_NID_brainpoolP384r1:
+        case WC_NID_brainpoolP384r1:
             id = ECC_BRAINPOOLP384R1;
             break;
-        case wc_NID_brainpoolP512r1:
+        case WC_NID_brainpoolP512r1:
             id = ECC_BRAINPOOLP512R1;
             break;
         default:
@@ -9623,53 +9623,53 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
     }
     else {
         switch (group->curve_nid) {
-            case wc_NID_secp112r1:
-            case wc_NID_secp112r2:
+            case WC_NID_secp112r1:
+            case WC_NID_secp112r2:
                 degree = 112;
                 break;
-            case wc_NID_secp128r1:
-            case wc_NID_secp128r2:
+            case WC_NID_secp128r1:
+            case WC_NID_secp128r2:
                 degree = 128;
                 break;
-            case wc_NID_secp160k1:
-            case wc_NID_secp160r1:
-            case wc_NID_secp160r2:
-            case wc_NID_brainpoolP160r1:
+            case WC_NID_secp160k1:
+            case WC_NID_secp160r1:
+            case WC_NID_secp160r2:
+            case WC_NID_brainpoolP160r1:
                 degree = 160;
                 break;
-            case wc_NID_secp192k1:
-            case wc_NID_brainpoolP192r1:
-            case wc_NID_X9_62_prime192v1:
-            case wc_NID_X9_62_prime192v2:
-            case wc_NID_X9_62_prime192v3:
+            case WC_NID_secp192k1:
+            case WC_NID_brainpoolP192r1:
+            case WC_NID_X9_62_prime192v1:
+            case WC_NID_X9_62_prime192v2:
+            case WC_NID_X9_62_prime192v3:
                 degree = 192;
                 break;
-            case wc_NID_secp224k1:
-            case wc_NID_secp224r1:
-            case wc_NID_brainpoolP224r1:
+            case WC_NID_secp224k1:
+            case WC_NID_secp224r1:
+            case WC_NID_brainpoolP224r1:
                 degree = 224;
                 break;
-            case wc_NID_X9_62_prime239v1:
-            case wc_NID_X9_62_prime239v2:
-            case wc_NID_X9_62_prime239v3:
+            case WC_NID_X9_62_prime239v1:
+            case WC_NID_X9_62_prime239v2:
+            case WC_NID_X9_62_prime239v3:
                 degree = 239;
                 break;
-            case wc_NID_secp256k1:
-            case wc_NID_brainpoolP256r1:
-            case wc_NID_X9_62_prime256v1:
+            case WC_NID_secp256k1:
+            case WC_NID_brainpoolP256r1:
+            case WC_NID_X9_62_prime256v1:
                 degree = 256;
                 break;
-            case wc_NID_brainpoolP320r1:
+            case WC_NID_brainpoolP320r1:
                 degree = 320;
                 break;
-            case wc_NID_secp384r1:
-            case wc_NID_brainpoolP384r1:
+            case WC_NID_secp384r1:
+            case WC_NID_brainpoolP384r1:
                 degree = 384;
                 break;
-            case wc_NID_brainpoolP512r1:
+            case WC_NID_brainpoolP512r1:
                 degree = 512;
                 break;
-            case wc_NID_secp521r1:
+            case WC_NID_secp521r1:
                 degree = 521;
                 break;
         }
@@ -11858,7 +11858,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId)
 
     if (!err) {
         /* Group unknown at creation */
-        key->group = wolfSSL_EC_GROUP_new_by_curve_name(wc_NID_undef);
+        key->group = wolfSSL_EC_GROUP_new_by_curve_name(WC_NID_undef);
         if (key->group == NULL) {
             WOLFSSL_MSG("wolfSSL_EC_KEY_new malloc WOLFSSL_EC_GROUP failure");
             err = 1;

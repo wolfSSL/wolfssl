@@ -234,7 +234,7 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 
 static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
 {
-    if (wolfSSL_EVP_MD_CTX_type(bio->ptr.md_ctx) == wc_NID_hmac) {
+    if (wolfSSL_EVP_MD_CTX_type(bio->ptr.md_ctx) == WC_NID_hmac) {
         if (wolfSSL_EVP_DigestSignUpdate(bio->ptr.md_ctx, buf,
                         (unsigned int)sz) != WOLFSSL_SUCCESS)
         {
@@ -642,7 +642,7 @@ static int wolfSSL_BIO_MD_write(WOLFSSL_BIO* bio, const void* data, int len)
         return BAD_FUNC_ARG;
     }
 
-    if (wolfSSL_EVP_MD_CTX_type(bio->ptr.md_ctx) == wc_NID_hmac) {
+    if (wolfSSL_EVP_MD_CTX_type(bio->ptr.md_ctx) == WC_NID_hmac) {
         if (wolfSSL_EVP_DigestSignUpdate(bio->ptr.md_ctx, data,
                     (unsigned int)len) != WOLFSSL_SUCCESS) {
             ret = WOLFSSL_BIO_ERROR;
