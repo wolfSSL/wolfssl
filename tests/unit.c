@@ -22,15 +22,11 @@
 
 /* Name change compatibility layer no longer need to be included here */
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
+#include <tests/unit.h>
 
-#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
 #include <stdio.h>
-#include <tests/unit.h>
 #include <wolfssl/wolfcrypt/fips_test.h>
 
 

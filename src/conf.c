@@ -603,7 +603,7 @@ char *wolfSSL_NCONF_get_string(const WOLFSSL_CONF *conf,
         return NULL;
 }
 
-int wolfSSL_NCONF_get_number(const CONF *conf, const char *group,
+int wolfSSL_NCONF_get_number(const WOLFSSL_CONF *conf, const char *group,
         const char *name, long *result)
 {
     char *str;
@@ -1582,7 +1582,7 @@ int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
 
     confcmd = wolfssl_conf_find_cmd(cctx, cmd);
     if (confcmd == NULL)
-        return SSL_CONF_TYPE_UNKNOWN;
+        return WOLFSSL_CONF_TYPE_UNKNOWN;
     return (int)confcmd->data_type;
 }
 
@@ -1594,21 +1594,21 @@ int wolfSSL_CONF_cmd_value_type(WOLFSSL_CONF_CTX *cctx, const char *cmd)
  ******************************************************************************/
 
 #if defined(OPENSSL_EXTRA)
-OPENSSL_INIT_SETTINGS* wolfSSL_OPENSSL_INIT_new(void)
+WOLFSSL_INIT_SETTINGS* wolfSSL_OPENSSL_INIT_new(void)
 {
-    OPENSSL_INIT_SETTINGS* init = (OPENSSL_INIT_SETTINGS*)XMALLOC(
-            sizeof(OPENSSL_INIT_SETTINGS), NULL, DYNAMIC_TYPE_OPENSSL);
+    WOLFSSL_INIT_SETTINGS* init = (WOLFSSL_INIT_SETTINGS*)XMALLOC(
+            sizeof(WOLFSSL_INIT_SETTINGS), NULL, DYNAMIC_TYPE_OPENSSL);
 
     return init;
 }
 
-void wolfSSL_OPENSSL_INIT_free(OPENSSL_INIT_SETTINGS* init)
+void wolfSSL_OPENSSL_INIT_free(WOLFSSL_INIT_SETTINGS* init)
 {
     XFREE(init, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
 #ifndef NO_WOLFSSL_STUB
-int wolfSSL_OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS* init,
+int wolfSSL_OPENSSL_INIT_set_config_appname(WOLFSSL_INIT_SETTINGS* init,
         char* appname)
 {
     (void)init;

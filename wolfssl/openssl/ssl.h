@@ -75,6 +75,46 @@
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
+#ifndef WOLFCRYPT_ONLY
+
+#define WOLFSSL_ERR_LIB_SYS             2
+#define WOLFSSL_ERR_LIB_RSA             4
+#define WOLFSSL_ERR_LIB_PEM             9
+#define WOLFSSL_ERR_LIB_X509            10
+#define WOLFSSL_ERR_LIB_EVP             11
+#define WOLFSSL_ERR_LIB_ASN1            12
+#define WOLFSSL_ERR_LIB_DIGEST          13
+#define WOLFSSL_ERR_LIB_CIPHER          14
+#define WOLFSSL_ERR_LIB_USER            15
+#define WOLFSSL_ERR_LIB_EC              16
+#define WOLFSSL_ERR_LIB_SSL             20
+#define WOLFSSL_ERR_LIB_PKCS12          35
+
+#endif
+
+#ifndef WOLFCRYPT_ONLY
+#define WOLFSSL_PEMerr(func, reason)    wolfSSL_ERR_put_error(WOLFSSL_ERR_LIB_PEM, \
+                                        (func), (reason), __FILE__, __LINE__)
+#else
+#define WOLFSSL_PEMerr(func, reason)    WOLFSSL_ERROR_LINE((reason), \
+                                        NULL, __LINE__, __FILE__, NULL)
+#endif
+#ifndef WOLFCRYPT_ONLY
+#define WOLFSSL_EVPerr(func, reason)    wolfSSL_ERR_put_error(WOLFSSL_ERR_LIB_EVP, \
+                                        (func), (reason), __FILE__, __LINE__)
+#else
+#define WOLFSSL_EVPerr(func, reason)    WOLFSSL_ERROR_LINE((reason), \
+                                        NULL, __LINE__, __FILE__, NULL)
+#endif
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
+#define WOLFSSL_AD_UNRECOGNIZED_NAME unrecognized_name
+
+#define WOLFSSL_TLSEXT_STATUSTYPE_ocsp  1
+
+#if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+
 typedef WOLFSSL          SSL;
 typedef WOLFSSL_SESSION  SSL_SESSION;
 typedef WOLFSSL_METHOD   SSL_METHOD;
@@ -159,11 +199,11 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define CRYPTO_set_mem_functions        wolfSSL_CRYPTO_set_mem_functions
 
-/* depreciated */
+/* deprecated */
 #define CRYPTO_thread_id                wolfSSL_thread_id
 #define CRYPTO_set_id_callback          wolfSSL_set_id_callback
 
-#define CRYPTO_LOCK             0x01
+/* compat CRYPTO_LOCK is defined in wolfssl/ssl.h */
 #define CRYPTO_UNLOCK           0x02
 #define CRYPTO_READ             0x04
 #define CRYPTO_WRITE            0x08
@@ -400,7 +440,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_SESSION_get_max_early_data  wolfSSL_SESSION_get_max_early_data
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-    #define SSL_MODE_RELEASE_BUFFERS     0x00000010U
+    /* compat SSL_MODE_RELEASE_BUFFERS is defined in wolfssl/ssl.h */
     #define ASN1_BOOLEAN                 WOLFSSL_ASN1_BOOLEAN
     #define X509_get_ext                 wolfSSL_X509_get_ext
     #define X509_get_ext_by_OBJ          wolfSSL_X509_get_ext_by_OBJ
@@ -1089,20 +1129,8 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ERR_lib_error_string            wolfSSL_ERR_lib_error_string
 #define ERR_load_BIO_strings            wolfSSL_ERR_load_BIO_strings
 
-#ifndef WOLFCRYPT_ONLY
-#define PEMerr(func, reason)            wolfSSL_ERR_put_error(ERR_LIB_PEM, \
-                                        (func), (reason), __FILE__, __LINE__)
-#else
-#define PEMerr(func, reason)            WOLFSSL_ERROR_LINE((reason), \
-                                        NULL, __LINE__, __FILE__, NULL)
-#endif
-#ifndef WOLFCRYPT_ONLY
-#define EVPerr(func, reason)            wolfSSL_ERR_put_error(ERR_LIB_EVP, \
-                                        (func), (reason), __FILE__, __LINE__)
-#else
-#define EVPerr(func, reason)            WOLFSSL_ERROR_LINE((reason), \
-                                        NULL, __LINE__, __FILE__, NULL)
-#endif
+#define PEMerr(func, reason)            WOLFSSL_PEMerr(func, reason)
+#define EVPerr(func, reason)            WOLFSSL_EVPerr(func, reason)
 
 #define SSLv23_server_method            wolfSSLv23_server_method
 #define SSL_CTX_set_options             wolfSSL_CTX_set_options
@@ -1280,7 +1308,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTX_set_dh_auto             wolfSSL_CTX_set_dh_auto
 #define SSL_CTX_set_tmp_dh              wolfSSL_CTX_set_tmp_dh
 
-#define TLSEXT_STATUSTYPE_ocsp  1
+#define TLSEXT_STATUSTYPE_ocsp          WOLFSSL_TLSEXT_STATUSTYPE_ocsp
 
 #define TLSEXT_max_fragment_length_DISABLED WOLFSSL_MFL_DISABLED
 #define TLSEXT_max_fragment_length_512   WOLFSSL_MFL_2_9
@@ -1420,13 +1448,11 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #define SSL3_AD_BAD_CERTIFICATE          bad_certificate
 #define SSL_AD_BAD_CERTIFICATE           SSL3_AD_BAD_CERTIFICATE
-#define SSL_AD_UNRECOGNIZED_NAME         unrecognized_name
+#define SSL_AD_UNRECOGNIZED_NAME         WOLFSSL_AD_UNRECOGNIZED_NAME
 #define SSL_AD_NO_RENEGOTIATION          no_renegotiation
 #define SSL_AD_INTERNAL_ERROR            80
 #define SSL_AD_NO_APPLICATION_PROTOCOL   no_application_protocol
 #define SSL_AD_MISSING_EXTENSION         missing_extension
-
-#define ASN1_STRFLGS_ESC_MSB             4
 
 #define SSL_MAX_MASTER_KEY_LENGTH       WOLFSSL_MAX_MASTER_KEY_LENGTH
 
@@ -1557,32 +1583,31 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 
 #define PEM_F_PEM_DEF_CALLBACK  100
 
-/* Avoid wolfSSL error code range */
-#define PEM_R_NO_START_LINE             (-MIN_CODE_E + 1)
-#define PEM_R_PROBLEMS_GETTING_PASSWORD (-MIN_CODE_E + 2)
-#define PEM_R_BAD_PASSWORD_READ         (-MIN_CODE_E + 3)
-#define PEM_R_BAD_DECRYPT               (-MIN_CODE_E + 4)
-#define ASN1_R_HEADER_TOO_LONG          (-MIN_CODE_E + 5)
+#include <wolfssl/error-ssl.h>
 
-#define ERR_LIB_SYS             2
-#define ERR_LIB_RSA             4
-#define ERR_LIB_PEM             9
-#define ERR_LIB_X509            10
-#define ERR_LIB_EVP             11
-#define ERR_LIB_ASN1            12
-#define ERR_LIB_DIGEST          13
-#define ERR_LIB_CIPHER          14
-#define ERR_LIB_USER            15
-#define ERR_LIB_EC              16
-#define ERR_LIB_SSL             20
-#define ERR_LIB_PKCS12          35
+#define PEM_R_NO_START_LINE             (-WOLFSSL_PEM_R_NO_START_LINE_E)
+#define PEM_R_PROBLEMS_GETTING_PASSWORD (-WOLFSSL_PEM_R_PROBLEMS_GETTING_PASSWORD_E)
+#define PEM_R_BAD_PASSWORD_READ         (-WOLFSSL_PEM_R_BAD_PASSWORD_READ_E)
+#define PEM_R_BAD_DECRYPT               (-WOLFSSL_PEM_R_BAD_DECRYPT_E)
+#define ASN1_R_HEADER_TOO_LONG          (-WOLFSSL_ASN1_R_HEADER_TOO_LONG_E)
+
+#define ERR_LIB_SYS             WOLFSSL_ERR_LIB_SYS
+#define ERR_LIB_RSA             WOLFSSL_ERR_LIB_RSA
+#define ERR_LIB_PEM             WOLFSSL_ERR_LIB_PEM
+#define ERR_LIB_X509            WOLFSSL_ERR_LIB_X509
+#define ERR_LIB_EVP             WOLFSSL_ERR_LIB_EVP
+#define ERR_LIB_ASN1            WOLFSSL_ERR_LIB_ASN1
+#define ERR_LIB_DIGEST          WOLFSSL_ERR_LIB_DIGEST
+#define ERR_LIB_CIPHER          WOLFSSL_ERR_LIB_CIPHER
+#define ERR_LIB_USER            WOLFSSL_ERR_LIB_USER
+#define ERR_LIB_EC              WOLFSSL_ERR_LIB_EC
+#define ERR_LIB_SSL             WOLFSSL_ERR_LIB_SSL
+#define ERR_LIB_PKCS12          WOLFSSL_ERR_LIB_PKCS12
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
     defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) || \
     defined(WOLFSSL_WPAS_SMALL)
-
-#include <wolfssl/error-ssl.h>
 
 #define OPENSSL_STRING    WOLFSSL_STRING
 #define OPENSSL_CSTRING   WOLFSSL_STRING
@@ -1766,7 +1791,7 @@ typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
 #define SSL_CONF_cmd                    wolfSSL_CONF_cmd
 #define SSL_CONF_cmd_value_type         wolfSSL_CONF_cmd_value_type
 
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
 
 #ifdef WOLFSSL_QUIC

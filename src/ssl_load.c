@@ -1397,7 +1397,7 @@ static int ProcessBufferPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     #ifdef OPENSSL_EXTRA
         /* Decryption password is probably wrong. */
         if (info->passwd_cb) {
-            EVPerr(0, EVP_R_BAD_DECRYPT);
+            WOLFSSL_EVPerr(0, -WOLFSSL_EVP_R_BAD_DECRYPT_E);
         }
     #endif
         WOLFSSL_ERROR(WOLFSSL_BAD_FILE);
@@ -4946,19 +4946,19 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
     if (ret == 1) {
         switch (pkey->type) {
     #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
-        case EVP_PKEY_RSA:
+        case WC_EVP_PKEY_RSA:
             WOLFSSL_MSG("populating RSA key");
             ret = PopulateRSAEvpPkeyDer(pkey);
             break;
     #endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA */
     #if !defined(HAVE_SELFTEST) && (defined(WOLFSSL_KEY_GEN) || \
             defined(WOLFSSL_CERT_GEN)) && !defined(NO_DSA)
-        case EVP_PKEY_DSA:
+        case WC_EVP_PKEY_DSA:
             break;
     #endif /* !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) &&
             * !NO_DSA */
     #ifdef HAVE_ECC
-        case EVP_PKEY_EC:
+        case WC_EVP_PKEY_EC:
             WOLFSSL_MSG("populating ECC key");
             ret = ECC_populate_EVP_PKEY(pkey, pkey->ecc);
             break;
@@ -4972,7 +4972,7 @@ int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey)
         /* ptr for WOLFSSL_EVP_PKEY struct is expected to be DER format */
         ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx,
             (const unsigned char*)pkey->pkey.ptr, pkey->pkey_sz,
-            SSL_FILETYPE_ASN1);
+            WOLFSSL_FILETYPE_ASN1);
     }
 
     return ret;

@@ -5549,7 +5549,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 #ifdef WOLFSSL_APACHE_HTTPD
         case oidCertNameType:
             switch (id) {
-                 case NID_id_on_dnsSRV:
+                 case wc_NID_id_on_dnsSRV:
                     oid = dnsSRVOid;
                     *oidSz = sizeof(dnsSRVOid);
                     break;
@@ -13102,7 +13102,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_commonName
+        wc_NID_commonName
 #endif
     },
     /* Surname */
@@ -13119,7 +13119,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_surname
+        wc_NID_surname
 #endif
     },
     /* Serial Number */
@@ -13136,7 +13136,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_serialNumber
+        wc_NID_serialNumber
 #endif
     },
     /* Country Name */
@@ -13153,7 +13153,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_countryName
+        wc_NID_countryName
 #endif
     },
     /* Locality Name */
@@ -13170,7 +13170,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_localityName
+        wc_NID_localityName
 #endif
     },
     /* State Name */
@@ -13187,7 +13187,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_stateOrProvinceName
+        wc_NID_stateOrProvinceName
 #endif
     },
     /* Street Address */
@@ -13204,7 +13204,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_streetAddress
+        wc_NID_streetAddress
 #endif
     },
     /* Organization Name */
@@ -13221,7 +13221,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_organizationName
+        wc_NID_organizationName
 #endif
     },
     /* Organization Unit Name */
@@ -13238,7 +13238,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_organizationalUnitName
+        wc_NID_organizationalUnitName
 #endif
     },
     /* Title */
@@ -13306,7 +13306,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_businessCategory
+        wc_NID_businessCategory
 #endif
     },
     /* Undefined */
@@ -13340,7 +13340,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_postalCode
+        wc_NID_postalCode
 #endif
     },
     /* User Id */
@@ -13357,7 +13357,7 @@ static const CertNameData certNameSubject[] = {
 #endif
 #endif
 #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_userId
+        wc_NID_userId
 #endif
     },
 #ifdef WOLFSSL_CERT_NAME_ALL
@@ -13375,7 +13375,7 @@ static const CertNameData certNameSubject[] = {
 #endif
     #endif
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_name
+        wc_NID_name
     #endif
     },
     /* Given Name, id 42 */
@@ -13392,7 +13392,7 @@ static const CertNameData certNameSubject[] = {
 #endif
     #endif
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_givenName
+        wc_NID_givenName
     #endif
     },
     /* initials, id 43 */
@@ -13409,7 +13409,7 @@ static const CertNameData certNameSubject[] = {
 #endif
     #endif
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_initials
+        wc_NID_initials
     #endif
     },
     /* DN Qualifier Name, id 46 */
@@ -13426,7 +13426,7 @@ static const CertNameData certNameSubject[] = {
 #endif
     #endif
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        NID_dnQualifier
+        wc_NID_dnQualifier
     #endif
     },
 #endif /* WOLFSSL_CERT_NAME_ALL */
@@ -13863,7 +13863,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         typeStr =  WOLFSSL_EMAIL_ADDR;
         typeStrLen = sizeof(WOLFSSL_EMAIL_ADDR) - 1;
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        *nid = NID_emailAddress;
+        *nid = wc_NID_emailAddress;
     #endif
     }
     else if (oidSz == sizeof(uidOid) && XMEMCMP(oid, uidOid, oidSz) == 0) {
@@ -13872,7 +13872,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         typeStr = WOLFSSL_USER_ID;
         typeStrLen = sizeof(WOLFSSL_USER_ID) - 1;
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        *nid = NID_userId;
+        *nid = wc_NID_userId;
     #endif
     }
     else if (oidSz == sizeof(dcOid) && XMEMCMP(oid, dcOid, oidSz) == 0) {
@@ -13881,7 +13881,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         typeStr = WOLFSSL_DOMAIN_COMPONENT;
         typeStrLen = sizeof(WOLFSSL_DOMAIN_COMPONENT) - 1;
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        *nid = NID_domainComponent;
+        *nid = wc_NID_domainComponent;
     #endif
     }
     else if (oidSz == sizeof(fvrtDrk) && XMEMCMP(oid, fvrtDrk, oidSz) == 0) {
@@ -13890,7 +13890,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         typeStr = WOLFSSL_FAVOURITE_DRINK;
         typeStrLen = sizeof(WOLFSSL_FAVOURITE_DRINK) - 1;
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        *nid = NID_favouriteDrink;
+        *nid = wc_NID_favouriteDrink;
     #endif
     }
 #ifdef WOLFSSL_CERT_REQ
@@ -13901,7 +13901,7 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         typeStr = WOLFSSL_CONTENT_TYPE;
         typeStrLen = sizeof(WOLFSSL_CONTENT_TYPE) - 1;
     #ifdef WOLFSSL_X509_NAME_AVAILABLE
-        *nid = NID_pkcs9_contentType;
+        *nid = wc_NID_pkcs9_contentType;
     #endif
     }
 #endif
@@ -13921,14 +13921,14 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
             typeStr = WOLFSSL_JOI_C;
             typeStrLen = sizeof(WOLFSSL_JOI_C) - 1;
         #ifdef WOLFSSL_X509_NAME_AVAILABLE
-            *nid = NID_jurisdictionCountryName;
+            *nid = wc_NID_jurisdictionCountryName;
         #endif /* WOLFSSL_X509_NAME_AVAILABLE */
         }
         else if (oid[ASN_JOI_PREFIX_SZ] == ASN_JOI_ST) {
             typeStr = WOLFSSL_JOI_ST;
             typeStrLen = sizeof(WOLFSSL_JOI_ST) - 1;
         #ifdef WOLFSSL_X509_NAME_AVAILABLE
-            *nid = NID_jurisdictionStateOrProvinceName;
+            *nid = wc_NID_jurisdictionStateOrProvinceName;
         #endif /* WOLFSSL_X509_NAME_AVAILABLE */
         }
         else {
@@ -14063,7 +14063,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
         byte        id      = 0;
     #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
                 && !defined(WOLFCRYPT_ONLY)
-         int        nid = NID_undef;
+         int        nid = wc_NID_undef;
          int        enc;
     #endif /* OPENSSL_EXTRA */
 
@@ -14146,7 +14146,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 copyLen = sizeof(WOLFSSL_COMMON_NAME) - 1;
             #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
                 && !defined(WOLFCRYPT_ONLY)
-                nid = NID_commonName;
+                nid = wc_NID_commonName;
             #endif /* OPENSSL_EXTRA */
             }
         #ifdef WOLFSSL_CERT_NAME_ALL
@@ -14163,7 +14163,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_name;
+                    nid = wc_NID_name;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_INITIALS) {
@@ -14179,7 +14179,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_initials;
+                    nid = wc_NID_initials;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_GIVEN_NAME) {
@@ -14195,7 +14195,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_givenName;
+                    nid = wc_NID_givenName;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_DNQUALIFIER) {
@@ -14211,7 +14211,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_dnQualifier;
+                    nid = wc_NID_dnQualifier;
                 #endif /* OPENSSL_EXTRA */
             }
         #endif /* WOLFSSL_CERT_NAME_ALL */
@@ -14235,7 +14235,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_surname;
+                    nid = wc_NID_surname;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_COUNTRY_NAME) {
@@ -14258,7 +14258,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_countryName;
+                    nid = wc_NID_countryName;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_LOCALITY_NAME) {
@@ -14281,7 +14281,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_localityName;
+                    nid = wc_NID_localityName;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_STATE_NAME) {
@@ -14304,7 +14304,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_stateOrProvinceName;
+                    nid = wc_NID_stateOrProvinceName;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_ORG_NAME) {
@@ -14327,7 +14327,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_organizationName;
+                    nid = wc_NID_organizationName;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_ORGUNIT_NAME) {
@@ -14350,7 +14350,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_organizationalUnitName;
+                    nid = wc_NID_organizationalUnitName;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_SERIAL_NUMBER) {
@@ -14373,7 +14373,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_serialNumber;
+                    nid = wc_NID_serialNumber;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_USER_ID) {
@@ -14389,7 +14389,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_userId;
+                    nid = wc_NID_userId;
                 #endif /* OPENSSL_EXTRA */
             }
         #ifdef WOLFSSL_CERT_EXT
@@ -14406,7 +14406,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_streetAddress;
+                    nid = wc_NID_streetAddress;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_BUS_CAT) {
@@ -14421,7 +14421,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
             #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
             #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                nid = NID_businessCategory;
+                nid = wc_NID_businessCategory;
             #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_POSTAL_CODE) {
@@ -14437,7 +14437,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_postalCode;
+                    nid = wc_NID_postalCode;
                 #endif /* OPENSSL_EXTRA */
             }
         #endif /* WOLFSSL_CERT_EXT */
@@ -14476,7 +14476,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_jurisdictionCountryName;
+                    nid = wc_NID_jurisdictionCountryName;
                 #endif /* OPENSSL_EXTRA */
             }
 
@@ -14494,7 +14494,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_jurisdictionStateOrProvinceName;
+                    nid = wc_NID_jurisdictionStateOrProvinceName;
                 #endif /* OPENSSL_EXTRA */
             }
 
@@ -14564,7 +14564,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                    nid = NID_emailAddress;
+                    nid = wc_NID_emailAddress;
                 #endif /* OPENSSL_EXTRA */
             }
 
@@ -14576,7 +14576,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                        nid = NID_userId;
+                        nid = wc_NID_userId;
                     #endif /* OPENSSL_EXTRA */
                         break;
                     case ASN_DOMAIN_COMPONENT:
@@ -14585,7 +14585,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                        nid = NID_domainComponent;
+                        nid = wc_NID_domainComponent;
                     #endif /* OPENSSL_EXTRA */
                         break;
                     case ASN_FAVOURITE_DRINK:
@@ -14594,7 +14594,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                        nid = NID_favouriteDrink;
+                        nid = wc_NID_favouriteDrink;
                     #endif /* OPENSSL_EXTRA */
                         break;
                     case ASN_CONTENT_TYPE:
@@ -14603,7 +14603,7 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                     #if (defined(OPENSSL_EXTRA) || \
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
-                        nid = NID_pkcs9_contentType;
+                        nid = wc_NID_pkcs9_contentType;
                     #endif /* OPENSSL_EXTRA */
                         break;
                     default:
@@ -14635,14 +14635,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 enc = MBSTRING_UTF8;
                 break;
             case CTC_PRINTABLE:
-                enc = V_ASN1_PRINTABLESTRING;
+                enc = WOLFSSL_ASN1_TYPE_PRINTABLESTRING;
                 break;
             default:
                 WOLFSSL_MSG("Unknown encoding type, using UTF8 by default");
                 enc = MBSTRING_UTF8;
         }
 
-        if (nid != NID_undef) {
+        if (nid != wc_NID_undef) {
             if (wolfSSL_X509_NAME_add_entry_by_NID(dName, nid, enc,
                             &input[srcIdx], strLen, -1, -1) !=
                             WOLFSSL_SUCCESS) {
@@ -14772,14 +14772,14 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                 /* Convert BER tag to a OpenSSL type. */
                 switch (tag) {
                     case CTC_UTF8:
-                        enc = MBSTRING_UTF8;
+                        enc = WOLFSSL_MBSTRING_UTF8;
                         break;
                     case CTC_PRINTABLE:
-                        enc = V_ASN1_PRINTABLESTRING;
+                        enc = WOLFSSL_ASN1_TYPE_PRINTABLESTRING;
                         break;
                     default:
                         WOLFSSL_MSG("Unknown encoding type, default UTF8");
-                        enc = MBSTRING_UTF8;
+                        enc = WOLFSSL_MBSTRING_UTF8;
                 }
                 if (nid != 0) {
                     /* Add an entry to the X509_NAME. */
@@ -25817,14 +25817,14 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
 #ifdef OPENSSL_EXTRA
             if (ret) {
-                PEMerr(0, PEM_R_BAD_DECRYPT);
+                WOLFSSL_PEMerr(0, WOLFSSL_PEM_R_BAD_DECRYPT_E);
             }
 #endif
             ForceZero(password, (word32)passwordSz);
         }
 #ifdef OPENSSL_EXTRA
         else {
-            PEMerr(0, PEM_R_BAD_PASSWORD_READ);
+            WOLFSSL_PEMerr(0, WOLFSSL_PEM_R_BAD_PASSWORD_READ_E);
         }
 #endif
 

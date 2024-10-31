@@ -166,7 +166,7 @@ int wolfssl_bn_set_value(WOLFSSL_BIGNUM** bn, mp_int* mpi)
 
     /* Dispose of any allocated big number on error. */
     if ((ret == -1) && (a != NULL)) {
-        BN_free(a);
+        wolfSSL_BN_free(a);
         *bn = NULL;
     }
     return ret;

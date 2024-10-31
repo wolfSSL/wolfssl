@@ -32,6 +32,11 @@
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#ifdef OPENSSL_EXTRA
+    #undef OPENSSL_COEXIST /* can't use this option with this example */
+#endif
+
 #include <wolfssl/ssl.h>
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS

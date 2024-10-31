@@ -348,7 +348,7 @@ static int der_write_to_file_as_pem(const unsigned char* der, int derSz,
  * @return  1 on success.
  * @return  0 on error.
  */
-int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
+int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
     unsigned char* passwd, int passwdSz, byte **cipherInfo, int maxDerSz)
 {
     int ret = 0;
@@ -482,8 +482,8 @@ int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
  * @return  0 on failure.
  */
 static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
-    const EVP_CIPHER *cipher, unsigned char *passwd, int passwdSz, int type,
-    void* heap, byte** out, int* outSz)
+    const WOLFSSL_EVP_CIPHER *cipher, unsigned char *passwd, int passwdSz,
+    int type, void* heap, byte** out, int* outSz)
 {
     int ret = 1;
     byte* tmp = NULL;
@@ -2155,8 +2155,9 @@ WOLFSSL_RSA* wolfSSL_PEM_read_RSAPublicKey(XFILE fp, WOLFSSL_RSA** rsa,
  * @return  1 on success.
  * @return  0 on failure.
  */
-int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
-    unsigned char* passwd, int passwdSz, unsigned char **pem, int *pLen)
+int wolfSSL_PEM_write_mem_RSAPrivateKey(WOLFSSL_RSA* rsa,
+    const WOLFSSL_EVP_CIPHER* cipher, unsigned char* passwd, int passwdSz,
+    unsigned char **pem, int *pLen)
 {
     int ret = 1;
     byte* derBuf = NULL;
@@ -2261,7 +2262,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa,
  * @return  0 on failure.
  */
 int wolfSSL_PEM_write_RSAPrivateKey(XFILE fp, WOLFSSL_RSA *rsa,
-    const EVP_CIPHER *cipher, unsigned char *passwd, int passwdSz,
+    const WOLFSSL_EVP_CIPHER *cipher, unsigned char *passwd, int passwdSz,
     wc_pem_password_cb *cb, void *arg)
 {
     int ret = 1;
@@ -3857,15 +3858,15 @@ static int wolfssl_rsa_sig_encode(int hashAlg, const unsigned char* hash,
         ret = 0;
     }
 
-    if ((ret == 1) && (hashAlg != NID_undef) &&
-            (padding == RSA_PKCS1_PADDING)) {
+    if ((ret == 1) && (hashAlg != wc_NID_undef) &&
+            (padding == WC_RSA_PKCS1_PADDING)) {
         /* Convert hash algorithm to hash type for PKCS#1.5 padding. */
         hType = (int)nid2oid(hashAlg, oidHashType);
         if (hType == -1) {
             ret = 0;
         }
     }
-    if ((ret == 1) && (padding == RSA_PKCS1_PADDING)) {
+    if ((ret == 1) && (padding == WC_RSA_PKCS1_PADDING)) {
         /* PKCS#1.5 encoding. */
         word32 encSz = wc_EncodeSignature(enc, hash, hLen, hType);
         if (encSz == 0) {
@@ -3877,7 +3878,7 @@ static int wolfssl_rsa_sig_encode(int hashAlg, const unsigned char* hash,
         }
     }
     /* Other padding schemes require the hash as is. */
-    if ((ret == 1) && (padding != RSA_PKCS1_PADDING)) {
+    if ((ret == 1) && (padding != WC_RSA_PKCS1_PADDING)) {
         XMEMCPY(enc, hash, hLen);
         *encLen = hLen;
     }
@@ -3905,7 +3906,7 @@ int wolfSSL_RSA_sign(int hashAlg, const unsigned char* hash, unsigned int hLen,
     }
     /* flag is 1: output complete signature. */
     return wolfSSL_RSA_sign_generic_padding(hashAlg, hash, hLen, sigRet,
-        sigLen, rsa, 1, RSA_PKCS1_PADDING);
+        sigLen, rsa, 1, WC_RSA_PKCS1_PADDING);
 }
 
 /* Sign the message hash using hash algorithm and RSA key.
@@ -3935,7 +3936,7 @@ int wolfSSL_RSA_sign_ex(int hashAlg, const unsigned char* hash,
             *sigLen = RSA_MAX_SIZE / CHAR_BIT;
         }
         ret = wolfSSL_RSA_sign_generic_padding(hashAlg, hash, hLen, sigRet,
-            sigLen, rsa, flag, RSA_PKCS1_PADDING);
+            sigLen, rsa, flag, WC_RSA_PKCS1_PADDING);
     }
 
     return ret;
@@ -3957,7 +3958,7 @@ int wolfSSL_RSA_sign_ex(int hashAlg, const unsigned char* hash,
  *                           0: Output the value that the unpadded signature
  *                              should be compared to.
  * @param [in]      padding  Padding to use. Only RSA_PKCS1_PSS_PADDING and
- *                           RSA_PKCS1_PADDING are currently supported for
+ *                           WC_RSA_PKCS1_PADDING are currently supported for
  *                           signing.
  * @return  1 on success.
  * @return  0 on failure.
@@ -4046,7 +4047,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     if (ret == 1) {
         switch (padding) {
     #if defined(WC_RSA_NO_PADDING) || defined(WC_RSA_DIRECT)
-        case RSA_NO_PADDING:
+        case WC_RSA_NO_PAD:
             if ((signSz = wc_RsaDirect(encodedSig, encSz, sigRet, &outLen,
                 (RsaKey*)rsa->internal, RSA_PRIVATE_ENCRYPT, rng)) <= 0) {
                 WOLFSSL_ERROR_MSG("Bad Rsa Sign no pad");
@@ -4056,7 +4057,7 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
     #endif
     #if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,1))
-        case RSA_PKCS1_PSS_PADDING:
+        case WC_RSA_PKCS1_PSS_PADDING:
         {
             enum wc_HashType hType =
                 wc_OidGetHash((int)nid2oid(hashAlg, oidHashType));
@@ -4075,14 +4076,14 @@ int wolfSSL_RSA_sign_generic_padding(int hashAlg, const unsigned char* hash,
         }
     #endif
     #ifndef WC_NO_RSA_OAEP
-        case RSA_PKCS1_OAEP_PADDING:
+        case WC_RSA_PKCS1_OAEP_PADDING:
             /* Not a signature padding scheme. */
             WOLFSSL_ERROR_MSG("RSA_PKCS1_OAEP_PADDING not supported for "
                               "signing");
             ret = 0;
             break;
     #endif
-        case RSA_PKCS1_PADDING:
+        case WC_RSA_PKCS1_PADDING:
         {
             /* Sign (private encrypt) PKCS#1 encoded signature. */
             if ((signSz = wc_RsaSSL_Sign(encodedSig, encSz, sigRet, outLen,
@@ -4135,7 +4136,7 @@ int wolfSSL_RSA_verify(int hashAlg, const unsigned char* hash,
     WOLFSSL_RSA* rsa)
 {
     return wolfSSL_RSA_verify_ex(hashAlg, hash, hLen, sig, sigLen, rsa,
-        RSA_PKCS1_PADDING);
+        WC_RSA_PKCS1_PADDING);
 }
 
 /**
@@ -4150,7 +4151,7 @@ int wolfSSL_RSA_verify(int hashAlg, const unsigned char* hash,
  * @param [in]  sigLen   Length of signature data.
  * @param [in]  rsa      RSA key used to sign the input
  * @param [in]  padding  Padding to use. Only RSA_PKCS1_PSS_PADDING and
- *                       RSA_PKCS1_PADDING are currently supported for
+ *                       WC_RSA_PKCS1_PADDING are currently supported for
  *                       signing.
  * @return  1 on success.
  * @return  0 on failure.
@@ -4190,7 +4191,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         }
     }
 #ifdef WOLFSSL_SMALL_STACK
-    if ((ret == 1) && (padding != RSA_PKCS1_PSS_PADDING)) {
+    if ((ret == 1) && (padding != WC_RSA_PKCS1_PSS_PADDING)) {
         /* Allocate memory for encoded signature. */
         encodedSig = (unsigned char *)XMALLOC(len, NULL,
             DYNAMIC_TYPE_TMP_BUFFER);
@@ -4200,7 +4201,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
         }
     }
 #endif
-    if ((ret == 1) && (padding != RSA_PKCS1_PSS_PADDING)) {
+    if ((ret == 1) && (padding != WC_RSA_PKCS1_PSS_PADDING)) {
         /* Make encoded signature to compare with decrypted signature. */
         if (wolfssl_rsa_sig_encode(hashAlg, hash, hLen, encodedSig, &len,
                 padding) <= 0) {
@@ -4229,7 +4230,7 @@ int wolfSSL_RSA_verify_ex(int hashAlg, const unsigned char* hash,
     if (ret == 1) {
     #if defined(WC_RSA_PSS) && !defined(HAVE_SELFTEST) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 1))
-        if (padding == RSA_PKCS1_PSS_PADDING) {
+        if (padding == WC_RSA_PKCS1_PSS_PADDING) {
             /* Check PSS padding is valid. */
             if (wc_RsaPSS_CheckPadding_ex(hash, hLen, sigDec, (word32)verLen,
                     hType, DEF_PSS_SALT_LEN,
@@ -4305,15 +4306,15 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     #if !defined(HAVE_FIPS)
         /* Convert to wolfCrypt padding, hash and MGF. */
         switch (padding) {
-        case RSA_PKCS1_PADDING:
+        case WC_RSA_PKCS1_PADDING:
             pad_type = WC_RSA_PKCSV15_PAD;
             break;
-        case RSA_PKCS1_OAEP_PADDING:
+        case WC_RSA_PKCS1_OAEP_PADDING:
             pad_type = WC_RSA_OAEP_PAD;
             hash = WC_HASH_TYPE_SHA;
             mgf = WC_MGF1SHA1;
             break;
-        case RSA_NO_PADDING:
+        case WC_RSA_NO_PAD:
             pad_type = WC_RSA_NO_PAD;
             break;
         default:
@@ -4324,7 +4325,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* from,
     #else
         /* Check for supported padding schemes in FIPS. */
         /* TODO: Do we support more schemes in later versions of FIPS? */
-        if (padding != RSA_PKCS1_PADDING) {
+        if (padding != WC_RSA_PKCS1_PADDING) {
             WOLFSSL_ERROR_MSG("RSA_public_encrypt pad type not supported in "
                               "FIPS");
             ret = WOLFSSL_FATAL_ERROR;
@@ -4417,15 +4418,15 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     if (ret == 0) {
     #if !defined(HAVE_FIPS)
         switch (padding) {
-        case RSA_PKCS1_PADDING:
+        case WC_RSA_PKCS1_PADDING:
             pad_type = WC_RSA_PKCSV15_PAD;
             break;
-        case RSA_PKCS1_OAEP_PADDING:
+        case WC_RSA_PKCS1_OAEP_PADDING:
             pad_type = WC_RSA_OAEP_PAD;
             hash = WC_HASH_TYPE_SHA;
             mgf = WC_MGF1SHA1;
             break;
-        case RSA_NO_PADDING:
+        case WC_RSA_NO_PAD:
             pad_type = WC_RSA_NO_PAD;
             break;
         default:
@@ -4435,7 +4436,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* from,
     #else
         /* Check for supported padding schemes in FIPS. */
         /* TODO: Do we support more schemes in later versions of FIPS? */
-        if (padding != RSA_PKCS1_PADDING) {
+        if (padding != WC_RSA_PKCS1_PADDING) {
             WOLFSSL_ERROR_MSG("RSA_public_encrypt pad type not supported in "
                               "FIPS");
             ret = WOLFSSL_FATAL_ERROR;
@@ -4508,10 +4509,10 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
     if (ret == 0) {
     #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
         switch (padding) {
-        case RSA_PKCS1_PADDING:
+        case WC_RSA_PKCS1_PADDING:
             pad_type = WC_RSA_PKCSV15_PAD;
             break;
-        case RSA_NO_PADDING:
+        case WC_RSA_NO_PAD:
             pad_type = WC_RSA_NO_PAD;
             break;
         /* TODO: RSA_X931_PADDING not supported */
@@ -4520,7 +4521,7 @@ int wolfSSL_RSA_public_decrypt(int len, const unsigned char* from,
             ret = WOLFSSL_FATAL_ERROR;
         }
     #else
-        if (padding != RSA_PKCS1_PADDING) {
+        if (padding != WC_RSA_PKCS1_PADDING) {
             WOLFSSL_ERROR_MSG("RSA_public_decrypt pad type not supported in "
                               "FIPS");
             ret = WOLFSSL_FATAL_ERROR;
@@ -4599,9 +4600,9 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
 
     if (ret == 0) {
         switch (padding) {
-        case RSA_PKCS1_PADDING:
+        case WC_RSA_PKCS1_PADDING:
     #ifdef WC_RSA_NO_PADDING
-        case RSA_NO_PADDING:
+        case WC_RSA_NO_PAD:
     #endif
             break;
         /* TODO: RSA_X931_PADDING not supported */
@@ -4627,12 +4628,12 @@ int wolfSSL_RSA_private_encrypt(int len, const unsigned char* from,
     if (ret == 0) {
         /* Use wolfCrypt to private-encrypt with RSA key.
          * Size of output buffer must be size of RSA key. */
-        if (padding == RSA_PKCS1_PADDING) {
+        if (padding == WC_RSA_PKCS1_PADDING) {
             ret = wc_RsaSSL_Sign(from, (word32)len, to,
                 (word32)wolfSSL_RSA_size(rsa), (RsaKey*)rsa->internal, rng);
         }
     #ifdef WC_RSA_NO_PADDING
-        else if (padding == RSA_NO_PADDING) {
+        else if (padding == WC_RSA_NO_PAD) {
             word32 outLen = (word32)wolfSSL_RSA_size(rsa);
             ret = wc_RsaFunction(from, (word32)len, to, &outLen,
                     RSA_PRIVATE_ENCRYPT, (RsaKey*)rsa->internal, rng);
@@ -5824,7 +5825,7 @@ WOLFSSL_DSA* wolfSSL_d2i_DSAparams(WOLFSSL_DSA** dsa, const unsigned char** der,
  * Returns 1 or 0
  */
 int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa,
-    const EVP_CIPHER* cipher, unsigned char* passwd, int passwdSz,
+    const WOLFSSL_EVP_CIPHER* cipher, unsigned char* passwd, int passwdSz,
     wc_pem_password_cb* cb, void* arg)
 {
     int ret = 1;
@@ -5942,7 +5943,7 @@ int wolfSSL_PEM_write_bio_DSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa)
  *   1 if success, 0 if error
  */
 int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
-                                        const EVP_CIPHER* cipher,
+                                        const WOLFSSL_EVP_CIPHER* cipher,
                                         unsigned char* passwd, int passwdSz,
                                         unsigned char **pem, int *pLen)
 {
@@ -6062,7 +6063,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
  *   1 if success, 0 if error
  */
 int wolfSSL_PEM_write_DSAPrivateKey(XFILE fp, WOLFSSL_DSA *dsa,
-                                    const EVP_CIPHER *enc,
+                                    const WOLFSSL_EVP_CIPHER *enc,
                                     unsigned char *kstr, int klen,
                                     wc_pem_password_cb *cb, void *u)
 {
@@ -6508,17 +6509,17 @@ static int wolfssl_dh_set_nid(WOLFSSL_DH* dh, int nid)
      * FIPS v2 module */
     switch (nid) {
 #ifdef HAVE_FFDHE_2048
-    case NID_ffdhe2048:
+    case wc_NID_ffdhe2048:
         params = wc_Dh_ffdhe2048_Get();
         break;
 #endif /* HAVE_FFDHE_2048 */
 #ifdef HAVE_FFDHE_3072
-    case NID_ffdhe3072:
+    case wc_NID_ffdhe3072:
         params = wc_Dh_ffdhe3072_Get();
         break;
 #endif /* HAVE_FFDHE_3072 */
 #ifdef HAVE_FFDHE_4096
-    case NID_ffdhe4096:
+    case wc_NID_ffdhe4096:
         params = wc_Dh_ffdhe4096_Get();
         break;
 #endif /* HAVE_FFDHE_4096 */
@@ -8763,7 +8764,7 @@ static int _DH_compute_key(unsigned char* key, const WOLFSSL_BIGNUM* otherPub,
         ret = WOLFSSL_FATAL_ERROR;
     }
     /* Get the maximum size of computed DH key. */
-    if ((ret == 0) && ((keySz = (word32)DH_size(dh)) == 0)) {
+    if ((ret == 0) && ((keySz = (word32)wolfSSL_DH_size(dh)) == 0)) {
         WOLFSSL_ERROR_MSG("Bad DH_size");
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -9028,7 +9029,7 @@ int wolfSSL_EC_METHOD_get_field_type(const WOLFSSL_EC_METHOD *meth)
 
     if (meth != NULL) {
         /* Only field type supported by code base. */
-        nid = NID_X9_62_prime_field;
+        nid = wc_NID_X9_62_prime_field;
     }
 
     return nid;
@@ -9052,62 +9053,62 @@ int EccEnumToNID(int n)
 
     switch(n) {
         case ECC_SECP192R1:
-            return NID_X9_62_prime192v1;
+            return wc_NID_X9_62_prime192v1;
         case ECC_PRIME192V2:
-            return NID_X9_62_prime192v2;
+            return wc_NID_X9_62_prime192v2;
         case ECC_PRIME192V3:
-            return NID_X9_62_prime192v3;
+            return wc_NID_X9_62_prime192v3;
         case ECC_PRIME239V1:
-            return NID_X9_62_prime239v1;
+            return wc_NID_X9_62_prime239v1;
         case ECC_PRIME239V2:
-            return NID_X9_62_prime239v2;
+            return wc_NID_X9_62_prime239v2;
         case ECC_PRIME239V3:
-            return NID_X9_62_prime239v3;
+            return wc_NID_X9_62_prime239v3;
         case ECC_SECP256R1:
-            return NID_X9_62_prime256v1;
+            return wc_NID_X9_62_prime256v1;
         case ECC_SECP112R1:
-            return NID_secp112r1;
+            return wc_NID_secp112r1;
         case ECC_SECP112R2:
-            return NID_secp112r2;
+            return wc_NID_secp112r2;
         case ECC_SECP128R1:
-            return NID_secp128r1;
+            return wc_NID_secp128r1;
         case ECC_SECP128R2:
-            return NID_secp128r2;
+            return wc_NID_secp128r2;
         case ECC_SECP160R1:
-            return NID_secp160r1;
+            return wc_NID_secp160r1;
         case ECC_SECP160R2:
-            return NID_secp160r2;
+            return wc_NID_secp160r2;
         case ECC_SECP224R1:
-            return NID_secp224r1;
+            return wc_NID_secp224r1;
         case ECC_SECP384R1:
-            return NID_secp384r1;
+            return wc_NID_secp384r1;
         case ECC_SECP521R1:
-            return NID_secp521r1;
+            return wc_NID_secp521r1;
         case ECC_SECP160K1:
-            return NID_secp160k1;
+            return wc_NID_secp160k1;
         case ECC_SECP192K1:
-            return NID_secp192k1;
+            return wc_NID_secp192k1;
         case ECC_SECP224K1:
-            return NID_secp224k1;
+            return wc_NID_secp224k1;
         case ECC_SECP256K1:
-            return NID_secp256k1;
+            return wc_NID_secp256k1;
         case ECC_BRAINPOOLP160R1:
-            return NID_brainpoolP160r1;
+            return wc_NID_brainpoolP160r1;
         case ECC_BRAINPOOLP192R1:
-            return NID_brainpoolP192r1;
+            return wc_NID_brainpoolP192r1;
         case ECC_BRAINPOOLP224R1:
-            return NID_brainpoolP224r1;
+            return wc_NID_brainpoolP224r1;
         case ECC_BRAINPOOLP256R1:
-            return NID_brainpoolP256r1;
+            return wc_NID_brainpoolP256r1;
         case ECC_BRAINPOOLP320R1:
-            return NID_brainpoolP320r1;
+            return wc_NID_brainpoolP320r1;
         case ECC_BRAINPOOLP384R1:
-            return NID_brainpoolP384r1;
+            return wc_NID_brainpoolP384r1;
         case ECC_BRAINPOOLP512R1:
-            return NID_brainpoolP512r1;
+            return wc_NID_brainpoolP512r1;
     #ifdef WOLFSSL_SM2
         case ECC_SM2P256V1:
-            return NID_sm2;
+            return wc_NID_sm2;
     #endif
         default:
             WOLFSSL_MSG("NID not found");
@@ -9132,85 +9133,85 @@ int NIDToEccEnum(int nid)
     WOLFSSL_ENTER("NIDToEccEnum");
 
     switch (nid) {
-        case NID_X9_62_prime192v1:
+        case wc_NID_X9_62_prime192v1:
             id = ECC_SECP192R1;
             break;
-        case NID_X9_62_prime192v2:
+        case wc_NID_X9_62_prime192v2:
             id = ECC_PRIME192V2;
             break;
-        case NID_X9_62_prime192v3:
+        case wc_NID_X9_62_prime192v3:
             id = ECC_PRIME192V3;
             break;
-        case NID_X9_62_prime239v1:
+        case wc_NID_X9_62_prime239v1:
             id = ECC_PRIME239V1;
             break;
-        case NID_X9_62_prime239v2:
+        case wc_NID_X9_62_prime239v2:
             id = ECC_PRIME239V2;
             break;
-        case NID_X9_62_prime239v3:
+        case wc_NID_X9_62_prime239v3:
             id = ECC_PRIME239V3;
             break;
-        case NID_X9_62_prime256v1:
+        case wc_NID_X9_62_prime256v1:
             id = ECC_SECP256R1;
             break;
-        case NID_secp112r1:
+        case wc_NID_secp112r1:
             id = ECC_SECP112R1;
             break;
-        case NID_secp112r2:
+        case wc_NID_secp112r2:
             id = ECC_SECP112R2;
             break;
-        case NID_secp128r1:
+        case wc_NID_secp128r1:
             id = ECC_SECP128R1;
             break;
-        case NID_secp128r2:
+        case wc_NID_secp128r2:
             id = ECC_SECP128R2;
             break;
-        case NID_secp160r1:
+        case wc_NID_secp160r1:
             id = ECC_SECP160R1;
             break;
-        case NID_secp160r2:
+        case wc_NID_secp160r2:
             id = ECC_SECP160R2;
             break;
-        case NID_secp224r1:
+        case wc_NID_secp224r1:
             id = ECC_SECP224R1;
             break;
-        case NID_secp384r1:
+        case wc_NID_secp384r1:
             id = ECC_SECP384R1;
             break;
-        case NID_secp521r1:
+        case wc_NID_secp521r1:
             id = ECC_SECP521R1;
             break;
-        case NID_secp160k1:
+        case wc_NID_secp160k1:
             id = ECC_SECP160K1;
             break;
-        case NID_secp192k1:
+        case wc_NID_secp192k1:
             id = ECC_SECP192K1;
             break;
-        case NID_secp224k1:
+        case wc_NID_secp224k1:
             id = ECC_SECP224K1;
             break;
-        case NID_secp256k1:
+        case wc_NID_secp256k1:
             id = ECC_SECP256K1;
             break;
-        case NID_brainpoolP160r1:
+        case wc_NID_brainpoolP160r1:
             id = ECC_BRAINPOOLP160R1;
             break;
-        case NID_brainpoolP192r1:
+        case wc_NID_brainpoolP192r1:
             id = ECC_BRAINPOOLP192R1;
             break;
-        case NID_brainpoolP224r1:
+        case wc_NID_brainpoolP224r1:
             id = ECC_BRAINPOOLP224R1;
             break;
-        case NID_brainpoolP256r1:
+        case wc_NID_brainpoolP256r1:
             id = ECC_BRAINPOOLP256R1;
             break;
-        case NID_brainpoolP320r1:
+        case wc_NID_brainpoolP320r1:
             id = ECC_BRAINPOOLP320R1;
             break;
-        case NID_brainpoolP384r1:
+        case wc_NID_brainpoolP384r1:
             id = ECC_BRAINPOOLP384R1;
             break;
-        case NID_brainpoolP512r1:
+        case wc_NID_brainpoolP512r1:
             id = ECC_BRAINPOOLP512R1;
             break;
         default:
@@ -9622,53 +9623,53 @@ int wolfSSL_EC_GROUP_get_degree(const WOLFSSL_EC_GROUP *group)
     }
     else {
         switch (group->curve_nid) {
-            case NID_secp112r1:
-            case NID_secp112r2:
+            case wc_NID_secp112r1:
+            case wc_NID_secp112r2:
                 degree = 112;
                 break;
-            case NID_secp128r1:
-            case NID_secp128r2:
+            case wc_NID_secp128r1:
+            case wc_NID_secp128r2:
                 degree = 128;
                 break;
-            case NID_secp160k1:
-            case NID_secp160r1:
-            case NID_secp160r2:
-            case NID_brainpoolP160r1:
+            case wc_NID_secp160k1:
+            case wc_NID_secp160r1:
+            case wc_NID_secp160r2:
+            case wc_NID_brainpoolP160r1:
                 degree = 160;
                 break;
-            case NID_secp192k1:
-            case NID_brainpoolP192r1:
-            case NID_X9_62_prime192v1:
-            case NID_X9_62_prime192v2:
-            case NID_X9_62_prime192v3:
+            case wc_NID_secp192k1:
+            case wc_NID_brainpoolP192r1:
+            case wc_NID_X9_62_prime192v1:
+            case wc_NID_X9_62_prime192v2:
+            case wc_NID_X9_62_prime192v3:
                 degree = 192;
                 break;
-            case NID_secp224k1:
-            case NID_secp224r1:
-            case NID_brainpoolP224r1:
+            case wc_NID_secp224k1:
+            case wc_NID_secp224r1:
+            case wc_NID_brainpoolP224r1:
                 degree = 224;
                 break;
-            case NID_X9_62_prime239v1:
-            case NID_X9_62_prime239v2:
-            case NID_X9_62_prime239v3:
+            case wc_NID_X9_62_prime239v1:
+            case wc_NID_X9_62_prime239v2:
+            case wc_NID_X9_62_prime239v3:
                 degree = 239;
                 break;
-            case NID_secp256k1:
-            case NID_brainpoolP256r1:
-            case NID_X9_62_prime256v1:
+            case wc_NID_secp256k1:
+            case wc_NID_brainpoolP256r1:
+            case wc_NID_X9_62_prime256v1:
                 degree = 256;
                 break;
-            case NID_brainpoolP320r1:
+            case wc_NID_brainpoolP320r1:
                 degree = 320;
                 break;
-            case NID_secp384r1:
-            case NID_brainpoolP384r1:
+            case wc_NID_secp384r1:
+            case wc_NID_brainpoolP384r1:
                 degree = 384;
                 break;
-            case NID_brainpoolP512r1:
+            case wc_NID_brainpoolP512r1:
                 degree = 512;
                 break;
-            case NID_secp521r1:
+            case wc_NID_secp521r1:
                 degree = 521;
                 break;
         }
@@ -10139,7 +10140,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
     if (!err) {
         /* <format byte> <x-ordinate> [<y-ordinate>] */
         len = sz + 1;
-        if (form == POINT_CONVERSION_UNCOMPRESSED) {
+        if (form == WC_POINT_CONVERSION_UNCOMPRESSED) {
             /* Include y ordinate when uncompressed. */
             len += sz;
         }
@@ -10165,7 +10166,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
         }
     }
     if (!err) {
-        if (form == POINT_CONVERSION_COMPRESSED) {
+        if (form == WC_POINT_CONVERSION_COMPRESSED) {
             /* Compressed format byte value dependent on whether y-ordinate is
              * odd.
              */
@@ -10222,13 +10223,13 @@ static size_t hex_to_bytes(const char *hex, unsigned char *output, size_t sz)
     return sz;
 }
 
-WOLFSSL_EC_POINT* wolfSSL_EC_POINT_hex2point(const EC_GROUP *group,
+WOLFSSL_EC_POINT* wolfSSL_EC_POINT_hex2point(const WOLFSSL_EC_GROUP *group,
             const char *hex, WOLFSSL_EC_POINT*p, WOLFSSL_BN_CTX *ctx)
 {
     /* for uncompressed mode */
     size_t str_sz;
-    BIGNUM *Gx  = NULL;
-    BIGNUM *Gy  = NULL;
+    WOLFSSL_BIGNUM *Gx  = NULL;
+    WOLFSSL_BIGNUM *Gy  = NULL;
     char   strGx[MAX_ECC_BYTES * 2 + 1];
 
     /* for compressed mode */
@@ -10295,7 +10296,7 @@ err:
     wolfSSL_BN_free(Gx);
     wolfSSL_BN_free(Gy);
     if (p_alloc) {
-        EC_POINT_free(p);
+        wolfSSL_EC_POINT_free(p);
     }
     return NULL;
 
@@ -10473,7 +10474,7 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
     int err = 0;
     word32 enc_len = (word32)len;
 #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION_GT(2,0))
-    int compressed = ((form == POINT_CONVERSION_COMPRESSED) ? 1 : 0);
+    int compressed = ((form == WC_POINT_CONVERSION_COMPRESSED) ? 1 : 0);
 #endif /* !HAVE_SELFTEST */
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_point2oct");
@@ -10498,7 +10499,7 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
         if (buf != NULL) {
             /* Check whether buffer has space. */
             if (len < 1) {
-                ECerr(EC_F_EC_GFP_SIMPLE_POINT2OCT, EC_R_BUFFER_TOO_SMALL);
+                wolfSSL_ECerr(WOLFSSL_EC_F_EC_GFP_SIMPLE_POINT2OCT, BUFFER_E);
                 err = 1;
             }
             else {
@@ -10510,9 +10511,9 @@ size_t wolfSSL_EC_POINT_point2oct(const WOLFSSL_EC_GROUP *group,
     /* Not infinity. */
     else if (!err) {
         /* Validate format. */
-        if (form != POINT_CONVERSION_UNCOMPRESSED
+        if (form != WC_POINT_CONVERSION_UNCOMPRESSED
         #ifndef HAVE_SELFTEST
-                && form != POINT_CONVERSION_COMPRESSED
+                && form != WC_POINT_CONVERSION_COMPRESSED
         #endif /* !HAVE_SELFTEST */
             ) {
             WOLFSSL_MSG("Unsupported point form");
@@ -10593,8 +10594,8 @@ int wolfSSL_EC_POINT_oct2point(const WOLFSSL_EC_GROUP *group,
  * @param [in]      group  EC group.
  * @param [in]      point  EC point.
  * @param [in]      form   Format of encoding. Valid values:
- *                         POINT_CONVERSION_UNCOMPRESSED,
- *                         POINT_CONVERSION_COMPRESSED.
+ *                         WC_POINT_CONVERSION_UNCOMPRESSED,
+ *                         WC_POINT_CONVERSION_COMPRESSED.
  * @param [in, out] bn     BN to hold point value.
  *                         When NULL a new BN is allocated otherwise this is
  *                         returned on success.
@@ -10811,10 +10812,10 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP* group,
     }
 
     /* Copy the externally set x and y ordinates. */
-    if ((ret == 1) && (BN_copy(x, point->X) == NULL)) {
+    if ((ret == 1) && (wolfSSL_BN_copy(x, point->X) == NULL)) {
         ret = 0;
     }
-    if ((ret == 1) && (BN_copy(y, point->Y) == NULL)) {
+    if ((ret == 1) && (wolfSSL_BN_copy(y, point->Y) == NULL)) {
         ret = 0;
     }
 
@@ -11831,7 +11832,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId)
         /* Cache heap hint. */
         key->heap = heap;
         /* Initialize fields to defaults. */
-        key->form     = POINT_CONVERSION_UNCOMPRESSED;
+        key->form     = WC_POINT_CONVERSION_UNCOMPRESSED;
 
         /* Initialize reference count. */
         wolfSSL_RefInit(&key->ref, &err);
@@ -11857,7 +11858,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new_ex(void* heap, int devId)
 
     if (!err) {
         /* Group unknown at creation */
-        key->group = wolfSSL_EC_GROUP_new_by_curve_name(NID_undef);
+        key->group = wolfSSL_EC_GROUP_new_by_curve_name(wc_NID_undef);
         if (key->group == NULL) {
             WOLFSSL_MSG("wolfSSL_EC_KEY_new malloc WOLFSSL_EC_GROUP failure");
             err = 1;
@@ -12194,7 +12195,7 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
 {
     int ret = 1;
     size_t len = 0;
-    int form = POINT_CONVERSION_UNCOMPRESSED;
+    int form = WC_POINT_CONVERSION_UNCOMPRESSED;
 
     WOLFSSL_ENTER("wolfSSL_i2o_ECPublicKey");
 
@@ -12214,9 +12215,9 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
     if (ret == 1) {
     #ifdef HAVE_COMP_KEY
         /* Default to compressed form if not set */
-        form = (key->form != POINT_CONVERSION_UNCOMPRESSED) ?
-               POINT_CONVERSION_UNCOMPRESSED :
-               POINT_CONVERSION_COMPRESSED;
+        form = (key->form != WC_POINT_CONVERSION_UNCOMPRESSED) ?
+               WC_POINT_CONVERSION_UNCOMPRESSED :
+               WC_POINT_CONVERSION_COMPRESSED;
     #endif
 
         /* Calculate length of point encoding. */
@@ -12880,7 +12881,7 @@ int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec)
  * @return  0 on error.
  */
 int wolfSSL_PEM_write_bio_ECPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec,
-    const EVP_CIPHER* cipher, unsigned char* passwd, int passwdSz,
+    const WOLFSSL_EVP_CIPHER* cipher, unsigned char* passwd, int passwdSz,
     wc_pem_password_cb* cb, void* arg)
 {
     int ret = 1;
@@ -12928,7 +12929,7 @@ int wolfSSL_PEM_write_bio_ECPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EC_KEY* ec,
  * @return  0 on error.
  */
 int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
-    const EVP_CIPHER* cipher, unsigned char* passwd, int passwdSz,
+    const WOLFSSL_EVP_CIPHER* cipher, unsigned char* passwd, int passwdSz,
     unsigned char **pem, int *pLen)
 {
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
@@ -13017,7 +13018,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
  * @return  0 on error.
  */
 int wolfSSL_PEM_write_ECPrivateKey(XFILE fp, WOLFSSL_EC_KEY *ec,
-    const EVP_CIPHER *cipher, unsigned char *passwd, int passwdSz,
+    const WOLFSSL_EVP_CIPHER *cipher, unsigned char *passwd, int passwdSz,
     wc_pem_password_cb *cb, void *pass)
 {
     int ret = 1;
@@ -13120,7 +13121,7 @@ int wolfSSL_EC_KEY_print_fp(XFILE fp, WOLFSSL_EC_KEY* key, int indent)
     if ((ret == 1) && (key->pub_key != NULL) && (key->pub_key->exSet)) {
         /* Get the public key point as one BN. */
         WOLFSSL_BIGNUM* pubBn = wolfSSL_EC_POINT_point2bn(key->group,
-            key->pub_key, POINT_CONVERSION_UNCOMPRESSED, NULL, NULL);
+            key->pub_key, WC_POINT_CONVERSION_UNCOMPRESSED, NULL, NULL);
         if (pubBn == NULL) {
             WOLFSSL_MSG("wolfSSL_EC_POINT_point2bn failed.");
             ret = 0;
@@ -13311,7 +13312,8 @@ int SetECKeyInternal(WOLFSSL_EC_KEY* eckey)
  * @return  Point conversion format on success.
  * @return  -1 on error.
  */
-point_conversion_form_t wolfSSL_EC_KEY_get_conv_form(const WOLFSSL_EC_KEY* key)
+wc_point_conversion_form_t wolfSSL_EC_KEY_get_conv_form(
+    const WOLFSSL_EC_KEY* key)
 {
     if (key == NULL)
         return WOLFSSL_FATAL_ERROR;
@@ -13322,17 +13324,17 @@ point_conversion_form_t wolfSSL_EC_KEY_get_conv_form(const WOLFSSL_EC_KEY* key)
  *
  * @param [in, out] key   EC key to set format into.
  * @param [in]      form  Point conversion format. Valid values:
- *                          POINT_CONVERSION_UNCOMPRESSED,
- *                          POINT_CONVERSION_COMPRESSED (when HAVE_COMP_KEY)
+ *                          WC_POINT_CONVERSION_UNCOMPRESSED,
+ *                          WC_POINT_CONVERSION_COMPRESSED (when HAVE_COMP_KEY)
  */
 void wolfSSL_EC_KEY_set_conv_form(WOLFSSL_EC_KEY *key, int form)
 {
     if (key == NULL) {
         WOLFSSL_MSG("Key passed in NULL");
     }
-    else if (form == POINT_CONVERSION_UNCOMPRESSED
+    else if (form == WC_POINT_CONVERSION_UNCOMPRESSED
 #ifdef HAVE_COMP_KEY
-          || form == POINT_CONVERSION_COMPRESSED
+          || form == WC_POINT_CONVERSION_COMPRESSED
 #endif
              ) {
         key->form = (unsigned char)form;
@@ -14041,7 +14043,7 @@ int wolfSSL_ECDSA_size(const WOLFSSL_EC_KEY *key)
 {
     int err = 0;
     int len = 0;
-    const EC_GROUP *group = NULL;
+    const WOLFSSL_EC_GROUP *group = NULL;
     int bits = 0;
 
     /* Validate parameter. */
@@ -15478,24 +15480,24 @@ int wolfSSL_PEM_write_bio_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key)
     if ((bio != NULL) && (key != NULL)) {
         switch (key->type) {
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
-            case EVP_PKEY_RSA:
+            case WC_EVP_PKEY_RSA:
                 ret = wolfSSL_PEM_write_bio_RSA_PUBKEY(bio, key->rsa);
                 break;
 #endif /* WOLFSSL_KEY_GEN && !NO_RSA */
 #if !defined(NO_DSA) && !defined(HAVE_SELFTEST) && \
     (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
-            case EVP_PKEY_DSA:
+            case WC_EVP_PKEY_DSA:
                 ret = wolfSSL_PEM_write_bio_DSA_PUBKEY(bio, key->dsa);
                 break;
 #endif /* !NO_DSA && !HAVE_SELFTEST && (WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN) */
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
     defined(WOLFSSL_KEY_GEN)
-            case EVP_PKEY_EC:
+            case WC_EVP_PKEY_EC:
                 ret = wolfSSL_PEM_write_bio_EC_PUBKEY(bio, key->ecc);
                 break;
 #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 #if !defined(NO_DH) && (defined(WOLFSSL_QT) || defined(OPENSSL_ALL))
-            case EVP_PKEY_DH:
+            case WC_EVP_PKEY_DH:
                 /* DH public key not supported. */
                 WOLFSSL_MSG("Writing DH PUBKEY not supported!");
                 break;
@@ -15546,21 +15548,21 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
     #ifdef WOLFSSL_KEY_GEN
         switch (key->type) {
         #ifndef NO_RSA
-            case EVP_PKEY_RSA:
+            case WC_EVP_PKEY_RSA:
                 /* Write using RSA specific API. */
                 ret = wolfSSL_PEM_write_bio_RSAPrivateKey(bio, key->rsa,
                     cipher, passwd, len, cb, arg);
                 break;
         #endif
         #ifndef NO_DSA
-            case EVP_PKEY_DSA:
+            case WC_EVP_PKEY_DSA:
                 /* Write using DSA specific API. */
                 ret = wolfSSL_PEM_write_bio_DSAPrivateKey(bio, key->dsa,
                     cipher, passwd, len, cb, arg);
                 break;
         #endif
         #ifdef HAVE_ECC
-            case EVP_PKEY_EC:
+            case WC_EVP_PKEY_EC:
             #if defined(HAVE_ECC_KEY_EXPORT)
                 /* Write using EC specific API. */
                 ret = wolfSSL_PEM_write_bio_ECPrivateKey(bio, key->ecc,
@@ -15572,7 +15574,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
                 break;
         #endif
         #ifndef NO_DH
-            case EVP_PKEY_DH:
+            case WC_EVP_PKEY_DH:
                 /* Write using generic API with DH type. */
                 ret = der_write_to_bio_as_pem((byte*)key->pkey.ptr,
                     key->pkey_sz, bio, DH_PRIVATEKEY_TYPE);
@@ -15588,22 +15590,22 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 
         switch (key->type) {
         #ifndef NO_DSA
-            case EVP_PKEY_DSA:
+            case WC_EVP_PKEY_DSA:
                 type = DSA_PRIVATEKEY_TYPE;
                 break;
         #endif
         #ifdef HAVE_ECC
-            case EVP_PKEY_EC:
+            case WC_EVP_PKEY_EC:
                 type = ECC_PRIVATEKEY_TYPE;
                 break;
         #endif
         #ifndef NO_DH
-            case EVP_PKEY_DH:
+            case WC_EVP_PKEY_DH:
                 type = DH_PRIVATEKEY_TYPE;
                 break;
         #endif
         #ifndef NO_RSA
-            case EVP_PKEY_RSA:
+            case WC_EVP_PKEY_RSA:
                 type = PRIVATEKEY_TYPE;
                 break;
         #endif
@@ -15719,16 +15721,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
             /* No key format set - default to RSA. */
             case 0:
             case RSAk:
-                type = EVP_PKEY_RSA;
+                type = WC_EVP_PKEY_RSA;
                 break;
             case DSAk:
-                type = EVP_PKEY_DSA;
+                type = WC_EVP_PKEY_DSA;
                 break;
             case ECDSAk:
-                type = EVP_PKEY_EC;
+                type = WC_EVP_PKEY_EC;
                 break;
             case DHk:
-                type = EVP_PKEY_DH;
+                type = WC_EVP_PKEY_DH;
                 break;
             default:
                 type = WOLFSSL_FATAL_ERROR;
@@ -15761,8 +15763,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
 }
 
 
-PKCS8_PRIV_KEY_INFO* wolfSSL_PEM_read_bio_PKCS8_PRIV_KEY_INFO(WOLFSSL_BIO* bio,
-        PKCS8_PRIV_KEY_INFO** key, wc_pem_password_cb* cb, void* arg)
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_PEM_read_bio_PKCS8_PRIV_KEY_INFO(
+    WOLFSSL_BIO* bio, WOLFSSL_PKCS8_PRIV_KEY_INFO** key, wc_pem_password_cb* cb,
+    void* arg)
 {
     return wolfSSL_PEM_read_bio_PrivateKey(bio, key, cb, arg);
 }
@@ -15865,16 +15868,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_PrivateKey(XFILE fp, WOLFSSL_EVP_PKEY **key,
             /* No key format set - default to RSA. */
             case 0:
             case RSAk:
-                type = EVP_PKEY_RSA;
+                type = WC_EVP_PKEY_RSA;
                 break;
             case DSAk:
-                type = EVP_PKEY_DSA;
+                type = WC_EVP_PKEY_DSA;
                 break;
             case ECDSAk:
-                type = EVP_PKEY_EC;
+                type = WC_EVP_PKEY_EC;
                 break;
             case DHk:
-                type = EVP_PKEY_DH;
+                type = WC_EVP_PKEY_DH;
                 break;
             default:
                 type = WOLFSSL_FATAL_ERROR;
@@ -16484,7 +16487,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
 
     /* Get the details of the private key. */
 #ifdef HAVE_ECC
-    if (pkey->type == EVP_PKEY_EC) {
+    if (pkey->type == WC_EVP_PKEY_EC) {
         /* ECC private and get curve OID information. */
         algId = ECDSAk;
         ret = wc_ecc_get_oid(pkey->ecc->group->curve_oid, &curveOid,
@@ -16492,19 +16495,19 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
     }
     else
 #endif
-    if (pkey->type == EVP_PKEY_RSA) {
+    if (pkey->type == WC_EVP_PKEY_RSA) {
         /* RSA private has no curve information. */
         algId = RSAk;
         curveOid = NULL;
         oidSz = 0;
     }
-    else if (pkey->type == EVP_PKEY_DSA) {
+    else if (pkey->type == WC_EVP_PKEY_DSA) {
         /* DSA has no curve information. */
         algId = DSAk;
         curveOid = NULL;
         oidSz = 0;
     }
-    else if (pkey->type == EVP_PKEY_DH) {
+    else if (pkey->type == WC_EVP_PKEY_DH) {
         if (pkey->dh == NULL)
             return BAD_FUNC_ARG;
 

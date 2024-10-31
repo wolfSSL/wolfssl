@@ -185,7 +185,7 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(
     WOLFSSL_BN_CTX *ctx);
 
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 
 #define BN_RAND_TOP_ANY     WOLFSSL_BN_RAND_TOP_ANY
 #define BN_RAND_TOP_ONE     WOLFSSL_BN_RAND_TOP_ONE
@@ -290,7 +290,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 #define BN_prime_checks 0
 
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
 
 #ifdef __cplusplus

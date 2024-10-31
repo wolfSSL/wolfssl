@@ -9349,7 +9349,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DNO_HMAC"
 fi
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DOPENSSL_EXTRA"
 fi
@@ -9569,9 +9569,6 @@ AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],[AS_IF([test "x$ENABLED_WPAS" = "xno"]
 if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"; then
     if test "x$ENABLED_OPENSSLALL" = "xyes"; then
         AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslall])
-    fi
-    if test "x$ENABLED_OPENSSLEXTRA" = "xyes"; then
-        AC_MSG_ERROR([Cannot use --enable-opensslcoexist with --enable-opensslextra])
     fi
 fi
 

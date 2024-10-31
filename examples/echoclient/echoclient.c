@@ -25,6 +25,15 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
+
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#ifdef OPENSSL_EXTRA
+    #undef OPENSSL_COEXIST /* can't use this option with this example */
+#endif
+
 /* let's use cyassl layer AND cyassl openssl layer */
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
 #include <wolfssl/ssl.h>

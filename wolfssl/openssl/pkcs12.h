@@ -28,9 +28,15 @@
 #ifndef WOLFSSL_PKCS12_COMPAT_H_
 #define WOLFSSL_PKCS12_COMPAT_H_
 
-#define NID_pbe_WithSHA1AndDES_CBC             2
-#define NID_pbe_WithSHA1And3_Key_TripleDES_CBC 3
-#define NID_pbe_WithSHA1And128BitRC4           1
+#define wc_NID_pbe_WithSHA1AndDES_CBC             2
+#define wc_NID_pbe_WithSHA1And3_Key_TripleDES_CBC 3
+#define wc_NID_pbe_WithSHA1And128BitRC4           1
+
+#ifndef OPENSSL_COEXIST
+
+#define NID_pbe_WithSHA1AndDES_CBC wc_NID_pbe_WithSHA1AndDES_CBC
+#define NID_pbe_WithSHA1And3_Key_TripleDES_CBC wc_NID_pbe_WithSHA1And3_Key_TripleDES_CBC
+#define NID_pbe_WithSHA1And128BitRC4 wc_NID_pbe_WithSHA1And128BitRC4
 
 #define PKCS12_DEFAULT_ITER WC_PKCS12_ITT_DEFAULT
 
@@ -46,5 +52,6 @@
 #define PKCS12_create  wolfSSL_PKCS12_create
 #define PKCS12_PBE_add wolfSSL_PKCS12_PBE_add
 
-#endif /* WOLFSSL_PKCS12_COMPAT_H_ */
+#endif /* !OPENSSL_COEXIST */
 
+#endif /* WOLFSSL_PKCS12_COMPAT_H_ */

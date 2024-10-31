@@ -183,8 +183,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
                                                   void* pass);
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_API
-PKCS8_PRIV_KEY_INFO* wolfSSL_PEM_read_bio_PKCS8_PRIV_KEY_INFO(WOLFSSL_BIO* bio,
-        PKCS8_PRIV_KEY_INFO** key, wc_pem_password_cb* cb, void* arg);
+WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_PEM_read_bio_PKCS8_PRIV_KEY_INFO(WOLFSSL_BIO* bio,
+        WOLFSSL_PKCS8_PRIV_KEY_INFO** key, wc_pem_password_cb* cb, void* arg);
 #endif
 WOLFSSL_API
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_bio_PUBKEY(WOLFSSL_BIO* bio,
@@ -232,6 +232,8 @@ int wolfSSL_PEM_write_X509(XFILE fp, WOLFSSL_X509 *x);
 WOLFSSL_API
 int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 #endif /* NO_FILESYSTEM */
+
+#ifndef OPENSSL_COEXIST
 
 #define PEM_BUFSIZE WOLF_PEM_BUFSIZE
 
@@ -288,6 +290,8 @@ int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh);
 
 #define PEM_write_bio_PKCS8_PRIV_KEY_INFO wolfSSL_PEM_write_bio_PKCS8_PRIV_KEY_INFO
 #define PEM_read_bio_PKCS8_PRIV_KEY_INFO wolfSSL_PEM_read_bio_PKCS8_PRIV_KEY_INFO
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     }  /* extern "C" */

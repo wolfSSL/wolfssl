@@ -29,6 +29,12 @@
 #define wolfSSL_TEST_H
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_COEXIST)
+    #error "Example apps built with OPENSSL_EXTRA can't also be built with OPENSSL_COEXIST."
+#endif
+
 #include <wolfssl/wolfcrypt/wc_port.h>
 
 #ifdef FUSION_RTOS

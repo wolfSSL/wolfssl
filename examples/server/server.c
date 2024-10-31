@@ -33,6 +33,10 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#ifdef OPENSSL_EXTRA
+    #undef OPENSSL_COEXIST /* can't use this option with this example */
+#endif
+
 #include <wolfssl/ssl.h> /* name change portability layer */
 
 #ifdef HAVE_ECC
