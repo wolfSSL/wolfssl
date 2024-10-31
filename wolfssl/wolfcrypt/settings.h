@@ -3605,15 +3605,6 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-/* if building the library proper without OPENSSL_ALL, always disable
- * compatibility mappings -- the library proper uses only native names
- * internally.
- */
-#if defined(BUILDING_WOLFSSL) && !defined(OPENSSL_ALL) \
-        && !defined(OPENSSL_COEXIST)
-    #define OPENSSL_COEXIST
-#endif
-
 #ifdef OPENSSL_COEXIST
     /* make sure old names are disabled */
     #ifndef NO_OLD_SSL_NAMES
