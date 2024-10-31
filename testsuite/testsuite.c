@@ -30,9 +30,7 @@
 #endif
 
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
-#ifdef OPENSSL_EXTRA
-    #undef OPENSSL_COEXIST /* can't use this option with this example */
-#endif
+#undef OPENSSL_COEXIST /* can't use this option with this example */
 
 #include <wolfssl/wolfcrypt/types.h>
 

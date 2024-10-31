@@ -34,9 +34,7 @@
 #endif
 
 #undef TEST_OPENSSL_COEXIST /* can't use this option with unit tests */
-#ifdef OPENSSL_EXTRA
-    #undef OPENSSL_COEXIST /* can't use this option with unit tests */
-#endif
+#undef OPENSSL_COEXIST /* can't use this option with unit tests */
 
 #include <wolfssl/ssl.h>
 #include <wolfssl/test.h>    /* thread and tcp stuff */
