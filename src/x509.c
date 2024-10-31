@@ -7067,8 +7067,10 @@ int wolfSSL_X509_REQ_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
             return WOLFSSL_FAILURE;
     }
 
-    /* print version of cert */
-    if (X509PrintVersion(bio, wolfSSL_X509_version(x509), 8)
+    /* print version of cert.  Note that we increment by 1 because for REQs,
+     * the value stored in x509->version is the actual value of the field; not
+     * the version. */
+    if (X509PrintVersion(bio, wolfSSL_X509_REQ_get_version(x509) + 1, 8)
             != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
@@ -14838,6 +14840,23 @@ WOLFSSL_X509* wolfSSL_X509_REQ_new(void)
 void wolfSSL_X509_REQ_free(WOLFSSL_X509* req)
 {
     wolfSSL_X509_free(req);
+}
+
+int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version) {
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_set_version");
+    if ((x == NULL) || (version < 0) || (version >= INT_MAX)) {
+        return WOLFSSL_FAILURE;
+    }
+    x->version = (int)version;
+    return WOLFSSL_SUCCESS;
+}
+
+long wolfSSL_X509_REQ_get_version(const WOLFSSL_X509 *req) {
+    WOLFSSL_ENTER("wolfSSL_X509_REQ_get_version");
+    if (req == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    return (long)req->version;
 }
 
 int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,

@@ -509,7 +509,8 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define X509_set1_notBefore             wolfSSL_X509_set1_notBefore
 #define X509_set_serialNumber           wolfSSL_X509_set_serialNumber
 #define X509_set_version                wolfSSL_X509_set_version
-#define X509_REQ_set_version            wolfSSL_X509_set_version
+#define X509_REQ_set_version            wolfSSL_X509_REQ_set_version
+#define X509_REQ_get_version            wolfSSL_X509_REQ_get_version
 #define X509_sign                       wolfSSL_X509_sign
 #define X509_sign_ctx                   wolfSSL_X509_sign_ctx
 #define X509_print                      wolfSSL_X509_print
