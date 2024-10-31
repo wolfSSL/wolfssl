@@ -9224,7 +9224,7 @@ unsigned int kyber_arm32_rej_uniform(sword16* p_p, unsigned int len_p,
         :
         : "memory", "cc", "r12", "lr", "r5", "r6", "r7", "r8"
     );
-    return (uint32_t)(size_t)p;
+    return (word32)(size_t)p;
 }
 
 #endif /* WOLFSSL_WC_KYBER */

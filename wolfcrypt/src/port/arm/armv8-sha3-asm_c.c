@@ -36,7 +36,7 @@
 
 #ifdef WOLFSSL_SHA3
 #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
-static const uint64_t L_SHA3_transform_crypto_r[] = {
+static const word64 L_SHA3_transform_crypto_r[] = {
     0x1UL,
     0x8082UL,
     0x800000000000808aUL,
@@ -182,7 +182,7 @@ void BlockSha3(word64* state)
 }
 
 #else
-static const uint64_t L_SHA3_transform_base_r[] = {
+static const word64 L_SHA3_transform_base_r[] = {
     0x1UL,
     0x8082UL,
     0x800000000000808aUL,
