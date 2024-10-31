@@ -18177,7 +18177,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
     #define CERT_PATH_SEP "\\"
 #elif defined(WOLFSSL_NDS)
     #undef CERT_PREFIX
-    #define CERT_PREFIX "fat:/_nds/"
+    #ifndef WOLFSSL_MELONDS
+        #define CERT_PREFIX "fat:/_nds/"
+    #else
+        #define CERT_PREFIX "_nds/"
+    #endif
     #define CERT_PATH_SEP "/"
 #endif
 
