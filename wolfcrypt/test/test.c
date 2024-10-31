@@ -30869,9 +30869,8 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
 #if !defined(ECC_TIMING_RESISTANT) || (defined(ECC_TIMING_RESISTANT) && \
     !defined(WC_NO_RNG) && !defined(WOLFSSL_KCAPI_ECC))
 #ifdef HAVE_ECC_SIGN
-    /* ECC w/out Shamir has issue with all 0 digest */
-    /* WC_BIGINT doesn't have 0 len well on hardware */
-#if defined(ECC_SHAMIR) && !defined(WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST)
+    /* some hardware doesn't support sign/verify of all zero digest */
+#if !defined(WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST)
     /* test DSA sign hash with zeros */
     for (i = 0; i < (int)ECC_DIGEST_SIZE; i++) {
         digest[i] = 0;
@@ -30908,7 +30907,7 @@ static wc_test_ret_t ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerif
         TEST_SLEEP();
     }
 #endif /* HAVE_ECC_VERIFY */
-#endif /* ECC_SHAMIR && !WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST */
+#endif /* !WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST */
 
     /* test DSA sign hash with sequence (0,1,2,3,4,...) */
     for (i = 0; i < (int)ECC_DIGEST_SIZE; i++) {
