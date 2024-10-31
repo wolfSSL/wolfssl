@@ -3168,6 +3168,14 @@ extern void uITRON4_free(void *p) ;
     #undef NO_DH
 #endif
 
+/* CryptoCell defines */
+#ifdef WOLFSSL_CRYPTOCELL
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
+        #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
+    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
+#endif
+
 /* Asynchronous Crypto */
 #ifdef WOLFSSL_ASYNC_CRYPT
     #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \
@@ -3192,6 +3200,12 @@ extern void uITRON4_free(void *p) ;
          * but not required */
         #define ECC_CACHE_CURVE
     #endif
+
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN)
+        /* Don't attempt to sign/verify an all-zero digest in wolfCrypt tests */
+        #define WC_TEST_NO_ECC_SIGN_VERIFY_ZERO_DIGEST
+    #endif /* HAVE_ECC && HAVE_ECC_SIGN */
+
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifndef WC_ASYNC_DEV_SIZE
     #define WC_ASYNC_DEV_SIZE 0
