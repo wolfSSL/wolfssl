@@ -251,8 +251,6 @@ typedef int (*WOLFSSL_X509_STORE_CTX_get_crl_cb)(WOLFSSL_X509_STORE_CTX *,
 typedef int (*WOLFSSL_X509_STORE_CTX_check_crl_cb)(WOLFSSL_X509_STORE_CTX *,
         WOLFSSL_X509_CRL *);
 
-#ifdef OPENSSL_EXTRA
-
 #define WOLFSSL_ASN1_TYPE_INTEGER                   0x02
 #define WOLFSSL_ASN1_TYPE_NEG                       0x100
 #define WOLFSSL_ASN1_TYPE_NEG_INTEGER               (2 | WOLFSSL_ASN1_TYPE_NEG)
@@ -316,8 +314,6 @@ typedef int (*WOLFSSL_X509_STORE_CTX_check_crl_cb)(WOLFSSL_X509_STORE_CTX *,
 #define WOLFSSL_ub_organization_unit_name  CTC_NAME_SIZE /* 64 */
 #define WOLFSSL_ub_title                   CTC_NAME_SIZE /* 64 */
 #define WOLFSSL_ub_email_address           CTC_NAME_SIZE /* 128 */
-
-#endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || defined(HAVE_CURL)
 
