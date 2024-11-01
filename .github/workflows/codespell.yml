@@ -27,4 +27,4 @@ jobs:
           # The exclude_file contains lines of code that should be ignored. This is useful for individual lines which have non-words that can safely be ignored.
         exclude_file: '.codespellexcludelines'
           # To skip files entirely from being processed, add it to the following list:
-        skip: '*.cproject,*.der,*.mtpj,*.pem,*.vcxproj,.git,*.launch'
+        skip: '*.cproject,*.der,*.mtpj,*.pem,*.vcxproj,.git,*.launch,*.scfg'
