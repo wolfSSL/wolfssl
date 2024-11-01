@@ -1123,7 +1123,7 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_SNIFFER_KEY          = 1006,
         DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE  = 1007,
         DYNAMIC_TYPE_SNIFFER_CHAIN_BUFFER = 1008,
-        DYNAMIC_TYPE_AES_EAX = 1009,
+        DYNAMIC_TYPE_AES_EAX = 1009
     };
 
     /* max error buffer string size */
