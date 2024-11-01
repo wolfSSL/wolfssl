@@ -7070,7 +7070,7 @@ int wolfSSL_X509_REQ_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509)
     /* print version of cert.  Note that we increment by 1 because for REQs,
      * the value stored in x509->version is the actual value of the field; not
      * the version. */
-    if (X509PrintVersion(bio, wolfSSL_X509_REQ_get_version(x509) + 1, 8)
+    if (X509PrintVersion(bio, wolfSSL_X509_REQ_get_version(x509) + (long)1, 8)
             != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
