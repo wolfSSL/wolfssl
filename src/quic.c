@@ -1193,7 +1193,7 @@ int wolfSSL_quic_hkdf_extract(uint8_t* dest, const WOLFSSL_EVP_MD* md,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf_extract");
 
-    pctx = wolfSSL_EVP_PKEY_CTX_new_id(NID_hkdf, NULL);
+    pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
         goto cleanup;
@@ -1201,7 +1201,7 @@ int wolfSSL_quic_hkdf_extract(uint8_t* dest, const WOLFSSL_EVP_MD* md,
 
     if (wolfSSL_EVP_PKEY_derive_init(pctx) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_hkdf_mode(
-                pctx, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) != WOLFSSL_SUCCESS
+                pctx, WOLFSSL_EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set_hkdf_md(pctx, md) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(
                 pctx, (byte*)salt, (int)saltlen) != WOLFSSL_SUCCESS
@@ -1230,7 +1230,7 @@ int wolfSSL_quic_hkdf_expand(uint8_t* dest, size_t destlen,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf_expand");
 
-    pctx = wolfSSL_EVP_PKEY_CTX_new_id(NID_hkdf, NULL);
+    pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
         goto cleanup;
@@ -1238,7 +1238,7 @@ int wolfSSL_quic_hkdf_expand(uint8_t* dest, size_t destlen,
 
     if (wolfSSL_EVP_PKEY_derive_init(pctx) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_hkdf_mode(
-                pctx, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) != WOLFSSL_SUCCESS
+                pctx, WOLFSSL_EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set_hkdf_md(pctx, md) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(
                 pctx, (byte*)"", 0) != WOLFSSL_SUCCESS
@@ -1253,7 +1253,7 @@ int wolfSSL_quic_hkdf_expand(uint8_t* dest, size_t destlen,
 
 cleanup:
     if (pctx)
-        EVP_PKEY_CTX_free(pctx);
+        wolfSSL_EVP_PKEY_CTX_free(pctx);
     WOLFSSL_LEAVE("wolfSSL_quic_hkdf_expand", ret);
     return ret;
 }
@@ -1270,7 +1270,7 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
 
     WOLFSSL_ENTER("wolfSSL_quic_hkdf");
 
-    pctx = wolfSSL_EVP_PKEY_CTX_new_id(NID_hkdf, NULL);
+    pctx = wolfSSL_EVP_PKEY_CTX_new_id(WC_NID_hkdf, NULL);
     if (pctx == NULL) {
         ret = WOLFSSL_FAILURE;
         goto cleanup;
@@ -1278,7 +1278,7 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
 
     if (wolfSSL_EVP_PKEY_derive_init(pctx) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_hkdf_mode(
-                pctx, EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) != WOLFSSL_SUCCESS
+                pctx, WOLFSSL_EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set_hkdf_md(pctx, md) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_PKEY_CTX_set1_hkdf_salt(
                 pctx, (byte*)salt, (int)saltlen) != WOLFSSL_SUCCESS
@@ -1293,7 +1293,7 @@ int wolfSSL_quic_hkdf(uint8_t* dest, size_t destlen,
 
 cleanup:
     if (pctx)
-        EVP_PKEY_CTX_free(pctx);
+        wolfSSL_EVP_PKEY_CTX_free(pctx);
     WOLFSSL_LEAVE("wolfSSL_quic_hkdf", ret);
     return ret;
 }
@@ -1346,7 +1346,7 @@ int wolfSSL_quic_aead_encrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
                 ctx, dest, &len, plain, (int)plainlen) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherFinal(ctx, dest + len, &len) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CIPHER_CTX_ctrl(
-                ctx, EVP_CTRL_AEAD_GET_TAG, ctx->authTagSz, dest + plainlen)
+                ctx, WOLFSSL_EVP_CTRL_AEAD_GET_TAG, ctx->authTagSz, dest + plainlen)
            != WOLFSSL_SUCCESS) {
         return WOLFSSL_FAILURE;
     }
@@ -1373,7 +1373,7 @@ int wolfSSL_quic_aead_decrypt(uint8_t* dest, WOLFSSL_EVP_CIPHER_CTX* ctx,
 
     if (wolfSSL_EVP_CipherInit(ctx, NULL, NULL, iv, 0) != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CIPHER_CTX_ctrl(
-                ctx, EVP_CTRL_AEAD_SET_TAG, ctx->authTagSz, (uint8_t*)tag)
+                ctx, WOLFSSL_EVP_CTRL_AEAD_SET_TAG, ctx->authTagSz, (uint8_t*)tag)
             != WOLFSSL_SUCCESS
         || wolfSSL_EVP_CipherUpdate(ctx, NULL, &len, aad, (int)aadlen)
             != WOLFSSL_SUCCESS

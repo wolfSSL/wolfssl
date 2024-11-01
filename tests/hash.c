@@ -20,11 +20,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <tests/unit.h>
 
 #include <stdio.h>
 
@@ -35,8 +31,6 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/hmac.h>
-
-#include <tests/unit.h>
 
 typedef struct testVector {
     const char*  input;

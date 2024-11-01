@@ -260,12 +260,12 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
 #ifdef OPENSSL_EXTRA
 #ifndef NO_BIO
 
-int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+int wolfSSL_BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     return SslBioSend(ssl, buf, sz, ctx);
 }
 
-int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+int wolfSSL_BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
     return SslBioReceive(ssl, buf, sz, ctx);
 }
@@ -1032,7 +1032,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                 }
                 ((SOCKADDR_IN*)&addr)->sin_port = XHTONS(port);
 
-                /* peer sa is free'd in SSL_ResourceFree */
+                /* peer sa is free'd in wolfSSL_ResourceFree */
                 if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN*)&addr,
                                           sizeof(SOCKADDR_IN)))!= WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Import DTLS peer info error");
@@ -1049,7 +1049,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                 }
                 ((SOCKADDR_IN6*)&addr)->sin6_port = XHTONS(port);
 
-                /* peer sa is free'd in SSL_ResourceFree */
+                /* peer sa is free'd in wolfSSL_ResourceFree */
                 if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN6*)&addr,
                                          sizeof(SOCKADDR_IN6)))!= WOLFSSL_SUCCESS) {
                     WOLFSSL_MSG("Import DTLS peer info error");

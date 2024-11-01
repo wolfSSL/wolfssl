@@ -6271,8 +6271,8 @@ struct WOLFSSL {
 #if defined(OPENSSL_EXTRA) && defined(WOLFSSL_HAVE_ERROR_QUEUE)
 #define CLEAR_ASN_NO_PEM_HEADER_ERROR(err)                  \
     (err) = wolfSSL_ERR_peek_last_error();                  \
-    if (ERR_GET_LIB(err) == ERR_LIB_PEM &&                  \
-            ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {   \
+    if (wolfSSL_ERR_GET_LIB(err) == WOLFSSL_ERR_LIB_PEM &&  \
+            wolfSSL_ERR_GET_REASON(err) == -WOLFSSL_PEM_R_NO_START_LINE_E) {   \
         wc_RemoveErrorNode(-1);                             \
     }
 #else
@@ -6308,7 +6308,10 @@ WOLFSSL_LOCAL int  SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL int  ReinitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup);
 WOLFSSL_LOCAL void FreeSSL(WOLFSSL* ssl, void* heap);
-WOLFSSL_API   void SSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
+WOLFSSL_API   void wolfSSL_ResourceFree(WOLFSSL* ssl);   /* Micrium uses */
+#ifndef OPENSSL_COEXIST
+#define SSL_ResourceFree wolfSSL_ResourceFree
+#endif
 
 
 #ifndef NO_CERTS
@@ -7045,7 +7048,7 @@ WOLFSSL_LOCAL WC_RNG* wolfssl_make_global_rng(void);
 
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
 #if defined(WOLFSSL_KEY_GEN) && defined(WOLFSSL_PEM_TO_DER)
-WOLFSSL_LOCAL int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
+WOLFSSL_LOCAL int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
     unsigned char* passwd, int passwdSz, byte **cipherInfo, int maxDerSz);
 #endif
 #endif

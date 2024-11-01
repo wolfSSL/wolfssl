@@ -20,11 +20,7 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
+#include <tests/unit.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -37,7 +33,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <wolfssl/ssl.h>
-#include <tests/unit.h>
+
 #if defined(HAVE_ECC) && defined(FP_ECC) && defined(HAVE_THREAD_LS) \
                       && (defined(NO_MAIN_DRIVER) || defined(HAVE_STACK_SIZE))
 #include <wolfssl/wolfcrypt/ecc.h>

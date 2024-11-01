@@ -128,7 +128,7 @@ struct PKCS7State {
 
 
 /* creates a PKCS7State structure and returns 0 on success */
-static int wc_PKCS7_CreateStream(PKCS7* pkcs7)
+static int wc_PKCS7_CreateStream(wc_PKCS7* pkcs7)
 {
     WOLFSSL_MSG("creating PKCS7 stream structure");
     pkcs7->stream = (PKCS7State*)XMALLOC(sizeof(PKCS7State), pkcs7->heap,
@@ -144,7 +144,7 @@ static int wc_PKCS7_CreateStream(PKCS7* pkcs7)
 }
 
 
-static void wc_PKCS7_ResetStream(PKCS7* pkcs7)
+static void wc_PKCS7_ResetStream(wc_PKCS7* pkcs7)
 {
     if (pkcs7 != NULL && pkcs7->stream != NULL) {
 #ifdef WC_PKCS7_STREAM_DEBUG
@@ -211,7 +211,7 @@ static void wc_PKCS7_ResetStream(PKCS7* pkcs7)
 }
 
 
-static void wc_PKCS7_FreeStream(PKCS7* pkcs7)
+static void wc_PKCS7_FreeStream(wc_PKCS7* pkcs7)
 {
     if (pkcs7 != NULL && pkcs7->stream != NULL) {
         wc_PKCS7_ResetStream(pkcs7);
@@ -228,7 +228,7 @@ static void wc_PKCS7_FreeStream(PKCS7* pkcs7)
 
 /* used to increase the max size for internal buffer
  * returns 0 on success  */
-static int wc_PKCS7_GrowStream(PKCS7* pkcs7, word32 newSz)
+static int wc_PKCS7_GrowStream(wc_PKCS7* pkcs7, word32 newSz)
 {
     byte* pt;
     pt = (byte*)XMALLOC(newSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -257,7 +257,7 @@ static int wc_PKCS7_GrowStream(PKCS7* pkcs7, word32 newSz)
  * Sets idx to be the current offset into "pt" buffer
  * returns 0 on success
  */
-static int wc_PKCS7_AddDataToStream(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_AddDataToStream(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         word32 expected, byte** pt, word32* idx)
 {
     word32 rdSz = pkcs7->stream->idx;
@@ -335,7 +335,7 @@ static int wc_PKCS7_AddDataToStream(PKCS7* pkcs7, byte* in, word32 inSz,
 
 
 /* setter function for stored variables */
-static void wc_PKCS7_StreamStoreVar(PKCS7* pkcs7, word32 var1, int var2,
+static void wc_PKCS7_StreamStoreVar(wc_PKCS7* pkcs7, word32 var1, int var2,
         int var3)
 {
     if (pkcs7 != NULL && pkcs7->stream != NULL) {
@@ -348,7 +348,7 @@ static void wc_PKCS7_StreamStoreVar(PKCS7* pkcs7, word32 var1, int var2,
 /* Tries to peek at the SEQ and get the length
  * returns 0 on success
  */
-static int wc_PKCS7_SetMaxStream(PKCS7* pkcs7, byte* in, word32 defSz)
+static int wc_PKCS7_SetMaxStream(wc_PKCS7* pkcs7, byte* in, word32 defSz)
 {
     /* check there is a buffer to read from */
     if (pkcs7) {
@@ -397,7 +397,7 @@ static int wc_PKCS7_SetMaxStream(PKCS7* pkcs7, byte* in, word32 defSz)
 
 
 /* getter function for stored variables */
-static void wc_PKCS7_StreamGetVar(PKCS7* pkcs7, word32* var1, int* var2,
+static void wc_PKCS7_StreamGetVar(wc_PKCS7* pkcs7, word32* var1, int* var2,
         int* var3)
 {
     if (pkcs7 != NULL && pkcs7->stream != NULL) {
@@ -410,7 +410,7 @@ static void wc_PKCS7_StreamGetVar(PKCS7* pkcs7, word32* var1, int* var2,
 
 /* common update of index and total read after section complete
  * returns 0 on success */
-static int wc_PKCS7_StreamEndCase(PKCS7* pkcs7, word32* tmpIdx, word32* idx)
+static int wc_PKCS7_StreamEndCase(wc_PKCS7* pkcs7, word32* tmpIdx, word32* idx)
 {
     int ret = 0;
 
@@ -497,7 +497,7 @@ static const char* wc_PKCS7_GetStateName(int in)
 
 /* Used to change the PKCS7 state. Having state change as a function allows
  * for easier debugging */
-static void wc_PKCS7_ChangeState(PKCS7* pkcs7, int newState)
+static void wc_PKCS7_ChangeState(wc_PKCS7* pkcs7, int newState)
 {
 #ifdef WC_PKCS7_STREAM_DEBUG
     printf("\tChanging from state [%02d] %s to [%02d] %s\n",
@@ -782,11 +782,11 @@ static int wc_PKCS7_GetOIDKeySize(int oid)
 }
 
 
-PKCS7* wc_PKCS7_New(void* heap, int devId)
+wc_PKCS7* wc_PKCS7_New(void* heap, int devId)
 {
-    PKCS7* pkcs7 = (PKCS7*)XMALLOC(sizeof(PKCS7), heap, DYNAMIC_TYPE_PKCS7);
+    wc_PKCS7* pkcs7 = (wc_PKCS7*)XMALLOC(sizeof(wc_PKCS7), heap, DYNAMIC_TYPE_PKCS7);
     if (pkcs7) {
-        XMEMSET(pkcs7, 0, sizeof(PKCS7));
+        XMEMSET(pkcs7, 0, sizeof(wc_PKCS7));
         if (wc_PKCS7_Init(pkcs7, heap, devId) == 0) {
             pkcs7->isDynamic = 1;
         }
@@ -807,7 +807,7 @@ PKCS7* wc_PKCS7_New(void* heap, int devId)
  *
  * returns 0 on success or a negative value for failure
  */
-int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
+int wc_PKCS7_Init(wc_PKCS7* pkcs7, void* heap, int devId)
 {
     word16 isDynamic;
 
@@ -818,7 +818,7 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
     }
 
     isDynamic = pkcs7->isDynamic;
-    XMEMSET(pkcs7, 0, sizeof(PKCS7));
+    XMEMSET(pkcs7, 0, sizeof(wc_PKCS7));
     pkcs7->isDynamic = (isDynamic != 0);
 #ifdef WOLFSSL_HEAP_TEST
     pkcs7->heap = (void*)WOLFSSL_HEAP_TEST;
@@ -831,7 +831,7 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
 }
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
-void wc_PKCS7_SetUnknownExtCallback(PKCS7* pkcs7, wc_UnknownExtCallback cb)
+void wc_PKCS7_SetUnknownExtCallback(wc_PKCS7* pkcs7, wc_UnknownExtCallback cb)
 {
     if (pkcs7 != NULL) {
         pkcs7->unknownExtCallback = cb;
@@ -860,7 +860,7 @@ struct Pkcs7EncodedRecip {
 
 
 /* free all members of Pkcs7Cert linked list */
-static void wc_PKCS7_FreeCertSet(PKCS7* pkcs7)
+static void wc_PKCS7_FreeCertSet(wc_PKCS7* pkcs7)
 {
     Pkcs7Cert* curr = NULL;
     Pkcs7Cert* next = NULL;
@@ -885,7 +885,7 @@ static void wc_PKCS7_FreeCertSet(PKCS7* pkcs7)
 /* Get total size of all recipients in recipient list.
  *
  * Returns total size of recipients, or negative upon error */
-static int wc_PKCS7_GetRecipientListSize(PKCS7* pkcs7)
+static int wc_PKCS7_GetRecipientListSize(wc_PKCS7* pkcs7)
 {
     word32 totalSz = 0;
     Pkcs7EncodedRecip* tmp = NULL;
@@ -905,7 +905,7 @@ static int wc_PKCS7_GetRecipientListSize(PKCS7* pkcs7)
 
 
 /* free all members of Pkcs7EncodedRecip linked list */
-static void wc_PKCS7_FreeEncodedRecipientSet(PKCS7* pkcs7)
+static void wc_PKCS7_FreeEncodedRecipientSet(wc_PKCS7* pkcs7)
 {
     Pkcs7EncodedRecip* curr = NULL;
     Pkcs7EncodedRecip* next = NULL;
@@ -930,7 +930,7 @@ static void wc_PKCS7_FreeEncodedRecipientSet(PKCS7* pkcs7)
 /* search through RecipientInfo list for specific type.
  * return 1 if ANY recipient of type specified is present, otherwise
  * return 0 */
-static int wc_PKCS7_RecipientListIncludesType(PKCS7* pkcs7, int type)
+static int wc_PKCS7_RecipientListIncludesType(wc_PKCS7* pkcs7, int type)
 {
     Pkcs7EncodedRecip* tmp = NULL;
 
@@ -952,7 +952,7 @@ static int wc_PKCS7_RecipientListIncludesType(PKCS7* pkcs7, int type)
 
 /* searches through RecipientInfo list, returns 1 if all structure
  * versions are set to 0, otherwise returns 0 */
-static int wc_PKCS7_RecipientListVersionsAllZero(PKCS7* pkcs7)
+static int wc_PKCS7_RecipientListVersionsAllZero(wc_PKCS7* pkcs7)
 {
     Pkcs7EncodedRecip* tmp = NULL;
 
@@ -979,7 +979,7 @@ static int wc_PKCS7_RecipientListVersionsAllZero(PKCS7* pkcs7)
  * keySz  - size of key, octets
  *
  * Returns 0 on success, negative on error */
-static int wc_PKCS7_CheckPublicKeyDer(PKCS7* pkcs7, int keyOID,
+static int wc_PKCS7_CheckPublicKeyDer(wc_PKCS7* pkcs7, int keyOID,
                                       const byte* key, word32 keySz)
 {
     int ret = 0;
@@ -1075,7 +1075,7 @@ static int wc_PKCS7_CheckPublicKeyDer(PKCS7* pkcs7, int keyOID,
 
 /* Init PKCS7 struct with recipient cert, decode into DecodedCert
  * NOTE: keeps previously set pkcs7 heap hint, devId and isDynamic */
-int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
+int wc_PKCS7_InitWithCert(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 {
     int ret = 0;
     void* heap;
@@ -1226,7 +1226,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
  * This API does not currently validate certificates.
  *
  * Returns 0 on success, negative upon error */
-int wc_PKCS7_AddCertificate(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
+int wc_PKCS7_AddCertificate(wc_PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 {
     Pkcs7Cert* cert;
 
@@ -1276,7 +1276,7 @@ static void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib, void* heap)
 
 
 /* return 0 on success */
-static int wc_PKCS7_SignerInfoNew(PKCS7* pkcs7)
+static int wc_PKCS7_SignerInfoNew(wc_PKCS7* pkcs7)
 {
     XFREE(pkcs7->signerInfo, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     pkcs7->signerInfo = NULL;
@@ -1292,7 +1292,7 @@ static int wc_PKCS7_SignerInfoNew(PKCS7* pkcs7)
 }
 
 
-static void wc_PKCS7_SignerInfoFree(PKCS7* pkcs7)
+static void wc_PKCS7_SignerInfoFree(wc_PKCS7* pkcs7)
 {
     if (pkcs7->signerInfo != NULL) {
         XFREE(pkcs7->signerInfo->sid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -1306,7 +1306,7 @@ static void wc_PKCS7_SignerInfoFree(PKCS7* pkcs7)
 /* free's any current SID and sets it to "in"
  * returns 0 on success
  */
-static int wc_PKCS7_SignerInfoSetSID(PKCS7* pkcs7, byte* in, int inSz)
+static int wc_PKCS7_SignerInfoSetSID(wc_PKCS7* pkcs7, byte* in, int inSz)
 {
     if (pkcs7 == NULL || in == NULL || inSz < 0) {
         return BAD_FUNC_ARG;
@@ -1326,7 +1326,7 @@ static int wc_PKCS7_SignerInfoSetSID(PKCS7* pkcs7, byte* in, int inSz)
 
 
 /* releases any memory allocated by a PKCS7 initializer */
-void wc_PKCS7_Free(PKCS7* pkcs7)
+void wc_PKCS7_Free(wc_PKCS7* pkcs7)
 {
     if (pkcs7 == NULL)
         return;
@@ -1391,7 +1391,7 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
 
 /* helper function for parsing through attributes and finding a specific one.
  * returns PKCS7DecodedAttrib pointer on success */
-static PKCS7DecodedAttrib* findAttrib(PKCS7* pkcs7, const byte* oid, word32 oidSz)
+static PKCS7DecodedAttrib* findAttrib(wc_PKCS7* pkcs7, const byte* oid, word32 oidSz)
 {
     PKCS7DecodedAttrib* list;
 
@@ -1446,7 +1446,7 @@ static PKCS7DecodedAttrib* findAttrib(PKCS7* pkcs7, const byte* oid, word32 oidS
  *
  * returns size of value on success
  */
-int wc_PKCS7_GetAttributeValue(PKCS7* pkcs7, const byte* oid, word32 oidSz,
+int wc_PKCS7_GetAttributeValue(wc_PKCS7* pkcs7, const byte* oid, word32 oidSz,
         byte* out, word32* outSz)
 {
     PKCS7DecodedAttrib* attrib;
@@ -1475,7 +1475,7 @@ int wc_PKCS7_GetAttributeValue(PKCS7* pkcs7, const byte* oid, word32 oidSz,
 
 
 /* build PKCS#7 data content type */
-int wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz)
+int wc_PKCS7_EncodeData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     static const byte oid[] =
         { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
@@ -1615,7 +1615,7 @@ static FlatAttrib* NewAttrib(void* heap)
 }
 
 /* Free FlatAttrib array and memory allocated to internal struct members */
-static void FreeAttribArray(PKCS7* pkcs7, FlatAttrib** arr, int rows)
+static void FreeAttribArray(wc_PKCS7* pkcs7, FlatAttrib** arr, int rows)
 {
     int i;
 
@@ -1675,7 +1675,7 @@ static int SortAttribArray(FlatAttrib** arr, int rows)
 
 /* Build up array of FlatAttrib structs from EncodedAttrib ones. FlatAttrib
  * holds flattened DER encoding of each attribute */
-static int FlattenEncodedAttribs(PKCS7* pkcs7, FlatAttrib** derArr, int rows,
+static int FlattenEncodedAttribs(wc_PKCS7* pkcs7, FlatAttrib** derArr, int rows,
                                  EncodedAttrib* ea, int eaSz)
 {
     int i;
@@ -1720,7 +1720,7 @@ static int FlattenEncodedAttribs(PKCS7* pkcs7, FlatAttrib** derArr, int rows,
 
 
 /* Sort and Flatten EncodedAttrib attributes into output buffer */
-static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
+static int FlattenAttributes(wc_PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
                              int eaSz)
 {
     int i, ret;
@@ -1779,7 +1779,7 @@ static int FlattenAttributes(PKCS7* pkcs7, byte* output, EncodedAttrib* ea,
 
 #ifndef NO_RSA
 
-static int wc_PKCS7_ImportRSA(PKCS7* pkcs7, RsaKey* privKey)
+static int wc_PKCS7_ImportRSA(wc_PKCS7* pkcs7, RsaKey* privKey)
 {
     int ret;
     word32 idx;
@@ -1822,7 +1822,7 @@ static int wc_PKCS7_ImportRSA(PKCS7* pkcs7, RsaKey* privKey)
 
 
 /* returns size of signature put into out, negative on error */
-static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+static int wc_PKCS7_RsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -1873,7 +1873,7 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 
 #ifdef HAVE_ECC
 
-static int wc_PKCS7_ImportECC(PKCS7* pkcs7, ecc_key* privKey)
+static int wc_PKCS7_ImportECC(wc_PKCS7* pkcs7, ecc_key* privKey)
 {
     int ret;
     word32 idx;
@@ -1912,7 +1912,7 @@ static int wc_PKCS7_ImportECC(PKCS7* pkcs7, ecc_key* privKey)
 
 
 /* returns size of signature put into out, negative on error */
-static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
+static int wc_PKCS7_EcdsaSign(wc_PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 {
     int ret;
     word32 outSz;
@@ -1964,7 +1964,7 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 #endif /* HAVE_ECC */
 
 /* returns encContentDigestSz based on the signature set to be used */
-static int wc_PKCS7_GetSignSize(PKCS7* pkcs7)
+static int wc_PKCS7_GetSignSize(wc_PKCS7* pkcs7)
 {
     int ret = 0;
 
@@ -2031,7 +2031,7 @@ static int wc_PKCS7_GetSignSize(PKCS7* pkcs7)
  * esd   - pointer to initialized ESD structure, used for output
  *
  * return 0 on success, negative on error */
-static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
+static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
                     const byte* contentType, word32 contentTypeSz,
                     const byte* contentTypeOid, word32 contentTypeOidSz,
                     const byte* messageDigestOid, word32 messageDigestOidSz,
@@ -2138,7 +2138,7 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
  * digEncAlgoType - [OUT] output for algo ID type
  *
  * return 0 on success, negative on error */
-static int wc_PKCS7_SignedDataGetEncAlgoId(PKCS7* pkcs7, int* digEncAlgoId,
+static int wc_PKCS7_SignedDataGetEncAlgoId(wc_PKCS7* pkcs7, int* digEncAlgoId,
                                            int* digEncAlgoType)
 {
     int algoId   = 0;
@@ -2281,7 +2281,7 @@ static int wc_PKCS7_SignedDataGetEncAlgoId(PKCS7* pkcs7, int* digEncAlgoId,
  * digestInfoSz - [IN/OUT] - input size of array, size of digestInfo
  *
  * return 0 on success, negative on error */
-static int wc_PKCS7_BuildDigestInfo(PKCS7* pkcs7, byte* flatSignedAttribs,
+static int wc_PKCS7_BuildDigestInfo(wc_PKCS7* pkcs7, byte* flatSignedAttribs,
                                     word32 flatSignedAttribsSz, ESD* esd,
                                     byte* digestInfo, word32* digestInfoSz)
 {
@@ -2367,7 +2367,7 @@ static int wc_PKCS7_BuildDigestInfo(PKCS7* pkcs7, byte* flatSignedAttribs,
  * esd - pointer to initialized ESD struct
  *
  * returns length of signature on success, negative on error */
-static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
+static int wc_PKCS7_SignedDataBuildSignature(wc_PKCS7* pkcs7,
                                              byte* flatSignedAttribs,
                                              word32 flatSignedAttribsSz,
                                              ESD* esd)
@@ -2487,7 +2487,7 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
  * @param esd Pointer to an ESD structure for digest calculation.
  * @return Returns 0 on success, and a negative value on failure.
  */
-static int wc_PKCS7_EncodeContentStreamHelper(PKCS7* pkcs7, int cipherType,
+static int wc_PKCS7_EncodeContentStreamHelper(wc_PKCS7* pkcs7, int cipherType,
     Aes* aes, byte* encContentOut, byte* contentData, int contentDataSz,
     byte* out, word32* outIdx, ESD* esd)
 {
@@ -2553,10 +2553,10 @@ static int wc_PKCS7_EncodeContentStreamHelper(PKCS7* pkcs7, int cipherType,
  *
  * Returns 0 on success */
 #ifndef NO_AES
-static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, Aes* aes,
+static int wc_PKCS7_EncodeContentStream(wc_PKCS7* pkcs7, ESD* esd, Aes* aes,
     byte* in, int inSz, byte* out, int cipherType)
 #else
-static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
+static int wc_PKCS7_EncodeContentStream(wc_PKCS7* pkcs7, ESD* esd, void* aes,
     byte* in, int inSz, byte* out, int cipherType)
 #endif
 {
@@ -2749,7 +2749,7 @@ static int wc_PKCS7_EncodeContentStream(PKCS7* pkcs7, ESD* esd, void* aes,
 
 /* build PKCS#7 signedData content type */
 /* To get the output size then set output = 0 and *outputSz = 0 */
-static int PKCS7_EncodeSigned(PKCS7* pkcs7,
+static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
     const byte* hashBuf, word32 hashSz, byte* output, word32* outputSz,
     byte* output2, word32* output2Sz)
 {
@@ -3413,7 +3413,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7,
  * pkcs7->contentSz: Must be provided as actual sign of raw data
  * return codes: 0=success, negative=error
  */
-int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+int wc_PKCS7_EncodeSignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot,
     word32* outputFootSz)
 {
@@ -3443,7 +3443,7 @@ int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
 
 /* Sets a custom SKID in PKCS7 struct, used before calling an encode operation
  * Returns 0 on success, negative upon error. */
-int wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, const byte* in, word16 inSz)
+int wc_PKCS7_SetCustomSKID(wc_PKCS7* pkcs7, const byte* in, word16 inSz)
 {
     int ret = 0;
 
@@ -3487,7 +3487,7 @@ int wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, const byte* in, word16 inSz)
  * flag  - turn on/off detached signature generation (1 or 0)
  *
  * Returns 0 on success, negative upon error. */
-int wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag)
+int wc_PKCS7_SetDetached(wc_PKCS7* pkcs7, word16 flag)
 {
     if (pkcs7 == NULL || (flag != 0 && flag != 1))
         return BAD_FUNC_ARG;
@@ -3508,7 +3508,7 @@ int wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag)
  * pkcs7 - pointer to initialized PKCS7 structure
  *
  * Returns 0 on success, negative upon error. */
-int wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7)
+int wc_PKCS7_NoDefaultSignedAttribs(wc_PKCS7* pkcs7)
 {
     return wc_PKCS7_SetDefaultSignedAttribs(pkcs7, WOLFSSL_NO_ATTRIBUTES);
 }
@@ -3525,7 +3525,7 @@ int wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7)
  * pkcs7 - pointer to initialized PKCS7 structure
  *
  * Returns 0 on success, negative upon error. */
-int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag)
+int  wc_PKCS7_SetDefaultSignedAttribs(wc_PKCS7* pkcs7, word16 flag)
 {
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
@@ -3554,7 +3554,7 @@ int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag)
 
 
 /* return codes: >0: Size of signed PKCS7 output buffer, negative: error */
-int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
+int wc_PKCS7_EncodeSignedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     int ret;
 
@@ -3623,7 +3623,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
  * outputSz             - size of output buffer, octets
  *
  * Returns length of generated bundle on success, negative upon error. */
-int wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
+int wc_PKCS7_EncodeSignedFPD(wc_PKCS7* pkcs7, byte* privateKey,
                              word32 privateKeySz, int signOID, int hashOID,
                              byte* content, word32 contentSz,
                              PKCS7Attrib* signedAttribs, word32 signedAttribsSz,
@@ -3692,7 +3692,7 @@ int wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
  * outputSz             - size of output buffer, octets
  *
  * Returns length of generated bundle on success, negative upon error. */
-int wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7, byte* encryptKey,
+int wc_PKCS7_EncodeSignedEncryptedFPD(wc_PKCS7* pkcs7, byte* encryptKey,
                                       word32 encryptKeySz, byte* privateKey,
                                       word32 privateKeySz, int encryptOID,
                                       int signOID, int hashOID,
@@ -3800,7 +3800,7 @@ int wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7, byte* encryptKey,
  * outputSz             - size of output buffer, octets
  *
  * Returns length of generated bundle on success, negative upon error. */
-int wc_PKCS7_EncodeSignedCompressedFPD(PKCS7* pkcs7, byte* privateKey,
+int wc_PKCS7_EncodeSignedCompressedFPD(wc_PKCS7* pkcs7, byte* privateKey,
                                        word32 privateKeySz, int signOID,
                                        int hashOID, byte* content,
                                        word32 contentSz,
@@ -3904,7 +3904,7 @@ int wc_PKCS7_EncodeSignedCompressedFPD(PKCS7* pkcs7, byte* privateKey,
  * outputSz             - size of output buffer, octets
  *
  * Returns length of generated bundle on success, negative upon error. */
-int  wc_PKCS7_EncodeSignedEncryptedCompressedFPD(PKCS7* pkcs7, byte* encryptKey,
+int  wc_PKCS7_EncodeSignedEncryptedCompressedFPD(wc_PKCS7* pkcs7, byte* encryptKey,
                                        word32 encryptKeySz, byte* privateKey,
                                        word32 privateKeySz, int encryptOID,
                                        int signOID, int hashOID, byte* content,
@@ -4018,7 +4018,7 @@ int  wc_PKCS7_EncodeSignedEncryptedCompressedFPD(PKCS7* pkcs7, byte* encryptKey,
 
 #ifdef HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK
 /* register raw RSA sign digest callback */
-int wc_PKCS7_SetRsaSignRawDigestCb(PKCS7* pkcs7, CallbackRsaSignRawDigest cb)
+int wc_PKCS7_SetRsaSignRawDigestCb(wc_PKCS7* pkcs7, CallbackRsaSignRawDigest cb)
 {
     if (pkcs7 == NULL || cb == NULL) {
         return BAD_FUNC_ARG;
@@ -4031,7 +4031,7 @@ int wc_PKCS7_SetRsaSignRawDigestCb(PKCS7* pkcs7, CallbackRsaSignRawDigest cb)
 #endif
 
 /* returns size of signature put into out, negative on error */
-static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
+static int wc_PKCS7_RsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
                               byte* hash, word32 hashSz)
 {
     int ret = 0, i;
@@ -4163,7 +4163,7 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
 #ifdef HAVE_ECC
 
 /* returns size of signature put into out, negative on error */
-static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
+static int wc_PKCS7_EcdsaVerify(wc_PKCS7* pkcs7, byte* sig, int sigSz,
                                 byte* hash, word32 hashSz)
 {
     int ret = 0, i;
@@ -4302,7 +4302,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
  * plainDigestSz  - [OUT] size of digest at plainDigest
  *
  * returns 0 on success, negative on error */
-static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
+static int wc_PKCS7_BuildSignedDataDigest(wc_PKCS7* pkcs7, byte* signedAttrib,
                                       word32 signedAttribSz, byte* pkcs7Digest,
                                       word32* pkcs7DigestSz, byte** plainDigest,
                                       word32* plainDigestSz,
@@ -4441,7 +4441,7 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
  * hashBufSz      - size of hashBuf, octets
  *
  * return 0 on success, negative on error */
-static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
+static int wc_PKCS7_VerifyContentMessageDigest(wc_PKCS7* pkcs7,
                                                const byte* hashBuf,
                                                word32 hashSz)
 {
@@ -4586,7 +4586,7 @@ static int wc_PKCS7_VerifyContentMessageDigest(PKCS7* pkcs7,
  * signedAttribSz - size of signedAttributes
  *
  * return 0 on success, negative on error */
-static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
+static int wc_PKCS7_SignedDataVerifySignature(wc_PKCS7* pkcs7, byte* sig,
                                              word32 sigSz, byte* signedAttrib,
                                              word32 signedAttribSz,
                                              const byte* hashBuf, word32 hashSz)
@@ -4742,7 +4742,7 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
 
 /* set correct public key OID based on signature OID, stores in
  * pkcs7->publicKeyOID and returns same value */
-static int wc_PKCS7_SetPublicKeyOID(PKCS7* pkcs7, int sigOID)
+static int wc_PKCS7_SetPublicKeyOID(wc_PKCS7* pkcs7, int sigOID)
 {
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -4830,7 +4830,7 @@ static int wc_PKCS7_SetPublicKeyOID(PKCS7* pkcs7, int sigOID)
  *
  * returns the number of attributes parsed on success
  */
-static int wc_PKCS7_ParseAttribs(PKCS7* pkcs7, byte* in, int inSz)
+static int wc_PKCS7_ParseAttribs(wc_PKCS7* pkcs7, byte* in, int inSz)
 {
     int    found = 0;
     word32 idx   = 0;
@@ -4914,7 +4914,7 @@ static int wc_PKCS7_ParseAttribs(PKCS7* pkcs7, byte* in, int inSz)
  *
  * by default support for SignedData degenerate cases is on
  */
-void wc_PKCS7_AllowDegenerate(PKCS7* pkcs7, word16 flag)
+void wc_PKCS7_AllowDegenerate(wc_PKCS7* pkcs7, word16 flag)
 {
     if (pkcs7) {
         if (flag) { /* flag of 1 turns on support for degenerate */
@@ -4936,7 +4936,7 @@ void wc_PKCS7_AllowDegenerate(PKCS7* pkcs7, word16 flag)
  *
  * returns 0 on success
  */
-static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         word32* idxIn, int degenerate, byte** signedAttrib, int* signedAttribSz)
 {
     int ret = 0;
@@ -5110,7 +5110,7 @@ static int wc_PKCS7_ParseSignerInfo(PKCS7* pkcs7, byte* in, word32 inSz,
  * pkcs7->stream->content and stores its size in pkcs7->stream->contentSz.
  */
 #ifndef NO_PKCS7_STREAM
-static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                 word32* tmpIdx, word32* idx, int keepContent)
 {
     int ret, length;
@@ -5341,7 +5341,7 @@ static int wc_PKCS7_HandleOctetStrings(PKCS7* pkcs7, byte* in, word32 inSz,
  * When adding support for the case of SignedAndEnvelopedData content types a
  * signer is required. In this case the PKCS7 flag noDegenerate could be set.
  */
-static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
+static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* in, word32 inSz,
     byte* in2, word32 in2Sz)
 {
@@ -6630,7 +6630,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
  * return 0 on success and LENGTH_ONLY_E if just setting "outSz" for buffer
  *  length needed.
  */
-int wc_PKCS7_GetSignerSID(PKCS7* pkcs7, byte* out, word32* outSz)
+int wc_PKCS7_GetSignerSID(wc_PKCS7* pkcs7, byte* out, word32* outSz)
 {
     if (outSz == NULL || pkcs7 == NULL) {
         return BAD_FUNC_ARG;
@@ -6683,7 +6683,7 @@ int wc_PKCS7_GetSignerSID(PKCS7* pkcs7, byte* out, word32* outSz)
  * Returns 0 on success, negative upon error.
  *
  */
-int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
+int wc_PKCS7_VerifySignedData_ex(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot,
     word32 pkiMsgFootSz)
 {
@@ -6691,7 +6691,7 @@ int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
         pkiMsgHead, pkiMsgHeadSz, pkiMsgFoot, pkiMsgFootSz);
 }
 
-int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
+int wc_PKCS7_VerifySignedData(wc_PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 {
     return PKCS7_VerifySignedData(pkcs7, NULL, 0, pkiMsg, pkiMsgSz, NULL, 0);
 }
@@ -6704,7 +6704,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
  * len   - length of key to be generated
  *
  * Returns 0 on success, negative upon error */
-static int PKCS7_GenerateContentEncryptionKey(PKCS7* pkcs7, word32 len)
+static int PKCS7_GenerateContentEncryptionKey(wc_PKCS7* pkcs7, word32 len)
 {
     int ret;
     WC_RNG rng;
@@ -6837,7 +6837,7 @@ typedef struct WC_PKCS7_KARI {
 
 /* allocate and create new WC_PKCS7_KARI struct,
  * returns struct pointer on success, NULL on failure */
-static WC_PKCS7_KARI* wc_PKCS7_KariNew(PKCS7* pkcs7, byte direction)
+static WC_PKCS7_KARI* wc_PKCS7_KariNew(wc_PKCS7* pkcs7, byte direction)
 {
     WC_PKCS7_KARI* kari = NULL;
 
@@ -7312,7 +7312,7 @@ static int wc_PKCS7_KariGenerateKEK(WC_PKCS7_KARI* kari, WC_RNG* rng,
  * to CMS/PKCS#7 EnvelopedData structure.
  *
  * Returns 0 on success, negative upon error */
-int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
+int wc_PKCS7_AddRecipient_KARI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
                                int keyWrapOID, int keyAgreeOID, byte* ukm,
                                word32 ukmSz, int options)
 {
@@ -7682,7 +7682,7 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
  * to CMS/PKCS#7 EnvelopedData structure.
  *
  * Returns 0 on success, negative upon error */
-int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
+int wc_PKCS7_AddRecipient_KTRI(wc_PKCS7* pkcs7, const byte* cert, word32 certSz,
                                int options)
 {
     Pkcs7EncodedRecip* recip = NULL;
@@ -8119,7 +8119,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 /* abstraction for writing out PKCS7 bundle during creation
    returns 0 on success
  */
-int wc_PKCS7_WriteOut(PKCS7* pkcs7, byte* output, const byte* input,
+int wc_PKCS7_WriteOut(wc_PKCS7* pkcs7, byte* output, const byte* input,
     word32 inputSz)
 {
     int ret = 0;
@@ -8157,7 +8157,7 @@ int wc_PKCS7_WriteOut(PKCS7* pkcs7, byte* output, const byte* input,
 
 
 /* encrypt content using encryptOID algo */
-static int wc_PKCS7_EncryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
+static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
                                    int keySz,
                                    byte* iv, int ivSz, byte* aad, word32 aadSz,
                                    byte* authTag, word32 authTagSz, byte* in,
@@ -8402,7 +8402,7 @@ static int wc_PKCS7_EncryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
 
 /* decrypt content using encryptOID algo
  * returns 0 on success */
-static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
+static int wc_PKCS7_DecryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
         int keySz, byte* iv, int ivSz, byte* aad, word32 aadSz, byte* authTag,
         word32 authTagSz, byte* in, int inSz, byte* out, int devId, void* heap)
 {
@@ -8605,7 +8605,7 @@ static int wc_PKCS7_DecryptContent(PKCS7* pkcs7, int encryptOID, byte* key,
 
 /* Generate random block, place in out, return 0 on success negative on error.
  * Used for generation of IV, nonce, etc */
-static int wc_PKCS7_GenerateBlock(PKCS7* pkcs7, WC_RNG* rng, byte* out,
+static int wc_PKCS7_GenerateBlock(wc_PKCS7* pkcs7, WC_RNG* rng, byte* out,
                                   word32 outSz)
 {
     int ret;
@@ -8653,7 +8653,7 @@ static int wc_PKCS7_GenerateBlock(PKCS7* pkcs7, WC_RNG* rng, byte* out,
  * type  - either CMS_ISSUER_AND_SERIAL_NUMBER, CMS_SKID or DEGENERATE_SID
  *
  * return 0 on success, negative upon error */
-int wc_PKCS7_SetSignerIdentifierType(PKCS7* pkcs7, int type)
+int wc_PKCS7_SetSignerIdentifierType(wc_PKCS7* pkcs7, int type)
 {
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -8677,7 +8677,7 @@ int wc_PKCS7_SetSignerIdentifierType(PKCS7* pkcs7, int type)
  * sz          - length of contentType array, octets
  *
  * return 0 on success, negative upon error */
-int wc_PKCS7_SetContentType(PKCS7* pkcs7, byte* contentType, word32 sz)
+int wc_PKCS7_SetContentType(wc_PKCS7* pkcs7, byte* contentType, word32 sz)
 {
     if (pkcs7 == NULL || contentType == NULL || sz == 0)
         return BAD_FUNC_ARG;
@@ -8742,7 +8742,7 @@ int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
  * to CMS/PKCS#7 EnvelopedData structure.
  *
  * Return 0 on success, negative upon error */
-int wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb,
+int wc_PKCS7_AddRecipient_ORI(wc_PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb,
                               int options)
 {
     int oriTypeLenSz, blockKeySz, ret;
@@ -8836,7 +8836,7 @@ int wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb,
 #if !defined(NO_PWDBASED) && !defined(NO_SHA)
 
 
-static int wc_PKCS7_GenerateKEK_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
+static int wc_PKCS7_GenerateKEK_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
                                      byte* salt, word32 saltSz, int kdfOID,
                                      int prfOID, int iterations, byte* out,
                                      word32 outSz)
@@ -8870,7 +8870,7 @@ static int wc_PKCS7_GenerateKEK_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
 /* RFC3211 (Section 2.3.1) key wrap algorithm (id-alg-PWRI-KEK).
  *
  * Returns output size on success, negative upon error */
-static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
+static int wc_PKCS7_PwriKek_KeyWrap(wc_PKCS7* pkcs7, const byte* kek, word32 kekSz,
                                     const byte* cek, word32 cekSz,
                                     byte* out, word32 *outSz,
                                     const byte* iv, word32 ivSz, int algID)
@@ -8953,7 +8953,7 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
 /* RFC3211 (Section 2.3.2) key unwrap algorithm (id-alg-PWRI-KEK).
  *
  * Returns cek size on success, negative upon error */
-static int wc_PKCS7_PwriKek_KeyUnWrap(PKCS7* pkcs7, const byte* kek,
+static int wc_PKCS7_PwriKek_KeyUnWrap(wc_PKCS7* pkcs7, const byte* kek,
                                       word32 kekSz, const byte* in, word32 inSz,
                                       byte* out, word32 outSz, const byte* iv,
                                       word32 ivSz, int algID)
@@ -9056,7 +9056,7 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(PKCS7* pkcs7, const byte* kek,
  * to CMS/PKCS#7 EnvelopedData structure.
  *
  * Return 0 on success, negative upon error */
-int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
+int wc_PKCS7_AddRecipient_PWRI(wc_PKCS7* pkcs7, byte* passwd, word32 pLen,
                                byte* salt, word32 saltSz, int kdfOID,
                                int hashOID, int iterations, int kekEncryptOID,
                                int options)
@@ -9327,7 +9327,7 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
  * the password info for decryption a EnvelopedData PWRI RecipientInfo.
  *
  * Returns 0 on success, negative upon error */
-int wc_PKCS7_SetPassword(PKCS7* pkcs7, byte* passwd, word32 pLen)
+int wc_PKCS7_SetPassword(wc_PKCS7* pkcs7, byte* passwd, word32 pLen)
 {
     if (pkcs7 == NULL || passwd == NULL || pLen == 0)
         return BAD_FUNC_ARG;
@@ -9357,7 +9357,7 @@ int wc_PKCS7_SetPassword(PKCS7* pkcs7, byte* passwd, word32 pLen)
  * otherSz    - size of other (OPTIONAL)
  *
  * Returns 0 on success, negative upon error */
-int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
+int wc_PKCS7_AddRecipient_KEKRI(wc_PKCS7* pkcs7, int keyWrapOID, byte* kek,
                                 word32 kekSz, byte* keyId, word32 keyIdSz,
                                 void* timePtr, byte* otherOID,
                                 word32 otherOIDSz, byte* other, word32 otherSz,
@@ -9564,7 +9564,7 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
 }
 
 
-static int wc_PKCS7_GetCMSVersion(PKCS7* pkcs7, int cmsContentType)
+static int wc_PKCS7_GetCMSVersion(wc_PKCS7* pkcs7, int cmsContentType)
 {
     int version = -1;
 
@@ -9606,7 +9606,7 @@ static int wc_PKCS7_GetCMSVersion(PKCS7* pkcs7, int cmsContentType)
 
 
 /* build PKCS#7 envelopedData content type, return enveloped size */
-int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
+int wc_PKCS7_EncodeEnvelopedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     int ret, idx = 0;
     int totalSz, padSz, encryptedOutSz;
@@ -10013,7 +10013,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
 #ifndef NO_RSA
 /* decode KeyTransRecipientInfo (ktri), return 0 on success, <0 on error */
-static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* idx, byte* decryptedKey,
                                word32* decryptedKeySz, int* recipFound)
 {
@@ -10841,7 +10841,7 @@ static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
 #endif /* HAVE_ECC */
 
 
-int wc_PKCS7_SetOriEncryptCtx(PKCS7* pkcs7, void* ctx)
+int wc_PKCS7_SetOriEncryptCtx(wc_PKCS7* pkcs7, void* ctx)
 {
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -10852,7 +10852,7 @@ int wc_PKCS7_SetOriEncryptCtx(PKCS7* pkcs7, void* ctx)
 }
 
 
-int wc_PKCS7_SetOriDecryptCtx(PKCS7* pkcs7, void* ctx)
+int wc_PKCS7_SetOriDecryptCtx(wc_PKCS7* pkcs7, void* ctx)
 {
 
     if (pkcs7 == NULL)
@@ -10864,7 +10864,7 @@ int wc_PKCS7_SetOriDecryptCtx(PKCS7* pkcs7, void* ctx)
 }
 
 
-int wc_PKCS7_SetOriDecryptCb(PKCS7* pkcs7, CallbackOriDecrypt cb)
+int wc_PKCS7_SetOriDecryptCb(wc_PKCS7* pkcs7, CallbackOriDecrypt cb)
 {
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -10876,7 +10876,7 @@ int wc_PKCS7_SetOriDecryptCb(PKCS7* pkcs7, CallbackOriDecrypt cb)
 
 
 /* return 0 on success */
-int wc_PKCS7_SetWrapCEKCb(PKCS7* pkcs7, CallbackWrapCEK cb)
+int wc_PKCS7_SetWrapCEKCb(wc_PKCS7* pkcs7, CallbackWrapCEK cb)
 {
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -10902,7 +10902,7 @@ int wc_PKCS7_SetWrapCEKCb(PKCS7* pkcs7, CallbackWrapCEK cb)
  *
  * Return 0 on success, negative upon error.
  */
-static int wc_PKCS7_DecryptOri(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_DecryptOri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* idx, byte* decryptedKey,
                                word32* decryptedKeySz, int* recipFound)
 {
@@ -10988,7 +10988,7 @@ static int wc_PKCS7_DecryptOri(PKCS7* pkcs7, byte* in, word32 inSz,
 
 /* decode ASN.1 PasswordRecipientInfo (pwri), return 0 on success,
  * < 0 on error */
-static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_DecryptPwri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* idx, byte* decryptedKey,
                                word32* decryptedKeySz, int* recipFound)
 {
@@ -11222,7 +11222,7 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
 
 /* decode ASN.1 KEKRecipientInfo (kekri), return 0 on success,
  * < 0 on error */
-static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_DecryptKekri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* idx, byte* decryptedKey,
                                word32* decryptedKeySz, int* recipFound)
 {
@@ -11364,7 +11364,7 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
 
 /* decode ASN.1 KeyAgreeRecipientInfo (kari), return 0 on success,
  * < 0 on error */
-static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
+static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* idx, byte* decryptedKey,
                                word32* decryptedKeySz, int* recipFound)
 {
@@ -11631,7 +11631,7 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
 
 
 /* decode ASN.1 RecipientInfos SET, return 0 on success, < 0 on error */
-static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
+static int wc_PKCS7_DecryptRecipientInfos(wc_PKCS7* pkcs7, byte* in,
                             word32  inSz, word32* idx, byte* decryptedKey,
                             word32* decryptedKeySz, int* recipFound)
 {
@@ -11868,7 +11868,7 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
 /* Parse encoded EnvelopedData bundle up to RecipientInfo set.
  *
  * return size of RecipientInfo SET on success, negative upon error */
-static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
+static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
                                             word32 inSz, word32* idx,
                                             int type)
 {
@@ -12125,7 +12125,7 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
  * the secret key for decryption a EnvelopedData KEKRI RecipientInfo.
  *
  * Returns 0 on success, negative upon error */
-WOLFSSL_API int wc_PKCS7_SetKey(PKCS7* pkcs7, byte* key, word32 keySz)
+WOLFSSL_API int wc_PKCS7_SetKey(wc_PKCS7* pkcs7, byte* key, word32 keySz)
 {
     if (pkcs7 == NULL || key == NULL || keySz == 0)
         return BAD_FUNC_ARG;
@@ -12139,7 +12139,7 @@ WOLFSSL_API int wc_PKCS7_SetKey(PKCS7* pkcs7, byte* key, word32 keySz)
 
 /* append data to encrypted content cache in PKCS7 structure
  * return 0 on success, negative on error */
-static int PKCS7_CacheEncryptedContent(PKCS7* pkcs7, byte* in, word32 inSz)
+static int PKCS7_CacheEncryptedContent(wc_PKCS7* pkcs7, byte* in, word32 inSz)
 {
     byte* oldCache;
     word32 oldCacheSz;
@@ -12173,7 +12173,7 @@ static int PKCS7_CacheEncryptedContent(PKCS7* pkcs7, byte* in, word32 inSz)
 
 
 /* unwrap and decrypt PKCS#7 envelopedData object, return decoded size */
-WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
+WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                                          word32 inSz, byte* output,
                                          word32 outputSz)
 {
@@ -12566,7 +12566,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
 
 
 /* build PKCS#7 authEnvelopedData content type, return enveloped size */
-int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
+int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
                                      word32 outputSz)
 {
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
@@ -13118,7 +13118,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 
 
 /* unwrap and decrypt PKCS#7 AuthEnvelopedData object, return decoded size */
-WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
+WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                                                  word32 inSz, byte* output,
                                                  word32 outputSz)
 {
@@ -13760,7 +13760,7 @@ authenv_atrbend:
 #ifndef NO_PKCS7_ENCRYPTED_DATA
 
 /* build PKCS#7 encryptedData content type, return encrypted size */
-int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
+int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     int ret, idx = 0;
     int totalSz, padSz, encryptedOutSz;
@@ -14022,7 +14022,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
 /* decode and store unprotected attributes in PKCS7->decodedAttrib. Return
  * 0 on success, negative on error. User must call wc_PKCS7_Free(). */
-static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
+static int wc_PKCS7_DecodeUnprotectedAttributes(wc_PKCS7* pkcs7, byte* pkiMsg,
                                              word32 pkiMsgSz, word32* inOutIdx)
 {
     int ret, attribLen;
@@ -14056,7 +14056,7 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 
 
 /* unwrap and decrypt PKCS#7/CMS encrypted-data object, returned decoded size */
-int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
+int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                  byte* output, word32 outputSz)
 {
     int ret = 0, version, length = 0, haveAttribs = 0;
@@ -14427,7 +14427,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
  * on the parsed bundle so far.
  * returns 0 on success
  */
-int wc_PKCS7_SetDecodeEncryptedCb(PKCS7* pkcs7,
+int wc_PKCS7_SetDecodeEncryptedCb(wc_PKCS7* pkcs7,
         CallbackDecryptContent decryptionCb)
 {
     if (pkcs7 != NULL) {
@@ -14440,7 +14440,7 @@ int wc_PKCS7_SetDecodeEncryptedCb(PKCS7* pkcs7,
 /* Set an optional user context that gets passed to callback
  * returns 0 on success
  */
-int wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx)
+int wc_PKCS7_SetDecodeEncryptedCtx(wc_PKCS7* pkcs7, void* ctx)
 {
     if (pkcs7 != NULL) {
         pkcs7->decryptionCtx = ctx;
@@ -14452,7 +14452,7 @@ int wc_PKCS7_SetDecodeEncryptedCtx(PKCS7* pkcs7, void* ctx)
 
 /* set stream mode for encoding and signing
  * returns 0 on success */
-int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag,
+int wc_PKCS7_SetStreamMode(wc_PKCS7* pkcs7, byte flag,
     CallbackGetContent getContentCb,
     CallbackStreamOut streamOutCb, void* ctx)
 {
@@ -14476,7 +14476,7 @@ int wc_PKCS7_SetStreamMode(PKCS7* pkcs7, byte flag,
 
 
 /* returns to current stream mode flag on success, negative values on fail */
-int wc_PKCS7_GetStreamMode(PKCS7* pkcs7)
+int wc_PKCS7_GetStreamMode(wc_PKCS7* pkcs7)
 {
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
@@ -14491,7 +14491,7 @@ int wc_PKCS7_GetStreamMode(PKCS7* pkcs7)
 
 /* set option to not include certificates when creating a bundle
  * returns 0 on success */
-int wc_PKCS7_SetNoCerts(PKCS7* pkcs7, byte flag)
+int wc_PKCS7_SetNoCerts(wc_PKCS7* pkcs7, byte flag)
 {
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
@@ -14502,7 +14502,7 @@ int wc_PKCS7_SetNoCerts(PKCS7* pkcs7, byte flag)
 
 
 /* returns the current noCerts flag value on success, negative values on fail */
-int wc_PKCS7_GetNoCerts(PKCS7* pkcs7)
+int wc_PKCS7_GetNoCerts(wc_PKCS7* pkcs7)
 {
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
@@ -14514,7 +14514,7 @@ int wc_PKCS7_GetNoCerts(PKCS7* pkcs7)
 #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
 
 /* build PKCS#7 compressedData content type, return encrypted size */
-int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
+int wc_PKCS7_EncodeCompressedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
 {
     byte contentInfoSeq[MAX_SEQ_SZ];
     byte contentInfoTypeOid[MAX_OID_SZ];
@@ -14686,7 +14686,7 @@ int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 /* unwrap and decompress PKCS#7/CMS compressedData object,
  * Handles content wrapped compressed data and raw compressed data packet
  * returned decoded size */
-int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
+int wc_PKCS7_DecodeCompressedData(wc_PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
                                   byte* output, word32 outputSz)
 {
     int length, version, ret;

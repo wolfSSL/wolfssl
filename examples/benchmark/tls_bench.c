@@ -32,7 +32,6 @@ Or
   bench_tls(args);
 */
 
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -40,6 +39,10 @@ Or
     #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
+
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#undef OPENSSL_COEXIST /* can't use this option with this example */
+
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/ssl.h>

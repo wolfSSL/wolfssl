@@ -26,6 +26,8 @@
 
 #include <wolfssl/openssl/ssl.h>
 
+#ifndef OPENSSL_COEXIST
+
 #define ASN1_STRING_new       wolfSSL_ASN1_STRING_new
 #define ASN1_STRING_type_new  wolfSSL_ASN1_STRING_type_new
 #define ASN1_STRING_type      wolfSSL_ASN1_STRING_type
@@ -37,33 +39,28 @@
 #define d2i_ASN1_OBJECT       wolfSSL_d2i_ASN1_OBJECT
 #define c2i_ASN1_OBJECT       wolfSSL_c2i_ASN1_OBJECT
 
-#define V_ASN1_INTEGER                   0x02
-#define V_ASN1_NEG                       0x100
-#define V_ASN1_NEG_INTEGER               (2 | V_ASN1_NEG)
-#define V_ASN1_NEG_ENUMERATED            (10 | V_ASN1_NEG)
+#define V_ASN1_INTEGER                  WOLFSSL_V_ASN1_INTEGER
+#define V_ASN1_NEG                      WOLFSSL_V_ASN1_NEG
+#define V_ASN1_NEG_INTEGER              WOLFSSL_V_ASN1_NEG_INTEGER
+#define V_ASN1_NEG_ENUMERATED           WOLFSSL_V_ASN1_NEG_ENUMERATED
 
 /* Type for ASN1_print_ex */
-# define ASN1_STRFLGS_ESC_2253           1
-# define ASN1_STRFLGS_ESC_CTRL           2
-# define ASN1_STRFLGS_ESC_MSB            4
-# define ASN1_STRFLGS_ESC_QUOTE          8
-# define ASN1_STRFLGS_UTF8_CONVERT       0x10
-# define ASN1_STRFLGS_IGNORE_TYPE        0x20
-# define ASN1_STRFLGS_SHOW_TYPE          0x40
-# define ASN1_STRFLGS_DUMP_ALL           0x80
-# define ASN1_STRFLGS_DUMP_UNKNOWN       0x100
-# define ASN1_STRFLGS_DUMP_DER           0x200
-# define ASN1_STRFLGS_RFC2253            (ASN1_STRFLGS_ESC_2253 | \
-                                          ASN1_STRFLGS_ESC_CTRL | \
-                                          ASN1_STRFLGS_ESC_MSB | \
-                                          ASN1_STRFLGS_UTF8_CONVERT | \
-                                          ASN1_STRFLGS_DUMP_UNKNOWN | \
-                                          ASN1_STRFLGS_DUMP_DER)
+#define ASN1_STRFLGS_ESC_2253           WOLFSSL_ASN1_STRFLGS_ESC_2253
+#define ASN1_STRFLGS_ESC_CTRL           WOLFSSL_ASN1_STRFLGS_ESC_CTRL
+#define ASN1_STRFLGS_ESC_MSB            WOLFSSL_ASN1_STRFLGS_ESC_MSB
+#define ASN1_STRFLGS_ESC_QUOTE          WOLFSSL_ASN1_STRFLGS_ESC_QUOTE
+#define ASN1_STRFLGS_UTF8_CONVERT       WOLFSSL_ASN1_STRFLGS_UTF8_CONVERT
+#define ASN1_STRFLGS_IGNORE_TYPE        WOLFSSL_ASN1_STRFLGS_IGNORE_TYPE
+#define ASN1_STRFLGS_SHOW_TYPE          WOLFSSL_ASN1_STRFLGS_SHOW_TYPE
+#define ASN1_STRFLGS_DUMP_ALL           WOLFSSL_ASN1_STRFLGS_DUMP_ALL
+#define ASN1_STRFLGS_DUMP_UNKNOWN       WOLFSSL_ASN1_STRFLGS_DUMP_UNKNOWN
+#define ASN1_STRFLGS_DUMP_DER           WOLFSSL_ASN1_STRFLGS_DUMP_DER
+#define ASN1_STRFLGS_RFC2253            WOLFSSL_ASN1_STRFLGS_RFC2253
 
-#define MBSTRING_UTF8                    0x1000
-#define MBSTRING_ASC                     0x1001
-#define MBSTRING_BMP                     0x1002
-#define MBSTRING_UNIV                    0x1004
+#define MBSTRING_UTF8                   WOLFSSL_MBSTRING_UTF8
+#define MBSTRING_ASC                    WOLFSSL_MBSTRING_ASC
+#define MBSTRING_BMP                    WOLFSSL_MBSTRING_BMP
+#define MBSTRING_UNIV                   WOLFSSL_MBSTRING_UNIV
 
 #define ASN1_UTCTIME_print              wolfSSL_ASN1_UTCTIME_print
 #define ASN1_TIME_check                 wolfSSL_ASN1_TIME_check
@@ -71,42 +68,42 @@
 #define ASN1_TIME_compare               wolfSSL_ASN1_TIME_compare
 #define ASN1_TIME_set                   wolfSSL_ASN1_TIME_set
 
-#define V_ASN1_EOC                      0
-#define V_ASN1_BOOLEAN                  1
-#define V_ASN1_OCTET_STRING             4
-#define V_ASN1_NULL                     5
-#define V_ASN1_OBJECT                   6
-#define V_ASN1_UTF8STRING               12
-#define V_ASN1_SEQUENCE                 16
-#define V_ASN1_SET                      17
-#define V_ASN1_PRINTABLESTRING          19
-#define V_ASN1_T61STRING                20
-#define V_ASN1_IA5STRING                22
-#define V_ASN1_UTCTIME                  23
-#define V_ASN1_GENERALIZEDTIME          24
-#define V_ASN1_UNIVERSALSTRING          28
-#define V_ASN1_BMPSTRING                30
+#define V_ASN1_EOC                      WOLFSSL_V_ASN1_EOC
+#define V_ASN1_BOOLEAN                  WOLFSSL_V_ASN1_BOOLEAN
+#define V_ASN1_OCTET_STRING             WOLFSSL_V_ASN1_OCTET_STRING
+#define V_ASN1_NULL                     WOLFSSL_V_ASN1_NULL
+#define V_ASN1_OBJECT                   WOLFSSL_V_ASN1_OBJECT
+#define V_ASN1_UTF8STRING               WOLFSSL_V_ASN1_UTF8STRING
+#define V_ASN1_SEQUENCE                 WOLFSSL_V_ASN1_SEQUENCE
+#define V_ASN1_SET                      WOLFSSL_V_ASN1_SET
+#define V_ASN1_PRINTABLESTRING          WOLFSSL_V_ASN1_PRINTABLESTRING
+#define V_ASN1_T61STRING                WOLFSSL_V_ASN1_T61STRING
+#define V_ASN1_IA5STRING                WOLFSSL_V_ASN1_IA5STRING
+#define V_ASN1_UTCTIME                  WOLFSSL_V_ASN1_UTCTIME
+#define V_ASN1_GENERALIZEDTIME          WOLFSSL_V_ASN1_GENERALIZEDTIME
+#define V_ASN1_UNIVERSALSTRING          WOLFSSL_V_ASN1_UNIVERSALSTRING
+#define V_ASN1_BMPSTRING                WOLFSSL_V_ASN1_BMPSTRING
 
+#define V_ASN1_CONSTRUCTED              WOLFSSL_V_ASN1_CONSTRUCTED
 
-#define V_ASN1_CONSTRUCTED              0x20
-
-#define ASN1_STRING_FLAG_BITS_LEFT       0x008
-#define ASN1_STRING_FLAG_NDEF            0x010
-#define ASN1_STRING_FLAG_CONT            0x020
-#define ASN1_STRING_FLAG_MSTRING         0x040
-#define ASN1_STRING_FLAG_EMBED           0x080
+#define ASN1_STRING_FLAG_BITS_LEFT      WOLFSSL_ASN1_STRING_FLAG_BITS_LEFT
+#define ASN1_STRING_FLAG_NDEF           WOLFSSL_ASN1_STRING_FLAG_NDEF
+#define ASN1_STRING_FLAG_CONT           WOLFSSL_ASN1_STRING_FLAG_CONT
+#define ASN1_STRING_FLAG_MSTRING        WOLFSSL_ASN1_STRING_FLAG_MSTRING
+#define ASN1_STRING_FLAG_EMBED          WOLFSSL_ASN1_STRING_FLAG_EMBED
 
 /* X.509 PKI size limits from RFC2459 (appendix A) */
 /* internally our limit is CTC_NAME_SIZE (64) - overridden with WC_CTC_NAME_SIZE */
-#define ub_name                    CTC_NAME_SIZE /* 32768 */
-#define ub_common_name             CTC_NAME_SIZE /* 64 */
-#define ub_locality_name           CTC_NAME_SIZE /* 128 */
-#define ub_state_name              CTC_NAME_SIZE /* 128 */
-#define ub_organization_name       CTC_NAME_SIZE /* 64 */
-#define ub_organization_unit_name  CTC_NAME_SIZE /* 64 */
-#define ub_title                   CTC_NAME_SIZE /* 64 */
-#define ub_email_address           CTC_NAME_SIZE /* 128 */
+#define ub_name                         WOLFSSL_ub_name
+#define ub_common_name                  WOLFSSL_ub_common_name
+#define ub_locality_name                WOLFSSL_ub_locality_name
+#define ub_state_name                   WOLFSSL_ub_state_name
+#define ub_organization_name            WOLFSSL_ub_organization_name
+#define ub_organization_unit_name       WOLFSSL_ub_organization_unit_name
+#define ub_title                        WOLFSSL_ub_title
+#define ub_email_address                WOLFSSL_ub_email_address
 
+#endif /* !OPENSSL_COEXIST */
 
 WOLFSSL_API WOLFSSL_ASN1_INTEGER *wolfSSL_BN_to_ASN1_INTEGER(
     const WOLFSSL_BIGNUM *bn, WOLFSSL_ASN1_INTEGER *ai);

@@ -2012,7 +2012,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     #ifndef NO_RSA
         {
             const unsigned char* pt = pk;
-            if (wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, pkey, &pt, pkSz) !=
+            if (wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_RSA, pkey, &pt, pkSz) !=
                     NULL) {
                 ret = 0;
             }
@@ -2022,7 +2022,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
     #ifdef HAVE_ECC
         if (ret != 0) { /* if is in fail state check if ECC key */
             const unsigned char* pt = pk;
-            if (wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, pkey, &pt, pkSz) !=
+            if (wolfSSL_d2i_PrivateKey(WC_EVP_PKEY_EC, pkey, &pt, pkSz) !=
                     NULL) {
                 ret = 0;
             }

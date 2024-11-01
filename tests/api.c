@@ -29,12 +29,7 @@
  | Includes
  *----------------------------------------------------------------------------*/
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
-#endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#include <tests/unit.h>
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/hash.h>
@@ -60,7 +55,6 @@
 #include <wolfssl/error-ssl.h>
 
 #include <wolfssl/test.h>
-#include <tests/unit.h>
 #include <tests/utils.h>
 
 /* for testing compatibility layer callbacks */

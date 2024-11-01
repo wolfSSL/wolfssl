@@ -866,7 +866,7 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
 
     (void)certs;
 
-    if (flags & OCSP_NOVERIFY)
+    if (flags & WOLFSSL_OCSP_NOVERIFY)
         return WOLFSSL_SUCCESS;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -880,7 +880,7 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
     if (bs->verifyError != OCSP_VERIFY_ERROR_NONE)
         goto out;
 
-    if (flags & OCSP_TRUSTOTHER) {
+    if (flags & WOLFSSL_OCSP_TRUSTOTHER) {
         for (idx = 0; idx < wolfSSL_sk_X509_num(certs); idx++) {
             WOLFSSL_X509* x = wolfSSL_sk_X509_value(certs, idx);
             int derSz = 0;
@@ -898,7 +898,7 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
     if (ParseCertRelative(cert, CERT_TYPE, VERIFY, st->cm, NULL) < 0)
         goto out;
 
-    if (!(flags & OCSP_NOCHECKS)) {
+    if (!(flags & WOLFSSL_OCSP_NOCHECKS)) {
         if (CheckOcspResponder(bs, cert, st->cm) != 0)
             goto out;
     }

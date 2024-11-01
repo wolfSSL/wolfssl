@@ -221,11 +221,11 @@ int GetX509Error(int e)
         /* We can't disambiguate if its the before or after date that caused
          * the error. Assume expired. */
         case WC_NO_ERR_TRACE(CRL_CERT_DATE_ERR):
-            return X509_V_ERR_CRL_HAS_EXPIRED;
+            return WOLFSSL_X509_V_ERR_CRL_HAS_EXPIRED;
         case WC_NO_ERR_TRACE(CRL_CERT_REVOKED):
             return WOLFSSL_X509_V_ERR_CERT_REVOKED;
         case WC_NO_ERR_TRACE(CRL_MISSING):
-            return X509_V_ERR_UNABLE_TO_GET_CRL;
+            return WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL;
         case 0:
         case 1:
             return 0;

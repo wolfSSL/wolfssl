@@ -809,79 +809,156 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WOLFSSL_MAX_NAME_CONSTRAINTS 128
 #endif
 
+#define WC_NID_undef 0
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* NIDs */
-#define NID_undef 0
-#define NID_netscape_cert_type NID_undef
-#define NID_des 66
-#define NID_des3 67
-#define NID_sha256 672
-#define NID_sha384 673
-#define NID_sha512 674
-#define NID_sha512_224 1094
-#define NID_sha512_256 1095
-#define NID_pkcs7_signed 22
-#define NID_pkcs7_enveloped 23
-#define NID_pkcs7_signedAndEnveloped 24
-#define NID_pkcs9_unstructuredName 49
-#define NID_pkcs9_contentType 50  /* 1.2.840.113549.1.9.3 */
-#define NID_pkcs9_challengePassword 54
-#define NID_hw_name_oid 73
-#define NID_id_pkix_OCSP_basic 74
-#define NID_any_policy 75
-#define NID_anyExtendedKeyUsage 76
-#define NID_givenName 100  /* 2.5.4.42 */
-#define NID_initials 101  /* 2.5.4.43 */
-#define NID_title 106
-#define NID_description 107
-#define NID_basic_constraints 133
-#define NID_key_usage 129      /* 2.5.29.15 */
-#define NID_ext_key_usage 151  /* 2.5.29.37 */
-#define NID_subject_key_identifier 128
-#define NID_authority_key_identifier 149
-#define NID_private_key_usage_period 130  /* 2.5.29.16 */
-#define NID_subject_alt_name 131
-#define NID_issuer_alt_name 132
-#define NID_info_access 69
-#define NID_sinfo_access 79       /* id-pe 11 */
-#define NID_name_constraints 144  /* 2.5.29.30 */
-#define NID_crl_distribution_points 145  /* 2.5.29.31 */
-#define NID_certificate_policies 146
-#define NID_policy_mappings 147
-#define NID_policy_constraints 150
-#define NID_inhibit_any_policy 168       /* 2.5.29.54 */
-#define NID_tlsfeature 1020              /* id-pe 24 */
-#define NID_buildingName 1494
+#define WC_NID_netscape_cert_type WC_NID_undef
+#define WC_NID_des 66
+#define WC_NID_des3 67
+#define WC_NID_sha256 672
+#define WC_NID_sha384 673
+#define WC_NID_sha512 674
+#define WC_NID_sha512_224 1094
+#define WC_NID_sha512_256 1095
+#define WC_NID_pkcs7_signed 22
+#define WC_NID_pkcs7_enveloped 23
+#define WC_NID_pkcs7_signedAndEnveloped 24
+#define WC_NID_pkcs9_emailAddress     48
+#define WC_NID_pkcs9_unstructuredName 49
+#define WC_NID_pkcs9_contentType 50  /* 1.2.840.113549.1.9.3 */
+#define WC_NID_pkcs9_challengePassword 54
+#define WC_NID_hw_name_oid 73
+#define WC_NID_id_pkix_OCSP_basic 74
+#define WC_NID_any_policy 75
+#define WC_NID_anyExtendedKeyUsage 76
+#define WC_NID_givenName 100  /* 2.5.4.42 */
+#define WC_NID_initials 101  /* 2.5.4.43 */
+#define WC_NID_title 106
+#define WC_NID_description 107
+#define WC_NID_basic_constraints 133
+#define WC_NID_key_usage 129      /* 2.5.29.15 */
+#define WC_NID_ext_key_usage 151  /* 2.5.29.37 */
+#define WC_NID_subject_key_identifier 128
+#define WC_NID_authority_key_identifier 149
+#define WC_NID_private_key_usage_period 130  /* 2.5.29.16 */
+#define WC_NID_subject_alt_name 131
+#define WC_NID_issuer_alt_name 132
+#define WC_NID_info_access 69
+#define WC_NID_sinfo_access 79       /* id-pe 11 */
+#define WC_NID_name_constraints 144  /* 2.5.29.30 */
+#define WC_NID_crl_distribution_points 145  /* 2.5.29.31 */
+#define WC_NID_certificate_policies 146
+#define WC_NID_policy_mappings 147
+#define WC_NID_policy_constraints 150
+#define WC_NID_inhibit_any_policy 168       /* 2.5.29.54 */
+#define WC_NID_tlsfeature 1020              /* id-pe 24 */
+#define WC_NID_buildingName 1494
 
-#define NID_dnQualifier 174              /* 2.5.4.46 */
-#define NID_commonName 14                /* CN Changed to not conflict
+#define WC_NID_dnQualifier 174              /* 2.5.4.46 */
+#define WC_NID_commonName 14                /* CN Changed to not conflict
                                     * with PBE_SHA1_DES3 */
-#define NID_name 173                     /* N , OID = 2.5.4.41 */
-#define NID_surname 0x04                 /* SN */
-#define NID_serialNumber 0x05            /* serialNumber */
-#define NID_countryName 0x06             /* C  */
-#define NID_localityName 0x07            /* L  */
-#define NID_stateOrProvinceName 0x08     /* ST */
-#define NID_streetAddress ASN_STREET_ADDR  /* street */
-#define NID_organizationName 0x0a        /* O  */
-#define NID_organizationalUnitName 0x0b  /* OU */
-#define NID_jurisdictionCountryName 0xc
-#define NID_jurisdictionStateOrProvinceName 0xd
-#define NID_businessCategory ASN_BUS_CAT
-#define NID_domainComponent ASN_DOMAIN_COMPONENT
-#define NID_postalCode ASN_POSTAL_CODE   /* postalCode */
-#define NID_favouriteDrink 462
-#define NID_userId 458
-#define NID_emailAddress 0x30            /* emailAddress */
-#define NID_id_on_dnsSRV 82              /* 1.3.6.1.5.5.7.8.7 */
-#define NID_ms_upn 265                   /* 1.3.6.1.4.1.311.20.2.3 */
+#define WC_NID_name 173                     /* N , OID = 2.5.4.41 */
+#define WC_NID_surname 0x04                 /* SN */
+#define WC_NID_serialNumber 0x05            /* serialNumber */
+#define WC_NID_countryName 0x06             /* C  */
+#define WC_NID_localityName 0x07            /* L  */
+#define WC_NID_stateOrProvinceName 0x08     /* ST */
+#define WC_NID_streetAddress ASN_STREET_ADDR  /* street */
+#define WC_NID_organizationName 0x0a        /* O  */
+#define WC_NID_organizationalUnitName 0x0b  /* OU */
+#define WC_NID_jurisdictionCountryName 0xc
+#define WC_NID_jurisdictionStateOrProvinceName 0xd
+#define WC_NID_businessCategory ASN_BUS_CAT
+#define WC_NID_domainComponent ASN_DOMAIN_COMPONENT
+#define WC_NID_postalCode ASN_POSTAL_CODE   /* postalCode */
+#define WC_NID_favouriteDrink 462
+#define WC_NID_userId 458
+#define WC_NID_emailAddress 0x30            /* emailAddress */
+#define WC_NID_id_on_dnsSRV 82              /* 1.3.6.1.5.5.7.8.7 */
+#define WC_NID_ms_upn 265                   /* 1.3.6.1.4.1.311.20.2.3 */
 
-#define NID_X9_62_prime_field 406        /* 1.2.840.10045.1.1 */
-#endif /* OPENSSL_EXTRA */
+#define WC_NID_X9_62_prime_field 406        /* 1.2.840.10045.1.1 */
 
-#define NID_id_GostR3410_2001     811
-#define NID_id_GostR3410_2012_256 979
-#define NID_id_GostR3410_2012_512 980
+#define WC_NID_id_GostR3410_2001     811
+#define WC_NID_id_GostR3410_2012_256 979
+#define WC_NID_id_GostR3410_2012_512 980
+
+#ifndef OPENSSL_COEXIST
+
+#define NID_undef WC_NID_undef
+#define NID_netscape_cert_type WC_NID_netscape_cert_type
+#define NID_des WC_NID_des
+#define NID_des3 WC_NID_des3
+#define NID_sha256 WC_NID_sha256
+#define NID_sha384 WC_NID_sha384
+#define NID_sha512 WC_NID_sha512
+#define NID_sha512_224 WC_NID_sha512_224
+#define NID_sha512_256 WC_NID_sha512_256
+#define NID_pkcs7_signed WC_NID_pkcs7_signed
+#define NID_pkcs7_enveloped WC_NID_pkcs7_enveloped
+#define NID_pkcs7_signedAndEnveloped WC_NID_pkcs7_signedAndEnveloped
+#define NID_pkcs9_unstructuredName WC_NID_pkcs9_unstructuredName
+#define NID_pkcs9_contentType WC_NID_pkcs9_contentType
+#define NID_pkcs9_challengePassword WC_NID_pkcs9_challengePassword
+#define NID_hw_name_oid WC_NID_hw_name_oid
+#define NID_id_pkix_OCSP_basic WC_NID_id_pkix_OCSP_basic
+#define NID_any_policy WC_NID_any_policy
+#define NID_anyExtendedKeyUsage WC_NID_anyExtendedKeyUsage
+#define NID_givenName WC_NID_givenName
+#define NID_initials WC_NID_initials
+#define NID_title WC_NID_title
+#define NID_description WC_NID_description
+#define NID_basic_constraints WC_NID_basic_constraints
+#define NID_key_usage WC_NID_key_usage
+#define NID_ext_key_usage WC_NID_ext_key_usage
+#define NID_subject_key_identifier WC_NID_subject_key_identifier
+#define NID_authority_key_identifier WC_NID_authority_key_identifier
+#define NID_private_key_usage_period WC_NID_private_key_usage_period
+#define NID_subject_alt_name WC_NID_subject_alt_name
+#define NID_issuer_alt_name WC_NID_issuer_alt_name
+#define NID_info_access WC_NID_info_access
+#define NID_sinfo_access WC_NID_sinfo_access
+#define NID_name_constraints WC_NID_name_constraints
+#define NID_crl_distribution_points WC_NID_crl_distribution_points
+#define NID_certificate_policies WC_NID_certificate_policies
+#define NID_policy_mappings WC_NID_policy_mappings
+#define NID_policy_constraints WC_NID_policy_constraints
+#define NID_inhibit_any_policy WC_NID_inhibit_any_policy
+#define NID_tlsfeature WC_NID_tlsfeature
+#define NID_buildingName WC_NID_buildingName
+
+#define NID_dnQualifier WC_NID_dnQualifier
+#define NID_commonName WC_NID_commonName
+#define NID_name WC_NID_name
+#define NID_surname WC_NID_surname
+#define NID_serialNumber WC_NID_serialNumber
+#define NID_countryName WC_NID_countryName
+#define NID_localityName WC_NID_localityName
+#define NID_stateOrProvinceName WC_NID_stateOrProvinceName
+#define NID_streetAddress WC_NID_streetAddress
+#define NID_organizationName WC_NID_organizationName
+#define NID_organizationalUnitName WC_NID_organizationalUnitName
+#define NID_jurisdictionCountryName WC_NID_jurisdictionCountryName
+#define NID_jurisdictionStateOrProvinceName WC_NID_jurisdictionStateOrProvinceName
+#define NID_businessCategory WC_NID_businessCategory
+#define NID_domainComponent WC_NID_domainComponent
+#define NID_postalCode WC_NID_postalCode
+#define NID_favouriteDrink WC_NID_favouriteDrink
+#define NID_userId WC_NID_userId
+#define NID_emailAddress WC_NID_emailAddress
+#define NID_id_on_dnsSRV WC_NID_id_on_dnsSRV
+#define NID_ms_upn WC_NID_ms_upn
+
+#define NID_X9_62_prime_field WC_NID_X9_62_prime_field
+
+#define NID_id_GostR3410_2001 WC_NID_id_GostR3410_2001
+#define NID_id_GostR3410_2012_256 WC_NID_id_GostR3410_2012_256
+#define NID_id_GostR3410_2012_512 WC_NID_id_GostR3410_2012_512
+
+#endif /* !OPENSSL_COEXIST */
+
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 enum ECC_TYPES
 {
