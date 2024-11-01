@@ -1750,11 +1750,7 @@ typedef struct w64wrapper {
     #endif
 
     #ifndef SAVE_VECTOR_REGISTERS
-        #ifdef __WATCOMC__
-        #define SAVE_VECTOR_REGISTERS() WC_DO_NOTHING
-        #else
-        #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
-        #endif
+        #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #endif
     #ifndef SAVE_VECTOR_REGISTERS2
         #define SAVE_VECTOR_REGISTERS2() 0
@@ -1768,10 +1764,10 @@ typedef struct w64wrapper {
         #define WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(x) WC_DO_NOTHING
     #endif
     #ifndef ASSERT_SAVED_VECTOR_REGISTERS
-        #define ASSERT_SAVED_VECTOR_REGISTERS(...) WC_DO_NOTHING
+        #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #endif
     #ifndef ASSERT_RESTORED_VECTOR_REGISTERS
-        #define ASSERT_RESTORED_VECTOR_REGISTERS(...) WC_DO_NOTHING
+        #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #endif
     #ifndef RESTORE_VECTOR_REGISTERS
         #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
