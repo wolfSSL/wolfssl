@@ -17482,7 +17482,7 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 /* The server's decision to resume isn't known until after the
                  * "server_hello". If subsequent handshake messages like
-                 * "certificate" or "server_key_exchange" are recevied then we
+                 * "certificate" or "server_key_exchange" are received then we
                  * are doing a full handshake */
 
                 /* If the server included a session id then we

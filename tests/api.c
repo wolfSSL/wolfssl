@@ -60426,7 +60426,7 @@ static int test_X509_STORE_untrusted(void)
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 1),
             TEST_SUCCESS);
     /* Still needs properly loaded CA, while including it in untrusted
-     * list is not an error, it also doesnt count for verify */
+     * list is not an error, it also doesn't count for verify */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
                 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 0),
             TEST_SUCCESS);
