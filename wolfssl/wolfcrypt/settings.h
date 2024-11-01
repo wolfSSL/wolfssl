@@ -3491,6 +3491,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_STRINGS_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
+    #undef HAVE_ATEXIT
     #undef WOLFSSL_HAVE_MIN
     #undef WOLFSSL_HAVE_MAX
     #define SIZEOF_LONG         8

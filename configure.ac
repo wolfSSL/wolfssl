@@ -10,6 +10,9 @@ AC_PREREQ([2.69])
 AC_INIT([wolfssl],[5.7.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
+# Inhibit unwanted regeneration of autotools artifacts by Makefile.
+AM_MAINTAINER_MODE([disable])
+
 # The following sets CFLAGS to empty if unset on command line.  We do not
 # want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
@@ -8902,6 +8905,8 @@ AC_ARG_ENABLE([dual-alg-certs],
 
 AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_EXPERIMENTAL" != "yes" ],[ AC_MSG_ERROR([dual-alg-certs requires --enable-experimental.]) ])
 
+AS_IF([ test "$ENABLED_DUAL_ALG_CERTS" != "no" && test "$ENABLED_CRYPTONLY" = "yes" ],[ AC_MSG_ERROR([dual-alg-certs is incompatible with --enable-cryptonly.]) ])
+
 # Adds functionality to support Raw Public Key (RPK) RFC7250
 AC_ARG_ENABLE([rpk],
     [AS_HELP_STRING([--enable-rpk],[Enable support for Raw Public Key (RPK) RFC7250 (default: disabled)])],
@@ -9725,9 +9730,6 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     AC_SUBST([ASFLAGS_FPUSIMD_DISABLE])
     AC_SUBST([ASFLAGS_FPUSIMD_ENABLE])
 
-    if test "$ENABLED_OPENSSLEXTRA" != "no" && test "$ENABLED_CRYPTONLY" = "no"; then
-        AC_MSG_ERROR([--enable-opensslextra without --enable-cryptonly is incompatible with --enable-linuxkm.])
-    fi
     if test "$ENABLED_FILESYSTEM" = "yes"; then
         AC_MSG_ERROR([--enable-filesystem is incompatible with --enable-linuxkm.])
     fi

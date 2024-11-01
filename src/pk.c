@@ -165,7 +165,26 @@ static int pem_read_bio_key(WOLFSSL_BIO* bio, wc_pem_password_cb* cb,
         /* Write left over data back to BIO if not a file BIO */
         if ((ret > 0) && ((memSz - ret) > 0) &&
                  (bio->type != WOLFSSL_BIO_FILE)) {
-            int res = wolfSSL_BIO_write(bio, mem + ret, memSz - ret);
+            int res;
+            if (!alloced) {
+                /* If wolfssl_read_bio() points mem at the buffer internal to
+                 * bio, we need to dup it before calling wolfSSL_BIO_write(),
+                 * because the latter may reallocate the bio, invalidating the
+                 * mem pointer before reading from it.
+                 */
+                char *mem_dup = (char *)XMALLOC((size_t)(memSz - ret),
+                                                NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                if (mem_dup != NULL) {
+                    XMEMCPY(mem_dup, mem + ret, (size_t)(memSz - ret));
+                    res = wolfSSL_BIO_write(bio, mem_dup, memSz - ret);
+                    mem = mem_dup;
+                    alloced = 1;
+                }
+                else
+                    res = MEMORY_E;
+            }
+            else
+                res = wolfSSL_BIO_write(bio, mem + ret, memSz - ret);
             if (res != memSz - ret) {
                 WOLFSSL_ERROR_MSG("Unable to write back excess data");
                 if (res < 0) {

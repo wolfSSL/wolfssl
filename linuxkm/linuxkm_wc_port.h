@@ -918,6 +918,13 @@
 
     #include <linux/limits.h>
 
+    #ifndef INT32_MAX
+        #define INT32_MAX INT_MAX
+    #endif
+    #ifndef UINT32_MAX
+        #define UINT32_MAX UINT_MAX
+    #endif
+
     /* Linux headers define these using C expressions, but we need
      * them to be evaluable by the preprocessor, for use in sp_int.h.
      */
