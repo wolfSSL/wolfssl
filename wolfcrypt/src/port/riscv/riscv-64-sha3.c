@@ -27,8 +27,9 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/port/riscv/riscv-64-asm.h>
 
+#ifdef WOLFSSL_RISCV_ASM
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT) && \
-   !defined(WOLFSSL_AFALG_XILINX_SHA3)
+    !defined(WOLFSSL_AFALG_XILINX_SHA3)
 
 #if FIPS_VERSION3_GE(2,0,0)
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
@@ -857,7 +858,6 @@ void BlockSha3(word64* s)
     );
 }
 
-#endif
-
-#endif
-
+#endif /* WOLFSSL_RISCV_VECTOR */
+#endif /* WOLFSSL_SHA3 && !XILINX */
+#endif /* WOLFSSL_RISCV_ASM */
