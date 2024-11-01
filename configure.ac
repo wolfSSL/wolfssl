@@ -9093,6 +9093,12 @@ then
         ENABLED_DES3="yes"
     fi
 
+    # Has support for PKCS7
+    if test "$ENABLED_PKCS7" = "no"
+    then
+        ENABLED_PKCS7=yes
+    fi
+
     # Uses alt name
     ENABLED_ALTNAMES="yes"
 
