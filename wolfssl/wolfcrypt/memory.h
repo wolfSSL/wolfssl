@@ -449,7 +449,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
 
 #endif
 
-    #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) do {         \
+    #define ASSERT_SAVED_VECTOR_REGISTERS() do {                    \
         if (wc_svr_count <= 0) {                                    \
             fprintf(stderr,                                         \
                     ("ASSERT_SAVED_VECTOR_REGISTERS : %s @ L%d : "  \
@@ -460,7 +460,6 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
                     wc_svr_last_file,                               \
                     wc_svr_last_line);                              \
             DEBUG_VECTOR_REGISTERS_EXTRA_FAIL_CLAUSE                \
-            { fail_clause }                                         \
         }                                                           \
     } while (0)
     #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) do {      \
@@ -477,7 +476,7 @@ WOLFSSL_LOCAL int wc_debug_CipherLifecycleFree(void **CipherLifecycleTag,
             { fail_clause }                                         \
         }                                                           \
     } while (0)
-    #define RESTORE_VECTOR_REGISTERS(...) do {                      \
+    #define RESTORE_VECTOR_REGISTERS() do {                         \
         --wc_svr_count;                                             \
         if ((wc_svr_count > 4) || (wc_svr_count < 0)) {             \
             fprintf(stderr,                                         \

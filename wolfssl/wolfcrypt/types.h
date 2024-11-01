@@ -1764,7 +1764,7 @@ typedef struct w64wrapper {
         #define WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(x) WC_DO_NOTHING
     #endif
     #ifndef ASSERT_SAVED_VECTOR_REGISTERS
-        #define ASSERT_SAVED_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
+        #define ASSERT_SAVED_VECTOR_REGISTERS() WC_DO_NOTHING
     #endif
     #ifndef ASSERT_RESTORED_VECTOR_REGISTERS
         #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
