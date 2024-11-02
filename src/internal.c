@@ -14817,7 +14817,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ssl->error == WC_NO_ERR_TRACE(OCSP_WANT_READ)) {
         /* Re-entry after non-blocking OCSP */
     #ifdef WOLFSSL_ASYNC_CRYPT
-        /* if async operationg not pending, reset error code */
+        /* if async operations not pending, reset error code */
         if (ret == WC_NO_ERR_TRACE(WC_NO_PENDING_E))
             ret = 0;
     #endif
@@ -17482,7 +17482,7 @@ int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 /* The server's decision to resume isn't known until after the
                  * "server_hello". If subsequent handshake messages like
-                 * "certificate" or "server_key_exchange" are recevied then we
+                 * "certificate" or "server_key_exchange" are received then we
                  * are doing a full handshake */
 
                 /* If the server included a session id then we

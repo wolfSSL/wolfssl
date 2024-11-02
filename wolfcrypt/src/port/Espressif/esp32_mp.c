@@ -3172,7 +3172,7 @@ int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z)
 
 #endif /* !NO_RSA || HAVE_ECC */
 
-/* Some optional metrics when using RSA HW Accleration */
+/* Some optional metrics when using RSA HW Acceleration */
 #if defined(WOLFSSL_ESP32_CRYPT_RSA_PRI) && defined(WOLFSSL_HW_METRICS)
 int esp_hw_show_mp_metrics(void)
 {

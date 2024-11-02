@@ -49,7 +49,7 @@
  * WOLFSSL_SMALL_STACK                                        Default: OFF
  *   Use less stack by dynamically allocating local variables.
  *
- * WOLFSSL_KYBER_NTT_UNROLL                                   Defualt: OFF
+ * WOLFSSL_KYBER_NTT_UNROLL                                   Default: OFF
  *   Enable an alternative NTT implementation that may be faster on some
  *   platforms and is smaller in code size.
  * WOLFSSL_KYBER_INVNTT_UNROLL                                Default: OFF

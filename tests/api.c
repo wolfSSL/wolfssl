@@ -20144,7 +20144,7 @@ static int test_wc_AesGcmEncryptDecrypt(void)
 } /* END test_wc_AesGcmEncryptDecrypt */
 
 /*
- * test function for mixed (one-shot encrpytion + stream decryption) AES GCM
+ * test function for mixed (one-shot encryption + stream decryption) AES GCM
  * using a long IV (older FIPS does NOT support long IVs).  Relates to zd15423
  */
 static int test_wc_AesGcmMixedEncDecLongIV(void)
@@ -33002,7 +33002,7 @@ static int test_wc_dilithium_verify(void)
         ExpectIntEQ(res, 0);
         sig[100] ^= 0x80;
 
-        /* Set all indeces to 0. */
+        /* Set all indices to 0. */
         XMEMSET(sig + sigLen - 4, 0, 4);
         ExpectIntEQ(wc_dilithium_verify_msg(sig, sigLen, msg, 32, &res, key),
             WC_NO_ERR_TRACE(SIG_VERIFY_E));
@@ -60420,7 +60420,7 @@ static int test_X509_STORE_untrusted(void)
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 1, 0, 1),
             TEST_SUCCESS);
     /* Still needs properly loaded CA, while including it in untrusted
-     * list is not an error, it also doesnt count for verify */
+     * list is not an error, it also doesn't count for verify */
     ExpectIntEQ(test_X509_STORE_untrusted_certs(untrusted3, 0,
                 X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, 0),
             TEST_SUCCESS);

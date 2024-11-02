@@ -34,7 +34,7 @@ choice WOLFSSL_EXAMPLE_CHOOSE
     config WOLFSSL_EXAMPLE_NAME_WOLFSSH_TEMPLATE
         bool "SSH Template App"
         help
-            Bare-bones Hellow World app that only compiles in wolfSSL and wolfSSH.
+            Bare-bones Hello World app that only compiles in wolfSSL and wolfSSH.
             See wolfSSL/wolfssh on GitHub.
 
     config WOLFSSL_EXAMPLE_NAME_WOLFSSH_ECHOSERVER

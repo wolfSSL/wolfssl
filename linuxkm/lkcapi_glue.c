@@ -567,7 +567,7 @@ static int km_AesGcmSetAuthsize(struct crypto_aead *tfm, unsigned int authsize)
 }
 
 /*
- * aead ciphers recieve data in scatterlists in following order:
+ * aead ciphers receive data in scatterlists in following order:
  *   encrypt
  *     req->src: aad||plaintext
  *     req->dst: aad||ciphertext||tag

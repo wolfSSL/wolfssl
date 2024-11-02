@@ -1031,7 +1031,7 @@ int wc_MXC_MAA_init(unsigned int len)
     return wc_MXC_error(&status); /* Return Status of Init */
 }
 
-/* Unlocks mutex and preforms graceful shutdown of hardware */
+/* Unlocks mutex and performs graceful shutdown of hardware */
 int wc_MXC_MAA_Shutdown(void)
 {
     int status;
@@ -1120,7 +1120,7 @@ int wc_MXC_MAA_zeroPad(mp_int* multiplier, mp_int* multiplicand,
     }
     XMEMSET(zero_tmp, 0x00, multiplier->size*sizeof(mp_digit));
 
-    /* Check for invalid arguments befor padding */
+    /* Check for invalid arguments before padding */
     switch ((char)clc) {
         case MXC_TPU_MAA_EXP:
             /* Cannot be 0 for a^e mod m operation */
@@ -1446,8 +1446,8 @@ int hw_exptmod(mp_int* base, mp_int* exp, mp_int* mod, mp_int* result)
 }
 
 
-/* No mod function available with hardware, however preform a submod    */
-/* (a - 0) mod m will essentially preform the same operation as a mod m */
+/* No mod function available with hardware, however perform a submod    */
+/* (a - 0) mod m will essentially perform the same operation as a mod m */
 int hw_mod(mp_int* a, mp_int* mod, mp_int* result)
 {
     mp_int b;

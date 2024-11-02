@@ -1,0 +1,18 @@
+###############################################################################
+# In this file, you should add the line of the file that needs to be ignored.
+# The line should be exactly as it appears in the file.
+###############################################################################
+        0x0b, 0x45, 0x6e, 0x67, 0x69, 0x6e, 0x65, 0x65, /* .Enginee */
+        0x66, 0x6f, 0x40, 0x77, 0x6f, 0x6c, 0x66, 0x73, /* fo@wolfs */
+        0x0a, 0x8b, 0x98, 0xf3, 0xe3, 0xff, 0x4e, 0x44, /* ......ND */
+ot+3i9DAgBkcRcAtjOj4LaR0VknFBbVPFd5uRHg5h6h+u/N5GJG79G+dwfCMNYxd\n\
+static const byte plaintext[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras lacus odio, pretium vel sagittis ac, facilisis quis diam. Vivamus condimentum velit sed dolor consequat interdum. Etiam eleifend ornare felis, eleifend egestas odio vulputate eu. Sed nec orci nunc. Etiam quis mi augue. Donec ullamcorper suscipit lorem, vel luctus augue cursus fermentum. Etiam a porta arcu, in convallis sem. Integer efficitur elementum diam, vel scelerisque felis posuere placerat. Donec vestibulum sit amet leo sit amet tincidunt. Etiam et vehicula turpis. Phasellus quis finibus sapien. Sed et tristique turpis. Nullam vitae sagittis tortor, et aliquet lorem. Cras a leo scelerisque, convallis lacus ut, fermentum urna. Mauris quis urna diam. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nam aliquam vehicula orci id pulvinar. Proin mollis, libero sollicitudin tempor ultrices, massa augue tincidunt turpis, sit amet aliquam neque nibh nec dui. Fusce finibus massa quis rutrum suscipit cras amet";
+rsource "Kconfig.tls-generic"
+        /* Loop over authenticated associated data AD1..ADn */
+  /* no easy answer [c'est la vie].  Just division */
+    const uint8_t* hashIn, int hashSz)
+    XMEMCPY(hash + (curveSz - hashSz), hashIn, hashSz);
+        0x63, 0x72, 0x65, 0x65, 0x6e, 0x20, 0x77, 0x6f, 0x75, 0x6c, 0x64, 0x20, 0x62, 0x65, 0x20, 0x69, /* creen would be i */
+\pagenumbering{alph}
+    DES3_KEY_SIZE       = 24,  /* 3 des ede               */
+/* functions added to support above needed, removed TOOM and KARATSUBA */

@@ -44,7 +44,7 @@ until a PR is created for upstream support.
 ### Time
 
 The wolfSSL libraries are by default considerably more robust and strict. As such, it is important to have an accurate
-time and date setting for the certficate date ranges.. The wolfssL libraries include some
+time and date setting for the certificate date ranges.. The wolfssL libraries include some
 [time helper functions](https://github.com/wolfSSL/wolfssl/blob/master/wolfssl/wolfcrypt/port/Espressif/esp-sdk-lib.h).
 These can be enabled with `#define USE_WOLFSSL_ESP_SDK_TIME` in the `user_settings.h`.
 
