@@ -6412,7 +6412,7 @@ enum {
     RSAPSSPARAMSASN_IDX_SALTLEN,
     RSAPSSPARAMSASN_IDX_SALTLENINT,
     RSAPSSPARAMSASN_IDX_TRAILER,
-    RSAPSSPARAMSASN_IDX_TRAILERINT,
+    RSAPSSPARAMSASN_IDX_TRAILERINT
 };
 
 /* Number of items in ASN.1 template for an algorithm identifier. */
@@ -24158,16 +24158,16 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
                 if ((ret == 0) && cert->extAltSigAlgSet &&
                     cert->extAltSigValSet) {
                 #ifndef WOLFSSL_SMALL_STACK
-                    byte der[MAX_CERT_VERIFY_SZ];
+                    byte der[WC_MAX_CERT_VERIFY_SZ];
                 #else
-                    byte *der = (byte*)XMALLOC(MAX_CERT_VERIFY_SZ, cert->heap,
+                    byte *der = (byte*)XMALLOC(WC_MAX_CERT_VERIFY_SZ, cert->heap,
                                             DYNAMIC_TYPE_DCERT);
                     if (der == NULL) {
                         ret = MEMORY_E;
                     } else
                 #endif /* ! WOLFSSL_SMALL_STACK */
                     {
-                        ret = wc_GeneratePreTBS(cert, der, MAX_CERT_VERIFY_SZ);
+                        ret = wc_GeneratePreTBS(cert, der, WC_MAX_CERT_VERIFY_SZ);
 
                         if (ret > 0) {
                             ret = ConfirmSignature(&cert->sigCtx, der, ret,
@@ -24231,16 +24231,16 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
             if ((ret == 0) && cert->extAltSigAlgSet &&
                 cert->extAltSigValSet) {
             #ifndef WOLFSSL_SMALL_STACK
-                byte der[MAX_CERT_VERIFY_SZ];
+                byte der[WC_MAX_CERT_VERIFY_SZ];
             #else
-                byte *der = (byte*)XMALLOC(MAX_CERT_VERIFY_SZ, cert->heap,
+                byte *der = (byte*)XMALLOC(WC_MAX_CERT_VERIFY_SZ, cert->heap,
                                         DYNAMIC_TYPE_DCERT);
                 if (der == NULL) {
                     ret = MEMORY_E;
                 } else
             #endif /* ! WOLFSSL_SMALL_STACK */
                 {
-                    ret = wc_GeneratePreTBS(cert, der, MAX_CERT_VERIFY_SZ);
+                    ret = wc_GeneratePreTBS(cert, der, WC_MAX_CERT_VERIFY_SZ);
 
                     if (ret > 0) {
                         ret = ConfirmSignature(&cert->sigCtx, der, ret,

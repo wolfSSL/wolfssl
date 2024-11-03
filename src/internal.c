@@ -33808,7 +33808,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 return 0;  /* sent blank cert, can't verify */
             }
 
-            args->sendSz = MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
+            args->sendSz = WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
             if (IsEncryptionOn(ssl, 1)) {
                 args->sendSz += MAX_MSG_EXTRA;
             }

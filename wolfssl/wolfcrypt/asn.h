@@ -811,6 +811,44 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 
 #define WC_NID_undef 0
 
+/* Setup for WC_MAX_RSA_BITS needs to be here, rather than rsa.h, because
+ * FIPS headers don't have it.  And it needs to be here, rather than internal.h,
+ * so that setup occurs even in cryptonly builds.
+ */
+#ifndef NO_RSA
+    #ifndef WC_MAX_RSA_BITS
+        #ifdef USE_FAST_MATH
+            /* FP implementation support numbers up to FP_MAX_BITS / 2 bits. */
+            #define WC_MAX_RSA_BITS    (FP_MAX_BITS / 2)
+        #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
+            /* SP implementation supports numbers of SP_INT_BITS bits. */
+            #define WC_MAX_RSA_BITS    (((SP_INT_BITS + 7) / 8) * 8)
+        #else
+            /* Integer maths is dynamic but we only go up to 4096 bits. */
+            #define WC_MAX_RSA_BITS 4096
+        #endif
+    #endif
+    #if (WC_MAX_RSA_BITS % 8)
+        #error RSA maximum bit size must be multiple of 8
+    #endif
+#endif
+
+#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
+    #define WC_MAX_CERT_VERIFY_SZ 6000            /* For Dilithium */
+#elif defined(WOLFSSL_CERT_EXT)
+    #define WC_MAX_CERT_VERIFY_SZ 2048            /* For larger extensions */
+#elif !defined(NO_RSA) && defined(WC_MAX_RSA_BITS)
+    #define WC_MAX_CERT_VERIFY_SZ (WC_MAX_RSA_BITS / 8) /* max RSA bytes */
+#elif defined(HAVE_ECC)
+    #define WC_MAX_CERT_VERIFY_SZ ECC_MAX_SIG_SIZE /* max ECC  */
+#elif defined(HAVE_ED448)
+    #define WC_MAX_CERT_VERIFY_SZ ED448_SIG_SIZE   /* max Ed448  */
+#elif defined(HAVE_ED25519)
+    #define WC_MAX_CERT_VERIFY_SZ ED25519_SIG_SIZE /* max Ed25519  */
+#else
+    #define WC_MAX_CERT_VERIFY_SZ 1024 /* max default  */
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* NIDs */
 #define WC_NID_netscape_cert_type WC_NID_undef
