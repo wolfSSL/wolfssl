@@ -20647,33 +20647,54 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)
 #ifdef HAVE_LIBZ
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
+#ifdef WOLFSSL_EARLY_DATA
+    int    isEarlyData = ssl->options.tls1_3 &&
+                         ssl->options.handShakeDone == 0 &&
+                         ssl->options.side == WOLFSSL_SERVER_END;
+    int    acceptEarlyData = ssl->earlyData != no_early_data &&
+                         ssl->options.clientState == CLIENT_HELLO_COMPLETE;
+#endif
+
+#if defined(WOLFSSL_EARLY_DATA) && defined(WOLFSSL_DTLS13)
+    if (ssl->options.tls1_3 && ssl->options.dtls)
+        isEarlyData = isEarlyData && w64Equal(ssl->keys.curEpoch64,
+                w64From32(0x0, DTLS13_EPOCH_EARLYDATA));
+#endif
 
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->options.tls1_3 && ssl->options.handShakeDone == 0) {
-        int process = 0;
-
-        if (ssl->options.side == WOLFSSL_SERVER_END) {
-            if ((ssl->earlyData != no_early_data) &&
-                          (ssl->options.clientState == CLIENT_HELLO_COMPLETE)) {
-                process = 1;
-            }
-            if (!process) {
-                WOLFSSL_MSG("Ignoring EarlyData!");
-                *inOutIdx += ssl->curSize;
-                if (*inOutIdx > ssl->buffers.inputBuffer.length)
-                    return BUFFER_E;
-
-                return 0;
-            }
-        }
-        if (!process) {
-            WOLFSSL_MSG("Received App data before a handshake completed");
-            if (sniff == NO_SNIFF) {
-                SendAlert(ssl, alert_fatal, unexpected_message);
-            }
-            WOLFSSL_ERROR_VERBOSE(OUT_OF_ORDER_E);
-            return OUT_OF_ORDER_E;
-        }
+    if (isEarlyData && acceptEarlyData) {
+        WOLFSSL_MSG("Processing EarlyData");
+    }
+    else if (isEarlyData && !acceptEarlyData) {
+        WOLFSSL_MSG("Ignoring EarlyData!");
+        *inOutIdx += ssl->curSize;
+        if (*inOutIdx > ssl->buffers.inputBuffer.length)
+            return BUFFER_E;
+#ifdef WOLFSSL_DTLS13
+        /* Receiving app data from the traffic epoch before the handshake is
+         * done means that there was a disruption. */
+        if (ssl->options.dtls && !w64Equal(ssl->keys.curEpoch64,
+                                        w64From32(0x0, DTLS13_EPOCH_EARLYDATA)))
+            ssl->dtls13Rtx.sendAcks = 1;
+#endif
+        return 0;
+    }
+    else
+#endif
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.handShakeDone == 0 && ssl->options.dtls) {
+        WOLFSSL_MSG("Dropping app data received before handshake complete");
+        *inOutIdx += ssl->curSize;
+        if (*inOutIdx > ssl->buffers.inputBuffer.length)
+            return BUFFER_E;
+#ifdef WOLFSSL_DTLS13
+        /* Receiving app data from the traffic epoch before the handshake is
+         * done means that there was a disruption. */
+        if (ssl->options.tls1_3 && !w64Equal(ssl->keys.curEpoch64,
+                                        w64From32(0x0, DTLS13_EPOCH_EARLYDATA)))
+            ssl->dtls13Rtx.sendAcks = 1;
+#endif
+        return 0;
     }
     else
 #endif
@@ -24904,15 +24925,15 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         groupMsgs = 1;
     #endif
     }
-    else if (IsAtLeastTLSv1_3(ssl->version) &&
+    else
+#endif
+    if (IsAtLeastTLSv1_3(ssl->version) &&
             ssl->options.side == WOLFSSL_SERVER_END &&
             ssl->options.acceptState >= TLS13_ACCEPT_FINISHED_SENT) {
         /* We can send data without waiting on peer finished msg */
         WOLFSSL_MSG("server sending data before receiving client finished");
     }
-    else
-#endif
-    if (ssl_in_handshake(ssl, 1)) {
+    else if (ssl_in_handshake(ssl, 1)) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
