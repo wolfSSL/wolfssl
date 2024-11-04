@@ -1338,24 +1338,6 @@ enum {
     #define MAX_EARLY_DATA_SZ  4096
 #endif
 
-#ifndef NO_RSA
-    #ifndef WOLFSSL_MAX_RSA_BITS
-        #ifdef USE_FAST_MATH
-            /* FP implementation support numbers up to FP_MAX_BITS / 2 bits. */
-            #define WOLFSSL_MAX_RSA_BITS    (FP_MAX_BITS / 2)
-        #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
-            /* SP implementation supports numbers of SP_INT_BITS bits. */
-            #define WOLFSSL_MAX_RSA_BITS    (((SP_INT_BITS + 7) / 8) * 8)
-        #else
-            /* Integer maths is dynamic but we only go up to 4096 bits. */
-            #define WOLFSSL_MAX_RSA_BITS 4096
-        #endif
-    #endif
-    #if (WOLFSSL_MAX_RSA_BITS % 8)
-        #error RSA maximum bit size must be multiple of 8
-    #endif
-#endif
-
 
 #if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC)
     /* MySQL wants to be able to use 8192-bit numbers. */
@@ -1383,9 +1365,9 @@ enum {
             #error "MySQL needs FP_MAX_BITS at least at 16384"
         #endif
 
-        #if !defined(NO_RSA) && defined(WOLFSSL_MAX_RSA_BITS) && \
-            WOLFSSL_MAX_RSA_BITS > ENCRYPT_BASE_BITS
-            #error "FP_MAX_BITS too small for WOLFSSL_MAX_RSA_BITS"
+        #if !defined(NO_RSA) && defined(WC_MAX_RSA_BITS) && \
+            WC_MAX_RSA_BITS > ENCRYPT_BASE_BITS
+            #error "FP_MAX_BITS too small for WC_MAX_RSA_BITS"
         #endif
     #elif defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_SP_MATH)
         /* Use the SP size up to 8192-bit and down to a min of 1024-bit. */
@@ -1411,9 +1393,9 @@ enum {
             #error "MySQL needs SP_INT_BITS at least at 8192"
         #endif
 
-        #if !defined(NO_RSA) && defined(WOLFSSL_MAX_RSA_BITS) && \
-            WOLFSSL_MAX_RSA_BITS > SP_INT_BITS
-            #error "SP_INT_BITS too small for WOLFSSL_MAX_RSA_BITS"
+        #if !defined(NO_RSA) && defined(WC_MAX_RSA_BITS) && \
+            WC_MAX_RSA_BITS > SP_INT_BITS
+            #error "SP_INT_BITS too small for WC_MAX_RSA_BITS"
         #endif
     #else
         /* Integer/heap maths - support 4096-bit. */
@@ -1836,21 +1818,6 @@ enum Misc {
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-    MAX_CERT_VERIFY_SZ = 6000,            /* For Dilithium */
-#elif defined(WOLFSSL_CERT_EXT)
-    MAX_CERT_VERIFY_SZ = 2048,            /* For larger extensions */
-#elif !defined(NO_RSA) && defined(WOLFSSL_MAX_RSA_BITS)
-    MAX_CERT_VERIFY_SZ = WOLFSSL_MAX_RSA_BITS / 8, /* max RSA bytes */
-#elif defined(HAVE_ECC)
-    MAX_CERT_VERIFY_SZ = ECC_MAX_SIG_SIZE, /* max ECC  */
-#elif defined(HAVE_ED448)
-    MAX_CERT_VERIFY_SZ = ED448_SIG_SIZE,   /* max Ed448  */
-#elif defined(HAVE_ED25519)
-    MAX_CERT_VERIFY_SZ = ED25519_SIG_SIZE, /* max Ed25519  */
-#else
-    MAX_CERT_VERIFY_SZ = 1024, /* max default  */
-#endif
     CLIENT_HELLO_FIRST =  35,  /* Protocol + RAN_LEN + sizeof(id_len) */
     MAX_SUITE_NAME     =  48,  /* maximum length of cipher suite string */
 

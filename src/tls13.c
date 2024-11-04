@@ -9000,7 +9000,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 return 0;  /* sent blank cert, can't verify */
             }
 
-            args->sendSz = MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
+            args->sendSz = WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
             /* Always encrypted.  */
             args->sendSz += MAX_MSG_EXTRA;
 
@@ -9657,7 +9657,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->options.dtls) {
                 ssl->options.buildingMsg = 0;
                 ret = Dtls13HandshakeSend(ssl, args->output,
-                    MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA + MAX_MSG_EXTRA,
+                    WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA + MAX_MSG_EXTRA,
                     (word16)args->sendSz, certificate_verify, 1);
                 if (ret != 0)
                     goto exit_scv;
@@ -9668,7 +9668,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
             /* This message is always encrypted. */
             ret = BuildTls13Message(ssl, args->output,
-                                    MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA,
+                                    WC_MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA,
                                     args->output + RECORD_HEADER_SZ,
                                     args->sendSz - RECORD_HEADER_SZ, handshake,
                                     1, 0, 0);

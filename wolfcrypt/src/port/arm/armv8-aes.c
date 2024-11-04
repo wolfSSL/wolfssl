@@ -16972,9 +16972,11 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     word32 wordSz = (word32)sizeof(word32);
 
     /* sanity check on arguments */
-    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    if (aes == NULL || out == NULL || ((inSz > 0) && (in == NULL)) ||
+        nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    {
         return BAD_FUNC_ARG;
+    }
 
     if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
@@ -17044,9 +17046,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     word32 wordSz = (word32)sizeof(word32);
 
     /* sanity check on arguments */
-    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    if (aes == NULL || out == NULL || ((inSz > 0) && (in == NULL)) ||
+        nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    {
         return BAD_FUNC_ARG;
+    }
 
     if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
