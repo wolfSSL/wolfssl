@@ -398,6 +398,45 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
         if (usePqc) {
             int group = 0;
 
+    #ifndef WOLFSSL_NO_ML_KEM
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            if (XSTRCMP(pqcAlg, "ML_KEM_512") == 0) {
+                group = WOLFSSL_ML_KEM_512;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            if (XSTRCMP(pqcAlg, "ML_KEM_768") == 0) {
+                group = WOLFSSL_ML_KEM_768;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+            if (XSTRCMP(pqcAlg, "ML_KEM_1024") == 0) {
+                group = WOLFSSL_ML_KEM_1024;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            if (XSTRCMP(pqcAlg, "P256_ML_KEM_512") == 0) {
+                group = WOLFSSL_P256_ML_KEM_512;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            if (XSTRCMP(pqcAlg, "P384_ML_KEM_768") == 0) {
+                group = WOLFSSL_P384_ML_KEM_768;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+            if (XSTRCMP(pqcAlg, "P521_ML_KEM_1024") == 0) {
+                group = WOLFSSL_P521_ML_KEM_1024;
+            }
+            else
+        #endif
+    #endif /* WOLFSSL_NO_ML_KEM */
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         #ifndef WOLFSSL_NO_KYBER512
             if (XSTRCMP(pqcAlg, "KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_KYBER_LEVEL1;
@@ -434,6 +473,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             }
             else
         #endif
+    #endif /* WOLFSSL_KYBER_ORIGINAL */
             {
                 err_sys("invalid post-quantum KEM specified");
             }
@@ -1330,8 +1370,19 @@ static const char* client_usage_msg[][77] = {
            " SSLv3(0) - TLS1.3(4)\n",                                   /* 68 */
 #endif
 #ifdef HAVE_PQC
-        "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n",  /* 69 */
+        "--pqc <alg> Key Share with specified post-quantum algorithm only:\n"
+#ifndef WOLFSSL_NO_ML_KEM
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
+            "\n"
+            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
+            "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
+            "P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"
+#endif
+            "",
+                                                                        /* 69 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 70 */
@@ -1564,8 +1615,19 @@ static const char* client_usage_msg[][77] = {
         " SSLv3(0) - TLS1.3(4)\n",                            /* 68 */
 #endif
 #ifdef HAVE_PQC
-        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n", /* 69 */
+        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ:\n"
+#ifndef WOLFSSL_NO_ML_KEM
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
+            "\n"
+            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
+            "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
+            "P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"
+#endif
+            "",
+                                                                        /* 69 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 70 */

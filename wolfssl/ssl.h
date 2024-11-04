@@ -4177,35 +4177,44 @@ enum {
      * algorithms have LEVEL2 and LEVEL4 because none of these submissions
      * included them. */
 
-#ifndef WOLFSSL_ML_KEM
+#ifdef WOLFSSL_KYBER_ORIGINAL
     WOLFSSL_PQC_MIN               = 570,
     WOLFSSL_PQC_SIMPLE_MIN        = 570,
     WOLFSSL_KYBER_LEVEL1          = 570, /* KYBER_512 */
     WOLFSSL_KYBER_LEVEL3          = 572, /* KYBER_768 */
     WOLFSSL_KYBER_LEVEL5          = 573, /* KYBER_1024 */
+#ifdef WOLFSSL_NO_ML_KEM
     WOLFSSL_PQC_SIMPLE_MAX        = 573,
+#endif
 
     WOLFSSL_PQC_HYBRID_MIN        = 12090,
     WOLFSSL_P256_KYBER_LEVEL1     = 12090,
     WOLFSSL_P384_KYBER_LEVEL3     = 12092,
     WOLFSSL_P521_KYBER_LEVEL5     = 12093,
+#ifdef WOLFSSL_NO_ML_KEM
     WOLFSSL_PQC_HYBRID_MAX        = 12093,
     WOLFSSL_PQC_MAX               = 12093,
-#else
+#endif
+#endif
+#ifndef WOLFSSL_NO_ML_KEM
+#ifndef WOLFSSL_KYBER_ORIGINAL
     WOLFSSL_PQC_MIN               = 583,
     WOLFSSL_PQC_SIMPLE_MIN        = 583,
-    WOLFSSL_KYBER_LEVEL1          = 583, /* ML-KEM 512 */
-    WOLFSSL_KYBER_LEVEL3          = 584, /* ML-KEM 768 */
-    WOLFSSL_KYBER_LEVEL5          = 585, /* ML-KEM 1024 */
+#endif
+    WOLFSSL_ML_KEM_512            = 583, /* ML-KEM 512 */
+    WOLFSSL_ML_KEM_768            = 584, /* ML-KEM 768 */
+    WOLFSSL_ML_KEM_1024           = 585, /* ML-KEM 1024 */
     WOLFSSL_PQC_SIMPLE_MAX        = 585,
 
+#ifndef WOLFSSL_KYBER_ORIGINAL
     WOLFSSL_PQC_HYBRID_MIN        = 12103,
-    WOLFSSL_P256_KYBER_LEVEL1     = 12103,
-    WOLFSSL_P384_KYBER_LEVEL3     = 12104,
-    WOLFSSL_P521_KYBER_LEVEL5     = 12105,
+#endif
+    WOLFSSL_P256_ML_KEM_512       = 12103,
+    WOLFSSL_P384_ML_KEM_768       = 12104,
+    WOLFSSL_P521_ML_KEM_1024      = 12105,
     WOLFSSL_PQC_HYBRID_MAX        = 12105,
     WOLFSSL_PQC_MAX               = 12105,
-#endif /* WOLFSSL_ML_KEM */
+#endif /* !WOLFSSL_NO_ML_KEM */
 #endif /* HAVE_PQC */
 };
 

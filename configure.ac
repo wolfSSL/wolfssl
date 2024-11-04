@@ -1276,6 +1276,7 @@ AC_ARG_ENABLE([kyber],
     )
 
 ENABLED_WC_KYBER=no
+ENABLED_ML_KEM=yes
 for v in `echo $ENABLED_KYBER | tr "," " "`
 do
   case $v in
@@ -1301,6 +1302,10 @@ do
   original)
     ENABLED_ORIGINAL=yes
     ;;
+  original-only)
+    ENABLED_ORIGINAL=yes
+    ENABLED_ML_KEM=no
+    ;;
   *)
     AC_MSG_ERROR([Invalid choice for KYBER []: $ENABLED_KYBER.])
     break;;
@@ -1317,17 +1322,30 @@ then
         AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_WC_KYBER"
     fi
 
-    if test "$ENABLED_KYBER512" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
-    fi
-    if test "$ENABLED_KYBER768" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
-    fi
-    if test "$ENABLED_KYBER1024" = ""; then
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
-    fi
     if test "$ENABLED_ORIGINAL" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_ORIGINAL"
+        if test "$ENABLED_KYBER512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER512"
+        fi
+        if test "$ENABLED_KYBER768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER768"
+        fi
+        if test "$ENABLED_KYBER1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_KYBER1024"
+        fi
+    fi
+    if test "$ENABLED_ML_KEM" = "yes"; then
+        if test "$ENABLED_KYBER512" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_512"
+        fi
+        if test "$ENABLED_KYBER768" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_768"
+        fi
+        if test "$ENABLED_KYBER1024" = ""; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM_1024"
+        fi
+    else
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM"
     fi
 
     if test "$ENABLED_WC_KYBER" = "yes"

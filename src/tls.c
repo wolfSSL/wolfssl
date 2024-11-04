@@ -7982,6 +7982,24 @@ static int kyber_id2type(int id, int *type)
     int ret = 0;
 
     switch (id) {
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifdef WOLFSSL_WC_ML_KEM_512
+        case WOLFSSL_ML_KEM_512:
+            *type = WC_ML_KEM_512;
+            break;
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_768
+        case WOLFSSL_ML_KEM_768:
+            *type = WC_ML_KEM_768;
+            break;
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_1024
+        case WOLFSSL_ML_KEM_1024:
+            *type = WC_ML_KEM_1024;
+            break;
+    #endif
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
     #ifdef WOLFSSL_KYBER512
         case WOLFSSL_KYBER_LEVEL1:
             *type = KYBER512;
@@ -7997,6 +8015,7 @@ static int kyber_id2type(int id, int *type)
             *type = KYBER1024;
             break;
     #endif
+#endif
         default:
             ret = NOT_COMPILED_IN;
             break;
@@ -8012,12 +8031,22 @@ typedef struct PqcHybridMapping {
 } PqcHybridMapping;
 
 static const PqcHybridMapping pqc_hybrid_mapping[] = {
+#ifndef WOLFSSL_NO_ML_KEM
+    {.hybrid = WOLFSSL_P256_ML_KEM_512,     .ecc = WOLFSSL_ECC_SECP256R1,
+     .pqc = WOLFSSL_ML_KEM_512},
+    {.hybrid = WOLFSSL_P384_ML_KEM_768,     .ecc = WOLFSSL_ECC_SECP384R1,
+     .pqc = WOLFSSL_ML_KEM_768},
+    {.hybrid = WOLFSSL_P521_ML_KEM_1024,    .ecc = WOLFSSL_ECC_SECP521R1,
+     .pqc = WOLFSSL_ML_KEM_1024},
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
     {.hybrid = WOLFSSL_P256_KYBER_LEVEL1,     .ecc = WOLFSSL_ECC_SECP256R1,
      .pqc = WOLFSSL_KYBER_LEVEL1},
     {.hybrid = WOLFSSL_P384_KYBER_LEVEL3,     .ecc = WOLFSSL_ECC_SECP384R1,
      .pqc = WOLFSSL_KYBER_LEVEL3},
     {.hybrid = WOLFSSL_P521_KYBER_LEVEL5,     .ecc = WOLFSSL_ECC_SECP521R1,
      .pqc = WOLFSSL_KYBER_LEVEL5},
+#endif
     {.hybrid = 0, .ecc = 0, .pqc = 0}
 };
 
@@ -9662,6 +9691,45 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         #endif
     #endif
 #ifdef WOLFSSL_HAVE_KYBER
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifdef WOLFSSL_WC_KYBER
+        #ifdef WOLFSSL_WC_ML_KEM_512
+            case WOLFSSL_ML_KEM_512:
+            case WOLFSSL_P256_ML_KEM_512:
+        #endif
+        #ifdef WOLFSSL_WC_ML_KEM_768
+            case WOLFSSL_ML_KEM_768:
+            case WOLFSSL_P384_ML_KEM_768:
+        #endif
+        #ifdef WOLFSSL_WC_ML_KEM_1024
+            case WOLFSSL_ML_KEM_1024:
+            case WOLFSSL_P521_ML_KEM_1024:
+        #endif
+                break;
+    #elif defined(HAVE_LIBOQS)
+        case WOLFSSL_ML_KEM_512:
+        case WOLFSSL_ML_KEM_768:
+        case WOLFSSL_ML_KEM_1024:
+        case WOLFSSL_P256_ML_KEM_512:
+        case WOLFSSL_P384_ML_KEM_768:
+        case WOLFSSL_P521_ML_KEM_1024:
+        {
+            int ret;
+            int id;
+            findEccPqc(NULL, &namedGroup, namedGroup);
+            ret = kyber_id2type(namedGroup, &id);
+            if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN)) {
+                return 0;
+            }
+
+            if (! ext_kyber_enabled(id)) {
+                return 0;
+            }
+            break;
+        }
+    #endif
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
     #ifdef WOLFSSL_WC_KYBER
         #ifdef WOLFSSL_KYBER512
             case WOLFSSL_KYBER_LEVEL1:
@@ -9699,6 +9767,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         }
     #endif
 #endif
+#endif /* WOLFSSL_HAVE_KYBER */
         default:
             return 0;
     }
@@ -9744,6 +9813,31 @@ static const word16 preferredGroup[] = {
 #if defined(HAVE_FFDHE_8192)
     WOLFSSL_FFDHE_8192,
 #endif
+#ifndef WOLFSSL_NO_ML_KEM
+#ifdef WOLFSSL_WC_KYBER
+    #ifdef WOLFSSL_WC_ML_KEM_512
+    WOLFSSL_ML_KEM_512,
+    WOLFSSL_P256_ML_KEM_512,
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_768
+    WOLFSSL_ML_KEM_768,
+    WOLFSSL_P384_ML_KEM_768,
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_1024
+    WOLFSSL_ML_KEM_1024,
+    WOLFSSL_P521_ML_KEM_1024,
+    #endif
+#elif defined(HAVE_LIBOQS)
+    /* These require a runtime call to TLSX_KeyShare_IsSupported to use */
+    WOLFSSL_ML_KEM_512,
+    WOLFSSL_ML_KEM_768,
+    WOLFSSL_ML_KEM_1024,
+    WOLFSSL_P256_ML_KEM_512,
+    WOLFSSL_P384_ML_KEM_768,
+    WOLFSSL_P521_ML_KEM_1024,
+#endif
+#endif /* !WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef WOLFSSL_WC_KYBER
     #ifdef WOLFSSL_KYBER512
     WOLFSSL_KYBER_LEVEL1,
@@ -9766,6 +9860,7 @@ static const word16 preferredGroup[] = {
     WOLFSSL_P384_KYBER_LEVEL3,
     WOLFSSL_P521_KYBER_LEVEL5,
 #endif
+#endif /* WOLFSSL_KYBER_ORIGINAL */
     WOLFSSL_NAMED_GROUP_INVALID
 };
 
@@ -13386,6 +13481,52 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 #endif
 
 #ifdef WOLFSSL_HAVE_KYBER
+#ifndef WOLFSSL_NO_ML_KEM
+#ifdef WOLFSSL_WC_KYBER
+#ifdef WOLFSSL_WC_ML_KEM_512
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_512,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_ML_KEM_512,
+                                     ssl->heap);
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_768
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_768,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_ML_KEM_768,
+                                     ssl->heap);
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_1024
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_1024,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_ML_KEM_1024,
+                                     ssl->heap);
+#endif
+#elif defined(HAVE_LIBOQS)
+    ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_512, ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_768,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_1024,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_ML_KEM_512,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_ML_KEM_768,
+                                     ssl->heap);
+    if (ret == WOLFSSL_SUCCESS)
+        ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_ML_KEM_1024,
+                                     ssl->heap);
+#endif /* HAVE_LIBOQS */
+#endif /* !WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef WOLFSSL_WC_KYBER
 #ifdef WOLFSSL_KYBER512
     if (ret == WOLFSSL_SUCCESS)
@@ -13429,6 +13570,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P521_KYBER_LEVEL5,
                                      ssl->heap);
 #endif /* HAVE_LIBOQS */
+#endif /* WOLFSSL_KYBER_ORIGINAL */
 #endif /* WOLFSSL_HAVE_KYBER */
 
     (void)ssl;

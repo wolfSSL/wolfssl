@@ -184,6 +184,28 @@ static int IsKyberLevelAvailable(const char* line)
         begin += 6;
         end = XSTRSTR(begin, " ");
 
+    #ifndef WOLFSSL_NO_ML_KEM
+        if ((size_t)end - (size_t)begin == 10) {
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            if (XSTRNCMP(begin, "ML_KEM_512", 10) == 0) {
+                available = 1;
+            }
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            if (XSTRNCMP(begin, "ML_KEM_768", 10) == 0) {
+                available = 1;
+            }
+        #endif
+        }
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+        if ((size_t)end - (size_t)begin == 11) {
+            if (XSTRNCMP(begin, "ML_KEM_1024", 11) == 0) {
+                available = 1;
+            }
+        }
+        #endif
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         if ((size_t)end - (size_t)begin == 12) {
         #ifndef WOLFSSL_NO_KYBER512
             if (XSTRNCMP(begin, "KYBER_LEVEL1", 12) == 0) {
@@ -201,6 +223,7 @@ static int IsKyberLevelAvailable(const char* line)
             }
         #endif
         }
+    #endif
     }
 
     return (begin == NULL) || available;
