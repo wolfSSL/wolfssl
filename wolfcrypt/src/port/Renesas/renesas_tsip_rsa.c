@@ -213,7 +213,7 @@ static int tsip_RsakeyImport(TsipUserCtx* tuc)
  * tuc  struct pointer of TsipUserCtx including TSIP key info
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
+int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret;
     int keySize;
@@ -225,12 +225,12 @@ WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
         return BAD_FUNC_ARG;
     }
 
-    if(tsip_RsakeyImport(tuc) == 0) {
+    if (tsip_RsakeyImport(tuc) == 0) {
         type = info->pk.rsa.type;
         keySize = (int)tuc->wrappedKeyType;
 
         if ((ret = tsip_hw_lock()) == 0) {
-            if (type == RSA_PUBLIC_ENCRYPT) {
+            if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
                 plain.pdata = (uint8_t*)info->pk.rsa.in;
                 plain.data_length = info->pk.rsa.inLen;
                 cipher.pdata = (uint8_t*)info->pk.rsa.out;
@@ -250,7 +250,8 @@ WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     return BAD_FUNC_ARG;
                 }
             }
-            else if (type == RSA_PRIVATE_DECRYPT) {
+            else if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT)
+            {
                 plain.pdata = (uint8_t*)info->pk.rsa.out;
                 plain.data_length = info->pk.rsa.outLen;
                 cipher.pdata = (uint8_t*)info->pk.rsa.in;
@@ -283,7 +284,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
 
-WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
+int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;

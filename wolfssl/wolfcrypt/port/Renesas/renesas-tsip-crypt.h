@@ -437,9 +437,12 @@ WOLFSSL_LOCAL int tsip_SignRsaPkcs(struct wc_CryptoInfo* info,
 WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(struct wc_CryptoInfo* info,
     TsipUserCtx* tuc);
 
+WOLFSSL_LOCAL int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc);
+
 WOLFSSL_LOCAL int tsip_SignEcdsa(struct wc_CryptoInfo* info, TsipUserCtx* tuc);
 
-WOLFSSL_LOCAL int tsip_VerifyEcdsa(struct wc_CryptoInfo* info, TsipUserCtx* tuc);
+WOLFSSL_LOCAL int tsip_VerifyEcdsa(struct wc_CryptoInfo* info,
+    TsipUserCtx* tuc);
 
 WOLFSSL_LOCAL int tsip_TlsCleanup(struct WOLFSSL* ssl);
 

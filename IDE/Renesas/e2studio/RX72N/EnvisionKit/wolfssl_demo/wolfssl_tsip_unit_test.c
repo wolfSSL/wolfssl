@@ -715,7 +715,7 @@ static int tsip_rsa_test(int prnt, int keySize)
 {
     int ret = 0;
 
-    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    RsaKey *key = NULL;
     WC_RNG rng;
     const char inStr [] = TEST_STRING;
     const char inStr2[] = TEST_STRING2;
@@ -726,10 +726,15 @@ static int tsip_rsa_test(int prnt, int keySize)
     byte *in2 = NULL;
     byte *out= NULL;
     byte *out2 = NULL;
+    int initRsa = 0;
+    int devId = 7890; /* fixed devid for TSIP/SCE */
 
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    out = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     out2 = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (key == NULL || in == NULL || out == NULL ||
@@ -738,17 +743,17 @@ static int tsip_rsa_test(int prnt, int keySize)
         goto out;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(key, 0, sizeof *key);
     XMEMCPY(in, inStr, inLen);
     XMEMCPY(in2, inStr2, inLen);
     XMEMSET(out,  0, outSz);
     XMEMSET(out2, 0, outSz);
 
-    ret = wc_InitRsaKey_ex(key, NULL, 7890/* fixed devid for TSIP/SCE*/);
+    ret = wc_InitRsaKey_ex(key, NULL, devId);
     if (ret != 0) {
         goto out;
     }
+    initRsa = 1;
 
     if ((ret = wc_InitRng(&rng)) != 0)
         goto out;
@@ -779,8 +784,11 @@ static int tsip_rsa_test(int prnt, int keySize)
 
     ret = 0;
 out:
+
+    wc_FreeRng(&rng);
     if (key != NULL) {
-        wc_FreeRsaKey(key);
+        if (initRsa)
+            wc_FreeRsaKey(key);
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -797,37 +805,41 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
 {
     int ret = 0;
 
-    RsaKey *key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    RsaKey *key = NULL;
     WC_RNG rng;
     const char inStr [] = TEST_STRING;
     const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
-
     byte *in = NULL;
     byte *in2 = NULL;
     byte *out= NULL;
+    int initRsa = 0;
+    int devId = 7890; /* fixed devid for TSIP/SCE */
 
+    XMEMSET(&rng, 0, sizeof(rng));
+
+    key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    out= (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    out = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    (void) prnt;
+    (void)prnt;
 
     if (key == NULL || in == NULL || out == NULL) {
         ret = -1;
         goto out;
     }
 
-    XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(key, 0, sizeof *key);
     XMEMCPY(in, inStr, inLen);
     XMEMCPY(in2, inStr2, inLen);
 
-    ret = wc_InitRsaKey_ex(key, NULL, 7890/* fixed devid for TSIP/SCE*/);
+    ret = wc_InitRsaKey_ex(key, NULL, devId);
     if (ret != 0) {
         goto out;
     }
+    initRsa = 1;
 
     if ((ret = wc_InitRng(&rng)) != 0)
         goto out;
@@ -858,9 +870,13 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
         goto out;
     }
     ret = 0;
+
   out:
+
+    wc_FreeRng(&rng);
     if (key != NULL) {
-        wc_FreeRsaKey(key);
+        if (initRsa)
+            wc_FreeRsaKey(key);
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
