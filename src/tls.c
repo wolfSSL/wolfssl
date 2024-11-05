@@ -7168,15 +7168,16 @@ static int TLSX_CA_Names_Parse(WOLFSSL *ssl, const byte* input,
     return 0;
 }
 
-#define CAN_GET_SIZE  TLSX_CA_Names_GetSize
-#define CAN_WRITE     TLSX_CA_Names_Write
-#define CAN_PARSE     TLSX_CA_Names_Parse
+#define CAN_GET_SIZE(data)      TLSX_CA_Names_GetSize(data)
+#define CAN_WRITE(data, output) TLSX_CA_Names_Write(data, output)
+#define CAN_PARSE(ssl, input, length, isRequest) \
+                                TLSX_CA_Names_Parse(ssl, input, length, isRequest)
 
 #else
 
-#define CAN_GET_SIZE(...)  0
-#define CAN_WRITE(...)     0
-#define CAN_PARSE(...)     0
+#define CAN_GET_SIZE(data)                       0
+#define CAN_WRITE(data, output)                  0
+#define CAN_PARSE(ssl, input, length, isRequest) 0
 
 #endif
 
@@ -14772,9 +14773,9 @@ static word16 TLSX_GetMinSize_Client(word16* type)
             return 0;
     }
 }
-    #define TLSX_GET_MIN_SIZE_CLIENT TLSX_GetMinSize_Client
+    #define TLSX_GET_MIN_SIZE_CLIENT(type) TLSX_GetMinSize_Client(type)
 #else
-    #define TLSX_GET_MIN_SIZE_CLIENT(...) 0
+    #define TLSX_GET_MIN_SIZE_CLIENT(type) 0
 #endif
 
 
@@ -14841,9 +14842,9 @@ static word16 TLSX_GetMinSize_Server(const word16 *type)
             return 0;
     }
 }
-    #define TLSX_GET_MIN_SIZE_SERVER TLSX_GetMinSize_Server
+    #define TLSX_GET_MIN_SIZE_SERVER(type) TLSX_GetMinSize_Server(type)
 #else
-    #define TLSX_GET_MIN_SIZE_SERVER(...) 0
+    #define TLSX_GET_MIN_SIZE_SERVER(type) 0
 #endif
 
 

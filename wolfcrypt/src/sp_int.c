@@ -119,7 +119,7 @@ This library provides single precision (SP) integer math functions.
 #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #undef RESTORE_VECTOR_REGISTERS
     #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif

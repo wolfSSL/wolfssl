@@ -1358,10 +1358,13 @@
         #define NO_SESSION_CACHE
 #endif
 
-/* Micrium will use Visual Studio for compilation but not the Win32 API */
+/* For platforms where the target OS is not Windows, but compilation is
+ * done on Windows/Visual Studio, enable a way to disable USE_WINDOWS_API.
+ * Examples: Micrium, TenAsus INtime, uTasker, FreeRTOS simulator */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
     !defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
-    !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS)
+    !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS) && \
+    !defined(WOLFSSL_NOT_WINDOWS_API)
     #define USE_WINDOWS_API
 #endif
 

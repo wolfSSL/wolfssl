@@ -178,7 +178,11 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     WOLFSSL_API void WOLFSSL_MSG_EX(const char* fmt, ...);
     #define HAVE_WOLFSSL_MSG_EX
 #else
-    #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+    #ifdef __WATCOMC__ /* does not allow variadic macros */
+        #define WOLFSSL_MSG_EX()    WC_DO_NOTHING
+    #else
+        #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+    #endif
 #endif
     WOLFSSL_API void WOLFSSL_MSG(const char* msg);
 #ifdef WOLFSSL_DEBUG_CODEPOINTS
@@ -209,7 +213,11 @@ WOLFSSL_API void wolfSSL_SetLoggingPrefix(const char* prefix);
     #define WOLFSSL_STUB(m)       WC_DO_NOTHING
     #define WOLFSSL_IS_DEBUG_ON() 0
 
-    #define WOLFSSL_MSG_EX(...)   WC_DO_NOTHING
+    #ifdef __WATCOMC__ /* does not allow variadic macros */
+        #define WOLFSSL_MSG_EX()    WC_DO_NOTHING
+    #else
+        #define WOLFSSL_MSG_EX(...) WC_DO_NOTHING
+    #endif
     #define WOLFSSL_MSG(m)        WC_DO_NOTHING
     #define WOLFSSL_BUFFER(b, l)  WC_DO_NOTHING
 
