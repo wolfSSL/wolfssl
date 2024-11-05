@@ -7388,7 +7388,7 @@ then
         ENABLED_WOLFSSH="yes"
     fi
 
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
     fi
