@@ -18,7 +18,7 @@ static const ASNItem <template>[] = {
 /*  <ITEM_0> */ { <depth>, <ASN Type>, <constructed>, <header>, <optional> },
 ...
 };
-/* Named indeces for <template>. */
+/* Named indices for <template>. */
 enum {
     <TEMPLATE>_<ITEM_0> = 0,
     <TEMPLATE>_<ITEM_1>,

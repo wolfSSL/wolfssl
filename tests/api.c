@@ -71021,10 +71021,10 @@ static int test_wolfSSL_SESSION(void)
         char buf[64] = {0};
         word32 bufSz = (word32)sizeof(buf);
 
-        ExpectIntEQ(SSL_SUCCESS,
+        ExpectIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_set_SessionTicket(ssl, (byte *)ticket,
                 (word32)XSTRLEN(ticket)));
-        ExpectIntEQ(SSL_SUCCESS,
+        ExpectIntEQ(WOLFSSL_SUCCESS,
             wolfSSL_get_SessionTicket(ssl, (byte *)buf, &bufSz));
         ExpectStrEQ(ticket, buf);
     }
