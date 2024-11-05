@@ -56,11 +56,11 @@
 #endif
 
 #ifndef NO_SHA
- int sha_test();
+ int sha_test(void);
 #endif
 
 #ifndef NO_SHA256
- int sha256_test();
+ int sha256_test(void);
 #endif
 
 #define SMALL_STACK_SIZE (1 * 1024)
@@ -718,36 +718,31 @@ static int tsip_rsa_test(int prnt, int keySize)
     RsaKey *key = NULL;
     WC_RNG rng;
     const char inStr [] = TEST_STRING;
-    const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
     word32 out_actual_len = 0;
     byte *in = NULL;
-    byte *in2 = NULL;
     byte *out= NULL;
-    byte *out2 = NULL;
+    byte *outplain = NULL;
     int initRsa = 0;
     int devId = 7890; /* fixed devid for TSIP/SCE */
 
     XMEMSET(&rng, 0, sizeof(rng));
 
-    key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (RsaKey *)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     out = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    out2 = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    outplain = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (key == NULL || in == NULL || out == NULL ||
-        in2 == NULL || out2 == NULL) {
+    if (key == NULL || in == NULL || out == NULL || outplain == NULL) {
         ret = -1;
         goto out;
     }
 
-    XMEMSET(key, 0, sizeof *key);
+    XMEMSET(key, 0, sizeof(*key));
     XMEMCPY(in, inStr, inLen);
-    XMEMCPY(in2, inStr2, inLen);
     XMEMSET(out,  0, outSz);
-    XMEMSET(out2, 0, outSz);
+    XMEMSET(outplain, 0, outSz);
 
     ret = wc_InitRsaKey_ex(key, NULL, devId);
     if (ret != 0) {
@@ -761,7 +756,7 @@ static int tsip_rsa_test(int prnt, int keySize)
     if ((ret = wc_RsaSetRNG(key, &rng)) != 0)
         goto out;
 
-    /* Set Rsa Key created by TSIP in Advance */
+    /* Generate a new RSA key to use with TSIP/SCE */
     if ((ret = wc_MakeRsaKey(key, keySize, 65537, &rng)) != 0) {
         goto out;
     }
@@ -771,13 +766,13 @@ static int tsip_rsa_test(int prnt, int keySize)
         goto out;
     }
 
-    ret = wc_RsaPrivateDecrypt(out, (word32)(keySize/8), out2, outSz, key);
+    ret = wc_RsaPrivateDecrypt(out, (word32)(keySize/8), outplain, outSz, key);
     if (ret < 0) {
         ret = -1;
         goto out;
     }
 
-    if (XMEMCMP(in, out2, inLen) != 0) {
+    if (XMEMCMP(in, outplain, inLen) != 0) {
         ret = -2;
         goto out;
     }
@@ -792,11 +787,10 @@ out:
         XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(out2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(outplain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
-    (void) prnt;
+    (void)prnt;
     return ret;
 }
 
@@ -819,19 +813,17 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
 
     XMEMSET(&rng, 0, sizeof(rng));
 
-    key = (RsaKey *)XMALLOC(sizeof *key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    key = (RsaKey *)XMALLOC(sizeof(*key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     in = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     in2 = (byte*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     out = (byte*)XMALLOC(outSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-
-    (void)prnt;
 
     if (key == NULL || in == NULL || out == NULL) {
         ret = -1;
         goto out;
     }
 
-    XMEMSET(key, 0, sizeof *key);
+    XMEMSET(key, 0, sizeof(*key));
     XMEMCPY(in, inStr, inLen);
     XMEMCPY(in2, inStr2, inLen);
 
@@ -847,7 +839,7 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
     if ((ret = wc_RsaSetRNG(key, &rng)) != 0)
         goto out;
 
-    /* make rsa key by SCE */
+    /* Generate a new RSA key to use with TSIP/SCE */
     if ((ret = wc_MakeRsaKey(key, keySize, 65537, &rng)) != 0) {
         goto out;
     }
@@ -883,13 +875,14 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
     XFREE(in2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
+    (void)prnt;
     return ret;
 }
 #endif /* NO_RSA */
 
 
 #ifdef TSIP_MULTIUNIT_TEST
-int tsip_crypt_sha_multitest()
+int tsip_crypt_sha_multitest(void)
 {
     int ret = 0;
     int num = 0;
@@ -947,7 +940,7 @@ int tsip_crypt_sha_multitest()
 }
 
 
-int tsip_crypt_AesCbc_multitest()
+int tsip_crypt_AesCbc_multitest(void)
 {
     int ret = 0;
     int num = 0;
@@ -1028,7 +1021,7 @@ int tsip_crypt_AesCbc_multitest()
 }
 
 
-int tsip_crypt_AesGcm_multitest()
+int tsip_crypt_AesGcm_multitest(void)
 {
     int ret = 0;
     int num = 0;
@@ -1107,7 +1100,7 @@ int tsip_crypt_AesGcm_multitest()
     return ret;
 }
 
-int tsip_crypt_Sha_AesCbcGcm_multitest()
+int tsip_crypt_Sha_AesCbcGcm_multitest(void)
 {
     int ret = 0;
     int num = 0;
@@ -1187,7 +1180,7 @@ int tsip_crypt_Sha_AesCbcGcm_multitest()
 #endif
 
 
-int tsip_crypt_test()
+int tsip_crypt_test(void)
 {
     int ret = 0;
     e_tsip_err_t tsip_error_code;
