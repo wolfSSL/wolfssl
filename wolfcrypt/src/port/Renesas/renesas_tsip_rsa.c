@@ -180,7 +180,7 @@ static int tsip_RsakeyImport(TsipUserCtx* tuc)
     switch (tuc->wrappedKeyType) {
         case TSIP_KEY_TYPE_RSA1024:
             if (tuc->keyflgs_crypt.bits.rsapub1024_key_set != 1) {
-                ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
+                ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
 
                 WOLFSSL_MSG("tsip rsa private key 1024 not set");
                 if (ret != 0)
@@ -190,7 +190,7 @@ static int tsip_RsakeyImport(TsipUserCtx* tuc)
             break;
         case TSIP_KEY_TYPE_RSA2048:
             if (tuc->keyflgs_crypt.bits.rsapub2048_key_set != 1) {
-                ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
+                ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
 
                 WOLFSSL_MSG("tsip rsa private key 2048 not set");
                 if (ret != 0)

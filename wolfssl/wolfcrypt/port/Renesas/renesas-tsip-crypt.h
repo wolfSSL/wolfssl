@@ -379,6 +379,10 @@ WOLFSSL_API int  tsip_set_callback_ctx(struct WOLFSSL* ssl, void* user_ctx);
 
 WOLFSSL_API int  tsip_set_clientPrivateKeyEnc(const byte* key, int keyType);
 
+
+WOLFSSL_LOCAL int tsip_ImportPublicKey(TsipUserCtx* tuc, int keyType);
+WOLFSSL_LOCAL int tsip_ImportPrivateKey(TsipUserCtx* tuc, int keyType);
+
 #if defined(WOLF_PRIVATE_KEY_ID)
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS)
