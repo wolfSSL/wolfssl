@@ -111,6 +111,8 @@ This library contains implementation for the random number generator.
     #include <random.h>
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
     #include "wolfssl/wolfcrypt/port/xilinx/xil-versal-trng.h"
+#elif defined(WOLFSSL_RPIPICO)
+    #include "wolfssl/wolfcrypt/port/rpi_pico/pico.h"
 #elif defined(NO_DEV_RANDOM)
 #elif defined(CUSTOM_RAND_GENERATE)
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -2968,7 +2970,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
         return RAN_BLOCK_E;
     }
-
 #elif !defined(WOLFSSL_CAAM) && \
     (defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
      defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS))
