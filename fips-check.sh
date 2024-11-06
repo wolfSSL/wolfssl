@@ -17,6 +17,7 @@ TEST_DIR="${TEST_DIR:-XXX-fips-test}"
 FLAVOR="${FLAVOR:-linux}"
 KEEP="${KEEP:-no}"
 MAKECHECK=${MAKECHECK:-yes}
+DOCONFIGURE=${DOCONFIGURE:-yes}
 FIPS_REPO="${FIPS_REPO:-git@github.com:wolfssl/fips.git}"
 
 Usage() {
@@ -43,6 +44,7 @@ usageText
 while [ "$1" ]; do
   if [ "$1" = 'keep' ]; then KEEP='yes';
   elif [ "$1" = 'nomakecheck' ]; then MAKECHECK='no';
+  elif [ "$1" = 'nodoconfigure' ]; then DOCONFIGURE='no';
   else FLAVOR="$1"; fi
   shift
 done
@@ -368,36 +370,38 @@ fi
 # run the make test
 ./autogen.sh
 
-case "$FIPS_OPTION" in
-cavp-selftest)
-    ./configure --enable-selftest
-    ;;
-cavp-selftest-v2)
-    ./configure --enable-selftest=v2
-    ;;
-*)
-    ./configure --enable-fips=$FIPS_OPTION
-    ;;
-esac
+if [ "$DOCONFIGURE" = "yes" ]; then
+    case "$FIPS_OPTION" in
+    cavp-selftest)
+        ./configure --enable-selftest
+        ;;
+    cavp-selftest-v2)
+        ./configure --enable-selftest=v2
+        ;;
+    *)
+        ./configure --enable-fips=$FIPS_OPTION
+        ;;
+    esac
 
-if ! $MAKE; then
-    echo 'fips-check: Make failed. Debris left for analysis.'
-    exit 3
-fi
-
-if [ -s wolfcrypt/src/fips_test.c ]; then
-    NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
-    if [ -n "$NEWHASH" ]; then
-        cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
-        sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak >wolfcrypt/src/fips_test.c
-        make clean
-    fi
-fi
-
-if [ "$MAKECHECK" = "yes" ]; then
-    if ! $MAKE check; then
-        echo 'fips-check: Test failed. Debris left for analysis.'
+    if ! $MAKE; then
+        echo 'fips-check: Make failed. Debris left for analysis.'
         exit 3
+    fi
+
+    if [ -s wolfcrypt/src/fips_test.c ]; then
+        NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
+        if [ -n "$NEWHASH" ]; then
+            cp wolfcrypt/src/fips_test.c wolfcrypt/src/fips_test.c.bak
+            sed "s/^\".*\";/\"${NEWHASH}\";/" wolfcrypt/src/fips_test.c.bak >wolfcrypt/src/fips_test.c
+            make clean
+        fi
+    fi
+
+    if [ "$MAKECHECK" = "yes" ]; then
+        if ! $MAKE check; then
+            echo 'fips-check: Test failed. Debris left for analysis.'
+            exit 3
+        fi
     fi
 fi
 
