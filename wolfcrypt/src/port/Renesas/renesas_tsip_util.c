@@ -3632,6 +3632,7 @@ int wc_tsip_tls_RootCertVerify(
     return ret;
 }
 #endif /* WOLFSSL_RENESAS_TSIP_TLS */
+
 #if !defined(NO_RSA)
 /*  Perform signing with the client's RSA private key on hash value of messages
  *  exchanged with server.
@@ -3646,7 +3647,7 @@ int wc_tsip_tls_RootCertVerify(
  *   0 on success, CRYPTOCB_UNAVAILABLE on unsupported key type specified.
  *
  */
-WOLFSSL_LOCAL int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
+int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -3724,18 +3725,18 @@ WOLFSSL_LOCAL int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 #endif
 
     if (ret == 0) {
-       #ifdef WOLFSSL_RENESAS_TSIP_TLS
+    #ifdef WOLFSSL_RENESAS_TSIP_TLS
         hashData.pdata      = (uint8_t*)ssl->buffers.digest.buffer;
         hashData.data_type  = 1;
         sigData.pdata       = (uint8_t*)info->pk.rsa.in;
         sigData.data_length = 0; /* signature size will be returned here */
-       #else
+    #else
         hashData.pdata      = (uint8_t*)info->pk.rsa.in;
         hashData.data_length= info->pk.rsa.inLen;
         hashData.data_type  = tuc->keyflgs_crypt.bits.message_type;
         sigData.pdata       = (uint8_t*)info->pk.rsa.out;
         sigData.data_length = 0;
-       #endif
+    #endif
         if ((ret = tsip_hw_lock()) == 0) {
             switch (tuc->wrappedKeyType) {
             #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
@@ -3752,7 +3753,6 @@ WOLFSSL_LOCAL int tsip_SignRsaPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     break;
             #endif
                 case TSIP_KEY_TYPE_RSA2048:
-
                     err = R_TSIP_RsassaPkcs2048SignatureGenerate(
                                                 &hashData, &sigData,
                                    #ifdef WOLFSSL_RENESAS_TSIP_TLS

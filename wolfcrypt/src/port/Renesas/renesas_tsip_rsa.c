@@ -42,11 +42,11 @@
 /* Make RSA key for TSIP and set it to callback ctx
  * Assumes to be called by Crypt Callback
  *
- * size   desired keylenth, in bits. supports 1024 or 2048 bits
+ * size   desired key length, in bits. supports 1024 or 2048 bits
  * ctx    Callback context including pointer to hold generated key
  * return TSIP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
+int wc_tsip_MakeRsaKey(int size, void* ctx)
 {
     e_tsip_err_t     ret;
     TsipUserCtx     *info = (TsipUserCtx*)ctx;
@@ -249,6 +249,9 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                                                           "1024 or 2048 bits.");
                     return BAD_FUNC_ARG;
                 }
+                if (ret == 0) {
+                    info->pk.rsa.outLen = cipher.data_length;
+                }
             }
             else if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT)
             {
@@ -269,6 +272,9 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
                                                           "1024 or 2048 bits.");
                     return BAD_FUNC_ARG;
+                }
+                if (ret == 0) {
+                    info->pk.rsa.outLen = plain.data_length;
                 }
             }
             tsip_hw_unlock();

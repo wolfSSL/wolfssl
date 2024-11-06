@@ -2198,7 +2198,7 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
     case WC_PK_TYPE_RSA_OAEP:
         mechanism = CKM_RSA_PKCS_OAEP;
         break;
-#endif /* NO_PKCS11_RSA_PKCS */
+#endif /* !NO_PKCS11_RSA_PKCS */
     case WC_PK_TYPE_RSA:
         mechanism = CKM_RSA_X_509;
         break;

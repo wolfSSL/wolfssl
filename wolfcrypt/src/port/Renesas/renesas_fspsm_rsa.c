@@ -67,7 +67,7 @@ WOLFSSL_LOCAL void wc_fspsm_RsaKeyFree(RsaKey *key)
 /* Set Rsa key by pre-created wrapped user key
  *
  * key    RsaKey object
- * size   desired keylenth, in bits. supports 1024 or 2048 bits
+ * size   desired key length, in bits. supports 1024 or 2048 bits
  * ctx    Callback context including pointer to hold generated key
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
