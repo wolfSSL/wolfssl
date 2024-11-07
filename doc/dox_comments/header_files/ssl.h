@@ -11251,7 +11251,7 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
     \return MEMORY_E is the error returned when there is not enough memory.
 
     \param ssl pointer to a SSL object, created with wolfSSL_new().
-    \param mfl indicates witch is the Maximum Fragment Length requested for the
+    \param mfl indicates which is the Maximum Fragment Length requested for the
     session. The available options are: enum { WOLFSSL_MFL_2_9  = 1, 512 bytes
     WOLFSSL_MFL_2_10 = 2, 1024 bytes WOLFSSL_MFL_2_11 = 3, 2048 bytes
     WOLFSSL_MFL_2_12 = 4, 4096 bytes WOLFSSL_MFL_2_13 = 5, 8192
