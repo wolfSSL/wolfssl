@@ -132,7 +132,7 @@
 
 
 /* OS specific seeder */
-typedef struct OS_Seed {
+struct OS_Seed {
     #if defined(USE_WINDOWS_API)
         ProviderHandle handle;
     #else
@@ -141,11 +141,15 @@ typedef struct OS_Seed {
     #if defined(WOLF_CRYPTO_CB)
         int devId;
     #endif
-} OS_Seed;
+};
 
 
 #ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
     typedef struct WC_RNG WC_RNG;
+    typedef struct OS_Seed OS_Seed;
+    #ifdef WC_RNG_SEED_CB
+        typedef int (*wc_RngSeed_Cb)(OS_Seed* os, byte* seed, word32 sz);
+    #endif
     #define WC_RNG_TYPE_DEFINED
 #endif
 
@@ -234,7 +238,6 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG*);
 #endif
 
 #ifdef WC_RNG_SEED_CB
-    typedef int (*wc_RngSeed_Cb)(OS_Seed* os, byte* seed, word32 sz);
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
 #endif
 
