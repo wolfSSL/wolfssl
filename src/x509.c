@@ -587,6 +587,76 @@ err:
 #endif /* OPENSSL_ALL || WOLFSSL_WPAS_SMALL */
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
+static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
+{
+    gn->type = dns->type;
+    switch (gn->type) {
+        case WOLFSSL_GEN_OTHERNAME:
+                if (!wolfssl_dns_entry_othername_to_gn(dns, gn)) {
+                    WOLFSSL_MSG("OTHERNAME set failed");
+                    return WOLFSSL_FAILURE;
+                }
+            break;
+
+        case WOLFSSL_GEN_EMAIL:
+        case WOLFSSL_GEN_DNS:
+        case WOLFSSL_GEN_URI:
+        case WOLFSSL_GEN_IPADD:
+        case WOLFSSL_GEN_IA5:
+                gn->d.ia5->length = dns->len;
+                if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
+                        gn->d.ia5->length) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("ASN1_STRING_set failed");
+                    return WOLFSSL_FAILURE;
+                }
+                break;
+
+
+        case WOLFSSL_GEN_DIRNAME:
+            /* wolfSSL_GENERAL_NAME_new() mallocs this by default */
+            wolfSSL_ASN1_STRING_free(gn->d.ia5);
+            gn->d.ia5 = NULL;
+
+            gn->d.dirn = wolfSSL_X509_NAME_new();;
+            /* @TODO extract dir name info from DNS_entry */
+            break;
+
+#ifdef WOLFSSL_RID_ALT_NAME
+        case WOLFSSL_GEN_RID:
+            /* wolfSSL_GENERAL_NAME_new() mallocs this by default */
+            wolfSSL_ASN1_STRING_free(gn->d.ia5);
+            gn->d.ia5 = NULL;
+
+            gn->d.registeredID = wolfSSL_ASN1_OBJECT_new();
+            if (gn->d.registeredID == NULL) {
+                return WOLFSSL_FAILURE;
+            }
+            gn->d.registeredID->obj = XMALLOC(dns->len,
+                gn->d.registeredID->heap, DYNAMIC_TYPE_ASN1);
+            if (gn->d.registeredID->obj == NULL) {
+                /* registeredID gets free'd up by caller after failure */
+                return WOLFSSL_FAILURE;
+            }
+            gn->d.registeredID->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA;
+            XMEMCPY((byte*)gn->d.registeredID->obj, dns->ridString, dns->len);
+            gn->d.registeredID->objSz = dns->len;
+            gn->d.registeredID->grp = oidCertExtType;
+            gn->d.registeredID->nid = WC_NID_registeredAddress;
+            break;
+#endif
+
+        case WOLFSSL_GEN_X400:
+            /* Unsupported: fall through */
+        case WOLFSSL_GEN_EDIPARTY:
+            /* Unsupported: fall through */
+        default:
+            WOLFSSL_MSG("Unsupported type conversion");
+            return WOLFSSL_FAILURE;
+    }
+    return WOLFSSL_SUCCESS;
+}
+
+
 static int wolfssl_x509_alt_names_to_gn(WOLFSSL_X509* x509,
     WOLFSSL_X509_EXTENSION* ext)
 {
@@ -624,24 +694,10 @@ static int wolfssl_x509_alt_names_to_gn(WOLFSSL_X509* x509,
                 goto err;
             }
 
-            gn->type = dns->type;
-            if (gn->type == WOLFSSL_GEN_OTHERNAME) {
-                if (!wolfssl_dns_entry_othername_to_gn(dns, gn)) {
-                    WOLFSSL_MSG("OTHERNAME set failed");
-                    wolfSSL_GENERAL_NAME_free(gn);
-                    wolfSSL_sk_pop_free(sk, NULL);
-                    goto err;
-                }
-            }
-            else {
-                gn->d.ia5->length = dns->len;
-                if (wolfSSL_ASN1_STRING_set(gn->d.ia5, dns->name,
-                        gn->d.ia5->length) != WOLFSSL_SUCCESS) {
-                    WOLFSSL_MSG("ASN1_STRING_set failed");
-                    wolfSSL_GENERAL_NAME_free(gn);
-                    wolfSSL_sk_pop_free(sk, NULL);
-                    goto err;
-                }
+            if (DNS_to_GENERAL_NAME(gn, dns) != WOLFSSL_SUCCESS) {
+                wolfSSL_GENERAL_NAME_free(gn);
+                wolfSSL_sk_pop_free(sk, NULL);
+                goto err;
             }
 
             if (wolfSSL_sk_GENERAL_NAME_push(sk, gn) <= 0) {
