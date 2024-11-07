@@ -983,7 +983,7 @@ typedef struct w64wrapper {
         #endif
         #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         #define XISALNUM(c)     isalnum((c))
-        #ifdef NO_STDLIB_ISASCII
+        #ifndef HAVE_ISASCII
             #define XISASCII(c) (((c) >= 0 && (c) <= 127) ? 1 : 0)
         #else
             #define XISASCII(c) isascii((c))

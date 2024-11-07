@@ -125,6 +125,9 @@ check_function_exists("socket" HAVE_SOCKET)
 check_function_exists("strftime" HAVE_STRFTIME)
 check_function_exists("__atomic_fetch_add" HAVE_C___ATOMIC)
 
+include(CheckSymbolExists)
+check_symbol_exists(isascii "ctype.h" HAVE_ISASCII)
+
 include(CheckTypeSize)
 
 check_type_size("__uint128_t" __UINT128_T)
