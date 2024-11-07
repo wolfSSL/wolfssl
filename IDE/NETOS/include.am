@@ -4,6 +4,7 @@
 
 EXTRA_DIST+= IDE/NETOS/Makefile.wolfcrypt.inc
 EXTRA_DIST+= IDE/NETOS/user_settings.h
+EXTRA_DIST+= IDE/NETOS/user_settings.h-cert3389
 EXTRA_DIST+= IDE/NETOS/user_settings.h-cert2425
 EXTRA_DIST+= IDE/NETOS/wolfssl_netos_custom.c
 EXTRA_DIST+= IDE/NETOS/README.md
