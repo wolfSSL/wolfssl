@@ -264,6 +264,9 @@
 /* Uncomment next line if using MAXQ108x */
 /* #define WOLFSSL_MAXQ108X */
 
+/* Uncomment next line if using Raspberry Pi RP2040 or RP2350 */
+/* #define WOLFSSL_RPIPICO */
+
 /* Check PLATFORMIO first, as it may define other known environments. */
 #ifdef PLATFORMIO
     #ifdef ESP_PLATFORM

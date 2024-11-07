@@ -14498,7 +14498,15 @@ void bench_sphincsKeySign(byte level, byte optim)
 
         return (double) ticks/TICKS_PER_SECOND;
     }
+#elif defined(WOLFSSL_RPIPICO)
+    #include "pico/stdlib.h"
 
+    double current_time(int reset)
+    {
+        (void)reset;
+
+        return (double) time_us_64() / 1000000;
+    }
 #elif defined(THREADX)
     #include "tx_api.h"
     double current_time(int reset)
