@@ -16526,6 +16526,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         curveOid = NULL;
         oidSz = 0;
     }
+#ifndef NO_DH
     else if (pkey->type == WC_EVP_PKEY_DH) {
         if (pkey->dh == NULL)
             return BAD_FUNC_ARG;
@@ -16548,6 +16549,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
         curveOid = NULL;
         oidSz = 0;
     }
+#endif
     else {
         ret = NOT_COMPILED_IN;
     }
