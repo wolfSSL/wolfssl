@@ -30,6 +30,10 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#ifdef HAVE_ERRNO_H
+    #include <errno.h>
+#endif
+
 #ifndef WOLFCRYPT_ONLY
 
 #ifdef _WIN32_WCE
