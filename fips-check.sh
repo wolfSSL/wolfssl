@@ -192,7 +192,7 @@ linuxv5.2.1)
     'wolfcrypt/src/fips_test.c:v5.2.1-stable'
     'wolfcrypt/src/wolfcrypt_first.c:v5.2.1-stable'
     'wolfcrypt/src/wolfcrypt_last.c:v5.2.1-stable'
-    'wolfssl/wolfcrypt/fips.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/fips.h:v5.2.1-stable-OS_Seed-HdrOnly'
   )
   WOLFCRYPT_FILES=(
     'wolfcrypt/src/aes.c:v5.2.1-stable'
@@ -219,7 +219,7 @@ linuxv5.2.1)
     'wolfssl/wolfcrypt/fips_test.h:v5.2.1-stable'
     'wolfssl/wolfcrypt/hmac.h:v5.2.1-stable'
     'wolfssl/wolfcrypt/kdf.h:v5.2.1-stable'
-    'wolfssl/wolfcrypt/random.h:v5.2.1-stable'
+    'wolfssl/wolfcrypt/random.h:v5.2.1-stable-OS_Seed-HdrOnly'
     'wolfssl/wolfcrypt/rsa.h:v5.2.1-stable'
     'wolfssl/wolfcrypt/sha.h:v5.2.1-stable'
     'wolfssl/wolfcrypt/sha256.h:v5.2.1-stable'
