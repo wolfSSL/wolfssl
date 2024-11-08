@@ -2257,7 +2257,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         LIBCALL_CHECK_RET(XFSEEK(lFile, 0, XSEEK_SET));
         if (fileSz  > 0) {
             *bufLen = (size_t)fileSz;
-            *buf = (byte*)XMALLOC(*bufLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            *buf = (byte*)malloc(*bufLen);
             if (*buf == NULL) {
                 ret = MEMORY_E;
                 fprintf(stderr,
@@ -2322,7 +2322,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         }
 
         if (buff)
-            XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            free(buff);
     }
 
     static WC_INLINE void load_ssl_buffer(WOLFSSL* ssl, const char* fname, int type)
@@ -2364,7 +2364,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         }
 
         if (buff)
-            XFREE(buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            free(buff);
     }
 
     #ifdef TEST_PK_PRIVKEY
@@ -2378,20 +2378,20 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
         if (ret != 0)
             return ret;
 
-        *derBuf = (byte*)XMALLOC(bufLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *derBuf = (byte*)malloc(bufLen);
         if (*derBuf == NULL) {
-            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            free(buf);
             return MEMORY_E;
         }
 
         ret = wc_KeyPemToDer(buf, (word32)bufLen, *derBuf, (word32)bufLen, NULL);
         if (ret < 0) {
-            XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(*derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            free(buf);
+            free(*derBuf);
             return ret;
         }
         *derLen = ret;
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        free(buf);
 
         return 0;
     }
@@ -3060,14 +3060,14 @@ static WC_INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     AtomicEncCtx* encCtx;
     AtomicDecCtx* decCtx;
 
-    encCtx = (AtomicEncCtx*)XMALLOC(sizeof(AtomicEncCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    encCtx = (AtomicEncCtx*)malloc(sizeof(AtomicEncCtx));
     if (encCtx == NULL)
         err_sys_with_errno("AtomicEncCtx malloc failed");
     XMEMSET(encCtx, 0, sizeof(AtomicEncCtx));
 
-    decCtx = (AtomicDecCtx*)XMALLOC(sizeof(AtomicDecCtx), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    decCtx = (AtomicDecCtx*)malloc(sizeof(AtomicDecCtx));
     if (decCtx == NULL) {
-        XFREE(encCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        free(encCtx);
         err_sys_with_errno("AtomicDecCtx malloc failed");
     }
     XMEMSET(decCtx, 0, sizeof(AtomicDecCtx));
@@ -3102,12 +3102,12 @@ static WC_INLINE void FreeAtomicUser(WOLFSSL* ssl)
     if (encCtx != NULL) {
         if (encCtx->keySetup  == 1)
             wc_AesFree(&encCtx->aes);
-        XFREE(encCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        free(encCtx);
     }
     if (decCtx != NULL) {
         if (decCtx->keySetup  == 1)
             wc_AesFree(&decCtx->aes);
-        XFREE(decCtx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        free(decCtx);
     }
 }
 
@@ -3255,7 +3255,7 @@ static WC_INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     }
 
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK ECC Sign: ret %d outSz %u\n", ret, *outSz);
@@ -3466,7 +3466,7 @@ static WC_INLINE int myEd25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
     }
 
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK 25519 Sign: ret %d, outSz %d\n", ret, *outSz);
@@ -3635,7 +3635,7 @@ static WC_INLINE int myEd448Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
     }
 
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK 448 Sign: ret %d, outSz %u\n", ret, *outSz);
@@ -3835,7 +3835,7 @@ static WC_INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     wc_FreeRng(&rng);
 
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK RSA Sign: ret %d, outSz %u\n", ret, *outSz);
@@ -3898,7 +3898,7 @@ static WC_INLINE int myRsaSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
         wc_FreeRsaKey(&myKey);
     }
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK RSA SignCheck: ret %d\n", ret);
@@ -3994,7 +3994,7 @@ static WC_INLINE int myRsaPssSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     wc_FreeRng(&rng);
 
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK RSA PSS Sign: ret %d, outSz %u\n", ret, *outSz);
@@ -4102,7 +4102,7 @@ static WC_INLINE int myRsaPssSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
     }
 
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK RSA PSS SignCheck: ret %d\n", ret);
@@ -4188,7 +4188,7 @@ static WC_INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
     }
 
 #ifdef TEST_PK_PRIVKEY
-    XFREE(keyBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    free(keyBuf);
 #endif
 
     WOLFSSL_PKMSG("PK RSA Dec: ret %d\n", ret);
