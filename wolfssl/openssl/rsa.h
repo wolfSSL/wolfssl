@@ -78,7 +78,7 @@ typedef struct WOLFSSL_RSA_METHOD {
     /* Name of RSA key implementation. */
     char *name;
     /* RSA method dynamically allocated. */
-    word16 dynamic:1;
+    WC_BITFIELD dynamic:1;
 } WOLFSSL_RSA_METHOD;
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
@@ -106,9 +106,9 @@ typedef struct WOLFSSL_RSA {
     int flags;                       /* Flags of implementation. */
 
     /* bits */
-    byte inSet:1;                    /* Internal set from external. */
-    byte exSet:1;                    /* External set from internal. */
-    byte ownRng:1;                   /* Rng needs to be free'd. */
+    WC_BITFIELD inSet:1;             /* Internal set from external. */
+    WC_BITFIELD exSet:1;             /* External set from internal. */
+    WC_BITFIELD ownRng:1;            /* Rng needs to be free'd. */
 } WOLFSSL_RSA;
 #endif
 

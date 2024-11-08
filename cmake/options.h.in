@@ -131,7 +131,7 @@ extern "C" {
 #undef HAVE_POLY1305
 #cmakedefine HAVE_POLY1305
 #undef HAVE_PTHREAD
-#cmakedefine HAVE_PTHREAD
+#cmakedefine HAVE_PTHREAD 1
 #undef HAVE_REPRODUCIBLE_BUILD
 #cmakedefine HAVE_REPRODUCIBLE_BUILD
 #undef HAVE_SESSION_TICKET

@@ -16115,7 +16115,6 @@ word32 SetOthername(void *name, byte *output)
     WOLFSSL_ASN1_OTHERNAME *nm = (WOLFSSL_ASN1_OTHERNAME *)name;
     char *nameStr = NULL;
     word32 nameSz = 0;
-    word32 len = 0;
 
     if ((nm == NULL) || (nm->value == NULL)) {
         WOLFSSL_MSG("otherName value is NULL");
@@ -16125,11 +16124,13 @@ word32 SetOthername(void *name, byte *output)
     nameStr = nm->value->value.utf8string->data;
     nameSz = (word32)nm->value->value.utf8string->length;
 
-    len = nm->type_id->objSz +
-          SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2, NULL, 0) +
-          SetHeader(CTC_UTF8, nameSz, NULL, 0) + nameSz;
-
-    if (output != NULL) {
+    if (output == NULL) {
+        return nm->type_id->objSz +
+            SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2, NULL, 0) +
+            SetHeader(CTC_UTF8, nameSz, NULL, 0) + nameSz;
+    }
+    else {
+        const byte *output_start = output;
         /* otherName OID */
         XMEMCPY(output, nm->type_id->obj, nm->type_id->objSz);
         output += nm->type_id->objSz;
@@ -16137,12 +16138,19 @@ word32 SetOthername(void *name, byte *output)
         output += SetHeader(ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC, nameSz + 2,
                             output, 0);
 
+        /* work around false positive from -fstack-protector */
+        PRAGMA_GCC_DIAG_PUSH
+        PRAGMA_GCC("GCC diagnostic ignored \"-Wstringop-overflow\"")
+
         output += SetHeader(CTC_UTF8, nameSz, output, 0);
 
-        XMEMCPY(output, nameStr, nameSz);
-    }
+        PRAGMA_GCC_DIAG_POP
 
-    return len;
+        XMEMCPY(output, nameStr, nameSz);
+
+        output += nameSz;
+        return (word32)(output - output_start);
+    }
 }
 #endif /* OPENSSL_EXTRA */
 
@@ -21826,7 +21834,7 @@ enum {
 #ifdef WC_RSA_PSS
     RPKCERTASN_IDX_SPUBKEYINFO_ALGO_P_SEQ,
 #endif
-    RPKCERTASN_IDX_SPUBKEYINFO_PUBKEY,
+    RPKCERTASN_IDX_SPUBKEYINFO_PUBKEY
 };
 
 #endif /* HAVE_RPK */

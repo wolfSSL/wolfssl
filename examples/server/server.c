@@ -422,7 +422,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     size_t xfer_bytes = 0;
     char* buffer;
 
-    buffer = (char*)malloc((size_t)block);
+    buffer = (char*)XMALLOC((size_t)block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!buffer) {
         err_sys_ex(runWithErrors, "Server buffer malloc failed");
     }
@@ -465,7 +465,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                         break;
                     }
                     if (err == WOLFSSL_ERROR_ZERO_RETURN) {
-                        free(buffer);
+                        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return WOLFSSL_ERROR_ZERO_RETURN;
                     }
                 }
@@ -507,7 +507,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
         }
     }
 
-    free(buffer);
+    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (throughput) {
 #ifdef __MINGW32__
@@ -3635,7 +3635,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             else
                 printf("Get list of client's protocol name failed\n");
 
-            free(list);
+            (void)wolfSSL_ALPN_FreePeerProtocol(ssl, &list);
         }
 #endif
 

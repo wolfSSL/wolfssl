@@ -183,7 +183,7 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
 #define X509V3_EXT_add_nconf      wolfSSL_X509V3_EXT_add_nconf
 #ifndef NO_WOLFSSL_STUB
-#define X509V3_parse_list(...)    NULL
+#define X509V3_parse_list(line)   NULL
 #endif
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define a2i_IPADDRESS             wolfSSL_a2i_IPADDRESS
@@ -191,8 +191,8 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 #define X509V3_EXT_conf_nid       wolfSSL_X509V3_EXT_conf_nid
 #define X509V3_set_ctx            wolfSSL_X509V3_set_ctx
 #ifndef NO_WOLFSSL_STUB
-#define X509V3_set_nconf(...)     WC_DO_NOTHING
-#define X509V3_EXT_cleanup(...)   WC_DO_NOTHING
+#define X509V3_set_nconf(ctx, conf) WC_DO_NOTHING
+#define X509V3_EXT_cleanup()      WC_DO_NOTHING
 #endif
 #define X509V3_set_ctx_test(ctx)  wolfSSL_X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
 #define X509V3_set_ctx_nodb       wolfSSL_X509V3_set_ctx_nodb

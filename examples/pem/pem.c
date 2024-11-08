@@ -100,7 +100,7 @@ static int pemApp_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
     word32 len = 0;
     size_t read_len;
     /* Allocate a minimum amount. */
-    unsigned char* data = (unsigned char*)malloc(DATA_INC_LEN + BLOCK_SIZE_MAX);
+    unsigned char* data = (unsigned char*)XMALLOC(DATA_INC_LEN + BLOCK_SIZE_MAX, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (data != NULL) {
         /* Read more data. */
@@ -116,11 +116,11 @@ static int pemApp_ReadFile(FILE* fp, unsigned char** pdata, word32* plen)
             }
 
             /* Make space for more data to be added to buffer. */
-            p = (unsigned char*)realloc(data, len + DATA_INC_LEN +
-                BLOCK_SIZE_MAX);
+            p = (unsigned char*)XREALLOC(data, len + DATA_INC_LEN +
+                BLOCK_SIZE_MAX, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (p == NULL) {
                 /* Reallocation failed - free current buffer. */
-                free(data);
+                XFREE(data, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 data = NULL;
                 break;
             }
@@ -560,7 +560,7 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
     }
     if (ret == 0) {
         /* Allocate memory for encrypted DER data. */
-        *enc = (unsigned char*)malloc(*enc_len);
+        *enc = (unsigned char*)XMALLOC(*enc_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (*enc == NULL) {
             ret = 1;
         }
@@ -613,7 +613,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
     }
     if ((ret == 0) && (pem_len > 0)) {
         /* Allocate memory to hold PEM encoding. */
-        pem = (unsigned char*)malloc(pem_len);
+        pem = (unsigned char*)XMALLOC(pem_len, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
             ret = 1;
         }
@@ -624,7 +624,7 @@ static int ConvDerToPem(unsigned char* in, word32 offset, word32 len,
             type);
         if (ret <= 0) {
             fprintf(stderr, "Could not convert DER to PEM\n");
-            free(pem);
+            XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         }
         if (ret > 0) {
             *out = pem;
@@ -1025,16 +1025,16 @@ out:
         wc_FreeDer(&der);
     }
     else if (out != NULL) {
-        free(out);
+        XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #if defined(WOLFSSL_DER_TO_PEM) && defined(WOLFSSL_ENCRYPTED_KEYS) && \
     !defined(NO_PWDBASED)
     if (enc != NULL) {
-        free(enc);
+        XFREE(enc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
     if (in != NULL) {
-        free(in);
+        XFREE(in, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
     if (ret < 0) {
         fprintf(stderr, "%s\n", wc_GetErrorString(ret));

@@ -835,7 +835,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_REVOKED_get0_serialNumber   wolfSSL_X509_REVOKED_get0_serial_number
 #define X509_REVOKED_get0_revocationDate wolfSSL_X509_REVOKED_get0_revocation_date
 
-#define X509_check_purpose(...)         0
+#define X509_check_purpose(x, id, ca)   0
 
 #define OCSP_parse_url                  wolfSSL_OCSP_parse_url
 
@@ -980,7 +980,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_STRING_print(x, y)         wolfSSL_ASN1_STRING_print ((WOLFSSL_BIO*)(x), (WOLFSSL_ASN1_STRING*)(y))
 #define d2i_DISPLAYTEXT                 wolfSSL_d2i_DISPLAYTEXT
 #ifndef NO_WOLFSSL_STUB
-#define ASN1_STRING_set_default_mask_asc(...) 1
+#define ASN1_STRING_set_default_mask_asc(p) 1
 #endif
 
 #define ASN1_GENERALSTRING              WOLFSSL_ASN1_STRING
@@ -1014,7 +1014,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define ASN1_IA5STRING_free            wolfSSL_ASN1_STRING_free
 #define ASN1_IA5STRING_set             wolfSSL_ASN1_STRING_set
 
-#define ASN1_PRINTABLE_type(...)        V_ASN1_PRINTABLESTRING
+#define ASN1_PRINTABLE_type(s, max)    V_ASN1_PRINTABLESTRING
 
 #define ASN1_UTCTIME_pr                 wolfSSL_ASN1_UTCTIME_pr
 
@@ -1565,7 +1565,7 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define PSK_MAX_IDENTITY_LEN            128
 #define SSL_CTX_clear_options           wolfSSL_CTX_clear_options
 
-#define SSL_CTX_add_server_custom_ext(...) 0
+#define SSL_CTX_add_server_custom_ext(ctx, ext_type, add_cb, free_cb, add_arg, parse_cb, parse_arg) 0
 
 #define SSL_get0_verified_chain         wolfSSL_get0_verified_chain
 #define X509_chain_up_ref               wolfSSL_X509_chain_up_ref
@@ -1573,8 +1573,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
 
 #ifndef NO_WOLFSSL_STUB
-#define b2i_PrivateKey_bio(...)         NULL
-#define b2i_PVK_bio(...)                NULL
+#define b2i_PrivateKey_bio(in)          NULL
+#define b2i_PVK_bio(in, cb, u)          NULL
 #endif
 
 #define SSL_CTX_get_default_passwd_cb   wolfSSL_CTX_get_default_passwd_cb
@@ -1784,8 +1784,8 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define X509_OBJECT_retrieve_by_subject wolfSSL_X509_OBJECT_retrieve_by_subject
 
 #ifndef NO_WOLFSSL_STUB
-#define OBJ_create_objects(...)         WC_DO_NOTHING
-#define sk_SSL_COMP_free(...)           WC_DO_NOTHING
+#define OBJ_create_objects(in)          WC_DO_NOTHING
+#define sk_SSL_COMP_free(sk)            WC_DO_NOTHING
 #endif
 
 #define ASN1_OBJECT_new                 wolfSSL_ASN1_OBJECT_new
