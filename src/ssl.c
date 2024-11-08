@@ -1037,7 +1037,7 @@ static volatile WOLFSSL_GLOBAL int initRefCount = 0;
 static WOLFSSL_GLOBAL wolfSSL_Mutex inits_count_mutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(inits_count_mutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-static WOLFSSL_GLOBAL int inits_count_mutex_valid = 0;
+static WOLFSSL_GLOBAL volatile int inits_count_mutex_valid = 0;
 #endif
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
@@ -5641,12 +5641,29 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 static int wolfSSL_RAND_InitMutex(void);
 #endif
 
+#if defined(WOLFSSL_CLEANUP_THREADSAFE) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+    #ifndef WOLFSSL_ATOMIC_OPS
+        #error WOLFSSL_CLEANUP_THREADSAFE with !WOLFSSL_MUTEX_INITIALIZER requires WOLFSSL_ATOMIC_OPS
+    #endif
+    /* WOLFSSL_CLEANUP_THREADSAFE depends on a wolfSSL_Atomic_Int that can
+     * be statically initialized.
+     */
+    static wolfSSL_Atomic_Int inits_count_mutex_valid2 = 0;
+#endif /* WOLFSSL_CLEANUP_THREADSAFE && !WOLFSSL_MUTEX_INITIALIZER */
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
 static void AtExitCleanup(void)
 {
     if (initRefCount > 0) {
         initRefCount = 1;
         (void)wolfSSL_Cleanup();
+#if defined(WOLFSSL_CLEANUP_THREADSAFE) && !defined(WOLFSSL_MUTEX_INITIALIZER)
+        if (inits_count_mutex_valid == 1) {
+            (void)wc_FreeMutex(&inits_count_mutex);
+            inits_count_mutex_valid = 0;
+            inits_count_mutex_valid2 = 0;
+        }
+#endif
     }
 }
 #endif
@@ -5662,13 +5679,37 @@ int wolfSSL_Init(void)
     WOLFSSL_ENTER("wolfSSL_Init");
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-    if (inits_count_mutex_valid == 0) {
-        if (wc_InitMutex(&inits_count_mutex) != 0) {
-            WOLFSSL_MSG("Bad Init Mutex count");
-            return BAD_MUTEX_E;
+    if (inits_count_mutex_valid <= 0) {
+    #ifdef WOLFSSL_CLEANUP_THREADSAFE
+        int current_inits_count_mutex_valid;
+        if (wolfSSL_Atomic_Int_FetchAdd(&inits_count_mutex_valid2, 1) != 0) {
+            /* We treat inits_count_mutex_valid as a spin lock -- this may cause
+             * deadlocks in some runtimes.  Applications can fully mitigate this
+             * race by calling wolfSSL_Init() and wolfSSL_Cleanup()
+             * consecutively at startup, uncontended.  This leaves
+             * inits_count_mutex safely initialized, but releases all other
+             * resources.
+             */
+            while ((current_inits_count_mutex_valid = inits_count_mutex_valid) == 0);
+            if (current_inits_count_mutex_valid < 0) {
+                (void)wolfSSL_Atomic_Int_FetchSub(&inits_count_mutex_valid2, 1);
+                return BAD_MUTEX_E;
+            }
         }
-        else {
-            inits_count_mutex_valid = 1;
+        else
+    #endif /* WOLFSSL_CLEANUP_THREADSAFE */
+        {
+            if (wc_InitMutex(&inits_count_mutex) != 0) {
+                WOLFSSL_MSG("Bad Init Mutex count");
+                inits_count_mutex_valid = -1;
+    #ifdef WOLFSSL_CLEANUP_THREADSAFE
+                (void)wolfSSL_Atomic_Int_FetchSub(&inits_count_mutex_valid2, 1);
+    #endif
+                return BAD_MUTEX_E;
+            }
+            else {
+                inits_count_mutex_valid = 1;
+            }
         }
     }
 #endif /* !WOLFSSL_MUTEX_INITIALIZER */
@@ -10422,7 +10463,7 @@ int wolfSSL_Cleanup(void)
     #endif
 #endif /* !NO_SESSION_CACHE */
 
-#ifndef WOLFSSL_MUTEX_INITIALIZER
+#if !defined(WOLFSSL_CLEANUP_THREADSAFE) && !defined(WOLFSSL_MUTEX_INITIALIZER)
     if ((inits_count_mutex_valid == 1) &&
             (wc_FreeMutex(&inits_count_mutex) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
