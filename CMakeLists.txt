@@ -200,6 +200,8 @@ find_package(Threads)
 
 if(DEFINED WARNING_C_FLAGS)
 set(CMAKE_C_FLAGS "${WARNING_C_FLAGS} ${CMAKE_C_FLAGS}")
+elseif(CMAKE_C_COMPILER_ID STREQUAL "OpenWatcom")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -wx -wcd=202")
 elseif(WIN32)
 # Windows cl.exe does not support the -Wextra, -Wno-unused and -Werror flags.
 set(CMAKE_C_FLAGS "-Wall ${CMAKE_C_FLAGS}")
