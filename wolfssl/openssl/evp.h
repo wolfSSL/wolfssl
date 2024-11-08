@@ -732,8 +732,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
-    byte    authIvGenEnable:1;
-    byte    authIncIv:1;
+    WC_BITFIELD authIvGenEnable:1;
+    WC_BITFIELD authIncIv:1;
 #endif
 #endif
 };
@@ -1253,7 +1253,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_MD_block_size       wolfSSL_EVP_MD_block_size
 #define EVP_MD_type             wolfSSL_EVP_MD_type
 #ifndef NO_WOLFSSL_STUB
-#define EVP_MD_CTX_set_flags(...) WC_DO_NOTHING
+#define EVP_MD_CTX_set_flags(ctx, flags) WC_DO_NOTHING
 #endif
 
 #define EVP_Digest             wolfSSL_EVP_Digest

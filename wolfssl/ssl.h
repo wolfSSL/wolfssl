@@ -510,10 +510,10 @@ struct WOLFSSL_EVP_PKEY {
     word16 pkcs8HeaderSz;
 
     /* option bits */
-    byte ownDh:1;  /* if struct owns DH  and should free it */
-    byte ownEcc:1; /* if struct owns ECC and should free it */
-    byte ownDsa:1; /* if struct owns DSA and should free it */
-    byte ownRsa:1; /* if struct owns RSA and should free it */
+    WC_BITFIELD ownDh:1;  /* if struct owns DH  and should free it */
+    WC_BITFIELD ownEcc:1; /* if struct owns ECC and should free it */
+    WC_BITFIELD ownDsa:1; /* if struct owns DSA and should free it */
+    WC_BITFIELD ownRsa:1; /* if struct owns RSA and should free it */
 };
 
 struct WOLFSSL_X509_PKEY {
@@ -862,7 +862,7 @@ enum AlertLevel {
 enum SNICbReturn {
     warning_return = alert_warning,
     fatal_return = alert_fatal,
-    noack_return,
+    noack_return
 };
 
 /* WS_RETURN_CODE macro
@@ -2310,10 +2310,10 @@ WOLFSSL_API int wolfSSL_get_client_suites_sigalgs(const WOLFSSL* ssl,
         const byte** suites, word16* suiteSz,
         const byte** hashSigAlgo, word16* hashSigAlgoSz);
 typedef struct WOLFSSL_CIPHERSUITE_INFO {
-    byte rsaAuth:1;
-    byte eccAuth:1;
-    byte eccStatic:1;
-    byte psk:1;
+    WC_BITFIELD rsaAuth:1;
+    WC_BITFIELD eccAuth:1;
+    WC_BITFIELD eccStatic:1;
+    WC_BITFIELD psk:1;
 } WOLFSSL_CIPHERSUITE_INFO;
 WOLFSSL_API WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
         byte second);
@@ -2456,7 +2456,7 @@ enum {
     WOLFSSL_OCSP_CHECKALL     = 4,
 
     WOLFSSL_CRL_CHECKALL = 1,
-    WOLFSSL_CRL_CHECK    = 2,
+    WOLFSSL_CRL_CHECK    = 2
 };
 
 /* Separated out from other enums because of size */
@@ -2503,7 +2503,7 @@ enum {
                   | WOLFSSL_OP_TLS_D5_BUG
                   | WOLFSSL_OP_TLS_BLOCK_PADDING_BUG
                   | WOLFSSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
-                  | WOLFSSL_OP_TLS_ROLLBACK_BUG),
+                  | WOLFSSL_OP_TLS_ROLLBACK_BUG)
 };
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
@@ -3571,7 +3571,7 @@ enum {
     WOLFSSL_BLOCK_TYPE = 2,
     WOLFSSL_STREAM_TYPE = 3,
     WOLFSSL_AEAD_TYPE = 4,
-    WOLFSSL_TLS_HMAC_INNER_SZ = 13, /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
+    WOLFSSL_TLS_HMAC_INNER_SZ = 13 /* SEQ_SZ + ENUM + VERSION_SZ + LEN_SZ */
 };
 
 /* for GetBulkCipher and internal use
@@ -4061,7 +4061,7 @@ WOLFSSL_API void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
 
 /* SNI types */
 enum {
-    WOLFSSL_SNI_HOST_NAME = 0,
+    WOLFSSL_SNI_HOST_NAME = 0
 };
 
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_UseSNI(WOLFSSL* ssl, unsigned char type,
@@ -4081,7 +4081,7 @@ enum {
     WOLFSSL_SNI_ANSWER_ON_MISMATCH   = 0x02,
 
     /* Abort the handshake if the client didn't send a SNI request. */
-    WOLFSSL_SNI_ABORT_ON_ABSENCE     = 0x04,
+    WOLFSSL_SNI_ABORT_ON_ABSENCE     = 0x04
 };
 
 WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,
@@ -4132,7 +4132,7 @@ enum {
     WOLFSSL_ALPN_NO_MATCH = 0,
     WOLFSSL_ALPN_MATCH    = 1,
     WOLFSSL_ALPN_CONTINUE_ON_MISMATCH = 2,
-    WOLFSSL_ALPN_FAILED_ON_MISMATCH = 4,
+    WOLFSSL_ALPN_FAILED_ON_MISMATCH = 4
 };
 
 enum {
@@ -4174,7 +4174,7 @@ enum {
     WOLFSSL_MFL_2_13 = 5, /* 8192 bytes *//* wolfSSL ONLY!!! */
     WOLFSSL_MFL_2_8  = 6, /*  256 bytes *//* wolfSSL ONLY!!! */
     WOLFSSL_MFL_MIN  = WOLFSSL_MFL_2_9,
-    WOLFSSL_MFL_MAX  = WOLFSSL_MFL_2_8,
+    WOLFSSL_MFL_MAX  = WOLFSSL_MFL_2_8
 };
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -4336,6 +4336,7 @@ enum {
     WOLFSSL_PQC_MAX               = 12105,
 #endif /* WOLFSSL_ML_KEM */
 #endif /* HAVE_PQC */
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(SSL_H)
 };
 
 enum {
@@ -4344,6 +4345,7 @@ enum {
     WOLFSSL_EC_PF_X962_COMP_PRIME = 1,
     WOLFSSL_EC_PF_X962_COMP_CHAR2 = 2,
 #endif
+    WOLF_ENUM_DUMMY_LAST_ELEMENT(SSL_H)
 };
 
 #ifdef HAVE_SUPPORTED_CURVES
@@ -5593,7 +5595,7 @@ WOLFSSL_API int wolfSSL_get_ephemeral_key(WOLFSSL* ssl, int keyAlgo,
 enum {
     WOLFSSL_CERT_TYPE_UNKNOWN = -1,
     WOLFSSL_CERT_TYPE_X509 = 0,
-    WOLFSSL_CERT_TYPE_RPK  = 2,
+    WOLFSSL_CERT_TYPE_RPK  = 2
 };
 #define MAX_CLIENT_CERT_TYPE_CNT 2
 #define MAX_SERVER_CERT_TYPE_CNT 2

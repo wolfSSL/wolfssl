@@ -1425,9 +1425,9 @@ extern void uITRON4_free(void *p) ;
 #if defined(WOLFSSL_LEANPSK) && !defined(XMALLOC_USER) && \
         !defined(NO_WOLFSSL_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
     #include <stdlib.h>
-    #define XMALLOC(s, h, type)  ((void)(h), (void)(type), malloc((s)))
-    #define XFREE(p, h, type)    ((void)(h), (void)(type), free((p)))
-    #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n)))
+    #define XMALLOC(s, h, type)  ((void)(h), (void)(type), malloc((s))) /* native heap */
+    #define XFREE(p, h, type)    ((void)(h), (void)(type), free((p))) /* native heap */
+    #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n))) /* native heap */
 #endif
 
 #if defined(XMALLOC_USER) && defined(SSN_BUILDING_LIBYASSL)
@@ -1462,18 +1462,18 @@ extern void uITRON4_free(void *p) ;
                            (s), (__FILE__), (__LINE__), (__FUNCTION__) ))
         #else
             #define XMALLOC(s, h, type)  \
-                           ((void)(h), (void)(type), pvPortMalloc((s)))
+                           ((void)(h), (void)(type), pvPortMalloc((s))) /* native heap */
         #endif
 
         /* XFREE */
-        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p)))
+        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p))) /* native heap */
 
         /* XREALLOC */
         #if defined(WOLFSSL_ESPIDF)
             /* In the Espressif EDP-IDF, realloc(p, n) is equivalent to
              *     heap_caps_realloc(p, s, MALLOC_CAP_8BIT)
              * There's no pvPortRealloc available:  */
-            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n)))
+            #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), realloc((p), (n))) /* native heap */
         #elif defined(USE_INTEGER_HEAP_MATH) || defined(OPENSSL_EXTRA) || \
               defined(OPENSSL_ALL)
             /* FreeRTOS pvPortRealloc() implementation can be found here:
@@ -1515,8 +1515,8 @@ extern void uITRON4_free(void *p) ;
 #ifdef FREERTOS_TCP
     #if !defined(NO_WOLFSSL_MEMORY) && !defined(XMALLOC_USER) && \
         !defined(WOLFSSL_STATIC_MEMORY)
-        #define XMALLOC(s, h, type)  pvPortMalloc((s))
-        #define XFREE(p, h, type)    vPortFree((p))
+        #define XMALLOC(s, h, type)  pvPortMalloc((s)) /* native heap */
+        #define XFREE(p, h, type)    vPortFree((p)) /* native heap */
     #endif
 
     #define WOLFSSL_GENSEED_FORTEST
@@ -1684,8 +1684,8 @@ extern void uITRON4_free(void *p) ;
     #endif
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
         !defined(WOLFSSL_STATIC_MEMORY)
-        #define XMALLOC(s, h, type)  ((void)(h), (void)(type), pvPortMalloc((s)))
-        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p)))
+        #define XMALLOC(s, h, type)  ((void)(h), (void)(type), pvPortMalloc((s))) /* native heap */
+        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p))) /* native heap */
 
         /* FreeRTOS pvPortRealloc() implementation can be found here:
             https://github.com/wolfSSL/wolfssl-freertos/pull/3/files */
@@ -1803,8 +1803,8 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_CRYPT_HW_MUTEX 1
 
     #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY)
-        #define XMALLOC(s, h, type)  ((void)(h), (void)(type), pvPortMalloc((s)))
-        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p)))
+        #define XMALLOC(s, h, type)  ((void)(h), (void)(type), pvPortMalloc((s))) /* native heap */
+        #define XFREE(p, h, type)    ((void)(h), (void)(type), vPortFree((p))) /* native heap */
     #endif
 
     /* #define USER_TICKS */
@@ -2751,6 +2751,10 @@ extern void uITRON4_free(void *p) ;
 #endif
 #if defined(__APPLE__) || defined(WOLF_C89)
     #define WOLFSSL_SP_NO_DYN_STACK
+#endif
+
+#if defined(__WATCOMC__) && !defined(WOLF_NO_VARIADIC_MACROS)
+    #define WOLF_NO_VARIADIC_MACROS
 #endif
 
 #ifdef __INTEL_COMPILER

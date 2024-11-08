@@ -88,7 +88,7 @@ enum {
 #endif
 
     WOLFSSL_EC_EXPLICIT_CURVE  = 0x000,
-    WOLFSSL_EC_NAMED_CURVE  = 0x001,
+    WOLFSSL_EC_NAMED_CURVE  = 0x001
 };
 
 #ifndef OPENSSL_COEXIST
@@ -185,8 +185,8 @@ struct WOLFSSL_EC_KEY {
     word16 pkcs8HeaderSz;
 
     /* option bits */
-    byte inSet:1;                /* internal set from external ? */
-    byte exSet:1;                /* external set from internal ? */
+    WC_BITFIELD inSet:1;                /* internal set from external ? */
+    WC_BITFIELD exSet:1;                /* external set from internal ? */
 
     wolfSSL_Ref ref;             /* Reference count information. */
 };
@@ -451,7 +451,11 @@ typedef WOLFSSL_EC_KEY_METHOD         EC_KEY_METHOD;
 #define EC_GROUP_order_bits             wolfSSL_EC_GROUP_order_bits
 #define EC_GROUP_method_of              wolfSSL_EC_GROUP_method_of
 #ifndef NO_WOLFSSL_STUB
-#define EC_GROUP_set_point_conversion_form(...) WC_DO_NOTHING
+#ifdef WOLF_NO_VARIADIC_MACROS
+    #define EC_GROUP_set_point_conversion_form() WC_DO_NOTHING
+#else
+    #define EC_GROUP_set_point_conversion_form(...) WC_DO_NOTHING
+#endif
 #endif
 
 #define EC_METHOD_get_field_type        wolfSSL_EC_METHOD_get_field_type

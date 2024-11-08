@@ -6000,6 +6000,19 @@ else
 fi
 
 
+# C89 build
+AC_ARG_ENABLE([c89],
+    [AS_HELP_STRING([--enable-c89],[Build with C89 toolchain (default: disabled)])],
+    [ ENABLED_C89=$enableval ],
+    [ ENABLED_C89=no ]
+    )
+
+if test "$ENABLED_C89" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_C89"
+    test "$enable_inline" = "" && enable_inline=no
+fi
+
 # inline Build
 AC_ARG_ENABLE([inline],
     [AS_HELP_STRING([--enable-inline],[Enable inline functions (default: enabled)])],
@@ -9928,7 +9941,7 @@ AM_CONDITIONAL([USE_VALGRIND],[test "x$ENABLED_VALGRIND" = "xyes"])
 AM_CONDITIONAL([BUILD_MD4],[test "x$ENABLED_MD4" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_PWDBASED],[test "x$ENABLED_PWDBASED" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_SCRYPT],[test "x$ENABLED_SCRYPT" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
-AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes" && test "x$ENABLED_OPENSSLEXTRA" = "xno"])
+AM_CONDITIONAL([BUILD_CRYPTONLY],[test "x$ENABLED_CRYPTONLY" = "xyes"])
 AM_CONDITIONAL([BUILD_FASTMATH],[test "x$ENABLED_FASTMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_HEAPMATH],[test "x$ENABLED_HEAPMATH" = "xyes" || test "x$ENABLED_USERSETTINGS" = "xyes"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS],[test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
@@ -10497,6 +10510,7 @@ echo "   * ARM ASM SM3/SM4 Crypto      $ENABLED_ARMASM_CRYPTO_SM4"
 echo "   * RISC-V ASM                  $ENABLED_RISCV_ASM"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
+echo "   * C89:                        $ENABLED_C89"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo "   * Linux KCAPI:                $ENABLED_KCAPI"

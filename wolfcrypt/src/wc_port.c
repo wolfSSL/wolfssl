@@ -1782,7 +1782,7 @@ int wolfSSL_HwPkMutexUnLock(void)
     static void destruct_key(void *buf)
     {
         if (buf != NULL) {
-            free(buf);
+            XFREE(buf, NULL, DYNAMIC_TYPE_OS_BUF);
         }
     }
 
@@ -1911,7 +1911,7 @@ int wolfSSL_HwPkMutexUnLock(void)
 
         key_ptr = pthread_getspecific(key_own_hw_mutex);
         if (key_ptr == NULL) {
-            key_ptr = malloc(sizeof(int));
+            key_ptr = XMALLOC(sizeof(int), NULL, DYNAMIC_TYPE_OS_BUF);
             if (key_ptr == NULL) {
                 return MEMORY_E;
             }
@@ -3901,7 +3901,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         XMEMSET(thread, 0, sizeof(*thread));
 
         thread->threadStack = (void *)XMALLOC(WOLFSSL_NETOS_STACK_SZ, NULL,
-                DYNAMIC_TYPE_TMP_BUFFER);
+                DYNAMIC_TYPE_OS_BUF);
         if (thread->threadStack == NULL)
             return MEMORY_E;
 
@@ -3923,7 +3923,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
                            2, 2,
                            1, TX_AUTO_START);
         if (result != TX_SUCCESS) {
-            free(thread->threadStack);
+            XFREE(thread->threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
             thread->threadStack = NULL;
             return MEMORY_E;
         }
@@ -3934,7 +3934,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     int wolfSSL_JoinThread(THREAD_TYPE thread)
     {
         /* TODO: maybe have to use tx_thread_delete? */
-        free(thread.threadStack);
+        XFREE(thread.threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
         thread.threadStack = NULL;
         return 0;
     }

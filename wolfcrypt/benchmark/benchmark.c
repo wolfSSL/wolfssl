@@ -3067,8 +3067,8 @@ static void* benchmarks_do(void* args)
         bench_buf_size += 16 - (bench_buf_size % 16);
 
 #ifdef WOLFSSL_AFALG_XILINX_AES
-    bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
-    bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
+    bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
+    bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
 #else
     bench_plain = (byte*)XMALLOC((size_t)bench_buf_size + 16,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);

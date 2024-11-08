@@ -4538,21 +4538,21 @@ void wc_ecc_fp_free(void)
 }
 
 
-AEEResult wolfSSL_open(const char *uri, remote_handle64 *handle) 
+AEEResult wolfSSL_open(const char *uri, remote_handle64 *handle)
 {
   /* can be any value or ignored, rpc layer doesn't care
    * also ok
    * *handle = 0;
    * *handle = 0xdeadc0de;
    */
-   *handle = (remote_handle64)malloc(1);
+   *handle = (remote_handle64)XMALLOC(1, NULL, DYNAMIC_TYPE_ECC);
    return 0;
 }
 
-AEEResult wolfSSL_close(remote_handle64 handle) 
+AEEResult wolfSSL_close(remote_handle64 handle)
 {
    if (handle)
-      free((void*)handle);
+      XFREE((void*)handle, NULL, DYNAMIC_TYPE_ECC);
    return 0;
 }
 #endif /* HAVE_ECC_VERIFY */

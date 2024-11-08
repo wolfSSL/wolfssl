@@ -57516,7 +57516,7 @@ static void *my_Malloc_cb(size_t size)
 #endif
     malloc_cnt++;
     #ifndef WOLFSSL_NO_MALLOC
-        return malloc(size);
+        return malloc(size); /* native heap */
     #else
         WOLFSSL_MSG("No malloc available");
         (void)size;
@@ -57535,7 +57535,7 @@ static void my_Free_cb(void *ptr)
 #endif
     free_cnt++;
     #ifndef WOLFSSL_NO_MALLOC
-        free(ptr);
+        free(ptr); /* native heap */
     #else
         WOLFSSL_MSG("No free available");
         (void)ptr;
@@ -57553,7 +57553,7 @@ static void *my_Realloc_cb(void *ptr, size_t size)
 #endif
     realloc_cnt++;
     #ifndef WOLFSSL_NO_MALLOC
-        return realloc(ptr, size);
+        return realloc(ptr, size); /* native heap */
     #else
         WOLFSSL_MSG("No realloc available");
         (void)ptr;
