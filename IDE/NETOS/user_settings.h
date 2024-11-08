@@ -1,22 +1,12 @@
 /* user_settings.h
- *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+*
+ * Copyright (C) 2006-2024 wolfSSL Inc.  All rights reserved.
  *
  * This file is part of wolfSSL.
  *
- * wolfSSL is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Contact licensing@wolfssl.com with any questions or comments.
  *
- * wolfSSL is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ * https://www.wolfssl.com
  */
 
 #ifndef WOLFSSL_USER_SETTINGS_H
@@ -83,7 +73,7 @@ extern "C" {
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
 
-    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE 0A6927AF3BD0323E22FDF77B618A9E8AF7E19713D8634F6CCBD2E3548E5866D7
+    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE F0E3A7F32D8FDE71DA017855072247B27D8C0F5A74CACE89AED272A7CF5EAC0E
 #if 0
     #define WOLFSSL_SP_MATH_ALL
     #define WOLFSSL_SP_RSA
@@ -379,8 +369,8 @@ extern "C" {
 #if 1
     #define WOLFSSL_SHA512
 
-    //#define  WOLFSSL_NOSHA512_224 /* Not in FIPS mode */
-    //#define  WOLFSSL_NOSHA512_256 /* Not in FIPS mode */
+    #define  WOLFSSL_NOSHA512_224 /* Not in FIPS mode */
+    #define  WOLFSSL_NOSHA512_256 /* Not in FIPS mode */
 
     /* Sha384 */
     #undef  WOLFSSL_SHA384
@@ -497,7 +487,7 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Enable Features */
 /* ------------------------------------------------------------------------- */
-#if 1
+#if 0
     #undef WOLFSSL_TLS13
     #define WOLFSSL_TLS13
 #endif
@@ -524,7 +514,7 @@ extern "C" {
 #define WOLFSSL_BASE16
 
 /* TLS Session Cache */
-#if 0
+#if 1
     #define SMALL_SESSION_CACHE
 #else
     #define NO_SESSION_CACHE
@@ -620,7 +610,7 @@ extern "C" {
     #define HAVE_FORCE_FIPS_FAILURE
 
     #define USE_CERT_BUFFERS_2048
-    #define USE_CERT_BUFFERS_256
+    #define USE_CERT_BUFFERS_256 
     #define FORCE_BUFFER_TEST
     #define NO_MAIN_OPTEST_DRIVER
     #define DEEPLY_EMBEDDED
@@ -628,6 +618,36 @@ extern "C" {
 #endif
 /* End optesting only section */
 
+/* START Customer specified options */
+#if 1
+    #undef  HAVE_SECRET_CALLBACK
+    #define HAVE_SECRET_CALLBACK
+
+    #undef  ATOMIC_USER
+    #define ATOMIC_USER
+
+    #undef  HAVE_EX_DATA
+    #define HAVE_EX_DATA
+
+    #undef  NO_WOLFSSL_STUB
+    #define NO_WOLFSSL_STUB
+
+    #undef  OPENSSL_EXTRA
+    #define OPENSSL_EXTRA
+
+    #undef  OPENSSL_ALL
+    #define OPENSSL_ALL
+
+    #undef  HAVE_EXTENDED_MASTER
+    #define HAVE_EXTENDED_MASTER
+
+    #undef  WC_NO_ASYNC_THREADING
+    #define WC_NO_ASYNC_THREADING
+
+    #undef  NO_TESTSUITE_MAIN_DRIVER
+    #define NO_TESTSUITE_MAIN_DRIVER
+#endif
+/* END Customer specified options */
 #ifdef __cplusplus
 }
 #endif
