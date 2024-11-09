@@ -266,9 +266,11 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                     info->pk.rsa.type == RSA_PRIVATE_DECRYPT) {
                     ret = tsip_SignRsaPkcs(info, cbInfo);
                 }
+            #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
                 else {
                     ret = wc_tsip_RsaVerifyPkcs(info, cbInfo);
                 }
+            #endif
             }
         #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
             else if (pad && pad->pad_value == RSA_BLOCK_TYPE_2) {

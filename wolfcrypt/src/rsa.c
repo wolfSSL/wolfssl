@@ -3578,7 +3578,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
 
     case RSA_STATE_DECRYPT_EXPTMOD:
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
-    if ((key->devId != INVALID_DEVID) && (rsa_type != RSA_PUBLIC_DECRYPT)) {
+    if ((key->devId != INVALID_DEVID)
+    #if !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
+        !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+    && (rsa_type != RSA_PUBLIC_DECRYPT)
+    #endif
+    ) {
         /* Everything except verify goes to crypto cb if
          * WOLF_CRYPTO_CB_RSA_PAD defined */
         XMEMSET(&padding, 0, sizeof(RsaPadding));
