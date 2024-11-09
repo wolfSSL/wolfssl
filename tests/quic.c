@@ -21,10 +21,10 @@
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>
-#endif
-
+#else
 #ifndef WOLFSSL_USER_SETTINGS
     #include <wolfssl/options.h>
+#endif
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 
