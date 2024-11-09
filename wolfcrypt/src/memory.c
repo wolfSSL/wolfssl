@@ -1030,7 +1030,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             #endif
 
             #ifdef WOLFSSL_DEBUG_MEMORY
-                fprintf(stderr, "Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
+                fprintf(stderr, "[HEAP %p] Alloc: %p -> %u at %s:%d\n", heap,
+                    res, (word32)size, func, line);
             #endif
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
@@ -1097,8 +1098,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                         }
                     #ifdef WOLFSSL_DEBUG_STATIC_MEMORY
                         else {
-                            fprintf(stderr, "Size: %lu, Empty: %d\n", (unsigned long) size,
-                                                              mem->sizeList[i]);
+                            fprintf(stderr, "Size: %lu, Empty: %d\n",
+                                (unsigned long) size, mem->sizeList[i]);
                         }
                     #endif
                     }
@@ -1114,7 +1115,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
 
         #ifdef WOLFSSL_DEBUG_MEMORY
             pt->szUsed = size;
-            fprintf(stderr, "Alloc: %p -> %lu at %s:%d\n", pt->buffer, size, func, line);
+            fprintf(stderr, "[HEAP %p] Alloc: %p -> %lu at %s:%d\n", heap,
+                pt->buffer, size, func, line);
         #endif
         #ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
             if (DebugCb) {
@@ -1143,8 +1145,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             WOLFSSL_MSG("ERROR ran out of static memory");
             res = NULL;
             #ifdef WOLFSSL_DEBUG_MEMORY
-                fprintf(stderr, "Looking for %lu bytes at %s:%d\n", (unsigned long) size, func,
-                        line);
+                fprintf(stderr, "Looking for %lu bytes at %s:%d\n",
+                    (unsigned long) size, func, line);
             #endif
             #ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
             if (DebugCb) {
@@ -1187,7 +1189,8 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
     #ifdef WOLFSSL_HEAP_TEST
         if (heap == (void*)WOLFSSL_HEAP_TEST) {
         #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "Free: %p at %s:%d\n", pt, func, line);
+            fprintf(stderr, "[HEAP %p] Free: %p at %s:%d\n", heap, pt, func,
+                line);
         #endif
             return free(ptr); /* native heap */
         }
@@ -1205,15 +1208,16 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             }
         #endif
         #ifndef WOLFSSL_NO_MALLOC
+            #ifdef WOLFSSL_DEBUG_MEMORY
+            fprintf(stderr, "[HEAP %p] Free: %p at %s:%d\n", heap, pt, func,
+                line);
+            #endif
             #ifdef FREERTOS
                 vPortFree(ptr); /* native heap */
             #elif defined(WOLFSSL_EMBOS)
                 OS_HEAP_free(ptr); /* native heap */
             #else
                 free(ptr); /* native heap */
-            #endif
-            #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "Free: %p at %s:%d\n", ptr, func, line);
             #endif
         #else
             WOLFSSL_MSG("Error trying to call free when turned off");
@@ -1286,8 +1290,8 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         #endif
 
         #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf (stderr, "Free: %p -> %u at %s:%d\n", pt->buffer,
-                     pt->szUsed, func, line);
+            fprintf(stderr, "[HEAP %p] Free: %p -> %u at %s:%d\n", heap,
+                pt->buffer, pt->szUsed, func, line);
         #endif
 
         #ifndef WOLFSSL_STATIC_MEMORY_LEAN
