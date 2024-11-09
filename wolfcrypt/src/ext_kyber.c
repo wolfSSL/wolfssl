@@ -43,9 +43,16 @@
 
 static const char* OQS_ID2name(int id) {
     switch (id) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:  return OQS_KEM_alg_ml_kem_512;
+        case WC_ML_KEM_768:  return OQS_KEM_alg_ml_kem_768;
+        case WC_ML_KEM_1024: return OQS_KEM_alg_ml_kem_1024;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1: return OQS_KEM_alg_kyber_512;
         case KYBER_LEVEL3: return OQS_KEM_alg_kyber_768;
         case KYBER_LEVEL5: return OQS_KEM_alg_kyber_1024;
+    #endif
         default:           break;
     }
     return NULL;
@@ -83,11 +90,20 @@ int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
     if (ret == 0) {
         /* Validate type. */
         switch (type) {
+#ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+    #ifdef HAVE_LIBOQS
+        case WC_ML_KEM_768:
+        case WC_ML_KEM_1024:
+    #endif /* HAVE_LIBOQS */
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
-#ifdef HAVE_LIBOQS
+    #ifdef HAVE_LIBOQS
         case KYBER_LEVEL3:
         case KYBER_LEVEL5:
-#endif /* HAVE_LIBOQS */
+    #endif /* HAVE_LIBOQS */
+#endif
             break;
         default:
             /* No other values supported. */
@@ -152,6 +168,18 @@ int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
     /* NOTE: SHAKE and AES variants have the same length private key. */
     if (ret == 0) {
         switch (key->type) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+            *len = OQS_KEM_ml_kem_512_length_secret_key;
+            break;
+        case WC_ML_KEM_768:
+            *len = OQS_KEM_ml_kem_768_length_secret_key;
+            break;
+        case WC_ML_KEM_1024:
+            *len = OQS_KEM_ml_kem_1024_length_secret_key;
+            break;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
             *len = OQS_KEM_kyber_512_length_secret_key;
             break;
@@ -161,6 +189,7 @@ int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
         case KYBER_LEVEL5:
             *len = OQS_KEM_kyber_1024_length_secret_key;
             break;
+    #endif
         default:
             /* No other values supported. */
             ret = BAD_FUNC_ARG;
@@ -194,6 +223,18 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
     /* NOTE: SHAKE and AES variants have the same length public key. */
     if (ret == 0) {
         switch (key->type) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+            *len = OQS_KEM_ml_kem_512_length_public_key;
+            break;
+        case WC_ML_KEM_768:
+            *len = OQS_KEM_ml_kem_768_length_public_key;
+            break;
+        case WC_ML_KEM_1024:
+            *len = OQS_KEM_ml_kem_1024_length_public_key;
+            break;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
             *len = OQS_KEM_kyber_512_length_public_key;
             break;
@@ -203,6 +244,7 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
         case KYBER_LEVEL5:
             *len = OQS_KEM_kyber_1024_length_public_key;
             break;
+    #endif
         default:
             /* No other values supported. */
             ret = BAD_FUNC_ARG;
@@ -236,6 +278,18 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
     /* NOTE: SHAKE and AES variants have the same length ciphertext. */
     if (ret == 0) {
         switch (key->type) {
+    #ifndef WOLFSSL_NO_ML_KEM
+        case WC_ML_KEM_512:
+            *len = OQS_KEM_ml_kem_512_length_ciphertext;
+            break;
+        case WC_ML_KEM_768:
+            *len = OQS_KEM_ml_kem_768_length_ciphertext;
+            break;
+        case WC_ML_KEM_1024:
+            *len = OQS_KEM_ml_kem_1024_length_ciphertext;
+            break;
+    #endif
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         case KYBER_LEVEL1:
             *len = OQS_KEM_kyber_512_length_ciphertext;
             break;
@@ -245,6 +299,7 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
         case KYBER_LEVEL5:
             *len = OQS_KEM_kyber_1024_length_ciphertext;
             break;
+    #endif
         default:
             /* No other values supported. */
             ret = BAD_FUNC_ARG;

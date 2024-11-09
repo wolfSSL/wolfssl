@@ -28107,10 +28107,10 @@ static int test_wc_kyber_make_key_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_KYBER) && defined(WOLFSSL_WC_KYBER) && \
-    !defined(WOLFSSL_KYBER_ORIGINAL)
+    !defined(WOLFSSL_NO_ML_KEM)
     KyberKey* key;
-#ifndef WOLFSSL_NO_KYBER512
-    static const byte seed_512[KYBER_MAKEKEY_RAND_SZ] = {
+#ifndef WOLFSSL_NO_ML_KEM_512
+    static const byte seed_512[WC_ML_KEM_MAKEKEY_RAND_SZ] = {
         /* d */
         0x2C, 0xB8, 0x43, 0xA0, 0x2E, 0xF0, 0x2E, 0xE1,
         0x09, 0x30, 0x5F, 0x39, 0x11, 0x9F, 0xAB, 0xF4,
@@ -28122,7 +28122,7 @@ static int test_wc_kyber_make_key_kats(void)
         0x3B, 0xB8, 0x08, 0x43, 0x64, 0x52, 0x06, 0xBD,
         0xD9, 0xF2, 0xF6, 0x29, 0xE3, 0xCC, 0x49, 0xB7
     };
-    static const byte ek_512[KYBER512_PUBLIC_KEY_SIZE] = {
+    static const byte ek_512[WC_ML_KEM_512_PUBLIC_KEY_SIZE] = {
         0xA3, 0x24, 0x39, 0xF8, 0x5A, 0x3C, 0x21, 0xD2,
         0x1A, 0x71, 0xB9, 0xB9, 0x2A, 0x9B, 0x64, 0xEA,
         0x0A, 0xB8, 0x43, 0x12, 0xC7, 0x70, 0x23, 0x69,
@@ -28224,7 +28224,7 @@ static int test_wc_kyber_make_key_kats(void)
         0x97, 0x37, 0x33, 0xC3, 0x98, 0xEA, 0xF0, 0x0E,
         0x17, 0x02, 0xC6, 0x73, 0x4A, 0xD8, 0xEB, 0x3B
     };
-    static const byte dk_512[KYBER512_PRIVATE_KEY_SIZE] = {
+    static const byte dk_512[WC_ML_KEM_512_PRIVATE_KEY_SIZE] = {
         0x7F, 0xE4, 0x20, 0x6F, 0x26, 0xBE, 0xDB, 0x64,
         0xC1, 0xED, 0x00, 0x09, 0x61, 0x52, 0x45, 0xDC,
         0x98, 0x48, 0x3F, 0x66, 0x3A, 0xCC, 0x61, 0x7E,
@@ -28431,8 +28431,8 @@ static int test_wc_kyber_make_key_kats(void)
         0xD9, 0xF2, 0xF6, 0x29, 0xE3, 0xCC, 0x49, 0xB7
     };
 #endif
-#ifndef WOLFSSL_NO_KYBER768
-    static const byte seed_768[KYBER_MAKEKEY_RAND_SZ] = {
+#ifndef WOLFSSL_NO_ML_KEM_768
+    static const byte seed_768[WC_ML_KEM_MAKEKEY_RAND_SZ] = {
         /* d */
         0xE3, 0x4A, 0x70, 0x1C, 0x4C, 0x87, 0x58, 0x2F,
         0x42, 0x26, 0x4E, 0xE4, 0x22, 0xD3, 0xC6, 0x84,
@@ -28444,7 +28444,7 @@ static int test_wc_kyber_make_key_kats(void)
         0x64, 0x8E, 0xAE, 0x4E, 0x54, 0x48, 0xC3, 0x4C,
         0x3E, 0xB8, 0x88, 0x20, 0xB1, 0x59, 0xEE, 0xDD
     };
-    static const byte ek_768[KYBER768_PUBLIC_KEY_SIZE] = {
+    static const byte ek_768[WC_ML_KEM_768_PUBLIC_KEY_SIZE] = {
         0x6D, 0x14, 0xA0, 0x71, 0xF7, 0xCC, 0x45, 0x25,
         0x58, 0xD5, 0xE7, 0x1A, 0x7B, 0x08, 0x70, 0x62,
         0xEC, 0xB1, 0x38, 0x68, 0x44, 0x58, 0x82, 0x46,
@@ -28594,7 +28594,7 @@ static int test_wc_kyber_make_key_kats(void)
         0xA6, 0x0D, 0x04, 0xE8, 0xC1, 0x70, 0xD7, 0x41,
         0xC7, 0xA2, 0xB0, 0xE1, 0xAB, 0xDA, 0xC9, 0x68
     };
-    static const byte dk_768[KYBER768_PRIVATE_KEY_SIZE] = {
+    static const byte dk_768[WC_ML_KEM_768_PRIVATE_KEY_SIZE] = {
         0x98, 0xA1, 0xB2, 0xDA, 0x4A, 0x65, 0xCF, 0xB5,
         0x84, 0x5E, 0xA7, 0x31, 0x1E, 0x6A, 0x06, 0xDB,
         0x73, 0x1F, 0x15, 0x90, 0xC4, 0x1E, 0xE7, 0x4B,
@@ -28897,8 +28897,8 @@ static int test_wc_kyber_make_key_kats(void)
         0x3E, 0xB8, 0x88, 0x20, 0xB1, 0x59, 0xEE, 0xDD
     };
 #endif
-#ifndef WOLFSSL_NO_KYBER1024
-    static const byte seed_1024[KYBER_MAKEKEY_RAND_SZ] = {
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    static const byte seed_1024[WC_ML_KEM_MAKEKEY_RAND_SZ] = {
         /* d */
         0x49, 0xAC, 0x8B, 0x99, 0xBB, 0x1E, 0x6A, 0x8E,
         0xA8, 0x18, 0x26, 0x1F, 0x8B, 0xE6, 0x8B, 0xDE,
@@ -28910,7 +28910,7 @@ static int test_wc_kyber_make_key_kats(void)
         0x30, 0x22, 0x1F, 0xD6, 0x7D, 0x9B, 0x7D, 0x6E,
         0x15, 0x10, 0xB2, 0xDB, 0xAD, 0x87, 0x62, 0xF7
     };
-    static const byte ek_1024[KYBER1024_PUBLIC_KEY_SIZE] = {
+    static const byte ek_1024[WC_ML_KEM_1024_PUBLIC_KEY_SIZE] = {
         0xA0, 0x41, 0x84, 0xD4, 0xBC, 0x7B, 0x53, 0x2A,
         0x0F, 0x70, 0xA5, 0x4D, 0x77, 0x57, 0xCD, 0xE6,
         0x17, 0x5A, 0x68, 0x43, 0xB8, 0x61, 0xCB, 0x2B,
@@ -29108,7 +29108,7 @@ static int test_wc_kyber_make_key_kats(void)
         0x0A, 0x5A, 0x73, 0xC4, 0xDC, 0xFD, 0x75, 0x5E,
         0x61, 0x0B, 0x4F, 0xC8, 0x1F, 0xF8, 0x4E, 0x21
     };
-    static const byte dk_1024[KYBER1024_PRIVATE_KEY_SIZE] = {
+    static const byte dk_1024[WC_ML_KEM_1024_PRIVATE_KEY_SIZE] = {
         0x8C, 0x8B, 0x37, 0x22, 0xA8, 0x2E, 0x55, 0x05,
         0x65, 0x52, 0x16, 0x11, 0xEB, 0xBC, 0x63, 0x07,
         0x99, 0x44, 0xC9, 0xB1, 0xAB, 0xB3, 0xB0, 0x02,
@@ -29507,8 +29507,8 @@ static int test_wc_kyber_make_key_kats(void)
         0x15, 0x10, 0xB2, 0xDB, 0xAD, 0x87, 0x62, 0xF7
     };
 #endif
-    static byte pubKey[KYBER_MAX_PUBLIC_KEY_SIZE];
-    static byte privKey[KYBER_MAX_PRIVATE_KEY_SIZE];
+    static byte pubKey[WC_ML_KEM_MAX_PUBLIC_KEY_SIZE];
+    static byte privKey[WC_ML_KEM_MAX_PRIVATE_KEY_SIZE];
 
     key = (KyberKey*)XMALLOC(sizeof(KyberKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
@@ -29516,40 +29516,40 @@ static int test_wc_kyber_make_key_kats(void)
         XMEMSET(key, 0, sizeof(KyberKey));
     }
 
-#ifndef WOLFSSL_NO_KYBER512
-    ExpectIntEQ(wc_KyberKey_Init(KYBER512, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_512
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_MakeKeyWithRandom(key, seed_512, sizeof(seed_512)),
         0);
     ExpectIntEQ(wc_KyberKey_EncodePublicKey(key, pubKey,
-        KYBER512_PUBLIC_KEY_SIZE), 0);
+        WC_ML_KEM_512_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_KyberKey_EncodePrivateKey(key, privKey,
-        KYBER512_PRIVATE_KEY_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, ek_512, KYBER512_PUBLIC_KEY_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(privKey, dk_512, KYBER512_PRIVATE_KEY_SIZE), 0);
+        WC_ML_KEM_512_PRIVATE_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(pubKey, ek_512, WC_ML_KEM_512_PUBLIC_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(privKey, dk_512, WC_ML_KEM_512_PRIVATE_KEY_SIZE), 0);
     wc_KyberKey_Free(key);
 #endif
-#ifndef WOLFSSL_NO_KYBER768
-    ExpectIntEQ(wc_KyberKey_Init(KYBER768, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_768
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_MakeKeyWithRandom(key, seed_768, sizeof(seed_768)),
         0);
     ExpectIntEQ(wc_KyberKey_EncodePublicKey(key, pubKey,
-        KYBER768_PUBLIC_KEY_SIZE), 0);
+        WC_ML_KEM_768_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_KyberKey_EncodePrivateKey(key, privKey,
-        KYBER768_PRIVATE_KEY_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, ek_768, KYBER768_PUBLIC_KEY_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(privKey, dk_768, KYBER768_PRIVATE_KEY_SIZE), 0);
+        WC_ML_KEM_768_PRIVATE_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(pubKey, ek_768, WC_ML_KEM_768_PUBLIC_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(privKey, dk_768, WC_ML_KEM_768_PRIVATE_KEY_SIZE), 0);
     wc_KyberKey_Free(key);
 #endif
-#ifndef WOLFSSL_NO_KYBER1024
-    ExpectIntEQ(wc_KyberKey_Init(KYBER1024, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_MakeKeyWithRandom(key, seed_1024,
         sizeof(seed_1024)), 0);
     ExpectIntEQ(wc_KyberKey_EncodePublicKey(key, pubKey,
-        KYBER1024_PUBLIC_KEY_SIZE), 0);
+        WC_ML_KEM_1024_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(wc_KyberKey_EncodePrivateKey(key, privKey,
-        KYBER1024_PRIVATE_KEY_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(pubKey, ek_1024, KYBER1024_PUBLIC_KEY_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(privKey, dk_1024, KYBER1024_PRIVATE_KEY_SIZE), 0);
+        WC_ML_KEM_1024_PRIVATE_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(pubKey, ek_1024, WC_ML_KEM_1024_PUBLIC_KEY_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(privKey, dk_1024, WC_ML_KEM_1024_PRIVATE_KEY_SIZE), 0);
     wc_KyberKey_Free(key);
 #endif
 
@@ -29562,10 +29562,10 @@ static int test_wc_kyber_encapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_KYBER) && defined(WOLFSSL_WC_KYBER) && \
-    !defined(WOLFSSL_KYBER_ORIGINAL)
+    !defined(WOLFSSL_NO_ML_KEM)
     KyberKey* key;
-#ifndef WOLFSSL_NO_KYBER512
-    static const byte ek_512[KYBER512_PUBLIC_KEY_SIZE] = {
+#ifndef WOLFSSL_NO_ML_KEM_512
+    static const byte ek_512[WC_ML_KEM_512_PUBLIC_KEY_SIZE] = {
         0xDD, 0x19, 0x24, 0x93, 0x5A, 0xA8, 0xE6, 0x17,
         0xAF, 0x18, 0xB5, 0xA0, 0x65, 0xAC, 0x45, 0x72,
         0x77, 0x67, 0xEE, 0x89, 0x7C, 0xF4, 0xF9, 0x44,
@@ -29667,13 +29667,13 @@ static int test_wc_kyber_encapsulate_kats(void)
         0xA4, 0xD0, 0x31, 0xA0, 0x8A, 0xBF, 0x4F, 0x2E,
         0x74, 0xF1, 0xA0, 0xBB, 0x8A, 0x0F, 0xD3, 0xCB
     };
-    static const byte seed_512[KYBER_ENC_RAND_SZ] = {
+    static const byte seed_512[WC_ML_KEM_ENC_RAND_SZ] = {
         0x6F, 0xF0, 0x2E, 0x1D, 0xC7, 0xFD, 0x91, 0x1B,
         0xEE, 0xE0, 0xC6, 0x92, 0xC8, 0xBD, 0x10, 0x0C,
         0x3E, 0x5C, 0x48, 0x96, 0x4D, 0x31, 0xDF, 0x92,
         0x99, 0x42, 0x18, 0xE8, 0x06, 0x64, 0xA6, 0xCA
     };
-    static const byte c_512[KYBER512_CIPHER_TEXT_SIZE] = {
+    static const byte c_512[WC_ML_KEM_512_CIPHER_TEXT_SIZE] = {
         0x19, 0xC5, 0x92, 0x50, 0x59, 0x07, 0xC2, 0x4C,
         0x5F, 0xA2, 0xEB, 0xFA, 0x93, 0x2D, 0x2C, 0xBB,
         0x48, 0xF3, 0xE4, 0x34, 0x0A, 0x28, 0xF7, 0xEB,
@@ -29771,15 +29771,15 @@ static int test_wc_kyber_encapsulate_kats(void)
         0xD1, 0x8C, 0x8C, 0xD9, 0x12, 0xF9, 0xA7, 0x7F,
         0x8E, 0x6B, 0xF0, 0x20, 0x53, 0x74, 0xB4, 0x62
     };
-    static const byte k_512[KYBER_SS_SZ] = {
+    static const byte k_512[WC_ML_KEM_SS_SZ] = {
         0x0B, 0xF3, 0x23, 0x33, 0x8D, 0x6F, 0x0A, 0x21,
         0xD5, 0x51, 0x4B, 0x67, 0x3C, 0xD1, 0x0B, 0x71,
         0x4C, 0xE6, 0xE3, 0x6F, 0x35, 0xBC, 0xD1, 0xBF,
         0x54, 0x41, 0x96, 0x36, 0x8E, 0xE5, 0x1A, 0x13
     };
 #endif
-#ifndef WOLFSSL_NO_KYBER768
-    static const byte ek_768[KYBER768_PUBLIC_KEY_SIZE] = {
+#ifndef WOLFSSL_NO_ML_KEM_768
+    static const byte ek_768[WC_ML_KEM_768_PUBLIC_KEY_SIZE] = {
         0x89, 0xD2, 0xCB, 0x65, 0xF9, 0x4D, 0xCB, 0xFC,
         0x89, 0x0E, 0xFC, 0x7D, 0x0E, 0x5A, 0x7A, 0x38,
         0x34, 0x4D, 0x16, 0x41, 0xA3, 0xD0, 0xB0, 0x24,
@@ -29929,13 +29929,13 @@ static int test_wc_kyber_encapsulate_kats(void)
         0xFE, 0xD3, 0xC3, 0x9C, 0x1B, 0xBD, 0xDB, 0x08,
         0x37, 0xD0, 0xD4, 0x70, 0x6B, 0x09, 0x22, 0xC4
     };
-    static const byte seed_768[KYBER_ENC_RAND_SZ] = {
+    static const byte seed_768[WC_ML_KEM_ENC_RAND_SZ] = {
         0x2C, 0xE7, 0x4A, 0xD2, 0x91, 0x13, 0x35, 0x18,
         0xFE, 0x60, 0xC7, 0xDF, 0x5D, 0x25, 0x1B, 0x9D,
         0x82, 0xAD, 0xD4, 0x84, 0x62, 0xFF, 0x50, 0x5C,
         0x6E, 0x54, 0x7E, 0x94, 0x9E, 0x6B, 0x6B, 0xF7
     };
-    static const byte c_768[KYBER768_CIPHER_TEXT_SIZE] = {
+    static const byte c_768[WC_ML_KEM_768_CIPHER_TEXT_SIZE] = {
         0x56, 0xB4, 0x2D, 0x59, 0x3A, 0xAB, 0x8E, 0x87,
         0x73, 0xBD, 0x92, 0xD7, 0x6E, 0xAB, 0xDD, 0xF3,
         0xB1, 0x54, 0x6F, 0x83, 0x26, 0xF5, 0x7A, 0x7B,
@@ -30073,15 +30073,15 @@ static int test_wc_kyber_encapsulate_kats(void)
         0xA2, 0x30, 0x19, 0x81, 0xA6, 0x41, 0x8F, 0x8B,
         0xA7, 0xD7, 0xB0, 0xD7, 0xCA, 0x58, 0x75, 0xC6
     };
-    static const byte k_768[KYBER_SS_SZ] = {
+    static const byte k_768[WC_ML_KEM_SS_SZ] = {
         0x26, 0x96, 0xD2, 0x8E, 0x9C, 0x61, 0xC2, 0xA0,
         0x1C, 0xE9, 0xB1, 0x60, 0x8D, 0xCB, 0x9D, 0x29,
         0x27, 0x85, 0xA0, 0xCD, 0x58, 0xEF, 0xB7, 0xFE,
         0x13, 0xB1, 0xDE, 0x95, 0xF0, 0xDB, 0x55, 0xB3
     };
 #endif
-#ifndef WOLFSSL_NO_KYBER1024
-    static const byte ek_1024[KYBER1024_PUBLIC_KEY_SIZE] = {
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    static const byte ek_1024[WC_ML_KEM_1024_PUBLIC_KEY_SIZE] = {
         0x30, 0x7A, 0x4C, 0xEA, 0x41, 0x48, 0x21, 0x9B,
         0x95, 0x8E, 0xA0, 0xB7, 0x88, 0x66, 0x59, 0x23,
         0x5A, 0x4D, 0x19, 0x80, 0xB1, 0x92, 0x61, 0x08,
@@ -30279,13 +30279,13 @@ static int test_wc_kyber_encapsulate_kats(void)
         0x3E, 0x30, 0x41, 0xE0, 0x5D, 0x90, 0x67, 0xAF,
         0xF3, 0xB1, 0x24, 0x4F, 0x76, 0x3E, 0x79, 0x83
     };
-    static const byte seed_1024[KYBER_ENC_RAND_SZ] = {
+    static const byte seed_1024[WC_ML_KEM_ENC_RAND_SZ] = {
         0x59, 0xC5, 0x15, 0x4C, 0x04, 0xAE, 0x43, 0xAA,
         0xFF, 0x32, 0x70, 0x0F, 0x08, 0x17, 0x00, 0x38,
         0x9D, 0x54, 0xBE, 0xC4, 0xC3, 0x7C, 0x08, 0x8B,
         0x1C, 0x53, 0xF6, 0x62, 0x12, 0xB1, 0x2C, 0x72
     };
-    static const byte c_1024[KYBER1024_CIPHER_TEXT_SIZE] = {
+    static const byte c_1024[WC_ML_KEM_1024_CIPHER_TEXT_SIZE] = {
         0xE2, 0xD5, 0xFD, 0x4C, 0x13, 0xCE, 0xA0, 0xB5,
         0x2D, 0x87, 0x4F, 0xEA, 0x90, 0x12, 0xF3, 0xA5,
         0x17, 0x43, 0xA1, 0x09, 0x37, 0x10, 0xBB, 0xF2,
@@ -30483,15 +30483,15 @@ static int test_wc_kyber_encapsulate_kats(void)
         0x52, 0x35, 0xD6, 0x36, 0xC6, 0x5C, 0xD1, 0x02,
         0xB0, 0x1E, 0x22, 0x78, 0x1A, 0x72, 0x91, 0x8C
     };
-    static const byte k_1024[KYBER_SS_SZ] = {
+    static const byte k_1024[WC_ML_KEM_SS_SZ] = {
         0x72, 0x64, 0xBD, 0xE5, 0xC6, 0xCE, 0xC1, 0x48,
         0x49, 0x69, 0x3E, 0x2C, 0x3C, 0x86, 0xE4, 0x8F,
         0x80, 0x95, 0x8A, 0x4F, 0x61, 0x86, 0xFC, 0x69,
         0x33, 0x3A, 0x41, 0x48, 0xE6, 0xE4, 0x97, 0xF3
     };
 #endif
-    static byte ct[KYBER_MAX_CIPHER_TEXT_SIZE];
-    static byte ss[KYBER_SS_SZ];
+    static byte ct[WC_ML_KEM_MAX_CIPHER_TEXT_SIZE];
+    static byte ss[WC_ML_KEM_SS_SZ];
 
     key = (KyberKey*)XMALLOC(sizeof(KyberKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
@@ -30499,31 +30499,31 @@ static int test_wc_kyber_encapsulate_kats(void)
         XMEMSET(key, 0, sizeof(KyberKey));
     }
 
-#ifndef WOLFSSL_NO_KYBER512
-    ExpectIntEQ(wc_KyberKey_Init(KYBER512, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_512
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_DecodePublicKey(key, ek_512, sizeof(ek_512)), 0);
     ExpectIntEQ(wc_KyberKey_EncapsulateWithRandom(key, ct, ss, seed_512,
         sizeof(seed_512)), 0);
-    ExpectIntEQ(XMEMCMP(ct, c_512, KYBER512_CIPHER_TEXT_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(ss, k_512, KYBER_SS_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ct, c_512, WC_ML_KEM_512_CIPHER_TEXT_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(ss, k_512, WC_ML_KEM_SS_SZ), 0);
     wc_KyberKey_Free(key);
 #endif
-#ifndef WOLFSSL_NO_KYBER768
-    ExpectIntEQ(wc_KyberKey_Init(KYBER768, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_768
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_DecodePublicKey(key, ek_768, sizeof(ek_768)), 0);
     ExpectIntEQ(wc_KyberKey_EncapsulateWithRandom(key, ct, ss, seed_768,
         sizeof(seed_768)), 0);
-    ExpectIntEQ(XMEMCMP(ct, c_768, KYBER768_CIPHER_TEXT_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(ss, k_768, KYBER_SS_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ct, c_768, WC_ML_KEM_768_CIPHER_TEXT_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(ss, k_768, WC_ML_KEM_SS_SZ), 0);
     wc_KyberKey_Free(key);
 #endif
-#ifndef WOLFSSL_NO_KYBER1024
-    ExpectIntEQ(wc_KyberKey_Init(KYBER1024, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_DecodePublicKey(key, ek_1024, sizeof(ek_1024)), 0);
     ExpectIntEQ(wc_KyberKey_EncapsulateWithRandom(key, ct, ss, seed_1024,
         sizeof(seed_1024)), 0);
-    ExpectIntEQ(XMEMCMP(ct, c_1024, KYBER1024_CIPHER_TEXT_SIZE), 0);
-    ExpectIntEQ(XMEMCMP(ss, k_1024, KYBER_SS_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ct, c_1024, WC_ML_KEM_1024_CIPHER_TEXT_SIZE), 0);
+    ExpectIntEQ(XMEMCMP(ss, k_1024, WC_ML_KEM_SS_SZ), 0);
     wc_KyberKey_Free(key);
 #endif
 
@@ -30536,10 +30536,10 @@ static int test_wc_kyber_decapsulate_kats(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_HAVE_KYBER) && defined(WOLFSSL_WC_KYBER) && \
-    !defined(WOLFSSL_KYBER_ORIGINAL)
+    !defined(WOLFSSL_NO_ML_KEM)
     KyberKey* key;
-#ifndef WOLFSSL_NO_KYBER512
-    static const byte dk_512[KYBER512_PRIVATE_KEY_SIZE] = {
+#ifndef WOLFSSL_NO_ML_KEM_512
+    static const byte dk_512[WC_ML_KEM_512_PRIVATE_KEY_SIZE] = {
         0x69, 0xF9, 0xCB, 0xFD, 0x12, 0x37, 0xBA, 0x16,
         0x1C, 0xF6, 0xE6, 0xC1, 0x8F, 0x48, 0x8F, 0xC6,
         0xE3, 0x9A, 0xB4, 0xA5, 0xC9, 0xE6, 0xC2, 0x2E,
@@ -30745,7 +30745,7 @@ static int test_wc_kyber_decapsulate_kats(void)
         0x09, 0x8A, 0x3F, 0x35, 0x17, 0x78, 0xB0, 0x88,
         0x8C, 0x95, 0x90, 0xA9, 0x09, 0x0C, 0xD4, 0x04
     };
-    static const byte c_512[KYBER512_CIPHER_TEXT_SIZE] = {
+    static const byte c_512[WC_ML_KEM_512_CIPHER_TEXT_SIZE] = {
         0x16, 0x1C, 0xD2, 0x59, 0xFE, 0xAA, 0x7E, 0xC6,
         0xB2, 0x86, 0x49, 0x8A, 0x9A, 0x6F, 0x69, 0xF8,
         0xB2, 0x62, 0xA2, 0xE2, 0x09, 0x3D, 0x0F, 0xBD,
@@ -30843,15 +30843,15 @@ static int test_wc_kyber_decapsulate_kats(void)
         0x34, 0x6B, 0xAF, 0xCD, 0xD0, 0x6D, 0x40, 0x2F,
         0xF2, 0x4D, 0x6C, 0x1E, 0x5F, 0x61, 0xA8, 0x5D
     };
-    static const byte kprime_512[KYBER_SS_SZ] = {
+    static const byte kprime_512[WC_ML_KEM_SS_SZ] = {
         0xDF, 0x46, 0x2A, 0xD6, 0x8F, 0x1E, 0xC8, 0x97,
         0x2E, 0xD9, 0xB0, 0x2D, 0x6D, 0xE0, 0x60, 0x4B,
         0xDE, 0xC7, 0x57, 0x20, 0xE0, 0x50, 0x49, 0x73,
         0x51, 0xE6, 0xEC, 0x93, 0x3E, 0x71, 0xF8, 0x82
     };
 #endif
-#ifndef WOLFSSL_NO_KYBER768
-    static const byte dk_768[KYBER768_PRIVATE_KEY_SIZE] = {
+#ifndef WOLFSSL_NO_ML_KEM_768
+    static const byte dk_768[WC_ML_KEM_768_PRIVATE_KEY_SIZE] = {
         0x1E, 0x4A, 0xC8, 0x7B, 0x1A, 0x69, 0x2A, 0x52,
         0x9F, 0xDB, 0xBA, 0xB9, 0x33, 0x74, 0xC5, 0x7D,
         0x11, 0x0B, 0x10, 0xF2, 0xB1, 0xDD, 0xEB, 0xAC,
@@ -31153,7 +31153,7 @@ static int test_wc_kyber_decapsulate_kats(void)
         0xB4, 0xAB, 0x82, 0xE5, 0xFC, 0xA1, 0x35, 0xE8,
         0xD2, 0x6A, 0x6B, 0x3A, 0x89, 0xFA, 0x5B, 0x6F
     };
-    static const byte c_768[KYBER768_CIPHER_TEXT_SIZE] = {
+    static const byte c_768[WC_ML_KEM_768_CIPHER_TEXT_SIZE] = {
         0xA5, 0xC8, 0x1C, 0x76, 0xC2, 0x43, 0x05, 0xE1,
         0xCE, 0x5D, 0x81, 0x35, 0xD4, 0x15, 0x23, 0x68,
         0x2E, 0x9E, 0xE6, 0xD7, 0xB4, 0x0A, 0xD4, 0x1D,
@@ -31291,15 +31291,15 @@ static int test_wc_kyber_decapsulate_kats(void)
         0xA5, 0x9A, 0x1F, 0xD2, 0x8A, 0xF3, 0x5C, 0x00,
         0xD1, 0x8A, 0x40, 0x6A, 0x28, 0xFC, 0x79, 0xBA
     };
-    static const byte kprime_768[KYBER_SS_SZ] = {
+    static const byte kprime_768[WC_ML_KEM_SS_SZ] = {
         0xDC, 0x5B, 0x88, 0x88, 0xBC, 0x1E, 0xBA, 0x5C,
         0x19, 0x69, 0xC2, 0x11, 0x64, 0xEA, 0x43, 0xE2,
         0x2E, 0x7A, 0xC0, 0xCD, 0x01, 0x2A, 0x2F, 0x26,
         0xCB, 0x8C, 0x48, 0x7E, 0x69, 0xEF, 0x7C, 0xE4
     };
 #endif
-#ifndef WOLFSSL_NO_KYBER1024
-    static const byte dk_1024[KYBER1024_PRIVATE_KEY_SIZE] = {
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    static const byte dk_1024[WC_ML_KEM_1024_PRIVATE_KEY_SIZE] = {
         0x84, 0x45, 0xC3, 0x36, 0xF3, 0x51, 0x8B, 0x29,
         0x81, 0x63, 0xDC, 0xBB, 0x63, 0x57, 0x59, 0x79,
         0x83, 0xCA, 0x2E, 0x87, 0x3D, 0xCB, 0x49, 0x61,
@@ -31697,7 +31697,7 @@ static int test_wc_kyber_decapsulate_kats(void)
         0x0D, 0xE1, 0xB7, 0xA4, 0x81, 0xB8, 0x3E, 0x58,
         0x3B, 0x6A, 0xF1, 0x6F, 0x63, 0xCB, 0x00, 0xC6
     };
-    static const byte c_1024[KYBER1024_CIPHER_TEXT_SIZE] = {
+    static const byte c_1024[WC_ML_KEM_1024_CIPHER_TEXT_SIZE] = {
         0x0C, 0x68, 0x1B, 0x4A, 0xA8, 0x1F, 0x26, 0xAD,
         0xFB, 0x64, 0x5E, 0xC2, 0x4B, 0x37, 0x52, 0xF6,
         0xB3, 0x2C, 0x68, 0x64, 0x5A, 0xA5, 0xE7, 0xA9,
@@ -31895,14 +31895,14 @@ static int test_wc_kyber_decapsulate_kats(void)
         0x7B, 0x12, 0x43, 0x33, 0x43, 0xA6, 0x58, 0xF1,
         0x98, 0x0C, 0x81, 0x24, 0xEA, 0x6D, 0xD8, 0x1F
     };
-    static const byte kprime_1024[KYBER_SS_SZ] = {
+    static const byte kprime_1024[WC_ML_KEM_SS_SZ] = {
         0x8F, 0x33, 0x6E, 0x9C, 0x28, 0xDF, 0x34, 0x9E,
         0x03, 0x22, 0x0A, 0xF0, 0x1C, 0x42, 0x83, 0x2F,
         0xEF, 0xAB, 0x1F, 0x2A, 0x74, 0xC1, 0x6F, 0xAF,
         0x6F, 0x64, 0xAD, 0x07, 0x1C, 0x1A, 0x33, 0x94
     };
 #endif
-    static byte ss[KYBER_SS_SZ];
+    static byte ss[WC_ML_KEM_SS_SZ];
 
     key = (KyberKey*)XMALLOC(sizeof(KyberKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     ExpectNotNull(key);
@@ -31910,25 +31910,25 @@ static int test_wc_kyber_decapsulate_kats(void)
         XMEMSET(key, 0, sizeof(KyberKey));
     }
 
-#ifndef WOLFSSL_NO_KYBER512
-    ExpectIntEQ(wc_KyberKey_Init(KYBER512, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_512
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_DecodePrivateKey(key, dk_512, sizeof(dk_512)), 0);
     ExpectIntEQ(wc_KyberKey_Decapsulate(key, ss, c_512, sizeof(c_512)), 0);
-    ExpectIntEQ(XMEMCMP(ss, kprime_512, KYBER_SS_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ss, kprime_512, WC_ML_KEM_SS_SZ), 0);
     wc_KyberKey_Free(key);
 #endif
-#ifndef WOLFSSL_NO_KYBER768
-    ExpectIntEQ(wc_KyberKey_Init(KYBER768, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_768
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_DecodePrivateKey(key, dk_768, sizeof(dk_768)), 0);
     ExpectIntEQ(wc_KyberKey_Decapsulate(key, ss, c_768, sizeof(c_768)), 0);
-    ExpectIntEQ(XMEMCMP(ss, kprime_768, KYBER_SS_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ss, kprime_768, WC_ML_KEM_SS_SZ), 0);
     wc_KyberKey_Free(key);
 #endif
-#ifndef WOLFSSL_NO_KYBER1024
-    ExpectIntEQ(wc_KyberKey_Init(KYBER1024, key, NULL, INVALID_DEVID), 0);
+#ifndef WOLFSSL_NO_ML_KEM_1024
+    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
     ExpectIntEQ(wc_KyberKey_DecodePrivateKey(key, dk_1024, sizeof(dk_1024)), 0);
     ExpectIntEQ(wc_KyberKey_Decapsulate(key, ss, c_1024, sizeof(c_1024)), 0);
-    ExpectIntEQ(XMEMCMP(ss, kprime_1024, KYBER_SS_SZ), 0);
+    ExpectIntEQ(XMEMCMP(ss, kprime_1024, WC_ML_KEM_SS_SZ), 0);
     wc_KyberKey_Free(key);
 #endif
 
@@ -79230,6 +79230,7 @@ static int test_tls13_apis(void)
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     int          groups[2] = { WOLFSSL_ECC_SECP256R1,
 #ifdef WOLFSSL_HAVE_KYBER
+#ifdef WOLFSSL_KYBER_ORIGINAL
     #ifndef WOLFSSL_NO_KYBER512
                                WOLFSSL_KYBER_LEVEL1
     #elif !defined(WOLFSSL_NO_KYBER768)
@@ -79237,6 +79238,15 @@ static int test_tls13_apis(void)
     #else
                                WOLFSSL_KYBER_LEVEL5
     #endif
+#else
+    #ifndef WOLFSSL_NO_ML_KEM_512
+                               WOLFSSL_ML_KEM_512
+    #elif !defined(WOLFSSL_NO_ML_KEM_768)
+                               WOLFSSL_ML_KEM_768
+    #else
+                               WOLFSSL_ML_KEM_1024
+    #endif
+#endif
 #else
                                WOLFSSL_ECC_SECP256R1
 #endif
@@ -79264,6 +79274,7 @@ static int test_tls13_apis(void)
 #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && ECC_MIN_KEY_SZ <= 256
             "P-256:secp256r1"
 #if defined(WOLFSSL_HAVE_KYBER)
+#ifdef WOLFSSL_KYBER_ORIGINAL
     #ifndef WOLFSSL_NO_KYBER512
             ":P256_KYBER_LEVEL1"
     #elif !defined(WOLFSSL_NO_KYBER768)
@@ -79271,10 +79282,20 @@ static int test_tls13_apis(void)
     #else
             ":P256_KYBER_LEVEL5"
     #endif
+#else
+    #ifndef WOLFSSL_NO_KYBER512
+            ":P256_ML_KEM_512"
+    #elif !defined(WOLFSSL_NO_KYBER768)
+            ":P256_ML_KEM_768"
+    #else
+            ":P256_ML_KEM_1024"
+    #endif
+#endif
 #endif
 #endif
 #endif /* !defined(NO_ECC_SECP) */
 #if defined(WOLFSSL_HAVE_KYBER)
+#ifdef WOLFSSL_KYBER_ORIGINAL
     #ifndef WOLFSSL_NO_KYBER512
             ":KYBER_LEVEL1"
     #elif !defined(WOLFSSL_NO_KYBER768)
@@ -79282,6 +79303,15 @@ static int test_tls13_apis(void)
     #else
             ":KYBER_LEVEL5"
     #endif
+#else
+    #ifndef WOLFSSL_NO_KYBER512
+            ":ML_KEM_512"
+    #elif !defined(WOLFSSL_NO_KYBER768)
+            ":ML_KEM_768"
+    #else
+            ":ML_KEM_1024"
+    #endif
+#endif
 #endif
             "";
 #endif /* defined(OPENSSL_EXTRA) && defined(HAVE_ECC) */
@@ -79417,12 +79447,22 @@ static int test_tls13_apis(void)
 #endif
 
 #if defined(WOLFSSL_HAVE_KYBER)
+#ifndef WOLFSSL_NO_ML_KEM
+#ifndef WOLFSSL_NO_ML_KEM_768
+    kyberLevel = WOLFSSL_ML_KEM_768;
+#elif !defined(WOLFSSL_NO_ML_KEM_1024)
+    kyberLevel = WOLFSSL_ML_KEM_1024;
+#else
+    kyberLevel = WOLFSSL_ML_KEM_512;
+#endif
+#else
 #ifndef WOLFSSL_NO_KYBER768
     kyberLevel = WOLFSSL_KYBER_LEVEL3;
 #elif !defined(WOLFSSL_NO_KYBER1024)
     kyberLevel = WOLFSSL_KYBER_LEVEL5;
 #else
     kyberLevel = WOLFSSL_KYBER_LEVEL1;
+#endif
 #endif
     ExpectIntEQ(wolfSSL_UseKeyShare(NULL, kyberLevel), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #ifndef NO_WOLFSSL_SERVER
@@ -96280,13 +96320,21 @@ static int test_dtls13_basic_connection_id(void)
     defined(HAVE_LIBOQS)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
 {
+#ifdef WOLFSSL_KYBER_ORIGINAL
     int group = WOLFSSL_KYBER_LEVEL5;
+#else
+    int group = WOLFSSL_ML_KEM_1024;
+#endif
     AssertIntEQ(wolfSSL_CTX_set_groups(ctx, &group, 1), WOLFSSL_SUCCESS);
 }
 
 static void test_tls13_pq_groups_on_result(WOLFSSL* ssl)
 {
+#ifdef WOLFSSL_KYBER_ORIGINAL
     AssertStrEQ(wolfSSL_get_curve_name(ssl), "KYBER_LEVEL5");
+#else
+    AssertStrEQ(wolfSSL_get_curve_name(ssl), "ML_KEM_1024");
+#endif
 }
 #endif
 

@@ -3297,6 +3297,17 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_FFDHE_8192:
 
 #ifdef WOLFSSL_HAVE_KYBER
+#ifndef WOLFSSL_NO_ML_KEM
+        case WOLFSSL_ML_KEM_512:
+        case WOLFSSL_ML_KEM_768:
+        case WOLFSSL_ML_KEM_1024:
+    #if defined(WOLFSSL_WC_KYBER) || defined(HAVE_LIBOQS)
+        case WOLFSSL_P256_ML_KEM_512:
+        case WOLFSSL_P384_ML_KEM_768:
+        case WOLFSSL_P521_ML_KEM_1024:
+    #endif
+#endif /* !WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_KYBER_ORIGINAL
         case WOLFSSL_KYBER_LEVEL1:
         case WOLFSSL_KYBER_LEVEL3:
         case WOLFSSL_KYBER_LEVEL5:
@@ -3305,6 +3316,7 @@ static int isValidCurveGroup(word16 name)
         case WOLFSSL_P384_KYBER_LEVEL3:
         case WOLFSSL_P521_KYBER_LEVEL5:
     #endif
+#endif /* WOLFSSL_KYBER_ORIGINAL */
 #endif
             return 1;
 
@@ -14545,6 +14557,42 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
      * check to override this result in the case of a hybrid. */
     if (IsAtLeastTLSv1_3(ssl->version)) {
         switch (ssl->namedGroup) {
+#ifndef WOLFSSL_NO_ML_KEM
+#ifdef HAVE_LIBOQS
+        case WOLFSSL_ML_KEM_512:
+            return "ML_KEM_512";
+        case WOLFSSL_ML_KEM_768:
+            return "ML_KEM_768";
+        case WOLFSSL_ML_KEM_1024:
+            return "ML_KEM_1024";
+        case WOLFSSL_P256_ML_KEM_512:
+            return "P256_ML_KEM_512";
+        case WOLFSSL_P384_ML_KEM_768:
+            return "P384_ML_KEM_768";
+        case WOLFSSL_P521_ML_KEM_1024:
+            return "P521_ML_KEM_1024";
+#elif defined(WOLFSSL_WC_KYBER)
+    #ifdef WOLFSSL_WC_ML_KEM_512
+        case WOLFSSL_ML_KEM_512:
+            return "ML_KEM_512";
+        case WOLFSSL_P256_ML_KEM_512:
+            return "P256_ML_KEM_512";
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_768
+        case WOLFSSL_ML_KEM_768:
+            return "ML_KEM_768";
+        case WOLFSSL_P384_ML_KEM_768:
+            return "P384_ML_KEM_768";
+    #endif
+    #ifdef WOLFSSL_WC_ML_KEM_1024
+        case WOLFSSL_ML_KEM_1024:
+            return "ML_KEM_1024";
+        case WOLFSSL_P521_ML_KEM_1024:
+            return "P521_ML_KEM_1024";
+    #endif
+#endif
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef HAVE_LIBOQS
         case WOLFSSL_KYBER_LEVEL1:
             return "KYBER_LEVEL1";
@@ -14577,6 +14625,7 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         case WOLFSSL_P521_KYBER_LEVEL5:
             return "P521_KYBER_LEVEL5";
     #endif
+#endif
 #endif
         }
     }
@@ -21911,6 +21960,20 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {CURVE_NAME("X448"),    WC_NID_X448, WOLFSSL_ECC_X448},
 #endif
 #ifdef WOLFSSL_HAVE_KYBER
+#ifndef WOLFSSL_NO_ML_KEM
+    {CURVE_NAME("ML_KEM_512"), WOLFSSL_ML_KEM_512, WOLFSSL_ML_KEM_512},
+    {CURVE_NAME("ML_KEM_768"), WOLFSSL_ML_KEM_768, WOLFSSL_ML_KEM_768},
+    {CURVE_NAME("ML_KEM_1024"), WOLFSSL_ML_KEM_1024, WOLFSSL_ML_KEM_1024},
+#if (defined(WOLFSSL_WC_KYBER) || defined(HAVE_LIBOQS)) && defined(HAVE_ECC)
+    {CURVE_NAME("P256_ML_KEM_512"), WOLFSSL_P256_ML_KEM_512,
+     WOLFSSL_P256_ML_KEM_512},
+    {CURVE_NAME("P384_ML_KEM_768"), WOLFSSL_P384_ML_KEM_768,
+     WOLFSSL_P384_ML_KEM_768},
+    {CURVE_NAME("P521_ML_KEM_1024"), WOLFSSL_P521_ML_KEM_1024,
+     WOLFSSL_P521_ML_KEM_1024},
+#endif
+#endif /* !WOLFSSL_NO_ML_KEM */
+#ifdef WOLFSSL_KYBER_ORIGINAL
     {CURVE_NAME("KYBER_LEVEL1"), WOLFSSL_KYBER_LEVEL1, WOLFSSL_KYBER_LEVEL1},
     {CURVE_NAME("KYBER_LEVEL3"), WOLFSSL_KYBER_LEVEL3, WOLFSSL_KYBER_LEVEL3},
     {CURVE_NAME("KYBER_LEVEL5"), WOLFSSL_KYBER_LEVEL5, WOLFSSL_KYBER_LEVEL5},
@@ -21919,7 +21982,8 @@ const WOLF_EC_NIST_NAME kNistCurves[] = {
     {CURVE_NAME("P384_KYBER_LEVEL3"), WOLFSSL_P384_KYBER_LEVEL3, WOLFSSL_P384_KYBER_LEVEL3},
     {CURVE_NAME("P521_KYBER_LEVEL5"), WOLFSSL_P521_KYBER_LEVEL5, WOLFSSL_P521_KYBER_LEVEL5},
 #endif
-#endif
+#endif /* WOLFSSL_KYBER_ORIGINAL */
+#endif /* WOLFSSL_HAVE_KYBER */
 #ifdef WOLFSSL_SM2
     {CURVE_NAME("SM2"),     WC_NID_sm2, WOLFSSL_ECC_SM2P256V1},
 #endif
