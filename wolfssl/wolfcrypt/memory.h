@@ -219,8 +219,8 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     #endif
 
     #ifdef WOLFSSL_STATIC_MEMORY_LEAN
-        word16   sizeList[WOLFMEM_MAX_BUCKETS];/* memory sizes in ava list */
-        byte     distList[WOLFMEM_MAX_BUCKETS];/* general distribution */
+        word32     sizeList[WOLFMEM_MAX_BUCKETS];/* memory sizes in ava list */
+        word32     distList[WOLFMEM_MAX_BUCKETS];/* general distribution */
     #else
         word32     maxHa;               /* max concurrent handshakes */
         word32     curHa;
@@ -258,8 +258,8 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     WOLFSSL_API void* wolfSSL_SetGlobalHeapHint(void* heap);
     WOLFSSL_API void* wolfSSL_GetGlobalHeapHint(void);
     WOLFSSL_API int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
-            unsigned int listSz, const unsigned int *sizeList,
-            const unsigned int *distList, unsigned char* buf, unsigned int sz,
+            unsigned int listSz, const word32 *sizeList,
+            const word32 *distList, unsigned char* buf, unsigned int sz,
             int flag, int max);
 #ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
     #define WOLFSSL_DEBUG_MEMORY_ALLOC 0
@@ -281,7 +281,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb* mf,
     WOLFSSL_LOCAL int FreeFixedIO(WOLFSSL_HEAP* heap, wc_Memory** io);
 
     WOLFSSL_API int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
-            const unsigned int *sizeList, const unsigned int *distList,
+            const word32 *sizeList, const word32 *distList,
             byte* buffer, word32 sz, int flag);
     WOLFSSL_API int wolfSSL_StaticBufferSz(byte* buffer, word32 sz, int flag);
     WOLFSSL_API int wolfSSL_MemoryPaddingSz(void);
