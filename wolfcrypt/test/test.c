@@ -45669,6 +45669,112 @@ out:
 }
 #endif
 
+/* Tests decoding a key from DER without the security level specified */
+static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
+                                                 word32 rawKeySz,
+                                                 int expectedLevel)
+{
+    int ret;
+    dilithium_key key;
+    word32 idx;
+    byte* der;
+    word32 derSz;
+
+    /* DER encoding adds ~256 bytes of overhead to raw key */
+    const word32 estimatedDerSz = rawKeySz + 256;
+
+    /* Allocate DER buffer */
+    der = (byte*)XMALLOC(estimatedDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        return MEMORY_E;
+    }
+
+    /* Initialize key */
+    ret = wc_dilithium_init(&key);
+
+    /* Import raw key, setting the security level */
+    if (ret == 0) {
+        ret = wc_dilithium_set_level(&key, expectedLevel);
+    }
+    if (ret == 0) {
+        ret = wc_dilithium_import_private(rawKey, rawKeySz, &key);
+    }
+
+    /* Export raw key as DER */
+    if (ret == 0) {
+        ret = wc_Dilithium_PrivateKeyToDer(&key, der, estimatedDerSz);
+        if (ret >= 0) {
+            derSz = ret;
+            ret = 0;
+        }
+    }
+
+    /* Free and reinit key to test fresh decode */
+    if (ret == 0) {
+        wc_dilithium_free(&key);
+        ret = wc_dilithium_init(&key);
+    }
+
+    /* Test decoding without setting security level - should auto-detect */
+    if (ret == 0) {
+        idx = 0;
+        ret = wc_Dilithium_PrivateKeyDecode(der, &idx, &key, derSz);
+    }
+
+    /* Verify detected security level */
+    if (ret == 0 && key.level != expectedLevel) {
+        printf("Dilithium key decode failed to detect level.\n"
+               "\tExpected level=%d\n\tGot level=%d\n",
+               expectedLevel, key.level);
+        ret = WC_TEST_RET_ENC_NC;
+    }
+
+    /* Cleanup */
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_dilithium_free(&key);
+    return ret;
+}
+
+/* Test Dilithium private key decoding and security level detection */
+static wc_test_ret_t dilithium_decode_test(void)
+{
+    wc_test_ret_t ret;
+    const byte* privKey;
+    word32 privKeySz;
+
+#ifndef WOLFSSL_NO_ML_DSA_44
+    /* Test ML-DSA-44 */
+    privKey = bench_dilithium_level2_key;
+    privKeySz = sizeof_bench_dilithium_level2_key;
+    ret = test_dilithium_decode_level(privKey, privKeySz, WC_ML_DSA_44);
+    if (ret != 0) {
+        return ret;
+    }
+#endif /* WOLFSSL_NO_ML_DSA_44 */
+
+#ifndef WOLFSSL_NO_ML_DSA_65
+    /* Test ML-DSA-65 */
+    privKey = bench_dilithium_level3_key;
+    privKeySz = sizeof_bench_dilithium_level3_key;
+    ret = test_dilithium_decode_level(privKey, privKeySz, WC_ML_DSA_65);
+    if (ret != 0) {
+        return ret;
+    }
+#endif /* WOLFSSL_NO_ML_DSA_65 */
+
+#ifndef WOLFSSL_NO_ML_DSA_87
+    /* Test ML-DSA-87 */
+    privKey = bench_dilithium_level5_key;
+    privKeySz = sizeof_bench_dilithium_level5_key;
+    ret = test_dilithium_decode_level(privKey, privKeySz, WC_ML_DSA_87);
+    if (ret != 0) {
+        return ret;
+    }
+#endif /* WOLFSSL_NO_ML_DSA_87 */
+
+    return ret;
+}
+
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 {
     wc_test_ret_t ret;
@@ -45726,6 +45832,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 #endif
 #endif
+
+    ret = dilithium_decode_test();
+    if (ret != 0) {
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+    }
 
 #if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
     !defined(WOLFSSL_DILITHIUM_NO_VERIFY)

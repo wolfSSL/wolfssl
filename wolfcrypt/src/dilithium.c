@@ -9501,6 +9501,82 @@ int wc_dilithium_export_key(dilithium_key* key, byte* priv, word32 *privSz,
 
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
 
+/* Maps ASN.1 OID to wolfCrypt security level macros */
+static int mapOidToSecLevel(word32 oid)
+{
+    switch (oid) {
+        case ML_DSA_LEVEL2k:
+            return WC_ML_DSA_44;
+        case ML_DSA_LEVEL3k:
+            return WC_ML_DSA_65;
+        case ML_DSA_LEVEL5k:
+            return WC_ML_DSA_87;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+            return WC_ML_DSA_44_DRAFT;
+        case DILITHIUM_LEVEL3k:
+            return WC_ML_DSA_65_DRAFT;
+        case DILITHIUM_LEVEL5k:
+            return WC_ML_DSA_87_DRAFT;
+#endif
+        default:
+            return ASN_UNKNOWN_OID_E;
+    }
+}
+
+/* Get security level from DER encoded key. Returns a positive security level
+ * (e.g. WC_ML_DSA_44, etc.) on success, or a negative value on error.
+ *
+ * Expected ASN.1 Structure:
+ *
+ * SEQUENCE {                             -- Outer wrapper
+ *   version         INTEGER,             -- Version number (usually 0)
+ *   algorithm       SEQUENCE {           -- AlgorithmIdentifier
+ *     algorithm       OBJECT IDENTIFIER  -- OID identifying Dilithium variant
+ *   }
+ *   -- Note: Remaining key data after algorithm is ignored for this function
+ * }
+ */
+static int getSecLevelFromDer(const byte* der, word32 derSz)
+{
+    word32 idx = 0;
+    int    seqSz, algSeqSz;
+    int    ret;
+    word32 oid = 0;
+    int    version;
+
+    if (der == NULL || derSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Parse outer SEQUENCE wrapper and get its size
+     * Advances idx past the SEQUENCE header */
+    if ((ret = GetSequence(der, &idx, &seqSz, derSz)) < 0) {
+        return ret;
+    }
+
+    /* Parse and skip over version INTEGER
+     * Advances idx past the version field */
+    if ((ret = GetMyVersion(der, &idx, &version, derSz)) < 0) {
+        return ret;
+    }
+
+    /* Parse AlgorithmIdentifier SEQUENCE and get its size
+     * Advances idx past the SEQUENCE header */
+    if ((ret = GetSequence(der, &idx, &algSeqSz, derSz)) < 0) {
+        return ret;
+    }
+
+    /* Parse OID value from AlgorithmIdentifier
+     * Advances idx past the OID, stores numeric OID value
+     * oidSigType indicates this is a signature algorithm OID */
+    if ((ret = GetObjectId(der, &idx, &oid, oidSigType, derSz - idx)) < 0) {
+        return ret;
+    }
+
+    return mapOidToSecLevel(oid);
+}
+
 #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 
 /* Decode the DER encoded Dilithium key.
@@ -9508,11 +9584,18 @@ int wc_dilithium_export_key(dilithium_key* key, byte* priv, word32 *privSz,
  * @param [in]      input     Array holding DER encoded data.
  * @param [in, out] inOutIdx  On in, index into array of start of DER encoding.
  *                            On out, index into array after DER encoding.
- * @param [in, out] key       Dilithium key to store key.
- * @param [in]      inSz      Total size of data in array.
+ * @param [in, out] key       Dilithium key structure to hold the decoded key.
+ *                            If the security level is set in the key structure on
+ *                            input, the DER key will be decoded as such and will
+ *                            fail if there is a mismatch. If the level and
+ *                            parameters are not set in the key structure on
+ *                            input, the level will be detected from the DER
+ *                            file based on the algorithm OID, appropriately
+ *                            decoded, then updated in the key structure on
+ *                            output.
+ * @param [in]      inSz      Total size of the input DER buffer array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
- * @return  BAD_FUNC_ARG when level not set.
  * @return  Other negative on parse error.
  */
 int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
@@ -9528,6 +9611,23 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
         ret = BAD_FUNC_ARG;
+    }
+
+    /* If expected security level not set in key, detect it from DER */
+    if (key->level == 0 || key->params == NULL
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        || key->params->level == 0)
+#endif
+    ) {
+        int level;
+        level = getSecLevelFromDer(input + *inOutIdx, inSz - *inOutIdx);
+        if (level < 0) {
+            ret = level;
+        }
+        else {
+            /* Set params based on level parsed from DER*/
+            ret = wc_dilithium_set_level(key, level);
+        }
     }
 
     if (ret == 0) {
@@ -9756,7 +9856,15 @@ static int dilithium_check_type(const byte* input, word32* inOutIdx, byte type,
  * @param [in]      input     Array holding DER encoded data.
  * @param [in, out] inOutIdx  On in, index into array of start of DER encoding.
  *                            On out, index into array after DER encoding.
- * @param [in, out] key       Dilithium key to store key.
+ * @param [in, out] key       Dilithium key structure to hold the decoded key.
+ *                            If the security level is set in the key structure
+ *                            on input, the DER key will be decoded as such
+ *                            and will fail if there is a mismatch. If the level
+ *                            and parameters are not set in the key structure on
+ *                            input, the level will be detected from the DER file
+ *                            based on the algorithm OID, appropriately decoded,
+ *                            then updated in the key structure on output.
+ *                            updated in the key structure on output.
  * @param [in]      inSz      Total size of data in array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
@@ -9774,6 +9882,25 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
         ret = BAD_FUNC_ARG;
     }
+
+#if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+    /* If expected security level not set in key, detect it from DER */
+    if (key->level == 0 || key->params == NULL
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        || key->params->level == 0)
+#endif
+    ) {
+        int level;
+        level = getSecLevelFromDer(input + *inOutIdx, inSz - *inOutIdx);
+        if (level < 0) {
+            ret = level;
+        }
+        else {
+            /* Set params based on level parsed from DER*/
+            ret = wc_dilithium_set_level(key, level);
+        }
+    }
+#endif /* !WOLFSSL_DILITHIUM_NO_ASN1 */
 
     if (ret == 0) {
         /* Try to import the key directly. */
