@@ -631,7 +631,7 @@ static int DNS_to_GENERAL_NAME(WOLFSSL_GENERAL_NAME* gn, DNS_entry* dns)
             if (gn->d.registeredID == NULL) {
                 return WOLFSSL_FAILURE;
             }
-            gn->d.registeredID->obj = XMALLOC(dns->len,
+            gn->d.registeredID->obj = (const unsigned char*)XMALLOC(dns->len,
                 gn->d.registeredID->heap, DYNAMIC_TYPE_ASN1);
             if (gn->d.registeredID->obj == NULL) {
                 /* registeredID gets free'd up by caller after failure */
