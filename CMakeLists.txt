@@ -873,7 +873,7 @@ endif()
 #       - SEP
 
 add_option("WOLFSSL_KEYGEN"
-    "Enable key generation (default: disabled)])"
+    "Enable key generation (default: disabled)"
     "no" "yes;no")
 
 add_option("WOLFSSL_CERTGEN"
@@ -2278,6 +2278,11 @@ if (ENABLE_SCCACHE AND (NOT WOLFSSL_SCCACHE_ALREADY_SET_FLAG))
         set(WOLFSSL_SCCACHE_ALREADY_SET_FLAG ON)
     endif()
 endif()
+
+add_option_defs(NAME WOLFSSL_KEYLOG_EXPORT
+    HELP_STRING "Enable insecure export of TLS secrets to an NSS keylog file"
+    VALUES no yes
+    DEFINITIONS SHOW_SECRETS HAVE_SECRET_CALLBACK WOLFSSL_SSLKEYLOGFILE WOLFSSL_KEYLOG_EXPORT_WARNED)
 
 
 file(REMOVE ${OPTION_FILE})
