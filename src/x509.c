@@ -14842,7 +14842,8 @@ void wolfSSL_X509_REQ_free(WOLFSSL_X509* req)
     wolfSSL_X509_free(req);
 }
 
-int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version) {
+int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version)
+{
     WOLFSSL_ENTER("wolfSSL_X509_REQ_set_version");
     if ((x == NULL) || (version < 0) || (version >= INT_MAX)) {
         return WOLFSSL_FAILURE;
@@ -14851,10 +14852,11 @@ int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version) {
     return WOLFSSL_SUCCESS;
 }
 
-long wolfSSL_X509_REQ_get_version(const WOLFSSL_X509 *req) {
+long wolfSSL_X509_REQ_get_version(const WOLFSSL_X509 *req)
+{
     WOLFSSL_ENTER("wolfSSL_X509_REQ_get_version");
     if (req == NULL) {
-        return WOLFSSL_FAILURE;
+        return 0; /* invalid arg */
     }
     return (long)req->version;
 }
