@@ -912,6 +912,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_NID_postalCode ASN_POSTAL_CODE   /* postalCode */
 #define WC_NID_favouriteDrink 462
 #define WC_NID_userId 458
+#define WC_NID_registeredAddress 870
 #define WC_NID_emailAddress 0x30            /* emailAddress */
 #define WC_NID_id_on_dnsSRV 82              /* 1.3.6.1.5.5.7.8.7 */
 #define WC_NID_ms_upn 265                   /* 1.3.6.1.4.1.311.20.2.3 */

@@ -77998,6 +77998,7 @@ static int test_X509_REQ(void)
 #ifdef HAVE_ECC
     const unsigned char* ecPriv = (const unsigned char*)ecc_clikey_der_256;
     const unsigned char* ecPub = (unsigned char*)ecc_clikeypub_der_256;
+    BIO* bio = NULL;
 #endif
 
     ExpectNotNull(name = X509_NAME_new());
@@ -78089,6 +78090,10 @@ static int test_X509_REQ(void)
     /* Signature is random and may be shorter or longer. */
     ExpectIntGE((len = i2d_X509_REQ(req, &der)), 245);
     ExpectIntLE(len, 253);
+    ExpectNotNull(bio = BIO_new_fp(stderr, BIO_NOCLOSE));
+    ExpectIntEQ(X509_REQ_print(bio, req), WOLFSSL_SUCCESS);
+    ExpectIntEQ(X509_REQ_print(bio, NULL), WOLFSSL_FAILURE);
+    BIO_free(bio);
     XFREE(der, NULL, DYNAMIC_TYPE_OPENSSL);
     X509_REQ_free(req);
     EVP_PKEY_free(pub);
