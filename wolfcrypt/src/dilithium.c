@@ -9614,9 +9614,9 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     }
 
     /* If expected security level not set in key, detect it from DER */
-    if (key->level == 0 || key->params == NULL
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        || key->params->level == 0)
+    if (key->level == 0
+#ifdef WOLFSSL_WC_DILITHIUM
+        || key->params == NULL
 #endif
     ) {
         int level;
@@ -9885,9 +9885,9 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
 
 #if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
     /* If expected security level not set in key, detect it from DER */
-    if (key->level == 0 || key->params == NULL
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        || key->params->level == 0)
+    if (key->level == 0
+#ifdef WOLFSSL_WC_DILITHIUM
+        || key->params == NULL
 #endif
     ) {
         int level;
