@@ -3652,6 +3652,24 @@ static void* benchmarks_do(void* args)
 
 #ifdef WOLFSSL_HAVE_KYBER
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER)) {
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifdef WOLFSSL_KYBER512
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
+            bench_kyber(WC_ML_KEM_512);
+        }
+    #endif
+    #ifdef WOLFSSL_KYBER768
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER768)) {
+            bench_kyber(WC_ML_KEM_768);
+        }
+    #endif
+    #ifdef WOLFSSL_KYBER1024
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER1024)) {
+            bench_kyber(WC_ML_KEM_1024);
+        }
+    #endif
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
     #ifdef WOLFSSL_KYBER512
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
             bench_kyber(KYBER512);
@@ -3667,6 +3685,7 @@ static void* benchmarks_do(void* args)
             bench_kyber(KYBER1024);
         }
     #endif
+#endif
     }
 #endif
 
@@ -9471,6 +9490,27 @@ void bench_kyber(int type)
     int keySize = 0;
 
     switch (type) {
+#ifndef WOLFSSL_NO_ML_KEM
+#ifdef WOLFSSL_WC_ML_KEM_512
+    case WC_ML_KEM_512:
+        name = "ML-KEM 512 ";
+        keySize = 128;
+        break;
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_768
+    case WC_ML_KEM_768:
+        name = "ML-KEM 768 ";
+        keySize = 192;
+        break;
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_1024
+    case WC_ML_KEM_1024:
+        name = "ML-KEM 1024 ";
+        keySize = 256;
+        break;
+#endif
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef WOLFSSL_KYBER512
     case KYBER512:
         name = "KYBER512 ";
@@ -9488,6 +9528,7 @@ void bench_kyber(int type)
         name = "KYBER1024";
         keySize = 256;
         break;
+#endif
 #endif
     }
 
