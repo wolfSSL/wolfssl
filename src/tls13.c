@@ -9145,41 +9145,12 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         #endif
         #if defined(HAVE_FALCON)
             else if (ssl->hsType == DYNAMIC_TYPE_FALCON) {
-                falcon_key* fkey = (falcon_key*)ssl->hsKey;
-                byte level = 0;
-                if (wc_falcon_get_level(fkey, &level) != 0) {
-                    ERROR_OUT(ALGO_ID_E, exit_scv);
-                }
-                if (level == 1) {
-                    args->sigAlgo = falcon_level1_sa_algo;
-                }
-                else if (level == 5) {
-                    args->sigAlgo = falcon_level5_sa_algo;
-                }
-                else {
-                    ERROR_OUT(ALGO_ID_E, exit_scv);
-                }
+                args->sigAlgo = ssl->buffers.keyType;
             }
         #endif /* HAVE_FALCON */
         #if defined(HAVE_DILITHIUM)
             else if (ssl->hsType == DYNAMIC_TYPE_DILITHIUM) {
-                dilithium_key* fkey = (dilithium_key*)ssl->hsKey;
-                byte level = 0;
-                if (wc_dilithium_get_level(fkey, &level) != 0) {
-                    ERROR_OUT(ALGO_ID_E, exit_scv);
-                }
-                if (level == 2) {
-                    args->sigAlgo = dilithium_level2_sa_algo;
-                }
-                else if (level == 3) {
-                    args->sigAlgo = dilithium_level3_sa_algo;
-                }
-                else if (level == 5) {
-                    args->sigAlgo = dilithium_level5_sa_algo;
-                }
-                else {
-                    ERROR_OUT(ALGO_ID_E, exit_scv);
-                }
+                args->sigAlgo = ssl->buffers.keyType;
             }
         #endif /* HAVE_DILITHIUM */
             else {
@@ -9463,9 +9434,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         #endif /* HAVE_FALCON */
         #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
             if (ssl->hsType == DYNAMIC_TYPE_DILITHIUM) {
-                ret = wc_dilithium_sign_msg(args->sigData, args->sigDataSz,
-                                         sigOut, &args->sigLen,
-                                         (dilithium_key*)ssl->hsKey, ssl->rng);
+                ret = wc_dilithium_sign_ctx_msg(NULL, 0, args->sigData,
+                                                args->sigDataSz, sigOut,
+                                                &args->sigLen,
+                                                (dilithium_key*)ssl->hsKey,
+                                                ssl->rng);
                 args->length = (word16)args->sigLen;
             }
         #endif /* HAVE_DILITHIUM */
@@ -9557,11 +9530,9 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             #endif /* HAVE_FALCON */
             #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_SIGN)
                 if (ssl->hsAltType == DYNAMIC_TYPE_DILITHIUM) {
-                    ret = wc_dilithium_sign_msg(args->altSigData,
-                                                args->altSigDataSz, sigOut,
-                                                &args->altSigLen,
-                                                (dilithium_key*)ssl->hsAltKey,
-                                                ssl->rng);
+                    ret = wc_dilithium_sign_ctx_msg(NULL, 0, args->altSigData,
+                                args->altSigDataSz, sigOut, &args->altSigLen,
+                                (dilithium_key*)ssl->hsAltKey, ssl->rng);
                 }
             #endif /* HAVE_DILITHIUM */
 
@@ -10546,6 +10517,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                                    (void**)&ssl->peerFalconKey);
                     ssl->peerFalconKeyPresent = 0;
                 }
+                else if ((ret >= 0) && (res == 0)) {
+                    WOLFSSL_MSG("Falcon signature verification failed");
+                    ret = SIG_VERIFY_E;
+                }
             }
         #endif /* HAVE_FALCON */
         #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
@@ -10555,9 +10530,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 (ssl->peerDilithiumKeyPresent)) {
                 int res = 0;
                 WOLFSSL_MSG("Doing Dilithium peer cert verify");
-                ret = wc_dilithium_verify_msg(sig, args->sigSz,
-                                              args->sigData, args->sigDataSz,
-                                              &res, ssl->peerDilithiumKey);
+                ret = wc_dilithium_verify_ctx_msg(sig, args->sigSz, NULL, 0,
+                                                  args->sigData, args->sigDataSz,
+                                                  &res, ssl->peerDilithiumKey);
 
                 if ((ret >= 0) && (res == 1)) {
                     /* CLIENT/SERVER: data verified with public key from
@@ -10567,6 +10542,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     FreeKey(ssl, DYNAMIC_TYPE_DILITHIUM,
                             (void**)&ssl->peerDilithiumKey);
                     ssl->peerDilithiumKeyPresent = 0;
+                }
+                else if ((ret >= 0) && (res == 0)) {
+                    WOLFSSL_MSG("Dilithium signature verification failed");
+                    ret = SIG_VERIFY_E;
                 }
             }
         #endif /* HAVE_DILITHIUM */
@@ -10648,6 +10627,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                                 (void**)&ssl->peerFalconKey);
                         ssl->peerFalconKeyPresent = 0;
                     }
+                    else if ((ret >= 0) && (res == 0)) {
+                        WOLFSSL_MSG("Falcon signature verification failed");
+                        ret = SIG_VERIFY_E;
+                    }
                 }
             #endif /* HAVE_FALCON */
             #if defined(HAVE_DILITHIUM) && !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
@@ -10657,9 +10640,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     (ssl->peerDilithiumKeyPresent)) {
                     int res = 0;
                     WOLFSSL_MSG("Doing Dilithium peer cert alt verify");
-                    ret = wc_dilithium_verify_msg(sig, args->altSignatureSz,
-                                        args->altSigData, args->altSigDataSz,
-                                        &res, ssl->peerDilithiumKey);
+                    ret = wc_dilithium_verify_ctx_msg(sig, args->altSignatureSz,
+                                        NULL, 0, args->altSigData,
+                                        args->altSigDataSz, &res,
+                                        ssl->peerDilithiumKey);
 
                     if ((ret >= 0) && (res == 1)) {
                         /* CLIENT/SERVER: data verified with public key from
@@ -10669,6 +10653,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                         FreeKey(ssl, DYNAMIC_TYPE_DILITHIUM,
                                             (void**)&ssl->peerDilithiumKey);
                         ssl->peerDilithiumKeyPresent = 0;
+                    }
+                    else if ((ret >= 0) && (res == 0)) {
+                        WOLFSSL_MSG("Dilithium signature verification failed");
+                        ret = SIG_VERIFY_E;
                     }
                 }
             #endif /* HAVE_DILITHIUM */
