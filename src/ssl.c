@@ -1037,7 +1037,7 @@ static volatile WOLFSSL_GLOBAL int initRefCount = 0;
 static WOLFSSL_GLOBAL wolfSSL_Mutex inits_count_mutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(inits_count_mutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-static WOLFSSL_GLOBAL int inits_count_mutex_valid = 0;
+static WOLFSSL_GLOBAL volatile int inits_count_mutex_valid = 0;
 #endif
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
@@ -5641,12 +5641,48 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 static int wolfSSL_RAND_InitMutex(void);
 #endif
 
+/* If we don't have static mutex initializers, but we do have static atomic
+ * initializers, activate WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS to leverage
+ * the latter.
+ *
+ * See further explanation below in wolfSSL_Init().
+ */
+#ifndef WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+    #if !defined(WOLFSSL_MUTEX_INITIALIZER) && !defined(SINGLE_THREADED) && \
+            defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_ATOMIC_INITIALIZER)
+        #define WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS 1
+    #else
+        #define WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS 0
+    #endif
+#elif defined(WOLFSSL_MUTEX_INITIALIZER) || defined(SINGLE_THREADED)
+    #undef WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+    #define WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS 0
+#endif
+
+#if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+    #ifndef WOLFSSL_ATOMIC_OPS
+        #error WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS requires WOLFSSL_ATOMIC_OPS
+    #endif
+    #ifndef WOLFSSL_ATOMIC_INITIALIZER
+        #error WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS requires WOLFSSL_ATOMIC_INITIALIZER
+    #endif
+    static wolfSSL_Atomic_Int inits_count_mutex_atomic_initing_flag =
+        WOLFSSL_ATOMIC_INITIALIZER(0);
+#endif /* WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS && !WOLFSSL_MUTEX_INITIALIZER */
+
 #if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
 static void AtExitCleanup(void)
 {
     if (initRefCount > 0) {
         initRefCount = 1;
         (void)wolfSSL_Cleanup();
+#if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+        if (inits_count_mutex_valid == 1) {
+            (void)wc_FreeMutex(&inits_count_mutex);
+            inits_count_mutex_valid = 0;
+            inits_count_mutex_atomic_initing_flag = 0;
+        }
+#endif
     }
 }
 #endif
@@ -5663,8 +5699,31 @@ int wolfSSL_Init(void)
 
 #ifndef WOLFSSL_MUTEX_INITIALIZER
     if (inits_count_mutex_valid == 0) {
+    #if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+
+        /* Without this mitigation, if two threads enter wolfSSL_Init() at the
+         * same time, and both see zero inits_count_mutex_valid, then both will
+         * run wc_InitMutex(&inits_count_mutex), leading to process corruption
+         * or (best case) a resource leak.
+         *
+         * When WOLFSSL_ATOMIC_INITIALIZER() is available, we can mitigate this
+         * by use an atomic counting int as a mutex.
+         */
+
+        if (wolfSSL_Atomic_Int_FetchAdd(&inits_count_mutex_atomic_initing_flag,
+                                        1) != 0)
+        {
+            (void)wolfSSL_Atomic_Int_FetchSub(
+                &inits_count_mutex_atomic_initing_flag, 1);
+            return DEADLOCK_AVERTED_E;
+        }
+    #endif /* WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS */
         if (wc_InitMutex(&inits_count_mutex) != 0) {
             WOLFSSL_MSG("Bad Init Mutex count");
+    #if WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+            (void)wolfSSL_Atomic_Int_FetchSub(
+                &inits_count_mutex_atomic_initing_flag, 1);
+    #endif
             return BAD_MUTEX_E;
         }
         else {
@@ -10422,7 +10481,8 @@ int wolfSSL_Cleanup(void)
     #endif
 #endif /* !NO_SESSION_CACHE */
 
-#ifndef WOLFSSL_MUTEX_INITIALIZER
+#if !defined(WOLFSSL_MUTEX_INITIALIZER) && \
+      !WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
     if ((inits_count_mutex_valid == 1) &&
             (wc_FreeMutex(&inits_count_mutex) != 0)) {
         if (ret == WOLFSSL_SUCCESS)
@@ -15729,11 +15789,11 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
         return ASN1_R_HEADER_TOO_LONG;
 #endif
 
-    /* check if error value is in range of wolfSSL errors */
+    /* check if error value is in range of wolfCrypt or wolfSSL errors */
     ret = 0 - ret; /* setting as negative value */
-    /* wolfCrypt range is less than MAX (-100)
-       wolfSSL range is MIN (-300) and lower */
-    if ((ret <= WC_FIRST_E && ret >=  WC_LAST_E) ||
+
+    if ((ret <= WC_SPAN1_FIRST_E && ret >= WC_SPAN1_LAST_E) ||
+        (ret <= WC_SPAN2_FIRST_E && ret >= WC_SPAN2_LAST_E) ||
         (ret <= WOLFSSL_FIRST_E && ret >= WOLFSSL_LAST_E))
     {
         return ret;
