@@ -340,6 +340,7 @@
 #if defined(__GNUC__) && defined(__ATOMIC_RELAXED)
     /* C++ using direct calls to compiler built-in functions */
     typedef volatile int wolfSSL_Atomic_Int;
+    #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_OPS
 #endif
 #else
@@ -347,6 +348,7 @@
     /* Default C Implementation */
     #include <stdatomic.h>
     typedef atomic_int wolfSSL_Atomic_Int;
+    #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_OPS
     #endif /* WOLFSSL_HAVE_ATOMIC_H */
 #endif
@@ -358,6 +360,7 @@
         #include <intrin.h>
     #endif
     typedef volatile long wolfSSL_Atomic_Int;
+    #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
     #define WOLFSSL_ATOMIC_OPS
 #endif
 #endif /* WOLFSSL_NO_ATOMICS */
