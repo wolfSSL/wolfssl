@@ -89866,9 +89866,9 @@ static int error_test(void)
         { -15, -17 },
         { -19, -19 },
         { -26, -27 },
-        { -30, WC_FIRST_E+1 },
+        { -30, WC_SPAN1_FIRST_E + 1 },
 #else
-        { -9, WC_FIRST_E+1 },
+        { -9, WC_SPAN1_FIRST_E + 1 },
 #endif
         { -124, -124 },
         { -166, -169 },
@@ -89879,14 +89879,15 @@ static int error_test(void)
         { -358, -358 },
         { -384, -384 },
         { -466, -499 },
-        { WOLFSSL_LAST_E-1, WOLFSSL_LAST_E-1 }
+        { WOLFSSL_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
+        { WC_SPAN2_LAST_E - 1, MIN_CODE_E }
     };
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
      * string.
      */
-    for (i = 0; i >= WOLFSSL_LAST_E-1; i--) {
+    for (i = 0; i >= MIN_CODE_E; i--) {
         int this_missing = 0;
         for (j = 0; j < (int)XELEM_CNT(missing); ++j) {
             if ((i <= missing[j].first) && (i >= missing[j].last)) {
@@ -89948,8 +89949,7 @@ static int test_wolfSSL_ERR_strings(void)
     ExpectNotNull(err = wolfSSL_ERR_func_error_string(WC_NO_ERR_TRACE((word32)UNSUPPORTED_SUITE)));
     ExpectIntEQ((*err == '\0'), 1);
 
-    /* The value -MIN_CODE_E+2 is PEM_R_PROBLEMS_GETTING_PASSWORD. */
-    ExpectNotNull(err = wolfSSL_ERR_lib_error_string(-MIN_CODE_E+2));
+    ExpectNotNull(err = wolfSSL_ERR_lib_error_string(-WOLFSSL_PEM_R_PROBLEMS_GETTING_PASSWORD_E));
     ExpectIntEQ((*err == '\0'), 1);
 #endif
 #endif

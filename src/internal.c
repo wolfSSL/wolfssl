@@ -25672,7 +25672,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     }
 
     /* pass to wolfCrypt */
-    if (error <= WC_FIRST_E && error >= WC_LAST_E) {
+    if ((error <= WC_SPAN1_FIRST_E && error >= WC_SPAN1_MIN_CODE_E) ||
+        (error <= WC_SPAN2_FIRST_E && error >= WC_SPAN2_MIN_CODE_E))
+    {
         return wc_GetErrorString(error);
     }
 
@@ -25684,7 +25686,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 #endif
     }
 
-    switch ((enum wolfSSL_ErrorCodes)error) {
+    switch ((enum wolfSSL_ErrorCodes)error) { /* // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange) */
 
     case UNSUPPORTED_SUITE :
         return "unsupported cipher suite";

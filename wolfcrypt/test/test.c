@@ -2777,14 +2777,16 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
         int last;
     } missing[] = {
         { -124, -124 },
-        { -166, -169 }
+        { -166, -169 },
+        { WC_SPAN1_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
+        { WC_SPAN2_LAST_E - 1, WC_SPAN2_MIN_CODE_E }
     };
 
     /* Check that all errors have a string and it's the same through the two
      * APIs. Check that the values that are not errors map to the unknown
      * string.
      */
-    for (i = WC_FIRST_E; i >= WC_LAST_E; i--) {
+    for (i = WC_SPAN1_FIRST_E; i >= WC_SPAN2_MIN_CODE_E; i--) {
         int this_missing = 0;
         for (j = 0; j < (int)XELEM_CNT(missing); ++j) {
             if ((i <= missing[j].first) && (i >= missing[j].last)) {

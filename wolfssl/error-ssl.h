@@ -233,7 +233,11 @@ enum wolfSSL_ErrorCodes {
     WOLFSSL_EVP_R_PRIVATE_KEY_DECODE_ERROR = -515,
 
     WOLFSSL_LAST_E               = -515
+
+    /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
+
+wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
 
 /* I/O Callback default errors */
 enum IOerrors {
