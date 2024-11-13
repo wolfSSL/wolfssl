@@ -113,10 +113,10 @@
     } SessionRow;
     #define SIZEOF_SESSION_ROW (sizeof(WOLFSSL_SESSION) + (sizeof(int) * 2))
 
-    static WOLFSSL_GLOBAL SessionRow SessionCache[SESSION_ROWS];
+    static WC_THREADSHARED SessionRow SessionCache[SESSION_ROWS];
 
     #if defined(WOLFSSL_SESSION_STATS) && defined(WOLFSSL_PEAK_SESSIONS)
-        static WOLFSSL_GLOBAL word32 PeakSessions;
+        static WC_THREADSHARED word32 PeakSessions;
     #endif
 
     #ifdef ENABLE_SESSION_CACHE_ROW_LOCK
@@ -124,8 +124,8 @@
     #define SESSION_ROW_WR_LOCK(row)   wc_LockRwLock_Wr(&(row)->row_lock)
     #define SESSION_ROW_UNLOCK(row)    wc_UnLockRwLock(&(row)->row_lock);
     #else
-    static WOLFSSL_GLOBAL wolfSSL_RwLock session_lock; /* SessionCache lock */
-    static WOLFSSL_GLOBAL int session_lock_valid = 0;
+    static WC_THREADSHARED wolfSSL_RwLock session_lock; /* SessionCache lock */
+    static WC_THREADSHARED int session_lock_valid = 0;
     #define SESSION_ROW_RD_LOCK(row)   wc_LockRwLock_Rd(&session_lock)
     #define SESSION_ROW_WR_LOCK(row)   wc_LockRwLock_Wr(&session_lock)
     #define SESSION_ROW_UNLOCK(row)    wc_UnLockRwLock(&session_lock);
@@ -176,15 +176,15 @@
             ClientSession Clients[CLIENT_SESSIONS_PER_ROW];
         } ClientRow;
 
-        static WOLFSSL_GLOBAL ClientRow ClientCache[CLIENT_SESSION_ROWS];
+        static WC_THREADSHARED ClientRow ClientCache[CLIENT_SESSION_ROWS];
                                                      /* Client Cache */
                                                      /* uses session mutex */
 
         /* ClientCache mutex */
-        static WOLFSSL_GLOBAL wolfSSL_Mutex clisession_mutex
+        static WC_THREADSHARED wolfSSL_Mutex clisession_mutex
             WOLFSSL_MUTEX_INITIALIZER_CLAUSE(clisession_mutex);
         #ifndef WOLFSSL_MUTEX_INITIALIZER
-        static WOLFSSL_GLOBAL int clisession_mutex_valid = 0;
+        static WC_THREADSHARED int clisession_mutex_valid = 0;
         #endif
     #endif /* !NO_CLIENT_CACHE */
 
