@@ -1025,6 +1025,47 @@ static int test_wc_LoadStaticMemory_ex(void)
 }
 
 
+static int test_wc_LoadStaticMemory_CTX(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_STATIC_MEMORY) && !defined(NO_WOLFSSL_CLIENT)
+    byte staticMemory[TEST_LSM_STATIC_SIZE];
+    word32 sizeList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_BUCKETS };
+    word32 distList[TEST_LSM_DEF_BUCKETS] = { TEST_LSM_DIST };
+    WOLFSSL_HEAP_HINT* heap;
+    WOLFSSL_CTX *ctx1 = NULL, *ctx2 = NULL;
+
+
+    /* Set the size of the static buffer to exactly the minimum size. */
+    heap = NULL;
+    ExpectIntEQ(wc_LoadStaticMemory_ex(&heap,
+                WOLFMEM_DEF_BUCKETS, sizeList, distList,
+                staticMemory, sizeof(staticMemory), 0, 1),
+            0);
+
+    /* Creating two WOLFSSL_CTX objects from the same heap hint and free'ing
+     * them should not cause issues. */
+    ExpectNotNull((ctx1 = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap)));
+    wolfSSL_CTX_free(ctx1);
+    ExpectNotNull((ctx2 = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap)));
+    wolfSSL_CTX_free(ctx2);
+
+    /* two CTX's at once */
+    ExpectNotNull((ctx1 = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap)));
+    ExpectNotNull((ctx2 = wolfSSL_CTX_new_ex(wolfSSLv23_client_method_ex(heap),
+        heap)));
+    wolfSSL_CTX_free(ctx1);
+    wolfSSL_CTX_free(ctx2);
+
+    wc_UnloadStaticMemory(heap);
+#endif /* WOLFSSL_STATIC_MEMORY */
+    return EXPECT_RESULT();
+}
+
+
 /*----------------------------------------------------------------------------*
  | Platform dependent function test
  *----------------------------------------------------------------------------*/
@@ -97395,6 +97436,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfCrypt_Init),
 
     TEST_DECL(test_wc_LoadStaticMemory_ex),
+    TEST_DECL(test_wc_LoadStaticMemory_CTX),
 
     /* Locking with Compat Mutex */
     TEST_DECL(test_wc_SetMutexCb),
