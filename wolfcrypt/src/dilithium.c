@@ -9524,59 +9524,6 @@ static int mapOidToSecLevel(word32 oid)
     }
 }
 
-/* Get security level from DER encoded key. Returns a positive security level
- * (e.g. WC_ML_DSA_44, etc.) on success, or a negative value on error.
- *
- * Expected ASN.1 Structure:
- *
- * SEQUENCE {                             -- Outer wrapper
- *   version         INTEGER,             -- Version number (usually 0)
- *   algorithm       SEQUENCE {           -- AlgorithmIdentifier
- *     algorithm       OBJECT IDENTIFIER  -- OID identifying Dilithium variant
- *   }
- *   -- Note: Remaining key data after algorithm is ignored for this function
- * }
- */
-static int getSecLevelFromDer(const byte* der, word32 derSz)
-{
-    word32 idx = 0;
-    int    seqSz, algSeqSz;
-    int    ret;
-    word32 oid = 0;
-    int    version;
-
-    if (der == NULL || derSz == 0) {
-        return BAD_FUNC_ARG;
-    }
-
-    /* Parse outer SEQUENCE wrapper and get its size
-     * Advances idx past the SEQUENCE header */
-    if ((ret = GetSequence(der, &idx, &seqSz, derSz)) < 0) {
-        return ret;
-    }
-
-    /* Parse and skip over version INTEGER
-     * Advances idx past the version field */
-    if ((ret = GetMyVersion(der, &idx, &version, derSz)) < 0) {
-        return ret;
-    }
-
-    /* Parse AlgorithmIdentifier SEQUENCE and get its size
-     * Advances idx past the SEQUENCE header */
-    if ((ret = GetSequence(der, &idx, &algSeqSz, derSz)) < 0) {
-        return ret;
-    }
-
-    /* Parse OID value from AlgorithmIdentifier
-     * Advances idx past the OID, stores numeric OID value
-     * oidSigType indicates this is a signature algorithm OID */
-    if ((ret = GetObjectId(der, &idx, &oid, oidSigType, derSz - idx)) < 0) {
-        return ret;
-    }
-
-    return mapOidToSecLevel(oid);
-}
-
 #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 
 /* Decode the DER encoded Dilithium key.
@@ -9613,23 +9560,6 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
         ret = BAD_FUNC_ARG;
     }
 
-    /* If expected security level not set in key, detect it from DER */
-    if (key->level == 0
-#ifdef WOLFSSL_WC_DILITHIUM
-        || key->params == NULL
-#endif
-    ) {
-        int level;
-        level = getSecLevelFromDer(input + *inOutIdx, inSz - *inOutIdx);
-        if (level < 0) {
-            ret = level;
-        }
-        else {
-            /* Set params based on level parsed from DER*/
-            ret = wc_dilithium_set_level(key, level);
-        }
-    }
-
     if (ret == 0) {
         /* Get OID sum for level. */
     #if defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT)
@@ -9657,15 +9587,27 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             keytype = ML_DSA_LEVEL5k;
         }
         else {
-            /* Level not set. */
-            ret = BAD_FUNC_ARG;
+            /* Level not set by caller, decode from DER */
+            keytype = ANONk; /* 0, not a valid key type in this situation*/
         }
     }
 
     if (ret == 0) {
         /* Decode the asymmetric key and get out private and public key data. */
-        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
-            &pubKey, &pubKeyLen, keytype);
+        ret = DecodeAsymKey_Assign_ex(input, inOutIdx, inSz,
+                                      &privKey, &privKeyLen,
+                                      &pubKey, &pubKeyLen, &keytype);
+        if (ret == 0
+#ifdef WOLFSSL_WC_DILITHIUM
+            && key->params == NULL
+#endif
+        ) {
+            /* Set the security level based on the decoded key. */
+            ret = mapOidToSecLevel(keytype);
+            if (ret > 0) {
+                ret = wc_dilithium_set_level(key, ret);
+            }
+        }
     }
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
@@ -9883,25 +9825,6 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         ret = BAD_FUNC_ARG;
     }
 
-#if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
-    /* If expected security level not set in key, detect it from DER */
-    if (key->level == 0
-#ifdef WOLFSSL_WC_DILITHIUM
-        || key->params == NULL
-#endif
-    ) {
-        int level;
-        level = getSecLevelFromDer(input + *inOutIdx, inSz - *inOutIdx);
-        if (level < 0) {
-            ret = level;
-        }
-        else {
-            /* Set params based on level parsed from DER*/
-            ret = wc_dilithium_set_level(key, level);
-        }
-    }
-#endif /* !WOLFSSL_DILITHIUM_NO_ASN1 */
-
     if (ret == 0) {
         /* Try to import the key directly. */
         ret = wc_dilithium_import_public(input, inSz, key);
@@ -9945,13 +9868,25 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 keytype = ML_DSA_LEVEL5k;
             }
             else {
-                /* Level not set. */
-                ret = BAD_FUNC_ARG;
+                /* Level not set by caller, decode from DER */
+                keytype = ANONk; /* 0, not a valid key type in this situation*/
             }
             if (ret == 0) {
                 /* Decode the asymmetric key and get out public key data. */
-                ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
-                    &pubKeyLen, keytype);
+                ret = DecodeAsymKeyPublic_Assign_ex(input, inOutIdx, inSz,
+                                                    &pubKey, &pubKeyLen,
+                                                    &keytype);
+                if (ret == 0
+#ifdef WOLFSSL_WC_DILITHIUM
+                    && key->params == NULL
+#endif
+                ) {
+                    /* Set the security level based on the decoded key. */
+                    ret = mapOidToSecLevel(keytype);
+                    if (ret > 0) {
+                        ret = wc_dilithium_set_level(key, ret);
+                    }
+                }
             }
     #else
             /* Get OID sum for level. */
