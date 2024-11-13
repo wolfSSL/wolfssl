@@ -14572,19 +14572,19 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         case WOLFSSL_P521_ML_KEM_1024:
             return "P521_ML_KEM_1024";
 #elif defined(WOLFSSL_WC_KYBER)
-    #ifdef WOLFSSL_WC_ML_KEM_512
+    #ifndef WOLFSSL_NO_ML_KEM_512
         case WOLFSSL_ML_KEM_512:
             return "ML_KEM_512";
         case WOLFSSL_P256_ML_KEM_512:
             return "P256_ML_KEM_512";
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_768
+    #ifndef WOLFSSL_NO_ML_KEM_768
         case WOLFSSL_ML_KEM_768:
             return "ML_KEM_768";
         case WOLFSSL_P384_ML_KEM_768:
             return "P384_ML_KEM_768";
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_1024
+    #ifndef WOLFSSL_NO_ML_KEM_1024
         case WOLFSSL_ML_KEM_1024:
             return "ML_KEM_1024";
         case WOLFSSL_P521_ML_KEM_1024:

@@ -7984,17 +7984,17 @@ static int kyber_id2type(int id, int *type)
 
     switch (id) {
 #ifndef WOLFSSL_NO_ML_KEM
-    #ifdef WOLFSSL_WC_ML_KEM_512
+    #ifndef WOLFSSL_NO_ML_KEM_512
         case WOLFSSL_ML_KEM_512:
             *type = WC_ML_KEM_512;
             break;
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_768
+    #ifndef WOLFSSL_NO_ML_KEM_768
         case WOLFSSL_ML_KEM_768:
             *type = WC_ML_KEM_768;
             break;
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_1024
+    #ifndef WOLFSSL_NO_ML_KEM_1024
         case WOLFSSL_ML_KEM_1024:
             *type = WC_ML_KEM_1024;
             break;
@@ -9694,15 +9694,15 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
 #ifdef WOLFSSL_HAVE_KYBER
 #ifndef WOLFSSL_NO_ML_KEM
     #ifdef WOLFSSL_WC_KYBER
-        #ifdef WOLFSSL_WC_ML_KEM_512
+        #ifndef WOLFSSL_NO_ML_KEM_512
             case WOLFSSL_ML_KEM_512:
             case WOLFSSL_P256_ML_KEM_512:
         #endif
-        #ifdef WOLFSSL_WC_ML_KEM_768
+        #ifndef WOLFSSL_NO_ML_KEM_768
             case WOLFSSL_ML_KEM_768:
             case WOLFSSL_P384_ML_KEM_768:
         #endif
-        #ifdef WOLFSSL_WC_ML_KEM_1024
+        #ifndef WOLFSSL_NO_ML_KEM_1024
             case WOLFSSL_ML_KEM_1024:
             case WOLFSSL_P521_ML_KEM_1024:
         #endif
@@ -9816,15 +9816,15 @@ static const word16 preferredGroup[] = {
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
 #ifdef WOLFSSL_WC_KYBER
-    #ifdef WOLFSSL_WC_ML_KEM_512
+    #ifndef WOLFSSL_NO_ML_KEM_512
     WOLFSSL_ML_KEM_512,
     WOLFSSL_P256_ML_KEM_512,
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_768
+    #ifndef WOLFSSL_NO_ML_KEM_768
     WOLFSSL_ML_KEM_768,
     WOLFSSL_P384_ML_KEM_768,
     #endif
-    #ifdef WOLFSSL_WC_ML_KEM_1024
+    #ifndef WOLFSSL_NO_ML_KEM_1024
     WOLFSSL_ML_KEM_1024,
     WOLFSSL_P521_ML_KEM_1024,
     #endif
@@ -13484,7 +13484,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 #ifdef WOLFSSL_HAVE_KYBER
 #ifndef WOLFSSL_NO_ML_KEM
 #ifdef WOLFSSL_WC_KYBER
-#ifdef WOLFSSL_WC_ML_KEM_512
+#ifndef WOLFSSL_NO_ML_KEM_512
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_512,
                                      ssl->heap);
@@ -13492,7 +13492,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P256_ML_KEM_512,
                                      ssl->heap);
 #endif
-#ifdef WOLFSSL_WC_ML_KEM_768
+#ifndef WOLFSSL_NO_ML_KEM_768
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_768,
                                      ssl->heap);
@@ -13500,7 +13500,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_P384_ML_KEM_768,
                                      ssl->heap);
 #endif
-#ifdef WOLFSSL_WC_ML_KEM_1024
+#ifndef WOLFSSL_NO_ML_KEM_1024
     if (ret == WOLFSSL_SUCCESS)
         ret = TLSX_UseSupportedCurve(extensions, WOLFSSL_ML_KEM_1024,
                                      ssl->heap);
