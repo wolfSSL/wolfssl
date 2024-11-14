@@ -989,9 +989,9 @@ int fp_div_2_mod_ct(fp_int *a, fp_int *b, fp_int *c)
   fp_digit mask;
   int i;
 
-  mask = 0 - (a->dp[0] & 1);
+  mask = (fp_digit)0 - (a->dp[0] & 1);
   for (i = 0; i < b->used; i++) {
-      fp_digit mask_a = 0 - (i < a->used);
+      fp_digit mask_a = (fp_digit)0 - (i < a->used);
 
       w         += b->dp[i] & mask;
       w         += a->dp[i] & mask_a;
