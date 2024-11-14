@@ -62,6 +62,63 @@
     #include "../../linuxkm/linuxkm_wc_port.h"
 #endif /* WOLFSSL_LINUXKM */
 
+#ifndef WARN_UNUSED_RESULT
+    #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
+        #define WARN_UNUSED_RESULT __must_check
+    #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
+        (defined(__IAR_SYSTEMS_ICC__) && (__VER__ >= 9040001))
+        #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+    #else
+        #define WARN_UNUSED_RESULT
+    #endif
+#endif /* !WARN_UNUSED_RESULT */
+
+#ifndef WC_MAYBE_UNUSED
+    #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__) || \
+            defined(__IAR_SYSTEMS_ICC__)
+        #define WC_MAYBE_UNUSED __attribute__((unused))
+    #else
+        #define WC_MAYBE_UNUSED
+    #endif
+#endif /* !WC_MAYBE_UNUSED */
+
+/* use inlining if compiler allows */
+#ifndef WC_INLINE
+#ifndef NO_INLINE
+    #ifdef _MSC_VER
+        #define WC_INLINE __inline
+    #elif defined(__GNUC__)
+           #ifdef WOLFSSL_VXWORKS
+               #define WC_INLINE __inline__
+           #else
+               #define WC_INLINE inline
+           #endif
+    #elif defined(__IAR_SYSTEMS_ICC__)
+        #define WC_INLINE inline
+    #elif defined(THREADX)
+        #define WC_INLINE _Inline
+    #elif defined(__ghc__)
+        #ifndef __cplusplus
+            #define WC_INLINE __inline
+        #else
+            #define WC_INLINE inline
+        #endif
+    #elif defined(__CCRX__)
+        #define WC_INLINE inline
+    #elif defined(__DCC__)
+        #ifndef __cplusplus
+            #define WC_INLINE __inline__
+        #else
+            #define WC_INLINE inline
+        #endif
+    #else
+        #define WC_INLINE WC_MAYBE_UNUSED
+    #endif
+#else
+    #define WC_INLINE WC_MAYBE_UNUSED
+#endif
+#endif
+
 /* THREADING/MUTEX SECTION */
 #if defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
     /* No system headers required for build. */
@@ -335,7 +392,11 @@
 #endif
 
 #ifndef WOLFSSL_NO_ATOMICS
-#ifdef HAVE_C___ATOMIC
+#ifdef SINGLE_THREADED
+    typedef int wolfSSL_Atomic_Int;
+    #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+    #define WOLFSSL_ATOMIC_OPS
+#elif defined(HAVE_C___ATOMIC)
 #ifdef __cplusplus
 #if defined(__GNUC__) && defined(__ATOMIC_RELAXED)
     /* C++ using direct calls to compiler built-in functions */
@@ -365,34 +426,47 @@
 #endif
 #endif /* WOLFSSL_NO_ATOMICS */
 
-#ifdef WOLFSSL_ATOMIC_OPS
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
     WOLFSSL_API void wolfSSL_Atomic_Int_Init(wolfSSL_Atomic_Int* c, int i);
     /* Fetch* functions return the value of the counter immediately preceding
      * the effects of the function. */
     WOLFSSL_API int wolfSSL_Atomic_Int_FetchAdd(wolfSSL_Atomic_Int* c, int i);
     WOLFSSL_API int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i);
 #else
-    /* Code using these fallback macros needs to arrange its own fallback for
-     * wolfSSL_Atomic_Int, which is never defined if
-     * !defined(WOLFSSL_ATOMIC_OPS).  This forces local awareness of
-     * thread-unsafe semantics.
+    /* Code using these fallback implementations in non-SINGLE_THREADED builds
+     * needs to arrange its own explicit fallback to int for wolfSSL_Atomic_Int,
+     * which is not defined if !defined(WOLFSSL_ATOMIC_OPS) &&
+     * !defined(SINGLE_THREADED).  This forces local awareness of thread-unsafe
+     * semantics.
      */
     #define wolfSSL_Atomic_Int_Init(c, i) (*(c) = (i))
-    #define wolfSSL_Atomic_Int_FetchAdd(c, i) (*(c) += (i), *(c) - (i))
-    #define wolfSSL_Atomic_Int_FetchSub(c, i) (*(c) -= (i), *(c) + (i))
+    static WC_INLINE int wolfSSL_Atomic_Int_FetchAdd(int *c, int i) {
+        int ret = *c;
+        *c += i;
+        return ret;
+    }
+    static WC_INLINE int wolfSSL_Atomic_Int_FetchSub(int *c, int i) {
+        int ret = *c;
+        *c -= i;
+        return ret;
+    }
 #endif
 
 /* Reference counting. */
-typedef struct wolfSSL_Ref {
-#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_ATOMIC_OPS)
+typedef struct wolfSSL_RefWithMutex {
+#if !defined(SINGLE_THREADED)
     wolfSSL_Mutex mutex;
 #endif
-#ifdef WOLFSSL_ATOMIC_OPS
-    wolfSSL_Atomic_Int count;
-#else
     int count;
-#endif
+} wolfSSL_RefWithMutex;
+
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
+typedef struct wolfSSL_Ref {
+    wolfSSL_Atomic_Int count;
 } wolfSSL_Ref;
+#else
+typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
+#endif
 
 #if defined(SINGLE_THREADED) || defined(WOLFSSL_ATOMIC_OPS)
 
@@ -419,10 +493,33 @@ typedef struct wolfSSL_Ref {
 
 #define WOLFSSL_REFCNT_ERROR_RETURN
 
-WOLFSSL_LOCAL void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err);
-WOLFSSL_LOCAL void wolfSSL_RefFree(wolfSSL_Ref* ref);
-WOLFSSL_LOCAL void wolfSSL_RefInc(wolfSSL_Ref* ref, int* err);
-WOLFSSL_LOCAL void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err);
+#define wolfSSL_RefInit wolfSSL_RefWithMutexInit
+#define wolfSSL_RefFree wolfSSL_RefWithMutexFree
+#define wolfSSL_RefInc wolfSSL_RefWithMutexInc
+#define wolfSSL_RefDec wolfSSL_RefWithMutexDec
+
+#endif
+
+#if defined(SINGLE_THREADED)
+
+#define wolfSSL_RefWithMutexInit wolfSSL_RefInit
+#define wolfSSL_RefWithMutexFree wolfSSL_RefFree
+#define wolfSSL_RefWithMutexInc wolfSSL_RefInc
+#define wolfSSL_RefWithMutexLock(ref) 0
+#define wolfSSL_RefWithMutexUnlock(ref) WC_DO_NOTHING
+#define wolfSSL_RefWithMutexDec wolfSSL_RefDec
+
+#else
+
+WOLFSSL_LOCAL void wolfSSL_RefWithMutexInit(wolfSSL_RefWithMutex* ref,
+                                            int* err);
+WOLFSSL_LOCAL void wolfSSL_RefWithMutexFree(wolfSSL_RefWithMutex* ref);
+WOLFSSL_LOCAL void wolfSSL_RefWithMutexInc(wolfSSL_RefWithMutex* ref,
+                                            int* err);
+WOLFSSL_LOCAL int wolfSSL_RefWithMutexLock(wolfSSL_RefWithMutex* ref);
+WOLFSSL_LOCAL void wolfSSL_RefWithMutexUnlock(wolfSSL_RefWithMutex* ref);
+WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec(wolfSSL_RefWithMutex* ref,
+                                            int* isZero, int* err);
 
 #endif
 

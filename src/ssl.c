@@ -1136,7 +1136,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
 {
     int ret;
-    wolfSSL_RefInc(&ctx->ref, &ret);
+    wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     return ((ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
 #else
@@ -11104,18 +11104,29 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     int wolfSSL_CTX_UnloadIntermediateCerts(WOLFSSL_CTX* ctx)
     {
+        int ret;
+
         WOLFSSL_ENTER("wolfSSL_CTX_UnloadIntermediateCerts");
 
         if (ctx == NULL)
             return BAD_FUNC_ARG;
 
+        ret = wolfSSL_RefWithMutexLock(&ctx->ref);
+        if (ret < 0)
+            return ret;
+
         if (ctx->ref.count > 1) {
             WOLFSSL_MSG("ctx object must have a ref count of 1 before "
                         "unloading intermediate certs");
-            return BAD_STATE_E;
+            ret = BAD_STATE_E;
+        }
+        else {
+            ret = wolfSSL_CertManagerUnloadIntermediateCerts(ctx->cm);
         }
 
-        return wolfSSL_CertManagerUnloadIntermediateCerts(ctx->cm);
+        wolfSSL_RefWithMutexUnlock(&ctx->ref);
+
+        return ret;
     }
 
 
@@ -20579,7 +20590,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
         InitSSL_CTX_Suites(ctx);
     }
 
-    wolfSSL_RefInc(&ctx->ref, &ret);
+    wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != 0) {
         /* can only fail on serious stuff, like mutex not working

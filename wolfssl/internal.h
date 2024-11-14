@@ -3724,7 +3724,7 @@ struct WOLFSSL_CTX {
 #ifdef SINGLE_THREADED
     WC_RNG*         rng;          /* to be shared with WOLFSSL w/o locking */
 #endif
-    wolfSSL_Ref     ref;
+    wolfSSL_RefWithMutex ref;
     int         err;              /* error code in case of mutex not created */
 #ifndef NO_DH
     buffer      serverDH_P;
