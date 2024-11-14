@@ -95512,7 +95512,11 @@ static int test_dtls13_frag_ch_pq(void)
     const char *test_str = "test";
     int test_str_size;
     byte buf[255];
+#ifdef WOLFSSL_KYBER_ORIGINAL
     int group = WOLFSSL_KYBER_LEVEL5;
+#else
+    int group = WOLFSSL_ML_KEM_1024;
+#endif
 
     XMEMSET(&test_ctx, 0, sizeof(test_ctx));
     ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
@@ -95522,8 +95526,13 @@ static int test_dtls13_frag_ch_pq(void)
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, group), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(test_memio_do_handshake(ssl_c, ssl_s, 10, NULL), 0);
+#ifdef WOLFSSL_KYBER_ORIGINAL
     ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "KYBER_LEVEL5");
     ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "KYBER_LEVEL5");
+#else
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_c), "ML_KEM_1024");
+    ExpectStrEQ(wolfSSL_get_curve_name(ssl_s), "ML_KEM_1024");
+#endif
     test_str_size = XSTRLEN("test") + 1;
     ExpectIntEQ(wolfSSL_write(ssl_c, test_str, test_str_size), test_str_size);
     ExpectIntEQ(wolfSSL_read(ssl_s, buf, sizeof(buf)), test_str_size);
