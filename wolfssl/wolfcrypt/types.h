@@ -77,6 +77,7 @@ decouple library dependencies with standard string, memory and so on.
     #endif
 
     #ifndef WOLFSSL_TYPES
+        #define WOLFSSL_TYPES
         #ifndef byte
             /* If using C++ C17 or later and getting:
              *   "error: reference to 'byte' is ambiguous", this is caused by
