@@ -1453,7 +1453,8 @@ int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE* store)
 int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type)
 {
-    int ret = WC_NO_ERR_TRACE(WOLFSSL_SUCCESS);
+    int ret = WOLFSSL_SUCCESS;
+
     WOLFSSL_X509 *x509 = NULL;
 
     if (str == NULL || buf == NULL) {
