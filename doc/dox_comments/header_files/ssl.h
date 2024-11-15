@@ -7756,9 +7756,9 @@ int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_CTX_load_verify_buffer(ctx, certBuff, sz, SSL_FILETYPE_PEM);
@@ -7813,9 +7813,9 @@ int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     // Example for force loading an expired certificate
@@ -7869,9 +7869,9 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_CTX_load_verify_chain_buffer_format(ctx,
@@ -7920,9 +7920,9 @@ int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_certificate_buffer(ctx, certBuff, sz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -7970,9 +7970,9 @@ int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte keyBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, keyBuff, sz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -8019,9 +8019,9 @@ int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certChainBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, certChainBuff, sz);
     if (ret != SSL_SUCCESS) {
@@ -8065,10 +8065,10 @@ int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte certBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_use_certificate_buffer(ssl, certBuff, buffSz, SSL_FILETYPE_PEM);
@@ -8114,10 +8114,10 @@ int wolfSSL_use_certificate_buffer(WOLFSSL* ssl, const unsigned char* in,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte keyBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
     ret = wolfSSL_use_PrivateKey_buffer(ssl, keyBuff, buffSz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -8161,10 +8161,10 @@ int wolfSSL_use_PrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte certChainBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
     ret = wolfSSL_use_certificate_chain_buffer(ssl, certChainBuff, buffSz);
     if (ret != SSL_SUCCESS) {
