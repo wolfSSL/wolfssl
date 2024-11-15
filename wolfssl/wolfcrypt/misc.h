@@ -46,12 +46,10 @@ word32 rotlFixed(word32 x, word32 y);
 WOLFSSL_LOCAL
 word32 rotrFixed(word32 x, word32 y);
 
-#ifdef WC_RC2
 WOLFSSL_LOCAL
 word16 rotlFixed16(word16 x, word16 y);
 WOLFSSL_LOCAL
 word16 rotrFixed16(word16 x, word16 y);
-#endif
 
 WOLFSSL_LOCAL
 word32 ByteReverseWord32(word32 value);

@@ -1386,6 +1386,9 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
             if (ext->value.length == sizeof(word16)) {
                 /* if ext->value is already word16, set directly */
                 x509->keyUsage = *(word16*)ext->value.data;
+#ifdef BIG_ENDIAN_ORDER
+                x509->keyUsage = rotlFixed16(x509->keyUsage, 8U);
+#endif
                 x509->keyUsageCrit = (byte)ext->crit;
                 x509->keyUsageSet = 1;
             }
@@ -1406,7 +1409,7 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
     case WC_NID_ext_key_usage:
         if (ext && ext->value.data) {
             if (ext->value.length == sizeof(byte)) {
-                /* if ext->value is already word16, set directly */
+                /* if ext->value is already 1 byte, set directly */
                 x509->extKeyUsage = *(byte*)ext->value.data;
                 x509->extKeyUsageCrit = (byte)ext->crit;
             }

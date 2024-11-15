@@ -506,7 +506,7 @@ typedef struct wolfSSL_RefWithMutex wolfSSL_Ref;
 #define wolfSSL_RefWithMutexFree wolfSSL_RefFree
 #define wolfSSL_RefWithMutexInc wolfSSL_RefInc
 #define wolfSSL_RefWithMutexLock(ref) 0
-#define wolfSSL_RefWithMutexUnlock(ref) WC_DO_NOTHING
+#define wolfSSL_RefWithMutexUnlock(ref) 0
 #define wolfSSL_RefWithMutexDec wolfSSL_RefDec
 
 #else
@@ -517,7 +517,7 @@ WOLFSSL_LOCAL void wolfSSL_RefWithMutexFree(wolfSSL_RefWithMutex* ref);
 WOLFSSL_LOCAL void wolfSSL_RefWithMutexInc(wolfSSL_RefWithMutex* ref,
                                             int* err);
 WOLFSSL_LOCAL int wolfSSL_RefWithMutexLock(wolfSSL_RefWithMutex* ref);
-WOLFSSL_LOCAL void wolfSSL_RefWithMutexUnlock(wolfSSL_RefWithMutex* ref);
+WOLFSSL_LOCAL int wolfSSL_RefWithMutexUnlock(wolfSSL_RefWithMutex* ref);
 WOLFSSL_LOCAL void wolfSSL_RefWithMutexDec(wolfSSL_RefWithMutex* ref,
                                             int* isZero, int* err);
 

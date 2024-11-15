@@ -11124,7 +11124,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ret = wolfSSL_CertManagerUnloadIntermediateCerts(ctx->cm);
         }
 
-        wolfSSL_RefWithMutexUnlock(&ctx->ref);
+        if (wolfSSL_RefWithMutexUnlock(&ctx->ref) != 0)
+            WOLFSSL_MSG("Failed to unlock mutex!");
 
         return ret;
     }

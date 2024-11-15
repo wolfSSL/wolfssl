@@ -1330,9 +1330,9 @@ int wolfSSL_RefWithMutexLock(wolfSSL_RefWithMutex* ref)
     return wc_LockMutex(&ref->mutex);
 }
 
-void wolfSSL_RefWithMutexUnlock(wolfSSL_RefWithMutex* ref)
+int wolfSSL_RefWithMutexUnlock(wolfSSL_RefWithMutex* ref)
 {
-    wc_UnLockMutex(&ref->mutex);
+    return wc_UnLockMutex(&ref->mutex);
 }
 
 void wolfSSL_RefWithMutexDec(wolfSSL_RefWithMutex* ref, int* isZero, int* err)

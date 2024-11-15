@@ -83073,7 +83073,10 @@ static int test_wolfSSL_d2i_X509_REQ(void)
          * (PEM_read_X509_REQ)*/
         ExpectTrue((f = XFOPEN(csrDsaFile, "rb")) != XBADFILE);
         ExpectNull(PEM_read_X509_REQ(XBADFILE, &req, NULL, NULL));
-        ExpectNotNull(PEM_read_X509_REQ(f, &req, NULL, NULL));
+        if (EXPECT_SUCCESS())
+            ExpectNotNull(PEM_read_X509_REQ(f, &req, NULL, NULL));
+        else if (f != XBADFILE)
+            XFCLOSE(f);
         ExpectIntEQ(X509_REQ_verify(req, pub_key), 1);
 
         X509_free(req);
