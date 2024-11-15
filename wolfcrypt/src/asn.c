@@ -40927,7 +40927,7 @@ enum {
     HOLDER_IDX_ISSUERSERIAL_SEQ,
     HOLDER_IDX_GN_SEQ,
     HOLDER_IDX_SERIAL_INT,
-    HOLDER_IDX_GN_SEQ_OPT1,
+    HOLDER_IDX_GN_SEQ_OPT1
 };
 
 /* Number of items in ASN template for an X509 Acert. */
@@ -41003,8 +41003,12 @@ static int DecodeHolder(const byte* input, word32 len, DecodedAcert* acert)
             gn_len = dataASN[HOLDER_IDX_GN_SEQ].length;
             tag = dataASN[HOLDER_IDX_GN_SEQ].tag;
 
-            if (gn_len >= ASN_LONG_LENGTH) { gn_len += 3; }
-            else {gn_len += 2; }
+            if (gn_len >= ASN_LONG_LENGTH) {
+                gn_len += 3;
+            }
+            else {
+                gn_len += 2;
+            }
 
             #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
             printf("debug: decode holder: holder index: %d\n",
@@ -41020,8 +41024,12 @@ static int DecodeHolder(const byte* input, word32 len, DecodedAcert* acert)
             gn_len = dataASN[HOLDER_IDX_GN_SEQ_OPT1].length;
             tag = dataASN[HOLDER_IDX_GN_SEQ_OPT1].tag;
 
-            if (gn_len >= ASN_LONG_LENGTH) { gn_len += 3; }
-            else {gn_len += 2; }
+            if (gn_len >= ASN_LONG_LENGTH) {
+                gn_len += 3;
+            }
+            else {
+                gn_len += 2;
+            }
 
             #ifdef WOLFSSL_DEBUG_ASN_TEMPLATE
             printf("debug: decode holder: holder index: %d\n",
@@ -41138,8 +41146,12 @@ static int DecodeAttCertIssuer(const byte* input, word32 len,
     gn_len = dataASN[ATTCERTISSUER_IDX_GN_SEQ].length;
     tag = dataASN[ATTCERTISSUER_IDX_GN_SEQ].tag;
 
-    if (gn_len >= ASN_LONG_LENGTH) { gn_len += 3; }
-    else { gn_len += 2; }
+    if (gn_len >= ASN_LONG_LENGTH) {
+        gn_len += 3;
+    }
+    else {
+        gn_len += 2;
+    }
 
     ret = DecodeAcertGeneralNames(gn_input, gn_len, tag, cert,
                                   &cert->AttCertIssuerName);
@@ -41172,7 +41184,7 @@ static const ASNItem AcertASN[] =
                                   /* v2Form   [0] V2Form  */
 /* ACINFO_ISSUER_V2FORM */        { 2, ASN_CONTEXT_SPECIFIC | 0, 1, 0, 2 },
                                   /* v1Form   GeneralNames */
-/* ACINFO_ISSUER_V1FORM  */       { 2, ASN_SEQUENCE | 0, 1, 0, 2 },
+/* ACINFO_ISSUER_V1FORM  */       { 2, ASN_SEQUENCE, 1, 0, 2 },
                                   /* signature    AlgorithmIdentifier */
                                   /* AlgorithmIdentifier ::= SEQUENCE */
 /* ACINFO_ALGOID_SEQ */           { 2, ASN_SEQUENCE, 1, 1, 0 },
