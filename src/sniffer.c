@@ -32,10 +32,6 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
-#if !defined(HAVE_THREAD_LS) && !defined(SINGLE_THREADED)
-    #error sniffer requires HAVE_THREAD_LS or SINGLE_THREADED.
-#endif
-
 /* Build Options:
  * WOLFSSL_SNIFFER_NO_RECOVERY: Do not track missed data count.
  */
