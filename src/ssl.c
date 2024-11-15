@@ -1032,12 +1032,12 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
 #endif
 
 /* prevent multiple mutex initializations */
-static volatile WOLFSSL_GLOBAL int initRefCount = 0;
+static volatile WC_THREADSHARED int initRefCount = 0;
 /* init ref count mutex */
-static WOLFSSL_GLOBAL wolfSSL_Mutex inits_count_mutex
+static WC_THREADSHARED wolfSSL_Mutex inits_count_mutex
     WOLFSSL_MUTEX_INITIALIZER_CLAUSE(inits_count_mutex);
 #ifndef WOLFSSL_MUTEX_INITIALIZER
-static WOLFSSL_GLOBAL volatile int inits_count_mutex_valid = 0;
+static WC_THREADSHARED volatile int inits_count_mutex_valid = 0;
 #endif
 
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.

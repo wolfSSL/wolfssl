@@ -227,8 +227,8 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 #endif /* _WIN32 */
 
 
-static WOLFSSL_GLOBAL int TraceOn = 0;         /* Trace is off by default */
-static WOLFSSL_GLOBAL XFILE TraceFile = 0;
+static WC_THREADSHARED int TraceOn = 0;         /* Trace is off by default */
+static WC_THREADSHARED XFILE TraceFile = 0;
 
 
 /* windows uses .rc table for this */
@@ -566,52 +566,52 @@ typedef struct SnifferSession {
 
 
 /* Sniffer Server List and mutex */
-static THREAD_LS_T WOLFSSL_GLOBAL SnifferServer* ServerList = NULL;
+static THREAD_LS_T SnifferServer* ServerList = NULL;
 #ifndef HAVE_C___ATOMIC
-static WOLFSSL_GLOBAL wolfSSL_Mutex ServerListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ServerListMutex);
+static WC_THREADSHARED wolfSSL_Mutex ServerListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ServerListMutex);
 #endif
 
 /* Session Hash Table, mutex, and count */
-static THREAD_LS_T WOLFSSL_GLOBAL SnifferSession* SessionTable[HASH_SIZE];
+static THREAD_LS_T SnifferSession* SessionTable[HASH_SIZE];
 #ifndef HAVE_C___ATOMIC
-static WOLFSSL_GLOBAL wolfSSL_Mutex SessionMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(SessionMutex);
+static WC_THREADSHARED wolfSSL_Mutex SessionMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(SessionMutex);
 #endif
-static THREAD_LS_T WOLFSSL_GLOBAL int SessionCount = 0;
+static THREAD_LS_T int SessionCount = 0;
 
-static WOLFSSL_GLOBAL int RecoveryEnabled    = 0;  /* global switch */
-static WOLFSSL_GLOBAL int MaxRecoveryMemory  = -1;
+static WC_THREADSHARED int RecoveryEnabled    = 0;  /* global switch */
+static WC_THREADSHARED int MaxRecoveryMemory  = -1;
                                            /* per session max recovery memory */
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
 /* Recovery of missed data switches and stats */
-static WOLFSSL_GLOBAL wolfSSL_Mutex RecoveryMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(RecoveryMutex); /* for stats */
+static WC_THREADSHARED wolfSSL_Mutex RecoveryMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(RecoveryMutex); /* for stats */
 /* # of sessions with missed data */
-static WOLFSSL_GLOBAL word32 MissedDataSessions = 0;
+static WC_THREADSHARED word32 MissedDataSessions = 0;
 #endif
 
 /* Connection Info Callback */
-static WOLFSSL_GLOBAL SSLConnCb ConnectionCb;
-static WOLFSSL_GLOBAL void*     ConnectionCbCtx = NULL;
+static WC_THREADSHARED SSLConnCb ConnectionCb;
+static WC_THREADSHARED void*     ConnectionCbCtx = NULL;
 
 #ifdef WOLFSSL_SNIFFER_STATS
 /* Sessions Statistics */
-static WOLFSSL_GLOBAL SSLStats SnifferStats;
-static WOLFSSL_GLOBAL wolfSSL_Mutex StatsMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(StatsMutex);
+static WC_THREADSHARED SSLStats SnifferStats;
+static WC_THREADSHARED wolfSSL_Mutex StatsMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(StatsMutex);
 #endif
 
 #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
-static WOLFSSL_GLOBAL SSLKeyCb KeyCb;
-static WOLFSSL_GLOBAL void*    KeyCbCtx = NULL;
+static WC_THREADSHARED SSLKeyCb KeyCb;
+static WC_THREADSHARED void*    KeyCbCtx = NULL;
 #endif
 
 #ifdef WOLFSSL_SNIFFER_WATCH
 /* Watch Key Callback */
-static WOLFSSL_GLOBAL SSLWatchCb WatchCb;
-static WOLFSSL_GLOBAL void*      WatchCbCtx = NULL;
+static WC_THREADSHARED SSLWatchCb WatchCb;
+static WC_THREADSHARED void*      WatchCbCtx = NULL;
 #endif
 
 #ifdef WOLFSSL_SNIFFER_STORE_DATA_CB
 /* Store Data Callback */
-static WOLFSSL_GLOBAL SSLStoreDataCb StoreDataCb;
+static WC_THREADSHARED SSLStoreDataCb StoreDataCb;
 #endif
 
 
@@ -656,7 +656,7 @@ static void UpdateMissedDataSessions(void)
 
 
 #if defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_ASYNC_CRYPT)
-    static WOLFSSL_GLOBAL int CryptoDeviceId = INVALID_DEVID;
+    static WC_THREADSHARED int CryptoDeviceId = INVALID_DEVID;
 #endif
 
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
@@ -7234,11 +7234,11 @@ typedef struct SecretNode {
 #define WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE HASH_SIZE
 #endif
 
-static THREAD_LS_T WOLFSSL_GLOBAL
+static THREAD_LS_T
 SecretNode*
 secretHashTable[WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE] = {NULL};
 #ifndef HAVE_C___ATOMIC
-static WOLFSSL_GLOBAL wolfSSL_Mutex secretListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(secretListMutex);
+static WC_THREADSHARED wolfSSL_Mutex secretListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(secretListMutex);
 #endif
 
 static unsigned int secretHashFunction(unsigned char* clientRandom);

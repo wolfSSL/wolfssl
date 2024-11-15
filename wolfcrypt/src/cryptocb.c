@@ -65,7 +65,7 @@ typedef struct CryptoCb {
     CryptoDevCallbackFunc cb;
     void* ctx;
 } CryptoCb;
-static WOLFSSL_GLOBAL CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
+static WC_THREADSHARED CryptoCb gCryptoDev[MAX_CRYPTO_DEVID_CALLBACKS];
 
 #ifdef WOLF_CRYPTO_CB_FIND
 static CryptoDevCallbackFind CryptoCb_FindCb = NULL;
