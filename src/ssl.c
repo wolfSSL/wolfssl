@@ -17528,7 +17528,7 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
     #ifdef WOLFSSL_MD2
         { WC_NID_md2, MD2h, oidHashType, "MD2", "md2"},
     #endif
-    #ifdef WOLFSSL_MD5
+    #ifndef NO_MD5
         { WC_NID_md5, MD5h, oidHashType, "MD5", "md5"},
     #endif
     #ifndef NO_SHA

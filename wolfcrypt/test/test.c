@@ -21930,9 +21930,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
 #endif
 
 #ifdef WOLFSSL_TEST_CERT
-#if defined(WOLFSSL_MDK_ARM)
-    #define sizeof(s) XSTRLEN((char *)(s))
-#endif
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_cert_der_1024, (size_t)sizeof_client_cert_der_1024);
@@ -21961,9 +21958,6 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_test(void)
     ERROR_OUT(WC_TEST_RET_ENC_NC, exit_rsa);
 #endif
 
-#ifdef sizeof
-    #undef sizeof
-#endif
     InitDecodedCert(cert, tmp, (word32)bytes, NULL);
 
     ret = ParseCert(cert, CERT_TYPE, NO_VERIFY, NULL);

@@ -19,9 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef wolfssl_test_driver_h
-#define wolfssl_test_driver_h
+#ifndef WOLFSSL_TEST_DRIVER_H
+#define WOLFSSL_TEST_DRIVER_H
 
 void wolfssl_test(void);
 
-#endif /* wolfssl_test_driver_h */
+#endif /* WOLFSSL_TEST_DRIVER_H */

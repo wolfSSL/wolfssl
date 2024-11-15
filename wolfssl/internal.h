@@ -973,6 +973,25 @@
     #define NO_AESGCM_AEAD
 #endif
 
+#if defined(BUILD_TLS_RSA_WITH_AES_128_CCM_8) || \
+    defined(BUILD_TLS_RSA_WITH_AES_256_CCM_8) || \
+    defined(BUILD_TLS_PSK_WITH_AES_128_CCM_8) || \
+    defined(BUILD_TLS_PSK_WITH_AES_128_CCM) || \
+    defined(BUILD_TLS_PSK_WITH_AES_256_CCM_8) || \
+    defined(BUILD_TLS_PSK_WITH_AES_256_CCM) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_128_CCM) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_AES_256_CCM) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8) || \
+    defined(BUILD_TLS_AES_128_CCM_SHA256) || \
+    defined(BUILD_TLS_AES_128_CCM_8_SHA256)
+    #define BUILD_AESCCM
+#else
+    /* No AES-CCM cipher suites available with build */
+    #define NO_AESCCM_AEAD
+#endif
+
 #if defined(BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_128_GCM_SHA256) || \
     defined(BUILD_TLS_ECDHE_ECDSA_WITH_ARIA_256_GCM_SHA384)
     #define BUILD_ARIA
