@@ -2541,9 +2541,6 @@ WOLFSSL_LOCAL int SetAsymKeyDerPublic(const byte* pubKey, word32 pubKeyLen,
     byte* output, word32 outLen, int keyType, int withHeader);
 WOLFSSL_LOCAL int DecodeAsymKeyPublic_Assign(const byte* input,
     word32* inOutIdx, word32 inSz, const byte** pubKey, word32* pubKeyLen,
-    int keyType);
-WOLFSSL_LOCAL int DecodeAsymKeyPublic_Assign_ex(const byte* input,
-    word32* inOutIdx, word32 inSz, const byte** pubKey, word32* pubKeyLen,
     int* keyType);
 
 WOLFSSL_LOCAL int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx,
@@ -2899,9 +2896,6 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
     || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))
 WOLFSSL_LOCAL int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx,
-    word32 inSz, const byte** privKey, word32* privKeyLen, const byte** pubKey,
-    word32* pubKeyLen, int keyType);
-WOLFSSL_LOCAL int DecodeAsymKey_Assign_ex(const byte* input, word32* inOutIdx,
     word32 inSz, const byte** privKey, word32* privKeyLen, const byte** pubKey,
     word32* pubKeyLen, int* inOutKeyType);
 

@@ -35308,7 +35308,7 @@ enum {
     || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))
 
 
-int DecodeAsymKey_Assign_ex(const byte* input, word32* inOutIdx, word32 inSz,
+int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     const byte** privKey, word32* privKeyLen,
     const byte** pubKey, word32* pubKeyLen, int* inOutKeyType)
 {
@@ -35462,15 +35462,6 @@ int DecodeAsymKey_Assign_ex(const byte* input, word32* inOutIdx, word32 inSz,
 #endif /* WOLFSSL_ASN_TEMPLATE */
 }
 
-
-int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
-    const byte** privKey, word32* privKeyLen,
-    const byte** pubKey, word32* pubKeyLen, int keyType)
-{
-    return DecodeAsymKey_Assign_ex(input, inOutIdx, inSz, privKey, privKeyLen,
-                                   pubKey, pubKeyLen, &keyType);
-}
-
 int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     byte* privKey, word32* privKeyLen,
     byte* pubKey, word32* pubKeyLen, int keyType)
@@ -35487,7 +35478,7 @@ int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
 
     if (ret == 0) {
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKeyPtr,
-            &privKeyPtrLen, &pubKeyPtr, &pubKeyPtrLen, keyType);
+            &privKeyPtrLen, &pubKeyPtr, &pubKeyPtrLen, &keyType);
     }
     if ((ret == 0) && (privKeyPtrLen > *privKeyLen)) {
         ret = BUFFER_E;
@@ -35509,7 +35500,7 @@ int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
     return ret;
 }
 
-int DecodeAsymKeyPublic_Assign_ex(const byte* input, word32* inOutIdx, word32 inSz,
+int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     const byte** pubKey, word32* pubKeyLen, int *inOutKeyType)
 {
     int ret = 0;
@@ -35611,13 +35602,6 @@ int DecodeAsymKeyPublic_Assign_ex(const byte* input, word32* inOutIdx, word32 in
 
 }
 
-int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
-    const byte** pubKey, word32* pubKeyLen, int keyType)
-{
-    return DecodeAsymKeyPublic_Assign_ex(input, inOutIdx, inSz, pubKey,
-                                        pubKeyLen, &keyType);
-}
-
 int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
     byte* pubKey, word32* pubKeyLen, int keyType)
 {
@@ -35631,7 +35615,7 @@ int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
 
     if (ret == 0) {
         ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKeyPtr,
-            &pubKeyPtrLen, keyType);
+            &pubKeyPtrLen, &keyType);
     }
     if ((ret == 0) && (pubKeyPtrLen > *pubKeyLen)) {
         ret = BUFFER_E;
