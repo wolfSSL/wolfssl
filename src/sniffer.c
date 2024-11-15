@@ -32,9 +32,14 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#if !defined(HAVE_THREAD_LS) && !defined(SINGLE_THREADED)
+    #error sniffer requires HAVE_THREAD_LS or SINGLE_THREADED.
+#endif
+
 /* Build Options:
  * WOLFSSL_SNIFFER_NO_RECOVERY: Do not track missed data count.
  */
+
 
 /* xctime */
 #ifndef XCTIME
@@ -436,9 +441,7 @@ typedef struct SnifferServer {
     int            port;                         /* server port */
 #ifdef HAVE_SNI
     NamedKey*      namedKeys;                    /* mapping of names and keys */
-#ifndef SINGLE_THREADED
     wolfSSL_Mutex  namedKeysMutex;               /* mutex for namedKey list */
-#endif
 #endif
 #if defined(WOLFSSL_SNIFFER_KEYLOGFILE)
     byte           useKeyLogFile; /* True if session secrets are coming from a
@@ -567,26 +570,24 @@ typedef struct SnifferSession {
 
 
 /* Sniffer Server List and mutex */
-static WC_THREADSHARED SnifferServer* ServerList = NULL;
-#ifndef SINGLE_THREADED
+static THREAD_LS_T SnifferServer* ServerList = NULL;
+#ifndef HAVE_C___ATOMIC
 static WC_THREADSHARED wolfSSL_Mutex ServerListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(ServerListMutex);
 #endif
 
 /* Session Hash Table, mutex, and count */
-static WC_THREADSHARED SnifferSession* SessionTable[HASH_SIZE];
-#ifndef SINGLE_THREADED
+static THREAD_LS_T SnifferSession* SessionTable[HASH_SIZE];
+#ifndef HAVE_C___ATOMIC
 static WC_THREADSHARED wolfSSL_Mutex SessionMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(SessionMutex);
 #endif
-static WC_THREADSHARED int SessionCount = 0;
+static THREAD_LS_T int SessionCount = 0;
 
 static WC_THREADSHARED int RecoveryEnabled    = 0;  /* global switch */
 static WC_THREADSHARED int MaxRecoveryMemory  = -1;
                                            /* per session max recovery memory */
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
 /* Recovery of missed data switches and stats */
-#ifndef SINGLE_THREADED
 static WC_THREADSHARED wolfSSL_Mutex RecoveryMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(RecoveryMutex); /* for stats */
-#endif
 /* # of sessions with missed data */
 static WC_THREADSHARED word32 MissedDataSessions = 0;
 #endif
@@ -598,9 +599,7 @@ static WC_THREADSHARED void*     ConnectionCbCtx = NULL;
 #ifdef WOLFSSL_SNIFFER_STATS
 /* Sessions Statistics */
 static WC_THREADSHARED SSLStats SnifferStats;
-#ifndef SINGLE_THREADED
 static WC_THREADSHARED wolfSSL_Mutex StatsMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(StatsMutex);
-#endif
 #endif
 
 #ifdef WOLFSSL_SNIFFER_KEY_CALLBACK
@@ -623,39 +622,31 @@ static WC_THREADSHARED SSLStoreDataCb StoreDataCb;
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
 static void UpdateMissedDataSessions(void)
 {
-#ifndef SINGLE_THREADED
     wc_LockMutex(&RecoveryMutex);
-#endif
     MissedDataSessions += 1;
-#ifndef SINGLE_THREADED
     wc_UnLockMutex(&RecoveryMutex);
-#endif
 }
 #endif
 
 #ifdef WOLFSSL_SNIFFER_STATS
-    #if defined(WOLFSSL_ATOMIC_OPS) || defined(SINGLE_THREADED)
+    #ifdef HAVE_C___ATOMIC
         #define LOCK_STAT() WC_DO_NOTHING
         #define UNLOCK_STAT() WC_DO_NOTHING
+        #define NOLOCK_ADD_TO_STAT(x,y) ({ TraceStat(#x, y); \
+            __atomic_fetch_add(&x, y, __ATOMIC_RELAXED); })
     #else
         #define LOCK_STAT() wc_LockMutex(&StatsMutex)
         #define UNLOCK_STAT() wc_UnLockMutex(&StatsMutex)
+        #define NOLOCK_ADD_TO_STAT(x,y) ({ TraceStat(#x, y); x += y; })
     #endif
-
-    #define ADD_TO_STAT(x,y) ({ TraceStat(#x, y); wolfSSL_Atomic_Int_FetchAdd(x, y); })
-    #define INC_STAT(x) ADD_TO_STAT(x,1)
-
-    #define ADD_TO_STAT(x,y) do {                  \
-        LOCK_STAT();                               \
-        TraceStat(#x, y);                          \
-        (void)wolfSSL_Atomic_Int_FetchAdd(x, y);   \
-        UNLOCK_STAT();                             \
-    } while (0)
-
-    #define INC_STAT(x) ADD_TO_STAT(x, 1)
+    #define NOLOCK_INC_STAT(x) NOLOCK_ADD_TO_STAT(x,1)
+    #define ADD_TO_STAT(x,y) do { LOCK_STAT(); \
+        NOLOCK_ADD_TO_STAT(x,y); UNLOCK_STAT(); } while (0)
+    #define INC_STAT(x) do { LOCK_STAT(); \
+        NOLOCK_INC_STAT(x); UNLOCK_STAT(); } while (0)
 #endif /* WOLFSSL_SNIFFER_STATS */
 
-#ifdef SINGLE_THREADED
+#ifdef HAVE_C___ATOMIC
     #define LOCK_SESSION() WC_DO_NOTHING
     #define UNLOCK_SESSION() WC_DO_NOTHING
     #define LOCK_SERVER_LIST() WC_DO_NOTHING
@@ -695,16 +686,19 @@ static int addKeyLogSnifferServerHelper(const char* address,
 void ssl_InitSniffer_ex(int devId)
 {
     wolfSSL_Init();
-#if !defined(WOLFSSL_MUTEX_INITIALIZER) && !defined(SINGLE_THREADED)
+#ifndef WOLFSSL_MUTEX_INITIALIZER
+#ifndef HAVE_C___ATOMIC
     wc_InitMutex(&ServerListMutex);
     wc_InitMutex(&SessionMutex);
+#endif
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
     wc_InitMutex(&RecoveryMutex);
 #endif
 #ifdef WOLFSSL_SNIFFER_STATS
+    XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
     wc_InitMutex(&StatsMutex);
 #endif
-#endif /* !WOLFSSL_MUTEX_INITIALIZER && !SINGLE_THREADED */
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #ifdef WOLFSSL_SNIFFER_STATS
     XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
@@ -809,14 +803,10 @@ static void FreeSnifferServer(SnifferServer* srv)
 {
     if (srv) {
 #ifdef HAVE_SNI
-#ifndef SINGLE_THREADED
         wc_LockMutex(&srv->namedKeysMutex);
-#endif
         FreeNamedKeyList(srv->namedKeys);
-#ifndef SINGLE_THREADED
         wc_UnLockMutex(&srv->namedKeysMutex);
         wc_FreeMutex(&srv->namedKeysMutex);
-#endif
 #endif
         wolfSSL_CTX_free(srv->ctx);
     }
@@ -919,16 +909,15 @@ void ssl_FreeSniffer(void)
 #endif /* WOLFSSL_SNIFFER_KEYLOGFILE */
 
 
-#if !defined(WOLFSSL_MUTEX_INITIALIZER) && !defined(SINGLE_THREADED)
+#ifndef WOLFSSL_MUTEX_INITIALIZER
 #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
     wc_FreeMutex(&RecoveryMutex);
 #endif
+#ifndef HAVE_C___ATOMIC
     wc_FreeMutex(&SessionMutex);
     wc_FreeMutex(&ServerListMutex);
-#ifdef WOLFSSL_SNIFFER_STATS
-    wc_FreeMutex(&StatsMutex);
 #endif
-#endif /* !WOLFSSL_MUTEX_INITIALIZER && !SINGLE_THREADED */
+#endif /* !WOLFSSL_MUTEX_INITIALIZER */
 
 #ifdef WOLF_CRYPTO_CB
     #ifdef HAVE_INTEL_QA_SYNC
@@ -1929,14 +1918,10 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
     }
 #ifdef HAVE_SNI
     else {
-#ifndef SINGLE_THREADED
         wc_LockMutex(&sniffer->namedKeysMutex);
-#endif
         namedKey->next = sniffer->namedKeys;
         sniffer->namedKeys = namedKey;
-#ifndef SINGLE_THREADED
         wc_UnLockMutex(&sniffer->namedKeysMutex);
-#endif
     }
 #endif
 
@@ -3975,9 +3960,7 @@ static int LoadNamedKey(SnifferSession* session, const byte* name, word16 nameSz
     WOLFSSL* ssl = session->sslServer;
     NamedKey* namedKey;
 
-#ifndef SINGLE_THREADED
     wc_LockMutex(&session->context->namedKeysMutex);
-#endif
     namedKey = session->context->namedKeys;
     while (namedKey != NULL) {
         if (nameSz == namedKey->nameSz &&
@@ -4005,9 +3988,7 @@ static int LoadNamedKey(SnifferSession* session, const byte* name, word16 nameSz
         }
         namedKey = namedKey->next;
     }
-#ifndef SINGLE_THREADED
     wc_UnLockMutex(&session->context->namedKeysMutex);
-#endif
     return ret;
 }
 #endif
@@ -5080,15 +5061,26 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
     SnifferSession* previous = 0;
     SnifferSession* current;
     word32          row = rowHint;
+#ifndef HAVE_C___ATOMIC
+    int             haveLock = 0;
+#endif
     Trace(REMOVE_SESSION_STR);
 
     if (ipInfo && tcpInfo)
         row = SessionHash(ipInfo, tcpInfo);
+#ifndef HAVE_C___ATOMIC
+    else
+        haveLock = 1;
+#endif
 
     if (row >= HASH_SIZE)
         return;
 
-    LOCK_SESSION();
+#ifndef HAVE_C___ATOMIC
+    if (!haveLock) {
+        LOCK_SESSION();
+    }
+#endif
 
     current = SessionTable[row];
 
@@ -5106,7 +5098,11 @@ static void RemoveSession(SnifferSession* session, IpInfo* ipInfo,
         current  = current->next;
     }
 
-    UNLOCK_SESSION();
+#ifndef HAVE_C___ATOMIC
+    if (!haveLock) {
+        UNLOCK_SESSION();
+    }
+#endif
 }
 
 
@@ -6915,13 +6911,9 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
 
     if (missedData) {
     #ifndef WOLFSSL_SNIFFER_NO_RECOVERY
-        #ifndef SINGLE_THREADED
         wc_LockMutex(&RecoveryMutex);
-        #endif
         *missedData = MissedDataSessions;
-        #ifndef SINGLE_THREADED
         wc_UnLockMutex(&RecoveryMutex);
-        #endif
     #endif
     }
 
@@ -6978,13 +6970,9 @@ int ssl_SetConnectionCtx(void* ctx)
  * returns 0 on success, -1 on error */
 int ssl_ResetStatistics(void)
 {
-#ifndef SINGLE_THREADED
     wc_LockMutex(&StatsMutex);
-#endif
     XMEMSET(&SnifferStats, 0, sizeof(SSLStats));
-#ifndef SINGLE_THREADED
     wc_UnLockMutex(&StatsMutex);
-#endif
     return 0;
 }
 
@@ -7250,15 +7238,16 @@ typedef struct SecretNode {
 #define WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE HASH_SIZE
 #endif
 
-static WC_THREADSHARED SecretNode*
+static THREAD_LS_T
+SecretNode*
 secretHashTable[WOLFSSL_SNIFFER_KEYLOGFILE_HASH_TABLE_SIZE] = {NULL};
-#ifndef SINGLE_THREADED
+#ifndef HAVE_C___ATOMIC
 static WC_THREADSHARED wolfSSL_Mutex secretListMutex WOLFSSL_MUTEX_INITIALIZER_CLAUSE(secretListMutex);
 #endif
 
 static unsigned int secretHashFunction(unsigned char* clientRandom);
 
-#ifdef SINGLE_THREADED
+#ifdef HAVE_C___ATOMIC
     #define LOCK_SECRET_LIST() WC_DO_NOTHING
     #define UNLOCK_SECRET_LIST() WC_DO_NOTHING
 #else
