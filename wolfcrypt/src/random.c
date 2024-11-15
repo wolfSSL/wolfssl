@@ -1377,9 +1377,9 @@ int wc_FreeRng(WC_RNG* rng)
         ret = WC_HW_E;
 #endif
 
-#ifndef USE_WINDOWS_API
+#ifdef XCLOSE
     if(rng->seed.fd != 0 && rng->seed.fd != -1) {
-        close(rng->seed.fd);
+        XCLOSE(rng->seed.fd);
         rng->seed.fd = -1;
     }
 #endif
