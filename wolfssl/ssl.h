@@ -4955,6 +4955,8 @@ WOLFSSL_API int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
 WOLFSSL_API int wolfSSL_i2d_X509_REQ(WOLFSSL_X509* req, unsigned char** out);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_REQ_new(void);
 WOLFSSL_API void wolfSSL_X509_REQ_free(WOLFSSL_X509* req);
+WOLFSSL_API long wolfSSL_X509_REQ_get_version(const WOLFSSL_X509 *req);
+WOLFSSL_API int wolfSSL_X509_REQ_set_version(WOLFSSL_X509 *x, long version);
 WOLFSSL_API int wolfSSL_X509_REQ_sign(WOLFSSL_X509 *req, WOLFSSL_EVP_PKEY *pkey,
                                       const WOLFSSL_EVP_MD *md);
 WOLFSSL_API int wolfSSL_X509_REQ_sign_ctx(WOLFSSL_X509 *req,
