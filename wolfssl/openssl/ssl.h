@@ -801,6 +801,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define X509_CRL_get_version            wolfSSL_X509_CRL_version
 #define X509_load_crl_file              wolfSSL_X509_load_crl_file
 
+#define X509_ACERT_new                  wolfSSL_X509_ACERT_new
 #define X509_ACERT_free                 wolfSSL_X509_ACERT_free
 #define X509_ACERT_get_version          wolfSSL_X509_ACERT_get_version
 #define X509_ACERT_get_signature_nid    wolfSSL_X509_ACERT_get_signature_nid
