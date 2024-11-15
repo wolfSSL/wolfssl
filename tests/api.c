@@ -14130,13 +14130,59 @@ static int test_wolfSSL_X509_ACERT_buffer(void)
     return EXPECT_RESULT();
 }
 
+/* note: when ACERT generation and signing are implemented,
+ * this test will be filled out appropriately.
+ * */
+static int test_wolfSSL_X509_ACERT_new_and_sign(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_ACERT) && !defined(NO_CERTS) && \
+    !defined(NO_RSA) && defined(WC_RSA_PSS) && \
+    (defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_EXTRA))
+    X509_ACERT * x509 = NULL;
+    int          rc = 0;
+
+    x509 = X509_ACERT_new();
+    ExpectNotNull(x509);
+
+    if (x509 != NULL) {
+        wolfSSL_X509_ACERT_free(x509);
+        x509 = NULL;
+    }
+
+    /* Same but with static memory hint. */
+    x509 = wolfSSL_X509_ACERT_new_ex(HEAP_HINT);
+    ExpectNotNull(x509);
+
+    #ifndef NO_WOLFSSL_STUB
+    /* ACERT sign not implemented yet. */
+    if (x509 != NULL) {
+        rc = wolfSSL_X509_ACERT_sign(x509, NULL, NULL);
+        ExpectIntEQ(rc, WOLFSSL_NOT_IMPLEMENTED);
+    }
+    #else
+    (void) rc;
+    #endif /* NO_WOLFSSL_STUB */
+
+    if (x509 != NULL) {
+        wolfSSL_X509_ACERT_free(x509);
+        x509 = NULL;
+    }
+
+#endif
+    return EXPECT_RESULT();
+}
+
 /* Test ACERT support, but with ASN functions only.
+ *
+ * This example acert_ietf has both Holder IssuerSerial
+ * and Holder entityName fields.
  * */
 static int test_wolfSSL_X509_ACERT_asn(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_ACERT) && !defined(NO_CERTS)
-    const byte acert_ietf[] = \
+    const byte     acert_ietf[] = \
     "-----BEGIN ATTRIBUTE CERTIFICATE-----\n"
     "MIICPTCCASUCAQEwN6AWMBGkDzANMQswCQYDVQQDDAJDQQIBAqEdpBswGTEXMBUG\n"
     "A1UEAwwOc2VydmVyLmV4YW1wbGWgLTArpCkwJzElMCMGA1UEAwwcQXR0cmlidXRl\n"
@@ -14153,10 +14199,19 @@ static int test_wolfSSL_X509_ACERT_asn(void)
     "Bw==\n"
     "-----END ATTRIBUTE CERTIFICATE-----\n";
     int            rc = 0;
-    byte           ietf_serial[] = {0x03, 0xb5, 0x90, 0x59, 0x02,
-                                    0xa2, 0xaa, 0xb5, 0x40, 0x21,
-                                    0x44, 0xb8, 0x2c, 0x4f, 0xd9,
-                                    0x80, 0x1b, 0x5f, 0x57, 0xc2};
+    int            n_diff = 0;
+    byte           ietf_serial[] =      {0x03, 0xb5, 0x90, 0x59, 0x02,
+                                         0xa2, 0xaa, 0xb5, 0x40, 0x21,
+                                         0x44, 0xb8, 0x2c, 0x4f, 0xd9,
+                                         0x80, 0x1b, 0x5f, 0x57, 0xc2};
+    byte           holderIssuerName[] = {0x31, 0x0b, 0x30, 0x09, 0x06,
+                                         0x03, 0x55, 0x04, 0x03, 0x0c,
+                                         0x02, 0x43, 0x41};
+    byte           holderEntityName[] = {0x31, 0x17, 0x30, 0x15, 0x06,
+                                         0x03, 0x55, 0x04, 0x03, 0x0c,
+                                         0x0e, 0x73, 0x65, 0x72, 0x76,
+                                         0x65, 0x72, 0x2e, 0x65, 0x78,
+                                         0x61, 0x6d, 0x70, 0x6c, 0x65};
     DerBuffer *    der = NULL;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedAcert * acert = NULL;
@@ -14182,15 +14237,14 @@ static int test_wolfSSL_X509_ACERT_asn(void)
     XMEMSET(acert, 0, sizeof(DecodedAcert));
 #endif
 
+    if (der != NULL && der->buffer != NULL
 #ifdef WOLFSSL_SMALL_STACK
-    if (acert != NULL)
+        && acert != NULL
 #endif
-    {
-        if (der != NULL && der->buffer != NULL) {
-            wc_InitDecodedAcert(acert, der->buffer, der->length, HEAP_HINT);
-            rc = wc_ParseX509Acert(acert, VERIFY_SKIP_DATE);
-            ExpectIntEQ(rc, 0);
-        }
+    ) {
+        wc_InitDecodedAcert(acert, der->buffer, der->length, HEAP_HINT);
+        rc = wc_ParseX509Acert(acert, VERIFY_SKIP_DATE);
+        ExpectIntEQ(rc, 0);
 
         ExpectIntEQ(acert->serialSz, 20);
         ExpectIntEQ(XMEMCMP(acert->serial, ietf_serial, sizeof(ietf_serial)),
@@ -14199,6 +14253,36 @@ static int test_wolfSSL_X509_ACERT_asn(void)
         /* This cert has a 65 byte attributes field. */
         ExpectNotNull(acert->rawAttr);
         ExpectIntEQ(acert->rawAttrLen, 65);
+
+        ExpectNotNull(acert->holderIssuerName);
+        ExpectNotNull(acert->holderEntityName);
+
+        if ((acert->holderIssuerName != NULL) &&
+            (acert->holderEntityName != NULL)) {
+            ExpectNotNull(acert->holderEntityName->name);
+            ExpectNotNull(acert->holderIssuerName->name);
+        }
+
+        if ((acert->holderIssuerName != NULL) &&
+            (acert->holderEntityName != NULL) &&
+            (acert->holderIssuerName->name != NULL) &&
+            (acert->holderEntityName->name != NULL)) {
+            ExpectIntEQ(acert->holderIssuerName->len,
+                        sizeof(holderIssuerName));
+            ExpectIntEQ(acert->holderEntityName->len,
+                        sizeof(holderEntityName));
+
+            ExpectIntEQ(acert->holderIssuerName->type, ASN_DIR_TYPE);
+            ExpectIntEQ(acert->holderEntityName->type, ASN_DIR_TYPE);
+
+            n_diff = XMEMCMP(acert->holderIssuerName->name, holderIssuerName,
+                             sizeof(holderIssuerName));
+            ExpectIntEQ(n_diff, 0);
+
+            n_diff = XMEMCMP(acert->holderEntityName->name, holderEntityName,
+                             sizeof(holderEntityName));
+            ExpectIntEQ(n_diff, 0);
+        }
 
         wc_FreeDecodedAcert(acert);
     }
@@ -14212,6 +14296,7 @@ static int test_wolfSSL_X509_ACERT_asn(void)
 
     if (der != NULL) {
         wc_FreeDer(&der);
+        der = NULL;
     }
 
 #endif
@@ -100422,6 +100507,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_ACERT_verify),
     TEST_DECL(test_wolfSSL_X509_ACERT_misc_api),
     TEST_DECL(test_wolfSSL_X509_ACERT_buffer),
+    TEST_DECL(test_wolfSSL_X509_ACERT_new_and_sign),
     TEST_DECL(test_wolfSSL_X509_ACERT_asn),
 
 #ifndef NO_BIO
