@@ -70,7 +70,7 @@ jobs:
         run: |
           patch -p1 < ../osp/socat/1.8.0.0/socat-1.8.0.0.patch
           autoreconf -vfi
-          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir --enable-default-ipv=4
           make
 
       - name: Run socat tests
