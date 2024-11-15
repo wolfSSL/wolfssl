@@ -2912,7 +2912,7 @@ static WOLFSSL_ASN1_STRING* d2i_ASN1_STRING(WOLFSSL_ASN1_STRING** out,
     byte tag = 0;
     int length = 0;
 
-    WOLFSSL_ENTER("d2i_ASN1_GENERALSTRING");
+    WOLFSSL_ENTER("d2i_ASN1_STRING");
 
     if (src == NULL || *src == NULL || len == 0)
         return NULL;

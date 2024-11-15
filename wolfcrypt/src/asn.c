@@ -38857,7 +38857,34 @@ static int ParseCRL_Extensions(DecodedCRL* dcrl, const byte* buf, word32 idx,
                 }
             #endif
             }
-            /* TODO: Parse CRL Number extension */
+            else if (oid == CRL_NUMBER_OID) {
+            #ifdef WOLFSSL_SMALL_STACK
+                mp_int* m = (mp_int*)XMALLOC(sizeof(*m), NULL,
+                        DYNAMIC_TYPE_BIGINT);
+                if (m == NULL) {
+                    ret = MEMORY_E;
+                }
+            #else
+                mp_int m[1];
+            #endif
+
+                if (ret == 0) {
+                    if (mp_init(m) != MP_OKAY) {
+                        ret = MP_INIT_E;
+                    }
+                }
+                if (ret == 0) {
+                    ret = GetInt(m, buf, &idx, maxIdx);
+                }
+                if (ret == 0) {
+                    dcrl->crlNumber = (int)m->dp[0];
+                }
+
+                mp_free(m);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(m, NULL, DYNAMIC_TYPE_BIGINT);
+            #endif
+            }
             /* TODO: check criticality */
             /* Move index on to next extension. */
             idx += (word32)length;
