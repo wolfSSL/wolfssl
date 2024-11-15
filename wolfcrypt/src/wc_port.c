@@ -1232,7 +1232,7 @@ char* wc_strdup_ex(const char *src, int memType) {
 }
 #endif
 
-#ifdef WOLFSSL_ATOMIC_OPS
+#if defined(WOLFSSL_ATOMIC_OPS) && !defined(SINGLE_THREADED)
 
 #ifdef HAVE_C___ATOMIC
 /* Atomic ops using standard C lib */
@@ -1292,8 +1292,9 @@ int wolfSSL_Atomic_Int_FetchSub(wolfSSL_Atomic_Int* c, int i)
 
 #endif /* WOLFSSL_ATOMIC_OPS */
 
-#if !defined(SINGLE_THREADED) && !defined(WOLFSSL_ATOMIC_OPS)
-void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err)
+#if !defined(SINGLE_THREADED)
+
+void wolfSSL_RefWithMutexInit(wolfSSL_RefWithMutex* ref, int* err)
 {
     int ret = wc_InitMutex(&ref->mutex);
     if (ret != 0) {
@@ -1304,14 +1305,14 @@ void wolfSSL_RefInit(wolfSSL_Ref* ref, int* err)
     *err = ret;
 }
 
-void wolfSSL_RefFree(wolfSSL_Ref* ref)
+void wolfSSL_RefWithMutexFree(wolfSSL_RefWithMutex* ref)
 {
     if (wc_FreeMutex(&ref->mutex) != 0) {
         WOLFSSL_MSG("Failed to free mutex of reference counting!");
     }
 }
 
-void wolfSSL_RefInc(wolfSSL_Ref* ref, int* err)
+void wolfSSL_RefWithMutexInc(wolfSSL_RefWithMutex* ref, int* err)
 {
     int ret = wc_LockMutex(&ref->mutex);
     if (ret != 0) {
@@ -1324,7 +1325,17 @@ void wolfSSL_RefInc(wolfSSL_Ref* ref, int* err)
     *err = ret;
 }
 
-void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err)
+int wolfSSL_RefWithMutexLock(wolfSSL_RefWithMutex* ref)
+{
+    return wc_LockMutex(&ref->mutex);
+}
+
+int wolfSSL_RefWithMutexUnlock(wolfSSL_RefWithMutex* ref)
+{
+    return wc_UnLockMutex(&ref->mutex);
+}
+
+void wolfSSL_RefWithMutexDec(wolfSSL_RefWithMutex* ref, int* isZero, int* err)
 {
     int ret = wc_LockMutex(&ref->mutex);
     if (ret != 0) {
@@ -1341,7 +1352,7 @@ void wolfSSL_RefDec(wolfSSL_Ref* ref, int* isZero, int* err)
     }
     *err = ret;
 }
-#endif
+#endif /* ! SINGLE_THREADED */
 
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */

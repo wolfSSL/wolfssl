@@ -2297,7 +2297,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
         ctx->minDowngrade = WOLFSSL_MIN_DOWNGRADE;
     }
 
-    wolfSSL_RefInit(&ctx->ref, &ret);
+    wolfSSL_RefWithMutexInit(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         WOLFSSL_MSG("Mutex error on CTX init");
@@ -2782,7 +2782,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 #endif
 
     /* decrement CTX reference count */
-    wolfSSL_RefDec(&ctx->ref, &isZero, &ret);
+    wolfSSL_RefWithMutexDec(&ctx->ref, &isZero, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret < 0) {
         /* check error state, if mutex error code then mutex init failed but

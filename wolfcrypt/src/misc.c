@@ -115,8 +115,6 @@ masking and clearing memory logic.
 
 #endif
 
-#ifdef WC_RC2
-
 /* This routine performs a left circular arithmetic shift of <x> by <y> value */
 WC_MISC_STATIC WC_INLINE word16 rotlFixed16(word16 x, word16 y)
 {
@@ -129,8 +127,6 @@ WC_MISC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 {
     return (x >> y) | (x << (sizeof(x) * 8 - y));
 }
-
-#endif /* WC_RC2 */
 
 /* This routine performs a byte swap of 32-bit word value. */
 #if defined(__CCRX__) && !defined(NO_INLINE) /* shortest version for CC-RX */

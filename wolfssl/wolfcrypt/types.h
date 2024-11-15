@@ -318,25 +318,6 @@ typedef struct w64wrapper {
     #define WOLFSSL_MAX_16BIT 0xffffU
     #define WOLFSSL_MAX_32BIT 0xffffffffU
 
-    #ifndef WARN_UNUSED_RESULT
-        #if defined(WOLFSSL_LINUXKM) && defined(__must_check)
-            #define WARN_UNUSED_RESULT __must_check
-        #elif (defined(__GNUC__) && (__GNUC__ >= 4)) || \
-            (defined(__IAR_SYSTEMS_ICC__) && (__VER__ >= 9040001))
-            #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-        #else
-            #define WARN_UNUSED_RESULT
-        #endif
-    #endif /* WARN_UNUSED_RESULT */
-
-    #ifndef WC_MAYBE_UNUSED
-        #if (defined(__GNUC__) && (__GNUC__ >= 4)) || defined(__clang__) || defined(__IAR_SYSTEMS_ICC__)
-            #define WC_MAYBE_UNUSED __attribute__((unused))
-        #else
-            #define WC_MAYBE_UNUSED
-        #endif
-    #endif /* WC_MAYBE_UNUSED */
-
     #ifndef WC_DO_NOTHING
         #define WC_DO_NOTHING do {} while (0)
         #ifdef _MSC_VER
@@ -345,43 +326,6 @@ typedef struct w64wrapper {
              */
             #pragma warning(disable: 4127)
         #endif
-    #endif
-
-    /* use inlining if compiler allows */
-    #ifndef WC_INLINE
-    #ifndef NO_INLINE
-        #ifdef _MSC_VER
-            #define WC_INLINE __inline
-        #elif defined(__GNUC__)
-               #ifdef WOLFSSL_VXWORKS
-                   #define WC_INLINE __inline__
-               #else
-                   #define WC_INLINE inline
-               #endif
-        #elif defined(__IAR_SYSTEMS_ICC__)
-            #define WC_INLINE inline
-        #elif defined(THREADX)
-            #define WC_INLINE _Inline
-        #elif defined(__ghc__)
-            #ifndef __cplusplus
-                #define WC_INLINE __inline
-            #else
-                #define WC_INLINE inline
-            #endif
-        #elif defined(__CCRX__)
-            #define WC_INLINE inline
-        #elif defined(__DCC__)
-            #ifndef __cplusplus
-                #define WC_INLINE __inline__
-            #else
-                #define WC_INLINE inline
-            #endif
-        #else
-            #define WC_INLINE WC_MAYBE_UNUSED
-        #endif
-    #else
-        #define WC_INLINE WC_MAYBE_UNUSED
-    #endif
     #endif
 
     #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
