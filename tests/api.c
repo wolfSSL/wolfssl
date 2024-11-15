@@ -76347,7 +76347,7 @@ static int test_wolfSSL_X509V3_EXT_aia(void)
         sk = NULL;
     }
     /* Extension stack set but empty. */
-    ExpectNotNull(aia = wolfSSL_X509V3_EXT_d2i(ext));
+    ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS *)wolfSSL_X509V3_EXT_d2i(ext));
     wolfSSL_AUTHORITY_INFO_ACCESS_free(aia);
     aia = NULL;
 
@@ -76367,7 +76367,7 @@ static int test_wolfSSL_X509V3_EXT_aia(void)
             node = NULL;
         }
     }
-    ExpectNotNull(aia = wolfSSL_X509V3_EXT_d2i(ext));
+    ExpectNotNull(aia = (WOLFSSL_AUTHORITY_INFO_ACCESS *)wolfSSL_X509V3_EXT_d2i(ext));
     wolfSSL_ACCESS_DESCRIPTION_free(NULL);
 
     wolfSSL_AUTHORITY_INFO_ACCESS_pop_free(aia,
