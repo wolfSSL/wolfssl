@@ -704,7 +704,7 @@ typedef struct sp_ecc_ctx {
         if ((a)->used > 0) {                                                   \
             for (ii = (int)(a)->used - 1; ii >= 0 && (a)->dp[ii] == 0; ii--) { \
             }                                                                  \
-            (a)->used = (mp_size_t)(ii + 1);                                   \
+            (a)->used = (wc_mp_size_t)(ii + 1);                                \
         }                                                                      \
     } while (0)
 
@@ -880,10 +880,10 @@ typedef unsigned int sp_size_t;
 #endif
 
 /* Type for number of digits. */
-#define mp_size_t    sp_size_t
+#define wc_mp_size_t sp_size_t
 #ifdef WOLFSSL_SP_INT_NEGATIVE
     typedef sp_uint8 sp_sign_t;
-    #define mp_sign_t    sp_sign_t
+    #define wc_mp_sign_t sp_sign_t
 #endif
 
 /**
