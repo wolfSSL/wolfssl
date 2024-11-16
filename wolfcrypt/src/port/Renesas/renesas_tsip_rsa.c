@@ -22,8 +22,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #if !defined(NO_RSA) && \
-    (defined(WOLFSSL_RENESAS_TSIP_TLS) || \
-     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
+     defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 
 #include <string.h>
 #include <stdio.h>
@@ -43,11 +42,11 @@
 /* Make RSA key for TSIP and set it to callback ctx
  * Assumes to be called by Crypt Callback
  *
- * size   desired keylenth, in bits. supports 1024 or 2048 bits
+ * size   desired key length, in bits. supports 1024 or 2048 bits
  * ctx    Callback context including pointer to hold generated key
  * return TSIP_SUCCESS(0) on Success, otherwise negative value
  */
-WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
+int wc_tsip_MakeRsaKey(int size, void* ctx)
 {
     e_tsip_err_t     ret;
     TsipUserCtx     *info = (TsipUserCtx*)ctx;
@@ -121,6 +120,7 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
 
                 info->keyflgs_crypt.bits.rsapri1024_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub1024_key_set = 1;
+                info->wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
             }
             else if (size == 2048) {
                 XFREE(info->rsa2048pri_keyIdx, NULL, DYNAMIC_TYPE_RSA_BUFFER);
@@ -158,6 +158,7 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
 
                 info->keyflgs_crypt.bits.rsapri2048_key_set = 1;
                 info->keyflgs_crypt.bits.rsapub2048_key_set = 1;
+                info->wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
             }
         }
 
@@ -167,21 +168,129 @@ WOLFSSL_LOCAL int wc_tsip_MakeRsaKey(int size, void* ctx)
 
     return 0;
 }
+/* Generate TSIP key index if needed
+ *
+ * tuc    struct pointer of TsipUserCtx
+ * return FSP_SUCCESS(0) on Success, otherwise CRYPTOCB_UNAVAILABLE
+ */
+static int tsip_RsakeyImport(TsipUserCtx* tuc)
+{
+    int ret = 0;
+
+    switch (tuc->wrappedKeyType) {
+        case TSIP_KEY_TYPE_RSA1024:
+            if (tuc->keyflgs_crypt.bits.rsapub1024_key_set != 1) {
+                ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
+
+                WOLFSSL_MSG("tsip rsa private key 1024 not set");
+                if (ret != 0)
+                    ret = CRYPTOCB_UNAVAILABLE;
+
+            }
+            break;
+        case TSIP_KEY_TYPE_RSA2048:
+            if (tuc->keyflgs_crypt.bits.rsapub2048_key_set != 1) {
+                ret = tsip_ImportPublicKey(tuc, tuc->wrappedKeyType);
+
+                WOLFSSL_MSG("tsip rsa private key 2048 not set");
+                if (ret != 0)
+                    ret = CRYPTOCB_UNAVAILABLE;
+            }
+            break;
+        default:
+            WOLFSSL_MSG("wrapped private key is not supported");
+            ret = CRYPTOCB_UNAVAILABLE;
+            break;
+    }
+
+    return ret;
+}
+
+/* Perform rsa encryption/decryption by TSIP
+ * Assumes to be called by Crypt Callback
+ *
+ * info struct pointer of wc_CryptoInfo including necessary info
+ * tuc  struct pointer of TsipUserCtx including TSIP key info
+ * return FSP_SUCCESS(0) on Success, otherwise negative value
+ */
+int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
+{
+    int ret;
+    int keySize;
+    int type;
+    tsip_rsa_byte_data_t plain, cipher;
 
 
+    if (info == NULL || tuc == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (tsip_RsakeyImport(tuc) == 0) {
+        type = info->pk.rsa.type;
+        keySize = (int)tuc->wrappedKeyType;
+
+        if ((ret = tsip_hw_lock()) == 0) {
+            if (type == RSA_PUBLIC_ENCRYPT || type == RSA_PUBLIC_DECRYPT) {
+                plain.pdata = (uint8_t*)info->pk.rsa.in;
+                plain.data_length = info->pk.rsa.inLen;
+                cipher.pdata = (uint8_t*)info->pk.rsa.out;
+                cipher.data_length = info->pk.rsa.outLen;
+
+                if (keySize == TSIP_KEY_TYPE_RSA1024) {
+                    ret = R_TSIP_RsaesPkcs1024Encrypt(&plain, &cipher,
+                            tuc->rsa1024pub_keyIdx);
+                }
+                else if (keySize == TSIP_KEY_TYPE_RSA2048) {
+                    ret = R_TSIP_RsaesPkcs2048Encrypt(&plain, &cipher,
+                            tuc->rsa2048pub_keyIdx);
+                }
+                else {
+                    WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
+                                                          "1024 or 2048 bits.");
+                    return BAD_FUNC_ARG;
+                }
+                if (ret == 0) {
+                    info->pk.rsa.outLen = cipher.data_length;
+                }
+            }
+            else if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT)
+            {
+                plain.pdata = (uint8_t*)info->pk.rsa.out;
+                plain.data_length = info->pk.rsa.outLen;
+                cipher.pdata = (uint8_t*)info->pk.rsa.in;
+                cipher.data_length = info->pk.rsa.inLen;
+
+                if (keySize == TSIP_KEY_TYPE_RSA1024) {
+                    ret = R_TSIP_RsaesPkcs1024Decrypt(&cipher, &plain,
+                            tuc->rsa1024pri_keyIdx);
+                }
+                else if (keySize == TSIP_KEY_TYPE_RSA2048) {
+                    ret = R_TSIP_RsaesPkcs2048Decrypt(&cipher, &plain,
+                            tuc->rsa2048pri_keyIdx);
+                }
+                else {
+                    WOLFSSL_MSG("keySize is invalid, neither 128 or 256 bytes, "
+                                                          "1024 or 2048 bits.");
+                    return BAD_FUNC_ARG;
+                }
+                if (ret == 0) {
+                    info->pk.rsa.outLen = plain.data_length;
+                }
+            }
+            tsip_hw_unlock();
+        }
+    }
+    return ret;
+}
 /* Perform Rsa verify by TSIP
  * Assumes to be called by Crypt Callback
  *
- * in     Buffer to hold plaintext
- * inLen  Length of plaintext in bytes
- * out    Buffer to hold generated signature
- * outLen Length of signature in bytes
- * key    rsa key object
- * ctx    The callback context
+ * info struct pointer of wc_CryptoInfo including necessary info
+ * tuc  struct pointer of TsipUserCtx including TSIP key info
  * return FSP_SUCCESS(0) on Success, otherwise negative value
  */
 
-WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
+int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
 {
     int ret = 0;
     e_tsip_err_t    err = TSIP_SUCCESS;
@@ -204,33 +313,7 @@ WOLFSSL_LOCAL int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
            ret = CRYPTOCB_UNAVAILABLE;
     }
 
-    switch (tuc->wrappedKeyType) {
-        case TSIP_KEY_TYPE_RSA1024:
-            if (tuc->keyflgs_crypt.bits.rsapub1024_key_set != 1) {
-                ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
-
-                WOLFSSL_MSG("tsip rsa private key 1024 not set");
-                if (ret != 0)
-                    ret = CRYPTOCB_UNAVAILABLE;
-
-            }
-            break;
-        case TSIP_KEY_TYPE_RSA2048:
-            if (tuc->keyflgs_crypt.bits.rsapub2048_key_set != 1) {
-                ret = tsipImportPublicKey(tuc, tuc->wrappedKeyType);
-
-                WOLFSSL_MSG("tsip rsa private key 2048 not set");
-                if (ret != 0)
-                    ret = CRYPTOCB_UNAVAILABLE;
-            }
-            break;
-        default:
-            WOLFSSL_MSG("wrapped private key is not supported");
-            ret = CRYPTOCB_UNAVAILABLE;
-            break;
-    }
-
-    if (ret == 0) {
+    if (tsip_RsakeyImport(tuc) == 0) {
         hashData.pdata = (uint8_t*)info->pk.rsa.in;
         hashData.data_length = info->pk.rsa.inLen;
         hashData.data_type =

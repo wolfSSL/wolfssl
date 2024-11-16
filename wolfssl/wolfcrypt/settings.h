@@ -997,6 +997,11 @@
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE 64
     #define TSIP_TLS_MASTERSECRET_SIZE       80   /* 20 words */
     #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560 /* in byte  */
+
+    #ifdef WOLF_CRYPTO_CB
+        /* make sure RSA padding callbacks are enabled */
+        #define WOLF_CRYPTO_CB_RSA_PAD
+    #endif
 #endif /* WOLFSSL_RENESAS_TSIP */
 
 #if !defined(WOLFSSL_NO_HASH_RAW) && defined(WOLFSSL_RENESAS_RX64_HASH)

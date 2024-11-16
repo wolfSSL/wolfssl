@@ -277,7 +277,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->handle = NULL;
 #endif
 
-
 #if defined(WOLFSSL_RENESAS_FSPSM)
     key->ctx.wrapped_pri1024_key = NULL;
     key->ctx.wrapped_pub1024_key = NULL;
@@ -285,6 +284,7 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->ctx.wrapped_pub2048_key = NULL;
     key->ctx.keySz = 0;
 #endif
+
     return ret;
 }
 
@@ -3376,24 +3376,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
                                   pad_value, pad_type, hash, mgf, label,
                                   labelSz, sz);
         }
-    #elif defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) || \
-          (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
-           /* SCE needs wrapped key which is passed via
-            * user ctx object of crypt-call back.
-            */
-       #ifdef WOLF_CRYPTO_CB
-            if (key->devId != INVALID_DEVID) {
-                /* SCE supports 1024 and 2048 bits */
-                ret = wc_CryptoCb_Rsa(in, inLen, out,
-                                    &outLen, rsa_type, key, rng);
-                if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
-                    return ret;
-                /* fall-through when unavailable */
-                ret = 0; /* reset error code and try using software */
-            }
-       #endif
-    #endif /* WOLFSSL_SE050 */
+    #endif /* RSA CRYPTO HW */
 
     #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
         if (key->devId != INVALID_DEVID) {
@@ -3563,21 +3546,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             }
             return ret;
         }
-    #elif defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) || \
-          (!defined(WOLFSSL_RENESAS_TSIP_TLS) && \
-            defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY))
-           #ifdef WOLF_CRYPTO_CB
-                if (key->devId != INVALID_DEVID) {
-                    ret = wc_CryptoCb_Rsa(in, inLen, out,
-                                        &outLen, rsa_type, key, rng);
-                    if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
-                      return ret;
-                    /* fall-through when unavailable */
-                    ret = 0; /* reset error code and try using software */
-                }
-           #endif
-
-    #endif /* WOLFSSL_CRYPTOCELL */
+    #endif /* RSA CRYPTO HW */
 
 
 #if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(WOLFSSL_RSA_VERIFY_INLINE) && \
@@ -3611,7 +3580,12 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
 
     case RSA_STATE_DECRYPT_EXPTMOD:
 #if defined(WOLF_CRYPTO_CB) && defined(WOLF_CRYPTO_CB_RSA_PAD)
-    if ((key->devId != INVALID_DEVID) && (rsa_type != RSA_PUBLIC_DECRYPT)) {
+    if ((key->devId != INVALID_DEVID)
+    #if !defined(WOLFSSL_RENESAS_FSPSM_CRYPTONLY) && \
+        !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+    && (rsa_type != RSA_PUBLIC_DECRYPT)
+    #endif
+    ) {
         /* Everything except verify goes to crypto cb if
          * WOLF_CRYPTO_CB_RSA_PAD defined */
         XMEMSET(&padding, 0, sizeof(RsaPadding));

@@ -445,8 +445,8 @@ int wc_CryptoCb_Rsa(const byte* in, word32 inLen, byte* out,
 
 #ifdef WOLF_CRYPTO_CB_RSA_PAD
 int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
-                    word32* outLen, int type, RsaKey* key, WC_RNG* rng,
-                           RsaPadding *padding)
+                       word32* outLen, int type, RsaKey* key, WC_RNG* rng,
+                       RsaPadding *padding)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -458,9 +458,8 @@ int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
     /* locate registered callback */
     dev = wc_CryptoCb_FindDevice(key->devId, WC_ALGO_TYPE_PK);
 
-    if (padding) {
-        switch(padding->pad_type) {
-#ifndef NO_PKCS11_RSA_PKCS
+    if (padding != NULL) {
+        switch (padding->pad_type) {
         case WC_RSA_PKCSV15_PAD:
             pk_type = WC_PK_TYPE_RSA_PKCS;
             break;
@@ -470,7 +469,6 @@ int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
         case WC_RSA_OAEP_PAD:
             pk_type = WC_PK_TYPE_RSA_OAEP;
             break;
-#endif /* NO_PKCS11_RSA_PKCS */
         default:
             pk_type = WC_PK_TYPE_RSA;
         }
@@ -497,7 +495,7 @@ int wc_CryptoCb_RsaPad(const byte* in, word32 inLen, byte* out,
 
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
-#endif
+#endif /* WOLF_CRYPTO_CB_RSA_PAD */
 
 #ifdef WOLFSSL_KEY_GEN
 int wc_CryptoCb_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
