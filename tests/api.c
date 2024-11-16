@@ -98785,6 +98785,189 @@ static int test_dtls13_basic_connection_id(void)
     return EXPECT_RESULT();
 }
 
+static int test_dtls12_missing_finished(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char test_str[] = "test string";
+    char test_buf[sizeof(test_str)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_2_client_method, wolfDTLSv1_2_server_method), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HVR */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server first flight */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client second flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server second flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
+    /* Let's clear the output */
+    test_ctx.c_len = 0;
+    /* Let's send some app data */
+    ExpectIntEQ(wolfSSL_write(ssl_s, test_str, sizeof(test_str)),
+                sizeof(test_str));
+    /* Client should not error out on a missing finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server rtx second flight with finished */
+    ExpectIntEQ(wolfSSL_dtls_got_timeout(ssl_s), 1);
+    /* Client process rest of handshake */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
+
+    /* Let's send some app data */
+    ExpectIntEQ(wolfSSL_write(ssl_s, test_str, sizeof(test_str)),
+                sizeof(test_str));
+    ExpectIntEQ(wolfSSL_read(ssl_c, test_buf, sizeof(test_buf)),
+                sizeof(test_str));
+    ExpectBufEQ(test_buf, test_str, sizeof(test_str));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_dtls13_missing_finished_client(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char test_str[] = "test string";
+    char test_buf[sizeof(test_str)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HRR */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server first flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Let's clear the output */
+    test_ctx.c_len = 0;
+    /* Let's send some app data */
+    ExpectIntEQ(wolfSSL_write(ssl_s, test_str, sizeof(test_str)),
+                sizeof(test_str));
+    /* Client second flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server should not error out on a missing finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client rtx second flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
+    /* Client */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
+    /* Let's send some app data */
+    ExpectIntEQ(wolfSSL_write(ssl_s, test_str, sizeof(test_str)),
+                sizeof(test_str));
+    ExpectIntEQ(wolfSSL_read(ssl_c, test_buf, sizeof(test_buf)),
+                sizeof(test_str));
+    ExpectBufEQ(test_buf, test_str, sizeof(test_str));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
+static int test_dtls13_missing_finished_server(void)
+{
+    EXPECT_DECLS;
+#if defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS13)
+    WOLFSSL_CTX *ctx_c = NULL;
+    WOLFSSL_CTX *ctx_s = NULL;
+    WOLFSSL *ssl_c = NULL;
+    WOLFSSL *ssl_s = NULL;
+    struct test_memio_ctx test_ctx;
+    const char test_str[] = "test string";
+    char test_buf[sizeof(test_str)];
+
+    XMEMSET(&test_ctx, 0, sizeof(test_ctx));
+    ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
+        wolfDTLSv1_3_client_method, wolfDTLSv1_3_server_method), 0);
+
+    /* CH1 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* HRR */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* CH2 */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server first flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client second flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Let's clear the output */
+    test_ctx.s_len = 0;
+    /* We should signal that the handshake is done */
+    ExpectTrue(wolfSSL_is_init_finished(ssl_c));
+    /* Let's send some app data */
+    ExpectIntEQ(wolfSSL_write(ssl_c, test_str, sizeof(test_str)),
+                sizeof(test_str));
+    /* Server should not error out on a missing finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Client rtx second flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_c), -1);
+    ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+    /* Server first flight with finished */
+    ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);
+    /* Let's send some app data */
+    ExpectIntEQ(wolfSSL_write(ssl_c, test_str, sizeof(test_str)),
+                sizeof(test_str));
+    ExpectIntEQ(wolfSSL_read(ssl_s, test_buf, sizeof(test_buf)),
+                sizeof(test_str));
+    ExpectBufEQ(test_buf, test_str, sizeof(test_str));
+
+    wolfSSL_free(ssl_c);
+    wolfSSL_free(ssl_s);
+    wolfSSL_CTX_free(ctx_c);
+    wolfSSL_CTX_free(ctx_s);
+#endif
+    return EXPECT_RESULT();
+}
+
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_TLS13) && \
     defined(HAVE_LIBOQS)
 static void test_tls13_pq_groups_ctx_ready(WOLFSSL_CTX* ctx)
@@ -101220,6 +101403,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_dtls_old_seq_number),
     TEST_DECL(test_dtls12_basic_connection_id),
     TEST_DECL(test_dtls13_basic_connection_id),
+    TEST_DECL(test_dtls12_missing_finished),
+    TEST_DECL(test_dtls13_missing_finished_client),
+    TEST_DECL(test_dtls13_missing_finished_server),
     TEST_DECL(test_tls13_pq_groups),
     TEST_DECL(test_tls13_early_data),
     TEST_DECL(test_tls_multi_handshakes_one_record),
