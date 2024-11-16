@@ -60797,6 +60797,75 @@ static int test_X509_STORE_untrusted_load_cert_to_stack(const char* filename,
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_ALL)
+
+static int last_errcode;
+static int last_errdepth;
+
+static int X509Callback(int ok, X509_STORE_CTX *ctx)
+{
+
+    if (!ok) {
+        last_errcode  = X509_STORE_CTX_get_error(ctx);
+        last_errdepth = X509_STORE_CTX_get_error_depth(ctx);
+    }
+    /* Always return OK to allow verification to continue.*/
+    return 1;
+}
+
+static int test_X509_STORE_InvalidCa(void)
+{
+    EXPECT_DECLS;
+    const char* filename = "./certs/intermediate/ca_false_intermediate/"
+                                                    "test_int_not_cacert.pem";
+    const char* srvfile = "./certs/intermediate/ca_false_intermediate/"
+                                            "test_sign_bynoca_srv.pem";
+    X509_STORE_CTX* ctx = NULL;
+    X509_STORE* str = NULL;
+    XFILE fp = XBADFILE;
+    X509* cert = NULL;
+    STACK_OF(X509)* untrusted = NULL;
+
+    last_errcode = 0;
+    last_errdepth = 0;
+
+    ExpectTrue((fp = XFOPEN(srvfile, "rb"))
+            != XBADFILE);
+    ExpectNotNull(cert = PEM_read_X509(fp, 0, 0, 0 ));
+    if (fp != XBADFILE) {
+        XFCLOSE(fp);
+        fp = XBADFILE;
+    }
+
+    ExpectNotNull(str = X509_STORE_new());
+    ExpectNotNull(ctx = X509_STORE_CTX_new());
+    ExpectNotNull(untrusted = sk_X509_new_null());
+
+    /* create cert chain stack */
+    ExpectIntEQ(test_X509_STORE_untrusted_load_cert_to_stack(filename,
+                untrusted), TEST_SUCCESS);
+
+    X509_STORE_set_verify_cb(str, X509Callback);
+
+    ExpectIntEQ(X509_STORE_load_locations(str,
+                "./certs/intermediate/ca_false_intermediate/test_ca.pem",
+                                                                    NULL), 1);
+
+    ExpectIntEQ(X509_STORE_CTX_init(ctx, str, cert, untrusted), 1);
+    ExpectIntEQ(X509_verify_cert(ctx), 1);
+    ExpectIntEQ(last_errcode, X509_V_ERR_INVALID_CA);
+
+    X509_free(cert);
+    X509_STORE_free(str);
+    X509_STORE_CTX_free(ctx);
+    sk_X509_pop_free(untrusted, NULL);
+
+    return EXPECT_RESULT();
+}
+#endif /* OPENSSL_ALL */
+
+
+
 static int test_X509_STORE_untrusted_certs(const char** filenames, int ret,
         int err, int loadCA)
 {
@@ -100438,6 +100507,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_STORE_CTX),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_ex),
     TEST_DECL(test_X509_STORE_untrusted),
+#if defined(OPENSSL_ALL)
+    TEST_DECL(test_X509_STORE_InvalidCa),
+#endif
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_get_issuer),
     TEST_DECL(test_wolfSSL_X509_STORE_set_flags),

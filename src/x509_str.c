@@ -313,17 +313,24 @@ int GetX509Error(int e)
     }
 }
 
+static void SetupStoreCtxError_ex(WOLFSSL_X509_STORE_CTX* ctx, int ret,
+                                                                    int depth)
+{
+    int error = GetX509Error(ret);
+
+    wolfSSL_X509_STORE_CTX_set_error(ctx, error);
+    wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
+}
+
 static void SetupStoreCtxError(WOLFSSL_X509_STORE_CTX* ctx, int ret)
 {
     int depth = 0;
-    int error = GetX509Error(ret);
 
     /* Set error depth */
     if (ctx->chain)
         depth = (int)ctx->chain->num;
 
-    wolfSSL_X509_STORE_CTX_set_error(ctx, error);
-    wolfSSL_X509_STORE_CTX_set_error_depth(ctx, depth);
+    SetupStoreCtxError_ex(ctx, ret, depth);
 }
 
 static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
@@ -339,7 +346,8 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
         SetupStoreCtxError(ctx, ret);
     #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
         if (ctx->store->verify_cb)
-            ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0, ctx) == 1 ? 0 : ret;
+            ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0, ctx) == 1 ?
+                                                        WOLFSSL_SUCCESS : ret;
     #endif
 
     #ifndef NO_ASN_TIME
@@ -364,7 +372,7 @@ static int X509StoreVerifyCert(WOLFSSL_X509_STORE_CTX* ctx)
         #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
             if (ctx->store->verify_cb)
                 ret = ctx->store->verify_cb(ret >= 0 ? 1 : 0,
-                                            ctx) == 1 ? 0 : -1;
+                                            ctx) == 1 ? WOLFSSL_SUCCESS : -1;
         #endif
         }
     #endif
@@ -467,21 +475,37 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 
             /* We found our issuer in the non-trusted cert list, add it
              * to the CM and verify the current cert against it */
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            /* OpenSSL doesn't allow the cert as CA if it is not CA:TRUE for
+             * intermediate certs.
+             */
+            if (!issuer->isCa) {
+                /* error depth is current depth + 1 */
+                SetupStoreCtxError_ex(ctx, X509_V_ERR_INVALID_CA,
+                                (ctx->chain) ? (int)(ctx->chain->num + 1) : 1);
+                if (ctx->store->verify_cb) {
+                    ret = ctx->store->verify_cb(0, ctx);
+                    if (ret != WOLFSSL_SUCCESS) {
+                        goto exit;
+                    }
+                }
+            } else {
+        #endif
             ret = X509StoreAddCa(ctx->store, issuer,
                                             WOLFSSL_TEMP_CA);
             if (ret != WOLFSSL_SUCCESS) {
                 goto exit;
             }
-
             added = 1;
-
             ret = X509StoreVerifyCert(ctx);
             if (ret != WOLFSSL_SUCCESS) {
                 goto exit;
             }
-
             /* Add it to the current chain and look at the issuer cert next */
             wolfSSL_sk_X509_push(ctx->chain, ctx->current_cert);
+        #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+            }
+        #endif
             ctx->current_cert = issuer;
         }
         else if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {

@@ -5032,8 +5032,13 @@ int AlreadyTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DecodedCert* cert)
         return  ret;
     tp = cm->tpTable[row];
     while (tp) {
-        if (XMEMCMP(cert->subjectHash, tp->subjectNameHash,
+        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
                 SIGNER_DIGEST_SIZE) == 0)
+    #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+         && (XMEMCMP(cert->issuerHash, tp->issuerHash,
+                SIGNER_DIGEST_SIZE) == 0)
+    #endif
+        )
             ret = 1;
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet) {
@@ -5073,8 +5078,13 @@ TrustedPeerCert* GetTrustedPeer(void* vp, DecodedCert* cert)
 
     tp = cm->tpTable[row];
     while (tp) {
-        if (XMEMCMP(cert->subjectHash, tp->subjectNameHash,
+        if ((XMEMCMP(cert->subjectHash, tp->subjectNameHash,
                 SIGNER_DIGEST_SIZE) == 0)
+        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+             && (XMEMCMP(cert->issuerHash, tp->issuerHash,
+                SIGNER_DIGEST_SIZE) == 0)
+        #endif
+            )
             ret = tp;
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet) {
@@ -5340,6 +5350,10 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
         #endif
             XMEMCPY(peerCert->subjectNameHash, cert->subjectHash,
                     SIGNER_DIGEST_SIZE);
+        #ifndef WOLFSSL_NO_ISSUERHASH_TDPEER
+            XMEMCPY(peerCert->issuerHash, cert->issuerHash,
+                    SIGNER_DIGEST_SIZE);
+        #endif
             /* If Key Usage not set, all uses valid. */
             peerCert->next    = NULL;
             cert->subjectCN = 0;
