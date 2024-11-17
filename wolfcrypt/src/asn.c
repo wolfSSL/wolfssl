@@ -40842,8 +40842,10 @@ static int DecodeAcertGeneralNames(const byte* input, word32 sz,
     }
 
     if ((word32)length + idx != sz) {
+        #ifdef DEBUG_WOLFSSL
         WOLFSSL_MSG_EX("error: acert general names: got %d, expected %d",
                        (word32)length + idx, sz);
+        #endif
         return ASN_PARSE_E;
     }
 
@@ -40854,8 +40856,10 @@ static int DecodeAcertGeneralNames(const byte* input, word32 sz,
          * therefore observing WOLFSSL_MAX_ALT_NAMES limit. */
         numNames++;
         if (numNames > WOLFSSL_MAX_ALT_NAMES) {
+            #ifdef DEBUG_WOLFSSL
             WOLFSSL_MSG_EX("error: acert general names: too many names, %d",
                            numNames);
+            #endif
             ret = ASN_ALT_NAME_E;
             break;
         }
