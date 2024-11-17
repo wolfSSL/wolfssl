@@ -32,6 +32,15 @@
 
 #ifndef WOLFCRYPT_ONLY
 
+#if defined(HAVE_ERRNO_H) && defined(WOLFSSL_NO_SOCK) && \
+    (defined(USE_WOLFSSL_IO) || defined(HAVE_HTTP_CLIENT))
+    /* error codes are needed for TranslateIoReturnCode() and
+     * wolfIO_TcpConnect() even if defined(WOLFSSL_NO_SOCK), which inhibits
+     * inclusion of errno.h by wolfio.h.
+     */
+    #include <errno.h>
+#endif
+
 #ifdef _WIN32_WCE
     /* On WinCE winsock2.h must be included before windows.h for socket stuff */
     #include <winsock2.h>
