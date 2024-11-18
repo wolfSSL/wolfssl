@@ -619,6 +619,9 @@ static int PeerIsIpv6(const SOCKADDR_S *peer, XSOCKLENT len)
 
 static int isDGramSock(int sfd)
 {
+#ifdef WOLFSSL_NO_SOCK
+    return 0;
+#else
     int type = 0;
     /* optvalue 'type' is of size int */
     XSOCKLENT length = (XSOCKLENT)sizeof(type);
@@ -630,6 +633,7 @@ static int isDGramSock(int sfd)
     else {
         return 1;
     }
+#endif /* WOLFSSL_NO_SOCK */
 }
 
 /* The receive embedded callback
