@@ -7120,6 +7120,12 @@ static int test_wolfSSL_EVP_CIPHER_CTX(void)
 
 #if defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) || \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
+#ifdef WOLFSSL_HAVE_TLS_UNIQUE
+    byte server_side_msg1[WC_MAX_DIGEST_SIZE]; /* msg sent by server */
+    byte server_side_msg2[WC_MAX_DIGEST_SIZE]; /* msg received from client */
+    byte client_side_msg1[WC_MAX_DIGEST_SIZE]; /* msg sent by client */
+    byte client_side_msg2[WC_MAX_DIGEST_SIZE]; /* msg received from server */
+#endif /* WOLFSSL_HAVE_TLS_UNIQUE */
 
 /* TODO: Expand and enable this when EVP_chacha20_poly1305 is supported */
 #if defined(HAVE_SESSION_TICKET) && defined(OPENSSL_EXTRA) && \
