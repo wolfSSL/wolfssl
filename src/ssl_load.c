@@ -5023,7 +5023,7 @@ int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX *ctx, int derSz,
 int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
 {
     int ret = 1;
-    int derSize;
+    int derSize = 0;
     unsigned char* der = NULL;
     unsigned char* p;
 

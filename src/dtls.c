@@ -716,9 +716,14 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
          * and if they don't match we will error out there anyway. */
         byte modes;
 
+        /* TLSX_PreSharedKey_Parse_ClientHello uses word16 length */
+        if (tlsx.size > WOLFSSL_MAX_16BIT) {
+            ERROR_OUT(BUFFER_ERROR, dtls13_cleanup);
+        }
+
         /* Ask the user for the ciphersuite matching this identity */
         if (TLSX_PreSharedKey_Parse_ClientHello(&parsedExts,
-                tlsx.elements, tlsx.size, ssl->heap) == 0)
+                tlsx.elements, (word16)tlsx.size, ssl->heap) == 0)
             FindPskSuiteFromExt(ssl, parsedExts, &pskInfo, &suites);
         /* Revert to full handshake if PSK parsing failed */
 
@@ -729,8 +734,8 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
                 goto dtls13_cleanup;
             if (!tlsxFound)
                 ERROR_OUT(PSK_KEY_ERROR, dtls13_cleanup);
-            ret = TLSX_PskKeyModes_Parse_Modes(tlsx.elements, tlsx.size,
-                                              client_hello, &modes);
+            ret = TLSX_PskKeyModes_Parse_Modes(tlsx.elements, (word16)tlsx.size,
+                                               client_hello, &modes);
             if (ret != 0)
                 goto dtls13_cleanup;
             if ((modes & (1 << PSK_DHE_KE)) &&

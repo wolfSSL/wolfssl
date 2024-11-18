@@ -948,7 +948,7 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
     int    pemSz = -1;
     enum wc_HashType hashType;
     byte hashBuf[WC_MAX_DIGEST_SIZE];
-    word32 hashSz = -1;
+    word32 hashSz = 0;
 
     WOLFSSL_ENTER("wolfSSL_PEM_write_bio_PKCS7");
 

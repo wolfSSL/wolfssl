@@ -5113,7 +5113,7 @@ static int wc_PKCS7_ParseSignerInfo(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 static int wc_PKCS7_HandleOctetStrings(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                 word32* tmpIdx, word32* idx, int keepContent)
 {
-    int ret, length;
+    int ret, length = 0;
     word32 msgSz, i, contBufSz;
     byte tag;
     byte* msg = NULL;
@@ -5345,7 +5345,7 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* in, word32 inSz,
     byte* in2, word32 in2Sz)
 {
-    word32 idx, maxIdx = inSz, outerContentType, contentTypeSz = 0, totalSz = 0;
+    word32 idx, maxIdx = inSz, outerContentType = 0, contentTypeSz = 0, totalSz = 0;
     int length = 0, version = 0, ret = 0;
     byte* content = NULL;
     byte* contentDynamic = NULL;
@@ -11872,11 +11872,11 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
                                             word32 inSz, word32* idx,
                                             int type)
 {
-    int version = 0, length, ret = 0;
-    word32 contentType;
-    byte* pkiMsg = in;
+    int version = 0, length = 0, ret = 0;
+    word32 contentType= 0;
     word32 pkiMsgSz = inSz;
-    byte  tag;
+    byte*  pkiMsg = in;
+    byte   tag = 0;
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = 0;
 #endif
@@ -13155,7 +13155,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     byte* authAttrib = NULL;
     int authAttribSz = 0;
     word32 localIdx;
-    byte tag;
+    byte tag = 0;
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -14059,7 +14059,7 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(wc_PKCS7* pkcs7, byte* pkiMsg,
 int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                                  byte* output, word32 outputSz)
 {
-    int ret = 0, version, length = 0, haveAttribs = 0;
+    int ret = 0, version = 0, length = 0, haveAttribs = 0;
     word32 idx = 0;
 
 #ifndef NO_PKCS7_STREAM
@@ -14077,7 +14077,7 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 
     byte* pkiMsg = in;
     word32 pkiMsgSz = inSz;
-    byte  tag;
+    byte  tag = 0;
 
     if (pkcs7 == NULL ||
             ((pkcs7->encryptionKey == NULL || pkcs7->encryptionKeySz == 0) &&

@@ -12593,20 +12593,22 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
 
    /* make all single bit entries */
    for (x = 1; x < FP_LUT; x++) {
-      if ((mp_copy(fp_cache[idx].LUT[1<<(x-1)]->x,
-                   fp_cache[idx].LUT[1<<x]->x) != MP_OKAY) ||
-          (mp_copy(fp_cache[idx].LUT[1<<(x-1)]->y,
-                   fp_cache[idx].LUT[1<<x]->y) != MP_OKAY) ||
-          (mp_copy(fp_cache[idx].LUT[1<<(x-1)]->z,
-                   fp_cache[idx].LUT[1<<x]->z) != MP_OKAY)){
+      if ((mp_copy(fp_cache[idx].LUT[(unsigned int)(1 << (x-1))]->x,
+                   fp_cache[idx].LUT[(unsigned int)(1 <<  x   )]->x) != MP_OKAY) ||
+          (mp_copy(fp_cache[idx].LUT[(unsigned int)(1 << (x-1))]->y,
+                   fp_cache[idx].LUT[(unsigned int)(1 <<  x   )]->y) != MP_OKAY) ||
+          (mp_copy(fp_cache[idx].LUT[(unsigned int)(1 << (x-1))]->z,
+                   fp_cache[idx].LUT[(unsigned int)(1 <<  x   )]->z) != MP_OKAY)) {
           err = MP_INIT_E;
           goto errout;
       } else {
 
          /* now double it bitlen/FP_LUT times */
          for (y = 0; y < lut_gap; y++) {
-             if ((err = ecc_projective_dbl_point_safe(fp_cache[idx].LUT[1<<x],
-                            fp_cache[idx].LUT[1<<x], a, modulus, mp)) != MP_OKAY) {
+             if ((err = ecc_projective_dbl_point_safe(
+                                      fp_cache[idx].LUT[(unsigned int)(1<<x)],
+                                      fp_cache[idx].LUT[(unsigned int)(1<<x)],
+                                      a, modulus, mp)) != MP_OKAY) {
                  goto errout;
              }
          }
@@ -13173,7 +13175,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
                 ecc_point* C, mp_int* a, mp_int* modulus, void* heap)
 {
    int  idx1 = -1, idx2 = -1, err, mpInit = 0;
-   mp_digit mp;
+   mp_digit mp = 0;
 #ifdef WOLFSSL_SMALL_STACK
    mp_int   *mu = (mp_int *)XMALLOC(sizeof *mu, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 
@@ -13321,7 +13323,7 @@ int wc_ecc_mulmod_ex(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 {
 #if !defined(WOLFSSL_SP_MATH)
    int   idx, err = MP_OKAY;
-   mp_digit mp;
+   mp_digit mp = 0;
 #ifdef WOLFSSL_SMALL_STACK
    mp_int   *mu = NULL;
 #else
@@ -13497,7 +13499,7 @@ int wc_ecc_mulmod_ex2(const mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 {
 #if !defined(WOLFSSL_SP_MATH)
    int   idx, err = MP_OKAY;
-   mp_digit mp;
+   mp_digit mp = 0;
 #ifdef WOLFSSL_SMALL_STACK
    mp_int   *mu = NULL;
 #else

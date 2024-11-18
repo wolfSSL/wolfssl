@@ -3562,7 +3562,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
         const WOLFSSL_EVP_MD *mgf1Hash, int saltLen)
 {
     int ret = 1;
-    enum wc_HashType hashType;
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
     int hashLen = 0;
     int emLen = 0;
     int mgf = 0;
@@ -7876,7 +7876,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int err = 0;
     byte* der = NULL;
-    word32 derSz;
+    word32 derSz = 0;
     DhKey* key = NULL;
 
     (void)heap;
@@ -7933,7 +7933,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
 int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
 {
     int ret = 1;
-    int derSz;
+    int derSz = 0;
     byte* derBuf = NULL;
     void* heap = NULL;
 
@@ -16501,7 +16501,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
 {
     int ret = 0;
     int algId = 0;
-    const byte* curveOid;
+    const byte* curveOid = 0;
     word32 oidSz = 0;
 
     /* Get the details of the private key. */
@@ -16587,7 +16587,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
     int ret = 0;
     char password[NAME_SZ];
     byte* key = NULL;
-    word32 keySz;
+    word32 keySz = 0;
     int type = PKCS8_PRIVATEKEY_TYPE;
 
     /* Validate parameters. */

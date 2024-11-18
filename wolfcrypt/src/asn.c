@@ -13548,7 +13548,7 @@ static int GenerateDNSEntryIPString(DNS_entry* entry, void* heap)
 static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
 {
     int i, j, ret   = 0;
-    int nameSz      = 0;
+    word16 nameSz   = 0;
 #if !defined(WOLFCRYPT_ONLY) && defined(OPENSSL_EXTRA)
     int nid         = 0;
 #endif
@@ -13557,7 +13557,7 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     word32 idx      = 0;
     word16 tmpName[MAX_OID_SZ];
     char   oidName[MAX_OID_SZ];
-    char*  finalName;
+    char*  finalName = NULL;
 
     if (entry == NULL || entry->type != ASN_RID_TYPE) {
         return BAD_FUNC_ARG;
@@ -13615,7 +13615,10 @@ static int GenerateDNSEntryRIDString(DNS_entry* entry, void* heap)
     }
 
     if (ret == 0) {
-        nameSz = (int)XSTRLEN((const char*)finalName);
+        nameSz = (word16)XSTRLEN((const char*)finalName);
+        if (nameSz > MAX_OID_SZ) {
+            return BUFFER_E;
+        }
 
         entry->ridString = (char*)XMALLOC((word32)(nameSz + 1), heap,
                 DYNAMIC_TYPE_ALTNAME);
