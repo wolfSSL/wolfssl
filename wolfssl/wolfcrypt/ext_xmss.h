@@ -1,6 +1,6 @@
 /* ext_xmss.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -22,12 +22,9 @@
 #ifndef EXT_XMSS_H
 #define EXT_XMSS_H
 
-#ifdef WOLFSSL_HAVE_XMSS
-#include <wolfssl/wolfcrypt/xmss.h>
+#if defined(WOLFSSL_HAVE_XMSS) && defined(HAVE_LIBXMSS)
 
-#if !defined(HAVE_LIBXMSS)
-    #error "This code requires libxmss"
-#endif
+#include <wolfssl/wolfcrypt/xmss.h>
 
 #include <xmss.h>
 #include <params.h>

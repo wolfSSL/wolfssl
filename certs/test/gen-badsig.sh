@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 generate() {
     # read in certificate and alter the last part of the signature

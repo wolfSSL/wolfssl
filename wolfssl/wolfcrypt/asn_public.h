@@ -1,6 +1,6 @@
 /* asn_public.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -148,6 +148,7 @@ enum CertType {
     CA_TYPE,
     ECC_PRIVATEKEY_TYPE,
     DSA_PRIVATEKEY_TYPE,
+    ACERT_TYPE,
     CERTREQ_TYPE,
     DSA_TYPE,
     ECC_TYPE,
@@ -177,7 +178,8 @@ enum CertType {
     SPHINCS_SMALL_LEVEL3_TYPE,
     SPHINCS_SMALL_LEVEL5_TYPE,
     ECC_PARAM_TYPE,
-    CHAIN_CERT_TYPE
+    CHAIN_CERT_TYPE,
+    PKCS7_TYPE
 };
 
 
@@ -360,7 +362,6 @@ typedef struct WOLFSSL_ASN1_INTEGER {
 #endif
 #endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
-#if defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef WOLFSSL_MULTI_ATTRIB
 #ifndef CTC_MAX_ATTRIB
     #define CTC_MAX_ATTRIB 4
@@ -374,7 +375,6 @@ typedef struct NameAttrib {
     char value[CTC_NAME_SIZE];   /* name */
 } NameAttrib;
 #endif /* WOLFSSL_MULTI_ATTRIB */
-#endif /* WOLFSSL_CERT_GEN || OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef WOLFSSL_CUSTOM_OID
 typedef struct CertOidField {

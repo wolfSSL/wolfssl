@@ -24,3 +24,7 @@ EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/common/user_settings.h
 EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/smc/.cproject
 EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/smc/.project
 EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/smc/smc.scfg
+EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/tools/README.md
+EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/tools/example_keys/generate_SignedCA.sh
+EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/tools/example_keys/rsa_private.pem
+EXTRA_DIST+= IDE/Renesas/e2studio/RX65N/GR-ROSE/tools/example_keys/rsa_public.pem

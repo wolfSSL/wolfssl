@@ -629,7 +629,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
         const LmsParams* params = key->params;
 
         /* Allocate memory for the private key data. */
-        key->priv_data = XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
+        key->priv_data = (byte *)XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
             params->height, params->p, params->rootLevels, params->cacheBits),
             key->heap, DYNAMIC_TYPE_LMS);
         /* Check pointer is valid. */
@@ -728,7 +728,7 @@ int wc_LmsKey_Reload(LmsKey* key)
         const LmsParams* params = key->params;
 
         /* Allocate memory for the private key data. */
-        key->priv_data = XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
+        key->priv_data = (byte *)XMALLOC(LMS_PRIV_DATA_LEN(params->levels,
             params->height, params->p, params->rootLevels, params->cacheBits),
             key->heap, DYNAMIC_TYPE_LMS);
         /* Check pointer is valid. */

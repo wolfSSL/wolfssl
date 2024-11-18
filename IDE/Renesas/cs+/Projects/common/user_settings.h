@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -25,11 +25,11 @@
 #define NO_DEV_RANDOM
 #define USE_CERT_BUFFERS_2048
 #define SIZEOF_LONG_LONG 8
-#define NO_WOLFSSL_DIR 
+#define NO_WOLFSSL_DIR
 #define WOLFSSL_NO_CURRDIR
 #define WOLFSSL_LOG_PRINTF
 #define NO_WOLFSSL_STUB
-#define NO_DYNAMIC_ARRAY       /* for compilers not allowed dynamic size array */ 
+#define NO_DYNAMIC_ARRAY      /* for compilers not allowed dynamic size array */
 #define WOLFSSL_SMALL_STACK
 #define WOLFSSL_DH_CONST
 

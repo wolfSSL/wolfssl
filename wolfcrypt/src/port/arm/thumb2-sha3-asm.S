@@ -1,6 +1,6 @@
 /* thumb2-sha3-asm
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1157,7 +1157,7 @@ L_sha3_thumb2_begin:
 	STR	lr, [r0, #164]
 	LDR	r2, [sp, #200]
 	SUBS	r2, r2, #0x1
-#ifdef __GNUC__
+#if defined(__GNUC__) || defined(__ICCARM__) || defined(__IAR_SYSTEMS_ICC__)
 	BNE	L_sha3_thumb2_begin
 #else
 	BNE.W	L_sha3_thumb2_begin

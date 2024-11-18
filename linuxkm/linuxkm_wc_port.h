@@ -1,6 +1,6 @@
 /* linuxkm_wc_port.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -461,8 +461,17 @@
         struct Signer *GetCA(void *signers, unsigned char *hash);
         #ifndef NO_SKID
             struct Signer *GetCAByName(void* signers, unsigned char *hash);
-        #endif
-    #endif
+            #ifdef HAVE_OCSP
+                struct Signer* GetCAByKeyHash(void* vp, const unsigned char* keyHash);
+            #endif /* HAVE_OCSP */
+            #ifdef WOLFSSL_AKID_NAME
+                struct Signer* GetCAByAKID(void* vp, const unsigned char* issuer,
+                                           unsigned int issuerSz,
+                                           const unsigned char* serial,
+                                           unsigned int serialSz);
+            #endif
+        #endif /* NO_SKID */
+    #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
         #error "compiling -fPIE requires PIE redirect table."
@@ -533,7 +542,13 @@
 
         const unsigned char *_ctype;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+        typeof(kmalloc_noprof) *kmalloc_noprof;
+        typeof(krealloc_noprof) *krealloc_noprof;
+        typeof(kzalloc_noprof) *kzalloc_noprof;
+        typeof(__kvmalloc_node_noprof) *__kvmalloc_node_noprof;
+        typeof(__kmalloc_cache_noprof) *__kmalloc_cache_noprof;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
         typeof(kmalloc_noprof) *kmalloc_noprof;
         typeof(krealloc_noprof) *krealloc_noprof;
         typeof(kzalloc_noprof) *kzalloc_noprof;
@@ -623,7 +638,17 @@
         typeof(GetCA) *GetCA;
         #ifndef NO_SKID
         typeof(GetCAByName) *GetCAByName;
-        #endif
+        #ifdef HAVE_OCSP
+        typeof(GetCAByKeyHash) *GetCAByKeyHash;
+        #endif /* HAVE_OCSP */
+        #endif /* NO_SKID */
+        #ifdef WOLFSSL_AKID_NAME
+        typeof(GetCAByAKID) *GetCAByAKID;
+        #endif /* WOLFSSL_AKID_NAME */
+        #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
+
+        #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+        typeof(dump_stack) *dump_stack;
         #endif
 
         const void *_last_slot;
@@ -685,7 +710,14 @@
 
     #define _ctype (wolfssl_linuxkm_get_pie_redirect_table()->_ctype)
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+    /* see include/linux/alloc_tag.h and include/linux/slab.h */
+    #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
+    #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
+    #define kzalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kzalloc_noprof)
+    #define __kvmalloc_node_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kvmalloc_node_noprof)
+    #define __kmalloc_cache_noprof (wolfssl_linuxkm_get_pie_redirect_table()->__kmalloc_cache_noprof)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
     /* see include/linux/alloc_tag.h and include/linux/slab.h */
     #define kmalloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->kmalloc_noprof)
     #define krealloc_noprof (wolfssl_linuxkm_get_pie_redirect_table()->krealloc_noprof)
@@ -761,7 +793,17 @@
         #define GetCA (wolfssl_linuxkm_get_pie_redirect_table()->GetCA)
         #ifndef NO_SKID
             #define GetCAByName (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByName)
+            #ifdef HAVE_OCSP
+                #define GetCAByKeyHash (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByKeyHash)
+            #endif /* HAVE_OCSP */
+        #endif /* NO_SKID */
+        #ifdef WOLFSSL_AKID_NAME
+            #define GetCAByAKID (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByAKID)
         #endif
+    #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
+
+    #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+        #define dump_stack (wolfssl_linuxkm_get_pie_redirect_table()->dump_stack)
     #endif
 
     #endif /* __PIE__ */

@@ -1,6 +1,6 @@
 /* tfm.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -321,7 +321,7 @@ int fp_mul(fp_int *A, fp_int *B, fp_int *C)
                 goto clean; /* success */
                 break;
 
-            case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+            case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
             case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
             case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
                 /* fall back to software, below */
@@ -2430,7 +2430,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   fp_int  *res;
   fp_digit buf, mp;
   int      err, bitbuf, bitcpy, bitcnt, mode, digidx, x, y, winsize;
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   fp_int  *M;
 #else
   fp_int   M[(1 << 6) + 1];
@@ -2455,7 +2455,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
      return err;
   }
 
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   /* only allocate space for what's needed for window plus res */
   M = (fp_int*)XMALLOC(sizeof(fp_int)*((1 << winsize) + 1), NULL,
                                                            DYNAMIC_TYPE_BIGINT);
@@ -2482,7 +2482,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   /* now we need R mod m */
   err = fp_montgomery_calc_normalization (res, P);
   if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
     return err;
@@ -2493,7 +2493,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
      /* G > P so we reduce it first */
      err = fp_mod(G, P, &M[1]);
      if (err != FP_OKAY) {
-     #ifndef WOLFSSL_NO_MALLOC
+     #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
      #endif
         return err;
@@ -2503,7 +2503,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   }
   err = fp_mulmod (&M[1], res, P, &M[1]);
   if (err != FP_OKAY) {
-  #ifndef WOLFSSL_NO_MALLOC
+  #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
      XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
   #endif
      return err;
@@ -2516,14 +2516,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     err = fp_sqr (&M[(word32)(1 << (winsize - 1))],
                   &M[(word32)(1 << (winsize - 1))]);
     if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
       XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
       return err;
     }
     err = fp_montgomery_reduce_ex(&M[(word32)(1 << (winsize - 1))], P, mp, 0);
     if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
       XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
       return err;
@@ -2534,14 +2534,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   for (x = (1 << (winsize - 1)) + 1; x < (1 << winsize); x++) {
     err = fp_mul(&M[x - 1], &M[1], &M[x]);
     if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
       XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
       return err;
     }
     err = fp_montgomery_reduce_ex(&M[x], P, mp, 0);
     if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
       XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
       return err;
@@ -2585,14 +2585,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     if (mode == 1 && y == 0) {
       err = fp_sqr(res, res);
       if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
         return err;
       }
       err = fp_montgomery_reduce_ex(res, P, mp, 0);
       if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
         return err;
@@ -2610,14 +2610,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       for (x = 0; x < winsize; x++) {
         err = fp_sqr(res, res);
         if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
           XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
           return err;
         }
         err = fp_montgomery_reduce_ex(res, P, mp, 0);
         if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
           XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
           return err;
@@ -2627,14 +2627,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
       /* then multiply */
       err = fp_mul(res, &M[bitbuf], res);
       if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
         return err;
       }
       err = fp_montgomery_reduce_ex(res, P, mp, 0);
       if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
         return err;
@@ -2653,14 +2653,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
     for (x = 0; x < bitcpy; x++) {
       err = fp_sqr(res, res);
       if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
         return err;
       }
       err = fp_montgomery_reduce_ex(res, P, mp, 0);
       if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
         XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
         return err;
@@ -2672,14 +2672,14 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
         /* then multiply */
         err = fp_mul(res, &M[1], res);
         if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
           XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
           return err;
         }
         err = fp_montgomery_reduce_ex(res, P, mp, 0);
         if (err != FP_OKAY) {
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
           XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
           return err;
@@ -2699,7 +2699,7 @@ static int _fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
   /* swap res with Y */
   fp_copy (res, Y);
 
-#ifndef WOLFSSL_NO_MALLOC
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
   XFREE(M, NULL, DYNAMIC_TYPE_BIGINT);
 #endif
   return err;
@@ -3125,9 +3125,9 @@ int fp_exptmod(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
             return retHW;
             break;
 
-         case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+         case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
          case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
-         case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
+         case WC_NO_ERR_TRACE(MP_HW_VALIDATION_ACTIVE): /* use SW to compare to HW */
             /* use software calc */
             break;
 
@@ -3227,7 +3227,7 @@ int fp_exptmod_ex(fp_int * G, fp_int * X, int digits, fp_int * P, fp_int * Y)
          return retHW;
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -3328,7 +3328,7 @@ int fp_exptmod_nct(fp_int * G, fp_int * X, fp_int * P, fp_int * Y)
          return retHW;
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -3440,7 +3440,7 @@ int fp_sqr(fp_int *A, fp_int *B)
                 goto clean; /* success */
                 break;
 
-            case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+            case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
             case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
             case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
                 /* fall back to software, below */
@@ -4698,7 +4698,7 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
          /* successfully computed in HW */
          break;
 
-      case WC_HW_WAIT_E: /* MP_HW_BUSY math HW busy, fall back */
+      case WC_NO_ERR_TRACE(WC_HW_WAIT_E): /* MP_HW_BUSY math HW busy, fall back */
       case MP_HW_FALLBACK:    /* forced fallback from HW to SW */
       case MP_HW_VALIDATION_ACTIVE: /* use SW to compare to HW */
          /* use software calc */
@@ -5685,9 +5685,9 @@ int mp_rand_prime(mp_int* a, int len, WC_RNG* rng, void* heap)
 
     err = fp_randprime(a, len, rng, heap);
     switch(err) {
-        case FP_VAL:
+        case WC_NO_ERR_TRACE(MP_VAL):
             return MP_VAL;
-        case FP_MEM:
+        case WC_NO_ERR_TRACE(MP_MEM):
             return MP_MEM;
         default:
             break;

@@ -362,14 +362,14 @@
     </tool>
     <tool id="Interrupt">
         <Item currentVect="16" id="BSC_BUSERR" priority="15" usedState="未使用"/>
-        <Item currentVect="17" groupchild="&lt;br&gt;1-DPFPUEX" id="IE0" priority="15" usedState="未使用"/>
+        <Item currentVect="17" groupchild="&lt;br&gt;0-DPFPUEX" id="IE0" priority="15" usedState="未使用"/>
         <Item currentVect="18" id="RAM_RAMERR" priority="15" usedState="未使用"/>
         <Item currentVect="21" id="FCU_FIFERR" priority="15" usedState="未使用"/>
         <Item currentVect="23" id="FCU_FRDYI" priority="15" usedState="未使用"/>
         <Item currentVect="26" id="ICU_SWINT2" priority="1" usedState="未使用"/>
         <Item currentVect="27" id="ICU_SWINT" priority="1" usedState="未使用"/>
-        <Item currentVect="28" id="CMT0_CMI0" priority="15" usedState="未使用"/>
-        <Item currentVect="29" id="CMT1_CMI1" priority="15" usedState="未使用"/>
+        <Item currentVect="28" id="CMT0_CMI0" priority="5" usedState="使用中"/>
+        <Item currentVect="29" id="CMT1_CMI1" priority="5" usedState="使用中"/>
         <Item currentVect="30" id="CMTW0_CMWI0" priority="15" usedState="未使用"/>
         <Item currentVect="31" id="CMTW1_CMWI1" priority="15" usedState="未使用"/>
         <Item currentVect="34" id="USB0_D0FIFO0" priority="15" usedState="未使用"/>
@@ -437,14 +437,14 @@
         <Item currentVect="103" id="SCI9_TXI9" priority="15" usedState="未使用"/>
         <Item currentVect="104" id="SCI10_RXI10" priority="15" usedState="未使用"/>
         <Item currentVect="105" id="SCI10_TXI10" priority="15" usedState="未使用"/>
-        <Item currentVect="106" groupchild="&lt;br&gt;1-ERS0&lt;br&gt;2-ERS1&lt;br&gt;3-ERS2" id="BE0" priority="15" usedState="未使用"/>
-        <Item currentVect="107" groupchild="&lt;br&gt;1-POEGGAI&lt;br&gt;2-POEGGBI&lt;br&gt;3-POEGGCI&lt;br&gt;4-POEGGDI" id="BL2" priority="15" usedState="未使用"/>
+        <Item currentVect="106" groupchild="&lt;br&gt;0-ERS0&lt;br&gt;1-ERS1&lt;br&gt;2-ERS2" id="BE0" priority="15" usedState="未使用"/>
+        <Item currentVect="107" groupchild="&lt;br&gt;7-POEGGAI&lt;br&gt;8-POEGGBI&lt;br&gt;9-POEGGCI&lt;br&gt;10-POEGGDI" id="BL2" priority="15" usedState="未使用"/>
         <Item currentVect="108" id="RSPI2_SPRI2" priority="15" usedState="未使用"/>
         <Item currentVect="109" id="RSPI2_SPTI2" priority="15" usedState="未使用"/>
-        <Item currentVect="110" groupchild="&lt;br&gt;1-TEI0&lt;br&gt;2-ERI0&lt;br&gt;3-TEI1&lt;br&gt;4-ERI1&lt;br&gt;5-TEI2&lt;br&gt;6-ERI2&lt;br&gt;7-TEI3&lt;br&gt;8-ERI3&lt;br&gt;9-TEI4&lt;br&gt;10-ERI4&lt;br&gt;11-TEI5&lt;br&gt;12-ERI5&lt;br&gt;13-TEI6&lt;br&gt;14-ERI6&lt;br&gt;15-TEI12&lt;br&gt;16-ERI12&lt;br&gt;17-SCIX0&lt;br&gt;18-SCIX1&lt;br&gt;19-SCIX2&lt;br&gt;20-SCIX3&lt;br&gt;21-QSPSSLI&lt;br&gt;22-FERRI&lt;br&gt;23-MENDI&lt;br&gt;24-OVFI&lt;br&gt;25-DOPCI&lt;br&gt;26-PCFEI&lt;br&gt;27-PCERI" id="BL0" priority="15" usedState="未使用"/>
-        <Item currentVect="111" groupchild="&lt;br&gt;1-CDETI&lt;br&gt;2-CACI&lt;br&gt;3-SDACI&lt;br&gt;4-CDETIO&lt;br&gt;5-ERRIO&lt;br&gt;6-ACCIO&lt;br&gt;7-OEI1&lt;br&gt;8-OEI2&lt;br&gt;9-OEI3&lt;br&gt;10-OEI4&lt;br&gt;11-TEI0&lt;br&gt;12-EEI0&lt;br&gt;13-TEI2&lt;br&gt;14-EEI2&lt;br&gt;15-SSIF0&lt;br&gt;16-SSIF1&lt;br&gt;17-S12CMPAI&lt;br&gt;18-S12CMPBI&lt;br&gt;19-S12CMPAI1&lt;br&gt;20-S12CMPBI1&lt;br&gt;21-TEI1&lt;br&gt;22-EEI1" id="BL1" priority="15" usedState="未使用"/>
-        <Item currentVect="112" groupchild="&lt;br&gt;1-TEI8&lt;br&gt;2-ERI8&lt;br&gt;3-TEI9&lt;br&gt;4-ERI9&lt;br&gt;5-TEI10&lt;br&gt;6-ERI10&lt;br&gt;7-TEI11&lt;br&gt;8-ERI11&lt;br&gt;9-SPII0&lt;br&gt;10-SPEI0&lt;br&gt;11-SPII1&lt;br&gt;12-SPEI1&lt;br&gt;13-SPII2&lt;br&gt;14-SPEI2&lt;br&gt;15-TEI7&lt;br&gt;16-ERI7" id="AL0" priority="15" usedState="未使用"/>
-        <Item currentVect="113" groupchild="&lt;br&gt;1-MINT&lt;br&gt;2-PINT&lt;br&gt;3-EINT0&lt;br&gt;4-EINT1&lt;br&gt;5-VPOS&lt;br&gt;6-GR1UF&lt;br&gt;7-GR2UF&lt;br&gt;8-DRW_IRQ" id="AL1" priority="2" usedState="使用中"/>
+        <Item currentVect="110" groupchild="&lt;br&gt;0-TEI0&lt;br&gt;1-ERI0&lt;br&gt;2-TEI1&lt;br&gt;3-ERI1&lt;br&gt;4-TEI2&lt;br&gt;5-ERI2&lt;br&gt;6-TEI3&lt;br&gt;7-ERI3&lt;br&gt;8-TEI4&lt;br&gt;9-ERI4&lt;br&gt;10-TEI5&lt;br&gt;11-ERI5&lt;br&gt;12-TEI6&lt;br&gt;13-ERI6&lt;br&gt;16-TEI12&lt;br&gt;17-ERI12&lt;br&gt;18-SCIX0&lt;br&gt;19-SCIX1&lt;br&gt;20-SCIX2&lt;br&gt;21-SCIX3&lt;br&gt;24-QSPSSLI&lt;br&gt;26-FERRI&lt;br&gt;27-MENDI&lt;br&gt;28-OVFI&lt;br&gt;29-DOPCI&lt;br&gt;30-PCFEI&lt;br&gt;31-PCERI" id="BL0" priority="15" usedState="未使用"/>
+        <Item currentVect="111" groupchild="&lt;br&gt;3-CDETI&lt;br&gt;4-CACI&lt;br&gt;5-SDACI&lt;br&gt;6-CDETIO&lt;br&gt;7-ERRIO&lt;br&gt;8-ACCIO&lt;br&gt;9-OEI1&lt;br&gt;10-OEI2&lt;br&gt;11-OEI3&lt;br&gt;12-OEI4&lt;br&gt;13-TEI0&lt;br&gt;14-EEI0&lt;br&gt;15-TEI2&lt;br&gt;16-EEI2&lt;br&gt;17-SSIF0&lt;br&gt;18-SSIF1&lt;br&gt;20-S12CMPAI&lt;br&gt;21-S12CMPBI&lt;br&gt;22-S12CMPAI1&lt;br&gt;23-S12CMPBI1&lt;br&gt;28-TEI1&lt;br&gt;29-EEI1" id="BL1" priority="15" usedState="未使用"/>
+        <Item currentVect="112" groupchild="&lt;br&gt;0-TEI8&lt;br&gt;1-ERI8&lt;br&gt;4-TEI9&lt;br&gt;5-ERI9&lt;br&gt;8-TEI10&lt;br&gt;9-ERI10&lt;br&gt;12-TEI11&lt;br&gt;13-ERI11&lt;br&gt;16-SPII0&lt;br&gt;17-SPEI0&lt;br&gt;18-SPII1&lt;br&gt;19-SPEI1&lt;br&gt;20-SPII2&lt;br&gt;21-SPEI2&lt;br&gt;22-TEI7&lt;br&gt;23-ERI7" id="AL0" priority="15" usedState="未使用"/>
+        <Item currentVect="113" groupchild="&lt;br&gt;0-MINT&lt;br&gt;1-PINT&lt;br&gt;4-EINT0&lt;br&gt;5-EINT1&lt;br&gt;8-VPOS&lt;br&gt;9-GR1UF&lt;br&gt;10-GR2UF&lt;br&gt;11-DRW_IRQ" id="AL1" priority="2" usedState="使用中"/>
         <Item currentVect="114" id="SCI11_RXI11" priority="15" usedState="未使用"/>
         <Item currentVect="115" id="SCI11_TXI11" priority="15" usedState="未使用"/>
         <Item currentVect="116" id="SCI12_RXI12" priority="15" usedState="未使用"/>
@@ -457,8 +457,8 @@
         <Item currentVect="125" id="OST_OSTDI" priority="15" usedState="未使用"/>
         <Item currentVect="126" id="EXDMAC_EXDMAC0I" priority="15" usedState="未使用"/>
         <Item currentVect="127" id="EXDMAC_EXDMAC1I" priority="15" usedState="未使用"/>
-        <Item currentVect="128" defaultVect="128" id="CMT2_CMI2" priority="15" usedState="未使用"/>
-        <Item currentVect="129" defaultVect="129" id="CMT3_CMI3" priority="15" usedState="未使用"/>
+        <Item currentVect="128" defaultVect="128" id="CMT2_CMI2" priority="5" usedState="使用中"/>
+        <Item currentVect="129" defaultVect="129" id="CMT3_CMI3" priority="5" usedState="使用中"/>
         <Item currentVect="130" defaultVect="130" id="TPU0_TGI0A" priority="15" usedState="未使用"/>
         <Item currentVect="131" defaultVect="131" id="TPU0_TGI0B" priority="15" usedState="未使用"/>
         <Item currentVect="132" defaultVect="132" id="TPU0_TGI0C" priority="15" usedState="未使用"/>
@@ -608,110 +608,110 @@
         <pinItem allocation="71" comments="" direction="None" id="ET0_ERXD0" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
         <pinItem allocation="66" comments="" direction="None" id="ET0_TX_CLK" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
         <pinItem allocation="86" comments="" direction="None" id="ET0_MDIO" isUsedBySoftware="true" locked="false" operationMode="" status="0"/>
-        <pinnumItem comment="LCD-B4" id="88"/>
-        <pinnumItem comment="LCD-B5" id="89"/>
-        <pinnumItem comment="LCD-R7" id="110"/>
-        <pinnumItem comment="LCD-B6" id="90"/>
-        <pinnumItem comment="LCD-B7" id="92"/>
-        <pinnumItem comment="QSPI-SO/SIO1" id="119"/>
-        <pinnumItem comment="LCD-G2" id="94"/>
-        <pinnumItem comment="LCD-G3" id="95"/>
-        <pinnumItem comment="LCD-G4" id="96"/>
-        <pinnumItem comment="LCD-G5" id="97"/>
-        <pinnumItem comment="EMLE" id="10"/>
-        <pinnumItem comment="LCD-BACKLIGHT" id="98"/>
-        <pinnumItem comment="MIC-DATA" id="11"/>
-        <pinnumItem comment="LCD-TOUCH-RST" id="99"/>
-        <pinnumItem comment="MD/FINED" id="16"/>
-        <pinnumItem comment="RESET" id="19"/>
-        <pinnumItem comment="QSPI-SI/SIO0" id="120"/>
-        <pinnumItem comment="QSPI-SCLK" id="121"/>
-        <pinnumItem comment="QSPI-CS#" id="122"/>
-        <pinnumItem comment="D2-LRCK" id="2"/>
-        <pinnumItem comment="QSPI-HOLD#/SIO3" id="123"/>
-        <pinnumItem comment="QSPI-WP#/SIO2" id="124"/>
-        <pinnumItem comment="D2-SDIN" id="4"/>
-        <pinnumItem comment="PMOD2-RST" id="125"/>
-        <pinnumItem comment="PMOD2-IRQ" id="126"/>
-        <pinnumItem comment="D2-SCLK" id="6"/>
-        <pinnumItem comment="PMOD2-SS" id="127"/>
-        <pinnumItem comment="MIC-BCLK" id="7"/>
-        <pinnumItem comment="PMOD2-MISO" id="128"/>
-        <pinnumItem comment="AUDIO_CLK" id="8"/>
-        <pinnumItem comment="PMOD2-SCK" id="129"/>
-        <pinnumItem comment="MIC-WS" id="9"/>
-        <pinnumItem comment="XTAL" id="20"/>
-        <pinnumItem comment="EXTAL" id="22"/>
-        <pinnumItem comment="LCD-TOUCH-INT" id="25"/>
-        <pinnumItem comment="LCD-TOUCH-SCL" id="26"/>
-        <pinnumItem comment="LCD-TOUCH-SDA" id="27"/>
-        <pinnumItem comment="WiFi-RTS" id="28"/>
-        <pinnumItem comment="WiFi-TXD" id="29"/>
-        <pinnumItem comment="PMOD2-MOSI" id="131"/>
-        <pinnumItem comment="PMOD2-IO1" id="133"/>
-        <pinnumItem comment="PMOD2-IO0" id="134"/>
-        <pinnumItem comment="WiFi-EN" id="137"/>
-        <pinnumItem comment="SD-ENABLE" id="138"/>
-        <pinnumItem comment="SD-FLT" id="139"/>
-        <pinnumItem comment="WiFi-CTS" id="30"/>
-        <pinnumItem comment="WiFi-RXD" id="31"/>
-        <pinnumItem comment="SDHI-SW_B" id="32"/>
-        <pinnumItem comment="SDHI-DATA1" id="34"/>
-        <pinnumItem comment="SDHI-DATA0" id="35"/>
-        <pinnumItem comment="SDHI-CLK" id="36"/>
-        <pinnumItem comment="SDHI-CMD" id="37"/>
-        <pinnumItem comment="SDHI-CD/DATA3" id="38"/>
-        <pinnumItem comment="SDHI-DATA2" id="39"/>
-        <pinnumItem comment="LED2" id="141"/>
-        <pinnumItem comment="SW2" id="144"/>
-        <pinnumItem comment="USB0VBUSEN" id="40"/>
-        <pinnumItem comment="PMOD1-RST" id="41"/>
-        <pinnumItem comment="PMOD1-IO1" id="42"/>
-        <pinnumItem comment="USB0OVRCURA" id="43"/>
-        <pinnumItem comment="USB-TXD" id="44"/>
-        <pinnumItem comment="USB-RXD" id="45"/>
-        <pinnumItem comment="USB0DM" id="47"/>
-        <pinnumItem comment="USB0DP" id="48"/>
-        <pinnumItem comment="ET0REFCLK" id="50"/>
-        <pinnumItem comment="PMOD1-IRQ" id="51"/>
-        <pinnumItem comment="PMOD1-SS" id="52"/>
-        <pinnumItem comment="PMOD1-IO0" id="53"/>
-        <pinnumItem comment="PMOD1-MISO" id="54"/>
-        <pinnumItem comment="PMOD1-SCK" id="55"/>
-        <pinnumItem comment="PMOD1-MOSI" id="56"/>
-        <pinnumItem comment="ET0CRS" id="58"/>
-        <pinnumItem comment="ET0COL" id="60"/>
-        <pinnumItem comment="ET0ETXD3" id="61"/>
-        <pinnumItem comment="ET0ETXD2" id="62"/>
-        <pinnumItem comment="ET0ETXD1" id="63"/>
-        <pinnumItem comment="ET0ETXD0" id="64"/>
-        <pinnumItem comment="ET0TXEN" id="65"/>
-        <pinnumItem comment="ET0TXCLK" id="66"/>
-        <pinnumItem comment="ET0INTRP" id="67"/>
-        <pinnumItem comment="ET0RXER" id="68"/>
-        <pinnumItem comment="ET0RXCLK" id="69"/>
-        <pinnumItem comment="ET0RXDV" id="70"/>
-        <pinnumItem comment="ET0ERXD0" id="71"/>
-        <pinnumItem comment="ET0ERXD1" id="72"/>
-        <pinnumItem comment="ET0ERXD2" id="73"/>
-        <pinnumItem comment="ET0ERXD3" id="75"/>
-        <pinnumItem comment="ET0RST(SW1-1ch)" id="77"/>
-        <pinnumItem comment="Light-SDA" id="78"/>
-        <pinnumItem comment="Light-SCL" id="79"/>
-        <pinnumItem comment="LCD-G6" id="101"/>
-        <pinnumItem comment="LCD-G7" id="102"/>
-        <pinnumItem comment="LCD-R3" id="106"/>
-        <pinnumItem comment="LCD-CLK" id="80"/>
-        <pinnumItem comment="LCD-R4" id="107"/>
-        <pinnumItem comment="LCD-VSYNC" id="81"/>
-        <pinnumItem comment="LCD-R5" id="108"/>
-        <pinnumItem comment="LCD-DISP-EN" id="82"/>
-        <pinnumItem comment="LCD-R6" id="109"/>
-        <pinnumItem comment="LCD-HSYNC" id="83"/>
-        <pinnumItem comment="LCD-DATA-EN" id="84"/>
-        <pinnumItem comment="ET0MDC" id="85"/>
-        <pinnumItem comment="ET0MDIO" id="86"/>
-        <pinnumItem comment="LCD-B3" id="87"/>
+        <pinnumItem comment="LCD-B4" id="88" symbolicname=""/>
+        <pinnumItem comment="LCD-B5" id="89" symbolicname=""/>
+        <pinnumItem comment="LCD-R7" id="110" symbolicname=""/>
+        <pinnumItem comment="LCD-B6" id="90" symbolicname=""/>
+        <pinnumItem comment="LCD-B7" id="92" symbolicname=""/>
+        <pinnumItem comment="QSPI-SO/SIO1" id="119" symbolicname=""/>
+        <pinnumItem comment="LCD-G2" id="94" symbolicname=""/>
+        <pinnumItem comment="LCD-G3" id="95" symbolicname=""/>
+        <pinnumItem comment="LCD-G4" id="96" symbolicname=""/>
+        <pinnumItem comment="LCD-G5" id="97" symbolicname=""/>
+        <pinnumItem comment="EMLE" id="10" symbolicname=""/>
+        <pinnumItem comment="LCD-BACKLIGHT" id="98" symbolicname=""/>
+        <pinnumItem comment="MIC-DATA" id="11" symbolicname=""/>
+        <pinnumItem comment="LCD-TOUCH-RST" id="99" symbolicname=""/>
+        <pinnumItem comment="MD/FINED" id="16" symbolicname=""/>
+        <pinnumItem comment="RESET" id="19" symbolicname=""/>
+        <pinnumItem comment="QSPI-SI/SIO0" id="120" symbolicname=""/>
+        <pinnumItem comment="QSPI-SCLK" id="121" symbolicname=""/>
+        <pinnumItem comment="QSPI-CS#" id="122" symbolicname=""/>
+        <pinnumItem comment="D2-LRCK" id="2" symbolicname=""/>
+        <pinnumItem comment="QSPI-HOLD#/SIO3" id="123" symbolicname=""/>
+        <pinnumItem comment="QSPI-WP#/SIO2" id="124" symbolicname=""/>
+        <pinnumItem comment="D2-SDIN" id="4" symbolicname=""/>
+        <pinnumItem comment="PMOD2-RST" id="125" symbolicname=""/>
+        <pinnumItem comment="PMOD2-IRQ" id="126" symbolicname=""/>
+        <pinnumItem comment="D2-SCLK" id="6" symbolicname=""/>
+        <pinnumItem comment="PMOD2-SS" id="127" symbolicname=""/>
+        <pinnumItem comment="MIC-BCLK" id="7" symbolicname=""/>
+        <pinnumItem comment="PMOD2-MISO" id="128" symbolicname=""/>
+        <pinnumItem comment="AUDIO_CLK" id="8" symbolicname=""/>
+        <pinnumItem comment="PMOD2-SCK" id="129" symbolicname=""/>
+        <pinnumItem comment="MIC-WS" id="9" symbolicname=""/>
+        <pinnumItem comment="XTAL" id="20" symbolicname=""/>
+        <pinnumItem comment="EXTAL" id="22" symbolicname=""/>
+        <pinnumItem comment="LCD-TOUCH-INT" id="25" symbolicname=""/>
+        <pinnumItem comment="LCD-TOUCH-SCL" id="26" symbolicname=""/>
+        <pinnumItem comment="LCD-TOUCH-SDA" id="27" symbolicname=""/>
+        <pinnumItem comment="WiFi-RTS" id="28" symbolicname=""/>
+        <pinnumItem comment="WiFi-TXD" id="29" symbolicname=""/>
+        <pinnumItem comment="PMOD2-MOSI" id="131" symbolicname=""/>
+        <pinnumItem comment="PMOD2-IO1" id="133" symbolicname=""/>
+        <pinnumItem comment="PMOD2-IO0" id="134" symbolicname=""/>
+        <pinnumItem comment="WiFi-EN" id="137" symbolicname=""/>
+        <pinnumItem comment="SD-ENABLE" id="138" symbolicname=""/>
+        <pinnumItem comment="SD-FLT" id="139" symbolicname=""/>
+        <pinnumItem comment="WiFi-CTS" id="30" symbolicname=""/>
+        <pinnumItem comment="WiFi-RXD" id="31" symbolicname=""/>
+        <pinnumItem comment="SDHI-SW_B" id="32" symbolicname=""/>
+        <pinnumItem comment="SDHI-DATA1" id="34" symbolicname=""/>
+        <pinnumItem comment="SDHI-DATA0" id="35" symbolicname=""/>
+        <pinnumItem comment="SDHI-CLK" id="36" symbolicname=""/>
+        <pinnumItem comment="SDHI-CMD" id="37" symbolicname=""/>
+        <pinnumItem comment="SDHI-CD/DATA3" id="38" symbolicname=""/>
+        <pinnumItem comment="SDHI-DATA2" id="39" symbolicname=""/>
+        <pinnumItem comment="LED2" id="141" symbolicname=""/>
+        <pinnumItem comment="SW2" id="144" symbolicname=""/>
+        <pinnumItem comment="USB0VBUSEN" id="40" symbolicname=""/>
+        <pinnumItem comment="PMOD1-RST" id="41" symbolicname=""/>
+        <pinnumItem comment="PMOD1-IO1" id="42" symbolicname=""/>
+        <pinnumItem comment="USB0OVRCURA" id="43" symbolicname=""/>
+        <pinnumItem comment="USB-TXD" id="44" symbolicname=""/>
+        <pinnumItem comment="USB-RXD" id="45" symbolicname=""/>
+        <pinnumItem comment="USB0DM" id="47" symbolicname=""/>
+        <pinnumItem comment="USB0DP" id="48" symbolicname=""/>
+        <pinnumItem comment="ET0REFCLK" id="50" symbolicname=""/>
+        <pinnumItem comment="PMOD1-IRQ" id="51" symbolicname=""/>
+        <pinnumItem comment="PMOD1-SS" id="52" symbolicname=""/>
+        <pinnumItem comment="PMOD1-IO0" id="53" symbolicname=""/>
+        <pinnumItem comment="PMOD1-MISO" id="54" symbolicname=""/>
+        <pinnumItem comment="PMOD1-SCK" id="55" symbolicname=""/>
+        <pinnumItem comment="PMOD1-MOSI" id="56" symbolicname=""/>
+        <pinnumItem comment="ET0CRS" id="58" symbolicname=""/>
+        <pinnumItem comment="ET0COL" id="60" symbolicname=""/>
+        <pinnumItem comment="ET0ETXD3" id="61" symbolicname=""/>
+        <pinnumItem comment="ET0ETXD2" id="62" symbolicname=""/>
+        <pinnumItem comment="ET0ETXD1" id="63" symbolicname=""/>
+        <pinnumItem comment="ET0ETXD0" id="64" symbolicname=""/>
+        <pinnumItem comment="ET0TXEN" id="65" symbolicname=""/>
+        <pinnumItem comment="ET0TXCLK" id="66" symbolicname=""/>
+        <pinnumItem comment="ET0INTRP" id="67" symbolicname=""/>
+        <pinnumItem comment="ET0RXER" id="68" symbolicname=""/>
+        <pinnumItem comment="ET0RXCLK" id="69" symbolicname=""/>
+        <pinnumItem comment="ET0RXDV" id="70" symbolicname=""/>
+        <pinnumItem comment="ET0ERXD0" id="71" symbolicname=""/>
+        <pinnumItem comment="ET0ERXD1" id="72" symbolicname=""/>
+        <pinnumItem comment="ET0ERXD2" id="73" symbolicname=""/>
+        <pinnumItem comment="ET0ERXD3" id="75" symbolicname=""/>
+        <pinnumItem comment="ET0RST(SW1-1ch)" id="77" symbolicname=""/>
+        <pinnumItem comment="Light-SDA" id="78" symbolicname=""/>
+        <pinnumItem comment="Light-SCL" id="79" symbolicname=""/>
+        <pinnumItem comment="LCD-G6" id="101" symbolicname=""/>
+        <pinnumItem comment="LCD-G7" id="102" symbolicname=""/>
+        <pinnumItem comment="LCD-R3" id="106" symbolicname=""/>
+        <pinnumItem comment="LCD-CLK" id="80" symbolicname=""/>
+        <pinnumItem comment="LCD-R4" id="107" symbolicname=""/>
+        <pinnumItem comment="LCD-VSYNC" id="81" symbolicname=""/>
+        <pinnumItem comment="LCD-R5" id="108" symbolicname=""/>
+        <pinnumItem comment="LCD-DISP-EN" id="82" symbolicname=""/>
+        <pinnumItem comment="LCD-R6" id="109" symbolicname=""/>
+        <pinnumItem comment="LCD-HSYNC" id="83" symbolicname=""/>
+        <pinnumItem comment="LCD-DATA-EN" id="84" symbolicname=""/>
+        <pinnumItem comment="ET0MDC" id="85" symbolicname=""/>
+        <pinnumItem comment="ET0MDIO" id="86" symbolicname=""/>
+        <pinnumItem comment="LCD-B3" id="87" symbolicname=""/>
     </tool>
     <tool id="Summary" version="1.0.0.0">
         <option id="com.renesas.smc.code.path" value="src\smc_gen"/>
@@ -843,7 +843,7 @@
                     <item id="Level15" input="" vlaue="0"/>
                 </option>
             </allocatable>
-            <component description="本MCU は、8 ビットのカウンタをベースにした2 チャネルの8 ビットタイマ（TMR）を2 ユニット（ユニット0、ユニット1）、合計4 チャネル内蔵しています。" detailDescription="" display="8 ビットタイマ" id="com.renesas.smc.tools.swcomponent.codegenerator.tmr" version="1.10.0"/>
+            <component description="このソフトウェアコンポーネントは、8 ビットタイマ（TMR）の構成を提供します。&#10;&#10;外部イベントのカウントが可能なほか、2 本のレジスタとのコンペアマッチ信号により、カウンタのクリア、割り込み要求、任意のデューティ比のパルス出力など、多機能タイマとして種々の応用が可能です。" detailDescription="" display="8 ビットタイマ" id="com.renesas.smc.tools.swcomponent.codegenerator.tmr" version="1.10.0"/>
             <allocator channelLevel0="0" channelLevel1="" channelLevel2="" channelLevel3="" channelLevel4="" channelLevel5="" description="8 ビットタイマ0" display="TMR0" id="com.renesas.smc.tools.swcomponent.codegenerator.tmr.rx72n.tmr0" type="">
                 <context>
                     <option enabled="true" id="CountMode" selection="8bitMode">
@@ -868,9 +868,9 @@
             <component description="依存モジュール: r_t4_driver_rx バージョン 1.09&#10;T4 is TCP/IP protocol stack that has small footprint for Renesas MCUs." detailDescription="TCP/IP protocol stack [M3S-T4-Tiny] for Renesas MCUs" display="r_t4_rx" id="r_t4_rx2.10" version="2.10">
                 <gridItem id="T4_CFG_SYSTEM_CHANNEL_NUMBER" selectedIndex="0"/>
                 <gridItem id="T4_CFG_SYSTEM_DHCP" selectedIndex="0"/>
-                <gridItem id="T4_CFG_FIXED_IP_ADDRESS_CH0" selectedIndex="192,168,10,33"/>
+                <gridItem id="T4_CFG_FIXED_IP_ADDRESS_CH0" selectedIndex="192,168,11,33"/>
                 <gridItem id="T4_CFG_FIXED_SABNET_MASK_CH0" selectedIndex="255,255,255,0"/>
-                <gridItem id="T4_CFG_FIXED_GATEWAY_ADDRESS_CH0" selectedIndex="192,168,10,1"/>
+                <gridItem id="T4_CFG_FIXED_GATEWAY_ADDRESS_CH0" selectedIndex="192,168,11,1"/>
                 <gridItem id="T4_CFG_FIXED_IP_ADDRESS_CH1" selectedIndex="192,168,0,10"/>
                 <gridItem id="T4_CFG_FIXED_SABNET_MASK_CH1" selectedIndex="255,255,255,0"/>
                 <gridItem id="T4_CFG_FIXED_GATEWAY_ADDRESS_CH1" selectedIndex="0,0,0,0"/>
@@ -1132,7 +1132,63 @@
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
         </configuration>
         <configuration inuse="true" name="r_tsip_rx">
-            <component description="依存モジュール: r_bsp バージョン 7.30&#10;Support functions: AES, GCM, CCM, CMAC, SHA, MD5, Triple-DES, ARC4, RSA, ECC, Random number generate, Key management, secure boot/secure firmware update.&#10;The &quot;.l&quot; in version number means library version." detailDescription="TSIP(Trusted Secure IP) driver." display="r_tsip_rx" id="r_tsip_rx1.18.l" version="1.18.l"/>
+            <component description="依存モジュール: r_bsp バージョン 7.30&#10;Support functions: AES, GCM, CCM, CMAC, SHA, MD5, Triple-DES, ARC4, RSA, ECC, Random number generate, Key management, secure boot/secure firmware update." detailDescription="TSIP(Trusted Secure IP) driver." display="r_tsip_rx" id="r_tsip_rx1.21" version="1.21">
+                <gridItem id="TSIP_AES_128_ECB_ENCRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_AES_256_ECB_ENCRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_AES_128_ECB_DECRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_AES_256_ECB_DECRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_AES_128_CBC_ENCRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_CBC_ENCRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_128_CBC_DECRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_CBC_DECRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_128_CTR" selectedIndex="0"/>
+                <gridItem id="TSIP_AES_256_CTR" selectedIndex="0"/>
+                <gridItem id="TSIP_AES_128_GCM_ENCRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_GCM_ENCRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_128_GCM_DECRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_GCM_DECRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_128_CMAC" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_CMAC" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_128_CCM_ENCRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_CCM_ENCRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_128_CCM_DECRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_CCM_DECRYPT" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_128_KEY_WRAP" selectedIndex="1"/>
+                <gridItem id="TSIP_AES_256_KEY_WRAP" selectedIndex="1"/>
+                <gridItem id="TSIP_TDES_ECB_ENCRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_TDES_ECB_DECRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_TDES_CBC_ENCRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_TDES_CBC_DECRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_ARC4_ENCRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_ARC4_DECRYPT" selectedIndex="0"/>
+                <gridItem id="TSIP_SHA_1" selectedIndex="1"/>
+                <gridItem id="TSIP_SHA_256" selectedIndex="1"/>
+                <gridItem id="TSIP_MD5" selectedIndex="1"/>
+                <gridItem id="TSIP_SHA_1_HMAC" selectedIndex="1"/>
+                <gridItem id="TSIP_SHA_256_HMAC" selectedIndex="1"/>
+                <gridItem id="TSIP_RSAES_1024" selectedIndex="0"/>
+                <gridItem id="TSIP_RSAES_2048" selectedIndex="0"/>
+                <gridItem id="TSIP_RSAES_3072" selectedIndex="0"/>
+                <gridItem id="TSIP_RSAES_4096" selectedIndex="0"/>
+                <gridItem id="TSIP_RSASSA_1024" selectedIndex="1"/>
+                <gridItem id="TSIP_RSASSA_2048" selectedIndex="1"/>
+                <gridItem id="TSIP_RSASSA_3072" selectedIndex="0"/>
+                <gridItem id="TSIP_RSASSA_4096" selectedIndex="0"/>
+                <gridItem id="TSIP_RSA_RETRY_COUNT_FOR_RSA_KEY_GENERATION" selectedIndex="5120*2"/>
+                <gridItem id="TSIP_ECDSA_P192" selectedIndex="0"/>
+                <gridItem id="TSIP_ECDSA_P224" selectedIndex="0"/>
+                <gridItem id="TSIP_ECDSA_P256" selectedIndex="1"/>
+                <gridItem id="TSIP_ECDSA_P384" selectedIndex="1"/>
+                <gridItem id="TSIP_ECDH_P256" selectedIndex="1"/>
+                <gridItem id="TSIP_USER_SHA_384_ENABLED" selectedIndex="0"/>
+                <gridItem id="TSIP_USER_SHA_384_FUNCTION" selectedIndex="user_sha384_function"/>
+                <gridItem id="TSIP_TLS" selectedIndex="1"/>
+                <gridItem id="TSIP_SECURE_BOOT" selectedIndex="0"/>
+                <gridItem id="TSIP_FIRMWARE_UPDATE" selectedIndex="1"/>
+                <gridItem id="TSIP_MULTI_THREADING" selectedIndex="0"/>
+                <gridItem id="TSIP_MULTI_THREADING_LOCK_FUNCTION" selectedIndex="user_lock_function"/>
+                <gridItem id="TSIP_MULTI_THREADING_UNLOCK_FUNCTION" selectedIndex="user_unlock_function"/>
+            </component>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
             <source description="Components supporting Firmware Integration Technology" display="Firmware Integration Technology" id="com.renesas.smc.tools.swcomponent.fit.source"/>
         </configuration>

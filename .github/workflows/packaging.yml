@@ -37,8 +37,9 @@ jobs:
       - name: Build wolfSSL .deb
         run: make deb-docker
 
-      - name: Build wolfSSL .rpm
-        run: make rpm-docker
+# disabled 20240919 -- broken target.
+#      - name: Build wolfSSL .rpm
+#        run: make rpm-docker
 
       - name: Confirm packages built
         run: |
@@ -47,8 +48,9 @@ jobs:
             echo Did not find exactly two deb packages!!!
             exit 1
           fi
-          RPM_COUNT=$(find -name 'wolfssl*.rpm' | wc -l)
-          if [ "$RPM_COUNT" != "4" ]; then
-            echo Did not find exactly four rpm packages!!!
-            exit 1
-          fi
+# disabled 20240919 -- broken target.
+#          RPM_COUNT=$(find -name 'wolfssl*.rpm' | wc -l)
+#          if [ "$RPM_COUNT" != "4" ]; then
+#            echo Did not find exactly four rpm packages!!!
+#            exit 1
+#          fi

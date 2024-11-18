@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
     ###########################################################
     ########## update and sign server-revoked-key.pem ################

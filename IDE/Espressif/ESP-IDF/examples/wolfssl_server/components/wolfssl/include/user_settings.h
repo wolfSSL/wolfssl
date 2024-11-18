@@ -132,7 +132,7 @@
 #define WOLFSSL_SHA384
 
 #if defined(CONFIG_IDF_TARGET_ESP8266)
-	/* Some known low-memory devices have features not enabled by default. */
+    /* Some known low-memory devices have features not enabled by default. */
 #else
     /* when you want to use SHA512 */
     #define WOLFSSL_SHA512
@@ -140,7 +140,7 @@
     /* when you want to use SHA3 */
     #define WOLFSSL_SHA3
 
-	/* ED25519 requires SHA512 */
+    /* ED25519 requires SHA512 */
     #define HAVE_ED25519
 
     #define HAVE_ECC

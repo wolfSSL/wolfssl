@@ -1,6 +1,6 @@
 /* coding.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -458,7 +458,7 @@ static int DoBase64_Encode(const byte* in, word32 inLen, byte* out,
     *outLen = i;
 
     if (ret == 0)
-        return getSzOnly ? LENGTH_ONLY_E : 0;
+        return getSzOnly ? WC_NO_ERR_TRACE(LENGTH_ONLY_E) : 0;
 
     return ret;
 }

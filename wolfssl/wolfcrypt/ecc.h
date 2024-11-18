@@ -1,6 +1,6 @@
 /* ecc.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -595,6 +595,7 @@ struct ecc_key {
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
     byte deterministic:1;
+    enum wc_HashType hashType;
 #endif
 
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
@@ -640,8 +641,15 @@ WOLFSSL_ABI WOLFSSL_API void wc_ecc_key_free(ecc_key* key);
 
 
 /* ECC predefined curve sets  */
-extern const ecc_set_type ecc_sets[];
-extern const size_t ecc_sets_count;
+#if defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)
+    extern const ecc_set_type ecc_sets[];
+    extern const size_t ecc_sets_count;
+#else
+    WOLFSSL_API const ecc_set_type *wc_ecc_get_sets(void);
+    WOLFSSL_API size_t wc_ecc_get_sets_count(void);
+    #define ecc_sets wc_ecc_get_sets()
+    #define ecc_sets_count wc_ecc_get_sets_count()
+#endif
 
 WOLFSSL_API
 const char* wc_ecc_get_name(int curve_id);
@@ -719,6 +727,9 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 WOLFSSL_API
 int wc_ecc_set_deterministic(ecc_key* key, byte flag);
 WOLFSSL_API
+int wc_ecc_set_deterministic_ex(ecc_key* key, byte flag,
+        enum wc_HashType hashType);
+WOLFSSL_API
 int wc_ecc_gen_deterministic_k(const byte* hash, word32 hashSz,
         enum wc_HashType hashType, mp_int* priv, mp_int* k, mp_int* order,
         void* heap);
@@ -759,7 +770,7 @@ WOLFSSL_API
 int wc_ecc_set_flags(ecc_key* key, word32 flags);
 WOLFSSL_ABI WOLFSSL_API
 void wc_ecc_fp_free(void);
-WOLFSSL_LOCAL
+WOLFSSL_API
 void wc_ecc_fp_init(void);
 WOLFSSL_API
 int wc_ecc_set_rng(ecc_key* key, WC_RNG* rng);

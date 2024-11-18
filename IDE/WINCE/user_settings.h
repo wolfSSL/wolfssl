@@ -491,6 +491,7 @@ extern "C" {
 
     /* prototypes for user heap override functions */
     /* Note: Realloc only required for normal math */
+    /* Note2: XFREE(NULL) must be properly handled */
     #include <stddef.h>  /* for size_t */
     extern void *myMalloc(size_t n, void* heap, int type);
     extern void myFree(void *p, void* heap, int type);

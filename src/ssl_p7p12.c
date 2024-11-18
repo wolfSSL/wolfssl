@@ -94,8 +94,7 @@ void wolfSSL_PKCS7_free(PKCS7* pkcs7)
     WOLFSSL_PKCS7* p7 = (WOLFSSL_PKCS7*)pkcs7;
 
     if (p7 != NULL) {
-        if (p7->data != NULL)
-            XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
+        XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
         wc_PKCS7_Free(&p7->pkcs7);
         if (p7->certs)
             wolfSSL_sk_pop_free(p7->certs, NULL);
@@ -230,7 +229,7 @@ WOLFSSL_STACK* wolfSSL_PKCS7_to_stack(PKCS7* pkcs7)
         if (!ret)
             ret = wolfSSL_sk_X509_new_null();
         if (x509) {
-            if (wolfSSL_sk_X509_push(ret, x509) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_sk_X509_push(ret, x509) <= 0) {
                 wolfSSL_X509_free(x509);
                 WOLFSSL_MSG("wolfSSL_sk_X509_push error");
                 goto error;
@@ -295,7 +294,7 @@ WOLFSSL_STACK* wolfSSL_PKCS7_get0_signers(PKCS7* pkcs7, WOLFSSL_STACK* certs,
         return NULL;
     }
 
-    if (wolfSSL_sk_X509_push(signers, x509) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_X509_push(signers, x509) <= 0) {
         wolfSSL_sk_X509_pop_free(signers, NULL);
         return NULL;
     }
@@ -352,7 +351,7 @@ int wolfSSL_i2d_PKCS7(PKCS7 *p7, unsigned char **out)
     int localBuf = 0;
     int len;
     WC_RNG rng;
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_ENTER("wolfSSL_i2d_PKCS7");
 
     if (!out || !p7) {
@@ -397,9 +396,9 @@ cleanup:
         wc_FreeRng(&rng);
         p7->rng = NULL;
     }
-    if (ret == WOLFSSL_FAILURE && localBuf && output)
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE) && localBuf)
         XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (ret != WOLFSSL_FAILURE)
+    if (ret != WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
         *out = output;
     return ret;
 }
@@ -408,7 +407,7 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
 {
     byte* output = NULL;
     int len;
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_ENTER("wolfSSL_i2d_PKCS7_bio");
 
     if (!bio || !p7) {
@@ -416,7 +415,9 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
         return WOLFSSL_FAILURE;
     }
 
-    if ((len = wolfSSL_i2d_PKCS7(p7, &output)) == WOLFSSL_FAILURE) {
+    if ((len = wolfSSL_i2d_PKCS7(p7, &output)) ==
+        WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+    {
         WOLFSSL_MSG("wolfSSL_i2d_PKCS7 error");
         goto cleanup;
     }
@@ -428,8 +429,7 @@ int wolfSSL_i2d_PKCS7_bio(WOLFSSL_BIO *bio, PKCS7 *p7)
 
     ret = WOLFSSL_SUCCESS;
 cleanup:
-    if (output)
-        XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(output, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -602,7 +602,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
             canonLineLen = (word32)lineLen;
             if ((canonLine = wc_MIME_single_canonicalize(
                                 line, &canonLineLen)) == NULL) {
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
 
@@ -612,7 +612,7 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
             }
 
             if (wolfSSL_BIO_write(out, canonLine, (int)canonLineLen) < 0) {
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
             XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
@@ -621,15 +621,13 @@ static int wolfSSL_BIO_to_MIME_crlf(WOLFSSL_BIO* in, WOLFSSL_BIO* out)
         else {
             /* no line ending in current line, write direct to out */
             if (wolfSSL_BIO_write(out, line, lineLen) < 0) {
-                ret = -1;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
         }
     }
 
-    if (canonLine != NULL) {
-        XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
-    }
+    XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(line, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -718,9 +716,7 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
                 }
             }
 
-            if (mem != NULL) {
-                XFREE(mem, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            }
+            XFREE(mem, in->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         else {
     #ifdef HAVE_SMIME
@@ -746,9 +742,7 @@ int wolfSSL_PKCS7_final(PKCS7* pkcs7, WOLFSSL_BIO* in, int flags)
     }
 
     if (ret == 1) {
-        if (p7->data != NULL) {
-            XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
-        }
+        XFREE(p7->data, NULL, DYNAMIC_TYPE_PKCS7);
         p7->data = (byte*)XMALLOC(memSz, NULL, DYNAMIC_TYPE_PKCS7);
         if (p7->data == NULL) {
             ret = 0;
@@ -1040,19 +1034,11 @@ int wolfSSL_PEM_write_bio_PKCS7(WOLFSSL_BIO* bio, PKCS7* p7)
 
 error:
 #ifdef WOLFSSL_SMALL_STACK
-    if (outputHead) {
-        XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (outputFoot) {
-        XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(outputHead, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(outputFoot, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    if (output) {
-        XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (pem) {
-        XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(output, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
 
@@ -1168,7 +1154,8 @@ PKCS7* wolfSSL_SMIME_read_PKCS7(WOLFSSL_BIO* in,
             }
             XMEMSET(boundary, 0, (word32)(boundLen+1));
             boundary[0] = boundary[1] = '-';
-            XSTRNCPY(&boundary[2], curParam->value, boundLen-2);
+            /* analyzers have issues with using strncpy and strcpy here */
+            XMEMCPY(&boundary[2], curParam->value, boundLen - 2);
 
             /* Parse up to first boundary, ignore everything here. */
             lineLen = wolfSSL_BIO_gets(in, section, remainLen);
@@ -1387,10 +1374,8 @@ error:
     XFREE(boundary, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(outHead, NULL, DYNAMIC_TYPE_PKCS7);
     XFREE(section, NULL, DYNAMIC_TYPE_PKCS7);
-    if (canonSection != NULL)
-        XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
-    if (canonLine != NULL)
-        XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(canonSection, NULL, DYNAMIC_TYPE_PKCS7);
+    XFREE(canonLine, NULL, DYNAMIC_TYPE_PKCS7);
     if (bcont) {
         wolfSSL_BIO_free(*bcont);
         *bcont = NULL; /* reset 'bcount' pointer to NULL on failure */
@@ -1491,7 +1476,9 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
 
     if (ret > 0) {
         /* Generate signedData bundle, DER in output (dynamic) */
-        if ((len = wolfSSL_i2d_PKCS7((PKCS7*)p7, &p7out)) == WOLFSSL_FAILURE) {
+        if ((len = wolfSSL_i2d_PKCS7((PKCS7*)p7, &p7out)) ==
+            WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
+        {
             WOLFSSL_MSG("Error in wolfSSL_i2d_PKCS7");
             ret = 0;
         }
@@ -1607,12 +1594,8 @@ int wolfSSL_SMIME_write_PKCS7(WOLFSSL_BIO* out, PKCS7* pkcs7, WOLFSSL_BIO* in,
         }
     }
 
-    if (p7out != NULL) {
-        XFREE(p7out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    if (sigBase64 != NULL) {
-        XFREE(sigBase64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(p7out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sigBase64, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret > 0) {
         return WOLFSSL_SUCCESS;
@@ -1704,8 +1687,7 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
     }
 
     /* cleanup */
-    if (mem != NULL)
-        XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (ret < 0 && localPkcs12 != NULL) {
         wc_PKCS12_free(localPkcs12);
         localPkcs12 = NULL;
@@ -1725,7 +1707,7 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
  */
 int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     WOLFSSL_ENTER("wolfSSL_i2d_PKCS12_bio");
 
@@ -1740,9 +1722,7 @@ int wolfSSL_i2d_PKCS12_bio(WOLFSSL_BIO *bio, WC_PKCS12 *pkcs12)
             }
         }
 
-        if (certDer != NULL) {
-            XFREE(certDer, NULL, DYNAMIC_TYPE_PKCS);
-        }
+        XFREE(certDer, NULL, DYNAMIC_TYPE_PKCS);
     }
 
     return ret;
@@ -1904,12 +1884,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         *ca = (WOLF_STACK_OF(WOLFSSL_X509)*)XMALLOC(
             sizeof(WOLF_STACK_OF(WOLFSSL_X509)), heap, DYNAMIC_TYPE_X509);
         if (*ca == NULL) {
-            if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            }
-            if (certData != NULL) {
-                XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
-            }
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+            XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
             /* Free up WC_DerCertList and move on */
             while (current != NULL) {
                 WC_DerCertList* next = current->next;
@@ -1943,12 +1919,8 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     FreeDecodedCert(DeCert);
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
-                    if (pk != NULL) {
-                        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    }
-                    if (certData != NULL) {
-                        XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
-                    }
+                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
                     /* Free up WC_DerCertList */
                     while (current != NULL) {
                         WC_DerCertList* next = current->next;
@@ -1962,16 +1934,12 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 }
                 FreeDecodedCert(DeCert);
 
-                if (wolfSSL_sk_X509_push(*ca, x509) != 1) {
+                if (wolfSSL_sk_X509_push(*ca, x509) <= 0) {
                     WOLFSSL_MSG("Failed to push x509 onto stack");
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
-                    if (pk != NULL) {
-                        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-                    }
-                    if (certData != NULL) {
-                        XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
-                    }
+                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                    XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
 
                     /* Free up WC_DerCertList */
                     while (current != NULL) {
@@ -1997,9 +1965,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         *cert = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), heap,
             DYNAMIC_TYPE_X509);
         if (*cert == NULL) {
-            if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            }
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             if (ca != NULL) {
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
@@ -2015,9 +1981,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
         if (CopyDecodedToX509(*cert, DeCert) != 0) {
             WOLFSSL_MSG("Failed to copy decoded cert");
             FreeDecodedCert(DeCert);
-            if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-            }
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             if (ca != NULL) {
                 wolfSSL_sk_X509_pop_free(*ca, NULL); *ca = NULL;
             }
@@ -2064,8 +2028,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             }
         }
     #endif /* HAVE_ECC */
-        if (pk != NULL)
-            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+        XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
         if (ret != 0) { /* if is in fail state and no PKEY then fail */
             wolfSSL_X509_free(*cert); *cert = NULL;
             if (ca != NULL) {

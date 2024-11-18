@@ -1,6 +1,6 @@
 /* fips_test.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -113,6 +113,13 @@ WOLFSSL_LOCAL int DoKnownAnswerTests(char* base16_hash, int base16_hashSz); /* F
 WOLFSSL_API int wc_RunCast_fips(int type);
 WOLFSSL_API int wc_GetCastStatus_fips(int type);
 WOLFSSL_API int wc_RunAllCast_fips(void);
+
+#ifdef NO_ATTRIBUTE_CONSTRUCTOR
+    /* NOTE: Must be called in OS initialization section outside user control
+     * and must prove during operational testing/code review with the lab that
+     * this is outside user-control if called by the OS */
+    void fipsEntry(void);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

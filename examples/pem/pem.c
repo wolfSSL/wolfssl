@@ -1,6 +1,6 @@
 /* pem.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -555,7 +555,7 @@ static int EncryptDer(unsigned char* in, word32 in_len, char* password,
         ret = wc_CreateEncryptedPKCS8Key(in, in_len, NULL, enc_len, password,
             (int)strlen(password), pbe_ver, pbe, enc_alg_id, salt, salt_sz,
             (int)iterations, &rng, NULL);
-        if (ret == LENGTH_ONLY_E) {
+        if (ret == WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             ret = 0;
         }
         else if (ret == 0) {

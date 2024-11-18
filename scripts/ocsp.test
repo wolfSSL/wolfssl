@@ -50,7 +50,7 @@ else
 fi
 
 server=www.google.com
-ca=${SCRIPT_DIR}/../certs/external/ca-google-root.pem
+ca=certs/external/ca-google-root.pem
 
 if [ "$AM_BWRAPPED" != "yes" ]; then
     # is our desired server there?

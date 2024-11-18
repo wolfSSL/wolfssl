@@ -1,6 +1,6 @@
 /* dsa.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -542,7 +542,7 @@ int wc_DsaExportParamsRaw(DsaKey* dsa, byte* p, word32* pSz,
         *pSz = pLen;
         *qSz = qLen;
         *gSz = gLen;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (p == NULL || q == NULL || g == NULL)
@@ -616,7 +616,7 @@ int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
     if (x == NULL && y == NULL) {
         *xSz = xLen;
         *ySz = yLen;
-        return LENGTH_ONLY_E;
+        return WC_NO_ERR_TRACE(LENGTH_ONLY_E);
     }
 
     if (x == NULL || y == NULL)

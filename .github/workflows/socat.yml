@@ -25,12 +25,15 @@ jobs:
           configure: --enable-maxfragment --enable-opensslall --enable-opensslextra --enable-dtls --enable-oldtls --enable-tlsv10 --enable-ipv6 'CPPFLAGS=-DWOLFSSL_NO_DTLS_SIZE_CHECK -DOPENSSL_COMPATIBLE_DEFAULTS'
           install: true
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-socat
-          path: build-dir
-          retention-days: 3
+          path: build-dir.tgz
+          retention-days: 5
 
 
   socat_check:
@@ -49,7 +52,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-socat
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Download socat
         run: curl -O http://www.dest-unreach.org/socat/download/socat-1.8.0.0.tar.gz && tar xvf socat-1.8.0.0.tar.gz

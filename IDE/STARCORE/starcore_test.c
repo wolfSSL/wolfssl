@@ -1,6 +1,6 @@
 /* starcore_test.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,7 +20,7 @@
  */
 
 
-#include <prototype.h> 
+#include <prototype.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
 #ifndef WOLFSSL_USER_SETTINGS
@@ -135,12 +135,12 @@ int process_a_file(char* fName)
     }
     return ret;
 }
-#endif 
+#endif
 
 void check_ret(int ret)
 {
     if(ret != 0) {
-        exit(-1); 
+        exit(-1);
     }
 }
 

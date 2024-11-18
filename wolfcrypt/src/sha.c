@@ -1,6 +1,6 @@
 /* sha.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -308,6 +308,10 @@
     !defined(WOLFSSL_QNX_CAAM)
     /* wolfcrypt/src/port/caam/caam_sha.c */
 
+#elif defined(MAX3266X_SHA)
+    /* Already brought in by sha.h */
+    /* #include <wolfssl/wolfcrypt/port/maxim/max3266x.h> */
+
 #elif defined(WOLFSSL_USE_ESP32_CRYPT_HASH_HW) || \
       defined(WOLFSSL_USE_ESP32C3_CRYPT_HASH_HW)
 
@@ -441,7 +445,7 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #define f3(x,y,z) (((x)&(y))|((z)&((x)|(y))))
     #define f4(x,y,z) ((x)^(y)^(z))
 
-    #ifdef WOLFSSL_NUCLEUS_1_2
+    #if defined(WOLFSSL_NUCLEUS_1_2) || defined(NUCLEUS_PLUS_2_3)
         /* nucleus.h also defines R1-R4 */
         #undef R1
         #undef R2
@@ -558,6 +562,13 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 #ifdef WOLF_CRYPTO_CB
     sha->devId = devId;
     sha->devCtx = NULL;
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Init(&(sha->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 
 #ifdef WOLFSSL_USE_ESP32_CRYPT_HASH_HW
@@ -1035,6 +1046,8 @@ int wc_InitSha(wc_Sha* sha)
 
 #if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
 
+#ifndef MAX3266X_SHA
+
 void wc_ShaFree(wc_Sha* sha)
 {
     if (sha == NULL)
@@ -1051,6 +1064,9 @@ void wc_ShaFree(wc_Sha* sha)
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_ShaPic32Free(sha);
 #endif
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha->mxcCtx));
+#endif
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     se050_hash_free(&sha->se050Ctx);
 #endif
@@ -1058,16 +1074,15 @@ void wc_ShaFree(wc_Sha* sha)
      defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)) && \
     !defined(NO_WOLFSSL_RENESAS_TSIP_CRYPT_HASH) || \
     defined(WOLFSSL_RENESAS_RX64_HASH)
-    if (sha->msg != NULL) {
-        XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        sha->msg = NULL;
-    }
+    XFREE(sha->msg, sha->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    sha->msg = NULL;
 #endif
 #ifdef WOLFSSL_IMXRT_DCP
     DCPShaFree(sha);
 #endif
 }
 
+#endif /* !MAX3266X_SHA */
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 #endif /* !WOLFSSL_TI_HASH */
 
@@ -1081,6 +1096,8 @@ void wc_ShaFree(wc_Sha* sha)
 #if !defined(WOLFSSL_RENESAS_RX64_HASH)
 
 #if !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH)
+
+#ifndef MAX3266X_SHA
 
 /* wc_ShaGetHash get hash value */
 int wc_ShaGetHash(wc_Sha* sha, byte* hash)
@@ -1146,12 +1163,20 @@ int wc_ShaCopy(wc_Sha* src, wc_Sha* dst)
     esp_sha_ctx_copy(src, dst);
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
 #ifdef WOLFSSL_HASH_FLAGS
     dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
     return ret;
 }
 #endif /* WOLFSSL_RENESAS_RX64_HASH */
+#endif /* !MAX3266X_SHA */
 #endif /* !defined(WOLFSSL_HAVE_PSA) || defined(WOLFSSL_PSA_NO_HASH) */
 #endif /* !defined(WOLFSSL_RENESAS_TSIP_TLS) && \
           !defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY) ||

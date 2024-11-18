@@ -945,12 +945,28 @@ if(WOLFSSL_ECC)
     endif()
 endif()
 
-# TODO: - ECC custom curves
-#       - Compressed key
+# TODO: - Compressed key
 #       - FP ECC, fixed point cache ECC
 #       - ECC encrypt
 #       - PSK
 #       - Single PSK identity
+
+# ECC custom curves
+add_option("WOLFSSL_ECCCUSTCURVES"
+    "Enable ECC Custom Curves (default: disabled)"
+    "no" "yes;no;all")
+
+if(WOLFSSL_ECCCUSTCURVES)
+    if("${WOLFSSL_ECCCUSTCURVES}" STREQUAL "all")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_SECPR2")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_SECPR3")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_BRAINPOOL")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_KOBLITZ")
+        list(APPEND WOLFSSL_DEFINITIONS "-DHAVE_ECC_CDH")
+    endif()
+
+    list(APPEND WOLFSSL_DEFINITIONS "-DWOLFSSL_CUSTOM_CURVES")
+endif()
 
 # CURVE25519
 set(WOLFSSL_CURVE25519_SMALL "no")
@@ -1877,6 +1893,10 @@ add_option("WOLFSSL_CRYPTOCB"
     "Enable crypto callbacks (default: disabled)"
     "no" "yes;no")
 
+add_option("WOLFSSL_CRYPTOCB_NO_SW_TEST"
+    "Disable crypto callback SW testing (default: disabled)"
+    "no" "yes;no")
+
 add_option("WOLFSSL_PKCALLBACKS"
     "Enable public key callbacks (default: disabled)"
     "no" "yes;no")
@@ -2078,6 +2098,10 @@ endif()
 
 if(WOLFSSL_CRYPTOCB)
     list(APPEND WOLFSSL_DEFINITIONS "-DWOLF_CRYPTO_CB")
+endif()
+
+if(WOLFSSL_CRYPTOCB_NO_SW_TEST)
+    list(APPEND WOLFSSL_DEFINITIONS "-DWC_TEST_NO_CRYPTOCB_SW_TEST")
 endif()
 
 # Public Key Callbacks
@@ -2335,7 +2359,7 @@ endif()
 
 foreach(DEF IN LISTS WOLFSSL_DEFINITIONS)
     string(REGEX MATCH "^(-D)?([^=]+)(=(.*))?$" DEF_MATCH ${DEF})
-    if (DEFINED CMAKE_MATCH_4)
+    if (NOT "${CMAKE_MATCH_4}" STREQUAL "")
         set(${CMAKE_MATCH_2} ${CMAKE_MATCH_4})
         # message("set(${CMAKE_MATCH_2} ${CMAKE_MATCH_4})")
     else()

@@ -1,6 +1,6 @@
 /* ec.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -26,6 +26,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/openssl/compat_types.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
@@ -205,6 +206,9 @@ WOLFSSL_API
 int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key,
                               const unsigned char* der, int derSz, int opt);
 WOLFSSL_API
+WOLFSSL_EC_KEY *wolfSSL_d2i_EC_PUBKEY_bio(WOLFSSL_BIO *bio,
+        WOLFSSL_EC_KEY **out);
+WOLFSSL_API
 void wolfSSL_EC_KEY_free(WOLFSSL_EC_KEY *key);
 WOLFSSL_API
 WOLFSSL_EC_POINT *wolfSSL_EC_KEY_get0_public_key(const WOLFSSL_EC_KEY *key);
@@ -371,6 +375,8 @@ typedef WOLFSSL_EC_KEY_METHOD         EC_KEY_METHOD;
 #define EC_KEY_check_key                wolfSSL_EC_KEY_check_key
 #define EC_KEY_print_fp                 wolfSSL_EC_KEY_print_fp
 
+#define d2i_EC_PUBKEY_bio               wolfSSL_d2i_EC_PUBKEY_bio
+
 #define ECDSA_size                      wolfSSL_ECDSA_size
 #define ECDSA_sign                      wolfSSL_ECDSA_sign
 #define ECDSA_verify                    wolfSSL_ECDSA_verify
@@ -424,6 +430,7 @@ typedef WOLFSSL_EC_KEY_METHOD         EC_KEY_METHOD;
 #define i2d_ECPrivateKey                wolfSSL_i2d_ECPrivateKey
 #define EC_KEY_set_conv_form            wolfSSL_EC_KEY_set_conv_form
 #define EC_KEY_get_conv_form            wolfSSL_EC_KEY_get_conv_form
+#define d2i_ECPKParameters              wolfSSL_d2i_ECPKParameters
 
 #define EC_POINT_point2hex              wolfSSL_EC_POINT_point2hex
 #define EC_POINT_hex2point              wolfSSL_EC_POINT_hex2point

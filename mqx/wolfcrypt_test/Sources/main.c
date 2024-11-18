@@ -58,7 +58,7 @@ typedef struct func_args {
 /*TASK*-----------------------------------------------------------------
  * Function Name  : Main_task
  * Comments       :
- *    This task opens the SD card device and runs the 
+ *    This task opens the SD card device and runs the
  *    wolfCrypt test functions located in test.c.
  *END------------------------------------------------------------------*/
 
@@ -69,7 +69,7 @@ void Main_task(uint32_t initial_data)
     char         filesystem_name[] = "a:";
     char         partman_name[]    = "pm:";
     MQX_FILE_PTR com_handle, sdcard_handle, filesystem_handle, partman_handle;
-    
+
     ret = sdcard_open(&com_handle, &sdcard_handle, &partman_handle,
                       &filesystem_handle, partman_name, filesystem_name);
     if (ret != 0) {
@@ -77,9 +77,9 @@ void Main_task(uint32_t initial_data)
         _mqx_exit(1);
     }
     printf("SD card installed to %s\n", filesystem_name);
-    
+
     wolfcrypt_test(&args);
-    
+
     ret = sdcard_close(&sdcard_handle, &partman_handle,
                        &filesystem_handle, partman_name, filesystem_name);
     if (ret != 0) {
@@ -87,7 +87,7 @@ void Main_task(uint32_t initial_data)
         _mqx_exit(1);
     }
     printf("SD card uninstalled.\n");
-    
+
     _mqx_exit(0);
 
 }

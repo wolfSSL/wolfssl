@@ -1,6 +1,6 @@
 /* wolfssl_example.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -27,7 +27,7 @@
 #endif
 
 #ifndef WOLFSSL_USER_SETTINGS
-	#include <wolfssl/options.h>
+    #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>

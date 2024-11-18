@@ -10,9 +10,9 @@ For general information on [wolfSSL examples for Espressif](../README.md), see t
 
 ## Example Output
 
-Note the default wolfSSL `user_settings.h` is configured by default to be the most 
+Note the default wolfSSL `user_settings.h` is configured by default to be the most
 compatible across the widest ranges of targets. Contact wolfSSL at support@wolfssl.com
-for help in optimizing for your particular application, or see the 
+for help in optimizing for your particular application, or see the
 [docs](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
 
@@ -61,7 +61,7 @@ I (511) cpu_start: Compile time:     May 17 2024 19:31:47
 I (517) cpu_start: ELF file SHA256:  40b2541a0...
 I (523) cpu_start: ESP-IDF:          5.2.1
 I (528) cpu_start: Min chip rev:     v0.0
-I (532) cpu_start: Max chip rev:     v3.99 
+I (532) cpu_start: Max chip rev:     v3.99
 I (537) cpu_start: Chip rev:         v1.0
 I (542) heap_init: Initializing. RAM available for dynamic allocation:
 I (549) heap_init: At 3FFAE6E0 len 00001920 (6 KiB): DRAM

@@ -37,6 +37,10 @@
  *   Enable when memory is limited.
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 #include <wolfssl/wolfcrypt/wc_lms.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 

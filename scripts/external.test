@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # external.test
 
@@ -16,24 +16,28 @@ if ! ./examples/client/client -V | grep -q 3; then
 fi
 
 # cloudflare seems to change CAs quickly, disabled by default
-if test -n "$WOLFSSL_EXTERNAL_TEST"; then
-
-    BUILD_FLAGS="$(./examples/client/client '-#')"
-    if echo "$BUILD_FLAGS" | fgrep -q -e ' -DWOLFSSL_SNIFFER '; then
-        echo 'skipping WOLFSSL_EXTERNAL_TEST because -DWOLFSSL_SNIFFER configuration of build is incompatible.'
-        exit 77
-    fi
-
-    if echo "$BUILD_FLAGS" | fgrep -v -q -e ' -DHAVE_ECC '; then
-        echo 'skipping WOLFSSL_EXTERNAL_TEST because -UHAVE_ECC configuration of build is incompatible.'
-        exit 77
-    fi
-
-    echo "WOLFSSL_EXTERNAL_TEST set, running test..."
-else
-    echo "WOLFSSL_EXTERNAL_TEST NOT set, won't run"
+if ! test -n "$WOLFSSL_EXTERNAL_TEST"; then
+    echo "WOLFSSL_EXTERNAL_TEST not set, won't run"
     exit 77
 fi
+if test "$WOLFSSL_EXTERNAL_TEST" == "0"; then
+    echo "WOLFSSL_EXTERNAL_TEST is defined to zero, won't run"
+    exit 77
+fi
+
+
+BUILD_FLAGS="$(./examples/client/client '-#')"
+if echo "$BUILD_FLAGS" | fgrep -q -e ' -DWOLFSSL_SNIFFER '; then
+    echo 'skipping WOLFSSL_EXTERNAL_TEST because -DWOLFSSL_SNIFFER configuration of build is incompatible.'
+    exit 77
+fi
+
+if echo "$BUILD_FLAGS" | fgrep -v -q -e ' -DHAVE_ECC '; then
+    echo 'skipping WOLFSSL_EXTERNAL_TEST because -UHAVE_ECC configuration of build is incompatible.'
+    exit 77
+fi
+
+echo "WOLFSSL_EXTERNAL_TEST set, running test..."
 
 # is our desired server there?
 "${SCRIPT_DIR}"/ping.test $server 2

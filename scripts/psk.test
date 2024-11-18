@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # psk.test
 # copyright wolfSSL 2016

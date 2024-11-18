@@ -18,7 +18,7 @@ jobs:
       matrix:
         config: [
           # Add new configs here
-          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC"',
+          '--enable-rsa --enable-keygen --disable-dh CFLAGS="-DWOLFSSL_NO_MALLOC -DRSA_MIN_SIZE=1024"',
         ]
     name: make check
     runs-on: ubuntu-latest
@@ -35,7 +35,7 @@ jobs:
           make
           ./wolfcrypt/test/testwolfcrypt
 
-      - name: Print errors 
+      - name: Print errors
         if: ${{ failure() }}
         run: |
           if [ -f test-suite.log ] ; then

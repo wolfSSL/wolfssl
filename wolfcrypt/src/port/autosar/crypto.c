@@ -25,12 +25,12 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/port/autosar/Csm.h>
-#include <wolfssl/wolfcrypt/port/autosar/Crypto.h>
 
 #ifdef WOLFSSL_AUTOSAR
 #ifndef NO_WOLFSSL_AUTOSAR_CRYPTO
 
+#include <wolfssl/wolfcrypt/port/autosar/Csm.h>
+#include <wolfssl/wolfcrypt/port/autosar/Crypto.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/random.h>

@@ -1,6 +1,6 @@
 /* error.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -42,7 +42,19 @@
 WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
-    switch (error) {
+    switch ((enum wolfCrypt_ErrorCodes)error) {
+
+    case MP_MEM :
+        return "MP integer dynamic memory allocation failed";
+
+    case MP_VAL :
+        return "MP integer invalid argument";
+
+    case MP_WOULDBLOCK :
+        return "MP integer non-blocking operation would block";
+
+    case MP_NOT_INF:
+        return "MP point not at infinity";
 
     case OPEN_RAN_E :
         return "opening random device error";
@@ -352,13 +364,13 @@ const char* wc_GetErrorString(int error)
         return "ECC is point on curve failed";
 
     case ECC_INF_E:
-        return " ECC point at infinity error";
+        return "ECC point at infinity error";
 
     case ECC_OUT_OF_RANGE_E:
-        return " ECC Qx or Qy out of range error";
+        return "ECC Qx or Qy out of range error";
 
     case ECC_PRIV_KEY_E:
-        return " ECC private key is not valid error";
+        return "ECC private key is not valid error";
 
     case SRP_CALL_ORDER_E:
         return "SRP function called in the wrong order error";
@@ -630,6 +642,8 @@ const char* wc_GetErrorString(int error)
     case PBKDF2_KAT_FIPS_E:
         return "wolfCrypt FIPS PBKDF2 Known Answer Test Failure";
 
+    case MAX_CODE_E:
+    case MIN_CODE_E:
     default:
         return "unknown error number";
 

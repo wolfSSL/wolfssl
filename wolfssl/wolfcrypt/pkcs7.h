@@ -1,6 +1,6 @@
 /* pkcs7.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -345,6 +345,10 @@ struct PKCS7 {
     word32 plainDigestSz;
     word32 pkcs7DigestSz;
 
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    wc_UnknownExtCallback unknownExtCallback;
+#endif
+
 #if defined(HAVE_PKCS7_RSA_RAW_SIGN_CALLBACK) && !defined(NO_RSA)
     CallbackRsaSignRawDigest rsaSignRawDigestCb;
 #endif
@@ -354,10 +358,23 @@ struct PKCS7 {
     word32 cachedEncryptedContentSz;
     word16 contentCRLF:1; /* have content line endings been converted to CRLF */
     word16 contentIsPkcs7Type:1; /* eContent follows PKCS#7 RFC not CMS */
+    word16 hashParamsAbsent:1;
+
+    /* RFC 5280 section-4.2.1.2 lists a possible method for creating the SKID as
+     * a SHA1 hash of the public key, but leaves it open to other methods as
+     * long as it is a unique ID. This allows for setting a custom SKID when
+     * creating PKCS7 bundles*/
+    byte* customSKID;
+    word16 customSKIDSz;
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 };
 
 WOLFSSL_API PKCS7* wc_PKCS7_New(void* heap, int devId);
+#ifdef WC_ASN_UNKNOWN_EXT_CB
+    WOLFSSL_API void wc_PKCS7_SetUnknownExtCallback(PKCS7* pkcs7,
+        wc_UnknownExtCallback cb);
+#endif
 WOLFSSL_API int  wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* der, word32 derSz);
 WOLFSSL_API int  wc_PKCS7_AddCertificate(PKCS7* pkcs7, byte* der, word32 derSz);
@@ -378,6 +395,8 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 
 /* CMS/PKCS#7 SignedData */
+WOLFSSL_API int  wc_PKCS7_SetCustomSKID(PKCS7* pkcs7, const byte* in,
+                                        word16 inSz);
 WOLFSSL_API int  wc_PKCS7_SetDetached(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_NoDefaultSignedAttribs(PKCS7* pkcs7);
 WOLFSSL_API int  wc_PKCS7_SetDefaultSignedAttribs(PKCS7* pkcs7, word16 flag);

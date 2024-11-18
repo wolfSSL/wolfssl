@@ -1,6 +1,6 @@
 /* tls_bench.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1816,7 +1816,9 @@ static int SetupSupportedGroups(int verbose)
                     printf("Will benchmark the following group: %s\n",
                        groups[i].name);
                 }
-            } else if (uks_ret == BAD_FUNC_ARG || uks_ret == NOT_COMPILED_IN) {
+            } else if (uks_ret == WC_NO_ERR_TRACE(BAD_FUNC_ARG) ||
+                       uks_ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
+            {
                 groups[i].group = 0;
                 if (verbose) {
                     printf("Will NOT benchmark the following group: %s\n",

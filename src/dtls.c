@@ -1,6 +1,6 @@
 /* dtls.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -953,8 +953,13 @@ int DoClientHelloStateless(WOLFSSL* ssl, const byte* input, word32 helloSz,
             int tlsxFound;
             ret = FindExtByType(&ch.cookieExt, TLSX_COOKIE, ch.extension,
                                  &tlsxFound);
-            if (ret != 0)
+            if (ret != 0) {
+                if (isFirstCHFrag) {
+                    WOLFSSL_MSG("\t\tCookie probably missing from first "
+                                "fragment. Dropping.");
+                }
                 return ret;
+            }
         }
     }
 #endif
@@ -1150,10 +1155,8 @@ void TLSX_ConnectionID_Free(byte* ext, void* heap)
     info = DtlsCidGetInfoFromExt(ext);
     if (info == NULL)
         return;
-    if (info->rx != NULL)
-        XFREE(info->rx, heap, DYNAMIC_TYPE_TLSX);
-    if (info->tx != NULL)
-        XFREE(info->tx, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(info->rx, heap, DYNAMIC_TYPE_TLSX);
+    XFREE(info->tx, heap, DYNAMIC_TYPE_TLSX);
     XFREE(info, heap, DYNAMIC_TYPE_TLSX);
     DtlsCidUnsetInfoFromExt(ext);
     XFREE(ext, heap, DYNAMIC_TYPE_TLSX);
@@ -1342,10 +1345,8 @@ int wolfSSL_dtls_cid_set(WOLFSSL* ssl, unsigned char* cid, unsigned int size)
     if (cidInfo == NULL)
         return WOLFSSL_FAILURE;
 
-    if (cidInfo->rx != NULL) {
-        XFREE(cidInfo->rx, ssl->heap, DYNAMIC_TYPE_TLSX);
-        cidInfo->rx = NULL;
-    }
+    XFREE(cidInfo->rx, ssl->heap, DYNAMIC_TYPE_TLSX);
+    cidInfo->rx = NULL;
 
     /* empty CID */
     if (size == 0)

@@ -1,6 +1,6 @@
 /* quic.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -200,7 +200,7 @@ static sword32 quic_record_transfer(QuicRecord* qr, byte* buf, word32 sz)
 
     /* We check if the buf is at least RECORD_HEADER_SZ */
     if (sz < RECORD_HEADER_SZ) {
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if (qr->rec_hdr_remain == 0) {
@@ -614,7 +614,7 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
             else {
                 ret = wolfSSL_read_early_data(ssl, tmpbuffer,
                                               sizeof(tmpbuffer), &len);
-                if (ret < 0 && ssl->error == ZERO_RETURN) {
+                if (ret < 0 && ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN)) {
                     /* this is expected, since QUIC handles the actual early
                      * data separately. */
                     ret = WOLFSSL_SUCCESS;
@@ -634,7 +634,9 @@ int wolfSSL_quic_do_handshake(WOLFSSL* ssl)
 cleanup:
     if (ret <= 0
         && ssl->options.handShakeState == HANDSHAKE_DONE
-        && (ssl->error == ZERO_RETURN || ssl->error == WANT_READ)) {
+        && (ssl->error == WC_NO_ERR_TRACE(ZERO_RETURN) ||
+            ssl->error == WC_NO_ERR_TRACE(WANT_READ)))
+    {
         ret = WOLFSSL_SUCCESS;
     }
     if (ret == WOLFSSL_SUCCESS) {
@@ -783,7 +785,7 @@ int wolfSSL_quic_receive(WOLFSSL* ssl, byte* buf, word32 sz)
 
             /* record too small to be fit into a RecordLayerHeader struct. */
             if (n == -1) {
-                return -1;
+                return WOLFSSL_FATAL_ERROR;
             }
             if (quic_record_done(ssl->quic.input_head)) {
                 QuicRecord* qr = ssl->quic.input_head;

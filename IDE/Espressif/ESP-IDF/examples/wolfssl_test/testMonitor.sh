@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Syntax:
 #   ./testMonitor.sh <example_name> <target> <keyword>

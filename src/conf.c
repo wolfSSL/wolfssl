@@ -1,6 +1,6 @@
 /* conf.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -133,7 +133,7 @@ WOLFSSL_TXT_DB *wolfSSL_TXT_DB_read(WOLFSSL_BIO *in, int num)
             XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
             goto error;
         }
-        if (wolfSSL_sk_push(ret->data, strBuf) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_sk_push(ret->data, strBuf) <= 0) {
             WOLFSSL_MSG("wolfSSL_sk_push error");
             XFREE(strBuf, NULL, DYNAMIC_TYPE_OPENSSL);
             goto error;
@@ -146,9 +146,7 @@ error:
         wolfSSL_TXT_DB_free(ret);
         ret = NULL;
     }
-    if (buf) {
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
 }
 
@@ -228,7 +226,7 @@ int wolfSSL_TXT_DB_insert(WOLFSSL_TXT_DB *db, WOLFSSL_STRING *row)
         return WOLFSSL_FAILURE;
     }
 
-    if (wolfSSL_sk_push(db->data, row) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_push(db->data, row) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_push error");
         return WOLFSSL_FAILURE;
     }
@@ -452,11 +450,11 @@ int wolfSSL_CONF_add_string(WOLFSSL_CONF *conf,
     sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE) *)section->value;
     value->section = section->section;
 
-    if (wolfSSL_sk_CONF_VALUE_push(sk, value) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_CONF_VALUE_push(sk, value) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
         return WOLFSSL_FAILURE;
     }
-    if (wolfSSL_sk_CONF_VALUE_push(conf->data, value) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_CONF_VALUE_push(conf->data, value) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
         wolfssl_sk_pop_type(sk, STACK_TYPE_CONF_VALUE);
         return WOLFSSL_FAILURE;
@@ -499,7 +497,7 @@ WOLFSSL_CONF_VALUE *wolfSSL_CONF_new_section(WOLFSSL_CONF *conf,
 
     ret->value = (char*)sk;
 
-    if (wolfSSL_sk_CONF_VALUE_push(conf->data, ret) != WOLFSSL_SUCCESS) {
+    if (wolfSSL_sk_CONF_VALUE_push(conf->data, ret) <= 0) {
         WOLFSSL_MSG("wolfSSL_sk_CONF_VALUE_push error");
         goto error;
     }
@@ -793,8 +791,7 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
     return ret ? ret : str;
 
 expand_cleanup:
-    if (ret)
-        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+    XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
     return NULL;
 }
 
@@ -803,7 +800,7 @@ expand_cleanup:
         {(idx)++;}
 int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     WOLFSSL_BIO *in = NULL;
     char* buf = NULL;
     char* idx = NULL;
@@ -961,8 +958,7 @@ int wolfSSL_NCONF_load(WOLFSSL_CONF *conf, const char *file, long *eline)
 cleanup:
     if (in)
         wolfSSL_BIO_free(in);
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (eline)
         *eline = line;
     return ret;
@@ -986,13 +982,11 @@ void wolfSSL_X509V3_conf_free(WOLFSSL_CONF_VALUE *val)
         if (val->name) {
             /* Not a section. Don't free section as it is a shared pointer. */
             XFREE(val->name, NULL, DYNAMIC_TYPE_OPENSSL);
-            if (val->value)
-                XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->value, NULL, DYNAMIC_TYPE_OPENSSL);
         }
         else {
             /* Section so val->value is a stack */
-            if (val->section)
-                XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(val->section, NULL, DYNAMIC_TYPE_OPENSSL);
             /* Only free the stack structures. The contained conf values
              * will be freed in wolfSSL_NCONF_free */
             sk = (WOLF_STACK_OF(WOLFSSL_CONF_VALUE)*)val->value;
@@ -1545,7 +1539,7 @@ static const conf_cmd_tbl* wolfssl_conf_find_cmd(WOLFSSL_CONF_CTX* cctx,
  */
 int wolfSSL_CONF_cmd(WOLFSSL_CONF_CTX* cctx, const char* cmd, const char* value)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     const conf_cmd_tbl* confcmd = NULL;
     WOLFSSL_ENTER("wolfSSL_CONF_cmd");
 

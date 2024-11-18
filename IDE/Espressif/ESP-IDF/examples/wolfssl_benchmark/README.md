@@ -62,10 +62,10 @@ See the [feature request](https://sysprogs.com/w/forums/topic/feature-request-sh
 
 ## ESP-IDF Commandline
 
-1. `idf.py menuconfig` to configure the program.  
+1. `idf.py menuconfig` to configure the program.
     1-1. Example Configuration ->
 
-    BENCH_ARG : argument that you want to use. Default is "-lng 0"  
+    BENCH_ARG : argument that you want to use. Default is "-lng 0"
     The list of argument can be find in help.
 
 When you want to run the benchmark program
@@ -110,9 +110,9 @@ idf.py build flash -p /dev/ttyS20 -b 115200 monitor
 
 ## Example Output
 
-Note the default wolfSSL `user_settings.h` is configured by default to be the most 
+Note the default wolfSSL `user_settings.h` is configured by default to be the most
 compatible across the widest ranges of targets. Contact wolfSSL at support@wolfssl.com
-for help in optimizing for your particular application, or see the 
+for help in optimizing for your particular application, or see the
 [docs](https://www.wolfssl.com/documentation/manuals/wolfssl/index.html).
 
 Compiled and flashed with `idf.py build  flash -p /dev/ttyS7 -b 115200 monitor`:

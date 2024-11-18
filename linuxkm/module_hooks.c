@@ -1,6 +1,6 @@
 /* module_hooks.c -- module load/unload hooks for libwolfssl.ko
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -105,7 +105,7 @@ static void lkmFipsCb(int ok, int err, const char* hash)
 {
     if ((! ok) || (err != 0))
         pr_err("libwolfssl FIPS error: %s\n", wc_GetErrorString(err));
-    if (err == IN_CORE_FIPS_E) {
+    if (err == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
         pr_err("In-core integrity hash check failure.\n"
                "Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                hash ? hash : "<null>");
@@ -237,7 +237,7 @@ static int wolfssl_init(void)
     ret = wolfCrypt_GetStatus_fips();
     if (ret != 0) {
         pr_err("wolfCrypt_GetStatus_fips() failed with code %d: %s\n", ret, wc_GetErrorString(ret));
-        if (ret == IN_CORE_FIPS_E) {
+        if (ret == WC_NO_ERR_TRACE(IN_CORE_FIPS_E)) {
             const char *newhash = wolfCrypt_GetCoreHash_fips();
             pr_err("Update verifyCore[] in fips_test.c with new hash \"%s\" and rebuild.\n",
                    newhash ? newhash : "<null>");
@@ -459,7 +459,13 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 
     wolfssl_linuxkm_pie_redirect_table._ctype = _ctype;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 11, 0)
+    wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.krealloc_noprof = krealloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.kzalloc_noprof = kzalloc_noprof;
+    wolfssl_linuxkm_pie_redirect_table.__kvmalloc_node_noprof = __kvmalloc_node_noprof;
+    wolfssl_linuxkm_pie_redirect_table.__kmalloc_cache_noprof = __kmalloc_cache_noprof;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 10, 0)
     wolfssl_linuxkm_pie_redirect_table.kmalloc_noprof = kmalloc_noprof;
     wolfssl_linuxkm_pie_redirect_table.krealloc_noprof = krealloc_noprof;
     wolfssl_linuxkm_pie_redirect_table.kzalloc_noprof = kzalloc_noprof;
@@ -571,7 +577,17 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.GetCA = GetCA;
 #ifndef NO_SKID
     wolfssl_linuxkm_pie_redirect_table.GetCAByName = GetCAByName;
-#endif
+#ifdef HAVE_OCSP
+    wolfssl_linuxkm_pie_redirect_table.GetCAByKeyHash = GetCAByKeyHash;
+#endif /* HAVE_OCSP */
+#endif /* NO_SKID */
+#ifdef WOLFSSL_AKID_NAME
+    wolfssl_linuxkm_pie_redirect_table.GetCAByAKID = GetCAByAKID;
+#endif /* WOLFSSL_AKID_NAME */
+#endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
+
+#ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
+    wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
 #endif
 
     /* runtime assert that the table has no null slots after initialization. */
@@ -797,16 +813,11 @@ static int updateFipsHash(void)
 
     if (tfm != NULL)
         crypto_free_shash(tfm);
-    if (desc != NULL)
-        XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (hash != NULL)
-        XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (base16_hash != NULL)
-        XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binCoreKey != NULL)
-        XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (binVerify != NULL)
-        XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(desc, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(base16_hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(binCoreKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(binVerify, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

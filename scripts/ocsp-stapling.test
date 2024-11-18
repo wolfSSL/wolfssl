@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ocsp-stapling.test
 # Test requires HAVE_OCSP and HAVE_CERTIFICATE_STATUS_REQUEST
@@ -9,6 +9,12 @@ SCRIPT_DIR="$(dirname "$0")"
 
 if [[ -z "${RETRIES_REMAINING-}" ]]; then
     export RETRIES_REMAINING=2
+fi
+
+if test "$WOLFSSL_EXTERNAL_TEST" == "0"; then
+    echo 'skipping oscp-stapling.test because WOLFSSL_EXTERNAL_TEST is \
+    defined to the value 0.'
+    exit 77
 fi
 
 if ! ./examples/client/client -V | grep -q 3; then

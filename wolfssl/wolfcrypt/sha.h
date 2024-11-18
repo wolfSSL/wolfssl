@@ -1,6 +1,6 @@
 /* sha.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -75,6 +75,9 @@
 #endif
 #if defined(WOLFSSL_SILABS_SE_ACCEL)
     #include <wolfssl/wolfcrypt/port/silabs/silabs_hash.h>
+#endif
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x.h>
 #endif
 
 #if !defined(NO_OLD_SHA_NAMES)
@@ -159,6 +162,9 @@ struct wc_Sha {
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx; /* generic crypto callback context */
+#endif
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_Sha mxcCtx;
 #endif
 #ifdef WOLFSSL_IMXRT1170_CAAM
     caam_hash_ctx_t ctx;

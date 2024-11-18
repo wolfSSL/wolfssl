@@ -1,6 +1,6 @@
 /* ssl_certman.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -398,7 +398,7 @@ WOLFSSL_STACK* wolfSSL_CertManagerGetCerts(WOLFSSL_CERT_MANAGER* cm)
         }
 
         /* Decode certificate. */
-        if ((!err) && (wolfSSL_sk_X509_push(sk, x509) != WOLFSSL_SUCCESS)) {
+        if ((!err) && (wolfSSL_sk_X509_push(sk, x509) <= 0)) {
             wolfSSL_X509_free(x509);
             err = 1;
         }
@@ -609,8 +609,7 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm, VerifyCallback vc)
 }
 #endif /* NO_WOLFSSL_CM_VERIFY */
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
 void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
         wc_UnknownExtCallback cb)
 {
@@ -620,7 +619,7 @@ void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,
     }
 
 }
-#endif /* WOLFSSL_CUSTOM_OID && WOLFSSL_ASN_TEMPLATE && HAVE_OID_DECODING */
+#endif /* WC_ASN_UNKNOWN_EXT_CB */
 
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* Verify the certificate.
@@ -690,8 +689,7 @@ int CM_VerifyBuffer_ex(WOLFSSL_CERT_MANAGER* cm, const unsigned char* buff,
         /* Create a decoded certificate with DER buffer. */
         InitDecodedCert(cert, buff, (word32)sz, cm->heap);
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
-    && defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
         if (cm->unknownExtCallback != NULL)
             wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
 #endif
@@ -1384,9 +1382,7 @@ int CM_SaveCertCache(WOLFSSL_CERT_MANAGER* cm, const char* fname)
                 ret = FWRITE_ERROR;
             }
         }
-        if (mem != NULL) {
-            XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        }
+        XFREE(mem, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
         /* Unlock CA table. */
         wc_UnLockMutex(&cm->caLock);
@@ -1857,6 +1853,26 @@ int wolfSSL_CertManagerSetCRL_Cb(WOLFSSL_CERT_MANAGER* cm, CbMissingCRL cb)
     if (ret == WOLFSSL_SUCCESS) {
         /* Store callback. */
         cm->cbMissingCRL = cb;
+    }
+
+    return ret;
+}
+
+int wolfSSL_CertManagerSetCRL_ErrorCb(WOLFSSL_CERT_MANAGER* cm, crlErrorCb cb,
+                                      void* ctx)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerSetCRL_Cb");
+
+    /* Validate parameters. */
+    if (cm == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == WOLFSSL_SUCCESS) {
+        /* Store callback. */
+        cm->crlCb = cb;
+        cm->crlCbCtx = ctx;
     }
 
     return ret;

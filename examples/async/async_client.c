@@ -1,8 +1,8 @@
 /* async_client.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
- * This file is part of wolfSSL. (formerly known as CyaSSL)
+ * This file is part of wolfSSL.
  *
  * wolfSSL is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,11 +16,15 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
 /* TLS client demonstrating asynchronous cryptography features and optionally
  * using the crypto or PK callbacks */
+
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 /* std */
 #include <stdlib.h>
@@ -180,7 +184,7 @@ int client_async_test(int argc, char** argv)
 #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
+        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
             if (ret < 0)
                 break;
@@ -188,7 +192,7 @@ int client_async_test(int argc, char** argv)
     #endif
         ret = wolfSSL_connect(ssl);
         err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
+    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret != WOLFSSL_SUCCESS) {
         fprintf(stderr, "wolfSSL_connect error %d: %s\n",
                 err, wolfSSL_ERR_error_string(err, errBuff));
@@ -210,7 +214,7 @@ int client_async_test(int argc, char** argv)
 #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
+        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
             if (ret < 0)
                 break;
@@ -218,7 +222,7 @@ int client_async_test(int argc, char** argv)
     #endif
         ret = wolfSSL_write(ssl, buff, (int)len);
         err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
+    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret != (int)len) {
         fprintf(stderr, "wolfSSL_write error %d: %s\n",
                 err, wolfSSL_ERR_error_string(err, errBuff));
@@ -232,7 +236,7 @@ int client_async_test(int argc, char** argv)
 #endif
     do {
     #ifdef WOLFSSL_ASYNC_CRYPT
-        if (err == WC_PENDING_E) {
+        if (err == WC_NO_ERR_TRACE(WC_PENDING_E)) {
             ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
             if (ret < 0)
                 break;
@@ -240,7 +244,7 @@ int client_async_test(int argc, char** argv)
     #endif
         ret = wolfSSL_read(ssl, buff, sizeof(buff)-1);
         err = wolfSSL_get_error(ssl, 0);
-    } while (err == WC_PENDING_E);
+    } while (err == WC_NO_ERR_TRACE(WC_PENDING_E));
     if (ret < 0) {
         fprintf(stderr, "wolfSSL_read error %d: %s\n",
                 err, wolfSSL_ERR_error_string(err, errBuff));

@@ -116,7 +116,7 @@
     ** the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
     */
     #if defined(CONFIG_ESP_WIFI_SSID)
-        /* tyically from ESP32 with ESP-IDF v4 ot v5 */
+        /* tyically from ESP32 with ESP-IDF v4 or v5 */
         #define EXAMPLE_ESP_WIFI_SSID CONFIG_ESP_WIFI_SSID
     #elif defined(CONFIG_EXAMPLE_WIFI_SSID)
         /* typically from ESP8266 rtos-sdk/v3.4 */
@@ -148,9 +148,13 @@ WOLFSSL_LOCAL esp_err_t sdk_var_whereis(const char* v_name, void* v);
 
 WOLFSSL_LOCAL intptr_t esp_sdk_stack_pointer(void);
 
+#if defined(USE_WOLFSSL_ESP_SDK_TIME)
+
 /******************************************************************************
 * Time helpers
 ******************************************************************************/
+WOLFSSL_LOCAL esp_err_t esp_sdk_time_mem_init(void);
+
 WOLFSSL_LOCAL esp_err_t esp_sdk_time_lib_init(void);
 
 /* a function to show the current data and time */
@@ -168,8 +172,9 @@ WOLFSSL_LOCAL esp_err_t set_time(void);
 
 /* wait NTP_RETRY_COUNT seconds before giving up on NTP time */
 WOLFSSL_LOCAL esp_err_t set_time_wait_for_ntp(void);
+#endif
 
-#ifndef NO_ESP_SDK_WIFI
+#if defined(USE_WOLFSSL_ESP_SDK_WIFI)
 
 /******************************************************************************
 * WiFi helpers
@@ -201,8 +206,7 @@ WOLFSSL_LOCAL esp_err_t esp_sdk_wifi_init_sta(void);
 
 WOLFSSL_LOCAL esp_err_t esp_sdk_wifi_show_ip(void);
 
-#endif /* !NO_ESP_SDK_WIFI */
-
+#endif /* USE_WOLFSSL_ESP_SDK_WIFI */
 
 /******************************************************************************
 * Debug helpers

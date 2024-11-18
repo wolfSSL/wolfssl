@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script creates symbolic links to the required asynchronous
 # file for using the asynchronous simulator and make check

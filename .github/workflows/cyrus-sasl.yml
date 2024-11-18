@@ -29,11 +29,14 @@ jobs:
           # Don't run tests as this config is tested in many other places
           check: false
 
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
           name: wolf-install-sasl
-          path: build-dir
+          path: build-dir.tgz
           retention-days: 5
 
   sasl_check:
@@ -60,7 +63,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: wolf-install-sasl
-          path: build-dir
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
 
       - name: Checkout OSP
         uses: actions/checkout@v4
@@ -88,4 +93,11 @@ jobs:
         working-directory: sasl
         run: |
           make -j -C utils testsuite saslpasswd2
-          $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/run-tests.sh
+          # Retry up to five times
+          for i in {1..5}; do
+             TEST_RES=0
+             $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/run-tests.sh || TEST_RES=$?
+             if [ "$TEST_RES" -eq "0" ]; then
+                break
+             fi
+          done

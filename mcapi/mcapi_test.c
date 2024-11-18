@@ -1,6 +1,6 @@
 /* mcapi_test.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,7 +23,9 @@
 
 /* Tests Microchip CRYPTO API layer */
 
-
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 
 /* mc api header */
 #include <wolfssl/wolfcrypt/settings.h>

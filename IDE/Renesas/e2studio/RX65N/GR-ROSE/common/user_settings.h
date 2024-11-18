@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -30,7 +30,7 @@
 /*-- Renesas TSIP usage and its version ---------------------------------------
  *
  *  "WOLFSSL_RENESAS_TSIP" definition makes wolfSSL to use H/W acceleration
- *   for cipher operations. 
+ *   for cipher operations.
  *  TSIP definition asks to have its version number.
  *  "WOLFSSL_RENESAS_TSIP_VER" takes following value:
  *      106: TSIPv1.06
@@ -38,27 +38,29 @@
  *      113: TSIPv1.13
  *      114: TSIPv1.14
  *      115: TSIPv1.15
+ *      117: TSIPv1.17
+ *      121: TSIPv1.21
  *----------------------------------------------------------------------------*/
   #define WOLFSSL_RENESAS_TSIP
-  #define WOLFSSL_RENESAS_TSIP_VER     117
+  #define WOLFSSL_RENESAS_TSIP_VER     121
 
 
 /*-- TLS version definitions  --------------------------------------------------
  *
  * wolfSSL supports TLSv1.2 by default. In case you want your system to support
  * TLSv1.3, uncomment line below.
- * 
+ *
  *----------------------------------------------------------------------------*/
 #define WOLFSSL_TLS13
 
 
 /*-- Operating System related definitions --------------------------------------
- * 
+ *
  *  In case any real-time OS is used, define its name(e.g. FREERTOS).
  *  Otherwise, define "SINGLE_THREADED". They are exclusive each other.
- *   
+ *
  *----------------------------------------------------------------------------*/
-  #define SINGLE_THREADED 
+  #define SINGLE_THREADED
 /*#define FREERTOS*/
 
 /*-- Compiler related definitions  ---------------------------------------------
@@ -98,34 +100,34 @@
 
   /* USE_ECC_CERT
    * This macro is for selecting root CA certificate to load, it is valid only
-   * in example applications. wolfSSL does not refer this macro. 
-   * If you want to use cipher suites including ECDSA authentication in 
+   * in example applications. wolfSSL does not refer this macro.
+   * If you want to use cipher suites including ECDSA authentication in
    * the example applications with TSIP, enable this macro.
-   * In TSIP 1.13 or later version, following cipher suites are 
+   * In TSIP 1.13 or later version, following cipher suites are
    * available:
    * - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
    * - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SAH256
-   * 
+   *
    * Note that, this macro disables cipher suites including RSA
    * authentication such as:
    * - TLS_RSA_WITH_AES_128_CBC_SHA
-   * - TLS_RSA_WITH_AES_256_CBC_SHA 
+   * - TLS_RSA_WITH_AES_256_CBC_SHA
    * - TLS_RSA_WITH_AES_128_CBC_SHA256
    * - TLS_RSA_WITH_AES_256_CBC_SHA256
    * - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
    * - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA256
-   * 
+   *
    */
   #define USE_ECC_CERT
 
-  /* In this example application, Root CA cert buffer named 
-   * "ca_ecc_cert_der_256" is used under the following macro definition 
+  /* In this example application, Root CA cert buffer named
+   * "ca_ecc_cert_der_256" is used under the following macro definition
    * for ECDSA.
    */
   #define USE_CERT_BUFFERS_256
 
-  /* In this example application, Root CA cert buffer named 
-   * "ca_cert_der_2048" is used under the following macro definition 
+  /* In this example application, Root CA cert buffer named
+   * "ca_cert_der_2048" is used under the following macro definition
    * for RSA authentication.
    */
   #define USE_CERT_BUFFERS_2048
@@ -137,7 +139,7 @@
   #define SIZEOF_LONG_LONG 8
 
   /*#define WOLFSSL_STATIC_MEMORY*/
-  
+
   #if defined(WOLFSSL_STATIC_MEMORY)
     #define USE_FAST_MATH
   #else
@@ -146,24 +148,24 @@
 
 
 
- /* 
+ /*
   * -- "NO_ASN_TIME" macro is to avoid certificate expiration validation --
-  *  
-  * Note. In your actual products, do not forget to comment-out 
+  *
+  * Note. In your actual products, do not forget to comment-out
   * "NO_ASN_TIME" macro. And prepare time function to get calendar time,
-  * otherwise, certificate expiration validation will not work.  
+  * otherwise, certificate expiration validation will not work.
   */
   /*#define NO_ASN_TIME*/
-  
+
   #define NO_MAIN_DRIVER
   #define BENCH_EMBEDDED
-  #define NO_WOLFSSL_DIR 
+  #define NO_WOLFSSL_DIR
   #define WOLFSSL_NO_CURRDIR
   #define NO_FILESYSTEM
   #define WOLFSSL_LOG_PRINTF
   #define WOLFSSL_HAVE_MIN
   #define WOLFSSL_HAVE_MAX
-  
+
   #define NO_WRITEV
   #define WOLFSSL_USER_IO
 
@@ -175,7 +177,7 @@
   #define USE_WOLF_SUSECONDS_T
   #define USE_WOLF_TIMEVAL_T
 
-  
+
   #define WC_RSA_BLINDING
   #define TFM_TIMING_RESISTANT
   #define ECC_TIMING_RESISTANT
@@ -191,7 +193,7 @@
 
 /*-- Definitions for functionality negation  -----------------------------------
  *
- * 
+ *
  *----------------------------------------------------------------------------*/
 
 /*#define NO_RENESAS_TSIP_CRYPT*/
@@ -203,7 +205,7 @@
 
 /*-- Consistency checking between definitions  ---------------------------------
  *
- *  
+ *
  *----------------------------------------------------------------------------*/
 
 /*-- TSIP TLS specific definitions --*/
@@ -229,7 +231,6 @@
     #define WOLFSSL_RENESAS_TSIP_TLS
 
     #if !defined(NO_RENESAS_TSIP_CRYPT)
-        #define WOLFSSL_RENESAS_TSIP_CRYPTONLY
         #define HAVE_PK_CALLBACKS
         #define WOLF_CRYPTO_CB
         #if defined(WOLFSSL_RENESAS_TSIP_TLS)
@@ -243,10 +244,20 @@
         # undef WOLFSSL_RENESAS_TSIP_TLS
         # undef WOLFSSL_RENESAS_TSIP_CRYPT
     #endif
-
+        /*-------------------------------------------------------------------------
+     * TSIP generates random numbers using the CRT-DRBG described
+     * in NIST SP800-90A. Recommend to define the CUSTOM_RAND_GENERATE_BLOCK
+     * so that wc_RNG_GenerateByte/Block() call TSIP random generatoion API
+     * directly. Comment out the macro will generate random number by
+     * wolfSSL Hash DRBG by using a seed which is generated by TSIP API.
+     *-----------------------------------------------------------------------*/
+	#define CUSTOM_RAND_GENERATE_BLOCK wc_tsip_GenerateRandBlock
 #else
     #define OPENSSL_EXTRA
     #define WOLFSSL_GENSEED_FORTEST /* Warning: define your own seed gen */
+    #if !defined(min)
+    	#define min(data1, data2)    _builtin_min(data1, data2)
+	#endif
 #endif
 
 
@@ -259,8 +270,4 @@
 
 
 #define XSTRCASECMP(s1,s2) strcmp((s1),(s2))
-
-#if !defined(WOLFSSL_RENESAS_TSIP_TLS)
- #define min(x,y) ((x)<(y)?(x):(y))
-#endif
 

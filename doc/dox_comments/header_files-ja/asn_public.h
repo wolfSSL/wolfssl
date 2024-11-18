@@ -1870,7 +1870,7 @@ int wc_Asn1PrintOptions_Init(Asn1PrintOptions* opts);
     \return  0 成功時に返します。
     \return  BAD_FUNC_ARG asn1がNULLの場合に返されます。
     \return  BAD_FUNC_ARG valが範囲外の場合に返されます。
- 
+
     \param opts  Asn1PrintOptions構造体へのポインタ
     \param opt   設定する情報へのポインタ
     \param val   設定値

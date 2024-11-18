@@ -56,23 +56,23 @@ Difficulty flashing:
 
 1. `idf.py menuconfig` to config the project
 
-      1-1. Example Configuration ->  
+      1-1. Example Configuration ->
 
           Target host ip address : the host that you want to connect to.(default is 127.0.0.1)
 
      1-2. Example Connection Configuration ->
-     
-          WIFI SSID: your own WIFI, which is connected to the Internet.(default is "myssid")  
+
+          WIFI SSID: your own WIFI, which is connected to the Internet.(default is "myssid")
           WIFI Password: WIFI password, and default is "mypassword"
-    
-    
-    Note: the example program uses 11111 port. If you want to use different port  
+
+
+    Note: the example program uses 11111 port. If you want to use different port
         , you need to modify DEFAULT_PORT definition in the code.
 
 When you want to test the wolfSSL client
 
-1. `idf.py -p <PORT> flash` and then `idf.py monitor` to load the firmware and see the context  
-2. You can use <wolfssl>/examples/server/server program for test.  
+1. `idf.py -p <PORT> flash` and then `idf.py monitor` to load the firmware and see the context
+2. You can use <wolfssl>/examples/server/server program for test.
 
          e.g. Launch ./examples/server/server -v 4 -b -i -d
 
@@ -83,11 +83,75 @@ Reminder that we build with `make` and not `cmake` in VisualGDB.
 
 Build files will be created in `[project directory]\build`
 
-## ESP-IDF make Commandline (version 3.5 or earlier for the ESP8266)
+See notes below if building a project in a directory other than the examples.
+
+Problems?
+
+- Try deleting any existing `sdkconfig` file and/or `./build` directory to start fresh.
+- Be sure the RTOS SDK is installed and properly configured.
+
+## ESP-IDF `make` Commandline (version 3.5 or earlier for the ESP8266)
+
+In-place example build:
+
+```bash
+export IDF_PATH=~/esp/ESP8266_RTOS_SDK
+export PATH="$PATH:$HOME/esp/xtensa-lx106-elf/bin"
+cd /mnt/c/workspace/wolfssl-master/IDE/Espressif/ESP-IDF/examples/wolfssl_client
+make clean
+make
+```
+
+When building a in a *different directory*, for example assuming the `wolfssl_client` in the wolfssl examples
+directory is copied to the `C:\test\demo` directory in Windows. (aka ` /mnt/c/test/demo` in WSL),
+with a clone of wolfSSL `master` branch in `C:\workspace\wolfssl-master`:
+
+```bash
+cp -r /mnt/c/workspace/wolfssl-master/IDE/Espressif/ESP-IDF/examples/wolfssl_client/* /mnt/c/test/demo
+```
+
+Modify the project `./components/wolfssl/component.mk` file. Adjust `WOLFSSL_ROOT` setting, in this case to a value of:
+
+`WOLFSSL_ROOT := ../../../../workspace/wolfssl-master`
+
+Ensure the path is *relative* to the project `component.mk` file location and *not* absolute.
+
+Note the location of the component makefile in this case is `c:\test\demo\components\wolfssl\component.mk`.
+Thus we need to navigate up 4 parents to the root of `C:\` to find `/mnt/c` in WSL.
+
+Proceed to run `make` from the project directory as usual:
+
+```bash
+# setup environment as needed
+export IDF_PATH=~/esp/ESP8266_RTOS_SDK
+export PATH="$PATH:$HOME/esp/xtensa-lx106-elf/bin"
+
+# copy and navigate to project directory
+mkdir -p /mnt/c/test/demo
+cp -r /mnt/c/workspace/wolfssl-master/IDE/Espressif/ESP-IDF/examples/wolfssl_client/* /mnt/c/test/demo
+cd /mnt/c/test/demo
+
+# Clean
+rm -rf ./build
+rm sdkconfig
+make clean
+
+# Edit ./components/wolfssl/component.mk and set WOLFSSL_ROOT value
+# WOLFSSL_ROOT := ../../../../workspace/wolfssl-master
+
+# build the example project
+make
+```
+
+When using `make` there should be details in the build log to indicate
+the assigned path, and the equivalent, fully-qualified path of `WOLFSSL_ROOT`.
 
 ```
-export IDF_PATH=~/esp/ESP8266_RTOS_SDK
-
+*************  wolfssl_client *************
+***********  wolfssl component ************
+WOLFSSL_ROOT defined: ../../../../workspace/wolfssl-master
+WOLFSSL_ROOT actual:  /mnt/c/workspace/wolfssl-master
+********** end wolfssl component **********
 ```
 
 
@@ -158,7 +222,7 @@ Command:
 
 ```
 cd /mnt/c/workspace/wolfssl-$USER/IDE/Espressif/ESP-IDF/examples/wolfssl_server
-. /mnt/c/SysGCC/esp32/esp-idf/v5.1/export.sh
+. /mnt/c/SysGCC/esp32/esp-idf/v5.2/export.sh
 idf.py flash -p /dev/ttyS19 -b 115200 monitor
 ```
 

@@ -1,6 +1,6 @@
 /* dilithium.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,6 +58,19 @@
  * WOLFSSL_DILITHIUM_SIGN_SMALL_MEM                           Default: OFF
  *   Compiles signature implementation that uses smaller amounts of memory but
  *   is considerably slower.
+ * WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC                   Default: OFF
+ *   Compiles signature implementation that uses smaller amounts of memory but
+ *   is considerably slower. Allocates vectors and decodes private key data
+ *   into them upfront.
+ * WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A                 Default: OFF
+ *   Compiles signature implementation that uses smaller amounts of memory but
+ *   is slower. Allocates matrix A and calculates it upfront.
+ * WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM                       Default: OFF
+ *   Compiles key generation implementation that uses smaller amounts of memory
+ *   but is slower.
+ * WOLFSSL_DILITHIUM_SMALL_MEM_POLY64                         Default: OFF
+ *   Compiles the small memory implementations to use a 64-bit polynomial.
+ *   Uses 2KB of memory but is slighlty quicker (2.75-7%).
  *
  * WOLFSSL_DILITHIUM_ALIGNMENT                                Default: 8
  *   Use to indicate whether loading and storing of words needs to be aligned.
@@ -67,6 +80,9 @@
  *
  * WOLFSSL_DILITHIUM_NO_ASN1                                  Default: OFF
  *   Disables any ASN.1 encoding or decoding code.
+ * WOLFSSL_DILITHIUM_REVERSE_HASH_OID                         Default: OFF
+ *   Reverse the DER encoded hash oid when signing and verifying a pre-hashed
+ *   message.
  *
  * WC_DILITHIUM_CACHE_MATRIX_A                                Default: OFF
  *   Enable caching of the A matrix on import.
@@ -79,6 +95,10 @@
  *   Enable caching of public key vectors on import.
  *   Enables WC_DILITHIUM_CACHE_MATRIX_A.
  *   Less work is required in sign operations.
+ * WC_DILITHIUM_FIXED_ARRAY                                   Default: OFF
+ *   Make the matrix and vectors of cached data fixed arrays that have
+ *   maximumal sizes for the configured parameters.
+ *   Useful in low dynamic memory situations.
  *
  * WOLFSSL_DILITHIUM_SIGN_CHECK_Y                             Default: OFF
  *   Check vector y is in required range as an early check on valid vector z.
@@ -129,6 +149,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/dilithium.h>
+#include <wolfssl/wolfcrypt/hash.h>
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef NO_INLINE
@@ -136,6 +157,18 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#if defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC) && \
+        !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)
+    #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+#endif
+#if defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A) && \
+        !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)
+    #define WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+    #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
+        #error "PRECALC and PRECALC_A is equivalent to non small mem"
+    #endif
 #endif
 
 #ifdef WOLFSSL_WC_DILITHIUM
@@ -217,6 +250,9 @@ void print_data(const char* name, const byte* d, int len)
 /* Number of bytes to a block of SHAKE-256 when generating s1 and s2. */
 #define DILITHIUM_GEN_S_BLOCK_BYTES    (WC_SHA3_256_COUNT * 8)
 
+/* Length of the hash OID to include in pre-hash message. */
+#define DILITHIUM_HASH_OID_LEN         11
+
 
 /* The ML-DSA parameters sets. */
 static const wc_dilithium_params dilithium_params[] = {
@@ -271,7 +307,7 @@ static const wc_dilithium_params dilithium_params[] = {
 static int dilithium_get_params(int level, const wc_dilithium_params** params)
 {
     unsigned int i;
-    int ret = NOT_COMPILED_IN;
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
 
     for (i = 0; i < DILITHIUM_PARAMS_CNT; i++) {
         if (dilithium_params[i].level == level) {
@@ -318,7 +354,9 @@ static int dilithium_shake256(wc_Shake* shake256, const byte* data,
     return ret;
 }
 
-#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+#if !defined(WOLFSSL_DILITHIUM_FIPS204_DRAFT) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) || \
+     !defined(WOLFSSL_DILITHIUM_NO_VERIFY))
 /* 256-bit hash using SHAKE-256.
  *
  * FIPS 204. 8.3: H(v,d) <- SHAKE256(v,d)
@@ -357,6 +395,198 @@ static int dilithium_hash256(wc_Shake* shake256, const byte* data1,
     return ret;
 }
 #endif
+
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+#if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+/* 256-bit hash of context and message using SHAKE-256.
+ *
+ * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ *   ...
+ *   10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                         ctx) || M
+ *   ...
+ *
+ * FIPS 204. 6.2: Algorithm 7 ML-DSA.Sign_internal(sk, M', rnd)
+ *   ...
+ *   6: mu <- H(BytesToBits(tr)||M', 64))
+ *   ...
+ *
+ * @param [in, out] shake256  SHAKE-256 object.
+ * @param [in]      tr        Public key hash.
+ * @param [in]      trLen     Length of public key hash in bytes.
+ * @param [in]      preHash   0 when message was not hashed,
+ *                            1 when message was hashed.
+ * @param [in]      ctx       Context of signature.
+ * @param [in]      ctxLen    Length of context of signature in bytes.
+ * @param [in]      ctx       Message to sign.
+ * @param [in]      ctxLen    Length of message to sign in bytes.
+ * @param [out]     hash      Buffer to hold hash result.
+ * @param [in]      hashLen   Number of bytes of hash to return.
+ * @return  0 on success.
+ * @return  Negative on error.
+ */
+static int dilithium_hash256_ctx_msg(wc_Shake* shake256, const byte* tr,
+    byte trLen, byte preHash, const byte* ctx, byte ctxLen, const byte* msg,
+    word32 msgLen, byte* hash, word32 hashLen)
+{
+    int ret;
+    byte prefix[2];
+
+    prefix[0] = preHash;
+    prefix[1] = ctxLen;
+
+    /* Initialize SHAKE-256 operation. */
+    ret = wc_InitShake256(shake256, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        /* Update with public key hash. */
+        ret = wc_Shake256_Update(shake256, tr, trLen);
+    }
+    if (ret == 0) {
+        /* Update with context prefix - 0 | ctxLen. */
+        ret = wc_Shake256_Update(shake256, prefix, (word32)sizeof(prefix));
+    }
+    if (ret == 0) {
+        /* Update with context. */
+        ret = wc_Shake256_Update(shake256, ctx, ctxLen);
+    }
+    if (ret == 0) {
+        /* Update with message. */
+        ret = wc_Shake256_Update(shake256, msg, msgLen);
+    }
+    if (ret == 0) {
+        /* Compute hash of data. */
+        ret = wc_Shake256_Final(shake256, hash, hashLen);
+    }
+
+    return ret;
+}
+
+/* Get the OID for the digest hash.
+ *
+ * @param [in]  hash         Hash algorithm.
+ * @param [out] oidBuffer   Buffer to hold OID.
+ * @param [out] oidLen      Length of OID in buffer.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG if hash algorithm not known.
+ */
+static int dilithium_get_hash_oid(int hash, byte* oidBuffer, word32* oidLen)
+{
+    int ret = 0;
+    const byte* oid;
+
+#ifndef WOLFSSL_DILITHIUM_NO_ASN1
+
+    oid = OidFromId(wc_HashGetOID((enum wc_HashType)hash), oidHashType, oidLen);
+    if ((oid != NULL) && (*oidLen <= DILITHIUM_HASH_OID_LEN - 2)) {
+#ifndef WOLFSSL_DILITHIUM_REVERSE_HASH_OID
+        oidBuffer[0] = 0x06;   /* ObjectID */
+        oidBuffer[1] = *oidLen;   /* ObjectID */
+        oidBuffer += 2;
+        XMEMCPY(oidBuffer, oid, *oidLen);
+#else
+        int i;
+        for (i = (int)*oidLen - 1; i >= 0; i--) {
+            *(oidBuffer++) = oid[i];
+        }
+        *(oidBuffer++) = *oidLen;   /* ObjectID */
+        * oidBuffer    = 0x06;   /* ObjectID */
+#endif
+        *oidLen += 2;
+     }
+     else {
+        ret = BAD_FUNC_ARG;
+    }
+
+#else
+
+    *oidLen = DILITHIUM_HASH_OID_LEN;
+#ifndef NO_SHA256
+    if (hash == WC_HASH_TYPE_SHA256) {
+        static byte sha256Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01
+        };
+        oid = sha256Oid;
+    }
+    else
+#endif
+#ifdef WOLFSSL_SHA384
+    if (hash == WC_HASH_TYPE_SHA384) {
+        static byte sha384Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02
+        };
+        oid = sha384Oid;
+    }
+    else
+#endif
+#ifdef WOLFSSL_SHA512
+    if (hash == WC_HASH_TYPE_SHA512) {
+        static byte sha512Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03
+        };
+        oid = sha512Oid;
+    }
+    else
+#ifndef WOLFSSL_NOSHA512_256
+    if (hash == WC_HASH_TYPE_SHA512_256) {
+        static byte sha512_256Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x06
+        };
+        oid = sha512_256Oid;
+    }
+    else
+#endif
+#endif
+    if (hash == WC_HASH_TYPE_SHAKE128) {
+        static byte shake128Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0B
+        };
+        oid = shake128Oid;
+    }
+    else if (hash == WC_HASH_TYPE_SHAKE256) {
+        static byte shake256Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0C
+        };
+        oid = shake256Oid;
+    }
+    else if (hash == WC_HASH_TYPE_SHA3_256) {
+        static byte sha3_256Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x08
+        };
+        oid = sha3_256Oid;
+    }
+    else if (hash == WC_HASH_TYPE_SHA3_384) {
+        static byte sha3_384Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x09
+        };
+        oid = sha3_384Oid;
+    }
+    else if (hash == WC_HASH_TYPE_SHA3_512) {
+        static byte sha3_512Oid[DILITHIUM_HASH_OID_LEN] = {
+            0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x0A
+        };
+        oid = sha3_512Oid;
+    }
+    else {
+        oid = NULL;
+        ret = BAD_FUNC_ARG;
+    }
+
+    if ((oid != NULL) && (*oidLen <= DILITHIUM_HASH_OID_LEN)) {
+#ifndef WOLFSSL_DILITHIUM_REVERSE_HASH_OID
+        XMEMCPY(oidBuffer, oid, *oidLen);
+#else
+        int i;
+        for (i = (int)*oidLen - 1; i >= 0; i--) {
+            *(oidBuffer++) = oid[i];
+        }
+#endif
+    }
+#endif
+
+    return ret;
+}
+#endif
+#endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
 
 #ifndef WOLFSSL_DILITHIUM_SMALL
 /* 128-bit hash using SHAKE-128.
@@ -710,13 +940,13 @@ static void dilithium_vec_decode_eta_bits(const byte* p, byte eta, sword32* s,
  *   2: r0 <- r+ mod +/- 2^d
  *   3: return ((r+ - r0) / 2^d, r0)
  *
- * FIPS 204. 8.2: Algorithm 18 skEncode(rho, K, tr, s1, s2, t0)
+ * FIPS 204. 7.2: Algorithm 24 skEncode(rho, K, tr, s1, s2, t0)
  *   ...
  *   8: for i form 0 to k - 1 do
  *   9:     sk <- sk || BitPack(t0[i], s^(d-1) - 1, 2^(d-1))
  *  10: end for
  *
- * FIPS 204. 8.2: Algorithm 16 pkEncode(rho, t1)
+ * FIPS 204. 7.2: Algorithm 22 pkEncode(rho, t1)
  *   ...
  *   2: for i from 0 to k - 1 do
  *   3:     pk <- pk || SimpleBitPack(t1[i], 2^bitlen(q-1) - d - 1)
@@ -732,9 +962,9 @@ static void dilithium_vec_encode_t0_t1(sword32* t, byte d, byte* t0, byte* t1)
     unsigned int i;
     unsigned int j;
 
-    /* Alg 18, Step 8 and Alg 16, Step 2. For each polynomial of vector. */
+    /* Alg 24, Step 8 and Alg 22, Step 2. For each polynomial of vector. */
     for (i = 0; i < d; i++) {
-        /* Alg 18, Step 9 and Alg 16, Step 3.
+        /* Alg 24, Step 9 and Alg 22, Step 3.
          * Do all polynomial values - 8 at a time. */
         for (j = 0; j < DILITHIUM_N; j += 8) {
             /* Take 8 values of t and take top bits and make positive. */
@@ -1674,43 +1904,24 @@ static void dilithium_vec_encode_w1(const sword32* w1, byte k, sword32 gamma2,
  * @param [in, out] shake128  SHAKE-128 object.
  * @param [in]      seed      Seed to hash to generate values.
  * @param [out]     a         Polynomial.
+ * @param [in]      h         Buffer to hold hashes.
  * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Negative on hash error.
  */
-static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
-    byte* key_h)
+static int dilithium_rej_ntt_poly_ex(wc_Shake* shake128, byte* seed, sword32* a,
+    byte* h)
 {
-#ifdef WOLFSSL_DILITHIUM_SMALL
     int ret = 0;
+#ifdef WOLFSSL_DILITHIUM_SMALL
     int j = 0;
-#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)
-    byte* h = NULL;
-#else
-    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
+
+#if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
+    /* Reading 4 bytes for 3 so need to set 1 past for last read. */
+    h[DILITHIUM_GEN_A_BLOCK_BYTES] = 0;
 #endif
 
-    (void)key_h;
-
-#ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    h = key_h;
-#elif defined(WOLFSSL_SMALL_STACK)
-    h = (byte*)XMALLOC(DILITHIUM_REJ_NTT_POLY_H_SIZE, NULL,
-        DYNAMIC_TYPE_DILITHIUM);
-    if (h == NULL) {
-        ret = MEMORY_E;
-    }
-#endif /* WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC */
-
-    if (ret == 0) {
-    #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
-        /* Reading 4 bytes for 3 so need to set 1 past for last read. */
-        h[DILITHIUM_GEN_A_BLOCK_BYTES] = 0;
-    #endif
-
-        /* Initialize SHAKE-128 object for new hash. */
-        ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
-    }
+    /* Initialize SHAKE-128 object for new hash. */
+    ret = wc_InitShake128(shake128, NULL, INVALID_DEVID);
     if (ret == 0) {
         /* Absorb the seed. */
         ret = wc_Shake128_Absorb(shake128, seed, DILITHIUM_GEN_A_SEED_SZ);
@@ -1746,39 +1957,14 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
             }
         }
     }
-
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC) && defined(WOLFSSL_SMALL_STACK)
-    XFREE(h, NULL, DYNAMIC_TYPE_DILITHIUM);
-#endif
-    return ret;
 #else
-    int ret = 0;
     unsigned int j = 0;
     unsigned int c;
-#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)
-    byte* h = NULL;
-#else
-    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
-#endif
 
-    (void)key_h;
-
-#ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    h = key_h;
-#elif defined(WOLFSSL_SMALL_STACK)
-    h = (byte*)XMALLOC(DILITHIUM_REJ_NTT_POLY_H_SIZE, NULL,
-        DYNAMIC_TYPE_DILITHIUM);
-    if (h == NULL) {
-        ret = MEMORY_E;
-    }
-#endif /* WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC */
-
-    if (ret == 0) {
-        /* Generate enough SHAKE-128 output blocks to give high probability of
-         * being able to get 256 valid 3-byte, 23-bit values from it. */
-        ret = dilithium_squeeze128(shake128, seed, DILITHIUM_GEN_A_SEED_SZ, h,
-            DILITHIUM_GEN_A_NBLOCKS);
-    }
+    /* Generate enough SHAKE-128 output blocks to give high probability of
+     * being able to get 256 valid 3-byte, 23-bit values from it. */
+    ret = dilithium_squeeze128(shake128, seed, DILITHIUM_GEN_A_SEED_SZ, h,
+        DILITHIUM_GEN_A_NBLOCKS);
     if (ret == 0) {
     #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
         /* Reading 4 bytes for 3 so need to set 1 past for last read. */
@@ -1786,7 +1972,7 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
     #endif
 
         /* Use the first 256 triplets and know we won't exceed required. */
-#ifdef WOLFSSL_DILITHIUM_NO_LARGE_CODE
+    #ifdef WOLFSSL_DILITHIUM_NO_LARGE_CODE
         for (c = 0; c < (DILITHIUM_N - 1) * 3; c += 3) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
             /* Load 32-bit value and mask out 23 bits. */
@@ -1822,7 +2008,7 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
                 }
             }
         }
-#else
+    #else
         /* Do 15 bytes at a time: 255 * 3 / 15 = 51 */
         for (c = 0; c < DILITHIUM_N * 3; c += 24) {
         #if defined(LITTLE_ENDIAN_ORDER) && (WOLFSSL_DILITHIUM_ALIGNMENT == 0)
@@ -1919,7 +2105,7 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
                 }
             }
         }
-#endif
+    #endif
         /* Keep generating more blocks and using triplets until we have enough.
          */
         while (j < DILITHIUM_N) {
@@ -1952,15 +2138,60 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
             }
         }
     }
+#endif
 
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC) && defined(WOLFSSL_SMALL_STACK)
-    XFREE(h, NULL, DYNAMIC_TYPE_DILITHIUM);
-#endif
     return ret;
-#endif
 }
 
-#if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
+#if (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM)) || \
+    defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM))
+/* Generate a random polynomial by rejection.
+ *
+ * @param [in, out] shake128  SHAKE-128 object.
+ * @param [in]      seed      Seed to hash to generate values.
+ * @param [out]     a         Polynomial.
+ * @param [in]      heap      Dynamic memory hint.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Negative on hash error.
+ */
+static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
+    void* heap)
+{
+    int ret;
+#if defined(WOLFSSL_SMALL_STACK)
+    byte* h = NULL;
+#else
+    byte h[DILITHIUM_REJ_NTT_POLY_H_SIZE];
+#endif
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK)
+    h = (byte*)XMALLOC(DILITHIUM_REJ_NTT_POLY_H_SIZE, heap,
+        DYNAMIC_TYPE_DILITHIUM);
+    if (h == NULL) {
+        ret = MEMORY_E;
+    }
+#endif
+
+    ret = dilithium_rej_ntt_poly_ex(shake128, seed, a, h);
+
+#if defined(WOLFSSL_SMALL_STACK)
+    XFREE(h, heap, DYNAMIC_TYPE_DILITHIUM);
+#endif
+
+    return ret;
+}
+#endif
+
+#if (!defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+     !defined(WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM)) || \
     defined(WOLFSSL_DILITHIUM_CHECK_KEY) || \
     (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
      !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM)) || \
@@ -1983,11 +2214,12 @@ static int dilithium_rej_ntt_poly(wc_Shake* shake128, byte* seed, sword32* a,
  * @param [in]      k         First dimension of matrix a.
  * @param [in]      l         Second dimension of matrix a.
  * @param [out]     a         Matrix of polynomials.
+ * @param [in]      heap      Dynamic memory hint.
  * @return  0 on success.
  * @return  Negative on hash error.
  */
 static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
-    byte l, sword32* a)
+    byte l, sword32* a, void* heap)
 {
     int ret = 0;
     byte r;
@@ -2005,7 +2237,7 @@ static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
             /* Put s into buffer to be hashed. */
             seed[DILITHIUM_PUB_SEED_SZ + 0] = s;
             /* Step 3: Create polynomial from hashing seed. */
-            ret = dilithium_rej_ntt_poly(shake128, seed, a, NULL);
+            ret = dilithium_rej_ntt_poly(shake128, seed, a, heap);
             /* Next polynomial. */
             a += DILITHIUM_N;
         }
@@ -2031,7 +2263,7 @@ static int dilithium_expand_a(wc_Shake* shake128, const byte* pub_seed, byte k,
 #define DILITHIUM_COEFF_S_VALID_ETA2(b) \
     ((b) < DILITHIUM_ETA_2_MOD)
 
-static const byte dilithium_coeff_eta2[] = {
+static const char dilithium_coeff_eta2[] = {
     2, 1, 0, -1, -2,
     2, 1, 0, -1, -2,
     2, 1, 0, -1, -2
@@ -2514,6 +2746,7 @@ static int dilithium_vec_expand_mask(wc_Shake* shake256, byte* seed,
 #endif
 
 #if !defined(WOLFSSL_DILITHIUM_NO_SIGN) || !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+
 /* Expand commit to a polynomial.
  *
  * FIPS 204. 8.3: Algorithm 23 SampleInBall(rho)
@@ -2530,48 +2763,37 @@ static int dilithium_vec_expand_mask(wc_Shake* shake256, byte* seed,
  *  11: end for
  *  12: return c
  *
- * @param [in]  shake256   SHAKE-256 object.
- * @param [in]  seed       Buffer containing seed to expand.
- * @param [in]  tau        Number of +/- 1s in polynomial.
- * @param [out] c          Commit polynomial.
- * @param [in]  key_block  Memory to use for block from key.
+ * @param [in]  shake256  SHAKE-256 object.
+ * @param [in]  seed      Buffer containing seed to expand.
+ * @param [in]  seedLen   Length of seed in bytes.
+ * @param [in]  tau       Number of +/- 1s in polynomial.
+ * @param [out] c         Commit polynomial.
+ * @param [in]  block     Memory to use for block from key.
  * @return  0 on success.
- * @return  MEMORY_E when dynamic memory allocation fails.
  * @return  Negative on hash error.
  */
-static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
-   byte tau, sword32* c, byte* key_block)
+static int dilithium_sample_in_ball_ex(wc_Shake* shake256, const byte* seed,
+   word32 seedLen, byte tau, sword32* c, byte* block)
 {
     int ret = 0;
     unsigned int k;
     unsigned int i;
     unsigned int s;
-#if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC)
-    byte* block = NULL;
-#else
-    byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
-#endif
     byte signs[DILITHIUM_SIGN_BYTES];
-
-    (void)key_block;
-
-#ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    block = key_block;
-#elif defined(WOLFSSL_SMALL_STACK)
-    block = (byte*)XMALLOC(DILITHIUM_GEN_C_BLOCK_BYTES, NULL,
-        DYNAMIC_TYPE_DILITHIUM);
-    if (block == NULL) {
-        ret = MEMORY_E;
-    }
-#endif
 
     if (ret == 0) {
         /* Set polynomial to all zeros. */
         XMEMSET(c, 0, DILITHIUM_POLY_SIZE);
 
         /* Generate a block of data from seed. */
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        ret = dilithium_shake256(shake256, seed, seedLen, block,
+            DILITHIUM_GEN_C_BLOCK_BYTES);
+#else
+        (void)seedLen;
         ret = dilithium_shake256(shake256, seed, DILITHIUM_SEED_SZ, block,
             DILITHIUM_GEN_C_BLOCK_BYTES);
+#endif
     }
     if (ret == 0) {
         /* Copy first 8 bytes of first hash block as random sign bits. */
@@ -2609,11 +2831,57 @@ static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
         s++;
     }
 
-#if !defined(WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC) && defined(WOLFSSL_SMALL_STACK)
-    XFREE(block, NULL, DYNAMIC_TYPE_DILITHIUM);
+    return ret;
+}
+
+#if (!defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+     !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM)) || \
+    (!defined(WOLFSSL_DILITHIUM_NO_VERIFY) && \
+     !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM))
+/* Expand commit to a polynomial.
+ *
+ * @param [in]  shake256  SHAKE-256 object.
+ * @param [in]  seed      Buffer containing seed to expand.
+ * @param [in]  seedLen   Length of seed in bytes.
+ * @param [in]  tau       Number of +/- 1s in polynomial.
+ * @param [out] c         Commit polynomial.
+ * @param [in]  heap      Dynamic memory hint.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails.
+ * @return  Negative on hash error.
+ */
+static int dilithium_sample_in_ball(wc_Shake* shake256, const byte* seed,
+   word32 seedLen, byte tau, sword32* c, void* heap)
+{
+    int ret = 0;
+#if defined(WOLFSSL_SMALL_STACK)
+    byte* block = NULL;
+#else
+    byte block[DILITHIUM_GEN_C_BLOCK_BYTES];
+#endif
+
+    (void)heap;
+
+#if defined(WOLFSSL_SMALL_STACK)
+    block = (byte*)XMALLOC(DILITHIUM_GEN_C_BLOCK_BYTES, heap,
+        DYNAMIC_TYPE_DILITHIUM);
+    if (block == NULL) {
+        ret = MEMORY_E;
+    }
+#endif
+
+    if (ret == 0) {
+        ret = dilithium_sample_in_ball_ex(shake256, seed, seedLen, tau, c,
+            block);
+    }
+
+#if defined(WOLFSSL_SMALL_STACK)
+    XFREE(block, heap, DYNAMIC_TYPE_DILITHIUM);
 #endif
     return ret;
 }
+#endif
+
 #endif
 
 /******************************************************************************
@@ -2734,7 +3002,8 @@ static void dilithium_decompose_q32(sword32 r, sword32* r0, sword32* r1)
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
-#ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
+#if !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) || \
+    defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
 /* Decompose vector of polynomials into high and low based on GAMMA2.
  *
  * @param [in]  r       Vector of polynomials to decompose.
@@ -3124,11 +3393,11 @@ static int dilithium_check_hint(const byte* h, byte k, byte omega)
     unsigned int i;
 
     /* Skip polynomial index while count is 0. */
-    while ((h[omega + o] == 0) && (o < k)) {
+    while ((o < k) && (h[omega + o] == 0)) {
         o++;
     }
     /* Check all possible hints. */
-    for (i = 1; i < omega; i++) {
+    for (i = 1; (o < k) && (i < omega); i++) {
         /* Done with polynomial if index equals count of hints. */
         if (i == h[omega + o]) {
             /* Next polynomial index while count is index. */
@@ -5159,27 +5428,27 @@ static void dilithium_vec_make_pos(sword32* a, byte l)
 /* Make a key from a random seed.
  *
  * xi is seed passed in.
- * FIPS 204. 5: Algorithm 1 ML-DSA.KeyGen()
- *   ...
- *   2: (rho, rho', K) E {0,1}256 x {0,1}512 x {0,1}256 <- H(xi, 1024)
+ * FIPS 204. 6.1: Algorithm 6 ML-DSA.KeyGen_internal(xi)
+ *   1: (rho, rho', K) E B32 x B64 x B32 <- H(xi||k||l, 1024)
+ *   2:
  *   3: A_circum <- ExpandA(rho)
  *   4: (s1,s2) <- ExpandS(rho')
  *   5: t <- NTT-1(A_circum o NTT(s1)) + s2
  *   6: (t1, t0) <- Power2Round(t, d)
  *   7: pk <- pkEncode(rho, t1)
- *   8: tr <- H(BytesToBits(pk), 512)
+ *   8: tr <- H(pk, 64)
  *   9: sk <- skEncode(rho, K, tr, s1, s2, t0)
  *  10: return (pk, sk)
  *
- * FIPS 204. 8.2: Algorithm 16 pkEncode(rho, t1)
- *   1: pk <- BitsToBytes(rho)
- *   2: for i from 0 to l - 1 do
+ * FIPS 204. 7.2: Algorithm 22 pkEncode(rho, t1)
+ *   1: pk <- rho
+ *   2: for i from 0 to k - 1 do
  *   3:     pk <- pk || SimpleBitPack(t1[i], 2^(bitlen(q-1)-d) - 1)
  *   4: end for
  *   5: return pk
  *
- * FIPS 204. 8.2: Algorithm 18 skEncode(rho, K, tr, s, s2, t0)
- *   1: sk <- BitsToBytes(rho) || BitsToBytes(K) || BitsToBytes(tr)
+ * FIPS 204. 7.2: Algorithm 24 skEncode(rho, K, tr, s, s2, t0)
+ *   1: sk <- rho || K || tr
  *   2: for i from 0 to l - 1 do
  *   3:     sk <- sk || BitPack(s1[i], eta, eta)
  *   4: end for
@@ -5201,6 +5470,7 @@ static void dilithium_vec_make_pos(sword32* a, byte l)
  */
 static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 {
+#ifndef WOLFSSL_DILITHIUM_MAKE_KEY_SMALL_MEM
     int ret = 0;
     const wc_dilithium_params* params = key->params;
     sword32* a = NULL;
@@ -5208,22 +5478,30 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     sword32* s2 = NULL;
     sword32* t = NULL;
     byte* pub_seed = key->k;
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    byte kl[2];
+#endif
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if (key->a == NULL) {
-        key->a = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        key->a = (sword32*)XMALLOC(params->aSz, key->heap,
+            DYNAMIC_TYPE_DILITHIUM);
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         a = key->a;
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
-        key->s1 = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        key->s1 = (sword32*)XMALLOC(params->aSz, key->heap,
+            DYNAMIC_TYPE_DILITHIUM);
         if (key->s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -5232,6 +5510,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
             key->t0 = key->s2  + params->s2Sz / sizeof(*s2);
         }
     }
+#endif
     if (ret == 0) {
         s1 = key->s1;
         s2 = key->s2;
@@ -5247,7 +5526,7 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #endif
 
         /* s1, s2, t, a */
-        s1 = (sword32*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -5255,25 +5534,34 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
             s2 = s1 + params->s1Sz / sizeof(*s1);
             t  = s2 + params->s2Sz / sizeof(*s2);
 #ifndef WC_DILITHIUM_CACHE_MATRIX_A
-            a  = t  + params->s2Sz / sizeof(*s2);
+            a  = t  + params->s2Sz / sizeof(*t);
 #endif
         }
     }
 #endif
 
     if (ret == 0) {
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        kl[0] = params->k;
+        kl[1] = params->l;
+        /* Step 1: Create public seed, private seed and K from seed.
+         * Step 9; Alg 24, Step 1: Public seed is placed into private key. */
+        ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
+            pub_seed, DILITHIUM_SEEDS_SZ);
+#else
         /* Step 2: Create public seed, private seed and K from seed.
          * Step 9; Alg 18, Step 1: Public seed is placed into private key. */
         ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ, pub_seed,
             DILITHIUM_SEEDS_SZ);
+#endif
     }
     if (ret == 0) {
-        /* Step 7; Alg 16 Step 1: Copy public seed into public key. */
+        /* Step 7; Alg 22 Step 1: Copy public seed into public key. */
         XMEMCPY(key->p, pub_seed, DILITHIUM_PUB_SEED_SZ);
 
         /* Step 3: Expand public seed into a matrix of polynomials. */
         ret = dilithium_expand_a(&key->shake, pub_seed, params->k, params->l,
-            a);
+            a, key->heap);
     }
     if (ret == 0) {
         byte* priv_seed = key->k + DILITHIUM_PUB_SEED_SZ;
@@ -5292,9 +5580,9 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 
         /* Step 9: Move k down to after public seed. */
         XMEMCPY(k, k + DILITHIUM_PRIV_SEED_SZ, DILITHIUM_K_SZ);
-        /* Step 9. Alg 18 Steps 2-4: Encode s1 into private key. */
+        /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
         dilthium_vec_encode_eta_bits(s1, params->l, params->eta, s1p);
-        /* Step 9. Alg 18 Steps 5-7: Encode s2 into private key. */
+        /* Step 9. Alg 24 Steps 5-7: Encode s2 into private key. */
         dilthium_vec_encode_eta_bits(s2, params->k, params->eta, s2p);
 
         /* Step 5: t <- NTT-1(A_circum o NTT(s1)) + s2 */
@@ -5305,11 +5593,11 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 
         /* Make positive for decomposing. */
         dilithium_vec_make_pos(t, params->k);
-        /* Step 6, Step 7, Step 9. Alg 16 Steps 2-4, Alg 18 Steps 8-10.
+        /* Step 6, Step 7, Step 9. Alg 22 Steps 2-4, Alg 24 Steps 8-10.
          * Decompose t in t0 and t1 and encode into public and private key.
          */
         dilithium_vec_encode_t0_t1(t, params->k, t0, t1);
-        /* Step 8. Alg 18, Step 1: Hash public key into private key. */
+        /* Step 8. Alg 24, Step 1: Hash public key into private key. */
         ret = dilithium_shake256(&key->shake, key->p, params->pkSz, tr,
             DILITHIUM_TR_SZ);
     }
@@ -5332,16 +5620,235 @@ static int dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
     }
 
 #ifndef WC_DILITHIUM_CACHE_PRIV_VECTORS
-    XFREE(s1, NULL, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
 #endif
     return ret;
+#else
+    int ret = 0;
+    const wc_dilithium_params* params = key->params;
+    sword32* a = NULL;
+    sword32* s1 = NULL;
+    sword32* s2 = NULL;
+    sword32* t = NULL;
+#ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+    sword64* t64 = NULL;
+#endif
+    byte* h = NULL;
+    byte* pub_seed = key->k;
+    unsigned int r;
+    unsigned int s;
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+    byte kl[2];
+#endif
+
+    /* Allocate memory for large intermediates. */
+    if (ret == 0) {
+        unsigned int allocSz;
+
+        /* s1-l, s2-k, t-k, a-1 */
+        allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
+            DILITHIUM_REJ_NTT_POLY_H_SIZE + DILITHIUM_POLY_SIZE;
+    #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+        /* t64 */
+        allocSz += DILITHIUM_POLY_SIZE * 2;
+    #endif
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
+        if (s1 == NULL) {
+            ret = MEMORY_E;
+        }
+        else {
+            s2 = s1 + params->s1Sz / sizeof(*s1);
+            t  = s2 + params->s2Sz / sizeof(*s2);
+            h  = (byte*)(t  + params->s2Sz / sizeof(*t));
+            a  = (sword32*)(h + DILITHIUM_REJ_NTT_POLY_H_SIZE);
+        #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            t64 = (sword64*)(a + DILITHIUM_N);
+        #endif
+        }
+    }
+
+    if (ret == 0) {
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        kl[0] = params->k;
+        kl[1] = params->l;
+        /* Step 1: Create public seed, private seed and K from seed.
+         * Step 9; Alg 24, Step 1: Public seed is placed into private key. */
+        ret = dilithium_hash256(&key->shake, seed, DILITHIUM_SEED_SZ, kl, 2,
+            pub_seed, DILITHIUM_SEEDS_SZ);
+#else
+        /* Step 2: Create public seed, private seed and K from seed.
+         * Step 9; Alg 18, Step 1: Public seed is placed into private key. */
+        ret = dilithium_shake256(&key->shake, seed, DILITHIUM_SEED_SZ, pub_seed,
+            DILITHIUM_SEEDS_SZ);
+#endif
+    }
+    if (ret == 0) {
+        byte* priv_seed = key->k + DILITHIUM_PUB_SEED_SZ;
+
+        /* Step 7; Alg 22 Step 1: Copy public seed into public key. */
+        XMEMCPY(key->p, pub_seed, DILITHIUM_PUB_SEED_SZ);
+
+        /* Step 4: Expand private seed into to vectors of polynomials. */
+        ret = dilithium_expand_s(&key->shake, priv_seed, params->eta, s1,
+            params->l, s2, params->k);
+    }
+    if (ret == 0) {
+        byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+        byte* tr = k + DILITHIUM_K_SZ;
+        byte* s1p = tr + DILITHIUM_TR_SZ;
+        byte* s2p = s1p + params->s1EncSz;
+        byte* t0 = s2p + params->s2EncSz;
+        byte* t1 = key->p + DILITHIUM_PUB_SEED_SZ;
+        byte aseed[DILITHIUM_GEN_A_SEED_SZ];
+        sword32* s2t = s2;
+        sword32* tt = t;
+
+        /* Step 9: Move k down to after public seed. */
+        XMEMCPY(k, k + DILITHIUM_PRIV_SEED_SZ, DILITHIUM_K_SZ);
+        /* Step 9. Alg 24 Steps 2-4: Encode s1 into private key. */
+        dilthium_vec_encode_eta_bits(s1, params->l, params->eta, s1p);
+        /* Step 9. Alg 24 Steps 5-7: Encode s2 into private key. */
+        dilthium_vec_encode_eta_bits(s2, params->k, params->eta, s2p);
+
+        /* Step 5: NTT(s1) */
+        dilithium_vec_ntt_small(s1, params->l);
+        /* Step 5: t <- NTT-1(A_circum o NTT(s1)) + s2 */
+        XMEMCPY(aseed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        for (r = 0; (ret == 0) && (r < params->k); r++) {
+            sword32* s1t = s1;
+            unsigned int e;
+
+            /* Put r/i into buffer to be hashed. */
+            aseed[DILITHIUM_PUB_SEED_SZ + 1] = r;
+            for (s = 0; (ret == 0) && (s < params->l); s++) {
+
+                /* Put s into buffer to be hashed. */
+                aseed[DILITHIUM_PUB_SEED_SZ + 0] = s;
+                /* Step 3: Expand public seed into a matrix of polynomials. */
+                ret = dilithium_rej_ntt_poly_ex(&key->shake, aseed, a, h);
+                if (ret != 0) {
+                    break;
+                }
+                /* Matrix multiply. */
+            #ifndef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+                if (s == 0) {
+                #ifdef WOLFSSL_DILITHIUM_SMALL
+                    for (e = 0; e < DILITHIUM_N; e++) {
+                        tt[e] = dilithium_mont_red((sword64)a[e] * s1t[e]);
+                    }
+                #else
+                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                        tt[e+0] = dilithium_mont_red((sword64)a[e+0]*s1t[e+0]);
+                        tt[e+1] = dilithium_mont_red((sword64)a[e+1]*s1t[e+1]);
+                        tt[e+2] = dilithium_mont_red((sword64)a[e+2]*s1t[e+2]);
+                        tt[e+3] = dilithium_mont_red((sword64)a[e+3]*s1t[e+3]);
+                        tt[e+4] = dilithium_mont_red((sword64)a[e+4]*s1t[e+4]);
+                        tt[e+5] = dilithium_mont_red((sword64)a[e+5]*s1t[e+5]);
+                        tt[e+6] = dilithium_mont_red((sword64)a[e+6]*s1t[e+6]);
+                        tt[e+7] = dilithium_mont_red((sword64)a[e+7]*s1t[e+7]);
+                    }
+                #endif
+                }
+                else {
+                #ifdef WOLFSSL_DILITHIUM_SMALL
+                    for (e = 0; e < DILITHIUM_N; e++) {
+                        tt[e] += dilithium_mont_red((sword64)a[e] * s1t[e]);
+                    }
+                #else
+                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                        tt[e+0] += dilithium_mont_red((sword64)a[e+0]*s1t[e+0]);
+                        tt[e+1] += dilithium_mont_red((sword64)a[e+1]*s1t[e+1]);
+                        tt[e+2] += dilithium_mont_red((sword64)a[e+2]*s1t[e+2]);
+                        tt[e+3] += dilithium_mont_red((sword64)a[e+3]*s1t[e+3]);
+                        tt[e+4] += dilithium_mont_red((sword64)a[e+4]*s1t[e+4]);
+                        tt[e+5] += dilithium_mont_red((sword64)a[e+5]*s1t[e+5]);
+                        tt[e+6] += dilithium_mont_red((sword64)a[e+6]*s1t[e+6]);
+                        tt[e+7] += dilithium_mont_red((sword64)a[e+7]*s1t[e+7]);
+                    }
+                #endif
+                }
+            #else
+                if (s == 0) {
+                #ifdef WOLFSSL_DILITHIUM_SMALL
+                    for (e = 0; e < DILITHIUM_N; e++) {
+                        t64[e] = (sword64)a[e] * s1t[e];
+                    }
+                #else
+                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                        t64[e+0] = (sword64)a[e+0] * s1t[e+0];
+                        t64[e+1] = (sword64)a[e+1] * s1t[e+1];
+                        t64[e+2] = (sword64)a[e+2] * s1t[e+2];
+                        t64[e+3] = (sword64)a[e+3] * s1t[e+3];
+                        t64[e+4] = (sword64)a[e+4] * s1t[e+4];
+                        t64[e+5] = (sword64)a[e+5] * s1t[e+5];
+                        t64[e+6] = (sword64)a[e+6] * s1t[e+6];
+                        t64[e+7] = (sword64)a[e+7] * s1t[e+7];
+                    }
+                #endif
+                }
+                else {
+                #ifdef WOLFSSL_DILITHIUM_SMALL
+                    for (e = 0; e < DILITHIUM_N; e++) {
+                        t64[e] += (sword64)a[e] * s1t[e];
+                    }
+                #else
+                    for (e = 0; e < DILITHIUM_N; e += 8) {
+                        t64[e+0] += (sword64)a[e+0] * s1t[e+0];
+                        t64[e+1] += (sword64)a[e+1] * s1t[e+1];
+                        t64[e+2] += (sword64)a[e+2] * s1t[e+2];
+                        t64[e+3] += (sword64)a[e+3] * s1t[e+3];
+                        t64[e+4] += (sword64)a[e+4] * s1t[e+4];
+                        t64[e+5] += (sword64)a[e+5] * s1t[e+5];
+                        t64[e+6] += (sword64)a[e+6] * s1t[e+6];
+                        t64[e+7] += (sword64)a[e+7] * s1t[e+7];
+                    }
+                #endif
+                }
+            #endif
+                /* Next polynomial. */
+                s1t += DILITHIUM_N;
+            }
+        #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            for (e = 0; e < DILITHIUM_N; e++) {
+                tt[e] = dilithium_mont_red(t64[e]);
+            }
+        #endif
+            dilithium_invntt(tt);
+            dilithium_add(tt, s2t);
+            /* Make positive for decomposing. */
+            dilithium_make_pos(tt);
+
+            tt += DILITHIUM_N;
+            s2t += DILITHIUM_N;
+        }
+
+        /* Step 6, Step 7, Step 9. Alg 22 Steps 2-4, Alg 24 Steps 8-10.
+         * Decompose t in t0 and t1 and encode into public and private key.
+         */
+        dilithium_vec_encode_t0_t1(t, params->k, t0, t1);
+        /* Step 8. Alg 24, Step 1: Hash public key into private key. */
+        ret = dilithium_shake256(&key->shake, key->p, params->pkSz, tr,
+            DILITHIUM_TR_SZ);
+    }
+    if (ret == 0) {
+        /* Public key and private key are available. */
+        key->prvKeySet = 1;
+        key->pubKeySet = 1;
+    }
+
+    XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    return ret;
+#endif
 }
 
 /* Make a key from a random seed.
  *
- * FIPS 204. 5: Algorithm 1 ML-DSA.KeyGen()
- *   1: xi <- {0,1}256  [Choose random seed]
- *   ...
+ * FIPS 204. 5.1: Algorithm 1 ML-DSA.KeyGen()
+ *   1: xi <- B32  [Choose random seed]
+ *   2: if xi = NULL then
+ *   3:   return falsam
+ *   4: end if
+ *   5: return ML-DSA.KeyGen_internal(xi)
  *
  * @param [in, out] key  Dilithium key.
  * @param [in]      rng  Random number generator.
@@ -5354,10 +5861,11 @@ static int dilithium_make_key(dilithium_key* key, WC_RNG* rng)
     int ret;
     byte seed[DILITHIUM_SEED_SZ];
 
-    /* Generate a 256-bit random seed. */
+    /* Step 1: Generate a 32 byte random seed. */
     ret = wc_RNG_GenerateBlock(rng, seed, DILITHIUM_SEED_SZ);
+    /* Step 2: Check for error. */
     if (ret == 0) {
-        /* Make key with random seed. */
+        /* Step 5: Make key with random seed. */
         ret = wc_dilithium_make_key_from_seed(key, seed);
     }
 
@@ -5368,10 +5876,11 @@ static int dilithium_make_key(dilithium_key* key, WC_RNG* rng)
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
 #if !defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM) || \
+    defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC) || \
     defined(WC_DILITHIUM_CACHE_PRIV_VECTORS)
 /* Decode, from private key, and NTT private key vectors s1, s2, and t0.
  *
- * FIPS 204. 6: Algorithm 2 MD-DSA.Sign(sk, M)
+ * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
  *   1: (rho, K, tr, s1, s2, t0) <- skDecode(sk)
  *   2: s1_circum <- NTT(s1)
  *   3: s2_circum <- NTT(s2)
@@ -5414,7 +5923,13 @@ static void dilithium_make_priv_vecs(dilithium_key* key, sword32* s1,
 
 /* Sign a message with the key and a seed.
  *
- * FIPS 204. 6: Algorithm 2 MD-DSA.Sign(sk, M)
+ * FIPS 204. 5.2: Algorithm 2 ML-DSA.sign(sk, M, ctx)
+ *   ...
+ *  10: M' <- ByyesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                        ctx) || M
+ *   ...
+ *
+ * FIPS 204. 6: Algorithm 2 ML-DSA.Sign(sk, M)
  *   1: (rho, K, tr, s1, s2, t0) <- skDecode(sk)
  *   2: s1_circum <- NTT(s1)
  *   3: s2_circum <- NTT(s2)
@@ -5453,26 +5968,25 @@ static void dilithium_make_priv_vecs(dilithium_key* key, sword32* s1,
  *  33: return sigma
  *
  * @param [in, out] key     Dilithium key.
- * @param [in, out] seed    Random seed.
- * @param [in]      msg     Message data to sign.
- * @param [in]      msgLen  Length of message data in bytes.
+ * @param [in]      seedMu  Random seed || mu.
  * @param [out]     sig     Buffer to hold signature.
  * @param [in, out] sigLen  On in, length of buffer in bytes.
  *                          On out, the length of the signature in bytes.
  * @return  0 on success.
+ * @return  BAD_FUNC_ARG when context length is greater than 255.
  * @return  BUFFER_E when the signature buffer is too small.
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
-    const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
+static int dilithium_sign_with_seed_mu(dilithium_key* key,
+    const byte* seedMu, byte* sig, word32 *sigLen)
 {
 #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM
     int ret = 0;
     const wc_dilithium_params* params = key->params;
-    byte* pub_seed = key->k;
-    byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    byte* tr = k + DILITHIUM_K_SZ;
+    const byte* pub_seed = key->k;
+    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* mu = seedMu + DILITHIUM_RND_SZ;
     sword32* a = NULL;
     sword32* s1 = NULL;
     sword32* s2 = NULL;
@@ -5483,13 +5997,11 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     sword32* c = NULL;
     sword32* z = NULL;
     sword32* ct0 = NULL;
-    byte data[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-    byte* mu = data + DILITHIUM_RND_SZ;
     byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
-    byte* h = sig + params->lambda * 2 + params->zEncSz;
+    byte* h = sig + params->lambda / 4 + params->zEncSz;
 
     /* Check the signature buffer isn't too small. */
-    if ((ret == 0) && (*sigLen < params->sigSz)) {
+    if (*sigLen < params->sigSz) {
         ret = BUFFER_E;
     }
     if (ret == 0) {
@@ -5499,19 +6011,23 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
-        a = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        a = (sword32*)XMALLOC(params->aSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (a == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         a = key->a;
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
-        key->s1 = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        key->s1 = (sword32*)XMALLOC(params->aSz, key->heap,
+            DYNAMIC_TYPE_DILITHIUM);
         if (key->s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -5520,6 +6036,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             key->t0 = key->s2  + params->s2Sz / sizeof(*s2);
         }
     }
+#endif
     if (ret == 0) {
         s1 = key->s1;
         s2 = key->s2;
@@ -5540,7 +6057,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         /* A */
         allocSz += params->aSz;
 #endif
-        y = (sword32*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (y == NULL) {
             ret = MEMORY_E;
         }
@@ -5578,24 +6095,15 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         {
             /* Step 5: Create the matrix A from the public seed. */
             ret = dilithium_expand_a(&key->shake, pub_seed, params->k,
-                params->l, a);
+                params->l, a, key->heap);
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
             key->aSet = (ret == 0);
 #endif
         }
     }
     if (ret == 0) {
-        /* Step 6: Compute the hash of tr, public key hash, and message. */
-        ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
-            mu, DILITHIUM_MU_SZ);
-    }
-    if (ret == 0) {
-        /* Step 7: Copy random into buffer for hashing. */
-        XMEMCPY(data, seed, DILITHIUM_RND_SZ);
-    }
-    if (ret == 0) {
         /* Step 9: Compute private random using hash. */
-        ret = dilithium_hash256(&key->shake, k, DILITHIUM_K_SZ, data,
+        ret = dilithium_hash256(&key->shake, k, DILITHIUM_K_SZ, seedMu,
             DILITHIUM_RND_SZ + DILITHIUM_MU_SZ, priv_rand_seed,
             DILITHIUM_PRIV_RAND_SEED_SZ);
     }
@@ -5639,11 +6147,11 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 /* Step 15: Hash mu and encoded w1.
                  * Step 32: Hash is stored in signature. */
                 ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ,
-                    w1e, params->w1EncSz, commit, 2 * params->lambda);
+                    w1e, params->w1EncSz, commit, params->lambda / 4);
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
                     ret = dilithium_sample_in_ball(&key->shake, commit,
-                        params->tau, c, NULL);
+                        params->lambda / 4, params->tau, c, key->heap);
                 }
                 if (ret == 0) {
                     sword32 hi;
@@ -5707,23 +6215,24 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         while ((ret == 0) && (!valid));
     }
     if (ret == 0) {
-        byte* ze = sig + params->lambda * 2;
+        byte* ze = sig + params->lambda / 4;
         /* Step 32: Encode z into signature.
          * Commit (c) and h already encoded into signature. */
         dilithium_vec_encode_gamma1(z, params->l, params->gamma1_bits, ze);
     }
 
-    XFREE(y, NULL, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #else
     int ret = 0;
     const wc_dilithium_params* params = key->params;
-    byte* pub_seed = key->k;
-    byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
-    byte* tr = k + DILITHIUM_K_SZ;
+    const byte* pub_seed = key->k;
+    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* tr = k + DILITHIUM_K_SZ;
     const byte* s1p = tr + DILITHIUM_TR_SZ;
     const byte* s2p = s1p + params->s1EncSz;
     const byte* t0p = s2p + params->s2EncSz;
+    const byte* mu = seedMu + DILITHIUM_RND_SZ;
     sword32* a = NULL;
     sword32* s1 = NULL;
     sword32* s2 = NULL;
@@ -5735,10 +6244,16 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     sword32* c = NULL;
     sword32* z = NULL;
     sword32* ct0 = NULL;
-    byte data[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
-    byte* mu = data + DILITHIUM_RND_SZ;
+#ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+    sword64* t64 = NULL;
+#endif
+    byte* blocks = NULL;
     byte priv_rand_seed[DILITHIUM_Y_SEED_SZ];
-    byte* h = sig + params->lambda * 2 + params->zEncSz;
+    byte* h = sig + params->lambda / 4 + params->zEncSz;
+#ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+    byte maxK = (byte)min(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A,
+        params->k);
+#endif
 
     /* Check the signature buffer isn't too small. */
     if ((ret == 0) && (*sigLen < params->sigSz)) {
@@ -5753,58 +6268,101 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
     if (ret == 0) {
         unsigned int allocSz;
 
-        /* y-l, w0-k, w1-k, c-1, s1-1, A-1 */
-        allocSz = params->s1Sz + params->s2Sz + params->s2Sz +
+        /* y-l, w0-k, w1-k, blocks, c-1, z-1, A-1 */
+        allocSz  = params->s1Sz + params->s2Sz + params->s2Sz +
+            DILITHIUM_REJ_NTT_POLY_H_SIZE +
             DILITHIUM_POLY_SIZE +  DILITHIUM_POLY_SIZE + DILITHIUM_POLY_SIZE;
-        y = (sword32*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+    #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
+        allocSz += params->s1Sz + params->s2Sz + params->s2Sz;
+    #elif defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
+        allocSz += maxK * params->l * DILITHIUM_POLY_SIZE;
+    #endif
+    #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+        allocSz += DILITHIUM_POLY_SIZE * 2;
+    #endif
+        y = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (y == NULL) {
             ret = MEMORY_E;
         }
         else {
-            w0    = y  + params->s1Sz / sizeof(*y_ntt);
-            w1    = w0 + params->s2Sz / sizeof(*w0);
-            c     = w1 + params->s2Sz / sizeof(*w1);
-            s1    = c  + DILITHIUM_N;
-            a     = s1 + DILITHIUM_N;
-            s2    = s1;
-            t0    = s1;
-            ct0   = s1;
-            z     = s1;
-            y_ntt = s1;
+            w0     = y  + params->s1Sz / sizeof(*y_ntt);
+            w1     = w0 + params->s2Sz / sizeof(*w0);
+            blocks = (byte*)(w1 + params->s2Sz / sizeof(*w1));
+            c      = (sword32*)(blocks + DILITHIUM_REJ_NTT_POLY_H_SIZE);
+            z      = c  + DILITHIUM_N;
+            a      = z  + DILITHIUM_N;
+            ct0    = z;
+    #if defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A)
+            y_ntt  = w0;
+            s1     = z;
+            s2     = z;
+            t0     = z;
+        #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            t64    = (sword64*)(a + (1 + maxK * params->l) * DILITHIUM_N);
+        #endif
+    #elif defined(WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC)
+            y_ntt  = z;
+            s1     = a  + DILITHIUM_N;
+            s2     = s1 + params->s1Sz / sizeof(*s1);
+            t0     = s2 + params->s2Sz / sizeof(*s2);
+        #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            t64    = (sword64*)(t0 + params->s2Sz / sizeof(*t0));
+        #endif
+    #else
+            y_ntt  = z;
+            s1     = z;
+            s2     = z;
+            t0     = z;
+        #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            t64    = (sword64*)(a + DILITHIUM_N);
+        #endif
+    #endif
         }
     }
 
     if (ret == 0) {
-        /* Step 7: Copy random into buffer for hashing. */
-        XMEMCPY(data, seed, DILITHIUM_RND_SZ);
-
-        /* Step 6: Compute the hash of tr, public key hash, and message. */
-        ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
-            mu, DILITHIUM_MU_SZ);
-    }
-    if (ret == 0) {
         /* Step 9: Compute private random using hash. */
-        ret = dilithium_hash256(&key->shake, k, DILITHIUM_K_SZ, data,
+        ret = dilithium_hash256(&key->shake, k, DILITHIUM_K_SZ, seedMu,
             DILITHIUM_RND_SZ + DILITHIUM_MU_SZ, priv_rand_seed,
             DILITHIUM_PRIV_RAND_SEED_SZ);
     }
+#ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
+    if (ret == 0) {
+        dilithium_make_priv_vecs(key, s1, s2, t0);
+    }
+#endif
+#ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+    if (ret == 0) {
+        /* Step 5: Create the matrix A from the public seed. */
+        ret = dilithium_expand_a(&key->shake, pub_seed, maxK, params->l, a,
+            key->heap);
+    }
+#endif
     if (ret == 0) {
         word16 kappa = 0;
         int valid;
 
         /* Step 11: Start rejection sampling loop */
         do {
+            byte aseed[DILITHIUM_GEN_A_SEED_SZ];
             byte w1e[DILITHIUM_MAX_W1_ENC_SZ];
             sword32* w = w1;
             byte* commit = sig;
             byte r;
             byte s;
-            byte aseed[DILITHIUM_GEN_A_SEED_SZ];
             sword32 hi;
-            sword32* at = a;
             sword32* wt = w;
             sword32* w0t = w0;
             sword32* w1t = w1;
+            sword32* at = a;
+
+        #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+            w0t += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
+            w1t += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
+            wt += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * DILITHIUM_N;
+            at += WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A * params->l *
+                DILITHIUM_N;
+        #endif
 
             valid = 1;
             /* Step 12: Compute vector y from private random seed and kappa. */
@@ -5815,13 +6373,33 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 (1 << params->gamma1_bits) - params->beta);
         #endif
 
+        #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+            /* Step 13: NTT-1(A o NTT(y)) */
+            XMEMCPY(y_ntt, y, params->s1Sz);
+            dilithium_vec_ntt(y_ntt, params->l);
+            dilithium_matrix_mul(w, a, y_ntt, maxK, params->l);
+            dilithium_vec_invntt(w, maxK);
+            /* Step 14, Step 22: Make values positive and decompose. */
+            dilithium_vec_make_pos(w, maxK);
+            dilithium_vec_decompose(w, maxK, params->gamma2, w0, w1);
+        #endif
             /* Step 5: Create the matrix A from the public seed. */
             /* Copy the seed into a buffer that has space for s and r. */
             XMEMCPY(aseed, pub_seed, DILITHIUM_PUB_SEED_SZ);
+        #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+            r = WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A;
+        #else
+            r = 0;
+        #endif
             /* Alg 26. Step 1: Loop over first dimension of matrix. */
-            for (r = 0; (ret == 0) && valid && (r < params->k); r++) {
+            for (; (ret == 0) && valid && (r < params->k); r++) {
                 unsigned int e;
                 sword32* yt = y;
+            #ifdef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC_A
+                sword32* y_ntt_t = z;
+            #else
+                sword32* y_ntt_t = y_ntt;
+            #endif
 
                 /* Put r/i into buffer to be hashed. */
                 aseed[DILITHIUM_PUB_SEED_SZ + 1] = r;
@@ -5830,29 +6408,115 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                     /* Put s into buffer to be hashed. */
                     aseed[DILITHIUM_PUB_SEED_SZ + 0] = s;
                     /* Alg 26. Step 3: Create polynomial from hashing seed. */
-                    ret = dilithium_rej_ntt_poly(&key->shake, aseed, at,
-                        NULL);
+                    ret = dilithium_rej_ntt_poly_ex(&key->shake, aseed, at,
+                        blocks);
                     if (ret != 0) {
                         break;
                     }
-                    XMEMCPY(y_ntt, yt, DILITHIUM_POLY_SIZE);
-                    dilithium_ntt(y_ntt);
+                    XMEMCPY(y_ntt_t, yt, DILITHIUM_POLY_SIZE);
+                    dilithium_ntt(y_ntt_t);
                     /* Matrix multiply. */
+                #ifndef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
                     if (s == 0) {
+                    #ifdef WOLFSSL_DILITHIUM_SMALL
                         for (e = 0; e < DILITHIUM_N; e++) {
                             wt[e] = dilithium_mont_red((sword64)at[e] *
-                                    y_ntt[e]);
+                                y_ntt_t[e]);
                         }
+                    #else
+                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                            wt[e + 0] = dilithium_mont_red((sword64)at[e + 0] *
+                                y_ntt_t[e + 0]);
+                            wt[e + 1] = dilithium_mont_red((sword64)at[e + 1] *
+                                y_ntt_t[e + 1]);
+                            wt[e + 2] = dilithium_mont_red((sword64)at[e + 2] *
+                                y_ntt_t[e + 2]);
+                            wt[e + 3] = dilithium_mont_red((sword64)at[e + 3] *
+                                y_ntt_t[e + 3]);
+                            wt[e + 4] = dilithium_mont_red((sword64)at[e + 4] *
+                                y_ntt_t[e + 4]);
+                            wt[e + 5] = dilithium_mont_red((sword64)at[e + 5] *
+                                y_ntt_t[e + 5]);
+                            wt[e + 6] = dilithium_mont_red((sword64)at[e + 6] *
+                                y_ntt_t[e + 6]);
+                            wt[e + 7] = dilithium_mont_red((sword64)at[e + 7] *
+                                y_ntt_t[e + 7]);
+                        }
+                    #endif
                     }
                     else {
+                    #ifdef WOLFSSL_DILITHIUM_SMALL
                         for (e = 0; e < DILITHIUM_N; e++) {
                             wt[e] += dilithium_mont_red((sword64)at[e] *
-                                     y_ntt[e]);
+                                y_ntt_t[e]);
                         }
+                    #else
+                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                            wt[e + 0] += dilithium_mont_red((sword64)at[e + 0] *
+                                y_ntt_t[e + 0]);
+                            wt[e + 1] += dilithium_mont_red((sword64)at[e + 1] *
+                                y_ntt_t[e + 1]);
+                            wt[e + 2] += dilithium_mont_red((sword64)at[e + 2] *
+                                y_ntt_t[e + 2]);
+                            wt[e + 3] += dilithium_mont_red((sword64)at[e + 3] *
+                                y_ntt_t[e + 3]);
+                            wt[e + 4] += dilithium_mont_red((sword64)at[e + 4] *
+                                y_ntt_t[e + 4]);
+                            wt[e + 5] += dilithium_mont_red((sword64)at[e + 5] *
+                                y_ntt_t[e + 5]);
+                            wt[e + 6] += dilithium_mont_red((sword64)at[e + 6] *
+                                y_ntt_t[e + 6]);
+                            wt[e + 7] += dilithium_mont_red((sword64)at[e + 7] *
+                                y_ntt_t[e + 7]);
+                        }
+                    #endif
                     }
+                #else
+                    if (s == 0) {
+                    #ifdef WOLFSSL_DILITHIUM_SMALL
+                        for (e = 0; e < DILITHIUM_N; e++) {
+                            t64[e] = (sword64)at[e] * y_ntt_t[e];
+                        }
+                    #else
+                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                            t64[e+0] = (sword64)at[e+0] * y_ntt_t[e+0];
+                            t64[e+1] = (sword64)at[e+1] * y_ntt_t[e+1];
+                            t64[e+2] = (sword64)at[e+2] * y_ntt_t[e+2];
+                            t64[e+3] = (sword64)at[e+3] * y_ntt_t[e+3];
+                            t64[e+4] = (sword64)at[e+4] * y_ntt_t[e+4];
+                            t64[e+5] = (sword64)at[e+5] * y_ntt_t[e+5];
+                            t64[e+6] = (sword64)at[e+6] * y_ntt_t[e+6];
+                            t64[e+7] = (sword64)at[e+7] * y_ntt_t[e+7];
+                        }
+                    #endif
+                    }
+                    else {
+                    #ifdef WOLFSSL_DILITHIUM_SMALL
+                        for (e = 0; e < DILITHIUM_N; e++) {
+                            t64[e] += (sword64)at[e] * y_ntt_t[e];
+                        }
+                    #else
+                        for (e = 0; e < DILITHIUM_N; e += 8) {
+                            t64[e+0] += (sword64)at[e+0] * y_ntt_t[e+0];
+                            t64[e+1] += (sword64)at[e+1] * y_ntt_t[e+1];
+                            t64[e+2] += (sword64)at[e+2] * y_ntt_t[e+2];
+                            t64[e+3] += (sword64)at[e+3] * y_ntt_t[e+3];
+                            t64[e+4] += (sword64)at[e+4] * y_ntt_t[e+4];
+                            t64[e+5] += (sword64)at[e+5] * y_ntt_t[e+5];
+                            t64[e+6] += (sword64)at[e+6] * y_ntt_t[e+6];
+                            t64[e+7] += (sword64)at[e+7] * y_ntt_t[e+7];
+                        }
+                    #endif
+                    }
+                #endif
                     /* Next polynomial. */
                     yt += DILITHIUM_N;
                 }
+            #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+                for (e = 0; e < DILITHIUM_N; e++) {
+                    wt[e] = dilithium_mont_red(t64[e]);
+                }
+            #endif
                 dilithium_invntt(wt);
                 /* Step 14, Step 22: Make values positive and decompose. */
                 dilithium_make_pos(wt);
@@ -5884,19 +6548,21 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             }
             if ((ret == 0) && valid) {
                 sword32* yt = y;
+            #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
                 const byte* s1pt = s1p;
-                byte* ze = sig + params->lambda * 2;
+            #endif
+                byte* ze = sig + params->lambda / 4;
 
                 /* Step 15: Encode w1. */
                 dilithium_vec_encode_w1(w1, params->k, params->gamma2, w1e);
                 /* Step 15: Hash mu and encoded w1.
                  * Step 32: Hash is stored in signature. */
                 ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ,
-                    w1e, params->w1EncSz, commit, 2 * params->lambda);
+                    w1e, params->w1EncSz, commit, params->lambda / 4);
                 if (ret == 0) {
                     /* Step 17: Compute c from first 256 bits of commit. */
-                    ret = dilithium_sample_in_ball(&key->shake, commit,
-                        params->tau, c, NULL);
+                    ret = dilithium_sample_in_ball_ex(&key->shake, commit,
+                        params->lambda / 4, params->tau, c, blocks);
                 }
                 if (ret == 0) {
                     /* Step 18: NTT(c). */
@@ -5904,6 +6570,7 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 }
 
                 for (s = 0; (ret == 0) && valid && (s < params->l); s++) {
+            #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
                 #if !defined(WOLFSSL_NO_ML_DSA_44) || \
                     !defined(WOLFSSL_NO_ML_DSA_87)
                     /* -2..2 */
@@ -5921,6 +6588,9 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                 #endif
                     dilithium_ntt_small(s1);
                     dilithium_mul(z, c, s1);
+            #else
+                    dilithium_mul(z, c, s1 + s * DILITHIUM_N);
+            #endif
                     /* Step 19: cs1 = NTT-1(c o s1) */
                     dilithium_invntt(z);
                     /* Step 21: z = y + cs1 */
@@ -5957,13 +6627,16 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
             }
             if ((ret == 0) && valid) {
                 const byte* t0pt = t0p;
+            #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
                 const byte* s2pt = s2p;
+            #endif
                 sword32* cs2 = ct0;
                 w0t = w0;
                 w1t = w1;
                 byte idx = 0;
 
                 for (r = 0; valid && (r < params->k); r++) {
+            #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
                 #if !defined(WOLFSSL_NO_ML_DSA_44) || \
                     !defined(WOLFSSL_NO_ML_DSA_87)
                     /* -2..2 */
@@ -5978,10 +6651,14 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                         dilithium_decode_eta_4_bits(s2pt, s2);
                         s2pt += DILITHIUM_N / 2;
                     }
-                    #endif
+                #endif
                     dilithium_ntt_small(s2);
                     /* Step 20: cs2 = NTT-1(c o s2) */
                     dilithium_mul(cs2, c, s2);
+            #else
+                    /* Step 20: cs2 = NTT-1(c o s2) */
+                    dilithium_mul(cs2, c, s2 + r * DILITHIUM_N);
+            #endif
                     dilithium_invntt(cs2);
                     /* Step 22: w0 - cs2 */
                     dilithium_sub(w0t, cs2);
@@ -5990,11 +6667,16 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
                     hi = params->gamma2 - params->beta;
                     valid = dilithium_check_low(w0t, hi);
                     if (valid) {
+                    #ifndef WOLFSSL_DILITHIUM_SIGN_SMALL_MEM_PRECALC
                         dilithium_decode_t0(t0pt, t0);
                         dilithium_ntt(t0);
 
                         /* Step 25: ct0 = NTT-1(c o t0) */
                         dilithium_mul(ct0, c, t0);
+                    #else
+                        /* Step 25: ct0 = NTT-1(c o t0) */
+                        dilithium_mul(ct0, c, t0 + r * DILITHIUM_N);
+                    #endif
                         dilithium_invntt(ct0);
                         /* Step 27: Check ct0 has low enough values. */
                         valid = dilithium_check_low(ct0, params->gamma2);
@@ -6052,16 +6734,194 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
         while ((ret == 0) && (!valid));
     }
 
-    XFREE(y, NULL, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(y, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #endif
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Sign a message with the key and a seed.
+ *
+ * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ *   ...
+ *  10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                        ctx || M)
+ *  11: sigma <- ML-DSA.Sign_internal(sk, M', rnd)
+ *  12: return sigma
+ *
+ * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ *   ...
+ *   6: mu <- H(BytesToBits(tr)||M', 64)
+ *   ...
+ *
+ * @param [in, out] key     Dilithium key.
+ * @param [in]      seed    Random seed.
+ * @param [in]      ctx     Context of signature.
+ * @param [in]      ctxLen  Length of context in bytes.
+ * @param [in]      msg     Message data to sign.
+ * @param [in]      msgLen  Length of message data in bytes.
+ * @param [out]     sig     Buffer to hold signature.
+ * @param [in, out] sigLen  On in, length of buffer in bytes.
+ *                          On out, the length of the signature in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when context length is greater than 255.
+ * @return  BUFFER_E when the signature buffer is too small.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_sign_ctx_msg_with_seed(dilithium_key* key,
+    const byte* seed, const byte* ctx, byte ctxLen, const byte* msg,
+    word32 msgLen, byte* sig, word32 *sigLen)
+{
+    int ret;
+    const byte* pub_seed = key->k;
+    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* tr = k + DILITHIUM_K_SZ;
+    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
+    byte* mu = seedMu + DILITHIUM_RND_SZ;
+
+    XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
+    /* Step 6. Calculate mu. */
+    ret = dilithium_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 0,
+        ctx, ctxLen, msg, msgLen, mu, DILITHIUM_MU_SZ);
+    if (ret == 0) {
+        ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
+    }
+
+    return ret;
+}
+#endif
+
+/* Sign a message with the key and a seed.
+ *
+ * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ *   ...
+ *  10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                        ctx || M)
+ *  11: sigma <- ML-DSA.Sign_internal(sk, M', rnd)
+ *  12: return sigma
+ *
+ * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ *   ...
+ *   6: mu <- H(BytesToBits(tr)||M', 64)
+ *   ...
+ *
+ * @param [in, out] key     Dilithium key.
+ * @param [in]      seed    Random seed.
+ * @param [in]      msg     Message data to sign.
+ * @param [in]      msgLen  Length of message data in bytes.
+ * @param [out]     sig     Buffer to hold signature.
+ * @param [in, out] sigLen  On in, length of buffer in bytes.
+ *                          On out, the length of the signature in bytes.
+ * @return  0 on success.
+ * @return  BAD_FUNC_ARG when context length is greater than 255.
+ * @return  BUFFER_E when the signature buffer is too small.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
+    const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
+{
+    int ret;
+    const byte* pub_seed = key->k;
+    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* tr = k + DILITHIUM_K_SZ;
+    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
+    byte* mu = seedMu + DILITHIUM_RND_SZ;
+
+    XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
+    /* Step 6. Calculate mu. */
+    ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen, mu,
+        DILITHIUM_MU_SZ);
+    if (ret == 0) {
+        ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
+    }
+
+    return ret;
+}
+
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
 /* Sign a message with the key and a random number generator.
  *
- * FIPS 204. 6: Algorithm 2 MD-DSA.Sign(sk, M)
+ * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
  *   ...
- *   7: rnd <- {0,1}256  [Randomly generated.]
+ *   5: rnd <- B32  [Randomly generated.]
+ *   6: if rnd = NULL then
+ *   7:     return falsam
+ *   8: end if
+ *   9:
+ *  10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                        ctx || M)
+ *   ...
+ *
+ * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ *   ...
+ *   6: mu <- H(BytesToBits(tr)||M', 64)
+ *   ...
+ *
+ * @param [in, out] key     Dilithium key.
+ * @param [in, out] rng     Random number generator.
+ * @param [in]      ctx     Context of signature.
+ * @param [in]      ctxLen  Length of context.
+ * @param [in]      msg     Message data to sign.
+ * @param [in]      msgLen  Length of message data in bytes.
+ * @param [out]     sig     Buffer to hold signature.
+ * @param [in, out] sigLen  On in, length of buffer in bytes.
+ *                          On out, the length of the signature in bytes.
+ * @return  0 on success.
+ * @return  BUFFER_E when the signature buffer is too small.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_sign_ctx_msg(dilithium_key* key, WC_RNG* rng,
+    const byte* ctx, byte ctxLen, const byte* msg, word32 msgLen, byte* sig,
+    word32 *sigLen)
+{
+    int ret = 0;
+    const byte* pub_seed = key->k;
+    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* tr = k + DILITHIUM_K_SZ;
+    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
+    byte* mu = seedMu + DILITHIUM_RND_SZ;
+
+    /* Must have a random number generator. */
+    if (rng == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Step 7: Generate random seed. */
+        ret = wc_RNG_GenerateBlock(rng, seedMu, DILITHIUM_RND_SZ);
+    }
+    if (ret == 0) {
+        /* Step 6. Calculate mu. */
+        ret = dilithium_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 0,
+            ctx, ctxLen, msg, msgLen, mu, DILITHIUM_MU_SZ);
+    }
+    if (ret == 0) {
+        ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
+    }
+
+    return ret;
+}
+#endif
+
+/* Sign a message with the key and a random number generator.
+ *
+ * FIPS 204. 5.2: Algorithm 2 ML-DSA.Sign(sk, M, ctx)
+ *   ...
+ *   5: rnd <- B32  [Randomly generated.]
+ *   6: if rnd = NULL then
+ *   7:     return falsam
+ *   8: end if
+ *   9:
+ *  10: M' <- BytesToBits(IntegerToBytes(0, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                        ctx || M)
+ *   ...
+ *
+ * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ *   ...
+ *   6: mu <- H(BytesToBits(tr)||M', 64)
  *   ...
  *
  * @param [in, out] key     Dilithium key.
@@ -6076,11 +6936,15 @@ static int dilithium_sign_msg_with_seed(dilithium_key* key, const byte* seed,
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng, const byte* msg,
-    word32 msgLen, byte* sig, word32 *sigLen)
+static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng,
+    const byte* msg, word32 msgLen, byte* sig, word32 *sigLen)
 {
     int ret = 0;
-    byte rnd[DILITHIUM_RND_SZ];
+    const byte* pub_seed = key->k;
+    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* tr = k + DILITHIUM_K_SZ;
+    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
+    byte* mu = seedMu + DILITHIUM_RND_SZ;
 
     /* Must have a random number generator. */
     if (rng == NULL) {
@@ -6089,22 +6953,154 @@ static int dilithium_sign_msg(dilithium_key* key, WC_RNG* rng, const byte* msg,
 
     if (ret == 0) {
         /* Step 7: Generate random seed. */
-        ret = wc_RNG_GenerateBlock(rng, rnd, DILITHIUM_RND_SZ);
+        ret = wc_RNG_GenerateBlock(rng, seedMu, DILITHIUM_RND_SZ);
     }
     if (ret == 0) {
-        /* Sign with random seed. */
-        ret = dilithium_sign_msg_with_seed(key, rnd, msg, msgLen, sig,
-            sigLen);
+        /* Step 6. Calculate mu. */
+        ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
+            mu, DILITHIUM_MU_SZ);
+    }
+    if (ret == 0) {
+        ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
     }
 
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Sign a pre-hashed message with the key and a seed.
+ *
+ * FIPS 204. 5.4.1: Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
+ *   ...
+ *  10: switch PH do
+ *  11:    case SHA-256:
+ *  12:       OID <-  IntegerToBytes(0x0609608648016503040201, 11)
+ *  13:       PHm <- SHA256(M)    (not done here as hash is passed in)
+ *   ...
+ *  22: end switch
+ *  23: M' <- BytesToBits(IntegerToBytes(1, 1) || IntegerToBytes(|ctx|, 1) ||
+ *                        ctx || OID || PHm)
+ *  24: sigma <- ML-DSA.Sign_internal(sk, M', rnd)
+ *  25: return sigma
+ *
+ * FIPS 204. 6.2: Algorithm 7 ML-DSA.SignInternal(sk, M', rnd)
+ *   ...
+ *   6: mu <- H(BytesToBits(tr)||M', 64)
+ *   ...
+ *
+ * @param [in, out] key      Dilithium key.
+ * @param [in]      seed     Random seed.
+ * @param [in]      ctx      Context of signature.
+ * @param [in]      ctxLen   Length of context.
+ * @param [in]      hashAlg  Hash algorithm used on message.
+ * @param [in]      hash     Message hash to sign.
+ * @param [in]      hashLen  Length of message hash in bytes.
+ * @param [out]     sig      Buffer to hold signature.
+ * @param [in, out] sigLen   On in, length of buffer in bytes.
+ *                           On out, the length of the signature in bytes.
+ * @return  0 on success.
+ * @return  BUFFER_E when the signature buffer is too small.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_sign_ctx_hash_with_seed(dilithium_key* key,
+    const byte* seed, const byte* ctx, byte ctxLen, int hashAlg,
+    const byte* hash, word32 hashLen, byte* sig, word32 *sigLen)
+{
+    int ret = 0;
+    const byte* pub_seed = key->k;
+    const byte* k = pub_seed + DILITHIUM_PUB_SEED_SZ;
+    const byte* tr = k + DILITHIUM_K_SZ;
+    byte seedMu[DILITHIUM_RND_SZ + DILITHIUM_MU_SZ];
+    byte* mu = seedMu + DILITHIUM_RND_SZ;
+    byte oidMsgHash[DILITHIUM_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
+    word32 oidMsgHashLen;
+
+    if ((ret == 0) && (hashLen > WC_MAX_DIGEST_SIZE)) {
+        ret = BUFFER_E;
+    }
+
+    if (ret == 0) {
+        XMEMCPY(seedMu, seed, DILITHIUM_RND_SZ);
+
+        ret = dilithium_get_hash_oid(hashAlg, oidMsgHash, &oidMsgHashLen);
+    }
+    if (ret == 0) {
+        XMEMCPY(oidMsgHash + oidMsgHashLen, hash, hashLen);
+        oidMsgHashLen += hashLen;
+
+        /* Step 6. Calculate mu. */
+        ret = dilithium_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 1,
+            ctx, ctxLen, oidMsgHash, oidMsgHashLen, mu, DILITHIUM_MU_SZ);
+    }
+    if (ret == 0) {
+        ret = dilithium_sign_with_seed_mu(key, seedMu, sig, sigLen);
+    }
+
+    return ret;
+}
+
+/* Sign a pre-hashed message with the key and a random number generator.
+ *
+ * FIPS 204. 5.4.1: Algorithm 4 HashML-DSA.Sign(sk, M, ctx, PH)
+ *   ...
+ *   5: rnd <- B32  [Randomly generated.]
+ *   6: if rnd = NULL then
+ *   7:     return falsam
+ *   8: end if
+ *   ...
+ *
+ * @param [in, out] key      Dilithium key.
+ * @param [in, out] rng      Random number generator.
+ * @param [in]      ctx      Context of signature.
+ * @param [in]      ctxLen   Length of context.
+ * @param [in]      hashAlg  Hash algorithm used on message.
+ * @param [in]      hash     Message hash to sign.
+ * @param [in]      hashLen  Length of message hash in bytes.
+ * @param [out]     sig      Buffer to hold signature.
+ * @param [in, out] sigLen   On in, length of buffer in bytes.
+ *                           On out, the length of the signature in bytes.
+ * @return  0 on success.
+ * @return  BUFFER_E when the signature buffer is too small.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_sign_ctx_hash(dilithium_key* key, WC_RNG* rng,
+    const byte* ctx, byte ctxLen, int hashAlg, const byte* hash, word32 hashLen,
+    byte* sig, word32 *sigLen)
+{
+    int ret = 0;
+    byte seed[DILITHIUM_RND_SZ];
+
+    /* Must have a random number generator. */
+    if (rng == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    if (ret == 0) {
+        /* Step 7: Generate random seed. */
+        ret = wc_RNG_GenerateBlock(rng, seed, DILITHIUM_RND_SZ);
+    }
+
+    if (ret == 0) {
+        ret = dilithium_sign_ctx_hash_with_seed(key, seed, ctx, ctxLen, hashAlg,
+            hash, hashLen, sig, sigLen);
+    }
+
+    return ret;
+}
+#endif
+
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
 
-#ifndef WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM
+#if !defined(WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM) || \
+     defined(WC_DILITHIUM_CACHE_PUB_VECTORS)
+/* Make public vector from public key data.
+ *
+ * @param [in, out] key  Key with public key data.
+ * @param [out]     t1   Vector in NTT form.
+ */
 static void dilithium_make_pub_vec(dilithium_key* key, sword32* t1)
 {
     const wc_dilithium_params* params = key->params;
@@ -6131,15 +7127,14 @@ static void dilithium_make_pub_vec(dilithium_key* key, sword32* t1)
  *  7: mu <- H(tr||M, 512)
  *  8: (c1_tilde, c2_tilde) E {0,1}256 x {0,1)2*lambda-256 <- c_tilde
  *  9: c <- SampleInBall(c1_tilde)
- * 10: w'approx <- NTT-1(A_circum o NTT(z) - NTT(c) o NTT(t1.s^d))
+ * 10: w'approx <- NTT-1(A_circum o NTT(z) - NTT(c) o NTT(t1.2^d))
  * 11: w1' <- UseHint(h, w'approx)
  * 12: c'_tilde < H(mu||w1Encode(w1'), 2*lambda)
  * 13: return [[ ||z||inf < GAMMA1 - BETA]] and [[c_tilde = c'_tilde]] and
  *             [[number of 1's in h is <= OMEGA
  *
  * @param [in, out] key     Dilithium key.
- * @param [in]      msg     Message to verify.
- * @param [in]      msgLen  Length of message in bytes.
+ * @param [in]      mu      Data to verify.
  * @param [in]      sig     Signature to verify message.
  * @param [in]      sigLen  Length of message in bytes.
  * @param [out]     res     Result of verification.
@@ -6150,15 +7145,15 @@ static void dilithium_make_pub_vec(dilithium_key* key, sword32* t1)
  * @return  MEMORY_E when memory allocation fails.
  * @return  Other negative when an error occurs.
  */
-static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
-    word32 msgLen, const byte* sig, word32 sigLen, int* res)
+static int dilithium_verify_mu(dilithium_key* key, const byte* mu,
+    const byte* sig, word32 sigLen, int* res)
 {
 #ifndef WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM
     int ret = 0;
     const wc_dilithium_params* params = key->params;
     const byte* pub_seed = key->p;
     const byte* commit = sig;
-    const byte* ze = sig + params->lambda * 2;
+    const byte* ze = sig + params->lambda / 4;
     const byte* h = ze + params->zEncSz;
     sword32* a = NULL;
     sword32* t1 = NULL;
@@ -6166,10 +7161,8 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     sword32* z = NULL;
     sword32* w = NULL;
     sword32* t1c = NULL;
-    byte tr[DILITHIUM_TR_SZ];
-    byte* mu = tr;
+    byte commit_calc[DILITHIUM_TR_SZ];
     byte* w1e = NULL;
-    byte* commit_calc = tr;
     int valid = 0;
     sword32 hi;
 
@@ -6184,23 +7177,29 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
 
     /* Allocate memory for large intermediates. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->a == NULL)) {
-        key->a = (sword32*)XMALLOC(params->aSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        key->a = (sword32*)XMALLOC(params->aSz, key->heap,
+            DYNAMIC_TYPE_DILITHIUM);
         if (key->a == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         a = key->a;
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->t1 == NULL)) {
-        key->t1 = (sword32*)XMALLOC(params->s2Sz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        key->t1 = (sword32*)XMALLOC(params->s2Sz, key->heap,
+            DYNAMIC_TYPE_DILITHIUM);
         if (key->t1 == NULL) {
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         t1 = key->t1;
     }
@@ -6216,7 +7215,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         allocSz += params->aSz;
 #endif
 
-        z = (sword32*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (z == NULL) {
             ret = MEMORY_E;
         }
@@ -6260,7 +7259,7 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         {
             /* Step 5: Expand pub seed to compute matrix A. */
             ret = dilithium_expand_a(&key->shake, pub_seed, params->k,
-                params->l, a);
+                params->l, a, key->heap);
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
             /* Whether we have cached A is dependent on success of operation. */
             key->aSet = (ret == 0);
@@ -6268,19 +7267,9 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         }
     }
     if ((ret == 0) && valid) {
-        /* Step 6: Hash public key. */
-        ret = dilithium_shake256(&key->shake, key->p, params->pkSz, tr,
-            DILITHIUM_TR_SZ);
-    }
-    if ((ret == 0) && valid) {
-        /* Step 7: Hash hash of public key and message. */
-        ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
-            mu, DILITHIUM_MU_SZ);
-    }
-    if ((ret == 0) && valid) {
-         /* Step 9: Compute c from first 256 bits of commit. */
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
-             NULL);
+        /* Step 9: Compute c from commit. */
+        ret = dilithium_sample_in_ball(&key->shake, commit, params->lambda / 4,
+            params->tau, c, key->heap);
     }
     if ((ret == 0) && valid) {
         /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
@@ -6296,15 +7285,15 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         dilithium_vec_encode_w1(w, params->k, params->gamma2, w1e);
         /* Step 12: Hash mu and encoded w1. */
         ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ, w1e,
-            params->w1EncSz, commit_calc, 2 * params->lambda);
+            params->w1EncSz, commit_calc, params->lambda / 4);
     }
     if ((ret == 0) && valid) {
         /* Step 13: Compare commit. */
-        valid = (XMEMCMP(commit, commit_calc, 2 * params->lambda) == 0);
+        valid = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
     }
 
     *res = valid;
-    XFREE(z, NULL, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(z, key->heap, DYNAMIC_TYPE_DILITHIUM);
     return ret;
 #else
     int ret = 0;
@@ -6312,24 +7301,27 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     const byte* pub_seed = key->p;
     const byte* t1p = pub_seed + DILITHIUM_PUB_SEED_SZ;
     const byte* commit = sig;
-    const byte* ze = sig + params->lambda * 2;
+    const byte* ze = sig + params->lambda / 4;
     const byte* h = ze + params->zEncSz;
     sword32* t1 = NULL;
     sword32* a = NULL;
     sword32* c = NULL;
     sword32* z = NULL;
     sword32* w = NULL;
-    byte tr[DILITHIUM_TR_SZ];
-    byte* mu = tr;
+#ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+    sword64* t64 = NULL;
+#endif
+#ifndef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
+    byte*    block = NULL;
+#endif
     byte* w1e = NULL;
-    byte* commit_calc = tr;
+    byte commit_calc[DILITHIUM_TR_SZ];
     int valid = 0;
     sword32 hi;
-    byte i;
-    unsigned int j;
+    unsigned int r;
     byte o;
     byte* encW1;
-    byte* seed = tr;
+    byte* seed = commit_calc;
 
     /* Ensure the signature is the right size for the parameters. */
     if (sigLen != params->sigSz) {
@@ -6344,17 +7336,27 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
     /* Allocate memory for large intermediates. */
     if (ret == 0) {
         /* z, c, w, t1, w1e. */
-        z = (sword32*)XMALLOC(params->s1Sz + 3 * DILITHIUM_POLY_SIZE +
-            DILITHIUM_MAX_W1_ENC_SZ, NULL, DYNAMIC_TYPE_DILITHIUM);
+        unsigned int allocSz;
+
+        allocSz  = params->s1Sz + 3 * DILITHIUM_POLY_SIZE +
+            DILITHIUM_REJ_NTT_POLY_H_SIZE + params->w1EncSz;
+    #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+        allocSz += DILITHIUM_POLY_SIZE * 2;
+    #endif
+        z = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (z == NULL) {
             ret = MEMORY_E;
         }
         else {
-            c   = z + params->s1Sz / sizeof(*t1);
-            w   = c + DILITHIUM_N;
-            t1  = w + DILITHIUM_N;
-            w1e = (byte*)(t1 + DILITHIUM_N);
-            a   = t1;
+            c     = z + params->s1Sz / sizeof(*t1);
+            w     = c + DILITHIUM_N;
+            t1    = w + DILITHIUM_N;
+            block = (byte*)(t1 + DILITHIUM_N);
+            w1e   = block + DILITHIUM_REJ_NTT_POLY_H_SIZE;
+            a     = t1;
+        #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            t64   = (sword64*)(w1e + params->w1EncSz);
+        #endif
         }
     }
 #else
@@ -6365,6 +7367,9 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         t1 = key->t1;
         w1e = key->w1e;
         a = t1;
+    #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+        t64 = key->t64;
+    #endif
     }
 #endif
 
@@ -6381,11 +7386,11 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
 
          /* Step 9: Compute c from first 256 bits of commit. */
 #ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
-             key->block);
+         ret = dilithium_sample_in_ball_ex(&key->shake, commit,
+             params->lambda / 4, params->tau, c, key->block);
 #else
-         ret = dilithium_sample_in_ball(&key->shake, commit, params->tau, c,
-             NULL);
+         ret = dilithium_sample_in_ball_ex(&key->shake, commit,
+             params->lambda / 4, params->tau, c, block);
 #endif
     }
     if ((ret == 0) && valid) {
@@ -6397,8 +7402,9 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
         /* Copy the seed into a buffer that has space for s and r. */
         XMEMCPY(seed, pub_seed, DILITHIUM_PUB_SEED_SZ);
         /* Step 1: Loop over first dimension of matrix. */
-        for (i = 0; (ret == 0) && (i < params->k); i++) {
-            byte s;
+        for (r = 0; (ret == 0) && (r < params->k); r++) {
+            unsigned int s;
+            unsigned int e;
             const sword32* zt = z;
 
             /* Step 1: Decode and NTT vector t1. */
@@ -6408,112 +7414,292 @@ static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
 
             /* Step 10: - NTT(c) o NTT(t1)) */
             dilithium_ntt(w);
-#ifdef WOLFSSL_DILITHIUM_SMALL
-            for (j = 0; j < DILITHIUM_N; j++) {
-                w[j] = -dilithium_mont_red((sword64)c[j] * w[j]);
+    #ifndef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+        #ifdef WOLFSSL_DILITHIUM_SMALL
+            for (e = 0; e < DILITHIUM_N; e++) {
+                w[e] = -dilithium_mont_red((sword64)c[e] * w[e]);
             }
-#else
-            for (j = 0; j < DILITHIUM_N; j += 8) {
-                w[j+0] = -dilithium_mont_red((sword64)c[j+0] * w[j+0]);
-                w[j+1] = -dilithium_mont_red((sword64)c[j+1] * w[j+1]);
-                w[j+2] = -dilithium_mont_red((sword64)c[j+2] * w[j+2]);
-                w[j+3] = -dilithium_mont_red((sword64)c[j+3] * w[j+3]);
-                w[j+4] = -dilithium_mont_red((sword64)c[j+4] * w[j+4]);
-                w[j+5] = -dilithium_mont_red((sword64)c[j+5] * w[j+5]);
-                w[j+6] = -dilithium_mont_red((sword64)c[j+6] * w[j+6]);
-                w[j+7] = -dilithium_mont_red((sword64)c[j+7] * w[j+7]);
+        #else
+            for (e = 0; e < DILITHIUM_N; e += 8) {
+                w[e+0] = -dilithium_mont_red((sword64)c[e+0] * w[e+0]);
+                w[e+1] = -dilithium_mont_red((sword64)c[e+1] * w[e+1]);
+                w[e+2] = -dilithium_mont_red((sword64)c[e+2] * w[e+2]);
+                w[e+3] = -dilithium_mont_red((sword64)c[e+3] * w[e+3]);
+                w[e+4] = -dilithium_mont_red((sword64)c[e+4] * w[e+4]);
+                w[e+5] = -dilithium_mont_red((sword64)c[e+5] * w[e+5]);
+                w[e+6] = -dilithium_mont_red((sword64)c[e+6] * w[e+6]);
+                w[e+7] = -dilithium_mont_red((sword64)c[e+7] * w[e+7]);
             }
-#endif
+        #endif
+    #else
+        #ifdef WOLFSSL_DILITHIUM_SMALL
+            for (e = 0; e < DILITHIUM_N; e++) {
+                t64[e] = -(sword64)c[e] * w[e];
+            }
+        #else
+            for (e = 0; e < DILITHIUM_N; e += 8) {
+                t64[e+0] = -(sword64)c[e+0] * w[e+0];
+                t64[e+1] = -(sword64)c[e+1] * w[e+1];
+                t64[e+2] = -(sword64)c[e+2] * w[e+2];
+                t64[e+3] = -(sword64)c[e+3] * w[e+3];
+                t64[e+4] = -(sword64)c[e+4] * w[e+4];
+                t64[e+5] = -(sword64)c[e+5] * w[e+5];
+                t64[e+6] = -(sword64)c[e+6] * w[e+6];
+                t64[e+7] = -(sword64)c[e+7] * w[e+7];
+            }
+        #endif
+    #endif
 
             /* Step 5: Expand pub seed to compute matrix A. */
             /* Put r into buffer to be hashed. */
-            seed[DILITHIUM_PUB_SEED_SZ + 1] = i;
+            seed[DILITHIUM_PUB_SEED_SZ + 1] = r;
             for (s = 0; (ret == 0) && (s < params->l); s++) {
                 /* Put s into buffer to be hashed. */
                 seed[DILITHIUM_PUB_SEED_SZ + 0] = s;
                 /* Step 3: Create polynomial from hashing seed. */
             #ifdef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-                ret = dilithium_rej_ntt_poly(&key->shake, seed, a, key->h);
+                ret = dilithium_rej_ntt_poly_ex(&key->shake, seed, a, key->h);
             #else
-                ret = dilithium_rej_ntt_poly(&key->shake, seed, a, NULL);
+                ret = dilithium_rej_ntt_poly_ex(&key->shake, seed, a, block);
             #endif
 
                 /* Step 10: w = A o NTT(z) - NTT(c) o NTT(t1) */
-#ifdef WOLFSSL_DILITHIUM_SMALL
-                for (j = 0; j < DILITHIUM_N; j++) {
-                    w[j] += dilithium_mont_red((sword64)a[j] * zt[j]);
+        #ifndef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            #ifdef WOLFSSL_DILITHIUM_SMALL
+                for (e = 0; e < DILITHIUM_N; e++) {
+                    w[e] += dilithium_mont_red((sword64)a[e] * zt[e]);
                 }
-#else
-                for (j = 0; j < DILITHIUM_N; j += 8) {
-                    w[j+0] += dilithium_mont_red((sword64)a[j+0] * zt[j+0]);
-                    w[j+1] += dilithium_mont_red((sword64)a[j+1] * zt[j+1]);
-                    w[j+2] += dilithium_mont_red((sword64)a[j+2] * zt[j+2]);
-                    w[j+3] += dilithium_mont_red((sword64)a[j+3] * zt[j+3]);
-                    w[j+4] += dilithium_mont_red((sword64)a[j+4] * zt[j+4]);
-                    w[j+5] += dilithium_mont_red((sword64)a[j+5] * zt[j+5]);
-                    w[j+6] += dilithium_mont_red((sword64)a[j+6] * zt[j+6]);
-                    w[j+7] += dilithium_mont_red((sword64)a[j+7] * zt[j+7]);
+            #else
+                for (e = 0; e < DILITHIUM_N; e += 8) {
+                    w[e+0] += dilithium_mont_red((sword64)a[e+0] * zt[e+0]);
+                    w[e+1] += dilithium_mont_red((sword64)a[e+1] * zt[e+1]);
+                    w[e+2] += dilithium_mont_red((sword64)a[e+2] * zt[e+2]);
+                    w[e+3] += dilithium_mont_red((sword64)a[e+3] * zt[e+3]);
+                    w[e+4] += dilithium_mont_red((sword64)a[e+4] * zt[e+4]);
+                    w[e+5] += dilithium_mont_red((sword64)a[e+5] * zt[e+5]);
+                    w[e+6] += dilithium_mont_red((sword64)a[e+6] * zt[e+6]);
+                    w[e+7] += dilithium_mont_red((sword64)a[e+7] * zt[e+7]);
                 }
-#endif
+            #endif
+        #else
+            #ifdef WOLFSSL_DILITHIUM_SMALL
+                for (e = 0; e < DILITHIUM_N; e++) {
+                    t64[e] += (sword64)a[e] * zt[e];
+                }
+            #else
+                for (e = 0; e < DILITHIUM_N; e += 8) {
+                    t64[e+0] += (sword64)a[e+0] * zt[e+0];
+                    t64[e+1] += (sword64)a[e+1] * zt[e+1];
+                    t64[e+2] += (sword64)a[e+2] * zt[e+2];
+                    t64[e+3] += (sword64)a[e+3] * zt[e+3];
+                    t64[e+4] += (sword64)a[e+4] * zt[e+4];
+                    t64[e+5] += (sword64)a[e+5] * zt[e+5];
+                    t64[e+6] += (sword64)a[e+6] * zt[e+6];
+                    t64[e+7] += (sword64)a[e+7] * zt[e+7];
+                }
+            #endif
+        #endif
                 /* Next polynomial. */
                 zt += DILITHIUM_N;
             }
+        #ifdef WOLFSSL_DILITHIUM_SMALL_MEM_POLY64
+            for (e = 0; e < DILITHIUM_N; e++) {
+                w[e] = dilithium_mont_red(t64[e]);
+            }
+        #endif
 
             /* Step 10: w = NTT-1(A o NTT(z) - NTT(c) o NTT(t1)) */
             dilithium_invntt(w);
 
-#ifndef WOLFSSL_NO_ML_DSA_44
+        #ifndef WOLFSSL_NO_ML_DSA_44
             if (params->gamma2 == DILITHIUM_Q_LOW_88) {
                 /* Step 11: Use hint to give full w1. */
-                dilithium_use_hint_88(w, h, i, &o);
+                dilithium_use_hint_88(w, h, r, &o);
                 /* Step 12: Encode w1. */
                 dilithium_encode_w1_88(w, encW1);
                 encW1 += DILITHIUM_Q_HI_88_ENC_BITS * 2 * DILITHIUM_N / 16;
             }
             else
-#endif
-#if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
+        #endif
+        #if !defined(WOLFSSL_NO_ML_DSA_65) || !defined(WOLFSSL_NO_ML_DSA_87)
             if (params->gamma2 == DILITHIUM_Q_LOW_32) {
                 /* Step 11: Use hint to give full w1. */
-                dilithium_use_hint_32(w, h, params->omega, i, &o);
+                dilithium_use_hint_32(w, h, params->omega, r, &o);
                 /* Step 12: Encode w1. */
                 dilithium_encode_w1_32(w, encW1);
                 encW1 += DILITHIUM_Q_HI_32_ENC_BITS * 2 * DILITHIUM_N / 16;
             }
             else
-#endif
+        #endif
             {
             }
         }
     }
     if ((ret == 0) && valid) {
-        /* Step 6: Hash public key. */
-        ret = dilithium_shake256(&key->shake, key->p, params->pkSz, tr,
-            DILITHIUM_TR_SZ);
-    }
-    if ((ret == 0) && valid) {
-        /* Step 7: Hash hash of public key and message. */
-        ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
-            mu, DILITHIUM_MU_SZ);
-    }
-    if ((ret == 0) && valid) {
         /* Step 12: Hash mu and encoded w1. */
         ret = dilithium_hash256(&key->shake, mu, DILITHIUM_MU_SZ, w1e,
-            params->w1EncSz, commit_calc, 2 * params->lambda);
+            params->w1EncSz, commit_calc, params->lambda / 4);
     }
     if ((ret == 0) && valid) {
         /* Step 13: Compare commit. */
-        valid = (XMEMCMP(commit, commit_calc, 2 * params->lambda) == 0);
+        valid = (XMEMCMP(commit, commit_calc, params->lambda / 4) == 0);
     }
 
     *res = valid;
 #ifndef WOLFSSL_DILITHIUM_VERIFY_NO_MALLOC
-    XFREE(z, NULL, DYNAMIC_TYPE_DILITHIUM);
+    XFREE(z, key->heap, DYNAMIC_TYPE_DILITHIUM);
 #endif
     return ret;
 #endif /* !WOLFSSL_DILITHIUM_VERIFY_SMALL_MEM */
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Verify signature of message using public key.
+ *
+ * @param [in, out] key     Dilithium key.
+ * @param [in]      ctx     Context of verification.
+ * @param [in]      ctxLen  Length of context in bytes.
+ * @param [in]      msg     Message to verify.
+ * @param [in]      msgLen  Length of message in bytes.
+ * @param [in]      sig     Signature to verify message.
+ * @param [in]      sigLen  Length of message in bytes.
+ * @param [out]     res     Result of verification.
+ * @return  0 on success.
+ * @return  SIG_VERIFY_E when hint is malformed.
+ * @return  BUFFER_E when the length of the signature does not match
+ *          parameters.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_verify_ctx_msg(dilithium_key* key, const byte* ctx,
+    word32 ctxLen, const byte* msg, word32 msgLen, const byte* sig,
+    word32 sigLen, int* res)
+{
+    int ret = 0;
+    byte tr[DILITHIUM_TR_SZ];
+    byte* mu = tr;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Step 6: Hash public key. */
+        ret = dilithium_shake256(&key->shake, key->p, key->params->pkSz, tr,
+            DILITHIUM_TR_SZ);
+    }
+    if (ret == 0) {
+        /* Step 6. Calculate mu. */
+        ret = dilithium_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 0,
+            ctx, ctxLen, msg, msgLen, mu, DILITHIUM_MU_SZ);
+    }
+    if (ret == 0) {
+        ret = dilithium_verify_mu(key, mu, sig, sigLen, res);
+    }
+
+    return ret;
+}
+#endif
+
+/* Verify signature of message using public key.
+ *
+ * @param [in, out] key     Dilithium key.
+ * @param [in]      msg     Message to verify.
+ * @param [in]      msgLen  Length of message in bytes.
+ * @param [in]      sig     Signature to verify message.
+ * @param [in]      sigLen  Length of message in bytes.
+ * @param [out]     res     Result of verification.
+ * @return  0 on success.
+ * @return  SIG_VERIFY_E when hint is malformed.
+ * @return  BUFFER_E when the length of the signature does not match
+ *          parameters.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_verify_msg(dilithium_key* key, const byte* msg,
+    word32 msgLen, const byte* sig, word32 sigLen, int* res)
+{
+    int ret = 0;
+    byte tr[DILITHIUM_TR_SZ];
+    byte* mu = tr;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Step 6: Hash public key. */
+        ret = dilithium_shake256(&key->shake, key->p, key->params->pkSz, tr,
+            DILITHIUM_TR_SZ);
+    }
+    if (ret == 0) {
+        /* Step 6. Calculate mu. */
+        ret = dilithium_hash256(&key->shake, tr, DILITHIUM_TR_SZ, msg, msgLen,
+            mu, DILITHIUM_MU_SZ);
+    }
+    if (ret == 0) {
+        ret = dilithium_verify_mu(key, mu, sig, sigLen, res);
+    }
+
+    return ret;
+}
+
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Verify signature of message using public key.
+ *
+ * @param [in, out] key       Dilithium key.
+ * @param [in]      ctx       Context of verification.
+ * @param [in]      ctxLen    Length of context in bytes.
+ * @param [iu]      hashAlg   Hash algorithm used on message.
+ * @param [in]      hash      Hash of message to verify.
+ * @param [in]      hashLen   Length of message hash in bytes.
+ * @param [in]      sig       Signature to verify message.
+ * @param [in]      sigLen    Length of message in bytes.
+ * @param [out]     res       Result of verification.
+ * @return  0 on success.
+ * @return  SIG_VERIFY_E when hint is malformed.
+ * @return  BUFFER_E when the length of the signature does not match
+ *          parameters.
+ * @return  MEMORY_E when memory allocation fails.
+ * @return  Other negative when an error occurs.
+ */
+static int dilithium_verify_ctx_hash(dilithium_key* key, const byte* ctx,
+    word32 ctxLen, int hashAlg, const byte* hash, word32 hashLen,
+    const byte* sig, word32 sigLen, int* res)
+{
+    int ret = 0;
+    byte tr[DILITHIUM_TR_SZ];
+    byte* mu = tr;
+    byte oidMsgHash[DILITHIUM_HASH_OID_LEN + WC_MAX_DIGEST_SIZE];
+    word32 oidMsgHashLen;
+
+    if (key == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Step 6: Hash public key. */
+        ret = dilithium_shake256(&key->shake, key->p, key->params->pkSz, tr,
+            DILITHIUM_TR_SZ);
+    }
+    if (ret == 0) {
+        ret = dilithium_get_hash_oid(hashAlg, oidMsgHash, &oidMsgHashLen);
+    }
+    if (ret == 0) {
+        XMEMCPY(oidMsgHash + oidMsgHashLen, hash, hashLen);
+        oidMsgHashLen += hashLen;
+
+        /* Step 6. Calculate mu. */
+        ret = dilithium_hash256_ctx_msg(&key->shake, tr, DILITHIUM_TR_SZ, 1,
+            ctx, ctxLen, oidMsgHash, oidMsgHashLen, mu, DILITHIUM_MU_SZ);
+    }
+    if (ret == 0) {
+        ret = dilithium_verify_mu(key, mu, sig, sigLen, res);
+    }
+
+    return ret;
+}
+#endif
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
 #elif defined(HAVE_LIBOQS)
@@ -6524,13 +7710,13 @@ static int oqs_dilithium_make_key(dilithium_key* key, WC_RNG* rng)
     int ret = 0;
     OQS_SIG *oqssig = NULL;
 
-    if (key->level == 2) {
+    if (key->level == WC_ML_DSA_44) {
         oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_44_ipd);
     }
-    else if (key->level == 3) {
+    else if (key->level == WC_ML_DSA_65) {
         oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_65_ipd);
     }
-    else if (key->level == 5) {
+    else if (key->level == WC_ML_DSA_87) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_87_ipd);
     }
     else {
@@ -6572,13 +7758,13 @@ static int oqs_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
     }
 
     if (ret == 0) {
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_44_ipd);
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_65_ipd);
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_87_ipd);
         }
         else {
@@ -6592,15 +7778,18 @@ static int oqs_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
 
     /* check and set up out length */
     if (ret == 0) {
-        if ((key->level == 2) && (*sigLen < DILITHIUM_LEVEL2_SIG_SIZE)) {
+        if ((key->level == WC_ML_DSA_44) &&
+                (*sigLen < DILITHIUM_LEVEL2_SIG_SIZE)) {
             *sigLen = DILITHIUM_LEVEL2_SIG_SIZE;
             ret = BUFFER_E;
         }
-        else if ((key->level == 3) && (*sigLen < DILITHIUM_LEVEL3_SIG_SIZE)) {
+        else if ((key->level == WC_ML_DSA_65) &&
+                 (*sigLen < DILITHIUM_LEVEL3_SIG_SIZE)) {
             *sigLen = DILITHIUM_LEVEL3_SIG_SIZE;
             ret = BUFFER_E;
         }
-        else if ((key->level == 5) && (*sigLen < DILITHIUM_LEVEL5_SIG_SIZE)) {
+        else if ((key->level == WC_ML_DSA_87) &&
+                 (*sigLen < DILITHIUM_LEVEL5_SIG_SIZE)) {
             *sigLen = DILITHIUM_LEVEL5_SIG_SIZE;
             ret = BUFFER_E;
         }
@@ -6642,13 +7831,13 @@ static int oqs_dilithium_verify_msg(const byte* sig, word32 sigLen,
     }
 
     if (ret == 0) {
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_44_ipd);
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_65_ipd);
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             oqssig = OQS_SIG_new(OQS_SIG_alg_ml_dsa_87_ipd);
         }
         else {
@@ -6756,6 +7945,65 @@ int wc_dilithium_make_key_from_seed(dilithium_key* key, const byte* seed)
 #endif
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Sign the message using the dilithium private key.
+ *
+ *  ctx         [in]      Context of signature.
+ *  ctxLen      [in]      Length of context in bytes.
+ *  msg         [in]      Message to sign.
+ *  msgLen      [in]      Length of the message in bytes.
+ *  sig         [out]     Buffer to write signature into.
+ *  sigLen      [in/out]  On in, size of buffer.
+ *                        On out, the length of the signature in bytes.
+ *  key         [in]      Dilithium key to use when signing
+ *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *          or ctx is NULL and ctxLen is not 0,
+ *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          0 otherwise.
+ */
+int wc_dilithium_sign_ctx_msg(const byte* ctx, byte ctxLen, const byte* msg,
+    word32 msgLen, byte* sig, word32 *sigLen, dilithium_key* key, WC_RNG* rng)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+#ifdef WOLF_CRYPTO_CB
+    if (ret == 0) {
+    #ifndef WOLF_CRYPTO_CB_FIND
+        if (key->devId != INVALID_DEVID)
+    #endif
+        {
+            ret = wc_CryptoCb_PqcSign(msg, msgLen, sig, sigLen, rng,
+                WC_PQC_SIG_TYPE_DILITHIUM, key);
+            if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return ret;
+            /* fall-through when unavailable */
+            ret = 0;
+        }
+    }
+#endif
+
+    if (ret == 0) {
+        /* Sign message. */
+    #ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_sign_ctx_msg(key, rng, ctx, ctxLen, msg, msgLen, sig,
+            sigLen);
+    #elif defined(HAVE_LIBOQS)
+        ret = oqs_dilithium_sign_msg(msg, msgLen, sig, sigLen, key, rng);
+    #endif
+    }
+
+    return ret;
+}
+#endif
+
 /* Sign the message using the dilithium private key.
  *
  *  msg         [in]      Message to sign.
@@ -6806,6 +8054,99 @@ int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
     return ret;
 }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Sign the message hash using the dilithium private key.
+ *
+ *  ctx         [in]      Context of signature.
+ *  ctxLen      [in]      Length of context in bytes.
+ *  hashAlg     [in]      Hash algorithm used on message.
+ *  hash        [in]      Hash of message to sign.
+ *  hashLen     [in]      Length of the message hash in bytes.
+ *  sig         [out]     Buffer to write signature into.
+ *  sigLen      [in/out]  On in, size of buffer.
+ *                        On out, the length of the signature in bytes.
+ *  key         [in]      Dilithium key to use when signing
+ *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *          or ctx is NULL and ctxLen is not 0,
+ *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          0 otherwise.
+ */
+int wc_dilithium_sign_ctx_hash(const byte* ctx, byte ctxLen, int hashAlg,
+   const byte* hash, word32 hashLen, byte* sig, word32 *sigLen,
+   dilithium_key* key, WC_RNG* rng)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((hash == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Sign message. */
+    #ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_sign_ctx_hash(key, rng, ctx, ctxLen, hashAlg, hash,
+            hashLen, sig, sigLen);
+    #elif defined(HAVE_LIBOQS)
+        ret = NOT_COMPILED_IN;
+        (void)hashAlg;
+        (void)hash;
+        (void)hashLen;
+        (void)rng;
+    #endif
+    }
+
+    return ret;
+}
+
+/* Sign the message using the dilithium private key.
+ *
+ *  ctx         [in]      Context of signature.
+ *  ctxLen      [in]      Length of context in bytes.
+ *  msg         [in]      Message to sign.
+ *  msgLen      [in]      Length of the message in bytes.
+ *  sig         [out]     Buffer to write signature into.
+ *  sigLen      [in/out]  On in, size of buffer.
+ *                        On out, the length of the signature in bytes.
+ *  key         [in]      Dilithium key to use when signing
+ *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *          or ctx is NULL and ctxLen is not 0,
+ *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          0 otherwise.
+ */
+int wc_dilithium_sign_ctx_msg_with_seed(const byte* ctx, byte ctxLen,
+    const byte* msg, word32 msgLen, byte* sig, word32 *sigLen,
+    dilithium_key* key, const byte* seed)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((msg == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Sign message. */
+    #ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_sign_ctx_msg_with_seed(key, seed, ctx, ctxLen, msg,
+            msgLen, sig, sigLen);
+    #elif defined(HAVE_LIBOQS)
+        ret = NOT_COMPILED_IN;
+        (void)msgLen;
+        (void)seed;
+    #endif
+    }
+
+    return ret;
+}
+#endif
+
 /* Sign the message using the dilithium private key.
  *
  *  msg         [in]      Message to sign.
@@ -6819,7 +8160,7 @@ int wc_dilithium_sign_msg(const byte* msg, word32 msgLen, byte* sig,
  *          0 otherwise.
  */
 int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
-    word32 *sigLen, dilithium_key* key, byte* seed)
+    word32 *sigLen, dilithium_key* key, const byte* seed)
 {
     int ret = 0;
 
@@ -6841,9 +8182,104 @@ int wc_dilithium_sign_msg_with_seed(const byte* msg, word32 msgLen, byte* sig,
 
     return ret;
 }
+
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Sign the message using the dilithium private key.
+ *
+ *  ctx         [in]      Context of signature.
+ *  ctxLen      [in]      Length of context in bytes.
+ *  hashAlg     [in]      Hash algorithm used on message.
+ *  hash        [in]      Hash of message to sign.
+ *  hashLen     [in]      Length of the message hash in bytes.
+ *  sig         [out]     Buffer to write signature into.
+ *  sigLen      [in/out]  On in, size of buffer.
+ *                        On out, the length of the signature in bytes.
+ *  key         [in]      Dilithium key to use when signing
+ *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *          or ctx is NULL and ctxLen is not 0,
+ *          BUFFER_E when outLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          0 otherwise.
+ */
+int wc_dilithium_sign_ctx_hash_with_seed(const byte* ctx, byte ctxLen,
+    int hashAlg, const byte* hash, word32 hashLen, byte* sig, word32 *sigLen,
+    dilithium_key* key, const byte* seed)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((hash == NULL) || (sig == NULL) || (sigLen == NULL) || (key == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Sign message. */
+    #ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_sign_ctx_hash_with_seed(key, seed, ctx, ctxLen,
+            hashAlg, hash, hashLen, sig, sigLen);
+    #elif defined(HAVE_LIBOQS)
+        ret = NOT_COMPILED_IN;
+        (void)hashAlg;
+        (void)hash;
+        (void)hashLen;
+        (void)seed;
+    #endif
+    }
+
+    return ret;
+}
+#endif
 #endif /* !WOLFSSL_DILITHIUM_NO_SIGN */
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Verify the message using the dilithium public key.
+ *
+ *  sig         [in]  Signature to verify.
+ *  sigLen      [in]  Size of signature in bytes.
+ *  ctx         [in]  Context of signature.
+ *  ctxLen      [in]  Length of context in bytes.
+ *  msg         [in]  Message to verify.
+ *  msgLen      [in]  Length of the message in bytes.
+ *  res         [out] *res is set to 1 on successful verification.
+ *  key         [in]  Dilithium key to use to verify.
+ *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *          or ctx is NULL and ctxLen is not 0,
+ *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          0 otherwise.
+ */
+int wc_dilithium_verify_ctx_msg(const byte* sig, word32 sigLen, const byte* ctx,
+    word32 ctxLen, const byte* msg, word32 msgLen, int* res, dilithium_key* key)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (sig == NULL) || (msg == NULL) || (res == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Verify message with signature. */
+    #ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_verify_ctx_msg(key, ctx, ctxLen, msg, msgLen, sig,
+            sigLen, res);
+    #elif defined(HAVE_LIBOQS)
+        ret = NOT_COMPILED_IN;
+        (void)sigLen;
+        (void)msgLen;
+        (void)res;
+    #endif
+    }
+
+    return ret;
+}
+#endif
+
 /* Verify the message using the dilithium public key.
  *
  *  sig         [in]  Signature to verify.
@@ -6893,6 +8329,55 @@ int wc_dilithium_verify_msg(const byte* sig, word32 sigLen, const byte* msg,
 
     return ret;
 }
+
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+/* Verify the message using the dilithium public key.
+ *
+ *  sig         [in]  Signature to verify.
+ *  sigLen      [in]  Size of signature in bytes.
+ *  ctx         [in]  Context of signature.
+ *  ctxLen      [in]  Length of context in bytes.
+ *  hashAlg     [in]  Hash algorithm used on message.
+ *  hash        [in]  Hash of message to verify.
+ *  hashLen     [in]  Length of the message hash in bytes.
+ *  res         [out] *res is set to 1 on successful verification.
+ *  key         [in]  Dilithium key to use to verify.
+ *  returns BAD_FUNC_ARG when a parameter is NULL, public key not set
+ *          or ctx is NULL and ctxLen is not 0,
+ *          BUFFER_E when sigLen is less than DILITHIUM_LEVEL2_SIG_SIZE,
+ *          0 otherwise.
+ */
+int wc_dilithium_verify_ctx_hash(const byte* sig, word32 sigLen,
+    const byte* ctx, word32 ctxLen, int hashAlg, const byte* hash,
+    word32 hashLen, int* res, dilithium_key* key)
+{
+    int ret = 0;
+
+    /* Validate parameters. */
+    if ((key == NULL) || (sig == NULL) || (hash == NULL) || (res == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    if ((ret == 0) && (ctx == NULL) && (ctxLen > 0)) {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        /* Verify message with signature. */
+    #ifdef WOLFSSL_WC_DILITHIUM
+        ret = dilithium_verify_ctx_hash(key, ctx, ctxLen, hashAlg, hash,
+            hashLen, sig, sigLen, res);
+    #elif defined(HAVE_LIBOQS)
+        ret = NOT_COMPILED_IN;
+        (void)sigLen;
+        (void)hashAlg;
+        (void)hash;
+        (void)hashLen;
+    #endif
+    }
+
+    return ret;
+}
+#endif
 #endif /* WOLFSSL_DILITHIUM_NO_VERIFY */
 
 /* Initialize the dilithium private/public key.
@@ -6916,7 +8401,6 @@ int wc_dilithium_init_ex(dilithium_key* key, void* heap, int devId)
 {
     int ret = 0;
 
-    (void)heap;
     (void)devId;
 
     /* Validate parameters. */
@@ -6936,6 +8420,7 @@ int wc_dilithium_init_ex(dilithium_key* key, void* heap, int devId)
         key->idLen = 0;
         key->labelLen = 0;
     #endif
+        key->heap = heap;
     }
 
     return ret;
@@ -6963,7 +8448,7 @@ int wc_dilithium_init_id(dilithium_key* key, const unsigned char* id, int len,
     }
 
     /* Set the maximum level here */
-    wc_dilithium_set_level(key, 5);
+    wc_dilithium_set_level(key, WC_ML_DSA_87);
 
     return ret;
 }
@@ -6993,7 +8478,7 @@ int wc_dilithium_init_label(dilithium_key* key, const char* label, void* heap,
     }
 
     /* Set the maximum level here */
-    wc_dilithium_set_level(key, 5);
+    wc_dilithium_set_level(key, WC_ML_DSA_87);
 
     return ret;
 }
@@ -7013,7 +8498,8 @@ int wc_dilithium_set_level(dilithium_key* key, byte level)
     if (key == NULL) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (level != 2) && (level != 3) && (level != 5)) {
+    if ((ret == 0) && (level != WC_ML_DSA_44) && (level != WC_ML_DSA_65) &&
+            (level != WC_ML_DSA_87)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -7024,23 +8510,25 @@ int wc_dilithium_set_level(dilithium_key* key, byte level)
     }
     if (ret == 0) {
         /* Clear any cached items. */
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     #ifdef WC_DILITHIUM_CACHE_MATRIX_A
-        XFREE(key->a, NULL, WOLFSSL_WC_DILITHIUM);
+        XFREE(key->a, key->heap, DYNAMIC_TYPE_DILITHIUM);
         key->a = NULL;
         key->aSet = 0;
     #endif
     #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
-        XFREE(key->s1, NULL, WOLFSSL_WC_DILITHIUM);
+        XFREE(key->s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
         key->s1 = NULL;
         key->s2 = NULL;
         key->t0 = NULL;
         key->privVecsSet = 0;
     #endif
     #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
-        XFREE(key->t1, NULL, WOLFSSL_WC_DILITHIUM);
+        XFREE(key->t1, key->heap, DYNAMIC_TYPE_DILITHIUM);
         key->t1 = NULL;
         key->pubVecSet = 0;
     #endif
+#endif
 #endif /* WOLFSSL_WC_DILITHIUM */
 
         /* Store level and indicate public and private key are not set. */
@@ -7066,8 +8554,8 @@ int wc_dilithium_get_level(dilithium_key* key, byte* level)
     if ((key == NULL) || (level == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (key->level != 2) && (key->level != 3) &&
-            (key->level != 5)) {
+    if ((ret == 0) && (key->level != WC_ML_DSA_44) &&
+            (key->level != WC_ML_DSA_65) && (key->level != WC_ML_DSA_87)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -7087,16 +8575,18 @@ void wc_dilithium_free(dilithium_key* key)
 {
     if (key != NULL) {
 #ifdef WOLFSSL_WC_DILITHIUM
+#ifndef WC_DILITHIUM_FIXED_ARRAY
         /* Dispose of cached items. */
     #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
-        XFREE(key->t1, NULL, WOLFSSL_WC_DILITHIUM);
+        XFREE(key->t1, key->heap, DYNAMIC_TYPE_DILITHIUM);
     #endif
     #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
-        XFREE(key->s1, NULL, WOLFSSL_WC_DILITHIUM);
+        XFREE(key->s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
     #endif
     #ifdef WC_DILITHIUM_CACHE_MATRIX_A
-        XFREE(key->a, NULL, WOLFSSL_WC_DILITHIUM);
+        XFREE(key->a, key->heap, DYNAMIC_TYPE_DILITHIUM);
     #endif
+#endif
         /* Free the SHAKE-128/256 object. */
         wc_Shake256_Free(&key->shake);
 #endif
@@ -7114,16 +8604,16 @@ void wc_dilithium_free(dilithium_key* key)
  */
 int wc_dilithium_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             ret = DILITHIUM_LEVEL2_KEY_SIZE;
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             ret = DILITHIUM_LEVEL3_KEY_SIZE;
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             ret = DILITHIUM_LEVEL5_KEY_SIZE;
         }
     }
@@ -7140,16 +8630,16 @@ int wc_dilithium_size(dilithium_key* key)
  */
 int wc_dilithium_priv_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             ret = DILITHIUM_LEVEL2_PRV_KEY_SIZE;
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             ret = DILITHIUM_LEVEL3_PRV_KEY_SIZE;
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             ret = DILITHIUM_LEVEL5_PRV_KEY_SIZE;
         }
     }
@@ -7187,16 +8677,16 @@ int wc_MlDsaKey_GetPrivLen(MlDsaKey* key, int* len)
  */
 int wc_dilithium_pub_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             ret = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             ret = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             ret = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
         }
     }
@@ -7233,16 +8723,16 @@ int wc_MlDsaKey_GetPubLen(MlDsaKey* key, int* len)
  */
 int wc_dilithium_sig_size(dilithium_key* key)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     if (key != NULL) {
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             ret = DILITHIUM_LEVEL2_SIG_SIZE;
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             ret = DILITHIUM_LEVEL3_SIG_SIZE;
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             ret = DILITHIUM_LEVEL5_SIG_SIZE;
         }
     }
@@ -7320,7 +8810,7 @@ int wc_dilithium_check_key(dilithium_key* key)
 #endif
 
         /* Allocate memory for large intermediates. */
-        s1 = (sword32*)XMALLOC(allocSz, NULL, DYNAMIC_TYPE_DILITHIUM);
+        s1 = (sword32*)XMALLOC(allocSz, key->heap, DYNAMIC_TYPE_DILITHIUM);
         if (s1 == NULL) {
             ret = MEMORY_E;
         }
@@ -7346,7 +8836,7 @@ int wc_dilithium_check_key(dilithium_key* key)
             const byte* pub_seed = key->p;
 
             ret = dilithium_expand_a(&key->shake, pub_seed, params->k,
-                params->l, a);
+                params->l, a, key->heap);
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
             key->aSet = (ret == 0);
 #endif
@@ -7399,8 +8889,10 @@ int wc_dilithium_check_key(dilithium_key* key)
         }
     }
 
-    /* Dispose of allocated memory. */
-    XFREE(s1, NULL, DYNAMIC_TYPE_DILITHIUM);
+    if (key != NULL) {
+        /* Dispose of allocated memory. */
+        XFREE(s1, key->heap, DYNAMIC_TYPE_DILITHIUM);
+    }
 #else
     /* Validate parameter. */
     if (key == NULL) {
@@ -7455,7 +8947,7 @@ int wc_dilithium_export_public(dilithium_key* key, byte* out, word32* outLen)
     if (ret == 0) {
         /* Get length passed in for checking. */
         inLen = *outLen;
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             /* Set out length. */
             *outLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
             /* Validate length passed in. */
@@ -7463,7 +8955,7 @@ int wc_dilithium_export_public(dilithium_key* key, byte* out, word32* outLen)
                 ret = BUFFER_E;
             }
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             /* Set out length. */
             *outLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
             /* Validate length passed in. */
@@ -7471,7 +8963,7 @@ int wc_dilithium_export_public(dilithium_key* key, byte* out, word32* outLen)
                 ret = BUFFER_E;
             }
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             /* Set out length. */
             *outLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
             /* Validate length passed in. */
@@ -7517,19 +9009,19 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
         ret = BAD_FUNC_ARG;
     }
     if (ret == 0) {
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             /* Check length. */
             if (inLen != DILITHIUM_LEVEL2_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             /* Check length. */
             if (inLen != DILITHIUM_LEVEL3_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
             }
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             /* Check length. */
             if (inLen != DILITHIUM_LEVEL5_PUB_KEY_SIZE) {
                 ret = BAD_FUNC_ARG;
@@ -7549,40 +9041,44 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
         key->p = in;
     #endif
 
-    #ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+#ifdef WC_DILITHIUM_CACHE_PUB_VECTORS
+    #ifndef WC_DILITHIUM_FIXED_ARRAY
         /* Allocate t1 if required. */
         if (key->t1 == NULL) {
-            key->t1 = (sword32*)XMALLOC(key->params->s2Sz, NULL,
+            key->t1 = (sword32*)XMALLOC(key->params->s2Sz, key->heap,
                 DYNAMIC_TYPE_DILITHIUM);
             if (key->t1 == NULL) {
                 ret = MEMORY_E;
             }
         }
+    #endif
     }
     if (ret == 0) {
         /* Compute t1 from public key data. */
         dilithium_make_pub_vec(key, key->t1);
-    #endif
-    #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#endif
+#ifdef WC_DILITHIUM_CACHE_MATRIX_A
+    #ifndef WC_DILITHIUM_FIXED_ARRAY
         /* Allocate matrix a if required. */
         if (key->a == NULL) {
-            key->a = (sword32*)XMALLOC(key->params->aSz, NULL,
+            key->a = (sword32*)XMALLOC(key->params->aSz, key->heap,
                 DYNAMIC_TYPE_DILITHIUM);
             if (key->a == NULL) {
                 ret = MEMORY_E;
             }
         }
+    #endif
     }
     if (ret == 0) {
         /* Compute matrix a from public key data. */
         ret = dilithium_expand_a(&key->shake, key->p, key->params->k,
-            key->params->l, key->a);
+            key->params->l, key->a, key->heap);
         if (ret == 0) {
             key->aSet = 1;
         }
     }
     if (ret == 0) {
-    #endif
+#endif
         /* Public key is set. */
         key->pubKeySet = 1;
     }
@@ -7630,39 +9126,44 @@ static int dilithium_set_priv_key(const byte* priv, word32 privSz,
 
         /* Allocate and create cached values. */
 #ifdef WC_DILITHIUM_CACHE_MATRIX_A
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if (ret == 0) {
         /* Allocate matrix a if required. */
         if (key->a == NULL) {
-            key->a = (sword32*)XMALLOC(params->aSz, NULL,
+            key->a = (sword32*)XMALLOC(params->aSz, key->heap,
                 DYNAMIC_TYPE_DILITHIUM);
             if (key->a == NULL) {
                 ret = MEMORY_E;
             }
         }
     }
+#endif
     if (ret == 0) {
         /* Compute matrix a from private key data. */
         ret = dilithium_expand_a(&key->shake, key->k, params->k, params->l,
-            key->a);
+            key->a, key->heap);
         if (ret == 0) {
             key->aSet = 1;
         }
     }
 #endif
 #ifdef WC_DILITHIUM_CACHE_PRIV_VECTORS
+#ifndef WC_DILITHIUM_FIXED_ARRAY
     if ((ret == 0) && (key->s1 == NULL)) {
         /* Allocate L vector s1, K vector s2 and K vector t0 if required. */
         key->s1 = (sword32*)XMALLOC(params->s1Sz + params->s2Sz + params->s2Sz,
-            NULL, DYNAMIC_TYPE_DILITHIUM);
-         if (key->s1 == NULL) {
+            key->heap, DYNAMIC_TYPE_DILITHIUM);
+        if (key->s1 == NULL) {
             ret = MEMORY_E;
         }
+        if (ret == 0) {
+            /* Set pointers into allocated memory. */
+            key->s2 = key->s1 + params->s1Sz / sizeof(*key->s1);
+            key->t0 = key->s2 + params->s2Sz / sizeof(*key->s2);
+        }
     }
+#endif
     if (ret == 0) {
-        /* Set pointers into allocated memory. */
-        key->s2 = key->s1 + params->s1Sz / sizeof(*key->s1);
-        key->t0 = key->s2 + params->s2Sz / sizeof(*key->s2);
-
         /* Compute vectors from private key. */
         dilithium_make_priv_vecs(key, key->s1, key->s2, key->t0);
     }
@@ -7693,8 +9194,8 @@ int wc_dilithium_import_private(const byte* priv, word32 privSz,
     if ((priv == NULL) || (key == NULL)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (key->level != 2) && (key->level != 3) &&
-            (key->level != 5)) {
+    if ((ret == 0) && (key->level != WC_ML_DSA_44) &&
+            (key->level != WC_ML_DSA_65) && (key->level != WC_ML_DSA_87)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -7730,8 +9231,8 @@ int wc_dilithium_import_key(const byte* priv, word32 privSz,
     if ((pub == NULL) && (pubSz != 0)) {
         ret = BAD_FUNC_ARG;
     }
-    if ((ret == 0) && (key->level != 2) && (key->level != 3) &&
-            (key->level != 5)) {
+    if ((ret == 0) && (key->level != WC_ML_DSA_44) &&
+            (key->level != WC_ML_DSA_65) && (key->level != WC_ML_DSA_87)) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -7776,13 +9277,13 @@ int wc_dilithium_export_private(dilithium_key* key, byte* out,
     if (ret == 0) {
         inLen = *outLen;
         /* check and set up out length */
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             *outLen = DILITHIUM_LEVEL2_KEY_SIZE;
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             *outLen = DILITHIUM_LEVEL3_KEY_SIZE;
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             *outLen = DILITHIUM_LEVEL5_KEY_SIZE;
         }
         else {
@@ -7869,13 +9370,13 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (ret == 0) {
         /* Get OID sum for level. */
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             keytype = DILITHIUM_LEVEL2k;
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             keytype = DILITHIUM_LEVEL3k;
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             keytype = DILITHIUM_LEVEL5k;
         }
         else {
@@ -7891,19 +9392,19 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
     }
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
-        if ((key->level == 2) &&
+        if ((key->level == WC_ML_DSA_44) &&
             (privKeyLen == DILITHIUM_LEVEL2_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL2_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
             privKeyLen -= DILITHIUM_LEVEL2_PUB_KEY_SIZE;
         }
-        else if ((key->level == 3) &&
+        else if ((key->level == WC_ML_DSA_65) &&
                  (privKeyLen == DILITHIUM_LEVEL3_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL3_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
             privKeyLen -= DILITHIUM_LEVEL3_PUB_KEY_SIZE;
         }
-        else if ((key->level == 5) &&
+        else if ((key->level == WC_ML_DSA_87) &&
                  (privKeyLen == DILITHIUM_LEVEL5_PRV_KEY_SIZE)) {
             pubKey = privKey + DILITHIUM_LEVEL5_KEY_SIZE;
             pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
@@ -7937,7 +9438,102 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
 #endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
+#endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
+
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+
+#if defined(WOLFSSL_DILITHIUM_NO_ASN1)
+#ifndef WOLFSSL_NO_ML_DSA_44
+static unsigned char dilithium_oid_44[] = {
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
+    0x0c, 0x04, 0x04
+};
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_65
+static unsigned char dilithium_oid_65[] = {
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
+    0x0c, 0x06, 0x05
+};
+#endif
+#ifndef WOLFSSL_NO_ML_DSA_87
+static unsigned char dilithium_oid_87[] = {
+    0x2b, 0x06, 0x01, 0x04, 0x01, 0x02, 0x82, 0x0b,
+    0x0c, 0x08, 0x07
+};
+#endif
+
+static int dilitihium_get_der_length(const byte* input, word32* inOutIdx,
+    int *length, word32 inSz)
+{
+    int ret = 0;
+    word32 idx = *inOutIdx;
+    word32 len = 0;
+
+    if (idx >= inSz) {
+        ret = ASN_PARSE_E;
+    }
+    else if (input[idx] < 0x80) {
+        len = input[idx];
+        idx++;
+    }
+    else if ((input[idx] == 0x80) || (input[idx] >= 0x83)) {
+        ret = ASN_PARSE_E;
+    }
+    else if (input[idx] == 0x81) {
+        if (idx + 1 >= inSz) {
+            ret = ASN_PARSE_E;
+        }
+        else if (input[idx + 1] < 0x80) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            len = input[idx + 1];
+            idx += 2;
+        }
+    }
+    else if (input[idx] == 0x82) {
+        if (idx + 2 >= inSz) {
+            ret = ASN_PARSE_E;
+        }
+        else {
+            len = ((word16)input[idx + 1] << 8) + input[idx + 2];
+            idx += 3;
+            if (len < 0x100) {
+                ret = ASN_PARSE_E;
+            }
+        }
+    }
+
+    if ((ret == 0) && ((idx + len) > inSz)) {
+        ret = ASN_PARSE_E;
+    }
+
+    *length = (int)len;
+    *inOutIdx = idx;
+    return ret;
+}
+
+static int dilithium_check_type(const byte* input, word32* inOutIdx, byte type,
+    word32 inSz)
+{
+    int ret = 0;
+    word32 idx = *inOutIdx;
+
+    if (idx >= inSz) {
+        ret = ASN_PARSE_E;
+    }
+    else if (input[idx] != type){
+        ret = ASN_PARSE_E;
+    }
+    else {
+        idx++;
+    }
+
+    *inOutIdx = idx;
+    return ret;
+}
+
+#endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
 
 /* Decode the DER encoded Dilithium public key.
  *
@@ -7957,7 +9553,6 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
     int ret = 0;
     const byte* pubKey;
     word32 pubKeyLen = 0;
-    int keytype = 0;
 
     /* Validate parameters. */
     if ((input == NULL) || (inOutIdx == NULL) || (key == NULL) || (inSz == 0)) {
@@ -7968,17 +9563,27 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
         /* Try to import the key directly. */
         ret = wc_dilithium_import_public(input, inSz, key);
         if (ret != 0) {
+        #if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
+            int keytype = 0;
+        #else
+            int length;
+            unsigned char* oid;
+            int oidLen;
+            word32 idx = 0;
+        #endif
+
             /* Start again. */
             ret = 0;
 
+    #if !defined(WOLFSSL_DILITHIUM_NO_ASN1)
             /* Get OID sum for level. */
-            if (key->level == 2) {
+            if (key->level == WC_ML_DSA_44) {
                 keytype = DILITHIUM_LEVEL2k;
             }
-            else if (key->level == 3) {
+            else if (key->level == WC_ML_DSA_65) {
                 keytype = DILITHIUM_LEVEL3k;
             }
-            else if (key->level == 5) {
+            else if (key->level == WC_ML_DSA_87) {
                 keytype = DILITHIUM_LEVEL5k;
             }
             else {
@@ -7990,6 +9595,77 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
                     &pubKeyLen, keytype);
             }
+    #else
+            /* Get OID sum for level. */
+        #ifndef WOLFSSL_NO_ML_DSA_44
+            if (key->level == WC_ML_DSA_44) {
+                oid = dilithium_oid_44;
+                oidLen = (int)sizeof(dilithium_oid_44);
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_65
+            if (key->level == WC_ML_DSA_65) {
+                oid = dilithium_oid_65;
+                oidLen = (int)sizeof(dilithium_oid_65);
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_DSA_87
+            if (key->level == WC_ML_DSA_87) {
+                oid = dilithium_oid_87;
+                oidLen = (int)sizeof(dilithium_oid_87);
+            }
+            else
+        #endif
+            {
+                /* Level not set. */
+                ret = BAD_FUNC_ARG;
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x30, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x30, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x06, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                if ((length != oidLen) ||
+                        (XMEMCMP(input + idx, oid, oidLen) != 0)) {
+                    ret = ASN_PARSE_E;
+                }
+                idx += oidLen;
+            }
+            if (ret == 0) {
+                ret = dilithium_check_type(input, &idx, 0x03, inSz);
+            }
+            if (ret == 0) {
+                ret = dilitihium_get_der_length(input, &idx, &length, inSz);
+            }
+            if (ret == 0) {
+                if (input[idx] != 0) {
+                    ret = ASN_PARSE_E;
+                }
+                idx++;
+                length--;
+            }
+            if (ret == 0) {
+                /* This is the raw point data compressed or uncompressed. */
+                pubKeyLen = (word32)length;
+                pubKey = input + idx;
+            }
+    #endif
             if (ret == 0) {
                 /* Import public key data. */
                 ret = wc_dilithium_import_public(pubKey, pubKeyLen, key);
@@ -7998,6 +9674,8 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
     }
     return ret;
 }
+
+#ifndef WOLFSSL_DILITHIUM_NO_ASN1
 
 #ifdef WC_ENABLE_ASYM_KEY_EXPORT
 /* Encode the public part of a Dilithium key in DER.
@@ -8030,15 +9708,15 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 len,
 
     if (ret == 0) {
         /* Get OID and length for level. */
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             keytype = DILITHIUM_LEVEL2k;
             pubKeyLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             keytype = DILITHIUM_LEVEL3k;
             pubKeyLen = DILITHIUM_LEVEL3_PUB_KEY_SIZE;
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             keytype = DILITHIUM_LEVEL5k;
             pubKeyLen = DILITHIUM_LEVEL5_PUB_KEY_SIZE;
         }
@@ -8057,9 +9735,13 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 len,
 }
 #endif /* WC_ENABLE_ASYM_KEY_EXPORT */
 
+#endif /* !WOLFSSL_DILITHIUM_NO_ASN1 */
+
 #endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
 
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+
+#ifndef WOLFSSL_DILITHIUM_NO_ASN1
 
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
 /* Encode the private and public data of a Dilithium key in DER.
@@ -8075,20 +9757,20 @@ int wc_Dilithium_PublicKeyToDer(dilithium_key* key, byte* output, word32 len,
  */
 int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output, word32 len)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     /* Validate parameters and check public and private key set. */
     if ((key != NULL) && key->prvKeySet && key->pubKeySet) {
         /* Create DER for level. */
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, key->p,
                 DILITHIUM_LEVEL2_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL2k);
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, key->p,
                 DILITHIUM_LEVEL3_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL3k);
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, key->p,
                 DILITHIUM_LEVEL5_PUB_KEY_SIZE, output, len, DILITHIUM_LEVEL5k);
         }
@@ -8111,20 +9793,20 @@ int wc_Dilithium_KeyToDer(dilithium_key* key, byte* output, word32 len)
  */
 int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output, word32 len)
 {
-    int ret = BAD_FUNC_ARG;
+    int ret = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     /* Validate parameters and check private key set. */
     if ((key != NULL) && key->prvKeySet) {
         /* Create DER for level. */
-        if (key->level == 2) {
+        if (key->level == WC_ML_DSA_44) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL2_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL2k);
         }
-        else if (key->level == 3) {
+        else if (key->level == WC_ML_DSA_65) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL3_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL3k);
         }
-        else if (key->level == 5) {
+        else if (key->level == WC_ML_DSA_87) {
             ret = SetAsymKeyDer(key->k, DILITHIUM_LEVEL5_KEY_SIZE, NULL, 0,
                 output, len, DILITHIUM_LEVEL5k);
         }
@@ -8133,8 +9815,8 @@ int wc_Dilithium_PrivateKeyToDer(dilithium_key* key, byte* output, word32 len)
     return ret;
 }
 
-#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
-
 #endif /* WOLFSSL_DILITHIUM_NO_ASN1 */
+
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
 #endif /* HAVE_DILITHIUM */

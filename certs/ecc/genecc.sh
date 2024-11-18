@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # run from wolfssl root
 
@@ -140,6 +140,13 @@ openssl x509 -req -in ./certs/ecc/client-bp256r1-req.pem -days 3650 -extfile ./c
 openssl x509 -inform pem -in ./certs/ecc/client-bp256r1-cert.pem -outform der -out ./certs/ecc/client-bp256r1-cert.der
 rm ./certs/ecc/client-bp256r1-req.pem
 
+# Create self-signed ECC secp256k1 (Koblitz) certificate
+openssl req -config ./certs/ecc/wolfssl.cnf -extensions v3_ca -x509 -nodes -newkey ec:certs/ecc/secp256k1-param.pem -keyout ./certs/ecc/ca-secp256k1-key.pem -out ./certs/ecc/ca-secp256k1-cert.pem -sha256 -days 7300 -batch -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=SECP256K1/CN=www.wolfssl.com/emailAddress=info@wolfssl.com"
+# Create server ECC secp256k1 (Koblitz) certificate
+openssl req -config ./certs/ecc/wolfssl.cnf -sha256 -new -key ./certs/ecc/secp256k1-privkey.pem -out ./certs/ecc/server2-secp256k1-req.pem -subj "/C=US/ST=Washington/L=Seattle/O=Elliptic/OU=SECP256K1-SVR/CN=www.wolfssl.com/emailAddress=info@wolfssl.com/"
+openssl x509 -req -in ./certs/ecc/server2-secp256k1-req.pem -days 3650 -extfile ./certs/ecc/wolfssl.cnf -extensions server_cert -CAkey ./certs/ecc/ca-secp256k1-key.pem -CA ./certs/ecc/ca-secp256k1-cert.pem -text -out ./certs/ecc/server2-secp256k1-cert.pem
+openssl x509 -inform pem -in ./certs/ecc/server2-secp256k1-cert.pem -outform der -out ./certs/ecc/server2-secp256k1-cert.der
+rm ./certs/ecc/server2-secp256k1-req.pem
 
 # update bad certificate with last byte in signature changed
 cp ./certs/server-ecc.der ./certs/test/server-cert-ecc-badsig.der

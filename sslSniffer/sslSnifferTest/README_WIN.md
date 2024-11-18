@@ -27,4 +27,4 @@
 
 
 
-For details on usage, see [sniffer README.md](../README.md#command-line-options) for more details. 
+For details on usage, see [sniffer README.md](../README.md#command-line-options) for more details.

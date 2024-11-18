@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -34,8 +34,13 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 /* Usually comes from configure -> config.h */
 #define HAVE_SYS_TIME_H
+
+/* Explicitly define NETDB support */
+#define HAVE_NETDB_H
 
 /* Features */
 #define SINGLE_THREADED

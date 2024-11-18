@@ -19,7 +19,7 @@ if( EXISTS "${CMAKE_HOME_DIRECTORY}/components/wolfssl/" AND EXISTS "$ENV{IDF_PA
 endif()
 
 idf_component_register(SRCS main.c
-                       INCLUDE_DIRS "." 
+                       INCLUDE_DIRS "."
                        "./include")
 
 #

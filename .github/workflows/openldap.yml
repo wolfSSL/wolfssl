@@ -1,0 +1,89 @@
+name: openldap Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-openldap CPPFLAGS=-DWOLFSSL_NO_ASN_STRICT
+          install: true
+          check: true
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-openldap
+          path: build-dir.tgz
+          retention-days: 5
+
+  openldap_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # List of releases to test
+          - osp_ref: 2.5.13
+            git_ref: OPENLDAP_REL_ENG_2_5_13
+    name: ${{ matrix.osp_ref }}
+    runs-on: ubuntu-latest
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 20
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-openldap
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout openldap
+        uses: actions/checkout@v4
+        with:
+          repository: openldap/openldap
+          path: openldap
+          ref: ${{ matrix.git_ref }}
+
+      - name: Build and test OpenLDAP
+        working-directory: openldap
+        run: |
+          export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/build-dir/lib:$LD_LIBRARY_PATH
+          patch -p1 < $GITHUB_WORKSPACE/osp/openldap/${{ matrix.osp_ref }}/openldap-${{ matrix.osp_ref }}.patch
+          rm aclocal.m4
+          autoreconf -ivf
+          ./configure --with-tls=wolfssl --disable-bdb --disable-hdb \
+            CFLAGS="-I$GITHUB_WORKSPACE/build-dir/include \
+              -I$GITHUB_WORKSPACE/build-dir/include/wolfssl \
+              -L$GITHUB_WORKSPACE/build-dir/lib"
+          make -j depend
+          make -j
+          make -j check

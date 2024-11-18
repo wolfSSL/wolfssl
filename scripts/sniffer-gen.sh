@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #set -x
 
 # Run this script from the wolfSSL root

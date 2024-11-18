@@ -773,7 +773,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
         pr_err("%s: wc_AesGcmDecryptFinal failed with return code %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
 
-        if (err == AES_GCM_AUTH_E) {
+        if (err == WC_NO_ERR_TRACE(AES_GCM_AUTH_E)) {
             return -EBADMSG;
         }
         else {
@@ -2025,7 +2025,7 @@ static int aes_xts_128_test(void)
     }
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
-    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p2, sizeof(p2), i2, sizeof(i2));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
@@ -2068,7 +2068,7 @@ static int aes_xts_128_test(void)
     }
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
-    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
@@ -2090,7 +2090,7 @@ static int aes_xts_128_test(void)
     }
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
-    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(cipher, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsEncrypt(aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
@@ -2116,7 +2116,7 @@ static int aes_xts_128_test(void)
     }
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
-    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
@@ -2139,7 +2139,7 @@ static int aes_xts_128_test(void)
     }
 
 #if defined(DEBUG_VECTOR_REGISTER_ACCESS) && defined(WC_C_DYNAMIC_FALLBACK)
-    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(SYSLIB_FAILED_E);
+    WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(WC_NO_ERR_TRACE(SYSLIB_FAILED_E));
     XMEMSET(buf, 0, AES_XTS_128_TEST_BUF_SIZ);
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
@@ -2451,14 +2451,10 @@ static int aes_xts_128_test(void)
 
     test_xts_end:
 
-    if (enc2)
-        XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
-    if (dec2)
-        XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
-    if (src)
-        XFREE(src, NULL, DYNAMIC_TYPE_AES);
-    if (dst)
-        XFREE(dst, NULL, DYNAMIC_TYPE_AES);
+    XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(src, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dst, NULL, DYNAMIC_TYPE_AES);
     if (req)
         skcipher_request_free(req);
     if (tfm)
@@ -2466,19 +2462,14 @@ static int aes_xts_128_test(void)
 
   out:
 
-    if (large_input)
-        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_AES);
-    if (cipher)
-        XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
-
-    if (aes)
-        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    XFREE(buf, NULL, DYNAMIC_TYPE_AES);
+    XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 
 #undef AES_XTS_128_TEST_BUF_SIZ
 
@@ -2939,14 +2930,10 @@ static int aes_xts_256_test(void)
 
     test_xts_end:
 
-    if (enc2)
-        XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
-    if (dec2)
-        XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
-    if (src)
-        XFREE(src, NULL, DYNAMIC_TYPE_AES);
-    if (dst)
-        XFREE(dst, NULL, DYNAMIC_TYPE_AES);
+    XFREE(enc2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dec2, NULL, DYNAMIC_TYPE_AES);
+    XFREE(src, NULL, DYNAMIC_TYPE_AES);
+    XFREE(dst, NULL, DYNAMIC_TYPE_AES);
     if (req)
         skcipher_request_free(req);
     if (tfm)
@@ -2954,19 +2941,15 @@ static int aes_xts_256_test(void)
 
   out:
 
-    if (large_input)
-        XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(large_input, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (aes_inited)
         wc_AesXtsFree(aes);
 
-    if (buf)
-        XFREE(buf, NULL, DYNAMIC_TYPE_AES);
-    if (cipher)
-        XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
+    XFREE(buf, NULL, DYNAMIC_TYPE_AES);
+    XFREE(cipher, NULL, DYNAMIC_TYPE_AES);
 
-    if (aes)
-        XFREE(aes, NULL, DYNAMIC_TYPE_AES);
+    XFREE(aes, NULL, DYNAMIC_TYPE_AES);
 
 #undef AES_XTS_256_TEST_BUF_SIZ
 

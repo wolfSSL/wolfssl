@@ -1,5 +1,5 @@
 /*!
-    \ingroup BLAKE2 
+    \ingroup BLAKE2
     \brief  この関数はBlake2 Hash関数で使用するためのBlake2b構造を初期化します。
     \return 0  Blake2B構造の初期化に成功し、ダイジェストサイズを設定したときに返されます。
     \param b2b  初期化するためにBlake2b構造へのポインタ
@@ -14,7 +14,7 @@
 int wc_InitBlake2b(Blake2b* b2b, word32 digestSz);
 
 /*!
-    \ingroup BLAKE2 
+    \ingroup BLAKE2
     \brief  この関数は、与えられた入力データとBlake2Bハッシュを更新します。この関数は、wc_initblake2bの後に呼び出され、最後のハッシュ：wc_blake2bfinalの準備ができているまで繰り返します。
     \return 0  与えられたデータを使用してBlake2B構造を正常に更新すると返されます。
     \return -1  入力データの圧縮中に障害が発生した場合
@@ -40,7 +40,7 @@ int wc_InitBlake2b(Blake2b* b2b, word32 digestSz);
 int wc_Blake2bUpdate(Blake2b* b2b, const byte* data, word32 sz);
 
 /*!
-    \ingroup BLAKE2 
+    \ingroup BLAKE2
     \brief  この関数は、以前に供給された入力データのBlake2bハッシュを計算します。出力ハッシュは長さREQUESTSZ、あるいは要求された場合はB2B構造のDigestSZを使用します。この関数は、wc_initblake2bの後に呼び出され、wc_blake2bupdateは必要な各入力データに対して処理されています。
     \return 0  Blake2B Hashの計算に成功したときに返されました
     \return -1  blake2bハッシュを解析している間に失敗がある場合

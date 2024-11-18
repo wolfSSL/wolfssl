@@ -1,6 +1,6 @@
 /* srp.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -656,7 +656,7 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
     byte digest[SRP_MAX_DIGEST_SIZE];
     word32 i, j, digestSz = SrpHashSize(srp->type);
     byte counter[4];
-    int r = BAD_FUNC_ARG;
+    int r = WC_NO_ERR_TRACE(BAD_FUNC_ARG);
 
     XMEMSET(digest, 0, SRP_MAX_DIGEST_SIZE);
 
@@ -903,10 +903,8 @@ int wc_SrpComputeKey(Srp* srp, byte* clientPubKey, word32 clientPubKeySz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    if (hash)
-        XFREE(hash, srp->heap, DYNAMIC_TYPE_SRP);
-    if (digest)
-        XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
+    XFREE(hash, srp->heap, DYNAMIC_TYPE_SRP);
+    XFREE(digest, srp->heap, DYNAMIC_TYPE_SRP);
     if (u) {
         if (r != WC_NO_ERR_TRACE(MP_INIT_E))
             mp_clear(u);

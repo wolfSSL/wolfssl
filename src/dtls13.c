@@ -1,6 +1,6 @@
 /* dtls13.c
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -70,6 +70,8 @@ typedef struct Dtls13HandshakeHeader {
     byte fragmentOffset[3];
     byte fragmentLength[3];
 } Dtls13HandshakeHeader;
+
+static_assert(sizeof(Dtls13HandshakeHeader) == DTLS13_HANDSHAKE_HEADER_SZ);
 
 /**
  * struct Dtls13Recordplaintextheader: represent header of unprotected DTLSv1.3
@@ -395,7 +397,8 @@ int Dtls13ProcessBufferedMessages(WOLFSSL* ssl)
          * from there, the message can be considered processed successfully.
          * WANT_WRITE means that we are done with processing the msg and we are
          * waiting to flush the output buffer. */
-        if ((ret == 0 || ret == WANT_WRITE) || (msg->type == certificate_request &&
+        if ((ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE)) ||
+                        (msg->type == certificate_request &&
                          ssl->options.handShakeDone &&
                          ret == WC_NO_ERR_TRACE(WC_PENDING_E))) {
             if (IsAtLeastTLSv1_3(ssl->version))
@@ -811,9 +814,7 @@ static void Dtls13MaybeSaveClientHello(WOLFSSL* ssl)
         while (r != NULL) {
             if (r->handshakeType == client_hello) {
                 Dtls13RtxRecordUnlink(ssl, prev_next, r);
-                if (ssl->dtls13ClientHello != NULL)
-                    XFREE(ssl->dtls13ClientHello, ssl->heap,
-                        DYNAMIC_TYPE_DTLS_MSG);
+                XFREE(ssl->dtls13ClientHello, ssl->heap, DYNAMIC_TYPE_DTLS_MSG);
                 ssl->dtls13ClientHello = r->data;
                 ssl->dtls13ClientHelloSz = r->length;
                 r->data = NULL;
@@ -921,7 +922,7 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
         handshakeType, hashOutput, Dtls13SendNow(ssl, handshakeType));
 
     if (rtxRecord != NULL) {
-        if (ret == 0 || ret == WANT_WRITE)
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
             Dtls13RtxAddRecord(&ssl->dtls13Rtx, rtxRecord);
         else
             Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
@@ -981,7 +982,7 @@ static int Dtls13SendFragmentedInternal(WOLFSSL* ssl)
         ret = Dtls13SendOneFragmentRtx(ssl,
             (enum HandShakeType)ssl->dtls13FragHandshakeType,
             (word16)recordLength + MAX_MSG_EXTRA, output, (word32)recordLength, 0);
-        if (ret == WANT_WRITE) {
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
             ssl->dtls13FragOffset += fragLength;
             return ret;
         }
@@ -1210,6 +1211,11 @@ int Dtls13HandshakeAddHeader(WOLFSSL* ssl, byte* output,
     return 0;
 }
 
+int Dtls13MinimumRecordLength(WOLFSSL* ssl)
+{
+    return Dtls13GetRlHeaderLength(ssl, 1) + DTLS13_MIN_CIPHERTEXT;
+}
+
 /**
  * Dtls13EncryptRecordNumber() - encrypt record number in the header
  * @ssl: ssl object
@@ -1226,9 +1232,15 @@ int Dtls13EncryptRecordNumber(WOLFSSL* ssl, byte* hdr, word16 recordLength)
     if (ssl == NULL || hdr == NULL)
         return BAD_FUNC_ARG;
 
+#ifdef HAVE_NULL_CIPHER
+    /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_cipher_null)
+        return 0;
+#endif /*HAVE_NULL_CIPHER */
+
     /* we need at least a 16 bytes of ciphertext to encrypt record number see
        4.2.3*/
-    if (recordLength < Dtls13GetRlHeaderLength(ssl, 1) + DTLS13_MIN_CIPHERTEXT)
+    if (recordLength < Dtls13MinimumRecordLength(ssl))
         return BUFFER_ERROR;
 
     seqLength = (*hdr & DTLS13_LEN_BIT) ? DTLS13_SEQ_16_LEN : DTLS13_SEQ_8_LEN;
@@ -1454,17 +1466,22 @@ int Dtls13ParseUnifiedRecordLayer(WOLFSSL* ssl, const byte* input,
         hdrInfo->recordLength = inputSize - idx;
     }
 
-    /* minimum size for a dtls1.3 packet is 16 bytes (to have enough ciphertext
-       to create record number xor mask). (draft 43 - Sec 4.2.3) */
-    if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
-        return LENGTH_ERROR;
-    if (inputSize < idx + DTLS13_RN_MASK_SIZE)
-        return BUFFER_ERROR;
+    /* Do not encrypt record numbers with null cipher. See RFC 9150 Sec 9 */
+    if (ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null)
+    {
+        /* minimum size for a dtls1.3 packet is 16 bytes (to have enough
+         * ciphertext to create record number xor mask).
+         * (draft 43 - Sec 4.2.3) */
+        if (hdrInfo->recordLength < DTLS13_RN_MASK_SIZE)
+            return LENGTH_ERROR;
+        if (inputSize < idx + DTLS13_RN_MASK_SIZE)
+            return BUFFER_ERROR;
 
-    ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
-        DEPROTECT);
-    if (ret != 0)
-        return ret;
+        ret = Dtls13EncryptDecryptRecordNumber(ssl, seqNum, seqLen, input + idx,
+            DEPROTECT);
+        if (ret != 0)
+            return ret;
+    }
 
     if (seqLen == DTLS13_SEQ_16_LEN) {
         hdrInfo->seqHiPresent = 1;
@@ -1563,7 +1580,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         ret = Dtls13SendFragment(ssl, output, (word16)sendSz, r->length + headerLength,
             (enum HandShakeType)r->handshakeType, 0,
             isLast || !ssl->options.groupMessages);
-        if (ret != 0 && ret != WANT_WRITE)
+        if (ret != 0 && ret != WC_NO_ERR_TRACE(WANT_WRITE))
             return ret;
 
         if (r->rnIdx >= DTLS13_RETRANS_RN_SIZE)
@@ -1577,7 +1594,7 @@ static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
         r->seq[r->rnIdx] = seq;
         r->rnIdx++;
 
-        if (ret == WANT_WRITE) {
+        if (ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
             /* this fragment will be sent eventually. Move it to the end of the
                list so next time we start with a new one. */
             Dtls13RtxMoveToEndOfList(ssl, prevNext, r);
@@ -1876,7 +1893,7 @@ int Dtls13HandshakeSend(WOLFSSL* ssl, byte* message, word16 outputSize,
     if (maxLen < maxFrag) {
         ret = Dtls13SendOneFragmentRtx(ssl, handshakeType, outputSize, message,
             length, hashOutput);
-        if (ret == 0 || ret == WANT_WRITE)
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
             ssl->keys.dtls_handshake_number++;
     }
     else {
@@ -2586,7 +2603,7 @@ int Dtls13RtxTimeout(WOLFSSL* ssl)
 
     /* Increase timeout on long timeout */
     if (DtlsMsgPoolTimeout(ssl) != 0)
-        return -1;
+        return WOLFSSL_FATAL_ERROR;
 
     return Dtls13RtxSendBuffered(ssl);
 }

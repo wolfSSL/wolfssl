@@ -57,6 +57,10 @@
  *   some platforms and is smaller in code size.
  */
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
 #include <wolfssl/wolfcrypt/wc_kyber.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -1605,6 +1609,55 @@ static int kyber_xof_absorb(wc_Shake* shake128, byte* seed, int len)
 static int kyber_xof_squeezeblocks(wc_Shake* shake128, byte* out, int blocks)
 {
     return wc_Shake128_SqueezeBlocks(shake128, out, blocks);
+}
+
+/* New/Initialize SHA-3 object.
+ *
+ * @param  [in, out]  hash    SHA-3 object.
+ * @param  [in]       heap    Dynamic memory allocator hint.
+ * @param  [in]       devId   Device id.
+ * @return  0 on success always.
+ */
+int kyber_hash_new(wc_Sha3* hash, void* heap, int devId)
+{
+    return wc_InitSha3_256(hash, heap, devId);
+}
+
+/* Free SHA-3 object.
+ *
+ * @param  [in, out]  hash  SHA-3 object.
+ */
+void kyber_hash_free(wc_Sha3* hash)
+{
+    wc_Sha3_256_Free(hash);
+}
+
+int kyber_hash256(wc_Sha3* hash, const byte* data, word32 dataLen, byte* out)
+{
+    int ret;
+
+    ret = wc_Sha3_256_Update(hash, data, dataLen);
+    if (ret == 0) {
+        ret = wc_Sha3_256_Final(hash, out);
+    }
+
+    return ret;
+}
+
+int kyber_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
+    const byte* data2, word32 data2Len, byte* out)
+{
+    int ret;
+
+    ret = wc_Sha3_512_Update(hash, data1, data1Len);
+    if ((ret == 0) && (data2Len > 0)) {
+        ret = wc_Sha3_512_Update(hash, data2, data2Len);
+    }
+    if (ret == 0) {
+        ret = wc_Sha3_512_Final(hash, out);
+    }
+
+    return ret;
 }
 
 /* Initialize SHAKE-256 object.

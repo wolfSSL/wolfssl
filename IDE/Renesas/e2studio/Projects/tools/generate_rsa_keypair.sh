@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 function usage(){
     cat << _EOT_
@@ -7,7 +7,7 @@ function usage(){
 
     Description:
      Generate 2048 bit Rsa key pair and Display modulus and public exponent
-     
+
     Options:
       -g    generate rsa key pair, default on
       -s    only show modulus and public exponent
@@ -39,7 +39,7 @@ FLAG_S="off"
 
 if [ $FLAG_G = "on" ]; then
     # generate 2048bit Rsa private key
-    openssl genrsa 2048 2> /dev/null > private-key.pem 
+    openssl genrsa 2048 2> /dev/null > private-key.pem
     # expose public key
     openssl rsa -in private-key.pem -pubout -out public-key.pem 2> /dev/null
 fi

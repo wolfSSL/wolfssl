@@ -6,7 +6,7 @@ Instructions for cross-compiling and running wolfSSL on the HiFive Unleashed boa
 
 SiFive Freedom U540 SoC at 1.5GHz
 
-Getting started guide: 
+Getting started guide:
 https://sifive.cdn.prismic.io/sifive%2Ffa3a584a-a02f-4fda-b758-a2def05f49f9_hifive-unleashed-getting-started-guide-v1p1.pdf
 
 Make sure your ethernet is attached and power up board. You can connecct the micro-usb to get a UART console that will display the DHCP IP address. Default user is "root" and login password is "sifive".

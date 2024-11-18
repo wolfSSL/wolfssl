@@ -1,5 +1,5 @@
 /*!
-    \ingroup MD4 
+    \ingroup MD4
     \brief  この関数はMD4を初期化します。これはWC_MD4HASHによって自動的に呼び出されます。
     \return 0  初期化に成功したときに返されます
     _Example_
@@ -20,7 +20,7 @@
 void wc_InitMd4(Md4*);
 
 /*!
-    \ingroup MD4 
+    \ingroup MD4
     \brief  長さLENの提供されたバイト配列を絶えずハッシュするように呼び出すことができます。
     \return 0  データをダイジェストに正常に追加すると返されます。
     \param md4  暗号化に使用するMD4構造へのポインタ
@@ -46,7 +46,7 @@ void wc_InitMd4(Md4*);
 void wc_Md4Update(Md4* md4, const byte* data, word32 len);
 
 /*!
-    \ingroup MD4 
+    \ingroup MD4
     \brief  データのハッシュを確定します。結果はハッシュに入れられます。
     \return 0  ファイナライズに成功したときに返されます。
     \param md4  暗号化に使用するMD4構造へのポインタ

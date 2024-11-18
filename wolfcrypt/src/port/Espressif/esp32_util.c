@@ -98,21 +98,44 @@ int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex) {
 }
 
 /*
- * call the ESP-IDF mutex lock; xSemaphoreTake
+ * Call the ESP-IDF mutex lock; xSemaphoreTake
  * this is a general mutex locker, used for different mutex objects for
  * different HW acclerators or other single-use HW features.
+ *
+ * We should already have known if the resource is in use or not.
+ *
+ * Return 0 (ESP_OK) on success, otherwise BAD_MUTEX_E
  */
 int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
+    int ret;
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
     }
 
 #ifdef SINGLE_THREADED
-    return wc_LockMutex(mutex); /* xSemaphoreTake take with portMAX_DELAY */
+    /* does nothing in single thread mode, always return 0 */
+    ret = wc_LockMutex(mutex);
 #else
-    return ((xSemaphoreTake(*mutex, block_time) == pdTRUE) ? 0 : BAD_MUTEX_E);
+    ret = xSemaphoreTake(*mutex, block_time);
+    ESP_LOGV(TAG, "xSemaphoreTake 0x%x = %d", (intptr_t)*mutex, ret);
+    if (ret == pdTRUE) {
+        ret = ESP_OK;
+    }
+    else {
+        if (ret == pdFALSE) {
+            ESP_LOGW(TAG, "xSemaphoreTake failed for 0x%x. Still busy?",
+                           (intptr_t)*mutex);
+            ret = ESP_ERR_NOT_FINISHED;
+        }
+        else {
+            ESP_LOGE(TAG, "xSemaphoreTake 0x%x unexpected = %d",
+                           (intptr_t)*mutex, ret);
+            ret = BAD_MUTEX_E;
+        }
+    }
 #endif
+    return ret;
 }
 
 /*
@@ -120,17 +143,36 @@ int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex, TickType_t block_time) {
  *
  */
 esp_err_t esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex) {
+    int ret = pdTRUE;
     if (mutex == NULL) {
         WOLFSSL_ERROR_MSG("esp_CryptHwMutexLock called with null mutex");
         return BAD_MUTEX_E;
     }
 
 #ifdef SINGLE_THREADED
-    return wc_UnLockMutex(mutex);
+    ret = wc_UnLockMutex(mutex);
 #else
-    xSemaphoreGive(*mutex);
-    return ESP_OK;
+    ESP_LOGV(TAG, ">> xSemaphoreGive 0x%x", (intptr_t)*mutex);
+    TaskHandle_t mutexHolder = xSemaphoreGetMutexHolder(*mutex);
+
+    if (mutexHolder == NULL) {
+        ESP_LOGW(TAG, "esp_CryptHwMutexUnLock with no lock owner 0x%x",
+                        (intptr_t)*mutex);
+        ret = ESP_OK;
+    }
+    else {
+        ret = xSemaphoreGive(*mutex);
+        if (ret == pdTRUE) {
+            ESP_LOGV(TAG, "Success: give mutex 0x%x", (intptr_t)*mutex);
+            ret = ESP_OK;
+        }
+        else {
+            ESP_LOGV(TAG, "Failed: give mutex 0x%x", (intptr_t)*mutex);
+            ret = ESP_FAIL;
+        }
+    }
 #endif
+    return ret;
 }
 #endif /* WOLFSSL_ESP32_CRYPT, etc. */
 
@@ -168,6 +210,7 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
 
     WOLFSSL_VERSION_PRINTF("Xthal_have_ccount: %u",
                            Xthal_have_ccount);
+#endif
 
     /* this is the legacy stack size */
 #if defined(CONFIG_MAIN_TASK_STACK_SIZE)
@@ -205,24 +248,35 @@ static int ShowExtendedSystemInfo_platform_espressif(void)
 
 #endif
 
-#elif CONFIG_IDF_TARGET_ESP32S2
-    WOLFSSL_VERSION_PRINTF("Xthal_have_ccount = %u",
+/* Platform-specific attributes of interest*/
+#if CONFIG_IDF_TARGET_ESP32
+    #if defined(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ)
+        WOLFSSL_VERSION_PRINTF("CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ: %u MHz",
+                               CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ);
+    #endif
+    WOLFSSL_VERSION_PRINTF("Xthal_have_ccount: %u",
                            Xthal_have_ccount);
-#elif CONFIG_IDF_TARGET_ESP32C6
-  /* TODO find Xthal for C6 */
+
 #elif CONFIG_IDF_TARGET_ESP32C2
-  /* TODO find Xthal for C6 */
-#elif defined(CONFIG_IDF_TARGET_ESP8684)
-  /* TODO find Xthal for C6 */
+    /* TODO find Xthal for C2 */
 #elif CONFIG_IDF_TARGET_ESP32C3
     /* not supported at this time */
-#elif CONFIG_IDF_TARGET_ESP32S3
-    WOLFSSL_VERSION_PRINTF("Xthal_have_ccount = %u",
-                           Xthal_have_ccount);
+#elif CONFIG_IDF_TARGET_ESP32C6
+    /* TODO find Xthal for C6 */
 #elif CONFIG_IDF_TARGET_ESP32H2
-    /* not supported at this time */
-#elif CONFIG_IDF_TARGET_ESP32C2
-    /* not supported at this time */
+    /* TODO find Xthal for H2 */
+#elif CONFIG_IDF_TARGET_ESP32S2
+    ESP_LOGI(TAG, "CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#elif CONFIG_IDF_TARGET_ESP32S3
+    ESP_LOGI(TAG, "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ = %u MHz",
+                   CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+             );
+    ESP_LOGI(TAG, "Xthal_have_ccount = %u", Xthal_have_ccount);
+#elif defined(CONFIG_IDF_TARGET_ESP8684)
+    /* TODO find Xthal for ESP8684 */
 #else
     /* not supported at this time */
 #endif
@@ -438,6 +492,7 @@ esp_err_t ShowExtendedSystemInfo_config(void)
 {
     esp_ShowMacroStatus_need_header = 1;
 
+    show_macro("NO_ESP32_CRYPT",            STR_IFNDEF(NO_ESP32_CRYPT));
     show_macro("NO_ESPIDF_DEFAULT",         STR_IFNDEF(NO_ESPIDF_DEFAULT));
 
     show_macro("HW_MATH_ENABLED",           STR_IFNDEF(HW_MATH_ENABLED));
@@ -562,11 +617,11 @@ int ShowExtendedSystemInfo(void)
 
 #if defined(WOLFSSL_MULTI_INSTALL_WARNING)
     /* CMake may have detected undesired multiple installs, so give warning. */
-    WOLFSSL_VERSION_PRINTF("");
+    WOLFSSL_VERSION_PRINTF(WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
     WOLFSSL_VERSION_PRINTF("WARNING: Multiple wolfSSL installs found.");
     WOLFSSL_VERSION_PRINTF("Check ESP-IDF components and "
                            "local project [components] directory.");
-    WOLFSSL_VERSION_PRINTF("");
+    WOLFSSL_VERSION_PRINTF(WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
 #else
     #ifdef WOLFSSL_USER_SETTINGS_DIR
     {
@@ -737,13 +792,10 @@ esp_err_t esp_EnabledWatchdog(void)
                       ESP_IDF_VERSION_MAJOR);
     #endif
 #endif
-
-#ifdef DEBUG_WOLFSSL
-    ESP_LOGI(TAG, "Watchdog enabled.");
-#endif
-
     return ret;
 }
+
+
 
 /* Print a MATH_INT_T attribute list.
  *
@@ -903,5 +955,50 @@ esp_err_t esp_hw_show_metrics(void)
 #endif
     return ESP_OK;
 }
+
+int show_binary(byte* theVar, size_t dataSz) {
+    printf("*****************************************************\n");
+    word32 i;
+    for (i = 0; i < dataSz; i++)
+        printf("%02X", theVar[i]);
+    printf("\n");
+    printf("******************************************************\n");
+    return 0;
+}
+
+int hexToBinary(byte* toVar, const char* fromHexString, size_t szHexString ) {
+    int ret = 0;
+    /* Calculate the actual binary length of the hex string */
+    size_t byteLen = szHexString / 2;
+
+    if (toVar == NULL || fromHexString == NULL) {
+        ESP_LOGE("ssh", " error");
+        return -1;
+    }
+    if ((szHexString % 2 != 0)) {
+        ESP_LOGE("ssh", "fromHexString length not even!");
+    }
+
+    ESP_LOGW(TAG, "Replacing %d bytes at %x", byteLen, (word32)toVar);
+    memset(toVar, 0, byteLen);
+    /* Iterate through the hex string and convert to binary */
+    for (size_t i = 0; i < szHexString; i += 2) {
+        /* Convert hex character to decimal */
+        int decimalValue;
+        sscanf(&fromHexString[i], "%2x", &decimalValue);
+        size_t index = i / 2;
+#if (0)
+        /* Optionall peek at new values */
+        byte new_val =  (decimalValue & 0x0F) << ((i % 2) * 4);
+        ESP_LOGI("hex", "Current char = %d", toVar[index]);
+        ESP_LOGI("hex", "New val = %d", decimalValue);
+#endif
+        toVar[index]  = decimalValue;
+    }
+
+    return ret;
+}
+
+
 
 #endif /* WOLFSSL_ESPIDF */

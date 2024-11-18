@@ -1,6 +1,6 @@
 /* ext_lms.h
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -22,12 +22,9 @@
 #ifndef EXT_LMS_H
 #define EXT_LMS_H
 
-#ifdef WOLFSSL_HAVE_LMS
-#include <wolfssl/wolfcrypt/lms.h>
+#if defined(WOLFSSL_HAVE_LMS) && defined(HAVE_LIBLMS)
 
-#if !defined(HAVE_LIBLMS)
-#error "This code requires liblms"
-#endif
+#include <wolfssl/wolfcrypt/lms.h>
 
 /* hash-sigs LMS HSS includes */
 #include <hss.h>

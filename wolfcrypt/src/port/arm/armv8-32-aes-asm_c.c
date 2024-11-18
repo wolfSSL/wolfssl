@@ -1,6 +1,6 @@
 /* armv8-32-aes-asm
  *
- * Copyright (C) 2006-2023 wolfSSL Inc.
+ * Copyright (C) 2006-2024 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -411,7 +411,7 @@ void AES_invert_key(unsigned char* ks_p, word32 rounds_p)
 static const uint32_t L_AES_ARM32_rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
-    0x1b000000, 0x36000000, 
+    0x1b000000, 0x36000000,
 };
 
 void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks);

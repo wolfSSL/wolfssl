@@ -3,16 +3,16 @@ wolfSSL simple application project for RX72N EnvisionKit board
 ## 1. Overview
 -----
 
-We provide a simple program for evaluating wolfSSL targeting the RX72N evaluation board, which has RX72 MCU on it. The sample program runs in a bare metal environment that does not use a real-time OS and uses e2 studio as an IDE. This document describes the procedure from build to execution of the sample program. 
+We provide a simple program for evaluating wolfSSL targeting the RX72N evaluation board, which has RX72 MCU on it. The sample program runs in a bare metal environment that does not use a real-time OS and uses e2 studio as an IDE. This document describes the procedure from build to execution of the sample program.
 
 The sample provided is a single application that can evaluate the following four functions:
 
 - CryptoTest: A program that automatically tests various cryptographic operation functions
-- Benchmark: A program that measures the execution speed of various cryptographic operations 
+- Benchmark: A program that measures the execution speed of various cryptographic operations
 - TlsClient: A program that performs TLS communication with the opposite TLS server application
 - TlsServer: A program that performs TLS communication with the opposite TLS client application
 
-Since the H/W settings and S/W settings for operating the evaluation board have already been prepared, the minimum settings are required to operate the sample application. In addition, the RootCA certificate and server-side certificate required for TLS communication have already been set for sample use only. 
+Since the H/W settings and S/W settings for operating the evaluation board have already been prepared, the minimum settings are required to operate the sample application. In addition, the RootCA certificate and server-side certificate required for TLS communication have already been set for sample use only.
 
 The following sections will walk you through the steps leading up to running the sample application.
 ## 2. Target H/W, components and libraries
@@ -26,8 +26,8 @@ This sample program uses the following hardware and software libraries. If a new
 |Device|R5F572NNHxFB|
 |IDE| Renesas e2Studio Version:2022-07 |
 |Emulator| E2 Emulator Lite |
-|Toolchain|CCRX v3.03.00|
-|TSIP| TSIP v1.15|
+|Toolchain|CCRX v3.06.00|
+|TSIP| TSIP v1.21|
 
 
 The project of this sample program has a configuration file that uses the following FIT components.
@@ -42,30 +42,30 @@ However, the FIT components themselves are not included in the distribution of t
 |Generic system timer for RX MCUs|1.01|r_sys_time_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] - RX Ethernet Driver Interface|1.09|r_t4_driver_rx|
 |TCP/IP protocol stack[M3S-T4-Tiny] for Renesas MCUs|2.10|r_t4_rx|
-|TSIP(Trusted Secure IP) driver|1.15.l|r_tsip_rx|
+|TSIP(Trusted Secure IP) driver|1.21|r_tsip_rx|
 
 ## 3. Importing sample application project into e2Studio
 ----
 
-There is no need to create a new sample program. Since the project file is already prepared, please import the project from the IDE by following the steps below. 
+There is no need to create a new sample program. Since the project file is already prepared, please import the project from the IDE by following the steps below.
 
-+ e2studio "File" menu> "Open project from file system ..."> "Directory (R) ..." Click the import source button and select the folder from which the project will be imported. Select the folder (Renesas/e2studio/{MCU}/{board-name-folder}/Simple) where this README file exists. 
-+ Three projects that can be imported are listed, but check only the three projects "test" and "wolfssl" and click the "Finish" button. 
++ e2studio "File" menu> "Open project from file system ..."> "Directory (R) ..." Click the import source button and select the folder from which the project will be imported. Select the folder (Renesas/e2studio/{MCU}/{board-name-folder}/Simple) where this README file exists.
++ Three projects that can be imported are listed, but check only the three projects "test" and "wolfssl" and click the "Finish" button.
 
-You should see the **test** and **wolfssl** 2 projects you imported into the project explorer. 
+You should see the **test** and **wolfssl** 2 projects you imported into the project explorer.
 
 ## 4. FIT module download and smart configurator file generation
 ----
 
 You will need to get the required FIT modules yourself. Follow the steps below to get them.
 
-1. Open the test project in Project Explorer and double-click the **test.scfg** file to open the Smart Configurator Perspective. 
+1. Open the test project in Project Explorer and double-click the **test.scfg** file to open the Smart Configurator Perspective.
 
 2. Select the "Components" tab on the software component settings pane. Then click the "Add Component" button at the top right of the pane. The software component selection dialog will pop up. Click "Download the latest version of FIT driver and middleware" at the bottom of the dialog to get the modules. You can check the download destination folder by pressing "Basic settings...".
 
 3. The latest version of the TSIP component may not be automatically obtained due to the delay in Renesas' support by the method in step 2 above. In that case, you can download it manually from the Renesas website. Unzip the downloaded component and store the files contained in the FIT Modules folder in the download destination folder of step 2.
 
-4. Select the required FIT components shown from the list and press the "Finish" button. Repeat this operation until you have the required FIT components. 
+4. Select the required FIT components shown from the list and press the "Finish" button. Repeat this operation until you have the required FIT components.
 
 5. Select the Components tab on the Software Component Settings pane and select the r_t4_rx component. In the settings pane on the right, specify the IP address of this board as the value of the "# IP address for ch0, when DHCP disable." Property (e.g. 192.168.1.9).
 
@@ -80,7 +80,7 @@ The test project is a single sample application, but you can specify to perform 
 - Benchmark: A program that measures the execution speed of various cryptographic operations
 - TlsClient: A program that performs TLS communication with the opposite TLS server application
 - TlsServer: A program that performs TLS communication with the opposite TLS client application
-- 
+-
 Open the <board-name-folder\>/test/src/wolfssl_simple_demo.h file and enable one of the following definitions:
 
 - #define CRYPT_TEST
@@ -109,7 +109,7 @@ Now that the test application is ready to build.
 
 5. Press the run button to run the test application.
 
-6. CryptoTest, Benchmark, TLS_Client or TLS_Server After displaying the execution result according to the selected behavior, it enters an infinite loop, so if you think that the output has stopped, stop debugging. 
+6. CryptoTest, Benchmark, TLS_Client or TLS_Server After displaying the execution result according to the selected behavior, it enters an infinite loop, so if you think that the output has stopped, stop debugging.
 
 ## 7. Running test application as Client
 -----
@@ -176,7 +176,7 @@ Client message: Hello Server
 Note `-v 4` option in server execution command line means to use TLS 1.3. If you want to use smaller version of TLS than 1.3, `-v 4` needs to be removed from an exmeple server command options.
 
 ### 7.3 Run Client using TSIP driver
-When it enables SIMPLE_TLS_TSIP_CLIENT, we can run TLS client including TSIP driver on the baord. 
+When it enables SIMPLE_TLS_TSIP_CLIENT, we can run TLS client including TSIP driver on the baord.
 In this case, we disable `#define WOLFSSL_TLS13` and `#define USE_ECC_CERT`. As a result, TLS communication between Client and Server use TLS 1.2 and RSA certificate.
 
 The table below shows the cipher suites that TSIP supports.
@@ -185,7 +185,7 @@ The table below shows the cipher suites that TSIP supports.
 |:--|:--|:--|
 |TLS1.3|RSA/ECDSA certificate|  |
 |||TLS_AES_128_GCM_SHA256|
-|||TLS_AES_128_CCM_SHA256| 
+|||TLS_AES_128_CCM_SHA256|
 |TLS1.2|RSA certificate|
 |||TLS_RSA_WITH_AES_128_CBC_SHA|
 |||TLS_RSA_WITH_AES_256_CBC_SHA|
@@ -213,7 +213,7 @@ $ ./examples/server/server -b -i
 ```
 
 
-When you run the test application, it makes a TLS connection with the server application by TLS1.2, then exchanges a simple string and displays the following on the standard output. 
+When you run the test application, it makes a TLS connection with the server application by TLS1.2, then exchanges a simple string and displays the following on the standard output.
 The cipher suites displayed depends on the combination of TLS version and certificate type.
 
 ```
@@ -285,7 +285,7 @@ If you want to use it for purposes beyond functional evaluation, you need to pre
   2. RSA key pair required for RootCA certificate validation
   3. The signature generated by the RootCA certificate with the private key in 2 above.
 
-will become necessary. Please refer to the manual provided by Renesas for how to generate them. 
+will become necessary. Please refer to the manual provided by Renesas for how to generate them.
 
 ## 10. Limitations
 ----

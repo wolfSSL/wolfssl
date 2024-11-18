@@ -81,7 +81,7 @@ mono client.exe
 To enable SNI, just pass the `-S` argument with the specified hostname to the client:
 
 ```
-mono client.exe -S hostname 
+mono client.exe -S hostname
 ```
 
 And run the server with the `-S` flag:
