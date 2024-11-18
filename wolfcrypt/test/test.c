@@ -45683,11 +45683,12 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     word32        idx;
     byte*         der;
     word32        derSz;
-    /* DER encoding adds ~256 bytes of overhead to raw key */
-    const word32 estimatedDerSz = rawKeySz + 256;
+
+    /* Size the buffer to accomodate the largest encoded key size */
+    const word32 maxDerSz = DILITHIUM_MAX_PRV_KEY_DER_SIZE;
 
     /* Allocate DER buffer */
-    der = (byte*)XMALLOC(estimatedDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(maxDerSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         return MEMORY_E;
     }
@@ -45717,12 +45718,12 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     if (ret == 0) {
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyToDer(&key, der, estimatedDerSz, 1);
+            ret = wc_Dilithium_PublicKeyToDer(&key, der, maxDerSz, 1);
         }
 #endif
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyToDer(&key, der, estimatedDerSz);
+            ret = wc_Dilithium_PrivateKeyToDer(&key, der, maxDerSz);
         }
 #endif
         if (ret >= 0) {
