@@ -45684,7 +45684,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     byte*         der;
     word32        derSz;
 
-    /* Size the buffer to accomodate the largest encoded key size */
+    /* Size the buffer to accommodate the largest encoded key size */
     const word32 maxDerSz = DILITHIUM_MAX_PRV_KEY_DER_SIZE;
 
     /* Allocate DER buffer */
