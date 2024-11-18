@@ -89764,7 +89764,7 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     defined(HAVE_CRL_UPDATE_CB)
 int crlUpdateTestStatus = 0;
 WOLFSSL_CERT_MANAGER* updateCrlTestCm = NULL;
-static void updateCrlCb(CrlInfo* old, CrlInfo* new)
+static void updateCrlCb(CrlInfo* old, CrlInfo* cnew)
 {
     const char* crl1 = "./certs/crl/crl.pem";
     const char* crlRevoked = "./certs/crl/crl.revoked";
@@ -89779,7 +89779,7 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* new)
     CrlInfo crlRevInfo;
 
     crlUpdateTestStatus = 0;
-    if (old == NULL || new == NULL) {
+    if (old == NULL || cnew == NULL) {
         return;
     }
 
@@ -89825,18 +89825,18 @@ static void updateCrlCb(CrlInfo* old, CrlInfo* new)
         crl1Info.nextDate, old->nextDate, old->nextDateMaxLen), 0);
 
     /* Newer entry should match crl revoked */
-    AssertIntEQ(crlRevInfo.issuerHashLen,  new->issuerHashLen);
-    AssertIntEQ(crlRevInfo.lastDateMaxLen, new->lastDateMaxLen);
-    AssertIntEQ(crlRevInfo.lastDateFormat, new->lastDateFormat);
-    AssertIntEQ(crlRevInfo.nextDateMaxLen, new->nextDateMaxLen);
-    AssertIntEQ(crlRevInfo.nextDateFormat, new->nextDateFormat);
-    AssertIntEQ(crlRevInfo.crlNumber,      new->crlNumber);
+    AssertIntEQ(crlRevInfo.issuerHashLen,  cnew->issuerHashLen);
+    AssertIntEQ(crlRevInfo.lastDateMaxLen, cnew->lastDateMaxLen);
+    AssertIntEQ(crlRevInfo.lastDateFormat, cnew->lastDateFormat);
+    AssertIntEQ(crlRevInfo.nextDateMaxLen, cnew->nextDateMaxLen);
+    AssertIntEQ(crlRevInfo.nextDateFormat, cnew->nextDateFormat);
+    AssertIntEQ(crlRevInfo.crlNumber,      cnew->crlNumber);
     AssertIntEQ(XMEMCMP(
-        crlRevInfo.issuerHash, new->issuerHash, new->issuerHashLen), 0);
+        crlRevInfo.issuerHash, cnew->issuerHash, cnew->issuerHashLen), 0);
     AssertIntEQ(XMEMCMP(
-        crlRevInfo.lastDate, new->lastDate, new->lastDateMaxLen), 0);
+        crlRevInfo.lastDate, cnew->lastDate, cnew->lastDateMaxLen), 0);
     AssertIntEQ(XMEMCMP(
-        crlRevInfo.nextDate, new->nextDate, new->nextDateMaxLen), 0);
+        crlRevInfo.nextDate, cnew->nextDate, cnew->nextDateMaxLen), 0);
 
     XFREE(crl1Buff, NULL, DYNAMIC_TYPE_FILE);
     XFREE(crlRevBuff, NULL, DYNAMIC_TYPE_FILE);

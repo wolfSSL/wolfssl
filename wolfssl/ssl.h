@@ -3504,7 +3504,7 @@ typedef struct CrlInfo {
     sword32 crlNumber;
 } CrlInfo;
 
-typedef void (*CbUpdateCRL)(CrlInfo* old, CrlInfo* new);
+typedef void (*CbUpdateCRL)(CrlInfo* old, CrlInfo* cnew);
 #endif
 
 /* User Atomic Record Layer CallBacks */

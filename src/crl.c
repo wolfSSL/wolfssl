@@ -596,7 +596,7 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
     CRL_Entry* prev = NULL;
 #ifdef HAVE_CRL_UPDATE_CB
     CrlInfo old;
-    CrlInfo new;
+    CrlInfo cnew;
 #endif
 
     WOLFSSL_ENTER("AddCRL");
@@ -646,8 +646,8 @@ static int AddCRL(WOLFSSL_CRL* crl, DecodedCRL* dcrl, const byte* buff,
 #ifdef HAVE_CRL_UPDATE_CB
             if (crl->cm && crl->cm->cbUpdateCRL != NULL) {
                 SetCrlInfo(curr, &old);
-                SetCrlInfo(crle, &new);
-                crl->cm->cbUpdateCRL(&old, &new);
+                SetCrlInfo(crle, &cnew);
+                crl->cm->cbUpdateCRL(&old, &cnew);
             }
 #endif
 
@@ -791,7 +791,8 @@ int GetCRLInfo(WOLFSSL_CRL* crl, CrlInfo* info, const byte* buff,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    dcrl = (DecodedCRL*)XMALLOC(sizeof(DecodedCRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    dcrl = (DecodedCRL*)XMALLOC(sizeof(DecodedCRL), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
     if (dcrl == NULL) {
         FreeDer(&der);
         return MEMORY_E;
