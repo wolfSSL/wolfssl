@@ -47,8 +47,10 @@ enum wolfCrypt_ErrorCodes {
      * reasons of backward compatibility.
      */
 
-    MAX_CODE_E         =  -96,  /* errors -97 - -299 */
-    WC_FIRST_E         =  -97,  /* errors -97 - -299 */
+    MAX_CODE_E         =  -96,  /* WC_FIRST_E + 1, for backward compat. */
+    WC_FIRST_E         =  -97,  /* First code used for wolfCrypt */
+
+    WC_SPAN1_FIRST_E   =  -97,  /* errors -97 - -300 */
 
     MP_MEM             =  -97,  /* MP dynamic memory allocation failed. */
     MP_VAL             =  -98,  /* MP value passed is not able to be used. */
@@ -290,12 +292,31 @@ enum wolfCrypt_ErrorCodes {
     SM4_GCM_AUTH_E      = -298,  /* SM4-GCM Authentication check failure */
     SM4_CCM_AUTH_E      = -299,  /* SM4-CCM Authentication check failure */
 
-    WC_LAST_E           = -299,  /* Update this to indicate last error */
-    MIN_CODE_E          = -300   /* errors -2 - -299 */
+    WC_SPAN1_LAST_E     = -299,  /* Last used code in span 1 */
+    WC_SPAN1_MIN_CODE_E = -300,  /* Last usable code in span 1 */
+
+    WC_SPAN2_FIRST_E    = -1000,
+
+    DEADLOCK_AVERTED_E  = -1000, /* Deadlock averted -- retry the call */
+
+    WC_SPAN2_LAST_E     = -1000, /* Update to indicate last used error code */
+    WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
+
+    WC_LAST_E           = -1000, /* the last code used either here or in
+                                  * error-ssl.h
+                                  */
+
+    MIN_CODE_E          = -1999  /* the last code allocated either here or in
+                                  * error-ssl.h
+                                  */
 
     /* add new companion error id strings for any new error codes
        wolfcrypt/src/error.c !!! */
 };
+
+wc_static_assert((int)WC_LAST_E <= (int)WC_SPAN2_LAST_E);
+wc_static_assert((int)MIN_CODE_E <= (int)WC_LAST_E);
+wc_static_assert((int)MIN_CODE_E <= (int)WC_SPAN2_MIN_CODE_E);
 
 #ifdef NO_ERROR_STRINGS
     #define wc_GetErrorString(error) "no support for error strings built in"

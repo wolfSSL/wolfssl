@@ -29,9 +29,9 @@
 
 /* See main/Kconfig.projbuild for default configuration settings */
 #ifdef CONFIG_WOLFSSL_TARGET_HOST
-    #define TLS_SMP_TARGET_HOST         "192.168.1.36"
+    #define TLS_SMP_TARGET_HOST         CONFIG_WOLFSSL_TARGET_HOST
 #else
-    #define TLS_SMP_TARGET_HOST         "192.168.1.41"
+    #define TLS_SMP_TARGET_HOST         "192.168.1.37"
 #endif
 
 #ifdef CONFIG_WOLFSSL_TARGET_PORT
@@ -87,7 +87,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args);
 
 /* init will create an RTOS task, otherwise server is simply function call. */
 #if defined(SINGLE_THREADED)
-    /* no init neded */
+    /* no init needed */
 #else
     WOLFSSL_ESP_TASK tls_smp_client_init(void* args);
 #endif

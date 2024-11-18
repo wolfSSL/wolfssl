@@ -34,7 +34,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.7.2 LANGUAGES C ASM)
+project(wolfssl VERSION 5.7.4 LANGUAGES C ASM)
 
 # Set WOLFSSL_ROOT if not already defined
 if ("${WOLFSSL_ROOT}" STREQUAL "")
@@ -53,7 +53,7 @@ set(WOLFSSL_LIBRARY_VERSION_FIRST 42)
 
 # increment if interfaces have been added
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
-set(WOLFSSL_LIBRARY_VERSION_SECOND 2)
+set(WOLFSSL_LIBRARY_VERSION_SECOND 3)
 
 # increment if source code has changed
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
@@ -131,6 +131,7 @@ check_type_size("__uint128_t" __UINT128_T)
 check_type_size("long long" SIZEOF_LONG_LONG)
 check_type_size("long" SIZEOF_LONG)
 check_type_size("time_t" SIZEOF_TIME_T)
+check_type_size("uintptr_t" HAVE_UINTPTR_T)
 
 # By default, HAVE___UINT128_T gets defined as TRUE,
 # but we want it as 1.
@@ -419,16 +420,17 @@ if(WOLFSSL_CURL)
     set(WOLFSSL_MD4 "yes")
     set(WOLFSSL_DES3 "yes")
     set(WOLFSSL_ALPN "yes")
+    set(WOLFSSL_WOLFSSH "yes")
     set(WOLFSSL_OPENSSLEXTRA "yes")
     set(WOLFSSL_CRL "yes")
     set(WOLFSSL_OCSP "yes")
     set(WOLFSSL_OCSPSTAPLING "yes")
     set(WOLFSSL_OCSPSTAPLING_V2 "yes")
+    # Note: OCSP sets requisite HAVE_TLS_EXTENSIONS and HAVE_CERTIFICATE_STATUS_REQUEST(_V2)
     set(WOLFSSL_SNI "yes")
     set(WOLFSSL_ALT_CERT_CHAINS "yes")
     set(WOLFSSL_IP_ALT_NAME "yes")
     set(WOLFSSL_SESSION_TICKET "yes")
-    set(WOLFSSL_WOLFSSH "yes")
     list(APPEND WOLFSSL_DEFINITIONS
         "-DNO_SESSION_CACHE_REF" "-DWOLFSSL_DES_ECB")
 endif()

@@ -327,7 +327,7 @@ struct Aes {
     int alFd; /* server socket to bind to */
     int rdFd; /* socket to read from */
     struct msghdr msg;
-    int dir;  /* flag for encrpyt or decrypt */
+    int dir;  /* flag for encrypt or decrypt */
 #ifdef WOLFSSL_AFALG_XILINX_AES
     word32 msgBuf[CMSG_SPACE(4) + CMSG_SPACE(sizeof(struct af_alg_iv) +
                   GCM_NONCE_MID_SZ)];
@@ -382,15 +382,16 @@ struct Aes {
     ALIGN16 byte streamData[5 * AES_BLOCK_SIZE];
 #else
     byte*        streamData;
+    word32       streamData_sz;
 #endif
     word32       aSz;
     word32       cSz;
     byte         over;
     byte         aOver;
     byte         cOver;
-    byte         gcmKeySet:1;
-    byte         nonceSet:1;
-    byte         ctrSet:1;
+    WC_BITFIELD  gcmKeySet:1;
+    WC_BITFIELD  nonceSet:1;
+    WC_BITFIELD  ctrSet:1;
 #endif
 #ifdef WC_DEBUG_CIPHER_LIFECYCLE
     void *CipherLifecycleTag; /* used for dummy allocation and initialization,
@@ -726,6 +727,10 @@ WOLFSSL_API int  wc_AesInit_Label(Aes* aes, const char* label, void* heap,
         int devId);
 #endif
 WOLFSSL_API void wc_AesFree(Aes* aes);
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API Aes* wc_AesNew(void* heap, int devId, int *result_code);
+WOLFSSL_API int wc_AesDelete(Aes* aes, Aes** aes_p);
+#endif
 
 #ifdef WOLFSSL_AES_SIV
 typedef struct AesSivAssoc {

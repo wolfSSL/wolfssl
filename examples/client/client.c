@@ -32,6 +32,9 @@
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#undef OPENSSL_COEXIST /* can't use this option with this example */
+
 #include <wolfssl/ssl.h>
 
 #ifdef WOLFSSL_WOLFSENTRY_HOOKS
@@ -398,6 +401,45 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
         if (usePqc) {
             int group = 0;
 
+    #ifndef WOLFSSL_NO_ML_KEM
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            if (XSTRCMP(pqcAlg, "ML_KEM_512") == 0) {
+                group = WOLFSSL_ML_KEM_512;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            if (XSTRCMP(pqcAlg, "ML_KEM_768") == 0) {
+                group = WOLFSSL_ML_KEM_768;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+            if (XSTRCMP(pqcAlg, "ML_KEM_1024") == 0) {
+                group = WOLFSSL_ML_KEM_1024;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            if (XSTRCMP(pqcAlg, "P256_ML_KEM_512") == 0) {
+                group = WOLFSSL_P256_ML_KEM_512;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            if (XSTRCMP(pqcAlg, "P384_ML_KEM_768") == 0) {
+                group = WOLFSSL_P384_ML_KEM_768;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+            if (XSTRCMP(pqcAlg, "P521_ML_KEM_1024") == 0) {
+                group = WOLFSSL_P521_ML_KEM_1024;
+            }
+            else
+        #endif
+    #endif /* WOLFSSL_NO_ML_KEM */
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         #ifndef WOLFSSL_NO_KYBER512
             if (XSTRCMP(pqcAlg, "KYBER_LEVEL1") == 0) {
                 group = WOLFSSL_KYBER_LEVEL1;
@@ -434,6 +476,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             }
             else
         #endif
+    #endif /* WOLFSSL_KYBER_ORIGINAL */
             {
                 err_sys("invalid post-quantum KEM specified");
             }
@@ -786,9 +829,9 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
 
                     /* Compare TX and RX buffers */
                     if (XMEMCMP(tx_buffer, rx_buffer, (size_t)len) != 0) {
-                        free(tx_buffer);
+                        XFREE(tx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         tx_buffer = NULL;
-                        free(rx_buffer);
+                        XFREE(rx_buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         rx_buffer = NULL;
                         err_sys("Compare TX and RX buffers failed");
                     }
@@ -1124,7 +1167,7 @@ static int ClientWriteRead(WOLFSSL* ssl, const char* msg, int msgSz,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* client_usage_msg[][78] = {
+static const char* client_usage_msg[][77] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
@@ -1242,28 +1285,32 @@ static const char* client_usage_msg[][78] = {
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n",     /* 41 */
         "            With 'm' at end indicates MUST staple\n",          /* 42 */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
+        "            -W 1 -v 4, Perform multi OCSP stapling for TLS13\n",
+                                                                        /* 43 */
+#endif
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
-        "-U          Atomic User Record Layer Callbacks\n",             /* 43 */
+        "-U          Atomic User Record Layer Callbacks\n",             /* 44 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          Public Key Callbacks\n",                           /* 44 */
+        "-P          Public Key Callbacks\n",                           /* 45 */
 #endif
 #ifdef HAVE_ANON
-        "-a          Anonymous client\n",                               /* 45 */
+        "-a          Anonymous client\n",                               /* 46 */
 #endif
 #ifdef HAVE_CRL
-        "-C          Disable CRL\n",                                    /* 46 */
+        "-C          Disable CRL\n",                                    /* 47 */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   Path to load trusted peer cert\n",                 /* 47 */
+        "-E <file>   Path to load trusted peer cert\n",                 /* 48 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood config file,      defaults\n",           /* 48 */
+        "-q <file>   Whitewood config file,      defaults\n",           /* 49 */
 #endif
         "-H <arg>    Internal tests"
-            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 49 */
-        "                            loadSSL, disallowETM]\n",          /* 50 */
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n",      /* 50 */
 #ifdef WOLFSSL_TLS13
         "-J          Use HelloRetryRequest to choose group for KE\n",   /* 51 */
         "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 52 */
@@ -1299,55 +1346,66 @@ static const char* client_usage_msg[][78] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          Use Trusted CA Key Indication\n",                  /* 63 */
 #endif
-        "-6          Simulate WANT_WRITE errors on every other IO send\n",
+        "-6          Simulate WANT_WRITE errors on every other IO send\n", /* 64 */
 #ifdef HAVE_CURVE448
-        "-8          Use X448 for key exchange\n",                      /* 66 */
+        "-8          Use X448 for key exchange\n",                      /* 65 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
     !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
         "-9          Use hash dir look up for certificate loading\n"
-        "            loading from <wolfSSL home>/certs folder\n"
-        "            files in the folder would have the form \"hash.N\" file name\n"
-        "            e.g symbolic link to the file at certs folder\n"
-        "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
-                                                                        /* 67 */
+            "            loading from <wolfSSL home>/certs folder\n"
+            "            files in the folder would have the form \"hash.N\" file name\n"
+            "            e.g symbolic link to the file at certs folder\n"
+            "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
+                                                                        /* 66 */
 #endif
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    Path for JSON wolfSentry config\n",
-                                                                        /* 68 */
+                                                                        /* 67 */
 #endif
 #ifndef WOLFSSL_TLS13
         "-7          Set minimum downgrade protocol version [0-3] "
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          Set minimum downgrade protocol version [0-4] "
-           " SSLv3(0) - TLS1.3(4)\n",                                   /* 69 */
+           " SSLv3(0) - TLS1.3(4)\n",                                   /* 68 */
 #endif
 #ifdef HAVE_PQC
-        "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n",  /* 70 */
+        "--pqc <alg> Key Share with specified post-quantum algorithm only:\n"
+#ifndef WOLFSSL_NO_ML_KEM
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
+            "\n"
+            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
+            "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
+            "P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"
+#endif
+            "",
+                                                                        /* 69 */
 #endif
 #ifdef WOLFSSL_SRTP
-        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 71 */
+        "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 70 */
 #endif
 #ifdef WOLFSSL_SYS_CA_CERTS
-        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
+        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 71 */
 #endif
 #ifdef HAVE_SUPPORTED_CURVES
-        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 72 */
 #endif
 #ifndef NO_PSK
-        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
+        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 73 */
 #endif
 #ifdef HAVE_RPK
-        "--rpk  Use RPK for the defined certificates\n", /* 75 */
+        "--rpk  Use RPK for the defined certificates\n", /* 74 */
 #endif
-        "--files-are-der Specified files are in DER, not PEM format\n", /* 76 */
+        "--files-are-der Specified files are in DER, not PEM format\n", /* 75 */
         "\n"
            "For simpler wolfSSL TLS client examples, visit\n"
-           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
+           "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 76 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1469,30 +1527,34 @@ static const char* client_usage_msg[][78] = {
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
         "-W <num>    OCSP Staplingを使用する"
                                          " (1 v1, 2 v2, 3 v2 multi)\n", /* 41 */
-        "            'm' を最後に指定すると必ず staple を使用する\n"    /* 42 */
+        "            'm' を最後に指定すると必ず staple を使用する\n"       /* 42 */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS_OCSP_MULTI)
+        "            -W 1 -v 4, "
+        "TLS13 使用時に複数(Multi)の OCSP を実施します\n"                   /* 43 */
+#endif
 #endif
 #if defined(ATOMIC_USER) && !defined(WOLFSSL_AEAD_ONLY)
         "-U          アトミック・ユーザー記録の"
-                                           "コールバックを利用する\n",  /* 43 */
+                                           "コールバックを利用する\n",  /* 44 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          公開鍵コールバック\n",                             /* 44 */
+        "-P          公開鍵コールバック\n",                             /* 45 */
 #endif
 #ifdef HAVE_ANON
-        "-a          匿名クライアント\n",                               /* 45 */
+        "-a          匿名クライアント\n",                               /* 46 */
 #endif
 #ifdef HAVE_CRL
-        "-C          CRLを無効\n",                                      /* 46 */
+        "-C          CRLを無効\n",                                      /* 47 */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 47 */
+        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 48 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 48 */
+        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 49 */
 #endif
         "-H <arg>    内部テスト"
-        " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n", /* 49 */
-        "                            loadSSL, disallowETM]\n",          /* 50 */
+            " [defCipherList, exitWithRet, verifyFail, useSupCurve,\n"
+            "                            loadSSL, disallowETM]\n",  /* 50 */
 #ifdef WOLFSSL_TLS13
         "-J          HelloRetryRequestをKEのグループ選択に使用する\n",  /* 51 */
         "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 52 */
@@ -1529,9 +1591,9 @@ static const char* client_usage_msg[][78] = {
 #ifdef HAVE_TRUSTED_CA
         "-5          信頼できる認証局の鍵表示を使用する\n",             /* 63 */
 #endif
-        "-6          WANT_WRITE エラーを全てのIO 送信でシミュレートします\n",
+        "-6          WANT_WRITE エラーを全てのIO 送信でシミュレートします\n", /* 64 */
 #ifdef HAVE_CURVE448
-        "-8          鍵交換に X448 を使用する\n",                      /* 66 */
+        "-8          鍵交換に X448 を使用する\n",                      /* 65 */
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_CERT_GEN) && \
     (defined(WOLFSSL_CERT_REQ) || defined(WOLFSSL_CERT_EXT)) && \
@@ -1541,44 +1603,55 @@ static const char* client_usage_msg[][78] = {
         "            フォルダー中のファイルは、\"hash.N\"[N:0-9]名である必要があります\n"
         "            以下の例ではca-cert.pemにシンボリックリンクを設定します\n"
         "            ln -s ca-cert.pem  `openssl x509 -in ca-cert.pem -hash -noout`.0\n",
-                                                                        /* 67 */
+                                                                        /* 66 */
 #endif
 #if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(NO_FILESYSTEM) && \
     !defined(WOLFSENTRY_NO_JSON)
         "--wolfsentry-config <file>    wolfSentry コンフィグファイル\n",
-                                                                      /* 68 */
+                                                                      /* 67 */
 #endif
 #ifndef WOLFSSL_TLS13
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-3] "
         " SSLv3(0) - TLS1.2(3)\n",
 #else
         "-7          最小ダウングレード可能なプロトコルバージョンを設定します [0-4] "
-        " SSLv3(0) - TLS1.3(4)\n",                            /* 69 */
+        " SSLv3(0) - TLS1.3(4)\n",                            /* 68 */
 #endif
 #ifdef HAVE_PQC
-        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n", /* 70 */
+        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ:\n"
+#ifndef WOLFSSL_NO_ML_KEM
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
+            "\n"
+            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
+            "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
+            "P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"
+#endif
+            "",
+                                                                        /* 69 */
 #endif
 #ifdef WOLFSSL_SRTP
-        "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 71 */
+        "--srtp <profile> (デフォルトは SRTP_AES128_CM_SHA1_80)\n", /* 70 */
 #endif
 #ifdef WOLFSSL_SYS_CA_CERTS
-        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 72 */
+        "--sys-ca-certs Load system CA certs for server cert verification\n", /* 71 */
 #endif
 #ifdef HAVE_SUPPORTED_CURVES
-        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 73 */
+        "--onlyPskDheKe Must use DHE key exchange with PSK\n",          /* 72 */
 #endif
 #ifndef NO_PSK
-        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 74 */
+        "--openssl-psk  Use TLS 1.3 PSK callback compatible with OpenSSL\n", /* 73 */
 #endif
 #ifdef HAVE_RPK
-        "--rpk  Use RPK for the defined certificates\n", /* 75 */
+        "--rpk  Use RPK for the defined certificates\n", /* 74 */
 #endif
-        "--files-are-der Specified files are in DER, not PEM format\n", /* 76 */
+        "--files-are-der Specified files are in DER, not PEM format\n", /* 75 */
         "\n"
         "より簡単なwolfSSL TLS クライアントの例については"
                                          "下記にアクセスしてください\n"
-        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 77 */
+        "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n", /* 76 */
         NULL,
     },
 #endif
@@ -4184,10 +4257,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
         printf("CID extension was negotiated\n");
         ret = wolfSSL_dtls_cid_get_tx_size(ssl, &receivedCIDSz);
-        if (ret != WOLFSSL_SUCCESS)
-            err_sys("Can't get negotiated DTLS CID size\n");
-
-        if (receivedCIDSz > 0) {
+        if (ret == WOLFSSL_SUCCESS && receivedCIDSz > 0) {
             ret = wolfSSL_dtls_cid_get_tx(ssl, receivedCID,
                 DTLS_CID_BUFFER_SIZE - 1);
             if (ret != WOLFSSL_SUCCESS)

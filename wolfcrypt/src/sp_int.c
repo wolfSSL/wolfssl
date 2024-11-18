@@ -119,7 +119,7 @@ This library provides single precision (SP) integer math functions.
 #if defined(WOLFSSL_LINUXKM) && !defined(WOLFSSL_SP_ASM)
     /* force off unneeded vector register save/restore. */
     #undef SAVE_VECTOR_REGISTERS
-    #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+    #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #undef RESTORE_VECTOR_REGISTERS
     #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING
 #endif
@@ -3458,7 +3458,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
         :
         : "r3", "r4", "r5", "r6", "r7", "r8", "r9", "cc"
     );
-    return (uint32_t)(size_t)hi;
+    return (sp_uint32)(size_t)hi;
 }
 
 #define SP_ASM_DIV_WORD
@@ -3942,7 +3942,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
     __asm__ __volatile__ (                               \
         "mulhwu	%[h], %[a], %[b]	\n\t"            \
         "mullw	%[l], %[a], %[b]	\n\t"            \
-        "li	%[o], 0			\n\t"            \
+        "xor	%[o], %[o], %[o]	\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh), [o] "=r" (vo)    \
         : [a] "r" (va), [b] "r" (vb)                     \
     )
@@ -4045,7 +4045,7 @@ static WC_INLINE sp_int_digit sp_div_word(sp_int_digit hi, sp_int_digit lo,
 #define SP_ASM_SUBB(vl, vh, va)                          \
     __asm__ __volatile__ (                               \
         "subfc	%[l], %[a], %[l]	\n\t"            \
-        "li	16, 0			\n\t"            \
+        "xor	16, 16, 16		\n\t"            \
         "subfe	%[h], 16, %[h]		\n\t"            \
         : [l] "+r" (vl), [h] "+r" (vh)                   \
         : [a] "r" (va)                                   \
@@ -5126,6 +5126,12 @@ static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
     !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
     (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
 #define WOLFSSL_SP_PRIME_GEN
+#endif
+
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || defined(OPENSSL_EXTRA)
+/* Determine when mp_mul_d is required */
+#define WOLFSSL_SP_MUL_D
 #endif
 
 /* Set the multi-precision number to zero.
@@ -6553,7 +6559,8 @@ int sp_sub_d(const sp_int* a, sp_int_digit d, sp_int* r)
     !defined(NO_DH) || defined(HAVE_ECC) || \
     (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
      !defined(WOLFSSL_RSA_PUBLIC_ONLY))) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA))
+    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || \
+    defined(WOLFSSL_SP_MUL_D)
 /* Multiply a by digit n and put result into r shifting up o digits.
  *   r = (a * n) << (o * SP_WORD_SIZE)
  *
@@ -6636,8 +6643,7 @@ static int _sp_mul_d(const sp_int* a, sp_int_digit d, sp_int* r, unsigned int o)
 #endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
         *  WOLFSSL_SP_SMALL || (WOLFSSL_KEY_GEN && !NO_RSA) */
 
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA))
+#ifdef WOLFSSL_SP_MUL_D
 /* Multiply a by digit n and put result into r. r = a * n
  *
  * @param  [in]   a  SP integer to multiply.
@@ -6675,8 +6681,7 @@ int sp_mul_d(const sp_int* a, sp_int_digit d, sp_int* r)
 
     return err;
 }
-#endif /* (WOLFSSL_SP_MATH_ALL && !WOLFSSL_RSA_VERIFY_ONLY) ||
-        * (WOLFSSL_KEY_GEN && !NO_RSA) */
+#endif /* WOLFSSL_SP_MUL_D */
 
 /* Predefine complicated rules of when to compile in sp_div_d and sp_mod_d. */
 #if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
@@ -12429,8 +12434,10 @@ static int _sp_invmod_div(const sp_int* a, const sp_int* m, sp_int* x,
 
     ALLOC_SP_INT(d, m->used + 1, err, NULL);
     if (err == MP_OKAY) {
-        sp_init_size(d, m->used + 1);
+        err = sp_init_size(d, m->used + 1);
+    }
 
+    if (err == MP_OKAY) {
         /* 1. x = m, y = a, b = 1, c = 0 */
         if (a != y) {
             _sp_copy(a, y);

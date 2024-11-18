@@ -16,6 +16,7 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
@@ -43,6 +44,7 @@ jobs:
       matrix:
         ref: [ 2.0.18 ]
     name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
@@ -66,8 +68,7 @@ jobs:
         run: |
             export DEBIAN_FRONTEND=noninteractive
             sudo apt-get update
-            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make
-            sudo pip install --upgrade psutil
+            sudo apt-get install -y build-essential libev-dev libssl-dev automake python3-docutils libcunit1 libcunit1-doc libcunit1-dev pkg-config make python3-psutil
 
       - name: Checkout mosquitto
         uses: actions/checkout@v4

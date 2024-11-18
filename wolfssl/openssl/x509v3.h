@@ -73,12 +73,12 @@ typedef void *(*X509V3_EXT_D2I)(void *, const unsigned char **, long);
 typedef void *(*X509V3_EXT_D2I)(void *, unsigned char **, long);
 #endif
 typedef int (*X509V3_EXT_I2D) (void *, unsigned char **);
-typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (
+typedef WOLF_STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (
                                 struct WOLFSSL_v3_ext_method *method,
-                                void *ext, STACK_OF(CONF_VALUE) *extlist);
+                                void *ext, WOLF_STACK_OF(CONF_VALUE) *extlist);
 typedef char *(*X509V3_EXT_I2S)(struct WOLFSSL_v3_ext_method *method, void *ext);
 typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method,
-                               void *ext, BIO *out, int indent);
+                               void *ext, WOLFSSL_BIO *out, int indent);
 typedef struct WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
 
 struct WOLFSSL_v3_ext_method {
@@ -95,22 +95,36 @@ struct WOLFSSL_v3_ext_method {
 struct WOLFSSL_X509_EXTENSION {
     WOLFSSL_ASN1_OBJECT *obj;
     WOLFSSL_ASN1_BOOLEAN crit;
-    ASN1_OCTET_STRING value; /* DER format of extension */
+    WOLFSSL_ASN1_STRING value; /* DER format of extension */
     WOLFSSL_v3_ext_method ext_method;
     WOLFSSL_STACK* ext_sk; /* For extension specific data */
 };
 
 #define WOLFSSL_ASN1_BOOLEAN int
-#define GEN_OTHERNAME   0
-#define GEN_EMAIL       1
-#define GEN_DNS         2
-#define GEN_X400        3
-#define GEN_DIRNAME     4
-#define GEN_EDIPARTY    5
-#define GEN_URI         6
-#define GEN_IPADD       7
-#define GEN_RID         8
-#define GEN_IA5         9
+
+#define WOLFSSL_GEN_OTHERNAME   0
+#define WOLFSSL_GEN_EMAIL       1
+#define WOLFSSL_GEN_DNS         2
+#define WOLFSSL_GEN_X400        3
+#define WOLFSSL_GEN_DIRNAME     4
+#define WOLFSSL_GEN_EDIPARTY    5
+#define WOLFSSL_GEN_URI         6
+#define WOLFSSL_GEN_IPADD       7
+#define WOLFSSL_GEN_RID         8
+#define WOLFSSL_GEN_IA5         9
+
+#ifndef OPENSSL_COEXIST
+
+#define GEN_OTHERNAME      WOLFSSL_GEN_OTHERNAME
+#define GEN_EMAIL          WOLFSSL_GEN_EMAIL
+#define GEN_DNS            WOLFSSL_GEN_DNS
+#define GEN_X400           WOLFSSL_GEN_X400
+#define GEN_DIRNAME        WOLFSSL_GEN_DIRNAME
+#define GEN_EDIPARTY       WOLFSSL_GEN_EDIPARTY
+#define GEN_URI            WOLFSSL_GEN_URI
+#define GEN_IPADD          WOLFSSL_GEN_IPADD
+#define GEN_RID            WOLFSSL_GEN_RID
+#define GEN_IA5            WOLFSSL_GEN_IA5
 
 #define GENERAL_NAME       WOLFSSL_GENERAL_NAME
 
@@ -121,6 +135,9 @@ struct WOLFSSL_X509_EXTENSION {
 typedef struct WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
 typedef struct WOLFSSL_BASIC_CONSTRAINTS BASIC_CONSTRAINTS;
 typedef struct WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
+
+#endif /* !OPENSSL_COEXIST */
+
 typedef WOLF_STACK_OF(WOLFSSL_ACCESS_DESCRIPTION) WOLFSSL_AUTHORITY_INFO_ACCESS;
 
 WOLFSSL_API WOLFSSL_BASIC_CONSTRAINTS* wolfSSL_BASIC_CONSTRAINTS_new(void);
@@ -166,7 +183,7 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 #define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
 #define X509V3_EXT_add_nconf      wolfSSL_X509V3_EXT_add_nconf
 #ifndef NO_WOLFSSL_STUB
-#define X509V3_parse_list(...)    NULL
+#define X509V3_parse_list(line)   NULL
 #endif
 #define i2s_ASN1_OCTET_STRING     wolfSSL_i2s_ASN1_STRING
 #define a2i_IPADDRESS             wolfSSL_a2i_IPADDRESS
@@ -174,8 +191,8 @@ WOLFSSL_API WOLFSSL_ASN1_STRING* wolfSSL_a2i_IPADDRESS(const char* ipa);
 #define X509V3_EXT_conf_nid       wolfSSL_X509V3_EXT_conf_nid
 #define X509V3_set_ctx            wolfSSL_X509V3_set_ctx
 #ifndef NO_WOLFSSL_STUB
-#define X509V3_set_nconf(...)     WC_DO_NOTHING
-#define X509V3_EXT_cleanup(...)   WC_DO_NOTHING
+#define X509V3_set_nconf(ctx, conf) WC_DO_NOTHING
+#define X509V3_EXT_cleanup()      WC_DO_NOTHING
 #endif
 #define X509V3_set_ctx_test(ctx)  wolfSSL_X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
 #define X509V3_set_ctx_nodb       wolfSSL_X509V3_set_ctx_nodb

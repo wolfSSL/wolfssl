@@ -150,8 +150,10 @@ static inline long XTIME(long *x) { return jiffies;}
 #define WOLFSSL_AES_DIRECT
 
 /* Hashing */
-#define HAVE_SHA384
-#define HAVE_SHA512
+#define WOLFSSL_SHA384
+#define HAVE_SHA384 /* old freeRTOS settings.h requires this */
+#define WOLFSSL_SHA512
+#define HAVE_SHA512 /* old freeRTOS settings.h requires this */
 #define HAVE_HKDF
 
 /* TLS */

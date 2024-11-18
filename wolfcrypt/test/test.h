@@ -37,6 +37,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args);
 #else
@@ -57,6 +59,8 @@ int wolf_test_task(void);
 #define WC_TEST_RET_TAG_EC     1L
 #define WC_TEST_RET_TAG_ERRNO  2L
 #define WC_TEST_RET_TAG_I      3L
+
+wc_static_assert(-(long)MIN_CODE_E < 0x7ffL);
 
 #define WC_TEST_RET_ENC(line, i, tag)                           \
         ((wc_test_ret_t)(-((wc_test_ret_t)(line) + ((wc_test_ret_t)((word32)(i) & 0x7ffL) * 100000L) + ((wc_test_ret_t)(tag) << 29L))))

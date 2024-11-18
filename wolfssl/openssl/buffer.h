@@ -38,6 +38,7 @@ WOLFSSL_API int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
 WOLFSSL_API int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len);
 WOLFSSL_API void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf);
 
+#ifndef OPENSSL_COEXIST
 
 #define BUF_MEM_new  wolfSSL_BUF_MEM_new
 #define BUF_MEM_grow wolfSSL_BUF_MEM_grow
@@ -46,6 +47,8 @@ WOLFSSL_API void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf);
 #define BUF_strdup strdup
 #define BUF_strlcpy wc_strlcpy
 #define BUF_strlcat wc_strlcat
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     }  /* extern "C" */

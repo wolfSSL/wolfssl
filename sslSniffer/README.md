@@ -197,7 +197,7 @@ Frees all resources consumed by the wolfSSL sniffer and should be called when us
 int ssl_Trace(const char* traceFile, char* error);
 ```
 
-Enables Tracing when a file is passed in.  Disables Tracing if previously on and a NULL value is passed in for the file.
+Enables Tracing when a file is passed in. When `traceFile` is "-", then the trace will be printed to STDOUT. Disables Tracing if previously on and a NULL value is passed in for the file.
 
 Returns Values:
 

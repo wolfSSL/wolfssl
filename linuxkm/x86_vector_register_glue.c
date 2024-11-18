@@ -305,7 +305,7 @@ static struct wc_thread_fpu_count_ent *wc_linuxkm_fpu_state_assoc_unlikely(int c
         }
     } else {
         /* check for migration.  this can happen despite our best efforts if any
-         * I/O occured while locked, e.g. kernel messages like "uninitialized
+         * I/O occurred while locked, e.g. kernel messages like "uninitialized
          * urandom read".  since we're locked now, we can safely migrate the
          * entry in wc_linuxkm_fpu_states[], freeing up the slot on the previous
          * cpu.

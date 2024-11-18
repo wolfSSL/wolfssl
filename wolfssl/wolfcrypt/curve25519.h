@@ -90,15 +90,15 @@ struct curve25519_key {
     void* devCtx;
     int devId;
 #endif
-
+    void *heap;
 #ifdef WOLFSSL_SE050
     word32 keyId;
     byte   keyIdSet;
 #endif
 
     /* bit fields */
-    byte pubSet:1;
-    byte privSet:1;
+    WC_BITFIELD pubSet:1;
+    WC_BITFIELD privSet:1;
 };
 
 enum {
@@ -139,6 +139,13 @@ int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_curve25519_free(curve25519_key* key);
 
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API
+curve25519_key* wc_curve25519_new(void* heap, int devId, int *result_code);
+WOLFSSL_API
+int wc_curve25519_delete(curve25519_key* key, curve25519_key** key_p);
+#endif
+WOLFSSL_API
 
 /* raw key helpers */
 WOLFSSL_API

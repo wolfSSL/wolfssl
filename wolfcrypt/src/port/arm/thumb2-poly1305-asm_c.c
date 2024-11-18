@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -93,17 +93,17 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len, int not
         "ADCS	r7, r7, r10\n\t"
         "ADD	%[m], %[m], #0x10\n\t"
         "ADC	r8, r8, r11\n\t"
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
         "STM	lr, {r4, r5, r6, r7, r8}\n\t"
 #else
         /* h[0]-h[2] in r4-r6 for multiplication. */
         "STR	r7, [lr, #12]\n\t"
         "STR	r8, [lr, #16]\n\t"
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
         "STR	%[m], [sp, #16]\n\t"
         "LDR	%[m], [sp, #12]\n\t"
         /* Multiply h by r */
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
         /* r0 = #0, r1 = r, lr = h, r2 = h[j], r3 = r[i] */
         "LDR	%[notLast], [%[m]]\n\t"
         "EOR	%[ctx], %[ctx], %[ctx]\n\t"
@@ -244,7 +244,7 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len, int not
         "UMAAL	r11, r12, %[notLast], r5\n\t"
         /* DONE */
         "LDM	sp, {r4, r5, r6}\n\t"
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
         /* r12 will be zero because r is masked. */
         /* Load length */
         "LDR	%[len], [sp, #20]\n\t"
@@ -294,7 +294,7 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const byte* m, word32 len, int not
     );
 }
 
-XALIGNED(16) static const uint32_t L_poly1305_thumb2_clamp[] = {
+XALIGNED(16) static const word32 L_poly1305_thumb2_clamp[] = {
     0x0fffffff, 0x0ffffffc, 0x0ffffffc, 0x0ffffffc,
 };
 
@@ -307,7 +307,7 @@ void poly1305_set_key(Poly1305* ctx, const byte* key)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register Poly1305* ctx __asm__ ("r0") = (Poly1305*)ctx_p;
     register const byte* key __asm__ ("r1") = (const byte*)key_p;
-    register uint32_t* L_poly1305_thumb2_clamp_c __asm__ ("r2") = (uint32_t*)&L_poly1305_thumb2_clamp;
+    register word32* L_poly1305_thumb2_clamp_c __asm__ ("r2") = (word32*)&L_poly1305_thumb2_clamp;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -417,6 +417,6 @@ void poly1305_final(Poly1305* ctx, byte* mac)
 }
 
 #endif /* HAVE_POLY1305 */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

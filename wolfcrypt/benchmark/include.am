@@ -23,5 +23,8 @@ endif
 
 EXTRA_DIST += wolfcrypt/benchmark/benchmark.sln
 EXTRA_DIST += wolfcrypt/benchmark/benchmark.vcproj
+EXTRA_DIST += wolfcrypt/benchmark/benchmark-VS2022.sln
+EXTRA_DIST += wolfcrypt/benchmark/benchmark-VS2022.vcxproj
+EXTRA_DIST += wolfcrypt/benchmark/benchmark-VS2022.vcxproj.user
 EXTRA_DIST += wolfcrypt/benchmark/README.md
 DISTCLEANFILES+= wolfcrypt/benchmark/.libs/benchmark

@@ -78,6 +78,7 @@ enum wc_LmsRc {
  * Not predefining many sets with Winternitz=1, because the signatures
  * will be large. */
 enum wc_LmsParm {
+#ifndef WOLFSSL_NO_LMS_SHA256_256
     WC_LMS_PARM_NONE = 0,
     WC_LMS_PARM_L1_H5_W1 = 1,
     WC_LMS_PARM_L1_H5_W2 = 2,
@@ -114,6 +115,27 @@ enum wc_LmsParm {
     WC_LMS_PARM_L4_H5_W8 = 33,
     WC_LMS_PARM_L4_H10_W4 = 34,
     WC_LMS_PARM_L4_H10_W8 = 35,
+#endif
+
+#ifdef WOLFSSL_LMS_SHA256_192
+    WC_LMS_PARM_SHA256_192_L1_H5_W1  = 36,
+    WC_LMS_PARM_SHA256_192_L1_H5_W2  = 37,
+    WC_LMS_PARM_SHA256_192_L1_H5_W4  = 38,
+    WC_LMS_PARM_SHA256_192_L1_H5_W8  = 39,
+    WC_LMS_PARM_SHA256_192_L1_H10_W2 = 40,
+    WC_LMS_PARM_SHA256_192_L1_H10_W4 = 41,
+    WC_LMS_PARM_SHA256_192_L1_H10_W8 = 42,
+    WC_LMS_PARM_SHA256_192_L1_H15_W2 = 43,
+    WC_LMS_PARM_SHA256_192_L1_H15_W4 = 44,
+    WC_LMS_PARM_SHA256_192_L2_H10_W2 = 45,
+    WC_LMS_PARM_SHA256_192_L2_H10_W4 = 46,
+    WC_LMS_PARM_SHA256_192_L2_H10_W8 = 47,
+    WC_LMS_PARM_SHA256_192_L3_H5_W2  = 48,
+    WC_LMS_PARM_SHA256_192_L3_H5_W4  = 49,
+    WC_LMS_PARM_SHA256_192_L3_H5_W8  = 50,
+    WC_LMS_PARM_SHA256_192_L3_H10_W4 = 51,
+    WC_LMS_PARM_SHA256_192_L4_H5_W8  = 52,
+#endif
 };
 
 /* enum wc_LmsState is to help track the state of an LMS/HSS Key. */

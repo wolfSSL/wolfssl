@@ -140,7 +140,7 @@ WOLFSSL_API int wc_SSH_KDF(byte hashId, byte keyId,
 /* Indicators */
 enum {
     WC_SRTCP_32BIT_IDX = 0,
-    WC_SRTCP_48BIT_IDX = 1,
+    WC_SRTCP_48BIT_IDX = 1
 };
 
 /* Maximum length of salt that can be used with SRTP/SRTCP. */

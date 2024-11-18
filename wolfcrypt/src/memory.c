@@ -32,6 +32,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /*
 Possible memory options:
@@ -68,9 +69,9 @@ Possible memory options:
 void *z_realloc(void *ptr, size_t size)
 {
     if (ptr == NULL)
-        ptr = malloc(size);
+        ptr = malloc(size); /* native heap */
     else
-        ptr = realloc(ptr, size);
+        ptr = realloc(ptr, size); /* native heap */
 
     return ptr;
 }
@@ -359,7 +360,7 @@ void* wolfSSL_Malloc(size_t size)
         }
         #endif
 
-        res = malloc(size);
+        res = malloc(size); /* native heap */
     #else
         WOLFSSL_MSG("No malloc available");
     #endif
@@ -400,7 +401,7 @@ void* wolfSSL_Malloc(size_t size)
         #endif
         }
         else {
-            free(res); /* clear */
+            free(res); /* native heap */
         }
         gMemFailCount = gMemFailCountSeed; /* reset */
         return NULL;
@@ -444,7 +445,7 @@ void wolfSSL_Free(void *ptr)
     }
     else {
     #ifndef WOLFSSL_NO_MALLOC
-        free(ptr);
+        free(ptr); /* native heap */
     #else
         WOLFSSL_MSG("No free available");
     #endif
@@ -502,7 +503,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     }
     else {
     #ifndef WOLFSSL_NO_MALLOC
-        res = realloc(ptr, size);
+        res = realloc(ptr, size); /* native heap */
     #else
         WOLFSSL_MSG("No realloc available");
     #endif
@@ -668,7 +669,7 @@ static int wc_partition_static_memory(byte* buffer, word32 sz, int flag,
 }
 
 static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
-        const unsigned int* sizeList, const unsigned int* distList)
+        const word32 *sizeList, const word32 *distList)
 {
     unsigned int i;
 
@@ -694,8 +695,8 @@ static int wc_init_memory_heap(WOLFSSL_HEAP* heap, unsigned int listSz,
 }
 
 int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
-        unsigned int listSz, const unsigned int* sizeList,
-        const unsigned int* distList, unsigned char* buf,
+        unsigned int listSz, const word32 *sizeList,
+        const word32 *distList, unsigned char *buf,
         unsigned int sz, int flag, int maxSz)
 {
     WOLFSSL_HEAP*      heap = NULL;
@@ -772,13 +773,8 @@ int wc_LoadStaticMemory_ex(WOLFSSL_HEAP_HINT** pHint,
 int wc_LoadStaticMemory(WOLFSSL_HEAP_HINT** pHint,
     unsigned char* buf, unsigned int sz, int flag, int maxSz)
 {
-#ifdef WOLFSSL_LEAN_STATIC_PSK
-    word16 sizeList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
-    byte   distList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_DIST };
-#else
     word32 sizeList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_BUCKETS };
     word32 distList[WOLFMEM_DEF_BUCKETS] = { WOLFMEM_DIST };
-#endif
     int ret = 0;
 
     WOLFSSL_ENTER("wc_LoadStaticMemory");
@@ -816,7 +812,7 @@ int wolfSSL_MemoryPaddingSz(void)
 /* Used to calculate memory size for optimum use with buckets.
    returns the suggested size rounded down to the nearest bucket. */
 int wolfSSL_StaticBufferSz_ex(unsigned int listSz,
-        const unsigned int *sizeList, const unsigned int *distList,
+        const word32 *sizeList, const word32 *distList,
         byte* buffer, word32 sz, int flag)
 {
     word32 ava = sz;
@@ -1001,7 +997,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
     /* check for testing heap hint was set */
 #ifdef WOLFSSL_HEAP_TEST
     if (heap == (void*)WOLFSSL_HEAP_TEST) {
-        return malloc(size);
+        return malloc(size); /* native heap */
     }
 #endif
 
@@ -1012,7 +1008,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
                                             type == DYNAMIC_TYPE_CERT_MANAGER) {
                 WOLFSSL_MSG("ERROR allowing null heap hint for ctx/method");
-                res = malloc(size);
+                res = malloc(size); /* native heap */
             }
             else {
                 WOLFSSL_MSG("ERROR null heap hint passed into XMALLOC");
@@ -1021,15 +1017,16 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         #else
         #ifndef WOLFSSL_NO_MALLOC
             #ifdef FREERTOS
-                res = pvPortMalloc(size);
+                res = pvPortMalloc(size); /* native heap */
             #elif defined(WOLFSSL_EMBOS)
                 res = OS_HEAP_malloc(size);
             #else
-                res = malloc(size);
+                res = malloc(size); /* native heap */
             #endif
 
             #ifdef WOLFSSL_DEBUG_MEMORY
-                fprintf(stderr, "Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
+                fprintf(stderr, "[HEAP %p] Alloc: %p -> %u at %s:%d\n", heap,
+                    res, (word32)size, func, line);
             #endif
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
@@ -1096,8 +1093,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
                         }
                     #ifdef WOLFSSL_DEBUG_STATIC_MEMORY
                         else {
-                            fprintf(stderr, "Size: %lu, Empty: %d\n", (unsigned long) size,
-                                                              mem->sizeList[i]);
+                            fprintf(stderr, "Size: %lu, Empty: %d\n",
+                                (unsigned long) size, mem->sizeList[i]);
                         }
                     #endif
                     }
@@ -1113,7 +1110,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
 
         #ifdef WOLFSSL_DEBUG_MEMORY
             pt->szUsed = size;
-            fprintf(stderr, "Alloc: %p -> %lu at %s:%d\n", pt->buffer, size, func, line);
+            fprintf(stderr, "[HEAP %p] Alloc: %p -> %lu at %s:%d\n", heap,
+                pt->buffer, size, func, line);
         #endif
         #ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
             if (DebugCb) {
@@ -1142,8 +1140,8 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             WOLFSSL_MSG("ERROR ran out of static memory");
             res = NULL;
             #ifdef WOLFSSL_DEBUG_MEMORY
-                fprintf(stderr, "Looking for %lu bytes at %s:%d\n", (unsigned long) size, func,
-                        line);
+                fprintf(stderr, "Looking for %lu bytes at %s:%d\n",
+                    (unsigned long) size, func, line);
             #endif
             #ifdef WOLFSSL_STATIC_MEMORY_DEBUG_CALLBACK
             if (DebugCb) {
@@ -1186,9 +1184,10 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
     #ifdef WOLFSSL_HEAP_TEST
         if (heap == (void*)WOLFSSL_HEAP_TEST) {
         #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "Free: %p at %s:%d\n", pt, func, line);
+            fprintf(stderr, "[HEAP %p] Free: %p at %s:%d\n", heap, pt, func,
+                line);
         #endif
-            return free(ptr);
+            return free(ptr); /* native heap */
         }
     #endif
 
@@ -1204,15 +1203,16 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             }
         #endif
         #ifndef WOLFSSL_NO_MALLOC
-            #ifdef FREERTOS
-                vPortFree(ptr);
-            #elif defined(WOLFSSL_EMBOS)
-                OS_HEAP_free(ptr);
-            #else
-                free(ptr);
-            #endif
             #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf(stderr, "Free: %p at %s:%d\n", ptr, func, line);
+            fprintf(stderr, "[HEAP %p] Free: %p at %s:%d\n", heap, pt, func,
+                line);
+            #endif
+            #ifdef FREERTOS
+                vPortFree(ptr); /* native heap */
+            #elif defined(WOLFSSL_EMBOS)
+                OS_HEAP_free(ptr); /* native heap */
+            #else
+                free(ptr); /* native heap */
             #endif
         #else
             WOLFSSL_MSG("Error trying to call free when turned off");
@@ -1285,8 +1285,8 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         #endif
 
         #ifdef WOLFSSL_DEBUG_MEMORY
-            fprintf (stderr, "Free: %p -> %u at %s:%d\n", pt->buffer,
-                     pt->szUsed, func, line);
+            fprintf(stderr, "[HEAP %p] Free: %p -> %u at %s:%d\n", heap,
+                pt->buffer, pt->szUsed, func, line);
         #endif
 
         #ifndef WOLFSSL_STATIC_MEMORY_LEAN
@@ -1334,7 +1334,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
     /* check for testing heap hint was set */
 #ifdef WOLFSSL_HEAP_TEST
     if (heap == (void*)WOLFSSL_HEAP_TEST) {
-        return realloc(ptr, size);
+        return realloc(ptr, size); /* native heap */
     }
 #endif
 
@@ -1343,7 +1343,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
             WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC");
         #endif
         #ifndef WOLFSSL_NO_MALLOC
-            res = realloc(ptr, size);
+            res = realloc(ptr, size); /* native heap */
         #else
             WOLFSSL_MSG("NO heap found to use for realloc");
         #endif /* WOLFSSL_NO_MALLOC */
@@ -1492,7 +1492,7 @@ void* XMALLOC(size_t n, void* heap, int type)
             return NULL;
     }
 
-    return malloc(n);
+    return malloc(n); /* native heap */
 }
 
 void* XREALLOC(void *p, size_t n, void* heap, int type)
@@ -1513,7 +1513,7 @@ void* XREALLOC(void *p, size_t n, void* heap, int type)
             return NULL;
     }
 
-    return realloc(p, n);
+    return realloc(p, n); /* native heap */
 }
 
 void XFREE(void *p, void* heap, int type)
@@ -1526,7 +1526,7 @@ void XFREE(void *p, void* heap, int type)
     if (type == DYNAMIC_TYPE_OUT_BUFFER)
         return;  /* do nothing, static pool */
 
-    free(p);
+    free(p); /* native heap */
 }
 
 #endif /* HAVE_IO_POOL */
@@ -1553,7 +1553,7 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
 #endif
     }
     else
-        p32 = malloc(n + sizeof(word32) * 4);
+        p32 = malloc(n + sizeof(word32) * 4); /* native heap */
 
     if (p32 != NULL) {
         p32[0] = (word32)n;
@@ -1596,7 +1596,7 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
 #endif
     }
     else
-        p32 = realloc(oldp32, n + sizeof(word32) * 4);
+        p32 = realloc(oldp32, n + sizeof(word32) * 4); /* native heap */
 
     if (p32 != NULL) {
         p32[0] = (word32)n;
@@ -1642,7 +1642,7 @@ void xfree(void *p, void* heap, int type, const char* func, const char* file,
 #endif
         }
         else
-            free(p32);
+            free(p32); /* native heap */
     }
 
     (void)heap;

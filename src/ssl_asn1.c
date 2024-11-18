@@ -282,7 +282,7 @@ static int wolfssl_i2d_asn1_items(const void* obj, byte* buf,
             len = 0;
             break;
         }
-        if (buf != NULL && !mem->ex && mem->tag >= 0) {
+        if (buf != NULL && tmp != NULL && !mem->ex && mem->tag >= 0) {
             /* Encode the implicit tag */
             byte imp[ASN_TAG_SZ + MAX_LENGTH_SZ];
             SetImplicit(tmp[0], mem->tag, 0, imp, 0);
@@ -456,7 +456,7 @@ static void* d2i_obj(const WOLFSSL_ASN1_TEMPLATE* mem, const byte** src,
         mem->free_func(ret); /* never a stack so we can call this directly */
         return NULL;
     }
-    *len -= (tmp - *src);
+    *len -= (long)(tmp - *src);
     *src = tmp;
     return ret;
 }
@@ -580,12 +580,13 @@ static void* d2i_generic(const WOLFSSL_ASN1_TEMPLATE* mem,
     if (impBuf != NULL) {
         tmp = *src + (tmp - impBuf); /* for the next calculation */
         XFREE(impBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        impBuf = NULL;
     }
     if (asnLen >= 0 && (int)(tmp - *src) != asnLen) {
         WOLFSSL_MSG("ptr not advanced enough");
         goto error;
     }
-    *len -= tmp - *src;
+    *len -= (long)(tmp - *src);
     *src = tmp;
     return ret;
 error:
@@ -1018,7 +1019,7 @@ static void wolfssl_asn1_integer_reset_data(WOLFSSL_ASN1_INTEGER* a)
     /* No data, not negative. */
     a->negative = 0;
     /* Set type to positive INTEGER. */
-    a->type = V_ASN1_INTEGER;
+    a->type = WOLFSSL_V_ASN1_INTEGER;
 }
 #endif /* OPENSSL_EXTRA */
 
@@ -1317,7 +1318,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
     }
     if (!err) {
         /* Set type. */
-        ret->type = V_ASN1_INTEGER;
+        ret->type = WOLFSSL_V_ASN1_INTEGER;
 
         /* Copy DER encoding and length. */
         XMEMCPY(ret->data, *in, (size_t)(idx + (word32)len));
@@ -1330,7 +1331,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_d2i_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER** a,
     }
     if ((!err) && ret->negative) {
         /* Update type if number was negative. */
-        ret->type |= V_ASN1_NEG_INTEGER;
+        ret->type |= WOLFSSL_V_ASN1_NEG_INTEGER;
     }
 
     if (err) {
@@ -1489,7 +1490,7 @@ int wolfSSL_a2i_ASN1_INTEGER(WOLFSSL_BIO *bio, WOLFSSL_ASN1_INTEGER *asn1,
  * @return  0 when bp or a is NULL.
  * @return  0 DER header in data is invalid.
  */
-int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
+int wolfSSL_i2a_ASN1_INTEGER(WOLFSSL_BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 {
     int err = 0;
     word32 idx = 1;     /* Skip ASN.1 INTEGER tag byte. */
@@ -1750,10 +1751,10 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_BN_to_ASN1_INTEGER(const WOLFSSL_BIGNUM *bn,
         int length;
 
         /* Set type and negative. */
-        a->type = V_ASN1_INTEGER;
+        a->type = WOLFSSL_V_ASN1_INTEGER;
         if (wolfSSL_BN_is_negative(bn) && !wolfSSL_BN_is_zero(bn)) {
             a->negative = 1;
-            a->type |= V_ASN1_NEG_INTEGER;
+            a->type |= WOLFSSL_V_ASN1_NEG_INTEGER;
         }
 
         /* Get length in bytes of encoded number. */
@@ -1882,7 +1883,7 @@ int wolfSSL_ASN1_INTEGER_set(WOLFSSL_ASN1_INTEGER *a, long v)
         if (v < 0) {
             /* Set negative and 2's complement the value. */
             a->negative = 1;
-            a->type |= V_ASN1_NEG;
+            a->type |= WOLFSSL_V_ASN1_NEG;
             v = -v;
         }
 
@@ -2344,7 +2345,7 @@ int wolfSSL_i2a_ASN1_OBJECT(WOLFSSL_BIO *bp, WOLFSSL_ASN1_OBJECT *a)
         length = wolfSSL_BIO_write(bp, null_str, (int)XSTRLEN(null_str));
     }
     /* Try getting text version and write it out. */
-    else if ((length = i2t_ASN1_OBJECT(buf, sizeof(buf), a)) > 0) {
+    else if ((length = wolfSSL_i2t_ASN1_OBJECT(buf, sizeof(buf), a)) > 0) {
         length = wolfSSL_BIO_write(bp, buf, length);
     }
     /* Look for DER header. */
@@ -2650,7 +2651,7 @@ int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING *s)
     }
 
     /* Check type of ASN.1 STRING. */
-    if ((ret == 1) && (s->type != V_ASN1_UNIVERSALSTRING)) {
+    if ((ret == 1) && (s->type != WOLFSSL_V_ASN1_UNIVERSALSTRING)) {
         WOLFSSL_MSG("Input is not a universal string");
         ret = 0;
     }
@@ -2684,7 +2685,7 @@ int wolfSSL_ASN1_UNIVERSALSTRING_to_string(WOLFSSL_ASN1_STRING *s)
         *copy = '\0';
         /* Update length and type. */
         s->length /= 4;
-        s->type = V_ASN1_PRINTABLESTRING;
+        s->type = WOLFSSL_V_ASN1_PRINTABLESTRING;
     }
 
     return ret;
@@ -2911,7 +2912,7 @@ static WOLFSSL_ASN1_STRING* d2i_ASN1_STRING(WOLFSSL_ASN1_STRING** out,
     byte tag = 0;
     int length = 0;
 
-    WOLFSSL_ENTER("d2i_ASN1_GENERALSTRING");
+    WOLFSSL_ENTER("d2i_ASN1_STRING");
 
     if (src == NULL || *src == NULL || len == 0)
         return NULL;
@@ -3206,10 +3207,10 @@ int wolfSSL_ASN1_STRING_canon(WOLFSSL_ASN1_STRING* asn_out,
 
     if (ret == 1) {
         switch (asn_in->type) {
-            case MBSTRING_UTF8:
-            case V_ASN1_PRINTABLESTRING:
+            case WOLFSSL_MBSTRING_UTF8:
+            case WOLFSSL_V_ASN1_PRINTABLESTRING:
                 /* Set type to UTF8. */
-                asn_out->type = MBSTRING_UTF8;
+                asn_out->type = WOLFSSL_MBSTRING_UTF8;
                 /* Dispose of any dynamic data already in asn_out. */
                 if (asn_out->isDynamic) {
                     XFREE(asn_out->data, NULL, DYNAMIC_TYPE_OPENSSL);
@@ -3326,8 +3327,8 @@ const char* wolfSSL_ASN1_tag2str(int tag)
     const char* str = "(unknown)";
 
     /* Clear negative flag. */
-    if ((tag == V_ASN1_NEG_INTEGER) || (tag == V_ASN1_NEG_ENUMERATED)) {
-        tag &= ~V_ASN1_NEG;
+    if ((tag == WOLFSSL_V_ASN1_NEG_INTEGER) || (tag == WOLFSSL_V_ASN1_NEG_ENUMERATED)) {
+        tag &= ~WOLFSSL_V_ASN1_NEG;
     }
     /* Check for known basic types. */
     if ((tag >= 0) && (tag <= 30)) {
@@ -3513,7 +3514,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *bio, WOLFSSL_ASN1_STRING *str,
         err = 1;
     }
     /* Check if ASN.1 type is to be printed. */
-    if ((!err) && (flags & ASN1_STRFLGS_SHOW_TYPE)) {
+    if ((!err) && (flags & WOLFSSL_ASN1_STRFLGS_SHOW_TYPE)) {
         /* Print type and colon to BIO. */
         type_len = wolfssl_string_print_type(bio, str);
         if (type_len == 0) {
@@ -3522,12 +3523,12 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *bio, WOLFSSL_ASN1_STRING *str,
     }
 
     if (!err) {
-        if (flags & ASN1_STRFLGS_DUMP_ALL) {
+        if (flags & WOLFSSL_ASN1_STRFLGS_DUMP_ALL) {
             /* Dump hex. */
             str_len = wolfssl_asn1_string_dump_hex(bio, str,
-                flags & ASN1_STRFLGS_DUMP_DER);
+                flags & WOLFSSL_ASN1_STRFLGS_DUMP_DER);
         }
-        else if (flags & ASN1_STRFLGS_ESC_2253) {
+        else if (flags & WOLFSSL_ASN1_STRFLGS_ESC_2253) {
             /* Print out string with escaping. */
             str_len = wolfssl_asn1_string_print_esc_2253(bio, str);
         }
@@ -3620,7 +3621,7 @@ int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
         ret = BAD_FUNC_ARG;
     }
     /* Check type is GENERALIZED TIME. */
-    if ((ret == 1) && (asnTime->type != V_ASN1_GENERALIZEDTIME)) {
+    if ((ret == 1) && (asnTime->type != WOLFSSL_V_ASN1_GENERALIZEDTIME)) {
         WOLFSSL_MSG("Error, not GENERALIZED_TIME");
         ret = 0;
     }
@@ -4035,8 +4036,8 @@ int wolfSSL_ASN1_TIME_set_string(WOLFSSL_ASN1_TIME *t, const char *str)
         /* Do not include NUL terminator in length. */
         t->length = slen - 1;
         /* Set ASN.1 type based on string length. */
-        t->type = ((slen == ASN_UTC_TIME_SIZE) ? V_ASN1_UTCTIME :
-            V_ASN1_GENERALIZEDTIME);
+        t->type = ((slen == ASN_UTC_TIME_SIZE) ? WOLFSSL_V_ASN1_UTCTIME :
+            WOLFSSL_V_ASN1_GENERALIZEDTIME);
     }
 
     return ret;
@@ -4077,8 +4078,8 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
         WOLFSSL_MSG("Invalid ASN_TIME value");
     }
     /* Ensure ASN.1 type is one that is supported. */
-    else if ((t->type != V_ASN1_UTCTIME) &&
-             (t->type != V_ASN1_GENERALIZEDTIME)) {
+    else if ((t->type != WOLFSSL_V_ASN1_UTCTIME) &&
+             (t->type != WOLFSSL_V_ASN1_GENERALIZEDTIME)) {
         WOLFSSL_MSG("Invalid ASN_TIME type.");
     }
     /* Check for ASN.1 GENERALIZED TIME object being passed in. */
@@ -4096,9 +4097,9 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
 
     if (ret != NULL) {
         /* Set the ASN.1 type and length of string. */
-        ret->type = V_ASN1_GENERALIZEDTIME;
+        ret->type = WOLFSSL_V_ASN1_GENERALIZEDTIME;
 
-        if (t->type == V_ASN1_GENERALIZEDTIME) {
+        if (t->type == WOLFSSL_V_ASN1_GENERALIZEDTIME) {
             ret->length = ASN_GENERALIZED_TIME_SIZE;
 
             /* Just copy as data already appropriately formatted. */
@@ -4150,7 +4151,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_UTCTIME_set(WOLFSSL_ASN1_TIME *s, time_t t)
         ret = NULL;
     }
     else {
-        ret->type = V_ASN1_UTCTIME;
+        ret->type = WOLFSSL_V_ASN1_UTCTIME;
     }
 
     return ret;
@@ -4310,7 +4311,7 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
         /* Zero out values in broken-down time. */
         XMEMSET(tm, 0, sizeof(struct tm));
 
-        if (asnTime->type == V_ASN1_UTCTIME) {
+        if (asnTime->type == WOLFSSL_V_ASN1_UTCTIME) {
             /* Get year from UTC TIME string. */
             int tm_year;
             if ((ret = wolfssl_utctime_year(asn1TimeBuf, asn1TimeBufLen,
@@ -4320,7 +4321,7 @@ static int wolfssl_asn1_time_to_tm(const WOLFSSL_ASN1_TIME* asnTime,
                 i = 2;
             }
         }
-        else if (asnTime->type == V_ASN1_GENERALIZEDTIME) {
+        else if (asnTime->type == WOLFSSL_V_ASN1_GENERALIZEDTIME) {
             /* Get year from GENERALIZED TIME string. */
             int tm_year;
             if ((ret = wolfssl_gentime_year(asn1TimeBuf, asn1TimeBufLen,
@@ -4521,7 +4522,7 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
         ret = 0;
     }
     /* Validate ASN.1 UTC TIME object is of type UTC_TIME. */
-    if ((ret == 1) && (a->type != V_ASN1_UTCTIME)) {
+    if ((ret == 1) && (a->type != WOLFSSL_V_ASN1_UTCTIME)) {
         WOLFSSL_MSG("Error, not UTC_TIME");
         ret = 0;
     }
@@ -4573,28 +4574,28 @@ WOLFSSL_ASN1_TYPE* wolfSSL_ASN1_TYPE_new(void)
 static void wolfssl_asn1_type_free_value(WOLFSSL_ASN1_TYPE* at)
 {
     switch (at->type) {
-        case V_ASN1_NULL:
+        case WOLFSSL_V_ASN1_NULL:
             break;
-        case V_ASN1_OBJECT:
+        case WOLFSSL_V_ASN1_OBJECT:
             wolfSSL_ASN1_OBJECT_free(at->value.object);
             break;
-        case V_ASN1_UTCTIME:
+        case WOLFSSL_V_ASN1_UTCTIME:
         #if !defined(NO_ASN_TIME) && defined(OPENSSL_EXTRA)
             wolfSSL_ASN1_TIME_free(at->value.utctime);
         #endif
             break;
-        case V_ASN1_GENERALIZEDTIME:
+        case WOLFSSL_V_ASN1_GENERALIZEDTIME:
         #if !defined(NO_ASN_TIME) && defined(OPENSSL_EXTRA)
             wolfSSL_ASN1_TIME_free(at->value.generalizedtime);
         #endif
             break;
-        case V_ASN1_UTF8STRING:
-        case V_ASN1_OCTET_STRING:
-        case V_ASN1_PRINTABLESTRING:
-        case V_ASN1_T61STRING:
-        case V_ASN1_IA5STRING:
-        case V_ASN1_UNIVERSALSTRING:
-        case V_ASN1_SEQUENCE:
+        case WOLFSSL_V_ASN1_UTF8STRING:
+        case WOLFSSL_V_ASN1_OCTET_STRING:
+        case WOLFSSL_V_ASN1_PRINTABLESTRING:
+        case WOLFSSL_V_ASN1_T61STRING:
+        case WOLFSSL_V_ASN1_IA5STRING:
+        case WOLFSSL_V_ASN1_UNIVERSALSTRING:
+        case WOLFSSL_V_ASN1_SEQUENCE:
             wolfSSL_ASN1_STRING_free(at->value.asn1_string);
             break;
         default:
@@ -4625,25 +4626,25 @@ int wolfSSL_i2d_ASN1_TYPE(WOLFSSL_ASN1_TYPE* at, unsigned char** pp)
         return WOLFSSL_FATAL_ERROR;
 
     switch (at->type) {
-        case V_ASN1_NULL:
+        case WOLFSSL_V_ASN1_NULL:
             break;
-        case V_ASN1_OBJECT:
+        case WOLFSSL_V_ASN1_OBJECT:
             ret = wolfSSL_i2d_ASN1_OBJECT(at->value.object, pp);
             break;
-        case V_ASN1_UTF8STRING:
+        case WOLFSSL_V_ASN1_UTF8STRING:
             ret = wolfSSL_i2d_ASN1_UTF8STRING(at->value.utf8string, pp);
             break;
-        case V_ASN1_GENERALIZEDTIME:
+        case WOLFSSL_V_ASN1_GENERALIZEDTIME:
             ret = wolfSSL_i2d_ASN1_GENERALSTRING(at->value.utf8string, pp);
             break;
-        case V_ASN1_SEQUENCE:
+        case WOLFSSL_V_ASN1_SEQUENCE:
             ret = wolfSSL_i2d_ASN1_SEQUENCE(at->value.sequence, pp);
             break;
-        case V_ASN1_UTCTIME:
-        case V_ASN1_PRINTABLESTRING:
-        case V_ASN1_T61STRING:
-        case V_ASN1_IA5STRING:
-        case V_ASN1_UNIVERSALSTRING:
+        case WOLFSSL_V_ASN1_UTCTIME:
+        case WOLFSSL_V_ASN1_PRINTABLESTRING:
+        case WOLFSSL_V_ASN1_T61STRING:
+        case WOLFSSL_V_ASN1_IA5STRING:
+        case WOLFSSL_V_ASN1_UNIVERSALSTRING:
         default:
             WOLFSSL_MSG("asn1 i2d type not supported");
             break;
@@ -4660,16 +4661,16 @@ int wolfSSL_i2d_ASN1_TYPE(WOLFSSL_ASN1_TYPE* at, unsigned char** pp)
  * Set ASN.1 TYPE object with a type and value.
  *
  * Type of value for different types:
- *   V_ASN1_NULL            : Value should be NULL.
- *   V_ASN1_OBJECT          : WOLFSSL_ASN1_OBJECT.
- *   V_ASN1_UTCTIME         : WOLFSSL_ASN1_TIME.
- *   V_ASN1_GENERALIZEDTIME : WOLFSSL_ASN1_TIME.
- *   V_ASN1_UTF8STRING      : WOLFSSL_ASN1_STRING.
- *   V_ASN1_PRINTABLESTRING : WOLFSSL_ASN1_STRING.
- *   V_ASN1_T61STRING       : WOLFSSL_ASN1_STRING.
- *   V_ASN1_IA5STRING       : WOLFSSL_ASN1_STRING.
- *   V_ASN1_UNINVERSALSTRING: WOLFSSL_ASN1_STRING.
- *   V_ASN1_SEQUENCE        : WOLFSSL_ASN1_STRING.
+ *   WOLFSSL_V_ASN1_NULL            : Value should be NULL.
+ *   WOLFSSL_V_ASN1_OBJECT          : WOLFSSL_ASN1_OBJECT.
+ *   WOLFSSL_V_ASN1_UTCTIME         : WOLFSSL_ASN1_TIME.
+ *   WOLFSSL_V_ASN1_GENERALIZEDTIME : WOLFSSL_ASN1_TIME.
+ *   WOLFSSL_V_ASN1_UTF8STRING      : WOLFSSL_ASN1_STRING.
+ *   WOLFSSL_V_ASN1_PRINTABLESTRING : WOLFSSL_ASN1_STRING.
+ *   WOLFSSL_V_ASN1_T61STRING       : WOLFSSL_ASN1_STRING.
+ *   WOLFSSL_V_ASN1_IA5STRING       : WOLFSSL_ASN1_STRING.
+ *   WOLFSSL_V_ASN1_UNINVERSALSTRING: WOLFSSL_ASN1_STRING.
+ *   WOLFSSL_V_ASN1_SEQUENCE        : WOLFSSL_ASN1_STRING.
  *
  * @param [in, out] a      ASN.1 TYPE object to set.
  * @param [in]      type   ASN.1 type of value.
@@ -4679,22 +4680,22 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 {
     if (a != NULL) {
         switch (type) {
-            case V_ASN1_NULL:
+            case WOLFSSL_V_ASN1_NULL:
                 if (value != NULL) {
                     WOLFSSL_MSG("NULL tag meant to be always empty!");
                     /* No way to return error - value will not be used. */
                 }
                 FALL_THROUGH;
-            case V_ASN1_OBJECT:
-            case V_ASN1_UTCTIME:
-            case V_ASN1_GENERALIZEDTIME:
-            case V_ASN1_UTF8STRING:
-            case V_ASN1_OCTET_STRING:
-            case V_ASN1_PRINTABLESTRING:
-            case V_ASN1_T61STRING:
-            case V_ASN1_IA5STRING:
-            case V_ASN1_UNIVERSALSTRING:
-            case V_ASN1_SEQUENCE:
+            case WOLFSSL_V_ASN1_OBJECT:
+            case WOLFSSL_V_ASN1_UTCTIME:
+            case WOLFSSL_V_ASN1_GENERALIZEDTIME:
+            case WOLFSSL_V_ASN1_UTF8STRING:
+            case WOLFSSL_V_ASN1_OCTET_STRING:
+            case WOLFSSL_V_ASN1_PRINTABLESTRING:
+            case WOLFSSL_V_ASN1_T61STRING:
+            case WOLFSSL_V_ASN1_IA5STRING:
+            case WOLFSSL_V_ASN1_UNIVERSALSTRING:
+            case WOLFSSL_V_ASN1_SEQUENCE:
                 /* Dispose of any value currently set. */
                 wolfssl_asn1_type_free_value(a);
                 /* Assign anonymously typed input to anonymously typed field. */
@@ -4711,7 +4712,7 @@ void wolfSSL_ASN1_TYPE_set(WOLFSSL_ASN1_TYPE *a, int type, void *value)
 
 int wolfSSL_ASN1_TYPE_get(const WOLFSSL_ASN1_TYPE *a)
 {
-    if (a != NULL && (a->type == V_ASN1_BOOLEAN || a->type == V_ASN1_NULL
+    if (a != NULL && (a->type == WOLFSSL_V_ASN1_BOOLEAN || a->type == WOLFSSL_V_ASN1_NULL
             || a->value.ptr != NULL))
         return a->type;
     return 0;

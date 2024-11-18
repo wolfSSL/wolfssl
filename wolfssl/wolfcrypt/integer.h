@@ -222,8 +222,8 @@ typedef int           mp_err;
     #define WOLF_BIGINT_DEFINED
 #endif
 
-#define mp_size_t int
-#define mp_sign_t int
+#define wc_mp_size_t int
+#define wc_mp_sign_t int
 
 /* the mp_int structure */
 typedef struct mp_int {

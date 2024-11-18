@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -47,7 +47,7 @@
 #include <wolfssl/wolfcrypt/aes.h>
 
 #ifdef HAVE_AES_DECRYPT
-XALIGNED(16) static const uint32_t L_AES_Thumb2_td_data[] = {
+XALIGNED(16) static const word32 L_AES_Thumb2_td_data[] = {
     0x5051f4a7, 0x537e4165, 0xc31a17a4, 0x963a275e,
     0xcb3bab6b, 0xf11f9d45, 0xabacfa58, 0x934be303,
     0x552030fa, 0xf6ad766d, 0x9188cc76, 0x25f5024c,
@@ -116,7 +116,7 @@ XALIGNED(16) static const uint32_t L_AES_Thumb2_td_data[] = {
 
 #endif /* HAVE_AES_DECRYPT */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
-XALIGNED(16) static const uint32_t L_AES_Thumb2_te_data[] = {
+XALIGNED(16) static const word32 L_AES_Thumb2_te_data[] = {
     0xa5c66363, 0x84f87c7c, 0x99ee7777, 0x8df67b7b,
     0x0dfff2f2, 0xbdd66b6b, 0xb1de6f6f, 0x5491c5c5,
     0x50603030, 0x03020101, 0xa9ce6767, 0x7d562b2b,
@@ -185,10 +185,10 @@ XALIGNED(16) static const uint32_t L_AES_Thumb2_te_data[] = {
 
 #endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
-static const uint32_t* L_AES_Thumb2_td = L_AES_Thumb2_td_data;
+static const word32* L_AES_Thumb2_td = L_AES_Thumb2_td_data;
 #endif /* HAVE_AES_DECRYPT */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
-static const uint32_t* L_AES_Thumb2_te = L_AES_Thumb2_te_data;
+static const word32* L_AES_Thumb2_te = L_AES_Thumb2_te_data;
 #endif /* HAVE_AES_DECRYPT || HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 void AES_invert_key(unsigned char* ks, word32 rounds);
@@ -201,8 +201,8 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
     register unsigned char* ks __asm__ ("r0") = (unsigned char*)ks_p;
     register word32 rounds __asm__ ("r1") = (word32)rounds_p;
-    register uint32_t* L_AES_Thumb2_te_c __asm__ ("r2") = (uint32_t*)L_AES_Thumb2_te;
-    register uint32_t* L_AES_Thumb2_td_c __asm__ ("r3") = (uint32_t*)L_AES_Thumb2_td;
+    register word32* L_AES_Thumb2_te_c __asm__ ("r2") = (word32*)L_AES_Thumb2_te;
+    register word32* L_AES_Thumb2_td_c __asm__ ("r3") = (word32*)L_AES_Thumb2_td;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -325,7 +325,7 @@ void AES_invert_key(unsigned char* ks, word32 rounds)
 }
 
 #endif /* HAVE_AES_DECRYPT */
-XALIGNED(16) static const uint32_t L_AES_Thumb2_rcon[] = {
+XALIGNED(16) static const word32 L_AES_Thumb2_rcon[] = {
     0x01000000, 0x02000000, 0x04000000, 0x08000000,
     0x10000000, 0x20000000, 0x40000000, 0x80000000,
     0x1b000000, 0x36000000
@@ -343,8 +343,8 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
     register const unsigned char* key __asm__ ("r0") = (const unsigned char*)key_p;
     register word32 len __asm__ ("r1") = (word32)len_p;
     register unsigned char* ks __asm__ ("r2") = (unsigned char*)ks_p;
-    register uint32_t* L_AES_Thumb2_te_c __asm__ ("r3") = (uint32_t*)L_AES_Thumb2_te;
-    register uint32_t* L_AES_Thumb2_rcon_c __asm__ ("r4") = (uint32_t*)&L_AES_Thumb2_rcon;
+    register word32* L_AES_Thumb2_te_c __asm__ ("r3") = (word32*)L_AES_Thumb2_te;
+    register word32* L_AES_Thumb2_rcon_c __asm__ ("r4") = (word32*)&L_AES_Thumb2_rcon;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -620,18 +620,18 @@ void AES_set_encrypt_key(const unsigned char* key, word32 len, unsigned char* ks
     );
 }
 
-void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks);
+void AES_encrypt_block(const word32* te, int nr, int len, const word32* ks);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_encrypt_block(const uint32_t* te_p, int nr_p, int len_p, const uint32_t* ks_p)
+void AES_encrypt_block(const word32* te_p, int nr_p, int len_p, const word32* ks_p)
 #else
-void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks)
+void AES_encrypt_block(const word32* te, int nr, int len, const word32* ks)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const uint32_t* te __asm__ ("r0") = (const uint32_t*)te_p;
+    register const word32* te __asm__ ("r0") = (const word32*)te_p;
     register int nr __asm__ ("r1") = (int)nr_p;
     register int len __asm__ ("r2") = (int)len_p;
-    register const uint32_t* ks __asm__ ("r3") = (const uint32_t*)ks_p;
+    register const word32* ks __asm__ ("r3") = (const word32*)ks_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -856,7 +856,7 @@ void AES_encrypt_block(const uint32_t* te, int nr, int len, const uint32_t* ks)
 }
 
 #if defined(HAVE_AES_CBC) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
-static const uint32_t* L_AES_Thumb2_te_ecb = L_AES_Thumb2_te_data;
+static const word32* L_AES_Thumb2_te_ecb = L_AES_Thumb2_te_data;
 #endif /* HAVE_AES_CBC || HAVE_AESCCM || HAVE_AESGCM || WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #if defined(HAVE_AESCCM) || defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
 void AES_ECB_encrypt(const unsigned char* in, unsigned char* out,
@@ -873,7 +873,7 @@ void AES_ECB_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
     register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
     register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
     register int nr __asm__ ("r4") = (int)nr_p;
-    register uint32_t* L_AES_Thumb2_te_ecb_c __asm__ ("r5") = (uint32_t*)L_AES_Thumb2_te_ecb;
+    register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r5") = (word32*)L_AES_Thumb2_te_ecb;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1096,7 +1096,7 @@ void AES_CBC_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
     register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
     register int nr __asm__ ("r4") = (int)nr_p;
     register unsigned char* iv __asm__ ("r5") = (unsigned char*)iv_p;
-    register uint32_t* L_AES_Thumb2_te_ecb_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_te_ecb;
+    register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r6") = (word32*)L_AES_Thumb2_te_ecb;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1341,7 +1341,7 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
     register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
     register int nr __asm__ ("r4") = (int)nr_p;
     register unsigned char* ctr __asm__ ("r5") = (unsigned char*)ctr_p;
-    register uint32_t* L_AES_Thumb2_te_ecb_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_te_ecb;
+    register word32* L_AES_Thumb2_te_ecb_c __asm__ ("r6") = (word32*)L_AES_Thumb2_te_ecb;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1593,17 +1593,17 @@ void AES_CTR_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef HAVE_AES_DECRYPT
 #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER) || defined(HAVE_AES_CBC)
-void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4);
+void AES_decrypt_block(const word32* td, int nr, const byte* td4);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-void AES_decrypt_block(const uint32_t* td_p, int nr_p, const uint8_t* td4_p)
+void AES_decrypt_block(const word32* td_p, int nr_p, const byte* td4_p)
 #else
-void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4)
+void AES_decrypt_block(const word32* td, int nr, const byte* td4)
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 {
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
-    register const uint32_t* td __asm__ ("r0") = (const uint32_t*)td_p;
+    register const word32* td __asm__ ("r0") = (const word32*)td_p;
     register int nr __asm__ ("r1") = (int)nr_p;
-    register const uint8_t* td4 __asm__ ("r2") = (const uint8_t*)td4_p;
+    register const byte* td4 __asm__ ("r2") = (const byte*)td4_p;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1827,8 +1827,8 @@ void AES_decrypt_block(const uint32_t* td, int nr, const uint8_t* td4)
     );
 }
 
-static const uint32_t* L_AES_Thumb2_td_ecb = L_AES_Thumb2_td_data;
-static const unsigned char L_AES_Thumb2_td4[] = {
+static const word32* L_AES_Thumb2_td_ecb = L_AES_Thumb2_td_data;
+static const byte L_AES_Thumb2_td4[] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38,
     0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87,
@@ -1878,8 +1878,8 @@ void AES_ECB_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
     register unsigned long len __asm__ ("r2") = (unsigned long)len_p;
     register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
     register int nr __asm__ ("r4") = (int)nr_p;
-    register uint32_t* L_AES_Thumb2_td_ecb_c __asm__ ("r5") = (uint32_t*)L_AES_Thumb2_td_ecb;
-    register unsigned char* L_AES_Thumb2_td4_c __asm__ ("r6") = (unsigned char*)&L_AES_Thumb2_td4;
+    register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r5") = (word32*)L_AES_Thumb2_td_ecb;
+    register byte* L_AES_Thumb2_td4_c __asm__ ("r6") = (byte*)&L_AES_Thumb2_td4;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -2099,8 +2099,8 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
     register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
     register int nr __asm__ ("r4") = (int)nr_p;
     register unsigned char* iv __asm__ ("r5") = (unsigned char*)iv_p;
-    register uint32_t* L_AES_Thumb2_td_ecb_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_td_ecb;
-    register unsigned char* L_AES_Thumb2_td4_c __asm__ ("r7") = (unsigned char*)&L_AES_Thumb2_td4;
+    register word32* L_AES_Thumb2_td_ecb_c __asm__ ("r6") = (word32*)L_AES_Thumb2_td_ecb;
+    register byte* L_AES_Thumb2_td4_c __asm__ ("r7") = (byte*)&L_AES_Thumb2_td4;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -2494,7 +2494,7 @@ void AES_CBC_decrypt(const unsigned char* in, unsigned char* out, unsigned long 
 #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER || HAVE_AES_CBC */
 #endif /* HAVE_AES_DECRYPT */
 #ifdef HAVE_AESGCM
-XALIGNED(16) static const uint32_t L_GCM_gmult_len_r[] = {
+XALIGNED(16) static const word32 L_GCM_gmult_len_r[] = {
     0x00000000, 0x1c200000, 0x38400000, 0x24600000,
     0x70800000, 0x6ca00000, 0x48c00000, 0x54e00000,
     0xe1000000, 0xfd200000, 0xd9400000, 0xc5600000,
@@ -2514,7 +2514,7 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m, const unsigned cha
     register const unsigned char** m __asm__ ("r1") = (const unsigned char**)m_p;
     register const unsigned char* data __asm__ ("r2") = (const unsigned char*)data_p;
     register unsigned long len __asm__ ("r3") = (unsigned long)len_p;
-    register uint32_t* L_GCM_gmult_len_r_c __asm__ ("r4") = (uint32_t*)&L_GCM_gmult_len_r;
+    register word32* L_GCM_gmult_len_r_c __asm__ ("r4") = (word32*)&L_GCM_gmult_len_r;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3089,7 +3089,7 @@ void GCM_gmult_len(unsigned char* x, const unsigned char** m, const unsigned cha
     );
 }
 
-static const uint32_t* L_AES_Thumb2_te_gcm = L_AES_Thumb2_te_data;
+static const word32* L_AES_Thumb2_te_gcm = L_AES_Thumb2_te_data;
 void AES_GCM_encrypt(const unsigned char* in, unsigned char* out,
         unsigned long len, const unsigned char* ks, int nr, unsigned char* ctr);
 #ifndef WOLFSSL_NO_VAR_ASSIGN_REG
@@ -3105,7 +3105,7 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
     register const unsigned char* ks __asm__ ("r3") = (const unsigned char*)ks_p;
     register int nr __asm__ ("r4") = (int)nr_p;
     register unsigned char* ctr __asm__ ("r5") = (unsigned char*)ctr_p;
-    register uint32_t* L_AES_Thumb2_te_gcm_c __asm__ ("r6") = (uint32_t*)L_AES_Thumb2_te_gcm;
+    register word32* L_AES_Thumb2_te_gcm_c __asm__ ("r6") = (word32*)L_AES_Thumb2_te_gcm;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -3347,6 +3347,6 @@ void AES_GCM_encrypt(const unsigned char* in, unsigned char* out, unsigned long 
 
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

@@ -74,7 +74,7 @@ The wolfssl Project Summary is listed below and is relevant for every project.
 |Thread Symbol|sce_tst_thread|
 |Thread Name|sce_tst_thread|
 |Thread Stack size|increase depending on your environment<br> e.g. 0xA000|
-|Thread MemoryAllocation|Dyamic|
+|Thread MemoryAllocation|Dynamic|
 |Common General Use Mutexes|Enabled|
 |Common General Enable Backward Compatibility|Enabled|
 |Common Memory Allocation Support Dynamic Allocation|Enabled|

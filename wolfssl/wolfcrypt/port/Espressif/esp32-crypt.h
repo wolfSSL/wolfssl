@@ -30,7 +30,7 @@
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
 
 #ifndef WOLFSSL_USER_SETTINGS
-    #error  "WOLFSSL_USER_SETTINGS must be defined for Espressif targts"
+    #error  "WOLFSSL_USER_SETTINGS must be defined for Espressif targets"
 #endif
 
 #include "sdkconfig.h" /* ensure ESP-IDF settings are available everywhere */
@@ -232,6 +232,14 @@ enum {
 **
 ** WOLFSSL_DEBUG_ESP_RSA_MULM_BITS
 **   Shows a warning when mulm falls back for minimum number of bits.
+**
+** WOLFSSL_DEBUG_ESP_HW_MULTI_RSAMAX_BITS
+**   Shows a marning when multiplication math bits have exceeded hardware
+**   capabilities and will fall back to slower software.
+**
+** WOLFSSL_DEBUG_ESP_HW_MOD_RSAMAX_BITS
+**   Shows a marning when modular math bits have exceeded hardware capabilities
+**   and will fall back to slower software.
 **
 ** NO_HW_MATH_TEST
 **   Even if HW is enabled, do not run HW math tests. See HW_MATH_ENABLED.
@@ -1001,9 +1009,9 @@ WOLFSSL_LOCAL int esp_sha_stack_check(WC_ESP32SHA* sha);
 
 /*
  * Errata Mitigation. See
- * https://www.espressif.com/sites/default/files/documentation/esp32_errata_en.pdf
- * https://www.espressif.com/sites/default/files/documentation/esp32-c3_errata_en.pdf
- * https://www.espressif.com/sites/default/files/documentation/esp32-s3_errata_en.pdf
+ *   esp32_errata_en.pdf
+ *   esp32-c3_errata_en.pdf
+ *   esp32-s3_errata_en.pdf
  */
 #define ESP_MP_HW_LOCK_MAX_DELAY ( TickType_t ) 0xffUL
 

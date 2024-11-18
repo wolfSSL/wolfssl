@@ -94,8 +94,9 @@ struct ed25519_key {
     word32 flags;
     byte   keyIdSet;
 #endif
-    word16 privKeySet:1;
-    word16 pubKeySet:1;
+    WC_BITFIELD privKeySet:1;
+    WC_BITFIELD pubKeySet:1;
+    WC_BITFIELD sha_clean_flag:1; /* only used if WOLFSSL_ED25519_PERSISTENT_SHA */
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif
@@ -106,7 +107,6 @@ struct ed25519_key {
     void *heap;
 #ifdef WOLFSSL_ED25519_PERSISTENT_SHA
     wc_Sha512 sha;
-    int sha_clean_flag;
 #endif
 };
 
@@ -175,13 +175,20 @@ int wc_ed25519_verify_msg_final(const byte* sig, word32 sigLen, int* res,
 #endif /* WOLFSSL_ED25519_STREAMING_VERIFY */
 #endif /* HAVE_ED25519_VERIFY */
 
-
 WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_init_ex(ed25519_key* key, void* heap, int devId);
 WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
+#ifndef WC_NO_CONSTRUCTORS
+WOLFSSL_API
+ed25519_key* wc_ed25519_new(void* heap, int devId, int *result_code);
+WOLFSSL_API
+int wc_ed25519_delete(ed25519_key* key, ed25519_key** key_p);
+#endif
+WOLFSSL_API
+
 #ifdef HAVE_ED25519_KEY_IMPORT
 WOLFSSL_API
 int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);

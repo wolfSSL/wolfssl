@@ -115,7 +115,7 @@ enum wolfSSL_ErrorCodes {
     COOKIE_ERROR                 = -369,   /* dtls cookie error */
     SEQUENCE_ERROR               = -370,   /* dtls sequence error */
     SUITES_ERROR                 = -371,   /* suites pointer error */
-
+    MAX_CERT_EXTENSIONS_ERR      = -372,   /* max cert extension exceeded */
     OUT_OF_ORDER_E               = -373,   /* out of order message */
     BAD_KEA_TYPE_E               = -374,   /* bad KEA type found */
     SANITY_CIPHER_E              = -375,   /* sanity check on cipher error */
@@ -221,8 +221,23 @@ enum wolfSSL_ErrorCodes {
     HRR_COOKIE_ERROR             = -505,   /* HRR msg cookie mismatch */
     UNSUPPORTED_CERTIFICATE      = -506,   /* unsupported certificate type */
 
-    WOLFSSL_LAST_E               = -506
+    WOLFSSL_PEM_R_NO_START_LINE_E = -507,
+    WOLFSSL_PEM_R_PROBLEMS_GETTING_PASSWORD_E = -508,
+    WOLFSSL_PEM_R_BAD_PASSWORD_READ_E = -509,
+    WOLFSSL_PEM_R_BAD_DECRYPT_E  = -510,
+    WOLFSSL_ASN1_R_HEADER_TOO_LONG_E = -511,
+
+    WOLFSSL_EVP_R_BAD_DECRYPT_E  = -512,
+    WOLFSSL_EVP_R_BN_DECODE_ERROR = -513,
+    WOLFSSL_EVP_R_DECODE_ERROR   = -514,
+    WOLFSSL_EVP_R_PRIVATE_KEY_DECODE_ERROR = -515,
+
+    WOLFSSL_LAST_E               = -515
+
+    /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
+
+wc_static_assert((int)WC_LAST_E <= (int)WOLFSSL_LAST_E);
 
 /* I/O Callback default errors */
 enum IOerrors {

@@ -135,12 +135,16 @@ enum {
     #include "mcapi.h"
     #include "mcapi_error.h"
 #endif
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
+#endif
 /* wc_Sha512 digest */
 struct wc_Sha512 {
 #ifdef WOLFSSL_PSOC6_CRYPTO
     cy_stc_crypto_sha_state_t hash_state;
     cy_en_crypto_sha_mode_t sha_mode;
     cy_stc_crypto_v2_sha512_buffers_t sha_buffers;
+    void*   heap;
 #else
     word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
     word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
@@ -184,6 +188,9 @@ struct wc_Sha512 {
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx; /* generic crypto callback context */
+#endif
+#if defined(MAX3266X_SHA_CB) || defined(MAX3266X_SHA)
+    wc_MXC_Sha mxcCtx;
 #endif
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */

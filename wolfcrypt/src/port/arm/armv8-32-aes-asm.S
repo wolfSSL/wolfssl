@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./aes/aes.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-aes-asm.S
+ *   ruby ./aes/aes.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-aes-asm.S
  */
 
 #ifdef HAVE_CONFIG_H
@@ -30,7 +31,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
+#if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifndef NO_AES
 #ifdef HAVE_AES_DECRYPT
@@ -5304,7 +5305,7 @@ L_AES_GCM_encrypt_end:
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
-#endif /* !__aarch64__ && __arm__ && !__thumb__ */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

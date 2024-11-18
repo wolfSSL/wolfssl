@@ -65,7 +65,7 @@ extern "C" {
 #undef GCM_WORD32
 #cmakedefine GCM_WORD32
 #undef HAVE___UINT128_T
-#cmakedefine HAVE___UINT128_T
+#cmakedefine HAVE___UINT128_T 1
 #undef HAVE_AES_KEYWRAP
 #cmakedefine HAVE_AES_KEYWRAP
 #undef HAVE_AESCCM
@@ -131,7 +131,7 @@ extern "C" {
 #undef HAVE_POLY1305
 #cmakedefine HAVE_POLY1305
 #undef HAVE_PTHREAD
-#cmakedefine HAVE_PTHREAD
+#cmakedefine HAVE_PTHREAD 1
 #undef HAVE_REPRODUCIBLE_BUILD
 #cmakedefine HAVE_REPRODUCIBLE_BUILD
 #undef HAVE_SESSION_TICKET

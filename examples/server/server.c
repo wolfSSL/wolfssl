@@ -33,6 +33,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#undef OPENSSL_COEXIST /* can't use this option with this example */
+
 #include <wolfssl/ssl.h> /* name change portability layer */
 
 #ifdef HAVE_ECC
@@ -420,7 +422,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     size_t xfer_bytes = 0;
     char* buffer;
 
-    buffer = (char*)malloc((size_t)block);
+    buffer = (char*)XMALLOC((size_t)block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (!buffer) {
         err_sys_ex(runWithErrors, "Server buffer malloc failed");
     }
@@ -463,7 +465,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
                         break;
                     }
                     if (err == WOLFSSL_ERROR_ZERO_RETURN) {
-                        free(buffer);
+                        XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                         return WOLFSSL_ERROR_ZERO_RETURN;
                     }
                 }
@@ -505,7 +507,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
         }
     }
 
-    free(buffer);
+    XFREE(buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (throughput) {
 #ifdef __MINGW32__
@@ -712,6 +714,45 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
         else if (usePqc == 1) {
     #ifdef HAVE_PQC
             groups[count] = 0;
+    #ifndef WOLFSSL_NO_ML_KEM
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            if (XSTRCMP(pqcAlg, "ML_KEM_512") == 0) {
+                groups[count] = WOLFSSL_ML_KEM_512;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            if (XSTRCMP(pqcAlg, "ML_KEM_768") == 0) {
+                groups[count] = WOLFSSL_ML_KEM_768;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+            if (XSTRCMP(pqcAlg, "ML_KEM_1024") == 0) {
+                groups[count] = WOLFSSL_ML_KEM_1024;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_512
+            if (XSTRCMP(pqcAlg, "P256_ML_KEM_512") == 0) {
+                groups[count] = WOLFSSL_P256_ML_KEM_512;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_768
+            if (XSTRCMP(pqcAlg, "P384_ML_KEM_768") == 0) {
+                groups[count] = WOLFSSL_P384_ML_KEM_768;
+            }
+            else
+        #endif
+        #ifndef WOLFSSL_NO_ML_KEM_1024
+            if (XSTRCMP(pqcAlg, "P521_ML_KEM_1024") == 0) {
+                groups[count] = WOLFSSL_P521_ML_KEM_1024;
+            }
+            else
+        #endif
+    #endif /* WOLFSSL_NO_ML_KEM */
+    #ifdef WOLFSSL_KYBER_ORIGINAL
         #ifndef WOLFSSL_NO_KYBER512
             if (XSTRCMP(pqcAlg, "KYBER_LEVEL1") == 0) {
                 groups[count] = WOLFSSL_KYBER_LEVEL1;
@@ -748,6 +789,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             }
             else
         #endif
+    #endif
             {
                 err_sys("invalid post-quantum KEM specified");
             }
@@ -980,8 +1022,19 @@ static const char* server_usage_msg[][65] = {
            " SSLv3(0) - TLS1.3(4)\n",                                   /* 59 */
 #endif
 #ifdef HAVE_PQC
-        "--pqc <alg> Key Share with specified post-quantum algorithm only [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5,  P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5] \n", /* 60 */
+        "--pqc <alg> Key Share with specified post-quantum algorithm only:\n"
+#ifndef WOLFSSL_NO_ML_KEM
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
+            "\n"
+            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
+            "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
+            "P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"
+#endif
+            "",
+                                                                        /* 60 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (default is SRTP_AES128_CM_SHA1_80)\n",       /* 61 */
@@ -1172,8 +1225,19 @@ static const char* server_usage_msg[][65] = {
         " SSLv3(0) - TLS1.3(4)\n",                          /* 59 */
 #endif
 #ifdef HAVE_PQC
-        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ [KYBER_LEVEL1, KYBER_LEVEL3,\n"
-            "            KYBER_LEVEL5, P256_KYBER_LEVEL1, P384_KYBER_LEVEL3, P521_KYBER_LEVEL5]\n", /* 60 */
+        "--pqc <alg> post-quantum 名前付きグループとの鍵共有のみ:\n"
+#ifndef WOLFSSL_NO_ML_KEM
+            "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
+            "\n"
+            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
+            "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
+            "P256_KYBER_LEVEL1,\n"
+            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"
+#endif
+            "",
+                                                                        /* 60 */
 #endif
 #ifdef WOLFSSL_SRTP
         "--srtp <profile> (デフォルトはSRTP_AES128_CM_SHA1_80)\n",       /* 61 */
@@ -3595,10 +3659,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         unsigned int receivedCIDSz;
         printf("CID extension was negotiated\n");
         ret = wolfSSL_dtls_cid_get_tx_size(ssl, &receivedCIDSz);
-        if (ret != WOLFSSL_SUCCESS)
-            err_sys("Can't get negotiated DTLS CID size\n");
-
-        if (receivedCIDSz > 0) {
+        if (ret == WOLFSSL_SUCCESS && receivedCIDSz > 0) {
             ret = wolfSSL_dtls_cid_get_tx(ssl, receivedCID,
                 DTLS_CID_BUFFER_SIZE - 1);
             if (ret != WOLFSSL_SUCCESS)
@@ -3636,7 +3697,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             else
                 printf("Get list of client's protocol name failed\n");
 
-            free(list);
+            (void)wolfSSL_ALPN_FreePeerProtocol(ssl, &list);
         }
 #endif
 

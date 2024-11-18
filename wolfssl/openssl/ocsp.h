@@ -27,6 +27,8 @@
 #ifdef HAVE_OCSP
 #include <wolfssl/ocsp.h>
 
+#ifndef OPENSSL_COEXIST
+
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX) ||\
     defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
 typedef OcspRequest                      OCSP_REQUEST;
@@ -97,6 +99,8 @@ typedef WOLFSSL_OCSP_REQ_CTX             OCSP_REQ_CTX;
 #define OCSP_REQ_CTX_http         wolfSSL_OCSP_REQ_CTX_http
 #define OCSP_REQ_CTX_nbio         wolfSSL_OCSP_REQ_CTX_nbio
 #define OCSP_sendreq_nbio         wolfSSL_OCSP_sendreq_nbio
+
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* HAVE_OCSP */
 

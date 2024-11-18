@@ -1,4 +1,4 @@
-/* template main.h
+/* wolfssl_test main.h
  *
  * Copyright (C) 2006-2024 wolfSSL Inc.
  *
@@ -18,7 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
+
 #ifndef _MAIN_H_
 #define _MAIN_H_
+
+void app_main(void);
 
 #endif

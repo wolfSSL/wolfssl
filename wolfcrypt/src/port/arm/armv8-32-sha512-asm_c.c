@@ -21,7 +21,8 @@
 
 /* Generated using (from wolfssl):
  *   cd ../scripts
- *   ruby ./sha2/sha512.rb arm32 ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha512-asm.c
+ *   ruby ./sha2/sha512.rb arm32 \
+ *       ../wolfssl/wolfcrypt/src/port/arm/armv8-32-sha512-asm.c
  */
 
 #ifdef HAVE_CONFIG_H
@@ -31,7 +32,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
+#if !defined(__aarch64__) && !defined(WOLFSSL_ARMASM_THUMB2)
 #include <stdint.h>
 #ifdef HAVE_CONFIG_H
     #include <config.h>
@@ -39,9 +40,6 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #ifdef WOLFSSL_ARMASM_INLINE
-
-#ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__)
 
 #ifdef __IAR_SYSTEMS_ICC__
 #define __asm__        asm
@@ -55,7 +53,7 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-static const uint64_t L_SHA512_transform_len_k[] = {
+static const word64 L_SHA512_transform_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
     0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
@@ -98,13 +96,14 @@ static const uint64_t L_SHA512_transform_len_k[] = {
     0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
-void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len);
+void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p);
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
-    register uint64_t* L_SHA512_transform_len_k_c asm ("r3") = (uint64_t*)&L_SHA512_transform_len_k;
+    register word64* L_SHA512_transform_len_k_c asm ("r3") =
+        (word64*)&L_SHA512_transform_len_k;
 
     __asm__ __volatile__ (
         "sub	sp, sp, #0xc0\n\t"
@@ -7601,9 +7600,11 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "bne	L_SHA512_transform_len_begin_%=\n\t"
         "eor	r0, r0, r0\n\t"
         "add	sp, sp, #0xc0\n\t"
-        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len), [L_SHA512_transform_len_k] "+r" (L_SHA512_transform_len_k_c)
+        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len),
+          [L_SHA512_transform_len_k] "+r" (L_SHA512_transform_len_k_c)
         :
-        : "memory", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "cc"
+        : "memory", "cc", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11",
+            "r12"
     );
 }
 
@@ -7611,7 +7612,7 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifndef WOLFSSL_ARMASM_NO_NEON
-static const uint64_t L_SHA512_transform_neon_len_k[] = {
+static const word64 L_SHA512_transform_neon_len_k[] = {
     0x428a2f98d728ae22UL, 0x7137449123ef65cdUL,
     0xb5c0fbcfec4d3b2fUL, 0xe9b5dba58189dbbcUL,
     0x3956c25bf348b538UL, 0x59f111f1b605d019UL,
@@ -7654,13 +7655,14 @@ static const uint64_t L_SHA512_transform_neon_len_k[] = {
     0x5fcb6fab3ad6faecUL, 0x6c44198c4a475817UL,
 };
 
-void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len);
+void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p);
 void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
 {
     register wc_Sha512* sha512 asm ("r0") = (wc_Sha512*)sha512_p;
     register const byte* data asm ("r1") = (const byte*)data_p;
     register word32 len asm ("r2") = (word32)len_p;
-    register uint64_t* L_SHA512_transform_neon_len_k_c asm ("r3") = (uint64_t*)&L_SHA512_transform_neon_len_k;
+    register word64* L_SHA512_transform_neon_len_k_c asm ("r3") =
+        (word64*)&L_SHA512_transform_neon_len_k;
 
     __asm__ __volatile__ (
         /* Load digest into working vars */
@@ -9151,17 +9153,18 @@ void Transform_Sha512_Len(wc_Sha512* sha512_p, const byte* data_p, word32 len_p)
         "subs	%[len], %[len], #0x80\n\t"
         "sub	r3, r3, #0x280\n\t"
         "bne	L_SHA512_transform_neon_len_begin_%=\n\t"
-        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len), [L_SHA512_transform_neon_len_k] "+r" (L_SHA512_transform_neon_len_k_c)
+        : [sha512] "+r" (sha512), [data] "+r" (data), [len] "+r" (len),
+          [L_SHA512_transform_neon_len_k] "+r" (L_SHA512_transform_neon_len_k_c)
         :
-        : "memory", "r12", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15", "cc"
+        : "memory", "cc", "r12", "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
+            "d8", "d9", "d10", "d11", "d12", "d13", "d14", "d15", "q8", "q9",
+            "q10", "q11", "q12", "q13", "q14", "q15"
     );
 }
 
 #endif /* !WOLFSSL_ARMASM_NO_NEON */
 #endif /* WOLFSSL_SHA512 */
-#endif /* !__aarch64__ && __arm__ && !__thumb__ */
-#endif /* WOLFSSL_ARMASM */
-#endif /* !defined(__aarch64__) && defined(__arm__) && !defined(__thumb__) */
+#endif /* !__aarch64__ && !WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #endif /* WOLFSSL_ARMASM_INLINE */

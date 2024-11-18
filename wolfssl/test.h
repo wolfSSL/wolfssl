@@ -29,6 +29,12 @@
 #define wolfSSL_TEST_H
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
+#if defined(OPENSSL_EXTRA) && defined(OPENSSL_COEXIST)
+    #error "Example apps built with OPENSSL_EXTRA can't also be built with OPENSSL_COEXIST."
+#endif
+
 #include <wolfssl/wolfcrypt/wc_port.h>
 
 #ifdef FUSION_RTOS
@@ -203,7 +209,9 @@
     #include <netinet/in.h>
     #include <netinet/tcp.h>
     #include <arpa/inet.h>
-    #include <sys/ioctl.h>
+    #ifndef WOLFSSL_NDS
+        #include <sys/ioctl.h>
+    #endif
     #include <sys/time.h>
     #include <sys/socket.h>
     #ifdef HAVE_PTHREAD
@@ -1851,7 +1859,8 @@ static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
     XSTRNCPY(identity, kIdentityStr, id_max_len);
 
-    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+    if (wolfSSL_GetVersion(ssl) != WOLFSSL_TLSV1_3 &&
+            wolfSSL_GetVersion(ssl) != WOLFSSL_DTLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
          * unsigned binary */
         key[0] = 0x1a;
@@ -1895,7 +1904,8 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
     if (XSTRCMP(identity, kIdentityStr) != 0)
         return 0;
 
-    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+    if (wolfSSL_GetVersion(ssl) != WOLFSSL_TLSV1_3 &&
+            wolfSSL_GetVersion(ssl) != WOLFSSL_DTLSV1_3) {
         /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
          * unsigned binary */
         key[0] = 0x1a;

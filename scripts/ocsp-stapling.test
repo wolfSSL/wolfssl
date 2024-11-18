@@ -27,6 +27,20 @@ if ./examples/client/client '-#' | fgrep -q -e ' -DWOLFSSL_SNIFFER '; then
     exit 77
 fi
 
+if ./examples/client/client -V | grep -q 4; then
+    tls13=yes
+fi
+if ./examples/client/client -? 2>&1 | grep -q 'DTLSv1.3'; then
+    dtls13=yes
+fi
+./examples/client/client '-?' 2>&1 | grep -- 'Perform multi OCSP stapling for TLS13'
+if [ $? -eq 0 ]; then
+    tls13multi=yes
+else
+    tls13multi=no
+fi
+
+
 if openssl s_server -help 2>&1 | fgrep -q -i ipv6 && nc -h 2>&1 | fgrep -q -i ipv6; then
     IPV6_SUPPORTED=yes
 else
@@ -346,7 +360,7 @@ RESULT=$?
 printf '%s\n\n' "Test successfully REVOKED!"
 
 
-if ./examples/client/client -V | grep -q 4; then
+ if [[ ("$tls13" == "yes") && ("$tls13multi" == "no") ]]; then
     printf '%s\n\n' "------------- TEST CASE 3 SHOULD PASS --------------------"
     # client test against our own server - GOOD CERT
     remove_single_rF "$ready_file2"
@@ -412,7 +426,7 @@ if ./examples/client/client -? 2>&1 | grep -q 'DTLSv1.2'; then
   printf '%s\n\n' "Test PASSED!"
 fi
 
-if ./examples/client/client -? 2>&1 | grep -q 'DTLSv1.3'; then
+ if [[ ("$dtls13" == "yes") && ("$tls13multi" == "no") ]]; then
   printf '%s\n\n' "------------- TEST CASE DTLS-2 SHOULD PASS -------------------"
  # client test against our own server, must staple - GOOD CERT
   ./examples/server/server -c certs/ocsp/server1-cert.pem -R "$ready_file2" \

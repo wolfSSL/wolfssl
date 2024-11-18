@@ -26,6 +26,7 @@
 #define WOLFSSL_DH_H_
 
 #include <wolfssl/openssl/bn.h>
+#include <wolfssl/openssl/ssl.h>
 #include <wolfssl/openssl/opensslv.h>
 
 #ifdef __cplusplus
@@ -78,7 +79,7 @@ WOLFSSL_API int wolfSSL_DH_set0_pqg(WOLFSSL_DH *dh, WOLFSSL_BIGNUM *p,
 
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_get_2048_256(void);
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 
 typedef WOLFSSL_DH                   DH;
 
@@ -101,6 +102,8 @@ typedef WOLFSSL_DH                   DH;
 #define DH_get0_key     wolfSSL_DH_get0_key
 #define DH_set0_key     wolfSSL_DH_set0_key
 #define DH_bits(x)      (BN_num_bits((x)->p))
+
+#define OPENSSL_DH_MAX_MODULUS_BITS     DH_MAX_SIZE
 
 #define DH_GENERATOR_2                  2
 #define DH_CHECK_P_NOT_PRIME            0x01
@@ -132,7 +135,7 @@ typedef WOLFSSL_DH                   DH;
 #define DH_GENERATOR_2 2
 #define DH_GENERATOR_5 5
 
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 
 #ifdef __cplusplus
     }  /* extern "C" */

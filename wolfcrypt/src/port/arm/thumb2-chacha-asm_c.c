@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -76,7 +76,7 @@ void wc_chacha_setiv(word32* x, const byte* iv, word32 counter)
     );
 }
 
-XALIGNED(16) static const uint32_t L_chacha_thumb2_constants[] = {
+XALIGNED(16) static const word32 L_chacha_thumb2_constants[] = {
     0x61707865, 0x3120646e, 0x79622d36, 0x6b206574,
     0x61707865, 0x3320646e, 0x79622d32, 0x6b206574,
 };
@@ -91,7 +91,7 @@ void wc_chacha_setkey(word32* x, const byte* key, word32 keySz)
     register word32* x __asm__ ("r0") = (word32*)x_p;
     register const byte* key __asm__ ("r1") = (const byte*)key_p;
     register word32 keySz __asm__ ("r2") = (word32)keySz_p;
-    register uint32_t* L_chacha_thumb2_constants_c __asm__ ("r3") = (uint32_t*)&L_chacha_thumb2_constants;
+    register word32* L_chacha_thumb2_constants_c __asm__ ("r3") = (word32*)&L_chacha_thumb2_constants;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -726,6 +726,6 @@ void wc_chacha_use_over(byte* over, byte* output, const byte* input, word32 len)
 }
 
 #endif /* HAVE_CHACHA */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

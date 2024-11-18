@@ -16,6 +16,7 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
@@ -45,6 +46,7 @@ jobs:
       matrix:
         ref: [ 0.9.13 ]
     name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     needs: build_wolfssl
     steps:

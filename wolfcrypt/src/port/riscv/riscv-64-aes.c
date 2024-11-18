@@ -498,8 +498,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     if (ret == 0) {
         /* Finish setting the AES object. */
         aes->keylen = keyLen;
-#if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(WOLFSSL_AES_OFB)
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
 #endif
     }
@@ -1770,8 +1770,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
     if (ret == 0) {
         /* Finish setting the AES object. */
         aes->keylen = keyLen;
-#if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-    defined(WOLFSSL_AES_OFB)
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
 #endif
     }
@@ -2978,8 +2978,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 keyLen, const byte* iv,
 
     if (ret == 0) {
         /* Initialize fields. */
-    #if defined(WOLFSSL_AES_CFB) || defined(WOLFSSL_AES_COUNTER) || \
-        defined(WOLFSSL_AES_OFB)
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif
         aes->keylen = (int)keyLen;
@@ -4082,7 +4082,7 @@ static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
 {
     int i;
 
-    /* Big-endian aray - start at last element and move back. */
+    /* Big-endian array - start at last element and move back. */
     for (i = AES_BLOCK_SIZE - 1; i >= 0; i--) {
         /* Result not zero means no carry. */
         if ((++inOutCtr[i]) != 0) {
@@ -4093,7 +4093,7 @@ static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
 
 /* Encrypt blocks of data using AES-CTR.
  *
- * Implemenation uses wc_AesEncrypt().
+ * Implementation uses wc_AesEncrypt().
  *
  * @param [in]  aes  AES object.
  * @param [out] out  Encrypted blocks.
@@ -8788,7 +8788,7 @@ static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 {
     int i;
 
-    /* Big-endian aray - start at last element and move back. */
+    /* Big-endian array - start at last element and move back. */
     for (i = AES_BLOCK_SIZE - 1; i >= AES_BLOCK_SIZE - CTR_SZ; i--) {
         /* Result not zero means no carry. */
         if ((++inOutCtr[i]) != 0) {

@@ -16,6 +16,7 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
+    if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
@@ -40,12 +41,17 @@ jobs:
           retention-days: 5
 
   build_pam-ipmi:
+    if: github.repository_owner == 'wolfssl'
     strategy:
       fail-fast: false
       matrix:
-        ref: [ 0.6.0 ]
-    name: ${{ matrix.ref }}
-    runs-on: ubuntu-latest
+        config:
+          - ref: 0.7.0
+            runner: ubuntu-latest
+          - ref: 0.6.0
+            runner: ubuntu-22.04
+    name: ${{ matrix.config.ref }}
+    runs-on: ${{ matrix.config.runner }}
     needs: build_wolfssl
     steps:
       - name: Install dependencies
@@ -74,12 +80,12 @@ jobs:
         with:
           repository: Thalhammer/jwt-cpp
           path: jwt-cpp
-          ref: v${{ matrix.ref }}
+          ref: v${{ matrix.config.ref }}
 
       - name: Build pam-ipmi
         working-directory: jwt-cpp
         run: |
-          patch -p1 < ../osp/jwt-cpp/${{ matrix.ref }}.patch
+          patch -p1 < ../osp/jwt-cpp/${{ matrix.config.ref }}.patch
           PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig \
             cmake -B build -DJWT_SSL_LIBRARY:STRING=wolfSSL -DJWT_BUILD_TESTS=ON .
           make -j -C build

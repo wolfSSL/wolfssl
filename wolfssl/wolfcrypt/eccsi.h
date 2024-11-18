@@ -62,15 +62,15 @@ typedef struct EccsiKeyParams {
     ecc_point* base;
 
     /** Bit indicates order (q) is set as an MP integer in ECCSI key. */
-    byte haveOrder:1;
+    WC_BITFIELD haveOrder:1;
     /** Bit indicates A is set as an MP integer in ECCSI key. */
-    byte haveA:1;
+    WC_BITFIELD haveA:1;
     /** Bit indicates B is set as an MP integer in ECCSI key. */
-    byte haveB:1;
+    WC_BITFIELD haveB:1;
     /** Bit indicates prime is set as an MP integer in ECCSI key. */
-    byte havePrime:1;
+    WC_BITFIELD havePrime:1;
     /** Bit indicates base point is set as an MP integer in ECCSI key. */
-    byte haveBase:1;
+    WC_BITFIELD haveBase:1;
 } EccsiKeyParams;
 
 /**
@@ -104,7 +104,7 @@ typedef struct EccsiKey {
     /** Heap hint for dynamic memory allocation. */
     void* heap;
     /** Bit indicates KPAK (public key) is in montgomery form. */
-    word16 kpakMont:1;
+    WC_BITFIELD kpakMont:1;
 } EccsiKey;
 
 #ifdef __cplusplus

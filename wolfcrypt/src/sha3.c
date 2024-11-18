@@ -62,8 +62,7 @@
     }
 #endif
 
-#if (!defined(WOLFSSL_ARMASM) || (!defined(__arm__) && \
-     !defined(WOLFSSL_ARMASM_CRYPTO_SHA3))) && !defined(WOLFSSL_RISCV_ASM)
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
 
 #ifdef USE_INTEL_SPEEDUP
     #include <wolfssl/wolfcrypt/cpuid.h>
@@ -821,10 +820,10 @@ static int wc_InitSha3(wc_Sha3* sha3, void* heap, int devId)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
     ret = wolfAsync_DevCtxInit(&sha3->asyncDev,
                         WOLFSSL_ASYNC_MARKER_SHA3, sha3->heap, devId);
-#elif defined(WOLF_CRYPTO_CB)
+#endif
+#if defined(WOLF_CRYPTO_CB)
     sha3->devId = devId;
-#endif /* WOLFSSL_ASYNC_CRYPT */
-
+#endif
     (void)devId;
 
     return ret;

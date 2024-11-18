@@ -31,7 +31,7 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifdef WOLFSSL_ARMASM_INLINE
 
 #ifdef __IAR_SYSTEMS_ICC__
@@ -47,7 +47,7 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef WOLFSSL_ARMASM_NO_NEON
-XALIGNED(16) static const uint32_t L_SHA256_transform_len_k[] = {
+XALIGNED(16) static const word32 L_SHA256_transform_len_k[] = {
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
     0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
     0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
@@ -77,7 +77,7 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
     register wc_Sha256* sha256 __asm__ ("r0") = (wc_Sha256*)sha256_p;
     register const byte* data __asm__ ("r1") = (const byte*)data_p;
     register word32 len __asm__ ("r2") = (word32)len_p;
-    register uint32_t* L_SHA256_transform_len_k_c __asm__ ("r3") = (uint32_t*)&L_SHA256_transform_len_k;
+    register word32* L_SHA256_transform_len_k_c __asm__ ("r3") = (word32*)&L_SHA256_transform_len_k;
 #endif /* !WOLFSSL_NO_VAR_ASSIGN_REG */
 
     __asm__ __volatile__ (
@@ -1475,6 +1475,6 @@ void Transform_Sha256_Len(wc_Sha256* sha256, const byte* data, word32 len)
 
 #endif /* WOLFSSL_ARMASM_NO_NEON */
 #endif /* !NO_SHA256 */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 #endif /* WOLFSSL_ARMASM_INLINE */

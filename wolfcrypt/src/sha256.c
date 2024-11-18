@@ -122,7 +122,9 @@ on the specific device platform.
 
 #elif defined(WOLFSSL_PSOC6_CRYPTO)
 
-
+#elif defined(MAX3266X_SHA)
+    /* Already brought in by sha256.h */
+    /* #include <wolfssl/wolfcrypt/port/maxim/max3266x.h> */
 #else
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -275,10 +277,6 @@ static int InitSha256(wc_Sha256* sha256)
 #else
     Sha256_SetTransform();
 #endif
-#endif
-
-#ifdef WOLF_CRYPTO_CB
-    sha256->devId = wc_CryptoCb_DefaultDevID();
 #endif
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
@@ -1093,6 +1091,12 @@ static int InitSha256(wc_Sha256* sha256)
     #ifdef WOLF_CRYPTO_CB
         sha256->devId = devId;
         sha256->devCtx = NULL;
+    #endif
+    #ifdef MAX3266X_SHA_CB
+        ret = wc_MXC_TPU_SHA_Init(&(sha256->mxcCtx));
+        if (ret != 0) {
+            return ret;
+        }
     #endif
     #ifdef WOLFSSL_SMALL_STACK_CACHE
         sha256->W = NULL;
@@ -1963,6 +1967,9 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
     /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 
+#elif defined(MAX3266X_SHA)
+    /* implemented in wolfcrypt/src/port/maxim/max3266x.c */
+
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)
 
 /* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
@@ -2241,6 +2248,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
     }
 #endif
 
+#ifdef MAX3266X_SHA_CB
+    wc_MXC_TPU_SHA_Free(&(sha256->mxcCtx));
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
     wolfAsync_DevCtxFree(&sha256->asyncDev, WOLFSSL_ASYNC_MARKER_SHA256);
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -2352,6 +2363,9 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
     /* implemented in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 #elif defined(WOLFSSL_HAVE_PSA) && !defined(WOLFSSL_PSA_NO_HASH)
     /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
+
+#elif defined(MAX3266X_SHA)
+    /* implemented in wolfcrypt/src/port/maxim/max3266x.c */
 
 #else
 
@@ -2487,7 +2501,8 @@ int wc_Sha224_Grow(wc_Sha224* sha224, const byte* in, int inSz)
     /* implemented in wolfcrypt/src/port/psa/psa_hash.c */
 #elif defined(WOLFSSL_RENESAS_RX64_HASH)
     /* implemented in wolfcrypt/src/port/Renesas/renesas_rx64_hw_sha.c */
-
+#elif defined(MAX3266X_SHA)
+    /* Implemented in wolfcrypt/src/port/maxim/max3266x.c */
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
@@ -2536,6 +2551,13 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
 #ifdef WOLFSSL_MAXQ10XX_CRYPTO
     wc_MAXQ10XX_Sha256Copy(src);
+#endif
+
+#ifdef MAX3266X_SHA_CB
+    ret = wc_MXC_TPU_SHA_Copy(&(src->mxcCtx), &(dst->mxcCtx));
+    if (ret != 0) {
+        return ret;
+    }
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE

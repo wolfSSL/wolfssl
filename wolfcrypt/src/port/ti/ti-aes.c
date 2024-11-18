@@ -99,7 +99,8 @@ int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv, int dir)
     aes->rounds = len / 4 + 6;
 
     XMEMCPY(aes->key, key, len);
-#ifdef WOLFSSL_AES_COUNTER
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
     aes->left = 0;
 #endif
     return AesSetIV(aes, iv);

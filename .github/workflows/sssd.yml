@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   build_wolfssl:
+    if: github.repository_owner == 'wolfssl'
     name: Build wolfSSL
     # Just to keep it the same as the testing target
     runs-on: ubuntu-latest
@@ -39,6 +40,7 @@ jobs:
           retention-days: 5
 
   sssd_check:
+    if: github.repository_owner == 'wolfssl'
     strategy:
       fail-fast: false
       matrix:

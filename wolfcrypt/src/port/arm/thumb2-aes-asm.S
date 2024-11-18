@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
@@ -3360,7 +3360,7 @@ L_AES_GCM_encrypt_end:
 	.size	AES_GCM_encrypt,.-AES_GCM_encrypt
 #endif /* HAVE_AESGCM */
 #endif /* !NO_AES */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

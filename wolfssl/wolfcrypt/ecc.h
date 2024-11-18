@@ -467,6 +467,7 @@ struct ecc_point {
 #if defined(WOLFSSL_SMALL_STACK_CACHE) && !defined(WOLFSSL_ECC_NO_SMALL_STACK)
     ecc_key* key;
 #endif
+    WC_BITFIELD isAllocated:1;
 };
 
 /* ECC Flags */
@@ -589,12 +590,12 @@ struct ecc_key {
     mp_int* sign_k;
 #else
     mp_int sign_k[1];
-    byte sign_k_set:1;
+    WC_BITFIELD sign_k_set:1;
 #endif
 #endif
 #if defined(WOLFSSL_ECDSA_DETERMINISTIC_K) || \
     defined(WOLFSSL_ECDSA_DETERMINISTIC_K_VARIANT)
-    byte deterministic:1;
+    WC_BITFIELD deterministic:1;
     enum wc_HashType hashType;
 #endif
 
@@ -1025,6 +1026,11 @@ WOLFSSL_API int wc_X963_KDF(enum wc_HashType type, const byte* secret,
 #ifdef ECC_CACHE_CURVE
 WOLFSSL_API int wc_ecc_curve_cache_init(void);
 WOLFSSL_API void wc_ecc_curve_cache_free(void);
+#endif
+
+#ifdef HAVE_OID_ENCODING
+WOLFSSL_LOCAL int wc_ecc_oid_cache_init(void);
+WOLFSSL_LOCAL void wc_ecc_oid_cache_free(void);
 #endif
 
 WOLFSSL_API

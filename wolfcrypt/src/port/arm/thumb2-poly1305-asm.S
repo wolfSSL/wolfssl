@@ -30,7 +30,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_ARMASM
-#if !defined(__aarch64__) && defined(__thumb__)
+#ifdef WOLFSSL_ARMASM_THUMB2
 #ifndef WOLFSSL_ARMASM_INLINE
 	.thumb
 	.syntax unified
@@ -67,17 +67,17 @@ L_poly1305_thumb2_16_loop:
 	ADCS	r7, r7, r10
 	ADD	r1, r1, #0x10
 	ADC	r8, r8, r11
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	STM	lr, {r4, r5, r6, r7, r8}
 #else
 	/* h[0]-h[2] in r4-r6 for multiplication. */
 	STR	r7, [lr, #12]
 	STR	r8, [lr, #16]
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 	STR	r1, [sp, #16]
 	LDR	r1, [sp, #12]
 	/* Multiply h by r */
-#ifdef WOLFSSL_SP_NO_UMAAL
+#ifdef WOLFSSL_ARM_ARCH_7M
 	/* r0 = #0, r1 = r, lr = h, r2 = h[j], r3 = r[i] */
 	LDR	r3, [r1]
 	EOR	r0, r0, r0
@@ -218,7 +218,7 @@ L_poly1305_thumb2_16_loop:
 	UMAAL	r11, r12, r3, r5
 	/* DONE */
 	LDM	sp, {r4, r5, r6}
-#endif /* WOLFSSL_SP_NO_UMAAL */
+#endif /* WOLFSSL_ARM_ARCH_7M */
 	/* r12 will be zero because r is masked. */
 	/* Load length */
 	LDR	r2, [sp, #20]
@@ -360,7 +360,7 @@ poly1305_final:
 	/* Cycle Count = 82 */
 	.size	poly1305_final,.-poly1305_final
 #endif /* HAVE_POLY1305 */
-#endif /* !__aarch64__ && __thumb__ */
+#endif /* WOLFSSL_ARMASM_THUMB2 */
 #endif /* WOLFSSL_ARMASM */
 
 #if defined(__linux__) && defined(__ELF__)

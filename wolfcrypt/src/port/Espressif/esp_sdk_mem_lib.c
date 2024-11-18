@@ -25,10 +25,10 @@
 
 /* wolfSSL */
 /* Always include wolfcrypt/settings.h before any other wolfSSL file.    */
-/* Reminder: settings.h pulls in user_settings.h; don't include it here. */
-#ifdef WOLFSSL_USER_SETTINGS
-    #include <wolfssl/wolfcrypt/settings.h>
-#endif
+/* Be sure to define WOLFSSL_USER_SETTINGS, typically in CMakeLists.txt  */
+/* Reminder: settings.h pulls in user_settings.h                         */
+/*   Do not explicitly include user_settings.h here.                     */
+#include <wolfssl/wolfcrypt/settings.h>
 
 #if defined(WOLFSSL_ESPIDF) /* Entire file is only for Espressif EDP-IDF */
 
@@ -71,8 +71,6 @@ extern wc_ptr_t _rodata_start[];
 extern wc_ptr_t _rodata_end[];
 extern wc_ptr_t _bss_start[];
 extern wc_ptr_t _bss_end[];
-extern wc_ptr_t _rtc_data_start[];
-extern wc_ptr_t _rtc_data_end[];
 extern wc_ptr_t _rtc_bss_start[];
 extern wc_ptr_t _rtc_bss_end[];
 extern wc_ptr_t _iram_start[];
@@ -83,18 +81,29 @@ extern wc_ptr_t _init_end[];
 #endif
 extern wc_ptr_t _iram_text_start[];
 extern wc_ptr_t _iram_text_end[];
-extern wc_ptr_t _iram_bss_start[];
-extern wc_ptr_t _iram_bss_end[];
+#if defined(CONFIG_IDF_TARGET_ESP32S2)
+    /* TODO: Find ESP32-S2 equivalent */
+#else
+    extern wc_ptr_t _iram_bss_start[];
+    extern wc_ptr_t _iram_bss_end[];
+#endif
 extern wc_ptr_t _noinit_start[];
 extern wc_ptr_t _noinit_end[];
 extern wc_ptr_t _text_start[];
 extern wc_ptr_t _text_end[];
 extern wc_ptr_t _heap_start[];
 extern wc_ptr_t _heap_end[];
-extern wc_ptr_t _rtc_data_start[];
-extern wc_ptr_t _rtc_data_end[];
-extern void* _thread_local_start;
-extern void* _thread_local_end;
+#ifdef CONFIG_IDF_TARGET_ESP32C2
+    /* no rtc_data on ESP32-C2*/
+#else
+    extern wc_ptr_t _rtc_data_start[];
+    extern wc_ptr_t _rtc_data_end[];
+#endif
+
+#if defined(CONFIG_IDF_TARGET_ARCH_XTENSA) && CONFIG_IDF_TARGET_ARCH_XTENSA == 1
+    extern void* _thread_local_start;
+    extern void* _thread_local_end;
+#endif
 
 /* See https://github.com/esp8266/esp8266-wiki/wiki/Memory-Map */
 #define MEM_MAP_IO_START  ((void*)(0x3FF00000))
@@ -186,10 +195,16 @@ int sdk_init_meminfo(void) {
 
     sdk_log_meminfo(SDK_MEMORY_SEGMENT_COUNT, NULL, NULL); /* print header */
     sdk_log_meminfo(mem_map_io,    MEM_MAP_IO_START,    MEM_MAP_IO_END);
+#if defined(CONFIG_IDF_TARGET_ARCH_XTENSA) && CONFIG_IDF_TARGET_ARCH_XTENSA == 1
     sdk_log_meminfo(thread_local,  _thread_local_start, _thread_local_end);
+#endif
     sdk_log_meminfo(data,          _data_start,         _data_end);
     sdk_log_meminfo(user_data_ram, USER_DATA_START,     USER_DATA_END);
+#if defined(CONFIG_IDF_TARGET_ESP32S2)
+    /* TODO: Find ESP32-S2 equivalent of bss */
+#else
     sdk_log_meminfo(bss,           _bss_start,          _bss_end);
+#endif
     sdk_log_meminfo(noinit,        _noinit_start,       _noinit_end);
     sdk_log_meminfo(ets_system,    ETS_SYS_START,       ETS_SYS_END);
     sdk_log_meminfo(rodata,        _rodata_start,       _rodata_end);
@@ -198,12 +213,20 @@ int sdk_init_meminfo(void) {
     sdk_log_meminfo(iramf2,        IRAMF2_START,        IRAMF2_END);
     sdk_log_meminfo(iram,          _iram_start,         _iram_end);
     sdk_log_meminfo(iram_text,     _iram_text_start,    _iram_text_end);
+#if defined(CONFIG_IDF_TARGET_ESP32S2)
+    /* No iram_bss on ESP32-C2 at this time. TODO: something equivalent? */
+#else
     sdk_log_meminfo(iram_bss,      _iram_bss_start,     _iram_bss_end);
+#endif
 #if defined(CONFIG_IDF_TARGET_ESP8266)
     sdk_log_meminfo(init,          _init_start,         _init_end);
 #endif
     sdk_log_meminfo(text,          _text_start,         _text_end);
+#if defined(CONFIG_IDF_TARGET_ESP32C2)
+    /* No rtc_data on ESP32-C2 at this time. TODO: something equivalent? */
+#else
     sdk_log_meminfo(rtc_data,      _rtc_data_start,     _rtc_data_end);
+#endif
     ESP_LOGI(TAG, "-----------------------------------------------------");
     sample_heap_var = malloc(1);
     if (sample_heap_var == NULL) {

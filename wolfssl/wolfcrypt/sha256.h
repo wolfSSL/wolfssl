@@ -146,6 +146,10 @@ enum {
     #include "wolfssl/wolfcrypt/port/Renesas/renesas-rx64-hw-crypt.h"
 #else
 
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    #include "wolfssl/wolfcrypt/port/maxim/max3266x.h"
+#endif
+
 #if defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
     #include "wolfssl/wolfcrypt/port/nxp/se050_port.h"
 #endif
@@ -190,13 +194,13 @@ struct wc_Sha256 {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    void*   heap;
 
 #ifdef WC_C_DYNAMIC_FALLBACK
     int sha_method;
 #endif
 
 #endif
+    void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif
@@ -208,6 +212,9 @@ struct wc_Sha256 {
 #endif /* !FREESCALE_LTC_SHA && !STM32_HASH_SHA2 */
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     WC_CRYPTODEV ctx;
+#endif
+#if defined(MAX3266X_SHA_CB) || defined(MAX3266X_SHA)
+    wc_MXC_Sha mxcCtx;
 #endif
 #if defined(WOLFSSL_DEVCRYPTO_HASH) || defined(WOLFSSL_HASH_KEEP)
     byte*  msg;

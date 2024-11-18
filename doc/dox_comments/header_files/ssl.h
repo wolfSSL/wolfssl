@@ -2088,7 +2088,7 @@ int  wolfSSL_get_using_nonblock(WOLFSSL*);
     session if the handshake has not already been performed yet by
     wolfSSL_connect() or wolfSSL_accept(). When using (D)TLSv1.3 and early data
     feature is compiled in, this function progresses the handshake only up to
-    the point when it is possible to send data. Next invokations of
+    the point when it is possible to send data. Next invocations of
     wolfSSL_Connect()/wolfSSL_Accept()/wolfSSL_read() will complete the
     handshake. wolfSSL_write() works with both blocking and non-blocking I/O.
     When the underlying I/O is non-blocking, wolfSSL_write() will return when
@@ -7756,9 +7756,9 @@ int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_CTX_load_verify_buffer(ctx, certBuff, sz, SSL_FILETYPE_PEM);
@@ -7813,9 +7813,9 @@ int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX* ctx, const unsigned char* in,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     // Example for force loading an expired certificate
@@ -7869,9 +7869,9 @@ int wolfSSL_CTX_load_verify_buffer_ex(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_CTX_load_verify_chain_buffer_format(ctx,
@@ -7920,9 +7920,9 @@ int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_certificate_buffer(ctx, certBuff, sz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -7970,9 +7970,9 @@ int wolfSSL_CTX_use_certificate_buffer(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte keyBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, keyBuff, sz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -8019,9 +8019,9 @@ int wolfSSL_CTX_use_PrivateKey_buffer(WOLFSSL_CTX* ctx,
     _Example_
     \code
     int ret = 0;
-    int sz = 0;
     WOLFSSL_CTX* ctx;
     byte certChainBuff[...];
+    long sz = sizeof(certBuff);
     ...
     ret = wolfSSL_CTX_use_certificate_chain_buffer(ctx, certChainBuff, sz);
     if (ret != SSL_SUCCESS) {
@@ -8065,10 +8065,10 @@ int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte certBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
 
     ret = wolfSSL_use_certificate_buffer(ssl, certBuff, buffSz, SSL_FILETYPE_PEM);
@@ -8114,10 +8114,10 @@ int wolfSSL_use_certificate_buffer(WOLFSSL* ssl, const unsigned char* in,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte keyBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
     ret = wolfSSL_use_PrivateKey_buffer(ssl, keyBuff, buffSz, SSL_FILETYPE_PEM);
     if (ret != SSL_SUCCESS) {
@@ -8161,10 +8161,10 @@ int wolfSSL_use_PrivateKey_buffer(WOLFSSL* ssl, const unsigned char* in,
 
     _Example_
     \code
-    int buffSz;
     int ret;
     byte certChainBuff[...];
     WOLFSSL* ssl = 0;
+    long buffSz = sizeof(certBuff);
     ...
     ret = wolfSSL_use_certificate_chain_buffer(ssl, certChainBuff, buffSz);
     if (ret != SSL_SUCCESS) {
@@ -11330,7 +11330,7 @@ int wolfSSL_ALPN_GetPeerProtocol(WOLFSSL* ssl, char **list,
     \return MEMORY_E is the error returned when there is not enough memory.
 
     \param ssl pointer to a SSL object, created with wolfSSL_new().
-    \param mfl indicates witch is the Maximum Fragment Length requested for the
+    \param mfl indicates which is the Maximum Fragment Length requested for the
     session. The available options are: enum { WOLFSSL_MFL_2_9  = 1, 512 bytes
     WOLFSSL_MFL_2_10 = 2, 1024 bytes WOLFSSL_MFL_2_11 = 3, 2048 bytes
     WOLFSSL_MFL_2_12 = 4, 4096 bytes WOLFSSL_MFL_2_13 = 5, 8192
@@ -14094,7 +14094,7 @@ int  wolfSSL_write_early_data(WOLFSSL* ssl, const void* data,
     Call this function instead of wolfSSL_accept() or wolfSSL_accept_TLSv13()
     to accept a client and read any early data in the handshake. The function
     should be invoked until wolfSSL_is_init_finished() returns true. Early data
-    may be sent by the client in multiple messsages. If there is no early data
+    may be sent by the client in multiple messages. If there is no early data
     then the handshake will be processed as normal. This function is only used
     with servers.
 
@@ -15093,7 +15093,7 @@ WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
     \param [out] sigAlgo The enum Key_Sum of the authentication algorithm
 
     \return 0            when info was correctly set
-    \return BAD_FUNC_ARG when either input paramters are NULL or the bytes
+    \return BAD_FUNC_ARG when either input parameters are NULL or the bytes
                          are not a recognized sigalg suite
 
     _Example_

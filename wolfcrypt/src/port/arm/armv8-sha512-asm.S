@@ -65,7 +65,7 @@ L_SHA512_transform_neon_len_k:
 	.xword	0xc19bf174cf692694
 	.xword	0xe49b69c19ef14ad2
 	.xword	0xefbe4786384f25e3
-	.xword	0xfc19dc68b8cd5b5
+	.xword	0x0fc19dc68b8cd5b5
 	.xword	0x240ca1cc77ac9c65
 	.xword	0x2de92c6f592b0275
 	.xword	0x4a7484aa6ea6e483
@@ -77,7 +77,7 @@ L_SHA512_transform_neon_len_k:
 	.xword	0xbf597fc7beef0ee4
 	.xword	0xc6e00bf33da88fc2
 	.xword	0xd5a79147930aa725
-	.xword	0x6ca6351e003826f
+	.xword	0x06ca6351e003826f
 	.xword	0x142929670a0e6e70
 	.xword	0x27b70a8546d22ffc
 	.xword	0x2e1b21385c26c926
@@ -115,8 +115,8 @@ L_SHA512_transform_neon_len_k:
 	.xword	0xd186b8c721c0c207
 	.xword	0xeada7dd6cde0eb1e
 	.xword	0xf57d4f7fee6ed178
-	.xword	0x6f067aa72176fba
-	.xword	0xa637dc5a2c898a6
+	.xword	0x06f067aa72176fba
+	.xword	0x0a637dc5a2c898a6
 	.xword	0x113f9804bef90dae
 	.xword	0x1b710b35131c471b
 	.xword	0x28db77f523047d84
@@ -156,8 +156,7 @@ _Transform_Sha512_Len_neon:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-128]!
 	add	x29, sp, #0
-	str	x17, [x29, #16]
-	str	x19, [x29, #24]
+	stp	x17, x19, [x29, #16]
 	stp	x20, x21, [x29, #32]
 	stp	x22, x23, [x29, #48]
 	stp	x24, x25, [x29, #64]
@@ -1082,8 +1081,7 @@ L_sha512_len_neon_start:
 	stp	x6, x7, [x0, #16]
 	stp	x8, x9, [x0, #32]
 	stp	x10, x11, [x0, #48]
-	ldr	x17, [x29, #16]
-	ldr	x19, [x29, #24]
+	ldp	x17, x19, [x29, #16]
 	ldp	x20, x21, [x29, #32]
 	ldp	x22, x23, [x29, #48]
 	ldp	x24, x25, [x29, #64]
@@ -1128,7 +1126,7 @@ L_SHA512_transform_crypto_len_k:
 	.xword	0xc19bf174cf692694
 	.xword	0xe49b69c19ef14ad2
 	.xword	0xefbe4786384f25e3
-	.xword	0xfc19dc68b8cd5b5
+	.xword	0x0fc19dc68b8cd5b5
 	.xword	0x240ca1cc77ac9c65
 	.xword	0x2de92c6f592b0275
 	.xword	0x4a7484aa6ea6e483
@@ -1140,7 +1138,7 @@ L_SHA512_transform_crypto_len_k:
 	.xword	0xbf597fc7beef0ee4
 	.xword	0xc6e00bf33da88fc2
 	.xword	0xd5a79147930aa725
-	.xword	0x6ca6351e003826f
+	.xword	0x06ca6351e003826f
 	.xword	0x142929670a0e6e70
 	.xword	0x27b70a8546d22ffc
 	.xword	0x2e1b21385c26c926
@@ -1178,8 +1176,8 @@ L_SHA512_transform_crypto_len_k:
 	.xword	0xd186b8c721c0c207
 	.xword	0xeada7dd6cde0eb1e
 	.xword	0xf57d4f7fee6ed178
-	.xword	0x6f067aa72176fba
-	.xword	0xa637dc5a2c898a6
+	.xword	0x06f067aa72176fba
+	.xword	0x0a637dc5a2c898a6
 	.xword	0x113f9804bef90dae
 	.xword	0x1b710b35131c471b
 	.xword	0x28db77f523047d84

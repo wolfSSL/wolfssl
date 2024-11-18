@@ -270,204 +270,412 @@ typedef union {
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 
-#define NID_aes_128_cbc                 419
-#define NID_aes_192_cbc                 423
-#define NID_aes_256_cbc                 427
-#define NID_aes_128_ccm                 896
-#define NID_aes_192_ccm                 899
-#define NID_aes_256_ccm                 902
-#define NID_aes_128_gcm                 895
-#define NID_aes_192_gcm                 898
-#define NID_aes_256_gcm                 901
-#define NID_aes_128_ctr                 904
-#define NID_aes_192_ctr                 905
-#define NID_aes_256_ctr                 906
-#define NID_aes_128_ecb                 418
-#define NID_aes_192_ecb                 422
-#define NID_aes_256_ecb                 426
-#define NID_des_cbc                     31
-#define NID_des_ecb                     29
-#define NID_des_ede3_cbc                44
-#define NID_des_ede3_ecb                33
-#define NID_aes_128_cfb1                650
-#define NID_aes_192_cfb1                651
-#define NID_aes_256_cfb1                652
-#define NID_aes_128_cfb8                653
-#define NID_aes_192_cfb8                654
-#define NID_aes_256_cfb8                655
-#define NID_aes_128_cfb128              421
-#define NID_aes_192_cfb128              425
-#define NID_aes_256_cfb128              429
-#define NID_aes_128_ofb                 420
-#define NID_aes_192_ofb                 424
-#define NID_aes_256_ofb                 428
-#define NID_aes_128_xts                 913
-#define NID_aes_256_xts                 914
-#define NID_camellia_128_cbc            751
-#define NID_camellia_256_cbc            753
-#define NID_chacha20_poly1305           1018
-#define NID_chacha20                    1019
-#define NID_sm4_ecb                     1133
-#define NID_sm4_cbc                     1134
-#define NID_sm4_ctr                     1139
-#define NID_sm4_gcm                     1248
-#define NID_sm4_ccm                     1249
-#define NID_md5WithRSA                  104
-#define NID_md2WithRSAEncryption        9
-#define NID_md5WithRSAEncryption        99
-#define NID_dsaWithSHA1                 113
-#define NID_dsaWithSHA1_2               70
-#define NID_sha1WithRSA                 115
-#define NID_sha1WithRSAEncryption       65
-#define NID_sha224WithRSAEncryption     671
-#define NID_sha256WithRSAEncryption     668
-#define NID_sha384WithRSAEncryption     669
-#define NID_sha512WithRSAEncryption     670
-#define NID_RSA_SHA3_224                1116
-#define NID_RSA_SHA3_256                1117
-#define NID_RSA_SHA3_384                1118
-#define NID_RSA_SHA3_512                1119
-#define NID_rsassaPss                   912
-#define NID_ecdsa_with_SHA1             416
-#define NID_ecdsa_with_SHA224           793
-#define NID_ecdsa_with_SHA256           794
-#define NID_ecdsa_with_SHA384           795
-#define NID_ecdsa_with_SHA512           796
-#define NID_ecdsa_with_SHA3_224         1112
-#define NID_ecdsa_with_SHA3_256         1113
-#define NID_ecdsa_with_SHA3_384         1114
-#define NID_ecdsa_with_SHA3_512         1115
-#define NID_dsa_with_SHA224             802
-#define NID_dsa_with_SHA256             803
-#define NID_sha3_224                    1096
-#define NID_sha3_256                    1097
-#define NID_sha3_384                    1098
-#define NID_sha3_512                    1099
-#define NID_blake2b512                  1056
-#define NID_blake2s256                  1057
-#define NID_shake128                    1100
-#define NID_shake256                    1101
-#define NID_sha1                        64
-#define NID_sha224                      675
-#define NID_sm3                         1143
-#define NID_md2                         77
-#define NID_md4                         257
-#define NID_md5                         40
-#define NID_hmac                        855
-#define NID_hmacWithSHA1                163
-#define NID_hmacWithSHA224              798
-#define NID_hmacWithSHA256              799
-#define NID_hmacWithSHA384              800
-#define NID_hmacWithSHA512              801
-#define NID_hkdf                        1036
-#define NID_cmac                        894
-#define NID_dhKeyAgreement              28
-#define NID_ffdhe2048                   1126
-#define NID_ffdhe3072                   1127
-#define NID_ffdhe4096                   1128
-#define NID_rc4                         5
-#define NID_bf_cbc                      91
-#define NID_bf_ecb                      92
-#define NID_bf_cfb64                    93
-#define NID_bf_ofb64                    94
-#define NID_cast5_cbc                   108
-#define NID_cast5_ecb                   109
-#define NID_cast5_cfb64                 110
-#define NID_cast5_ofb64                 111
+/* note, this WC_NID_undef definition duplicates the definition in
+ * wolfcrypt/asn.h, which is gated out when -DNO_ASN.
+ */
+#define WC_NID_undef                       0
+
+#define WC_NID_aes_128_cbc                 419
+#define WC_NID_aes_192_cbc                 423
+#define WC_NID_aes_256_cbc                 427
+#define WC_NID_aes_128_ccm                 896
+#define WC_NID_aes_192_ccm                 899
+#define WC_NID_aes_256_ccm                 902
+#define WC_NID_aes_128_gcm                 895
+#define WC_NID_aes_192_gcm                 898
+#define WC_NID_aes_256_gcm                 901
+#define WC_NID_aes_128_ctr                 904
+#define WC_NID_aes_192_ctr                 905
+#define WC_NID_aes_256_ctr                 906
+#define WC_NID_aes_128_ecb                 418
+#define WC_NID_aes_192_ecb                 422
+#define WC_NID_aes_256_ecb                 426
+#define WC_NID_des_cbc                     31
+#define WC_NID_des_ecb                     29
+#define WC_NID_des_ede3_cbc                44
+#define WC_NID_des_ede3_ecb                33
+#define WC_NID_aes_128_cfb1                650
+#define WC_NID_aes_192_cfb1                651
+#define WC_NID_aes_256_cfb1                652
+#define WC_NID_aes_128_cfb8                653
+#define WC_NID_aes_192_cfb8                654
+#define WC_NID_aes_256_cfb8                655
+#define WC_NID_aes_128_cfb128              421
+#define WC_NID_aes_192_cfb128              425
+#define WC_NID_aes_256_cfb128              429
+#define WC_NID_aes_128_ofb                 420
+#define WC_NID_aes_192_ofb                 424
+#define WC_NID_aes_256_ofb                 428
+#define WC_NID_aes_128_xts                 913
+#define WC_NID_aes_256_xts                 914
+#define WC_NID_camellia_128_cbc            751
+#define WC_NID_camellia_256_cbc            753
+#define WC_NID_chacha20_poly1305           1018
+#define WC_NID_chacha20                    1019
+#define WC_NID_sm4_ecb                     1133
+#define WC_NID_sm4_cbc                     1134
+#define WC_NID_sm4_ctr                     1139
+#define WC_NID_sm4_gcm                     1248
+#define WC_NID_sm4_ccm                     1249
+#define WC_NID_md5WithRSA                  104
+#define WC_NID_md2WithRSAEncryption        9
+#define WC_NID_md5WithRSAEncryption        99
+#define WC_NID_dsaWithSHA1                 113
+#define WC_NID_dsaWithSHA1_2               70
+#define WC_NID_sha1WithRSA                 115
+#define WC_NID_sha1WithRSAEncryption       65
+#define WC_NID_sha224WithRSAEncryption     671
+#define WC_NID_sha256WithRSAEncryption     668
+#define WC_NID_sha384WithRSAEncryption     669
+#define WC_NID_sha512WithRSAEncryption     670
+#define WC_NID_RSA_SHA3_224                1116
+#define WC_NID_RSA_SHA3_256                1117
+#define WC_NID_RSA_SHA3_384                1118
+#define WC_NID_RSA_SHA3_512                1119
+#define WC_NID_rsassaPss                   912
+#define WC_NID_ecdsa_with_SHA1             416
+#define WC_NID_ecdsa_with_SHA224           793
+#define WC_NID_ecdsa_with_SHA256           794
+#define WC_NID_ecdsa_with_SHA384           795
+#define WC_NID_ecdsa_with_SHA512           796
+#define WC_NID_ecdsa_with_SHA3_224         1112
+#define WC_NID_ecdsa_with_SHA3_256         1113
+#define WC_NID_ecdsa_with_SHA3_384         1114
+#define WC_NID_ecdsa_with_SHA3_512         1115
+#define WC_NID_dsa_with_SHA224             802
+#define WC_NID_dsa_with_SHA256             803
+#define WC_NID_sha3_224                    1096
+#define WC_NID_sha3_256                    1097
+#define WC_NID_sha3_384                    1098
+#define WC_NID_sha3_512                    1099
+#define WC_NID_blake2b512                  1056
+#define WC_NID_blake2s256                  1057
+#define WC_NID_shake128                    1100
+#define WC_NID_shake256                    1101
+#define WC_NID_sha1                        64
+#define WC_NID_sha224                      675
+#define WC_NID_sm3                         1143
+#define WC_NID_md2                         77
+#define WC_NID_md4                         257
+#define WC_NID_md5                         40
+#define WC_NID_hmac                        855
+#define WC_NID_hmacWithSHA1                163
+#define WC_NID_hmacWithSHA224              798
+#define WC_NID_hmacWithSHA256              799
+#define WC_NID_hmacWithSHA384              800
+#define WC_NID_hmacWithSHA512              801
+#define WC_NID_hkdf                        1036
+#define WC_NID_cmac                        894
+#define WC_NID_dhKeyAgreement              28
+#define WC_NID_ffdhe2048                   1126
+#define WC_NID_ffdhe3072                   1127
+#define WC_NID_ffdhe4096                   1128
+#define WC_NID_rc4                         5
+#define WC_NID_bf_cbc                      91
+#define WC_NID_bf_ecb                      92
+#define WC_NID_bf_cfb64                    93
+#define WC_NID_bf_ofb64                    94
+#define WC_NID_cast5_cbc                   108
+#define WC_NID_cast5_ecb                   109
+#define WC_NID_cast5_cfb64                 110
+#define WC_NID_cast5_ofb64                 111
 /* key exchange */
-#define NID_kx_rsa                      1037
-#define NID_kx_ecdhe                    1038
-#define NID_kx_dhe                      1039
-#define NID_kx_ecdhe_psk                1040
-#define NID_kx_dhe_psk                  1041
-#define NID_kx_rsa_psk                  1042
-#define NID_kx_psk                      1043
-#define NID_kx_srp                      1044
-#define NID_kx_gost                     1045
-#define NID_kx_any                      1063
+#define WC_NID_kx_rsa                      1037
+#define WC_NID_kx_ecdhe                    1038
+#define WC_NID_kx_dhe                      1039
+#define WC_NID_kx_ecdhe_psk                1040
+#define WC_NID_kx_dhe_psk                  1041
+#define WC_NID_kx_rsa_psk                  1042
+#define WC_NID_kx_psk                      1043
+#define WC_NID_kx_srp                      1044
+#define WC_NID_kx_gost                     1045
+#define WC_NID_kx_any                      1063
 /* server authentication */
-#define NID_auth_rsa                    1046
-#define NID_auth_ecdsa                  1047
-#define NID_auth_psk                    1048
-#define NID_auth_dss                    1049
-#define NID_auth_srp                    1052
-#define NID_auth_null                   1054
-#define NID_auth_any                    1055
+#define WC_NID_auth_rsa                    1046
+#define WC_NID_auth_ecdsa                  1047
+#define WC_NID_auth_psk                    1048
+#define WC_NID_auth_dss                    1049
+#define WC_NID_auth_srp                    1052
+#define WC_NID_auth_null                   1054
+#define WC_NID_auth_any                    1055
 /* Curve */
-#define NID_aria_128_gcm                1123
-#define NID_aria_192_gcm                1124
-#define NID_aria_256_gcm                1125
-#define NID_sm2                         1172
+#define WC_NID_aria_128_gcm                1123
+#define WC_NID_aria_192_gcm                1124
+#define WC_NID_aria_256_gcm                1125
+#define WC_NID_sm2                         1172
 
-#define NID_X9_62_id_ecPublicKey EVP_PKEY_EC
-#define NID_rsaEncryption        EVP_PKEY_RSA
-#define NID_rsa                  EVP_PKEY_RSA
-#define NID_dsa                  EVP_PKEY_DSA
-
-#define EVP_PKEY_OP_SIGN    (1 << 3)
-#define EVP_PKEY_OP_VERIFY  (1 << 5)
-#define EVP_PKEY_OP_ENCRYPT (1 << 6)
-#define EVP_PKEY_OP_DECRYPT (1 << 7)
-#define EVP_PKEY_OP_DERIVE  (1 << 8)
-
-#define EVP_PKEY_PRINT_INDENT_MAX    128
+#define WC_NID_X9_62_id_ecPublicKey WC_EVP_PKEY_EC
+#define WC_NID_rsaEncryption        WC_EVP_PKEY_RSA
+#define WC_NID_rsa                  WC_EVP_PKEY_RSA
+#define WC_NID_dsa                  WC_EVP_PKEY_DSA
 
 enum {
-    AES_128_CBC_TYPE       = 1,
-    AES_192_CBC_TYPE       = 2,
-    AES_256_CBC_TYPE       = 3,
-    AES_128_CTR_TYPE       = 4,
-    AES_192_CTR_TYPE       = 5,
-    AES_256_CTR_TYPE       = 6,
-    AES_128_ECB_TYPE       = 7,
-    AES_192_ECB_TYPE       = 8,
-    AES_256_ECB_TYPE       = 9,
-    DES_CBC_TYPE           = 10,
-    DES_ECB_TYPE           = 11,
-    DES_EDE3_CBC_TYPE      = 12,
-    DES_EDE3_ECB_TYPE      = 13,
-    ARC4_TYPE              = 14,
-    NULL_CIPHER_TYPE       = 15,
-    EVP_PKEY_RSA           = 16,
-    EVP_PKEY_DSA           = 17,
-    EVP_PKEY_EC            = 18,
-    AES_128_GCM_TYPE       = 21,
-    AES_192_GCM_TYPE       = 22,
-    AES_256_GCM_TYPE       = 23,
-    EVP_PKEY_DH            = NID_dhKeyAgreement,
-    EVP_PKEY_HMAC          = NID_hmac,
-    EVP_PKEY_CMAC          = NID_cmac,
-    EVP_PKEY_HKDF          = NID_hkdf,
-    EVP_PKEY_FALCON        = 300, /* Randomly picked value. */
-    EVP_PKEY_DILITHIUM     = 301, /* Randomly picked value. */
-    AES_128_CFB1_TYPE      = 24,
-    AES_192_CFB1_TYPE      = 25,
-    AES_256_CFB1_TYPE      = 26,
-    AES_128_CFB8_TYPE      = 27,
-    AES_192_CFB8_TYPE      = 28,
-    AES_256_CFB8_TYPE      = 29,
-    AES_128_CFB128_TYPE    = 30,
-    AES_192_CFB128_TYPE    = 31,
-    AES_256_CFB128_TYPE    = 32,
-    AES_128_OFB_TYPE       = 33,
-    AES_192_OFB_TYPE       = 34,
-    AES_256_OFB_TYPE       = 35,
-    AES_128_XTS_TYPE       = 36,
-    AES_256_XTS_TYPE       = 37,
-    CHACHA20_POLY1305_TYPE = 38,
-    CHACHA20_TYPE          = 39,
-    AES_128_CCM_TYPE       = 40,
-    AES_192_CCM_TYPE       = 41,
-    AES_256_CCM_TYPE       = 42,
-    SM4_ECB_TYPE           = 43,
-    SM4_CBC_TYPE           = 44,
-    SM4_CTR_TYPE           = 45,
-    SM4_GCM_TYPE           = 46,
-    SM4_CCM_TYPE           = 47,
-    ARIA_128_GCM_TYPE      = 48,
-    ARIA_192_GCM_TYPE      = 49,
-    ARIA_256_GCM_TYPE      = 50
+    WC_EVP_PKEY_NONE          = WC_NID_undef,
+    WC_AES_128_CBC_TYPE       = 1,
+    WC_AES_192_CBC_TYPE       = 2,
+    WC_AES_256_CBC_TYPE       = 3,
+    WC_AES_128_CTR_TYPE       = 4,
+    WC_AES_192_CTR_TYPE       = 5,
+    WC_AES_256_CTR_TYPE       = 6,
+    WC_AES_128_ECB_TYPE       = 7,
+    WC_AES_192_ECB_TYPE       = 8,
+    WC_AES_256_ECB_TYPE       = 9,
+    WC_DES_CBC_TYPE           = 10,
+    WC_DES_ECB_TYPE           = 11,
+    WC_DES_EDE3_CBC_TYPE      = 12,
+    WC_DES_EDE3_ECB_TYPE      = 13,
+    WC_ARC4_TYPE              = 14,
+    WC_NULL_CIPHER_TYPE       = 15,
+    WC_EVP_PKEY_RSA           = 16,
+    WC_EVP_PKEY_DSA           = 17,
+    WC_EVP_PKEY_EC            = 18,
+    WC_AES_128_GCM_TYPE       = 21,
+    WC_AES_192_GCM_TYPE       = 22,
+    WC_AES_256_GCM_TYPE       = 23,
+    WC_EVP_PKEY_DH            = WC_NID_dhKeyAgreement,
+    WC_EVP_PKEY_HMAC          = WC_NID_hmac,
+    WC_EVP_PKEY_CMAC          = WC_NID_cmac,
+    WC_EVP_PKEY_HKDF          = WC_NID_hkdf,
+    WC_EVP_PKEY_FALCON        = 300, /* Randomly picked value. */
+    WC_EVP_PKEY_DILITHIUM     = 301, /* Randomly picked value. */
+    WC_AES_128_CFB1_TYPE      = 24,
+    WC_AES_192_CFB1_TYPE      = 25,
+    WC_AES_256_CFB1_TYPE      = 26,
+    WC_AES_128_CFB8_TYPE      = 27,
+    WC_AES_192_CFB8_TYPE      = 28,
+    WC_AES_256_CFB8_TYPE      = 29,
+    WC_AES_128_CFB128_TYPE    = 30,
+    WC_AES_192_CFB128_TYPE    = 31,
+    WC_AES_256_CFB128_TYPE    = 32,
+    WC_AES_128_OFB_TYPE       = 33,
+    WC_AES_192_OFB_TYPE       = 34,
+    WC_AES_256_OFB_TYPE       = 35,
+    WC_AES_128_XTS_TYPE       = 36,
+    WC_AES_256_XTS_TYPE       = 37,
+    WC_CHACHA20_POLY1305_TYPE = 38,
+    WC_CHACHA20_TYPE          = 39,
+    WC_AES_128_CCM_TYPE       = 40,
+    WC_AES_192_CCM_TYPE       = 41,
+    WC_AES_256_CCM_TYPE       = 42,
+    WC_SM4_ECB_TYPE           = 43,
+    WC_SM4_CBC_TYPE           = 44,
+    WC_SM4_CTR_TYPE           = 45,
+    WC_SM4_GCM_TYPE           = 46,
+    WC_SM4_CCM_TYPE           = 47,
+    WC_ARIA_128_GCM_TYPE      = 48,
+    WC_ARIA_192_GCM_TYPE      = 49,
+    WC_ARIA_256_GCM_TYPE      = 50
 };
+
+#define WOLFSSL_EVP_PKEY_PRINT_INDENT_MAX    128
+
+#define WC_EVP_PKEY_OP_SIGN    (1 << 3)
+#define WC_EVP_PKEY_OP_VERIFY  (1 << 5)
+#define WC_EVP_PKEY_OP_ENCRYPT (1 << 6)
+#define WC_EVP_PKEY_OP_DECRYPT (1 << 7)
+#define WC_EVP_PKEY_OP_DERIVE  (1 << 8)
+
+#ifndef OPENSSL_COEXIST
+
+#define EVP_PKEY_NONE WC_EVP_PKEY_NONE
+#define AES_128_CBC_TYPE WC_AES_128_CBC_TYPE
+#define AES_192_CBC_TYPE WC_AES_192_CBC_TYPE
+#define AES_256_CBC_TYPE WC_AES_256_CBC_TYPE
+#define AES_128_CTR_TYPE WC_AES_128_CTR_TYPE
+#define AES_192_CTR_TYPE WC_AES_192_CTR_TYPE
+#define AES_256_CTR_TYPE WC_AES_256_CTR_TYPE
+#define AES_128_ECB_TYPE WC_AES_128_ECB_TYPE
+#define AES_192_ECB_TYPE WC_AES_192_ECB_TYPE
+#define AES_256_ECB_TYPE WC_AES_256_ECB_TYPE
+#define DES_CBC_TYPE WC_DES_CBC_TYPE
+#define DES_ECB_TYPE WC_DES_ECB_TYPE
+#define DES_EDE3_CBC_TYPE WC_DES_EDE3_CBC_TYPE
+#define DES_EDE3_ECB_TYPE WC_DES_EDE3_ECB_TYPE
+#define ARC4_TYPE WC_ARC4_TYPE
+#define NULL_CIPHER_TYPE WC_NULL_CIPHER_TYPE
+#define EVP_PKEY_RSA WC_EVP_PKEY_RSA
+#define EVP_PKEY_DSA WC_EVP_PKEY_DSA
+#define EVP_PKEY_EC WC_EVP_PKEY_EC
+#define AES_128_GCM_TYPE WC_AES_128_GCM_TYPE
+#define AES_192_GCM_TYPE WC_AES_192_GCM_TYPE
+#define AES_256_GCM_TYPE WC_AES_256_GCM_TYPE
+#define EVP_PKEY_DH WC_EVP_PKEY_DH
+#define EVP_PKEY_HMAC WC_EVP_PKEY_HMAC
+#define EVP_PKEY_CMAC WC_EVP_PKEY_CMAC
+#define EVP_PKEY_HKDF WC_EVP_PKEY_HKDF
+#define EVP_PKEY_FALCON WC_EVP_PKEY_FALCON
+#define EVP_PKEY_DILITHIUM WC_EVP_PKEY_DILITHIUM
+#define AES_128_CFB1_TYPE WC_AES_128_CFB1_TYPE
+#define AES_192_CFB1_TYPE WC_AES_192_CFB1_TYPE
+#define AES_256_CFB1_TYPE WC_AES_256_CFB1_TYPE
+#define AES_128_CFB8_TYPE WC_AES_128_CFB8_TYPE
+#define AES_192_CFB8_TYPE WC_AES_192_CFB8_TYPE
+#define AES_256_CFB8_TYPE WC_AES_256_CFB8_TYPE
+#define AES_128_CFB128_TYPE WC_AES_128_CFB128_TYPE
+#define AES_192_CFB128_TYPE WC_AES_192_CFB128_TYPE
+#define AES_256_CFB128_TYPE WC_AES_256_CFB128_TYPE
+#define AES_128_OFB_TYPE WC_AES_128_OFB_TYPE
+#define AES_192_OFB_TYPE WC_AES_192_OFB_TYPE
+#define AES_256_OFB_TYPE WC_AES_256_OFB_TYPE
+#define AES_128_XTS_TYPE WC_AES_128_XTS_TYPE
+#define AES_256_XTS_TYPE WC_AES_256_XTS_TYPE
+#define CHACHA20_POLY1305_TYPE WC_CHACHA20_POLY1305_TYPE
+#define CHACHA20_TYPE WC_CHACHA20_TYPE
+#define AES_128_CCM_TYPE WC_AES_128_CCM_TYPE
+#define AES_192_CCM_TYPE WC_AES_192_CCM_TYPE
+#define AES_256_CCM_TYPE WC_AES_256_CCM_TYPE
+#define SM4_ECB_TYPE WC_SM4_ECB_TYPE
+#define SM4_CBC_TYPE WC_SM4_CBC_TYPE
+#define SM4_CTR_TYPE WC_SM4_CTR_TYPE
+#define SM4_GCM_TYPE WC_SM4_GCM_TYPE
+#define SM4_CCM_TYPE WC_SM4_CCM_TYPE
+#define ARIA_128_GCM_TYPE WC_ARIA_128_GCM_TYPE
+#define ARIA_192_GCM_TYPE WC_ARIA_192_GCM_TYPE
+#define ARIA_256_GCM_TYPE WC_ARIA_256_GCM_TYPE
+
+#define NID_aes_128_cbc WC_NID_aes_128_cbc
+#define NID_aes_192_cbc WC_NID_aes_192_cbc
+#define NID_aes_256_cbc WC_NID_aes_256_cbc
+#define NID_aes_128_ccm WC_NID_aes_128_ccm
+#define NID_aes_192_ccm WC_NID_aes_192_ccm
+#define NID_aes_256_ccm WC_NID_aes_256_ccm
+#define NID_aes_128_gcm WC_NID_aes_128_gcm
+#define NID_aes_192_gcm WC_NID_aes_192_gcm
+#define NID_aes_256_gcm WC_NID_aes_256_gcm
+#define NID_aes_128_ctr WC_NID_aes_128_ctr
+#define NID_aes_192_ctr WC_NID_aes_192_ctr
+#define NID_aes_256_ctr WC_NID_aes_256_ctr
+#define NID_aes_128_ecb WC_NID_aes_128_ecb
+#define NID_aes_192_ecb WC_NID_aes_192_ecb
+#define NID_aes_256_ecb WC_NID_aes_256_ecb
+#define NID_des_cbc WC_NID_des_cbc
+#define NID_des_ecb WC_NID_des_ecb
+#define NID_des_ede3_cbc WC_NID_des_ede3_cbc
+#define NID_des_ede3_ecb WC_NID_des_ede3_ecb
+#define NID_aes_128_cfb1 WC_NID_aes_128_cfb1
+#define NID_aes_192_cfb1 WC_NID_aes_192_cfb1
+#define NID_aes_256_cfb1 WC_NID_aes_256_cfb1
+#define NID_aes_128_cfb8 WC_NID_aes_128_cfb8
+#define NID_aes_192_cfb8 WC_NID_aes_192_cfb8
+#define NID_aes_256_cfb8 WC_NID_aes_256_cfb8
+#define NID_aes_128_cfb128 WC_NID_aes_128_cfb128
+#define NID_aes_192_cfb128 WC_NID_aes_192_cfb128
+#define NID_aes_256_cfb128 WC_NID_aes_256_cfb128
+#define NID_aes_128_ofb WC_NID_aes_128_ofb
+#define NID_aes_192_ofb WC_NID_aes_192_ofb
+#define NID_aes_256_ofb WC_NID_aes_256_ofb
+#define NID_aes_128_xts WC_NID_aes_128_xts
+#define NID_aes_256_xts WC_NID_aes_256_xts
+#define NID_camellia_128_cbc WC_NID_camellia_128_cbc
+#define NID_camellia_256_cbc WC_NID_camellia_256_cbc
+#define NID_chacha20_poly1305 WC_NID_chacha20_poly1305
+#define NID_chacha20 WC_NID_chacha20
+#define NID_sm4_ecb WC_NID_sm4_ecb
+#define NID_sm4_cbc WC_NID_sm4_cbc
+#define NID_sm4_ctr WC_NID_sm4_ctr
+#define NID_sm4_gcm WC_NID_sm4_gcm
+#define NID_sm4_ccm WC_NID_sm4_ccm
+#define NID_md5WithRSA WC_NID_md5WithRSA
+#define NID_md2WithRSAEncryption WC_NID_md2WithRSAEncryption
+#define NID_md5WithRSAEncryption WC_NID_md5WithRSAEncryption
+#define NID_dsaWithSHA1 WC_NID_dsaWithSHA1
+#define NID_dsaWithSHA1_2 WC_NID_dsaWithSHA1_2
+#define NID_sha1WithRSA WC_NID_sha1WithRSA
+#define NID_sha1WithRSAEncryption WC_NID_sha1WithRSAEncryption
+#define NID_sha224WithRSAEncryption WC_NID_sha224WithRSAEncryption
+#define NID_sha256WithRSAEncryption WC_NID_sha256WithRSAEncryption
+#define NID_sha384WithRSAEncryption WC_NID_sha384WithRSAEncryption
+#define NID_sha512WithRSAEncryption WC_NID_sha512WithRSAEncryption
+#define NID_RSA_SHA3_224 WC_NID_RSA_SHA3_224
+#define NID_RSA_SHA3_256 WC_NID_RSA_SHA3_256
+#define NID_RSA_SHA3_384 WC_NID_RSA_SHA3_384
+#define NID_RSA_SHA3_512 WC_NID_RSA_SHA3_512
+#define NID_rsassaPss WC_NID_rsassaPss
+#define NID_ecdsa_with_SHA1 WC_NID_ecdsa_with_SHA1
+#define NID_ecdsa_with_SHA224 WC_NID_ecdsa_with_SHA224
+#define NID_ecdsa_with_SHA256 WC_NID_ecdsa_with_SHA256
+#define NID_ecdsa_with_SHA384 WC_NID_ecdsa_with_SHA384
+#define NID_ecdsa_with_SHA512 WC_NID_ecdsa_with_SHA512
+#define NID_ecdsa_with_SHA3_224 WC_NID_ecdsa_with_SHA3_224
+#define NID_ecdsa_with_SHA3_256 WC_NID_ecdsa_with_SHA3_256
+#define NID_ecdsa_with_SHA3_384 WC_NID_ecdsa_with_SHA3_384
+#define NID_ecdsa_with_SHA3_512 WC_NID_ecdsa_with_SHA3_512
+#define NID_dsa_with_SHA224 WC_NID_dsa_with_SHA224
+#define NID_dsa_with_SHA256 WC_NID_dsa_with_SHA256
+#define NID_sha3_224 WC_NID_sha3_224
+#define NID_sha3_256 WC_NID_sha3_256
+#define NID_sha3_384 WC_NID_sha3_384
+#define NID_sha3_512 WC_NID_sha3_512
+#define NID_blake2b512 WC_NID_blake2b512
+#define NID_blake2s256 WC_NID_blake2s256
+#define NID_shake128 WC_NID_shake128
+#define NID_shake256 WC_NID_shake256
+#define NID_sha1 WC_NID_sha1
+#define NID_sha224 WC_NID_sha224
+#define NID_sm3 WC_NID_sm3
+#define NID_md2 WC_NID_md2
+#define NID_md4 WC_NID_md4
+#define NID_md5 WC_NID_md5
+#define NID_hmac WC_NID_hmac
+#define NID_hmacWithSHA1 WC_NID_hmacWithSHA1
+#define NID_hmacWithSHA224 WC_NID_hmacWithSHA224
+#define NID_hmacWithSHA256 WC_NID_hmacWithSHA256
+#define NID_hmacWithSHA384 WC_NID_hmacWithSHA384
+#define NID_hmacWithSHA512 WC_NID_hmacWithSHA512
+#define NID_hkdf WC_NID_hkdf
+#define NID_cmac WC_NID_cmac
+#define NID_dhKeyAgreement WC_NID_dhKeyAgreement
+#define NID_ffdhe2048 WC_NID_ffdhe2048
+#define NID_ffdhe3072 WC_NID_ffdhe3072
+#define NID_ffdhe4096 WC_NID_ffdhe4096
+#define NID_rc4 WC_NID_rc4
+#define NID_bf_cbc WC_NID_bf_cbc
+#define NID_bf_ecb WC_NID_bf_ecb
+#define NID_bf_cfb64 WC_NID_bf_cfb64
+#define NID_bf_ofb64 WC_NID_bf_ofb64
+#define NID_cast5_cbc WC_NID_cast5_cbc
+#define NID_cast5_ecb WC_NID_cast5_ecb
+#define NID_cast5_cfb64 WC_NID_cast5_cfb64
+#define NID_cast5_ofb64 WC_NID_cast5_ofb64
+/* key exchange */
+#define NID_kx_rsa WC_NID_kx_rsa
+#define NID_kx_ecdhe WC_NID_kx_ecdhe
+#define NID_kx_dhe WC_NID_kx_dhe
+#define NID_kx_ecdhe_psk WC_NID_kx_ecdhe_psk
+#define NID_kx_dhe_psk WC_NID_kx_dhe_psk
+#define NID_kx_rsa_psk WC_NID_kx_rsa_psk
+#define NID_kx_psk WC_NID_kx_psk
+#define NID_kx_srp WC_NID_kx_srp
+#define NID_kx_gost WC_NID_kx_gost
+#define NID_kx_any WC_NID_kx_any
+/* server authentication */
+#define NID_auth_rsa WC_NID_auth_rsa
+#define NID_auth_ecdsa WC_NID_auth_ecdsa
+#define NID_auth_psk WC_NID_auth_psk
+#define NID_auth_dss WC_NID_auth_dss
+#define NID_auth_srp WC_NID_auth_srp
+#define NID_auth_null WC_NID_auth_null
+#define NID_auth_any WC_NID_auth_any
+/* Curve */
+#define NID_aria_128_gcm WC_NID_aria_128_gcm
+#define NID_aria_192_gcm WC_NID_aria_192_gcm
+#define NID_aria_256_gcm WC_NID_aria_256_gcm
+#define NID_sm2 WC_NID_sm2
+
+#define NID_X9_62_id_ecPublicKey WC_NID_X9_62_id_ecPublicKey
+#define NID_rsaEncryption WC_NID_rsaEncryption
+#define NID_rsa WC_NID_rsa
+#define NID_dsa WC_NID_dsa
+
+#define EVP_PKEY_OP_SIGN     WC_EVP_PKEY_OP_SIGN
+#define EVP_PKEY_OP_VERIFY   WC_EVP_PKEY_OP_VERIFY
+#define EVP_PKEY_OP_ENCRYPT  WC_EVP_PKEY_OP_ENCRYPT
+#define EVP_PKEY_OP_DECRYPT  WC_EVP_PKEY_OP_DECRYPT
+#define EVP_PKEY_OP_DERIVE   WC_EVP_PKEY_OP_DERIVE
+
+#define EVP_PKEY_PRINT_INDENT_MAX WOLFSSL_EVP_PKEY_PRINT_INDENT_MAX
+
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
@@ -524,8 +732,8 @@ struct WOLFSSL_EVP_CIPHER_CTX {
 #endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
-    byte    authIvGenEnable:1;
-    byte    authIncIv:1;
+    WC_BITFIELD authIvGenEnable:1;
+    WC_BITFIELD authIncIv:1;
 #endif
 #endif
 };
@@ -918,6 +1126,29 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                      const WOLFSSL_EVP_MD* type,
                                      WOLFSSL_ENGINE *impl);
 
+#define WOLFSSL_EVP_CTRL_INIT                  0x0
+#define WOLFSSL_EVP_CTRL_SET_KEY_LENGTH        0x1
+#define WOLFSSL_EVP_CTRL_SET_RC2_KEY_BITS      0x3  /* needed for qt compilation */
+
+#define WOLFSSL_EVP_CTRL_AEAD_SET_IVLEN        0x9
+#define WOLFSSL_EVP_CTRL_AEAD_GET_TAG          0x10
+#define WOLFSSL_EVP_CTRL_AEAD_SET_TAG          0x11
+#define WOLFSSL_EVP_CTRL_AEAD_SET_IV_FIXED     0x12
+#define WOLFSSL_EVP_CTRL_GCM_IV_GEN            0x13
+#define WOLFSSL_EVP_CTRL_GCM_SET_IVLEN         WOLFSSL_EVP_CTRL_AEAD_SET_IVLEN
+#define WOLFSSL_EVP_CTRL_GCM_GET_TAG           WOLFSSL_EVP_CTRL_AEAD_GET_TAG
+#define WOLFSSL_EVP_CTRL_GCM_SET_TAG           WOLFSSL_EVP_CTRL_AEAD_SET_TAG
+#define WOLFSSL_EVP_CTRL_GCM_SET_IV_FIXED      WOLFSSL_EVP_CTRL_AEAD_SET_IV_FIXED
+#define WOLFSSL_EVP_CTRL_CCM_SET_IVLEN         WOLFSSL_EVP_CTRL_AEAD_SET_IVLEN
+#define WOLFSSL_EVP_CTRL_CCM_GET_TAG           WOLFSSL_EVP_CTRL_AEAD_GET_TAG
+#define WOLFSSL_EVP_CTRL_CCM_SET_TAG           WOLFSSL_EVP_CTRL_AEAD_SET_TAG
+#define WOLFSSL_EVP_CTRL_CCM_SET_L             0x14
+#define WOLFSSL_EVP_CTRL_CCM_SET_MSGLEN        0x15
+
+#define WOLFSSL_NO_PADDING_BLOCK_SIZE      1
+
+#ifndef OPENSSL_COEXIST
+
 #define EVP_CIPH_STREAM_CIPHER    WOLFSSL_EVP_CIPH_STREAM_CIPHER
 #define EVP_CIPH_VARIABLE_LENGTH  WOLFSSL_EVP_CIPH_VARIABLE_LENGTH
 #define EVP_CIPH_ECB_MODE         WOLFSSL_EVP_CIPH_ECB_MODE
@@ -1022,7 +1253,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_MD_block_size       wolfSSL_EVP_MD_block_size
 #define EVP_MD_type             wolfSSL_EVP_MD_type
 #ifndef NO_WOLFSSL_STUB
-#define EVP_MD_CTX_set_flags(...) WC_DO_NOTHING
+#define EVP_MD_CTX_set_flags(ctx, flags) WC_DO_NOTHING
 #endif
 
 #define EVP_Digest             wolfSSL_EVP_Digest
@@ -1179,7 +1410,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define OPENSSL_add_all_algorithms_noconf OpenSSL_add_all_algorithms_noconf
 #define OPENSSL_add_all_algorithms_conf   OpenSSL_add_all_algorithms_conf
 
-#define NO_PADDING_BLOCK_SIZE      1
+#define NO_PADDING_BLOCK_SIZE      WOLFSSL_NO_PADDING_BLOCK_SIZE
 
 #define PKCS5_PBKDF2_HMAC_SHA1     wolfSSL_PKCS5_PBKDF2_HMAC_SHA1
 #define PKCS5_PBKDF2_HMAC          wolfSSL_PKCS5_PBKDF2_HMAC
@@ -1190,20 +1421,20 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_CTRL_SET_KEY_LENGTH        0x1
 #define EVP_CTRL_SET_RC2_KEY_BITS      0x3  /* needed for qt compilation */
 
-#define EVP_CTRL_AEAD_SET_IVLEN        0x9
-#define EVP_CTRL_AEAD_GET_TAG          0x10
-#define EVP_CTRL_AEAD_SET_TAG          0x11
-#define EVP_CTRL_AEAD_SET_IV_FIXED     0x12
-#define EVP_CTRL_GCM_IV_GEN            0x13
-#define EVP_CTRL_GCM_SET_IVLEN         EVP_CTRL_AEAD_SET_IVLEN
-#define EVP_CTRL_GCM_GET_TAG           EVP_CTRL_AEAD_GET_TAG
-#define EVP_CTRL_GCM_SET_TAG           EVP_CTRL_AEAD_SET_TAG
-#define EVP_CTRL_GCM_SET_IV_FIXED      EVP_CTRL_AEAD_SET_IV_FIXED
-#define EVP_CTRL_CCM_SET_IVLEN         EVP_CTRL_AEAD_SET_IVLEN
-#define EVP_CTRL_CCM_GET_TAG           EVP_CTRL_AEAD_GET_TAG
-#define EVP_CTRL_CCM_SET_TAG           EVP_CTRL_AEAD_SET_TAG
-#define EVP_CTRL_CCM_SET_L             0x14
-#define EVP_CTRL_CCM_SET_MSGLEN        0x15
+#define EVP_CTRL_AEAD_SET_IVLEN        WOLFSSL_EVP_CTRL_AEAD_SET_IVLEN
+#define EVP_CTRL_AEAD_GET_TAG          WOLFSSL_EVP_CTRL_AEAD_GET_TAG
+#define EVP_CTRL_AEAD_SET_TAG          WOLFSSL_EVP_CTRL_AEAD_SET_TAG
+#define EVP_CTRL_AEAD_SET_IV_FIXED     WOLFSSL_EVP_CTRL_AEAD_SET_IV_FIXED
+#define EVP_CTRL_GCM_IV_GEN            WOLFSSL_EVP_CTRL_GCM_IV_GEN
+#define EVP_CTRL_GCM_SET_IVLEN         WOLFSSL_EVP_CTRL_GCM_SET_IVLEN
+#define EVP_CTRL_GCM_GET_TAG           WOLFSSL_EVP_CTRL_GCM_GET_TAG
+#define EVP_CTRL_GCM_SET_TAG           WOLFSSL_EVP_CTRL_GCM_SET_TAG
+#define EVP_CTRL_GCM_SET_IV_FIXED      WOLFSSL_EVP_CTRL_GCM_SET_IV_FIXED
+#define EVP_CTRL_CCM_SET_IVLEN         WOLFSSL_EVP_CTRL_CCM_SET_IVLEN
+#define EVP_CTRL_CCM_GET_TAG           WOLFSSL_EVP_CTRL_CCM_GET_TAG
+#define EVP_CTRL_CCM_SET_TAG           WOLFSSL_EVP_CTRL_CCM_SET_TAG
+#define EVP_CTRL_CCM_SET_L             WOLFSSL_EVP_CTRL_CCM_SET_L
+#define EVP_CTRL_CCM_SET_MSGLEN        WOLFSSL_EVP_CTRL_CCM_SET_MSGLEN
 
 #define EVP_PKEY_print_public           wolfSSL_EVP_PKEY_print_public
 #define EVP_PKEY_print_private(arg1, arg2, arg3, arg4) WC_DO_NOTHING
@@ -1230,13 +1461,11 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #endif
 
 
-#define EVP_R_BAD_DECRYPT               (-MIN_CODE_E + 100 + 1)
-#define EVP_R_BN_DECODE_ERROR           (-MIN_CODE_E + 100 + 2)
-#define EVP_R_DECODE_ERROR              (-MIN_CODE_E + 100 + 3)
-#define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-MIN_CODE_E + 100 + 4)
+#define EVP_R_BAD_DECRYPT               (-WOLFSSL_EVP_R_BAD_DECRYPT_E)
+#define EVP_R_BN_DECODE_ERROR           (-WOLFSSL_EVP_R_BN_DECODE_ERROR)
+#define EVP_R_DECODE_ERROR              (-WOLFSSL_EVP_R_DECODE_ERROR)
+#define EVP_R_PRIVATE_KEY_DECODE_ERROR  (-WOLFSSL_EVP_R_PRIVATE_KEY_DECODE_ERROR)
 
-#define EVP_PKEY_NONE                   NID_undef
-#define EVP_PKEY_DH                     28
 #define EVP_CIPHER_mode                 WOLFSSL_EVP_CIPHER_mode
 /* WOLFSSL_EVP_CIPHER is just the string name of the cipher */
 #define EVP_CIPHER_name(x)              x
@@ -1277,6 +1506,8 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #endif
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
+
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 

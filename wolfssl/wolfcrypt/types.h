@@ -112,6 +112,14 @@ decouple library dependencies with standard string, memory and so on.
         typedef const char* const wcchar;
     #endif
 
+    #ifndef WC_BITFIELD
+        #ifdef WOLF_C89
+            #define WC_BITFIELD unsigned
+        #else
+            #define WC_BITFIELD byte
+        #endif
+    #endif
+
     #ifndef HAVE_ANONYMOUS_INLINE_AGGREGATES
         /* if a version is available, pivot on the version, otherwise guess it's
          * allowed, subject to override.
@@ -126,23 +134,26 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif
 
+    /* helpers for stringifying the expanded value of a macro argument rather
+     * than its literal text:
+     */
+    #define _WC_STRINGIFY_L2(str) #str
+    #define WC_STRINGIFY(str) _WC_STRINGIFY_L2(str)
+
     /* With a true C89-dialect compiler (simulate with gcc -std=c89 -Wall
      * -Wextra -pedantic), a trailing comma on the last value in an enum
      * definition is a syntax error.  We use this macro to accommodate that
      * without disrupting clean flow/syntax when some enum values are
      * preprocessor-gated.
      */
+    #define WC_VALUE_OF(x) x
     #if defined(WOLF_C89) || defined(WOLF_NO_TRAILING_ENUM_COMMAS)
-        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) _wolf_ ## prefix ## _enum_dummy_last_element
+        #define _WOLF_ENUM_DUMMY_LAST_ELEMENT_HELPER2(a, b, c, d, e) a ## b ## c ## d ## e
+        #define _WOLF_ENUM_DUMMY_LAST_ELEMENT_HELPER(a, b, c, d, e) _WOLF_ENUM_DUMMY_LAST_ELEMENT_HELPER2(a, b, c, d, e)
+        #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) _WOLF_ENUM_DUMMY_LAST_ELEMENT_HELPER(_wolf_, prefix, _L, __LINE__, _enum_dummy_last_element)
     #else
         #define WOLF_ENUM_DUMMY_LAST_ELEMENT(prefix) /* null expansion */
     #endif
-
-    /* helpers for stringifying the expanded value of a macro argument rather
-     * than its literal text:
-     */
-    #define _WC_STRINGIFY_L2(str) #str
-    #define WC_STRINGIFY(str) _WC_STRINGIFY_L2(str)
 
     /* try to set SIZEOF_LONG or SIZEOF_LONG_LONG if user didn't */
     #if defined(_WIN32) || defined(HAVE_LIMITS_H)
@@ -178,7 +189,10 @@ decouple library dependencies with standard string, memory and so on.
          #endif
     #endif
 
-    #if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
+    #if (defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
+           defined(__BCPLUSPLUS__) || \
+           (defined(__WATCOMC__) && defined(__WATCOM_INT64__))
+        /* windows types */
         #define WORD64_AVAILABLE
         #define W64LIT(x) x##ui64
         #define SW64LIT(x) x##i64
@@ -375,8 +389,8 @@ typedef struct w64wrapper {
     #endif
 
     /* set up rotate style */
-    #if (defined(_MSC_VER) || defined(__BCPLUSPLUS__)) && \
-        !defined(WOLFSSL_SGX) && !defined(INTIME_RTOS)
+    #if ((defined(_MSC_VER) && !defined(WOLFSSL_NOT_WINDOWS_API)) || \
+        defined(__BCPLUSPLUS__)) && !defined(WOLFSSL_SGX) && !defined(INTIME_RTOS)
         #define INTEL_INTRINSICS
         #define FAST_ROTATE
     #elif defined(__MWERKS__) && TARGET_CPU_PPC
@@ -424,16 +438,6 @@ typedef struct w64wrapper {
         #define FALL_THROUGH
     #endif
 
-    /* For platforms where the target OS is not Windows, but compilation is
-     * done on Windows/Visual Studio, enable a way to disable USE_WINDOWS_API.
-     * Examples: Micrium, TenAsus INtime, uTasker, FreeRTOS simulator */
-    #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
-        !defined(FREERTOS_TCP) && !defined(EBSNET) && \
-        !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS) && \
-        !defined(WOLFSSL_NOT_WINDOWS_API)
-        #define USE_WINDOWS_API
-    #endif
-
     #define XSTR_SIZEOF(x) (sizeof(x) - 1) /* -1 to not count the null char */
 
     #define XELEM_CNT(x) (sizeof((x))/sizeof(*(x)))
@@ -441,16 +445,6 @@ typedef struct w64wrapper {
     #define WC_SAFE_SUM_WORD32(in1, in2, out) ((in2) <= 0xffffffffU - (in1) ? \
                 ((out) = (in1) + (in2), 1) : ((out) = 0xffffffffU, 0))
 
-    /* idea to add global alloc override by Moises Guimaraes  */
-    /* default to libc stuff */
-    /* XREALLOC is used once in normal math lib, not in fast math lib */
-    /* XFREE on some embedded systems doesn't like free(0) so test for NULL
-     * explicitly.
-     *
-     * For example:
-     *   #define XFREE(p, h, t) \
-     *      {void* xp = (p); if (xp != NULL) free(xp, h, t);}
-     */
     #if defined(HAVE_IO_POOL)
         WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
         WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
@@ -511,13 +505,19 @@ typedef struct w64wrapper {
         #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
             #define XFREE(p, h, t)       m2mb_os_free(xp)
         #else
-            #define XFREE(p, h, t)       {void* xp = (p); if (xp) m2mb_os_free(xp);}
+            #define XFREE(p, h, t)       do { void* xp = (p); if (xp) m2mb_os_free(xp); } while (0)
         #endif
         #define XREALLOC(p, n, h, t) m2mb_os_realloc((p), (n))
 
     #elif defined(NO_WOLFSSL_MEMORY)
         #ifdef WOLFSSL_NO_MALLOC
             /* this platform does not support heap use */
+            #ifdef WOLFSSL_SMALL_STACK
+                #error WOLFSSL_SMALL_STACK requires a heap implementation.
+            #endif
+            #ifndef WC_NO_CONSTRUCTORS
+                #define WC_NO_CONSTRUCTORS
+            #endif
             #ifdef WOLFSSL_MALLOC_CHECK
                 #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
@@ -527,24 +527,24 @@ typedef struct w64wrapper {
                     return NULL;
                 };
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), malloc_check((s)))
-                #define XFREE(p, h, t)       (void)(h); (void)(t)
+                #define XFREE(p, h, t)       do { (void)(h); (void)(t); } while (0)
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), NULL)
             #else
                 #define XMALLOC(s, h, t)     ((void)(s), (void)(h), (void)(t), NULL)
-                #define XFREE(p, h, t)       (void)(p); (void)(h); (void)(t)
+                #define XFREE(p, h, t)       do { (void)(p); (void)(h); (void)(t); } while(0)
                 #define XREALLOC(p, n, h, t) ((void)(p), (void)(n), (void)(h), (void)(t), NULL)
             #endif
         #else
             /* just use plain C stdlib stuff if desired */
             #include <stdlib.h>
-            #define XMALLOC(s, h, t)     ((void)(h), (void)(t), malloc((size_t)(s)))
+            #define XMALLOC(s, h, t)     ((void)(h), (void)(t), malloc((size_t)(s))) /* native heap */
             #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                #define XFREE(p, h, t)       ((void)(h), (void)(t), free(p))
+                #define XFREE(p, h, t)       do { (void)(h); (void)(t); free(p); } while (0) /* native heap */
             #else
-                #define XFREE(p, h, t)       {void* xp = (p); (void)(h); if (xp) free(xp);}
+                #define XFREE(p, h, t)       do { void* xp = (p); (void)(h); if (xp) free(xp); } while (0) /* native heap */
             #endif
             #define XREALLOC(p, n, h, t) \
-                ((void)(h), (void)(t), realloc((p), (size_t)(n)))
+                ((void)(h), (void)(t), realloc((p), (size_t)(n))) /* native heap */
         #endif
 
     #elif defined(WOLFSSL_LINUXKM)
@@ -565,7 +565,7 @@ typedef struct w64wrapper {
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                     #define XFREE(p, h, t)       wolfSSL_Free(xp, h, t, __func__, __LINE__)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp, h, t, __func__, __LINE__);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); if (xp) wolfSSL_Free(xp, h, t, __func__, __LINE__); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t), __func__, __LINE__)
             #else
@@ -573,7 +573,7 @@ typedef struct w64wrapper {
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
                     #define XFREE(p, h, t)       wolfSSL_Free(xp, h, t)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); if (xp) wolfSSL_Free(xp, h, t);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); if (xp) wolfSSL_Free(xp, h, t); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t))
             #endif /* WOLFSSL_DEBUG_MEMORY */
@@ -585,22 +585,28 @@ typedef struct w64wrapper {
             #ifdef WOLFSSL_DEBUG_MEMORY
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((s), __func__, __LINE__))
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                    #define XFREE(p, h, t)       ((void)(h), (void)(t), wolfSSL_Free(xp, __func__, __LINE__))
+                    #define XFREE(p, h, t)       do { (void)(h); (void)(t); wolfSSL_Free(xp, __func__, __LINE__); } while (0)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp, __func__, __LINE__);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp, __func__, __LINE__); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), wolfSSL_Realloc((p), (n), __func__, __LINE__))
             #else
                 #define XMALLOC(s, h, t)     ((void)(h), (void)(t), wolfSSL_Malloc((s)))
                 #ifdef WOLFSSL_XFREE_NO_NULLNESS_CHECK
-                    #define XFREE(p, h, t)       ((void)(h), (void)(t), wolfSSL_Free(p))
+                    #define XFREE(p, h, t)       do { (void)(h); (void)(t); wolfSSL_Free(p); } while (0)
                 #else
-                    #define XFREE(p, h, t)       {void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp);}
+                    #define XFREE(p, h, t)       do { void* xp = (p); (void)(h); (void)(t); if (xp) wolfSSL_Free(xp); } while (0)
                 #endif
                 #define XREALLOC(p, n, h, t) ((void)(h), (void)(t), wolfSSL_Realloc((p), (n)))
             #endif /* WOLFSSL_DEBUG_MEMORY */
         #endif /* WOLFSSL_STATIC_MEMORY */
     #endif
+
+    #if defined(WOLFSSL_SMALL_STACK) && defined(WC_NO_CONSTRUCTORS)
+        #error WOLFSSL_SMALL_STACK requires constructors.
+    #endif
+
+    #include <wolfssl/wolfcrypt/memory.h>
 
     /* declare/free variable handling for async and smallstack */
     #ifndef WC_ALLOC_DO_ON_FAILURE
@@ -853,7 +859,11 @@ typedef struct w64wrapper {
                 #endif
                 #define XSPRINTF sprintf
                 /* snprintf not available for C89, so remap using macro */
-                #define XSNPRINTF(f, len, ...) sprintf(f, __VA_ARGS__)
+                #ifdef WOLF_NO_VARIADIC_MACROS
+                    #error WOLF_NO_VARIADIC_MACROS requires user-supplied binding for XSNPRINTF
+                #else
+                    #define XSNPRINTF(f, len, ...) sprintf(f, __VA_ARGS__)
+                #endif
             #else
                 #ifndef NO_STDIO_FILESYSTEM
                 #include <stdio.h>
@@ -1098,15 +1108,17 @@ typedef struct w64wrapper {
         DYNAMIC_TYPE_LMS          = 101,
         DYNAMIC_TYPE_BIO          = 102,
         DYNAMIC_TYPE_X509_ACERT   = 103,
-        DYNAMIC_TYPE_SNIFFER_SERVER      = 1000,
-        DYNAMIC_TYPE_SNIFFER_SESSION     = 1001,
-        DYNAMIC_TYPE_SNIFFER_PB          = 1002,
-        DYNAMIC_TYPE_SNIFFER_PB_BUFFER   = 1003,
-        DYNAMIC_TYPE_SNIFFER_TICKET_ID   = 1004,
-        DYNAMIC_TYPE_SNIFFER_NAMED_KEY   = 1005,
-        DYNAMIC_TYPE_SNIFFER_KEY         = 1006,
-        DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE = 1007,
-        DYNAMIC_TYPE_AES_EAX = 1008,
+        DYNAMIC_TYPE_OS_BUF       = 104,
+        DYNAMIC_TYPE_SNIFFER_SERVER       = 1000,
+        DYNAMIC_TYPE_SNIFFER_SESSION      = 1001,
+        DYNAMIC_TYPE_SNIFFER_PB           = 1002,
+        DYNAMIC_TYPE_SNIFFER_PB_BUFFER    = 1003,
+        DYNAMIC_TYPE_SNIFFER_TICKET_ID    = 1004,
+        DYNAMIC_TYPE_SNIFFER_NAMED_KEY    = 1005,
+        DYNAMIC_TYPE_SNIFFER_KEY          = 1006,
+        DYNAMIC_TYPE_SNIFFER_KEYLOG_NODE  = 1007,
+        DYNAMIC_TYPE_SNIFFER_CHAIN_BUFFER = 1008,
+        DYNAMIC_TYPE_AES_EAX = 1009
     };
 
     /* max error buffer string size */
@@ -1695,12 +1707,25 @@ typedef struct w64wrapper {
 
     #define WC_CPP_CAT_(a, b) a ## b
     #define WC_CPP_CAT(a, b) WC_CPP_CAT_(a, b)
-    #if defined(__cplusplus) && (__cplusplus >= 201103L)
-        #ifndef static_assert2
-            #define static_assert2 static_assert
-        #endif
-    #elif !defined(static_assert)
-        #if !defined(__cplusplus) &&                \
+    #if defined(WC_NO_STATIC_ASSERT)
+        #define wc_static_assert(expr) struct wc_static_assert_dummy_struct
+        #define wc_static_assert2(expr, msg) wc_static_assert(expr)
+    #elif !defined(wc_static_assert)
+        #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
+               (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)) || \
+               (defined(_MSVC_LANG) && (_MSVC_LANG >= 201103L))
+            /* native variadic static_assert() */
+            #define wc_static_assert static_assert
+            #ifndef wc_static_assert2
+                #define wc_static_assert2 static_assert
+            #endif
+        #elif defined(_MSC_VER) && (__STDC_VERSION__ >= 201112L)
+            /* native 2-argument static_assert() */
+            #define wc_static_assert(expr) static_assert(expr, #expr)
+            #ifndef wc_static_assert2
+                #define wc_static_assert2(expr, msg) static_assert(expr, msg)
+            #endif
+        #elif !defined(__cplusplus) &&              \
                 !defined(__STRICT_ANSI__) &&        \
                 !defined(WOLF_C89) &&               \
                 defined(__STDC_VERSION__) &&        \
@@ -1708,38 +1733,44 @@ typedef struct w64wrapper {
                 ((defined(__GNUC__) &&              \
                   (__GNUC__ >= 5)) ||               \
                  defined(__clang__))
-            #define static_assert(expr) _Static_assert(expr, #expr)
-            #ifndef static_assert2
-                #define static_assert2(expr, msg) _Static_assert(expr, msg)
+            /* native 2-argument _Static_assert() */
+            #define wc_static_assert(expr) _Static_assert(expr, #expr)
+            #ifndef wc_static_assert2
+                #define wc_static_assert2(expr, msg) _Static_assert(expr, msg)
             #endif
         #else
-            #define static_assert(expr) \
-                struct WC_CPP_CAT(wc_dummy_struct_L, __LINE__)
-            #ifndef static_assert2
-                #define static_assert2(expr, msg) static_assert(expr)
+            /* C89-compatible fallback */
+            #define wc_static_assert(expr)                                     \
+                struct WC_CPP_CAT(wc_static_assert_dummy_struct_L, __LINE__) { \
+                    char t[(expr) ? 1 : -1];                                   \
+                }
+            #ifndef wc_static_assert2
+                #define wc_static_assert2(expr, msg) wc_static_assert(expr)
             #endif
         #endif
-    #elif !defined(static_assert2)
-         #define static_assert2(expr, msg) static_assert(expr)
+    #elif !defined(wc_static_assert2)
+         #define wc_static_assert2(expr, msg) wc_static_assert(expr)
     #endif
 
     #ifndef SAVE_VECTOR_REGISTERS
-        #define SAVE_VECTOR_REGISTERS(...) WC_DO_NOTHING
+        #define SAVE_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #endif
     #ifndef SAVE_VECTOR_REGISTERS2
         #define SAVE_VECTOR_REGISTERS2() 0
+        #define SAVE_VECTOR_REGISTERS2_DOES_NOTHING
     #endif
     #ifndef CAN_SAVE_VECTOR_REGISTERS
         #define CAN_SAVE_VECTOR_REGISTERS() 1
+        #define CAN_SAVE_VECTOR_REGISTERS_ALWAYS_TRUE
     #endif
     #ifndef WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL
         #define WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(x) WC_DO_NOTHING
     #endif
     #ifndef ASSERT_SAVED_VECTOR_REGISTERS
-        #define ASSERT_SAVED_VECTOR_REGISTERS(...) WC_DO_NOTHING
+        #define ASSERT_SAVED_VECTOR_REGISTERS() WC_DO_NOTHING
     #endif
     #ifndef ASSERT_RESTORED_VECTOR_REGISTERS
-        #define ASSERT_RESTORED_VECTOR_REGISTERS(...) WC_DO_NOTHING
+        #define ASSERT_RESTORED_VECTOR_REGISTERS(fail_clause) WC_DO_NOTHING
     #endif
     #ifndef RESTORE_VECTOR_REGISTERS
         #define RESTORE_VECTOR_REGISTERS() WC_DO_NOTHING

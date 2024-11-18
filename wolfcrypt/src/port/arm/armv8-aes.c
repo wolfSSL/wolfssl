@@ -44,6 +44,17 @@
     #endif
 #endif
 
+#ifdef WOLF_CRYPTO_CB
+    #include <wolfssl/wolfcrypt/cryptocb.h>
+
+/* Enable Hardware Callback */
+#if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+    /* Revert back to SW so HW CB works */
+    /* HW only works for AES: ECB, CBC, and partial via ECB for other modes */
+    #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
+#endif
+#endif
+
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
@@ -190,7 +201,8 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     }
 #endif
 
-    #ifdef WOLFSSL_AES_COUNTER
+    #if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+        defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
         aes->left = 0;
     #endif /* WOLFSSL_AES_COUNTER */
 
@@ -14928,6 +14940,20 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret =
+            wc_CryptoCb_AesCcmEncrypt(aes, out, in, inSz, nonce, nonceSz,
+                                      authTag, authTagSz, authIn, authInSz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
+
     XMEMCPY(B+1, nonce, nonceSz);
     lenSz = AES_BLOCK_SIZE - 1 - (byte)nonceSz;
     B[0] = (authInSz > 0 ? 64 : 0)
@@ -14999,6 +15025,20 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret =
+            wc_CryptoCb_AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
+            authTag, authTagSz, authIn, authInSz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     o = out;
     oSz = inSz;
@@ -16521,6 +16561,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
 {
 #if defined(AES_MAX_KEY_SIZE)
     const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
+    word32 userKey_aligned[AES_MAX_KEY_SIZE / WOLFSSL_BIT_SIZE / sizeof(word32)];
 #endif
 
     if (((keylen != 16) && (keylen != 24) && (keylen != 32)) ||
@@ -16535,14 +16576,40 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     }
 #endif
 
-#ifdef WOLFSSL_AES_COUNTER
+#if !defined(AES_MAX_KEY_SIZE)
+    /* Check alignment */
+    if ((unsigned long)userKey & (sizeof(aes->key[0]) - 1U)) {
+        return BAD_FUNC_ARG;
+    }
+#endif
+
+#ifdef WOLF_CRYPTO_CB
+    if (aes->devId != INVALID_DEVID) {
+        if (keylen > sizeof(aes->devKey)) {
+            return BAD_FUNC_ARG;
+        }
+        XMEMCPY(aes->devKey, userKey, keylen);
+    }
+#endif
+#if defined(WOLFSSL_AES_COUNTER) || defined(WOLFSSL_AES_CFB) || \
+    defined(WOLFSSL_AES_OFB) || defined(WOLFSSL_AES_XTS)
     aes->left = 0;
-#endif /* WOLFSSL_AES_COUNTER */
+#endif
 
     aes->keylen = keylen;
     aes->rounds = keylen/4 + 6;
 
-    AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
+#if defined(AES_MAX_KEY_SIZE)
+    if ((unsigned long)userKey & (sizeof(aes->key[0]) - 1U)) {
+        XMEMCPY(userKey_aligned, userKey, keylen);
+        AES_set_encrypt_key((byte *)userKey_aligned, keylen * 8, (byte*)aes->key);
+    }
+    else
+#endif
+    {
+        AES_set_encrypt_key(userKey, keylen * 8, (byte*)aes->key);
+    }
+
 #ifdef HAVE_AES_DECRYPT
     if (dir == AES_DECRYPTION) {
         AES_invert_key((byte*)aes->key, aes->rounds);
@@ -16584,6 +16651,20 @@ static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return KEYUSAGE_E;
     }
 
+#ifdef MAX3266X_CB /* Can do a basic ECB block */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int ret_cb = wc_CryptoCb_AesEcbEncrypt(aes, outBlock, inBlock,
+                                            AES_BLOCK_SIZE);
+        if (ret_cb != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)) {
+            return ret_cb;
+        }
+        /* fall-through when unavailable */
+    }
+#endif
+
     AES_ECB_encrypt(inBlock, outBlock, AES_BLOCK_SIZE,
         (const unsigned char*)aes->key, aes->rounds);
     return 0;
@@ -16597,6 +16678,19 @@ static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
+
+#ifdef MAX3266X_CB /* Can do a basic ECB block */
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int ret_cb = wc_CryptoCb_AesEcbDecrypt(aes, outBlock, inBlock,
+                                            AES_BLOCK_SIZE);
+        if (ret_cb != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return ret_cb;
+        /* fall-through when unavailable */
+    }
+#endif
 
     AES_ECB_decrypt(inBlock, outBlock, AES_BLOCK_SIZE,
         (const unsigned char*)aes->key, aes->rounds);
@@ -16652,6 +16746,18 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret = wc_CryptoCb_AesCbcEncrypt(aes, out, in, sz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
+
     AES_CBC_encrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds,
         (unsigned char*)aes->reg);
 
@@ -16681,6 +16787,18 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
     }
 
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            int crypto_cb_ret = wc_CryptoCb_AesCbcDecrypt(aes, out, in, sz);
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return crypto_cb_ret;
+            /* fall-through when unavailable */
+        }
+    #endif
+
     AES_CBC_decrypt(in, out, sz, (const unsigned char*)aes->key, aes->rounds,
         (unsigned char*)aes->reg);
 
@@ -16703,6 +16821,18 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         WOLFSSL_ERROR_VERBOSE(KEYUSAGE_E);
         return KEYUSAGE_E;
     }
+    #ifdef WOLF_CRYPTO_CB
+        #ifndef WOLF_CRYPTO_CB_FIND
+        if (aes->devId != INVALID_DEVID)
+        #endif
+        {
+            int crypto_cb_ret = wc_CryptoCb_AesCtrEncrypt(aes, out, in, sz);
+            if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+                return crypto_cb_ret;
+            /* fall-through when unavailable */
+        }
+    #endif
+
 
     tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
     /* consume any unused bytes left in aes->tmp */
@@ -16842,9 +16972,11 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     word32 wordSz = (word32)sizeof(word32);
 
     /* sanity check on arguments */
-    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    if (aes == NULL || out == NULL || ((inSz > 0) && (in == NULL)) ||
+        nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    {
         return BAD_FUNC_ARG;
+    }
 
     if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
@@ -16914,9 +17046,11 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     word32 wordSz = (word32)sizeof(word32);
 
     /* sanity check on arguments */
-    if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    if (aes == NULL || out == NULL || ((inSz > 0) && (in == NULL)) ||
+        nonce == NULL || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+    {
         return BAD_FUNC_ARG;
+    }
 
     if (wc_AesCcmCheckTagSize(authTagSz) != 0) {
         return BAD_FUNC_ARG;
@@ -17080,6 +17214,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         return BAD_FUNC_ARG;
     }
 
+
+    #ifdef WOLF_CRYPTO_CB
+        if (aes->devId != INVALID_DEVID) {
+            XMEMCPY(aes->devKey, key, len);
+        }
+    #endif
+
     XMEMSET(iv, 0, AES_BLOCK_SIZE);
     ret = wc_AesSetKey(aes, key, len, iv, AES_ENCRYPTION);
 
@@ -17241,6 +17382,20 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return KEYUSAGE_E;
     }
 
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret =
+            wc_CryptoCb_AesGcmEncrypt(aes, out, in, sz, iv, ivSz, authTag,
+                                      authTagSz, authIn, authInSz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
+
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
@@ -17328,6 +17483,20 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_CB
+    #ifndef WOLF_CRYPTO_CB_FIND
+    if (aes->devId != INVALID_DEVID)
+    #endif
+    {
+        int crypto_cb_ret =
+            wc_CryptoCb_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
+                                      authTag, authTagSz, authIn, authInSz);
+        if (crypto_cb_ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
+            return crypto_cb_ret;
+        /* fall-through when unavailable */
+    }
+#endif
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
     if (ivSz == GCM_NONCE_MID_SZ) {

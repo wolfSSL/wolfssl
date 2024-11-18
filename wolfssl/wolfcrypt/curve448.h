@@ -58,8 +58,8 @@ struct curve448_key {
 #endif
 
     /* bit fields */
-    byte pubSet:1;
-    byte privSet:1;
+    WC_BITFIELD pubSet:1;
+    WC_BITFIELD privSet:1;
 };
 
 enum {

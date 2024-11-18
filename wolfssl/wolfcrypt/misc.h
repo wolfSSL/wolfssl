@@ -74,7 +74,24 @@ void ForceZero(void* mem, word32 len);
 WOLFSSL_LOCAL
 int ConstantCompare(const byte* a, const byte* b, int length);
 
+WOLFSSL_LOCAL
+word32 readUnalignedWord32(const byte *in);
+WOLFSSL_LOCAL
+word32 writeUnalignedWord32(void *out, word32 in);
+WOLFSSL_LOCAL
+void readUnalignedWords32(word32 *out, const byte *in, size_t count);
+WOLFSSL_LOCAL
+void writeUnalignedWords32(byte *out, const word32 *in, size_t count);
+
 #ifdef WORD64_AVAILABLE
+WOLFSSL_LOCAL
+word64 readUnalignedWord64(const byte *in);
+WOLFSSL_LOCAL
+word64 writeUnalignedWord64(void *out, word64 in);
+WOLFSSL_LOCAL
+void readUnalignedWords64(word64 *out, const byte *in, size_t count);
+WOLFSSL_LOCAL
+void writeUnalignedWords64(byte *out, const word64 *in, size_t count);
 WOLFSSL_LOCAL
 word64 rotlFixed64(word64 x, word64 y);
 WOLFSSL_LOCAL

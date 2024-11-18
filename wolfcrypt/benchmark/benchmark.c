@@ -220,6 +220,9 @@
     #ifdef HAVE_RENESAS_SYNC
         #include <wolfssl/wolfcrypt/port/renesas/renesas_sync.h>
     #endif
+    #if defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)
+        #include <wolfssl/wolfcrypt/port/maxim/max3266x-cryptocb.h>
+    #endif
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -319,6 +322,11 @@
             #error "Nano newlib formatting must not be enabled for benchmark"
         #endif
     #endif
+    #if ESP_IDF_VERSION_MAJOR >= 5
+        #define TFMT "%lu"
+    #else
+        #define TFMT "%d"
+    #endif
 
     #ifdef configTICK_RATE_HZ
         /* Define CPU clock cycles per tick of FreeRTOS clock
@@ -333,6 +341,27 @@
             #ifndef CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
                 #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ configCPU_CLOCK_HZ
             #endif
+        #endif
+        #ifndef CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ
+            /* This section is for pre-v5 ESP-IDF */
+            #if defined(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32C2_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32C2_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32S2_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ
+            #elif defined(CONFIG_ESP32H2_DEFAULT_CPU_FREQ_MHZ)
+                #define CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ \
+                        CONFIG_ESP32H2_DEFAULT_CPU_FREQ_MHZ
+            #else
+                /* TODO unsupported */
+            #endif /* older CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ */
         #endif
         #define CPU_TICK_CYCLES (                               \
               (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE) \
@@ -351,9 +380,12 @@
     #elif defined(CONFIG_IDF_TARGET_ESP32C3) || \
           defined(CONFIG_IDF_TARGET_ESP32C6)
         #include <esp_cpu.h>
-        #include "driver/gptimer.h"
+        #if ESP_IDF_VERSION_MAJOR >= 5
+            #include <driver/gptimer.h>
+        #endif
         #ifdef WOLFSSL_BENCHMARK_TIMER_DEBUG
             #define RESOLUTION_SCALE 100
+            /* CONFIG_XTAL_FREQ = 40, CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ = 160  */
             static gptimer_handle_t esp_gptimer = NULL;
             static gptimer_config_t esp_timer_config = {
                 .clk_src = GPTIMER_CLK_SRC_DEFAULT,
@@ -372,6 +404,9 @@
     #elif defined(CONFIG_IDF_TARGET_ESP8266)
         /* no CPU HAL for ESP8266, we'll use RTOS tick calc estimates */
         #include <FreeRTOS.h>
+        #include <esp_system.h>
+        #include <esp_timer.h>
+        #include <xtensa/hal.h>
     #elif defined(CONFIG_IDF_TARGET_ESP32H2)
         /* TODO add ESP32-H2 benchmark support */
     #else
@@ -1443,10 +1478,16 @@ static const char* bench_result_words3[][5] = {
             thisTimerVal = thisTimerVal * RESOLUTION_SCALE;
         #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
 
-        thisVal = esp_cpu_get_cycle_count();
+        #if ESP_IDF_VERSION_MAJOR >= 5
+            thisVal = esp_cpu_get_cycle_count();
+        #else
+            thisVal = cpu_hal_get_cycle_count();
+        #endif
 
     #elif defined(CONFIG_IDF_TARGET_ESP32H2)
         thisVal = esp_cpu_get_cycle_count();
+    #elif defined(CONFIG_IDF_TARGET_ESP8266)
+        thisVal = esp_timer_get_time();
     #else
         /* TODO: Why doesn't esp_cpu_get_cycle_count work for Xtensa?
          * Calling current_time(1) to reset time causes thisVal overflow,
@@ -1475,7 +1516,7 @@ static const char* bench_result_words3[][5] = {
             expected_diff = CPU_TICK_CYCLES * tickDiff; /* CPU expected count */
             ESP_LOGV(TAG, "CPU_TICK_CYCLES = %d", (int)CPU_TICK_CYCLES);
             ESP_LOGV(TAG, "tickCount           = %llu", tickCount);
-            ESP_LOGV(TAG, "last_tickCount      = %u",   last_tickCount);
+            ESP_LOGV(TAG, "last_tickCount      = " TFMT, last_tickCount);
             ESP_LOGV(TAG, "tickDiff            = %llu", tickDiff);
             ESP_LOGV(TAG, "expected_diff1      = %llu", expected_diff);
         }
@@ -1511,9 +1552,16 @@ static const char* bench_result_words3[][5] = {
 
             /* double check expected diff calc */
             #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-              expected_diff = (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE)
-                              * tickDiff / configTICK_RATE_HZ;
-              ESP_LOGI(TAG, "expected_diff2      = %llu", expected_diff);
+                #if  defined(CONFIG_IDF_TARGET_ESP8266)
+                    expected_diff = (CONFIG_ESP8266_DEFAULT_CPU_FREQ_MHZ
+                                     * MILLION_VALUE)
+                                     * tickDiff / configTICK_RATE_HZ;
+                #else
+                    expected_diff = (CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * MILLION_VALUE)
+                                    * tickDiff / configTICK_RATE_HZ;
+
+                #endif
+                ESP_LOGI(TAG, "expected_diff2      = %llu", expected_diff);
             #endif
             if (expected_diff > UINT_MAX) {
                 /* The number of cycles expected from FreeRTOS ticks is
@@ -1537,7 +1585,7 @@ static const char* bench_result_words3[][5] = {
                 ESP_LOGI(TAG, "expected_diff       = %llu", expected_diff);
                 ESP_LOGI(TAG, "tickBeginDiff       = %llu", tickBeginDiff);
 
-                ESP_LOGW(TAG,  WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
+                ESP_LOGW(TAG, WOLFSSL_ESPIDF_BLANKLINE_MESSAGE);
             }
             #endif
         }
@@ -1590,7 +1638,13 @@ static const char* bench_result_words3[][5] = {
                 ESP_LOGI(TAG, "diffDiff                 = %llu", diffDiff);
                 ESP_LOGI(TAG, "_xthal_get_ccount_exDiff = %llu", _xthal_get_ccount_exDiff);
             #endif /* WOLFSSL_BENCHMARK_TIMER_DEBUG */
-            _esp_cpu_count_last = esp_cpu_get_cycle_count();
+
+            #if ESP_IDF_VERSION_MAJOR >= 5
+                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+            #else
+                _esp_cpu_count_last = cpu_hal_get_cycle_count();
+            #endif
+
             ESP_LOGV(TAG, "_xthal_get_ccount_last   = %llu", _esp_cpu_count_last);
         }
         #elif defined(CONFIG_IDF_TARGET_ESP32H2)
@@ -1689,7 +1743,8 @@ static const char* bench_result_words3[][5] = {
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
     defined(HAVE_ECC) || !defined(NO_DH) || \
     !defined(NO_RSA) || defined(HAVE_SCRYPT) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_LMS)
     #define BENCH_ASYM
 #endif
 
@@ -1697,7 +1752,8 @@ static const char* bench_result_words3[][5] = {
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_LMS)
 static const char* bench_result_words2[][5] = {
 #ifdef BENCH_MICROSECOND
     { "ops took", "μsec"     , "avg" , "ops/μsec", NULL },   /* 0 English
@@ -2240,8 +2296,9 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 
 #ifdef WOLFSSL_ESPIDF
     #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-        ESP_LOGI(TAG, "bench_stats_start total_cycles = %llu, start=" FLT_FMT,
-                       total_cycles, FLT_FMT_ARGS(*start) );
+        ESP_LOGI(TAG, "bench_stats_start total_cycles = %llu"
+                      ", start=" FLT_FMT,
+                      total_cycles, FLT_FMT_ARGS(*start) );
     #endif
     BEGIN_ESP_CYCLES
 #else
@@ -2261,12 +2318,14 @@ static WC_INLINE void bench_stats_start(int* count, double* start)
 static WC_INLINE int bench_stats_check(double start)
 {
     int ret = 0;
-    double this_current_time;
+    double this_current_time = 0.0;
     this_current_time = current_time(0); /* get the timestamp, no reset */
 
 #if defined(DEBUG_WOLFSSL_BENCHMARK_TIMING) && defined(WOLFSSL_ESPIDF)
-    ESP_LOGV(TAG, "bench_stats_check: Current time %f, start %f",
-                    this_current_time, start );
+    #if defined(WOLFSSL_ESPIDF)
+        ESP_LOGI(TAG, "bench_stats_check Current time = %f, start = %f",
+                       this_current_time, start );
+    #endif
 #endif
 
     ret = ((this_current_time - start) < BENCH_MIN_RUNTIME_SEC
@@ -2653,7 +2712,8 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DH) || \
     defined(HAVE_CURVE25519) || defined(HAVE_ED25519) || \
     defined(HAVE_CURVE448) || defined(HAVE_ED448) || \
-    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM)
+    defined(WOLFSSL_HAVE_KYBER) || defined(HAVE_DILITHIUM) || \
+    defined(WOLFSSL_HAVE_LMS)
 static void bench_stats_asym_finish_ex(const char* algo, int strength,
     const char* desc, const char* desc_extra, int useDeviceID, int count,
     double start, int ret)
@@ -3007,8 +3067,8 @@ static void* benchmarks_do(void* args)
         bench_buf_size += 16 - (bench_buf_size % 16);
 
 #ifdef WOLFSSL_AFALG_XILINX_AES
-    bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
-    bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
+    bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
+    bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16); /* native heap */
 #else
     bench_plain = (byte*)XMALLOC((size_t)bench_buf_size + 16,
                                  HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -3167,8 +3227,9 @@ static void* benchmarks_do(void* args)
     #endif
     #if ((defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)) || \
          defined(HAVE_INTEL_QA_SYNC) || defined(HAVE_CAVIUM_OCTEON_SYNC) || \
-         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) && \
-        !defined(NO_HW_BENCH)
+         defined(HAVE_RENESAS_SYNC)  || defined(WOLFSSL_CAAM)) || \
+         ((defined(WOLFSSL_MAX3266X) || defined(WOLFSSL_MAX3266X_OLD)) && \
+         defined(WOLF_CRYPTO_CB)) && !defined(NO_HW_BENCH)
         bench_aes_aad_options_wrap(bench_aesgcm, 1);
     #endif
     #ifndef NO_SW_BENCH
@@ -3591,6 +3652,24 @@ static void* benchmarks_do(void* args)
 
 #ifdef WOLFSSL_HAVE_KYBER
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER)) {
+#ifndef WOLFSSL_NO_ML_KEM
+    #ifdef WOLFSSL_KYBER512
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
+            bench_kyber(WC_ML_KEM_512);
+        }
+    #endif
+    #ifdef WOLFSSL_KYBER768
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER768)) {
+            bench_kyber(WC_ML_KEM_768);
+        }
+    #endif
+    #ifdef WOLFSSL_KYBER1024
+        if (bench_all || (bench_pq_asym_algs & BENCH_KYBER1024)) {
+            bench_kyber(WC_ML_KEM_1024);
+        }
+    #endif
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
     #ifdef WOLFSSL_KYBER512
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
             bench_kyber(KYBER512);
@@ -3606,6 +3685,7 @@ static void* benchmarks_do(void* args)
             bench_kyber(KYBER1024);
         }
     #endif
+#endif
     }
 #endif
 
@@ -9410,6 +9490,27 @@ void bench_kyber(int type)
     int keySize = 0;
 
     switch (type) {
+#ifndef WOLFSSL_NO_ML_KEM
+#ifdef WOLFSSL_WC_ML_KEM_512
+    case WC_ML_KEM_512:
+        name = "ML-KEM 512 ";
+        keySize = 128;
+        break;
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_768
+    case WC_ML_KEM_768:
+        name = "ML-KEM 768 ";
+        keySize = 192;
+        break;
+#endif
+#ifdef WOLFSSL_WC_ML_KEM_1024
+    case WC_ML_KEM_1024:
+        name = "ML-KEM 1024 ";
+        keySize = 256;
+        break;
+#endif
+#endif
+#ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef WOLFSSL_KYBER512
     case KYBER512:
         name = "KYBER512 ";
@@ -9428,6 +9529,7 @@ void bench_kyber(int type)
         keySize = 256;
         break;
 #endif
+#endif
     }
 
     bench_kyber_keygen(type, name, keySize, &key);
@@ -9438,6 +9540,7 @@ void bench_kyber(int type)
 #endif
 
 #if defined(WOLFSSL_HAVE_LMS) && !defined(WOLFSSL_LMS_VERIFY_ONLY)
+#ifndef WOLFSSL_NO_LMS_SHA256_256
 /* WC_LMS_PARM_L2_H10_W2
  * signature length: 9300 */
 static const byte lms_priv_L2_H10_W2[64] =
@@ -9593,6 +9696,7 @@ static const byte lms_pub_L4_H5_W8[60] =
     0x85,0x1A,0x7A,0xD8,0xD5,0x46,0x74,0x3B,
     0x74,0x24,0x12,0xC8
 };
+#endif
 
 static int lms_write_key_mem(const byte* priv, word32 privSz, void* context)
 {
@@ -9753,6 +9857,7 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     }
 
     switch (parm) {
+#ifndef WOLFSSL_NO_LMS_SHA256_256
     case WC_LMS_PARM_L2_H10_W2:
         XMEMCPY(lms_priv, lms_priv_L2_H10_W2, sizeof(lms_priv_L2_H10_W2));
         XMEMCPY(key.pub, lms_pub_L2_H10_W2, HSS_MAX_PUBLIC_KEY_LEN);
@@ -9813,6 +9918,28 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     case WC_LMS_PARM_L4_H5_W4:
     case WC_LMS_PARM_L4_H10_W4:
     case WC_LMS_PARM_L4_H10_W8:
+#endif
+
+#ifdef WOLFSSL_LMS_SHA256_192
+    case WC_LMS_PARM_SHA256_192_L1_H5_W1:
+    case WC_LMS_PARM_SHA256_192_L1_H5_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H5_W4:
+    case WC_LMS_PARM_SHA256_192_L1_H5_W8:
+    case WC_LMS_PARM_SHA256_192_L1_H10_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H10_W4:
+    case WC_LMS_PARM_SHA256_192_L1_H10_W8:
+    case WC_LMS_PARM_SHA256_192_L1_H15_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H15_W4:
+    case WC_LMS_PARM_SHA256_192_L2_H10_W2:
+    case WC_LMS_PARM_SHA256_192_L2_H10_W4:
+    case WC_LMS_PARM_SHA256_192_L2_H10_W8:
+    case WC_LMS_PARM_SHA256_192_L3_H5_W2:
+    case WC_LMS_PARM_SHA256_192_L3_H5_W4:
+    case WC_LMS_PARM_SHA256_192_L3_H5_W8:
+    case WC_LMS_PARM_SHA256_192_L3_H10_W4:
+    case WC_LMS_PARM_SHA256_192_L4_H5_W8:
+#endif
+
     default:
         XMEMCPY(key.pub, pub, HSS_MAX_PUBLIC_KEY_LEN);
         break;
@@ -9987,6 +10114,7 @@ void bench_lms(void)
 {
     byte pub[HSS_MAX_PUBLIC_KEY_LEN];
 
+#ifndef WOLFSSL_NO_LMS_SHA256_256
 #ifdef BENCH_LMS_SLOW_KEYGEN
 #if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_HEIGHT >= 15)
     bench_lms_keygen(WC_LMS_PARM_L1_H15_W2, pub);
@@ -10032,6 +10160,55 @@ void bench_lms(void)
     bench_lms_keygen(WC_LMS_PARM_L1_H5_W1, pub);
     bench_lms_sign_verify(WC_LMS_PARM_L1_H5_W1, pub);
 #endif
+#endif /* !WOLFSSL_NO_LMS_SHA256_256 */
+
+#ifdef WOLFSSL_LMS_SHA256_192
+#ifdef BENCH_LMS_SLOW_KEYGEN
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_HEIGHT >= 15)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H15_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H15_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H15_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H15_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif
+#endif
+#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 2) && \
+        (LMS_MAX_HEIGHT >= 10))
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W2, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W2, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W4, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#ifdef BENCH_LMS_SLOW_KEYGEN
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L2_H10_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L2_H10_W8, pub);
+#endif
+#endif
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 3)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H5_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H5_W4, pub);
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H5_W8, pub);
+    #undef LMS_PARAMS_BENCHED
+    #define LMS_PARAMS_BENCHED
+#endif
+#if !defined(WOLFSSL_WC_LMS) || ((LMS_MAX_LEVELS >= 3) && \
+        (LMS_MAX_HEIGHT >= 10))
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L3_H10_W4, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L3_H10_W4, pub);
+#endif
+#if !defined(WOLFSSL_WC_LMS) || (LMS_MAX_LEVELS >= 4)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L4_H5_W8, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L4_H5_W8, pub);
+#endif
+
+#if defined(WOLFSSL_WC_LMS) && !defined(LMS_PARAMS_BENCHED)
+    bench_lms_keygen(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
+    bench_lms_sign_verify(WC_LMS_PARM_SHA256_192_L1_H5_W1, pub);
+#endif
+#endif /* WOLFSSL_LMS_SHA256_192 */
 
     return;
 }
@@ -14175,8 +14352,13 @@ void bench_sphincsKeySign(byte level, byte optim)
             #ifdef __XTENSA__
                 _esp_cpu_count_last = xthal_get_ccount();
             #else
-                esp_cpu_set_cycle_count((esp_cpu_cycle_count_t)0);
-                _esp_cpu_count_last = esp_cpu_get_cycle_count();
+                #if ESP_IDF_VERSION_MAJOR >= 5
+                    esp_cpu_set_cycle_count((esp_cpu_cycle_count_t)0);
+                    _esp_cpu_count_last = esp_cpu_get_cycle_count();
+                #else
+                    cpu_hal_set_cycle_count((uint32_t)0);
+                    _esp_cpu_count_last = cpu_hal_get_cycle_count();
+                #endif
             #endif
        }
     #endif
@@ -14187,9 +14369,9 @@ void bench_sphincsKeySign(byte level, byte optim)
       typiclly in app_startup.c */
 
     #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-        ESP_LOGV(TAG, "tickCount = %d", tickCount);
+        ESP_LOGV(TAG, "tickCount = " TFMT, tickCount);
         if (tickCount == last_tickCount) {
-            ESP_LOGW(TAG, "last_tickCount unchanged? %d", tickCount);
+            ESP_LOGW(TAG, "last_tickCount unchanged?" TFMT, tickCount);
 
         }
         if (tickCount < last_tickCount) {
@@ -14199,13 +14381,13 @@ void bench_sphincsKeySign(byte level, byte optim)
 
     if (reset) {
         #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-            ESP_LOGW(TAG, "Assign last_tickCount = %d", tickCount);
+            ESP_LOGW(TAG, "Assign last_tickCount = " TFMT, tickCount);
         #endif
         last_tickCount = tickCount;
     }
     else {
         #ifdef DEBUG_WOLFSSL_BENCHMARK_TIMING
-            ESP_LOGV(TAG, "No Reset last_tickCount = %d", tickCount);
+            ESP_LOGV(TAG, "No Reset last_tickCount = " TFMT, tickCount);
         #endif
     }
 
@@ -14252,6 +14434,15 @@ void bench_sphincsKeySign(byte level, byte optim)
         _time_get(&tv);
 
         return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
+    }
+
+#elif (defined(WOLFSSL_MAX3266X_OLD) || defined(WOLFSSL_MAX3266X)) \
+            && defined(MAX3266X_RTC)
+
+    double current_time(int reset)
+    {
+        (void)reset;
+        return wc_MXC_RTC_Time();
     }
 
 #elif defined(FREESCALE_KSDK_BM)
@@ -14348,7 +14539,15 @@ void bench_sphincsKeySign(byte level, byte optim)
 
         return (double) ticks/TICKS_PER_SECOND;
     }
+#elif defined(WOLFSSL_RPIPICO)
+    #include "pico/stdlib.h"
 
+    double current_time(int reset)
+    {
+        (void)reset;
+
+        return (double) time_us_64() / 1000000;
+    }
 #elif defined(THREADX)
     #include "tx_api.h"
     double current_time(int reset)

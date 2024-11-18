@@ -215,3 +215,6 @@
 #include <wolfssl/openssl/pem.h>
 #endif
 
+#if defined(OPENSSL_EXTRA) && !defined(WC_NO_RNG) && defined(HAVE_HASHDRBG)
+#include <wolfssl/openssl/fips_rand.h>
+#endif
