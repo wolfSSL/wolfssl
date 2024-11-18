@@ -35324,7 +35324,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
 #endif
 
     if (input == NULL || inOutIdx == NULL || inSz == 0 ||
-        privKey == NULL || privKeyLen == NULL) {
+        privKey == NULL || privKeyLen == NULL || inOutKeyType == NULL) {
     #ifdef WOLFSSL_ASN_TEMPLATE
         FREE_ASNGETDATA(dataASN, NULL);
     #endif
@@ -35345,16 +35345,14 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         if (GetAlgoId(input, inOutIdx, &oid, oidKeyType, inSz) < 0)
             return ASN_PARSE_E;
 
-        if (inOutKeyType != NULL) {
-            /* If user supplies ANONk (0) key type, we want to auto-detect from
-             * DER and copy it back to user */
-            if (*inOutKeyType == ANONk) {
-                *inOutKeyType = oid;
-            }
-            /* Otherwise strictly validate against the expected type */
-            else if (oid != (word32)*inOutKeyType) {
-                return ASN_PARSE_E;
-            }
+        /* If user supplies ANONk (0) key type, we want to auto-detect from
+         * DER and copy it back to user */
+        if (*inOutKeyType == ANONk) {
+            *inOutKeyType = oid;
+        }
+        /* Otherwise strictly validate against the expected type */
+        else if (oid != (word32)*inOutKeyType) {
+            return ASN_PARSE_E;
         }
 
         if (GetOctetString(input, inOutIdx, &length, inSz) < 0)
@@ -35407,7 +35405,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     if (ret == 0) {
         /* If user supplies an expected keyType (algorithm OID sum), attempt to
          * process DER accordingly */
-        if (inOutKeyType != NULL && *inOutKeyType != 0) {
+        if (*inOutKeyType != ANONk) {
             word32 oidSz;
             /* Explicit OID check - use expected type */
             const byte* oidDerBytes = OidFromId((word32)*inOutKeyType,
@@ -35434,7 +35432,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         }
 
         /* Store detected OID if requested */
-        if (ret == 0 && inOutKeyType != NULL && *inOutKeyType == ANONk) {
+        if (ret == 0 && *inOutKeyType == ANONk) {
             *inOutKeyType =
                 (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
         }
@@ -35513,7 +35511,7 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
 #endif
 
     if (input == NULL || inSz == 0 || inOutIdx == NULL ||
-        pubKey == NULL || pubKeyLen == NULL) {
+        pubKey == NULL || pubKeyLen == NULL || inOutKeyType == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -35527,16 +35525,14 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     if (GetObjectId(input, inOutIdx, &oid, oidKeyType, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (inOutKeyType != NULL) {
-        /* If user supplies ANONk (0) key type, we want to auto-detect from
-         * DER and copy it back to user */
-        if (*inOutKeyType == ANONk) {
-            *inOutKeyType = oid;
-        }
-        /* Otherwise strictly validate against the expected type */
-        else if (oid != (word32)*inOutKeyType) {
-            return ASN_PARSE_E;
-        }
+    /* If user supplies ANONk (0) key type, we want to auto-detect from
+     * DER and copy it back to user */
+    if (*inOutKeyType == ANONk) {
+        *inOutKeyType = oid;
+    }
+    /* Otherwise strictly validate against the expected type */
+    else if (oid != (word32)*inOutKeyType) {
+        return ASN_PARSE_E;
     }
 
     /* key header */
@@ -35559,7 +35555,7 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     if (ret == 0) {
         /* If user supplies an expected keyType (algorithm OID sum), attempt to
          * process DER accordingly */
-        if (inOutKeyType != NULL && *inOutKeyType != ANONk) {
+        if (*inOutKeyType != ANONk) {
             word32 oidSz;
             /* Explicit OID check - use expected type */
             const byte* oidDerBytes = OidFromId((word32)*inOutKeyType,
@@ -35581,7 +35577,7 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
             ret = ASN_PARSE_E;
 
         /* Store detected OID if requested */
-        if (ret == 0 && inOutKeyType != NULL && *inOutKeyType == ANONk) {
+        if (ret == 0 && *inOutKeyType == ANONk) {
             *inOutKeyType =
                 (int)dataASN[PUBKEYASN_IDX_ALGOID_OID].data.oid.sum;
         }
