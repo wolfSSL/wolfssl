@@ -45669,17 +45669,20 @@ out:
 }
 #endif
 
+
+#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) || \
+    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
 /* Tests decoding a key from DER without the security level specified */
 static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
-                                                 word32 rawKeySz,
-                                                 int expectedLevel,
-                                                 int isPublicOnlyKey)
+                                                 word32      rawKeySz,
+                                                 int         expectedLevel,
+                                                 int         isPublicOnlyKey)
 {
-    int ret;
+    int           ret;
     dilithium_key key;
-    word32 idx;
-    byte* der;
-    word32 derSz;
+    word32        idx;
+    byte*         der;
+    word32        derSz;
     /* DER encoding adds ~256 bytes of overhead to raw key */
     const word32 estimatedDerSz = rawKeySz + 256;
 
@@ -45696,26 +45699,35 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     if (ret == 0) {
         ret = wc_dilithium_set_level(&key, expectedLevel);
     }
+
     if (ret == 0) {
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
             ret = wc_dilithium_import_public(rawKey, rawKeySz, &key);
         }
-        else {
+#endif
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+        if (!isPublicOnlyKey) {
             ret = wc_dilithium_import_private(rawKey, rawKeySz, &key);
         }
+#endif
     }
 
     /* Export raw key as DER */
     if (ret == 0) {
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
             ret = wc_Dilithium_PublicKeyToDer(&key, der, estimatedDerSz, 1);
         }
-        else {
+#endif
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+        if (!isPublicOnlyKey) {
             ret = wc_Dilithium_PrivateKeyToDer(&key, der, estimatedDerSz);
         }
+#endif
         if (ret >= 0) {
             derSz = ret;
-            ret = 0;
+            ret   = 0;
         }
     }
 
@@ -45729,14 +45741,19 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     if (ret == 0) {
         ret = wc_dilithium_set_level(&key, expectedLevel);
     }
+
     if (ret == 0) {
         idx = 0;
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
             ret = wc_Dilithium_PublicKeyDecode(der, &idx, &key, derSz);
         }
-        else {
+#endif
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+        if (!isPublicOnlyKey) {
             ret = wc_Dilithium_PrivateKeyDecode(der, &idx, &key, derSz);
         }
+#endif
     }
 
     /* Free and reinit key to test fresh decode */
@@ -45748,12 +45765,16 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     /* Test decoding without setting security level - should auto-detect */
     if (ret == 0) {
         idx = 0;
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
             ret = wc_Dilithium_PublicKeyDecode(der, &idx, &key, derSz);
         }
-        else {
+#endif
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
+        if (!isPublicOnlyKey) {
             ret = wc_Dilithium_PrivateKeyDecode(der, &idx, &key, derSz);
         }
+#endif
     }
 
     /* Verify auto-detected security level */
@@ -45774,65 +45795,83 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 static wc_test_ret_t dilithium_decode_test(void)
 {
     wc_test_ret_t ret;
-    const byte* key;
-    word32 keySz;
+    const byte*   key;
+    word32        keySz;
 
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
     const int isPrvKey = 0;
+#endif
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
     const int isPubKey = 1;
+#endif
 
 #ifndef WOLFSSL_NO_ML_DSA_44
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
     /* Test ML-DSA-44 */
-    key = bench_dilithium_level2_key;
+    key   = bench_dilithium_level2_key;
     keySz = sizeof_bench_dilithium_level2_key;
-    ret = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPrvKey);
+    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPrvKey);
     if (ret != 0) {
         return ret;
     }
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
-    key = bench_dilithium_level2_pubkey;
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+    key   = bench_dilithium_level2_pubkey;
     keySz = sizeof_bench_dilithium_level2_pubkey;
-    ret = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPubKey);
+    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_44, isPubKey);
     if (ret != 0) {
         return ret;
     }
+#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_44 */
 
 #ifndef WOLFSSL_NO_ML_DSA_65
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
     /* Test ML-DSA-65 */
-    key = bench_dilithium_level3_key;
+    key   = bench_dilithium_level3_key;
     keySz = sizeof_bench_dilithium_level3_key;
-    ret = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPrvKey);
+    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPrvKey);
     if (ret != 0) {
         return ret;
     }
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
-    key = bench_dilithium_level3_pubkey;
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+    key   = bench_dilithium_level3_pubkey;
     keySz = sizeof_bench_dilithium_level3_pubkey;
-    ret = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPubKey);
+    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_65, isPubKey);
     if (ret != 0) {
         return ret;
     }
+#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_65 */
 
 #ifndef WOLFSSL_NO_ML_DSA_87
+#ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
     /* Test ML-DSA-87 */
-    key = bench_dilithium_level5_key;
+    key   = bench_dilithium_level5_key;
     keySz = sizeof_bench_dilithium_level5_key;
-    ret = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPrvKey);
+    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPrvKey);
     if (ret != 0) {
         return ret;
     }
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY */
 
-    key = bench_dilithium_level5_pubkey;
+#ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
+    key   = bench_dilithium_level5_pubkey;
     keySz = sizeof_bench_dilithium_level5_pubkey;
-    ret = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPubKey);
+    ret   = test_dilithium_decode_level(key, keySz, WC_ML_DSA_87, isPubKey);
     if (ret != 0) {
         return ret;
     }
+#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY */
 #endif /* WOLFSSL_NO_ML_DSA_87 */
 
     return ret;
 }
+#endif /* WOLFSSL_DILITHIUM_PUBLIC_KEY || WOLFSSL_DILITHIUM_PRIVATE_KEY */
+
 
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 {
@@ -45892,13 +45931,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t dilithium_test(void)
 #endif
 #endif
 
+#if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) || \
+    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
     ret = dilithium_decode_test();
     if (ret != 0) {
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
     }
+#endif /* WOLFSSL_DILITHIUM_PRIVATE_KEY || WOLFSSL_DILITHIUM_PUBLIC_KEY */
 
 #if !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) || \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) || \
+    defined(WOLFSSL_DILITHIUM_PRIVATE_KEY) || \
+    defined(WOLFSSL_DILITHIUM_PUBLIC_KEY)
 out:
 #endif
     wc_FreeRng(&rng);
