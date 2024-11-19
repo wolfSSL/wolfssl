@@ -39033,10 +39033,8 @@ int ParseCRL(RevokedCert* rcert, DecodedCRL* dcrl, const byte* buff, word32 sz,
     int          ret = 0;
     int          len;
     word32       idx = 0;
-#ifdef WC_RSA_PSS
     const byte* sigParams = NULL;
     int sigParamsSz = 0;
-#endif
 
     WOLFSSL_MSG("ParseCRL");
 
