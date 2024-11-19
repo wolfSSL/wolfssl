@@ -84,7 +84,8 @@ extern "C" {
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
 
-    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE F0E3A7F32D8FDE71DA017855072247B27D8C0F5A74CACE89AED272A7CF5EAC0E
+    #define WOLFCRYPT_FIPS_CORE_HASH_VALUE \
+            F0E3A7F32D8FDE71DA017855072247B27D8C0F5A74CACE89AED272A7CF5EAC0E
 #if 0
     #define WOLFSSL_SP_MATH_ALL
     #define WOLFSSL_SP_RSA
