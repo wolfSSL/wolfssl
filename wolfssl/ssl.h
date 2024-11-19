@@ -3495,6 +3495,22 @@ typedef void (*CbOCSPRespFree)(void*,unsigned char*);
 typedef int  (*CbCrlIO)(WOLFSSL_CRL* crl, const char* url, int urlSz);
 #endif
 
+#ifdef HAVE_CRL_UPDATE_CB
+typedef struct CrlInfo {
+    byte *issuerHash;
+    word32 issuerHashLen;
+    byte *lastDate;
+    word32 lastDateMaxLen;
+    byte lastDateFormat;
+    byte *nextDate;
+    word32 nextDateMaxLen;
+    byte nextDateFormat;
+    sword32 crlNumber;
+} CrlInfo;
+
+typedef void (*CbUpdateCRL)(CrlInfo* old, CrlInfo* cnew);
+#endif
+
 /* User Atomic Record Layer CallBacks */
 typedef int (*CallbackMacEncrypt)(WOLFSSL* ssl, unsigned char* macOut,
        const unsigned char* macIn, unsigned int macInSz, int macContent,
@@ -3956,6 +3972,12 @@ WOLFSSL_API void wolfSSL_CTX_SetPerformTlsRecordProcessingCb(WOLFSSL_CTX* ctx,
 #ifdef HAVE_CRL_IO
     WOLFSSL_API int wolfSSL_CertManagerSetCRL_IOCb(WOLFSSL_CERT_MANAGER* cm,
         CbCrlIO cb);
+#endif
+#ifdef HAVE_CRL_UPDATE_CB
+    WOLFSSL_API int wolfSSL_CertManagerGetCRLInfo(WOLFSSL_CERT_MANAGER* cm, CrlInfo* info,
+        const byte* buff, long sz, int type);
+    WOLFSSL_API int wolfSSL_CertManagerSetCRLUpdate_Cb(WOLFSSL_CERT_MANAGER* cm,
+        CbUpdateCRL cb);
 #endif
 #if defined(HAVE_OCSP)
     WOLFSSL_API int wolfSSL_CertManagerCheckOCSPResponse(
