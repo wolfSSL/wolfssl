@@ -1571,7 +1571,8 @@ typedef struct w64wrapper {
             #if defined(WOLFSSL_PTHREADS)
                 #define THREAD_CB_NOJOIN        THREAD_CB
                 #define THREAD_RETURN_NOJOIN    THREAD_RETURN
-                #define RETURN_FROM_THREAD_NOJOIN(x) WOLFSSL_RETURN_FROM_THREAD(x)
+                #define RETURN_FROM_THREAD_NOJOIN(x) \
+                    WOLFSSL_RETURN_FROM_THREAD(x)
             #else
                 #define THREAD_RETURN_NOJOIN    void
                 typedef THREAD_RETURN_NOJOIN

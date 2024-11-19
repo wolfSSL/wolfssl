@@ -913,7 +913,8 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
  * @param [in,out] args  Entropy data including: counter and stop flag.
  * @return  NULL always.
  */
-static THREAD_RETURN_NOJOIN WOLFSSL_THREAD_NO_JOIN Entropy_IncCounter(void* args)
+static THREAD_RETURN_NOJOIN WOLFSSL_THREAD_NO_JOIN
+    Entropy_IncCounter(void* args)
 {
     (void)args;
 
