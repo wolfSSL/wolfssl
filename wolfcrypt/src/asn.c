@@ -35319,9 +35319,10 @@ enum {
     || (defined(HAVE_CURVE448) && defined(HAVE_CURVE448_KEY_IMPORT)) \
     || defined(HAVE_FALCON) || defined(HAVE_DILITHIUM) || defined(HAVE_SPHINCS))
 
+
 int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     const byte** privKey, word32* privKeyLen,
-    const byte** pubKey, word32* pubKeyLen, int keyType)
+    const byte** pubKey, word32* pubKeyLen, int* inOutKeyType)
 {
 #ifndef WOLFSSL_ASN_TEMPLATE
     word32 oid;
@@ -35335,7 +35336,7 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
 #endif
 
     if (input == NULL || inOutIdx == NULL || inSz == 0 ||
-        privKey == NULL || privKeyLen == NULL) {
+        privKey == NULL || privKeyLen == NULL || inOutKeyType == NULL) {
     #ifdef WOLFSSL_ASN_TEMPLATE
         FREE_ASNGETDATA(dataASN, NULL);
     #endif
@@ -35349,14 +35350,22 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
             return ASN_PARSE_E;
         if (version != 0) {
-            WOLFSSL_MSG("Unrecognized version of ED25519 private key");
+            WOLFSSL_MSG("Unrecognized version of private key");
             return ASN_PARSE_E;
         }
 
         if (GetAlgoId(input, inOutIdx, &oid, oidKeyType, inSz) < 0)
             return ASN_PARSE_E;
-        if (oid != (word32)keyType)
+
+        /* If user supplies ANONk (0) key type, we want to auto-detect from
+         * DER and copy it back to user */
+        if (*inOutKeyType == ANONk) {
+            *inOutKeyType = oid;
+        }
+        /* Otherwise strictly validate against the expected type */
+        else if (oid != (word32)*inOutKeyType) {
             return ASN_PARSE_E;
+        }
 
         if (GetOctetString(input, inOutIdx, &length, inSz) < 0)
             return ASN_PARSE_E;
@@ -35406,10 +35415,21 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     return 0;
 #else
     if (ret == 0) {
-        /* Require OID. */
-        word32 oidSz;
-        const byte* oid = OidFromId((word32)keyType, oidKeyType, &oidSz);
-        GetASN_ExpBuffer(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oid, oidSz);
+        /* If user supplies an expected keyType (algorithm OID sum), attempt to
+         * process DER accordingly */
+        if (*inOutKeyType != ANONk) {
+            word32 oidSz;
+            /* Explicit OID check - use expected type */
+            const byte* oidDerBytes = OidFromId((word32)*inOutKeyType,
+                                                oidKeyType, &oidSz);
+            GetASN_ExpBuffer(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidDerBytes,
+                            oidSz);
+        }
+        else {
+            /* Auto-detect OID using template */
+            GetASN_OID(&dataASN[EDKEYASN_IDX_PKEYALGO_OID], oidKeyType);
+        }
+
         /* Parse full private key. */
         ret = GetASN_Items(edKeyASN, dataASN, edKeyASN_Length, 1, input,
                 inOutIdx, inSz);
@@ -35421,6 +35441,12 @@ int DecodeAsymKey_Assign(const byte* input, word32* inOutIdx, word32 inSz,
             if (ret != 0) {
                 ret = ASN_PARSE_E;
             }
+        }
+
+        /* Store detected OID if requested */
+        if (ret == 0 && *inOutKeyType == ANONk) {
+            *inOutKeyType =
+                (int)dataASN[EDKEYASN_IDX_PKEYALGO_OID].data.oid.sum;
         }
     }
     if (ret == 0) {
@@ -35462,7 +35488,7 @@ int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
 
     if (ret == 0) {
         ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKeyPtr,
-            &privKeyPtrLen, &pubKeyPtr, &pubKeyPtrLen, keyType);
+            &privKeyPtrLen, &pubKeyPtr, &pubKeyPtrLen, &keyType);
     }
     if ((ret == 0) && (privKeyPtrLen > *privKeyLen)) {
         ret = BUFFER_E;
@@ -35485,7 +35511,7 @@ int DecodeAsymKey(const byte* input, word32* inOutIdx, word32 inSz,
 }
 
 int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
-    const byte** pubKey, word32* pubKeyLen, int keyType)
+    const byte** pubKey, word32* pubKeyLen, int *inOutKeyType)
 {
     int ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -35497,7 +35523,7 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
 #endif
 
     if (input == NULL || inSz == 0 || inOutIdx == NULL ||
-        pubKey == NULL || pubKeyLen == NULL) {
+        pubKey == NULL || pubKeyLen == NULL || inOutKeyType == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -35510,8 +35536,16 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
 
     if (GetObjectId(input, inOutIdx, &oid, oidKeyType, inSz) < 0)
         return ASN_PARSE_E;
-    if (oid != (word32)keyType)
+
+    /* If user supplies ANONk (0) key type, we want to auto-detect from
+     * DER and copy it back to user */
+    if (*inOutKeyType == ANONk) {
+        *inOutKeyType = oid;
+    }
+    /* Otherwise strictly validate against the expected type */
+    else if (oid != (word32)*inOutKeyType) {
         return ASN_PARSE_E;
+    }
 
     /* key header */
     ret = CheckBitString(input, inOutIdx, &length, inSz, 1, NULL);
@@ -35531,12 +35565,21 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     CALLOC_ASNGETDATA(dataASN, publicKeyASN_Length, ret, NULL);
 
     if (ret == 0) {
-        /* Require OID. */
-        word32 oidSz;
-        const byte* oid = OidFromId((word32)keyType, oidKeyType, &oidSz);
-
-        GetASN_ExpBuffer(&dataASN[PUBKEYASN_IDX_ALGOID_OID], oid, oidSz);
-        /* Decode Ed25519 private key. */
+        /* If user supplies an expected keyType (algorithm OID sum), attempt to
+         * process DER accordingly */
+        if (*inOutKeyType != ANONk) {
+            word32 oidSz;
+            /* Explicit OID check - use expected type */
+            const byte* oidDerBytes = OidFromId((word32)*inOutKeyType,
+                                              oidKeyType, &oidSz);
+            GetASN_ExpBuffer(&dataASN[PUBKEYASN_IDX_ALGOID_OID], oidDerBytes,
+                           oidSz);
+        }
+        else {
+            /* Auto-detect OID using template */
+            GetASN_OID(&dataASN[PUBKEYASN_IDX_ALGOID_OID], oidKeyType);
+        }
+        /* Decode public key. */
         ret = GetASN_Items(publicKeyASN, dataASN, publicKeyASN_Length, 1,
                            input, inOutIdx, inSz);
         if (ret != 0)
@@ -35544,6 +35587,12 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
         /* check that input buffer is exhausted */
         if (*inOutIdx != inSz)
             ret = ASN_PARSE_E;
+
+        /* Store detected OID if requested */
+        if (ret == 0 && *inOutKeyType == ANONk) {
+            *inOutKeyType =
+                (int)dataASN[PUBKEYASN_IDX_ALGOID_OID].data.oid.sum;
+        }
     }
     /* Check that the all the buffer was used. */
     if ((ret == 0) &&
@@ -35558,6 +35607,7 @@ int DecodeAsymKeyPublic_Assign(const byte* input, word32* inOutIdx, word32 inSz,
     FREE_ASNGETDATA(dataASN, NULL);
 #endif /* WOLFSSL_ASN_TEMPLATE */
     return ret;
+
 }
 
 int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
@@ -35573,7 +35623,7 @@ int DecodeAsymKeyPublic(const byte* input, word32* inOutIdx, word32 inSz,
 
     if (ret == 0) {
         ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKeyPtr,
-            &pubKeyPtrLen, keyType);
+            &pubKeyPtrLen, &keyType);
     }
     if ((ret == 0) && (pubKeyPtrLen > *pubKeyLen)) {
         ret = BUFFER_E;

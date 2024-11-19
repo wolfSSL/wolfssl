@@ -9501,6 +9501,29 @@ int wc_dilithium_export_key(dilithium_key* key, byte* priv, word32 *privSz,
 
 #ifndef WOLFSSL_DILITHIUM_NO_ASN1
 
+/* Maps ASN.1 OID to wolfCrypt security level macros */
+static int mapOidToSecLevel(word32 oid)
+{
+    switch (oid) {
+        case ML_DSA_LEVEL2k:
+            return WC_ML_DSA_44;
+        case ML_DSA_LEVEL3k:
+            return WC_ML_DSA_65;
+        case ML_DSA_LEVEL5k:
+            return WC_ML_DSA_87;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        case DILITHIUM_LEVEL2k:
+            return WC_ML_DSA_44_DRAFT;
+        case DILITHIUM_LEVEL3k:
+            return WC_ML_DSA_65_DRAFT;
+        case DILITHIUM_LEVEL5k:
+            return WC_ML_DSA_87_DRAFT;
+#endif
+        default:
+            return ASN_UNKNOWN_OID_E;
+    }
+}
+
 #if defined(WOLFSSL_DILITHIUM_PRIVATE_KEY)
 
 /* Decode the DER encoded Dilithium key.
@@ -9508,11 +9531,18 @@ int wc_dilithium_export_key(dilithium_key* key, byte* priv, word32 *privSz,
  * @param [in]      input     Array holding DER encoded data.
  * @param [in, out] inOutIdx  On in, index into array of start of DER encoding.
  *                            On out, index into array after DER encoding.
- * @param [in, out] key       Dilithium key to store key.
- * @param [in]      inSz      Total size of data in array.
+ * @param [in, out] key       Dilithium key structure to hold the decoded key.
+ *                            If the security level is set in the key structure on
+ *                            input, the DER key will be decoded as such and will
+ *                            fail if there is a mismatch. If the level and
+ *                            parameters are not set in the key structure on
+ *                            input, the level will be detected from the DER
+ *                            file based on the algorithm OID, appropriately
+ *                            decoded, then updated in the key structure on
+ *                            output.
+ * @param [in]      inSz      Total size of the input DER buffer array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
- * @return  BAD_FUNC_ARG when level not set.
  * @return  Other negative on parse error.
  */
 int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
@@ -9557,15 +9587,27 @@ int wc_Dilithium_PrivateKeyDecode(const byte* input, word32* inOutIdx,
             keytype = ML_DSA_LEVEL5k;
         }
         else {
-            /* Level not set. */
-            ret = BAD_FUNC_ARG;
+            /* Level not set by caller, decode from DER */
+            keytype = ANONk; /* 0, not a valid key type in this situation*/
         }
     }
 
     if (ret == 0) {
         /* Decode the asymmetric key and get out private and public key data. */
-        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz, &privKey, &privKeyLen,
-            &pubKey, &pubKeyLen, keytype);
+        ret = DecodeAsymKey_Assign(input, inOutIdx, inSz,
+                                   &privKey, &privKeyLen,
+                                   &pubKey, &pubKeyLen, &keytype);
+        if (ret == 0
+#ifdef WOLFSSL_WC_DILITHIUM
+            && key->params == NULL
+#endif
+        ) {
+            /* Set the security level based on the decoded key. */
+            ret = mapOidToSecLevel(keytype);
+            if (ret > 0) {
+                ret = wc_dilithium_set_level(key, ret);
+            }
+        }
     }
     if ((ret == 0) && (pubKey == NULL) && (pubKeyLen == 0)) {
         /* Check if the public key is included in the private key. */
@@ -9756,7 +9798,15 @@ static int dilithium_check_type(const byte* input, word32* inOutIdx, byte type,
  * @param [in]      input     Array holding DER encoded data.
  * @param [in, out] inOutIdx  On in, index into array of start of DER encoding.
  *                            On out, index into array after DER encoding.
- * @param [in, out] key       Dilithium key to store key.
+ * @param [in, out] key       Dilithium key structure to hold the decoded key.
+ *                            If the security level is set in the key structure
+ *                            on input, the DER key will be decoded as such
+ *                            and will fail if there is a mismatch. If the level
+ *                            and parameters are not set in the key structure on
+ *                            input, the level will be detected from the DER file
+ *                            based on the algorithm OID, appropriately decoded,
+ *                            then updated in the key structure on output.
+ *                            updated in the key structure on output.
  * @param [in]      inSz      Total size of data in array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
@@ -9818,13 +9868,25 @@ int wc_Dilithium_PublicKeyDecode(const byte* input, word32* inOutIdx,
                 keytype = ML_DSA_LEVEL5k;
             }
             else {
-                /* Level not set. */
-                ret = BAD_FUNC_ARG;
+                /* Level not set by caller, decode from DER */
+                keytype = ANONk; /* 0, not a valid key type in this situation*/
             }
             if (ret == 0) {
                 /* Decode the asymmetric key and get out public key data. */
-                ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz, &pubKey,
-                    &pubKeyLen, keytype);
+                ret = DecodeAsymKeyPublic_Assign(input, inOutIdx, inSz,
+                                                 &pubKey, &pubKeyLen,
+                                                 &keytype);
+                if (ret == 0
+#ifdef WOLFSSL_WC_DILITHIUM
+                    && key->params == NULL
+#endif
+                ) {
+                    /* Set the security level based on the decoded key. */
+                    ret = mapOidToSecLevel(keytype);
+                    if (ret > 0) {
+                        ret = wc_dilithium_set_level(key, ret);
+                    }
+                }
             }
     #else
             /* Get OID sum for level. */
