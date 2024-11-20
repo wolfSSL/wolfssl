@@ -175,8 +175,13 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
         WOLFSSL_MSG("Error getting session info");
         return WC_DEVCRYPTO_E;
     }
-    printf("Using %s with driver %s\n", sesInfo.hash_info.cra_name,
-        sesInfo.hash_info.cra_driver_name);
+    if (ctx->sess.cipher == 0) {
+        printf("Using %s with driver %s\n", sesInfo.hash_info.cra_name,
+            sesInfo.hash_info.cra_driver_name);
+    } else {
+        printf("Using %s with driver %s\n", sesInfo.cipher_info.cra_name,
+            sesInfo.cipher_info.cra_driver_name);
+    }
 #endif
     (void)key;
     (void)keySz;
