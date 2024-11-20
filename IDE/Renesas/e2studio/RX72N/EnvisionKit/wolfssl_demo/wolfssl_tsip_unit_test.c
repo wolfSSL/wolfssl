@@ -408,10 +408,10 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
         printf(" tsip_aes256_gcm_test() ");
     }
 
-    ForceZero(resultT, sizeof(resultT));
-    ForceZero(resultC, sizeof(resultC));
-    ForceZero(resultP, sizeof(resultP));
-    ForceZero(&userContext, sizeof(TsipUserCtx));
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+    XMEMSET(&userContext, 0, sizeof(TsipUserCtx));
 
     if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
         ret = -1;
@@ -434,10 +434,11 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     }
 
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p, sizeof(p),
-                        (byte*)iv1, sizeof(iv1), resultT, sizeof(resultT),
-                        a, sizeof(a), &userContext);
-
+    result = wc_tsip_AesGcmEncrypt(enc,
+        resultC, p, sizeof(p),
+        (byte*)iv1, sizeof(iv1), resultT, sizeof(resultT),
+        a, sizeof(a), &userContext
+    );
     if (result != 0) {
         ret = -4;
         goto out;
@@ -451,9 +452,11 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
         dec->ctx.keySize = enc->keylen;
     }
 
-    result = wc_tsip_AesGcmDecrypt(dec, resultP, resultC, sizeof(c1),
-                        iv1, sizeof(iv1), resultT, sizeof(resultT),
-                        a, sizeof(a), &userContext);
+    result = wc_tsip_AesGcmDecrypt(dec,
+        resultP, resultC, sizeof(c1),
+        iv1, sizeof(iv1), resultT, sizeof(resultT),
+        a, sizeof(a), &userContext
+    );
     if (result != 0){
         ret = -8;
         goto out;
@@ -469,18 +472,21 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
 
     wc_AesGcmSetKey(enc, k1, sizeof(k1));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p, sizeof(p), iv1, sizeof(iv1),
-                                resultT + 1, sizeof(resultT) - 1,
-                                a, sizeof(a), &userContext);
+    result = wc_tsip_AesGcmEncrypt(enc,
+        resultC, p, sizeof(p), iv1, sizeof(iv1),
+        resultT + 1, sizeof(resultT) - 1,
+        a, sizeof(a), &userContext
+    );
     if (result != 0) {
         ret = -10;
         goto out;
     }
 
-    result = wc_tsip_AesGcmDecrypt(enc, resultP, resultC, sizeof(p),
-                            iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1,
-                            a, sizeof(a), &userContext);
-
+    result = wc_tsip_AesGcmDecrypt(enc,
+        resultP, resultC, sizeof(p),
+        iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1,
+        a, sizeof(a), &userContext
+    );
     if (result != 0) {
         ret = -11;
         goto out;
@@ -568,9 +574,9 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
         0x31, 0x2e, 0x2a, 0xf9, 0x57, 0x7a, 0x1e, 0xa6
     };
 
-    byte resultT[16];
-    byte resultP[60 + AES_BLOCK_SIZE];
-    byte resultC[60 + AES_BLOCK_SIZE];
+    byte resultT[sizeof(t3)];
+    byte resultP[sizeof(p3) + AES_BLOCK_SIZE];
+    byte resultC[sizeof(p3) + AES_BLOCK_SIZE];
     int  result = 0;
     int ret;
 
@@ -581,10 +587,10 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
         printf(" tsip_aes128_gcm_test() ");
     }
 
-    ForceZero(resultT, sizeof(resultT));
-    ForceZero(resultC, sizeof(resultC));
-    ForceZero(resultP, sizeof(resultP));
-    ForceZero(&userContext, sizeof(TsipUserCtx));
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+    XMEMSET(&userContext, 0, sizeof(TsipUserCtx));
 
     if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
         ret = -1;
@@ -607,21 +613,27 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
         enc->ctx.keySize = enc->keylen;
     }
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p3, sizeof(p3),
-                                        iv3, sizeof(iv3),
-                                        resultT, sizeof(t3),
-                                        a3, sizeof(a3), &userContext);
+    result = wc_tsip_AesGcmEncrypt(enc,
+        resultC, p3, sizeof(p3),
+        iv3, sizeof(iv3),
+        resultT, sizeof(t3),
+        a3, sizeof(a3), &userContext
+    );
     if (result != 0) {
         ret = -4;
         goto out;
     }
-    result = wc_tsip_AesGcmDecrypt(enc, resultP, resultC, sizeof(c3),
-                                iv3, sizeof(iv3), resultT, sizeof(resultT),
-                                a3, sizeof(a3), &userContext);
+
+    result = wc_tsip_AesGcmDecrypt(enc,
+        resultP, resultC, sizeof(c3),
+        iv3, sizeof(iv3), resultT, sizeof(resultT),
+        a3, sizeof(a3), &userContext
+    );
     if (result != 0) {
         ret = -5;
         goto out;
     }
+
     if (XMEMCMP(p3, resultP, sizeof(p3))) {
         ret = -6;
         goto out;
