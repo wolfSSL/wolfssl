@@ -416,7 +416,7 @@
         #endif
     #endif
     #ifndef XSOCKOPT_TYPE_OPTVAL_TYPE
-        #ifdef USE_WINDOWS_API
+        #ifndef USE_WINDOWS_API
             #define XSOCKOPT_TYPE_OPTVAL_TYPE void*
         #else
             #define XSOCKOPT_TYPE_OPTVAL_TYPE char*
