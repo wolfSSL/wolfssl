@@ -234,7 +234,7 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                 plain.pdata = (uint8_t*)info->pk.rsa.in;
                 plain.data_length = info->pk.rsa.inLen;
                 cipher.pdata = (uint8_t*)info->pk.rsa.out;
-                cipher.data_length = info->pk.rsa.outLen;
+                cipher.data_length = *(info->pk.rsa.outLen);
 
                 if (keySize == TSIP_KEY_TYPE_RSA1024) {
                     ret = R_TSIP_RsaesPkcs1024Encrypt(&plain, &cipher,
@@ -250,13 +250,13 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     return BAD_FUNC_ARG;
                 }
                 if (ret == 0) {
-                    info->pk.rsa.outLen = cipher.data_length;
+                    *(info->pk.rsa.outLen) = cipher.data_length;
                 }
             }
             else if (type == RSA_PRIVATE_DECRYPT || type == RSA_PRIVATE_ENCRYPT)
             {
                 plain.pdata = (uint8_t*)info->pk.rsa.out;
-                plain.data_length = info->pk.rsa.outLen;
+                plain.data_length = *(info->pk.rsa.outLen);
                 cipher.pdata = (uint8_t*)info->pk.rsa.in;
                 cipher.data_length = info->pk.rsa.inLen;
 
@@ -274,7 +274,7 @@ int wc_tsip_RsaFunction(wc_CryptoInfo* info, TsipUserCtx* tuc)
                     return BAD_FUNC_ARG;
                 }
                 if (ret == 0) {
-                    info->pk.rsa.outLen = plain.data_length;
+                    *(info->pk.rsa.outLen) = plain.data_length;
                 }
             }
             tsip_hw_unlock();
@@ -314,13 +314,13 @@ int wc_tsip_RsaVerifyPkcs(wc_CryptoInfo* info, TsipUserCtx* tuc)
     }
 
     if (tsip_RsakeyImport(tuc) == 0) {
-        hashData.pdata = (uint8_t*)info->pk.rsa.in;
-        hashData.data_length = info->pk.rsa.inLen;
+        hashData.pdata = (uint8_t*)info->pk.rsa.out;
+        hashData.data_length = *(info->pk.rsa.outLen);
         hashData.data_type =
             tuc->keyflgs_crypt.bits.message_type;/* message 0, hash 1 */
 
-        sigData.pdata = (uint8_t*)info->pk.rsa.out;
-        sigData.data_length = info->pk.rsa.outLen;
+        sigData.pdata = (uint8_t*)info->pk.rsa.in;
+        sigData.data_length = info->pk.rsa.inLen;
 
         if ((ret = tsip_hw_lock()) == 0) {
             switch (tuc->wrappedKeyType) {

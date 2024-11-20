@@ -523,7 +523,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
 #endif /* FREERTOS */
 #endif
 
-#if defined(WOLFSSL_AES_128)
+#if defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM)
 
 static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
 {
@@ -805,6 +805,7 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
     const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
+    word32 signSz = 0;
     byte *in = NULL;
     byte *in2 = NULL;
     byte *out= NULL;
@@ -848,15 +849,16 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
     if (ret < 0) {
         goto out;
     }
+    signSz = ret;
 
     /* this should fail */
-    ret = wc_RsaSSL_Verify(in2, inLen, out, keySize/8, key);
+    ret = wc_RsaSSL_Verify(out, signSz, in2, inLen, key);
     if (ret != SIG_VERIFY_E) {
         ret = -1;
         goto out;
     }
     /* this should succeed */
-    ret = wc_RsaSSL_Verify(in, inLen, out, keySize/8, key);
+    ret = wc_RsaSSL_Verify(out, signSz, in, inLen, key);
     if (ret < 0) {
         ret = -1;
         goto out;
@@ -1223,6 +1225,7 @@ int tsip_crypt_test(void)
 
         }
 
+#ifdef HAVE_AESGCM
         if (ret == 0) {
 
             ret = tsip_aesgcm128_test(1, &g_user_aes128_key_index1);
@@ -1234,8 +1237,10 @@ int tsip_crypt_test(void)
             ret = tsip_aesgcm256_test(1, &g_user_aes256_key_index1);
 
         }
-   #if defined(WOLFSSL_KEY_GEN) && \
-       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+#endif
+
+#if defined(WOLFSSL_KEY_GEN) && \
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 
         if (ret == 0) {
             Clr_CallbackCtx(&userContext);
@@ -1248,20 +1253,21 @@ int tsip_crypt_test(void)
 
 #if RSA_MIN_SIZE <= 1024
         if (ret == 0) {
-        	userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
+            userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
             printf(" tsip_rsa_test(1024)");
             ret = tsip_rsa_test(1, 1024);
             RESULT_STR(ret)
         }
 #endif
         if (ret == 0) {
-        	userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
+            userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
             printf(" tsip_rsa_test(2048)");
             ret = tsip_rsa_test(1, 2048);
             RESULT_STR(ret)
         }
 
 
+#if RSA_MIN_SIZE <= 1024
         if (ret == 0) {
             printf(" tsip_rsa_SignVerify_test(1024)");
 
@@ -1274,6 +1280,7 @@ int tsip_crypt_test(void)
         }
 
         Clr_CallbackCtx(&userContext);
+#endif
 
         if (ret == 0) {
             printf(" tsip_rsa_SignVerify_test(2048)");
@@ -1287,12 +1294,11 @@ int tsip_crypt_test(void)
         }
 
         Clr_CallbackCtx(&userContext);
-   #endif
+#endif /* WOLFSSL_KEY_GEN && WOLFSSL_RENESAS_TSIP_CRYPTONLY */
     }
-    else
+    else {
         ret = -1;
-
-
+    }
     return ret;
 }
 
