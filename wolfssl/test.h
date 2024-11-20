@@ -2011,16 +2011,13 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
 }
 #endif
 
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM)
-static unsigned char local_psk[32];
-#endif
+#ifdef OPENSSL_EXTRA
 static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
             const WOLFSSL_EVP_MD* md, const unsigned char **id,
             size_t* idlen,  WOLFSSL_SESSION **sess)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    static unsigned char local_psk[32];
     int i;
     WOLFSSL_SESSION* lsess;
     char buf[256];
@@ -2083,6 +2080,7 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     return 0;
 #endif
 }
+#endif /* OPENSSL_EXTRA */
 
 static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
         const char* hint, char* identity, unsigned int id_max_len,

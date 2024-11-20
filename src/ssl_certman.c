@@ -624,7 +624,7 @@ void wolfSSL_CertManagerSetVerify(WOLFSSL_CERT_MANAGER* cm, VerifyCallback vc)
         cm->verifyCallback = vc;
     }
 }
-#endif /* NO_WOLFSSL_CM_VERIFY */
+#endif /* !NO_WOLFSSL_CM_VERIFY */
 
 #ifdef WC_ASN_UNKNOWN_EXT_CB
 void wolfSSL_CertManagerSetUnknownExtCallback(WOLFSSL_CERT_MANAGER* cm,

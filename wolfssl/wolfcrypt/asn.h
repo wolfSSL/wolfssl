@@ -36,8 +36,7 @@ that can be serialized and deserialized in a cross-platform way.
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifndef NO_ASN
-
+#if !defined(NO_ASN) || !defined(NO_PWDBASED)
 
 #if !defined(NO_ASN_TIME) && defined(NO_TIME_H)
     #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
@@ -70,6 +69,8 @@ that can be serialized and deserialized in a cross-platform way.
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#ifndef NO_ASN
 
 #ifndef EXTERNAL_SERIAL_SIZE
     #define EXTERNAL_SERIAL_SIZE 32
@@ -744,7 +745,7 @@ typedef struct WOLFSSL_ObjectInfo {
 } WOLFSSL_ObjectInfo;
 extern const size_t wolfssl_object_info_sz;
 extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
-#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 /* DN Tag Strings */
 #define WOLFSSL_COMMON_NAME      "/CN="
@@ -850,6 +851,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+
 /* NIDs */
 #define WC_NID_netscape_cert_type WC_NID_undef
 #define WC_NID_des 66
@@ -2888,12 +2890,6 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
                                    int pubKeyOID, void * heap);
 #endif /* WOLFSSL_ACERT */
 
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
-
-#endif /* !NO_ASN */
-
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
@@ -2915,6 +2911,7 @@ WOLFSSL_LOCAL int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     int keyType);
 #endif
 
+#endif /* !NO_ASN */
 
 #if !defined(NO_ASN) || !defined(NO_PWDBASED)
 
@@ -2961,6 +2958,12 @@ enum PKCSTypes {
     PKCS1v0             =   0,     /* default PKCS#1 version */
     PKCS1v1             =   1     /* Multi-prime version */
 };
+
+#endif /* !NO_ASN || !NO_PWDBASED */
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 #endif /* !NO_ASN || !NO_PWDBASED */
 

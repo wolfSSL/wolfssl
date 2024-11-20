@@ -14055,10 +14055,7 @@ int wolfSSL_sk_X509_num(const WOLF_STACK_OF(WOLFSSL_X509) *s)
 
 #endif /* OPENSSL_EXTRA */
 
-#if defined(HAVE_EX_DATA) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) \
-     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)                   \
-     || defined(HAVE_LIGHTY))
-
+#ifdef HAVE_EX_DATA_CRYPTO
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
                                   WOLFSSL_CRYPTO_EX_new* new_func,
                                   WOLFSSL_CRYPTO_EX_dup* dup_func,
@@ -14071,8 +14068,7 @@ int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
 }
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(WOLFSSL_WPAS_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 void *wolfSSL_X509_get_ex_data(WOLFSSL_X509 *x509, int idx)
 {
     WOLFSSL_ENTER("wolfSSL_X509_get_ex_data");
@@ -14091,8 +14087,7 @@ int wolfSSL_X509_set_ex_data(WOLFSSL_X509 *x509, int idx, void *data)
 {
     WOLFSSL_ENTER("wolfSSL_X509_set_ex_data");
 #ifdef HAVE_EX_DATA
-    if (x509 != NULL)
-    {
+    if (x509 != NULL) {
         return wolfSSL_CRYPTO_set_ex_data(&x509->ex_data, idx, data);
     }
 #else
@@ -14119,8 +14114,7 @@ int wolfSSL_X509_set_ex_data_with_cleanup(
     return WOLFSSL_FAILURE;
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
-
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || WOLFSSL_WPAS_SMALL */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 
 #ifndef NO_ASN

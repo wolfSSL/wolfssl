@@ -3,7 +3,9 @@
 #
 
 include wolfssl/wolfcrypt/include.am
+if BUILD_OPENSSL_COMPAT
 include wolfssl/openssl/include.am
+endif
 
 EXTRA_DIST+= wolfssl/sniffer_error.rc
 
