@@ -3733,6 +3733,11 @@ extern void uITRON4_free(void *p) ;
     #define OPENSSL_EXTRA_X509_SMALL
 #endif
 
+/* Web Server needs to enable OPENSSL_EXTRA_X509_SMALL */
+#if defined(HAVE_WEBSERVER) && !defined(OPENSSL_EXTRA_X509_SMALL)
+    #define OPENSSL_EXTRA_X509_SMALL
+#endif
+
 /* The EX data CRYPTO API's used with compatibility */
 #if !defined(HAVE_EX_DATA_CRYPTO) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL) || \
