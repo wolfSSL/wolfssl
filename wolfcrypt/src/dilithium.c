@@ -9532,14 +9532,15 @@ static int mapOidToSecLevel(word32 oid)
  * @param [in, out] inOutIdx  On in, index into array of start of DER encoding.
  *                            On out, index into array after DER encoding.
  * @param [in, out] key       Dilithium key structure to hold the decoded key.
- *                            If the security level is set in the key structure on
- *                            input, the DER key will be decoded as such and will
- *                            fail if there is a mismatch. If the level and
- *                            parameters are not set in the key structure on
+ *                            If the security level is set in the key structure
+ *                            on input, the DER key will be decoded as such and
+ *                            will fail if there is a mismatch. If the level
+ *                            and parameters are not set in the key structure on
  *                            input, the level will be detected from the DER
  *                            file based on the algorithm OID, appropriately
  *                            decoded, then updated in the key structure on
- *                            output.
+ *                            output. Auto-detection of the security level is
+ *                            not supported if compiled for FIPS 204 draft mode.
  * @param [in]      inSz      Total size of the input DER buffer array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.
@@ -9803,10 +9804,12 @@ static int dilithium_check_type(const byte* input, word32* inOutIdx, byte type,
  *                            on input, the DER key will be decoded as such
  *                            and will fail if there is a mismatch. If the level
  *                            and parameters are not set in the key structure on
- *                            input, the level will be detected from the DER file
- *                            based on the algorithm OID, appropriately decoded,
- *                            then updated in the key structure on output.
- *                            updated in the key structure on output.
+ *                            input, the level will be detected from the DER
+ *                            file based on the algorithm OID, appropriately
+ *                            decoded, then updated in the key structure on
+ *                            output. Auto-detection of the security level is
+ *                            not supported if compiled for FIPS 204
+ *                            draft mode.
  * @param [in]      inSz      Total size of data in array.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when input, inOutIdx or key is NULL or inSz is 0.

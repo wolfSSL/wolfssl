@@ -35003,10 +35003,20 @@ static int test_wc_dilithium_der(void)
      * the supplied DER is invalid, this should fail with ASN parsing error */
     idx = 0;
     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, pubDerLen),
-        WC_NO_ERR_TRACE(ASN_PARSE_E));
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG)
+#else
+        WC_NO_ERR_TRACE(ASN_PARSE_E)
+#endif
+    );
     idx = 0;
     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
-        WC_NO_ERR_TRACE(ASN_PARSE_E));
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
+        WC_NO_ERR_TRACE(BAD_FUNC_ARG)
+#else
+        WC_NO_ERR_TRACE(ASN_PARSE_E)
+#endif
+    );
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
