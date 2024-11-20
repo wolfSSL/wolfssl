@@ -19813,20 +19813,6 @@ int wolfssl_get_ex_new_index(int class_index, long ctx_l, void* ctx_ptr,
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
 
-void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
-{
-    WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
-#ifdef HAVE_EX_DATA
-    if (ctx != NULL) {
-        return wolfSSL_CRYPTO_get_ex_data(&ctx->ex_data, idx);
-    }
-#else
-    (void)ctx;
-    (void)idx;
-#endif
-    return NULL;
-}
-
 #ifdef HAVE_EX_DATA_CRYPTO
 int wolfSSL_CTX_get_ex_new_index(long idx, void* arg,
                                  WOLFSSL_CRYPTO_EX_new* new_func,
@@ -19855,10 +19841,25 @@ int wolfSSL_get_ex_new_index(long argValue, void* arg,
 }
 #endif /* HAVE_EX_DATA_CRYPTO */
 
+#ifdef OPENSSL_EXTRA
+void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_get_ex_data");
+#ifdef HAVE_EX_DATA
+    if (ctx != NULL) {
+        return wolfSSL_CRYPTO_get_ex_data(&ctx->ex_data, idx);
+    }
+#else
+    (void)ctx;
+    (void)idx;
+#endif
+    return NULL;
+}
+
 int wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_ex_data");
-#ifdef HAVE_EX_DATA_CRYPTO
+#ifdef HAVE_EX_DATA
     if (ctx != NULL) {
         return wolfSSL_CRYPTO_set_ex_data(&ctx->ex_data, idx, data);
     }
@@ -19878,15 +19879,14 @@ int wolfSSL_CTX_set_ex_data_with_cleanup(
     wolfSSL_ex_data_cleanup_routine_t cleanup_routine)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_ex_data_with_cleanup");
-    if (ctx != NULL)
-    {
+    if (ctx != NULL) {
         return wolfSSL_CRYPTO_set_ex_data_with_cleanup(&ctx->ex_data, idx, data,
                                                        cleanup_routine);
     }
     return WOLFSSL_FAILURE;
 }
 #endif /* HAVE_EX_DATA_CLEANUP_HOOKS */
-
+#endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 

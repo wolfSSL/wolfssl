@@ -85315,8 +85315,8 @@ static int test_wolfSSL_X509_print(void)
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(HAVE_CRL)\
-    && !defined(NO_FILESYSTEM) && defined(XSNPRINTF)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && defined(XSNPRINTF)
     X509_CRL* crl = NULL;
     BIO *bio = NULL;
     XFILE fp = XBADFILE;

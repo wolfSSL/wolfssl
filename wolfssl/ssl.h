@@ -1519,6 +1519,7 @@ WOLFSSL_API int wolfSSL_X509_get_ex_new_index(int idx, void *arg,
 #endif
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API void* wolfSSL_CTX_get_ex_data(const WOLFSSL_CTX* ctx, int idx);
 WOLFSSL_API int   wolfSSL_CTX_set_ex_data(WOLFSSL_CTX* ctx, int idx, void* data);
 #ifdef HAVE_EX_DATA_CLEANUP_HOOKS
@@ -1528,6 +1529,7 @@ WOLFSSL_API int wolfSSL_CTX_set_ex_data_with_cleanup(
     void* data,
     wolfSSL_ex_data_cleanup_routine_t cleanup_routine);
 #endif
+#endif /* OPENSSL_EXTRA */
 /* ----- EX DATA END ----- */
 
 WOLFSSL_ABI WOLFSSL_API void wolfSSL_CTX_set_verify(WOLFSSL_CTX* ctx, int mode,
