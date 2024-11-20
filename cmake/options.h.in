@@ -382,6 +382,14 @@ extern "C" {
 #cmakedefine HAVE_ECC_KOBLITZ
 #undef HAVE_ECC_CDH
 #cmakedefine HAVE_ECC_CDH
+#undef WOLFSSL_HAVE_LMS
+#cmakedefine WOLFSSL_HAVE_LMS
+#undef WOLFSSL_WC_LMS
+#cmakedefine WOLFSSL_WC_LMS
+#undef WOLFSSL_HAVE_XMSS
+#cmakedefine WOLFSSL_HAVE_XMSS
+#undef WOLFSSL_WC_XMSS
+#cmakedefine WOLFSSL_WC_XMSS
 
 #ifdef __cplusplus
 }
