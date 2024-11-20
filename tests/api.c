@@ -35001,8 +35001,10 @@ static int test_wc_dilithium_der(void)
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     /* When security level is not set, we attempt to parse it from DER. Since
      * the supplied DER is invalid, this should fail with ASN parsing error */
+    idx = 0;
     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, pubDerLen),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
+    idx = 0;
     ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
 
