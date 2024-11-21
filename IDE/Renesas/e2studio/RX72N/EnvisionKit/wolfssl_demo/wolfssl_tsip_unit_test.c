@@ -408,10 +408,10 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
         printf(" tsip_aes256_gcm_test() ");
     }
 
-    ForceZero(resultT, sizeof(resultT));
-    ForceZero(resultC, sizeof(resultC));
-    ForceZero(resultP, sizeof(resultP));
-    ForceZero(&userContext, sizeof(TsipUserCtx));
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+    XMEMSET(&userContext, 0, sizeof(TsipUserCtx));
 
     if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
         ret = -1;
@@ -434,10 +434,11 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     }
 
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p, sizeof(p),
-                        (byte*)iv1, sizeof(iv1), resultT, sizeof(resultT),
-                        a, sizeof(a), &userContext);
-
+    result = wc_tsip_AesGcmEncrypt(enc,
+        resultC, p, sizeof(p),
+        (byte*)iv1, sizeof(iv1), resultT, sizeof(resultT),
+        a, sizeof(a), &userContext
+    );
     if (result != 0) {
         ret = -4;
         goto out;
@@ -451,9 +452,11 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
         dec->ctx.keySize = enc->keylen;
     }
 
-    result = wc_tsip_AesGcmDecrypt(dec, resultP, resultC, sizeof(c1),
-                        iv1, sizeof(iv1), resultT, sizeof(resultT),
-                        a, sizeof(a), &userContext);
+    result = wc_tsip_AesGcmDecrypt(dec,
+        resultP, resultC, sizeof(c1),
+        iv1, sizeof(iv1), resultT, sizeof(resultT),
+        a, sizeof(a), &userContext
+    );
     if (result != 0){
         ret = -8;
         goto out;
@@ -469,18 +472,21 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
 
     wc_AesGcmSetKey(enc, k1, sizeof(k1));
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p, sizeof(p), iv1, sizeof(iv1),
-                                resultT + 1, sizeof(resultT) - 1,
-                                a, sizeof(a), &userContext);
+    result = wc_tsip_AesGcmEncrypt(enc,
+        resultC, p, sizeof(p), iv1, sizeof(iv1),
+        resultT + 1, sizeof(resultT) - 1,
+        a, sizeof(a), &userContext
+    );
     if (result != 0) {
         ret = -10;
         goto out;
     }
 
-    result = wc_tsip_AesGcmDecrypt(enc, resultP, resultC, sizeof(p),
-                            iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1,
-                            a, sizeof(a), &userContext);
-
+    result = wc_tsip_AesGcmDecrypt(enc,
+        resultP, resultC, sizeof(p),
+        iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1,
+        a, sizeof(a), &userContext
+    );
     if (result != 0) {
         ret = -11;
         goto out;
@@ -523,7 +529,7 @@ static void tskAes256_Gcm_Test(void *pvParam)
 #endif /* FREERTOS */
 #endif
 
-#if defined(WOLFSSL_AES_128)
+#if defined(WOLFSSL_AES_128) && defined(HAVE_AESGCM)
 
 static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
 {
@@ -568,9 +574,9 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
         0x31, 0x2e, 0x2a, 0xf9, 0x57, 0x7a, 0x1e, 0xa6
     };
 
-    byte resultT[16];
-    byte resultP[60 + AES_BLOCK_SIZE];
-    byte resultC[60 + AES_BLOCK_SIZE];
+    byte resultT[sizeof(t3)];
+    byte resultP[sizeof(p3) + AES_BLOCK_SIZE];
+    byte resultC[sizeof(p3) + AES_BLOCK_SIZE];
     int  result = 0;
     int ret;
 
@@ -581,10 +587,10 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
         printf(" tsip_aes128_gcm_test() ");
     }
 
-    ForceZero(resultT, sizeof(resultT));
-    ForceZero(resultC, sizeof(resultC));
-    ForceZero(resultP, sizeof(resultP));
-    ForceZero(&userContext, sizeof(TsipUserCtx));
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+    XMEMSET(&userContext, 0, sizeof(TsipUserCtx));
 
     if (wc_AesInit(enc, NULL, INVALID_DEVID) != 0) {
         ret = -1;
@@ -607,21 +613,27 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
         enc->ctx.keySize = enc->keylen;
     }
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
-    result = wc_tsip_AesGcmEncrypt(enc, resultC, p3, sizeof(p3),
-                                        iv3, sizeof(iv3),
-                                        resultT, sizeof(t3),
-                                        a3, sizeof(a3), &userContext);
+    result = wc_tsip_AesGcmEncrypt(enc,
+        resultC, p3, sizeof(p3),
+        iv3, sizeof(iv3),
+        resultT, sizeof(t3),
+        a3, sizeof(a3), &userContext
+    );
     if (result != 0) {
         ret = -4;
         goto out;
     }
-    result = wc_tsip_AesGcmDecrypt(enc, resultP, resultC, sizeof(c3),
-                                iv3, sizeof(iv3), resultT, sizeof(resultT),
-                                a3, sizeof(a3), &userContext);
+
+    result = wc_tsip_AesGcmDecrypt(enc,
+        resultP, resultC, sizeof(c3),
+        iv3, sizeof(iv3), resultT, sizeof(resultT),
+        a3, sizeof(a3), &userContext
+    );
     if (result != 0) {
         ret = -5;
         goto out;
     }
+
     if (XMEMCMP(p3, resultP, sizeof(p3))) {
         ret = -6;
         goto out;
@@ -805,6 +817,7 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
     const char inStr2[] = TEST_STRING2;
     const word32 inLen = (word32)TEST_STRING_SZ;
     const word32 outSz = RSA_TEST_BYTES;
+    word32 signSz = 0;
     byte *in = NULL;
     byte *in2 = NULL;
     byte *out= NULL;
@@ -848,15 +861,16 @@ static int tsip_rsa_SignVerify_test(int prnt, int keySize)
     if (ret < 0) {
         goto out;
     }
+    signSz = ret;
 
     /* this should fail */
-    ret = wc_RsaSSL_Verify(in2, inLen, out, keySize/8, key);
+    ret = wc_RsaSSL_Verify(out, signSz, in2, inLen, key);
     if (ret != SIG_VERIFY_E) {
         ret = -1;
         goto out;
     }
     /* this should succeed */
-    ret = wc_RsaSSL_Verify(in, inLen, out, keySize/8, key);
+    ret = wc_RsaSSL_Verify(out, signSz, in, inLen, key);
     if (ret < 0) {
         ret = -1;
         goto out;
@@ -1223,6 +1237,7 @@ int tsip_crypt_test(void)
 
         }
 
+#ifdef HAVE_AESGCM
         if (ret == 0) {
 
             ret = tsip_aesgcm128_test(1, &g_user_aes128_key_index1);
@@ -1234,8 +1249,10 @@ int tsip_crypt_test(void)
             ret = tsip_aesgcm256_test(1, &g_user_aes256_key_index1);
 
         }
-   #if defined(WOLFSSL_KEY_GEN) && \
-       defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
+#endif
+
+#if defined(WOLFSSL_KEY_GEN) && \
+    defined(WOLFSSL_RENESAS_TSIP_CRYPTONLY)
 
         if (ret == 0) {
             Clr_CallbackCtx(&userContext);
@@ -1248,20 +1265,21 @@ int tsip_crypt_test(void)
 
 #if RSA_MIN_SIZE <= 1024
         if (ret == 0) {
-        	userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
+            userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA1024;
             printf(" tsip_rsa_test(1024)");
             ret = tsip_rsa_test(1, 1024);
             RESULT_STR(ret)
         }
 #endif
         if (ret == 0) {
-        	userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
+            userContext.wrappedKeyType = TSIP_KEY_TYPE_RSA2048;
             printf(" tsip_rsa_test(2048)");
             ret = tsip_rsa_test(1, 2048);
             RESULT_STR(ret)
         }
 
 
+#if RSA_MIN_SIZE <= 1024
         if (ret == 0) {
             printf(" tsip_rsa_SignVerify_test(1024)");
 
@@ -1274,6 +1292,7 @@ int tsip_crypt_test(void)
         }
 
         Clr_CallbackCtx(&userContext);
+#endif
 
         if (ret == 0) {
             printf(" tsip_rsa_SignVerify_test(2048)");
@@ -1287,12 +1306,11 @@ int tsip_crypt_test(void)
         }
 
         Clr_CallbackCtx(&userContext);
-   #endif
+#endif /* WOLFSSL_KEY_GEN && WOLFSSL_RENESAS_TSIP_CRYPTONLY */
     }
-    else
+    else {
         ret = -1;
-
-
+    }
     return ret;
 }
 

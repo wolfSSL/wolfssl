@@ -1497,6 +1497,10 @@ typedef struct w64wrapper {
         #if !defined(__MINGW32__)
             #define WOLFSSL_THREAD_NO_JOIN __cdecl
         #endif
+    #elif defined(THREADX)
+        typedef unsigned int   THREAD_RETURN;
+        typedef TX_THREAD      THREAD_TYPE;
+        #define WOLFSSL_THREAD
     #else
         typedef unsigned int  THREAD_RETURN;
         typedef size_t        THREAD_TYPE;
