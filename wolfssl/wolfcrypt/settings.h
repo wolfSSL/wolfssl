@@ -3721,13 +3721,6 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_HAVE_TLS_UNIQUE
 #endif
 
-/* Keep peer cert, keep our cert and session certs requires WOLFSSL_X509 */
-#if (defined(KEEP_PEER_CERT) || defined(KEEP_OUR_CERT) || \
-     defined(SESSION_CERTS)) && \
-     !defined(OPENSSL_EXTRA) && !defined(OPENSSL_EXTRA_X509_SMALL)
-    #define OPENSSL_EXTRA_X509_SMALL
-#endif
-
 /* WPAS Small option requires OPENSSL_EXTRA_X509_SMALL */
 #if defined(WOLFSSL_WPAS_SMALL) && !defined(OPENSSL_EXTRA_X509_SMALL)
     #define OPENSSL_EXTRA_X509_SMALL

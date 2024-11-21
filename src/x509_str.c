@@ -221,7 +221,9 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
             wolfSSL_sk_X509_free(ctx->chain);
             ctx->chain = NULL;
         }
+#ifdef SESSION_CERTS
         ctx->sesChain = NULL;
+#endif
         ctx->domain = NULL;
 #ifdef HAVE_EX_DATA
         XMEMSET(&ctx->ex_data, 0, sizeof(ctx->ex_data));
