@@ -65136,7 +65136,7 @@ static int test_wolfSSL_X509(void)
     ExpectNotNull(x509 = (X509 *)d2i_X509_fp(fp, (X509 **)NULL));
     ExpectNotNull(x509);
 
-#ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA_CRYPTO
     ExpectIntEQ(wolfSSL_X509_get_ex_new_index(1, NULL, NULL, NULL, NULL), 0);
 #endif
     ExpectNull(wolfSSL_X509_get_ex_data(NULL, 1));
@@ -71980,15 +71980,12 @@ static int test_wolfSSL_SESSION_expire_downgrade(void)
     !defined(NO_RSA) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     !defined(NO_SESSION_CACHE) && defined(OPENSSL_EXTRA) && \
     !defined(WOLFSSL_NO_TLS12)
-
-    WOLFSSL_CTX* ctx = NULL;
     callback_functions server_cbf, client_cbf;
 
     XMEMSET(&server_cbf, 0, sizeof(callback_functions));
     XMEMSET(&client_cbf, 0, sizeof(callback_functions));
 
     /* force server side to use TLS 1.2 */
-    server_cbf.ctx = ctx;
     server_cbf.method = wolfTLSv1_2_server_method;
 
     client_cbf.method = wolfSSLv23_client_method;
@@ -72000,9 +71997,6 @@ static int test_wolfSSL_SESSION_expire_downgrade(void)
     ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
     ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
 
-    /* set the previously created session and wait till expired */
-    server_cbf.ctx = ctx;
-
     client_cbf.method = wolfSSLv23_client_method;
     server_cbf.ctx_ready = test_wolfSSL_SESSION_expire_downgrade_ctx_ready;
     client_cbf.ssl_ready = test_wolfSSL_SESSION_expire_downgrade_ssl_ready_wait;
@@ -72012,9 +72006,6 @@ static int test_wolfSSL_SESSION_expire_downgrade(void)
     test_wolfSSL_client_server_nofail(&client_cbf, &server_cbf);
     ExpectIntEQ(client_cbf.return_code, TEST_SUCCESS);
     ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
-
-    /* set the previously created expired session */
-    server_cbf.ctx = ctx;
 
     client_cbf.method = wolfSSLv23_client_method;
     server_cbf.ctx_ready = test_wolfSSL_SESSION_expire_downgrade_ctx_ready;
@@ -72027,8 +72018,6 @@ static int test_wolfSSL_SESSION_expire_downgrade(void)
     ExpectIntEQ(server_cbf.return_code, TEST_SUCCESS);
 
     wolfSSL_SESSION_free(test_wolfSSL_SESSION_expire_sess);
-    wolfSSL_CTX_free(ctx);
-
 #endif
     return EXPECT_RESULT();
 }
@@ -72112,8 +72101,8 @@ static int SessRemSslSetupCb(WOLFSSL* ssl)
     else {
         side = &sessRemCtx_Client;
         (void)wolfSSL_Atomic_Int_FetchAdd(&clientSessRemCountMalloc, 1);
-    #if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
-        !defined(NO_SESSION_CACHE_REF)
+#if (defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)) || \
+    !defined(NO_SESSION_CACHE_REF)
         ExpectNotNull(clientSess = SSL_get1_session(ssl));
         ExpectIntEQ(SSL_CTX_up_ref(clientSessCtx = SSL_get_SSL_CTX(ssl)),
                 SSL_SUCCESS);
@@ -85326,8 +85315,8 @@ static int test_wolfSSL_X509_print(void)
 static int test_wolfSSL_X509_CRL_print(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(HAVE_CRL)\
-    && !defined(NO_FILESYSTEM) && defined(XSNPRINTF)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && defined(HAVE_CRL) && \
+    !defined(NO_RSA) && !defined(NO_FILESYSTEM) && defined(XSNPRINTF)
     X509_CRL* crl = NULL;
     BIO *bio = NULL;
     XFILE fp = XBADFILE;
@@ -92164,7 +92153,7 @@ static int test_CONF_CTX_FILE(void)
 static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
 {
     EXPECT_DECLS;
-#ifdef HAVE_EX_DATA
+#ifdef HAVE_EX_DATA_CRYPTO
     int idx1, idx2;
 
     /* test for unsupported class index */
@@ -92229,15 +92218,11 @@ static int test_wolfSSL_CRYPTO_get_ex_new_index(void)
     ExpectIntNE(idx1, -1);
     ExpectIntNE(idx2, -1);
     ExpectIntNE(idx1, idx2);
-#endif /* HAVE_EX_DATA */
+#endif /* HAVE_EX_DATA_CRYPTO */
     return EXPECT_RESULT();
 }
 
-#if defined(HAVE_EX_DATA) && defined(HAVE_EXT_CACHE) && \
-    (defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && \
-        (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-        defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
-        defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB))))
+#if defined(HAVE_EX_DATA_CRYPTO) && defined(OPENSSL_EXTRA)
 
 #define SESSION_NEW_IDX_LONG 0xDEADBEEF
 #define SESSION_NEW_IDX_VAL  ((void*)0xAEADAEAD)

@@ -35,6 +35,13 @@
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
 #undef OPENSSL_COEXIST /* can't use this option with this example */
 
+/* Force enable the compatibility macros for this example */
+#ifndef OPENSSL_EXTRA_X509_SMALL
+#define OPENSSL_EXTRA_X509_SMALL
+#endif
+#include <wolfssl/openssl/ssl.h>
+
+#undef OPENSSL_EXTRA_X509_SMALL
 #include <wolfssl/ssl.h> /* name change portability layer */
 
 #ifdef HAVE_ECC
@@ -65,12 +72,6 @@ static const char *wolfsentry_config_path = NULL;
 
 #include <wolfssl/test.h>
 #include <wolfssl/error-ssl.h>
-
-/* Force enable the compatibility macros for this example */
-#ifndef OPENSSL_EXTRA_X509_SMALL
-#define OPENSSL_EXTRA_X509_SMALL
-#endif
-#include <wolfssl/openssl/ssl.h>
 
 #include "examples/server/server.h"
 

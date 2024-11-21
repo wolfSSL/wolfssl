@@ -31,6 +31,8 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#include <wolfssl/openssl/compat_types.h>
+
 /* wolfssl_openssl compatibility layer */
 #ifndef OPENSSL_EXTRA_SSL_GUARD
 #define OPENSSL_EXTRA_SSL_GUARD
@@ -127,7 +129,8 @@
     HAVE_LIGHTY || HAVE_STUNNEL || \
     WOLFSSL_WPAS_SMALL */
 
-#if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+#if !defined(OPENSSL_COEXIST) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 
 typedef WOLFSSL          SSL;
 typedef WOLFSSL_SESSION  SSL_SESSION;
