@@ -45952,6 +45952,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
         ret = wc_dilithium_init(&key);
     }
 
+#ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     /* Test decoding without setting security level - should auto-detect */
     if (ret == 0) {
         idx = 0;
@@ -45974,6 +45975,7 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
                expectedLevel, key.level);
         ret = WC_TEST_RET_ENC_NC;
     }
+#endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
 
     /* Cleanup */
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
