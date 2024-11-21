@@ -324,6 +324,11 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
                       dir, (byte*)authIn, authInSz, authTag, authTagSz);
     ret = ioctl(aes->ctx.cfd, CIOCAUTHCRYPT, &crt);
     if (ret != 0) {
+        #ifdef WOLFSSL_DEBUG
+        if (authInSz > sysconf(_SC_PAGESIZE)) {
+            WOLFSSL_MSG("authIn Buffer greater than System Page Size");
+        }
+        #endif
         if (dir == COP_DECRYPT) {
             return AES_GCM_AUTH_E;
         }
