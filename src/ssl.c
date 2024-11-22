@@ -3083,6 +3083,19 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
     return WOLFSSL_SUCCESS;
 }
 
+
+int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
+{
+    int ret;
+
+    ret = wolfSSL_write(ssl, data, sz);
+    if (ret > 0 && wr != NULL) {
+        *wr = (size_t)ret;
+    }
+    return ret;
+}
+
+
 static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 {
     int ret;
@@ -3188,6 +3201,17 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
     return wolfSSL_read_internal(ssl, data, sz, FALSE);
 }
 
+
+int wolfSSL_read_ex(WOLFSSL* ssl, void* data, int sz, size_t* rd)
+{
+   int ret;
+
+    ret = wolfSSL_read(ssl, data, sz);
+    if (ret > 0 && rd != NULL) {
+        *rd = (size_t)ret;
+    }
+    return ret;
+}
 
 #ifdef WOLFSSL_MULTICAST
 
@@ -15011,6 +15035,15 @@ word32 wolfSSL_lib_version_hex(void)
 {
     return LIBWOLFSSL_VERSION_HEX;
 }
+
+
+#ifdef OPENSSL_EXTRA
+WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
+{
+    WOLFSSL_STUB("wolfSSL_get_client_ciphers");
+    return NULL;
+}
+#endif
 
 
 int wolfSSL_get_current_cipher_suite(WOLFSSL* ssl)

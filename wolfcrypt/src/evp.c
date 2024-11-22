@@ -10874,6 +10874,26 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         return wolfSSL_EVP_DigestFinal(ctx, md, s);
     }
 
+
+    /* XOF stands for extendable-output functions. This is used for algos such
+     * as SHAKE256.
+     *
+     * returns 1 (WOLFSSL_SUCCESS) on success and 0 (WOLFSSL_FAILURE) on fail */
+    int wolfSSL_EVP_DigestFinalXOF(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *md,
+        size_t sz)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_DigestFinalXOF");
+        //@TODO
+        return WOLFSSL_SUCCESS;
+    }
+
+
+    unsigned long wolfSSL_EVP_MD_flags(const WOLFSSL_EVP_MD *md)
+    {
+        return 0;
+    }
+
+
     void wolfSSL_EVP_cleanup(void)
     {
         /* nothing to do here */

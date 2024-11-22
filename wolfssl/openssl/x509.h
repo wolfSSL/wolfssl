@@ -111,6 +111,8 @@
 
 #define X509_V_ERR_UNABLE_TO_GET_CRL WOLFSSL_X509_V_ERR_UNABLE_TO_GET_CRL
 #define X509_V_ERR_CRL_HAS_EXPIRED   WOLFSSL_X509_V_ERR_CRL_HAS_EXPIRED
+#define X509_V_FLAG_ALLOW_PROXY_CERTS 0
+#define X509_V_FLAG_X509_STRICT       0
 
 /*
  * Not all of these X509_V_ERR values are used in wolfSSL. Some are included to

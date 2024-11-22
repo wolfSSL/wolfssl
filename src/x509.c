@@ -481,6 +481,19 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
     return WOLFSSL_FATAL_ERROR;
 }
 
+
+int wolfSSL_X509_OBJECT_set1_X509(WOLFSSL_X509_OBJECT *a, WOLFSSL_X509 *obj)
+{
+    WOLFSSL_STUB("wolfSSL_X509_OBJECT_set1_X509");
+    return 1;
+}
+
+int wolfSSL_X509_OBJECT_set1_X509_CRL(WOLFSSL_X509_OBJECT *a, WOLFSSL_X509_CRL *obj)
+{
+    WOLFSSL_STUB("wolfSSL_X509_OBJECT_set1_X509_CRL");
+    return 1;
+}
+
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
@@ -10356,6 +10369,19 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
 }
 #endif
 
+#if defined(OPENSSL_EXTRA)
+
+WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
+    const WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* sk,
+    WOLFSSL_X509_OBJECT* (*c)(const WOLFSSL_X509_OBJECT*),
+    void (*f)(WOLFSSL_X509_OBJECT*))
+{
+    (void)f; /* free function */
+    (void)c; /* copy function */
+    return wolfSSL_sk_dup(sk);
+}
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name)
     {
@@ -12684,6 +12710,7 @@ err:
         return ne;
     }
 
+
     static void wolfssl_x509_name_entry_set(WOLFSSL_X509_NAME_ENTRY* ne,
         int nid, int type, const unsigned char *data, int dataSz)
     {
@@ -13087,6 +13114,17 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(OPENSSL_EXTRA_X509_SMALL)
+
+#ifdef OPENSSL_EXTRA
+    int wolfSSL_X509_NAME_ENTRY_set(const WOLFSSL_X509_NAME_ENTRY *ne)
+    {
+        if (ne != NULL) {
+            return ne->set;
+        }
+        return 0;
+    }
+#endif
+
 
     /* returns a pointer to the internal entry at location 'loc' on success,
      * a null pointer is returned in fail cases */
