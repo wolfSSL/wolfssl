@@ -1,5 +1,5 @@
 ARG DOCKER_BASE_IMAGE=ubuntu
-FROM ubuntu as BUILDER
+FROM ubuntu AS builder
 
 ARG DEPS_WOLFSSL="build-essential autoconf libtool zlib1g-dev libuv1-dev libpam0g-dev git libpcap-dev libcurl4-openssl-dev bsdmainutils netcat-traditional iputils-ping bubblewrap"
 RUN DEBIAN_FRONTEND=noninteractive apt update && apt install -y apt-utils \
@@ -18,8 +18,8 @@ RUN git clone --depth=1 --single-branch --branch=main http://github.com/wolfssl/
 
 FROM ${DOCKER_BASE_IMAGE}
 USER root
-COPY --from=BUILDER /usr/local/lib/libwolfssl.so /usr/local/lib/
-COPY --from=BUILDER /usr/local/bin/wolfssl* /usr/local/bin/
+COPY --from=builder /usr/local/lib/libwolfssl.so /usr/local/lib/
+COPY --from=builder /usr/local/bin/wolfssl* /usr/local/bin/
 RUN ldconfig
 ENTRYPOINT ["/usr/local/bin/wolfssl"]
 LABEL org.opencontainers.image.source=https://github.com/wolfssl/wolfssl
