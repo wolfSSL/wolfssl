@@ -23,9 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-
-
+#include <stdarg.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include "wolfssl/ssl.h"
