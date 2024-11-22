@@ -1,3 +1,7 @@
+This is release candidate 2 for the SRTP-KDF submission. The intent of this tag
+is to pickup any changes in the ASM files since the 5.7.4 release that are
+considered 'necessary' fixes before the submission - KH
+
 # wolfSSL Embedded SSL/TLS Library
 
 The [wolfSSL embedded SSL library](https://www.wolfssl.com/products/wolfssl/)
