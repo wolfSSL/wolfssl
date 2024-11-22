@@ -476,6 +476,7 @@
     #endif
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
+    #include <stdarg.h>
     #define BENCH_EMBEDDED
     #define printf printfk
     static int printfk(const char *fmt, ...)

@@ -768,7 +768,7 @@ typedef struct w64wrapper {
         #ifndef USE_WINDOWS_API
             #if defined(WOLFSSL_ESPIDF) && \
                 (!defined(NO_ASN_TIME) && defined(HAVE_PKCS7))
-                    #include<stdarg.h>
+                    #include <stdarg.h>
                     /* later gcc than 7.1 introduces -Wformat-truncation    */
                     /* In cases when truncation is expected the caller needs*/
                     /* to check the return value from the function so that  */
@@ -819,17 +819,18 @@ typedef struct w64wrapper {
             #if defined(_MSC_VER) || defined(__CYGWIN__) || defined(__MINGW32__)
                 #if defined(_MSC_VER) && (_MSC_VER >= 1900)
                     /* Beginning with the UCRT in Visual Studio 2015 and
-                       Windows 10, snprintf is no longer identical to
-                       _snprintf. The snprintf function behavior is now
-                       C99 standard compliant. */
+                     * Windows 10, snprintf is no longer identical to
+                     * _snprintf. The snprintf function behavior is now
+                     * C99 standard compliant. */
                     #include <stdio.h>
                     #define XSNPRINTF snprintf
                 #else
                     /* 4996 warning to use MS extensions e.g., _sprintf_s
-                       instead of _snprintf */
+                     * instead of _snprintf */
                     #if !defined(__MINGW32__)
                     #pragma warning(disable: 4996)
                     #endif
+                    #include <stdarg.h>
                     static WC_INLINE
                     int xsnprintf(char *buffer, size_t bufsize,
                             const char *format, ...) {
