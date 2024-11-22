@@ -1,3 +1,4 @@
+22-Nov-2024 - This is the SRTP-KDF BASE (WCv6.0.0-RC1)
 # wolfSSL Embedded SSL/TLS Library
 
 The [wolfSSL embedded SSL library](https://www.wolfssl.com/products/wolfssl/)
