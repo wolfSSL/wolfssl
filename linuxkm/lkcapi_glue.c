@@ -26,6 +26,14 @@
     #error lkcapi_glue.c included in non-LINUXKM_LKCAPI_REGISTER project.
 #endif
 
+/* kernel crypto self-test includes test setups that have different expected
+ * results FIPS vs non-FIPS.
+ */
+#if defined(CONFIG_CRYPTO_MANAGER) && \
+    (defined(CONFIG_CRYPTO_FIPS) != defined(HAVE_FIPS))
+#error CONFIG_CRYPTO_MANAGER requires that CONFIG_CRYPTO_FIPS match HAVE_FIPS.
+#endif
+
 #ifndef WOLFSSL_LINUXKM_LKCAPI_PRIORITY
 /* Larger number means higher priority.  The highest in-tree priority is 4001,
  * in the Cavium driver.

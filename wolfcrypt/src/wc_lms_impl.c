@@ -1962,7 +1962,7 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate stack of left side hashes. */
-    stack = XMALLOC((params->height + 1) * params->hash_len, NULL,
+    stack = (byte*)XMALLOC((params->height + 1) * params->hash_len, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (stack == NULL) {
         ret = MEMORY_E;
@@ -2088,7 +2088,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate stack of left side hashes. */
-    stack = XMALLOC((params->height + 1) * params->hash_len, NULL,
+    stack = (byte*)XMALLOC((params->height + 1) * params->hash_len, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (stack == NULL) {
         ret = MEMORY_E;

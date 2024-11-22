@@ -765,7 +765,7 @@ int wc_LmsKey_MakeKey(LmsKey* key, WC_RNG* rng)
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -880,7 +880,7 @@ int wc_LmsKey_Reload(LmsKey* key)
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -978,7 +978,7 @@ int wc_LmsKey_Sign(LmsKey* key, byte* sig, word32* sigSz, const byte* msg,
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -1239,7 +1239,7 @@ int wc_LmsKey_Verify(LmsKey* key, const byte* sig, word32 sigSz,
 
     #ifdef WOLFSSL_SMALL_STACK
         /* Allocate memory for working state. */
-        state = XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (LmsState*)XMALLOC(sizeof(LmsState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }

@@ -3736,7 +3736,8 @@ extern void uITRON4_free(void *p) ;
     (defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB))
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB) || \
+    defined(WOLFSSL_WOLFSENTRY_HOOKS))
     #define HAVE_EX_DATA_CRYPTO
 #endif
 

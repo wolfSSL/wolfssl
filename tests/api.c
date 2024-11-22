@@ -34962,7 +34962,7 @@ static int test_wc_dilithium_der(void)
     int pubDerLen;
     int privDerLen;
     int keyDerLen;
-    word32 idx;
+    word32 idx = 0;
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     pubLen = DILITHIUM_LEVEL2_PUB_KEY_SIZE;
@@ -34989,6 +34989,9 @@ static int test_wc_dilithium_der(void)
     if (key != NULL) {
         XMEMSET(key, 0, sizeof(*key));
     }
+    if (der != NULL) {
+        XMEMSET(der, 0, sizeof(*der));
+    }
     XMEMSET(&rng, 0, sizeof(WC_RNG));
     ExpectIntEQ(wc_InitRng(&rng), 0);
     ExpectIntEQ(wc_dilithium_init(key), 0);
@@ -35002,21 +35005,21 @@ static int test_wc_dilithium_der(void)
     /* When security level is not set, we attempt to parse it from DER. Since
      * the supplied DER is invalid, this should fail with ASN parsing error */
     idx = 0;
+#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
     ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, pubDerLen),
-#ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG)
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #else
-        WC_NO_ERR_TRACE(ASN_PARSE_E)
+    ExpectIntEQ(wc_Dilithium_PublicKeyDecode(der, &idx, key, pubDerLen),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
 #endif
-    );
     idx = 0;
-    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
 #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG)
+    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
+                WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 #else
-        WC_NO_ERR_TRACE(ASN_PARSE_E)
+    ExpectIntEQ(wc_Dilithium_PrivateKeyDecode(der, &idx, key, privDerLen),
+                WC_NO_ERR_TRACE(ASN_PARSE_E));
 #endif
-    );
 
 #ifndef WOLFSSL_NO_ML_DSA_44
     ExpectIntEQ(wc_dilithium_set_level(key, WC_ML_DSA_44), 0);
