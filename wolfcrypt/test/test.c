@@ -33733,9 +33733,9 @@ static wc_test_ret_t ecc_ctx_kdf_salt_test(WC_RNG* rng, ecc_key* a, ecc_key* b)
     int    bInit = 0;
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    plaintext = XMALLOC(MAX_ECIES_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    encrypted = XMALLOC(MAX_ECIES_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    decrypted = XMALLOC(MAX_ECIES_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    plaintext = (byte*)XMALLOC(MAX_ECIES_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    encrypted = (byte*)XMALLOC(MAX_ECIES_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    decrypted = (byte*)XMALLOC(MAX_ECIES_TEST_SZ, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     wc_ecc_free(a);
@@ -45867,8 +45867,12 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
                                                  int         expectedLevel,
                                                  int         isPublicOnlyKey)
 {
-    int           ret;
-    dilithium_key key;
+    int           ret = 0;
+#ifdef WOLFSSL_SMALL_STACK
+    dilithium_key *key = NULL;
+#else
+    dilithium_key key[1];
+#endif
     word32        idx;
     byte*         der;
     word32        derSz;
@@ -45882,23 +45886,31 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
         return MEMORY_E;
     }
 
+#ifdef WOLFSSL_SMALL_STACK
+    key = (dilithium_key *)XMALLOC(sizeof(*key), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        ret = MEMORY_E;
+#endif
+
     /* Initialize key */
-    ret = wc_dilithium_init(&key);
+    if (ret == 0) {
+        ret = wc_dilithium_init(key);
+    }
 
     /* Import raw key, setting the security level */
     if (ret == 0) {
-        ret = wc_dilithium_set_level(&key, expectedLevel);
+        ret = wc_dilithium_set_level(key, expectedLevel);
     }
 
     if (ret == 0) {
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_dilithium_import_public(rawKey, rawKeySz, &key);
+            ret = wc_dilithium_import_public(rawKey, rawKeySz, key);
         }
 #endif
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_dilithium_import_private(rawKey, rawKeySz, &key);
+            ret = wc_dilithium_import_private(rawKey, rawKeySz, key);
         }
 #endif
     }
@@ -45907,12 +45919,12 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
     if (ret == 0) {
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyToDer(&key, der, maxDerSz, 1);
+            ret = wc_Dilithium_PublicKeyToDer(key, der, maxDerSz, 1);
         }
 #endif
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyToDer(&key, der, maxDerSz);
+            ret = wc_Dilithium_PrivateKeyToDer(key, der, maxDerSz);
         }
 #endif
         if (ret >= 0) {
@@ -45923,33 +45935,33 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
 
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
-        wc_dilithium_free(&key);
-        ret = wc_dilithium_init(&key);
+        wc_dilithium_free(key);
+        ret = wc_dilithium_init(key);
     }
 
     /* First test decoding when security level is set externally */
     if (ret == 0) {
-        ret = wc_dilithium_set_level(&key, expectedLevel);
+        ret = wc_dilithium_set_level(key, expectedLevel);
     }
 
     if (ret == 0) {
         idx = 0;
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyDecode(der, &idx, &key, derSz);
+            ret = wc_Dilithium_PublicKeyDecode(der, &idx, key, derSz);
         }
 #endif
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, &key, derSz);
+            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, key, derSz);
         }
 #endif
     }
 
     /* Free and reinit key to test fresh decode */
     if (ret == 0) {
-        wc_dilithium_free(&key);
-        ret = wc_dilithium_init(&key);
+        wc_dilithium_free(key);
+        ret = wc_dilithium_init(key);
     }
 
 #ifndef WOLFSSL_DILITHIUM_FIPS204_DRAFT
@@ -45958,28 +45970,31 @@ static wc_test_ret_t test_dilithium_decode_level(const byte* rawKey,
         idx = 0;
 #ifdef WOLFSSL_DILITHIUM_PUBLIC_KEY
         if (isPublicOnlyKey) {
-            ret = wc_Dilithium_PublicKeyDecode(der, &idx, &key, derSz);
+            ret = wc_Dilithium_PublicKeyDecode(der, &idx, key, derSz);
         }
 #endif
 #ifdef WOLFSSL_DILITHIUM_PRIVATE_KEY
         if (!isPublicOnlyKey) {
-            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, &key, derSz);
+            ret = wc_Dilithium_PrivateKeyDecode(der, &idx, key, derSz);
         }
 #endif
     }
 
     /* Verify auto-detected security level */
-    if (ret == 0 && key.level != expectedLevel) {
+    if (ret == 0 && key->level != expectedLevel) {
         printf("Dilithium key decode failed to detect level.\n"
                "\tExpected level=%d\n\tGot level=%d\n",
-               expectedLevel, key.level);
+               expectedLevel, key->level);
         ret = WC_TEST_RET_ENC_NC;
     }
 #endif /* !WOLFSSL_DILITHIUM_FIPS204_DRAFT */
 
     /* Cleanup */
     XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    wc_dilithium_free(&key);
+    wc_dilithium_free(key);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
     return ret;
 }
 
@@ -46827,7 +46842,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t lms_test(void)
     unsigned char priv[HSS_MAX_PRIVATE_KEY_LEN];
     unsigned char old_priv[HSS_MAX_PRIVATE_KEY_LEN];
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    byte *        sig = XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
+    byte *        sig = (byte*)XMALLOC(WC_TEST_LMS_SIG_LEN, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
     if (sig == NULL) {
         return WC_TEST_RET_ENC_ERRNO;

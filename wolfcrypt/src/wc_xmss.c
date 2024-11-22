@@ -738,7 +738,7 @@ static WC_INLINE int wc_xmsskey_signupdate(XmssKey* key, byte* sig,
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        state = XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -1109,7 +1109,7 @@ int wc_XmssKey_MakeKey(XmssKey* key, WC_RNG* rng)
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        state = XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }
@@ -1645,7 +1645,7 @@ int wc_XmssKey_Verify(XmssKey* key, const byte* sig, word32 sigLen,
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        state = XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        state = (XmssState*)XMALLOC(sizeof(XmssState), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (state == NULL) {
             ret = MEMORY_E;
         }

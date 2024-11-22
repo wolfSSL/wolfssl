@@ -2614,7 +2614,7 @@ void wolfSSL_DES_cbc_encrypt(const unsigned char* input, unsigned char* output,
     WOLFSSL_ENTER("wolfSSL_DES_cbc_encrypt");
 
 #ifdef WOLFSSL_SMALL_STACK
-    des = XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
+    des = (Des*)XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
     if (des == NULL) {
         WOLFSSL_MSG("Failed to allocate memory for Des object");
     }
@@ -2732,7 +2732,7 @@ void wolfSSL_DES_ede3_cbc_encrypt(const unsigned char* input,
     WOLFSSL_ENTER("wolfSSL_DES_ede3_cbc_encrypt");
 
 #ifdef WOLFSSL_SMALL_STACK
-    des3 = XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
+    des3 = (Des3*)XMALLOC(sizeof(Des3), NULL, DYNAMIC_TYPE_CIPHER);
     if (des3 == NULL) {
         WOLFSSL_MSG("Failed to allocate memory for Des3 object");
         sz = 0;
@@ -2862,7 +2862,9 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* in, WOLFSSL_DES_cblock* out,
         WOLFSSL_MSG("Bad argument passed to wolfSSL_DES_ecb_encrypt");
     }
 #ifdef WOLFSSL_SMALL_STACK
-    else if ((des = XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_CIPHER)) == NULL) {
+    else if ((des = (Des*)XMALLOC(sizeof(Des), NULL, DYNAMIC_TYPE_CIPHER))
+             == NULL)
+    {
         WOLFSSL_MSG("Failed to allocate memory for Des object");
     }
 #endif
@@ -3039,7 +3041,7 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
     }
     else
 #if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION_GE(5,3)))
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION3_GE(5,2,1)))
     /* Decrypt a block with wolfCrypt AES. */
     if (wc_AesDecryptDirect((Aes*)key, output, input) != 0) {
         WOLFSSL_MSG("wc_AesDecryptDirect failed");

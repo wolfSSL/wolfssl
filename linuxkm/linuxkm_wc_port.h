@@ -471,6 +471,16 @@
                                            unsigned int serialSz);
             #endif
         #endif /* NO_SKID */
+
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            struct WOLFSSL_X509_NAME;
+            extern int wolfSSL_X509_NAME_add_entry_by_NID(struct WOLFSSL_X509_NAME *name, int nid,
+                                               int type, const unsigned char *bytes,
+                                               int len, int loc, int set);
+            extern void wolfSSL_X509_NAME_free(struct WOLFSSL_X509_NAME* name);
+            extern struct WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap);
+        #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
@@ -645,6 +655,13 @@
         #ifdef WOLFSSL_AKID_NAME
         typeof(GetCAByAKID) *GetCAByAKID;
         #endif /* WOLFSSL_AKID_NAME */
+
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        typeof(wolfSSL_X509_NAME_add_entry_by_NID) *wolfSSL_X509_NAME_add_entry_by_NID;
+        typeof(wolfSSL_X509_NAME_free) *wolfSSL_X509_NAME_free;
+        typeof(wolfSSL_X509_NAME_new_ex) *wolfSSL_X509_NAME_new_ex;
+        #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
         #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
@@ -800,6 +817,13 @@
         #ifdef WOLFSSL_AKID_NAME
             #define GetCAByAKID (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByAKID)
         #endif
+
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            #define wolfSSL_X509_NAME_add_entry_by_NID (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_add_entry_by_NID)
+            #define wolfSSL_X509_NAME_free (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_free)
+            #define wolfSSL_X509_NAME_new_ex (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_new_ex)
+        #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES

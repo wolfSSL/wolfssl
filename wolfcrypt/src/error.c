@@ -44,6 +44,9 @@ const char* wc_GetErrorString(int error)
 {
     switch ((enum wolfCrypt_ErrorCodes)error) {
 
+    case WC_FAILURE:
+        return "wolfCrypt generic failure";
+
     case MP_MEM :
         return "MP integer dynamic memory allocation failed";
 
