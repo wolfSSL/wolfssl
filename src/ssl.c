@@ -24982,7 +24982,7 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
             case WC_AES_192_CTR_TYPE :
             case WC_AES_256_CTR_TYPE :
                 WOLFSSL_MSG("AES CTR");
-                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+                XMEMCPY(ctx->iv, &ctx->cipher.aes.reg, WC_AES_BLOCK_SIZE);
                 break;
 #endif /* WOLFSSL_AES_COUNTER */
 #ifdef WOLFSSL_AES_CFB
@@ -25121,7 +25121,7 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
             case WC_AES_192_CBC_TYPE :
             case WC_AES_256_CBC_TYPE :
                 WOLFSSL_MSG("AES CBC");
-                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, WC_AES_BLOCK_SIZE);
                 break;
 #endif
 #ifdef HAVE_AESGCM
@@ -25129,7 +25129,7 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
             case WC_AES_192_GCM_TYPE :
             case WC_AES_256_GCM_TYPE :
                 WOLFSSL_MSG("AES GCM");
-                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, WC_AES_BLOCK_SIZE);
                 break;
 #endif
 #ifdef HAVE_AES_ECB
@@ -25144,7 +25144,7 @@ int wolfSSL_RAND_load_file(const char* fname, long len)
             case WC_AES_192_CTR_TYPE :
             case WC_AES_256_CTR_TYPE :
                 WOLFSSL_MSG("AES CTR");
-                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, AES_BLOCK_SIZE);
+                XMEMCPY(&ctx->cipher.aes.reg, ctx->iv, WC_AES_BLOCK_SIZE);
                 break;
 #endif
 
@@ -25274,7 +25274,7 @@ void wolfSSL_aes_ctr_iv(WOLFSSL_EVP_CIPHER_CTX* ctx, int doset,
     if (doset)
        (void)wc_AesSetIV(&ctx->cipher.aes, iv);  /* OpenSSL compat, no ret */
     else
-        XMEMCPY(iv, &ctx->cipher.aes.reg, AES_BLOCK_SIZE);
+        XMEMCPY(iv, &ctx->cipher.aes.reg, WC_AES_BLOCK_SIZE);
 }
 
 #endif /* NO_AES */

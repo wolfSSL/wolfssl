@@ -12474,7 +12474,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
         readBuf_p += ech->encLen;
 
         ato16(readBuf_p, &ech->innerClientHelloLen);
-        ech->innerClientHelloLen -= AES_BLOCK_SIZE;
+        ech->innerClientHelloLen -= WC_AES_BLOCK_SIZE;
         readBuf_p += 2;
 
         ech->outerClientPayload = readBuf_p;
@@ -12490,7 +12490,7 @@ static int TLSX_ECH_Parse(WOLFSSL* ssl, const byte* readBuf, word16 size,
 
         /* set the ech payload of the copy to zeros */
         XMEMSET(aadCopy + (readBuf_p - ech->aad), 0,
-            ech->innerClientHelloLen + AES_BLOCK_SIZE);
+            ech->innerClientHelloLen + WC_AES_BLOCK_SIZE);
 
         /* allocate the inner payload buffer */
         ech->innerClientHello =

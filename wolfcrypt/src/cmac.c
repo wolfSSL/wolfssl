@@ -90,7 +90,7 @@ void ShiftAndXorRb(byte* out, byte* in)
 
     xorRb = (in[0] & 0x80) != 0;
 
-    for (i = 1, j = AES_BLOCK_SIZE - 1; i <= AES_BLOCK_SIZE; i++, j--) {
+    for (i = 1, j = WC_AES_BLOCK_SIZE - 1; i <= WC_AES_BLOCK_SIZE; i++, j--) {
         last = (in[j] & 0x80) ? 1 : 0;
         out[j] = (byte)((in[j] << 1) | mask);
         mask = last;
@@ -165,14 +165,14 @@ int wc_InitCmac_ex(Cmac* cmac, const byte* key, word32 keySz,
         }
 
         if (ret == 0) {
-            byte l[AES_BLOCK_SIZE];
+            byte l[WC_AES_BLOCK_SIZE];
 
-            XMEMSET(l, 0, AES_BLOCK_SIZE);
+            XMEMSET(l, 0, WC_AES_BLOCK_SIZE);
             ret = wc_AesEncryptDirect(&cmac->aes, l, l);
             if (ret == 0) {
                 ShiftAndXorRb(cmac->k1, l);
                 ShiftAndXorRb(cmac->k2, cmac->k1);
-                ForceZero(l, AES_BLOCK_SIZE);
+                ForceZero(l, WC_AES_BLOCK_SIZE);
             }
         }
         break;
@@ -227,21 +227,21 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
     case WC_CMAC_AES:
     {
         while ((ret == 0) && (inSz != 0)) {
-            word32 add = min(inSz, AES_BLOCK_SIZE - cmac->bufferSz);
+            word32 add = min(inSz, WC_AES_BLOCK_SIZE - cmac->bufferSz);
             XMEMCPY(&cmac->buffer[cmac->bufferSz], in, add);
 
             cmac->bufferSz += add;
             in += add;
             inSz -= add;
 
-            if (cmac->bufferSz == AES_BLOCK_SIZE && inSz != 0) {
+            if (cmac->bufferSz == WC_AES_BLOCK_SIZE && inSz != 0) {
                 if (cmac->totalSz != 0) {
-                    xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
+                    xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
                 }
                 ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest,
                         cmac->buffer);
                 if (ret == 0) {
-                    cmac->totalSz += AES_BLOCK_SIZE;
+                    cmac->totalSz += WC_AES_BLOCK_SIZE;
                     cmac->bufferSz = 0;
                 }
             }
@@ -313,30 +313,30 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
             const byte* subKey;
             word32 remainder;
 
-            if (cmac->bufferSz == AES_BLOCK_SIZE) {
+            if (cmac->bufferSz == WC_AES_BLOCK_SIZE) {
                 subKey = cmac->k1;
             }
             else {
                 /* ensure we will have a valid remainder value */
-                if (cmac->bufferSz > AES_BLOCK_SIZE) {
+                if (cmac->bufferSz > WC_AES_BLOCK_SIZE) {
                     ret = BAD_STATE_E;
                     break;
                 }
-                remainder = AES_BLOCK_SIZE - cmac->bufferSz;
+                remainder = WC_AES_BLOCK_SIZE - cmac->bufferSz;
 
                 if (remainder == 0) {
-                    remainder = AES_BLOCK_SIZE;
+                    remainder = WC_AES_BLOCK_SIZE;
                 }
                 if (remainder > 1) {
-                    XMEMSET(cmac->buffer + AES_BLOCK_SIZE - remainder, 0,
+                    XMEMSET(cmac->buffer + WC_AES_BLOCK_SIZE - remainder, 0,
                             remainder);
                 }
 
-                cmac->buffer[AES_BLOCK_SIZE - remainder] = 0x80;
+                cmac->buffer[WC_AES_BLOCK_SIZE - remainder] = 0x80;
                 subKey = cmac->k2;
             }
-            xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
-            xorbuf(cmac->buffer, subKey, AES_BLOCK_SIZE);
+            xorbuf(cmac->buffer, cmac->digest, WC_AES_BLOCK_SIZE);
+            xorbuf(cmac->buffer, subKey, WC_AES_BLOCK_SIZE);
             ret = wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
             if (ret == 0) {
                 XMEMCPY(out, cmac->digest, *outSz);
@@ -473,7 +473,7 @@ int wc_AesCmacVerify_ex(Cmac* cmac,
                         void* heap, int devId)
 {
     int ret = 0;
-    byte a[AES_BLOCK_SIZE];
+    byte a[WC_AES_BLOCK_SIZE];
     word32 aSz = sizeof(a);
     int compareRet;
 

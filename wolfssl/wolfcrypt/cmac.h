@@ -54,10 +54,10 @@ typedef enum CmacType {
 struct Cmac {
 #ifndef NO_AES
     Aes aes;
-    byte buffer[AES_BLOCK_SIZE]; /* partially stored block */
-    byte digest[AES_BLOCK_SIZE]; /* running digest */
-    byte k1[AES_BLOCK_SIZE];
-    byte k2[AES_BLOCK_SIZE];
+    byte buffer[WC_AES_BLOCK_SIZE]; /* partially stored block */
+    byte digest[WC_AES_BLOCK_SIZE]; /* running digest */
+    byte k1[WC_AES_BLOCK_SIZE];
+    byte k2[WC_AES_BLOCK_SIZE];
 #endif
     word32 bufferSz;
     word32 totalSz;
@@ -86,8 +86,8 @@ struct Cmac {
 
 
 #ifndef NO_AES
-#define WC_CMAC_TAG_MAX_SZ AES_BLOCK_SIZE
-#define WC_CMAC_TAG_MIN_SZ (AES_BLOCK_SIZE/4)
+#define WC_CMAC_TAG_MAX_SZ WC_AES_BLOCK_SIZE
+#define WC_CMAC_TAG_MIN_SZ (WC_AES_BLOCK_SIZE/4)
 #else
 /* Reasonable defaults */
 #define WC_CMAC_TAG_MAX_SZ 16

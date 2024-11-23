@@ -14073,12 +14073,12 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
             case ecAES_128_CBC:
                 *encKeySz = KEY_SIZE_128;
                 *ivSz     = IV_SIZE_128;
-                *blockSz  = AES_BLOCK_SIZE;
+                *blockSz  = WC_AES_BLOCK_SIZE;
                 break;
             case ecAES_256_CBC:
                 *encKeySz = KEY_SIZE_256;
                 *ivSz     = IV_SIZE_128;
-                *blockSz  = AES_BLOCK_SIZE;
+                *blockSz  = WC_AES_BLOCK_SIZE;
                 break;
         #endif
         #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
@@ -14375,7 +14375,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
             case ecAES_256_CTR:
             {
         #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
-                byte ctr_iv[AES_BLOCK_SIZE];
+                byte ctr_iv[WC_AES_BLOCK_SIZE];
             #ifndef WOLFSSL_SMALL_STACK
                 Aes aes[1];
             #else
@@ -14390,7 +14390,7 @@ int wc_ecc_encrypt_ex(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 /* Include 4 byte counter starting at all zeros. */
                 XMEMCPY(ctr_iv, encIv, WOLFSSL_ECIES_GEN_IV_SIZE);
                 XMEMSET(ctr_iv + WOLFSSL_ECIES_GEN_IV_SIZE, 0,
-                    AES_BLOCK_SIZE - WOLFSSL_ECIES_GEN_IV_SIZE);
+                    WC_AES_BLOCK_SIZE - WOLFSSL_ECIES_GEN_IV_SIZE);
 
                 ret = wc_AesInit(aes, NULL, INVALID_DEVID);
                 if (ret == 0) {
@@ -14852,11 +14852,11 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
              #endif
                 ret = wc_AesInit(aes, NULL, INVALID_DEVID);
                 if (ret == 0) {
-                    byte ctr_iv[AES_BLOCK_SIZE];
+                    byte ctr_iv[WC_AES_BLOCK_SIZE];
                     /* Make a 16 byte IV from the bytes passed in. */
                     XMEMCPY(ctr_iv, encIv, WOLFSSL_ECIES_GEN_IV_SIZE);
                     XMEMSET(ctr_iv + WOLFSSL_ECIES_GEN_IV_SIZE, 0,
-                        AES_BLOCK_SIZE - WOLFSSL_ECIES_GEN_IV_SIZE);
+                        WC_AES_BLOCK_SIZE - WOLFSSL_ECIES_GEN_IV_SIZE);
                     ret = wc_AesSetKey(aes, encKey, (word32)encKeySz, ctr_iv,
                                                                 AES_ENCRYPTION);
                     if (ret == 0) {

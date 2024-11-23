@@ -3671,7 +3671,7 @@ static int Pkcs11AesCbcEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (ret == 0) {
         mech.mechanism      = CKM_AES_CBC;
-        mech.ulParameterLen = AES_BLOCK_SIZE;
+        mech.ulParameterLen = WC_AES_BLOCK_SIZE;
         mech.pParameter     = (CK_BYTE_PTR)info->cipher.aescbc.aes->reg;
 
         rv = session->func->C_EncryptInit(session->handle, &mech, key);
@@ -3747,7 +3747,7 @@ static int Pkcs11AesCbcDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (ret == 0) {
         mech.mechanism      = CKM_AES_CBC;
-        mech.ulParameterLen = AES_BLOCK_SIZE;
+        mech.ulParameterLen = WC_AES_BLOCK_SIZE;
         mech.pParameter     = (CK_BYTE_PTR)info->cipher.aescbc.aes->reg;
 
         rv = session->func->C_DecryptInit(session->handle, &mech, key);

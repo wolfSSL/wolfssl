@@ -188,7 +188,10 @@ enum {
     AES_ENCRYPTION_AND_DECRYPTION = 2,
 #endif
 
-    AES_BLOCK_SIZE      = 16,
+    WC_AES_BLOCK_SIZE      = 16,
+#ifndef OPENSSL_COEXIST
+    #define AES_BLOCK_SIZE WC_AES_BLOCK_SIZE
+#endif
 
     KEYWRAP_BLOCK_SIZE  = 8,
 
@@ -227,9 +230,9 @@ enum {
     #endif
 
     /* Number of bits to a block. */
-    #define AES_BLOCK_BITS      (AES_BLOCK_SIZE * 8)
+    #define AES_BLOCK_BITS      (WC_AES_BLOCK_SIZE * 8)
     /* Number of bytes of input that can be processed in one call. */
-    #define BS_BLOCK_SIZE       (AES_BLOCK_SIZE * BS_WORD_SIZE)
+    #define BS_BLOCK_SIZE       (WC_AES_BLOCK_SIZE * BS_WORD_SIZE)
     /* Number of words in a block.  */
     #define BS_BLOCK_WORDS      (AES_BLOCK_BITS / BS_WORD_SIZE)
 
@@ -258,7 +261,7 @@ struct Aes {
     ALIGN16 word32 key[60];
 #ifdef WC_AES_BITSLICED
     /* Extra key schedule space required for bit-slicing technique. */
-    ALIGN16 bs_word bs_key[15 * AES_BLOCK_SIZE * BS_WORD_SIZE];
+    ALIGN16 bs_word bs_key[15 * WC_AES_BLOCK_SIZE * BS_WORD_SIZE];
 #endif
     word32  rounds;
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -266,8 +269,8 @@ struct Aes {
 #endif
     int     keylen;
 
-    ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
-    ALIGN16 word32 tmp[AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
+    ALIGN16 word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
+    ALIGN16 word32 tmp[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     word32 invokeCtr[2];
@@ -379,7 +382,7 @@ struct Aes {
     void*  heap; /* memory hint to use */
 #ifdef WOLFSSL_AESGCM_STREAM
 #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_AESNI)
-    ALIGN16 byte streamData[5 * AES_BLOCK_SIZE];
+    ALIGN16 byte streamData[5 * WC_AES_BLOCK_SIZE];
 #else
     byte*        streamData;
     word32       streamData_sz;
@@ -408,8 +411,8 @@ struct Aes {
 #ifdef WOLFSSL_AES_XTS
     #if FIPS_VERSION3_GE(6,0,0)
         /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-         * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-         * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes)
+         * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+         * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
          */
         #define FIPS_AES_XTS_MAX_BYTES_PER_TWEAK 16777216
     #endif
@@ -423,7 +426,7 @@ struct Aes {
 
     #ifdef WOLFSSL_AESXTS_STREAM
         struct XtsAesStreamData {
-            byte tweak_block[AES_BLOCK_SIZE];
+            byte tweak_block[WC_AES_BLOCK_SIZE];
             word32 bytes_crypted_with_this_tweak;
         };
     #endif
@@ -768,10 +771,10 @@ struct AesEax {
     Cmac nonceCmac;
     Cmac aadCmac;
     Cmac ciphertextCmac;
-    byte nonceCmacFinal[AES_BLOCK_SIZE];
-    byte aadCmacFinal[AES_BLOCK_SIZE];
-    byte ciphertextCmacFinal[AES_BLOCK_SIZE];
-    byte prefixBuf[AES_BLOCK_SIZE];
+    byte nonceCmacFinal[WC_AES_BLOCK_SIZE];
+    byte aadCmacFinal[WC_AES_BLOCK_SIZE];
+    byte ciphertextCmacFinal[WC_AES_BLOCK_SIZE];
+    byte prefixBuf[WC_AES_BLOCK_SIZE];
 };
 #endif /* !defined(WOLF_CRYPT_CMAC_H) */
 

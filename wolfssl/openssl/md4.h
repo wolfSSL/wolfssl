@@ -46,12 +46,15 @@ WOLFSSL_API void wolfSSL_MD4_Update(WOLFSSL_MD4_CTX* md4, const void* data,
                        unsigned long len);
 WOLFSSL_API void wolfSSL_MD4_Final(unsigned char* digest, WOLFSSL_MD4_CTX* md4);
 
+#ifndef OPENSSL_COEXIST
 
 typedef WOLFSSL_MD4_CTX MD4_CTX;
 
 #define MD4_Init   wolfSSL_MD4_Init
 #define MD4_Update wolfSSL_MD4_Update
 #define MD4_Final  wolfSSL_MD4_Final
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
     }  /* extern "C" */

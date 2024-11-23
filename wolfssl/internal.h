@@ -1021,7 +1021,8 @@
 #endif
 
 #if defined(NO_AES) || !defined(HAVE_AES_DECRYPT)
-    #define AES_BLOCK_SIZE 16
+    #undef WC_AES_BLOCK_SIZE
+    #define WC_AES_BLOCK_SIZE 16
     #undef  BUILD_AES
 #else
     #undef  BUILD_AES
@@ -1755,7 +1756,7 @@ enum Misc {
     #endif
 #endif
 
-    MAX_IV_SZ           = AES_BLOCK_SIZE,
+    MAX_IV_SZ           = WC_AES_BLOCK_SIZE,
 
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
@@ -4372,7 +4373,7 @@ typedef struct Ciphers {
     byte* nonce;
 #endif
 #ifdef HAVE_CAMELLIA
-    Camellia* cam;
+    wc_Camellia* cam;
 #endif
 #ifdef HAVE_CHACHA
     ChaCha*   chacha;

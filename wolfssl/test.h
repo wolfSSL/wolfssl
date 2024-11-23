@@ -4697,7 +4697,7 @@ static WC_INLINE int myTicketEncCb(WOLFSSL* ssl,
                                               mac);
         #elif defined(HAVE_AESGCM)
             ret = wc_AesGcmEncrypt(&tickCtx->aes, ticket, ticket, inLen,
-                                   iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                   iv, GCM_NONCE_MID_SZ, mac, WC_AES_BLOCK_SIZE,
                                    tickCtx->aad, aadSz);
         #endif
         }
@@ -4711,7 +4711,7 @@ static WC_INLINE int myTicketEncCb(WOLFSSL* ssl,
                                               ticket);
         #elif defined(HAVE_AESGCM)
             ret = wc_AesGcmDecrypt(&tickCtx->aes, ticket, ticket, inLen,
-                                   iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                   iv, GCM_NONCE_MID_SZ, mac, WC_AES_BLOCK_SIZE,
                                    tickCtx->aad, aadSz);
         #endif
         }

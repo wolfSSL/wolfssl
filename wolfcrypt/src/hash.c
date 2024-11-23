@@ -322,12 +322,12 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
     {
         case WC_HASH_TYPE_MD2:
         #ifdef WOLFSSL_MD2
-            dig_size = MD2_DIGEST_SIZE;
+            dig_size = WC_MD2_DIGEST_SIZE;
         #endif
             break;
         case WC_HASH_TYPE_MD4:
         #ifndef NO_MD4
-            dig_size = MD4_DIGEST_SIZE;
+            dig_size = WC_MD4_DIGEST_SIZE;
         #endif
             break;
         case WC_HASH_TYPE_MD5:
@@ -441,12 +441,12 @@ int wc_HashGetBlockSize(enum wc_HashType hash_type)
     {
         case WC_HASH_TYPE_MD2:
         #ifdef WOLFSSL_MD2
-            block_size = MD2_BLOCK_SIZE;
+            block_size = WC_MD2_BLOCK_SIZE;
         #endif
             break;
         case WC_HASH_TYPE_MD4:
         #ifndef NO_MD4
-            block_size = MD4_BLOCK_SIZE;
+            block_size = WC_MD4_BLOCK_SIZE;
         #endif
             break;
         case WC_HASH_TYPE_MD5:
