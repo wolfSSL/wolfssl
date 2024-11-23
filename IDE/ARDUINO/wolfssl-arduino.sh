@@ -106,10 +106,10 @@ if [ $# -gt 0 ]; then
         else
             echo "Installing to $THIS_INSTALL_DIR"
             if [ -d "$THIS_INSTALL_DIR/.git" ];then
-                echo "Target is a GitHub repository."
+                echo "Target is a GitHub root repository."
                 THIS_INSTALL_IS_GITHUB="true"
             else
-                echo "Target is NOT a GitHub repository."
+                echo "Target is NOT a GitHub root directory repository. (e.g. not wolfssl/Arduino-wolfssl)"
             fi
         fi
     else
@@ -325,11 +325,18 @@ if [ "$THIS_OPERATION" = "INSTALL" ]; then
         echo "Removing workspace library directory: .$ROOT_DIR"
         rm -rf ".$ROOT_DIR"
     else
-        echo "Installing to local directory:"
-        echo "mv .$ROOT_DIR $ARDUINO_ROOT"
-        mv  ."$ROOT_DIR" "$ARDUINO_ROOT" || exit 1
 
-        echo "Arduino wolfSSL Version: $WOLFSSL_VERSION$WOLFSSL_VERSION_ARUINO_SUFFIX"
+        echo "Installing to local directory:"
+        if [ "$THIS_INSTALL_DIR" = "" ]; then
+            echo "mv .$ROOT_DIR $ARDUINO_ROOT"
+            mv  ."$ROOT_DIR" "$ARDUINO_ROOT" || exit 1
+
+            echo "Arduino wolfSSL Version: $WOLFSSL_VERSION$WOLFSSL_VERSION_ARUINO_SUFFIX"
+        else
+            echo "cp -r .\"$ROOT_DIR\"/* \"$THIS_INSTALL_DIR\""
+            mkdir -p "$THIS_INSTALL_DIR" || exit 1
+            cp -r ."$ROOT_DIR"/* "$THIS_INSTALL_DIR" || exit 1
+        fi
     fi
 fi
 
