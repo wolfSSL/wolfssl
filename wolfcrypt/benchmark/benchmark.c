@@ -1992,6 +1992,11 @@ static const char* bench_result_words2[][5] = {
 #endif
 
 
+
+#if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_AUTHSZ_BENCH)
+    #warning Large/Unalligned AuthSz could result in errors with /dev/crypto
+#endif
+
 /* use kB instead of mB for embedded benchmarking */
 #ifdef BENCH_EMBEDDED
     #ifndef BENCH_NTIMES
@@ -4799,6 +4804,14 @@ void bench_gmac(int useDeviceID)
     const char* gmacStr = "GMAC Default";
 #endif
 
+/* Implementations of /Dev/Crypto will error out if the size of Auth in is */
+/* greater than the system's page size */
+#if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_AUTHSZ_BENCH)
+    bench_size = WOLFSSL_AUTHSZ_BENCH;
+#elif defined(WOLFSSL_DEVCRYPTO)
+    bench_size = sysconf(_SC_PAGESIZE);
+#endif
+
     /* init keys */
     XMEMSET(bench_plain, 0, bench_size);
     XMEMSET(tag, 0, sizeof(tag));
@@ -4829,7 +4842,13 @@ void bench_gmac(int useDeviceID)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
-
+#if defined(WOLFSSL_DEVCRYPTO)
+    if (ret != 0 && (bench_size > sysconf(_SC_PAGESIZE))) {
+        printf("authIn Buffer Size[%d] greater than System Page Size[%ld]\n",
+                        bench_size, sysconf(_SC_PAGESIZE));
+    }
+    bench_size = BENCH_SIZE;
+#endif
 }
 
 #endif /* HAVE_AESGCM */
