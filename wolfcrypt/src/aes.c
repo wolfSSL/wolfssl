@@ -8161,8 +8161,18 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
 
     /* Authentication buffer - must be 4-byte multiple zero padded */
     authPadSz = authInSz % sizeof(word32);
+#ifdef WOLFSSL_STM32MP13
+    /* STM32MP13 HAL at least v1.2 and lower has a bug with which it needs a
+     * minimum of 16 bytes for the auth
+     */
+    if ((authInSz > 0) && (authInSz < 16)) {
+        authPadSz = 16 - authInSz;
+    }
+#endif
     if (authPadSz != 0) {
-        authPadSz = authInSz + sizeof(word32) - authPadSz;
+        if (authPadSz < authInSz + sizeof(word32)) {
+            authPadSz = authInSz + sizeof(word32) - authPadSz;
+        }
         if (authPadSz <= sizeof(authhdr)) {
             authInPadded = (byte*)authhdr;
         }
@@ -8185,11 +8195,12 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
-    #ifndef CRYP_HEADERWIDTHUNIT_BYTE
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(STM32_AESGCM_PARTIAL)
+    #if (!defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)) \
+        && !defined(STM32_AESGCM_PARTIAL)
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8204,13 +8215,14 @@ static WARN_UNUSED_RESULT int wc_AesGcmEncrypt_STM32(
     if (ret != 0) {
         return ret;
     }
+
 #ifdef WOLFSSL_STM32_CUBEMX
     hcryp.Init.pInitVect = (STM_CRYPT_TYPE*)ctr;
     hcryp.Init.Header = (STM_CRYPT_TYPE*)authInPadded;
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
-    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
+    #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(WOLFSSL_STM32MP13)
     /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
     hcryp.Init.HeaderSize = authInSz;
     #else
@@ -8693,14 +8705,24 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
         authPadSz = authInSz;
     }
 
+#ifdef WOLFSSL_STM32MP13
+    /* STM32MP13 HAL at least v1.2 and lower has a bug with which it needs a
+     * minimum of 16 bytes for the auth
+     */
+    if ((authInSz > 0) && (authInSz < 16)) {
+        authPadSz = 16 - authInSz;
+    }
+#endif
+
     /* for cases where hardware cannot be used for authTag calculate it */
     /* if IV is not 12 calculate GHASH using software */
     if (ivSz != GCM_NONCE_MID_SZ
-    #ifndef CRYP_HEADERWIDTHUNIT_BYTE
+    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)
         /* or hardware that does not support partial block */
         || sz == 0 || partial != 0
     #endif
-    #if !defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(STM32_AESGCM_PARTIAL)
+    #if (!defined(CRYP_HEADERWIDTHUNIT_BYTE) || defined(WOLFSSL_STM32MP13)) \
+        && !defined(STM32_AESGCM_PARTIAL)
         /* or authIn is not a multiple of 4  */
         || authPadSz != authInSz
     #endif
@@ -8746,7 +8768,7 @@ static WARN_UNUSED_RESULT int wc_AesGcmDecrypt_STM32(
 
 #if defined(STM32_HAL_V2)
     hcryp.Init.Algorithm = CRYP_AES_GCM;
-    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
+    #if defined(CRYP_HEADERWIDTHUNIT_BYTE) && !defined(WOLFSSL_STM32MP13)
     /* V2 with CRYP_HEADERWIDTHUNIT_BYTE uses byte size for header */
     hcryp.Init.HeaderSize = authInSz;
     #else

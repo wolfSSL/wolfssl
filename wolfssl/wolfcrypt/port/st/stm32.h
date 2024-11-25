@@ -100,11 +100,30 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 
 #ifdef STM32_CRYPTO
 
+#if defined(WOLFSSL_STM32MP13)
+    #define RNG RNG1
+    #define CRYP CRYP1
+    #define hcryp hcryp1
+    #define FORMAT_BIN RTC_FORMAT_BIN
+    #define __HAL_RCC_RNG_CLK_ENABLE __HAL_RCC_RNG1_CLK_ENABLE
+    #define __HAL_RCC_HASH_CLK_ENABLE __HAL_RCC_HASH1_CLK_ENABLE
+    #define __HAL_RCC_HASH_CLK_DISABLE __HAL_RCC_HASH1_CLK_DISABLE
+    /* From stm32_hal_legacy.h, but that header has a bug in it */
+    #define HASH_AlgoSelection_MD5       HASH_ALGOSELECTION_MD5
+    #define HASH_AlgoSelection_SHA1      HASH_ALGOSELECTION_SHA1
+    #define HASH_AlgoSelection_SHA224    HASH_ALGOSELECTION_SHA224
+
+    #define HASH_AlgoSelection_SHA256    HASH_ALGOSELECTION_SHA256
+
+    #define STM32_NOMD5 /* The HASH HAL has no MD5 implementation */
+#endif
+
 #ifndef NO_AES
     #if !defined(STM32_CRYPTO_AES_GCM) && (defined(WOLFSSL_STM32F4) || \
             defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L4) || \
             defined(WOLFSSL_STM32L5) || defined(WOLFSSL_STM32H7) || \
-            defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5))
+            defined(WOLFSSL_STM32U5) || defined(WOLFSSL_STM32H5) || \
+            defined(WOLFSSL_STM32MP13))
         /* Hardware supports AES GCM acceleration */
         #define STM32_CRYPTO_AES_GCM
     #endif
@@ -137,7 +156,7 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
         (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || \
          defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5)) || \
-         defined(WOLFSSL_STM32H5)
+         defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13)
         #define STM32_HAL_V2
     #endif
 
