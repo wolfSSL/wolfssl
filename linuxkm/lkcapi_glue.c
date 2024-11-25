@@ -367,14 +367,14 @@ static struct skcipher_alg cbcAesAlg = {
     .base.cra_name        = WOLFKM_AESCBC_NAME,
     .base.cra_driver_name = WOLFKM_AESCBC_DRIVER,
     .base.cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
-    .base.cra_blocksize   = AES_BLOCK_SIZE,
+    .base.cra_blocksize   = WC_AES_BLOCK_SIZE,
     .base.cra_ctxsize     = sizeof(struct km_AesCtx),
     .base.cra_module      = THIS_MODULE,
     .init                 = km_AesCbcInit,
     .exit                 = km_AesExit,
     .min_keysize          = AES_128_KEY_SIZE,
     .max_keysize          = AES_256_KEY_SIZE,
-    .ivsize               = AES_BLOCK_SIZE,
+    .ivsize               = WC_AES_BLOCK_SIZE,
     .setkey               = km_AesCbcSetKey,
     .encrypt              = km_AesCbcEncrypt,
     .decrypt              = km_AesCbcDecrypt,
@@ -506,14 +506,14 @@ static struct skcipher_alg cfbAesAlg = {
     .base.cra_name        = WOLFKM_AESCFB_NAME,
     .base.cra_driver_name = WOLFKM_AESCFB_DRIVER,
     .base.cra_priority    = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
-    .base.cra_blocksize   = AES_BLOCK_SIZE,
+    .base.cra_blocksize   = WC_AES_BLOCK_SIZE,
     .base.cra_ctxsize     = sizeof(struct km_AesCtx),
     .base.cra_module      = THIS_MODULE,
     .init                 = km_AesCfbInit,
     .exit                 = km_AesExit,
     .min_keysize          = AES_128_KEY_SIZE,
     .max_keysize          = AES_256_KEY_SIZE,
-    .ivsize               = AES_BLOCK_SIZE,
+    .ivsize               = WC_AES_BLOCK_SIZE,
     .setkey               = km_AesCfbSetKey,
     .encrypt              = km_AesCfbEncrypt,
     .decrypt              = km_AesCfbDecrypt,
@@ -565,7 +565,7 @@ static int km_AesGcmSetKey(struct crypto_aead *tfm, const u8 *in_key,
 static int km_AesGcmSetAuthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
     (void)tfm;
-    if (authsize > AES_BLOCK_SIZE ||
+    if (authsize > WC_AES_BLOCK_SIZE ||
         authsize < WOLFSSL_MIN_AUTH_TAG_SZ) {
         pr_err("%s: invalid authsize: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), authsize);
@@ -591,7 +591,7 @@ static int km_AesGcmEncrypt(struct aead_request *req)
     struct skcipher_walk walk;
     struct scatter_walk  assocSgWalk;
     unsigned int         nbytes = 0;
-    u8                   authTag[AES_BLOCK_SIZE];
+    u8                   authTag[WC_AES_BLOCK_SIZE];
     int                  err = 0;
     unsigned int         assocLeft = 0;
     unsigned int         cryptLeft = 0;
@@ -612,7 +612,7 @@ static int km_AesGcmEncrypt(struct aead_request *req)
     }
 
     err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
-                        AES_BLOCK_SIZE);
+                        WC_AES_BLOCK_SIZE);
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
@@ -692,7 +692,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
     struct skcipher_walk walk;
     struct scatter_walk  assocSgWalk;
     unsigned int         nbytes = 0;
-    u8                   origAuthTag[AES_BLOCK_SIZE];
+    u8                   origAuthTag[WC_AES_BLOCK_SIZE];
     int                  err = 0;
     unsigned int         assocLeft = 0;
     unsigned int         cryptLeft = 0;
@@ -718,7 +718,7 @@ static int km_AesGcmDecrypt(struct aead_request *req)
     }
 
     err = wc_AesGcmInit(ctx->aes_encrypt, NULL /*key*/, 0 /*keylen*/, walk.iv,
-                        AES_BLOCK_SIZE);
+                        WC_AES_BLOCK_SIZE);
     if (unlikely(err)) {
         pr_err("%s: wc_AesGcmInit failed: %d\n",
                crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm)), err);
@@ -805,9 +805,9 @@ static struct aead_alg gcmAesAead = {
     .setauthsize          = km_AesGcmSetAuthsize,
     .encrypt              = km_AesGcmEncrypt,
     .decrypt              = km_AesGcmDecrypt,
-    .ivsize               = AES_BLOCK_SIZE,
-    .maxauthsize          = AES_BLOCK_SIZE,
-    .chunksize            = AES_BLOCK_SIZE,
+    .ivsize               = WC_AES_BLOCK_SIZE,
+    .maxauthsize          = WC_AES_BLOCK_SIZE,
+    .chunksize            = WC_AES_BLOCK_SIZE,
 };
 static int gcmAesAead_loaded = 0;
 
@@ -894,7 +894,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
 
-    if (req->cryptlen < AES_BLOCK_SIZE)
+    if (req->cryptlen < WC_AES_BLOCK_SIZE)
         return -EINVAL;
 
     err = skcipher_walk_virt(&walk, req, false);
@@ -918,12 +918,12 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
         err = skcipher_walk_done(&walk, 0);
 
     } else {
-        int tail = req->cryptlen % AES_BLOCK_SIZE;
+        int tail = req->cryptlen % WC_AES_BLOCK_SIZE;
         struct skcipher_request subreq;
         struct XtsAesStreamData stream;
 
         if (tail > 0) {
-            int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
+            int blocks = DIV_ROUND_UP(req->cryptlen, WC_AES_BLOCK_SIZE) - 2;
 
             skcipher_walk_abort(&walk);
 
@@ -932,7 +932,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
                                           skcipher_request_flags(req),
                                           NULL, NULL);
             skcipher_request_set_crypt(&subreq, req->src, req->dst,
-                                       blocks * AES_BLOCK_SIZE, req->iv);
+                                       blocks * WC_AES_BLOCK_SIZE, req->iv);
             req = &subreq;
 
             err = skcipher_walk_virt(&walk, req, false);
@@ -955,9 +955,9 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
              * end-of-message ciphertext stealing.
              */
             if (nbytes < walk.total)
-                nbytes &= ~(AES_BLOCK_SIZE - 1);
+                nbytes &= ~(WC_AES_BLOCK_SIZE - 1);
 
-            if (nbytes & ((unsigned int)AES_BLOCK_SIZE - 1U))
+            if (nbytes & ((unsigned int)WC_AES_BLOCK_SIZE - 1U))
                 err = wc_AesXtsEncryptFinal(ctx->aesXts, walk.dst.virt.addr,
                                             walk.src.virt.addr, nbytes,
                                             &stream);
@@ -989,7 +989,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             if (req->dst != req->src)
                 dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
 
-            skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+            skcipher_request_set_crypt(req, src, dst, WC_AES_BLOCK_SIZE + tail,
                                        req->iv);
 
             err = skcipher_walk_virt(&walk, &subreq, false);
@@ -1007,7 +1007,7 @@ static int km_AesXtsEncrypt(struct skcipher_request *req)
             }
 
             err = skcipher_walk_done(&walk, 0);
-        } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)AES_BLOCK_SIZE - 1U))) {
+        } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))) {
             err = wc_AesXtsEncryptFinal(ctx->aesXts, NULL, NULL, 0, &stream);
         }
     }
@@ -1026,7 +1026,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
     tfm = crypto_skcipher_reqtfm(req);
     ctx = crypto_skcipher_ctx(tfm);
 
-    if (req->cryptlen < AES_BLOCK_SIZE)
+    if (req->cryptlen < WC_AES_BLOCK_SIZE)
         return -EINVAL;
 
     err = skcipher_walk_virt(&walk, req, false);
@@ -1050,12 +1050,12 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
 
         err = skcipher_walk_done(&walk, 0);
     } else {
-        int tail = req->cryptlen % AES_BLOCK_SIZE;
+        int tail = req->cryptlen % WC_AES_BLOCK_SIZE;
         struct skcipher_request subreq;
         struct XtsAesStreamData stream;
 
         if (unlikely(tail > 0)) {
-            int blocks = DIV_ROUND_UP(req->cryptlen, AES_BLOCK_SIZE) - 2;
+            int blocks = DIV_ROUND_UP(req->cryptlen, WC_AES_BLOCK_SIZE) - 2;
 
             skcipher_walk_abort(&walk);
 
@@ -1064,7 +1064,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
                                           skcipher_request_flags(req),
                                           NULL, NULL);
             skcipher_request_set_crypt(&subreq, req->src, req->dst,
-                                       blocks * AES_BLOCK_SIZE, req->iv);
+                                       blocks * WC_AES_BLOCK_SIZE, req->iv);
             req = &subreq;
 
             err = skcipher_walk_virt(&walk, req, false);
@@ -1087,9 +1087,9 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
              * end-of-message ciphertext stealing.
              */
             if (nbytes < walk.total)
-                nbytes &= ~(AES_BLOCK_SIZE - 1);
+                nbytes &= ~(WC_AES_BLOCK_SIZE - 1);
 
-            if (nbytes & ((unsigned int)AES_BLOCK_SIZE - 1U))
+            if (nbytes & ((unsigned int)WC_AES_BLOCK_SIZE - 1U))
                 err = wc_AesXtsDecryptFinal(ctx->aesXts, walk.dst.virt.addr,
                                             walk.src.virt.addr, nbytes,
                                             &stream);
@@ -1121,7 +1121,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             if (req->dst != req->src)
                 dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
 
-            skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+            skcipher_request_set_crypt(req, src, dst, WC_AES_BLOCK_SIZE + tail,
                                        req->iv);
 
             err = skcipher_walk_virt(&walk, &subreq, false);
@@ -1139,7 +1139,7 @@ static int km_AesXtsDecrypt(struct skcipher_request *req)
             }
 
             err = skcipher_walk_done(&walk, 0);
-        } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)AES_BLOCK_SIZE - 1U))) {
+        } else if (! (stream.bytes_crypted_with_this_tweak & ((word32)WC_AES_BLOCK_SIZE - 1U))) {
             err = wc_AesXtsDecryptFinal(ctx->aesXts, NULL, NULL, 0, &stream);
         }
     }
@@ -1150,14 +1150,14 @@ static struct skcipher_alg xtsAesAlg = {
     .base.cra_name          = WOLFKM_AESXTS_NAME,
     .base.cra_driver_name   = WOLFKM_AESXTS_DRIVER,
     .base.cra_priority      = WOLFSSL_LINUXKM_LKCAPI_PRIORITY,
-    .base.cra_blocksize     = AES_BLOCK_SIZE,
+    .base.cra_blocksize     = WC_AES_BLOCK_SIZE,
     .base.cra_ctxsize       = sizeof(struct km_AesXtsCtx),
     .base.cra_module        = THIS_MODULE,
 
     .min_keysize            = 2 * AES_128_KEY_SIZE,
     .max_keysize            = 2 * AES_256_KEY_SIZE,
-    .ivsize                 = AES_BLOCK_SIZE,
-    .walksize               = 2 * AES_BLOCK_SIZE,
+    .ivsize                 = WC_AES_BLOCK_SIZE,
+    .walksize               = 2 * WC_AES_BLOCK_SIZE,
     .init                   = km_AesXtsInit,
     .exit                   = km_AesXtsExit,
     .setkey                 = km_AesXtsSetKey,
@@ -1229,7 +1229,7 @@ static int linuxkm_test_aescbc(void)
     }
     aes_inited = 1;
 
-    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key32, WC_AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d\n", ret);
         goto test_cbc_end;
@@ -1257,7 +1257,7 @@ static int linuxkm_test_aescbc(void)
     }
     aes_inited = 1;
 
-    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_DECRYPTION);
+    ret = wc_AesSetKey(aes, key32, WC_AES_BLOCK_SIZE * 2, iv, AES_DECRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d.\n", ret);
         goto test_cbc_end;
@@ -1310,7 +1310,7 @@ static int linuxkm_test_aescbc(void)
     }
 #endif
 
-    ret = crypto_skcipher_setkey(tfm, key32, AES_BLOCK_SIZE * 2);
+    ret = crypto_skcipher_setkey(tfm, key32, WC_AES_BLOCK_SIZE * 2);
     if (ret) {
         pr_err("error: crypto_skcipher_setkey returned: %d\n", ret);
         goto test_cbc_end;
@@ -1435,7 +1435,7 @@ static int linuxkm_test_aescfb(void)
     }
     aes_inited = 1;
 
-    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key32, WC_AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d\n", ret);
         goto test_cfb_end;
@@ -1463,7 +1463,7 @@ static int linuxkm_test_aescfb(void)
     }
     aes_inited = 1;
 
-    ret = wc_AesSetKey(aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
+    ret = wc_AesSetKey(aes, key32, WC_AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret) {
         pr_err("wolfcrypt wc_AesSetKey failed with return code %d.\n", ret);
         goto test_cfb_end;
@@ -1516,7 +1516,7 @@ static int linuxkm_test_aescfb(void)
     }
 #endif
 
-    ret = crypto_skcipher_setkey(tfm, key32, AES_BLOCK_SIZE * 2);
+    ret = crypto_skcipher_setkey(tfm, key32, WC_AES_BLOCK_SIZE * 2);
     if (ret) {
         pr_err("error: crypto_skcipher_setkey returned: %d\n", ret);
         goto test_cfb_end;
@@ -1632,7 +1632,7 @@ static int linuxkm_test_aesgcm(void)
         0xe4,0x28,0x90,0xaa,0x09,0xab,0xf9,0x7c
     };
     byte    enc[sizeof(p_vector)];
-    byte    authTag[AES_BLOCK_SIZE];
+    byte    authTag[WC_AES_BLOCK_SIZE];
     byte    dec[sizeof(p_vector)];
     u8 *    assoc2 = NULL;
     u8 *    enc2 = NULL;
@@ -1644,7 +1644,7 @@ static int linuxkm_test_aesgcm(void)
     /* Init stack variables. */
     XMEMSET(enc, 0, sizeof(p_vector));
     XMEMSET(dec, 0, sizeof(p_vector));
-    XMEMSET(authTag, 0, AES_BLOCK_SIZE);
+    XMEMSET(authTag, 0, WC_AES_BLOCK_SIZE);
 
     aes = (Aes *)malloc(sizeof(*aes));
     if (aes == NULL)
@@ -1658,7 +1658,7 @@ static int linuxkm_test_aesgcm(void)
     aes_inited = 1;
 
     ret = wc_AesGcmInit(aes, key32, sizeof(key32)/sizeof(byte), ivstr,
-                        AES_BLOCK_SIZE);
+                        WC_AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmInit failed with return code %d.\n", ret);
         goto test_gcm_end;
@@ -1684,7 +1684,7 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmEncryptFinal(aes, authTag, AES_BLOCK_SIZE);
+    ret = wc_AesGcmEncryptFinal(aes, authTag, WC_AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n",
                ret);
@@ -1698,7 +1698,7 @@ static int linuxkm_test_aesgcm(void)
     }
 
     ret = wc_AesGcmInit(aes, key32, sizeof(key32)/sizeof(byte), ivstr,
-                        AES_BLOCK_SIZE);
+                        WC_AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmInit failed with return code %d.\n", ret);
         goto test_gcm_end;
@@ -1712,7 +1712,7 @@ static int linuxkm_test_aesgcm(void)
         goto test_gcm_end;
     }
 
-    ret = wc_AesGcmDecryptFinal(aes, authTag, AES_BLOCK_SIZE);
+    ret = wc_AesGcmDecryptFinal(aes, authTag, WC_AES_BLOCK_SIZE);
     if (ret) {
         pr_err("error: wc_AesGcmEncryptFinal failed with return code %d\n",
                ret);
@@ -1734,13 +1734,13 @@ static int linuxkm_test_aesgcm(void)
     memset(assoc2, 0, sizeof(assoc));
     memcpy(assoc2, assoc, sizeof(assoc));
 
-    iv = malloc(AES_BLOCK_SIZE);
+    iv = malloc(WC_AES_BLOCK_SIZE);
     if (IS_ERR(iv)) {
         pr_err("error: malloc failed\n");
         goto test_gcm_end;
     }
-    memset(iv, 0, AES_BLOCK_SIZE);
-    memcpy(iv, ivstr, AES_BLOCK_SIZE);
+    memset(iv, 0, WC_AES_BLOCK_SIZE);
+    memcpy(iv, ivstr, WC_AES_BLOCK_SIZE);
 
     enc2 = malloc(decryptLen);
     if (IS_ERR(enc2)) {
@@ -1777,7 +1777,7 @@ static int linuxkm_test_aesgcm(void)
     }
 #endif
 
-    ret = crypto_aead_setkey(tfm, key32, AES_BLOCK_SIZE * 2);
+    ret = crypto_aead_setkey(tfm, key32, WC_AES_BLOCK_SIZE * 2);
     if (ret) {
         pr_err("error: crypto_aead_setkey returned: %d\n", ret);
         goto test_gcm_end;
@@ -1891,7 +1891,7 @@ static int aes_xts_128_test(void)
     XtsAes *aes = NULL;
     int aes_inited = 0;
     int ret = 0;
-#define AES_XTS_128_TEST_BUF_SIZ (AES_BLOCK_SIZE * 2 + 8)
+#define AES_XTS_128_TEST_BUF_SIZ (WC_AES_BLOCK_SIZE * 2 + 8)
     unsigned char *buf = NULL;
     unsigned char *cipher = NULL;
     u8 *    enc2 = NULL;
@@ -2049,12 +2049,12 @@ static int aes_xts_128_test(void)
     ret = wc_AesXtsEncryptInit(aes, i2, sizeof(i2), &stream);
     if (ret != 0)
         goto out;
-    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, &stream);
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, WC_AES_BLOCK_SIZE, &stream);
     if (ret != 0)
         goto out;
-    ret = wc_AesXtsEncryptFinal(aes, buf + AES_BLOCK_SIZE,
-                                 p2 + AES_BLOCK_SIZE,
-                                 sizeof(p2) - AES_BLOCK_SIZE, &stream);
+    ret = wc_AesXtsEncryptFinal(aes, buf + WC_AES_BLOCK_SIZE,
+                                 p2 + WC_AES_BLOCK_SIZE,
+                                 sizeof(p2) - WC_AES_BLOCK_SIZE, &stream);
     if (ret != 0)
         goto out;
     if (XMEMCMP(c2, buf, sizeof(c2))) {
@@ -2070,7 +2070,7 @@ static int aes_xts_128_test(void)
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
     if (ret != 0)
         goto out;
-    if (XMEMCMP(c1, buf, AES_BLOCK_SIZE)) {
+    if (XMEMCMP(c1, buf, WC_AES_BLOCK_SIZE)) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
     }
@@ -2081,7 +2081,7 @@ static int aes_xts_128_test(void)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
         goto out;
-    if (XMEMCMP(c1, buf, AES_BLOCK_SIZE)) {
+    if (XMEMCMP(c1, buf, WC_AES_BLOCK_SIZE)) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
     }
@@ -2141,7 +2141,7 @@ static int aes_xts_128_test(void)
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
     if (ret != 0)
         goto out;
-    if (XMEMCMP(p1, buf, AES_BLOCK_SIZE)) {
+    if (XMEMCMP(p1, buf, WC_AES_BLOCK_SIZE)) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
     }
@@ -2153,7 +2153,7 @@ static int aes_xts_128_test(void)
     WC_DEBUG_SET_VECTOR_REGISTERS_RETVAL(0);
     if (ret != 0)
         goto out;
-    if (XMEMCMP(p1, buf, AES_BLOCK_SIZE)) {
+    if (XMEMCMP(p1, buf, WC_AES_BLOCK_SIZE)) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
     }
@@ -2235,14 +2235,14 @@ static int aes_xts_128_test(void)
             ret = wc_AesXtsEncryptInit(aes, i1, sizeof(i1), &stream);
             if (ret != 0)
                 goto out;
-            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                if ((j - k) < AES_BLOCK_SIZE*2)
+            for (k = 0; k < j; k += WC_AES_BLOCK_SIZE) {
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     ret = wc_AesXtsEncryptFinal(aes, large_input + k, large_input + k, j - k, &stream);
                 else
-                    ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, &stream);
+                    ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, WC_AES_BLOCK_SIZE, &stream);
                 if (ret != 0)
                     goto out;
-                if ((j - k) < AES_BLOCK_SIZE*2)
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     break;
             }
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
@@ -2275,14 +2275,14 @@ static int aes_xts_128_test(void)
             ret = wc_AesXtsDecryptInit(aes, i1, sizeof(i1), &stream);
             if (ret != 0)
                 goto out;
-            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                if ((j - k) < AES_BLOCK_SIZE*2)
+            for (k = 0; k < j; k += WC_AES_BLOCK_SIZE) {
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     ret = wc_AesXtsDecryptFinal(aes, large_input + k, large_input + k, j - k, &stream);
                 else
-                    ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, &stream);
+                    ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, WC_AES_BLOCK_SIZE, &stream);
                 if (ret != 0)
                     goto out;
-                if ((j - k) < AES_BLOCK_SIZE*2)
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     break;
             }
             for (i = 0; i < j; i++) {
@@ -2491,7 +2491,7 @@ static int aes_xts_256_test(void)
     XtsAes *aes = NULL;
     int aes_inited = 0;
     int ret = 0;
-#define AES_XTS_256_TEST_BUF_SIZ (AES_BLOCK_SIZE * 3)
+#define AES_XTS_256_TEST_BUF_SIZ (WC_AES_BLOCK_SIZE * 3)
     unsigned char *buf = NULL;
     unsigned char *cipher = NULL;
     u8 *    enc2 = NULL;
@@ -2625,12 +2625,12 @@ static int aes_xts_256_test(void)
     ret = wc_AesXtsEncryptInit(aes, i2, sizeof(i2), &stream);
     if (ret != 0)
         goto out;
-    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, AES_BLOCK_SIZE, &stream);
+    ret = wc_AesXtsEncryptUpdate(aes, buf, p2, WC_AES_BLOCK_SIZE, &stream);
     if (ret != 0)
         goto out;
-    ret = wc_AesXtsEncryptFinal(aes, buf + AES_BLOCK_SIZE,
-                                 p2 + AES_BLOCK_SIZE,
-                                 sizeof(p2) - AES_BLOCK_SIZE, &stream);
+    ret = wc_AesXtsEncryptFinal(aes, buf + WC_AES_BLOCK_SIZE,
+                                 p2 + WC_AES_BLOCK_SIZE,
+                                 sizeof(p2) - WC_AES_BLOCK_SIZE, &stream);
     if (ret != 0)
         goto out;
     if (XMEMCMP(c2, buf, sizeof(c2))) {
@@ -2645,7 +2645,7 @@ static int aes_xts_256_test(void)
     ret = wc_AesXtsEncrypt(aes, buf, p1, sizeof(p1), i1, sizeof(i1));
     if (ret != 0)
         goto out;
-    if (XMEMCMP(c1, buf, AES_BLOCK_SIZE)) {
+    if (XMEMCMP(c1, buf, WC_AES_BLOCK_SIZE)) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
     }
@@ -2674,7 +2674,7 @@ static int aes_xts_256_test(void)
     ret = wc_AesXtsDecrypt(aes, buf, c1, sizeof(c1), i1, sizeof(i1));
     if (ret != 0)
         goto out;
-    if (XMEMCMP(p1, buf, AES_BLOCK_SIZE)) {
+    if (XMEMCMP(p1, buf, WC_AES_BLOCK_SIZE)) {
         ret = LINUXKM_LKCAPI_AES_KAT_MISMATCH_E;
         goto out;
     }
@@ -2715,14 +2715,14 @@ static int aes_xts_256_test(void)
             ret = wc_AesXtsEncryptInit(aes, i1, sizeof(i1), &stream);
             if (ret != 0)
                 goto out;
-            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                if ((j - k) < AES_BLOCK_SIZE*2)
+            for (k = 0; k < j; k += WC_AES_BLOCK_SIZE) {
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     ret = wc_AesXtsEncryptFinal(aes, large_input + k, large_input + k, j - k, &stream);
                 else
-                    ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, &stream);
+                    ret = wc_AesXtsEncryptUpdate(aes, large_input + k, large_input + k, WC_AES_BLOCK_SIZE, &stream);
                 if (ret != 0)
                     goto out;
-                if ((j - k) < AES_BLOCK_SIZE*2)
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     break;
             }
             ret = wc_AesXtsSetKeyNoInit(aes, k1, sizeof(k1), AES_DECRYPTION);
@@ -2755,14 +2755,14 @@ static int aes_xts_256_test(void)
             ret = wc_AesXtsDecryptInit(aes, i1, sizeof(i1), &stream);
             if (ret != 0)
                 goto out;
-            for (k = 0; k < j; k += AES_BLOCK_SIZE) {
-                if ((j - k) < AES_BLOCK_SIZE*2)
+            for (k = 0; k < j; k += WC_AES_BLOCK_SIZE) {
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     ret = wc_AesXtsDecryptFinal(aes, large_input + k, large_input + k, j - k, &stream);
                 else
-                    ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, AES_BLOCK_SIZE, &stream);
+                    ret = wc_AesXtsDecryptUpdate(aes, large_input + k, large_input + k, WC_AES_BLOCK_SIZE, &stream);
                 if (ret != 0)
                     goto out;
-                if ((j - k) < AES_BLOCK_SIZE*2)
+                if ((j - k) < WC_AES_BLOCK_SIZE*2)
                     break;
             }
             for (i = 0; i < j; i++) {

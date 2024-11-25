@@ -24,6 +24,10 @@
 
 #include <wolfssl/wolfcrypt/srp.h>
 
+#ifndef OPENSSL_COEXIST
+
 #define SRP_MINIMAL_N SRP_MODULUS_MIN_BITS
+
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* WOLFSSL_SRP_H_ */

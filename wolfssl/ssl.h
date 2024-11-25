@@ -117,6 +117,62 @@
         #include <openssl/hmac.h>
         #include <openssl/bn.h>
         #include <openssl/crypto.h>
+        #include <openssl/aes.h>
+        #include <openssl/blowfish.h>
+        #include <openssl/camellia.h>
+        #include <openssl/cast.h>
+        #include <openssl/cmac.h>
+        #include <openssl/cmp.h>
+        #include <openssl/cms.h>
+        #include <openssl/conf_api.h>
+        #include <openssl/core_object.h>
+        #include <openssl/decoder.h>
+        #include <openssl/des.h>
+        #include <openssl/dh.h>
+        #include <openssl/dsa.h>
+        #include <openssl/ecdh.h>
+        #include <openssl/ecdsa.h>
+        #include <openssl/encoder.h>
+        #include <openssl/engine.h>
+        #include <openssl/ess.h>
+        #include <openssl/fipskey.h>
+        #include <openssl/fips_names.h>
+        #include <openssl/hmac.h>
+        #include <openssl/hpke.h>
+        #include <openssl/http.h>
+        #include <openssl/idea.h>
+        #include <openssl/kdf.h>
+        #include <openssl/md2.h>
+        #include <openssl/md4.h>
+        #include <openssl/md5.h>
+        #include <openssl/mdc2.h>
+        #include <openssl/modes.h>
+        #include <openssl/ocsp.h>
+        #include <openssl/ossl_typ.h>
+        #include <openssl/param_build.h>
+        #include <openssl/params.h>
+        #include <openssl/pem2.h>
+        #include <openssl/pem.h>
+        #include <openssl/pkcs12.h>
+        #include <openssl/pkcs7.h>
+        #include <openssl/proverr.h>
+        #include <openssl/provider.h>
+        #include <openssl/rand.h>
+        #include <openssl/rc2.h>
+        #include <openssl/rc4.h>
+        #include <openssl/rc5.h>
+        #include <openssl/ripemd.h>
+        #include <openssl/rsa.h>
+        #include <openssl/seed.h>
+        #include <openssl/self_test.h>
+        #include <openssl/sha.h>
+        #include <openssl/srp.h>
+        #include <openssl/srtp.h>
+        #include <openssl/ssl.h>
+        #include <openssl/store.h>
+        #include <openssl/txt_db.h>
+        #include <openssl/ui.h>
+        #include <openssl/whrlpool.h>
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -231,7 +287,9 @@ typedef struct WOLFSSL_BIO_METHOD     WOLFSSL_BIO_METHOD;
 typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
 typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
 typedef struct WOLFSSL_ASN1_OTHERNAME WOLFSSL_ASN1_OTHERNAME;
+#ifndef OPENSSL_COEXIST
 typedef struct WOLFSSL_ASN1_OTHERNAME OTHERNAME;
+#endif
 typedef struct WOLFSSL_X509V3_CTX     WOLFSSL_X509V3_CTX;
 typedef struct WOLFSSL_v3_ext_method  WOLFSSL_v3_ext_method;
 typedef struct WOLFSSL_OBJ_NAME       WOLFSSL_OBJ_NAME;

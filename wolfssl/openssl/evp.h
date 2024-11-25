@@ -689,7 +689,7 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     unsigned char  cipherType;
 #if !defined(NO_AES)
     /* working iv pointer into cipher */
-    ALIGN16 unsigned char  iv[AES_BLOCK_SIZE];
+    ALIGN16 unsigned char  iv[WC_AES_BLOCK_SIZE];
 #elif defined(WOLFSSL_SM4)
     ALIGN16 unsigned char  iv[SM4_BLOCK_SIZE];
 #elif defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -722,7 +722,7 @@ struct WOLFSSL_EVP_CIPHER_CTX {
     defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM) || \
     (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || defined(HAVE_ARIA)
-    ALIGN16 unsigned char authTag[AES_BLOCK_SIZE];
+    ALIGN16 unsigned char authTag[WC_AES_BLOCK_SIZE];
 #elif defined(WOLFSSL_SM4_GCM) || defined(WOLFSSL_SM4_CCM)
     ALIGN16 unsigned char authTag[SM4_BLOCK_SIZE];
 #else

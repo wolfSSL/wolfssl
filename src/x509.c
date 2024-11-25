@@ -49,10 +49,10 @@ unsigned int wolfSSL_X509_get_extension_flags(WOLFSSL_X509* x509)
 
     if (x509 != NULL) {
         if (x509->keyUsageSet) {
-            flags |= EXFLAG_KUSAGE;
+            flags |= WOLFSSL_EXFLAG_KUSAGE;
         }
         if (x509->extKeyUsageSrc != NULL) {
-            flags |= EXFLAG_XKUSAGE;
+            flags |= WOLFSSL_EXFLAG_XKUSAGE;
         }
     }
 
@@ -92,19 +92,19 @@ unsigned int wolfSSL_X509_get_extended_key_usage(WOLFSSL_X509* x509)
 
     if (x509 != NULL) {
         if (x509->extKeyUsage & EXTKEYUSE_OCSP_SIGN)
-            ret |= XKU_OCSP_SIGN;
+            ret |= WOLFSSL_XKU_OCSP_SIGN;
         if (x509->extKeyUsage & EXTKEYUSE_TIMESTAMP)
-            ret |= XKU_TIMESTAMP;
+            ret |= WOLFSSL_XKU_TIMESTAMP;
         if (x509->extKeyUsage & EXTKEYUSE_EMAILPROT)
-            ret |= XKU_SMIME;
+            ret |= WOLFSSL_XKU_SMIME;
         if (x509->extKeyUsage & EXTKEYUSE_CODESIGN)
-            ret |= XKU_CODE_SIGN;
+            ret |= WOLFSSL_XKU_CODE_SIGN;
         if (x509->extKeyUsage & EXTKEYUSE_CLIENT_AUTH)
-            ret |= XKU_SSL_CLIENT;
+            ret |= WOLFSSL_XKU_SSL_CLIENT;
         if (x509->extKeyUsage & EXTKEYUSE_SERVER_AUTH)
-            ret |= XKU_SSL_SERVER;
+            ret |= WOLFSSL_XKU_SSL_SERVER;
         if (x509->extKeyUsage & EXTKEYUSE_ANY)
-            ret |= XKU_ANYEKU;
+            ret |= WOLFSSL_XKU_ANYEKU;
     }
 
     WOLFSSL_LEAVE("wolfSSL_X509_get_extended_key_usage", ret);
@@ -1688,7 +1688,7 @@ WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
         case WC_NID_basic_constraints:
             break;
         case WC_NID_subject_key_identifier:
-            method.i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
+            method.i2s = (WOLFSSL_X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
             break;
         case WC_NID_subject_alt_name:
             WOLFSSL_MSG("i2v function not yet implemented for Subject "
@@ -2965,7 +2965,7 @@ static void wolfSSL_X509V3_EXT_METHOD_populate(WOLFSSL_v3_ext_method *method,
     WOLFSSL_ENTER("wolfSSL_X509V3_EXT_METHOD_populate");
     switch (nid) {
     case WC_NID_subject_key_identifier:
-        method->i2s = (X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
+        method->i2s = (WOLFSSL_X509V3_EXT_I2S)wolfSSL_i2s_ASN1_STRING;
         FALL_THROUGH;
     case WC_NID_authority_key_identifier:
     case WC_NID_key_usage:

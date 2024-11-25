@@ -34,8 +34,6 @@ typedef struct WOLFSSL_CMAC_CTX {
     WOLFSSL_EVP_CIPHER_CTX* cctx;
 } WOLFSSL_CMAC_CTX;
 
-typedef WOLFSSL_CMAC_CTX CMAC_CTX;
-
 WOLFSSL_API WOLFSSL_CMAC_CTX* wolfSSL_CMAC_CTX_new(void);
 WOLFSSL_API void wolfSSL_CMAC_CTX_free(WOLFSSL_CMAC_CTX *ctx);
 WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX* wolfSSL_CMAC_CTX_get0_cipher_ctx(
@@ -48,12 +46,18 @@ WOLFSSL_API int wolfSSL_CMAC_Update(
 WOLFSSL_API int wolfSSL_CMAC_Final(
     WOLFSSL_CMAC_CTX* ctx, unsigned char* out, size_t* len);
 
+#ifndef OPENSSL_COEXIST
+
+typedef WOLFSSL_CMAC_CTX CMAC_CTX;
+
 #define CMAC_CTX_new              wolfSSL_CMAC_CTX_new
 #define CMAC_CTX_free             wolfSSL_CMAC_CTX_free
 #define CMAC_CTX_get0_cipher_ctx  wolfSSL_CMAC_CTX_get0_cipher_ctx
 #define CMAC_Init                 wolfSSL_CMAC_Init
 #define CMAC_Update               wolfSSL_CMAC_Update
 #define CMAC_Final                wolfSSL_CMAC_Final
+
+#endif /* !OPENSSL_COEXIST */
 
 #ifdef __cplusplus
 }  /* extern "C" */

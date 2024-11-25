@@ -695,7 +695,7 @@ static int wc_PKCS7_GetOIDBlockSize(int oid)
         case AES256CCMb:
         #endif
     #endif
-            blockSz = AES_BLOCK_SIZE;
+            blockSz = WC_AES_BLOCK_SIZE;
             break;
 #endif /* !NO_AES */
 
@@ -8214,7 +8214,7 @@ static int wc_PKCS7_EncryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
                 #ifdef WOLFSSL_AES_256
                     (encryptOID == AES256CBCb && keySz != 32 ) ||
                 #endif
-                    (ivSz  != AES_BLOCK_SIZE) )
+                    (ivSz  != WC_AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -8453,7 +8453,7 @@ static int wc_PKCS7_DecryptContent(wc_PKCS7* pkcs7, int encryptOID, byte* key,
                 #ifdef WOLFSSL_AES_256
                     (encryptOID == AES256CBCb && keySz != 32 ) ||
                 #endif
-                    (ivSz  != AES_BLOCK_SIZE) )
+                    (ivSz  != WC_AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 #ifdef WOLFSSL_SMALL_STACK
             if ((aes = (Aes *)XMALLOC(sizeof *aes, NULL,
@@ -12600,7 +12600,7 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
     byte encContentOctet[MAX_OCTET_STR_SZ];
     byte macOctetString[MAX_OCTET_STR_SZ];
 
-    byte authTag[AES_BLOCK_SIZE];
+    byte authTag[WC_AES_BLOCK_SIZE];
     byte nonce[GCM_NONCE_MID_SZ];   /* GCM nonce is larger than CCM */
     byte macInt[MAX_VERSION_SZ];
     byte algoParamSeq[MAX_SEQ_SZ];
@@ -13135,7 +13135,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,
     word32 pkiMsgSz = inSz;
 
     int expBlockSz = 0, blockKeySz = 0;
-    byte authTag[AES_BLOCK_SIZE];
+    byte authTag[WC_AES_BLOCK_SIZE];
     byte nonce[GCM_NONCE_MID_SZ];       /* GCM nonce is larger than CCM */
     int nonceSz = 0, authTagSz = 0, macSz = 0;
 
@@ -13653,7 +13653,7 @@ authenv_atrbend:
 
             if (pkcs7->stream->tagSz > 0) {
                 authTagSz = (int)pkcs7->stream->tagSz;
-                if (authTagSz > AES_BLOCK_SIZE) {
+                if (authTagSz > WC_AES_BLOCK_SIZE) {
                     WOLFSSL_MSG("PKCS7 saved tag is too large");
                     ret = BUFFER_E;
                     break;

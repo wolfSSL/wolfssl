@@ -12980,7 +12980,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
         /* Calculate maximum size of DER encoding.
          * 4 > size of pub, priv + ASN.1 additional information */
         der_max_len = 4 * (word32)wc_ecc_size((ecc_key*)ec->internal) +
-                      AES_BLOCK_SIZE;
+                      WC_AES_BLOCK_SIZE;
 
         /* Allocate buffer big enough to hold encoding. */
         derBuf = (byte*)XMALLOC((size_t)der_max_len, NULL,
