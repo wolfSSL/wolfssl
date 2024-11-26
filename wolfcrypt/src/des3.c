@@ -163,8 +163,13 @@
                 STM32_HAL_TIMEOUT);
         }
         /* save off IV */
-        des->reg[0] = hcryp.Instance->IV0LR;
-        des->reg[1] = hcryp.Instance->IV0RR;
+        #ifdef WOLFSSL_STM32MP13
+            des->reg[0] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0LR;
+            des->reg[1] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0RR;
+        #else
+            des->reg[0] = hcryp.Instance->IV0LR;
+            des->reg[1] = hcryp.Instance->IV0RR;
+        #endif
     #else
         while (sz > 0) {
             /* if input and output same will overwrite input iv */
@@ -324,8 +329,13 @@
                     STM32_HAL_TIMEOUT);
             }
             /* save off IV */
-            des->reg[0] = hcryp.Instance->IV0LR;
-            des->reg[1] = hcryp.Instance->IV0RR;
+            #ifdef WOLFSSL_STM32MP13
+                des->reg[0] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0LR;
+                des->reg[1] = ((CRYP_TypeDef *)(hcryp.Instance))->IV0RR;
+            #else
+                des->reg[0] = hcryp.Instance->IV0LR;
+                des->reg[1] = hcryp.Instance->IV0RR;
+            #endif
         #else
             while (sz > 0) {
                 if (dir == DES_ENCRYPTION) {

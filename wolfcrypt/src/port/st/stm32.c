@@ -58,6 +58,9 @@
 #elif defined(WOLFSSL_STM32WL)
 #include <stm32wlxx_hal_conf.h>
 #include <stm32wlxx_hal_pka.h>
+#elif defined(WOLFSSL_STM32MP13)
+#include <stm32mp13xx_hal_conf.h>
+#include <stm32mp13xx_hal_pka.h>
 #else
 #error Please add the hal_pk.h include
 #endif
@@ -442,8 +445,10 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
 #ifdef STM32_HAL_V2
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
-    hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
+    #ifdef WOLFSSL_STM32MP13
+        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_WORD;
+    #elif defined(CRYP_HEADERWIDTHUNIT_BYTE)
+        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
     #endif
 #endif
 
