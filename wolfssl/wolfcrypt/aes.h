@@ -189,7 +189,15 @@ enum {
 #endif
 
     WC_AES_BLOCK_SIZE      = 16,
-#ifndef OPENSSL_COEXIST
+#ifdef OPENSSL_COEXIST
+    /* allow OPENSSL_COEXIST applications to detect absence of AES_BLOCK_SIZE
+     * and presence of WC_AES_BLOCK_SIZE.
+     *
+     * if WC_NO_COMPAT_AES_BLOCK_SIZE is defined, WC_AES_BLOCK_SIZE is
+     * available, otherwise AES_BLOCK_SIZE is available.
+     */
+    #define WC_NO_COMPAT_AES_BLOCK_SIZE
+#else
     #define AES_BLOCK_SIZE WC_AES_BLOCK_SIZE
 #endif
 
