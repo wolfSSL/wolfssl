@@ -118,6 +118,11 @@
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
 
     #include <linux/kconfig.h>
+
+    #if defined(__PIE__) && defined(CONFIG_ARM64)
+        #define alt_cb_patch_nops my__alt_cb_patch_nops
+    #endif
+
     #include <linux/kernel.h>
     #include <linux/ctype.h>
 
@@ -666,6 +671,18 @@
 
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         typeof(dump_stack) *dump_stack;
+        #endif
+
+        #ifdef CONFIG_ARM64
+        #ifdef __PIE__
+            /* alt_cb_patch_nops defined early to allow shimming in system
+             * headers, but now we need the native one.
+             */
+            #undef alt_cb_patch_nops
+            typeof(my__alt_cb_patch_nops) *alt_cb_patch_nops;
+        #else
+            typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
+        #endif
         #endif
 
         const void *_last_slot;
