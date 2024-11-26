@@ -595,6 +595,10 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
 #endif
 
+#ifdef CONFIG_ARM64
+    wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
+#endif
+
     /* runtime assert that the table has no null slots after initialization. */
     {
         unsigned long *i;

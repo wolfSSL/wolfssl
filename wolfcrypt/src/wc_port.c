@@ -4238,3 +4238,13 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 #endif /* Environment check */
 
 #endif /* not SINGLE_THREADED */
+
+#if defined(WOLFSSL_LINUXKM) && defined(CONFIG_ARM64) && \
+    defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
+noinstr void my__alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
+                                   __le32 *updptr, int nr_inst)
+{
+    return (wolfssl_linuxkm_get_pie_redirect_table()->
+            alt_cb_patch_nops)(alt, origptr, updptr, nr_inst);
+}
+#endif
