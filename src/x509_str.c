@@ -1850,6 +1850,13 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_X509_STORE_get0_objects(
 #if defined(WOLFSSL_SIGNER_DER_CERT) && !defined(NO_FILESYSTEM)
     cert_stack = wolfSSL_CertManagerGetCerts(store->cm);
     store->numAdded = 0;
+    if (cert_stack == NULL && wolfSSL_sk_X509_num(store->certs) > 0) {
+        cert_stack = wolfSSL_sk_X509_new_null();
+        if (cert_stack == NULL) {
+            WOLFSSL_MSG("wolfSSL_sk_X509_OBJECT_new error");
+            goto err_cleanup;
+        }
+    }
     for (i = 0; i < wolfSSL_sk_X509_num(store->certs); i++) {
         if (wolfSSL_sk_X509_push(cert_stack,
                              wolfSSL_sk_X509_value(store->certs, i)) > 0) {
