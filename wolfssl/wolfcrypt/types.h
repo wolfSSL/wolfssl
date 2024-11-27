@@ -1437,7 +1437,8 @@ typedef struct w64wrapper {
         typedef void            THREAD_RETURN;
         #define WOLFSSL_THREAD_VOID_RETURN
         typedef struct {
-            struct k_thread tid;
+            /* Zephyr k_thread can be large, > 128 bytes. */
+            struct k_thread* tid;
             k_thread_stack_t* threadStack;
         } THREAD_TYPE;
         #define WOLFSSL_THREAD
