@@ -24987,11 +24987,13 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         ssl->error = ret;
         return WOLFSSL_FATAL_ERROR;
     }
+#ifdef WOLFSSL_DTLS13
     if (ssl->dtls13WaitKeyUpdateAck) {
         ret = DoDtls13KeyUpdateAck(ssl);
         if (ret != 0)
             return ret;
     }
+#endif
 #endif
 
     for (;;) {
