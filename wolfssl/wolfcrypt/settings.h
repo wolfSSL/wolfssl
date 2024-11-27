@@ -3660,6 +3660,11 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_OLD_WC_NAMES
         #define NO_OLD_WC_NAMES
     #endif
+    #if defined(HAVE_SELFTEST) || \
+        (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
+        /* old FIPS needs this remapping. */
+        #define Sha3 wc_Sha3
+    #endif
 #endif
 
 #if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
