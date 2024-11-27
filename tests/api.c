@@ -99277,9 +99277,11 @@ static int test_tls13_early_data(void)
             XMEMSET(&test_ctx, 0, sizeof(test_ctx));
             ExpectIntEQ(test_memio_setup(&test_ctx, &ctx_c, &ctx_s, &ssl_c, &ssl_s,
                     params[i].client_meth, params[i].server_meth), 0);
+            wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_set_session(ssl_c, sess), WOLFSSL_SUCCESS);
 #ifdef WOLFSSL_DTLS13
             if (params[i].isUdp) {
+                wolfSSL_SetLoggingPrefix("server");
 #ifdef WOLFSSL_DTLS13_NO_HRR_ON_RESUME
                 ExpectIntEQ(wolfSSL_dtls13_no_hrr_on_resume(ssl_s, 1), WOLFSSL_SUCCESS);
 #else
@@ -99291,6 +99293,7 @@ static int test_tls13_early_data(void)
 #endif
 
             /* Test 0-RTT data */
+            wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_write_early_data(ssl_c, msg, sizeof(msg),
                     &written), sizeof(msg));
             ExpectIntEQ(written, sizeof(msg));
@@ -99302,6 +99305,7 @@ static int test_tls13_early_data(void)
             }
 
             /* Read first 0-RTT data (if split otherwise entire data) */
+            wolfSSL_SetLoggingPrefix("server");
             ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
                     &read), sizeof(msg));
             ExpectIntEQ(read, sizeof(msg));
@@ -99319,6 +99323,7 @@ static int test_tls13_early_data(void)
             }
 
             if (params[i].isUdp) {
+                wolfSSL_SetLoggingPrefix("client");
                 ExpectIntEQ(wolfSSL_connect(ssl_c), -1);
                 ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WC_NO_ERR_TRACE(APP_DATA_READY));
 
@@ -99335,17 +99340,21 @@ static int test_tls13_early_data(void)
                  * handshake status to us with non-blocking IO and we can't use
                  * wolfSSL_accept as TLS layer may return ZERO_RETURN due to early data
                  * parsing logic. */
+                wolfSSL_SetLoggingPrefix("server");
                 ExpectFalse(wolfSSL_is_init_finished(ssl_s));
                 ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
                         &read), 0);
                 ExpectIntEQ(read, 0);
                 ExpectTrue(wolfSSL_is_init_finished(ssl_s));
 
+                wolfSSL_SetLoggingPrefix("client");
                 ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
             }
             else {
+                wolfSSL_SetLoggingPrefix("client");
                 ExpectIntEQ(wolfSSL_connect(ssl_c), WOLFSSL_SUCCESS);
 
+                wolfSSL_SetLoggingPrefix("server");
                 ExpectFalse(wolfSSL_is_init_finished(ssl_s));
                 ExpectIntEQ(wolfSSL_read_early_data(ssl_s, msgBuf, sizeof(msgBuf),
                         &read), 0);
@@ -99353,18 +99362,23 @@ static int test_tls13_early_data(void)
                 ExpectTrue(wolfSSL_is_init_finished(ssl_s));
 
                 /* Read server 0.5-RTT data */
+                wolfSSL_SetLoggingPrefix("client");
                 ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg4));
                 ExpectStrEQ(msg4, msgBuf);
             }
 
             /* Test bi-directional write */
+            wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_write(ssl_c, msg2, sizeof(msg2)), sizeof(msg2));
+            wolfSSL_SetLoggingPrefix("server");
             ExpectIntEQ(wolfSSL_read(ssl_s, msgBuf, sizeof(msgBuf)), sizeof(msg2));
             ExpectStrEQ(msg2, msgBuf);
             ExpectIntEQ(wolfSSL_write(ssl_s, msg3, sizeof(msg3)), sizeof(msg3));
+            wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_read(ssl_c, msgBuf, sizeof(msgBuf)), sizeof(msg3));
             ExpectStrEQ(msg3, msgBuf);
 
+            wolfSSL_SetLoggingPrefix(NULL);
             ExpectTrue(wolfSSL_session_reused(ssl_c));
             ExpectTrue(wolfSSL_session_reused(ssl_s));
 
@@ -100310,10 +100324,12 @@ static int test_wolfSSL_inject(void)
                 params[i].client_meth, params[i].server_meth), 0);
 
         for (rounds = 0; rounds < 10 && EXPECT_SUCCESS(); rounds++) {
+            wolfSSL_SetLoggingPrefix("client");
             if (wolfSSL_negotiate(ssl_c) != 1) {
                 ExpectIntEQ(wolfSSL_get_error(ssl_c, -1),
                         WOLFSSL_ERROR_WANT_READ);
             }
+            wolfSSL_SetLoggingPrefix("server");
             if (test_ctx.s_len > 0) {
                 ExpectIntEQ(wolfSSL_inject(ssl_s, test_ctx.s_buff,
                                            test_ctx.s_len), 1);
@@ -100323,11 +100339,13 @@ static int test_wolfSSL_inject(void)
                 ExpectIntEQ(wolfSSL_get_error(ssl_s, -1),
                         WOLFSSL_ERROR_WANT_READ);
             }
+            wolfSSL_SetLoggingPrefix("client");
             if (test_ctx.c_len > 0) {
                 ExpectIntEQ(wolfSSL_inject(ssl_c, test_ctx.c_buff,
                                            test_ctx.c_len), 1);
                 test_ctx.c_len = 0;
             }
+            wolfSSL_SetLoggingPrefix(NULL);
         }
         ExpectIntEQ(wolfSSL_negotiate(ssl_c), 1);
         ExpectIntEQ(wolfSSL_negotiate(ssl_s), 1);

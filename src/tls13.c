@@ -2413,6 +2413,9 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
         if (seq[1] > ssl->keys.sequence_number_lo)
             ssl->keys.sequence_number_hi++;
     }
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG_EX("TLS 1.3 Write Sequence %d %d", seq[0], seq[1]);
+#endif
 
     c32toa(seq[0], out);
     c32toa(seq[1], out + OPAQUE32_LEN);
@@ -2428,14 +2431,11 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
 static WC_INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
                                    int order)
 {
-    int  i;
-
+    int seq_offset = AEAD_NONCE_SZ - SEQ_SZ;
     /* The nonce is the IV with the sequence XORed into the last bytes. */
-    WriteSEQTls13(ssl, order, nonce + AEAD_NONCE_SZ - SEQ_SZ);
-    for (i = 0; i < AEAD_NONCE_SZ - SEQ_SZ; i++)
-        nonce[i] = iv[i];
-    for (; i < AEAD_NONCE_SZ; i++)
-        nonce[i] ^= iv[i];
+    WriteSEQTls13(ssl, order, nonce + seq_offset);
+    XMEMCPY(nonce, iv, seq_offset);
+    xorbuf(nonce + seq_offset, iv + seq_offset, SEQ_SZ);
 }
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
@@ -10905,6 +10905,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Force input exhaustion at ProcessReply by consuming padSz. */
     *inOutIdx += size + ssl->keys.padSz;
 
+#ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END &&
                                                   !ssl->options.handShakeDone) {
 #ifdef WOLFSSL_EARLY_DATA
@@ -10917,6 +10918,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
             return ret;
     }
+#endif
 
 #ifndef NO_WOLFSSL_CLIENT
     if (ssl->options.side == WOLFSSL_CLIENT_END)
@@ -11149,14 +11151,14 @@ static int SendTls13Finished(WOLFSSL* ssl)
                                                   !ssl->options.handShakeDone) {
 #ifdef WOLFSSL_EARLY_DATA
         if (ssl->earlyData != no_early_data) {
-            if ((ret = DeriveTls13Keys(ssl, no_key, ENCRYPT_AND_DECRYPT_SIDE,
+            if ((ret = DeriveTls13Keys(ssl, no_key, ENCRYPT_SIDE_ONLY,
                                                                      1)) != 0) {
                     return ret;
             }
         }
 #endif
         /* Setup keys for application data messages. */
-        if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
+        if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
             return ret;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -12831,12 +12833,21 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     ssl->earlyData == no_early_data)) != 0) {
                     return ret;
                 }
+                if (ssl->earlyData != no_early_data) {
+                    if ((ret = DeriveTls13Keys(ssl, no_key, DECRYPT_SIDE_ONLY,
+                                                                  1)) != 0) {
+                            return ret;
+                    }
+                }
         #else
                 if ((ret = DeriveTls13Keys(ssl, traffic_key,
                                         ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
                     return ret;
                 }
         #endif
+                /* Setup keys for application data messages. */
+                if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
+                    return ret;
             }
         #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             if (type == certificate_request &&
