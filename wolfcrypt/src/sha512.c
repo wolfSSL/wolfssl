@@ -219,6 +219,66 @@
     {
         se050_hash_free(&sha512->se050Ctx);
     }
+#elif defined(STM32_HASH_SHA512)
+
+    /* Supports CubeMX HAL or Standard Peripheral Library */
+
+    int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
+    {
+        if (sha512 == NULL)
+            return BAD_FUNC_ARG;
+
+        (void)devId;
+        (void)heap;
+
+        XMEMSET(sha512, 0, sizeof(wc_Sha512));
+        wc_Stm32_Hash_Init(&sha512->stmCtx);
+        return 0;
+    }
+
+    int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
+    {
+        int ret = 0;
+
+        if (sha512 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Update(&sha512->stmCtx,
+                HASH_ALGOSELECTION_SHA512, data, len, WC_SHA512_BLOCK_SIZE);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return ret;
+    }
+
+    int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
+    {
+        int ret = 0;
+
+        if (sha512 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Final(&sha512->stmCtx,
+                HASH_ALGOSELECTION_SHA512, hash, WC_SHA512_DIGEST_SIZE);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+
+        (void)wc_InitSha512(sha512); /* reset state */
+
+        return ret;
+    }
 
 #else
 
@@ -1174,7 +1234,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
 #elif defined(MAX3266X_SHA)
     /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
-
+#elif defined(STM32_HASH_SHA512)
 #else
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
@@ -1337,7 +1397,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
 #elif defined(MAX3266X_SHA)
     /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
-
+#elif defined(STM32_HASH_SHA512)
 #else
 
 static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, size_t digestSz)
@@ -1407,10 +1467,12 @@ static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash, size_t digestSz,
     return initfp(sha512);
 }
 
+#ifndef STM32_HASH_SHA512
 int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
 {
     return Sha512_Family_Final(sha512, hash, WC_SHA512_DIGEST_SIZE, InitSha512);
 }
+#endif
 
 #endif /* WOLFSSL_KCAPI_HASH */
 
@@ -1592,6 +1654,64 @@ int wc_Sha512Transform(wc_Sha512* sha, const unsigned char* data)
 
 #elif defined(MAX3266X_SHA)
     /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
+#elif defined(STM32_HASH_SHA384)
+
+    int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
+    {
+        if (sha384 == NULL)
+            return BAD_FUNC_ARG;
+
+        (void)devId;
+        (void)heap;
+
+        XMEMSET(sha384, 0, sizeof(wc_Sha384));
+        wc_Stm32_Hash_Init(&sha384->stmCtx);
+        return 0;
+    }
+
+    int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
+    {
+        int ret = 0;
+
+        if (sha384 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Update(&sha384->stmCtx,
+                HASH_ALGOSELECTION_SHA384, data, len, WC_SHA384_BLOCK_SIZE);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return ret;
+    }
+
+    int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
+    {
+        int ret = 0;
+
+        if (sha384 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Final(&sha384->stmCtx,
+                HASH_ALGOSELECTION_SHA384, hash, WC_SHA384_DIGEST_SIZE);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+
+        (void)wc_InitSha384(sha384); /* reset state */
+
+        return ret;
+    }
 
 #else
 
@@ -2011,17 +2131,75 @@ int wc_Sha512GetFlags(wc_Sha512* sha512, word32* flags)
 #if !defined(WOLFSSL_NOSHA512_224) && \
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
 
+#if defined(STM32_HASH_SHA512_224)
 
+int wc_InitSha512_224_ex(wc_Sha512* sha512, void* heap, int devId)
+{
+    if (sha512 == NULL)
+        return BAD_FUNC_ARG;
+
+    (void)devId;
+    (void)heap;
+
+    XMEMSET(sha512, 0, sizeof(wc_Sha512));
+    wc_Stm32_Hash_Init(&sha512->stmCtx);
+    return 0;
+}
+
+int wc_Sha512_224Update(wc_Sha512* sha512, const byte* data, word32 len)
+{
+    int ret = 0;
+
+    if (sha512 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (data == NULL && len == 0) {
+        /* valid, but do nothing */
+        return 0;
+    }
+    if (data == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret == 0) {
+        ret = wc_Stm32_Hash_Update(&sha512->stmCtx,
+            HASH_ALGOSELECTION_SHA512_224, data, len, WC_SHA512_224_BLOCK_SIZE);
+        wolfSSL_CryptHwMutexUnLock();
+    }
+    return ret;
+}
+
+int wc_Sha512_224Final(wc_Sha512* sha512, byte* hash)
+{
+    int ret = 0;
+
+    if (sha512 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wolfSSL_CryptHwMutexLock();
+    if (ret == 0) {
+        ret = wc_Stm32_Hash_Final(&sha512->stmCtx,
+            HASH_ALGOSELECTION_SHA512_224, hash, WC_SHA512_224_DIGEST_SIZE);
+        wolfSSL_CryptHwMutexUnLock();
+    }
+
+    (void)wc_InitSha512_224(sha512); /* reset state */
+
+    return ret;
+}
+#endif
 int wc_InitSha512_224(wc_Sha512* sha)
 {
     return wc_InitSha512_224_ex(sha, NULL, INVALID_DEVID);
 }
-
+#if !defined(STM32_HASH_SHA512_224)
 int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);
 }
-
+#endif
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 #elif defined(WOLFSSL_RENESAS_RSIP) && \
@@ -2029,6 +2207,7 @@ int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
     /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
+#elif defined(STM32_HASH_SHA512_224)
 
 #else
 int wc_Sha512_224FinalRaw(wc_Sha512* sha, byte* hash)
@@ -2091,16 +2270,75 @@ int wc_Sha512_224Transform(wc_Sha512* sha, const unsigned char* data)
 
 #if !defined(WOLFSSL_NOSHA512_256) && \
    (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5, 3)) && !defined(HAVE_SELFTEST)
+#if defined(STM32_HASH_SHA512_256)
 
+    int wc_InitSha512_256_ex(wc_Sha512* sha512, void* heap, int devId)
+    {
+        if (sha512 == NULL)
+            return BAD_FUNC_ARG;
+
+        (void)devId;
+        (void)heap;
+
+        XMEMSET(sha512, 0, sizeof(wc_Sha512));
+        wc_Stm32_Hash_Init(&sha512->stmCtx);
+        return 0;
+    }
+
+    int wc_Sha512_256Update(wc_Sha512* sha512, const byte* data, word32 len)
+    {
+        int ret = 0;
+
+        if (sha512 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+        if (data == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Update(&sha512->stmCtx,
+                HASH_ALGOSELECTION_SHA512_256, data, len, WC_SHA512_256_BLOCK_SIZE);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+        return ret;
+    }
+
+    int wc_Sha512_256Final(wc_Sha512* sha512, byte* hash)
+    {
+        int ret = 0;
+
+        if (sha512 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Final(&sha512->stmCtx,
+                HASH_ALGOSELECTION_SHA512_256, hash, WC_SHA512_256_DIGEST_SIZE);
+            wolfSSL_CryptHwMutexUnLock();
+        }
+
+        (void)wc_InitSha512_256(sha512); /* reset state */
+
+        return ret;
+    }
+#endif
 int wc_InitSha512_256(wc_Sha512* sha)
 {
     return wc_InitSha512_256_ex(sha, NULL, INVALID_DEVID);
 }
-
+#if !defined(STM32_HASH_SHA512_256)
 int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 {
     return wc_Sha512Update(sha, data, len);
 }
+#endif
 #if defined(WOLFSSL_KCAPI_HASH)
     /* functions defined in wolfcrypt/src/port/kcapi/kcapi_hash.c */
 #elif defined(WOLFSSL_RENESAS_RSIP) && \
@@ -2108,7 +2346,7 @@ int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
     /* functions defined in wolfcrypt/src/port/Renesas/renesas_fspsm_sha.c */
 
 #elif defined(WOLFSSL_SE050) && defined(WOLFSSL_SE050_HASH)
-
+#elif defined(STM32_HASH_SHA512_256)
 #else
 int wc_Sha512_256FinalRaw(wc_Sha512* sha, byte* hash)
 {
@@ -2176,6 +2414,7 @@ int wc_Sha512_256Transform(wc_Sha512* sha, const unsigned char* data)
     /* functions defined in wolfcrypt/src/port/renesas/renesas_fspsm_sha.c */
 #elif defined(MAX3266X_SHA)
     /* Functions defined in wolfcrypt/src/port/maxim/max3266x.c */
+
 #else
 
 int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)

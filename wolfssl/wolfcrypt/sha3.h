@@ -45,6 +45,10 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#ifdef STM32_HASH
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+#endif
+
 /* in bytes */
 enum {
     /* SHAKE-128 */
@@ -139,6 +143,9 @@ struct wc_Sha3 {
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_HASH_FLAGS
     word32 flags; /* enum wc_HashFlags in hash.h */
+#endif
+#if defined(STM32_HASH_SHA3)
+    STM32_HASH_Context stmCtx;
 #endif
 };
 
