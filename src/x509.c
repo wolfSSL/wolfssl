@@ -485,12 +485,17 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
 int wolfSSL_X509_OBJECT_set1_X509(WOLFSSL_X509_OBJECT *a, WOLFSSL_X509 *obj)
 {
     WOLFSSL_STUB("wolfSSL_X509_OBJECT_set1_X509");
+    (void)a;
+    (void)obj;
     return 1;
 }
 
-int wolfSSL_X509_OBJECT_set1_X509_CRL(WOLFSSL_X509_OBJECT *a, WOLFSSL_X509_CRL *obj)
+int wolfSSL_X509_OBJECT_set1_X509_CRL(WOLFSSL_X509_OBJECT *a,
+    WOLFSSL_X509_CRL *obj)
 {
     WOLFSSL_STUB("wolfSSL_X509_OBJECT_set1_X509_CRL");
+    (void)a;
+    (void)obj;
     return 1;
 }
 
@@ -10378,7 +10383,7 @@ WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
 {
     (void)f; /* free function */
     (void)c; /* copy function */
-    return wolfSSL_sk_dup(sk);
+    return wolfSSL_sk_dup((WOLFSSL_STACK*)sk);
 }
 #endif
 

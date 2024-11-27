@@ -15041,6 +15041,7 @@ word32 wolfSSL_lib_version_hex(void)
 WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
 {
     WOLFSSL_STUB("wolfSSL_get_client_ciphers");
+    (void)ssl;
     return NULL;
 }
 #endif
@@ -17611,6 +17612,31 @@ static void wolfSSL_CIPHER_copy(WOLFSSL_CIPHER* in, WOLFSSL_CIPHER* out)
     *out = *in;
 }
 
+
+static WOLFSSL_X509_OBJECT* wolfSSL_X509_OBJECT_dup(WOLFSSL_X509_OBJECT* obj)
+{
+    WOLFSSL_X509_OBJECT* ret = NULL;
+    if (obj) {
+        ret = wolfSSL_X509_OBJECT_new();
+        if (ret) {
+            ret->type = obj->type;
+            switch (ret->type) {
+                case WOLFSSL_X509_LU_NONE:
+                    break;
+                case WOLFSSL_X509_LU_X509:
+                    ret->data.x509 = wolfSSL_X509_dup(obj->data.x509);
+                    break;
+                case WOLFSSL_X509_LU_CRL:
+            #if defined(HAVE_CRL)
+                    ret->data.crl = wolfSSL_X509_CRL_dup(obj->data.crl);
+            #endif
+                    break;
+            }
+        }
+    }
+    return ret;
+}
+
 WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
 {
 
@@ -17673,6 +17699,15 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
                     goto error;
                 }
                 break;
+            case STACK_TYPE_X509_OBJ:
+                if (!sk->data.x509_obj)
+                    break;
+                cur->data.x509_obj = wolfSSL_X509_OBJECT_dup(sk->data.x509_obj);
+                if (!cur->data.x509_obj) {
+                    WOLFSSL_MSG("wolfSSL_X509_OBJECT_dup error");
+                    goto error;
+                }
+                break;
             case STACK_TYPE_BIO:
             case STACK_TYPE_STRING:
             case STACK_TYPE_ACCESS_DESCRIPTION:
@@ -17685,7 +17720,6 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
             case STACK_TYPE_X509_INFO:
             case STACK_TYPE_BY_DIR_entry:
             case STACK_TYPE_BY_DIR_hash:
-            case STACK_TYPE_X509_OBJ:
             case STACK_TYPE_DIST_POINT:
             case STACK_TYPE_X509_CRL:
             default:

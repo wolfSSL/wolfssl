@@ -10882,15 +10882,32 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     int wolfSSL_EVP_DigestFinalXOF(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *md,
         size_t sz)
     {
+        unsigned int len;
+
         WOLFSSL_ENTER("wolfSSL_EVP_DigestFinalXOF");
-        //@TODO
-        return WOLFSSL_SUCCESS;
+        len = (unsigned int)sz;
+        return wolfSSL_EVP_DigestFinal(ctx, md, &len);
     }
 
 
     unsigned long wolfSSL_EVP_MD_flags(const WOLFSSL_EVP_MD *md)
     {
-        return 0;
+        enum wc_HashType macType;
+
+        macType = EvpMd2MacType(md);
+        switch ((int)macType) {
+            case WC_HASH_TYPE_BLAKE2B:
+            case WC_HASH_TYPE_BLAKE2S:
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+            case WC_HASH_TYPE_SHAKE128:
+        #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+            case WC_HASH_TYPE_SHAKE256:
+        #endif
+                return EVP_MD_FLAG_XOF;
+            default:
+                return 0;
+        }
     }
 
 
