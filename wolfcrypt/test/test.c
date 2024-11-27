@@ -13753,11 +13753,12 @@ static wc_test_ret_t aes_direct_test(Aes* enc, Aes* dec, byte* cipher, byte* pla
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 #endif /* HAVE_AES_DECRYPT */
     }
-    (void)dec;
-    (void)plain;
-#endif /* WOLFSSL_AES_256 */
-
 out:
+#endif /* WOLFSSL_AES_256 */
+    (void)enc;
+    (void)dec;
+    (void)cipher;
+    (void)plain;
     return ret;
 }
 #endif /* WOLFSSL_AES_DIRECT */
@@ -54765,7 +54766,7 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
     mp_digit rho;
     int size;
 #endif
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
+#ifdef WOLFSSL_SP_PRIME_GEN
     int result;
 #endif
 #if (defined(HAVE_ECC) && defined(HAVE_COMP_KEY)) || \
@@ -55463,7 +55464,7 @@ static wc_test_ret_t mp_test_param(mp_int* a, mp_int* b, mp_int* r, WC_RNG* rng)
         return WC_TEST_RET_ENC_EC(ret);
 #endif
 
-#if defined(WOLFSSL_SP_MATH_ALL) || defined(WOLFSSL_HAVE_SP_DH)
+#ifdef WOLFSSL_SP_PRIME_GEN
     ret = mp_prime_is_prime(NULL, 1, NULL);
     if (ret != WC_NO_ERR_TRACE(MP_VAL))
         return WC_TEST_RET_ENC_EC(ret);
