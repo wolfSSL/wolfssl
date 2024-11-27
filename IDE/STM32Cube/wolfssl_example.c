@@ -1760,6 +1760,7 @@ static int tls13_uart_client(void)
         printf("wolfSSL_UseKeyShare Error!!");
     }
 #endif
+#endif
 
     do {
         ret = wolfSSL_connect(ssl);
