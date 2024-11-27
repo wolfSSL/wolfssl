@@ -1408,24 +1408,30 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
             result = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
     #if !defined(WOLFSSL_SIGNER_DER_CERT)
             if (result == WOLFSSL_SUCCESS && store->trusted != NULL) {
-                result = wolfSSL_sk_X509_push(store->trusted, x509);
-                if (result > 0) {
-                    result = WOLFSSL_SUCCESS;
-                }
-                else {
-                    result = WOLFSSL_FATAL_ERROR;
+                result = wolfSSL_X509_up_ref(x509);
+                if (result == WOLFSSL_SUCCESS) {
+                    result = wolfSSL_sk_X509_push(store->trusted, x509);
+                    if (result > 0) {
+                        result = WOLFSSL_SUCCESS;
+                    }
+                    else {
+                        result = WOLFSSL_FATAL_ERROR;
+                    }
                 }
             }
     #endif
         }
         else {
             if (store->certs != NULL) {
-                result = wolfSSL_sk_X509_push(store->certs, x509);
-                if (result > 0) {
-                    result = WOLFSSL_SUCCESS;
-                }
-                else {
-                    result = WOLFSSL_FATAL_ERROR;
+                result = wolfSSL_X509_up_ref(x509);
+                if (result == WOLFSSL_SUCCESS) {
+                    result = wolfSSL_sk_X509_push(store->certs, x509);
+                    if (result > 0) {
+                        result = WOLFSSL_SUCCESS;
+                    }
+                    else {
+                        result = WOLFSSL_FATAL_ERROR;
+                    }
                 }
             }
             else {
