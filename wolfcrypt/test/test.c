@@ -24986,7 +24986,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t openssl_test(void)
 
 #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION > 2)
     /* Expect failure with MD5 + HMAC when using FIPS 140-3. */
-    if (HMAC(EVP_md5(), "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen,
+    if (wolfSSL_HMAC(wolfSSL_EVP_md5(), "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen,
             hash, 0) != NULL)
 #else
     if (wolfSSL_HMAC(wolfSSL_EVP_md5(), "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen,
