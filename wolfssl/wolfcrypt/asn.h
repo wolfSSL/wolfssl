@@ -1620,7 +1620,8 @@ struct SignatureCtx {
     byte* sigCpy;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    !defined(NO_DSA)
+    !defined(NO_DSA) || defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+    defined(HAVE_SPHINCS)
     int verify;
 #endif
     union {
@@ -1898,12 +1899,14 @@ struct DecodedCert {
     #endif
 #endif /* WOLFSSL_SUBJ_INFO_ACC */
 
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || defined(HAVE_SPHINCS)
     word32  pkCurveOID;           /* Public Key's curve OID */
     #ifdef WOLFSSL_CUSTOM_CURVES
         int  pkCurveSize;         /* Public Key's curve size */
     #endif
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || HAVE_DILITHIUM ||
+        * HAVE_FALCON || HAVE_SPHINCS */
     const byte* beforeDate;
     int     beforeDateLen;
     const byte* afterDate;
