@@ -3756,18 +3756,21 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     }
 #endif
 
-    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    int wolfSSL_JoinThread(THREAD_TYPE* thread)
     {
         int ret = 0;
 
-        if (thread == INVALID_THREAD_VAL)
+        if (thread == NULL)
+            return BAD_FUNC_ARG;
+
+        if (*thread == INVALID_THREAD_VAL)
             return BAD_FUNC_ARG;
 
         /* We still want to attempt to close the thread handle even on error */
-        if (WaitForSingleObject((HANDLE)thread, INFINITE) == WAIT_FAILED)
+        if (WaitForSingleObject((HANDLE)*thread, INFINITE) == WAIT_FAILED)
             ret = MEMORY_E;
 
-        if (CloseHandle((HANDLE)thread) == 0)
+        if (CloseHandle((HANDLE)*thread) == 0)
             ret = MEMORY_E;
 
         return ret;
@@ -3878,10 +3881,13 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return 0;
     }
 
-    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    int wolfSSL_JoinThread(THREAD_TYPE* thread)
     {
+        if (thread == NULL)
+            return BAD_FUNC_ARG;
+
         while(1) {
-            if (Task_getMode(thread) == Task_Mode_TERMINATED) {
+            if (Task_getMode(*thread) == Task_Mode_TERMINATED) {
                 Task_sleep(5);
                 break;
             }
@@ -3942,11 +3948,14 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return 0;
     }
 
-    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    int wolfSSL_JoinThread(THREAD_TYPE* thread)
     {
+        if (thread == NULL)
+            return BAD_FUNC_ARG;
+
         /* TODO: maybe have to use tx_thread_delete? */
-        XFREE(thread.threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
-        thread.threadStack = NULL;
+        XFREE(thread->threadStack, NULL, DYNAMIC_TYPE_OS_BUF);
+        thread->threadStack = NULL;
         return 0;
     }
 
@@ -3989,26 +3998,29 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         return 0;
     }
 
-    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    int wolfSSL_JoinThread(THREAD_TYPE* thread)
     {
         int ret = 0;
         int err;
 
-        err = k_thread_join(&thread.tid, K_FOREVER);
+        if (thread == NULL)
+            return BAD_FUNC_ARG;
+
+        err = k_thread_join(&thread->tid, K_FOREVER);
         if (err != 0)
             ret = MEMORY_E;
 
         /* TODO: Use the following once k_thread_stack_free makes it into a
          * release.
-         * err = k_thread_stack_free(thread.threadStack);
+         * err = k_thread_stack_free(thread->threadStack);
          * if (err != 0)
          *     ret = MEMORY_E;
          */
-        XFREE(thread.threadStack, wolfsslThreadHeapHint,
+        XFREE(thread->threadStack, wolfsslThreadHeapHint,
                 DYNAMIC_TYPE_TMP_BUFFER);
-        thread.threadStack = NULL;
+        thread->threadStack = NULL;
 
-        /* No thread resources to free. Everything is stored in thread.tid */
+        /* No thread resources to free. Everything is stored in thread->tid */
 
         return ret;
     }
@@ -4046,12 +4058,15 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
         }
     #endif
 
-    int wolfSSL_JoinThread(THREAD_TYPE thread)
+    int wolfSSL_JoinThread(THREAD_TYPE* thread)
     {
-        if (thread == INVALID_THREAD_VAL)
+        if (thread == NULL)
             return BAD_FUNC_ARG;
 
-        if (pthread_join(thread, NULL) != 0)
+        if (*thread == INVALID_THREAD_VAL)
+            return BAD_FUNC_ARG;
+
+        if (pthread_join(*thread, NULL) != 0)
             return MEMORY_E;
 
         return 0;

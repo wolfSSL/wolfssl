@@ -645,7 +645,7 @@ int main()
     printf("Client Return: %d\n", ret);
     printf("Client Error: %d\n", wolfSSL_get_error(client_ssl, ret));
 
-    if (wolfSSL_JoinThread(serverThread) != 0) {
+    if (wolfSSL_JoinThread(&serverThread) != 0) {
         printf("Failed to join server thread\n");
         return -1;
     }

@@ -1568,7 +1568,7 @@ typedef struct w64wrapper {
             WOLFSSL_API int wolfSSL_NewThreadNoJoin(THREAD_CB_NOJOIN cb,
                     void* arg);
         #endif
-        WOLFSSL_API int wolfSSL_JoinThread(THREAD_TYPE thread);
+        WOLFSSL_API int wolfSSL_JoinThread(THREAD_TYPE* thread);
 
         #ifdef WOLFSSL_COND
             WOLFSSL_API int wolfSSL_CondInit(COND_TYPE* cond);

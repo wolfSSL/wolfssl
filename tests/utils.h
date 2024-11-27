@@ -190,7 +190,7 @@ void start_thread(THREAD_CB fun, func_args* args, THREAD_TYPE* thread)
  */
 void join_thread(THREAD_TYPE thread)
 {
-    THREAD_CHECK_RET(wolfSSL_JoinThread(thread));
+    THREAD_CHECK_RET(wolfSSL_JoinThread(&thread));
 }
 #endif /* SINGLE_THREADED */
 

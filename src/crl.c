@@ -266,7 +266,7 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
     if (crl->tid != INVALID_THREAD_VAL) {
         WOLFSSL_MSG("stopping monitor thread");
         if (StopMonitor(crl->mfd) == 0) {
-            if (wolfSSL_JoinThread(crl->tid) != 0)
+            if (wolfSSL_JoinThread(&crl->tid) != 0)
                 WOLFSSL_MSG("stop monitor failed in wolfSSL_JoinThread");
         }
         else {

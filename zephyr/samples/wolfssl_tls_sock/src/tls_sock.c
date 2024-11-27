@@ -518,7 +518,7 @@ int main()
      * to shut down to join it. */
     k_sleep(Z_TIMEOUT_TICKS(100));
 
-    if (wolfSSL_JoinThread(serverThread) != 0) {
+    if (wolfSSL_JoinThread(&serverThread) != 0) {
         printf("Failed to join server thread\n");
         return -1;
     }
