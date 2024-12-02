@@ -5018,10 +5018,6 @@ AC_ARG_ENABLE([dtlscid],
     )
 if test "x$ENABLED_DTLS_CID" = "xyes"
 then
-        if test "x$ENABLED_DTLS13" != "xyes"
-        then
-                AC_MSG_ERROR([You need to enable DTLSv1.3 to use DTLS ConnectionID])
-        fi
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_CID"
 fi
 
