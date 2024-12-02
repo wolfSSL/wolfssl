@@ -2835,6 +2835,58 @@ extern void uITRON4_free(void *p) ;
 #endif
 /*----------------------------------------------------------------------------*/
 
+/* SP Math specific options */
+/* Determine when mp_add_d is required. */
+#if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
+    !defined(NO_DSA) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(OPENSSL_EXTRA)
+    #define WOLFSSL_SP_ADD_D
+#endif
+
+/* Determine when mp_sub_d is required. */
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    !defined(NO_DH) || defined(HAVE_ECC) || !defined(NO_DSA)
+    #define WOLFSSL_SP_SUB_D
+#endif
+
+/* Determine when mp_read_radix with a radix of 10 is required. */
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(HAVE_ECC) || \
+    !defined(NO_DSA) || defined(OPENSSL_EXTRA)
+    #define WOLFSSL_SP_READ_RADIX_16
+#endif
+
+/* Determine when mp_read_radix with a radix of 10 is required. */
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    #define WOLFSSL_SP_READ_RADIX_10
+#endif
+
+/* Determine when mp_invmod is required. */
+#if defined(HAVE_ECC) || !defined(NO_DSA) || defined(OPENSSL_EXTRA) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+    #define WOLFSSL_SP_INVMOD
+#endif
+
+/* Determine when mp_invmod_mont_ct is required. */
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+    #define WOLFSSL_SP_INVMOD_MONT_CT
+#endif
+
+/* Determine when mp_prime_gen is required. */
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
+    #define WOLFSSL_SP_PRIME_GEN
+#endif
+
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || defined(OPENSSL_EXTRA)
+    /* Determine when mp_mul_d is required */
+    #define WOLFSSL_SP_MUL_D
+#endif
 
 
 /* user can specify what curves they want with ECC_USER_CURVES otherwise

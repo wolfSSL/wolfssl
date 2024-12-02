@@ -8261,10 +8261,12 @@ if test "$ENABLED_SP_RSA" = "yes" || test "$ENABLED_SP_DH" = "yes"; then
 
     case $host_cpu in
     *x86_64* | *aarch64* | *amd64*)
-      AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_LARGE_CODE"
-      ;;
+        if test "$ENABLED_SP_SMALL" = "no"; then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_LARGE_CODE"
+        fi
+        ;;
     *)
-      ;;
+        ;;
     esac
 fi
 if test "$ENABLED_ECC" != "no" && test "$ENABLED_SP_ECC" = "yes"; then

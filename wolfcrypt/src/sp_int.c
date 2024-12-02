@@ -5087,52 +5087,6 @@ static int _sp_mont_red(sp_int* a, const sp_int* m, sp_int_digit mp, int ct);
 static void _sp_mont_setup(const sp_int* m, sp_int_digit* rho);
 #endif
 
-/* Determine when mp_add_d is required. */
-#if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
-    !defined(NO_DSA) || defined(HAVE_ECC) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    defined(OPENSSL_EXTRA)
-#define WOLFSSL_SP_ADD_D
-#endif
-/* Determine when mp_sub_d is required. */
-#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    !defined(NO_DH) || defined(HAVE_ECC) || !defined(NO_DSA)
-#define WOLFSSL_SP_SUB_D
-#endif
-/* Determine when mp_read_radix with a radix of 10 is required. */
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(HAVE_ECC) || \
-    !defined(NO_DSA) || defined(OPENSSL_EXTRA)
-#define WOLFSSL_SP_READ_RADIX_16
-#endif
-/* Determine when mp_read_radix with a radix of 10 is required. */
-#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
-    !defined(WOLFSSL_RSA_VERIFY_ONLY)
-#define WOLFSSL_SP_READ_RADIX_10
-#endif
-/* Determine when mp_invmod is required. */
-#if defined(HAVE_ECC) || !defined(NO_DSA) || defined(OPENSSL_EXTRA) || \
-    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
-#define WOLFSSL_SP_INVMOD
-#endif
-/* Determine when mp_invmod_mont_ct is required. */
-#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
-#define WOLFSSL_SP_INVMOD_MONT_CT
-#endif
-
-/* Determine when mp_prime_gen is required. */
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
-    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
-    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
-#define WOLFSSL_SP_PRIME_GEN
-#endif
-
-#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || defined(OPENSSL_EXTRA)
-/* Determine when mp_mul_d is required */
-#define WOLFSSL_SP_MUL_D
-#endif
 
 /* Set the multi-precision number to zero.
  *
@@ -14058,7 +14012,8 @@ int sp_exptmod_ex(const sp_int* b, const sp_int* e, int digits, const sp_int* m,
     if ((!done) && (err == MP_OKAY)) {
         /* Use code optimized for specific sizes if possible */
 #if (defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)) && \
-    (defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH))
+    ((defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || \
+        defined(WOLFSSL_HAVE_SP_DH))
     #ifndef WOLFSSL_SP_NO_2048
         if ((mBits == 1024) && sp_isodd(m) && (bBits <= 1024) &&
                 (eBits <= 1024)) {
