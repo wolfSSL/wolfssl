@@ -1102,10 +1102,8 @@ WOLFSSL_X509_STORE* wolfSSL_X509_STORE_new(void)
     if ((store->owned = wolfSSL_sk_X509_new_null()) == NULL)
         goto err_exit;
 
-#if !defined(WOLFSSL_SIGNER_DER_CERT)
     if ((store->trusted = wolfSSL_sk_X509_new_null()) == NULL)
         goto err_exit;
-#endif
 #endif
 
 #ifdef HAVE_CRL
@@ -1196,19 +1194,17 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
             }
 #if defined(OPENSSL_EXTRA)
             if (store->certs != NULL) {
-                wolfSSL_sk_X509_free(store->certs);
+                wolfSSL_sk_X509_pop_free(store->certs, wolfSSL_X509_free);
                 store->certs = NULL;
             }
             if (store->owned != NULL) {
                 wolfSSL_sk_X509_pop_free(store->owned, wolfSSL_X509_free);
                 store->owned = NULL;
             }
-#if !defined(WOLFSSL_SIGNER_DER_CERT)
             if (store->trusted != NULL) {
-                wolfSSL_sk_X509_free(store->trusted);
+                wolfSSL_sk_X509_pop_free(store->trusted, wolfSSL_X509_free);
                 store->trusted = NULL;
             }
-#endif
 #endif
 #ifdef OPENSSL_ALL
             if (store->objs != NULL) {
@@ -1406,7 +1402,6 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
          * CA=TRUE */
         if (wolfSSL_X509_NAME_cmp(&x509->issuer, &x509->subject) == 0) {
             result = X509StoreAddCa(store, x509, WOLFSSL_USER_CA);
-    #if !defined(WOLFSSL_SIGNER_DER_CERT)
             if (result == WOLFSSL_SUCCESS && store->trusted != NULL) {
                 result = wolfSSL_X509_up_ref(x509);
                 if (result == WOLFSSL_SUCCESS) {
@@ -1419,7 +1414,6 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                     }
                 }
             }
-    #endif
         }
         else {
             if (store->certs != NULL) {
