@@ -13,7 +13,7 @@ concurrency:
 # END OF COMMON SECTION
 
 env:
-  LINUX_REF: v6.6
+  LINUX_REF: v6.12
 
 jobs:
   build_wolfssl:
@@ -91,6 +91,7 @@ jobs:
         with:
           repository: torvalds/linux
           path: linux
+          ref: ${{ env.LINUX_REF }}
 
       - name: Compile linux
         if: steps.cache.outputs.cache-hit != 'true'
@@ -141,7 +142,6 @@ jobs:
               build_id: hostap-vm-build2
             }
     name: hwsim test
-    # For openssl 1.1
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
