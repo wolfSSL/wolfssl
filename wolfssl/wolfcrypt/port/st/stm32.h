@@ -35,12 +35,19 @@
 #ifdef HASH_DIGEST
     /* The HASH_DIGEST register indicates SHA224/SHA256 support */
     #define STM32_HASH_SHA2
-    #if defined(WOLFSSL_STM32H5)
+    #if defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13)
         #define HASH_CR_SIZE    103
         #define HASH_MAX_DIGEST 64 /* Up to SHA512 */
     #else
         #define HASH_CR_SIZE    54
         #define HASH_MAX_DIGEST 32
+    #endif
+    #if defined(WOLFSSL_STM32MP13)
+        #define STM32_HASH_SHA512
+        #define STM32_HASH_SHA512_224
+        #define STM32_HASH_SHA512_256
+        #define STM32_HASH_SHA384
+        #define STM32_HASH_SHA3
     #endif
 #else
     #define HASH_CR_SIZE    50
@@ -69,7 +76,15 @@
 
 /* STM32 register size in bytes */
 #define STM32_HASH_REG_SIZE  4
-#define STM32_HASH_FIFO_SIZE 16 /* FIFO is 16 deep 32-bits wide */
+/* Maximum FIFO buffer is 64 bits for SHA256, 128 bits for SHA512 and 144 bits
+ * for SHA3 */
+#if defined(STM32_HASH_SHA3)
+    #define STM32_HASH_FIFO_SIZE 36
+#elif defined(STM32_HASH_SHA512) || defined(STM32_HASH_SHA384)
+    #define STM32_HASH_FIFO_SIZE 32
+#else
+    #define STM32_HASH_FIFO_SIZE 16
+#endif
 
 /* STM32 Hash Context */
 typedef struct {
@@ -78,6 +93,9 @@ typedef struct {
     uint32_t HASH_STR;
     uint32_t HASH_CR;
     uint32_t HASH_CSR[HASH_CR_SIZE];
+#ifdef STM32_HASH_SHA3
+    uint32_t SHA3CFGR;
+#endif
 
     /* Hash state / buffers */
     word32 buffer[STM32_HASH_FIFO_SIZE+1]; /* partial word buffer */
@@ -112,7 +130,6 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #define HASH_AlgoSelection_MD5       HASH_ALGOSELECTION_MD5
     #define HASH_AlgoSelection_SHA1      HASH_ALGOSELECTION_SHA1
     #define HASH_AlgoSelection_SHA224    HASH_ALGOSELECTION_SHA224
-
     #define HASH_AlgoSelection_SHA256    HASH_ALGOSELECTION_SHA256
 
     #define STM32_NOMD5 /* The HASH HAL has no MD5 implementation */

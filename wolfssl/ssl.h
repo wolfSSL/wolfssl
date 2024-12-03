@@ -117,6 +117,9 @@
         #include <openssl/hmac.h>
         #include <openssl/bn.h>
         #include <openssl/crypto.h>
+
+        #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+            FIPS_VERSION3_GE(5,2,0))
         #include <openssl/aes.h>
         #include <openssl/blowfish.h>
         #include <openssl/camellia.h>
@@ -163,6 +166,10 @@
         #include <openssl/rc5.h>
         #include <openssl/ripemd.h>
         #include <openssl/rsa.h>
+        #if defined(HAVE_FIPS_VERSION) && FIPS_VERSION3_LT(7,0,0)
+            /* clear conflicting name */
+            #undef RSA_PKCS1_PADDING_SIZE
+        #endif
         #include <openssl/seed.h>
         #include <openssl/self_test.h>
         #include <openssl/sha.h>
@@ -173,6 +180,8 @@
         #include <openssl/txt_db.h>
         #include <openssl/ui.h>
         #include <openssl/whrlpool.h>
+        #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,0)) */
+
     #endif
 
 #elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
