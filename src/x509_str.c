@@ -1194,15 +1194,15 @@ void wolfSSL_X509_STORE_free(WOLFSSL_X509_STORE* store)
             }
 #if defined(OPENSSL_EXTRA)
             if (store->certs != NULL) {
-                wolfSSL_sk_X509_pop_free(store->certs, wolfSSL_X509_free);
+                wolfSSL_sk_X509_pop_free(store->certs, NULL);
                 store->certs = NULL;
             }
             if (store->owned != NULL) {
-                wolfSSL_sk_X509_pop_free(store->owned, wolfSSL_X509_free);
+                wolfSSL_sk_X509_pop_free(store->owned, NULL);
                 store->owned = NULL;
             }
             if (store->trusted != NULL) {
-                wolfSSL_sk_X509_pop_free(store->trusted, wolfSSL_X509_free);
+                wolfSSL_sk_X509_pop_free(store->trusted, NULL);
                 store->trusted = NULL;
             }
 #endif
