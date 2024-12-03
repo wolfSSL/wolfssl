@@ -843,6 +843,7 @@ void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 #ifdef SESSION_CACHE_DYNAMIC_MEM
                 s != NULL &&
 #endif
+                s->sessionIDSz == ID_LEN &&
                 XMEMCMP(s->sessionID, id, ID_LEN) != 0 &&
                 s->bornOn + s->timeout < (word32)tm
                 )
