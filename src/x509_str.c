@@ -1411,6 +1411,7 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                     }
                     else {
                         result = WOLFSSL_FATAL_ERROR;
+                        wolfSSL_X509_free(x509);
                     }
                 }
             }
@@ -1425,6 +1426,7 @@ int wolfSSL_X509_STORE_add_cert(WOLFSSL_X509_STORE* store, WOLFSSL_X509* x509)
                     }
                     else {
                         result = WOLFSSL_FATAL_ERROR;
+                        wolfSSL_X509_free(x509);
                     }
                 }
             }
