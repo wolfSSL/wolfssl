@@ -30288,8 +30288,10 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #endif
 
         ret = ret ||
-              (ssl->options.haveSessionId && XMEMCMP(ssl->arrays->sessionID,
-                                          ssl->session->sessionID, ID_LEN) == 0);
+              (ssl->options.haveSessionId && ssl->arrays->sessionIDSz == ID_LEN
+                      && ssl->session->sessionIDSz == ID_LEN
+                      && XMEMCMP(ssl->arrays->sessionID,
+                              ssl->session->sessionID, ID_LEN) == 0);
 
         return ret;
     }

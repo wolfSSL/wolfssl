@@ -3854,8 +3854,10 @@ static int ProcessServerHello(int msgSz, const byte* input, int* sslBytes,
 #endif
 
     if (session->sslServer->options.haveSessionId) {
-        if (XMEMCMP(session->sslServer->arrays->sessionID,
-                session->sslClient->arrays->sessionID, ID_LEN) == 0) {
+        if (session->sslServer->arrays->sessionIDSz == ID_LEN &&
+                session->sslClient->arrays->sessionIDSz == ID_LEN &&
+                XMEMCMP(session->sslServer->arrays->sessionID,
+                        session->sslClient->arrays->sessionID, ID_LEN) == 0) {
             doResume = 1;
         }
     }
