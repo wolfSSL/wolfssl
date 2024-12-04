@@ -2073,6 +2073,13 @@ int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx, const char* profile_str)
     if (ctx != NULL) {
         ret = DtlsSrtpSelProfiles(&ctx->dtlsSrtpProfiles, profile_str);
     }
+
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+        ret = 1;
+    } else {
+        ret = 0;
+    }
+
     return ret;
 }
 int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl, const char* profile_str)
@@ -2081,6 +2088,13 @@ int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl, const char* profile_str)
     if (ssl != NULL) {
         ret = DtlsSrtpSelProfiles(&ssl->dtlsSrtpProfiles, profile_str);
     }
+
+    if (ret == WC_NO_ERR_TRACE(WOLFSSL_FAILURE)) {
+        ret = 1;
+    } else {
+        ret = 0;
+    }
+
     return ret;
 }
 
