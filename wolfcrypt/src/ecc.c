@@ -12759,6 +12759,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
     byte* outIdx;
     byte  counter[4];
     byte  tmp[WC_MAX_DIGEST_SIZE];
+    (void) i;
 
 #ifdef WOLFSSL_SMALL_STACK
     wc_HashAlg* hash;
