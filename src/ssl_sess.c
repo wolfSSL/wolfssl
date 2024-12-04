@@ -823,10 +823,8 @@ void wolfSSL_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 {
     int i, j;
-    byte id[ID_LEN];
 
     (void)ctx;
-    XMEMSET(id, 0, ID_LEN);
     WOLFSSL_ENTER("wolfSSL_flush_sessions");
     for (i = 0; i < SESSION_ROWS; ++i) {
         if (SESSION_ROW_WR_LOCK(&SessionCache[i]) != 0) {
@@ -843,8 +841,7 @@ void wolfSSL_CTX_flush_sessions(WOLFSSL_CTX* ctx, long tm)
 #ifdef SESSION_CACHE_DYNAMIC_MEM
                 s != NULL &&
 #endif
-                s->sessionIDSz == ID_LEN &&
-                XMEMCMP(s->sessionID, id, ID_LEN) != 0 &&
+                s->sessionIDSz > 0 &&
                 s->bornOn + s->timeout < (word32)tm
                 )
             {
@@ -3135,6 +3132,10 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
     id = session->sessionID;
     if (session->haveAltSessionID)
         id = session->altSessionID;
+    else if (session->sessionIDSz != ID_LEN) {
+        WOLFSSL_MSG("Incorrect sessionIDSz");
+        return;
+    }
 
     row = (int)(HashObject(id, ID_LEN, &error) % SESSION_ROWS);
     if (error != 0) {
@@ -3159,7 +3160,7 @@ static void SESSION_ex_data_cache_update(WOLFSSL_SESSION* session, int idx,
 #else
         cacheSession = &sessRow->Sessions[i];
 #endif
-        if (cacheSession &&
+        if (cacheSession && cacheSession->sessionIDSz == ID_LEN &&
                 XMEMCMP(id, cacheSession->sessionID, ID_LEN) == 0
                 && session->side == cacheSession->side
         #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
