@@ -28,7 +28,7 @@ jobs:
         id: cache
         with:
           path: mbedtls
-          key: ${{ env.MBED_REF }}
+          key: mbedtls-${{ env.MBED_REF }}
           lookup-only: true
 
       - name: Checkout mbedtls
@@ -67,7 +67,7 @@ jobs:
         id: cache
         with:
           path: mbedtls
-          key: ${{ env.MBED_REF }}
+          key: mbedtls-${{ env.MBED_REF }}
           fail-on-cache-miss: true
 
       - name: Build wolfSSL
