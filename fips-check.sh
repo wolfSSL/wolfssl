@@ -144,8 +144,8 @@ marvell-linux-selftest)
     'wolfssl/wolfcrypt/sha512.h:v4.1.0-stable'
   )
   ;;
-linuxv5)
-  FIPS_OPTION='v5'
+linuxv5-RC12)
+  FIPS_OPTION='v5-RC12'
   FIPS_FILES=(
     'wolfcrypt/src/fips.c:WCv5.2.0.1-RC01'
     'wolfcrypt/src/fips_test.c:WCv5.0-RC12'
@@ -186,7 +186,7 @@ linuxv5)
     'wolfssl/wolfcrypt/sha512.h:WCv5.0-RC12'
   )
   ;;
-linuxv5.2.1)
+linuxv5|linuxv5.2.1)
   FIPS_OPTION='v5'
   FIPS_FILES=(
     'wolfcrypt/src/fips.c:v5.2.1-stable'
@@ -321,7 +321,11 @@ v6.0.0)
   )
   ;;
 fips-ready|fips-dev)
-  FIPS_OPTION='ready'
+  if [ "$FLAVOR" = 'fips-dev' ]; then
+      FIPS_OPTION='dev'
+  else
+      FIPS_OPTION='ready'
+  fi
   FIPS_FILES=(
     'wolfcrypt/src/fips.c:master'
     'wolfcrypt/src/fips_test.c:master'
@@ -330,7 +334,6 @@ fips-ready|fips-dev)
     'wolfssl/wolfcrypt/fips.h:master'
   )
   WOLFCRYPT_FILES=()
-  if [ "$FLAVOR" = 'fips-dev' ]; then FIPS_OPTION='dev'; fi
   ;;
 wolfrand)
   FIPS_OPTION='rand'
