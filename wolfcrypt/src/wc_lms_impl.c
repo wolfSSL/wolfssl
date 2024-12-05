@@ -41,6 +41,7 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_lms.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
