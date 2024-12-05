@@ -72908,7 +72908,9 @@ static int test_wolfSSL_sk_DIST_POINT(void)
 static int test_wolfSSL_verify_mode(void)
 {
     EXPECT_DECLS;
-#if defined(OPENSSL_ALL) && !defined(NO_RSA)
+#if !defined(NO_RSA) && (defined(OPENSSL_ALL) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
     WOLFSSL*     ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
 

@@ -5427,13 +5427,10 @@ WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, const char* names
 WOLFSSL_API int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names);
 #endif
 
-#if defined(OPENSSL_ALL) || \
-    defined(HAVE_STUNNEL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 WOLFSSL_API int wolfSSL_get_verify_mode(const WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_CTX_get_verify_mode(const WOLFSSL_CTX* ctx);
-
 #endif
 
 #ifdef WOLFSSL_JNI
