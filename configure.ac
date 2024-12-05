@@ -701,7 +701,7 @@ fi
 # MATH LIBRARY SELECTION
 
 # Assure consistency of defaults
-if test "$DEF_FAST_MATH" = "yes" && ((test "$enable_sp_math" != "no" && test "$enable_sp_math" != "") || test "$enable_heapmath" = "yes")
+if test "$DEF_FAST_MATH" = "yes" && ( (test "$enable_sp_math" != "no" && test "$enable_sp_math" != "") || test "$enable_heapmath" = "yes")
 then
     DEF_FAST_MATH=no
 fi
