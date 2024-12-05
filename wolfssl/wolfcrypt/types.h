@@ -135,6 +135,44 @@ decouple library dependencies with standard string, memory and so on.
         #endif
     #endif
 
+    #ifndef HAVE_EMPTY_AGGREGATES
+        /* The C standards don't define empty aggregates, but gcc and clang do.
+         * We need to accommodate them for one of the same reasons C++ does --
+         * templates that conditionally result in empty aggregates, e.g. in
+         * hash.h.
+         */
+        #if !defined(WOLF_C89) && defined(__GNUC__) &&  \
+                !defined(__STRICT_ANSI__) &&            \
+                HAVE_ANONYMOUS_INLINE_AGGREGATES + 0 == 1
+            #define HAVE_EMPTY_AGGREGATES 1
+        #else
+            #define HAVE_EMPTY_AGGREGATES 0
+        #endif
+    #endif
+
+    #define _WOLF_AGG_DUMMY_MEMBER_HELPER2(a, b, c) a ## b ## c
+    #define _WOLF_AGG_DUMMY_MEMBER_HELPER(a, b, c) _WOLF_AGG_DUMMY_MEMBER_HELPER2(a, b, c)
+    #if HAVE_EMPTY_AGGREGATES + 0 == 1
+        /* swallow the semicolon with a zero-sized array (language extension
+         * specific to gcc/clang).
+         */
+        #define WOLF_AGG_DUMMY_MEMBER                                          \
+            struct {                                                           \
+                PRAGMA_GCC_DIAG_PUSH                                           \
+                PRAGMA_GCC("GCC diagnostic ignored \"-Wpedantic\"")            \
+                PRAGMA_CLANG_DIAG_PUSH                                         \
+                PRAGMA_CLANG("clang diagnostic ignored \"-Wzero-length-array\"") \
+                byte _WOLF_AGG_DUMMY_MEMBER_HELPER(_wolf_L, __LINE__, _agg_dummy_member)[0]; \
+                PRAGMA_CLANG_DIAG_POP                                          \
+                PRAGMA_GCC_DIAG_POP                                            \
+            }
+    #else
+        /* Use a single byte with a constructed name as a dummy member -- these
+         * are the standard semantics of an empty structure in C++.
+         */
+        #define WOLF_AGG_DUMMY_MEMBER char _WOLF_AGG_DUMMY_MEMBER_HELPER(_wolf_L, __LINE__, _agg_dummy_member)
+    #endif
+
     /* helpers for stringifying the expanded value of a macro argument rather
      * than its literal text:
      */
