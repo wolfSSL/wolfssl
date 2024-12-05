@@ -2761,8 +2761,8 @@ static int dilithium_vec_expand_mask(wc_Shake* shake256, byte* seed,
         word16 n = kappa + r;
 
         /* Step 4: Append to seed and squeeze out data. */
-        seed[DILITHIUM_PRIV_RAND_SEED_SZ + 0] = n;
-        seed[DILITHIUM_PRIV_RAND_SEED_SZ + 1] = n >> 8;
+        seed[DILITHIUM_PRIV_RAND_SEED_SZ + 0] = (byte)n;
+        seed[DILITHIUM_PRIV_RAND_SEED_SZ + 1] = (byte)(n >> 8);
         ret = dilithium_squeeze256(shake256, seed, DILITHIUM_Y_SEED_SZ, v,
             DILITHIUM_MAX_V_BLOCKS);
         if (ret == 0) {

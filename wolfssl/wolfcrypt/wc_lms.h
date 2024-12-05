@@ -88,6 +88,8 @@
 #ifndef WC_LMS_H
 #define WC_LMS_H
 
+#include <wolfssl/wolfcrypt/types.h>
+
 #if defined(WOLFSSL_HAVE_LMS) && defined(WOLFSSL_WC_LMS)
 
 #include <wolfssl/wolfcrypt/lms.h>

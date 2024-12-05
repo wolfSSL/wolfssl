@@ -67,6 +67,7 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_kyber.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -1139,7 +1140,7 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     }
 }
 
-/* Encapsuluate message.
+/* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
  * @param  [out]  bp   Vector of polynomials.
@@ -1272,7 +1273,7 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     }
 }
 
-/* Encapsuluate message.
+/* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
  * @param  [out]  bp   Vector of polynomials.
@@ -2719,7 +2720,7 @@ static void kyber_cbd_eta3(sword16* p, const byte* r)
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
  * @param  [in]       eta1  Size of noise/error integers.
@@ -2762,7 +2763,7 @@ static int kyber_get_noise_eta1_c(KYBER_PRF_T* prf, sword16* p,
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution. Values -2..2
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
@@ -2842,7 +2843,7 @@ static void kyber_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution. Values -2..2
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
@@ -2865,7 +2866,7 @@ static int kyber_get_noise_eta2_avx2(KYBER_PRF_T* prf, sword16* p,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [out]      vec2  Second Vector of polynomials.
  * @param  [out]      poly  Polynomial.
@@ -2932,7 +2933,7 @@ static int kyber_get_noise_k3_avx2(sword16* vec1, sword16* vec2, sword16* poly,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [out]      vec2  Second Vector of polynomials.
  * @param  [out]      poly  Polynomial.
@@ -3170,7 +3171,7 @@ static int kyber_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [in]       kp    Number of polynomials in vector.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [in]       eta1  Size of noise/error integers with first vector.
@@ -3215,7 +3216,7 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [in]       kp    Number of polynomials in vector.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [out]      vec2  Second Vector of polynomials.
