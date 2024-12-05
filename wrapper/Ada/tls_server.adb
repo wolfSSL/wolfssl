@@ -200,7 +200,14 @@ package body Tls_Server with SPARK_Mode is
       --  Require mutual authentication.
       WolfSSL.Set_Verify
          (Context => Ctx,
-          Mode    => WolfSSL.Verify_Peer & WolfSSL.Verify_Fail_If_No_Peer_Cert);
+          Mode    => WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert);
+
+      --  Check verify is set correctly (GitHub #7461)
+      if WolfSSL.Get_Verify(Context => Ctx) /= (WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert) then
+          Put ("Error: Verify does not match requested");
+          New_Line;
+          return;
+      end if;
 
       --  Load server certificates into WOLFSSL_CTX.
       Result := WolfSSL.Use_Certificate_File (Context => Ctx,

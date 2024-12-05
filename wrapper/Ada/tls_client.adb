@@ -219,7 +219,7 @@ package body Tls_Client with SPARK_Mode is
       --  Require mutual authentication.
       WolfSSL.Set_Verify
          (Context => Ctx,
-          Mode    => WolfSSL.Verify_Peer & WolfSSL.Verify_Fail_If_No_Peer_Cert);
+          Mode    => WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert);
 
       --  Load client certificate into WOLFSSL_CTX.
       Result := WolfSSL.Use_Certificate_File (Context => Ctx,
