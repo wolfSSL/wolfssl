@@ -2397,7 +2397,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 enum {
     VERIFY_OVERRIDE_ERROR,
     VERIFY_FORCE_FAIL,
-    VERIFY_USE_PREVERFIY,
+    VERIFY_USE_PREVERIFY,
     VERIFY_OVERRIDE_DATE_ERR,
 };
 static THREAD_LS_T int myVerifyAction = VERIFY_OVERRIDE_ERROR;

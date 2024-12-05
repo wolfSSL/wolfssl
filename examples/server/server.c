@@ -1882,7 +1882,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else if (XSTRCMP(myoptarg, "verifyInfo") == 0) {
                     printf("Verify should use preverify (just show info)\n");
-                    myVerifyAction = VERIFY_USE_PREVERFIY;
+                    myVerifyAction = VERIFY_USE_PREVERIFY;
                 }
                 else if (XSTRCMP(myoptarg, "loadSSL") == 0) {
                     printf("Also load cert/key into wolfSSL object\n");
