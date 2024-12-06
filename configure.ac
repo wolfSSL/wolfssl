@@ -397,8 +397,8 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #   v2 - FIPS 140-2 Cert 3389
 #   cert3389 - alias for v2
 #   rand - wolfRand
-#   v5-RC12 - FIPS 140-3, wolfCrypt/fips WCv5.0-RC12
-#   v5 - currently, alias for v5-RC12
+#   v5 - FIPS 140-3 Cert 4718
+#   cert4718 - alias for v5
 #   ready - FIPS 140-3 settings with in-tree wolfcrypt sources, feature locked
 #   dev - FIPS 140-3 settings with in-tree wolfcrypt sources, features freely adjustable
 #   v5-ready - Alias for ready.
@@ -414,6 +414,7 @@ AS_CASE([$ENABLED_WOLFENGINE],
 #             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
 #   v5-RC11 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC11
 #             HAVE_FIPS_VERSION = 5, HAVE_FIPS_VERSION_MINOR = 2.
+#   v5-RC12 - historical FIPS 140-3, wolfCrypt/fips WCv5.0-RC12
 AS_CASE([$ENABLED_FIPS],
     [no],[
         FIPS_VERSION="none"
@@ -445,10 +446,20 @@ AS_CASE([$ENABLED_FIPS],
         DEF_SP_MATH="no"
         DEF_FAST_MATH="no"
     ],
-    [v5|v5-RC12],[
+    [v5|cert4718],[
+        FIPS_VERSION="v5"
+        HAVE_FIPS_VERSION_MAJOR=5
+        HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_PATCH=1
+        ENABLED_FIPS="yes"
+        DEF_SP_MATH="no"
+        DEF_FAST_MATH="yes"
+    ],
+    [v5-RC12],[
         FIPS_VERSION="v5-RC12"
         HAVE_FIPS_VERSION_MAJOR=5
         HAVE_FIPS_VERSION_MINOR=2
+        HAVE_FIPS_VERSION_PATCH=0
         ENABLED_FIPS="yes"
         DEF_SP_MATH="no"
         DEF_FAST_MATH="yes"
@@ -688,6 +699,17 @@ fi
 
 
 # MATH LIBRARY SELECTION
+
+# Assure consistency of defaults
+if test "$DEF_FAST_MATH" = "yes" && ( (test "$enable_sp_math" != "no" && test "$enable_sp_math" != "") || test "$enable_heapmath" = "yes")
+then
+    DEF_FAST_MATH=no
+fi
+
+if test "$DEF_SP_MATH" = "yes" && (test "$enable_fastmath" = "yes" || test "$enable_fasthugemath" = "yes" || test "$enable_heapmath" = "yes")
+then
+    DEF_SP_MATH=no
+fi
 
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
@@ -936,7 +958,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
     fi
 
-    if test "$ENABLED_SP_MATH" = "no"
+    if test "$ENABLED_SP_MATH" != "yes"
     then
         # linuxkm is incompatible with opensslextra and its dependents.
         if test "$ENABLED_LINUXKM_DEFAULTS" != "yes"
@@ -987,7 +1009,7 @@ then
 
     test "$enable_webserver" = "" && enable_webserver=yes
 
-    if test "$ENABLED_SP_MATH" = "no"
+    if test "$ENABLED_SP_MATH" != "yes"
     then
         if test "$ENABLED_FIPS" = "no"
         then
@@ -1183,7 +1205,7 @@ then
     fi
 
     # sp-math is incompatible with opensslextra, ECC custom curves, and DSA.
-    if test "$ENABLED_SP_MATH" = "no"
+    if test "$ENABLED_SP_MATH" != "yes"
     then
         test "$enable_dsa" = "" && test "$enable_sha" != "no" && enable_dsa=yes
         if test "$ENABLED_FIPS" = "no" || test "$HAVE_FIPS_VERSION" -le 5; then
@@ -9848,7 +9870,7 @@ if test "x$ENABLED_LINUXKM" = "xyes"; then
     if test "$ENABLED_SMALL_STACK" != "yes"; then
         AC_MSG_ERROR([--enable-smallstack is required for --enable-linuxkm.])
     fi
-    if test "$ENABLED_SP_MATH" = "no" && test "$ENABLED_SP_MATH_ALL" = "no" && test "$ENABLED_BIGNUM" != "no"; then
+    if test "$ENABLED_SP_MATH" != "yes" && test "$ENABLED_SP_MATH_ALL" = "no" && test "$ENABLED_BIGNUM" != "no"; then
         AC_MSG_ERROR([--enable-sp-math or --enable-sp-math-all is required for --enable-linuxkm.])
     fi
     if test "$ENABLED_STACKSIZE" != "no"; then
@@ -10320,7 +10342,7 @@ if test "$ENABLED_SP_MATH_ALL" != "no"
 then
     ENABLED_SP_MATH_DESC="all"
 else
-    if test "$ENABLED_SP_MATH" != "no"
+    if test "$ENABLED_SP_MATH" = "yes"
     then
         ENABLED_SP_MATH_DESC="restricted"
     else

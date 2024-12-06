@@ -119,6 +119,7 @@ typedef union {
 #ifdef WOLFSSL_SM3
     wc_Sm3 sm3;
 #endif
+    WOLF_AGG_DUMMY_MEMBER;
 } wc_Hashes;
 
 #ifndef NO_HASH_WRAPPER

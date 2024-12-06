@@ -123,16 +123,67 @@ decouple library dependencies with standard string, memory and so on.
 
     #ifndef HAVE_ANONYMOUS_INLINE_AGGREGATES
         /* if a version is available, pivot on the version, otherwise guess it's
-         * allowed, subject to override.
+         * disallowed, subject to override.
          */
         #if !defined(WOLF_C89) && (!defined(__STDC__)                \
             || (!defined(__STDC_VERSION__) && !defined(__cplusplus)) \
             || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201101L)) \
             || (defined(__cplusplus) && (__cplusplus >= 201103L)))
             #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
-        #else
-            #define HAVE_ANONYMOUS_INLINE_AGGREGATES 0
         #endif
+    #elif ~(~HAVE_ANONYMOUS_INLINE_AGGREGATES + 1) == 1
+        /* forced on with empty value -- remap to 1 */
+        #undef HAVE_ANONYMOUS_INLINE_AGGREGATES
+        #define HAVE_ANONYMOUS_INLINE_AGGREGATES 1
+    #elif HAVE_ANONYMOUS_INLINE_AGGREGATES
+        /* forced on with explicit nonzero value -- leave as-is. */
+    #else
+        /* forced off with explicit zero value -- remap to undef. */
+        #undef HAVE_ANONYMOUS_INLINE_AGGREGATES
+    #endif
+
+    #ifndef HAVE_EMPTY_AGGREGATES
+        /* The C standards don't define empty aggregates, but gcc and clang do.
+         * We need to accommodate them for one of the same reasons C++ does --
+         * conditionally empty aggregates, e.g. in hash.h.
+         */
+        #if !defined(WOLF_C89) && defined(__GNUC__) &&  \
+                !defined(__STRICT_ANSI__) &&            \
+                defined(HAVE_ANONYMOUS_INLINE_AGGREGATES)
+            #define HAVE_EMPTY_AGGREGATES 1
+        #endif
+    #elif ~(~HAVE_EMPTY_AGGREGATES + 1) == 1
+        /* forced on with empty value -- remap to 1 */
+        #undef HAVE_EMPTY_AGGREGATES
+        #define HAVE_EMPTY_AGGREGATES 1
+    #elif HAVE_EMPTY_AGGREGATES
+        /* forced on with explicit nonzero value -- leave as-is. */
+    #else
+        /* forced off with explicit zero value -- remap to undef. */
+        #undef HAVE_EMPTY_AGGREGATES
+    #endif
+
+    #define _WOLF_AGG_DUMMY_MEMBER_HELPER2(a, b, c) a ## b ## c
+    #define _WOLF_AGG_DUMMY_MEMBER_HELPER(a, b, c) _WOLF_AGG_DUMMY_MEMBER_HELPER2(a, b, c)
+    #ifdef HAVE_EMPTY_AGGREGATES
+        /* swallow the semicolon with a zero-sized array (language extension
+         * specific to gcc/clang).
+         */
+        #define WOLF_AGG_DUMMY_MEMBER                                          \
+            struct {                                                           \
+                PRAGMA_GCC_DIAG_PUSH                                           \
+                PRAGMA_GCC("GCC diagnostic ignored \"-Wpedantic\"")            \
+                PRAGMA_CLANG_DIAG_PUSH                                         \
+                PRAGMA_CLANG("clang diagnostic ignored \"-Wzero-length-array\"") \
+                byte _WOLF_AGG_DUMMY_MEMBER_HELPER(_wolf_L, __LINE__, _agg_dummy_member)[0]; \
+                PRAGMA_CLANG_DIAG_POP                                          \
+                PRAGMA_GCC_DIAG_POP                                            \
+            }
+    #else
+        /* Use a single byte with a constructed name as a dummy member -- these
+         * are the standard semantics of an empty structure in C++.
+         */
+        #define WOLF_AGG_DUMMY_MEMBER char _WOLF_AGG_DUMMY_MEMBER_HELPER(_wolf_L, __LINE__, _agg_dummy_member)
     #endif
 
     /* helpers for stringifying the expanded value of a macro argument rather
@@ -147,7 +198,6 @@ decouple library dependencies with standard string, memory and so on.
      * without disrupting clean flow/syntax when some enum values are
      * preprocessor-gated.
      */
-    #define WC_VALUE_OF(x) x
     #if defined(WOLF_C89) || defined(WOLF_NO_TRAILING_ENUM_COMMAS)
         #define _WOLF_ENUM_DUMMY_LAST_ELEMENT_HELPER2(a, b, c, d, e) a ## b ## c ## d ## e
         #define _WOLF_ENUM_DUMMY_LAST_ELEMENT_HELPER(a, b, c, d, e) _WOLF_ENUM_DUMMY_LAST_ELEMENT_HELPER2(a, b, c, d, e)

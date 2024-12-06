@@ -18,7 +18,9 @@ FLAVOR="${FLAVOR:-linux}"
 KEEP="${KEEP:-no}"
 MAKECHECK=${MAKECHECK:-yes}
 DOCONFIGURE=${DOCONFIGURE:-yes}
+DOAUTOGEN=${DOAUTOGEN:-yes}
 FIPS_REPO="${FIPS_REPO:-git@github.com:wolfssl/fips.git}"
+WOLFSSL_REPO="${WOLFSSL_REPO:-origin}"
 
 Usage() {
     cat <<usageText
@@ -46,6 +48,7 @@ while [ "$1" ]; do
   if [ "$1" = 'keep' ]; then KEEP='yes';
   elif [ "$1" = 'nomakecheck' ]; then MAKECHECK='no';
   elif [ "$1" = 'nodoconfigure' ]; then DOCONFIGURE='no';
+  elif [ "$1" = 'noautogen' ]; then DOCONFIGURE='no'; DOAUTOGEN='no';
   else FLAVOR="$1"; fi
   shift
 done
@@ -144,8 +147,8 @@ marvell-linux-selftest)
     'wolfssl/wolfcrypt/sha512.h:v4.1.0-stable'
   )
   ;;
-linuxv5)
-  FIPS_OPTION='v5'
+linuxv5-RC12)
+  FIPS_OPTION='v5-RC12'
   FIPS_FILES=(
     'wolfcrypt/src/fips.c:WCv5.2.0.1-RC01'
     'wolfcrypt/src/fips_test.c:WCv5.0-RC12'
@@ -186,7 +189,7 @@ linuxv5)
     'wolfssl/wolfcrypt/sha512.h:WCv5.0-RC12'
   )
   ;;
-linuxv5.2.1)
+linuxv5|linuxv5.2.1)
   FIPS_OPTION='v5'
   FIPS_FILES=(
     'wolfcrypt/src/fips.c:v5.2.1-stable'
@@ -321,7 +324,11 @@ v6.0.0)
   )
   ;;
 fips-ready|fips-dev)
-  FIPS_OPTION='ready'
+  if [ "$FLAVOR" = 'fips-dev' ]; then
+      FIPS_OPTION='dev'
+  else
+      FIPS_OPTION='ready'
+  fi
   FIPS_FILES=(
     'wolfcrypt/src/fips.c:master'
     'wolfcrypt/src/fips_test.c:master'
@@ -330,7 +337,6 @@ fips-ready|fips-dev)
     'wolfssl/wolfcrypt/fips.h:master'
   )
   WOLFCRYPT_FILES=()
-  if [ "$FLAVOR" = 'fips-dev' ]; then FIPS_OPTION='dev'; fi
   ;;
 wolfrand)
   FIPS_OPTION='rand'
@@ -429,25 +435,56 @@ function copy_fips_files() {
     done
 }
 
-# Check to make sure this is not a shallow repo
-$GIT fetch --unshallow 2>/dev/null
+declare -A FIPS_TAGS_NEEDED WOLFCRYPT_TAGS_NEEDED
+for file_entry in "${WOLFCRYPT_FILES[@]}"; do
+    WOLFCRYPT_TAGS_NEEDED["${file_entry#*:}"]=1
+done
+for file_entry in "${FIPS_FILES[@]}"; do
+    FIPS_TAGS_NEEDED["${file_entry#*:}"]=1
+done
+
+echo "wolfCrypt tag$( [[ ${#WOLFCRYPT_TAGS_NEEDED[@]} != "1" ]] && echo -n 's'):"
+for tag in "${!WOLFCRYPT_TAGS_NEEDED[@]}"; do
+    if $GIT describe --exact-match --long "$tag" 2>/dev/null; then
+        continue
+    fi
+    if ! $GIT fetch --depth 1 "$WOLFSSL_REPO" tag "$tag"; then
+        echo "Can't fetch wolfCrypt tag: $tag"
+        exit 1
+    fi
+done
 
 if ! $GIT clone . "$TEST_DIR"; then
     echo "fips-check: Couldn't duplicate current working directory."
     exit 1
 fi
 
-pushd "$TEST_DIR" || exit 2
+pushd "$TEST_DIR" 1>/dev/null || exit 2
 
 if ! $GIT clone "$FIPS_REPO" fips; then
     echo "fips-check: Couldn't check out FIPS repository."
     exit 1
 fi
 
+pushd fips 1>/dev/null || exit 2
+
+echo "FIPS tag$( [[ ${#FIPS_TAGS_NEEDED[@]} != "1" ]] && echo -n 's'):"
+for tag in "${!FIPS_TAGS_NEEDED[@]}"; do
+    if $GIT describe "$tag" 2>/dev/null; then
+        continue
+    fi
+    if ! $GIT fetch --depth 1 "$FIPS_REPO" tag "$tag"; then
+        echo "Can't fetch FIPS tag: $tag"
+        exit 1
+    fi
+done
+
+popd 1>/dev/null || exit 2
+
 checkout_files "${WOLFCRYPT_FILES[@]}" || exit 3
-pushd fips || exit 2
+pushd fips 1>/dev/null || exit 2
 copy_fips_files "${FIPS_FILES[@]}" || exit 3
-popd || exit 2
+popd 1>/dev/null || exit 2
 
 # When checking out cert 3389 ready code, NIST will no longer perform
 # new certifications on 140-2 modules. If we were to use the latest files from
@@ -461,7 +498,9 @@ if [ "$FLAVOR" = 'fipsv2-OE-ready' ] && [ -s wolfcrypt/src/fips.c ]; then
 fi
 
 # run the make test
-./autogen.sh
+if [ "$DOAUTOGEN" = "yes" ]; then
+    ./autogen.sh
+fi
 
 if [ "$DOCONFIGURE" = "yes" ]; then
     case "$FIPS_OPTION" in
@@ -499,7 +538,7 @@ if [ "$DOCONFIGURE" = "yes" ]; then
 fi
 
 # Clean up
-popd || exit 2
+popd 1>/dev/null || exit 2
 if [ "$KEEP" = 'no' ]; then
     rm -rf "$TEST_DIR"
 fi

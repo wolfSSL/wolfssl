@@ -3041,7 +3041,7 @@ void wolfSSL_AES_decrypt(const unsigned char* input, unsigned char* output,
     }
     else
 #if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION3_GE(5,2,1)))
+    (!defined(HAVE_FIPS) || (defined(FIPS_VERSION_GE) && FIPS_VERSION3_GE(5,3,0)))
     /* Decrypt a block with wolfCrypt AES. */
     if (wc_AesDecryptDirect((Aes*)key, output, input) != 0) {
         WOLFSSL_MSG("wc_AesDecryptDirect failed");

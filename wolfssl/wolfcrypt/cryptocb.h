@@ -104,12 +104,12 @@ enum wc_CryptoCbCmdType {
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
     int algo_type; /* enum wc_AlgoType */
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     union {
 #endif
     struct {
         int type; /* enum wc_PkType */
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
         #ifndef NO_RSA
@@ -279,7 +279,7 @@ typedef struct wc_CryptoInfo {
                 int         type; /* enum wc_PqcSignatureType */
             } pqc_sig_check;
         #endif
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } pk;
@@ -287,7 +287,7 @@ typedef struct wc_CryptoInfo {
     struct {
         int type; /* enum wc_CipherType */
         int enc;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
         #ifdef HAVE_AESGCM
@@ -375,7 +375,7 @@ typedef struct wc_CryptoInfo {
             } des3;
         #endif
             void* ctx;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } cipher;
@@ -387,7 +387,7 @@ typedef struct wc_CryptoInfo {
         const byte* in;
         word32 inSz;
         byte* digest;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
         #ifndef NO_SHA
@@ -409,7 +409,7 @@ typedef struct wc_CryptoInfo {
             wc_Sha3* sha3;
         #endif
             void* ctx;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } hash;
@@ -454,7 +454,7 @@ typedef struct wc_CryptoInfo {
         void *ctx;
     } cmd;
 #endif
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
 } wc_CryptoInfo;
