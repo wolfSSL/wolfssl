@@ -149,7 +149,7 @@ void app_main(void)
 #if !defined(CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_CLIENT)
     ESP_LOGW(TAG, "Warning: Example wolfSSL misconfigured? Check menuconfig.");
 #endif
-#ifdef ESP_SDK_MEM_LIB_VERSION
+#if defined(ESP_SDK_MEM_LIB_VERSION) && defined(DEBUG_WOLFSSL)
     sdk_init_meminfo();
 #endif
 #ifdef ESP_TASK_MAIN_STACK

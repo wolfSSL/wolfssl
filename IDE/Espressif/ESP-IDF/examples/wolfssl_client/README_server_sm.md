@@ -167,7 +167,7 @@ I (735) system_api: read default base MAC address from EFUSE
 I (755) wifi:wifi firmware version: 0d470ef
 I (755) wifi:wifi certification version: v7.0
 I (755) wifi:config NVS flash: enabled
-I (755) wifi:config nano formating: disabled
+I (755) wifi:config nano formatting: disabled
 I (755) wifi:Init data frame dynamic rx buffer num: 32
 I (765) wifi:Init management frame dynamic rx buffer num: 32
 I (765) wifi:Init management short buffer num: 32

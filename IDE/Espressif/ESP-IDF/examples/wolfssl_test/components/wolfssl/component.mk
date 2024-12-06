@@ -82,7 +82,7 @@ WOLFSSL_ROOT := ../../../../../../..
 # "/mnt/c" is 4 directories up:
 #             2 for `./test/demo` from where we run `make`, plus
 #             2 more from the location of `component.mk` located
-#               in `[currect directory]/components/wolfssl`.
+#               in `[current directory]/components/wolfssl`.
 #
 # Thus we need 4 parent reference to find the relative path to wolfSSL:
 # WOLFSSL_ROOT := ../../../../workspace/wolfssl-master
@@ -291,5 +291,5 @@ COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/test
 ## wolfcrypt
 ##
 # COMPONENT_PRIV_INCLUDEDIRS += $(PROJECT_PATH)/components/wolfssl/include
-COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)wolfcrypt/src
+COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/src
 $(info ********** end wolfssl component **********)

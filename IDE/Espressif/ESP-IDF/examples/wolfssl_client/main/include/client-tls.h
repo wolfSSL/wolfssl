@@ -59,7 +59,7 @@
         #define TLS_SMP_CLIENT_TASK_BYTES (12 * 1024)
     #else
         /* Minimum ESP32 stack size = 8K without Kyber */
-        #define TLS_SMP_CLIENT_TASK_BYTES (8 * 1024)
+        #define TLS_SMP_CLIENT_TASK_BYTES (10 * 1024)
     #endif
 #endif
 
@@ -87,7 +87,7 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args);
 
 /* init will create an RTOS task, otherwise server is simply function call. */
 #if defined(SINGLE_THREADED)
-    /* no init neded */
+    /* no init needed */
 #else
     WOLFSSL_ESP_TASK tls_smp_client_init(void* args);
 #endif

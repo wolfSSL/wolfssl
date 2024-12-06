@@ -41,7 +41,7 @@
 # The maximum length of options is NOT 50 characters as documented.
 #   kconfcheck will complain that options should be 40 at most.
 #
-# Fix option lengths first. Superflous errors on other lines may occur.
+# Fix option lengths first. Superfluous errors on other lines may occur.
 #
 # The maximum length of lines is 120 characters.
 #
