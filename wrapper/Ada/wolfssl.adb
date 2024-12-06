@@ -204,12 +204,12 @@ package body WolfSSL is
    --  PSK connection. If a PSK connection is being made then the
    --  connection will go through without a peer cert.
 
-   function "&" (Left, Right : Mode_Type) return Mode_Type is
+   function "or" (Left, Right : Mode_Type) return Mode_Type is
       L : constant Unsigned_32 := Unsigned_32 (Left);
       R : constant Unsigned_32 := Unsigned_32 (Right);
    begin
-      return Mode_Type (L and R);
-   end "&";
+      return Mode_Type (L or R);
+   end "or";
 
    procedure Set_Verify (Context : Context_Type;
                          Mode    : Mode_Type) is
@@ -218,6 +218,16 @@ package body WolfSSL is
                               Mode     => int (Mode),
                               Callback => null);
    end Set_Verify;
+
+   function WolfSSL_Get_Verify(Context : Context_Type) return int with
+     Convention    => C,
+     External_Name => "wolfSSL_CTX_get_verify_mode",
+     Import        => True;
+
+   function Get_Verify (Context : Context_Type) return Mode_Type is
+   begin
+      return Mode_Type (WolfSSL_Get_Verify(Context));
+   end Get_Verify;
 
    function Use_Certificate_File (Context : Context_Type;
                                   File    : char_array;

@@ -100,7 +100,7 @@ package WolfSSL with SPARK_Mode is
 
    type Mode_Type is private;
 
-   function "&" (Left, Right : Mode_Type) return Mode_Type;
+   function "or" (Left, Right : Mode_Type) return Mode_Type;
 
    Verify_None : constant Mode_Type;
    --  Client mode: the client will not verify the certificate received
@@ -142,6 +142,8 @@ package WolfSSL with SPARK_Mode is
                          Mode    : Mode_Type) with
       Pre => Is_Valid (Context);
    --  This function sets the verification method for remote peers
+
+   function Get_Verify (Context : Context_Type) return Mode_Type;
 
    type File_Format is private;
 
