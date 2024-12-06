@@ -20888,11 +20888,12 @@ WOLFSSL_CTX* wolfSSL_get_SSL_CTX(const WOLFSSL* ssl)
     return ssl->ctx;
 }
 
-#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
-    || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
 
 /* TODO: Doesn't currently track SSL_VERIFY_CLIENT_ONCE */
-int wolfSSL_get_verify_mode(const WOLFSSL* ssl) {
+int wolfSSL_get_verify_mode(const WOLFSSL* ssl)
+{
     int mode = 0;
     WOLFSSL_ENTER("wolfSSL_get_verify_mode");
 
