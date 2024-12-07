@@ -1228,6 +1228,25 @@ do
 done
 IFS="$OIFS" #restore separator
 
+# Test for RSA-PSS certs
+echo -e "Doing interop RSA-PSS test"
+generate_port
+server_port=$port
+openssl s_server -accept $server_port -key ${CERT_DIR}/rsapss/server-rsapss-priv.pem -cert ${CERT_DIR}/rsapss/server-rsapss.pem &
+server_pid=$?
+servers="$servers wolfSSL_RSA_PSS:$server_pid:$server_port"
+
+cert=""
+key=""
+caCert="${CERT_DIR}/rsapss/ca-rsapss.pem"
+wolfSuite="ALL"
+version="4"
+port=$openssl_port
+do_wolfssl_client
+
+version="3"
+do_wolfssl_client
+
 do_cleanup
 
 echo -e "wolfSSL total cases   $wolf_cases_total"

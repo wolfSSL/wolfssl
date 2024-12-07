@@ -1813,6 +1813,13 @@ enum Misc {
     MAX_CURVE_NAME_SZ   = 18,  /* Maximum size of curve name string */
 
     NEW_SA_MAJOR        = 8,   /* Most significant byte used with new sig algos */
+    RSA_PSS_RSAE_SHA256_MINOR = 0x04,
+    RSA_PSS_RSAE_SHA384_MINOR = 0x05,
+    RSA_PSS_RSAE_SHA512_MINOR = 0x06,
+    RSA_PSS_PSS_SHA256_MINOR = 0x09,
+    RSA_PSS_PSS_SHA384_MINOR = 0x0A,
+    RSA_PSS_PSS_SHA512_MINOR = 0x0B,
+
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
     ED25519_SA_MINOR    = 7,   /* Least significant byte for ED25519 */
     ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
