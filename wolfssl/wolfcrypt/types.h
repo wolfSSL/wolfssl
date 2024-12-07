@@ -1398,7 +1398,7 @@ typedef struct w64wrapper {
     #endif
 
     #ifdef SINGLE_THREADED
-        #if defined(WC_32BIT_CPU)
+        #if defined(WC_32BIT_CPU) || defined(HAVE_STACK_SIZE)
             typedef void*        THREAD_RETURN;
         #else
             typedef unsigned int THREAD_RETURN;

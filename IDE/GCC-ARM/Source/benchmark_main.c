@@ -39,16 +39,16 @@ int main(void)
 {
     int ret;
 #ifndef NO_CRYPT_BENCHMARK
-	wolfCrypt_Init();
+    wolfCrypt_Init();
 
-	printf("\nBenchmark Test\n");
-	benchmark_test(&args);
+    printf("\nBenchmark Test\n");
+    benchmark_test(&args);
     ret = args.return_code;
-	printf("Benchmark Test: Return code %d\n", ret);
+    printf("Benchmark Test: Return code %d\n", ret);
 
-	wolfCrypt_Cleanup();
+    wolfCrypt_Cleanup();
 #else
     ret = NOT_COMPILED_IN;
 #endif
-	return ret;
+    return ret;
 }

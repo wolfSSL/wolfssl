@@ -1492,6 +1492,7 @@ then
 fi
 
 # XMSS
+ENABLED_WC_XMSS=no
 AC_ARG_ENABLE([xmss],
     [AS_HELP_STRING([--enable-xmss],[Enable stateful XMSS/XMSS^MT signatures (default: disabled)])],
     [ ENABLED_XMSS=$enableval ],
@@ -1583,6 +1584,7 @@ then
 fi
 
 # LMS
+ENABLED_WC_LMS=no
 AC_ARG_ENABLE([lms],
     [AS_HELP_STRING([--enable-lms],[Enable stateful LMS/HSS signatures (default: disabled)])],
     [ ENABLED_LMS=$enableval ],
@@ -4524,7 +4526,7 @@ fi
 
 if test "$ENABLED_STACKSIZE" = "verbose"
 then
-    if test "$thread_ls_on" != "yes"
+    if test "$thread_ls_on" != "yes" && test "x$ENABLED_SINGLETHREADED" = "xno"
     then
         AC_MSG_ERROR(stacksize-verbose needs thread-local storage.)
     fi

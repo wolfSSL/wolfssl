@@ -4662,8 +4662,6 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
         }
 #endif
 
-        ret = wc_AesSetIV(aes, iv);
-
     #if defined(WOLFSSL_DEVCRYPTO) && \
         (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
         aes->ctx.cfd = -1;
@@ -11909,7 +11907,8 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackDecrypt(
 
     /* consume any unused bytes left in aes->tmp */
     processed = min(aes->left, sz);
-    xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left, processed);
+    xorbufout(out, in, (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left,
+        processed);
     aes->left -= processed;
     out += processed;
     in += processed;
@@ -12003,7 +12002,7 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 }
 #endif /* HAVE_AES_DECRYPT */
 
-
+#ifndef WOLFSSL_NO_AES_CFB_1_8
 /* shift the whole WC_AES_BLOCK_SIZE array left by 8 or 1 bits */
 static void shiftLeftArray(byte* ary, byte shift)
 {
@@ -12221,6 +12220,7 @@ int wc_AesCfb8Decrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     return wc_AesFeedbackCFB8(aes, out, in, sz, AES_DECRYPTION);
 }
 #endif /* HAVE_AES_DECRYPT */
+#endif /* !WOLFSSL_NO_AES_CFB_1_8 */
 #endif /* WOLFSSL_AES_CFB */
 
 #ifdef WOLFSSL_AES_OFB

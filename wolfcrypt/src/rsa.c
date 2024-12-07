@@ -3110,7 +3110,8 @@ int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
 #endif /* WOLFSSL_CRYPTOCELL */
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) &&     !defined(NO_RSA_BOUNDS_CHECK)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
+    !defined(NO_RSA_BOUNDS_CHECK)
 /* Check that 1 < in < n-1. (Requirement of 800-56B.) */
 int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
     int checkSmallCt)
