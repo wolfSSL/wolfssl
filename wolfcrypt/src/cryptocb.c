@@ -85,6 +85,7 @@ static const char* GetAlgoTypeStr(int algo)
         case WC_ALGO_TYPE_SEED:   return "Seed";
         case WC_ALGO_TYPE_HMAC:   return "HMAC";
         case WC_ALGO_TYPE_CMAC:   return "CMAC";
+        case WC_ALGO_TYPE_CERT:   return "Cert";
     }
     return NULL;
 }
@@ -1798,6 +1799,36 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
     return wc_CryptoCb_TranslateErrorCode(ret);
 }
 #endif /* !WC_NO_RNG */
+
+#ifndef NO_CERTS
+int wc_CryptoCb_GetCert(int devId, const sword8 *label, word32 labelLen,
+                        const byte *id, word32 idLen, byte** out,
+                        word32* outSz, void *heap)
+{
+    int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
+    CryptoCb* dev;
+
+    /* locate registered callback */
+    dev = wc_CryptoCb_FindDevice(devId, WC_ALGO_TYPE_CERT);
+    if (dev && dev->cb) {
+        wc_CryptoInfo cryptoInfo;
+        XMEMSET(&cryptoInfo, 0, sizeof(cryptoInfo));
+        cryptoInfo.algo_type = WC_ALGO_TYPE_CERT;
+        cryptoInfo.cert.label = label;
+        cryptoInfo.cert.labelLen = labelLen;
+        cryptoInfo.cert.id = id;
+        cryptoInfo.cert.idLen = idLen;
+        cryptoInfo.cert.heap = heap;
+        cryptoInfo.cert.certDataOut = out;
+        cryptoInfo.cert.certSz = outSz;
+        cryptoInfo.cert.heap = heap;
+
+        ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);
+    }
+
+    return wc_CryptoCb_TranslateErrorCode(ret);
+}
+#endif /* ifndef NO_CERTS */
 
 #if defined(WOLFSSL_CMAC)
 int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,

@@ -1138,8 +1138,9 @@ typedef struct w64wrapper {
         WC_ALGO_TYPE_SEED = 5,
         WC_ALGO_TYPE_HMAC = 6,
         WC_ALGO_TYPE_CMAC = 7,
+        WC_ALGO_TYPE_CERT = 8,
 
-        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CMAC
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_CERT
     };
 
     /* hash types */
