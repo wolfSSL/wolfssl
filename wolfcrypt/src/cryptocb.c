@@ -1803,7 +1803,7 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
 #ifndef NO_CERTS
 int wc_CryptoCb_GetCert(int devId, const sword8 *label, word32 labelLen,
                         const byte *id, word32 idLen, byte** out,
-                        word32* outSz, void *heap)
+                        word32* outSz, int *format, void *heap)
 {
     int ret = WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE);
     CryptoCb* dev;
@@ -1821,6 +1821,7 @@ int wc_CryptoCb_GetCert(int devId, const sword8 *label, word32 labelLen,
         cryptoInfo.cert.heap = heap;
         cryptoInfo.cert.certDataOut = out;
         cryptoInfo.cert.certSz = outSz;
+        cryptoInfo.cert.certFormatOut = format;
         cryptoInfo.cert.heap = heap;
 
         ret = dev->cb(dev->devId, &cryptoInfo, dev->ctx);

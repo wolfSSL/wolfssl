@@ -456,6 +456,7 @@ typedef struct wc_CryptoInfo {
         word32 labelLen;
         byte **certDataOut;
         word32 *certSz;
+        int *certFormatOut;
         void *heap;
     } cert;
 #endif
@@ -671,7 +672,7 @@ WOLFSSL_LOCAL int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int wc_CryptoCb_GetCert(int devId, const sword8 *label,
     word32 labelLen, const byte *id, word32 idLen, byte** out,
-    word32* outSz, void *heap);
+    word32* outSz, int *format, void *heap);
 #endif
 
 #endif /* WOLF_CRYPTO_CB */

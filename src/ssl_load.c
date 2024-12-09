@@ -4155,6 +4155,7 @@ static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
     byte *certData = NULL;
     word32 certDataLen = 0;
     word32 labelLen = 0;
+    int certFormat = 0;
 
     WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_ex");
 
@@ -4163,13 +4164,13 @@ static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
     }
 
     ret = wc_CryptoCb_GetCert(devId, (const sword8 *)label,
-        labelLen, id, idLen, &certData, &certDataLen, ctx->heap);
+        labelLen, id, idLen, &certData, &certDataLen, &certFormat, ctx->heap);
     if (ret != 0) {
         ret = WOLFSSL_FAILURE;
         goto exit;
     }
 
-    ret = ProcessBuffer(ctx, certData, certDataLen, WOLFSSL_FILETYPE_ASN1,
+    ret = ProcessBuffer(ctx, certData, certDataLen, certFormat,
         CERT_TYPE, NULL, NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
 
 exit:

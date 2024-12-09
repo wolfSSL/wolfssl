@@ -4039,6 +4039,9 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
 
     *info->cert.certDataOut = certData;
     *info->cert.certSz = (word32)tmpl[0].ulValueLen;
+    if (info->cert.certFormatOut != NULL) {
+        *info->cert.certFormatOut = CTC_FILETYPE_ASN1;
+    }
     certData = NULL;
 
 exit:
