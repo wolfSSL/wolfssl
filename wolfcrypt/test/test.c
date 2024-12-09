@@ -9926,9 +9926,7 @@ EVP_TEST_END:
         return ret;
     }
 
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)) && \
-    !defined(WOLFSSL_NO_AES_CFB_1_8)
+#if !defined(WOLFSSL_NO_AES_CFB_1_8)
     static wc_test_ret_t aescfb1_test(void)
     {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -10095,7 +10093,7 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-    #ifndef WOLFCRYPT_ONLY
+    #if !defined(WOLFCRYPT_ONLY) && !defined(HAVE_FIPS)
         ret = EVP_test(wolfSSL_EVP_aes_128_cfb1(), key1, iv, msg1, sizeof(msg1),
                 cipher, sizeof(msg1));
         if (ret != 0) {
@@ -10128,7 +10126,7 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-        #ifndef WOLFCRYPT_ONLY
+        #if !defined(WOLFCRYPT_ONLY) && !defined(HAVE_FIPS)
         ret = EVP_test(wolfSSL_EVP_aes_192_cfb1(), key2, iv2, msg2, sizeof(msg2),
                 cipher, sizeof(msg2));
         if (ret != 0) {
@@ -10162,7 +10160,7 @@ EVP_TEST_END:
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
-        #ifndef WOLFCRYPT_ONLY
+        #if !defined(WOLFCRYPT_ONLY) && !defined(HAVE_FIPS)
         ret = EVP_test(wolfSSL_EVP_aes_256_cfb1(), key3, iv3, msg3, sizeof(msg3),
                 cipher, sizeof(msg3));
         if (ret != 0) {
@@ -10306,7 +10304,8 @@ EVP_TEST_END:
 
 #ifdef WOLFSSL_AES_128
         /* 128 key tests */
-    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+        !defined(HAVE_FIPS)
         ret = EVP_test(wolfSSL_EVP_aes_128_cfb8(), key1, iv, msg1, sizeof(msg1),
                 cipher1, sizeof(cipher1));
         if (ret != 0) {
@@ -10352,7 +10351,8 @@ EVP_TEST_END:
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
         if (XMEMCMP(cipher, cipher2, sizeof(msg2)) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
-#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+        !defined(HAVE_FIPS)
         ret = EVP_test(wolfSSL_EVP_aes_192_cfb8(), key2, iv2, msg2, sizeof(msg2),
                 cipher2, sizeof(msg2));
         if (ret != 0) {
@@ -10375,7 +10375,8 @@ EVP_TEST_END:
         if (XMEMCMP(cipher, cipher3, sizeof(cipher3)) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_NC, out);
 
-    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY) && \
+        !defined(HAVE_FIPS)
         ret = EVP_test(wolfSSL_EVP_aes_256_cfb8(), key3, iv3, msg3, sizeof(msg3),
                 cipher3, sizeof(msg3));
         if (ret != 0) {
@@ -10401,7 +10402,7 @@ EVP_TEST_END:
 
         return ret;
     }
-#endif /* !HAVE_SELFTEST && !HAVE_FIPS && !WOLFSSL_NO_AES_CFB_1_8 */
+#endif /* !WOLFSSL_NO_AES_CFB_1_8 */
 #endif /* WOLFSSL_AES_CFB */
 
 #ifndef HAVE_RENESAS_SYNC
@@ -14271,9 +14272,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_cfb_test(void)
     ret = aescfb_test_0();
     if (ret != 0)
         return ret;
-#if !defined(HAVE_SELFTEST) && \
-    (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(6,0,0)) && \
-    !defined(WOLFSSL_NO_AES_CFB_1_8)
+#if !defined(WOLFSSL_NO_AES_CFB_1_8)
     ret = aescfb1_test();
     if (ret != 0)
         return ret;
