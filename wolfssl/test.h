@@ -2575,7 +2575,7 @@ static WC_INLINE void CRL_CallBack(const char* url)
 #endif
 
 #ifndef NO_DH
-#if defined(WOLFSSL_SP_MATH) && !defined(WOLFSS_SP_MATH_ALL)
+#if defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
     /* dh2048 p */
     static const unsigned char test_dh_p[] =
     {
