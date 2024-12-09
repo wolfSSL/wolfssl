@@ -319,8 +319,10 @@
     #endif
 #endif
 
-#if defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H)
-    #error wolfssl/options.h included in build of library object.
+#if (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
+    (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
+     !defined(EXTERNAL_OPTS_OPENVPN))
+    #error wolfssl/options.h included in compiled wolfssl library object.
 #endif
 
 #ifdef WOLFSSL_USER_SETTINGS
