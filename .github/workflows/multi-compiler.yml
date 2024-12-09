@@ -42,7 +42,7 @@ jobs:
             OS: ubuntu-20.04
           - CC: clang-13
             CXX: clang++-13
-            OS: ubuntu-latest
+            OS: ubuntu-22.04
           - CC: clang-14
             CXX: clang++-14
             OS: ubuntu-latest

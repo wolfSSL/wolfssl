@@ -21,10 +21,6 @@ jobs:
     # This should be a safe limit for the tests to run.
     timeout-minutes: 5
     steps:
-      - name: workaround high-entropy ASLR
-        # not needed after either an update to llvm or runner is done
-        run: sudo sysctl vm.mmap_rnd_bits=28
-
       - name: Build wolfSSL
         uses: wolfSSL/actions-build-autotools-project@v1
         with:
