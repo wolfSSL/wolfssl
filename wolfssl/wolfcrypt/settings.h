@@ -319,6 +319,10 @@
     #endif
 #endif
 
+#if defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H)
+    #error wolfssl/options.h included in build of library object.
+#endif
+
 #ifdef WOLFSSL_USER_SETTINGS
     #include "user_settings.h"
 #elif defined(USE_HAL_DRIVER) && !defined(HAVE_CONFIG_H)
