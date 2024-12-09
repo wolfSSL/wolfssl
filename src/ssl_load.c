@@ -4149,9 +4149,6 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 #if defined(WOLF_CRYPTO_CB) && !defined(NO_CERTS)
 
 static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
-    const char *label, const unsigned char *id, int idLen, int devId);
-
-static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
     const char *label, const unsigned char *id, int idLen, int devId)
 {
     int ret;
@@ -4159,7 +4156,7 @@ static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
     word32 certDataLen = 0;
     word32 labelLen = 0;
 
-    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_label_ex");
+    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_ex");
 
     if (label != NULL) {
         labelLen = (word32)XSTRLEN(label);
@@ -4195,7 +4192,6 @@ int wolfSSL_CTX_use_certificate_label(WOLFSSL_CTX* ctx,
     const char *label, int devId)
 {
     if ((ctx == NULL) || (label == NULL)) {
-        WOLFSSL_MSG("Bad Argument");
         return WOLFSSL_FAILURE;
     }
 
@@ -4215,7 +4211,6 @@ int wolfSSL_CTX_use_certificate_id(WOLFSSL_CTX* ctx,
     const unsigned char *id, int idLen, int devId)
 {
     if ((ctx == NULL) || (id == NULL) || (idLen <= 0)) {
-        WOLFSSL_MSG("Bad Argument");
         return WOLFSSL_FAILURE;
     }
 

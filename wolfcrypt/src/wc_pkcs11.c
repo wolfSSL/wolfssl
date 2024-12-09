@@ -4021,7 +4021,7 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
         goto exit;
     }
 
-    certData = XMALLOC(
+    certData = (byte *)XMALLOC(
         (int)tmpl[0].ulValueLen, info->cert.heap, DYNAMIC_TYPE_CERT);
     if (certData == NULL) {
         ret = MEMORY_E;
