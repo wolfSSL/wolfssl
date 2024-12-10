@@ -10169,7 +10169,9 @@ echo " *" >> $OPTION_FILE
 echo " */" >> $OPTION_FILE
 
 echo "" >> $OPTION_FILE
-echo "#ifndef WOLFSSL_OPTIONS_H" >> $OPTION_FILE
+echo "#ifdef WOLFSSL_NO_OPTIONS_H" >> $OPTION_FILE
+echo "/* options.h inhibited by configuration */" >> $OPTION_FILE
+echo "#elif !defined(WOLFSSL_OPTIONS_H)" >> $OPTION_FILE
 echo "#define WOLFSSL_OPTIONS_H" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 echo "" >> $OPTION_FILE

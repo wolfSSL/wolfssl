@@ -47,11 +47,14 @@
     extern "C" {
 #endif
 
-/* This flag allows wolfSSL to include options.h instead of having client
- * projects do it themselves. This should *NEVER* be defined when building
- * wolfSSL as it can cause hard to debug problems. */
-#if defined(EXTERNAL_OPTS_OPENVPN) || defined(WOLFSSL_USE_OPTIONS_H)
-#include <wolfssl/options.h>
+/* WOLFSSL_USE_OPTIONS_H directs wolfSSL to include options.h on behalf of
+ * application code, rather than the application including it directly.  This is
+ * not defined when compiling wolfSSL library objects, which are configured
+ * through CFLAGS.
+ */
+#if (defined(EXTERNAL_OPTS_OPENVPN) || defined(WOLFSSL_USE_OPTIONS_H)) && \
+    !defined(WOLFSSL_NO_OPTIONS_H)
+    #include <wolfssl/options.h>
 #endif
 
 /* Uncomment next line if using IPHONE */
@@ -335,10 +338,13 @@
     #include "nucleus.h"
     #include "os/networking/ssl/lite/cyassl_nucleus_defs.h"
 #elif !defined(BUILDING_WOLFSSL) && !defined(WOLFSSL_OPTIONS_H) && \
-      !defined(WOLFSSL_CUSTOM_CONFIG)
-    /* This warning indicates that the settings header may not be included before
-     * other wolfSSL headers. If you are using a custom configuration method,
-     * define WOLFSSL_CUSTOM_CONFIG to override this error. */
+      !defined(WOLFSSL_NO_OPTIONS_H) && !defined(WOLFSSL_CUSTOM_CONFIG)
+    /* This warning indicates that wolfSSL features may not have been properly
+     * configured before other wolfSSL headers were included. If you are using
+     * an alternative configuration method -- e.g. custom header, or CFLAGS in
+     * an application build -- then your application can avoid this warning by
+     * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
+     */
     #warning "No configuration for wolfSSL detected, check header order"
 #endif
 

@@ -32,7 +32,7 @@
     #include <config.h>
 #endif
 
-#ifndef WOLFSSL_USER_SETTINGS
+#if !defined(WOLFSSL_USER_SETTINGS) && !defined(WOLFSSL_NO_OPTIONS_H)
     #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
