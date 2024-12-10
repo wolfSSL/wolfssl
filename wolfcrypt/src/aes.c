@@ -106,7 +106,8 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
+#if (!defined(WOLFSSL_ARMASM) || defined(__aarch64__)) && \
+    !defined(WOLFSSL_RISCV_ASM)
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     /* case of possibly not using hardware acceleration for AES but using key
@@ -786,6 +787,26 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
             return 0;
         }
     #endif /* HAVE_AES_DECRYPT */
+
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+
+    #define NEED_AES_TABLES
+
+    static int checkedCpuIdFlags = 0;
+    static word32 cpuid_flags = 0;
+
+    static void Check_CPU_support_HwCrypto(Aes* aes)
+    {
+        if (checkedCpuIdFlags == 0) {
+            cpuid_flags = cpuid_get_flags();
+            checkedCpuIdFlags = 1;
+        }
+        aes->use_aes_hw_crypto = IS_AARCH64_AES(cpuid_flags);
+    #ifdef HAVE_AESGCM
+        aes->use_pmull_hw_crypto = IS_AARCH64_PMULL(cpuid_flags);
+    #endif
+    }
 
 #elif (defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES) \
         && !defined(WOLFSSL_QNX_CAAM)) || \
@@ -2875,6 +2896,13 @@ static WARN_UNUSED_RESULT int wc_AesEncrypt(
             printf("Skipping AES-NI\n");
         #endif
     }
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+      !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (aes->use_aes_hw_crypto) {
+        AES_encrypt_AARCH64(inBlock, outBlock, (byte*)aes->key,
+            (int)aes->rounds);
+        return 0;
+    }
 #endif /* WOLFSSL_AESNI */
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
     AES_ECB_encrypt(aes, inBlock, outBlock, WC_AES_BLOCK_SIZE);
@@ -3629,6 +3657,13 @@ static WARN_UNUSED_RESULT int wc_AesDecrypt(
         #ifdef DEBUG_AESNI
             printf("Skipping AES-NI\n");
         #endif
+    }
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+      !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (aes->use_aes_hw_crypto) {
+        AES_decrypt_AARCH64(inBlock, outBlock, (byte*)aes->key,
+            (int)aes->rounds);
+        return 0;
     }
 #endif /* WOLFSSL_AESNI */
 #if defined(WOLFSSL_SCE) && !defined(WOLFSSL_SCE_NO_AES)
@@ -4579,6 +4614,14 @@ static void AesSetKey_C(Aes* aes, const byte* key, word32 keySz, int dir)
             }
         }
     #endif /* WOLFSSL_AESNI */
+
+    #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+        !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        Check_CPU_support_HwCrypto(aes);
+        if (aes->use_aes_hw_crypto) {
+            return AES_set_key_AARCH64(userKey, keylen, aes, dir);
+        }
+    #endif
 
     #ifdef WOLFSSL_KCAPI_AES
         XMEMCPY(aes->devKey, userKey, keylen);
@@ -5777,6 +5820,14 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             }
         }
         else
+    #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+          !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            AES_CBC_encrypt_AARCH64(in, out, sz, (byte*)aes->reg,
+                (byte*)aes->key, (int)aes->rounds);
+            ret = 0;
+        }
+        else
     #endif
         {
             ret = 0;
@@ -5914,6 +5965,14 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             #endif /* WOLFSSL_AESNI_BYx */
             /* store iv for next call */
             XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
+            ret = 0;
+        }
+        else
+    #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+          !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            AES_CBC_decrypt_AARCH64(in, out, sz, (byte*)aes->reg,
+                (byte*)aes->key, (int)aes->rounds);
             ret = 0;
         }
         else
@@ -6255,6 +6314,14 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             aes->left -= processed;
             sz -= processed;
 
+        #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+            !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+            if (aes->use_aes_hw_crypto) {
+                AES_CTR_encrypt_AARCH64(aes, out, in, sz);
+                return 0;
+            }
+        #endif
+
             VECTOR_REGISTERS_PUSH;
 
         #if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
@@ -6343,7 +6410,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #endif /* NEED_AES_CTR_SOFT */
 
 #endif /* WOLFSSL_AES_COUNTER */
-#endif /* !WOLFSSL_ARMASM && ! WOLFSSL_RISCV_ASM */
+#endif /* !WOLFSSL_RISCV_ASM */
 
 
 /*
@@ -6390,8 +6457,8 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #endif
 
-#ifdef WOLFSSL_ARMASM
-    /* implementation is located in wolfcrypt/src/port/arm/armv8-aes.c */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+    /* implemented in wolfcrypt/src/port/arm/rmv8-aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implemented in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
@@ -6603,6 +6670,13 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         return ret;
     #endif /* WOLFSSL_RENESAS_RSIP && WOLFSSL_RENESAS_FSPSM_CRYPTONLY*/
 
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (ret == 0 && aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+        AES_GCM_set_key_AARCH64(aes, iv);
+    }
+    else
+#endif
 #if !defined(FREESCALE_LTC_AES_GCM)
     if (ret == 0) {
         VECTOR_REGISTERS_PUSH;
@@ -7320,6 +7394,8 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
  */
 #define GHASH_INIT_EXTRA(aes) WC_DO_NOTHING
 
+#if !defined(__aarch64__) || !defined(WOLFSSL_ARMASM) || \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 /* GHASH one block of data..
  *
  * XOR block into tag and GMULT with H using pre-computed table.
@@ -7333,6 +7409,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
         GMULT(AES_TAG(aes), (aes)->gcm.M0);             \
     }                                                   \
     while (0)
+#endif
 #endif /* WOLFSSL_AESGCM_STREAM */
 #elif defined(WORD64_AVAILABLE) && !defined(GCM_WORD32)
 
@@ -7928,8 +8005,17 @@ static void GHASH_INIT(Aes* aes) {
     /* Reset counts of AAD and cipher text. */
     aes->aOver = 0;
     aes->cOver = 0;
-    /* Extra initialization based on implementation. */
-    GHASH_INIT_EXTRA(aes);
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+        ; /* Don't do extra initialization. */
+    }
+    else
+#endif
+    {
+        /* Extra initialization based on implementation. */
+        GHASH_INIT_EXTRA(aes);
+    }
 }
 
 /* Update the GHASH with AAD and/or cipher text.
@@ -8590,6 +8676,14 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         }
     }
     else
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+        AES_GCM_encrypt_AARCH64(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
+            authIn, authInSz);
+        ret = 0;
+    }
+    else
 #endif /* WOLFSSL_AESNI */
     {
         ret = AES_GCM_encrypt_C(aes, out, in, sz, iv, ivSz, authTag, authTagSz,
@@ -9172,6 +9266,13 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             else
                 ret = 0;
         }
+    }
+    else
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (aes->use_aes_hw_crypto && aes->use_pmull_hw_crypto) {
+        ret = AES_GCM_decrypt_AARCH64(aes, out, in, sz, iv, ivSz, authTag,
+            authTagSz, authIn, authInSz);
     }
     else
 #endif /* WOLFSSL_AESNI */
@@ -10088,7 +10189,20 @@ int wc_AesGcmInit(Aes* aes, const byte* key, word32 len, const byte* iv,
                 RESTORE_VECTOR_REGISTERS();
             }
             else
-        #endif
+        #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+              !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+            if (aes->use_aes_hw_crypto) {
+                AES_GCM_init_AARCH64(aes, iv, ivSz);
+
+                /* Reset state fields. */
+                aes->over = 0;
+                aes->aSz = 0;
+                aes->cSz = 0;
+                /* Initialization for GHASH. */
+                GHASH_INIT(aes);
+            }
+            else
+        #endif /* WOLFSSL_AESNI */
             {
                 ret = AesGcmInit_C(aes, iv, ivSz);
             }
@@ -10214,6 +10328,13 @@ int wc_AesGcmEncryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
             RESTORE_VECTOR_REGISTERS();
         }
         else
+    #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+          !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            AES_GCM_crypt_update_AARCH64(aes, out, in, sz);
+            GHASH_UPDATE_AARCH64(aes, authIn, authInSz, out, sz);
+        }
+        else
     #endif
         {
             /* Encrypt the plaintext. */
@@ -10265,6 +10386,12 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
             ret = AesGcmEncryptFinal_aesni(aes, authTag, authTagSz);
             RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+          !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            AES_GCM_final_AARCH64(aes, authTag, authTagSz);
         }
         else
     #endif
@@ -10350,6 +10477,13 @@ int wc_AesGcmDecryptUpdate(Aes* aes, byte* out, const byte* in, word32 sz,
             RESTORE_VECTOR_REGISTERS();
         }
         else
+    #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+          !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            GHASH_UPDATE_AARCH64(aes, authIn, authInSz, in, sz);
+            AES_GCM_crypt_update_AARCH64(aes, out, in, sz);
+        }
+        else
     #endif
         {
             /* Update the authentication tag with any authentication data and
@@ -10399,6 +10533,17 @@ int wc_AesGcmDecryptFinal(Aes* aes, const byte* authTag, word32 authTagSz)
             SAVE_VECTOR_REGISTERS(return _svr_ret;);
             ret = AesGcmDecryptFinal_aesni(aes, authTag, authTagSz);
             RESTORE_VECTOR_REGISTERS();
+        }
+        else
+    #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+          !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            ALIGN32 byte calcTag[WC_AES_BLOCK_SIZE];
+            AES_GCM_final_AARCH64(aes, calcTag, authTagSz);
+            /* Check calculated tag matches the one passed in. */
+            if (ConstantCompare(authTag, calcTag, (int)authTagSz) != 0) {
+                ret = AES_GCM_AUTH_E;
+            }
         }
         else
     #endif
@@ -10677,8 +10822,8 @@ int wc_AesCcmCheckTagSize(int sz)
     return 0;
 }
 
-#ifdef WOLFSSL_ARMASM
-    /* implementation located in wolfcrypt/src/port/arm/armv8-aes.c */
+#if defined(WOLFSSL_ARMASM) && !defined(__aarch64__)
+    /* implemented in wolfcrypt/src/port/arm/rmv8-aes.c */
 
 #elif defined(WOLFSSL_RISCV_ASM)
     /* implementation located in wolfcrypt/src/port/risc-v/riscv-64-aes.c */
@@ -11686,6 +11831,12 @@ static WARN_UNUSED_RESULT int _AesEcbEncrypt(
         AES_ECB_encrypt_AESNI(in, out, sz, (byte*)aes->key, (int)aes->rounds);
     }
     else
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+      !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (aes->use_aes_hw_crypto) {
+        AES_encrypt_AARCH64(in, out, (byte*)aes->key, (int)aes->rounds);
+    }
+    else
 #endif
     {
 #ifdef NEED_AES_TABLES
@@ -11736,6 +11887,12 @@ static WARN_UNUSED_RESULT int _AesEcbDecrypt(
 #ifdef WOLFSSL_AESNI
     if (aes->use_aesni) {
         AES_ECB_decrypt_AESNI(in, out, sz, (byte*)aes->key, (int)aes->rounds);
+    }
+    else
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+      !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    if (aes->use_aes_hw_crypto) {
+        AES_decrypt_AARCH64(in, out, (byte*)aes->key, (int)aes->rounds);
     }
     else
 #endif
@@ -12838,7 +12995,8 @@ void AES_XTS_decrypt_update_avx1(const unsigned char *in, unsigned char *out, wo
 
 #endif /* WOLFSSL_AESNI */
 
-#if !defined(WOLFSSL_ARMASM) || defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+#if !defined(WOLFSSL_ARMASM) || defined(__aarch64__) || \
+    defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
 #ifdef HAVE_AES_ECB
 /* helper function for encrypting / decrypting full buffer at once */
 static WARN_UNUSED_RESULT int _AesXtsHelper(
@@ -13098,6 +13256,13 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
                 ret = 0;
             }
             RESTORE_VECTOR_REGISTERS();
+        }
+        else
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+      !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            AES_XTS_encrypt_AARCH64(xaes, out, in, sz, i);
+            ret = 0;
         }
         else
 #endif
@@ -13533,6 +13698,13 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             RESTORE_VECTOR_REGISTERS();
         }
         else
+#elif defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+      !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+        if (aes->use_aes_hw_crypto) {
+            AES_XTS_decrypt_AARCH64(xaes, out, in, sz, i);
+            ret = 0;
+        }
+        else
 #endif
         {
             ret = AesXtsDecrypt_sw(xaes, out, in, sz, i);
@@ -13729,8 +13901,7 @@ int wc_AesXtsDecryptFinal(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 }
 
 #endif /* WOLFSSL_AESXTS_STREAM */
-
-#endif /* !WOLFSSL_ARMASM || WOLFSSL_ARMASM_NO_HW_CRYPTO */
+#endif
 
 /* Same as wc_AesXtsEncryptSector but the sector gets incremented by one every
  * sectorSz bytes
