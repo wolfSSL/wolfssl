@@ -288,21 +288,22 @@
 
 
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
     #define HAVE_IO_TESTS_DEPENDENCIES
 #endif
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && \
     !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
     !defined(WOLFSSL_TIRTOS)
     #define HAVE_SSL_MEMIO_TESTS_DEPENDENCIES
 #endif
 
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(NO_FILESYSTEM) && \
-    !defined(NO_CERTS) && (!defined(NO_WOLFSSL_CLIENT) || \
-    !defined(WOLFSSL_NO_CLIENT_AUTH))
+    !defined(NO_CERTS) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
     #define HAVE_CERT_CHAIN_VALIDATION
 #endif
 
@@ -562,7 +563,7 @@ int tmpDirNameSet = 0;
 #define TEST_RSA_BYTES (TEST_RSA_BITS/8)
 #endif /* !NO_RSA */
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
     static const char* bogusFile  =
     #ifdef _WIN32
@@ -586,7 +587,8 @@ static int testDevId = INVALID_DEVID;
 #endif
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
 
 /* This set of memio functions allows for more fine tuned control of the TLS
  * connection operations. For new tests, try to use ssl_memio first. */
@@ -1128,6 +1130,7 @@ static int test_wolfSSL_Method_Allocators(void)
     #define TEST_INVALID_METHOD_ALLOCATOR(a) \
             TEST_METHOD_ALLOCATOR(a, ExpectNull)
 
+#ifndef NO_TLS
 #ifndef NO_OLD_TLS
     #ifdef WOLFSSL_ALLOW_SSLV3
         #ifndef NO_WOLFSSL_SERVER
@@ -1235,7 +1238,7 @@ static int test_wolfSSL_Method_Allocators(void)
         #endif /* WOLFSSL_DTLS13 */
     #endif /* WOLFSSL_DTLS */
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
-
+#endif /* !NO_TLS */
     return EXPECT_RESULT();
 }
 
@@ -1608,7 +1611,7 @@ static int test_dual_alg_support(void)
 /*----------------------------------------------------------------------------*
  | Context
  *----------------------------------------------------------------------------*/
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 static int test_wolfSSL_CTX_new(void)
 {
     EXPECT_DECLS;
@@ -1627,6 +1630,7 @@ static int test_wolfSSL_CTX_new(void)
 #endif
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_TLS) && \
     (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_FILESYSTEM)
 static int test_for_double_Free(void)
 {
@@ -2017,7 +2021,8 @@ static int test_wolfSSL_CTX_use_certificate(void)
 static int test_wolfSSL_CTX_use_certificate_file(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -2083,8 +2088,8 @@ static int test_wolfSSL_CTX_use_certificate_ASN1(void)
 static int test_wolfSSL_CTX_use_certificate_buffer(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048) && \
-        !defined(NO_RSA) && !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
     WOLFSSL_CTX* ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -2112,8 +2117,8 @@ static int test_wolfSSL_CTX_use_certificate_buffer(void)
 static int test_wolfSSL_use_certificate_buffer(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048) && \
-        !defined(NO_RSA) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL*     ssl = NULL;
 
@@ -2143,7 +2148,8 @@ static int test_wolfSSL_use_certificate_buffer(void)
 static int test_wolfSSL_CTX_use_PrivateKey_file(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx = NULL;
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -2405,7 +2411,8 @@ static int test_wolfSSL_CTX_trust_peer_cert(void)
 static int test_wolfSSL_CTX_load_verify_locations(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx = NULL;
 #ifndef NO_RSA
     WOLFSSL_CERT_MANAGER* cm = NULL;
@@ -2632,7 +2639,7 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
 {
     int res = TEST_SKIPPED;
 #if defined(WOLFSSL_SYS_CA_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+    !defined(NO_TLS) && (!defined(NO_RSA) || defined(HAVE_ECC))
     WOLFSSL_CTX* ctx;
     byte dirValid = 0;
     int ret = 0;
@@ -2695,7 +2702,7 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
     return res;
 }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS)
 static int test_cm_load_ca_buffer(const byte* cert_buf, size_t cert_sz,
     int file_type)
 {
@@ -3011,7 +3018,7 @@ static int test_wolfSSL_CertManagerAPI(void)
 static int test_wolfSSL_CertManagerLoadCABuffer(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
     int ret;
@@ -3043,7 +3050,7 @@ static int test_wolfSSL_CertManagerLoadCABuffer(void)
 static int test_wolfSSL_CertManagerLoadCABuffer_ex(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS)
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
     int ret;
@@ -3150,7 +3157,7 @@ static int test_wolfSSL_CertManagerGetCerts(void)
 static int test_wolfSSL_CertManagerSetVerify(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_WOLFSSL_CM_VERIFY) && !defined(NO_RSA) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH))
     WOLFSSL_CERT_MANAGER* cm = NULL;
@@ -4866,8 +4873,8 @@ static int test_wolfSSL_CertRsaPss(void)
 static int test_wolfSSL_CTX_load_verify_locations_ex(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA)
     WOLFSSL_CTX* ctx = NULL;
     const char* ca_cert = "./certs/ca-cert.pem";
     const char* ca_expired_cert = "./certs/test/expired/expired-ca.pem";
@@ -4899,8 +4906,9 @@ static int test_wolfSSL_CTX_load_verify_locations_ex(void)
 static int test_wolfSSL_CTX_load_verify_buffer_ex(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
-#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     WOLFSSL_CTX* ctx;
     const char* ca_expired_cert_file = "./certs/test/expired/expired-ca.der";
     byte ca_expired_cert[TWOK_BUF];
@@ -4958,7 +4966,6 @@ static int test_wolfSSL_CTX_load_verify_buffer_ex(void)
             WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY), WC_NO_ERR_TRACE(ASN_PARSE_E));
 
     wolfSSL_CTX_free(ctx);
-#endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
 #endif
 
     return EXPECT_RESULT();
@@ -5071,33 +5078,34 @@ static int test_wolfSSL_CTX_add1_chain_cert(void)
 static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_CLIENT) && defined(USE_CERT_BUFFERS_2048)
+#if !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA) && \
+    (!defined(NO_FILESYSTEM) || defined(USE_CERT_BUFFERS_2048))
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
+#ifndef NO_FILESYSTEM
     const char* cert = "./certs/server-cert.pem";
     unsigned char* buf = NULL;
     size_t len = 0;
 
     ExpectIntEQ(load_file(cert, &buf, &len), 0);
+#endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
     ExpectNotNull(ssl = wolfSSL_new(ctx));
 
     /* Invalid parameters. */
+#ifndef NO_FILESYSTEM
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(NULL,
         NULL, 0, WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
         NULL, 0, WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(ASN_PARSE_E));
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(NULL,
-        server_cert_der_2048, sizeof_server_cert_der_2048,
-        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, NULL, 0),
         WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER));
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(NULL, buf, (sword32)len),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(NULL, buf,
+        (sword32)len), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(NULL, NULL, 0),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
     ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(ssl, NULL, 0),
@@ -5105,28 +5113,38 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
     ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(NULL, buf, (sword32)len),
         WC_NO_ERR_TRACE(BAD_FUNC_ARG));
 
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
-        server_cert_der_2048, sizeof_server_cert_der_2048,
-        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
-
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buf,
         (sword32)len, WOLFSSL_FILETYPE_PEM), WOLFSSL_SUCCESS);
 
     ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx, buf, (sword32)len),
         WOLFSSL_SUCCESS);
-    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx,
-        server_cert_der_2048, sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER));
 
     ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(ssl, buf, (sword32)len),
         WOLFSSL_SUCCESS);
+#endif /* !NO_FILESYSTEM */
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(NULL,
+        server_cert_der_2048, sizeof_server_cert_der_2048,
+        WOLFSSL_FILETYPE_ASN1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,
+        server_cert_der_2048, sizeof_server_cert_der_2048,
+        WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    ExpectIntEQ(wolfSSL_CTX_use_certificate_chain_buffer(ctx,
+        server_cert_der_2048, sizeof_server_cert_der_2048),
+        WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER));
+
     ExpectIntEQ(wolfSSL_use_certificate_chain_buffer(ssl, server_cert_der_2048,
         sizeof_server_cert_der_2048), WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER));
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#ifndef NO_FILESYSTEM
     if (buf != NULL) {
         free(buf);
     }
+#endif
 #endif
     return EXPECT_RESULT();
 }
@@ -5134,7 +5152,8 @@ static int test_wolfSSL_CTX_use_certificate_chain_buffer_format(void)
 static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     const char* server_chain_der = "./certs/server-cert-chain.der";
     const char* client_single_pem = "./certs/client-cert.pem";
@@ -5163,8 +5182,8 @@ static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
 static int test_wolfSSL_use_certificate_chain_file(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA)
     const char* server_chain_der = "./certs/server-cert-chain.der";
     const char* client_single_pem = "./certs/client-cert.pem";
     WOLFSSL_CTX* ctx = NULL;
@@ -5207,7 +5226,8 @@ static int test_wolfSSL_use_certificate_chain_file(void)
 static int test_wolfSSL_CTX_SetTmpDH_file(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH) && \
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_DH) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     WOLFSSL_CTX *ctx = NULL;
 #if defined(WOLFSSL_WPAS) && !defined(NO_DSA)
@@ -5249,7 +5269,7 @@ static int test_wolfSSL_CTX_SetTmpDH_file(void)
 static int test_wolfSSL_CTX_SetTmpDH_buffer(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_DH) && \
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_DH) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     WOLFSSL_CTX *ctx = NULL;
 
@@ -5291,7 +5311,7 @@ static int test_wolfSSL_CTX_SetTmpDH_buffer(void)
 static int test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_DH) && \
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_DH) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
     WOLFSSL_CTX *ctx;
 
@@ -5380,7 +5400,7 @@ static int test_wolfSSL_CTX_der_load_verify_locations(void)
 static int test_wolfSSL_CTX_enable_disable(void)
 {
     EXPECT_DECLS;
-#ifndef NO_CERTS
+#if !defined(NO_CERTS) && !defined(NO_TLS)
     WOLFSSL_CTX* ctx = NULL;
 
   #ifdef HAVE_CRL
@@ -5442,7 +5462,7 @@ static int test_wolfSSL_CTX_enable_disable(void)
     #endif
         wolfSSL_CTX_free(ctx);
   #endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
-#endif /* NO_CERTS */
+#endif /* !NO_CERTS && !NO_CERTS */
 
     return EXPECT_RESULT();
 }
@@ -5565,8 +5585,9 @@ static int test_wolfSSL_CTX_set_max_proto_version(void)
 static int test_server_wolfSSL_new(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-        !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_RSA)
+
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL_CTX *ctx_nocert = NULL;
     WOLFSSL *ssl = NULL;
@@ -5601,8 +5622,9 @@ static int test_server_wolfSSL_new(void)
 static int test_client_wolfSSL_new(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-        !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA)
+
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL_CTX *ctx_nocert = NULL;
     WOLFSSL *ssl = NULL;
@@ -5634,8 +5656,9 @@ static int test_client_wolfSSL_new(void)
 static int test_wolfSSL_SetTmpDH_file(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH) && \
-        !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_DH)
+
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
     const char* dhX942ParamFile = "./certs/x942dh2048.pem";
@@ -5697,7 +5720,8 @@ static int test_wolfSSL_SetTmpDH_file(void)
 static int test_wolfSSL_SetTmpDH_buffer(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_DH)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
 
@@ -5734,7 +5758,8 @@ static int test_wolfSSL_SetTmpDH_buffer(void)
 static int test_wolfSSL_SetMinMaxDhKey_Sz(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_DH)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL_CTX *ctx2 = NULL;
     WOLFSSL *ssl = NULL;
@@ -5793,7 +5818,7 @@ static int test_wolfSSL_SetMinMaxDhKey_Sz(void)
 static int test_wolfSSL_SetMinVersion(void)
 {
     int                 res = TEST_SKIPPED;
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     int                 failFlag = WOLFSSL_SUCCESS;
     WOLFSSL_CTX*        ctx = NULL;
     WOLFSSL*            ssl = NULL;
@@ -12592,7 +12617,8 @@ static int test_wolfSSL_set_alpn_protos(void)
 static int test_wolfSSL_DisableExtendedMasterSecret(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
 
@@ -12616,7 +12642,8 @@ static int test_wolfSSL_DisableExtendedMasterSecret(void)
 static int test_wolfSSL_wolfSSL_UseSecureRenegotiation(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_SECURE_RENEGOTIATION) && !defined(NO_WOLFSSL_CLIENT) && \
+    !defined(NO_TLS)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
 
@@ -12687,8 +12714,8 @@ static int test_wolfSSL_SCR_Reconnect(void)
     return EXPECT_RESULT();
 }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_SERVER) && \
-    (!defined(NO_RSA) || defined(HAVE_ECC))
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
+    !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
 /* Called when writing. */
 static int DummySend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -12728,8 +12755,8 @@ static int BufferInfoRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 static int test_tls_ext_duplicate(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_WOLFSSL_SERVER) && (!defined(NO_RSA) || defined(HAVE_ECC)) && \
-    !defined(NO_FILESYSTEM)
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
+    !defined(NO_FILESYSTEM) && (!defined(NO_RSA) || defined(HAVE_ECC))
     const unsigned char clientHelloDupTlsExt[] = {
         0x16, 0x03, 0x03, 0x00, 0x6a, 0x01, 0x00, 0x00,
         0x66, 0x03, 0x03, 0xf4, 0x65, 0xbd, 0x22, 0xfe,
@@ -13367,7 +13394,8 @@ static int test_wolfSSL_PKCS8(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_FILESYSTEM) && !defined(NO_ASN) && defined(HAVE_PKCS8) && \
-    !defined(WOLFCRYPT_ONLY)
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && \
+    (!defined(WOLFSSL_NO_TLS12) || defined(WOLFSSL_TLS13))
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
     byte buff[FOURK_BUF];
     byte der[FOURK_BUF];
@@ -14483,7 +14511,7 @@ static int test_wolfSSL_X509_TLS_version_test_2(void)
 static int test_wolfSSL_CTX_SetMinVersion(void)
 {
     int                     res = TEST_SKIPPED;
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     int                     failFlag = WOLFSSL_SUCCESS;
     WOLFSSL_CTX*            ctx;
     int                     itr;
@@ -63637,8 +63665,9 @@ static int test_generate_cookie(void)
 static int test_wolfSSL_set_options(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-#if !defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_CERTS) && !defined(NO_TLS) && !defined(NO_FILESYSTEM) && \
+    (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_RSA)
     WOLFSSL*     ssl = NULL;
     WOLFSSL_CTX* ctx = NULL;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -63758,8 +63787,7 @@ static int test_wolfSSL_set_options(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-#endif /* !NO_WOLFSSL_CLIENT || !NO_WOLFSSL_SERVER */
-#endif /* !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+#endif
     return EXPECT_RESULT();
 }
 
@@ -65032,7 +65060,8 @@ static int test_wolfSSL_X509_name_match3(void)
 static int test_wolfSSL_X509_max_altnames(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA)
 
     /* Only test if max alt names has not been modified */
 #if WOLFSSL_MAX_ALT_NAMES <= 1024
@@ -65060,8 +65089,8 @@ static int test_wolfSSL_X509_max_altnames(void)
 static int test_wolfSSL_X509_max_name_constraints(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
-    !defined(IGNORE_NAME_CONSTRAINTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
+    !defined(NO_RSA) && !defined(IGNORE_NAME_CONSTRAINTS)
 
     /* Only test if max name constraints has not been modified */
 #if WOLFSSL_MAX_NAME_CONSTRAINTS == 128
@@ -89865,20 +89894,21 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     EXPECT_DECLS;
 #if defined(HAVE_CRL) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) && \
     (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER))
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+    const char* issuerCert = "./certs/client-cert.pem";
+    const char* validFilePath = "./certs/crl/cliCrl.pem";
+    int pemType = WOLFSSL_FILETYPE_PEM;
+#ifndef NO_TLS
     WOLFSSL_CTX* ctx = NULL;
     WOLFSSL* ssl = NULL;
     const char* badPath = "dummypath";
     const char* validPath = "./certs/crl";
-    const char* validFilePath = "./certs/crl/cliCrl.pem";
-    const char* issuerCert = "./certs/client-cert.pem";
     int derType = WOLFSSL_FILETYPE_ASN1;
-    int pemType = WOLFSSL_FILETYPE_PEM;
 #ifdef HAVE_CRL_MONITOR
     int monitor = WOLFSSL_CRL_MONITOR;
 #else
     int monitor = 0;
 #endif
-    WOLFSSL_CERT_MANAGER* cm = NULL;
 
     #define FAIL_T1(x, y, z, p, d) ExpectIntEQ((int) x(y, z, p, d), \
                                        WC_NO_ERR_TRACE(BAD_FUNC_ARG))
@@ -89929,6 +89959,7 @@ static int test_wolfSSL_CTX_LoadCRL(void)
     ssl = NULL;
     wolfSSL_CTX_free(ctx);
     ctx = NULL;
+#endif /* !NO_TLS */
 
     ExpectNotNull(cm = wolfSSL_CertManagerNew());
     ExpectIntEQ(wolfSSL_CertManagerLoadCA(cm, issuerCert, NULL),
@@ -90071,7 +90102,7 @@ static int test_wolfSSL_crl_update_cb(void)
 static int test_SetTmpEC_DHE_Sz(void)
 {
     EXPECT_DECLS;
-#if defined(HAVE_ECC) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_ECC) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL *ssl = NULL;
 
@@ -91981,7 +92012,8 @@ static int test_wolfSSL_SSL_in_init(void)
 static int test_wolfSSL_CTX_set_timeout(void)
 {
     EXPECT_DECLS;
-#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_SESSION_CACHE)
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
+    !defined(NO_SESSION_CACHE)
     int timeout;
     WOLFSSL_CTX* ctx = NULL;
 
@@ -92006,7 +92038,7 @@ static int test_wolfSSL_CTX_set_timeout(void)
 #endif
 
     wolfSSL_CTX_free(ctx);
-#endif /* !NO_WOLFSSL_SERVER && !NO_SESSION_CACHE*/
+#endif
     return EXPECT_RESULT();
 }
 
@@ -101199,12 +101231,13 @@ TEST_CASE testCases[] = {
      *********************************/
 
     TEST_DECL(test_wolfSSL_Method_Allocators),
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
     TEST_DECL(test_wolfSSL_CTX_new),
 #endif
     TEST_DECL(test_server_wolfSSL_new),
     TEST_DECL(test_client_wolfSSL_new),
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
+    !defined(NO_TLS) && \
     (!defined(NO_RSA) || defined(HAVE_ECC)) && !defined(NO_FILESYSTEM)
     TEST_DECL(test_for_double_Free),
 #endif

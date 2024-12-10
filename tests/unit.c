@@ -249,6 +249,7 @@ int unit_test(int argc, char** argv)
 
 #if !defined(NO_WOLFSSL_CIPHER_SUITE_TEST) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    !defined(NO_TLS) && \
     !defined(SINGLE_THREADED)
     if ((ret = SuiteTest(argc, argv)) != 0) {
         fprintf(stderr, "suite test failed with %d\n", ret);

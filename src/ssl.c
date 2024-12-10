@@ -1040,6 +1040,10 @@ static WC_THREADSHARED wolfSSL_Mutex inits_count_mutex
 static WC_THREADSHARED volatile int inits_count_mutex_valid = 0;
 #endif
 
+#ifdef NO_TLS
+static const WOLFSSL_METHOD gNoTlsMethod;
+#endif
+
 /* Create a new WOLFSSL_CTX struct and return the pointer to created struct.
    WOLFSSL_METHOD pointer passed in is given to ctx to manage.
    This function frees the passed in WOLFSSL_METHOD struct on failure and on
@@ -1062,8 +1066,13 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
         }
     }
 
+#ifndef NO_TLS
     if (method == NULL)
         return ctx;
+#else
+    /* a blank TLS method */
+    method = (WOLFSSL_METHOD*)&gNoTlsMethod;
+#endif
 
     ctx = (WOLFSSL_CTX*)XMALLOC(sizeof(WOLFSSL_CTX), heap, DYNAMIC_TYPE_CTX);
     if (ctx) {
@@ -2432,7 +2441,7 @@ int wolfSSL_mcast_set_highwater_ctx(WOLFSSL* ssl, void* ctx)
 
 #endif /* WOLFSSL_LEANPSK */
 
-
+#ifndef NO_TLS
 /* return underlying connect or accept, WOLFSSL_SUCCESS on ok */
 int wolfSSL_negotiate(WOLFSSL* ssl)
 {
@@ -2471,7 +2480,7 @@ int wolfSSL_negotiate(WOLFSSL* ssl)
 
     return err;
 }
-
+#endif /* !NO_TLS */
 
 WOLFSSL_ABI
 WC_RNG* wolfSSL_GetRNG(WOLFSSL* ssl)
@@ -2652,7 +2661,7 @@ int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats)
 
 #endif /* WOLFSSL_STATIC_MEMORY */
 
-
+#ifndef NO_TLS
 /* return max record layer size plaintext input size */
 int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl)
 {
@@ -3012,7 +3021,7 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 }
 
 #endif /* WOLFSSL_MULTICAST */
-
+#endif /* !NO_TLS */
 
 /* helpers to set the device id, WOLFSSL_SUCCESS on ok */
 WOLFSSL_ABI
@@ -3059,6 +3068,7 @@ void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
 }
 
 
+#ifndef NO_TLS
 #ifdef HAVE_SNI
 
 WOLFSSL_ABI
@@ -3124,7 +3134,7 @@ int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
     return BAD_FUNC_ARG;
 }
 
-#endif /* NO_WOLFSSL_SERVER */
+#endif /* !NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_SNI */
 
@@ -4214,6 +4224,7 @@ int wolfSSL_want_write(WOLFSSL* ssl)
     return 0;
 }
 
+#endif /* !NO_TLS */
 
 char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data)
 {
@@ -4749,7 +4760,7 @@ int wolfSSL_CTX_set_group_messages(WOLFSSL_CTX* ctx)
 #endif
 
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 /* connect enough to get peer cert chain */
 int wolfSSL_connect_cert(WOLFSSL* ssl)
 {
@@ -4783,9 +4794,7 @@ int wolfSSL_set_group_messages(WOLFSSL* ssl)
 /* make minVersion the internal equivalent SSL version */
 static int SetMinVersionHelper(byte* minVersion, int version)
 {
-#ifdef NO_TLS
     (void)minVersion;
-#endif
 
     switch (version) {
 #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
@@ -9347,7 +9356,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
 /* client only parts */
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
     #if defined(OPENSSL_EXTRA) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv2_client_method(void)
@@ -9847,11 +9856,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     #endif /* !WOLFSSL_NO_TLS12 || !NO_OLD_TLS || !WOLFSSL_TLS13 */
     }
 
-#endif /* NO_WOLFSSL_CLIENT */
-
+#endif /* !NO_WOLFSSL_CLIENT && !NO_TLS */
+/* end client only parts */
 
 /* server only parts */
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
     #if defined(OPENSSL_EXTRA) && !defined(NO_OLD_TLS)
     WOLFSSL_METHOD* wolfSSLv2_server_method(void)
@@ -10388,7 +10397,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #endif /* !WOLFSSL_NO_TLS12 */
     }
 
-#endif /* NO_WOLFSSL_SERVER */
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
+/* end server only parts */
+
 
 #if defined(WOLFSSL_DTLS) && !defined(NO_WOLFSSL_SERVER)
 int wolfDTLS_SetChGoodCb(WOLFSSL* ssl, ClientHelloGoodCb cb, void* user_ctx)
@@ -10632,7 +10643,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
 
 #ifndef USE_WINDOWS_API
-    #ifndef NO_WRITEV
+    #if !defined(NO_WRITEV) && !defined(NO_TLS)
 
         /* simulate writev semantics, doesn't actually do block at a time though
            because of SSL_write behavior and because front adds may be small */

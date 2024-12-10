@@ -72,7 +72,8 @@ Or
 #endif
 
 /* PTHREAD requires server and client enabled */
-#if defined(NO_WOLFSSL_CLIENT) || defined(NO_WOLFSSL_SERVER)
+#if !defined(NO_TLS) && \
+    (defined(NO_WOLFSSL_CLIENT) || defined(NO_WOLFSSL_SERVER))
     #if !defined(SINGLE_THREADED)
         #ifdef __GNUC__  /* GCC compiler */
             #pragma message "PTHREAD requires server and client enabled."
@@ -140,7 +141,7 @@ platform supports it"
 #define SHOW_VERBOSE        0 /* Default output is tab delimited format */
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    !defined(WOLFCRYPT_ONLY) && defined(USE_WOLFSSL_IO)
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && defined(USE_WOLFSSL_IO)
 
 /* shutdown message - nice signal to server, we are done */
 static const char* kShutdown = "shutdown";
@@ -2337,7 +2338,7 @@ int main(int argc, char** argv)
     args.return_code = 0;
 
 #if (!defined(NO_WOLFSSL_CLIENT) || !defined(NO_WOLFSSL_SERVER)) && \
-    !defined(WOLFCRYPT_ONLY) && defined(USE_WOLFSSL_IO)
+    !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS) && defined(USE_WOLFSSL_IO)
     bench_tls(&args);
 #endif
 
