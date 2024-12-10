@@ -11904,14 +11904,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-#ifndef NO_TLS
     if (ssl->options.tls) {
         ret = BuildTlsFinished(ssl, hashes, sender);
     }
-#else
-    (void)hashes;
-    (void)sender;
-#endif
 #ifndef NO_OLD_TLS
     if (!ssl->options.tls) {
         ret = BuildMD5(ssl, hashes, sender);
@@ -22903,8 +22898,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
              int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay,
              int epochOrder)
 {
+#ifndef WOLFSSL_NO_TLS12
     int ret;
-#if !defined(NO_TLS) && !defined(WOLFSSL_NO_TLS12)
     BuildMsgArgs* args;
     BuildMsgArgs  lcl_args;
 #endif
@@ -22924,12 +22919,12 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
     (void)epochOrder;
 
-#ifndef NO_TLS
 #if defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13)
+    /* TLS v1.3 only */
     return BuildTls13Message(ssl, output, outSz, input, inSz, type,
                                                hashOutput, sizeOnly, asyncOkay);
 #else
-
+    /* TLS v1.2 or v1.3 */
 #ifdef WOLFSSL_TLS13
     if (ssl->options.tls1_3) {
         return BuildTls13Message(ssl, output, outSz, input, inSz, type,
@@ -23450,19 +23445,16 @@ exit_buildmsg:
 
     /* Final cleanup */
     FreeBuildMsgArgs(ssl, args);
-#endif /* !WOLFSSL_NO_TLS12 */
-#endif /* !WOLFSSL_NO_TLS12 || WOLFSSL_TLS13 */
-#endif /* !NO_TLS */
-
-#if defined(NO_TLS) || (defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_TLS13))
+    return ret;
+#else
     (void)outSz;
     (void)inSz;
     (void)type;
     (void)hashOutput;
     (void)asyncOkay;
-    ret = NOT_COMPILED_IN;
+    return NOT_COMPILED_IN;
+#endif /* !WOLFSSL_NO_TLS12 */
 #endif
-    return ret;
 }
 
 #ifndef WOLFSSL_NO_TLS12
