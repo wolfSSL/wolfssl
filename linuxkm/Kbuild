@@ -89,7 +89,7 @@ endif
 ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 
 $(obj)/libwolfssl.mod.o: ccflags-y :=
-$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
+$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
 
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
@@ -109,7 +109,7 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
 endif
 
-$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y = $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION
+$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y = $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
 $(obj)/wolfcrypt/benchmark/benchmark.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
