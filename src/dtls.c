@@ -1421,29 +1421,27 @@ int wolfSSL_dtls_cid_max_size(void)
     return DTLS_CID_MAX_SIZE;
 }
 
-void wolfSSL_dtls_cid_parse(const unsigned char* msg, unsigned int msgSz,
-        const unsigned char** cid, unsigned int cidSz)
+const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
+        unsigned int msgSz, unsigned int cidSz)
 {
-    if (cid == NULL)
-        return;
-    *cid = NULL;
     /* we need at least the first byte to check version */
     if (msg == NULL || cidSz == 0 || msgSz < OPAQUE8_LEN + cidSz)
-        return;
+        return NULL;
     if (msg[0] == dtls12_cid) {
         /* DTLS 1.2 CID packet */
         if (msgSz < DTLS_RECORD_HEADER_SZ + cidSz)
-            return;
+            return NULL;
         /* content type(1) + version(2) + epoch(2) + sequence(6) */
-        *cid = msg + ENUM_LEN + VERSION_SZ + OPAQUE16_LEN + OPAQUE16_LEN +
+        return msg + ENUM_LEN + VERSION_SZ + OPAQUE16_LEN + OPAQUE16_LEN +
                 OPAQUE32_LEN;
     }
     else if (Dtls13UnifiedHeaderCIDPresent(msg[0])) {
         /* DTLS 1.3 CID packet */
         if (msgSz < OPAQUE8_LEN + cidSz)
-            return;
-        *cid = msg + OPAQUE8_LEN;
+            return NULL;
+        return msg + OPAQUE8_LEN;
     }
+    return NULL;
 }
 #endif /* WOLFSSL_DTLS_CID */
 

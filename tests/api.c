@@ -100363,7 +100363,6 @@ static int test_wolfSSL_dtls_cid_parse(void)
 {
     EXPECT_DECLS;
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
-    const unsigned char* cid = NULL;
     /* Taken from Wireshark. Right-click -> copy -> ... as escaped string */
     /* Plaintext ServerHelloDone. No CID. */
     byte noCid[] =
@@ -100381,14 +100380,9 @@ static int test_wolfSSL_dtls_cid_parse(void)
             "\xe7\x23\x2c\xad\x65\x83\xa8\xf4\xbf\xbf\x7b\x25\x16\x80\x19\xc3" \
             "\x81\xda\xf5\x3f";
 
-    wolfSSL_dtls_cid_parse(noCid, sizeof(noCid), &cid, 8);
-    ExpectPtrEq(cid, NULL);
-    wolfSSL_dtls_cid_parse(cid12, sizeof(cid12), &cid, 8);
-    ExpectPtrEq(cid, cid12 + 11);
-    wolfSSL_dtls_cid_parse(cid13, sizeof(cid13), &cid, 8);
-    ExpectPtrEq(cid, cid13 + 1);
-
-
+    ExpectPtrEq(wolfSSL_dtls_cid_parse(noCid, sizeof(noCid), 8), NULL);
+    ExpectPtrEq(wolfSSL_dtls_cid_parse(cid12, sizeof(cid12), 8), cid12 + 11);
+    ExpectPtrEq(wolfSSL_dtls_cid_parse(cid13, sizeof(cid13), 8), cid13 + 1);
 #endif
     return EXPECT_RESULT();
 }

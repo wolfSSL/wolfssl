@@ -3971,7 +3971,8 @@ int  wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
     \sa wolfSSL_dtls_got_timeout
     \sa wolfSSL_dtls
 */
-int  wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz);
+int  wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer,
+                                   unsigned int peerSz);
 
 /*!
     \brief This function gets the sockaddr_in (of size peerSz) of the current
@@ -4042,7 +4043,8 @@ int  wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz);
     \sa wolfSSL_dtls_set_peer
     \sa wolfSSL_dtls
 */
-int  wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer, unsigned int* peerSz);
+int  wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer,
+                            unsigned int* peerSz);
 
 /*!
     \ingroup Debug
@@ -14286,9 +14288,13 @@ int  wolfSSL_read_early_data(WOLFSSL* ssl, void* data, int sz,
 /*!
     \ingroup IO
 
-    \brief
+    \brief This function is called to inject data into the WOLFSSL object. This
+    is useful when data needs to be read from a single place and demultiplexed
+    into multiple connections. The caller should then call wolfSSL_read() to
+    extract the plaintext data from the WOLFSSL object.
 
-    \param [in] ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param [in] ssl a pointer to a WOLFSSL structure, created using
+                    wolfSSL_new().
     \param [in] data data to inject into the ssl object.
     \param [in] sz number of bytes of data to inject.
 
@@ -15145,8 +15151,7 @@ int wolfSSL_dtls_cid_get_rx(WOLFSSL* ssl, unsigned char* buffer,
 \brief Get the ConnectionID used by the other peer. See RFC 9146 and RFC
 9147.
 
- \return WOLFSSL_SUCCESS if ConnectionID was correctly copied, error code
- otherwise
+ \return WOLFSSL_SUCCESS if ConnectionID was correctly set in cid.
 
  \param ssl A WOLFSSL object pointern
  \param cid Pointer that will be set to the internal memory that holds the CID

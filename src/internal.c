@@ -11531,8 +11531,7 @@ static int GetDtlsRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
         if (ssl->buffers.inputBuffer.length - *inOutIdx <
                 (word32)cidSz + LENGTH_SZ)
             return LENGTH_ERROR;
-        if (cidSz != DtlsGetCidRxSize(ssl) ||
-                wolfSSL_dtls_cid_get0_rx(ssl, &ourCid)   != WOLFSSL_SUCCESS)
+        if (wolfSSL_dtls_cid_get0_rx(ssl, &ourCid) != WOLFSSL_SUCCESS)
             return DTLS_CID_ERROR;
         if (XMEMCMP(ssl->buffers.inputBuffer.buffer + *inOutIdx, ourCid, cidSz)
                 != 0)

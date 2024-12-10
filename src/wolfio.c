@@ -569,7 +569,7 @@ STATIC int nucyassl_sendto(INT sd, CHAR *buf, UINT16 sz, INT16 flags,
     #define DTLS_RECVFROM_FUNCTION recvfrom
 #endif
 
-static int sockAddrEqual(
+int sockAddrEqual(
     SOCKADDR_S *a, XSOCKLENT aLen, SOCKADDR_S *b, XSOCKLENT bLen)
 {
     if (aLen != bLen)
@@ -687,6 +687,10 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 dtlsCtx->peer.bufSz = sizeof(SOCKADDR_S);
             else
                 dtlsCtx->peer.bufSz = 0;
+            newPeer = 1;
+            peer = (SOCKADDR_S*)dtlsCtx->peer.sa;
+        }
+        else if (!ssl->options.dtlsStateful) {
             newPeer = 1;
             peer = (SOCKADDR_S*)dtlsCtx->peer.sa;
         }
@@ -853,8 +857,8 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 dtlsCtx->peer.sz = peerSz;
             }
 #ifndef WOLFSSL_PEER_ADDRESS_CHANGES
-            else if ((dtlsCtx->peer.sz != (unsigned int)peerSz) ||
-                     (XMEMCMP(peer, dtlsCtx->peer.sa, peerSz) != 0)) {
+            else if (!sockAddrEqual(peer, peerSz, (SOCKADDR_S*)dtlsCtx->peer.sa,
+                                    dtlsCtx->peer.sz)) {
                 return WOLFSSL_CBIO_ERR_GENERAL;
             }
 #endif

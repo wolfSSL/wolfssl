@@ -5862,8 +5862,8 @@ WOLFSSL_API int wolfSSL_dtls_cid_get_tx(WOLFSSL* ssl, unsigned char* buffer,
     unsigned int bufferSz);
 WOLFSSL_API int wolfSSL_dtls_cid_get0_tx(WOLFSSL* ssl, unsigned char** cid);
 WOLFSSL_API int wolfSSL_dtls_cid_max_size(void);
-WOLFSSL_API void wolfSSL_dtls_cid_parse(const unsigned char* msg,
-        unsigned int msgSz, const unsigned char** cid, unsigned int cidSz);
+WOLFSSL_API const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
+        unsigned int msgSz, unsigned int cidSz);
 #endif /* defined(WOLFSSL_DTLS_CID) */
 
 #ifdef WOLFSSL_DTLS_CH_FRAG

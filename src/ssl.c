@@ -1932,14 +1932,16 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 {
 #ifdef WOLFSSL_DTLS
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
 
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 
     if (ssl->buffers.dtlsCtx.peer.sa != NULL &&
             ssl->buffers.dtlsCtx.peer.sz == peerSz &&
-            XMEMCMP(ssl->buffers.dtlsCtx.peer.sa, peer, peerSz) == 0) {
+            sockAddrEqual((SOCKADDR_S*)ssl->buffers.dtlsCtx.peer.sa,
+                    (XSOCKLENT)ssl->buffers.dtlsCtx.peer.sz, (SOCKADDR_S*)peer,
+                    (XSOCKLENT)peerSz)) {
         /* Already the current peer. */
         if (ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
             /* Clear any other pendingPeer */
@@ -2986,7 +2988,7 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
     int maxLength;
     int usedLength;
 
-    WOLFSSL_ENTER("wolfSSL_read_internal");
+    WOLFSSL_ENTER("wolfSSL_inject");
 
     if (ssl == NULL || data == NULL || sz <= 0)
         return BAD_FUNC_ARG;
@@ -10558,7 +10560,7 @@ static int chGoodDisableReadCB(WOLFSSL* ssl, void* ctx)
 int wolfDTLS_accept_stateless(WOLFSSL* ssl)
 {
     byte disableRead;
-    int ret = WOLFSSL_FATAL_ERROR;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     struct chGoodDisableReadCbCtx cb;
 
     WOLFSSL_ENTER("wolfDTLS_SetChGoodCb");
