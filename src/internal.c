@@ -92,12 +92,6 @@
  *      pair
  */
 
-
-#ifdef EXTERNAL_OPTS_OPENVPN
-#error EXTERNAL_OPTS_OPENVPN should not be defined\
-    when building wolfSSL
-#endif
-
 #ifndef WOLFCRYPT_ONLY
 
 #include <wolfssl/internal.h>

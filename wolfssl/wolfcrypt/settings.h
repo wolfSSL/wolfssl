@@ -28,6 +28,8 @@
  *
  *   ./configure CFLAGS="-DFEATURE_FLAG_TO_DEFINE -UFEATURE_FLAG_TO_CLEAR [...]"
  *
+ *   To build using a custom configuration method, define WOLFSSL_CUSTOM_CONFIG
+ *
  *   For more information see:
  *
  *   https://www.wolfssl.com/how-do-i-manage-the-build-configuration-of-wolfssl/
@@ -317,6 +319,12 @@
     #endif
 #endif
 
+#if (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
+    (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
+     !defined(EXTERNAL_OPTS_OPENVPN))
+    #error wolfssl/options.h included in compiled wolfssl library object.
+#endif
+
 #ifdef WOLFSSL_USER_SETTINGS
     #include "user_settings.h"
 #elif defined(USE_HAL_DRIVER) && !defined(HAVE_CONFIG_H)
@@ -326,6 +334,12 @@
     /* NOTE: cyassl_nucleus_defs.h is akin to user_settings.h */
     #include "nucleus.h"
     #include "os/networking/ssl/lite/cyassl_nucleus_defs.h"
+#elif !defined(BUILDING_WOLFSSL) && !defined(WOLFSSL_OPTIONS_H) && \
+      !defined(WOLFSSL_CUSTOM_CONFIG)
+    /* This warning indicates that the settings header may not be included before
+     * other wolfSSL headers. If you are using a custom configuration method,
+     * define WOLFSSL_CUSTOM_CONFIG to override this error. */
+    #warning "No configuration for wolfSSL detected, check header order"
 #endif
 
 #include <wolfssl/wolfcrypt/visibility.h>

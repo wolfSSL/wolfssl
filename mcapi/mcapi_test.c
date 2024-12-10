@@ -27,9 +27,12 @@
     #include <config.h>
 #endif
 
-/* mc api header */
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
 
+/* mc api header */
 #include "crypto.h"
 
 /* sanity test against our default implementation, wolfssl headers  */

@@ -24,6 +24,9 @@
 #ifdef HAVE_CONFIG_H
     #include "config.h"
 #endif
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef MICROCHIP_MPLAB_HARMONY

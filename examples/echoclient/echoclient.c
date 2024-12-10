@@ -24,10 +24,10 @@
     #include <config.h>
 #endif
 
-#include <wolfssl/wolfcrypt/settings.h>
 #ifndef WOLFSSL_USER_SETTINGS
     #include <wolfssl/options.h>
 #endif
+#include <wolfssl/wolfcrypt/settings.h>
 
 /* Force enable the compatibility macros for this example */
 #undef TEST_OPENSSL_COEXIST
