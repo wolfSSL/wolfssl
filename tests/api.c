@@ -81626,8 +81626,13 @@ static int test_tls13_apis(void)
     WOLFSSL_CTX* serverCtx = NULL;
     WOLFSSL*     serverSsl = NULL;
 #if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#ifndef NO_RSA
     const char*  ourCert = svrCertFile;
     const char*  ourKey  = svrKeyFile;
+#elif defined(HAVE_ECC)
+    const char*  ourCert = eccCertFile;
+    const char*  ourKey  = eccKeyFile;
+#endif
 #endif
 #endif
     int          required;
@@ -81735,10 +81740,23 @@ static int test_tls13_apis(void)
 #endif
 #ifndef NO_WOLFSSL_SERVER
     serverTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if !defined(NO_CERTS)
+    #if !defined(NO_FILESYSTEM)
     wolfSSL_CTX_use_certificate_chain_file(serverTls12Ctx, ourCert);
     wolfSSL_CTX_use_PrivateKey_file(serverTls12Ctx, ourKey,
         WOLFSSL_FILETYPE_PEM);
+    #elif defined(USE_CERT_BUFFERS_2048)
+    wolfSSL_CTX_use_certificate_chain_buffer_format(serverTls12Ctx,
+        server_cert_der_2048, sizeof_server_cert_der_2048,
+        WOLFSSL_FILETYPE_ASN1);
+    wolfSSL_CTX_use_PrivateKey_buffer(serverTls12Ctx, server_key_der_2048,
+        sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1);
+    #elif defined(USE_CERT_BUFFERS_256)
+    wolfSSL_CTX_use_certificate_chain_buffer_format(serverTls12Ctx,
+        serv_ecc_der_256, sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1);
+    wolfSSL_CTX_use_PrivateKey_buffer(serverTls12Ctx, ecc_key_der_256,
+        sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
+    #endif
 #endif
     serverTls12Ssl = wolfSSL_new(serverTls12Ctx);
 #endif
@@ -81750,9 +81768,23 @@ static int test_tls13_apis(void)
 #endif
 #ifndef NO_WOLFSSL_SERVER
     serverCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-#if !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+#if !defined(NO_CERTS)
+    /* ignore load failures, since we just need the server to have a cert set */
+    #if !defined(NO_FILESYSTEM)
     wolfSSL_CTX_use_certificate_chain_file(serverCtx, ourCert);
     wolfSSL_CTX_use_PrivateKey_file(serverCtx, ourKey, WOLFSSL_FILETYPE_PEM);
+    #elif defined(USE_CERT_BUFFERS_2048)
+    wolfSSL_CTX_use_certificate_chain_buffer_format(serverCtx,
+        server_cert_der_2048, sizeof_server_cert_der_2048,
+        WOLFSSL_FILETYPE_ASN1);
+    wolfSSL_CTX_use_PrivateKey_buffer(serverCtx, server_key_der_2048,
+        sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1);
+    #elif defined(USE_CERT_BUFFERS_256)
+    wolfSSL_CTX_use_certificate_chain_buffer_format(serverCtx, serv_ecc_der_256,
+        sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1);
+    wolfSSL_CTX_use_PrivateKey_buffer(serverCtx, ecc_key_der_256,
+        sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
+    #endif
 #endif
     serverSsl = wolfSSL_new(serverCtx);
     ExpectNotNull(serverSsl);
