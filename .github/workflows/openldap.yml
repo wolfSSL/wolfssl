@@ -16,7 +16,7 @@ jobs:
   build_wolfssl:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -47,7 +47,7 @@ jobs:
           - osp_ref: 2.5.13
             git_ref: OPENLDAP_REL_ENG_2_5_13
     name: ${{ matrix.osp_ref }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 20
     needs: build_wolfssl
