@@ -4163,8 +4163,8 @@ static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
         labelLen = (word32)XSTRLEN(label);
     }
 
-    ret = wc_CryptoCb_GetCert(devId, (const sword8 *)label,
-        labelLen, id, idLen, &certData, &certDataLen, &certFormat, ctx->heap);
+    ret = wc_CryptoCb_GetCert(devId, label, labelLen, id, idLen,
+        &certData, &certDataLen, &certFormat, ctx->heap);
     if (ret != 0) {
         ret = WOLFSSL_FAILURE;
         goto exit;

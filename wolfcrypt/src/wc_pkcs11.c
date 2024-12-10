@@ -4021,6 +4021,11 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
         goto exit;
     }
 
+    if (tmpl[0].ulValueLen <= 0) {
+        ret = WC_HW_E;
+        goto exit;
+    }
+
     certData = (byte *)XMALLOC(
         (int)tmpl[0].ulValueLen, info->cert.heap, DYNAMIC_TYPE_CERT);
     if (certData == NULL) {
@@ -4051,7 +4056,7 @@ exit:
     return ret;
 }
 
-#endif /* ifndef NO_CERTS */
+#endif /* !NO_CERTS */
 
 /**
  * Perform a cryptographic operation using PKCS#11 device.

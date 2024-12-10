@@ -1801,7 +1801,7 @@ int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz)
 #endif /* !WC_NO_RNG */
 
 #ifndef NO_CERTS
-int wc_CryptoCb_GetCert(int devId, const sword8 *label, word32 labelLen,
+int wc_CryptoCb_GetCert(int devId, const char *label, word32 labelLen,
                         const byte *id, word32 idLen, byte** out,
                         word32* outSz, int *format, void *heap)
 {
