@@ -4050,9 +4050,7 @@ static int Pkcs11GetCert(Pkcs11Session* session, wc_CryptoInfo* info) {
     certData = NULL;
 
 exit:
-    if (certData != NULL) {
-        XFREE(certData, info->cert.heap, DYNAMIC_TYPE_CERT);
-    }
+    XFREE(certData, info->cert.heap, DYNAMIC_TYPE_CERT);
     return ret;
 }
 
