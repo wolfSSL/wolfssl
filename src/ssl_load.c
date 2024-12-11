@@ -4174,10 +4174,7 @@ static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
         CERT_TYPE, NULL, NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
 
 exit:
-    if (certData != NULL) {
-        XFREE(certData, ctx->heap, DYNAMIC_TYPE_CERT);
-    }
-
+    XFREE(certData, ctx->heap, DYNAMIC_TYPE_CERT);
     return ret;
 }
 
