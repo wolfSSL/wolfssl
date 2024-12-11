@@ -4146,6 +4146,77 @@ int wolfSSL_CTX_use_AltPrivateKey_Label(WOLFSSL_CTX* ctx, const char* label,
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 #endif /* WOLF_PRIVATE_KEY_ID */
 
+#if defined(WOLF_CRYPTO_CB) && !defined(NO_CERTS)
+
+static int wolfSSL_CTX_use_certificate_ex(WOLFSSL_CTX* ctx,
+    const char *label, const unsigned char *id, int idLen, int devId)
+{
+    int ret;
+    byte *certData = NULL;
+    word32 certDataLen = 0;
+    word32 labelLen = 0;
+    int certFormat = 0;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_ex");
+
+    if (label != NULL) {
+        labelLen = (word32)XSTRLEN(label);
+    }
+
+    ret = wc_CryptoCb_GetCert(devId, label, labelLen, id, idLen,
+        &certData, &certDataLen, &certFormat, ctx->heap);
+    if (ret != 0) {
+        ret = WOLFSSL_FAILURE;
+        goto exit;
+    }
+
+    ret = ProcessBuffer(ctx, certData, certDataLen, certFormat,
+        CERT_TYPE, NULL, NULL, 0, GET_VERIFY_SETTING_CTX(ctx));
+
+exit:
+    XFREE(certData, ctx->heap, DYNAMIC_TYPE_CERT);
+    return ret;
+}
+
+/* Load the label name of a certificate into the SSL context.
+ *
+ * @param [in, out] ctx    SSL context object.
+ * @param [in]      label  Buffer holding label.
+ * @param [in]      devId  Device identifier.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_CTX_use_certificate_label(WOLFSSL_CTX* ctx,
+    const char *label, int devId)
+{
+    if ((ctx == NULL) || (label == NULL)) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_CTX_use_certificate_ex(ctx, label, NULL, 0, devId);
+}
+
+/* Load the id of a certificate into SSL context.
+ *
+ * @param [in, out] ctx    SSL context object.
+ * @param [in]      id     Buffer holding id.
+ * @param [in]      idLen  Size of data in bytes.
+ * @param [in]      devId  Device identifier.
+ * @return  1 on success.
+ * @return  0 on failure.
+ */
+int wolfSSL_CTX_use_certificate_id(WOLFSSL_CTX* ctx,
+    const unsigned char *id, int idLen, int devId)
+{
+    if ((ctx == NULL) || (id == NULL) || (idLen <= 0)) {
+        return WOLFSSL_FAILURE;
+    }
+
+    return wolfSSL_CTX_use_certificate_ex(ctx, NULL, id, idLen, devId);
+}
+
+#endif /* if defined(WOLF_CRYPTO_CB) && !defined(NO_CERTS) */
+
 /* Load a certificate chain in a buffer into SSL context.
  *
  * @param [in, out] ctx     SSL context object.

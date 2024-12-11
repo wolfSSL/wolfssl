@@ -71,9 +71,11 @@ extern "C" {
 #define CKF_RW_SESSION                        0x00000002UL
 #define CKF_SERIAL_SESSION                    0x00000004UL
 
+#define CKO_CERTIFICATE                       0x00000001UL
 #define CKO_PUBLIC_KEY                        0x00000002UL
 #define CKO_PRIVATE_KEY                       0x00000003UL
 #define CKO_SECRET_KEY                        0x00000004UL
+
 
 #define CKK_RSA                               0x00000000UL
 #define CKK_DH                                0x00000002UL

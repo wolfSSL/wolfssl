@@ -3545,6 +3545,12 @@ WOLFSSL_API int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* key, unsigned int len,
                                                const unsigned char* in, long sz, int format);
     WOLFSSL_API int wolfSSL_CTX_use_certificate_chain_buffer(WOLFSSL_CTX* ctx,
                                                     const unsigned char* in, long sz);
+#if defined(WOLF_CRYPTO_CB)
+    WOLFSSL_API int wolfSSL_CTX_use_certificate_label(WOLFSSL_CTX* ctx,
+                                                const char *label, int devId);
+    WOLFSSL_API int wolfSSL_CTX_use_certificate_id(WOLFSSL_CTX* ctx,
+                                const unsigned char *id, int idLen, int devId);
+#endif
 #ifdef WOLFSSL_DUAL_ALG_CERTS
     WOLFSSL_API int wolfSSL_CTX_use_AltPrivateKey_buffer(WOLFSSL_CTX* ctx,
                                 const unsigned char* in, long sz, int format);
