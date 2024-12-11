@@ -146,7 +146,6 @@ static WC_INLINE void poly1305_blocks_aarch64_16(Poly1305* ctx,
         "AND        x5, x10, x4, LSR #26\n\t"
         "AND        x4, x4, x10\n\t"
         "AND        x6, x6, x10\n\t"
-        "AND        x8, x8, x10\n\t"
         "STP        w4, w5, [%[ctx_h], #0]   \n\t"
         "STP        w6, w7, [%[ctx_h], #8]   \n\t"
         "STR        w8, [%[ctx_h], #16]   \n\t"
