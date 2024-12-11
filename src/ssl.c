@@ -3091,6 +3091,10 @@ int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
     ret = wolfSSL_write(ssl, data, sz);
     if (ret > 0 && wr != NULL) {
         *wr = (size_t)ret;
+        ret = 1;
+    }
+    else {
+        ret = 0;
     }
     return ret;
 }
@@ -20342,7 +20346,7 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
     #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-        if (ret == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG)) {
+        if (ret == ASN1_R_HEADER_TOO_LONG) {
             return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
         }
     #endif
@@ -21518,7 +21522,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
         if (ret == -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER))
             return (WOLFSSL_ERR_LIB_PEM << 24) | -WC_NO_ERR_TRACE(WOLFSSL_PEM_R_NO_START_LINE_E);
     #if defined(WOLFSSL_PYTHON)
-        if (ret == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG))
+        if (ret == ASN1_R_HEADER_TOO_LONG)
             return (WOLFSSL_ERR_LIB_ASN1 << 24) | -WC_NO_ERR_TRACE(WOLFSSL_ASN1_R_HEADER_TOO_LONG_E);
     #endif
         return (unsigned long)ret;
@@ -21730,7 +21734,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         return (WOLFSSL_ERR_LIB_SSL << 24) | -WC_NO_ERR_TRACE(PARSE_ERROR) /* SSL_R_HTTP_REQUEST */;
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-    else if (err == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG))
+    else if (err == ASN1_R_HEADER_TOO_LONG)
         return (WOLFSSL_ERR_LIB_ASN1 << 24) | -WC_NO_ERR_TRACE(WOLFSSL_ASN1_R_HEADER_TOO_LONG_E);
 #endif
   return err;
