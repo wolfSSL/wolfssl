@@ -322,9 +322,10 @@
     #endif
 #endif
 
-#if (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
-    (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
-     !defined(EXTERNAL_OPTS_OPENVPN))
+#if !defined(WOLFSSL_CUSTOM_CONFIG) && \
+    ((defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
+     (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
+     !defined(EXTERNAL_OPTS_OPENVPN)))
     #warning wolfssl/options.h included in compiled wolfssl library object.
 #endif
 
