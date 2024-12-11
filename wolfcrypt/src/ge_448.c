@@ -77,6 +77,14 @@ static const ge448_p2 ed448_base = {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 };
 
+static const word8 ed448_order[56] = {
+    0xf3, 0x44, 0x58, 0xab, 0x92, 0xc2, 0x78, 0x23, 0x55, 0x8f, 0xc5, 0x8d,
+    0x72, 0xc2, 0x6c, 0x21, 0x90, 0x36, 0xd6, 0xae, 0x49, 0xdb, 0x4e, 0xc4,
+    0xe9, 0x23, 0xca, 0x7c, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x3f,
+};
+
 /* Part of order of ed448 that needs tp be multiplied when reducing */
 static const word8 ed448_order_mul[56] = {
     0x0d, 0xbb, 0xa7, 0x54, 0x6d, 0x3d, 0x87, 0xdc, 0xaa, 0x70, 0x3a, 0x72,
@@ -86,6 +94,8 @@ static const word8 ed448_order_mul[56] = {
 
 /* Reduce scalar mod the order of the curve.
  * Scalar Will be 114 bytes.
+ *
+ * Only performs a weak reduce.
  *
  * b  [in]  Scalar to reduce.
  */
@@ -149,6 +159,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     int i, j;
     word32 t[112];
     word8 o;
+    sword16 u;
 
     /* a * b + d */
     for (i = 0; i < 56; i++)
@@ -200,6 +211,16 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     }
     r[i] = t[i] & 0xff;
     r[i+1] = 0;
+    /* Reduce to mod order. */
+    u = 0;
+    for (i = 0; i < 56; i++) {
+        u += r[i] - ed448_order[i]; u >>= 8;
+    }
+    o = 0 - (u >= 0);
+    u = 0;
+    for (i = 0; i < 56; i++) {
+        u += r[i] - (ed448_order[i] & o); r[i] = u & 0xff; u >>= 8;
+    }
 }
 
 /* Double the point on the Twisted Edwards curve. r = 2.p
@@ -430,6 +451,8 @@ int ge448_from_bytes_negate_vartime(ge448_p2 *r, const byte *b)
 
 /* Reduce scalar mod the order of the curve.
  * Scalar Will be 114 bytes.
+ *
+ * Only performs a weak reduce.
  *
  * b  [in]  Scalar to reduce.
  */
@@ -721,6 +744,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     word128 t[16];
     word128 c;
     word64 o;
+    sword64 u;
 
     /* Load from bytes */
     ad[ 0] =  ((sword64) (a[ 0]) <<  0)
@@ -1044,6 +1068,33 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     o = rd[ 4] >> 56; rd[ 5] += o; rd[ 4] = rd[ 4] & 0xffffffffffffff;
     o = rd[ 5] >> 56; rd[ 6] += o; rd[ 5] = rd[ 5] & 0xffffffffffffff;
     o = rd[ 6] >> 56; rd[ 7] += o; rd[ 6] = rd[ 6] & 0xffffffffffffff;
+    /* Reduce to mod order. */
+    u = 0;
+    u += rd[0] - (sword64)0x078c292ab5844f3L; u >>= 56;
+    u += rd[1] - (sword64)0x0c2728dc58f5523L; u >>= 56;
+    u += rd[2] - (sword64)0x049aed63690216cL; u >>= 56;
+    u += rd[3] - (sword64)0x07cca23e9c44edbL; u >>= 56;
+    u += rd[4] - (sword64)0x0ffffffffffffffL; u >>= 56;
+    u += rd[5] - (sword64)0x0ffffffffffffffL; u >>= 56;
+    u += rd[6] - (sword64)0x0ffffffffffffffL; u >>= 56;
+    u += rd[7] - (sword64)0x03fffffffffffffL; u >>= 56;
+    o = (word64)0 - (u >= 0);
+    u = 0;
+    u += rd[0] - ((word64)0x078c292ab5844f3L & o); rd[0] = u & 0xffffffffffffff;
+    u >>= 56;
+    u += rd[1] - ((word64)0x0c2728dc58f5523L & o); rd[1] = u & 0xffffffffffffff;
+    u >>= 56;
+    u += rd[2] - ((word64)0x049aed63690216cL & o); rd[2] = u & 0xffffffffffffff;
+    u >>= 56;
+    u += rd[3] - ((word64)0x07cca23e9c44edbL & o); rd[3] = u & 0xffffffffffffff;
+    u >>= 56;
+    u += rd[4] - ((word64)0x0ffffffffffffffL & o); rd[4] = u & 0xffffffffffffff;
+    u >>= 56;
+    u += rd[5] - ((word64)0x0ffffffffffffffL & o); rd[5] = u & 0xffffffffffffff;
+    u >>= 56;
+    u += rd[6] - ((word64)0x0ffffffffffffffL & o); rd[6] = u & 0xffffffffffffff;
+    u >>= 56;
+    u += rd[7] - ((word64)0x03fffffffffffffL & o); rd[7] = u & 0xffffffffffffff;
 
     /* Convert to bytes */
     r[ 0] = (byte)(rd[0 ] >>  0);
@@ -5072,6 +5123,8 @@ static const ge448_precomp base_i[16] = {
 /* Reduce scalar mod the order of the curve.
  * Scalar Will be 114 bytes.
  *
+ * Only performs a weak reduce.
+ *
  * b  [in]  Scalar to reduce.
  */
 void sc448_reduce(byte* b)
@@ -5522,6 +5575,7 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     word64 t[32];
     word64 c;
     word32 o;
+    sword32 u;
 
     /* Load from bytes */
     ad[ 0] =  (((sword32)((a[ 0]        ) >>  0)) <<  0)
@@ -6201,6 +6255,57 @@ void sc448_muladd(byte* r, const byte* a, const byte* b, const byte* d)
     o = rd[12] >> 28; rd[13] += o; rd[12] = rd[12] & 0xfffffff;
     o = rd[13] >> 28; rd[14] += o; rd[13] = rd[13] & 0xfffffff;
     o = rd[14] >> 28; rd[15] += o; rd[14] = rd[14] & 0xfffffff;
+    /* Reduce to mod order. */
+    u = 0;
+    u += rd[0] - (sword32)0x0b5844f3L; u >>= 28;
+    u += rd[1] - (sword32)0x078c292aL; u >>= 28;
+    u += rd[2] - (sword32)0x058f5523L; u >>= 28;
+    u += rd[3] - (sword32)0x0c2728dcL; u >>= 28;
+    u += rd[4] - (sword32)0x0690216cL; u >>= 28;
+    u += rd[5] - (sword32)0x049aed63L; u >>= 28;
+    u += rd[6] - (sword32)0x09c44edbL; u >>= 28;
+    u += rd[7] - (sword32)0x07cca23eL; u >>= 28;
+    u += rd[8] - (sword32)0x0fffffffL; u >>= 28;
+    u += rd[9] - (sword32)0x0fffffffL; u >>= 28;
+    u += rd[10] - (sword32)0x0fffffffL; u >>= 28;
+    u += rd[11] - (sword32)0x0fffffffL; u >>= 28;
+    u += rd[12] - (sword32)0x0fffffffL; u >>= 28;
+    u += rd[13] - (sword32)0x0fffffffL; u >>= 28;
+    u += rd[14] - (sword32)0x0fffffffL; u >>= 28;
+    u += rd[15] - (sword32)0x03ffffffL; u >>= 28;
+    o = (word32)0 - (u >= 0);
+    u = 0;
+    u += rd[0] - ((word32)0x0b5844f3L & o); rd[0] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[1] - ((word32)0x078c292aL & o); rd[1] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[2] - ((word32)0x058f5523L & o); rd[2] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[3] - ((word32)0x0c2728dcL & o); rd[3] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[4] - ((word32)0x0690216cL & o); rd[4] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[5] - ((word32)0x049aed63L & o); rd[5] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[6] - ((word32)0x09c44edbL & o); rd[6] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[7] - ((word32)0x07cca23eL & o); rd[7] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[8] - ((word32)0x0fffffffL & o); rd[8] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[9] - ((word32)0x0fffffffL & o); rd[9] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[10] - ((word32)0x0fffffffL & o); rd[10] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[11] - ((word32)0x0fffffffL & o); rd[11] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[12] - ((word32)0x0fffffffL & o); rd[12] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[13] - ((word32)0x0fffffffL & o); rd[13] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[14] - ((word32)0x0fffffffL & o); rd[14] = u & 0xfffffff;
+    u >>= 28;
+    u += rd[15] - ((word32)0x03ffffffL & o); rd[15] = u & 0xfffffff;
 
     /* Convert to bytes */
     r[ 0] = (byte)(rd[0 ] >>  0);
