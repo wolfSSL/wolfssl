@@ -21317,7 +21317,8 @@ static int DtlsShouldDrop(WOLFSSL* ssl, int retcode)
 }
 #endif /* WOLFSSL_DTLS */
 
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#if defined(WOLFSSL_TLS13) || \
+    (defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID))
 static int removeMsgInnerPadding(WOLFSSL* ssl)
 {
     word32 i = ssl->buffers.inputBuffer.idx +
@@ -21349,16 +21350,58 @@ static int removeMsgInnerPadding(WOLFSSL* ssl)
 }
 #endif
 
-int ProcessReply(WOLFSSL* ssl)
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+static void dtlsClearPeer(WOLFSSL_SOCKADDR* peer)
 {
-    return ProcessReplyEx(ssl, 0);
+    XFREE(peer->sa, NULL, DYNAMIC_TYPE_SOCKADDR);
+    peer->sa = NULL;
+    peer->sz = 0;
+    peer->bufSz = 0;
 }
+
+
+/**
+ * @brief Handle pending peer during record processing.
+ * @param ssl           WOLFSSL object.
+ * @param deprotected   0 when we have not decrypted the record yet
+ *                      1 when we have decrypted and verified the record
+ */
+static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
+{
+    if (ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
+        if (!deprotected) {
+            /* Here we have just read an entire record from the network. It is
+             * still encrypted. If processingPendingRecord is set then that
+             * means that an error occurred when processing the previous record.
+             * In that case we should clear the pendingPeer because we only
+             * want to allow it to be valid for one record. */
+            if (ssl->buffers.dtlsCtx.processingPendingRecord) {
+                /* Clear the pending peer. */
+                dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);
+            }
+            ssl->buffers.dtlsCtx.processingPendingRecord =
+                    !ssl->buffers.dtlsCtx.processingPendingRecord;
+        }
+        else {
+            /* Pending peer present and record deprotected. Update the peer. */
+            dtlsClearPeer(&ssl->buffers.dtlsCtx.peer);
+            ssl->buffers.dtlsCtx.peer = ssl->buffers.dtlsCtx.pendingPeer;
+            XMEMSET(&ssl->buffers.dtlsCtx.pendingPeer, 0,
+                    sizeof(WOLFSSL_SOCKADDR));
+            ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+        }
+    }
+    else {
+        ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+    }
+}
+#endif
 
 /* Process input requests. Return 0 is done, 1 is call again to complete, and
    negative number is error. If allowSocketErr is set, SOCKET_ERROR_E in
    ssl->error will be whitelisted. This is useful when the connection has been
    closed and the endpoint wants to check for an alert sent by the other end. */
-int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
+static int DoProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 {
     int    ret = 0, type = internal_error, readSz;
     int    atomicUser = 0;
@@ -21558,21 +21601,8 @@ int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
 
 #ifdef WOLFSSL_DTLS
 #ifdef WOLFSSL_DTLS_CID
-            if (ssl->options.dtls) {
-                if (!ssl->buffers.dtlsCtx.processingPendingRecord)
-                    ssl->buffers.dtlsCtx.processingPendingRecord = 1;
-                else {
-                    ssl->buffers.dtlsCtx.processingPendingRecord = 0;
-                    if (ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
-                        /* Clear the pending peer */
-                        XFREE(ssl->buffers.dtlsCtx.pendingPeer.sa, ssl->heap,
-                              DYNAMIC_TYPE_SOCKADDR);
-                        ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
-                        ssl->buffers.dtlsCtx.pendingPeer.sz = 0;
-                        ssl->buffers.dtlsCtx.pendingPeer.bufSz = 0;
-                    }
-                }
-            }
+            if (ssl->options.dtls)
+                dtlsProcessPendingPeer(ssl, 0);
 #endif
             if (ssl->options.dtls && DtlsShouldDrop(ssl, ret)) {
                     ssl->options.processReply = doProcessInit;
@@ -21953,7 +21983,8 @@ default:
             }
 
             if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 1) {
-#if defined(WOLFSSL_TLS13) || defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+#if defined(WOLFSSL_TLS13) || \
+    (defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID))
                 int removePadding = 0;
                 if (ssl->options.tls1_3)
                     removePadding = 1;
@@ -22031,17 +22062,8 @@ default:
                 }
 #ifdef WOLFSSL_DTLS_CID
                 /* Update the peer if we were able to de-protect the message */
-                if (IsEncryptionOn(ssl, 0) &&
-                        ssl->buffers.dtlsCtx.pendingPeer.sa != NULL) {
-                    XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap,
-                          DYNAMIC_TYPE_SOCKADDR);
-                    ssl->buffers.dtlsCtx.peer =
-                            ssl->buffers.dtlsCtx.pendingPeer;
-                    ssl->buffers.dtlsCtx.pendingPeer.sa = NULL;
-                    ssl->buffers.dtlsCtx.pendingPeer.sz = 0;
-                    ssl->buffers.dtlsCtx.pendingPeer.bufSz = 0;
-                    ssl->buffers.dtlsCtx.processingPendingRecord = 0;
-                }
+                if (IsEncryptionOn(ssl, 0))
+                    dtlsProcessPendingPeer(ssl, 1);
 #endif
             }
 #endif /* WOLFSSL_DTLS */
@@ -22510,6 +22532,35 @@ default:
             return INPUT_CASE_ERROR;
         }
     }
+}
+
+int ProcessReply(WOLFSSL* ssl)
+{
+    return ProcessReplyEx(ssl, 0);
+}
+
+int ProcessReplyEx(WOLFSSL* ssl, int allowSocketErr)
+{
+    int ret;
+
+    ret = DoProcessReplyEx(ssl, allowSocketErr);
+
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_DTLS_CID)
+    if (ssl->options.dtls) {
+        /* Don't clear pending peer if we are going to re-enter
+         * DoProcessReplyEx */
+        if (ret != WC_NO_ERR_TRACE(WANT_READ)
+#ifdef WOLFSSL_ASYNC_CRYPT
+                && ret != WC_NO_ERR_TRACE(WC_PENDING_E)
+#endif
+            ) {
+            dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);
+            ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+        }
+    }
+#endif
+
+    return ret;
 }
 
 #if !defined(WOLFSSL_NO_TLS12) || !defined(NO_OLD_TLS) || \
