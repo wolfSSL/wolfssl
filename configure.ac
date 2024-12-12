@@ -2973,7 +2973,7 @@ fi
 
 
 ENABLED_ARMASM_INLINE="no"
-ENABLED_ARMASM_SHA3="no"
+ENABLED_ARMASM_SHA3="unknown"
 ENABLED_ARMASM_CRYPTO_SM4="no"
 # ARM Assembly
 # Both SHA3 and SHA512 instructions available with ARMV8.2-a
@@ -3003,6 +3003,16 @@ then
             esac
             ENABLED_ARMASM_SHA3=yes
             ENABLED_ARMASM_PLUS=yes
+            ;;
+        no-sha512-crypto | no-sha3-crypto)
+            case $host_cpu in
+            *aarch64*)
+                ;;
+            *)
+                AC_MSG_ERROR([SHA512/SHA3 instructions only available on Aarch64 CPU.])
+                break;;
+            esac
+            ENABLED_ARMASM_SHA3=no
             ;;
         sm4)
             case $host_cpu in
@@ -3048,8 +3058,10 @@ then
         *aarch64*)
             case $host_os in
             *darwin*)
-                # All known Aarch64 Mac computers support SHA-512 instructions
-                ENABLED_ARMASM_SHA3=yes
+                # Turn it on unless explicitly turned off.
+                if test "$ENABLED_ARMASM_SHA3" = "unknown"; then
+                    ENABLED_ARMASM_SHA3="yes"
+                fi
                 ;;
             *)
                 # +crypto needed for hardware acceleration
@@ -3162,6 +3174,9 @@ fi
 if test "$ENABLED_ARMASM_SHA3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
     AM_CCASFLAGS="$AM_CCASFLAGS -DWOLFSSL_ARMASM_CRYPTO_SHA512 -DWOLFSSL_ARMASM_CRYPTO_SHA3"
+fi
+if test "$ENABLED_ARMASM_SHA3" = "unknown"; then
+    ENABLED_ARMASM_SHA3="no"
 fi
 if test "$ENABLED_ARMASM_SM3" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM3"
