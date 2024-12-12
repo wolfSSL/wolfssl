@@ -69680,12 +69680,16 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
 #ifdef WOLFSSL_CERT_REQ
     {
         unsigned char srv_pkcs9p[] = "Server";
+        unsigned char rfc822Mlbx[] = "support@wolfssl.com";
         unsigned char fvrtDrnk[] = "tequila";
         unsigned char* der = NULL;
         char* subject = NULL;
 
         ExpectIntEQ(X509_NAME_add_entry_by_NID(nm, NID_pkcs9_contentType,
             MBSTRING_ASC, srv_pkcs9p, -1, -1, 0), SSL_SUCCESS);
+
+        ExpectIntEQ(X509_NAME_add_entry_by_NID(nm, NID_rfc822Mailbox,
+            MBSTRING_ASC, rfc822Mlbx, -1, -1, 0), SSL_SUCCESS);
 
         ExpectIntEQ(X509_NAME_add_entry_by_NID(nm, NID_favouriteDrink,
             MBSTRING_ASC, fvrtDrnk, -1, -1, 0), SSL_SUCCESS);
@@ -69695,6 +69699,7 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
         ExpectNotNull(der);
 
         ExpectNotNull(subject = X509_NAME_oneline(nm, NULL, 0));
+        ExpectNotNull(XSTRSTR(subject, "rfc822Mailbox=support@wolfssl.com"));
         ExpectNotNull(XSTRSTR(subject, "favouriteDrink=tequila"));
         ExpectNotNull(XSTRSTR(subject, "contentType=Server"));
     #ifdef DEBUG_WOLFSSL

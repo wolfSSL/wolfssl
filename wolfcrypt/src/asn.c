@@ -4601,6 +4601,7 @@ static const byte dnsSRVOid[] = {43, 6, 1, 5, 5, 7, 8, 7};
 /* Pilot attribute types (0.9.2342.19200300.100.1.*) */
 #define PLT_ATTR_TYPE_OID_BASE(num) {9, 146, 38, 137, 147, 242, 44, 100, 1, num}
 static const byte uidOid[] = PLT_ATTR_TYPE_OID_BASE(1); /* user id */
+static const byte rfc822Mlbx[] = PLT_ATTR_TYPE_OID_BASE(3); /* RFC822 mailbox */
 static const byte fvrtDrk[] = PLT_ATTR_TYPE_OID_BASE(5);/* favourite drink*/
 #endif
 
@@ -13887,6 +13888,15 @@ static int GetRDN(DecodedCert* cert, char* full, word32* idx, int* nid,
         *nid = WC_NID_domainComponent;
     #endif
     }
+    else if (oidSz == sizeof(rfc822Mlbx) && XMEMCMP(oid, rfc822Mlbx, oidSz) == 0) {
+        /* Set the RFC822 mailbox, type string, length and NID. */
+        id = ASN_RFC822_MAILBOX;
+        typeStr = WOLFSSL_RFC822_MAILBOX;
+        typeStrLen = sizeof(WOLFSSL_RFC822_MAILBOX) - 1;
+    #ifdef WOLFSSL_X509_NAME_AVAILABLE
+        *nid = WC_NID_rfc822Mailbox;
+    #endif
+    }
     else if (oidSz == sizeof(fvrtDrk) && XMEMCMP(oid, fvrtDrk, oidSz) == 0) {
         /* Set the favourite drink, type string, length and NID. */
         id = ASN_FAVOURITE_DRINK;
@@ -14589,6 +14599,15 @@ static int GetCertName(DecodedCert* cert, char* full, byte* hash, int nameType,
                         defined(OPENSSL_EXTRA_X509_SMALL)) \
                         && !defined(WOLFCRYPT_ONLY)
                         nid = WC_NID_domainComponent;
+                    #endif /* OPENSSL_EXTRA */
+                        break;
+                    case ASN_RFC822_MAILBOX:
+                        copy = WOLFSSL_RFC822_MAILBOX;
+                        copyLen = sizeof(WOLFSSL_RFC822_MAILBOX) - 1;
+                    #if (defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)) \
+                        && !defined(WOLFCRYPT_ONLY)
+                        nid = WC_NID_rfc822Mailbox;
                     #endif /* OPENSSL_EXTRA */
                         break;
                     case ASN_FAVOURITE_DRINK:
@@ -28094,6 +28113,10 @@ static int EncodeName(EncodedName* name, const char* nameStr,
             thisLen += (int)sizeof(uidOid);
             firstSz  = (int)sizeof(uidOid);
             break;
+        case ASN_RFC822_MAILBOX:
+            thisLen += (int)sizeof(rfc822Mlbx);
+            firstSz  = (int)sizeof(rfc822Mlbx);
+            break;
         case ASN_FAVOURITE_DRINK:
             thisLen += (int)sizeof(fvrtDrk);
             firstSz  = (int)sizeof(fvrtDrk);
@@ -28156,6 +28179,12 @@ static int EncodeName(EncodedName* name, const char* nameStr,
         case ASN_USER_ID:
             XMEMCPY(name->encoded + idx, uidOid, sizeof(uidOid));
             idx += (int)sizeof(uidOid);
+            /* str type */
+            name->encoded[idx++] = nameTag;
+            break;
+        case ASN_RFC822_MAILBOX:
+            XMEMCPY(name->encoded + idx, rfc822Mlbx, sizeof(rfc822Mlbx));
+            idx += (int)sizeof(rfc822Mlbx);
             /* str type */
             name->encoded[idx++] = nameTag;
             break;
@@ -28254,6 +28283,10 @@ static int EncodeName(EncodedName* name, const char* nameStr,
                 /* Domain component OID different to standard types. */
                 oid = uidOid;
                 oidSz = sizeof(uidOid);
+                break;
+            case ASN_RFC822_MAILBOX:
+                oid = rfc822Mlbx;
+                oidSz = sizeof(rfc822Mlbx);
                 break;
             case ASN_FAVOURITE_DRINK:
                 oid = fvrtDrk;
@@ -28576,6 +28609,12 @@ static int SetNameRdnItems(ASNSetData* dataASN, ASNItem* namesASN,
                     /* Copy userID data into dynamic vars. */
                     SetRdnItems(namesASN + idx, dataASN + idx, uidOid,
                                 sizeof(uidOid), (byte)GetNameType(name, i),
+                        (const byte*)GetOneCertName(name, i), nameLen[i]);
+                }
+                else if (type == ASN_RFC822_MAILBOX) {
+                    /* Copy RFC822 mailbox data into dynamic vars. */
+                    SetRdnItems(namesASN + idx, dataASN + idx, rfc822Mlbx,
+                                sizeof(rfc822Mlbx), (byte)GetNameType(name, i),
                         (const byte*)GetOneCertName(name, i), nameLen[i]);
                 }
                 else if (type == ASN_FAVOURITE_DRINK) {

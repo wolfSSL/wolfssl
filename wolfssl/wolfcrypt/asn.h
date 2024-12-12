@@ -729,6 +729,7 @@ enum DN_Tags {
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
     ASN_FAVOURITE_DRINK  = 0x13, /* favouriteDrink */
+    ASN_RFC822_MAILBOX = 0x14, /* rfc822Mailbox */
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
@@ -780,6 +781,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 
 #define WOLFSSL_USER_ID          "/UID="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
+#define WOLFSSL_RFC822_MAILBOX   "/rfc822Mailbox="
 #define WOLFSSL_FAVOURITE_DRINK  "/favouriteDrink="
 #define WOLFSSL_CONTENT_TYPE     "/contentType="
 
@@ -912,6 +914,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_NID_businessCategory ASN_BUS_CAT
 #define WC_NID_domainComponent ASN_DOMAIN_COMPONENT
 #define WC_NID_postalCode ASN_POSTAL_CODE   /* postalCode */
+#define WC_NID_rfc822Mailbox 460
 #define WC_NID_favouriteDrink 462
 #define WC_NID_userId 458
 #define WC_NID_registeredAddress 870
@@ -985,6 +988,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define NID_businessCategory WC_NID_businessCategory
 #define NID_domainComponent WC_NID_domainComponent
 #define NID_postalCode WC_NID_postalCode
+#define NID_rfc822Mailbox WC_NID_rfc822Mailbox
 #define NID_favouriteDrink WC_NID_favouriteDrink
 #define NID_userId WC_NID_userId
 #define NID_emailAddress WC_NID_emailAddress
