@@ -17504,6 +17504,8 @@ const WOLFSSL_ObjectInfo wolfssl_object_info[] = {
       "emailAddress"},
     { WC_NID_domainComponent, WC_NID_domainComponent, oidCertNameType, "DC",
       "domainComponent"},
+    { WC_NID_rfc822Mailbox, WC_NID_rfc822Mailbox, oidCertNameType, "rfc822Mailbox",
+      "rfc822Mailbox"},
     { WC_NID_favouriteDrink, WC_NID_favouriteDrink, oidCertNameType, "favouriteDrink",
       "favouriteDrink"},
     { WC_NID_businessCategory, WC_NID_businessCategory, oidCertNameType,
