@@ -20198,7 +20198,7 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 
 
 #ifndef WOLFSSL_AEAD_ONLY
-#ifdef WOLSSL_OLD_TIMINGPADVERIFY
+#ifdef WOLFSSL_OLD_TIMINGPADVERIFY
 #define COMPRESS_LOWER      64
 #define COMPRESS_UPPER      55
 #define COMPRESS_CONSTANT   13
@@ -20604,7 +20604,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     return ret;
 }
 #endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
-#endif /* WOLSSL_OLD_TIMINGPADVERIFY */
+#endif /* WOLFSSL_OLD_TIMINGPADVERIFY */
 #endif /* WOLFSSL_AEAD_ONLY */
 
 int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx, int sniff)

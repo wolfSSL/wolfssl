@@ -40,16 +40,16 @@ int main(void)
 {
     int ret;
 #ifndef NO_CRYPT_TEST
-	wolfCrypt_Init();
+    wolfCrypt_Init();
 
-	printf("\nCrypt Test\n");
-	wolfcrypt_test(&args);
+    printf("\nCrypt Test\n");
+    wolfcrypt_test(&args);
     ret = args.return_code;
-	printf("Crypt Test: Return code %d\n", ret);
+    printf("Crypt Test: Return code %d\n", ret);
 
-	wolfCrypt_Cleanup();
+    wolfCrypt_Cleanup();
 #else
     ret = NOT_COMPILED_IN;
 #endif
-	return ret;
+    return ret;
 }

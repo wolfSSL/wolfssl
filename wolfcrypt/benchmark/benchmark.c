@@ -14703,6 +14703,7 @@ void bench_sphincsKeySign(byte level, byte optim)
 
 #else
 
+    #include <time.h>
     #include <sys/time.h>
 
     double current_time(int reset)
