@@ -9592,11 +9592,17 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 else
             #endif
                 {
+                #ifdef HAVE_PK_CALLBACKS
+                    buffer tmp;
+
+                    tmp.length = ssl->buffers.key->length;
+                    tmp.buffer = ssl->buffers.key->buffer;
+                #endif
                     ret = EccVerify(ssl, sigOut, args->sigLen,
                             args->sigData, args->sigDataSz,
                             (ecc_key*)ssl->hsKey,
                 #ifdef HAVE_PK_CALLBACKS
-                            ssl->buffers.key
+                            &tmp
                 #else
                             NULL
                 #endif

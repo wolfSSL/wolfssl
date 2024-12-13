@@ -34079,13 +34079,20 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
                 #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                     if (ssl->buffers.keyType == sm2_sa_algo) {
+                    #ifdef HAVE_PK_CALLBACKS
+                        buffer tmp;
+
+                        tmp.length = ssl->buffers.key->length;
+                        tmp.buffer = ssl->buffers.key->buffer;
+                    #endif
+
                         ret = Sm3wSm2Verify(ssl,
                             TLS12_SM2_SIG_ID, TLS12_SM2_SIG_ID_SZ,
                             ssl->buffers.sig.buffer, ssl->buffers.sig.length,
                             ssl->buffers.digest.buffer,
                             ssl->buffers.digest.length, key,
                         #ifdef HAVE_PK_CALLBACKS
-                            ssl->buffers.key
+                            &tmp
                         #else
                             NULL
                         #endif
@@ -34094,12 +34101,19 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     else
                 #endif
                     {
+                    #ifdef HAVE_PK_CALLBACKS
+                        buffer tmp;
+
+                        tmp.length = ssl->buffers.key->length;
+                        tmp.buffer = ssl->buffers.key->buffer;
+                    #endif
+
                         ret = EccVerify(ssl,
                             ssl->buffers.sig.buffer, ssl->buffers.sig.length,
                             ssl->buffers.digest.buffer,
                             ssl->buffers.digest.length, key,
                         #ifdef HAVE_PK_CALLBACKS
-                            ssl->buffers.key
+                            &tmp
                         #else
                             NULL
                         #endif
@@ -36287,6 +36301,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 else
                             #endif /* WOLFSSL_SM2 */
                                 {
+                                #ifdef HAVE_PK_CALLBACKS
+                                    buffer tmp;
+
+                                    tmp.length = ssl->buffers.key->length;
+                                    tmp.buffer = ssl->buffers.key->buffer;
+                                #endif
+
                                     ret = EccVerify(ssl,
                                         args->output + LENGTH_SZ + args->idx,
                                         args->sigSz,
@@ -36294,7 +36315,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                         ssl->buffers.digest.length,
                                         key,
                                     #ifdef HAVE_PK_CALLBACKS
-                                        ssl->buffers.key
+                                        &tmp
                                     #else
                                         NULL
                                     #endif
