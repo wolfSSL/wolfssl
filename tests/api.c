@@ -8461,6 +8461,13 @@ static int test_client_nofail(void* args, cbType cb)
         goto done;
     }
 
+#ifdef WOLFSSL_SRTP
+    /* make sure that NULL (error condition) returns 1 */
+    if (wolfSSL_CTX_set_tlsext_use_srtp(ctx, NULL) != 1) {
+         goto done;
+    }
+#endif
+
 #ifdef HAVE_CRL
     if (cbf != NULL && cbf->crlPemFile != NULL) {
         if (wolfSSL_CTX_EnableCRL(ctx, WOLFSSL_CRL_CHECKALL) != WOLFSSL_SUCCESS)
@@ -8502,6 +8509,13 @@ static int test_client_nofail(void* args, cbType cb)
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
+
+#ifdef WOLFSSL_SRTP
+    /* make sure that NULL (error condition) returns 1 */
+    if (wolfSSL_set_tlsext_use_srtp(ssl, NULL) != 1) {
+         goto done;
+    }
+#endif
 
     if (!doUdp) {
         if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
