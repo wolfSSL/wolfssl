@@ -23930,7 +23930,7 @@ int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx)
 #else
               wc_AesGcmEncrypt
 #endif
-              (encrypt->encrypt.aes,
+              (encrypt->cipher.aes,
                out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
                encSz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                encrypt->nonce, AESGCM_NONCE_SZ,
@@ -23959,6 +23959,72 @@ int wolfSSL_AsyncEncryptSetSignal(WOLFSSL* ssl, int idx,
     else {
         ssl->buffers.encrypt[idx].signal = signal;
         ssl->buffers.encrypt[idx].signalCtx = ctx;
+
+        ssl->buffers.encryptSignalRegistered = 1;
+    }
+
+    return ret;
+}
+
+
+int wolfSSL_AsyncDecryptReady(WOLFSSL* ssl, int idx)
+{
+    ThreadCrypt* decrypt;
+
+    if (ssl == NULL) {
+        return 0;
+    }
+
+    decrypt = &ssl->buffers.decrypt[idx];
+    return (decrypt->avail == 0) && (decrypt->done == 0);
+}
+
+int wolfSSL_AsyncDecryptStop(WOLFSSL* ssl, int idx)
+{
+    ThreadCrypt* decrypt;
+
+    if (ssl == NULL) {
+        return 1;
+    }
+
+    decrypt = &ssl->buffers.decrypt[idx];
+    return decrypt->stop;
+}
+
+int wolfSSL_AsyncDecrypt(WOLFSSL* ssl, int idx)
+{
+    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    ThreadCrypt* decrypt = &ssl->buffers.decrypt[idx];
+
+    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
+        unsigned char* out = decrypt->buffer.buffer + decrypt->offset;
+        unsigned char* input = decrypt->buffer.buffer + decrypt->offset;
+        unsigned char* tag = input + decrypt->cryptLen;
+
+        ret = wc_AesGcmDecrypt(decrypt->cipher.aes, out, input,
+               decrypt->cryptLen,
+               decrypt->nonce, AESGCM_NONCE_SZ,
+               tag, ssl->specs.aead_mac_size,
+               decrypt->additional, RECORD_HEADER_SZ);
+        decrypt->done = 1;
+    }
+
+    return ret;
+}
+
+int wolfSSL_AsyncDecryptSetSignal(WOLFSSL* ssl, int idx,
+    WOLFSSL_THREAD_SIGNAL signal, void* ctx)
+{
+    int ret = 0;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ssl->buffers.decrypt[idx].signal = signal;
+        ssl->buffers.decrypt[idx].signalCtx = ctx;
+
+        ssl->buffers.decryptSignalRegistered = 1;
     }
 
     return ret;

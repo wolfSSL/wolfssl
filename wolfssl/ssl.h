@@ -3718,6 +3718,12 @@ WOLFSSL_API int wolfSSL_AsyncEncryptStop(WOLFSSL* ssl, int idx);
 WOLFSSL_API int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx);
 WOLFSSL_API int wolfSSL_AsyncEncryptSetSignal(WOLFSSL* ssl, int idx,
    WOLFSSL_THREAD_SIGNAL signal, void* ctx);
+
+WOLFSSL_API int wolfSSL_AsyncDecryptReady(WOLFSSL* ssl, int idx);
+WOLFSSL_API int wolfSSL_AsyncDecryptStop(WOLFSSL* ssl, int idx);
+WOLFSSL_API int wolfSSL_AsyncDecrypt(WOLFSSL* ssl, int idx);
+WOLFSSL_API int wolfSSL_AsyncDecryptSetSignal(WOLFSSL* ssl, int idx,
+   WOLFSSL_THREAD_SIGNAL signal, void* ctx);
 #endif
 
 
