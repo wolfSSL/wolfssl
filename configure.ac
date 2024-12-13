@@ -2974,7 +2974,6 @@ then
 fi
 
 
-ENABLED_ARMASM_CRYPTO="unknown"
 ENABLED_ARMASM_INLINE="no"
 ENABLED_ARMASM_SHA3="no"
 ENABLED_ARMASM_CRYPTO_SM4="no"
@@ -2995,9 +2994,6 @@ then
             ;;
         inline)
             ENABLED_ARMASM_INLINE=yes
-            ;;
-        no-crypto)
-            ENABLED_ARMASM_CRYPTO=no
             ;;
         sha512-crypto | sha3-crypto)
             case $host_cpu in
@@ -3074,9 +3070,7 @@ then
             esac
             # Include options.h
             AM_CCASFLAGS="$AM_CCASFLAGS -DEXTERNAL_OPTS_OPENVPN"
-            if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
-                ENABLED_ARMASM_CRYPTO=yes
-            fi
+            ENABLED_ARMASM_CRYPTO=yes
             ENABLED_ARMASM_NEON=yes
             ENABLED_ARM_64=yes
 
@@ -3176,9 +3170,6 @@ if test "$ENABLED_ARMASM_SM3" = "yes"; then
 fi
 if test "$ENABLED_ARMASM_SM4" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_CRYPTO_SM4"
-fi
-if test "$ENABLED_ARMASM_CRYPTO" = "unknown"; then
-    ENABLED_ARMASM_CRYPTO=no
 fi
 if test "$ENABLED_ARMASM_CRYPTO" = "no"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM_NO_HW_CRYPTO"

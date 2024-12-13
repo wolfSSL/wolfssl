@@ -38,11 +38,6 @@
     #define HAVE_CPUID
     #define HAVE_CPUID_INTEL
 #endif
-#if (defined(WOLFSSL_AARCH64_BUILD) || (defined(__aarch64__) && \
-     defined(WOLFSSL_ARMASM))) && !defined(WOLFSSL_NO_ASM)
-    #define HAVE_CPUID
-    #define HAVE_CPUID_AARCH64
-#endif
 
 #ifdef HAVE_CPUID_INTEL
 
@@ -67,26 +62,6 @@
     #define IS_INTEL_MOVBE(f)   ((f) & CPUID_MOVBE)
     #define IS_INTEL_BMI1(f)    ((f) & CPUID_BMI1)
     #define IS_INTEL_SHA(f)     ((f) & CPUID_SHA)
-
-#elif defined(HAVE_CPUID_AARCH64)
-
-    #define CPUID_AES         0x0001
-    #define CPUID_PMULL       0x0002
-    #define CPUID_SHA256      0x0004
-    #define CPUID_SHA512      0x0008
-    #define CPUID_RDM         0x0010
-    #define CPUID_SHA3        0x0020
-    #define CPUID_SM3         0x0040
-    #define CPUID_SM4         0x0080
-
-    #define IS_AARCH64_AES(f)       ((f) & CPUID_AES)
-    #define IS_AARCH64_PMULL(f)     ((f) & CPUID_PMULL)
-    #define IS_AARCH64_SHA256(f)    ((f) & CPUID_SHA256)
-    #define IS_AARCH64_SHA512(f)    ((f) & CPUID_SHA512)
-    #define IS_AARCH64_RDM(f)       ((f) & CPUID_RDM)
-    #define IS_AARCH64_SHA3(f)      ((f) & CPUID_SHA3)
-    #define IS_AARCH64_SM3(f)       ((f) & CPUID_SM3)
-    #define IS_AARCH64_SM4(f)       ((f) & CPUID_SM4)
 
 #endif
 

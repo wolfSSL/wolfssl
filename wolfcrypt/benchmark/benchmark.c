@@ -229,8 +229,6 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
-#include <wolfssl/wolfcrypt/cpuid.h>
-
 #ifdef USE_FLAT_BENCHMARK_H
     #include "benchmark.h"
 #else
@@ -3941,46 +3939,6 @@ exit:
     return NULL;
 }
 
-#if defined(HAVE_CPUID) && defined(WOLFSSL_TEST_STATIC_BUILD)
-static void print_cpu_features(void)
-{
-    word32 cpuid_flags = cpuid_get_flags();
-
-    printf("CPU: ");
-#ifdef HAVE_CPUID_INTEL
-    printf("Intel");
-#ifdef WOLFSSL_X86_64_BUILD
-    printf(" x86_64");
-#else
-    printf(" x86");
-#endif
-    printf(" -");
-    if (IS_INTEL_AVX1(cpuid_flags))   printf(" avx1");
-    if (IS_INTEL_AVX2(cpuid_flags))   printf(" avx2");
-    if (IS_INTEL_RDRAND(cpuid_flags)) printf(" rdrand");
-    if (IS_INTEL_RDSEED(cpuid_flags)) printf(" rdseed");
-    if (IS_INTEL_BMI2(cpuid_flags))   printf(" bmi2");
-    if (IS_INTEL_AESNI(cpuid_flags))  printf(" aesni");
-    if (IS_INTEL_ADX(cpuid_flags))    printf(" adx");
-    if (IS_INTEL_MOVBE(cpuid_flags))  printf(" movbe");
-    if (IS_INTEL_BMI1(cpuid_flags))   printf(" bmi1");
-    if (IS_INTEL_SHA(cpuid_flags))    printf(" sha");
-#endif
-#ifdef __aarch64__
-    printf("Aarch64 -");
-    if (IS_AARCH64_AES(cpuid_flags))    printf(" aes");
-    if (IS_AARCH64_PMULL(cpuid_flags))  printf(" pmull");
-    if (IS_AARCH64_SHA256(cpuid_flags)) printf(" sha256");
-    if (IS_AARCH64_SHA512(cpuid_flags)) printf(" sha512");
-    if (IS_AARCH64_RDM(cpuid_flags))    printf(" rdm");
-    if (IS_AARCH64_SHA3(cpuid_flags))   printf(" sha3");
-    if (IS_AARCH64_SM3(cpuid_flags))    printf(" sm3");
-    if (IS_AARCH64_SM4(cpuid_flags))    printf(" sm4");
-#endif
-    printf("\n");
-}
-#endif
-
 int benchmark_init(void)
 {
     int ret = 0;
@@ -4000,10 +3958,6 @@ int benchmark_init(void)
         printf("%swolfCrypt_Init failed %d\n", err_prefix, ret);
         return EXIT_FAILURE;
     }
-
-#if defined(HAVE_CPUID) && defined(WOLFSSL_TEST_STATIC_BUILD)
-    print_cpu_features();
-#endif
 
 #ifdef HAVE_WC_INTROSPECTION
     printf("Math: %s\n", wc_GetMathInfo());
