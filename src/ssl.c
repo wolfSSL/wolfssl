@@ -8267,6 +8267,130 @@ static int d2iTryDilithiumKey(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
 }
 #endif /* HAVE_DILITHIUM */
 
+#ifdef HAVE_ED25519
+static int d2iTryEd25519Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
+    long memSz, int priv)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    int isEd25519 = 0;
+#ifndef WOLFSSL_SMALL_STACK
+    ed25519_key ed25519[1];
+#else
+    ed25519_key *ed25519 = (ed25519_key *)
+        XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_ED25519);
+    if (ed25519 == NULL) {
+        return 0;
+    }
+#endif
+
+    if (wc_ed25519_init(ed25519) != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(ed25519, NULL, DYNAMIC_TYPE_ED25519);
+    #endif
+        return 0;
+    }
+
+    /* Test if Ed25519 key. Try all levels. */
+    if (priv) {
+        isEd25519 = (wc_ed25519_import_private_only(mem, (word32)memSz, ed25519)
+                     == 0);
+    }
+    else {
+        isEd25519 = (wc_ed25519_import_public(mem, (word32)memSz, ed25519)
+                     == 0);
+    }
+    wc_ed25519_free(ed25519);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(ed25519, NULL, DYNAMIC_TYPE_ED25519);
+#endif
+
+    if (!isEd25519) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (*out != NULL) {
+        pkey = *out;
+    }
+    else {
+        /* Create a fake Ed25519 EVP_PKEY. In the future, we might
+         * integrate Ed25519 into the compatibility layer. */
+        pkey = wolfSSL_EVP_PKEY_new();
+        if (pkey == NULL) {
+            WOLFSSL_MSG("Ed25519 wolfSSL_EVP_PKEY_new error");
+            return 0;
+        }
+    }
+    pkey->type = WC_EVP_PKEY_ED25519;
+    pkey->pkey.ptr = NULL;
+    pkey->pkey_sz = 0;
+
+    *out = pkey;
+    return 1;
+}
+#endif /* HAVE_ED25519 */
+
+#ifdef HAVE_ED448
+static int d2iTryEd448Key(WOLFSSL_EVP_PKEY** out, const unsigned char* mem,
+    long memSz, int priv)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    int isEd448 = 0;
+#ifndef WOLFSSL_SMALL_STACK
+    ed448_key ed448[1];
+#else
+    ed448_key *ed448 = (ed448_key *)
+        XMALLOC(sizeof(ed448_key), NULL, DYNAMIC_TYPE_ED448);
+    if (ed448 == NULL) {
+        return 0;
+    }
+#endif
+
+    if (wc_ed448_init(ed448) != 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(ed448, NULL, DYNAMIC_TYPE_ED448);
+    #endif
+        return 0;
+    }
+
+    /* Test if Ed448 key. Try all levels. */
+    if (priv) {
+        isEd448 = (wc_ed448_import_private_only(mem, (word32)memSz, ed448)
+                   == 0);
+    }
+    else {
+        isEd448 = (wc_ed448_import_public(mem, (word32)memSz, ed448)
+                   == 0);
+    }
+    wc_ed448_free(ed448);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(ed448, NULL, DYNAMIC_TYPE_ED448);
+#endif
+
+    if (!isEd448) {
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (*out != NULL) {
+        pkey = *out;
+    }
+    else {
+        /* Create a fake Ed448 EVP_PKEY. In the future, we might
+         * integrate Ed448 into the compatibility layer. */
+        pkey = wolfSSL_EVP_PKEY_new();
+        if (pkey == NULL) {
+            WOLFSSL_MSG("Ed448 wolfSSL_EVP_PKEY_new error");
+            return 0;
+        }
+    }
+    pkey->type = WC_EVP_PKEY_ED448;
+    pkey->pkey.ptr = NULL;
+    pkey->pkey_sz = 0;
+
+    *out = pkey;
+    return 1;
+}
+#endif /* HAVE_ED448 */
+
 static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     const unsigned char** in, long inSz, int priv)
 {
@@ -8333,6 +8457,18 @@ static WOLFSSL_EVP_PKEY* d2iGenericKey(WOLFSSL_EVP_PKEY** out,
     }
     else
 #endif /* HAVE_DILITHIUM */
+#ifdef HAVE_ED25519
+    if (d2iTryEd25519Key(&pkey, *in, inSz, priv) >= 0) {
+        ;
+    }
+    else
+#endif /* HAVE_ED25519 */
+#ifdef HAVE_ED448
+    if (d2iTryEd448Key(&pkey, *in, inSz, priv) >= 0) {
+        ;
+    }
+    else
+#endif /* HAVE_ED448 */
     {
         WOLFSSL_MSG("wolfSSL_d2i_PUBKEY couldn't determine key type");
     }
