@@ -1134,7 +1134,7 @@ static int maxq10xx_cipher_do(mxq_algo_id_t algo_id, mxq_u1 encrypt,
     cparams.p_aad        = p_aad;
     cparams.aad_length   = aad_len;
 
-    if (algo_id == ALGO_CIPHER_AES_GCM) {
+    if ((algo_id == ALGO_CIPHER_AES_GCM) || (algo_id == ALGO_CIPHER_AES_CCM)) {
         if (encrypt) {
             cparams.aead_tag_len = tag_len;
         }
@@ -1484,7 +1484,7 @@ static int do_aescbc(wc_CryptoInfo* info)
         return CRYPTOCB_UNAVAILABLE;
     }
 
-    if (info->cipher.aesgcm_enc.aes->maxq_ctx.key_pending) {
+    if (info->cipher.aescbc.aes->maxq_ctx.key_pending) {
         rc = aes_set_key(
             info->cipher.aescbc.aes,
             (const byte *)info->cipher.aescbc.aes->maxq_ctx.key,
@@ -1526,6 +1526,80 @@ static int do_aescbc(wc_CryptoInfo* info)
     /* done */
     return rc;
 }
+
+#ifdef HAVE_AESCCM
+/* Both info->cipher.aesccm_enc and info->cipher.aesccm_dec are defined this
+ * way. */
+typedef struct aes_ccm {
+    Aes*        aes;
+    byte*       out;
+    const byte* in;
+    word32      sz;
+    const byte* nonce;
+    word32      nonceSz;
+    byte*       authTag;
+    word32      authTagSz;
+    const byte* authIn;
+    word32      authInSz;
+} aes_ccm;
+
+static int do_aesccm(wc_CryptoInfo* info)
+{
+    int rc;
+    aes_ccm *aesccm = NULL;
+
+    if (info->cipher.enc) {
+        aesccm = (aes_ccm*) &info->cipher.aesccm_enc;
+    } else {
+        aesccm = (aes_ccm*) &info->cipher.aesccm_dec;
+    }
+
+    if (aesccm->sz == 0) {
+        return CRYPTOCB_UNAVAILABLE;
+     }
+
+    if (aesccm->aes->reg == NULL) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    /* Cannot do in place decryption because we get the incoming IV and that
+     * would already get over written. */
+    if (aesccm->in == aesccm->out) {
+        return CRYPTOCB_UNAVAILABLE;
+    }
+
+    if (aesccm->aes->maxq_ctx.key_pending) {
+        rc = aes_set_key(
+            aesccm->aes,
+            (const byte *)aesccm->aes->maxq_ctx.key,
+            aesccm->aes->keylen);
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
+    rc = wolfSSL_CryptHwMutexLock();
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = maxq10xx_cipher_do(
+        ALGO_CIPHER_AES_CCM,
+        info->cipher.enc,
+        aesccm->aes->maxq_ctx.key_obj_id,
+        (byte *)aesccm->in,
+        (byte *)aesccm->out,
+        aesccm->sz,
+        (byte *)aesccm->nonce, aesccm->nonceSz,
+        (byte *)aesccm->authIn, aesccm->authInSz,
+        (byte *)aesccm->authTag, aesccm->authTagSz);
+
+    wolfSSL_CryptHwMutexUnLock();
+
+    /* done */
+    return rc;
+}
+#endif /* HAVE_AESCCM */
 
 #if !defined(NO_SHA) && !defined(NO_SHA256) && defined(MAXQ_SHA256)
 static int do_sha256(wc_CryptoInfo* info)
@@ -1619,6 +1693,11 @@ int wolfSSL_MAXQ10XX_CryptoDevCb(int devId, wc_CryptoInfo* info, void* ctx)
             rc = do_aescbc(info);
         }
     #endif /* HAVE_AES_CBC */
+    #ifdef HAVE_AESCCM
+        if (info->cipher.type == WC_CIPHER_AES_CCM) {
+            rc = do_aesccm(info);
+        }
+    #endif /* HAVE_AESCCM */
 #endif /* !NO_AES || !NO_DES3 */
     }
 #if !defined(NO_SHA) || !defined(NO_SHA256)
