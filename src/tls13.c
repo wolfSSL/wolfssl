@@ -2428,8 +2428,10 @@ static WC_INLINE void WriteSEQTls13(WOLFSSL* ssl, int verifyOrder, byte* out)
  * iv     The derived IV.
  * order  The side on which the message is to be or was sent.
  */
-static WC_INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
-                                   int order)
+#ifndef WOLFSSL_THREADED_CRYPT
+static WC_INLINE
+#endif
+void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv, int order)
 {
     int seq_offset = AEAD_NONCE_SZ - SEQ_SZ;
     /* The nonce is the IV with the sequence XORed into the last bytes. */
@@ -2655,7 +2657,6 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                     if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                 #endif
                     {
-
                 #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
                     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
                         ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,

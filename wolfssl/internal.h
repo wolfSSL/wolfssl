@@ -4787,10 +4787,12 @@ enum AcceptStateTls13 {
 #include <pthread.h>
 
 typedef struct ThreadCrypt {
-    Ciphers encrypt;
+    Ciphers cipher;
     bufferStatic buffer;
     unsigned char nonce[AESGCM_NONCE_SZ];
     unsigned char additional[AEAD_AUTH_DATA_SZ];
+    unsigned char recordHdr[DTLS_RECORD_HEADER_MAX_SZ + 16];
+    word32 recordHdrLen;
     int init;
     int offset;
     int cryptLen;
@@ -4808,7 +4810,10 @@ typedef struct Buffers {
     bufferStatic    inputBuffer;
     bufferStatic    outputBuffer;
 #ifdef WOLFSSL_THREADED_CRYPT
+    int             encryptSignalRegistered;
     ThreadCrypt     encrypt[WOLFSSL_THREADED_CRYPT_CNT];
+    int             decryptSignalRegistered;
+    ThreadCrypt     decrypt[WOLFSSL_THREADED_CRYPT_CNT];
 #endif
     buffer          domainName;            /* for client check */
     buffer          clearOutputBuffer;
@@ -6931,6 +6936,11 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         int sizeOnly, int asyncOkay, int epochOrder);
 
 #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_THREADED_CRYPT
+WOLFSSL_LOCAL void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
+    int order);
+#endif
+
 /* Use WOLFSSL_API to use this function in tests/api.c */
 WOLFSSL_API int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);

@@ -2672,9 +2672,6 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
     const byte* ackMessage;
     w64wrapper epoch, seq;
     word16 length;
-#ifndef WOLFSSL_RW_THREADED
-    int ret;
-#endif
     int i;
 
     if (inputSize < OPAQUE16_LEN)
@@ -2708,7 +2705,7 @@ int DoDtls13Ack(WOLFSSL* ssl, const byte* input, word32 inputSize,
 
 #ifndef WOLFSSL_RW_THREADED
     if (ssl->dtls13WaitKeyUpdateAck) {
-        ret = DoDtls13KeyUpdateAck(ssl);
+        int ret = DoDtls13KeyUpdateAck(ssl);
         if (ret != 0)
             return ret;
     }
