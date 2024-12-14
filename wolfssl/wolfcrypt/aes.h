@@ -61,7 +61,7 @@ typedef struct Gcm {
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
-#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+#ifdef WOLFSSL_ARMASM
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
 #endif
 WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
@@ -304,13 +304,6 @@ struct Aes {
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
 #endif /* WOLFSSL_AESNI */
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-    byte use_aes_hw_crypto;
-#ifdef HAVE_AESGCM
-    byte use_pmull_hw_crypto;
-#endif
-#endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx;
@@ -839,59 +832,6 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
 
 #endif /* WOLFSSL_AES_EAX */
 
-#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
-    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
-/* GHASH one block of data.
- *
- * XOR block into tag and GMULT with H.
- *
- * @param [in, out] aes    AES GCM object.
- * @param [in]      block  Block of AAD or cipher text.
- */
-#define GHASH_ONE_BLOCK(aes, block)                     \
-    do {                                                \
-        xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
-        GMULT_AARCH64(AES_TAG(aes), aes->gcm.H);        \
-    }                                                   \
-    while (0)
-
-WOLFSSL_LOCAL int AES_set_key_AARCH64(const unsigned char *userKey,
-    const int keylen, Aes* aes, int dir);
-WOLFSSL_LOCAL void AES_encrypt_AARCH64(const byte* inBlock, byte* outBlock,
-    byte* key, int nr);
-WOLFSSL_LOCAL void AES_decrypt_AARCH64(const byte* inBlock, byte* outBlock,
-    byte* key, int nr);
-WOLFSSL_LOCAL void AES_CBC_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
-    byte* reg, byte* key, int rounds);
-WOLFSSL_LOCAL void AES_CBC_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
-    byte* reg, byte* key, int rounds);
-WOLFSSL_LOCAL void AES_CTR_encrypt_AARCH64(Aes* aes, byte* out, const byte* in,
-    word32 sz);
-WOLFSSL_LOCAL void GMULT_AARCH64(byte* X, byte* Y);
-#ifdef WOLFSSL_AESGCM_STREAM
-WOLFSSL_LOCAL void GHASH_UPDATE_AARCH64(Aes* aes, const byte* a, word32 aSz,
-    const byte* c, word32 cSz);
-WOLFSSL_LOCAL void AES_GCM_init_AARCH64(Aes* aes, const byte* iv, word32 ivSz);
-WOLFSSL_LOCAL void AES_GCM_crypt_update_AARCH64(Aes* aes, byte* out,
-    const byte* in, word32 sz);
-WOLFSSL_LOCAL void AES_GCM_final_AARCH64(Aes* aes, byte* authTag,
-    word32 authTagSz);
-#endif
-WOLFSSL_LOCAL void AES_GCM_set_key_AARCH64(Aes* aes, byte* iv);
-WOLFSSL_LOCAL void AES_GCM_encrypt_AARCH64(Aes* aes, byte* out, const byte* in,
-    word32 sz, const byte* iv, word32 ivSz, byte* authTag, word32 authTagSz,
-    const byte* authIn, word32 authInSz);
-WOLFSSL_LOCAL int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in,
-    word32 sz, const byte* iv, word32 ivSz, const byte* authTag,
-    word32 authTagSz, const byte* authIn, word32 authInSz);
-
-#ifdef WOLFSSL_AES_XTS
-WOLFSSL_LOCAL void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out,
-    const byte* in, word32 sz, const byte* i);
-WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out,
-    const byte* in, word32 sz, const byte* i);
-#endif /* WOLFSSL_AES_XTS */
-#endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
 #ifdef __cplusplus
     } /* extern "C" */
