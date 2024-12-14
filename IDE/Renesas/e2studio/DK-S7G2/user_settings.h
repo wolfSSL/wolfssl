@@ -74,4 +74,7 @@
 #define HAVE_ED25519
 #define WOLFSSL_SHA512
 
+/* NETX Duo BSD manual lists the socket len type as an INT */
+#undef  XSOCKLENT
+#define XSOCKLENT int
 #endif
