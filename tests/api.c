@@ -2643,7 +2643,8 @@ static int test_wolfSSL_CTX_load_system_CA_certs(void)
         ret = -1;
     }
     if (ret == 0) {
-    #if defined(USE_WINDOWS_API) || defined(__APPLE__)
+    #if defined(USE_WINDOWS_API) || defined(__APPLE__) || \
+        defined(NO_WOLFSSL_DIR)
         dirValid = 1;
     #else
         word32 numDirs;
