@@ -137,16 +137,16 @@ $(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FP
 $(obj)/wolfcrypt/src/poly1305_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_kyber_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 
+ifndef READELF
+    READELF := readelf
+endif
+
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
 rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
 
 ifndef NM
     NM := nm
-endif
-
-ifndef READELF
-    READELF := readelf
 endif
 
 ifndef OBJCOPY
@@ -197,9 +197,9 @@ $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_
 		$(AWK) '/^ *[0-9]+: / {							\
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}				\
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
-		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", WOLFSSL);";    		\
+		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", EXPORT_SYMBOL_NS_Q(WOLFSSL));";\
 		  }									\
 		}' >> $@
-	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, WOLFSSL);\n#endif' >> $@
+	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, EXPORT_SYMBOL_NS_Q(WOLFSSL));\n#endif' >> $@
 
 clean-files := linuxkm src wolfcrypt
