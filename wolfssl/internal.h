@@ -2758,6 +2758,10 @@ struct WOLFSSL_SOCKADDR {
 };
 
 typedef struct WOLFSSL_DTLS_CTX {
+#ifdef WOLFSSL_RW_THREADED
+    /* Protect peer access after the handshake */
+    wolfSSL_RwLock peerLock;
+#endif
     WOLFSSL_SOCKADDR peer;
 #ifdef WOLFSSL_DTLS_CID
     WOLFSSL_SOCKADDR pendingPeer; /* When using CID's, we don't want to update

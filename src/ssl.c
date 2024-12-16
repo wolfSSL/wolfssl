@@ -1913,12 +1913,19 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
-
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_LockRwLock_Wr(&ssl->buffers.dtlsCtx.peerLock) != 0)
+        return WOLFSSL_FAILURE;
+#endif
     ret = SockAddrSet(&ssl->buffers.dtlsCtx.peer, peer, peerSz, ssl->heap);
     if (ret == WOLFSSL_SUCCESS && !(peer == NULL || peerSz == 0))
         ssl->buffers.dtlsCtx.userSet = 1;
     else
         ssl->buffers.dtlsCtx.userSet = 0;
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
+        ret = WOLFSSL_FAILURE;
+#endif
     return ret;
 #else
     (void)ssl;
@@ -1936,7 +1943,10 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
-
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
+        return WOLFSSL_FAILURE;
+#endif
     if (ssl->buffers.dtlsCtx.peer.sa != NULL &&
             ssl->buffers.dtlsCtx.peer.sz == peerSz &&
             sockAddrEqual((SOCKADDR_S*)ssl->buffers.dtlsCtx.peer.sa,
@@ -1959,6 +1969,10 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
     }
     if (ret == WOLFSSL_SUCCESS)
         ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
+        ret = WOLFSSL_FAILURE;
+#endif
     return ret;
 #else
     (void)ssl;
@@ -1972,18 +1986,25 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
 {
 #ifdef WOLFSSL_DTLS
-    if (ssl == NULL) {
+    int ret = WOLFSSL_FAILURE;
+    if (ssl == NULL)
         return WOLFSSL_FAILURE;
-    }
-
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
+        return WOLFSSL_FAILURE;
+#endif
     if (peer != NULL && peerSz != NULL
             && *peerSz >= ssl->buffers.dtlsCtx.peer.sz
             && ssl->buffers.dtlsCtx.peer.sa != NULL) {
         *peerSz = ssl->buffers.dtlsCtx.peer.sz;
         XMEMCPY(peer, ssl->buffers.dtlsCtx.peer.sa, *peerSz);
-        return WOLFSSL_SUCCESS;
+        ret = WOLFSSL_SUCCESS;
     }
-    return WOLFSSL_FAILURE;
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
+        ret = WOLFSSL_FAILURE;
+#endif
+    return ret;
 #else
     (void)ssl;
     (void)peer;
@@ -1995,7 +2016,7 @@ int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
 int wolfSSL_dtls_get0_peer(WOLFSSL* ssl, const void** peer,
                            unsigned int* peerSz)
 {
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_RW_THREADED)
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 

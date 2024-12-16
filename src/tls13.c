@@ -3621,6 +3621,7 @@ int CreateCookieExt(const WOLFSSL* ssl, byte* hash, word16 hashSz,
 #ifdef WOLFSSL_DTLS13
     /* Tie cookie to peer address */
     if (ret == 0) {
+        /* peerLock not necessary. Still in handshake phase. */
         if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0) {
             ret = wc_HmacUpdate(&cookieHmac,
                 (byte*)ssl->buffers.dtlsCtx.peer.sa,
@@ -6409,6 +6410,7 @@ int TlsCheckCookie(const WOLFSSL* ssl, const byte* cookie, word16 cookieSz)
 #ifdef WOLFSSL_DTLS13
     /* Tie cookie to peer address */
     if (ret == 0) {
+        /* peerLock not necessary. Still in handshake phase. */
         if (ssl->options.dtls && ssl->buffers.dtlsCtx.peer.sz > 0) {
             ret = wc_HmacUpdate(&cookieHmac,
                 (byte*)ssl->buffers.dtlsCtx.peer.sa,

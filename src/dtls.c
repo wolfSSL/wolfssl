@@ -230,6 +230,7 @@ static int CreateDtls12Cookie(const WOLFSSL* ssl, const WolfSSL_CH* ch,
             ssl->buffers.dtlsCookieSecret.buffer,
             ssl->buffers.dtlsCookieSecret.length);
         if (ret == 0) {
+            /* peerLock not necessary. Still in handshake phase. */
             ret = wc_HmacUpdate(&cookieHmac,
                    (const byte*)ssl->buffers.dtlsCtx.peer.sa,
                                 ssl->buffers.dtlsCtx.peer.sz);

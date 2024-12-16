@@ -7392,6 +7392,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;
 
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_InitRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
+        return BAD_MUTEX_E;
+#endif
+
     ssl->IOCB_ReadCtx  = &ssl->buffers.dtlsCtx;  /* prevent invalid pointer access if not */
     ssl->IOCB_WriteCtx = &ssl->buffers.dtlsCtx;  /* correctly set */
 #else
@@ -8261,6 +8266,9 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     }
     XFREE(ssl->buffers.dtlsCtx.peer.sa, ssl->heap, DYNAMIC_TYPE_SOCKADDR);
     ssl->buffers.dtlsCtx.peer.sa = NULL;
+#ifdef WOLFSSL_RW_THREADED
+    wc_FreeRwLock(&ssl->buffers.dtlsCtx.peerLock);
+#endif
 #ifdef WOLFSSL_DTLS_CID
     XFREE(ssl->buffers.dtlsCtx.pendingPeer.sa, ssl->heap,
             DYNAMIC_TYPE_SOCKADDR);
@@ -21384,11 +21392,11 @@ static void dtlsProcessPendingPeer(WOLFSSL* ssl, int deprotected)
         }
         else {
             /* Pending peer present and record deprotected. Update the peer. */
-            dtlsClearPeer(&ssl->buffers.dtlsCtx.peer);
-            ssl->buffers.dtlsCtx.peer = ssl->buffers.dtlsCtx.pendingPeer;
-            XMEMSET(&ssl->buffers.dtlsCtx.pendingPeer, 0,
-                    sizeof(WOLFSSL_SOCKADDR));
+            (void)wolfSSL_dtls_set_peer(ssl,
+                    &ssl->buffers.dtlsCtx.pendingPeer.sa,
+                    ssl->buffers.dtlsCtx.pendingPeer.sz);
             ssl->buffers.dtlsCtx.processingPendingRecord = 0;
+            dtlsClearPeer(&ssl->buffers.dtlsCtx.pendingPeer);
         }
     }
     else {
