@@ -10594,7 +10594,7 @@ retry:
                         }
                     }
                 #endif
-                goto retry;
+                return WOLFSSL_FATAL_ERROR;
 
             case WC_NO_ERR_TRACE(WOLFSSL_CBIO_ERR_CONN_CLOSE):
                 ssl->options.isClosed = 1;
