@@ -4166,10 +4166,6 @@ extern void uITRON4_free(void *p) ;
 #error "DTLS v1.3 requires both WOLFSSL_TLS13 and WOLFSSL_DTLS"
 #endif
 
-#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_DTLS13)
-#error "ConnectionID is supported for DTLSv1.3 only"
-#endif
-
 #if defined(WOLFSSL_QUIC) && defined(WOLFSSL_CALLBACKS)
     #error WOLFSSL_QUIC is incompatible with WOLFSSL_CALLBACKS.
 #endif
