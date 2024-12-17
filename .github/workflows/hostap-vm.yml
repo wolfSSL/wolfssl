@@ -63,12 +63,31 @@ jobs:
           path: build-dir.tgz
           retention-days: 5
 
+  checkout_hostap:
+    name: Checkout hostap repo
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    steps:
+      - name: Checking if we have hostap in cache
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: hostap
+          key: hostap-repo
+          lookup-only: true
+
+      - name: Checkout hostap
+        run: git clone git://w1.fi/hostap.git hostap
+
   build_uml_linux:
     name: Build UML (UserMode Linux)
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
+    needs: checkout_hostap
     steps:
       - name: Checking if we have kernel in cache
         uses: actions/cache@v4
@@ -78,12 +97,13 @@ jobs:
           key: hostap-linux-${{ env.LINUX_REF }}
           lookup-only: true
 
-      - name: Checkout hostap
+      - name: Checking if we have hostap in cache
         if: steps.cache.outputs.cache-hit != 'true'
-        uses: actions/checkout@v4
+        uses: actions/cache/restore@v4
         with:
-          repository: julek-wolfssl/hostap-mirror
           path: hostap
+          key: hostap-repo
+          fail-on-cache-miss: true
 
       - name: Checkout linux
         if: steps.cache.outputs.cache-hit != 'true'
@@ -146,7 +166,7 @@ jobs:
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 45
-    needs: [build_wolfssl, build_uml_linux]
+    needs: [build_wolfssl, build_uml_linux, checkout_hostap]
     steps:
       - name: Checking if we have kernel in cache
         uses: actions/cache/restore@v4
@@ -198,12 +218,16 @@ jobs:
             libnl-3-dev binutils-dev libssl-dev libiberty-dev libnl-genl-3-dev \
             libnl-route-3-dev libdbus-1-dev bridge-utils tshark python3-pycryptodome
 
-      - name: Checkout hostap
-        uses: actions/checkout@v4
+      - name: Checking if we have hostap in cache
+        uses: actions/cache/restore@v4
         with:
-          repository: julek-wolfssl/hostap-mirror
           path: hostap
-          ref: ${{ matrix.config.hostap_ref }}
+          key: hostap-repo
+          fail-on-cache-miss: true
+
+      - name: Checkout correct ref
+        working-directory: hostap
+        run: git checkout ${{ matrix.config.hostap_ref }}
 
       - name: Update certs
         working-directory: hostap/tests/hwsim/auth_serv
