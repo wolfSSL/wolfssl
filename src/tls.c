@@ -13607,7 +13607,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             return ret;
 #endif /* HAVE_RPK */
 
-#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY)
+#if defined(HAVE_ENCRYPT_THEN_MAC) && !defined(WOLFSSL_AEAD_ONLY) && \
+    !defined(WOLFSSL_NO_TLS12)
         if (!ssl->options.disallowEncThenMac) {
             ret = TLSX_EncryptThenMac_Use(ssl);
             if (ret != 0)
@@ -15681,7 +15682,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         #elif defined(WOLFSSL_ALLOW_TLSV10)
             InitSSL_Method(method, MakeTLSv1());
         #else
-            #error No TLS version enabled!
+        #error No TLS version enabled! Consider using NO_TLS or WOLFCRYPT_ONLY.
         #endif
 
             method->downgrade = 1;
@@ -16056,7 +16057,7 @@ int TLSX_Parse(WOLFSSL* ssl, const byte* input, word16 length, byte msgType,
         #elif defined(WOLFSSL_ALLOW_TLSV10)
             InitSSL_Method(method, MakeTLSv1());
         #else
-            #error No TLS version enabled!
+        #error No TLS version enabled! Consider using NO_TLS or WOLFCRYPT_ONLY.
         #endif
 
             method->downgrade = 1;

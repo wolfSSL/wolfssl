@@ -191,7 +191,7 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #else
         #define SSL_TICKET_CTX(ssl) ssl->ctx->ticketEncCtx
     #endif
-    #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
         static int TicketEncCbCtx_Init(WOLFSSL_CTX* ctx,
                                        TicketEncCbCtx* keyCtx);
         static void TicketEncCbCtx_Free(TicketEncCbCtx* keyCtx);
@@ -2493,7 +2493,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif /* HAVE_EXTENDED_MASTER && !NO_WOLFSSL_CLIENT */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
-#ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
     ret = TicketEncCbCtx_Init(ctx, &ctx->ticketKeyCtx);
     if (ret != 0) return ret;
     ctx->ticketEncCb = DefTicketEncCb;
@@ -2614,7 +2614,9 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
     wolfEventQueue_Free(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
+#ifndef NO_TLS /* its a static global see ssl.c "gNoTlsMethod" */
     XFREE(ctx->method, heapAtCTXInit, DYNAMIC_TYPE_METHOD);
+#endif
     ctx->method = NULL;
 
     XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
@@ -2796,7 +2798,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 
         SSL_CtxResourceFree(ctx);
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
         TicketEncCbCtx_Free(&ctx->ticketKeyCtx);
 #endif
         wolfSSL_RefFree(&ctx->ref);
@@ -8217,10 +8219,12 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->peerSceTsipEncRsaKeyIndex, ssl->heap, DYNAMIC_TYPE_RSA);
     Renesas_cmn_Cleanup(ssl);
 #endif
+#ifndef NO_TLS
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, FORCED_FREE);
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
+#endif
 #ifdef WOLFSSL_THREADED_CRYPT
     {
         int i;
@@ -8540,9 +8544,11 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     }
 #endif
 
+#ifndef NO_TLS
     /* input buffer */
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, NO_FORCED_FREE);
+#endif
 
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     if (!ssl->options.tls1_3)
@@ -9993,6 +9999,8 @@ ProtocolVersion MakeDTLSv1_3(void)
      */
 #endif /* !NO_ASN_TIME */
 
+
+#ifndef NO_TLS
 #if !defined(WOLFSSL_NO_CLIENT_AUTH) && \
                ((defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)) || \
                 (defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)) || \
@@ -11896,14 +11904,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     if (ssl == NULL)
         return BAD_FUNC_ARG;
 
-#ifndef NO_TLS
     if (ssl->options.tls) {
         ret = BuildTlsFinished(ssl, hashes, sender);
     }
-#else
-    (void)hashes;
-    (void)sender;
-#endif
 #ifndef NO_OLD_TLS
     if (!ssl->options.tls) {
         ret = BuildMD5(ssl, hashes, sender);
@@ -11927,6 +11930,8 @@ int CipherRequires(byte first, byte second, int requirement)
 {
 
     (void)requirement;
+    (void)first;
+    (void)second;
 
 #ifndef WOLFSSL_NO_TLS12
 
@@ -12568,7 +12573,7 @@ int CipherRequires(byte first, byte second, int requirement)
 }
 
 #endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
-
+#endif /* !NO_TLS */
 
 #ifndef NO_CERTS
 
@@ -13497,8 +13502,8 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)
 #endif /* WOLFSSL_ACERT */
 
 
-#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
-     (defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && !defined(WOLFSSL_NO_TLS12))
+#if (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+     defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)) && !defined(WOLFSSL_NO_TLS12)
 static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                       word32 status_length, int idx)
 {
@@ -13694,7 +13699,6 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 
 #endif /* HAVE_PK_CALLBACKS */
 
-
 #if !defined(NO_WOLFSSL_CLIENT) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 void DoCertFatalAlert(WOLFSSL* ssl, int ret)
 {
@@ -13737,11 +13741,14 @@ void DoCertFatalAlert(WOLFSSL* ssl, int ret)
         }
     }
 
+#ifndef NO_TLS
     /* send fatal alert and mark connection closed */
     SendAlert(ssl, alert_fatal, alertWhy); /* try to send */
+#else
+    (void)alertWhy;
+#endif
     ssl->options.isClosed = 1;
 }
-
 
 int SetupStoreCtxCallback(WOLFSSL_X509_STORE_CTX** store_pt,
         WOLFSSL* ssl, WOLFSSL_CERT_MANAGER* cm, ProcPeerCertArgs* args,
@@ -18626,6 +18633,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 }
 #endif /* WOLFSSL_DTLS13 */
 
+#ifndef NO_TLS
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef HAVE_AEAD
@@ -22911,11 +22919,12 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
     (void)epochOrder;
 
-#ifndef NO_TLS
 #if defined(WOLFSSL_NO_TLS12) && defined(WOLFSSL_TLS13)
+    /* TLS v1.3 only */
     return BuildTls13Message(ssl, output, outSz, input, inSz, type,
                                                hashOutput, sizeOnly, asyncOkay);
 #else
+    /* TLS v1.2 or v1.3 */
 #ifdef WOLFSSL_TLS13
     if (ssl->options.tls1_3) {
         return BuildTls13Message(ssl, output, outSz, input, inSz, type,
@@ -22923,6 +22932,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     }
 #endif
 
+#ifndef WOLFSSL_NO_TLS12
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = WC_NO_PENDING_E;
     if (asyncOkay) {
@@ -23435,9 +23445,7 @@ exit_buildmsg:
 
     /* Final cleanup */
     FreeBuildMsgArgs(ssl, args);
-
     return ret;
-#endif /* !WOLFSSL_NO_TLS12 */
 #else
     (void)outSz;
     (void)inSz;
@@ -23445,8 +23453,8 @@ exit_buildmsg:
     (void)hashOutput;
     (void)asyncOkay;
     return NOT_COMPILED_IN;
-#endif /* NO_TLS */
-
+#endif /* !WOLFSSL_NO_TLS12 */
+#endif
 }
 
 #ifndef WOLFSSL_NO_TLS12
@@ -23612,6 +23620,7 @@ int SendFinished(WOLFSSL* ssl)
     return ret;
 }
 #endif /* WOLFSSL_NO_TLS12 */
+#endif /* !NO_TLS */
 
 #ifndef NO_WOLFSSL_SERVER
 #if (!defined(WOLFSSL_NO_TLS12) && \
@@ -24802,6 +24811,8 @@ int SendAsyncData(WOLFSSL* ssl)
 }
 #endif
 
+#ifndef NO_TLS
+
 /**
  * ssl_in_handshake():
  * Invoked in wolfSSL_read/wolfSSL_write to check if wolfSSL_negotiate() is
@@ -25592,8 +25603,11 @@ static int SendAlert_ex(WOLFSSL* ssl, int severity, int type)
     return ret;
 }
 
+#endif /* !NO_TLS */
+
 int RetrySendAlert(WOLFSSL* ssl)
 {
+    int ret = 0;
     int type;
     int severity;
     WOLFSSL_ENTER("RetrySendAlert");
@@ -25611,12 +25625,18 @@ int RetrySendAlert(WOLFSSL* ssl)
     ssl->pendingAlert.code = 0;
     ssl->pendingAlert.level = alert_none;
 
-    return SendAlert_ex(ssl, severity, type);
+#ifndef NO_TLS
+    ret = SendAlert_ex(ssl, severity, type);
+#else
+    (void)type;
+#endif
+    return ret;
 }
 
 /* send alert message */
 int SendAlert(WOLFSSL* ssl, int severity, int type)
 {
+    int ret = 0;
     WOLFSSL_ENTER("SendAlert");
 
     if (ssl == NULL) {
@@ -25624,7 +25644,7 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     }
 
     if (ssl->pendingAlert.level != alert_none) {
-        int ret = RetrySendAlert(ssl);
+        ret = RetrySendAlert(ssl);
         if (ret != 0) {
             if (ssl->pendingAlert.level == alert_none ||
                     (ssl->pendingAlert.level != alert_fatal &&
@@ -25637,9 +25657,12 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
             return ret;
         }
     }
-
-    return SendAlert_ex(ssl, severity, type);
+#ifndef NO_TLS
+    ret = SendAlert_ex(ssl, severity, type);
+#endif /* !NO_TLS */
+    return ret;
 }
+
 
 #ifdef WOLFSSL_DEBUG_TRACE_ERROR_CODES_H
 #include <wolfssl/debug-untrace-error-codes.h>
@@ -29879,7 +29902,7 @@ static int HashSkeData(WOLFSSL* ssl, enum wc_HashType hashType,
 #endif /* !WOLFSSL_NO_TLS12 */
 
 /* client only parts */
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
     int HaveUniqueSessionObj(WOLFSSL* ssl)
     {
@@ -34378,7 +34401,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* HAVE_SESSION_TICKET */
 
-#endif /* NO_WOLFSSL_CLIENT */
+#endif /* !NO_WOLFSSL_CLIENT && !NO_TLS */
+/* end client only parts */
+
 
 #ifndef NO_CERTS
 
@@ -34557,7 +34582,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return MATCH_SUITE_ERROR;
     }
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
 #ifndef WOLFSSL_NO_TLS12
 
@@ -39267,7 +39292,7 @@ cleanup:
         return ret;
     }
 
-#ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
 
 /* Initialize the context for session ticket encryption.
  *
@@ -41380,7 +41405,7 @@ static int DefTicketEncCb(WOLFSSL* ssl, byte key_name[WOLFSSL_TICKET_NAME_SZ],
     }
 #endif /* HAVE_SNI */
 
-#endif /* NO_WOLFSSL_SERVER */
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 
 
 #ifdef WOLFSSL_ASYNC_CRYPT

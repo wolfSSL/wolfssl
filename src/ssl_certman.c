@@ -75,6 +75,7 @@ static WC_INLINE WOLFSSL_METHOD* cm_pick_method(void* heap)
     #else
         return NULL;
     #endif
+    (void)heap;
 }
 
 /* Create a new certificate manager with a heap hint.

@@ -56,7 +56,7 @@
 
 #include "examples/echoserver/echoserver.h"
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
 #ifdef NO_FILESYSTEM
 #ifdef NO_RSA
@@ -536,7 +536,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-#endif /* !NO_WOLFSSL_SERVER */
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 
 
 /* so overall tests can pull in test function */
@@ -562,7 +562,7 @@ THREAD_RETURN WOLFSSL_THREAD echoserver_test(void* args)
         wolfSSL_Debugging_ON();
 #endif
         ChangeToWolfRoot();
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
         echoserver_test(&args);
 #endif
         wolfSSL_Cleanup();
