@@ -1986,7 +1986,7 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
 {
 #ifdef WOLFSSL_DTLS
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     if (ssl == NULL)
         return WOLFSSL_FAILURE;
 #ifdef WOLFSSL_RW_THREADED
