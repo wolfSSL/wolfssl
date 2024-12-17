@@ -13726,6 +13726,10 @@ static int get_dn_attr_by_nid(int n, const char** buf)
             str = "title";
             len = 5;
             break;
+        case WC_NID_rfc822Mailbox:
+            str = "mail";
+            len = 4;
+            break;
         default:
             WOLFSSL_MSG("Attribute type not found");
             str = NULL;
