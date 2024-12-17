@@ -8883,9 +8883,12 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 #endif
    mp_int*    e;
    mp_int*    v = NULL;      /* Will be w. */
+#if defined(WOLFSSL_CHECK_VER_FAULTS) && defined(WOLFSSL_NO_MALLOC)
+   mp_int     u1tmp[1];
+   mp_int     u2tmp[1];
+#endif
    mp_int*    u1 = NULL;     /* Will be e. */
    mp_int*    u2 = NULL;     /* Will be w. */
-
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM_V)
    err = wc_ecc_alloc_mpint(key, &key->e);
    if (err != 0) {
@@ -8974,10 +8977,15 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
 
    if (err == MP_OKAY) {
 #ifdef WOLFSSL_CHECK_VER_FAULTS
+    #ifndef WOLFSSL_NO_MALLOC
         u1 = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
         u2 = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
        if (u1 == NULL || u2 == NULL)
             err = MEMORY_E;
+    #else
+        u1 = u1tmp;
+        u2 = u2tmp;
+    #endif
 #else
        u1 = e;
        u2 = w;
@@ -9154,9 +9162,11 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    FREE_MP_INT_SIZE(w, key->heap, DYNAMIC_TYPE_ECC);
 #ifdef WOLFSSL_CHECK_VER_FAULTS
    mp_clear(u1);
-   FREE_MP_INT_SIZE(u1, key->heap, DYNAMIC_TYPE_ECC);
    mp_clear(u2);
+#ifndef WOLFSSL_NO_MALLOC
+   FREE_MP_INT_SIZE(u1, key->heap, DYNAMIC_TYPE_ECC);
    FREE_MP_INT_SIZE(u2, key->heap, DYNAMIC_TYPE_ECC);
+#endif
 #endif
 #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
    FREE_MP_INT_SIZE(e_lcl, key->heap, DYNAMIC_TYPE_ECC);
