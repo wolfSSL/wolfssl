@@ -2341,7 +2341,7 @@ static int test_wolfSSL_CTX_trust_peer_cert(void)
 {
     EXPECT_DECLS;
 #if !defined(NO_CERTS) && defined(WOLFSSL_TRUST_PEER_CERT) && \
-    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA)
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_RSA)
     WOLFSSL_CTX *ctx = NULL;
     WOLFSSL* ssl = NULL;
 
@@ -14580,7 +14580,7 @@ static int test_wolfSSL_UseOCSPStapling(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
-        !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX*    ctx = NULL;
     WOLFSSL*        ssl = NULL;
 
@@ -14625,7 +14625,7 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
 {
     EXPECT_DECLS;
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP) && \
-        !defined(NO_WOLFSSL_CLIENT)
+    !defined(NO_TLS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX*        ctx = NULL;
     WOLFSSL*            ssl = NULL;
 
