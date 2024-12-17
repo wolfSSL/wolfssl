@@ -3754,7 +3754,7 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     byte* ticketNonceLen, byte* preallocUsed)
 {
 #ifdef HAVE_SESSION_TICKET
-    int   ticLenAlloc = 0;
+    word16 ticLenAlloc = 0;
     byte *ticBuff = NULL;
 #endif
     const size_t copyOffset = OFFSETOF(WOLFSSL_SESSION, heap) +
@@ -4170,7 +4170,8 @@ int wolfSSL_SESSION_set1_id(WOLFSSL_SESSION *s,
     if (sid_len > ID_LEN) {
         return WOLFSSL_FAILURE;
     }
-    s->sessionIDSz = sid_len;
+
+    s->sessionIDSz = (byte)sid_len;
     if (sid != s->sessionID) {
         XMEMCPY(s->sessionID, sid, sid_len);
     }
@@ -4186,7 +4187,7 @@ int wolfSSL_SESSION_set1_id_context(WOLFSSL_SESSION *s,
     if (sid_ctx_len > ID_LEN) {
         return WOLFSSL_FAILURE;
     }
-    s->sessionCtxSz = sid_ctx_len;
+    s->sessionCtxSz = (byte)sid_ctx_len;
     if (sid_ctx != s->sessionCtx) {
         XMEMCPY(s->sessionCtx, sid_ctx, sid_ctx_len);
     }

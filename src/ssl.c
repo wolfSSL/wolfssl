@@ -2185,7 +2185,7 @@ int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
 
     WOLFSSL_ENTER("wolfSSL_CTX_mcast_set_member_id");
 
-    if (ctx == NULL || id > 255)
+    if (ctx == NULL || id > WOLFSSL_MAX_8BIT)
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
@@ -2320,7 +2320,7 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int sub)
     int i;
 
     WOLFSSL_ENTER("wolfSSL_mcast_peer_add");
-    if (ssl == NULL || peerId > 255)
+    if (ssl == NULL || peerId > WOLFSSL_MAX_8BIT)
         return BAD_FUNC_ARG;
 
     if (!sub) {
@@ -2376,7 +2376,7 @@ int wolfSSL_mcast_peer_known(WOLFSSL* ssl, unsigned short peerId)
 
     WOLFSSL_ENTER("wolfSSL_mcast_peer_known");
 
-    if (ssl == NULL || peerId > 255) {
+    if (ssl == NULL || peerId > WOLFSSL_MAX_8BIT) {
         return BAD_FUNC_ARG;
     }
 

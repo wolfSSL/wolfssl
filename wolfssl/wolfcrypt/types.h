@@ -370,6 +370,7 @@ typedef struct w64wrapper {
         WOLFSSL_WORD_BITS  = WOLFSSL_WORD_SIZE * WOLFSSL_BIT_SIZE
     };
 
+    #define WOLFSSL_MAX_8BIT  0xffU
     #define WOLFSSL_MAX_16BIT 0xffffU
     #define WOLFSSL_MAX_32BIT 0xffffffffU
 

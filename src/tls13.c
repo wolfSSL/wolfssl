@@ -4018,6 +4018,10 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 
     WOLFSSL_ENTER("WritePSKBinders");
 
+    if (idx > WOLFSSL_MAX_16BIT) {
+        return INPUT_SIZE_E;
+    }
+
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
     if (ext == NULL)
         return SANITY_MSG_E;
@@ -4033,7 +4037,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
         ret = Dtls13HashHandshake(ssl, output + Dtls13GetRlHeaderLength(ssl, 0),
-            idx - Dtls13GetRlHeaderLength(ssl, 0));
+                                 (word16)idx - Dtls13GetRlHeaderLength(ssl, 0));
     else
 #endif /* WOLFSSL_DTLS13 */
         ret = HashOutput(ssl, output, (int)idx, 0);
@@ -6270,7 +6274,7 @@ static int CheckPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         return ret;
 
     if (*usingPSK != 0) {
-        word16 modes;
+        word32 modes;
     #ifdef WOLFSSL_EARLY_DATA
         TLSX*  extEarlyData;
 
@@ -10862,14 +10866,18 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (sniff == NO_SNIFF) {
         ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
+
+        if (finishedSz > WOLFSSL_MAX_8BIT) {
+            return BUFFER_ERROR;
+        }
     #ifdef WOLFSSL_HAVE_TLS_UNIQUE
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             XMEMCPY(ssl->serverFinished, mac, finishedSz);
-            ssl->serverFinished_len = finishedSz;
+            ssl->serverFinished_len = (byte)finishedSz;
         }
         else {
             XMEMCPY(ssl->clientFinished, mac, finishedSz);
-            ssl->clientFinished_len = finishedSz;
+            ssl->clientFinished_len = (byte)finishedSz;
         }
     #endif /* WOLFSSL_HAVE_TLS_UNIQUE */
         if (ret != 0)
@@ -10951,7 +10959,7 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
  */
 static int SendTls13Finished(WOLFSSL* ssl)
 {
-    int   finishedSz = ssl->specs.hash_size;
+    byte  finishedSz = ssl->specs.hash_size;
     byte* input;
     byte* output;
     int   ret;
@@ -11811,9 +11819,9 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 {
     byte*  output;
     int    ret;
+    word32 length;
     int    sendSz;
     word16 extSz;
-    word32 length;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
     WOLFSSL_START(WC_FUNC_NEW_SESSION_TICKET_SEND);
@@ -11884,7 +11892,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     /* Nonce */
     length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
 
-    sendSz = (int)(idx + length + MAX_MSG_EXTRA);
+    sendSz = (word16)(idx + length + MAX_MSG_EXTRA);
 
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
@@ -11940,6 +11948,10 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     idx += EXTS_SZ;
 #endif
 
+    if (idx > WOLFSSL_MAX_16BIT) {
+        return BAD_LENGTH_E;
+    }
+
     ssl->options.haveSessionId = 1;
 
     SetupSession(ssl);
@@ -11952,12 +11964,15 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls)
-        return Dtls13HandshakeSend(ssl, output, sendSz, idx, session_ticket, 0);
+        return Dtls13HandshakeSend(ssl, output, (word16)sendSz,
+                                   (word16)idx, session_ticket, 0);
 #endif /* WOLFSSL_DTLS13 */
 
     /* This message is always encrypted. */
-    sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
-                               idx - RECORD_HEADER_SZ, handshake, 0, 0, 0);
+    sendSz = BuildTls13Message(ssl, output, sendSz,
+                               output + RECORD_HEADER_SZ,
+                               (word16)idx - RECORD_HEADER_SZ,
+                               handshake, 0, 0, 0);
     if (sendSz < 0)
         return sendSz;
 

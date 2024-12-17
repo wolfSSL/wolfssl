@@ -1478,9 +1478,14 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
             return WOLFSSL_FAILURE;
         }
 
+        /* ext->crit is WOLFSSL_ASN1_BOOLEAN */
+        if (ext->crit != 0 && ext->crit != -1) {
+            return WOLFSSL_FAILURE;
+        }
+
         /* x509->custom_exts now owns the buffers and they must be managed. */
         x509->custom_exts[x509->customExtCount].oid = oid;
-        x509->custom_exts[x509->customExtCount].crit = ext->crit;
+        x509->custom_exts[x509->customExtCount].crit = (byte)ext->crit;
         x509->custom_exts[x509->customExtCount].val = val;
         x509->custom_exts[x509->customExtCount].valSz = ext->value.length;
         x509->customExtCount++;
