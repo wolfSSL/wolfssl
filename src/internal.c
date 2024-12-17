@@ -8234,10 +8234,17 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
     {
         int i;
         for (i = 0; i < WOLFSSL_THREADED_CRYPT_CNT; i++) {
-            bufferStatic* buff = &ssl->buffers.encrypt[i].buffer;
+            ThreadCrypt* encrypt = &ssl->buffers.encrypt[i];
+            bufferStatic* buff = &encrypt->buffer;
 
-            ssl->buffers.encrypt[i].stop = 1;
-            FreeCiphersSide(&ssl->buffers.encrypt[i].cipher, ssl->heap);
+            encrypt->stop = 1;
+            FreeCiphersSide(&encrypt->cipher, ssl->heap);
+        #if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
+            if (encrypt->auth.poly1305)
+                ForceZero(encrypt->auth.poly1305, sizeof(Poly1305));
+            XFREE(encrypt->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
+            encrypt->auth.poly1305 = NULL;
+        #endif
             if (buff->dynamicFlag) {
                 XFREE(buff->buffer - buff->offset, ssl->heap,
                     DYNAMIC_TYPE_OUT_BUFFER);
@@ -8248,10 +8255,17 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
             }
         }
         for (i = 0; i < WOLFSSL_THREADED_CRYPT_CNT; i++) {
-            bufferStatic* buff = &ssl->buffers.decrypt[i].buffer;
+            ThreadCrypt* decrypt = &ssl->buffers.decrypt[i];
+            bufferStatic* buff = &decrypt->buffer;
 
-            ssl->buffers.decrypt[i].stop = 1;
-            FreeCiphersSide(&ssl->buffers.decrypt[i].cipher, ssl->heap);
+            decrypt->stop = 1;
+            FreeCiphersSide(&decrypt->cipher, ssl->heap);
+        #if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
+            if (decrypt->auth.poly1305)
+                ForceZero(decrypt->auth.poly1305, sizeof(Poly1305));
+            XFREE(decrypt->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
+            decrypt->auth.poly1305 = NULL;
+        #endif
             if (buff->dynamicFlag) {
                 XFREE(buff->buffer - buff->offset, ssl->heap,
                     DYNAMIC_TYPE_OUT_BUFFER);
@@ -25295,40 +25309,27 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
                 SetKeys(&encrypt->cipher, NULL, &ssl->keys, &ssl->specs,
                     ssl->options.side, ssl->heap, ssl->devId, ssl->rng,
                     ssl->options.tls1_3);
+            #ifdef HAVE_ONE_TIME_AUTH
+                if (ssl->specs.bulk_cipher_algorithm == wolfssl_chacha) {
+                    ret = SetAuthKeys(&encrypt->auth, &ssl->keys, &ssl->specs,
+                        ssl->heap, ssl->devId);
+                    if (ret != 0)
+                        return ret;
+                }
+            #endif
+
                 encrypt->init = 1;
             }
+
             encrypt->buffer.length = sendSz;
             encrypt->offset = RECORD_HEADER_SZ;
-            if (ssl->options.dtls) {
-                encrypt->offset += DTLS_RECORD_EXTRA;
-            }
-            encrypt->cryptLen = outputSz - encrypt->offset;
-        #ifdef HAVE_TRUNCATED_HMAC
-            if (ssl->truncated_hmac) {
-                encrypt->cryptLen -= min(TRUNCATED_HMAC_SZ,
-                    ssl->specs.hash_size);
-            }
-            else
-        #endif
-            {
-                encrypt->cryptLen -= ssl->specs.hash_size;
-            }
+            encrypt->buffer.idx = 0;
+            encrypt->cryptLen = sendSz - RECORD_HEADER_SZ;
 
-    #if !defined(NO_PUBLIC_GCM_SET_IV) && \
-        ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
-        (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
-            XMEMCPY(encrypt->nonce, ssl->keys.aead_enc_imp_IV,
-                AESGCM_IMP_IV_SZ);
-            XMEMCPY(encrypt->nonce + AESGCM_IMP_IV_SZ, ssl->keys.aead_exp_IV,
-                AESGCM_EXP_IV_SZ);
-    #endif
-            XMEMSET(encrypt->additional, 0, AEAD_AUTH_DATA_SZ);
-            WriteSEQ(ssl, CUR_ORDER, encrypt->additional);
-            XMEMCPY(encrypt->additional + AEAD_TYPE_OFFSET,
-                encrypt->buffer.buffer, 3);
-            c16toa(sendSz - encrypt->offset - AESGCM_EXP_IV_SZ -
-                ssl->specs.aead_mac_size,
-                encrypt->additional + AEAD_LEN_OFFSET);
+            BuildTls13Nonce(ssl, encrypt->nonce, ssl->keys.aead_enc_imp_IV,
+                            CUR_ORDER);
+            XMEMCPY(encrypt->additional, encrypt->buffer.buffer,
+                    encrypt->offset);
 
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls)
