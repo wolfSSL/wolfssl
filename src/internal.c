@@ -191,7 +191,7 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #else
         #define SSL_TICKET_CTX(ssl) ssl->ctx->ticketEncCtx
     #endif
-    #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    #if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
         static int TicketEncCbCtx_Init(WOLFSSL_CTX* ctx,
                                        TicketEncCbCtx* keyCtx);
         static void TicketEncCbCtx_Free(TicketEncCbCtx* keyCtx);
@@ -2493,7 +2493,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif /* HAVE_EXTENDED_MASTER && !NO_WOLFSSL_CLIENT */
 
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
-#ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
     ret = TicketEncCbCtx_Init(ctx, &ctx->ticketKeyCtx);
     if (ret != 0) return ret;
     ctx->ticketEncCb = DefTicketEncCb;
@@ -2798,7 +2798,7 @@ void FreeSSL_Ctx(WOLFSSL_CTX* ctx)
 
         SSL_CtxResourceFree(ctx);
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER) && \
-    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB)
+    !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
         TicketEncCbCtx_Free(&ctx->ticketKeyCtx);
 #endif
         wolfSSL_RefFree(&ctx->ref);
@@ -39292,7 +39292,7 @@ cleanup:
         return ret;
     }
 
-#ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+#if !defined(WOLFSSL_NO_DEF_TICKET_ENC_CB) && !defined(NO_TLS)
 
 /* Initialize the context for session ticket encryption.
  *

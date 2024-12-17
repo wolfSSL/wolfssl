@@ -4136,7 +4136,7 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
 
     return ret;
 }
-
+#endif /* !NO_TLS */
 
 /* get current error state value */
 int wolfSSL_state(WOLFSSL* ssl)
@@ -4213,7 +4213,6 @@ int wolfSSL_want_read(WOLFSSL* ssl)
     return 0;
 }
 
-
 /* return TRUE if current error is want write */
 int wolfSSL_want_write(WOLFSSL* ssl)
 {
@@ -4223,8 +4222,6 @@ int wolfSSL_want_write(WOLFSSL* ssl)
 
     return 0;
 }
-
-#endif /* !NO_TLS */
 
 char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data)
 {
@@ -9307,7 +9304,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 
 /* EITHER SIDE METHODS */
-#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+#if !defined(NO_TLS) && (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE))
     WOLFSSL_METHOD* wolfSSLv23_method(void)
     {
         return wolfSSLv23_method_ex(NULL);
@@ -9353,7 +9350,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     }
     #endif
     #endif
-#endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
+#endif /* !NO_TLS && (OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE) */
 
 /* client only parts */
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
@@ -11409,6 +11406,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
         return WOLFSSL_FAILURE;
     }
+
+#ifndef NO_TLS
     WOLFSSL_CIPHERSUITE_INFO wolfSSL_get_ciphersuite_info(byte first,
             byte second)
     {
@@ -11424,6 +11423,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         info.psk = (byte)CipherRequires(first, second, REQUIRES_PSK);
         return info;
     }
+#endif
 
     /**
      * @param first First byte of the hash and signature algorithm
@@ -15853,6 +15853,7 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
     return ret;
 }
 
+#ifndef NO_TLS
 /* returns a string that describes the alert
  *
  * alertID the alert value to look up
@@ -15864,13 +15865,13 @@ const char* wolfSSL_alert_type_string_long(int alertID)
     return AlertTypeToString(alertID);
 }
 
-
 const char* wolfSSL_alert_desc_string_long(int alertID)
 {
     WOLFSSL_ENTER("wolfSSL_alert_desc_string_long");
 
     return AlertTypeToString(alertID);
 }
+#endif /* !NO_TLS */
 
 #define STATE_STRINGS_PROTO(s) \
     {                          \
@@ -16663,7 +16664,7 @@ long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp,
 #endif /* HAVE_OCSP */
 
 #ifdef HAVE_MAX_FRAGMENT
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 /**
  * Set max fragment tls extension
  * @param c a pointer to WOLFSSL_CTX object
@@ -16691,7 +16692,7 @@ int wolfSSL_set_tlsext_max_fragment_length(WOLFSSL *s, unsigned char mode)
 
     return wolfSSL_UseMaxFragment(s, mode);
 }
-#endif /* NO_WOLFSSL_CLIENT */
+#endif /* !NO_WOLFSSL_CLIENT && !NO_TLS */
 #endif /* HAVE_MAX_FRAGMENT */
 
 #endif /* OPENSSL_EXTRA */
@@ -21317,6 +21318,7 @@ WOLFSSL_BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s)
 }
 #endif /* !NO_BIO */
 
+#ifndef NO_TLS
 int wolfSSL_SSL_do_handshake_internal(WOLFSSL *s)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_do_handshake_internal");
@@ -21350,6 +21352,7 @@ int wolfSSL_SSL_do_handshake(WOLFSSL *s)
 #endif
     return wolfSSL_SSL_do_handshake_internal(s);
 }
+#endif /* !NO_TLS */
 
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 int wolfSSL_SSL_in_init(const WOLFSSL *ssl)
@@ -22205,7 +22208,7 @@ int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names,
         else {
             disabled &= ~(1U << curve);
         }
-    #ifdef HAVE_SUPPORTED_CURVES
+    #if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_TLS)
     #if !defined(WOLFSSL_OLD_SET_CURVES_LIST)
         /* using the wolfSSL API to set the groups, this will populate
          * (ssl|ctx)->groups and reset any TLSX_SUPPORTED_GROUPS.
@@ -22228,7 +22231,7 @@ int set_curves_list(WOLFSSL* ssl, WOLFSSL_CTX *ctx, const char* names,
             goto leave;
         }
     #endif
-    #endif /* HAVE_SUPPORTED_CURVES */
+    #endif /* HAVE_SUPPORTED_CURVES && !NO_TLS */
     }
 
     if (ssl != NULL)
@@ -22266,6 +22269,7 @@ int wolfSSL_set1_curves_list(WOLFSSL* ssl, const char* names)
 }
 #endif /* (HAVE_ECC || HAVE_CURVE25519 || HAVE_CURVE448) */
 #endif /* OPENSSL_EXTRA || HAVE_CURL */
+
 
 #ifdef OPENSSL_EXTRA
 /* Sets a callback for when sending and receiving protocol messages.

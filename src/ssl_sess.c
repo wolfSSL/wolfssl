@@ -871,7 +871,7 @@ int wolfSSL_set_timeout(WOLFSSL* ssl, unsigned int to)
     return WOLFSSL_SUCCESS;
 }
 
-
+#ifndef NO_TLS
 /**
  * Sets ctx session timeout in seconds.
  * The timeout value set here should be reflected in the
@@ -932,7 +932,7 @@ int wolfSSL_CTX_set_timeout(WOLFSSL_CTX* ctx, unsigned int to)
     return ret;
 #endif /* WOLFSSL_ERROR_CODE_OPENSSL */
 }
-
+#endif /* !NO_TLS */
 
 #ifndef NO_CLIENT_CACHE
 
