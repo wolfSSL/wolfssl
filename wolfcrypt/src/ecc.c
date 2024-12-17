@@ -9138,6 +9138,11 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    if (err == MP_OKAY) {
        if (mp_cmp(v, r) == MP_EQ)
            *res = 1;
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+       /* redundant comparison as sanity check that first one happened */
+       if (*res == 1 && mp_cmp(r, v) != MP_EQ)
+           *res = 0;
+#endif
    }
 
    /* cleanup */

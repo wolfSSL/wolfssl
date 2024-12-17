@@ -837,7 +837,16 @@ static int ed25519_verify_msg_final_with_sha(const byte* sig, word32 sigLen,
     ret = ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2);
     if (ret != 0) {
         ret = SIG_VERIFY_E;
-    } else {
+    }
+
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+    /* redundant comparison as sanity check that first one happened */
+    if (ret == 0 && ConstantCompare(rcheck, sig, ED25519_SIG_SIZE/2) != 0) {
+        ret = SIG_VERIFY_E;
+    }
+#endif
+
+    if (ret == 0) {
         /* set the verification status */
         *res = 1;
     }
