@@ -2454,9 +2454,10 @@ void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv, int order)
  * tag     The authentication tag buffer.
  * returns 0 on success, otherwise failure.
  */
-static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
-                                    const byte* input, word16 sz, byte* nonce,
-                                    const byte* aad, word16 aadSz, byte* tag)
+static int ChaCha20Poly1305_Encrypt(Ciphers* encrypt, OneTimeAuth* auth,
+                                    byte* output, const byte* input, word16 sz,
+                                    byte* nonce, const byte* aad, word16 aadSz,
+                                    byte* tag)
 {
     int    ret    = 0;
     byte   poly[CHACHA20_256_KEY_SIZE];
@@ -2465,21 +2466,21 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     XMEMSET(poly, 0, sizeof(poly));
 
     /* Set the nonce for ChaCha and get Poly1305 key. */
-    ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 0);
+    ret = wc_Chacha_SetIV(encrypt->chacha, nonce, 0);
     if (ret != 0)
         return ret;
     /* Create Poly1305 key using ChaCha20 keystream. */
-    ret = wc_Chacha_Process(ssl->encrypt.chacha, poly, poly, sizeof(poly));
+    ret = wc_Chacha_Process(encrypt->chacha, poly, poly, sizeof(poly));
     if (ret != 0)
         return ret;
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Add("ChaCha20Poly1305_Encrypt poly", poly, sizeof(poly));
 #endif
-    ret = wc_Chacha_SetIV(ssl->encrypt.chacha, nonce, 1);
+    ret = wc_Chacha_SetIV(encrypt->chacha, nonce, 1);
     if (ret != 0)
         return ret;
     /* Encrypt the plain text. */
-    ret = wc_Chacha_Process(ssl->encrypt.chacha, output, input, sz);
+    ret = wc_Chacha_Process(encrypt->chacha, output, input, sz);
     if (ret != 0) {
         ForceZero(poly, sizeof(poly));
     #ifdef WOLFSSL_CHECK_MEM_ZERO
@@ -2489,7 +2490,7 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     }
 
     /* Set key for Poly1305. */
-    ret = wc_Poly1305SetKey(ssl->auth.poly1305, poly, sizeof(poly));
+    ret = wc_Poly1305SetKey(auth->poly1305, poly, sizeof(poly));
     ForceZero(poly, sizeof(poly)); /* done with poly1305 key, clear it */
 #ifdef WOLFSSL_CHECK_MEM_ZERO
     wc_MemZero_Check(poly, sizeof(poly));
@@ -2497,7 +2498,7 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     if (ret != 0)
         return ret;
     /* Add authentication code of encrypted data to end. */
-    ret = wc_Poly1305_MAC(ssl->auth.poly1305, aad, aadSz, output, sz, tag,
+    ret = wc_Poly1305_MAC(auth->poly1305, aad, aadSz, output, sz, tag,
                                                               POLY1305_AUTH_SZ);
 
     return ret;
@@ -2518,7 +2519,7 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
  * tag     The authentication tag buffer.
  * returns 0 on success, otherwise failure.
  */
-static int Tls13IntegrityOnly_Encrypt(WOLFSSL* ssl, byte* output,
+static int Tls13IntegrityOnly_Encrypt(Ciphers* encrypt, byte* output,
                                       const byte* input, word16 sz,
                                       const byte* nonce,
                                       const byte* aad, word16 aadSz, byte* tag)
@@ -2526,19 +2527,116 @@ static int Tls13IntegrityOnly_Encrypt(WOLFSSL* ssl, byte* output,
     int ret;
 
     /* HMAC: nonce | aad | input  */
-    ret = wc_HmacUpdate(ssl->encrypt.hmac, nonce, HMAC_NONCE_SZ);
+    ret = wc_HmacUpdate(encrypt->hmac, nonce, HMAC_NONCE_SZ);
     if (ret == 0)
-        ret = wc_HmacUpdate(ssl->encrypt.hmac, aad, aadSz);
+        ret = wc_HmacUpdate(encrypt->hmac, aad, aadSz);
     if (ret == 0)
-        ret = wc_HmacUpdate(ssl->encrypt.hmac, input, sz);
+        ret = wc_HmacUpdate(encrypt->hmac, input, sz);
     if (ret == 0)
-        ret = wc_HmacFinal(ssl->encrypt.hmac, tag);
+        ret = wc_HmacFinal(encrypt->hmac, tag);
     /* Copy the input to output if not the same buffer */
     if (ret == 0 && output != input)
         XMEMCPY(output, input, sz);
     return ret;
 }
 #endif
+
+/*
+ */
+int EncryptTls13Sw(byte alg, Ciphers* encrypt, void* authPtr, byte* output,
+                   const byte* input, word16 dataSz, byte* nonce,
+                   const byte* aad, word16 aadSz, word32 macSz, int async)
+{
+    int ret;
+#ifdef HAVE_ONE_TIME_AUTH
+    OneTimeAuth* auth = authPtr;
+#endif
+
+    (void)encrypt;
+    (void)authPtr;
+    (void)output;
+    (void)input;
+    (void)dataSz;
+    (void)nonce;
+    (void)aad;
+    (void)aadSz;
+    (void)macSz;
+    (void)async;
+
+    switch (alg) {
+    #ifdef BUILD_AESGCM
+        case wolfssl_aes_gcm:
+        #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+            (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+            ret = wc_AesGcmEncrypt(encrypt->aes, output, input,
+                dataSz, nonce, AEAD_NONCE_SZ,
+                output + dataSz, macSz, aad, aadSz);
+        #else
+            ret = wc_AesGcmSetExtIV(encrypt->aes, nonce, AEAD_NONCE_SZ);
+            if (ret == 0) {
+                ret = wc_AesGcmEncrypt_ex(encrypt->aes, output,
+                        input, dataSz, nonce, AEAD_NONCE_SZ,
+                        output + dataSz, macSz, aad, aadSz);
+            }
+        #endif
+            break;
+    #endif
+
+    #ifdef HAVE_AESCCM
+        case wolfssl_aes_ccm:
+        #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
+            (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
+            ret = wc_AesCcmEncrypt(encrypt->aes, output, input,
+                dataSz, nonce, AEAD_NONCE_SZ,
+                output + dataSz, macSz, aad, aadSz);
+        #else
+            ret = wc_AesCcmSetNonce(encrypt->aes, nonce, AEAD_NONCE_SZ);
+            if (ret == 0) {
+                ret = wc_AesCcmEncrypt_ex(encrypt->aes, output,
+                        input, dataSz, nonce, AEAD_NONCE_SZ,
+                        output + dataSz, macSz, aad, aadSz);
+            }
+        #endif
+            break;
+    #endif
+
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+        case wolfssl_chacha:
+            ret = ChaCha20Poly1305_Encrypt(encrypt, auth, output,
+                input, dataSz, nonce, aad, aadSz, output + dataSz);
+            break;
+    #endif
+
+    #ifdef WOLFSSL_SM4_GCM
+        case wolfssl_sm4_gcm:
+            ret = wc_Sm4GcmEncrypt(&encrypt->sm4, output, input,
+                dataSz, nonce, AEAD_NONCE_SZ, output + dataSz,
+                macSz, aad, aadSz);
+            break;
+    #endif
+
+    #ifdef WOLFSSL_SM4_CCM
+        case wolfssl_sm4_ccm:
+            ret = wc_Sm4CcmEncrypt(encrypt->sm4, output, input,
+                dataSz, nonce, AEAD_NONCE_SZ, output + dataSz,
+                macSz, aad, aadSz);
+            break;
+    #endif
+
+    #ifdef HAVE_NULL_CIPHER
+        case wolfssl_cipher_null:
+            ret = Tls13IntegrityOnly_Encrypt(encrypt, output, input, dataSz,
+                nonce, aad, aadSz, output + dataSz);
+            break;
+    #endif
+
+        default:
+            WOLFSSL_MSG("wolfSSL Encrypt programming error");
+            ret = ENCRYPT_ERROR;
+    }
+
+    return ret;
+}
 
 /* Encrypt data for TLS v1.3.
  *
@@ -2558,7 +2656,6 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     int    ret    = 0;
     word16 dataSz = sz - ssl->specs.aead_mac_size;
     word16 macSz  = ssl->specs.aead_mac_size;
-    word32 nonceSz = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV* asyncDev = NULL;
     word32 event_flags = WC_ASYNC_FLAG_CALL_AGAIN;
@@ -2572,7 +2669,6 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     (void)dataSz;
     (void)macSz;
     (void)asyncOkay;
-    (void)nonceSz;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     if (ssl->error == WC_NO_ERR_TRACE(WC_PENDING_E)) {
@@ -2632,125 +2728,40 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         case CIPHER_STATE_DO:
         {
-            switch (ssl->specs.bulk_cipher_algorithm) {
-            #ifdef BUILD_AESGCM
-                case wolfssl_aes_gcm:
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* initialize event */
-                    asyncDev = &ssl->encrypt.aes->asyncDev;
-                    ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
-                    if (ret != 0)
-                        break;
-                #endif
-
-                    nonceSz = AESGCM_NONCE_SZ;
-
-                #if defined(HAVE_PK_CALLBACKS)
-                    ret = NOT_COMPILED_IN;
-                    if (ssl->ctx && ssl->ctx->PerformTlsRecordProcessingCb) {
-                        ret = ssl->ctx->PerformTlsRecordProcessingCb(ssl, 1,
-                                  output, input, dataSz,
-                                  ssl->encrypt.nonce, nonceSz,
-                                  output + dataSz, macSz,
-                                  aad, aadSz);
-                    }
-                    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
-                #endif
-                    {
-                #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
-                    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
-                        ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
-                            dataSz, ssl->encrypt.nonce, nonceSz,
-                            output + dataSz, macSz, aad, aadSz);
-                #else
-                        ret = wc_AesGcmSetExtIV(ssl->encrypt.aes,
-                                ssl->encrypt.nonce, nonceSz);
-                        if (ret == 0) {
-                            ret = wc_AesGcmEncrypt_ex(ssl->encrypt.aes, output,
-                                    input, dataSz, ssl->encrypt.nonce, nonceSz,
-                                    output + dataSz, macSz, aad, aadSz);
-                        }
-                #endif
-                    }
+            if ((ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm ||
+                 ssl->specs.bulk_cipher_algorithm == wolfssl_aes_ccm)) {
+            #ifdef WOLFSSL_ASYNC_CRYPT
+                /* initialize event */
+                asyncDev = &ssl->encrypt.aes->asyncDev;
+                ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+                if (ret != 0)
                     break;
             #endif
-
-            #ifdef HAVE_AESCCM
-                case wolfssl_aes_ccm:
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* initialize event */
-                    asyncDev = &ssl->encrypt.aes->asyncDev;
-                    ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
-                    if (ret != 0)
-                        break;
-                #endif
-
-                    nonceSz = AESCCM_NONCE_SZ;
-                #if defined(HAVE_PK_CALLBACKS)
-                    ret = NOT_COMPILED_IN;
-                    if (ssl->ctx && ssl->ctx->PerformTlsRecordProcessingCb) {
-                        ret = ssl->ctx->PerformTlsRecordProcessingCb(ssl, 1,
-                                  output, input, dataSz,
-                                  ssl->encrypt.nonce, nonceSz,
-                                  output + dataSz, macSz,
-                                  aad, aadSz);
-                    }
-                    if (ret == WC_NO_ERR_TRACE(NOT_COMPILED_IN))
-                #endif
-                    {
-                #if ((defined(HAVE_FIPS) || defined(HAVE_SELFTEST)) && \
-                    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)))
-                        ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input,
-                            dataSz, ssl->encrypt.nonce, nonceSz,
-                            output + dataSz, macSz, aad, aadSz);
-                #else
-                        ret = wc_AesCcmSetNonce(ssl->encrypt.aes,
-                                ssl->encrypt.nonce, nonceSz);
-                        if (ret == 0) {
-                            ret = wc_AesCcmEncrypt_ex(ssl->encrypt.aes, output,
-                                    input, dataSz, ssl->encrypt.nonce, nonceSz,
-                                    output + dataSz, macSz, aad, aadSz);
-                        }
-                #endif
-                    }
+            #if defined(HAVE_PK_CALLBACKS)
+                ret = NOT_COMPILED_IN;
+                if (ssl->ctx && ssl->ctx->PerformTlsRecordProcessingCb) {
+                    ret = ssl->ctx->PerformTlsRecordProcessingCb(ssl, 1,
+                              output, input, dataSz,
+                              ssl->encrypt.nonce, AEAD_NONCE_SZ,
+                              output + dataSz, macSz,
+                              aad, aadSz);
+                }
+                if (ret != WC_NO_ERR_TRACE(NOT_COMPILED_IN))
                     break;
+                ret = 0;
             #endif
+            }
 
-            #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-                case wolfssl_chacha:
-                    ret = ChaCha20Poly1305_Encrypt(ssl, output, input, dataSz,
-                        ssl->encrypt.nonce, aad, aadSz, output + dataSz);
-                    break;
+            if (ret == 0) {
+                ret = EncryptTls13Sw(ssl->specs.bulk_cipher_algorithm,
+                                     &ssl->encrypt,
+            #ifdef HAVE_ONE_TIME_AUTH
+                                     &ssl->auth,
+            #else
+                                     NULL,
             #endif
-
-            #ifdef WOLFSSL_SM4_GCM
-                case wolfssl_sm4_gcm:
-                    nonceSz = SM4_GCM_NONCE_SZ;
-                    ret = wc_Sm4GcmEncrypt(ssl->encrypt.sm4, output, input,
-                        dataSz, ssl->encrypt.nonce, nonceSz, output + dataSz,
-                        macSz, aad, aadSz);
-                    break;
-            #endif
-
-            #ifdef WOLFSSL_SM4_CCM
-                case wolfssl_sm4_ccm:
-                    nonceSz = SM4_CCM_NONCE_SZ;
-                    ret = wc_Sm4CcmEncrypt(ssl->encrypt.sm4, output, input,
-                        dataSz, ssl->encrypt.nonce, nonceSz, output + dataSz,
-                        macSz, aad, aadSz);
-                    break;
-            #endif
-
-            #ifdef HAVE_NULL_CIPHER
-                case wolfssl_cipher_null:
-                    ret = Tls13IntegrityOnly_Encrypt(ssl, output, input, dataSz,
-                        ssl->encrypt.nonce, aad, aadSz, output + dataSz);
-                    break;
-            #endif
-
-                default:
-                    WOLFSSL_MSG("wolfSSL Encrypt programming error");
-                    return ENCRYPT_ERROR;
+                                     output, input, dataSz, ssl->encrypt.nonce,
+                                     aad, aadSz, macSz, 0);
             }
 
             /* Advance state */
@@ -3061,7 +3072,6 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
                         ret = wc_AesGcmDecrypt(ssl->decrypt.aes, output, input,
                             dataSz, ssl->decrypt.nonce, nonceSz,
                             input + dataSz, macSz, aad, aadSz);
-
                 #ifdef WOLFSSL_ASYNC_CRYPT
                         if (ret == WC_NO_ERR_TRACE(WC_PENDING_E)) {
                             ret = wolfSSL_AsyncPush(ssl,
@@ -3383,6 +3393,13 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
                 ret = ssl->ctx->MacEncryptCb(ssl, mac, output, (unsigned int)inSz, (byte)type, 0,
                         output, output, args->size, ssl->MacEncryptCtx);
+            }
+            else
+        #endif
+        #ifdef WOLFSSL_THREADED_CRYPT
+            if (ssl->buffers.encryptSignalRegistered &&
+                                                     type == application_data) {
+                ret = args->sz;
             }
             else
         #endif

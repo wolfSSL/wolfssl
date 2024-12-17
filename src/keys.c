@@ -3403,7 +3403,10 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef HAVE_ONE_TIME_AUTH
 /* set one time authentication keys */
-static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
+#ifndef WOLFSSL_THREADED_CRYPT
+static
+#endif
+int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
                        CipherSpecs* specs, void* heap, int devId)
 {
 

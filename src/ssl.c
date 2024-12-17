@@ -24818,36 +24818,27 @@ int wolfSSL_AsyncEncryptStop(WOLFSSL* ssl, int idx)
 
 int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx)
 {
-    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    int ret;
     ThreadCrypt* encrypt = &ssl->buffers.encrypt[idx];
+    unsigned char* out = encrypt->buffer.buffer + encrypt->offset;
+    word32 dataSz = encrypt->cryptLen - ssl->specs.aead_mac_size;
 
-    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
-        unsigned char* out = encrypt->buffer.buffer + encrypt->offset;
-        unsigned char* input = encrypt->buffer.buffer + encrypt->offset;
-        word32 encSz = encrypt->buffer.length - encrypt->offset;
-
-        ret =
-#if !defined(NO_GCM_ENCRYPT_EXTRA) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-              wc_AesGcmEncrypt_ex
+    ret = EncryptTls13Sw(ssl->specs.bulk_cipher_algorithm, &encrypt->cipher,
+#ifdef HAVE_ONE_TIME_AUTH
+        &encrypt->auth,
 #else
-              wc_AesGcmEncrypt
+        NULL,
 #endif
-              (encrypt->cipher.aes,
-               out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
-               encSz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
-               encrypt->nonce, AESGCM_NONCE_SZ,
-               out + encSz - ssl->specs.aead_mac_size,
-               ssl->specs.aead_mac_size,
-               encrypt->additional, AEAD_AUTH_DATA_SZ);
-#if !defined(NO_PUBLIC_GCM_SET_IV) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-        XMEMCPY(out, encrypt->nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
-#endif
-        encrypt->done = 1;
+        out, out, dataSz, encrypt->nonce, encrypt->additional, RECORD_HEADER_SZ,
+        ssl->specs.aead_mac_size, 1);
+#ifdef WOLFSSL_DTLS13
+    if (ret == 0 && ssl->options.dtls) {
+        ret = Dtls13EncryptRecordNumber(ssl, encrypt->buffer.buffer,
+            (word16)encrypt->buffer.length);
     }
+#endif /* WOLFSSL_DTLS13 */
+
+    encrypt->done = 1;
 
     return ret;
 }

@@ -88107,7 +88107,6 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
         /* Key update should be sent and negotiated */
         ret = wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
         AssertIntGT(ret, 0);
-        ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         /* Epoch after one key update is 4 */
         if (w64Equal(ssl->dtls13PeerEpoch, w64From32(0, 4)) &&
                 w64Equal(Dtls13GetEpoch(ssl, ssl->dtls13PeerEpoch)->dropCount, counter)) {
@@ -88199,6 +88198,7 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
         wc_UnLockMutex(&test_AEAD_mutex);
 #endif
         (void)wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
+        (void)wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         nanosleep(&delay, NULL);
     }
 }

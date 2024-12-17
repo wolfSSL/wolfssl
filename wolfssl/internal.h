@@ -4788,6 +4788,9 @@ enum AcceptStateTls13 {
 
 typedef struct ThreadCrypt {
     Ciphers cipher;
+#ifdef HAVE_ONE_TIME_AUTH
+    OneTimeAuth auth;
+#endif
     bufferStatic buffer;
     unsigned char nonce[AESGCM_NONCE_SZ];
     unsigned char additional[AEAD_AUTH_DATA_SZ];
@@ -6886,6 +6889,10 @@ WOLFSSL_LOCAL int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys,
     CipherSpecs* specs, int side, void* heap, int devId, WC_RNG* rng,
     int tls13);
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
+#ifdef WOLFSSL_THREADED_CRYPT
+WOLFSSL_LOCAL int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
+    CipherSpecs* specs, void* heap, int devId);
+#endif
 
 /* Set*Internal and Set*External functions */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -6940,6 +6947,9 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 WOLFSSL_LOCAL void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
     int order);
 #endif
+int EncryptTls13Sw(byte alg, Ciphers* encrypt, void* authPtr, byte* output,
+                   const byte* input, word16 dataSz, byte* nonce,
+                   const byte* aad, word16 aadSz, word32 macSz, int async);
 
 /* Use WOLFSSL_API to use this function in tests/api.c */
 WOLFSSL_API int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
