@@ -1436,12 +1436,14 @@ const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
         return msg + ENUM_LEN + VERSION_SZ + OPAQUE16_LEN + OPAQUE16_LEN +
                 OPAQUE32_LEN;
     }
+#ifdef WOLFSSL_DTLS13
     else if (Dtls13UnifiedHeaderCIDPresent(msg[0])) {
         /* DTLS 1.3 CID packet */
         if (msgSz < OPAQUE8_LEN + cidSz)
             return NULL;
         return msg + OPAQUE8_LEN;
     }
+#endif
     return NULL;
 }
 #endif /* WOLFSSL_DTLS_CID */
