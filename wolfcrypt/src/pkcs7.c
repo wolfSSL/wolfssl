@@ -7127,7 +7127,7 @@ static int wc_PKCS7_KariGenerateSharedInfo(WC_PKCS7_KARI* kari, int keyWrapOID)
 
     /* suppPubInfo */
     suppPubInfoSeqSz = (int)SetImplicit(ASN_SEQUENCE, 2,
-                                        (word32)kekOctetSz + sizeof(word32),
+                                        (word32)kekOctetSz + (word32)sizeof(word32),
                                         suppPubInfoSeq, 0);
     sharedInfoSz += suppPubInfoSeqSz;
 
@@ -8911,9 +8911,9 @@ static int wc_PKCS7_PwriKek_KeyWrap(wc_PKCS7* pkcs7, const byte* kek, word32 kek
         return BUFFER_E;
 
     out[0] = (byte)cekSz;
-    out[1] = ~cek[0];
-    out[2] = ~cek[1];
-    out[3] = ~cek[2];
+    out[1] = (byte)~cek[0];
+    out[2] = (byte)~cek[1];
+    out[3] = (byte)~cek[2];
     XMEMCPY(out + 4, cek, cekSz);
 
     /* random padding of size padSz */

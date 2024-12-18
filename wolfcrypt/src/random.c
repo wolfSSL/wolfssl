@@ -598,14 +598,14 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
 
         dIdx = (int)dLen - 1;
         for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
-            carry += (word16)((word16)d[dIdx] + (word16)s[sIdx]);
+            carry = (word16)(carry + d[dIdx] + s[sIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
             dIdx--;
         }
 
         for (; dIdx >= 0; dIdx--) {
-            carry += (word16)d[dIdx];
+            carry = (word16)(carry + d[dIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
         }

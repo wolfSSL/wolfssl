@@ -23382,7 +23382,7 @@ static void sp_256_ecc_recode_6_5(const sp_digit* k, ecc_recode_256* v)
             n >>= o;
         }
 
-        y += (word8)carry;
+        y = (word8)(y + carry);
         v[i].i = recode_index_5_6[y];
         v[i].neg = recode_neg_5_6[y];
         carry = (y >> 6) + v[i].neg;
@@ -30318,7 +30318,7 @@ static void sp_384_ecc_recode_6_7(const sp_digit* k, ecc_recode_384* v)
             n >>= o;
         }
 
-        y += (word8)carry;
+        y = (word8)(y + carry);
         v[i].i = recode_index_7_6[y];
         v[i].neg = recode_neg_7_6[y];
         carry = (y >> 6) + v[i].neg;
@@ -37715,7 +37715,7 @@ static void sp_521_ecc_recode_6_9(const sp_digit* k, ecc_recode_521* v)
             n >>= o;
         }
 
-        y += (word8)carry;
+        y = (word8)(y + carry);
         v[i].i = recode_index_9_6[y];
         v[i].neg = recode_neg_9_6[y];
         carry = (y >> 6) + v[i].neg;
@@ -45594,7 +45594,7 @@ static void sp_1024_ecc_recode_7_18(const sp_digit* k, ecc_recode_1024* v)
             n >>= o;
         }
 
-        y += (word8)carry;
+        y = (word8)(y + carry);
         v[i].i = recode_index_18_7[y];
         v[i].neg = recode_neg_18_7[y];
         carry = (y >> 7) + v[i].neg;

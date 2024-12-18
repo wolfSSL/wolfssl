@@ -99,7 +99,7 @@ static WC_INLINE byte Base64_Char2Val(byte c)
     byte v;
     byte mask;
 
-    c -= BASE64_MIN;
+    c = (byte)(c - BASE64_MIN);
     mask = (byte)((((byte)(0x3f - c)) >> 7) - 1);
     /* Load a value from the first cache line and use when mask set. */
     v  = (byte)(base64Decode[ c & 0x3f        ] &   mask);
@@ -507,7 +507,7 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     if (inLen == 1 && *outLen && in) {
-        byte b = in[inIdx++] - BASE16_MIN;  /* 0 starts at 0x30 */
+        byte b = (byte)(in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
 
         /* sanity check */
         if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
@@ -531,8 +531,8 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         return BAD_FUNC_ARG;
 
     while (inLen) {
-        byte b  = in[inIdx++] - BASE16_MIN;  /* 0 starts at 0x30 */
-        byte b2 = in[inIdx++] - BASE16_MIN;
+        byte b  = (byte)(in[inIdx++] - BASE16_MIN);  /* 0 starts at 0x30 */
+        byte b2 = (byte)(in[inIdx++] - BASE16_MIN);
 
         /* sanity checks */
         if (b >=  sizeof(hexDecode)/sizeof(hexDecode[0]))
@@ -570,14 +570,14 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
         byte lb = in[i] & 0x0f;
 
         /* ASCII value */
-        hb += '0';
+        hb = (byte)(hb + '0');
         if (hb > '9')
-            hb += 7;
+            hb = (byte)(hb + 7U);
 
         /* ASCII value */
-        lb += '0';
+        lb = (byte)(lb + '0');
         if (lb>'9')
-            lb += 7;
+            lb = (byte)(lb + 7U);
 
         out[outIdx++] = hb;
         out[outIdx++] = lb;

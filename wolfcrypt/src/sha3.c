@@ -550,7 +550,7 @@ void BlockSha3(word64* s)
 #ifndef SHA3_BY_SPEC
     word64 t1;
 #endif
-    byte i;
+    word32 i;
 
     for (i = 0; i < 24; i += 2)
     {
@@ -694,7 +694,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         }
         data += i;
         len -= i;
-        sha3->i += (byte) i;
+        sha3->i = (byte)(sha3->i + i);
 
         if (sha3->i == p * 8) {
             for (i = 0; i < p; i++) {
@@ -708,12 +708,12 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
             sha3->i = 0;
         }
     }
-    blocks = len / (p * 8);
+    blocks = len / (p * 8U);
     #ifdef USE_INTEL_SPEEDUP
     if ((SHA3_BLOCK_N != NULL) && (blocks > 0)) {
-        (*SHA3_BLOCK_N)(sha3->s, data, blocks, p * 8);
-        len -= blocks * (p * 8);
-        data += blocks * (p * 8);
+        (*SHA3_BLOCK_N)(sha3->s, data, blocks, p * 8U);
+        len -= blocks * (p * 8U);
+        data += blocks * (p * 8U);
         blocks = 0;
     }
     #endif
@@ -726,15 +726,15 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     #else
         BlockSha3(sha3->s);
     #endif
-        len -= p * 8;
-        data += p * 8;
+        len -= p * 8U;
+        data += p * 8U;
     }
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
     if (SHA3_BLOCK == sha3_block_avx2)
         RESTORE_VECTOR_REGISTERS();
 #endif
     XMEMCPY(sha3->t, data, len);
-    sha3->i += (byte)len;
+    sha3->i = (byte)(sha3->i + len);
 
     return 0;
 }
@@ -749,7 +749,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
  */
 static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 {
-    word32 rate = p * 8;
+    word32 rate = p * 8U;
     word32 j;
     word32 i;
 
@@ -761,7 +761,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     sha3->t[sha3->i ]  = padChar;
     sha3->t[rate - 1] |= 0x80;
     if (rate - 1 > (word32)sha3->i + 1) {
-        XMEMSET(sha3->t + sha3->i + 1, 0, rate - 1 - (sha3->i + 1));
+        XMEMSET(sha3->t + sha3->i + 1, 0, rate - 1U - (sha3->i + 1U));
     }
     for (i = 0; i < p; i++) {
         sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
