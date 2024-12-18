@@ -281,6 +281,13 @@ int wc_OBJ_sn2nid(const char *sn)
 
 #ifndef WOLFCRYPT_ONLY
 
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+/* The system wide crypto-policy. Configured by wolfSSL_crypto_policy_enable.
+ * */
+static struct SystemCryptoPolicy crypto_policy;
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
 #if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && !defined(NO_DSA))
 
@@ -1026,6 +1033,10 @@ int GetEchConfigsEx(WOLFSSL_EchConfig* configs, byte* output, word32* outputLen)
 }
 #endif /* WOLFSSL_TLS13 && HAVE_ECH */
 
+#ifdef OPENSSL_EXTRA
+static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
+        Suites* suites, const char* list);
+#endif
 
 #if defined(WOLFSSL_RENESAS_TSIP_TLS) || defined(WOLFSSL_RENESAS_FSPSM_TLS)
 #include <wolfssl/wolfcrypt/port/Renesas/renesas_cmn.h>
@@ -1124,6 +1135,30 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
         }
     }
 #endif
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    /* Load the crypto-policy ciphers if configured. */
+    if (ctx && wolfSSL_crypto_policy_is_enabled()) {
+        const char * list = wolfSSL_crypto_policy_get_ciphers();
+        int          ret = 0;
+
+        if (list != NULL && *list != '\0') {
+            if (AllocateCtxSuites(ctx) != 0) {
+                WOLFSSL_MSG("allocate ctx suites failed");
+                wolfSSL_CTX_free(ctx);
+                ctx = NULL;
+            }
+            else {
+                ret = wolfSSL_parse_cipher_list(ctx, NULL, ctx->suites, list);
+                if (ret != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("parse cipher list failed");
+                    wolfSSL_CTX_free(ctx);
+                    ctx = NULL;
+                }
+            }
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     WOLFSSL_LEAVE("wolfSSL_CTX_new_ex", 0);
     return ctx;
@@ -2709,6 +2744,14 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ctx->minEccKeySz > (keySz / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
     ctx->minEccKeySz     = keySz / 8;
 #ifndef NO_CERTS
     ctx->cm->minEccKeySz = keySz / 8;
@@ -2725,6 +2768,14 @@ int wolfSSL_SetMinEccKey_Sz(WOLFSSL* ssl, short keySz)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ssl->options.minEccKeySz > (keySz / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
     ssl->options.minEccKeySz = keySz / 8;
     return WOLFSSL_SUCCESS;
 }
@@ -2739,6 +2790,14 @@ int wolfSSL_CTX_SetMinRsaKey_Sz(WOLFSSL_CTX* ctx, short keySz)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ctx->minRsaKeySz > (keySz / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
     ctx->minRsaKeySz     = keySz / 8;
     ctx->cm->minRsaKeySz = keySz / 8;
     return WOLFSSL_SUCCESS;
@@ -2751,6 +2810,14 @@ int wolfSSL_SetMinRsaKey_Sz(WOLFSSL* ssl, short keySz)
         WOLFSSL_MSG("Key size must be divisible by 8 or ssl was null");
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ssl->options.minRsaKeySz > (keySz / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     ssl->options.minRsaKeySz = keySz / 8;
     return WOLFSSL_SUCCESS;
@@ -2784,6 +2851,14 @@ int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
     if (ctx == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ctx->minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
     ctx->minDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
@@ -2793,6 +2868,14 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
 {
     if (ssl == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ssl->options.minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     ssl->options.minDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
@@ -2804,6 +2887,14 @@ int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz_bits)
     if (ctx == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ctx->minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
     ctx->maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
 }
@@ -2813,6 +2904,14 @@ int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz_bits)
 {
     if (ssl == NULL || keySz_bits > 16000 || keySz_bits % 8 != 0)
         return BAD_FUNC_ARG;
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        if (ssl->options.minDhKeySz > (keySz_bits / 8)) {
+            return CRYPTO_POLICY_FORBIDDEN;
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     ssl->options.maxDhKeySz = keySz_bits / 8;
     return WOLFSSL_SUCCESS;
@@ -4858,6 +4957,12 @@ int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version)
         return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        return CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
     return SetMinVersionHelper(&ctx->minDowngrade, version);
 }
 
@@ -4871,6 +4976,12 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
         WOLFSSL_MSG("Bad function argument");
         return BAD_FUNC_ARG;
     }
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (crypto_policy.enabled) {
+        return CRYPTO_POLICY_FORBIDDEN;
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     return SetMinVersionHelper(&ssl->options.minDowngrade, version);
 }
@@ -4981,8 +5092,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                ssl->options.haveDH, ssl->options.haveECDSAsig,
                ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-               ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-               ssl->options.useAnon, TRUE, ssl->options.side);
+               ssl->options.useAnon, TRUE, TRUE, TRUE, TRUE, ssl->options.side);
     return WOLFSSL_SUCCESS;
 }
 #endif /* !leanpsk */
@@ -5864,6 +5974,11 @@ int wolfSSL_Init(void)
 #endif
     }
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    /* System wide crypto policy disabled by default. */
+    XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
     if (ret == WOLFSSL_SUCCESS) {
         initRefCount++;
     }
@@ -5879,6 +5994,286 @@ int wolfSSL_Init(void)
 
     return ret;
 }
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+/* Helper function for wolfSSL_crypto_policy_enable and
+ * wolfSSL_crypto_policy_enable_buffer.
+ *
+ * Parses the crypto policy string, verifies values,
+ * and sets in global crypto policy struct. Not thread
+ * safe. String length has already been verified.
+ *
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns CRYPTO_POLICY_FORBIDDEN if already enabled.
+ * Returns < 0 on misc error.
+ * */
+static int crypto_policy_parse(void)
+{
+    const char * hdr = WOLFSSL_SECLEVEL_STR;
+    int          sec_level = 0;
+    size_t       i = 0;
+
+    /* All policies should begin with "@SECLEVEL=<N>" (N={0..5}) followed
+     * by bulk cipher list. */
+    if (XMEMCMP(crypto_policy.str, hdr, strlen(hdr)) != 0) {
+        WOLFSSL_MSG("error: crypto policy: invalid header");
+        return WOLFSSL_BAD_FILE;
+    }
+
+    {
+        /* Extract the security level. */
+        char *       policy_mem = crypto_policy.str;
+        policy_mem += strlen(hdr);
+        sec_level = (int) (*policy_mem - '0');
+    }
+
+    if (sec_level < MIN_WOLFSSL_SEC_LEVEL ||
+        sec_level > MAX_WOLFSSL_SEC_LEVEL) {
+        WOLFSSL_MSG_EX("error: invalid SECLEVEL: %d", sec_level);
+        return WOLFSSL_BAD_FILE;
+    }
+
+    /* Remove trailing '\r' or '\n'. */
+    for (i = 0; i < MAX_WOLFSSL_CRYPTO_POLICY_SIZE; ++i) {
+        if (crypto_policy.str[i] == '\0') {
+            break;
+        }
+
+        if (crypto_policy.str[i] == '\r' || crypto_policy.str[i] == '\n') {
+            crypto_policy.str[i] = '\0';
+            break;
+        }
+    }
+
+    #if defined(DEBUG_WOLFSSL_VERBOSE)
+    WOLFSSL_MSG_EX("info: SECLEVEL=%d", sec_level);
+    WOLFSSL_MSG_EX("info: using crypto-policy file: %s, %ld", policy_file, sz);
+    #endif /* DEBUG_WOLFSSL_VERBOSE */
+
+    crypto_policy.secLevel = sec_level;
+    crypto_policy.enabled = 1;
+
+    return WOLFSSL_SUCCESS;
+}
+
+#ifndef NO_FILESYSTEM
+/* Enables wolfSSL system wide crypto-policy, using the given policy
+ * file arg. If NULL is passed, then the default system crypto-policy
+ * file that was set at configure time will be used instead.
+ *
+ * While enabled:
+ *   - TLS methods, min key sizes, and cipher lists are all configured
+ *     automatically by the policy.
+ *   - Attempting to use lesser strength parameters will fail with
+ *     error CRYPTO_POLICY_FORBIDDEN.
+ *
+ * Disable with wolfSSL_crypto_policy_disable.
+ *
+ * Note: the wolfSSL_crypto_policy_X API are not thread safe, and should
+ * only be called at program init time.
+ *
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns CRYPTO_POLICY_FORBIDDEN if already enabled.
+ * Returns < 0 on misc error.
+ * */
+int wolfSSL_crypto_policy_enable(const char * policy_file)
+{
+    XFILE   file;
+    long    sz = 0;
+    size_t  n_read = 0;
+
+    WOLFSSL_ENTER("wolfSSL_crypto_policy_enable");
+
+    if (wolfSSL_crypto_policy_is_enabled()) {
+        WOLFSSL_MSG_EX("error: crypto policy already enabled: %s",
+                       policy_file);
+        return CRYPTO_POLICY_FORBIDDEN;
+    }
+
+    if (policy_file == NULL) {
+        /* Use the configure-time default if NULL passed. */
+        policy_file = WC_STRINGIFY(WOLFSSL_CRYPTO_POLICY_FILE);
+    }
+
+    if (policy_file == NULL || *policy_file == '\0') {
+        WOLFSSL_MSG("error: crypto policy empty file");
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
+
+    file = XFOPEN(policy_file, "rb");
+
+    if (file == XBADFILE) {
+        WOLFSSL_MSG_EX("error: crypto policy file open failed: %s",
+                       policy_file);
+        return WOLFSSL_BAD_FILE;
+    }
+
+    if (XFSEEK(file, 0, XSEEK_END) != 0) {
+        WOLFSSL_MSG_EX("error: crypto policy file seek end failed: %s",
+                       policy_file);
+        XFCLOSE(file);
+        return WOLFSSL_BAD_FILE;
+    }
+
+    sz = XFTELL(file);
+
+    if (XFSEEK(file, 0, XSEEK_SET) != 0) {
+        WOLFSSL_MSG_EX("error: crypto policy file seek failed: %s",
+                       policy_file);
+        XFCLOSE(file);
+        return WOLFSSL_BAD_FILE;
+    }
+
+    if (sz <= 0 || sz > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
+        WOLFSSL_MSG_EX("error: crypto policy file %s, invalid size: %ld",
+                       policy_file, sz);
+        XFCLOSE(file);
+        return WOLFSSL_BAD_FILE;
+    }
+
+    n_read = XFREAD(crypto_policy.str, 1, sz, file);
+    XFCLOSE(file);
+
+    if (n_read != (size_t) sz) {
+        WOLFSSL_MSG_EX("error: crypto policy file %s: read %zu, "
+                       "expected %ld", policy_file, n_read, sz);
+        return WOLFSSL_BAD_FILE;
+    }
+
+    crypto_policy.str[n_read] = '\0';
+
+    return crypto_policy_parse();
+}
+#endif /* ! NO_FILESYSTEM */
+
+/* Same behavior as wolfSSL_crypto_policy_enable, but loads
+ * via memory buf instead of file.
+ *
+ * Returns WOLFSSL_SUCCESS on success.
+ * Returns CRYPTO_POLICY_FORBIDDEN if already enabled.
+ * Returns < 0 on misc error.
+ * */
+int wolfSSL_crypto_policy_enable_buffer(const char * buf)
+{
+    size_t sz = 0;
+
+    WOLFSSL_ENTER("wolfSSL_crypto_policy_enable_buffer");
+
+    if (wolfSSL_crypto_policy_is_enabled()) {
+        WOLFSSL_MSG_EX("error: crypto policy already enabled");
+        return CRYPTO_POLICY_FORBIDDEN;
+    }
+
+    if (buf == NULL || *buf == '\0') {
+        return BAD_FUNC_ARG;
+    }
+
+    sz = XSTRLEN(buf);
+
+    if (sz == 0 || sz > MAX_WOLFSSL_CRYPTO_POLICY_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
+    XMEMCPY(crypto_policy.str, buf, sz);
+
+    return crypto_policy_parse();
+}
+
+/* Returns whether the system wide crypto-policy is enabled.
+ *
+ * Returns 1 if enabled.
+ *         0 if disabled.
+ * */
+int wolfSSL_crypto_policy_is_enabled(void)
+{
+    WOLFSSL_ENTER("wolfSSL_crypto_policy_is_enabled");
+
+    return crypto_policy.enabled == 1;
+}
+
+/* Disables the system wide crypto-policy.
+ * note: SSL and CTX structures already instantiated will
+ * keep their security policy parameters. This will only
+ * affect new instantiations.
+ * */
+void wolfSSL_crypto_policy_disable(void)
+{
+    WOLFSSL_ENTER("wolfSSL_crypto_policy_disable");
+    crypto_policy.enabled = 0;
+    XMEMSET(&crypto_policy, 0, sizeof(crypto_policy));
+    return;
+}
+
+/* Get the crypto-policy bulk cipher list string.
+ * String is not owned by caller, should not be freed.
+ *
+ * Returns pointer to bulk cipher list string.
+ * Returns NULL if NOT enabled, or on error.
+ * */
+const char * wolfSSL_crypto_policy_get_ciphers(void)
+{
+    WOLFSSL_ENTER("wolfSSL_crypto_policy_get_ciphers");
+
+    if (crypto_policy.enabled == 1) {
+        /* The crypto policy config will have
+         * this form:
+         *   "@SECLEVEL=2:kEECDH:kRSA..." */
+        return crypto_policy.str;
+    }
+
+    return NULL;
+}
+
+/* Get the configured crypto-policy security level.
+ * A security level of 0 does not impose any additional
+ * restrictions.
+ *
+ * Returns 1 - 5 if enabled.
+ * Returns 0 if NOT enabled.
+ * */
+int wolfSSL_crypto_policy_get_level(void)
+{
+    if (crypto_policy.enabled == 1) {
+        return crypto_policy.secLevel;
+    }
+
+    return 0;
+}
+
+/* Get security level from ssl structure.
+ * @param ssl  a pointer to WOLFSSL structure
+ */
+int wolfSSL_get_security_level(const WOLFSSL * ssl)
+{
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return ssl->secLevel;
+}
+
+#ifndef NO_WOLFSSL_STUB
+/*
+ * Set security level (wolfSSL doesn't support setting the security level).
+ *
+ * The security level can only be set through a system wide crypto-policy
+ * with wolfSSL_crypto_policy_enable().
+ *
+ * @param ssl  a pointer to WOLFSSL structure
+ * @param level security level
+ */
+void wolfSSL_set_security_level(WOLFSSL * ssl, int level)
+{
+    WOLFSSL_ENTER("wolfSSL_set_security_level");
+    (void)ssl;
+    (void)level;
+}
+#endif /* !NO_WOLFSSL_STUB */
+
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 
 #define WOLFSSL_SSL_LOAD_INCLUDED
@@ -10470,6 +10865,10 @@ int wolfSSL_Cleanup(void)
     if (!release)
         return ret;
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    wolfSSL_crypto_policy_disable();
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+
 #ifdef OPENSSL_EXTRA
     wolfSSL_BN_free_one();
 #endif
@@ -10915,8 +11314,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.useAnon, TRUE, ssl->options.side);
+                   ssl->options.useAnon, TRUE, TRUE, TRUE, TRUE, ssl->options.side);
     }
     #ifdef OPENSSL_EXTRA
     /**
@@ -10972,8 +11370,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveECDSAsig,
                    ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                   ssl->options.haveFalconSig, ssl->options.haveDilithiumSig,
-                   ssl->options.useAnon, TRUE, ssl->options.side);
+                   ssl->options.useAnon, TRUE, TRUE, TRUE, TRUE, ssl->options.side);
     }
 
     const char* wolfSSL_get_psk_identity_hint(const WOLFSSL* ssl)
@@ -12707,6 +13104,7 @@ int wolfSSL_CTX_set_min_proto_version(WOLFSSL_CTX* ctx, int version)
     if (ctx == NULL) {
         return WOLFSSL_FAILURE;
     }
+
     if (version != 0) {
         proto = version;
         ctx->minProto = 0; /* turn min proto flag off */
@@ -16374,9 +16772,8 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
             InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
                        havePSK, ssl->options.haveDH, ssl->options.haveECDSAsig,
                        ssl->options.haveECC, TRUE, ssl->options.haveStaticECC,
-                       ssl->options.haveFalconSig,
-                       ssl->options.haveDilithiumSig, ssl->options.useAnon,
-                       TRUE, ssl->options.side);
+                       ssl->options.useAnon,
+                       TRUE, TRUE, TRUE, TRUE, ssl->options.side);
         }
         else {
             /* Only preserve overlapping suites */
@@ -16397,7 +16794,7 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
              * - haveStaticECC turns off haveRSA
              * - haveECDSAsig turns off haveRSAsig */
             InitSuites(&tmpSuites, ssl->version, 0, 1, 1, 1, haveECDSAsig, 1, 1,
-                    haveStaticECC, 1, 1, 1, 1, ssl->options.side);
+                    haveStaticECC, 1, 1, 1, 1, 1, ssl->options.side);
             for (in = 0, out = 0; in < ssl->suites->suiteSz; in += SUITE_LEN) {
                 if (FindSuite(&tmpSuites, ssl->suites->suites[in],
                         ssl->suites->suites[in+1]) >= 0) {
@@ -23870,8 +24267,12 @@ int wolfSSL_CTX_set_dh_auto(WOLFSSL_CTX* ctx, int onoff)
 }
 
 /**
- * set security level (wolfSSL doesn't support security level)
- * @param ctx  a pointer to WOLFSSL_EVP_PKEY_CTX structure
+ * Set security level (wolfSSL doesn't support setting the security level).
+ *
+ * The security level can only be set through a system wide crypto-policy
+ * with wolfSSL_crypto_policy_enable().
+ *
+ * @param ctx  a pointer to WOLFSSL_CTX structure
  * @param level security level
  */
 void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level)
@@ -23880,16 +24281,20 @@ void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level)
     (void)ctx;
     (void)level;
 }
-/**
- * get security level (wolfSSL doesn't support security level)
- * @param ctx  a pointer to WOLFSSL_EVP_PKEY_CTX structure
- * @return always 0(level 0)
- */
-int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx)
+
+int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX * ctx)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_get_security_level");
+    #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (ctx == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return ctx->secLevel;
+    #else
     (void)ctx;
     return 0;
+    #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 }
 
 #if defined(OPENSSL_EXTRA) && defined(HAVE_SECRET_CALLBACK)

@@ -92005,7 +92005,11 @@ static int test_wolfSSL_security_level(void)
         #endif
         SSL_CTX_set_security_level(NULL, 1);
         SSL_CTX_set_security_level(ctx, 1);
+        #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+        ExpectIntEQ(SSL_CTX_get_security_level(NULL), BAD_FUNC_ARG);
+        #else
         ExpectIntEQ(SSL_CTX_get_security_level(NULL), 0);
+        #endif /* WOLFSSL_SYS_CRYPTO_POLICY */
         /* Stub so nothing happens. */
         ExpectIntEQ(SSL_CTX_get_security_level(ctx), 0);
 
@@ -92014,6 +92018,703 @@ static int test_wolfSSL_security_level(void)
         (void)ctx;
     #endif
 #endif
+    return EXPECT_RESULT();
+}
+
+/* System wide crypto-policy test.
+ *
+ * Loads three different policies (legacy, default, future),
+ * then tests crypt_policy api.
+ * */
+static int test_wolfSSL_crypto_policy(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY) && !defined(NO_TLS)
+    int          rc = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    const char * policy_list[] = {
+        "examples/crypto_policies/legacy/wolfssl.txt",
+        "examples/crypto_policies/default/wolfssl.txt",
+        "examples/crypto_policies/future/wolfssl.txt",
+    };
+    const char * ciphers_list[] = {
+        "@SECLEVEL=1:EECDH:kRSA:EDH:PSK:DHEPSK:ECDHEPSK:RSAPSK"
+        ":!eNULL:!aNULL",
+        "@SECLEVEL=2:EECDH:kRSA:EDH:PSK:DHEPSK:ECDHEPSK:RSAPSK"
+        ":!RC4:!eNULL:!aNULL",
+        "@SECLEVEL=3:EECDH:EDH:PSK:DHEPSK:ECDHEPSK:!RSAPSK:!kRSA"
+        ":!AES128:!RC4:!eNULL:!aNULL:!SHA1",
+    };
+    int          seclevel_list[] = { 1, 2, 3 };
+    int          i = 0;
+
+    for (i = 0; i < 3; ++i) {
+        const char *  ciphers = NULL;
+        int           n_diff = 0;
+        WOLFSSL_CTX * ctx = NULL;
+        WOLFSSL     * ssl = NULL;
+
+        /* Enable crypto policy. */
+        rc = wolfSSL_crypto_policy_enable(policy_list[i]);
+        ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 1);
+
+        /* Trying to enable while already enabled should return
+         * forbidden. */
+        rc = wolfSSL_crypto_policy_enable(policy_list[i]);
+        ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+
+        /* Security level and ciphers should match what is expected. */
+        rc = wolfSSL_crypto_policy_get_level();
+        ExpectIntEQ(rc, seclevel_list[i]);
+
+        ciphers = wolfSSL_crypto_policy_get_ciphers();
+        ExpectNotNull(ciphers);
+
+        if (ciphers != NULL) {
+            n_diff = XSTRNCMP(ciphers, ciphers_list[i], strlen(ciphers));
+            #ifdef DEBUG_WOLFSSL
+            if (n_diff) {
+                printf("error: got \n%s, expected \n%s\n",
+                       ciphers, ciphers_list[i]);
+            }
+            #endif /* DEBUG_WOLFSSL */
+            ExpectIntEQ(n_diff, 0);
+        }
+
+        /* TLSv1_2_method should work for all policies. */
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            ssl = wolfSSL_new(ctx);
+            ExpectNotNull(ssl);
+
+            /* These API should be rejected while enabled. */
+            rc = wolfSSL_CTX_SetMinVersion(ctx, WOLFSSL_TLSV1_3);
+            ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+
+            rc = wolfSSL_SetMinVersion(ssl, WOLFSSL_TLSV1_3);
+            ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+        }
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        if (ssl != NULL) {
+            wolfSSL_free(ssl);
+            ssl = NULL;
+        }
+
+        wolfSSL_crypto_policy_disable();
+
+        /* Do the same test by buffer. */
+        rc = wolfSSL_crypto_policy_enable_buffer(ciphers_list[i]);
+        ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 1);
+
+        /* Security level and ciphers should match what is expected. */
+        rc = wolfSSL_crypto_policy_get_level();
+        ExpectIntEQ(rc, seclevel_list[i]);
+
+        ciphers = wolfSSL_crypto_policy_get_ciphers();
+        ExpectNotNull(ciphers);
+
+        if (ciphers != NULL) {
+            n_diff = XSTRNCMP(ciphers, ciphers_list[i], strlen(ciphers));
+            #ifdef DEBUG_WOLFSSL
+            if (n_diff) {
+                printf("error: got \n%s, expected \n%s\n",
+                       ciphers, ciphers_list[i]);
+            }
+            #endif /* DEBUG_WOLFSSL */
+            ExpectIntEQ(n_diff, 0);
+        }
+
+        wolfSSL_crypto_policy_disable();
+    }
+
+    wolfSSL_crypto_policy_disable();
+
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY && !NO_TLS */
+    return EXPECT_RESULT();
+}
+
+/* System wide crypto-policy test: certs and keys.
+ *
+ * Loads three different policies (legacy, default, future),
+ * then tests loading different certificates and keys of
+ * varying strength.
+ * */
+static int test_wolfSSL_crypto_policy_certs_and_keys(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY) && !defined(NO_TLS)
+    int          rc = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    const char * policy_list[] = {
+        "examples/crypto_policies/legacy/wolfssl.txt",
+        "examples/crypto_policies/default/wolfssl.txt",
+        "examples/crypto_policies/future/wolfssl.txt",
+    };
+    int          i = 0;
+
+    for (i = 0; i < 3; ++i) {
+        WOLFSSL_CTX * ctx = NULL;
+        WOLFSSL     * ssl = NULL;
+        int           is_legacy = 0;
+        int           is_future = 0;
+        /* certs */
+        const char *  cert1024 = "certs/1024/client-cert.pem";
+        const char *  cert2048 = "certs/client-cert.pem";
+        const char *  cert3072 = "certs/3072/client-cert.pem";
+        const char *  cert256 = "certs/client-ecc-cert.pem";
+        const char *  cert384 = "certs/client-ecc384-cert.pem";
+        /* keys */
+        const char *  key1024 = "certs/1024/client-key.pem";
+        const char *  key2048 = "certs/client-key.pem";
+        const char *  key3072 = "certs/3072/client-key.pem";
+        const char *  key256 = "certs/ecc-key.pem";
+        const char *  key384 = "certs/client-ecc384-key.pem";
+
+        is_legacy = (XSTRSTR(policy_list[i], "legacy") != NULL) ? 1 : 0;
+        is_future = (XSTRSTR(policy_list[i], "future") != NULL) ? 1 : 0;
+
+        /* Enable crypto policy. */
+        rc = wolfSSL_crypto_policy_enable(policy_list[i]);
+        ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 1);
+
+        /* TLSv1_2_method should work for all policies. */
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_method());
+        ExpectNotNull(ctx);
+
+        /* Test certs of varying strength. */
+        if (ctx != NULL) {
+            /* VERIFY_PEER must be set for key/cert checks to be done. */
+            wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+            /* Test loading a cert with 1024 RSA key size.
+             * This should fail for all but legacy. */
+            rc = wolfSSL_CTX_use_certificate_chain_file(ctx, cert1024);
+
+            if (is_legacy) {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(rc, WOLFSSL_FAILURE);
+            }
+
+            /* Test loading a cert with 2048 RSA key size.
+             * Future crypto-policy is min 3072 RSA and DH key size,
+             * and should fail. */
+            rc = wolfSSL_CTX_use_certificate_chain_file(ctx, cert2048);
+
+            if (is_future) {
+                /* Future crypto-policy is min 3072 RSA and DH key size, this
+                 * and should fail. */
+                ExpectIntEQ(rc, WOLFSSL_FAILURE);
+
+                /* Set to VERIFY_NONE. This will disable key size checks,
+                 * it should now succeed. */
+                wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, NULL);
+                rc = wolfSSL_CTX_use_certificate_chain_file(ctx, cert2048);
+
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+                /* Set back to verify peer. */
+                wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+            }
+            else {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+
+            /* Test loading a CA cert with 3072 RSA key size.
+             * This should succeed for all policies. */
+            rc = wolfSSL_CTX_use_certificate_chain_file(ctx, cert3072);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* Test loading an ecc cert with 256 key size.
+             * This should succeed for all policies. */
+            rc = wolfSSL_CTX_use_certificate_chain_file(ctx, cert256);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* Test loading an ecc cert with 384 key size.
+             * This should succeed for all policies. */
+            rc = wolfSSL_CTX_use_certificate_chain_file(ctx, cert384);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* cleanup */
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        /* TLSv1_2_method should work for all policies. */
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_method());
+        ExpectNotNull(ctx);
+
+        /* Repeat same tests for keys of varying strength. */
+        if (ctx != NULL) {
+            /* 1024 RSA */
+            rc = SSL_CTX_use_PrivateKey_file(ctx, key1024,
+                                             SSL_FILETYPE_PEM);
+
+            if (is_legacy) {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(rc, WOLFSSL_FAILURE);
+            }
+
+            /* 2048 RSA */
+            rc = SSL_CTX_use_PrivateKey_file(ctx, key2048,
+                                             SSL_FILETYPE_PEM);
+
+            if (!is_future) {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(rc, WOLFSSL_FAILURE);
+            }
+
+            /* 3072 RSA */
+            rc = SSL_CTX_use_PrivateKey_file(ctx, key3072,
+                                             SSL_FILETYPE_PEM);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* 256 ecc */
+            rc = SSL_CTX_use_PrivateKey_file(ctx, key256,
+                                             SSL_FILETYPE_PEM);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* 384 ecc */
+            rc = SSL_CTX_use_PrivateKey_file(ctx, key384,
+                                             SSL_FILETYPE_PEM);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* cleanup */
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        #ifdef HAVE_ECC
+        /* Test set ecc min key size. */
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            ssl = SSL_new(ctx);
+            ExpectNotNull(ssl);
+
+            /* Test setting ctx. */
+            rc = wolfSSL_CTX_SetMinEccKey_Sz(ctx, 160);
+            if (is_legacy) {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+            }
+
+            rc = wolfSSL_CTX_SetMinEccKey_Sz(ctx, 224);
+            if (!is_future) {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+            }
+
+            rc = wolfSSL_CTX_SetMinEccKey_Sz(ctx, 256);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* Test setting ssl. */
+            if (ssl != NULL) {
+                rc = wolfSSL_SetMinEccKey_Sz(ssl, 160);
+                if (is_legacy) {
+                    ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+                }
+                else {
+                    ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+                }
+
+                rc = wolfSSL_SetMinEccKey_Sz(ssl, 224);
+                if (!is_future) {
+                    ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+                }
+                else {
+                    ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+                }
+
+                rc = wolfSSL_SetMinEccKey_Sz(ssl, 256);
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+                wolfSSL_free(ssl);
+                ssl = NULL;
+            }
+
+            /* cleanup */
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+        #endif /* HAVE_ECC */
+
+        #if !defined(NO_RSA)
+        /* Test set rsa min key size. */
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            ssl = SSL_new(ctx);
+            ExpectNotNull(ssl);
+
+            /* Test setting ctx. */
+            rc = wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 1024);
+            if (is_legacy) {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+            }
+
+            rc = wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 2048);
+            if (!is_future) {
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+            }
+            else {
+                ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+            }
+
+            rc = wolfSSL_CTX_SetMinRsaKey_Sz(ctx, 3072);
+            ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+            /* Test setting ssl. */
+            if (ssl != NULL) {
+                rc = wolfSSL_SetMinRsaKey_Sz(ssl, 1024);
+                if (is_legacy) {
+                    ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+                }
+                else {
+                    ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+                }
+
+                rc = wolfSSL_SetMinRsaKey_Sz(ssl, 2048);
+                if (!is_future) {
+                    ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+                }
+                else {
+                    ExpectIntEQ(rc, CRYPTO_POLICY_FORBIDDEN);
+                }
+
+                rc = wolfSSL_SetMinRsaKey_Sz(ssl, 3072);
+                ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+                wolfSSL_free(ssl);
+                ssl = NULL;
+            }
+
+            /* cleanup */
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+        #endif /* !NO_RSA */
+
+        wolfSSL_crypto_policy_disable();
+    }
+
+    wolfSSL_crypto_policy_disable();
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY && !NO_TLS */
+    return EXPECT_RESULT();
+}
+
+/* System wide crypto-policy test: tls and dtls methods.
+ * */
+static int test_wolfSSL_crypto_policy_tls_methods(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY) && !defined(NO_TLS)
+    int          rc = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    const char * policy_list[] = {
+        "examples/crypto_policies/legacy/wolfssl.txt",
+        "examples/crypto_policies/default/wolfssl.txt",
+        "examples/crypto_policies/future/wolfssl.txt",
+    };
+    int          i = 0;
+
+    for (i = 0; i < 3; ++i) {
+        WOLFSSL_CTX * ctx = NULL;
+        int           is_legacy = 0;
+
+        is_legacy = (XSTRSTR(policy_list[i], "legacy") != NULL) ? 1 : 0;
+
+        /* Enable crypto policy. */
+        rc = wolfSSL_crypto_policy_enable(policy_list[i]);
+        ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 1);
+
+        /* Try to use old TLS methods. Only allowed with legacy. */
+        #if !defined(NO_OLD_TLS)
+        ctx = wolfSSL_CTX_new(wolfTLSv1_1_method());
+
+        if (is_legacy) {
+            ExpectNotNull(ctx);
+        }
+        else {
+            ExpectNull(ctx);
+        }
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        #if defined(WOLFSSL_ALLOW_TLSV10)
+        ctx = wolfSSL_CTX_new(wolfTLSv1_method());
+
+        if (is_legacy) {
+            ExpectNotNull(ctx);
+        }
+        else {
+            ExpectNull(ctx);
+        }
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+        #endif /* WOLFSSL_ALLOW_TLSV10 */
+        #else
+        (void) is_legacy;
+        #endif /* !NO_OLD_TLS */
+
+        /* TLSv1_2_method should work for all policies. */
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        ctx = wolfSSL_CTX_new(wolfTLSv1_3_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        ctx = wolfSSL_CTX_new(TLS_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        #ifdef WOLFSSL_DTLS
+        ctx = wolfSSL_CTX_new(DTLS_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        ctx = wolfSSL_CTX_new(wolfDTLSv1_2_method());
+        ExpectNotNull(ctx);
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        #ifndef NO_OLD_TLS
+        /* Only allowed with legacy. */
+        ctx = wolfSSL_CTX_new(wolfDTLSv1_method());
+
+        if (is_legacy) {
+            ExpectNotNull(ctx);
+        }
+        else {
+            ExpectNull(ctx);
+        }
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+        #endif /* !NO_OLD_TLS */
+        #endif /* WOLFSSL_DTLS */
+
+        wolfSSL_crypto_policy_disable();
+    }
+
+    wolfSSL_crypto_policy_disable();
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY && !NO_TLS */
+    return EXPECT_RESULT();
+}
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY) && !defined(NO_TLS)
+/*  Helper function for test_wolfSSL_crypto_policy_ciphers.
+ *  Searches ssl suites for cipher string.
+ *
+ *  Returns   1 if found.
+ *  Returns   0 if not found.
+ *  Returns < 0 if error.
+ * */
+static int crypto_policy_cipher_found(const WOLFSSL * ssl,
+                                      const char *    cipher,
+                                      int             match)
+{
+    WOLF_STACK_OF(WOLFSSL_CIPHER) * sk = NULL;
+    WOLFSSL_CIPHER *                current = NULL;
+    const char *                    suite;
+    int                             found = 0;
+    int                             i = 0;
+
+    if (ssl == NULL || cipher == NULL || *cipher == '\0') {
+        return -1;
+    }
+
+    sk = wolfSSL_get_ciphers_compat(ssl);
+
+    if (sk == NULL) {
+        return -1;
+    }
+
+    do {
+        current = wolfSSL_sk_SSL_CIPHER_value(sk, i++);
+        if (current) {
+            suite = wolfSSL_CIPHER_get_name(current);
+            if (suite) {
+                if (match == 1) {
+                    /* prefix match */
+                    if (XSTRNCMP(suite, cipher, XSTRLEN(cipher)) == 0) {
+                        found = 1;
+                        break;
+                    }
+                }
+                else if (match == -1) {
+                    /* postfix match */
+                    if (XSTRLEN(suite) > XSTRLEN(cipher)) {
+                        const char * postfix = suite + XSTRLEN(suite)
+                                               - XSTRLEN(cipher);
+                        if (XSTRNCMP(postfix, cipher, XSTRLEN(cipher)) == 0) {
+                            found = 1;
+                            break;
+                        }
+                    }
+                }
+                else {
+                    /* needle in haystack match */
+                    if (XSTRSTR(suite, cipher)) {
+                        found = 1;
+                        break;
+                    }
+                }
+            }
+        }
+    } while (current);
+
+    return found == 1;
+}
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY && !NO_TLS */
+
+/* System wide crypto-policy test: ciphers.
+ * */
+static int test_wolfSSL_crypto_policy_ciphers(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY) && !defined(NO_TLS)
+    int          rc = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    const char * policy_list[] = {
+        "examples/crypto_policies/legacy/wolfssl.txt",
+        "examples/crypto_policies/default/wolfssl.txt",
+        "examples/crypto_policies/future/wolfssl.txt",
+    };
+    int          seclevel_list[] = { 1, 2, 3 };
+    int          i = 0;
+    int          is_legacy = 0;
+    int          is_future = 0;
+
+    for (i = 0; i < 3; ++i) {
+        WOLFSSL_CTX * ctx = NULL;
+        WOLFSSL     * ssl = NULL;
+        int           found = 0;
+
+        is_legacy = (XSTRSTR(policy_list[i], "legacy") != NULL) ? 1 : 0;
+        is_future = (XSTRSTR(policy_list[i], "future") != NULL) ? 1 : 0;
+
+        (void) is_legacy;
+
+        /* Enable crypto policy. */
+        rc = wolfSSL_crypto_policy_enable(policy_list[i]);
+        ExpectIntEQ(rc, WOLFSSL_SUCCESS);
+
+        rc = wolfSSL_crypto_policy_is_enabled();
+        ExpectIntEQ(rc, 1);
+
+        ctx = wolfSSL_CTX_new(TLS_method());
+        ExpectNotNull(ctx);
+
+        ssl = SSL_new(ctx);
+        ExpectNotNull(ssl);
+
+        rc = wolfSSL_CTX_get_security_level(ctx);
+        ExpectIntEQ(rc, seclevel_list[i]);
+
+        rc = wolfSSL_get_security_level(ssl);
+        ExpectIntEQ(rc, seclevel_list[i]);
+
+        found = crypto_policy_cipher_found(ssl, "RC4", 0);
+        ExpectIntEQ(found, is_legacy);
+
+        /* We return a different cipher string depending on build settings. */
+        #if !defined(WOLFSSL_CIPHER_INTERNALNAME) && \
+        !defined(NO_ERROR_STRINGS) && !defined(WOLFSSL_QT)
+        found = crypto_policy_cipher_found(ssl, "AES_128", 0);
+        ExpectIntEQ(found, !is_future);
+
+        found = crypto_policy_cipher_found(ssl, "TLS_DHE_RSA_WITH_AES", 1);
+        ExpectIntEQ(found, !is_future);
+
+        found = crypto_policy_cipher_found(ssl, "_SHA", -1);
+        ExpectIntEQ(found, !is_future);
+        #else
+        found = crypto_policy_cipher_found(ssl, "AES128", 0);
+        ExpectIntEQ(found, !is_future);
+
+        found = crypto_policy_cipher_found(ssl, "DHE-RSA-AES", 1);
+        ExpectIntEQ(found, !is_future);
+
+        found = crypto_policy_cipher_found(ssl, "-SHA", -1);
+        ExpectIntEQ(found, !is_future);
+        #endif
+
+        if (ssl != NULL) {
+            SSL_free(ssl);
+            ssl = NULL;
+        }
+
+        if (ctx != NULL) {
+            wolfSSL_CTX_free(ctx);
+            ctx = NULL;
+        }
+
+        wolfSSL_crypto_policy_disable();
+    }
+
+    wolfSSL_crypto_policy_disable();
+
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY && !NO_TLS */
     return EXPECT_RESULT();
 }
 
@@ -101317,6 +102018,10 @@ TEST_CASE testCases[] = {
 #endif
     TEST_DECL(test_wolfSSL_CTX_get_min_proto_version),
     TEST_DECL(test_wolfSSL_security_level),
+    TEST_DECL(test_wolfSSL_crypto_policy),
+    TEST_DECL(test_wolfSSL_crypto_policy_certs_and_keys),
+    TEST_DECL(test_wolfSSL_crypto_policy_tls_methods),
+    TEST_DECL(test_wolfSSL_crypto_policy_ciphers),
     TEST_DECL(test_wolfSSL_SSL_in_init),
     TEST_DECL(test_wolfSSL_CTX_set_timeout),
     TEST_DECL(test_wolfSSL_set_psk_use_session_callback),

@@ -3202,6 +3202,24 @@ WOLFSSL_ABI WOLFSSL_API int wolfSSL_Init(void);
 /* call when done to cleanup/free session cache mutex / resources  */
 WOLFSSL_ABI WOLFSSL_API int wolfSSL_Cleanup(void);
 
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+#ifndef NO_FILESYSTEM
+WOLFSSL_API int    wolfSSL_crypto_policy_enable(const char * policy);
+#endif /* ! NO_FILESYSTEM */
+WOLFSSL_API int    wolfSSL_crypto_policy_enable_buffer(const char * buf);
+WOLFSSL_API void   wolfSSL_crypto_policy_disable(void);
+WOLFSSL_API int    wolfSSL_crypto_policy_is_enabled(void);
+WOLFSSL_API const char * wolfSSL_crypto_policy_get_ciphers(void);
+WOLFSSL_API int    wolfSSL_crypto_policy_get_level(void);
+WOLFSSL_LOCAL int  wolfSSL_crypto_policy_init_ctx(WOLFSSL_CTX * ctx,
+                                                  WOLFSSL_METHOD * method);
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+/* compat functions. */
+WOLFSSL_API int    wolfSSL_get_security_level(const WOLFSSL * ssl);
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_API void   wolfSSL_set_security_level(WOLFSSL * ssl, int level);
+#endif /* !NO_WOLFSSL_STUB */
+
 /* which library version do we have */
 WOLFSSL_API const char* wolfSSL_lib_version(void);
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
@@ -5807,7 +5825,6 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_param_check(WOLFSSL_EVP_PKEY_CTX* ctx);
 #endif
 WOLFSSL_API void wolfSSL_CTX_set_security_level(WOLFSSL_CTX* ctx, int level);
 WOLFSSL_API int wolfSSL_CTX_get_security_level(const WOLFSSL_CTX* ctx);
-
 WOLFSSL_API int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s);
 
 WOLFSSL_API void wolfSSL_CRYPTO_free(void *str, const char *file, int line);

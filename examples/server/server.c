@@ -873,7 +873,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][65] = {
+static const char* server_usage_msg[][66] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -1057,10 +1057,13 @@ static const char* server_usage_msg[][65] = {
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
+#ifdef WOLFSSL_SYS_CRYPTO_POLICY
+        "--crypto-policy  <path to crypto policy file>\n", /* 66 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 66 */
+                                                                        /* 67 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1262,11 +1265,14 @@ static const char* server_usage_msg[][65] = {
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
+#ifdef WOLFSSL_SYS_CRYPTO_POLICY
+        "--crypto-policy  <path to crypto policy file>\n", /* 66 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 66 */
+                                                                        /* 67 */
         NULL,
     },
 #endif
@@ -1545,6 +1551,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
         { "altPrivKey", 1, 267},
 #endif
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+        { "crypto-policy", 1, 268 },
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
         { 0, 0, 0 }
     };
 #endif
@@ -1669,6 +1678,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     char* crlDir = NULL;
 #endif
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    const char * policy = NULL;
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* Note: Actual memory used is much less, this is the entire buffer buckets,
@@ -2438,6 +2450,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             altPrivKey = myoptarg;
             break;
 #endif
+            case 268:
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+                policy = myoptarg;
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+                break;
 
         case -1:
             default:
@@ -2591,6 +2608,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (method == NULL)
         err_sys_ex(runWithErrors, "unable to get method");
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (policy != NULL) {
+        if (wolfSSL_crypto_policy_enable(policy) != WOLFSSL_SUCCESS) {
+            err_sys("wolfSSL_crypto_policy_enable failed");
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
