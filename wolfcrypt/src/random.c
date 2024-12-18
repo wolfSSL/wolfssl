@@ -296,14 +296,113 @@ This library contains implementation for the random number generator.
 
 static wc_RngSeed_Cb seedCb = NULL;
 
+#if defined(SINGLE_THREADED) || !defined(WC_MULTI_THREADED_CALLBACKS)
+
+/* Will cause data race if multiple threads want to use their own callback */
+/* Since it is setting a function Pointer Mutex will not resolve the issue */
 int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
 {
     seedCb = cb;
     return 0;
 }
 
-#endif
+#else /* Solution only works with POSIX library */
 
+/* Use to determine if we are setting a call back */
+wolfSSL_Mutex seedCbMutex;
+
+static pthread_key_t seedCbKey; /* Key to determine if a cb is being set */
+
+
+/* Code allocates a linked list based on thread potentially */
+/* Use mutex for copying */
+int wc_SetSeed_Cb(wc_RngSeed_Cb cb)
+{
+    int ret;
+    static int initCb = 0; /* So threads cannot pass until callback is set */
+
+    if (seedCb == NULL) {/* Only need this once to set seedCb to generic func */
+        /* Setup so the mutex should only happen once for the first setup   */
+        /* This way locking doesn't constantly happen, but also prevents    */
+        /* threads from escaping and using a null seedCb on initial startup */
+        ret = wc_LockMutex(&seedCbMutex);
+        if (ret != 0) {
+            return ret;
+        }
+        if (seedCb == NULL) {
+            initCb = 0; /* Reset if CB is NULL */
+        }
+        if (!initCb) {
+            seedCb = (wc_RngSeed_Cb)multiThreadedSeedCb; /* Use global */
+            ret = createCbKey(&seedCbKey, NULL);
+            if (ret != 0) {
+                return ret;
+            }
+            initCb = 1;
+        }
+        ret = wc_UnLockMutex(&seedCbMutex);
+        if (ret != 0) {
+            return ret;
+        }
+    }
+
+    ret = setCbKey(&seedCbKey, cb);
+    return ret;
+}
+
+/* Function to allow each thread to have an independant callback */
+int multiThreadedSeedCb(OS_Seed* os, byte* output, word32 sz)
+{
+    int ret = 0;
+    wc_RngSeed_Cb threadCb = (wc_RngSeed_Cb)pthread_getspecific(seedCbKey);
+    if (threadCb == NULL) {
+        /* If key does not exist(due to seedCb not being set in thread) */
+        /* We need to assume default CB is wc_GenerateSeed until */
+        /* wc_SetSeed_Cb is called with the desired cb function for the */
+        /* thread to use */
+        ret = wc_SetSeed_Cb(wc_GenerateSeed);
+        if (ret != 0) {
+            return ret;
+        }
+        threadCb = (wc_RngSeed_Cb)pthread_getspecific(seedCbKey);
+        if (threadCb == NULL) { /* Should not be NULL*/
+            return MISSING_RNG_E;
+        }
+    }
+    ret = threadCb(os, output, sz);
+    return ret;
+}
+
+
+/* Set the thread-specific key to callback function for thread */
+int setCbKey(pthread_key_t* key, void* cb)
+{
+    int ret = 0;
+
+    if (key == NULL || cb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* Set callback directly */
+    ret = pthread_setspecific(*key, cb);
+    return ret;
+}
+
+/* Should only be called once will setup key for all threads to use */
+int createCbKey(pthread_key_t* key, void* destructor)
+{
+    printf("Call Back Key Created\n");
+    if (key == NULL) { /* destructor can be NULL */
+        return BAD_FUNC_ARG;
+    }
+    if (pthread_key_create(key, destructor) != 0) {
+        return MEMORY_E;
+    }
+    return 0;
+}
+
+#endif /* defined(SINGLE_THREADED) || !defined(WC_MULTI_THREADED_CALLBACKS) */
+#endif /* WC_RNG_SEED_CB */
 
 /* Internal return codes */
 #define DRBG_SUCCESS      0
