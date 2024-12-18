@@ -6509,7 +6509,7 @@ static WC_INLINE void RIGHTSHIFTX(byte* x)
 {
     int i;
     int carryIn = 0;
-    byte borrow = (0x00 - (x[15] & 0x01)) & 0xE1;
+    byte borrow = (byte)((0x00U - (x[15] & 0x01U)) & 0xE1U);
 
     for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
         int carryOut = (x[i] & 0x01) << 7;
@@ -8037,13 +8037,13 @@ static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
         /* Check if we have unprocessed data. */
         if (aes->aOver > 0) {
             /* Calculate amount we can use - fill up the block. */
-            byte sz = WC_AES_BLOCK_SIZE - aes->aOver;
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->aOver);
             if (sz > aSz) {
                 sz = (byte)aSz;
             }
             /* Copy extra into last GHASH block array and update count. */
             XMEMCPY(AES_LASTGBLOCK(aes) + aes->aOver, a, sz);
-            aes->aOver += sz;
+            aes->aOver = (byte)(aes->aOver + sz);
             if (aes->aOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
                 GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
@@ -8072,7 +8072,7 @@ static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
     if (aes->aOver > 0 && cSz > 0 && c != NULL) {
         /* No more AAD coming and we have a partial block. */
         /* Fill the rest of the block with zeros. */
-        byte sz = WC_AES_BLOCK_SIZE - aes->aOver;
+        byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->aOver);
         XMEMSET(AES_LASTGBLOCK(aes) + aes->aOver, 0, sz);
         /* GHASH last AAD block. */
         GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
@@ -8086,13 +8086,13 @@ static void GHASH_UPDATE(Aes* aes, const byte* a, word32 aSz, const byte* c,
         aes->cSz += cSz;
         if (aes->cOver > 0) {
             /* Calculate amount we can use - fill up the block. */
-            byte sz = WC_AES_BLOCK_SIZE - aes->cOver;
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->cOver);
             if (sz > cSz) {
                 sz = (byte)cSz;
             }
             XMEMCPY(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
             /* Update count of unused encrypted counter. */
-            aes->cOver += sz;
+            aes->cOver = (byte)(aes->cOver + sz);
             if (aes->cOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
                 GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
@@ -8139,7 +8139,7 @@ static void GHASH_FINAL(Aes* aes, byte* s, word32 sSz)
     }
     if (over > 0) {
         /* Zeroize the unused part of the block. */
-        XMEMSET(AES_LASTGBLOCK(aes) + over, 0, WC_AES_BLOCK_SIZE - over);
+        XMEMSET(AES_LASTGBLOCK(aes) + over, 0, (size_t)WC_AES_BLOCK_SIZE - over);
         /* Hash the last block of cipher text. */
         GHASH_ONE_BLOCK(aes, AES_LASTGBLOCK(aes));
     }
@@ -9352,7 +9352,7 @@ static WARN_UNUSED_RESULT int AesGcmCryptUpdate_C(
 
     /* Check if previous encrypted block was not used up. */
     if (aes->over > 0) {
-        byte pSz = WC_AES_BLOCK_SIZE - aes->over;
+        byte pSz = (byte)(WC_AES_BLOCK_SIZE - aes->over);
         if (pSz > sz) pSz = (byte)sz;
 
         /* Use some/all of last encrypted block. */
@@ -9579,13 +9579,13 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
         /* Check if we have unprocessed data. */
         if (aes->aOver > 0) {
             /* Calculate amount we can use - fill up the block. */
-            byte sz = WC_AES_BLOCK_SIZE - aes->aOver;
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->aOver);
             if (sz > aSz) {
                 sz = (byte)aSz;
             }
             /* Copy extra into last GHASH block array and update count. */
             XMEMCPY(AES_LASTGBLOCK(aes) + aes->aOver, a, sz);
-            aes->aOver += sz;
+            aes->aOver = (byte)(aes->aOver + sz);
             if (aes->aOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
             #ifdef HAVE_INTEL_AVX2
@@ -9650,7 +9650,7 @@ static WARN_UNUSED_RESULT int AesGcmAadUpdate_aesni(
         /* No more AAD coming and we have a partial block. */
         /* Fill the rest of the block with zeros. */
         XMEMSET(AES_LASTGBLOCK(aes) + aes->aOver, 0,
-                WC_AES_BLOCK_SIZE - aes->aOver);
+                (size_t)WC_AES_BLOCK_SIZE - aes->aOver);
         /* GHASH last AAD block. */
     #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_AVX2(intel_flags)) {
@@ -9708,7 +9708,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
         aes->cSz += cSz;
         if (aes->cOver > 0) {
             /* Calculate amount we can use - fill up the block. */
-            byte sz = WC_AES_BLOCK_SIZE - aes->cOver;
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->cOver);
             if (sz > cSz) {
                 sz = (byte)cSz;
             }
@@ -9716,7 +9716,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptUpdate_aesni(
             xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, p, sz);
             XMEMCPY(c, AES_LASTGBLOCK(aes) + aes->cOver, sz);
             /* Update count of unused encrypted counter. */
-            aes->cOver += sz;
+            aes->cOver = (byte)(aes->cOver + sz);
             if (aes->cOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
             #ifdef HAVE_INTEL_AVX2
@@ -9832,7 +9832,7 @@ static WARN_UNUSED_RESULT int AesGcmEncryptFinal_aesni(
     }
     if (over > 0) {
         /* Fill the rest of the block with zeros. */
-        XMEMSET(AES_LASTGBLOCK(aes) + over, 0, WC_AES_BLOCK_SIZE - over);
+        XMEMSET(AES_LASTGBLOCK(aes) + over, 0, (size_t)WC_AES_BLOCK_SIZE - over);
         /* GHASH last cipher block. */
     #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_AVX2(intel_flags)) {
@@ -9939,7 +9939,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
         aes->cSz += cSz;
         if (aes->cOver > 0) {
             /* Calculate amount we can use - fill up the block. */
-            byte sz = WC_AES_BLOCK_SIZE - aes->cOver;
+            byte sz = (byte)(WC_AES_BLOCK_SIZE - aes->cOver);
             if (sz > cSz) {
                 sz = (byte)cSz;
             }
@@ -9949,7 +9949,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptUpdate_aesni(
             xorbuf(AES_LASTGBLOCK(aes) + aes->cOver, c, sz);
             XMEMCPY(p, AES_LASTGBLOCK(aes) + aes->cOver, sz);
             /* Update count of unused encrypted counter. */
-            aes->cOver += sz;
+            aes->cOver = (byte)(aes->cOver + sz);
             if (aes->cOver == WC_AES_BLOCK_SIZE) {
                 /* We have filled up the block and can process. */
             #ifdef HAVE_INTEL_AVX2
@@ -10072,7 +10072,7 @@ static WARN_UNUSED_RESULT int AesGcmDecryptFinal_aesni(
     }
     if (over > 0) {
         /* Zeroize the unused part of the block. */
-        XMEMSET(lastBlock + over, 0, WC_AES_BLOCK_SIZE - over);
+        XMEMSET(lastBlock + over, 0, (size_t)WC_AES_BLOCK_SIZE - over);
         /* Hash the last block of cipher text. */
     #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_AVX2(intel_flags)) {
@@ -11044,14 +11044,14 @@ static WC_INLINE void AesCcmCtrIncSet4(byte* B, word32 lenSz)
     for (i = 0; i < lenSz; i++) {
         if (++B[WC_AES_BLOCK_SIZE * 2 - 1 - i] != 0) break;
     }
-    B[WC_AES_BLOCK_SIZE * 3 - 1] += 2;
-    if (B[WC_AES_BLOCK_SIZE * 3 - 1] < 2) {
+    B[WC_AES_BLOCK_SIZE * 3 - 1] = (byte)(B[WC_AES_BLOCK_SIZE * 3 - 1] + 2U);
+    if (B[WC_AES_BLOCK_SIZE * 3 - 1] < 2U) {
         for (i = 1; i < lenSz; i++) {
             if (++B[WC_AES_BLOCK_SIZE * 3 - 1 - i] != 0) break;
         }
     }
-    B[WC_AES_BLOCK_SIZE * 4 - 1] += 3;
-    if (B[WC_AES_BLOCK_SIZE * 4 - 1] < 3) {
+    B[WC_AES_BLOCK_SIZE * 4 - 1] = (byte)(B[WC_AES_BLOCK_SIZE * 4 - 1] + 3U);
+    if (B[WC_AES_BLOCK_SIZE * 4 - 1] < 3U) {
         for (i = 1; i < lenSz; i++) {
             if (++B[WC_AES_BLOCK_SIZE * 4 - 1 - i] != 0) break;
         }
@@ -11062,8 +11062,8 @@ static WC_INLINE void AesCcmCtrInc4(byte* B, word32 lenSz)
 {
     word32 i;
 
-    B[WC_AES_BLOCK_SIZE - 1] += 4;
-    if (B[WC_AES_BLOCK_SIZE - 1] < 4) {
+    B[WC_AES_BLOCK_SIZE - 1] = (byte)(B[WC_AES_BLOCK_SIZE - 1] + 4U);
+    if (B[WC_AES_BLOCK_SIZE - 1] < 4U) {
         for (i = 1; i < lenSz; i++) {
             if (++B[WC_AES_BLOCK_SIZE - 1 - i] != 0) break;
         }
@@ -11123,7 +11123,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     XMEMSET(A, 0, sizeof(A));
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
     B[0] = (byte)((authInSz > 0 ? 64 : 0)
                   + (8 * (((byte)authTagSz - 2) / 2))
                   + (lenSz - 1));
@@ -11153,7 +11153,7 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     if (ret == 0) {
         XMEMCPY(authTag, A, authTagSz);
 
-        B[0] = lenSz - 1;
+        B[0] = (byte)(lenSz - 1U);
         for (i = 0; i < lenSz; i++)
             B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
         ret = wc_AesEncrypt(aes, B, A);
@@ -11272,9 +11272,9 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
     oSz = inSz;
     XMEMSET(A, 0, sizeof A);
     XMEMCPY(B+1, nonce, nonceSz);
-    lenSz = WC_AES_BLOCK_SIZE - 1 - (byte)nonceSz;
+    lenSz = (byte)(WC_AES_BLOCK_SIZE - 1U - nonceSz);
 
-    B[0] = lenSz - 1;
+    B[0] = (byte)(lenSz - 1U);
     for (i = 0; i < lenSz; i++)
         B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
     B[15] = 1;
@@ -11353,7 +11353,7 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
         ret = roll_x(aes, o, oSz, A);
 
     if (ret == 0) {
-        B[0] = lenSz - 1;
+        B[0] = (byte)(lenSz - 1U);
         for (i = 0; i < lenSz; i++)
             B[WC_AES_BLOCK_SIZE - 1 - i] = 0;
         ret = wc_AesEncrypt(aes, B, B);
@@ -12175,11 +12175,11 @@ static void shiftLeftArray(byte* ary, byte shift)
     else {
         /* shifting over by 7 or less bits */
         for (i = 0; i < WC_AES_BLOCK_SIZE - 1; i++) {
-            byte carry = ary[i+1] & (0XFF << (WOLFSSL_BIT_SIZE - shift));
-            carry >>= (WOLFSSL_BIT_SIZE - shift);
+            byte carry = (byte)(ary[i+1] & (0XFF << (WOLFSSL_BIT_SIZE - shift)));
+            carry = (byte)(carry >> (WOLFSSL_BIT_SIZE - shift));
             ary[i] = (byte)((ary[i] << shift) + carry);
         }
-        ary[i] = ary[i] << shift;
+        ary[i] = (byte)(ary[i] << shift);
     }
 }
 
@@ -12265,19 +12265,19 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
             pt = (byte*)aes->reg;
 
             /* LSB + CAT */
-            tmp = (0X01 << bit) & in[0];
-            tmp = tmp >> bit;
+            tmp = (byte)((0X01U << bit) & in[0]);
+            tmp = (byte)(tmp >> bit);
             tmp &= 0x01;
             shiftLeftArray((byte*)aes->reg, 1);
             pt[WC_AES_BLOCK_SIZE - 1] |= tmp;
         }
 
         /* MSB  + XOR */
-        tmp = (0X01 << bit) & in[0];
+        tmp = (byte)((0X01U << bit) & in[0]);
         pt = (byte*)aes->tmp;
-        tmp = (pt[0] >> 7) ^ (tmp >> bit);
+        tmp = (byte)((pt[0] >> 7) ^ (tmp >> bit));
         tmp &= 0x01;
-        cur |= (tmp << bit);
+        cur = (byte)(cur | (tmp << bit));
 
 
         if (dir == AES_ENCRYPTION) {
@@ -12294,7 +12294,7 @@ static WARN_UNUSED_RESULT int wc_AesFeedbackCFB1(
             out += 1;
             in  += 1;
             sz  -= 1;
-            bit = 7;
+            bit = 7U;
             cur = 0;
         }
         else {
@@ -14062,7 +14062,7 @@ static WARN_UNUSED_RESULT int S2V(
             if (ret != 0)
                 break;
             xorbuf(tmp[1-tmpi], tmp[tmpi], WC_AES_BLOCK_SIZE);
-            tmpi = 1 - tmpi;
+            tmpi = (byte)(1 - tmpi);
         }
 
         /* Add nonce as final AD. See RFC 5297 Section 3. */
@@ -14073,7 +14073,7 @@ static WARN_UNUSED_RESULT int S2V(
             if (ret == 0) {
                 xorbuf(tmp[1-tmpi], tmp[tmpi], WC_AES_BLOCK_SIZE);
             }
-            tmpi = 1 - tmpi;
+            tmpi = (byte)(1U - tmpi);
         }
 
         /* For simplicity of the remaining code, make sure the "final" result

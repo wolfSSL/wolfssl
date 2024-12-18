@@ -1642,7 +1642,7 @@ static void wc_ecc_curve_cache_free_spec_item(ecc_curve_spec* curve, mp_int* ite
     #endif
         mp_clear(item);
     }
-    curve->load_mask &= ~mask;
+    curve->load_mask = (byte)(curve->load_mask & ~mask);
 }
 static void wc_ecc_curve_cache_free_spec(ecc_curve_spec* curve)
 {
@@ -12811,7 +12811,7 @@ static int accel_fp_mul(int idx, const mp_int* k, ecc_point *R, mp_int* a,
              by x bits from the start */
           bitpos = (unsigned)x;
           for (y = z = 0; y < FP_LUT; y++) {
-             z |= ((kb[bitpos>>3] >> (bitpos&7)) & 1) << y;
+             z |= (((word32)kb[bitpos>>3U] >> (bitpos&7U)) & 1U) << y;
              bitpos += lut_gap;  /* it's y*lut_gap + x, but here we can avoid
                                     the mult in each loop */
           }
@@ -13064,8 +13064,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
              offset by x bits from the start */
           bitpos = (unsigned)x;
           for (y = zA = zB = 0; y < FP_LUT; y++) {
-             zA |= ((kb[0][bitpos>>3] >> (bitpos&7)) & 1) << y;
-             zB |= ((kb[1][bitpos>>3] >> (bitpos&7)) & 1) << y;
+             zA |= (((word32)kb[0][bitpos>>3U] >> (bitpos&7U)) & 1U) << y;
+             zB |= (((word32)kb[1][bitpos>>3U] >> (bitpos&7U)) & 1U) << y;
              bitpos += lut_gap;    /* it's y*lut_gap + x, but here we can avoid
                                       the mult in each loop */
           }

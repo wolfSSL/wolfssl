@@ -1273,8 +1273,8 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
             /* Fill number with all of data. */
             *data->data.u16 = 0;
             for (i = 0; i < len; i++) {
-                *data->data.u16 <<= 8;
-                *data->data.u16 |= input[idx + (word32)i] ;
+                *data->data.u16 = (word16)(*data->data.u16 << 8U);
+                *data->data.u16 = (word16)(*data->data.u16 | input[idx + (word32)i]);
             }
             break;
         case ASN_DATA_TYPE_WORD32:
@@ -8640,12 +8640,12 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
             pbeOidBuf = pbes2;
             pbeOidBufSz = sizeof(pbes2);
             /* kdf = OBJ pbkdf2 [ SEQ innerLen ] */
-            kdfLen = 2 + sizeof(pbkdf2Oid) + 2 + innerLen;
+            kdfLen = 2U + (word32)sizeof(pbkdf2Oid) + 2U + innerLen;
             /* enc = OBJ enc_alg OCT iv */
-            encLen = 2 + (word32)encOidSz + 2 + (word32)blockSz;
+            encLen = 2U + (word32)encOidSz + 2U + (word32)blockSz;
             /* pbe = OBJ pbse2 SEQ [ SEQ [ kdf ] SEQ [ enc ] ] */
-            pbeLen = (word32)(2 + sizeof(pbes2) + 2 + 2 + (size_t)kdfLen + 2 +
-                              (size_t)encLen);
+            pbeLen = 2U + (word32)sizeof(pbes2) + 2U + 2U + kdfLen + 2U +
+                encLen;
 
             ret = wc_RNG_GenerateBlock(rng, cbcIv, (word32)blockSz);
         }
@@ -8715,7 +8715,7 @@ int wc_EncryptPKCS8Key(byte* key, word32 keySz, byte* out, word32* outSz,
             idx += SetSequence(kdfLen, out + idx);
             idx += (word32)SetObjectId((int)sizeof(pbkdf2Oid), out + idx);
             XMEMCPY(out + idx, pbkdf2Oid, sizeof(pbkdf2Oid));
-            idx += sizeof(pbkdf2Oid);
+            idx += (word32)sizeof(pbkdf2Oid);
         }
         idx += SetSequence(innerLen, out + idx);
         idx += SetOctetString(saltSz, out + idx);
@@ -24085,7 +24085,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer 
                     }
                 }
                 else {
-                    cert->maxPathLen = (byte)min(cert->ca->maxPathLen - 1,
+                    cert->maxPathLen = (byte)min(cert->ca->maxPathLen - 1U,
                                            cert->maxPathLen);
                 }
             }
@@ -27020,7 +27020,7 @@ static int wc_SetCert_LoadDer(Cert* cert, const byte* der, word32 derSz,
 #ifndef NO_ASN_TIME
 static WC_INLINE byte itob(int number)
 {
-    return (byte)number + 0x30;
+    return (byte)(number + 0x30);
 }
 
 
@@ -33432,7 +33432,8 @@ int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
                 return BUFFER_E;
             }
 
-            out[idx++] += (byte)val;
+            out[idx] = (byte)(out[idx] + val);
+            ++idx;
         }
         else {
             word32  tb = 0;

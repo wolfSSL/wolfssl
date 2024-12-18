@@ -9125,12 +9125,12 @@ void ge_scalarmult_base(ge_p3 *h,const unsigned char *a)
 
   carry = 0;
   for (i = 0;i < 63;++i) {
-    e[i] += carry;
-    carry = e[i] + 8;
-    carry >>= 4;
-    e[i] -= (signed char)(carry << 4);
+    e[i] = (signed char)(e[i] + carry);
+    carry = (signed char)(e[i] + 8);
+    carry = (signed char)(carry >> 4);
+    e[i] = (signed char)(e[i] - (carry << 4));
   }
-  e[63] += carry;
+  e[63] = (signed char)(e[63] + carry);
   /* each e[i] is between -8 and 8 */
 
 #ifndef CURVED25519_ASM
@@ -9190,9 +9190,10 @@ static void slide(signed char *r,const unsigned char *a)
       for (b = 1;b <= 6 && i + b < SLIDE_SIZE;++b) {
         if (r[i + b]) {
           if (r[i] + (r[i + b] << b) <= 15) {
-            r[i] += (signed char)(r[i + b] << b); r[i + b] = 0;
+              r[i] = (signed char)(r[i] + (r[i + b] << b));
+              r[i + b] = 0;
           } else if (r[i] - (r[i + b] << b) >= -15) {
-            r[i] -= (signed char)(r[i + b] << b);
+            r[i] = (signed char)(r[i] - (r[i + b] << b));
             for (k = i + b;k < SLIDE_SIZE;++k) {
               if (!r[k]) {
                 r[k] = 1;

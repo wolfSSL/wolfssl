@@ -1186,10 +1186,10 @@ int wc_strcasecmp(const char *s1, const char *s2)
     for (;;++s1, ++s2) {
         c1 = *s1;
         if ((c1 >= 'a') && (c1 <= 'z'))
-            c1 -= ('a' - 'A');
+            c1 = (char)(c1 - ('a' - 'A'));
         c2 = *s2;
         if ((c2 >= 'a') && (c2 <= 'z'))
-            c2 -= ('a' - 'A');
+            c2 = (char)(c2 - ('a' - 'A'));
         if ((c1 != c2) || (c1 == 0))
             break;
     }
@@ -1204,10 +1204,10 @@ int wc_strncasecmp(const char *s1, const char *s2, size_t n)
     for (c1 = 0, c2 = 0; n > 0; --n, ++s1, ++s2) {
         c1 = *s1;
         if ((c1 >= 'a') && (c1 <= 'z'))
-            c1 -= ('a' - 'A');
+            c1 = (char)(c1 - ('a' - 'A'));
         c2 = *s2;
         if ((c2 >= 'a') && (c2 <= 'z'))
-            c2 -= ('a' - 'A');
+            c2 = (char)(c2 - ('a' - 'A'));
         if ((c1 != c2) || (c1 == 0))
             break;
     }
