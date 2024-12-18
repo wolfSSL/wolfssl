@@ -131,9 +131,13 @@ void my_atmel_free(int slotId)
 /* Entry for FreeRTOS */
 void app_main(void)
 {
-    int stack_start = 0;
-    int this_heap = 0;
     esp_err_t ret = 0;
+#ifndef SINGLE_THREADED
+    int this_heap = 0;
+    #ifdef INCLUDE_uxTaskGetStackHighWaterMark
+        int stack_start = 0;
+    #endif
+#endif
     ESP_LOGI(TAG, "---------------- wolfSSL TLS Server Example ------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
     ESP_LOGI(TAG, "--------------------------------------------------------");
@@ -143,7 +147,7 @@ void app_main(void)
 #if !defined(CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_SERVER)
     ESP_LOGW(TAG, "Warning: Example wolfSSL misconfigured? Check menuconfig.");
 #endif
-#ifdef ESP_SDK_MEM_LIB_VERSION
+#if defined(ESP_SDK_MEM_LIB_VERSION) && defined(DEBUG_WOLFSSL)
     sdk_init_meminfo();
 #endif
 #ifdef ESP_TASK_MAIN_STACK

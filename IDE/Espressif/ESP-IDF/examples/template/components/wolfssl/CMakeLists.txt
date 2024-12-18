@@ -102,28 +102,28 @@ if(VERBOSE_COMPONENT_MESSAGES)
     if(WIN32)
         # Windows-specific configuration here
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WINDOWS")
-        message("Detected Windows")
+        message(STATUS "Detected Windows")
     endif()
     if(CMAKE_HOST_UNIX)
-        message("Detected UNIX")
+        message(STATUS "Detected UNIX")
     endif()
     if(APPLE)
-        message("Detected APPLE")
+        message(STATUS "Detected APPLE")
     endif()
     if(CMAKE_HOST_UNIX AND (NOT APPLE) AND EXISTS "/proc/sys/fs/binfmt_misc/WSLInterop")
         # Windows-specific configuration here
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_WSL")
-        message("Detected WSL")
+        message(STATUS "Detected WSL")
     endif()
     if(CMAKE_HOST_UNIX AND (NOT APPLE) AND (NOT WIN32))
         # Windows-specific configuration here
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_LINUX")
-        message("Detected Linux")
+        message(STATUS "Detected Linux")
     endif()
     if(APPLE)
         # Windows-specific configuration here
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_SYSTEM_NAME_APPLE")
-        message("Detected Apple")
+        message(STATUS "Detected Apple")
     endif()
 endif() # End optional WOLFSSL_CMAKE_SYSTEM_NAME
 
@@ -159,7 +159,8 @@ else()
     set(COMPONENT_REQUIRES lwip "${THIS_ESP_TLS}") # we typically don't need lwip directly in wolfssl component
 endif()
 
-# find the user name to search for possible "wolfssl-username"
+# Find the user name to search for possible "wolfssl-username"
+# Reminder: Windows is  %USERNAME%, Linux is $USER
 message(STATUS "USERNAME = $ENV{USERNAME}")
 if(  "$ENV{USER}" STREQUAL "" ) # the bash user
     if(  "$ENV{USERNAME}" STREQUAL "" ) # the Windows user
@@ -524,7 +525,7 @@ else()
     set(WOLFSSL_PROJECT_DIR "${CMAKE_HOME_DIRECTORY}/components/wolfssl")
 
     string(REPLACE "/" "//" STR_WOLFSSL_PROJECT_DIR "${WOLFSSL_PROJECT_DIR}")
-    add_definitions(-DWOLFSSL_USER_SETTINGS_DIR="${STR_WOLFSSL_PROJECT_DIR}/include/user_settings.h")
+    add_compile_definitions(WOLFSSL_USER_SETTINGS_DIR="${STR_WOLFSSL_PROJECT_DIR}/include/user_settings.h")
     message(STATUS "Added definition for user_settings.h: -DWOLFSSL_USER_SETTINGS_DIR=\"${STR_WOLFSSL_PROJECT_DIR}//include//user_settings.h\"")
     # Espressif may take several passes through this makefile. Check to see if we found IDF
     string(COMPARE EQUAL "${PROJECT_SOURCE_DIR}" "" WOLFSSL_FOUND_IDF)
@@ -951,7 +952,7 @@ function ( LIBWOLFSSL_SAVE_INFO VAR_OUPUT THIS_VAR VAR_RESULT )
         message(STATUS "Found ${VAR_OUPUT}=${VAR_VALUE}")
 
         # the interesting part is defining the VAR_OUPUT name a value to use in the app
-        add_definitions(-D${VAR_OUPUT}=\"${VAR_VALUE}\")
+        add_compile_definitions(${VAR_OUPUT}=\"${VAR_VALUE}\")
     else()
         # if we get here, check the execute_process command and parameters.
         message(STATUS "LIBWOLFSSL_SAVE_INFO encountered a non-zero VAR_RESULT")
@@ -959,9 +960,16 @@ function ( LIBWOLFSSL_SAVE_INFO VAR_OUPUT THIS_VAR VAR_RESULT )
     endif()
 endfunction() # LIBWOLFSSL_SAVE_INFO
 
+execute_process(
+    COMMAND ${git_cmd} "rev-parse" "--is-inside-work-tree"
+    OUTPUT_VARIABLE IS_GIT_REPO
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+
 # create some programmatic #define values that will be used by ShowExtendedSystemInfo().
 # see wolfcrypt\src\port\Espressif\esp32_utl.c
-if(NOT CMAKE_BUILD_EARLY_EXPANSION AND WOLFSSL_ROOT)
+if(NOT CMAKE_BUILD_EARLY_EXPANSION AND WOLFSSL_ROOT AND (IS_GIT_REPO STREQUAL "true"))
     set (git_cmd "git")
     message(STATUS "Adding macro definitions:")
 

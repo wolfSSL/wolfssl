@@ -291,5 +291,5 @@ COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/test
 ## wolfcrypt
 ##
 # COMPONENT_PRIV_INCLUDEDIRS += $(PROJECT_PATH)/components/wolfssl/include
-COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)wolfcrypt/src
+COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/src
 $(info ********** end wolfssl component **********)

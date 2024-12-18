@@ -59,7 +59,7 @@
         #define TLS_SMP_CLIENT_TASK_BYTES (12 * 1024)
     #else
         /* Minimum ESP32 stack size = 8K without Kyber */
-        #define TLS_SMP_CLIENT_TASK_BYTES (8 * 1024)
+        #define TLS_SMP_CLIENT_TASK_BYTES (10 * 1024)
     #endif
 #endif
 
