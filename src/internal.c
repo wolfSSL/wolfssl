@@ -3077,11 +3077,17 @@ void InitCiphers(WOLFSSL* ssl)
 #endif
 #if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
     ssl->auth.poly1305 = NULL;
+#ifdef WOLFSSL_RW_THREADED
+    ssl->decAuth.poly1305 = NULL;
+#endif
 #endif
     ssl->encrypt.setup = 0;
     ssl->decrypt.setup = 0;
 #ifdef HAVE_ONE_TIME_AUTH
     ssl->auth.setup    = 0;
+#ifdef WOLFSSL_RW_THREADED
+    ssl->decAuth.setup = 0;
+#endif
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -3159,6 +3165,12 @@ void FreeCiphers(WOLFSSL* ssl)
         ForceZero(ssl->auth.poly1305, sizeof(Poly1305));
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
     ssl->auth.poly1305 = NULL;
+#ifdef WOLFSSL_RW_THREADED
+    if (ssl->decAuth.poly1305)
+        ForceZero(ssl->decAuth.poly1305, sizeof(Poly1305));
+    XFREE(ssl->decAuth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
+    ssl->decAuth.poly1305 = NULL;
+#endif
 #endif
 
 #ifdef WOLFSSL_DTLS13
@@ -21730,7 +21742,6 @@ static int ReceiveAsyncData(WOLFSSL* ssl)
             else if (decrypt->done) {
                 int ret;
                 int error;
-
 
                 /* Parse record header again. */
                 GrowInputBuffer(ssl, decrypt->recordHdrLen, 0);

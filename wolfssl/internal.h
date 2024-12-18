@@ -6101,7 +6101,10 @@ struct WOLFSSL {
     int              devId;             /* async device id to use */
 #ifdef HAVE_ONE_TIME_AUTH
     OneTimeAuth     auth;
+#ifdef WOLFSSL_RW_THREADED
+    OneTimeAuth     decAuth;
 #endif
+#endif /* HAVE_ONE_TIME_AUTH */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
     #ifdef HAVE_MAX_FRAGMENT
@@ -6946,10 +6949,13 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 #ifdef WOLFSSL_THREADED_CRYPT
 WOLFSSL_LOCAL void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
     int order);
+WOLFSSL_LOCAL int EncryptTls13Sw(byte alg, Ciphers* encrypt, void* authPtr,
+    byte* output, const byte* input, word16 dataSz, byte* nonce,
+    const byte* aad, word16 aadSz, word16 macSz);
+WOLFSSL_LOCAL int DecryptTls13Sw(byte alg, Ciphers* encrypt, void* authPtr,
+    byte* output, const byte* input, word16 dataSz, byte* nonce,
+    const byte* aad, word16 aadSz, word16 macSz, word16 hashSz);
 #endif
-int EncryptTls13Sw(byte alg, Ciphers* encrypt, void* authPtr, byte* output,
-                   const byte* input, word16 dataSz, byte* nonce,
-                   const byte* aad, word16 aadSz, word32 macSz, int async);
 
 /* Use WOLFSSL_API to use this function in tests/api.c */
 WOLFSSL_API int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,

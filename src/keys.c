@@ -3550,7 +3550,13 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     if (!ssl->auth.setup && ssl->specs.bulk_cipher_algorithm == wolfssl_chacha){
         ret = SetAuthKeys(&ssl->auth, keys, &ssl->specs, ssl->heap, ssl->devId);
         if (ret != 0)
-           return ret;
+            return ret;
+    #ifdef WOLFSSL_RW_THREADED
+        ret = SetAuthKeys(&ssl->decAuth, keys, &ssl->specs, ssl->heap,
+            ssl->devId);
+        if (ret != 0)
+            return ret;
+    #endif
     }
 #endif
 
