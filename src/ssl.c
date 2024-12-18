@@ -23920,13 +23920,13 @@ int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx)
     word32 dataSz = encrypt->cryptLen - ssl->specs.aead_mac_size;
 
     ret = EncryptTls13Sw(ssl->specs.bulk_cipher_algorithm, &encrypt->cipher,
-#ifdef HAVE_ONE_TIME_AUTH
+    #ifdef HAVE_ONE_TIME_AUTH
         &encrypt->auth,
-#else
+    #else
         NULL,
-#endif
+    #endif
         out, out, dataSz, encrypt->nonce, encrypt->additional, RECORD_HEADER_SZ,
-        ssl->specs.aead_mac_size, 1);
+        ssl->specs.aead_mac_size);
 #ifdef WOLFSSL_DTLS13
     if (ret == 0 && ssl->options.dtls) {
         ret = Dtls13EncryptRecordNumber(ssl, encrypt->buffer.buffer,
@@ -23984,21 +23984,20 @@ int wolfSSL_AsyncDecryptStop(WOLFSSL* ssl, int idx)
 
 int wolfSSL_AsyncDecrypt(WOLFSSL* ssl, int idx)
 {
-    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    int ret;
     ThreadCrypt* decrypt = &ssl->buffers.decrypt[idx];
+    unsigned char* out = decrypt->buffer.buffer + decrypt->offset;
 
-    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
-        unsigned char* out = decrypt->buffer.buffer + decrypt->offset;
-        unsigned char* input = decrypt->buffer.buffer + decrypt->offset;
-        unsigned char* tag = input + decrypt->cryptLen;
+    ret = DecryptTls13Sw(ssl->specs.bulk_cipher_algorithm, &decrypt->cipher,
+    #ifdef HAVE_ONE_TIME_AUTH
+        &decrypt->auth,
+    #else
+        NULL,
+    #endif
+        out, out, decrypt->cryptLen, decrypt->nonce, decrypt->additional,
+        RECORD_HEADER_SZ, ssl->specs.aead_mac_size, ssl->specs.hash_size);
 
-        ret = wc_AesGcmDecrypt(decrypt->cipher.aes, out, input,
-               decrypt->cryptLen,
-               decrypt->nonce, AESGCM_NONCE_SZ,
-               tag, ssl->specs.aead_mac_size,
-               decrypt->additional, RECORD_HEADER_SZ);
-        decrypt->done = 1;
-    }
+    decrypt->done = 1;
 
     return ret;
 }

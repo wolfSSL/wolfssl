@@ -956,8 +956,18 @@ static int Dtls13SendOneFragmentRtx(WOLFSSL* ssl,
         handshakeType, hashOutput, Dtls13SendNow(ssl, handshakeType));
 
     if (rtxRecord != NULL) {
-        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE))
+        if (ret == 0 || ret == WC_NO_ERR_TRACE(WANT_WRITE)) {
+        #ifdef WOLFSSL_RW_THREADED
+            int lockRet = wc_LockMutex(&ssl->dtls13Rtx.mutex);
+            if (lockRet < 0) {
+                return lockRet;
+            }
+        #endif
             Dtls13RtxAddRecord(&ssl->dtls13Rtx, rtxRecord);
+        #ifdef WOLFSSL_RW_THREADED
+            wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+        #endif
+        }
         else
             Dtls13FreeRtxBufferRecord(ssl, rtxRecord);
     }
@@ -1534,8 +1544,15 @@ static void Dtls13RtxMoveToEndOfList(WOLFSSL* ssl, Dtls13RtxRecord** prevNext,
         return;
 
     Dtls13RtxRecordUnlink(ssl, prevNext, r);
+#ifdef WOLFSSL_RW_THREADED
+    if (wc_LockMutex(&ssl->dtls13Rtx.mutex) != 0)
+        return;
+#endif
     /* add to the end */
     Dtls13RtxAddRecord(&ssl->dtls13Rtx, r);
+#ifdef WOLFSSL_RW_THREADED
+    wc_UnLockMutex(&ssl->dtls13Rtx.mutex);
+#endif
 }
 
 static int Dtls13RtxSendBuffered(WOLFSSL* ssl)
