@@ -124,7 +124,7 @@ block cipher mechanism that uses n-bit binary string parameter key with 128-bits
     #pragma warning(disable: 4127)
 #endif
 
-#if FIPS_VERSION3_GE(6,0,0)
+#if !defined(WOLFSSL_ARMASM) && FIPS_VERSION3_GE(6,0,0)
     const unsigned int wolfCrypt_FIPS_aes_ro_sanity[2] =
                                                      { 0x1a2b3c4d, 0x00000002 };
     int wolfCrypt_FIPS_AES_sanity(void)

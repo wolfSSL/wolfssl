@@ -5518,7 +5518,7 @@ AS_CASE([$FIPS_VERSION],
         # for armasm on arm-v7 or earlier (see armasm setup above).
         AS_IF([test "$ENABLED_AESGCM_STREAM" != "yes" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_aesgcm_stream" != "no") &&
-               ! (test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               (test "$ENABLED_ARMASM" = "no" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
             [ENABLED_AESGCM_STREAM="yes"])
 
         AS_IF([test "x$ENABLED_AESOFB" = "xno" &&
@@ -5537,7 +5537,7 @@ AS_CASE([$FIPS_VERSION],
 
         AS_IF([test "x$ENABLED_AESXTS_STREAM" = "xno" &&
                (test "$FIPS_VERSION" != "dev" || test "$enable_aesxts_stream" != "no") &&
-               ! (test "$ENABLED_ARMASM" = "yes" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
+               (test "$ENABLED_ARMASM" = "no" || test "$ENABLED_ARMASM_CRYPTO" = "no")],
             [ENABLED_AESXTS_STREAM="yes"])
 
         AS_IF([(test "$ENABLED_AESCCM" = "yes" && test "$HAVE_AESCCM_PORT" != "yes") ||
