@@ -336,7 +336,7 @@ WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
     }
 
     if ((sigforSCE = (uint8_t*)XMALLOC(HW_SCE_ECDSA_DATA_BYTE_SIZE, NULL,
-                                                  DYNAMIC_TYPE_TEMP)) == NULL) {
+                                                  DYNAMIC_TYPE_TMP_BUFFER)) == NULL) {
         WOLFSSL_MSG("failed to malloc memory");
         return MEMORY_E;
     }
@@ -371,7 +371,7 @@ WOLFSSL_LOCAL int wc_fspsm_EccVerifyTLS(WOLFSSL* ssl, const uint8_t* sig,
 
     ret = fspsm_ServerKeyExVerify(2, ssl, sigforSCE, 64, ctx);
 
-    XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
+    XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret == WOLFSSL_SUCCESS) {
         *result = 1;
@@ -749,9 +749,9 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
         }
         else {
             key_client_aes = (FSPSM_AES_PWKEY)XMALLOC(sizeof(FSPSM_AES_WKEY),
-                                            aes->heap, DYNAMIC_TYPE_AE);
+                                            ssl->heap, DYNAMIC_TYPE_AES);
             key_server_aes = (FSPSM_AES_PWKEY)XMALLOC(sizeof(FSPSM_AES_WKEY),
-                                            aes->heap, DYNAMIC_TYPE_AE);
+                                            ssl->heap, DYNAMIC_TYPE_AES);
             if (key_client_aes == NULL || key_server_aes == NULL) {
                 return MEMORY_E;
             }
@@ -790,7 +790,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
                 XMEMSET(enc->aes, 0, sizeof(Aes));
                 enc->aes->ctx.wrapped_key = (FSPSM_AES_PWKEY)XMALLOC
                                             (sizeof(FSPSM_AES_WKEY),
-                                            aes->heap, DYNAMIC_TYPE_AE);
+                                            ssl->heap, DYNAMIC_TYPE_AES);
                 if (enc->aes->ctx.wrapped_key == NULL)
                     return MEMORY_E;
             }
@@ -808,7 +808,7 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
 
                     dec->aes->ctx.wrapped_key = (FSPSM_AES_PWKEY)XMALLOC
                                             (sizeof(FSPSM_AES_WKEY),
-                                            aes->heap, DYNAMIC_TYPE_AE);
+                                            ssl->heap, DYNAMIC_TYPE_AES);
                     if (dec->aes->ctx.wrapped_key == NULL)
                         return MEMORY_E;
                     }
@@ -857,8 +857,8 @@ WOLFSSL_LOCAL int wc_fspsm_generateSessionKey(WOLFSSL *ssl,
             cbInfo->keyflgs_tls.bits.session_key_set = 1;
         }
 
-        XFREE(key_client_aes, aes->heap, DYNAMIC_TYPE_AES);
-        XFREE(key_server_aes, aes->heap, DYNAMIC_TYPE_AES);
+        XFREE(key_client_aes, ssl->heap, DYNAMIC_TYPE_AES);
+        XFREE(key_server_aes, ssl->heap, DYNAMIC_TYPE_AES);
 
         /* unlock hw */
         wc_fspsm_hw_unlock();
@@ -1019,7 +1019,7 @@ WOLFSSL_LOCAL int wc_fspsm_tls_CertVerify(
                                 SCE_TLS_PUBLIC_KEY_TYPE_ECDSA_P256/*ECDSA*/) {
 
       if ((sigforSCE = (uint8_t*)XMALLOC(HW_SCE_ECDSA_DATA_BYTE_SIZE, NULL,
-                                                  DYNAMIC_TYPE_TEMP)) == NULL) {
+                                                  DYNAMIC_TYPE_TMP_BUFFER)) == NULL) {
         WOLFSSL_MSG("failed to malloc memory");
         return MEMORY_E;
       }
@@ -1071,7 +1071,7 @@ WOLFSSL_LOCAL int wc_fspsm_tls_CertVerify(
         if (ret != FSP_SUCCESS) {
             WOLFSSL_MSG(" R_XXX_TlsCertificateVerification() failed");
         }
-        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TEMP);
+        XFREE(sigforSCE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         wc_fspsm_hw_unlock();
     }
     else {
