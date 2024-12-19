@@ -2411,7 +2411,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     err_sys("provided connection ID is too big");
                 }
                 else {
-                    strcpy(dtlsCID, myoptarg);
+                    strncpy(dtlsCID, myoptarg, DTLS_CID_BUFFER_SIZE-1);
                 }
             }
             break;
