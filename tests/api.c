@@ -72825,6 +72825,9 @@ static int test_wolfSSL_GENERAL_NAME_print(void)
         wolfSSL_ASN1_STRING_free(gn->d.ia5);
         gn->d.registeredID = ridObj;
     }
+    else {
+        wolfSSL_ASN1_OBJECT_free(ridObj);
+    }
     ExpectIntEQ(GENERAL_NAME_print(out, gn), 1);
     XMEMSET(outbuf,0,sizeof(outbuf));
     ExpectIntGT(BIO_read(out, outbuf, sizeof(outbuf)), 0);
@@ -100778,7 +100781,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_X509_STORE_CTX),
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_ex),
     TEST_DECL(test_X509_STORE_untrusted),
-#if defined(OPENSSL_ALL)
+#if defined(OPENSSL_ALL) && !defined(NO_RSA)
     TEST_DECL(test_X509_STORE_InvalidCa),
 #endif
     TEST_DECL(test_wolfSSL_X509_STORE_CTX_trusted_stack_cleanup),

@@ -12667,15 +12667,9 @@ err:
     static void wolfssl_x509_name_entry_set(WOLFSSL_X509_NAME_ENTRY* ne,
         int nid, int type, const unsigned char *data, int dataSz)
     {
-        WOLFSSL_ASN1_OBJECT* object;
-
         ne->nid = nid;
         /* Reuse the object if already available. */
-        object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
-        if (object != NULL) {
-            /* Set the object when no error. */
-            ne->object = object;
-        }
+        ne->object = wolfSSL_OBJ_nid2obj_ex(nid, ne->object);
         if (ne->value == NULL) {
             ne->value = wolfSSL_ASN1_STRING_type_new(type);
         }
