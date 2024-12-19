@@ -1852,6 +1852,12 @@ enum Misc {
 #ifndef MAX_WOLFSSL_FILE_SIZE
     MAX_WOLFSSL_FILE_SIZE = 1024UL * 1024UL * 4,  /* 4 mb file size alloc limit */
 #endif
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    MAX_WOLFSSL_CRYPTO_POLICY_SIZE = 1024UL, /* Crypto-policy file is one line.
+                                              * It should not be large. */
+    MIN_WOLFSSL_SEC_LEVEL = 0,
+    MAX_WOLFSSL_SEC_LEVEL = 5,
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
 
@@ -2409,16 +2415,16 @@ typedef struct CipherSuite {
 
 /* use wolfSSL_API visibility to be able to test in tests/api.c */
 WOLFSSL_API void InitSuitesHashSigAlgo(byte* hashSigAlgo, int have,
-                                             int tls1_2, int keySz,
-                                             word16* len);
+                                       int tls1_2, int keySz, word16* len);
 WOLFSSL_LOCAL int AllocateCtxSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL int AllocateSuites(WOLFSSL* ssl);
 WOLFSSL_LOCAL void InitSuites(Suites* suites, ProtocolVersion pv, int keySz,
                               word16 haveRSA, word16 havePSK, word16 haveDH,
                               word16 haveECDSAsig, word16 haveECC,
                               word16 haveStaticRSA, word16 haveStaticECC,
-                              word16 haveFalconSig, word16 haveDilithiumSig,
-                              word16 haveAnon, word16 haveNull, int side);
+                              word16 haveAnon, word16 haveNull,
+                              word16 haveAES128, word16 haveSHA1,
+                              word16 haveRC4, int side);
 
 typedef struct TLSX TLSX;
 WOLFSSL_LOCAL int MatchSuite_ex(const WOLFSSL* ssl, Suites* peerSuites,
@@ -4177,6 +4183,9 @@ struct WOLFSSL_CTX {
     byte *sigSpec;
     word16 sigSpecSz;
 #endif
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    int secLevel; /* The security level of system-wide crypto policy. */
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 };
 
 WOLFSSL_LOCAL
@@ -6257,7 +6266,19 @@ struct WOLFSSL {
     byte *peerSigSpec;     /* This pointer always owns the memory. */
     word16 peerSigSpecSz;
 #endif
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    int secLevel; /* The security level of system-wide crypto policy. */
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 };
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+#define WOLFSSL_SECLEVEL_STR "@SECLEVEL="
+struct SystemCryptoPolicy {
+    int    enabled;
+    int    secLevel;
+    char   str[MAX_WOLFSSL_CRYPTO_POLICY_SIZE + 1]; /* + 1 for null term */
+};
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 /*
  * wolfSSL_PEM_read_bio_X509 pushes an ASN_NO_PEM_HEADER error

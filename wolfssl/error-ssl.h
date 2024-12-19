@@ -221,6 +221,7 @@ enum wolfSSL_ErrorCodes {
     HRR_COOKIE_ERROR             = -505,   /* HRR msg cookie mismatch */
     UNSUPPORTED_CERTIFICATE      = -506,   /* unsupported certificate type */
 
+    /* PEM and EVP errors */
     WOLFSSL_PEM_R_NO_START_LINE_E = -507,
     WOLFSSL_PEM_R_PROBLEMS_GETTING_PASSWORD_E = -508,
     WOLFSSL_PEM_R_BAD_PASSWORD_READ_E = -509,
@@ -232,7 +233,10 @@ enum wolfSSL_ErrorCodes {
     WOLFSSL_EVP_R_DECODE_ERROR   = -514,
     WOLFSSL_EVP_R_PRIVATE_KEY_DECODE_ERROR = -515,
 
-    WOLFSSL_LAST_E               = -515
+    CRYPTO_POLICY_FORBIDDEN      = -516,   /* operation forbidden by system
+                                            * crypto-policy */
+
+    WOLFSSL_LAST_E               = -516
 
     /* codes -1000 to -1999 are reserved for wolfCrypt. */
 };
