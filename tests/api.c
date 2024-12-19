@@ -98858,7 +98858,7 @@ static int test_dtls13_basic_connection_id(void)
     && defined(WOLFSSL_DTLS_CID)
     unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
     unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    unsigned char readBuf[30];
+    unsigned char readBuf[50];
     const char* params[] = {
 #ifndef NO_SHA256
 #ifdef WOLFSSL_AES_128
@@ -100374,15 +100374,19 @@ static int test_wolfSSL_dtls_cid_parse(void)
             "\xf1\x1f\x34\x00\x1f\xdb\x8c\x28\x25\x9f\xe1\x02\x26\x77\x1c\x3a" \
             "\x50\x1b\x50\x99\xd0\xb5\x20\xd8\x2c\x2e\xaa\x36\x36\xe0\xb7\xb7" \
             "\xf7\x7d\xff\xb0";
+#ifdef WOLFSSL_DTLS13
     /* 1.3 app data containing CID */
     byte cid13[] =
             "\x3f\x70\x64\x04\xc6\xfb\x97\x21\xd9\x28\x27\x00\x17\xc1\x01\x86" \
             "\xe7\x23\x2c\xad\x65\x83\xa8\xf4\xbf\xbf\x7b\x25\x16\x80\x19\xc3" \
             "\x81\xda\xf5\x3f";
+#endif
 
     ExpectPtrEq(wolfSSL_dtls_cid_parse(noCid, sizeof(noCid), 8), NULL);
     ExpectPtrEq(wolfSSL_dtls_cid_parse(cid12, sizeof(cid12), 8), cid12 + 11);
+#ifdef WOLFSSL_DTLS13
     ExpectPtrEq(wolfSSL_dtls_cid_parse(cid13, sizeof(cid13), 8), cid13 + 1);
+#endif
 #endif
     return EXPECT_RESULT();
 }
