@@ -122,6 +122,12 @@ my @fileList_dilithium = (
         ["certs/dilithium/bench_dilithium_level2_key.der", "bench_dilithium_level2_key" ],
         ["certs/dilithium/bench_dilithium_level3_key.der", "bench_dilithium_level3_key" ],
         ["certs/dilithium/bench_dilithium_level5_key.der", "bench_dilithium_level5_key" ],
+        ["certs/dilithium/bench_dilithium_level2_pubkey.der",
+            "bench_dilithium_level2_pubkey" ],
+        ["certs/dilithium/bench_dilithium_level3_pubkey.der",
+            "bench_dilithium_level3_pubkey" ],
+        ["certs/dilithium/bench_dilithium_level5_pubkey.der",
+            "bench_dilithium_level5_pubkey" ],
         );
 
 #Sphincs+ Post-Quantum Keys
@@ -229,7 +235,7 @@ for (my $i = 0; $i < $num_4096; $i++) {
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_4096 */\n\n";
 
 # convert and print falcon keys
-print OUT_FILE "#if defined(HAVE_PQC) && defined(HAVE_FALCON)\n\n";
+print OUT_FILE "#if defined(HAVE_FALCON)\n\n";
 for (my $i = 0; $i < $num_falcon; $i++) {
 
     my $fname = $fileList_falcon[$i][0];
@@ -243,10 +249,10 @@ for (my $i = 0; $i < $num_falcon; $i++) {
     print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
-print OUT_FILE "#endif /* HAVE_PQC && HAVE_FALCON */\n\n";
+print OUT_FILE "#endif /* HAVE_FALCON */\n\n";
 
 # convert and print dilithium keys
-print OUT_FILE "#if defined (HAVE_PQC) && defined(HAVE_DILITHIUM)\n\n";
+print OUT_FILE "#if defined(HAVE_DILITHIUM)\n\n";
 for (my $i = 0; $i < $num_dilithium; $i++) {
 
     my $fname = $fileList_dilithium[$i][0];
@@ -260,10 +266,10 @@ for (my $i = 0; $i < $num_dilithium; $i++) {
     print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
-print OUT_FILE "#endif /* HAVE_PQC && HAVE_DILITHIUM */\n\n";
+print OUT_FILE "#endif /* HAVE_DILITHIUM */\n\n";
 
 # convert and print sphincs keys
-print OUT_FILE "#if defined(HAVE_PQC) && defined(HAVE_SPHINCS)\n\n";
+print OUT_FILE "#if defined(HAVE_SPHINCS)\n\n";
 for (my $i = 0; $i < $num_sphincs; $i++) {
 
     my $fname = $fileList_sphincs[$i][0];
@@ -277,7 +283,7 @@ for (my $i = 0; $i < $num_sphincs; $i++) {
     print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
 }
 
-print OUT_FILE "#endif /* HAVE_PQC && HAVE_SPHINCS */\n\n";
+print OUT_FILE "#endif /* HAVE_SPHINCS */\n\n";
 
 # convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
