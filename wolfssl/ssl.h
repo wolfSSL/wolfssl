@@ -4049,6 +4049,13 @@ WOLFSSL_API void  wolfSSL_CTX_SetGenMasterSecretCb(WOLFSSL_CTX* ctx,
 WOLFSSL_API void  wolfSSL_SetGenMasterSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetGenMasterSecretCtx(WOLFSSL* ssl);
 
+typedef int (*CallbackGenExtMasterSecret)(WOLFSSL* ssl, byte* hash,
+                                            word32 hashsz, void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetGenExtMasterSecretCb(WOLFSSL_CTX* ctx,
+                                                CallbackGenExtMasterSecret cb);
+WOLFSSL_API void  wolfSSL_SetGenExtMasterSecretCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetGenExtMasterSecretCtx(WOLFSSL* ssl);
+
 typedef int (*CallbackGenPreMaster)(WOLFSSL* ssl, byte *premaster,
                                                    word32 preSz, void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetGenPreMasterCb(WOLFSSL_CTX* ctx,

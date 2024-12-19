@@ -19234,6 +19234,29 @@ void* wolfSSL_GetGenMasterSecretCtx(WOLFSSL* ssl)
     return NULL;
 }
 
+/* callback for extended master secret generation */
+void  wolfSSL_CTX_SetGenExtMasterSecretCb(WOLFSSL_CTX* ctx,
+    CallbackGenExtMasterSecret cb)
+{
+    if (ctx)
+        ctx->GenExtMasterCb = cb;
+}
+/* Set extended master secret generation callback context */
+void  wolfSSL_SetGenExtMasterSecretCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->GenExtMasterCtx = ctx;
+}
+/* Get extended master secret generation callback context */
+void* wolfSSL_GetGenExtMasterSecretCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->GenExtMasterCtx;
+
+    return NULL;
+}
+
+
 /* callback for session key generation */
 void  wolfSSL_CTX_SetGenSessionKeyCb(WOLFSSL_CTX* ctx, CallbackGenSessionKey cb)
 {
