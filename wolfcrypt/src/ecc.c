@@ -9164,8 +9164,8 @@ static int ecc_verify_hash(mp_int *r, mp_int *s, const byte* hash,
    mp_clear(u1);
    mp_clear(u2);
 #ifndef WOLFSSL_NO_MALLOC
-   FREE_MP_INT_SIZE(u1, key->heap, DYNAMIC_TYPE_ECC);
-   FREE_MP_INT_SIZE(u2, key->heap, DYNAMIC_TYPE_ECC);
+   XFREE(u1, key->heap, DYNAMIC_TYPE_ECC);
+   XFREE(u2, key->heap, DYNAMIC_TYPE_ECC);
 #endif
 #endif
 #if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
