@@ -2074,17 +2074,24 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
         (25 - KYBER_SYM_SZ / 8 - 1) * sizeof(word64));
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
-    if (IS_INTEL_BMI2(cpuid_flags)) {
-        sha3_block_bmi2(state);
+    while (outLen > 0) {
+        unsigned int len = min(outLen, WC_SHA3_256_BLOCK_SIZE);
+
+        if (IS_INTEL_BMI2(cpuid_flags)) {
+            sha3_block_bmi2(state);
+        }
+        else if (IS_INTEL_AVX2(cpuid_flags) &&
+                 (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sha3_block_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else {
+            BlockSha3(state);
+        }
+        XMEMCPY(out, state, len);
+        out += len;
+        outLen -= len;
     }
-    else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sha3_block_avx2(state);
-        RESTORE_VECTOR_REGISTERS();
-    }
-    else {
-        BlockSha3(state);
-    }
-    XMEMCPY(out, state, outLen);
 
     return 0;
 #else
