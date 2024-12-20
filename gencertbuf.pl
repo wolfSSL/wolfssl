@@ -236,11 +236,12 @@ for (my $i = 0; $i < $num_falcon; $i++) {
 
 print OUT_FILE "#endif /* HAVE_FALCON */\n\n";
 
-# print dilithium keys
+# print dilithium raw keys
 print OUT_FILE "#if defined(HAVE_DILITHIUM)
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
-/* raw private key without ASN1 syntax */
+/* raw private key without ASN1 syntax from
+ * ./certs/dilithium/bench_dilithium_level2_key.der */
 static const unsigned char bench_dilithium_level2_key[] = {
     0xea, 0x05, 0x24, 0x0d, 0x80, 0x72, 0x25, 0x55, 0xf4, 0x5b,
     0xc2, 0x13, 0x8b, 0x87, 0x5d, 0x31, 0x99, 0x2f, 0x1d, 0xa9,
@@ -505,7 +506,8 @@ static const int sizeof_bench_dilithium_level2_key = sizeof(bench_dilithium_leve
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
 
-/* raw public key without ASN1 syntax */
+/* raw public key without ASN1 syntax from
+ * ./certs/dilithium/bench_dilithium_level2_key.der */
 static const unsigned char bench_dilithium_level2_pubkey[] = {
     0xea, 0x05, 0x24, 0x0d, 0x80, 0x72, 0x25, 0x55, 0xf4, 0x5b,
     0xc2, 0x13, 0x8b, 0x87, 0x5d, 0x31, 0x99, 0x2f, 0x1d, 0xa9,
@@ -647,7 +649,8 @@ static const int sizeof_bench_dilithium_level2_pubkey =
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
-/* raw private key without ASN1 syntax */
+/* raw private key without ASN1 syntax from
+ * ./certs/dilithium/bench_dilithium_level3_key.der */
 static const unsigned char bench_dilithium_level3_key[] = {
     0x15, 0xc9, 0xe5, 0x53, 0x2f, 0xd8, 0x1f, 0xb4, 0xa3, 0x9f,
     0xae, 0xad, 0xb3, 0x10, 0xd0, 0x72, 0x69, 0xd3, 0x02, 0xf3,
@@ -1060,7 +1063,8 @@ static const int sizeof_bench_dilithium_level3_key = sizeof(bench_dilithium_leve
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
 
-/* raw public key without ASN1 syntax */
+/* raw public key without ASN1 syntax from
+ * ./certs/dilithium/bench_dilithium_level3_key.der */
 static const unsigned char bench_dilithium_level3_pubkey[] = {
     0x15, 0xc9, 0xe5, 0x53, 0x2f, 0xd8, 0x1f, 0xb4, 0xa3, 0x9f,
     0xae, 0xad, 0xb3, 0x10, 0xd0, 0x72, 0x69, 0xd3, 0x02, 0xf3,
@@ -1266,7 +1270,8 @@ static const int sizeof_bench_dilithium_level3_pubkey =
 
 #ifndef WOLFSSL_DILITHIUM_NO_SIGN
 
-/* raw private key without ASN1 syntax */
+/* raw private key without ASN1 syntax from
+ * ./certs/dilithium/bench_dilithium_level5_key.der */
 static const unsigned char bench_dilithium_level5_key[] = {
     0xef, 0x49, 0x79, 0x47, 0x15, 0xc4, 0x8a, 0xa9, 0x74, 0x2a,
     0xf0, 0x36, 0x94, 0x5c, 0x91, 0x1c, 0x5d, 0xff, 0x2c, 0x83,
@@ -1765,7 +1770,8 @@ static const int sizeof_bench_dilithium_level5_key = sizeof(bench_dilithium_leve
 
 #ifndef WOLFSSL_DILITHIUM_NO_VERIFY
 
-/* raw public key without ASN1 syntax */
+/* raw public key without ASN1 syntax from
+ * ./certs/dilithium/bench_dilithium_level5_key.der */
 static const unsigned char bench_dilithium_level5_pubkey[] = {
     0xef, 0x49, 0x79, 0x47, 0x15, 0xc4, 0x8a, 0xa9, 0x74, 0x2a,
     0xf0, 0x36, 0x94, 0x5c, 0x91, 0x1c, 0x5d, 0xff, 0x2c, 0x83,
