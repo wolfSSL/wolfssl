@@ -12864,7 +12864,7 @@ static wc_test_ret_t aes_cbc_oneshot_test(void)
 }
 #endif
 
-#if defined(WOLFSSL_AES_COUNTER) && defined(HAVE_AES_DECRYPT)
+#if defined(WOLFSSL_AES_COUNTER)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t aes_ctr_test(void)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
