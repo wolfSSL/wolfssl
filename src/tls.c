@@ -13781,11 +13781,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 word64 now, milli;
             #endif
 
-                if (isServer && (sess->ticketLen > MAX_PSK_ID_LEN)) {
-                    WOLFSSL_MSG("Session ticket length for PSK ext is too large");
-                    return BUFFER_ERROR;
-                }
-
                 /* Determine the MAC algorithm for the cipher suite used. */
                 ssl->options.cipherSuite0 = sess->cipherSuite0;
                 ssl->options.cipherSuite  = sess->cipherSuite;
