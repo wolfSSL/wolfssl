@@ -1935,7 +1935,7 @@ int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 #endif
 }
 
-#ifdef WOLFSSL_DTLS_CID
+#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_NO_SOCK)
 int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 {
 #ifdef WOLFSSL_DTLS
@@ -1981,7 +1981,7 @@ int wolfSSL_dtls_set_pending_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
     return WOLFSSL_NOT_IMPLEMENTED;
 #endif
 }
-#endif
+#endif /* WOLFSSL_DTLS_CID && !WOLFSSL_NO_SOCK */
 
 int wolfSSL_dtls_get_peer(WOLFSSL* ssl, void* peer, unsigned int* peerSz)
 {

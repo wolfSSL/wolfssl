@@ -98531,7 +98531,7 @@ static int test_dtls12_basic_connection_id(void)
 #endif /* WOLFSSL_AES_128 && WOLFSSL_STATIC_RSA */
 #endif /* NO_SHA256 */
 #endif /* NO_RSA */
-#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(HAVE_FIPS)
         "DHE-RSA-CHACHA20-POLY1305",
         "DHE-RSA-CHACHA20-POLY1305-OLD",
         "ECDHE-RSA-CHACHA20-POLY1305",
@@ -98540,7 +98540,7 @@ static int test_dtls12_basic_connection_id(void)
 #ifndef NO_PSK
         "DHE-PSK-AES128-CBC-SHA256",
         "DHE-PSK-AES256-GCM-SHA384",
-#ifndef HAVE_NULL_CIPHER
+#ifdef HAVE_NULL_CIPHER
         "DHE-PSK-NULL-SHA256",
 #endif
         "DHE-PSK-AES128-CCM",
