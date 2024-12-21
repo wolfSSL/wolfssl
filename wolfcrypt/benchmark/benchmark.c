@@ -14701,6 +14701,16 @@ void bench_sphincsKeySign(byte level, byte optim)
         return (double)ns / 1000000000.0;
     }
 
+#elif defined(WOLFSSL_GAISLER_BCC)
+
+    #include <bcc/bcc.h>
+    double current_time(int reset)
+    {
+        (void)reset;
+        uint32_t us = bcc_timer_get_us();
+        return (double)us / 1000000.0;
+    }
+
 #else
 
     #include <time.h>
