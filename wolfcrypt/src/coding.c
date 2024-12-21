@@ -297,7 +297,7 @@ static int CEscape(int escaped, byte e, byte* out, word32* i, word32 maxSz,
 
     if (raw)
         basic = e;
-    else if (e <= sizeof(base64Encode))
+    else if (e < sizeof(base64Encode))
         basic = base64Encode[e];
     else
         return BAD_FUNC_ARG;
