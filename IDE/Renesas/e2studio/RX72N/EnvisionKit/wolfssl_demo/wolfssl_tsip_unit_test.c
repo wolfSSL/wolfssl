@@ -126,8 +126,8 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
 
     Aes  aes[1];
 
-    byte cipher[AES_BLOCK_SIZE];
-    byte plain[AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+    byte plain[WC_AES_BLOCK_SIZE];
     int  ret = 0;
 
     WOLFSSL_SMALL_STACK_STATIC const byte msg[] = {
@@ -139,8 +139,8 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
     byte key[] = "0123456789abcdef   ";  /* align */
     byte iv[]  = "1234567890abcdef   ";  /* align */
 
-    ForceZero(cipher, AES_BLOCK_SIZE);
-    ForceZero(plain, AES_BLOCK_SIZE);
+    ForceZero(cipher, WC_AES_BLOCK_SIZE);
+    ForceZero(plain, WC_AES_BLOCK_SIZE);
 
     if (prnt) {
         printf(" tsip_aes_cbc_test() ");
@@ -148,13 +148,13 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
 
     ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_AesSetKey(aes, key, AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        ret = wc_AesSetKey(aes, key, WC_AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         XMEMCPY(&aes->ctx.tsip_keyIdx, aes_key,
                         sizeof(tsip_aes_key_index_t));
 
         aes->ctx.keySize = aes->keylen;
         if (ret == 0) {
-            ret = wc_tsip_AesCbcEncrypt(aes, cipher, msg, AES_BLOCK_SIZE);
+            ret = wc_tsip_AesCbcEncrypt(aes, cipher, msg, WC_AES_BLOCK_SIZE);
         }
 
         wc_AesFree(aes);
@@ -167,18 +167,18 @@ static int tsip_aes_cbc_test(int prnt, tsip_aes_key_index_t* aes_key)
     if (ret == 0)
         ret = wc_AesInit(aes, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_AesSetKey(aes, key, AES_BLOCK_SIZE, iv, AES_DECRYPTION);
+        ret = wc_AesSetKey(aes, key, WC_AES_BLOCK_SIZE, iv, AES_DECRYPTION);
         XMEMCPY(&aes->ctx.tsip_keyIdx, aes_key,
                 sizeof(tsip_aes_key_index_t));
         aes->ctx.keySize = aes->keylen;
         if (ret == 0)
-            ret = wc_tsip_AesCbcDecrypt(aes, plain, cipher, AES_BLOCK_SIZE);
+            ret = wc_tsip_AesCbcDecrypt(aes, plain, cipher, WC_AES_BLOCK_SIZE);
 
         wc_AesFree(aes);
     }
     if (ret != 0)
         ret = -2;
-    if (XMEMCMP(plain, msg, AES_BLOCK_SIZE) != 0)
+    if (XMEMCMP(plain, msg, WC_AES_BLOCK_SIZE) != 0)
         ret = -3;
 #endif /* HAVE_AES_DECRYPT */
 
@@ -216,8 +216,8 @@ static void tskAes128_Cbc_Test(void *pvParam)
 static int tsip_aes256_test(int prnt, tsip_aes_key_index_t* aes_key)
 {
     Aes enc[1];
-    byte cipher[AES_BLOCK_SIZE];
-    byte plain[AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+    byte plain[WC_AES_BLOCK_SIZE];
     Aes dec[1];
     int  ret = 0;
 
@@ -279,7 +279,7 @@ static int tsip_aes256_test(int prnt, tsip_aes_key_index_t* aes_key)
         dec->ctx.keySize = dec->keylen;
     }
 
-    ForceZero(cipher, AES_BLOCK_SIZE);
+    ForceZero(cipher, WC_AES_BLOCK_SIZE);
     ret = wc_tsip_AesCbcEncrypt(enc, cipher, msg, (int) sizeof(msg));
 
     if (ret != 0) {
@@ -287,7 +287,7 @@ static int tsip_aes256_test(int prnt, tsip_aes_key_index_t* aes_key)
         goto out;
     }
 
-    ForceZero(plain, AES_BLOCK_SIZE);
+    ForceZero(plain, WC_AES_BLOCK_SIZE);
     ret = wc_tsip_AesCbcDecrypt(dec, plain, cipher, (int) sizeof(cipher));
 
     if (ret != 0){
@@ -395,8 +395,8 @@ static int tsip_aesgcm256_test(int prnt, tsip_aes_key_index_t* aes256_key)
     };
 
     byte resultT[sizeof(t1)];
-    byte resultP[sizeof(p) + AES_BLOCK_SIZE];
-    byte resultC[sizeof(p) + AES_BLOCK_SIZE];
+    byte resultP[sizeof(p) + WC_AES_BLOCK_SIZE];
+    byte resultC[sizeof(p) + WC_AES_BLOCK_SIZE];
     int  result = 0;
     int  ret;
 
@@ -575,8 +575,8 @@ static int tsip_aesgcm128_test(int prnt, tsip_aes_key_index_t* aes128_key)
     };
 
     byte resultT[sizeof(t3)];
-    byte resultP[sizeof(p3) + AES_BLOCK_SIZE];
-    byte resultC[sizeof(p3) + AES_BLOCK_SIZE];
+    byte resultP[sizeof(p3) + WC_AES_BLOCK_SIZE];
+    byte resultC[sizeof(p3) + WC_AES_BLOCK_SIZE];
     int  result = 0;
     int ret;
 

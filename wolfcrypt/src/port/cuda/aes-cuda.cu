@@ -957,18 +957,18 @@ void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,
 #endif
 
     if ( ret == cudaSuccess )
-        ret = cudaMalloc(&inBlock_GPU, AES_BLOCK_SIZE);
+        ret = cudaMalloc(&inBlock_GPU, WC_AES_BLOCK_SIZE);
     if ( ret == cudaSuccess )
-        ret = cudaMemcpy(inBlock_GPU, inBlock, AES_BLOCK_SIZE, cudaMemcpyDefault);
+        ret = cudaMemcpy(inBlock_GPU, inBlock, WC_AES_BLOCK_SIZE, cudaMemcpyDefault);
 
     if ( ret == cudaSuccess )
-        ret = cudaMalloc(&outBlock_GPU, AES_BLOCK_SIZE);
+        ret = cudaMalloc(&outBlock_GPU, WC_AES_BLOCK_SIZE);
 
     if ( ret == cudaSuccess )
         AesEncrypt_C_CUDA<<<1,1>>>(rk_GPU, inBlock_GPU, outBlock_GPU, r, 1);
 
     if ( ret == cudaSuccess )
-        ret = cudaMemcpy(outBlock, outBlock_GPU, AES_BLOCK_SIZE, cudaMemcpyDefault);
+        ret = cudaMemcpy(outBlock, outBlock_GPU, WC_AES_BLOCK_SIZE, cudaMemcpyDefault);
 
     cudaFree(inBlock_GPU);
     cudaFree(outBlock_GPU);
@@ -1013,8 +1013,8 @@ void AesEncryptBlocks_C(Aes* aes, const byte* in, byte* out, word32 sz)
 
     if ( ret == cudaSuccess ) {
         int blockSize = 256;
-        int numBlocks = (sz / AES_BLOCK_SIZE + blockSize - 1) / blockSize;
-        AesEncrypt_C_CUDA<<<numBlocks,blockSize>>>(rk_GPU, in_GPU, out_GPU, aes->rounds >> 1, sz / AES_BLOCK_SIZE);
+        int numBlocks = (sz / WC_AES_BLOCK_SIZE + blockSize - 1) / blockSize;
+        AesEncrypt_C_CUDA<<<numBlocks,blockSize>>>(rk_GPU, in_GPU, out_GPU, aes->rounds >> 1, sz / WC_AES_BLOCK_SIZE);
     }
 
     if ( ret == cudaSuccess )
@@ -1043,12 +1043,12 @@ void AesEncrypt_C_CUDA(Aes* aes, const byte* inBlock, byte* outBlock,
 
     (void)r;
 
-    XMEMCPY(state, inBlock, AES_BLOCK_SIZE);
-    XMEMSET(((byte*)state) + AES_BLOCK_SIZE, 0, sizeof(state) - AES_BLOCK_SIZE);
+    XMEMCPY(state, inBlock, WC_AES_BLOCK_SIZE);
+    XMEMSET(((byte*)state) + WC_AES_BLOCK_SIZE, 0, sizeof(state) - WC_AES_BLOCK_SIZE);
 
     bs_encrypt(state, aes->bs_key, aes->rounds);
 
-    XMEMCPY(outBlock, state, AES_BLOCK_SIZE);
+    XMEMCPY(outBlock, state, WC_AES_BLOCK_SIZE);
 }
 
 void AesEncrypt_C(Aes* aes, const byte* inBlock, byte* outBlock,

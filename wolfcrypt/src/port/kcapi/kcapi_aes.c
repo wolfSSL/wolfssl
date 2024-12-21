@@ -123,7 +123,7 @@
         struct iovec iov;
 
         if (aes == NULL || out == NULL || in == NULL || \
-                                                     sz % AES_BLOCK_SIZE != 0) {
+                                                     sz % WC_AES_BLOCK_SIZE != 0) {
             ret = BAD_FUNC_ARG;
         }
 
@@ -243,7 +243,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* argument checks */
     if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
         (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
-        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
+        (authTagSz > WC_AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 
@@ -356,7 +356,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* argument checks */
     if ((aes == NULL) || ((sz != 0 && (in == NULL || out == NULL))) ||
         (iv == NULL) || ((authTag == NULL) && (authTagSz > 0)) ||
-        (authTagSz > AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
+        (authTagSz > WC_AES_BLOCK_SIZE) || ((authIn == NULL) && (authInSz > 0))) {
         ret = BAD_FUNC_ARG;
     }
 

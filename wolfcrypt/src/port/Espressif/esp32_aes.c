@@ -514,9 +514,9 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     int ret;
     int i;
     int offset = 0;
-    word32 blocks = (sz / AES_BLOCK_SIZE);
+    word32 blocks = (sz / WC_AES_BLOCK_SIZE);
     byte *iv;
-    byte temp_block[AES_BLOCK_SIZE];
+    byte temp_block[WC_AES_BLOCK_SIZE];
 
     ESP_LOGV(TAG, "enter wc_esp32AesCbcEncrypt");
 
@@ -533,19 +533,19 @@ int wc_esp32AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if (ret == ESP_OK) {
         while (blocks--) {
-            XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
+            XMEMCPY(temp_block, in + offset, WC_AES_BLOCK_SIZE);
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < AES_BLOCK_SIZE; i++) {
+            for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
                 temp_block[i] ^= iv[i];
             }
 
             esp_aes_bk(temp_block, (out + offset));
 
-            offset += AES_BLOCK_SIZE;
+            offset += WC_AES_BLOCK_SIZE;
 
             /* store IV for next block */
-            XMEMCPY(iv, out + offset - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+            XMEMCPY(iv, out + offset - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
         } /* while (blocks--) */
     } /* if Set Mode successful (ret == ESP_OK) */
 
@@ -573,9 +573,9 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     int i;
     int offset = 0;
-    word32 blocks = (sz / AES_BLOCK_SIZE);
+    word32 blocks = (sz / WC_AES_BLOCK_SIZE);
     byte* iv;
-    byte temp_block[AES_BLOCK_SIZE];
+    byte temp_block[WC_AES_BLOCK_SIZE];
 
     ESP_LOGV(TAG, "enter wc_esp32AesCbcDecrypt");
 
@@ -592,19 +592,19 @@ int wc_esp32AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
     if (ret == ESP_OK) {
         while (blocks--) {
-            XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
+            XMEMCPY(temp_block, in + offset, WC_AES_BLOCK_SIZE);
 
             esp_aes_bk((in + offset), (out + offset));
 
             /* XOR block with IV for CBC */
-            for (i = 0; i < AES_BLOCK_SIZE; i++) {
+            for (i = 0; i < WC_AES_BLOCK_SIZE; i++) {
                 (out + offset)[i] ^= iv[i];
             }
 
             /* store IV for next block */
-            XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
+            XMEMCPY(iv, temp_block, WC_AES_BLOCK_SIZE);
 
-            offset += AES_BLOCK_SIZE;
+            offset += WC_AES_BLOCK_SIZE;
         } /* while (blocks--) */
         esp_aes_hw_Leave();
     } /* if Set Mode was successful (ret == ESP_OK) */

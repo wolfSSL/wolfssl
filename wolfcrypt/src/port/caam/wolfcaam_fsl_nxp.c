@@ -271,8 +271,8 @@ static int DoAesCBC(unsigned int args[4], CAAM_BUFFER *buf, int sz)
 
         /* store updated CBC state */
         XMEMCPY((byte*)buf[4].TheAddress,
-                (byte*)buf[2].TheAddress + buf[2].Length - AES_BLOCK_SIZE,
-                AES_BLOCK_SIZE);
+                (byte*)buf[2].TheAddress + buf[2].Length - WC_AES_BLOCK_SIZE,
+                WC_AES_BLOCK_SIZE);
     }
     else {
         status = CAAM_AES_EncryptCbc(CAAM, &hndl,
@@ -282,8 +282,8 @@ static int DoAesCBC(unsigned int args[4], CAAM_BUFFER *buf, int sz)
 
         /* store updated CBC state */
         XMEMCPY((byte*)buf[4].TheAddress,
-            (byte*)buf[3].TheAddress + buf[3].Length - AES_BLOCK_SIZE,
-            AES_BLOCK_SIZE);
+            (byte*)buf[3].TheAddress + buf[3].Length - WC_AES_BLOCK_SIZE,
+            WC_AES_BLOCK_SIZE);
     }
 
     if (status != kStatus_Success) {
