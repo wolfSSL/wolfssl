@@ -64,6 +64,7 @@ void bench_camellia(void);
 void bench_sm4_cbc(void);
 void bench_sm4_gcm(void);
 void bench_sm4_ccm(void);
+void bench_ascon_aead(void);
 void bench_md5(int useDeviceID);
 void bench_sha(int useDeviceID);
 void bench_sha224(int useDeviceID);
