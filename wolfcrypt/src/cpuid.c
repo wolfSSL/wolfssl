@@ -105,7 +105,7 @@
 #elif defined(HAVE_CPUID_AARCH64)
 
 #define CPUID_AARCH64_FEAT_AES         ((word64)1 << 4)
-#define CPUID_AARCH64_FEAT_PMULL       ((word64)1 << 5)
+#define CPUID_AARCH64_FEAT_AES_PMULL   ((word64)1 << 5)
 #define CPUID_AARCH64_FEAT_SHA256      ((word64)1 << 12)
 #define CPUID_AARCH64_FEAT_SHA256_512  ((word64)1 << 13)
 #define CPUID_AARCH64_FEAT_RDM         ((word64)1 << 28)
@@ -131,8 +131,10 @@
 
             if (features & CPUID_AARCH64_FEAT_AES)
                 cpuid_flags |= CPUID_AES;
-            if (features & CPUID_AARCH64_FEAT_PMULL)
+            if (features & CPUID_AARCH64_FEAT_AES_PMULL) {
+                cpuid_flags |= CPUID_AES;
                 cpuid_flags |= CPUID_PMULL;
+            }
             if (features & CPUID_AARCH64_FEAT_SHA256)
                 cpuid_flags |= CPUID_SHA256;
             if (features & CPUID_AARCH64_FEAT_SHA256_512)
@@ -279,7 +281,6 @@
     void cpuid_set_flags(void)
     {
         if (!cpuid_check) {
-
         #ifndef WOLFSSL_ARMASM_NO_HW_CRYPTO
             cpuid_flags |= CPUID_AES;
             cpuid_flags |= CPUID_PMULL;
@@ -300,6 +301,7 @@
         #ifdef WOLFSSL_ARMASM_CRYPTO_SM4
             cpuid_flags |= CPUID_SM4;
         #endif
+
             cpuid_check = 1;
         }
     }
