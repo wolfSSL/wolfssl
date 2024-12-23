@@ -2361,7 +2361,7 @@ fi
 AC_ARG_ENABLE([faultharden],
     [AS_HELP_STRING([--enable-faultharden],[Enable Fault Hardened build (default: disabled)])],
     [ENABLED_FAULTHARDEN=$enableval],
-    [ENABLED_FAULTHARDEN=yes])
+    [ENABLED_FAULTHARDEN=no])
 
 if test "$ENABLED_FAULTHARDEN" = "yes"
 then
