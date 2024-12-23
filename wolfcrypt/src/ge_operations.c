@@ -9468,6 +9468,13 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
     ge_p1p1_to_p2(r,t);
   }
 
+#ifdef WOLFSSL_CHECK_VER_FAULTS
+  if (i != -1) {
+      /* did not go through whole loop */
+      return BAD_STATE_E;
+  }
+#endif
+
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SP_NO_MALLOC)
   out:
 
