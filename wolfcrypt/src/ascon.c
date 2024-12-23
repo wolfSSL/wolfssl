@@ -50,6 +50,8 @@
 
 #define MAX_ROUNDS 12
 
+#ifndef WOLFSSL_ASCON_UNROLL
+
 /* Table 4 */
 static const byte round_constants[MAX_ROUNDS] = {
     0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87, 0x78, 0x69, 0x5a, 0x4b
@@ -109,6 +111,67 @@ static void permutation(AsconState* a, byte rounds)
         ascon_round(a, i);
     }
 }
+
+#else
+
+#define p(a, c) do {                                                           \
+    AsconState tmp;                                                            \
+    /* 2.6.1 Addition of Constants */                                          \
+    (a)->s64[2] ^= c;                                                          \
+    /* 2.6.2 Substitution Layer */                                             \
+    (a)->s64[0] ^= (a)->s64[4];                                                \
+    (a)->s64[4] ^= (a)->s64[3];                                                \
+    (a)->s64[2] ^= (a)->s64[1];                                                \
+    tmp.s64[0] = (a)->s64[0] ^ (~(a)->s64[1] & (a)->s64[2]);                   \
+    tmp.s64[2] = (a)->s64[2] ^ (~(a)->s64[3] & (a)->s64[4]);                   \
+    tmp.s64[4] = (a)->s64[4] ^ (~(a)->s64[0] & (a)->s64[1]);                   \
+    tmp.s64[1] = (a)->s64[1] ^ (~(a)->s64[2] & (a)->s64[3]);                   \
+    tmp.s64[3] = (a)->s64[3] ^ (~(a)->s64[4] & (a)->s64[0]);                   \
+    tmp.s64[1] ^= tmp.s64[0];                                                  \
+    tmp.s64[3] ^= tmp.s64[2];                                                  \
+    tmp.s64[0] ^= tmp.s64[4];                                                  \
+    tmp.s64[2] = ~tmp.s64[2];                                                  \
+    /* 2.6.3 Linear Diffusion Layer */                                         \
+    (a)->s64[4] =                                                              \
+       tmp.s64[4] ^ rotrFixed64(tmp.s64[4],  7) ^ rotrFixed64(tmp.s64[4], 41); \
+    (a)->s64[1] =                                                              \
+       tmp.s64[1] ^ rotrFixed64(tmp.s64[1], 61) ^ rotrFixed64(tmp.s64[1], 39); \
+    (a)->s64[3] =                                                              \
+       tmp.s64[3] ^ rotrFixed64(tmp.s64[3], 10) ^ rotrFixed64(tmp.s64[3], 17); \
+    (a)->s64[0] =                                                              \
+       tmp.s64[0] ^ rotrFixed64(tmp.s64[0], 19) ^ rotrFixed64(tmp.s64[0], 28); \
+    (a)->s64[2] =                                                              \
+       tmp.s64[2] ^ rotrFixed64(tmp.s64[2],  1) ^ rotrFixed64(tmp.s64[2],  6); \
+    } while (0)
+
+#define p6(a) \
+    p(a, 0x96); \
+    p(a, 0x87); \
+    p(a, 0x78); \
+    p(a, 0x69); \
+    p(a, 0x5a); \
+    p(a, 0x4b)
+
+#define p8(a) \
+    p(a, 0xb4); \
+    p(a, 0xa5); \
+    p6(a)
+
+#define p12(a) \
+    p(a, 0xf0); \
+    p(a, 0xe1); \
+    p(a, 0xd2); \
+    p(a, 0xc3); \
+    p8(a)
+
+/* Needed layer to evaluate the macro values */
+#define _permutation(a, rounds) \
+    p ## rounds(a)
+
+#define permutation(a, rounds) \
+    _permutation(a, rounds)
+
+#endif
 
 /* AsconHash API */
 
