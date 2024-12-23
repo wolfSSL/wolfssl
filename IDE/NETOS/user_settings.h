@@ -132,7 +132,8 @@ extern "C" {
 
     #define TFM_NO_ASM
 
-    /* Optimizations (on M0 UMULL is not supported, need another assembly solution) */
+    /* Optimizations (on M0 UMULL is not supported, need another assembly
+     * solution) */
     //#define TFM_ARM
 #endif
 
@@ -194,7 +195,8 @@ extern "C" {
         #define HAVE_ECC521
     #endif
 
-    /* Fixed point cache (speeds repeated operations against same private key) */
+    /* Fixed point cache (speeds repeated operations against same private key)
+     */
     #undef  FP_ECC
     //#define FP_ECC
     #ifdef FP_ECC
@@ -491,7 +493,8 @@ extern "C" {
     #define WC_NO_HASHDRBG
 
     /* Bypass P-RNG and use only HW RNG */
-    extern int custom_rand_generate_block(unsigned char* output, unsigned int sz);
+    extern int custom_rand_generate_block(unsigned char* output,
+                                          unsigned int sz);
     #undef  CUSTOM_RAND_GENERATE_BLOCK
     #define CUSTOM_RAND_GENERATE_BLOCK  custom_rand_generate_block
 #endif
@@ -658,6 +661,9 @@ extern "C" {
 
     #undef  NO_TESTSUITE_MAIN_DRIVER
     #define NO_TESTSUITE_MAIN_DRIVER
+
+    #undef WOLFSSL_NO_ASN_STRICT
+    #define WOLFSSL_NO_ASN_STRICT
 #endif
 /* END Customer specified options */
 #ifdef __cplusplus
