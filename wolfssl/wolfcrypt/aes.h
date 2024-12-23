@@ -850,7 +850,7 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
  */
 #define GHASH_ONE_BLOCK(aes, block)                     \
     do {                                                \
-        xorbuf(AES_TAG(aes), block, AES_BLOCK_SIZE);    \
+        xorbuf(AES_TAG(aes), block, WC_AES_BLOCK_SIZE); \
         GMULT_AARCH64(AES_TAG(aes), aes->gcm.H);        \
     }                                                   \
     while (0)

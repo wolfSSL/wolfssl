@@ -177,7 +177,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         }
 
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
-        if (sz % AES_BLOCK_SIZE) {
+        if (sz % WC_AES_BLOCK_SIZE) {
             return BAD_LENGTH_E;
         }
 #endif
@@ -190,8 +190,8 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             }
         }
 
-        sz = sz - (sz % AES_BLOCK_SIZE);
-        if ((sz / AES_BLOCK_SIZE) > 0) {
+        sz = sz - (sz % WC_AES_BLOCK_SIZE);
+        if ((sz / WC_AES_BLOCK_SIZE) > 0) {
             /* update IV */
             cmsg = CMSG_FIRSTHDR(&(aes->msg));
             ret = wc_Afalg_SetIv(CMSG_NXTHDR(&(aes->msg), cmsg),
@@ -218,7 +218,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             }
 
             /* set IV for next CBC call */
-            XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+            XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
         }
 
         return 0;
@@ -235,7 +235,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             return BAD_FUNC_ARG;
         }
 
-        if (sz % AES_BLOCK_SIZE) {
+        if (sz % WC_AES_BLOCK_SIZE) {
 #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
             return BAD_LENGTH_E;
 #else
@@ -250,7 +250,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             }
         }
 
-        if ((sz / AES_BLOCK_SIZE) > 0) {
+        if ((sz / WC_AES_BLOCK_SIZE) > 0) {
             /* update IV */
             cmsg = CMSG_FIRSTHDR(&(aes->msg));
             ret = wc_Afalg_SetIv(CMSG_NXTHDR(&(aes->msg), cmsg),
@@ -267,7 +267,7 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             aes->msg.msg_iovlen = 1; /* # of iov structures */
 
             /* set IV for next CBC call */
-            XMEMCPY(aes->reg, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+            XMEMCPY(aes->reg, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
 
             ret = (int)sendmsg(aes->rdFd, &(aes->msg), 0);
             if (ret < 0) {
@@ -336,13 +336,13 @@ static int wc_Afalg_AesDirect(Aes* aes, byte* out, const byte* in, word32 sz)
 #if defined(WOLFSSL_AES_DIRECT) && defined(WOLFSSL_AFALG)
 int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    return wc_Afalg_AesDirect(aes, out, in, AES_BLOCK_SIZE);
+    return wc_Afalg_AesDirect(aes, out, in, WC_AES_BLOCK_SIZE);
 }
 
 
 int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    return wc_Afalg_AesDirect(aes, out, in, AES_BLOCK_SIZE);
+    return wc_Afalg_AesDirect(aes, out, in, WC_AES_BLOCK_SIZE);
 }
 
 
@@ -363,7 +363,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
         {
             /* in network byte order so start at end and work back */
             int i;
-            for (i = AES_BLOCK_SIZE - 1; i >= 0; i--) {
+            for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
                 if (++inOutCtr[i])  /* we're done unless we overflow */
                     return;
             }
@@ -381,7 +381,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
             }
 
             /* consume any unused bytes left in aes->tmp */
-            tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+            tmp = (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left;
             while (aes->left && sz) {
                *(out++) = *(in++) ^ *(tmp++);
                aes->left--;
@@ -397,11 +397,11 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
             }
 
             if (sz > 0) {
-                aes->left = sz % AES_BLOCK_SIZE;
+                aes->left = sz % WC_AES_BLOCK_SIZE;
 
                 /* clear previously leftover data */
                 tmp = (byte*)aes->tmp;
-                XMEMSET(tmp, 0, AES_BLOCK_SIZE);
+                XMEMSET(tmp, 0, WC_AES_BLOCK_SIZE);
 
                 /* update IV */
                 cmsg = CMSG_FIRSTHDR(&(aes->msg));
@@ -419,7 +419,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                 iov[1].iov_base = tmp;
                 if (aes->left > 0) {
                     XMEMCPY(tmp, in + sz - aes->left, aes->left);
-                    iov[1].iov_len  = AES_BLOCK_SIZE;
+                    iov[1].iov_len  = WC_AES_BLOCK_SIZE;
                 }
                 else {
                     iov[1].iov_len  = 0;
@@ -440,7 +440,7 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
                 iov[1].iov_base = tmp;
                 if (aes->left > 0) {
-                    iov[1].iov_len  = AES_BLOCK_SIZE;
+                    iov[1].iov_len  = WC_AES_BLOCK_SIZE;
                 }
                 else {
                     iov[1].iov_len  = 0;
@@ -453,14 +453,14 @@ int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
 
                 if (aes->left > 0) {
                     XMEMCPY(out + sz - aes->left, tmp, aes->left);
-                    aes->left = AES_BLOCK_SIZE - aes->left;
+                    aes->left = WC_AES_BLOCK_SIZE - aes->left;
                 }
             }
 
             /* adjust counter after call to hardware */
-            while (sz >= AES_BLOCK_SIZE) {
+            while (sz >= WC_AES_BLOCK_SIZE) {
                 IncrementAesCounter((byte*)aes->reg);
-                sz  -= AES_BLOCK_SIZE;
+                sz  -= WC_AES_BLOCK_SIZE;
             }
 
             if (aes->left > 0) {
@@ -566,10 +566,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     struct iovec    iov[3];
     int ret;
     struct msghdr* msg;
-    byte scratch[AES_BLOCK_SIZE];
+    byte scratch[WC_AES_BLOCK_SIZE];
 
     /* argument checks */
-    if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 
@@ -639,7 +639,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
             byte* tmp_align;
             tmp = (byte*)XMALLOC(sz + WOLFSSL_XILINX_ALIGN +
-                    AES_BLOCK_SIZE, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                    WC_AES_BLOCK_SIZE, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
             if (tmp == NULL) {
                 return MEMORY_E;
             }
@@ -655,7 +655,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         else {
             iov[0].iov_base = (byte*)in;
         }
-        iov[0].iov_len  = sz + AES_BLOCK_SIZE;
+        iov[0].iov_len  = sz + WC_AES_BLOCK_SIZE;
 
         msg->msg_iov    = iov;
         msg->msg_iovlen = 1; /* # of iov structures */
@@ -668,7 +668,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             return WC_AFALG_SOCK_E;
         }
 
-        ret = read(aes->rdFd, out, sz + AES_BLOCK_SIZE);
+        ret = read(aes->rdFd, out, sz + WC_AES_BLOCK_SIZE);
         if (ret < 0) {
             return WC_AFALG_SOCK_E;
         }
@@ -677,10 +677,10 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* handle completing tag with using software if additional data added */
     if (authIn != NULL && authInSz > 0) {
-        byte initalCounter[AES_BLOCK_SIZE];
-        XMEMSET(initalCounter, 0, AES_BLOCK_SIZE);
+        byte initalCounter[WC_AES_BLOCK_SIZE];
+        XMEMSET(initalCounter, 0, WC_AES_BLOCK_SIZE);
         XMEMCPY(initalCounter, iv, ivSz);
-        initalCounter[AES_BLOCK_SIZE - 1] = 1;
+        initalCounter[WC_AES_BLOCK_SIZE - 1] = 1;
         GHASH(&aes->gcm, authIn, authInSz, out, sz, authTag, authTagSz);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
         if (ret < 0) {
@@ -756,19 +756,19 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     struct cmsghdr* cmsg;
     struct msghdr* msg;
     struct iovec    iov[3];
-    byte scratch[AES_BLOCK_SIZE];
+    byte scratch[WC_AES_BLOCK_SIZE];
     int ret;
 #ifdef WOLFSSL_AFALG_XILINX_AES
     byte* tag = (byte*)authTag;
-    byte buf[AES_BLOCK_SIZE];
-    byte initalCounter[AES_BLOCK_SIZE];
+    byte buf[WC_AES_BLOCK_SIZE];
+    byte initalCounter[WC_AES_BLOCK_SIZE];
 #ifndef NO_WOLFSSL_ALLOC_ALIGN
     byte* tmp = NULL;
 #endif
 #endif
 
     /* argument checks */
-    if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 
@@ -830,33 +830,33 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* check for and handle additional data */
     if (authIn != NULL && authInSz > 0) {
 
-        XMEMSET(initalCounter, 0, AES_BLOCK_SIZE);
+        XMEMSET(initalCounter, 0, WC_AES_BLOCK_SIZE);
         XMEMCPY(initalCounter, iv, ivSz);
-        initalCounter[AES_BLOCK_SIZE - 1] = 1;
+        initalCounter[WC_AES_BLOCK_SIZE - 1] = 1;
         tag = buf;
-        GHASH(&aes->gcm, NULL, 0, in, sz, tag, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, NULL, 0, in, sz, tag, WC_AES_BLOCK_SIZE);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
         if (ret < 0)
             return ret;
-        xorbuf(tag, scratch, AES_BLOCK_SIZE);
+        xorbuf(tag, scratch, WC_AES_BLOCK_SIZE);
         if (ret != 0) {
             return AES_GCM_AUTH_E;
         }
     }
 
     /* it is assumed that in buffer size is large enough to hold TAG */
-    XMEMCPY((byte*)in + sz, tag, AES_BLOCK_SIZE);
+    XMEMCPY((byte*)in + sz, tag, WC_AES_BLOCK_SIZE);
     if ((wc_ptr_t)in % WOLFSSL_XILINX_ALIGN) {
     #ifndef NO_WOLFSSL_ALLOC_ALIGN
         byte* tmp_align;
         tmp = (byte*)XMALLOC(sz + WOLFSSL_XILINX_ALIGN +
-                AES_BLOCK_SIZE, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                WC_AES_BLOCK_SIZE, aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp == NULL) {
             return MEMORY_E;
         }
         tmp_align = tmp + (WOLFSSL_XILINX_ALIGN -
                 ((size_t)tmp % WOLFSSL_XILINX_ALIGN));
-        XMEMCPY(tmp_align, in, sz + AES_BLOCK_SIZE);
+        XMEMCPY(tmp_align, in, sz + WC_AES_BLOCK_SIZE);
         iov[0].iov_base = tmp_align;
     #else
         WOLFSSL_MSG("Buffer expected to be word aligned");
@@ -866,7 +866,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     else {
         iov[0].iov_base = (byte*)in;
     }
-    iov[0].iov_len = sz + AES_BLOCK_SIZE;
+    iov[0].iov_len = sz + WC_AES_BLOCK_SIZE;
 
     msg->msg_iov = iov;
     msg->msg_iovlen = 1;
@@ -879,18 +879,18 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return WC_AFALG_SOCK_E;
     }
 
-    ret = read(aes->rdFd, out, sz + AES_BLOCK_SIZE);
+    ret = read(aes->rdFd, out, sz + WC_AES_BLOCK_SIZE);
     if (ret < 0) {
         return AES_GCM_AUTH_E;
     }
 
     /* check on tag */
     if (authIn != NULL && authInSz > 0) {
-        GHASH(&aes->gcm, authIn, authInSz, in, sz, tag, AES_BLOCK_SIZE);
+        GHASH(&aes->gcm, authIn, authInSz, in, sz, tag, WC_AES_BLOCK_SIZE);
         ret = wc_AesEncryptDirect(aes, scratch, initalCounter);
         if (ret < 0)
             return ret;
-        xorbuf(tag, scratch, AES_BLOCK_SIZE);
+        xorbuf(tag, scratch, WC_AES_BLOCK_SIZE);
         if (ConstantCompare(tag, authTag, authTagSz) != 0) {
             return AES_GCM_AUTH_E;
         }

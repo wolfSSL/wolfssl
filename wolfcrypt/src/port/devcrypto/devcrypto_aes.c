@@ -52,7 +52,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     /* encrypt only up to AES block size of date */
-    sz = sz - (sz % AES_BLOCK_SIZE);
+    sz = sz - (sz % WC_AES_BLOCK_SIZE);
     if (aes->ctx.cfd == -1) {
             ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CBC,
                     (byte*)aes->devKey, aes->keylen);
@@ -67,7 +67,7 @@ int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     /* store iv for next call */
-    XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    XMEMCPY(aes->reg, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
 
     return 0;
 }
@@ -78,11 +78,11 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     struct crypt_op crt;
     int ret;
 
-    if (aes == NULL || out == NULL || in == NULL || sz % AES_BLOCK_SIZE != 0) {
+    if (aes == NULL || out == NULL || in == NULL || sz % WC_AES_BLOCK_SIZE != 0) {
         return BAD_FUNC_ARG;
     }
 
-    XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    XMEMCPY(aes->tmp, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     if (aes->ctx.cfd == -1) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_CBC,
                     (byte*)aes->devKey, aes->keylen);
@@ -96,7 +96,7 @@ int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         return WC_DEVCRYPTO_E;
     }
 
-    XMEMCPY(aes->reg, aes->tmp, AES_BLOCK_SIZE);
+    XMEMCPY(aes->reg, aes->tmp, WC_AES_BLOCK_SIZE);
     return 0;
 }
 #endif /* HAVE_AES_DECRYPT */
@@ -172,13 +172,13 @@ static int wc_DevCrypto_AesDirect(Aes* aes, byte* out, const byte* in,
 #if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESCCM)
 int wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    return wc_DevCrypto_AesDirect(aes, out, in, AES_BLOCK_SIZE, COP_ENCRYPT);
+    return wc_DevCrypto_AesDirect(aes, out, in, WC_AES_BLOCK_SIZE, COP_ENCRYPT);
 }
 
 
 int wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in)
 {
-    return wc_DevCrypto_AesDirect(aes, out, in, AES_BLOCK_SIZE, COP_DECRYPT);
+    return wc_DevCrypto_AesDirect(aes, out, in, WC_AES_BLOCK_SIZE, COP_DECRYPT);
 }
 
 
@@ -198,7 +198,7 @@ static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
 {
     /* in network byte order so start at end and work back */
     int i;
-    for (i = AES_BLOCK_SIZE - 1; i >= 0; i--) {
+    for (i = WC_AES_BLOCK_SIZE - 1; i >= 0; i--) {
         if (++inOutCtr[i])  /* we're done unless we overflow */
             return;
     }
@@ -215,7 +215,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     /* consume any unused bytes left in aes->tmp */
-    tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+    tmp = (byte*)aes->tmp + WC_AES_BLOCK_SIZE - aes->left;
     while (aes->left && sz) {
         *(out++) = *(in++) ^ *(tmp++);
         aes->left--;
@@ -232,7 +232,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     if (sz > 0) {
         /* clear previously leftover data */
         tmp = (byte*)aes->tmp;
-        XMEMSET(tmp, 0, AES_BLOCK_SIZE);
+        XMEMSET(tmp, 0, WC_AES_BLOCK_SIZE);
 
         /* update IV */
         wc_SetupCryptSym(&crt, &aes->ctx, (byte*)in, sz, out, (byte*)aes->reg,
@@ -243,11 +243,11 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         }
 
         /* adjust counter after call to hardware */
-        while (sz >= AES_BLOCK_SIZE) {
+        while (sz >= WC_AES_BLOCK_SIZE) {
             IncrementAesCounter((byte*)aes->reg);
-            sz  -= AES_BLOCK_SIZE;
-            out += AES_BLOCK_SIZE;
-            in  += AES_BLOCK_SIZE;
+            sz  -= WC_AES_BLOCK_SIZE;
+            out += WC_AES_BLOCK_SIZE;
+            in  += WC_AES_BLOCK_SIZE;
         }
     }
 
@@ -263,7 +263,7 @@ int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         wc_AesFree(&tmpAes);
         IncrementAesCounter((byte*)aes->reg);
 
-        aes->left = AES_BLOCK_SIZE - (sz % AES_BLOCK_SIZE);
+        aes->left = WC_AES_BLOCK_SIZE - (sz % WC_AES_BLOCK_SIZE);
     }
 
     return 0;
@@ -289,10 +289,10 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
 {
     struct crypt_auth_op crt = {0};
     int ret;
-    byte scratch[AES_BLOCK_SIZE];
+    byte scratch[WC_AES_BLOCK_SIZE];
 
     /* argument checks */
-    if (aes == NULL || authTagSz > AES_BLOCK_SIZE) {
+    if (aes == NULL || authTagSz > WC_AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 
@@ -303,7 +303,7 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
     if (in == NULL)
         in = scratch;
 
-    XMEMSET(scratch, 0, AES_BLOCK_SIZE);
+    XMEMSET(scratch, 0, WC_AES_BLOCK_SIZE);
     if (aes->ctx.cfd == -1) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_GCM, (byte*)aes->devKey,
                 aes->keylen);
@@ -318,7 +318,7 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
     }
     else{
         /* get full tag from hardware */
-        authTagSz = AES_BLOCK_SIZE;
+        authTagSz = WC_AES_BLOCK_SIZE;
     }
     wc_SetupCryptAead(&crt, &aes->ctx, (byte*)in, sz, out, (byte*)iv, ivSz,
                       dir, (byte*)authIn, authInSz, authTag, authTagSz);

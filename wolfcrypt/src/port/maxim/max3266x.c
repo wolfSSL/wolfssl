@@ -435,7 +435,7 @@ int wc_MxcCb_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     /* Always enforce a length check */
-    if (sz % AES_BLOCK_SIZE) {
+    if (sz % WC_AES_BLOCK_SIZE) {
     #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
         return BAD_LENGTH_E;
     #else
@@ -457,7 +457,7 @@ int wc_MxcCb_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
                                     (unsigned int)keySize);
     /* store iv for next call */
     if (status == 0) {
-        XMEMCPY(iv, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        XMEMCPY(iv, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     }
     return (status == 0) ? 0 : -1;
 }
@@ -545,14 +545,14 @@ int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     word32 keySize;
     int status;
     byte *iv;
-    byte temp_block[AES_BLOCK_SIZE];
+    byte temp_block[WC_AES_BLOCK_SIZE];
 
     if ((in == NULL) || (out == NULL) || (aes == NULL)) {
         return BAD_FUNC_ARG;
     }
 
     /* Always enforce a length check */
-    if (sz % AES_BLOCK_SIZE) {
+    if (sz % WC_AES_BLOCK_SIZE) {
     #ifdef WOLFSSL_AES_CBC_LENGTH_CHECKS
         return BAD_LENGTH_E;
     #else
@@ -570,14 +570,14 @@ int wc_MxcCb_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
 
     /* get IV for next call */
-    XMEMCPY(temp_block, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    XMEMCPY(temp_block, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     status = wc_MXC_TPU_AesDecrypt(in, iv, (byte*)aes->devKey,
                                     MXC_TPU_MODE_CBC, sz, out,
                                     keySize);
 
     /* store iv for next call */
     if (status == 0) {
-        XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
+        XMEMCPY(iv, temp_block, WC_AES_BLOCK_SIZE);
     }
     return (status == 0) ? 0 : -1;
 }

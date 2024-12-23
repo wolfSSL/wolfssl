@@ -829,8 +829,8 @@ static hsm_err_t wc_SECO_CMAC(unsigned int args[4], CAAM_BUFFER* buf, int sz)
         mac_args.payload_size = buf[2].Length;
 
         mac_args.mac      = (uint8_t*)buf[1].TheAddress;
-        mac_args.mac_size = (buf[1].Length < AES_BLOCK_SIZE)? buf[1].Length:
-                                                              AES_BLOCK_SIZE;
+        mac_args.mac_size = (buf[1].Length < WC_AES_BLOCK_SIZE)? buf[1].Length:
+                                                              WC_AES_BLOCK_SIZE;
     #ifdef DEBUG_SECO
         printf("CMAC arguments used:\n");
         printf("\tkey id       = %d\n", mac_args.key_identifier);
@@ -1105,7 +1105,7 @@ word32 wc_SECO_WrapKey(word32 keyId, byte* in, word32 inSz, byte* iv,
     }
 
     /* iv + key + tag */
-    wrappedKeySz = GCM_NONCE_MID_SZ + inSz + AES_BLOCK_SIZE;
+    wrappedKeySz = GCM_NONCE_MID_SZ + inSz + WC_AES_BLOCK_SIZE;
     wrappedKey = (byte*)XMALLOC(wrappedKeySz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (wrappedKey == NULL) {
         WOLFSSL_MSG("Error malloc'ing buffer for wrapped key");
@@ -1155,7 +1155,7 @@ word32 wc_SECO_WrapKey(word32 keyId, byte* in, word32 inSz, byte* iv,
 
     if (ret == 0) {
         ret = wc_AesGcmEncrypt(&aes, wrappedKey + ivSz, in, inSz,
-                wrappedKey, ivSz, wrappedKey + ivSz + inSz, AES_BLOCK_SIZE,
+                wrappedKey, ivSz, wrappedKey + ivSz + inSz, WC_AES_BLOCK_SIZE,
                 NULL, 0);
         if (ret != 0) {
             WOLFSSL_MSG("error with AES-GCM encrypt when wrapping key");

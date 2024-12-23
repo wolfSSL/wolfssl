@@ -107,8 +107,8 @@ static int sce_aes_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
 
     Aes  aes[1];
 
-    byte cipher[AES_BLOCK_SIZE];
-    byte plain[AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+    byte plain[WC_AES_BLOCK_SIZE];
     int  ret = 0;
 
     WOLFSSL_SMALL_STACK_STATIC const byte msg[] = {
@@ -119,8 +119,8 @@ static int sce_aes_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
     };
     byte iv[]  = "1234567890abcdef   ";  /* align */
 
-    XMEMSET(cipher, 0, AES_BLOCK_SIZE);
-    XMEMSET(plain, 0, AES_BLOCK_SIZE);
+    XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE);
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE);
 
     if (prnt) {
         printf(" sce_aes_cbc_test() ");
@@ -129,9 +129,9 @@ static int sce_aes_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
     ret = wc_AesInit(aes, NULL, devId);
     if (ret == 0) {
         ret = wc_AesSetKey(aes, (byte*)aes_key,
-        		AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        		WC_AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret == 0) {
-            ret = wc_AesCbcEncrypt(aes, cipher, msg, AES_BLOCK_SIZE);
+            ret = wc_AesCbcEncrypt(aes, cipher, msg, WC_AES_BLOCK_SIZE);
         }
 
         wc_AesFree(aes);
@@ -144,15 +144,15 @@ static int sce_aes_cbc_test(int prnt, FSPSM_AES_PWKEY aes_key)
     ret = wc_AesInit(aes, NULL, devId);
     if (ret == 0) {
         ret = wc_AesSetKey(aes, (byte*)aes_key,
-        		AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
+        		WC_AES_BLOCK_SIZE, iv, AES_ENCRYPTION);
         if (ret == 0)
-            ret = wc_AesCbcDecrypt(aes, plain, cipher, AES_BLOCK_SIZE);
+            ret = wc_AesCbcDecrypt(aes, plain, cipher, WC_AES_BLOCK_SIZE);
 
         wc_AesFree(aes);
     }
     if (ret != 0)
         ret = -2;
-    if (XMEMCMP(plain, msg, AES_BLOCK_SIZE) != 0)
+    if (XMEMCMP(plain, msg, WC_AES_BLOCK_SIZE) != 0)
         ret = -3;
 #endif /* HAVE_AES_DECRYPT */
 
@@ -189,8 +189,8 @@ static void tskAes128_Cbc_Test(void *pvParam)
 static int sce_aes256_test(int prnt, FSPSM_AES_PWKEY aes_key)
 {
     Aes enc[1];
-    byte cipher[AES_BLOCK_SIZE];
-    byte plain[AES_BLOCK_SIZE];
+    byte cipher[WC_AES_BLOCK_SIZE];
+    byte plain[WC_AES_BLOCK_SIZE];
     Aes dec[1];
     int  ret = 0;
 
@@ -219,20 +219,20 @@ static int sce_aes256_test(int prnt, FSPSM_AES_PWKEY aes_key)
     }
 
     ret = wc_AesSetKey(enc, (byte*)aes_key,
-    		AES_BLOCK_SIZE*2, iv, AES_ENCRYPTION);
+    		WC_AES_BLOCK_SIZE*2, iv, AES_ENCRYPTION);
     if (ret != 0){
         ret = -3;
         goto out;
     }
 
     ret = wc_AesSetKey(dec, (byte*)aes_key,
-    		AES_BLOCK_SIZE*2, iv, AES_DECRYPTION);
+    		WC_AES_BLOCK_SIZE*2, iv, AES_DECRYPTION);
     if (ret != 0) {
         ret = -4;
         goto out;
     }
 
-    XMEMSET(cipher, 0, AES_BLOCK_SIZE);
+    XMEMSET(cipher, 0, WC_AES_BLOCK_SIZE);
     ret = wc_AesCbcEncrypt(enc, cipher, msg, (int) sizeof(msg));
 
     if (ret != 0) {
@@ -240,7 +240,7 @@ static int sce_aes256_test(int prnt, FSPSM_AES_PWKEY aes_key)
         goto out;
     }
 
-    XMEMSET(plain, 0, AES_BLOCK_SIZE);
+    XMEMSET(plain, 0, WC_AES_BLOCK_SIZE);
     ret = wc_AesCbcDecrypt(dec, plain, cipher, (int) sizeof(cipher));
 
     if (ret != 0){
@@ -340,8 +340,8 @@ static int sce_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key)
     };
 
     byte resultT[sizeof(t1)];
-    byte resultP[sizeof(p) + AES_BLOCK_SIZE];
-    byte resultC[sizeof(p) + AES_BLOCK_SIZE];
+    byte resultP[sizeof(p) + WC_AES_BLOCK_SIZE];
+    byte resultC[sizeof(p) + WC_AES_BLOCK_SIZE];
     int  result = 0;
     int  ret;
 
@@ -366,7 +366,7 @@ static int sce_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key)
     }
 
     result = wc_AesGcmSetKey(enc,
-        (byte*)aes256_key, AES_BLOCK_SIZE*2);
+        (byte*)aes256_key, WC_AES_BLOCK_SIZE*2);
     if (result != 0) {
         ret = -3;
         goto out;
@@ -383,7 +383,7 @@ static int sce_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key)
     }
 
     result = wc_AesGcmSetKey(dec,
-            (byte*)aes256_key, AES_BLOCK_SIZE*2);
+            (byte*)aes256_key, WC_AES_BLOCK_SIZE*2);
     if (result != 0) {
         ret = -7;
         goto out;
@@ -408,7 +408,7 @@ static int sce_aesgcm256_test(int prnt, FSPSM_AES_PWKEY aes256_key)
     XMEMSET(resultP, 0, sizeof(resultP));
 
     wc_AesGcmSetKey(enc,
-        (byte*)aes256_key, AES_BLOCK_SIZE*2);
+        (byte*)aes256_key, WC_AES_BLOCK_SIZE*2);
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     result = wc_AesGcmEncrypt(enc, resultC, p, sizeof(p),
                                 (byte*)iv1, sizeof(iv1),
@@ -527,8 +527,8 @@ static int sce_aesgcm128_test(int prnt, FSPSM_AES_PWKEY aes128_key)
     };
 
     byte resultT[sizeof(t1)];
-    byte resultP[sizeof(p) + AES_BLOCK_SIZE];
-    byte resultC[sizeof(p) + AES_BLOCK_SIZE];
+    byte resultP[sizeof(p) + WC_AES_BLOCK_SIZE];
+    byte resultC[sizeof(p) + WC_AES_BLOCK_SIZE];
     int  result = 0;
     int ret;
 
@@ -553,7 +553,7 @@ static int sce_aesgcm128_test(int prnt, FSPSM_AES_PWKEY aes128_key)
         goto out;
     }
 
-    wc_AesGcmSetKey(enc, (byte*)aes128_key, AES_BLOCK_SIZE);
+    wc_AesGcmSetKey(enc, (byte*)aes128_key, WC_AES_BLOCK_SIZE);
     if (result != 0) {
         ret = -3;
         goto out;

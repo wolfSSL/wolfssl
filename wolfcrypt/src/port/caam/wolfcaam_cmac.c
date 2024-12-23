@@ -39,7 +39,7 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
     word32 args[4] = {0};
     CAAM_BUFFER buf[9];
     word32 idx = 0;
-    byte scratch[AES_BLOCK_SIZE];
+    byte scratch[WC_AES_BLOCK_SIZE];
     int ret;
     int blocks = 0;
 
@@ -70,7 +70,7 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
         cmac->keylen = keySz;
         cmac->initialized = 0;
         cmac->bufferSz = 0;
-        XMEMSET(cmac->buffer, 0, AES_BLOCK_SIZE);
+        XMEMSET(cmac->buffer, 0, WC_AES_BLOCK_SIZE);
         return 0;
     }
 
@@ -95,12 +95,12 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
         if (cmac->bufferSz > 0) {
             word32 add;
 
-            if (cmac->bufferSz > AES_BLOCK_SIZE) {
+            if (cmac->bufferSz > WC_AES_BLOCK_SIZE) {
                 WOLFSSL_MSG("Error with CMAC buffer size");
                 return -1;
             }
-            add = (sz < ((int)(AES_BLOCK_SIZE - cmac->bufferSz))) ? sz :
-                   (int)(AES_BLOCK_SIZE - cmac->bufferSz);
+            add = (sz < ((int)(WC_AES_BLOCK_SIZE - cmac->bufferSz))) ? sz :
+                   (int)(WC_AES_BLOCK_SIZE - cmac->bufferSz);
             XMEMCPY(&cmac->buffer[cmac->bufferSz], pt, add);
 
             cmac->bufferSz += add;
@@ -110,33 +110,33 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
 
         /* flash out temporary storage for block size if full and more data
          * is coming, otherwise hold it until final operation */
-        if (cmac->bufferSz == AES_BLOCK_SIZE && (sz > 0)) {
+        if (cmac->bufferSz == WC_AES_BLOCK_SIZE && (sz > 0)) {
             buf[idx].TheAddress = (CAAM_ADDRESS)scratch;
             buf[idx].Length = cmac->bufferSz;
             idx++;
             blocks++;
             cmac->bufferSz = 0;
-            XMEMCPY(scratch, (byte*)cmac->buffer, AES_BLOCK_SIZE);
+            XMEMCPY(scratch, (byte*)cmac->buffer, WC_AES_BLOCK_SIZE);
         }
 
         /* In order to trigger read of CTX state there needs to be some data
          * saved until final call */
-        if ((sz >= AES_BLOCK_SIZE) && (sz % AES_BLOCK_SIZE == 0)) {
+        if ((sz >= WC_AES_BLOCK_SIZE) && (sz % WC_AES_BLOCK_SIZE == 0)) {
 
             if (cmac->bufferSz > 0) {
                 /* this case should never be hit */
                 return BAD_FUNC_ARG;
             }
 
-            XMEMCPY(&cmac->buffer[0], pt + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
-            cmac->bufferSz = AES_BLOCK_SIZE;
-            sz -= AES_BLOCK_SIZE;
+            XMEMCPY(&cmac->buffer[0], pt + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
+            cmac->bufferSz = WC_AES_BLOCK_SIZE;
+            sz -= WC_AES_BLOCK_SIZE;
         }
 
-        if (sz >= AES_BLOCK_SIZE) {
+        if (sz >= WC_AES_BLOCK_SIZE) {
             buf[idx].TheAddress = (CAAM_ADDRESS)pt;
-            buf[idx].Length = sz - (sz % AES_BLOCK_SIZE);
-            blocks += sz / AES_BLOCK_SIZE;
+            buf[idx].Length = sz - (sz % WC_AES_BLOCK_SIZE);
+            blocks += sz / WC_AES_BLOCK_SIZE;
             sz -= buf[idx].Length;
             pt += buf[idx].Length;
             idx++;
@@ -186,9 +186,9 @@ int wc_CAAM_Cmac(Cmac* cmac, const byte* key, word32 keySz, const byte* in,
 
     /* store leftovers */
     if (sz > 0) {
-        word32 add = (sz < (int)(AES_BLOCK_SIZE - cmac->bufferSz))?
+        word32 add = (sz < (int)(WC_AES_BLOCK_SIZE - cmac->bufferSz))?
                                               (word32)sz :
-                                              (AES_BLOCK_SIZE - cmac->bufferSz);
+                                              (WC_AES_BLOCK_SIZE - cmac->bufferSz);
 
         if (pt == NULL) {
             return MEMORY_E;

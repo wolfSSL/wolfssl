@@ -250,7 +250,7 @@ Std_ReturnType wolfSSL_Crypto_CBC(Crypto_JobType* job)
             return E_NOT_OK;
         }
 
-        if (iv != NULL && ivSz < AES_BLOCK_SIZE) {
+        if (iv != NULL && ivSz < WC_AES_BLOCK_SIZE) {
             WOLFSSL_MSG("Error IV is too small");
             return E_NOT_OK;
         }
