@@ -2764,7 +2764,16 @@ struct WOLFSSL_SOCKADDR {
 };
 
 typedef struct WOLFSSL_DTLS_CTX {
+#ifdef WOLFSSL_RW_THREADED
+    /* Protect peer access after the handshake */
+    wolfSSL_RwLock peerLock;
+#endif
     WOLFSSL_SOCKADDR peer;
+#ifdef WOLFSSL_DTLS_CID
+    WOLFSSL_SOCKADDR pendingPeer; /* When using CID's, we don't want to update
+                                   * the peer's address until we successfully
+                                   * de-protect the record. */
+#endif
     int rfd;
     int wfd;
     byte userSet:1;
@@ -2772,6 +2781,9 @@ typedef struct WOLFSSL_DTLS_CTX {
                        * connected (connect() and bind() both called).
                        * This means that sendto and recvfrom do not need to
                        * specify and store the peer address. */
+#ifdef WOLFSSL_DTLS_CID
+    byte processingPendingRecord:1;
+#endif
 } WOLFSSL_DTLS_CTX;
 
 
@@ -3718,6 +3730,7 @@ WOLFSSL_LOCAL int TLSX_ConnectionID_Parse(WOLFSSL* ssl, const byte* input,
 WOLFSSL_LOCAL void DtlsCIDOnExtensionsParsed(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsCIDCheck(WOLFSSL* ssl, const byte* input,
     word16 inputSize);
+WOLFSSL_LOCAL int Dtls13UnifiedHeaderCIDPresent(byte flags);
 #endif /* WOLFSSL_DTLS_CID */
 WOLFSSL_LOCAL byte DtlsGetCidTxSize(WOLFSSL* ssl);
 WOLFSSL_LOCAL byte DtlsGetCidRxSize(WOLFSSL* ssl);
@@ -5061,6 +5074,7 @@ struct Options {
 #if defined(HAVE_DANE)
     word16            useDANE:1;
 #endif /* HAVE_DANE */
+    word16            disableRead:1;
 #ifdef WOLFSSL_DTLS
     byte              haveMcast;          /* using multicast ? */
 #endif
@@ -6729,6 +6743,10 @@ WOLFSSL_LOCAL word32 MacSize(const WOLFSSL* ssl);
     WOLFSSL_LOCAL int DoClientHelloStateless(WOLFSSL* ssl,
             const byte* input, word32 helloSz, byte isFirstCHFrag, byte* tls13);
 #endif /* !defined(NO_WOLFSSL_SERVER) */
+#if !defined(WOLFCRYPT_ONLY) && defined(USE_WOLFSSL_IO)
+    WOLFSSL_LOCAL int sockAddrEqual(SOCKADDR_S *a, XSOCKLENT aLen,
+                                    SOCKADDR_S *b, XSOCKLENT bLen);
+#endif
 #endif /* WOLFSSL_DTLS */
 
 #if defined(HAVE_SECURE_RENEGOTIATION) && defined(WOLFSSL_DTLS)
