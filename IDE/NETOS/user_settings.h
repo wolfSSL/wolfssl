@@ -625,7 +625,7 @@ extern "C" {
     #define HAVE_FORCE_FIPS_FAILURE
 
     #define USE_CERT_BUFFERS_2048
-    #define USE_CERT_BUFFERS_256 
+    #define USE_CERT_BUFFERS_256
     #define FORCE_BUFFER_TEST
     #define NO_MAIN_OPTEST_DRIVER
     #define DEEPLY_EMBEDDED
