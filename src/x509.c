@@ -1480,6 +1480,8 @@ int wolfSSL_X509_add_ext(WOLFSSL_X509 *x509, WOLFSSL_X509_EXTENSION *ext,
 
         /* ext->crit is WOLFSSL_ASN1_BOOLEAN */
         if (ext->crit != 0 && ext->crit != -1) {
+            XFREE(val, x509->heap, DYNAMIC_TYPE_X509_EXT);
+            XFREE(oid, x509->heap, DYNAMIC_TYPE_X509_EXT);
             return WOLFSSL_FAILURE;
         }
 
