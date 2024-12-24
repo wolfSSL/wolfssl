@@ -35,7 +35,6 @@
 #include <wolfssl/wolfcrypt/sha512.h>
 
 #ifdef WOLFSSL_SHA512
-#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
 static const word64 L_SHA512_transform_neon_len_k[] = {
     0x428a2f98d728ae22UL,
     0x7137449123ef65cdUL,
@@ -1053,7 +1052,7 @@ void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data, word32 len)
     );
 }
 
-#else
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
 static const word64 L_SHA512_transform_crypto_len_k[] = {
     0x428a2f98d728ae22UL,
     0x7137449123ef65cdUL,

@@ -73,15 +73,15 @@ L_SHA3_transform_crypto_r:
 	.xword	0x8000000080008008
 #ifndef __APPLE__
 .text
-.globl	BlockSha3
-.type	BlockSha3,@function
+.globl	BlockSha3_crypto
+.type	BlockSha3_crypto,@function
 .align	2
-BlockSha3:
+BlockSha3_crypto:
 #else
 .section	__TEXT,__text
-.globl	_BlockSha3
+.globl	_BlockSha3_crypto
 .p2align	2
-_BlockSha3:
+_BlockSha3_crypto:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-80]!
 	add	x29, sp, #0
@@ -204,9 +204,9 @@ L_sha3_crypto_begin:
 	ldp	x29, x30, [sp], #0x50
 	ret
 #ifndef __APPLE__
-	.size	BlockSha3,.-BlockSha3
+	.size	BlockSha3_crypto,.-BlockSha3_crypto
 #endif /* __APPLE__ */
-#else
+#endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #ifndef __APPLE__
 	.text
 	.type	L_SHA3_transform_base_r, %object
@@ -247,15 +247,15 @@ L_SHA3_transform_base_r:
 	.xword	0x8000000080008008
 #ifndef __APPLE__
 .text
-.globl	BlockSha3
-.type	BlockSha3,@function
+.globl	BlockSha3_base
+.type	BlockSha3_base,@function
 .align	2
-BlockSha3:
+BlockSha3_base:
 #else
 .section	__TEXT,__text
-.globl	_BlockSha3
+.globl	_BlockSha3_base
 .p2align	2
-_BlockSha3:
+_BlockSha3_base:
 #endif /* __APPLE__ */
 	stp	x29, x30, [sp, #-160]!
 	add	x29, sp, #0
@@ -449,9 +449,8 @@ L_SHA3_transform_base_begin:
 	ldp	x29, x30, [sp], #0xa0
 	ret
 #ifndef __APPLE__
-	.size	BlockSha3,.-BlockSha3
+	.size	BlockSha3_base,.-BlockSha3_base
 #endif /* __APPLE__ */
-#endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #endif /* WOLFSSL_SHA3 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */

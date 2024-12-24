@@ -62,9 +62,9 @@
     }
 #endif
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
+        defined(WOLFSSL_ARMASM))
     #include <wolfssl/wolfcrypt/cpuid.h>
 
     word32 cpuid_flags;
@@ -80,6 +80,8 @@
     #define SHA3_BLOCK_N sha3_block_n
 #endif
 #endif
+
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_RISCV_ASM)
 
 #ifdef WOLFSSL_SHA3_SMALL
 /* Rotate a 64-bit value left.
@@ -659,10 +661,36 @@ static int InitSha3(wc_Sha3* sha3)
             SHA3_BLOCK_N = NULL;
         }
     }
+#define SHA3_FUNC_PTR
+#endif
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+    if (!cpuid_flags_set) {
+        cpuid_flags = cpuid_get_flags();
+        cpuid_flags_set = 1;
+    #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
+        if (IS_AARCH64_SHA3(cpuid_flags)) {
+            SHA3_BLOCK = BlockSha3_crypto;
+            SHA3_BLOCK_N = NULL;
+        }
+        else
+    #endif
+        {
+            SHA3_BLOCK = BlockSha3_base;
+            SHA3_BLOCK_N = NULL;
+        }
+    }
+#define SHA3_FUNC_PTR
 #endif
 
     return 0;
 }
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
+void BlockSha3(word64* s)
+{
+    (*SHA3_BLOCK)(s);
+}
+#endif
 
 /* Update the SHA-3 hash state with message data.
  *
@@ -700,7 +728,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
             for (i = 0; i < p; i++) {
                 sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
             }
-        #ifdef USE_INTEL_SPEEDUP
+        #ifdef SHA3_FUNC_PTR
             (*SHA3_BLOCK)(sha3->s);
         #else
             BlockSha3(sha3->s);
@@ -709,7 +737,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         }
     }
     blocks = len / (p * 8U);
-    #ifdef USE_INTEL_SPEEDUP
+    #ifdef SHA3_FUNC_PTR
     if ((SHA3_BLOCK_N != NULL) && (blocks > 0)) {
         (*SHA3_BLOCK_N)(sha3->s, data, blocks, p * 8U);
         len -= blocks * (p * 8U);
@@ -721,7 +749,7 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
         for (i = 0; i < p; i++) {
             sha3->s[i] ^= Load64Unaligned(data + 8 * i);
         }
-    #ifdef USE_INTEL_SPEEDUP
+    #ifdef SHA3_FUNC_PTR
         (*SHA3_BLOCK)(sha3->s);
     #else
         BlockSha3(sha3->s);
@@ -773,7 +801,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
 #endif
 
     for (j = 0; l - j >= rate; j += rate) {
-    #ifdef USE_INTEL_SPEEDUP
+    #ifdef SHA3_FUNC_PTR
         (*SHA3_BLOCK)(sha3->s);
     #else
         BlockSha3(sha3->s);
@@ -785,7 +813,7 @@ static int Sha3Final(wc_Sha3* sha3, byte padChar, byte* hash, byte p, word32 l)
     #endif
     }
     if (j != l) {
-    #ifdef USE_INTEL_SPEEDUP
+    #ifdef SHA3_FUNC_PTR
         (*SHA3_BLOCK)(sha3->s);
     #else
         BlockSha3(sha3->s);
@@ -1503,7 +1531,7 @@ int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #endif
     for (; (blockCnt > 0); blockCnt--) {
-    #ifdef USE_INTEL_SPEEDUP
+    #ifdef SHA3_FUNC_PTR
         (*SHA3_BLOCK)(shake->s);
     #else
         BlockSha3(shake->s);
@@ -1641,7 +1669,7 @@ int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
 #endif
     for (; (blockCnt > 0); blockCnt--) {
-    #ifdef USE_INTEL_SPEEDUP
+    #ifdef SHA3_FUNC_PTR
         (*SHA3_BLOCK)(shake->s);
     #else
         BlockSha3(shake->s);

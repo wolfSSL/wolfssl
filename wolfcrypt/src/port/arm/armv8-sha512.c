@@ -48,6 +48,7 @@
     }
 #endif
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
 #include <wolfssl/wolfcrypt/logging.h>
@@ -60,6 +61,11 @@
 #endif
 #ifdef WOLF_CRYPTO_CB
 #include <wolfssl/wolfcrypt/cryptocb.h>
+#endif
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_CRYPTO_SHA512)
+static word32 cpuid_flags = 0;
+static int cpuid_flags_set = 0;
 #endif
 
 #ifdef WOLFSSL_SHA512
@@ -197,6 +203,13 @@ static int InitSha512_Family(wc_Sha512* sha512, void* heap, int devId,
 
     if (ret != 0)
         return ret;
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_CRYPTO_SHA512)
+    if (!cpuid_flags_set) {
+        cpuid_flags = cpuid_get_flags();
+        cpuid_flags_set = 1;
+    }
+#endif
 
     (void)devId;
 
@@ -431,6 +444,22 @@ static void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data, word32 len
     return 0;
 }
 #undef DATA
+
+#elif defined(__aarch64__)
+
+static WC_INLINE void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,
+    word32 len)
+{
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
+    if (IS_AARCH64_SHA512(cpuid_flags)) {
+        Transform_Sha512_Len_crypto(sha512, data, len);
+    }
+    else
+#endif
+    {
+        Transform_Sha512_Len_neon(sha512, data, len);
+    }
+}
 
 #endif
 
@@ -855,6 +884,14 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
         return ret;
     }
 #endif
+
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM_CRYPTO_SHA512)
+    if (!cpuid_flags_set) {
+        cpuid_flags = cpuid_get_flags();
+        cpuid_flags_set = 1;
+    }
+#endif
+
     (void)devId;
 
     return ret;

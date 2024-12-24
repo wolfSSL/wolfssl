@@ -63,7 +63,7 @@ static const word64 L_SHA3_transform_crypto_r[] = {
     0x8000000080008008UL,
 };
 
-void BlockSha3(word64* state)
+void BlockSha3_crypto(word64* state)
 {
     __asm__ __volatile__ (
 #ifdef __APPLE__
@@ -181,7 +181,7 @@ void BlockSha3(word64* state)
     );
 }
 
-#else
+#endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
 static const word64 L_SHA3_transform_base_r[] = {
     0x1UL,
     0x8082UL,
@@ -209,7 +209,7 @@ static const word64 L_SHA3_transform_base_r[] = {
     0x8000000080008008UL,
 };
 
-void BlockSha3(word64* state)
+void BlockSha3_base(word64* state)
 {
     __asm__ __volatile__ (
         "stp	x29, x30, [sp, #-64]!\n\t"
@@ -397,7 +397,6 @@ void BlockSha3(word64* state)
     );
 }
 
-#endif /* WOLFSSL_ARMASM_CRYPTO_SHA3 */
 #endif /* WOLFSSL_SHA3 */
 #endif /* __aarch64__ */
 #endif /* WOLFSSL_ARMASM */
