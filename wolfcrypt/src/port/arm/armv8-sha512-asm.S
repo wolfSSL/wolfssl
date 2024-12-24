@@ -32,7 +32,6 @@
 #ifdef __aarch64__
 #ifndef WOLFSSL_ARMASM_INLINE
 #ifdef WOLFSSL_SHA512
-#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
 #ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_neon_len_k, %object
@@ -1093,7 +1092,7 @@ L_sha512_len_neon_start:
 #ifndef __APPLE__
 	.size	Transform_Sha512_Len_neon,.-Transform_Sha512_Len_neon
 #endif /* __APPLE__ */
-#else
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
 #ifndef __APPLE__
 	.text
 	.type	L_SHA512_transform_crypto_len_k, %object
