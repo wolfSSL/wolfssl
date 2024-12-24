@@ -10865,12 +10865,12 @@ int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
     if (sniff == NO_SNIFF) {
-        ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
 
-        if (finishedSz > WOLFSSL_MAX_8BIT) {
+        ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
+    #ifdef WOLFSSL_HAVE_TLS_UNIQUE
+        if (finishedSz > TLS_FINISHED_SZ_MAX) {
             return BUFFER_ERROR;
         }
-    #ifdef WOLFSSL_HAVE_TLS_UNIQUE
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
             XMEMCPY(ssl->serverFinished, mac, finishedSz);
             ssl->serverFinished_len = (byte)finishedSz;
