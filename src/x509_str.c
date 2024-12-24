@@ -1154,8 +1154,11 @@ static void X509StoreFreeObjList(WOLFSSL_X509_STORE* store,
     WOLFSSL_X509_OBJECT *obj = NULL;
     int cnt = store->numAdded;
 
+    /* -1 here because it is later used as an index value into the object stack.
+     * With there being the chance that the only object in the stack is one from
+     * the numAdded to the store >= is used when comparing to 0. */
     i = wolfSSL_sk_X509_OBJECT_num(objs) - 1;
-    while (cnt > 0 && i > 0) {
+    while (cnt > 0 && i >= 0) {
         /* The inner X509 is owned by somebody else, NULL out the reference */
         obj = (WOLFSSL_X509_OBJECT *)wolfSSL_sk_X509_OBJECT_value(objs, i);
         if (obj != NULL) {

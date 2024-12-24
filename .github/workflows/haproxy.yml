@@ -1,0 +1,91 @@
+name: haproxy Test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-haproxy
+          install: true
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-haproxy
+          path: build-dir.tgz
+          retention-days: 5
+
+  test_haproxy:
+    name: ${{ matrix.haproxy_ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 15
+    needs: build_wolfssl
+    strategy:
+      fail-fast: false
+      matrix:
+        haproxy_ref: [ 'v3.1.0' ]
+    steps:
+    - name: Install test dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install libpcre2-dev
+
+    - name: Download lib
+      uses: actions/download-artifact@v4
+      with:
+        name: wolf-install-haproxy
+
+    - name: untar build-dir
+      run: tar -xf build-dir.tgz
+
+    # check cache for haproxy if not there then download it
+    - name: Check haproxy cache
+      uses: actions/cache@v4
+      id: cache-haproxy
+      with:
+        path: build-dir/haproxy-${{matrix.haproxy_ref}}
+        key: haproxy-${{matrix.haproxy_ref}}
+
+    - name: Download haproxy if needed
+      if: steps.cache-haproxy.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: haproxy/haproxy
+        ref: ${{matrix.haproxy_ref}}
+        path: build-dir/haproxy-${{matrix.haproxy_ref}}
+
+    - name: Build haproxy
+      working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}
+      run: make clean && make TARGET=linux-glibc USE_OPENSSL_WOLFSSL=1 SSL_LIB=$GITHUB_WORKSPACE/build-dir/lib SSL_INC=$GITHUB_WORKSPACE/build-dir/include ADDLIB=-Wl,-rpath,$GITHUB_WORKSPACE/build-dir/lib CFLAGS="-fsanitize=address" LDFLAGS="-fsanitize=address"
+
+    - name: Build haproxy vtest
+      working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}
+      run: ./scripts/build-vtest.sh
+
+    - name: Test haproxy
+      working-directory: build-dir/haproxy-${{matrix.haproxy_ref}}
+      run: VTEST_PROGRAM=$GITHUB_WORKSPACE/build-dir/vtest/vtest make reg-tests -- --debug reg-tests/ssl/*
