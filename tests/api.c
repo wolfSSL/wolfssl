@@ -90321,6 +90321,7 @@ static void test_wolfSSL_dtls_plaintext_client(WOLFSSL* ssl)
     byte msg[] = "This is a msg for the server";
     byte reply[40];
 
+    AssertIntGE(fd, 0);
     generateDTLSMsg(ch, sizeof(ch), 20, client_hello, 0);
     /* Server should ignore this datagram */
     AssertIntEQ(send(fd, ch, sizeof(ch), 0), sizeof(ch));
@@ -90555,6 +90556,7 @@ static void test_wolfSSL_dtls_send_alert(WOLFSSL* ssl)
     };
 
     fd = wolfSSL_get_wfd(ssl);
+    AssertIntGE(fd, 0);
     ret = (int)send(fd, alert_msg, sizeof(alert_msg), 0);
     AssertIntGT(ret, 0);
 }
@@ -90952,6 +90954,7 @@ static void test_wolfSSL_dtls_send_ch(WOLFSSL* ssl)
     };
 
     fd = wolfSSL_get_wfd(ssl);
+    AssertIntGE(fd, 0);
     ret = (int)send(fd, ch_msg, sizeof(ch_msg), 0);
     AssertIntGT(ret, 0);
     /* consume the HRR otherwise handshake will fail */
