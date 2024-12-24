@@ -64,6 +64,7 @@ anon_wolfssl_pid=$no_pid
 wolf_cases_tested=0
 wolf_cases_total=0
 counter=0
+wolfssl_no_resume=""
 testing_summary="OpenSSL Interop Testing Summary:\nVersion\tTested\t#Found\t#wolf\t#Found\t#OpenSSL\n"
 versionName="Invalid"
 if [ "$OPENSSL" = "" ]; then
@@ -328,6 +329,10 @@ do_wolfssl_client() {
     then
         wolfssl_resume=
     fi
+    if [ "$wolfssl_no_resume" = "yes" ]
+    then
+        wolfssl_resume=
+    fi
     if [ "$version" != "5" -a "$version" != "" ]
     then
         echo "#"
@@ -515,6 +520,19 @@ then
     esac
     if [ "$wolf_rsa" != "" ]; then
         echo "wolfSSL supports RSA"
+    fi
+    # Check if RSA-PSS certificates supported in wolfSSL
+    wolf_rsapss=`$WOLFSSL_CLIENT -A "${CERT_DIR}/rsapss/ca-rsapss.pem" 2>&1`
+    case $wolf_rsapss in
+    *"ca file"*)
+        echo "wolfSSL does not support RSA-PSS"
+        wolf_rsapss=""
+        ;;
+    *)
+        ;;
+    esac
+    if [ "$wolf_rsapss" != "" ]; then
+        echo "wolfSSL supports RSA-PSS"
     fi
     # Check if ECC certificates supported in wolfSSL
     wolf_ecc=`$WOLFSSL_CLIENT -A "${CERT_DIR}/ca-ecc-cert.pem" 2>&1`
@@ -1228,27 +1246,49 @@ do
 done
 IFS="$OIFS" #restore separator
 
-# Test for RSA-PSS certs
-echo -e "Doing interop RSA-PSS test"
+# Skip RSA-PSS interop test when RSA-PSS is not supported
+if [ "$wolf_rsapss" != "" ]
+then
+    # Test for RSA-PSS certs interop
+    # Was running into alert sent by openssl server with version 1.1.1 released
+    # in Sep 2018. To avoid this issue check that openssl version 3.0.0 or later
+    # is used.
 
-key_file=${CERT_DIR}/rsapss/server-rsapss-priv.pem
-cert_file=${CERT_DIR}/rsapss/server-rsapss.pem
-ca_file=${CERT_DIR}/client-cert.pem
-openssl_suite="RSAPSS"
-start_openssl_server
+    $OPENSSL version | awk '{print $2}' | \
+        awk -F. '{if ($1 >= 3) exit 1; else exit 0;}'
+    RESULT=$?
+    if [ "$RESULT" = "0" ]; then
+        echo -e "Old version of openssl detected, skipping interop RSA-PSS test"
+    else
+        echo -e "Doing interop RSA-PSS test"
 
-cert="${CERT_DIR}/client-cert.pem"
-key="${CERT_DIR}/client-key.pem"
-caCert="${CERT_DIR}/rsapss/ca-rsapss.pem"
-crl="-C"
-wolfSuite="ALL"
-version="4"
-port=$server_port
-do_wolfssl_client
+        key_file=${CERT_DIR}/rsapss/server-rsapss-priv.pem
+        cert_file=${CERT_DIR}/rsapss/server-rsapss.pem
+        ca_file=${CERT_DIR}/client-cert.pem
+        openssl_suite="RSAPSS"
+        start_openssl_server
 
-version="3"
-do_wolfssl_client
+        cert="${CERT_DIR}/client-cert.pem"
+        key="${CERT_DIR}/client-key.pem"
+        caCert="${CERT_DIR}/rsapss/ca-rsapss.pem"
+        crl="-C"
+        wolfSuite="ALL"
+        wolfssl_no_resume="yes"
+        port=$server_port
 
+        if [ "$wolf_tls13" != "" ]
+        then
+            version="4"
+            do_wolfssl_client
+        fi
+
+        if [ "$wolf_tls" != "" ]
+        then
+            version="3"
+            do_wolfssl_client
+        fi
+    fi
+fi
 do_cleanup
 
 echo -e "wolfSSL total cases   $wolf_cases_total"
