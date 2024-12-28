@@ -3554,17 +3554,7 @@ int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
 
 #endif
 
-#ifdef OPENSSL_ALL
-
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
-{
-    WOLFSSL_STUB("wolfSSL_BIO_set_init");
-    (void)bio;
-    (void)init;
-}
-#endif /* NO_WOLFSSL_STUB */
-
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 void wolfSSL_BIO_set_shutdown(WOLFSSL_BIO* bio, int shut)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_shutdown");
@@ -3586,6 +3576,18 @@ void wolfSSL_BIO_clear_retry_flags(WOLFSSL_BIO* bio)
         bio->flags &= ~(WOLFSSL_BIO_FLAG_READ | WOLFSSL_BIO_FLAG_WRITE |
                         WOLFSSL_BIO_FLAG_RETRY);
 }
+#endif
+
+#ifdef OPENSSL_ALL
+
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_BIO_set_init(WOLFSSL_BIO* bio, int init)
+{
+    WOLFSSL_STUB("wolfSSL_BIO_set_init");
+    (void)bio;
+    (void)init;
+}
+#endif /* NO_WOLFSSL_STUB */
 
 int wolfSSL_BIO_should_retry(WOLFSSL_BIO *bio)
 {
