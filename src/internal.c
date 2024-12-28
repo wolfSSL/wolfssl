@@ -5142,7 +5142,7 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
 #endif
 
 #if defined(WC_RSA_PSS)
-    if (sigAlgo == rsa_pss_sa_algo) {
+    if (sigAlgo == rsa_pss_sa_algo || sigAlgo == rsa_pss_pss_algo) {
         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
         int mgf = 0;
 
@@ -32292,6 +32292,13 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         }
                         else
                     #endif
+                    #ifdef WC_RSA_PSS
+                        if (sigAlgo == rsa_pss_pss_algo &&
+                                ssl->options.peerSigAlgo == rsa_sa_algo) {
+                            ssl->options.peerSigAlgo = sigAlgo;
+                        }
+                        else
+                    #endif
                     #if defined(WOLFSSL_SM2) && defined(WOLFSSL_SM3)
                         if (sigAlgo == sm2_sa_algo &&
                                              ssl->options.peerSigAlgo == ecc_dsa_sa_algo) {
@@ -32358,6 +32365,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     #ifndef NO_RSA
                     #ifdef WC_RSA_PSS
                         case rsa_pss_sa_algo:
+                        case rsa_pss_pss_algo:
                     #endif
                         case rsa_sa_algo:
                         {
@@ -32458,6 +32466,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     #ifndef NO_RSA
                     #ifdef WC_RSA_PSS
                         case rsa_pss_sa_algo:
+                        case rsa_pss_pss_algo:
                     #endif
                         case rsa_sa_algo:
                         {
@@ -32669,6 +32678,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     #ifndef NO_RSA
                     #ifdef WC_RSA_PSS
                         case rsa_pss_sa_algo:
+                        case rsa_pss_pss_algo:
                         #ifdef HAVE_SELFTEST
                             ret = wc_RsaPSS_CheckPadding(
                                              ssl->buffers.digest.buffer,

@@ -7938,6 +7938,27 @@ static void EncodeDualSigAlg(byte sigAlg, byte altSigAlg, byte* output)
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
+static enum wc_MACAlgorithm GetNewSAHashAlgo(int typeIn)
+{
+    switch (typeIn) {
+        case RSA_PSS_RSAE_SHA256_MINOR:
+        case RSA_PSS_PSS_SHA256_MINOR:
+            return sha256_mac;
+
+        case RSA_PSS_RSAE_SHA384_MINOR:
+        case RSA_PSS_PSS_SHA384_MINOR:
+            return sha384_mac;
+
+        case RSA_PSS_RSAE_SHA512_MINOR:
+        case RSA_PSS_PSS_SHA512_MINOR:
+        case ED25519_SA_MINOR:
+        case ED448_SA_MINOR:
+            return sha512_mac;
+        default:
+            return no_mac;
+    }
+}
+
 /* Decode the signature algorithm.
  *
  * input     The encoded signature algorithm.
@@ -7962,17 +7983,23 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             break;
     #endif
         case NEW_SA_MAJOR:
-            /* PSS signatures: 0x080[4-6] */
-            if (input[1] >= sha256_mac && input[1] <= sha512_mac) {
+            *hashAlgo = GetNewSAHashAlgo(input[1]);
+
+            /* PSS encryption: 0x080[4-6] */
+            if (input[1] >= RSA_PSS_RSAE_SHA256_MINOR &&
+                    input[1] <= RSA_PSS_RSAE_SHA512_MINOR) {
                 *hsType   = input[0];
-                *hashAlgo = input[1];
+            }
+            /* PSS signature: 0x080[9-B] */
+            else if (input[1] >= RSA_PSS_PSS_SHA256_MINOR &&
+                    input[1] <= RSA_PSS_PSS_SHA512_MINOR) {
+                *hsType   = input[0];
             }
     #ifdef HAVE_ED25519
             /* ED25519: 0x0807 */
             else if (input[1] == ED25519_SA_MINOR) {
                 *hsType = ed25519_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
-                *hashAlgo = sha512_mac;
             }
     #endif
     #ifdef HAVE_ED448
@@ -7980,7 +8007,6 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             else if (input[1] == ED448_SA_MINOR) {
                 *hsType = ed448_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
-                *hashAlgo = sha512_mac;
             }
     #endif
             else
