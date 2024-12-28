@@ -1247,7 +1247,7 @@ done
 IFS="$OIFS" #restore separator
 
 # Skip RSA-PSS interop test when RSA-PSS is not supported
-if [ "$wolf_rsapss" != "" ]
+if [ "$wolf_rsapss" != "" -a "$ecdhe_avail" = "yes" -a "$wolf_rsa" = "yes" ]
 then
     # Test for RSA-PSS certs interop
     # Was running into alert sent by openssl server with version 1.1.1 released
