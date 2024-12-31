@@ -76143,14 +76143,10 @@ static int test_wolfSSL_OBJ_sn(void)
                            NID_stateOrProvinceName,NID_organizationName,
                            NID_organizationalUnitName,NID_emailAddress};
     const char* sn_open_set[] = {"CN","C","L","ST","O","OU","emailAddress"};
-    const char* sn_wolf_set[] = {WOLFSSL_COMMON_NAME,WOLFSSL_COUNTRY_NAME,
-                                WOLFSSL_LOCALITY_NAME, WOLFSSL_STATE_NAME,
-                                WOLFSSL_ORG_NAME, WOLFSSL_ORGUNIT_NAME,
-                                WOLFSSL_EMAIL_ADDR};
 
     ExpectIntEQ(wolfSSL_OBJ_sn2nid(NULL), NID_undef);
     for (i = 0; i < maxIdx; i++) {
-        ExpectIntEQ(wolfSSL_OBJ_sn2nid(sn_wolf_set[i]), nid_set[i]);
+        ExpectIntEQ(wolfSSL_OBJ_sn2nid(sn_open_set[i]), nid_set[i]);
         ExpectStrEQ(wolfSSL_OBJ_nid2sn(nid_set[i]), sn_open_set[i]);
     }
 
