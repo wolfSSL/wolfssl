@@ -309,6 +309,7 @@ struct Aes {
     byte use_aes_hw_crypto;
 #ifdef HAVE_AESGCM
     byte use_pmull_hw_crypto;
+    byte use_sha3_hw_crypto;
 #endif
 #endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #ifdef WOLF_CRYPTO_CB
@@ -841,6 +842,7 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
     !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+
 /* GHASH one block of data.
  *
  * XOR block into tag and GMULT with H.
@@ -848,7 +850,7 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
  * @param [in, out] aes    AES GCM object.
  * @param [in]      block  Block of AAD or cipher text.
  */
-#define GHASH_ONE_BLOCK(aes, block)                     \
+#define GHASH_ONE_BLOCK_AARCH64(aes, block)             \
     do {                                                \
         xorbuf(AES_TAG(aes), block, WC_AES_BLOCK_SIZE); \
         GMULT_AARCH64(AES_TAG(aes), aes->gcm.H);        \

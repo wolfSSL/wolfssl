@@ -263,60 +263,40 @@ _kyber_ntt:
 	mul	v30.8h, v14.8h, v1.h[1]
 	sqrdmulh	v21.8h, v13.8h, v0.h[1]
 	sqrdmulh	v22.8h, v14.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v15.8h, v1.h[1]
 	mul	v30.8h, v16.8h, v1.h[1]
 	sqrdmulh	v23.8h, v15.8h, v0.h[1]
 	sqrdmulh	v24.8h, v16.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v17.8h, v1.h[1]
 	mul	v30.8h, v18.8h, v1.h[1]
 	sqrdmulh	v25.8h, v17.8h, v0.h[1]
 	sqrdmulh	v26.8h, v18.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v19.8h, v1.h[1]
 	mul	v30.8h, v20.8h, v1.h[1]
 	sqrdmulh	v27.8h, v19.8h, v0.h[1]
 	sqrdmulh	v28.8h, v20.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v13.8h, v5.8h, v21.8h
@@ -339,60 +319,40 @@ _kyber_ntt:
 	mul	v30.8h, v10.8h, v1.h[2]
 	sqrdmulh	v21.8h, v9.8h, v0.h[2]
 	sqrdmulh	v22.8h, v10.8h, v0.h[2]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v11.8h, v1.h[2]
 	mul	v30.8h, v12.8h, v1.h[2]
 	sqrdmulh	v23.8h, v11.8h, v0.h[2]
 	sqrdmulh	v24.8h, v12.8h, v0.h[2]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v17.8h, v1.h[3]
 	mul	v30.8h, v18.8h, v1.h[3]
 	sqrdmulh	v25.8h, v17.8h, v0.h[3]
 	sqrdmulh	v26.8h, v18.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v19.8h, v1.h[3]
 	mul	v30.8h, v20.8h, v1.h[3]
 	sqrdmulh	v27.8h, v19.8h, v0.h[3]
 	sqrdmulh	v28.8h, v20.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v9.8h, v5.8h, v21.8h
@@ -415,60 +375,40 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v1.h[4]
 	sqrdmulh	v21.8h, v7.8h, v0.h[4]
 	sqrdmulh	v22.8h, v8.8h, v0.h[4]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v11.8h, v1.h[5]
 	mul	v30.8h, v12.8h, v1.h[5]
 	sqrdmulh	v23.8h, v11.8h, v0.h[5]
 	sqrdmulh	v24.8h, v12.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v15.8h, v1.h[6]
 	mul	v30.8h, v16.8h, v1.h[6]
 	sqrdmulh	v25.8h, v15.8h, v0.h[6]
 	sqrdmulh	v26.8h, v16.8h, v0.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v19.8h, v1.h[7]
 	mul	v30.8h, v20.8h, v1.h[7]
 	sqrdmulh	v27.8h, v19.8h, v0.h[7]
 	sqrdmulh	v28.8h, v20.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v7.8h, v5.8h, v21.8h
@@ -493,60 +433,40 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v1.h[1]
 	sqrdmulh	v21.8h, v6.8h, v0.h[0]
 	sqrdmulh	v22.8h, v8.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v10.8h, v1.h[2]
 	mul	v30.8h, v12.8h, v1.h[3]
 	sqrdmulh	v23.8h, v10.8h, v0.h[2]
 	sqrdmulh	v24.8h, v12.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v14.8h, v1.h[4]
 	mul	v30.8h, v16.8h, v1.h[5]
 	sqrdmulh	v25.8h, v14.8h, v0.h[4]
 	sqrdmulh	v26.8h, v16.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v18.8h, v1.h[6]
 	mul	v30.8h, v20.8h, v1.h[7]
 	sqrdmulh	v27.8h, v18.8h, v0.h[6]
 	sqrdmulh	v28.8h, v20.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -603,60 +523,40 @@ _kyber_ntt:
 	mul	v30.8h, v14.8h, v1.h[1]
 	sqrdmulh	v21.8h, v13.8h, v0.h[1]
 	sqrdmulh	v22.8h, v14.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v15.8h, v1.h[1]
 	mul	v30.8h, v16.8h, v1.h[1]
 	sqrdmulh	v23.8h, v15.8h, v0.h[1]
 	sqrdmulh	v24.8h, v16.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v17.8h, v1.h[1]
 	mul	v30.8h, v18.8h, v1.h[1]
 	sqrdmulh	v25.8h, v17.8h, v0.h[1]
 	sqrdmulh	v26.8h, v18.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v19.8h, v1.h[1]
 	mul	v30.8h, v20.8h, v1.h[1]
 	sqrdmulh	v27.8h, v19.8h, v0.h[1]
 	sqrdmulh	v28.8h, v20.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v13.8h, v5.8h, v21.8h
@@ -679,60 +579,40 @@ _kyber_ntt:
 	mul	v30.8h, v10.8h, v1.h[2]
 	sqrdmulh	v21.8h, v9.8h, v0.h[2]
 	sqrdmulh	v22.8h, v10.8h, v0.h[2]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v11.8h, v1.h[2]
 	mul	v30.8h, v12.8h, v1.h[2]
 	sqrdmulh	v23.8h, v11.8h, v0.h[2]
 	sqrdmulh	v24.8h, v12.8h, v0.h[2]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v17.8h, v1.h[3]
 	mul	v30.8h, v18.8h, v1.h[3]
 	sqrdmulh	v25.8h, v17.8h, v0.h[3]
 	sqrdmulh	v26.8h, v18.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v19.8h, v1.h[3]
 	mul	v30.8h, v20.8h, v1.h[3]
 	sqrdmulh	v27.8h, v19.8h, v0.h[3]
 	sqrdmulh	v28.8h, v20.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v9.8h, v5.8h, v21.8h
@@ -755,60 +635,40 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v1.h[4]
 	sqrdmulh	v21.8h, v7.8h, v0.h[4]
 	sqrdmulh	v22.8h, v8.8h, v0.h[4]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v11.8h, v1.h[5]
 	mul	v30.8h, v12.8h, v1.h[5]
 	sqrdmulh	v23.8h, v11.8h, v0.h[5]
 	sqrdmulh	v24.8h, v12.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v15.8h, v1.h[6]
 	mul	v30.8h, v16.8h, v1.h[6]
 	sqrdmulh	v25.8h, v15.8h, v0.h[6]
 	sqrdmulh	v26.8h, v16.8h, v0.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v19.8h, v1.h[7]
 	mul	v30.8h, v20.8h, v1.h[7]
 	sqrdmulh	v27.8h, v19.8h, v0.h[7]
 	sqrdmulh	v28.8h, v20.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v7.8h, v5.8h, v21.8h
@@ -833,60 +693,40 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v1.h[1]
 	sqrdmulh	v21.8h, v6.8h, v0.h[0]
 	sqrdmulh	v22.8h, v8.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v10.8h, v1.h[2]
 	mul	v30.8h, v12.8h, v1.h[3]
 	sqrdmulh	v23.8h, v10.8h, v0.h[2]
 	sqrdmulh	v24.8h, v12.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v14.8h, v1.h[4]
 	mul	v30.8h, v16.8h, v1.h[5]
 	sqrdmulh	v25.8h, v14.8h, v0.h[4]
 	sqrdmulh	v26.8h, v16.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v18.8h, v1.h[6]
 	mul	v30.8h, v20.8h, v1.h[7]
 	sqrdmulh	v27.8h, v18.8h, v0.h[6]
 	sqrdmulh	v28.8h, v20.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -935,60 +775,40 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v1.h[1]
 	sqrdmulh	v21.8h, v6.8h, v0.h[0]
 	sqrdmulh	v22.8h, v8.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v10.8h, v1.h[2]
 	mul	v30.8h, v12.8h, v1.h[3]
 	sqrdmulh	v23.8h, v10.8h, v0.h[2]
 	sqrdmulh	v24.8h, v12.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v14.8h, v1.h[4]
 	mul	v30.8h, v16.8h, v1.h[5]
 	sqrdmulh	v25.8h, v14.8h, v0.h[4]
 	sqrdmulh	v26.8h, v16.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v18.8h, v1.h[6]
 	mul	v30.8h, v20.8h, v1.h[7]
 	sqrdmulh	v27.8h, v18.8h, v0.h[6]
 	sqrdmulh	v28.8h, v20.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -1021,15 +841,10 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v3.8h
 	sqrdmulh	v21.8h, v6.8h, v0.8h
 	sqrdmulh	v22.8h, v8.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	ldr	q0, [x2, #96]
@@ -1046,15 +861,10 @@ _kyber_ntt:
 	mul	v30.8h, v12.8h, v3.8h
 	sqrdmulh	v23.8h, v10.8h, v0.8h
 	sqrdmulh	v24.8h, v12.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #128]
@@ -1071,15 +881,10 @@ _kyber_ntt:
 	mul	v30.8h, v16.8h, v3.8h
 	sqrdmulh	v25.8h, v14.8h, v0.8h
 	sqrdmulh	v26.8h, v16.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	ldr	q0, [x2, #160]
@@ -1096,15 +901,10 @@ _kyber_ntt:
 	mul	v30.8h, v20.8h, v3.8h
 	sqrdmulh	v27.8h, v18.8h, v0.8h
 	sqrdmulh	v28.8h, v20.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -1137,15 +937,10 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v3.8h
 	sqrdmulh	v21.8h, v6.8h, v0.8h
 	sqrdmulh	v22.8h, v8.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	ldr	q0, [x2, #352]
@@ -1162,15 +957,10 @@ _kyber_ntt:
 	mul	v30.8h, v12.8h, v3.8h
 	sqrdmulh	v23.8h, v10.8h, v0.8h
 	sqrdmulh	v24.8h, v12.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #384]
@@ -1187,15 +977,10 @@ _kyber_ntt:
 	mul	v30.8h, v16.8h, v3.8h
 	sqrdmulh	v25.8h, v14.8h, v0.8h
 	sqrdmulh	v26.8h, v16.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	ldr	q0, [x2, #416]
@@ -1212,15 +997,10 @@ _kyber_ntt:
 	mul	v30.8h, v20.8h, v3.8h
 	sqrdmulh	v27.8h, v18.8h, v0.8h
 	sqrdmulh	v28.8h, v20.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -1357,60 +1137,40 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v1.h[1]
 	sqrdmulh	v21.8h, v6.8h, v0.h[0]
 	sqrdmulh	v22.8h, v8.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v29.8h, v10.8h, v1.h[2]
 	mul	v30.8h, v12.8h, v1.h[3]
 	sqrdmulh	v23.8h, v10.8h, v0.h[2]
 	sqrdmulh	v24.8h, v12.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v29.8h, v14.8h, v1.h[4]
 	mul	v30.8h, v16.8h, v1.h[5]
 	sqrdmulh	v25.8h, v14.8h, v0.h[4]
 	sqrdmulh	v26.8h, v16.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	mul	v29.8h, v18.8h, v1.h[6]
 	mul	v30.8h, v20.8h, v1.h[7]
 	sqrdmulh	v27.8h, v18.8h, v0.h[6]
 	sqrdmulh	v28.8h, v20.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -1443,15 +1203,10 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v3.8h
 	sqrdmulh	v21.8h, v6.8h, v0.8h
 	sqrdmulh	v22.8h, v8.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	ldr	q0, [x2, #224]
@@ -1468,15 +1223,10 @@ _kyber_ntt:
 	mul	v30.8h, v12.8h, v3.8h
 	sqrdmulh	v23.8h, v10.8h, v0.8h
 	sqrdmulh	v24.8h, v12.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #256]
@@ -1493,15 +1243,10 @@ _kyber_ntt:
 	mul	v30.8h, v16.8h, v3.8h
 	sqrdmulh	v25.8h, v14.8h, v0.8h
 	sqrdmulh	v26.8h, v16.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	ldr	q0, [x2, #288]
@@ -1518,15 +1263,10 @@ _kyber_ntt:
 	mul	v30.8h, v20.8h, v3.8h
 	sqrdmulh	v27.8h, v18.8h, v0.8h
 	sqrdmulh	v28.8h, v20.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -1559,15 +1299,10 @@ _kyber_ntt:
 	mul	v30.8h, v8.8h, v3.8h
 	sqrdmulh	v21.8h, v6.8h, v0.8h
 	sqrdmulh	v22.8h, v8.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v21.8h, v21.8h, v29.8h
 	sub	v22.8h, v22.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	ldr	q0, [x2, #480]
@@ -1584,15 +1319,10 @@ _kyber_ntt:
 	mul	v30.8h, v12.8h, v3.8h
 	sqrdmulh	v23.8h, v10.8h, v0.8h
 	sqrdmulh	v24.8h, v12.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v23.8h, v23.8h, v29.8h
 	sub	v24.8h, v24.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #512]
@@ -1609,15 +1339,10 @@ _kyber_ntt:
 	mul	v30.8h, v16.8h, v3.8h
 	sqrdmulh	v25.8h, v14.8h, v0.8h
 	sqrdmulh	v26.8h, v16.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v25.8h, v25.8h, v29.8h
 	sub	v26.8h, v26.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v25.8h, v25.8h, #1
 	sshr	v26.8h, v26.8h, #1
 	ldr	q0, [x2, #544]
@@ -1634,15 +1359,10 @@ _kyber_ntt:
 	mul	v30.8h, v20.8h, v3.8h
 	sqrdmulh	v27.8h, v18.8h, v0.8h
 	sqrdmulh	v28.8h, v20.8h, v2.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
-	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
-#else
 	sqrdmulh	v29.8h, v29.8h, v4.h[0]
 	sqrdmulh	v30.8h, v30.8h, v4.h[0]
 	sub	v27.8h, v27.8h, v29.8h
 	sub	v28.8h, v28.8h, v30.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v27.8h, v27.8h, #1
 	sshr	v28.8h, v28.8h, #1
 	sub	v6.8h, v5.8h, v21.8h
@@ -1983,15 +1703,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v10.8h, v26.8h, v0.8h
 	sqrdmulh	v12.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	ldr	q0, [x2, #32]
@@ -2006,15 +1721,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v14.8h, v26.8h, v0.8h
 	sqrdmulh	v16.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	ldr	q0, [x2, #64]
@@ -2029,15 +1739,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v18.8h, v26.8h, v0.8h
 	sqrdmulh	v20.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	ldr	q0, [x2, #96]
@@ -2052,15 +1757,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v22.8h, v26.8h, v0.8h
 	sqrdmulh	v24.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #256]
@@ -2081,15 +1781,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v10.8h, v26.8h, v0.8h
 	sqrdmulh	v12.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	ldr	q0, [x2, #288]
@@ -2110,15 +1805,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v14.8h, v26.8h, v0.8h
 	sqrdmulh	v16.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	ldr	q0, [x2, #320]
@@ -2139,15 +1829,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v18.8h, v26.8h, v0.8h
 	sqrdmulh	v20.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	ldr	q0, [x2, #352]
@@ -2168,15 +1853,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v22.8h, v26.8h, v0.8h
 	sqrdmulh	v24.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #512]
@@ -2195,15 +1875,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[1]
 	sqrdmulh	v10.8h, v26.8h, v0.h[0]
 	sqrdmulh	v12.8h, v28.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	mov	v25.16b, v13.16b
@@ -2220,15 +1895,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[3]
 	sqrdmulh	v14.8h, v26.8h, v0.h[2]
 	sqrdmulh	v16.8h, v28.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	mov	v25.16b, v17.16b
@@ -2245,15 +1915,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[5]
 	sqrdmulh	v18.8h, v26.8h, v0.h[4]
 	sqrdmulh	v20.8h, v28.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	mov	v25.16b, v21.16b
@@ -2270,15 +1935,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[7]
 	sqrdmulh	v22.8h, v26.8h, v0.h[6]
 	sqrdmulh	v24.8h, v28.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sqdmulh	v25.8h, v9.8h, v8.h[2]
@@ -2381,15 +2041,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v10.8h, v26.8h, v0.8h
 	sqrdmulh	v12.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	ldr	q0, [x2, #160]
@@ -2404,15 +2059,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v14.8h, v26.8h, v0.8h
 	sqrdmulh	v16.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	ldr	q0, [x2, #192]
@@ -2427,15 +2077,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v18.8h, v26.8h, v0.8h
 	sqrdmulh	v20.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	ldr	q0, [x2, #224]
@@ -2450,15 +2095,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v22.8h, v26.8h, v0.8h
 	sqrdmulh	v24.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #384]
@@ -2479,15 +2119,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v10.8h, v26.8h, v0.8h
 	sqrdmulh	v12.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	ldr	q0, [x2, #416]
@@ -2508,15 +2143,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v14.8h, v26.8h, v0.8h
 	sqrdmulh	v16.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	ldr	q0, [x2, #448]
@@ -2537,15 +2167,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v18.8h, v26.8h, v0.8h
 	sqrdmulh	v20.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	ldr	q0, [x2, #480]
@@ -2566,15 +2191,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v3.8h
 	sqrdmulh	v22.8h, v26.8h, v0.8h
 	sqrdmulh	v24.8h, v28.8h, v1.8h
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	ldr	q0, [x2, #528]
@@ -2593,15 +2213,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[1]
 	sqrdmulh	v10.8h, v26.8h, v0.h[0]
 	sqrdmulh	v12.8h, v28.8h, v0.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	mov	v25.16b, v13.16b
@@ -2618,15 +2233,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[3]
 	sqrdmulh	v14.8h, v26.8h, v0.h[2]
 	sqrdmulh	v16.8h, v28.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	mov	v25.16b, v17.16b
@@ -2643,15 +2253,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[5]
 	sqrdmulh	v18.8h, v26.8h, v0.h[4]
 	sqrdmulh	v20.8h, v28.8h, v0.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	mov	v25.16b, v21.16b
@@ -2668,15 +2273,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v2.h[7]
 	sqrdmulh	v22.8h, v26.8h, v0.h[6]
 	sqrdmulh	v24.8h, v28.8h, v0.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sqdmulh	v25.8h, v9.8h, v8.h[2]
@@ -2739,15 +2339,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[1]
 	sqrdmulh	v10.8h, v26.8h, v4.h[0]
 	sqrdmulh	v12.8h, v28.8h, v4.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	sub	v26.8h, v13.8h, v14.8h
@@ -2758,15 +2353,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[3]
 	sqrdmulh	v14.8h, v26.8h, v4.h[2]
 	sqrdmulh	v16.8h, v28.8h, v4.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	sub	v26.8h, v17.8h, v18.8h
@@ -2777,15 +2367,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[5]
 	sqrdmulh	v18.8h, v26.8h, v4.h[4]
 	sqrdmulh	v20.8h, v28.8h, v4.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	sub	v26.8h, v21.8h, v22.8h
@@ -2796,15 +2381,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[7]
 	sqrdmulh	v22.8h, v26.8h, v4.h[6]
 	sqrdmulh	v24.8h, v28.8h, v4.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sub	v26.8h, v9.8h, v11.8h
@@ -2815,15 +2395,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[0]
 	sqrdmulh	v11.8h, v26.8h, v5.h[0]
 	sqrdmulh	v12.8h, v28.8h, v5.h[0]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v11.8h, v11.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v11.8h, v11.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	sub	v26.8h, v13.8h, v15.8h
@@ -2834,15 +2409,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[1]
 	sqrdmulh	v15.8h, v26.8h, v5.h[1]
 	sqrdmulh	v16.8h, v28.8h, v5.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v15.8h, v15.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	sub	v26.8h, v17.8h, v19.8h
@@ -2853,15 +2423,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[2]
 	sqrdmulh	v19.8h, v26.8h, v5.h[2]
 	sqrdmulh	v20.8h, v28.8h, v5.h[2]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v19.8h, v19.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v19.8h, v19.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	sub	v26.8h, v21.8h, v23.8h
@@ -2872,15 +2437,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[3]
 	sqrdmulh	v23.8h, v26.8h, v5.h[3]
 	sqrdmulh	v24.8h, v28.8h, v5.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sub	v26.8h, v9.8h, v13.8h
@@ -2891,15 +2451,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[4]
 	sqrdmulh	v13.8h, v26.8h, v5.h[4]
 	sqrdmulh	v14.8h, v28.8h, v5.h[4]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v14.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v13.8h, v13.8h, v25.8h
 	sub	v14.8h, v14.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v13.8h, v13.8h, #1
 	sshr	v14.8h, v14.8h, #1
 	sub	v26.8h, v11.8h, v15.8h
@@ -2910,15 +2465,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[4]
 	sqrdmulh	v15.8h, v26.8h, v5.h[4]
 	sqrdmulh	v16.8h, v28.8h, v5.h[4]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v15.8h, v15.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	sub	v26.8h, v17.8h, v21.8h
@@ -2929,15 +2479,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[5]
 	sqrdmulh	v21.8h, v26.8h, v5.h[5]
 	sqrdmulh	v22.8h, v28.8h, v5.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v21.8h, v21.8h, v25.8h
 	sub	v22.8h, v22.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	sub	v26.8h, v19.8h, v23.8h
@@ -2948,15 +2493,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[5]
 	sqrdmulh	v23.8h, v26.8h, v5.h[5]
 	sqrdmulh	v24.8h, v28.8h, v5.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sqdmulh	v25.8h, v9.8h, v8.h[2]
@@ -2991,15 +2531,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v17.8h, v26.8h, v5.h[6]
 	sqrdmulh	v18.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v18.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v17.8h, v17.8h, v25.8h
 	sub	v18.8h, v18.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v17.8h, v17.8h, #1
 	sshr	v18.8h, v18.8h, #1
 	sub	v26.8h, v11.8h, v19.8h
@@ -3010,15 +2545,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v19.8h, v26.8h, v5.h[6]
 	sqrdmulh	v20.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v19.8h, v19.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v19.8h, v19.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	sub	v26.8h, v13.8h, v21.8h
@@ -3029,15 +2559,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v21.8h, v26.8h, v5.h[6]
 	sqrdmulh	v22.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v21.8h, v21.8h, v25.8h
 	sub	v22.8h, v22.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	sub	v26.8h, v15.8h, v23.8h
@@ -3048,135 +2573,90 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v23.8h, v26.8h, v5.h[6]
 	sqrdmulh	v24.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v25.8h, v9.8h, v7.h[7]
 	mul	v26.8h, v10.8h, v7.h[7]
 	sqrdmulh	v9.8h, v9.8h, v5.h[7]
 	sqrdmulh	v10.8h, v10.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v9.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v10.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v9.8h, v9.8h, v25.8h
 	sub	v10.8h, v10.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v9.8h, v9.8h, #1
 	sshr	v10.8h, v10.8h, #1
 	mul	v25.8h, v11.8h, v7.h[7]
 	mul	v26.8h, v12.8h, v7.h[7]
 	sqrdmulh	v11.8h, v11.8h, v5.h[7]
 	sqrdmulh	v12.8h, v12.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v11.8h, v11.8h, v25.8h
 	sub	v12.8h, v12.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v11.8h, v11.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	mul	v25.8h, v13.8h, v7.h[7]
 	mul	v26.8h, v14.8h, v7.h[7]
 	sqrdmulh	v13.8h, v13.8h, v5.h[7]
 	sqrdmulh	v14.8h, v14.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v14.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v13.8h, v13.8h, v25.8h
 	sub	v14.8h, v14.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v13.8h, v13.8h, #1
 	sshr	v14.8h, v14.8h, #1
 	mul	v25.8h, v15.8h, v7.h[7]
 	mul	v26.8h, v16.8h, v7.h[7]
 	sqrdmulh	v15.8h, v15.8h, v5.h[7]
 	sqrdmulh	v16.8h, v16.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v15.8h, v15.8h, v25.8h
 	sub	v16.8h, v16.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	mul	v25.8h, v17.8h, v7.h[7]
 	mul	v26.8h, v18.8h, v7.h[7]
 	sqrdmulh	v17.8h, v17.8h, v5.h[7]
 	sqrdmulh	v18.8h, v18.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v18.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v17.8h, v17.8h, v25.8h
 	sub	v18.8h, v18.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v17.8h, v17.8h, #1
 	sshr	v18.8h, v18.8h, #1
 	mul	v25.8h, v19.8h, v7.h[7]
 	mul	v26.8h, v20.8h, v7.h[7]
 	sqrdmulh	v19.8h, v19.8h, v5.h[7]
 	sqrdmulh	v20.8h, v20.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v19.8h, v19.8h, v25.8h
 	sub	v20.8h, v20.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v19.8h, v19.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	mul	v25.8h, v21.8h, v7.h[7]
 	mul	v26.8h, v22.8h, v7.h[7]
 	sqrdmulh	v21.8h, v21.8h, v5.h[7]
 	sqrdmulh	v22.8h, v22.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v22.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v21.8h, v21.8h, v25.8h
 	sub	v22.8h, v22.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v25.8h, v23.8h, v7.h[7]
 	mul	v26.8h, v24.8h, v7.h[7]
 	sqrdmulh	v23.8h, v23.8h, v5.h[7]
 	sqrdmulh	v24.8h, v24.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	str	q9, [x0]
@@ -3219,15 +2699,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[1]
 	sqrdmulh	v10.8h, v26.8h, v4.h[0]
 	sqrdmulh	v12.8h, v28.8h, v4.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v10.8h, v10.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v10.8h, v10.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	sub	v26.8h, v13.8h, v14.8h
@@ -3238,15 +2713,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[3]
 	sqrdmulh	v14.8h, v26.8h, v4.h[2]
 	sqrdmulh	v16.8h, v28.8h, v4.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v14.8h, v14.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v14.8h, v14.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	sub	v26.8h, v17.8h, v18.8h
@@ -3257,15 +2727,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[5]
 	sqrdmulh	v18.8h, v26.8h, v4.h[4]
 	sqrdmulh	v20.8h, v28.8h, v4.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v18.8h, v18.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v18.8h, v18.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	sub	v26.8h, v21.8h, v22.8h
@@ -3276,15 +2741,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v6.h[7]
 	sqrdmulh	v22.8h, v26.8h, v4.h[6]
 	sqrdmulh	v24.8h, v28.8h, v4.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v22.8h, v22.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v22.8h, v22.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sub	v26.8h, v9.8h, v11.8h
@@ -3295,15 +2755,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[0]
 	sqrdmulh	v11.8h, v26.8h, v5.h[0]
 	sqrdmulh	v12.8h, v28.8h, v5.h[0]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v11.8h, v11.8h, v25.8h
 	sub	v12.8h, v12.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v11.8h, v11.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	sub	v26.8h, v13.8h, v15.8h
@@ -3314,15 +2769,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[1]
 	sqrdmulh	v15.8h, v26.8h, v5.h[1]
 	sqrdmulh	v16.8h, v28.8h, v5.h[1]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v15.8h, v15.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	sub	v26.8h, v17.8h, v19.8h
@@ -3333,15 +2783,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[2]
 	sqrdmulh	v19.8h, v26.8h, v5.h[2]
 	sqrdmulh	v20.8h, v28.8h, v5.h[2]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v19.8h, v19.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v19.8h, v19.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	sub	v26.8h, v21.8h, v23.8h
@@ -3352,15 +2797,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[3]
 	sqrdmulh	v23.8h, v26.8h, v5.h[3]
 	sqrdmulh	v24.8h, v28.8h, v5.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sub	v26.8h, v9.8h, v13.8h
@@ -3371,15 +2811,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[4]
 	sqrdmulh	v13.8h, v26.8h, v5.h[4]
 	sqrdmulh	v14.8h, v28.8h, v5.h[4]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v14.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v13.8h, v13.8h, v25.8h
 	sub	v14.8h, v14.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v13.8h, v13.8h, #1
 	sshr	v14.8h, v14.8h, #1
 	sub	v26.8h, v11.8h, v15.8h
@@ -3390,15 +2825,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[4]
 	sqrdmulh	v15.8h, v26.8h, v5.h[4]
 	sqrdmulh	v16.8h, v28.8h, v5.h[4]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v15.8h, v15.8h, v25.8h
 	sub	v16.8h, v16.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	sub	v26.8h, v17.8h, v21.8h
@@ -3409,15 +2839,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[5]
 	sqrdmulh	v21.8h, v26.8h, v5.h[5]
 	sqrdmulh	v22.8h, v28.8h, v5.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v21.8h, v21.8h, v25.8h
 	sub	v22.8h, v22.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	sub	v26.8h, v19.8h, v23.8h
@@ -3428,15 +2853,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[5]
 	sqrdmulh	v23.8h, v26.8h, v5.h[5]
 	sqrdmulh	v24.8h, v28.8h, v5.h[5]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	sqdmulh	v25.8h, v9.8h, v8.h[2]
@@ -3471,15 +2891,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v17.8h, v26.8h, v5.h[6]
 	sqrdmulh	v18.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v18.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v17.8h, v17.8h, v25.8h
 	sub	v18.8h, v18.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v17.8h, v17.8h, #1
 	sshr	v18.8h, v18.8h, #1
 	sub	v26.8h, v11.8h, v19.8h
@@ -3490,15 +2905,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v19.8h, v26.8h, v5.h[6]
 	sqrdmulh	v20.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v19.8h, v19.8h, v25.8h
 	sub	v20.8h, v20.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v19.8h, v19.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	sub	v26.8h, v13.8h, v21.8h
@@ -3509,15 +2919,10 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v21.8h, v26.8h, v5.h[6]
 	sqrdmulh	v22.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v21.8h, v21.8h, v25.8h
 	sub	v22.8h, v22.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	sub	v26.8h, v15.8h, v23.8h
@@ -3528,135 +2933,90 @@ _kyber_invntt:
 	mul	v27.8h, v28.8h, v7.h[6]
 	sqrdmulh	v23.8h, v26.8h, v5.h[6]
 	sqrdmulh	v24.8h, v28.8h, v5.h[6]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v27.8h, v27.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v27.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	mul	v25.8h, v9.8h, v7.h[7]
 	mul	v26.8h, v10.8h, v7.h[7]
 	sqrdmulh	v9.8h, v9.8h, v5.h[7]
 	sqrdmulh	v10.8h, v10.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v9.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v10.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v9.8h, v9.8h, v25.8h
 	sub	v10.8h, v10.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v9.8h, v9.8h, #1
 	sshr	v10.8h, v10.8h, #1
 	mul	v25.8h, v11.8h, v7.h[7]
 	mul	v26.8h, v12.8h, v7.h[7]
 	sqrdmulh	v11.8h, v11.8h, v5.h[7]
 	sqrdmulh	v12.8h, v12.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v12.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v11.8h, v11.8h, v25.8h
 	sub	v12.8h, v12.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v11.8h, v11.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	mul	v25.8h, v13.8h, v7.h[7]
 	mul	v26.8h, v14.8h, v7.h[7]
 	sqrdmulh	v13.8h, v13.8h, v5.h[7]
 	sqrdmulh	v14.8h, v14.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v14.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v13.8h, v13.8h, v25.8h
 	sub	v14.8h, v14.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v13.8h, v13.8h, #1
 	sshr	v14.8h, v14.8h, #1
 	mul	v25.8h, v15.8h, v7.h[7]
 	mul	v26.8h, v16.8h, v7.h[7]
 	sqrdmulh	v15.8h, v15.8h, v5.h[7]
 	sqrdmulh	v16.8h, v16.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v16.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v15.8h, v15.8h, v25.8h
 	sub	v16.8h, v16.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	mul	v25.8h, v17.8h, v7.h[7]
 	mul	v26.8h, v18.8h, v7.h[7]
 	sqrdmulh	v17.8h, v17.8h, v5.h[7]
 	sqrdmulh	v18.8h, v18.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v18.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v17.8h, v17.8h, v25.8h
 	sub	v18.8h, v18.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v17.8h, v17.8h, #1
 	sshr	v18.8h, v18.8h, #1
 	mul	v25.8h, v19.8h, v7.h[7]
 	mul	v26.8h, v20.8h, v7.h[7]
 	sqrdmulh	v19.8h, v19.8h, v5.h[7]
 	sqrdmulh	v20.8h, v20.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v20.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v19.8h, v19.8h, v25.8h
 	sub	v20.8h, v20.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v19.8h, v19.8h, #1
 	sshr	v20.8h, v20.8h, #1
 	mul	v25.8h, v21.8h, v7.h[7]
 	mul	v26.8h, v22.8h, v7.h[7]
 	sqrdmulh	v21.8h, v21.8h, v5.h[7]
 	sqrdmulh	v22.8h, v22.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v22.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v21.8h, v21.8h, v25.8h
 	sub	v22.8h, v22.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v21.8h, v21.8h, #1
 	sshr	v22.8h, v22.8h, #1
 	mul	v25.8h, v23.8h, v7.h[7]
 	mul	v26.8h, v24.8h, v7.h[7]
 	sqrdmulh	v23.8h, v23.8h, v5.h[7]
 	sqrdmulh	v24.8h, v24.8h, v5.h[7]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
-	sqrdmlsh	v24.8h, v26.8h, v8.h[0]
-#else
 	sqrdmulh	v25.8h, v25.8h, v8.h[0]
 	sqrdmulh	v26.8h, v26.8h, v8.h[0]
 	sub	v23.8h, v23.8h, v25.8h
 	sub	v24.8h, v24.8h, v26.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v23.8h, v23.8h, #1
 	sshr	v24.8h, v24.8h, #1
 	str	q9, [x0, #16]
@@ -3684,6 +3044,2496 @@ _kyber_invntt:
 #ifndef __APPLE__
 	.size	kyber_invntt,.-kyber_invntt
 #endif /* __APPLE__ */
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+#ifndef __APPLE__
+.text
+.globl	kyber_ntt_sqrdmlsh
+.type	kyber_ntt_sqrdmlsh,@function
+.align	2
+kyber_ntt_sqrdmlsh:
+#else
+.section	__TEXT,__text
+.globl	_kyber_ntt_sqrdmlsh
+.p2align	2
+_kyber_ntt_sqrdmlsh:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+#ifndef __APPLE__
+	adrp x2, L_kyber_aarch64_zetas
+	add  x2, x2, :lo12:L_kyber_aarch64_zetas
+#else
+	adrp x2, L_kyber_aarch64_zetas@PAGE
+	add  x2, x2, :lo12:L_kyber_aarch64_zetas@PAGEOFF
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	adrp x3, L_kyber_aarch64_zetas_qinv
+	add  x3, x3, :lo12:L_kyber_aarch64_zetas_qinv
+#else
+	adrp x3, L_kyber_aarch64_zetas_qinv@PAGE
+	add  x3, x3, :lo12:L_kyber_aarch64_zetas_qinv@PAGEOFF
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	adrp x4, L_kyber_aarch64_consts
+	add  x4, x4, :lo12:L_kyber_aarch64_consts
+#else
+	adrp x4, L_kyber_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+#endif /* __APPLE__ */
+	add	x1, x0, #0x100
+	ldr	q4, [x4]
+	ldr	q5, [x0]
+	ldr	q6, [x0, #32]
+	ldr	q7, [x0, #64]
+	ldr	q8, [x0, #96]
+	ldr	q9, [x0, #128]
+	ldr	q10, [x0, #160]
+	ldr	q11, [x0, #192]
+	ldr	q12, [x0, #224]
+	ldr	q13, [x1]
+	ldr	q14, [x1, #32]
+	ldr	q15, [x1, #64]
+	ldr	q16, [x1, #96]
+	ldr	q17, [x1, #128]
+	ldr	q18, [x1, #160]
+	ldr	q19, [x1, #192]
+	ldr	q20, [x1, #224]
+	ldr	q0, [x2]
+	ldr	q1, [x3]
+	mul	v29.8h, v13.8h, v1.h[1]
+	mul	v30.8h, v14.8h, v1.h[1]
+	sqrdmulh	v21.8h, v13.8h, v0.h[1]
+	sqrdmulh	v22.8h, v14.8h, v0.h[1]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v15.8h, v1.h[1]
+	mul	v30.8h, v16.8h, v1.h[1]
+	sqrdmulh	v23.8h, v15.8h, v0.h[1]
+	sqrdmulh	v24.8h, v16.8h, v0.h[1]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v17.8h, v1.h[1]
+	mul	v30.8h, v18.8h, v1.h[1]
+	sqrdmulh	v25.8h, v17.8h, v0.h[1]
+	sqrdmulh	v26.8h, v18.8h, v0.h[1]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v19.8h, v1.h[1]
+	mul	v30.8h, v20.8h, v1.h[1]
+	sqrdmulh	v27.8h, v19.8h, v0.h[1]
+	sqrdmulh	v28.8h, v20.8h, v0.h[1]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v13.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v14.8h, v6.8h, v22.8h
+	add	v6.8h, v6.8h, v22.8h
+	sub	v15.8h, v7.8h, v23.8h
+	add	v7.8h, v7.8h, v23.8h
+	sub	v16.8h, v8.8h, v24.8h
+	add	v8.8h, v8.8h, v24.8h
+	sub	v17.8h, v9.8h, v25.8h
+	add	v9.8h, v9.8h, v25.8h
+	sub	v18.8h, v10.8h, v26.8h
+	add	v10.8h, v10.8h, v26.8h
+	sub	v19.8h, v11.8h, v27.8h
+	add	v11.8h, v11.8h, v27.8h
+	sub	v20.8h, v12.8h, v28.8h
+	add	v12.8h, v12.8h, v28.8h
+	mul	v29.8h, v9.8h, v1.h[2]
+	mul	v30.8h, v10.8h, v1.h[2]
+	sqrdmulh	v21.8h, v9.8h, v0.h[2]
+	sqrdmulh	v22.8h, v10.8h, v0.h[2]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v11.8h, v1.h[2]
+	mul	v30.8h, v12.8h, v1.h[2]
+	sqrdmulh	v23.8h, v11.8h, v0.h[2]
+	sqrdmulh	v24.8h, v12.8h, v0.h[2]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v17.8h, v1.h[3]
+	mul	v30.8h, v18.8h, v1.h[3]
+	sqrdmulh	v25.8h, v17.8h, v0.h[3]
+	sqrdmulh	v26.8h, v18.8h, v0.h[3]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v19.8h, v1.h[3]
+	mul	v30.8h, v20.8h, v1.h[3]
+	sqrdmulh	v27.8h, v19.8h, v0.h[3]
+	sqrdmulh	v28.8h, v20.8h, v0.h[3]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v9.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v10.8h, v6.8h, v22.8h
+	add	v6.8h, v6.8h, v22.8h
+	sub	v11.8h, v7.8h, v23.8h
+	add	v7.8h, v7.8h, v23.8h
+	sub	v12.8h, v8.8h, v24.8h
+	add	v8.8h, v8.8h, v24.8h
+	sub	v17.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v18.8h, v14.8h, v26.8h
+	add	v14.8h, v14.8h, v26.8h
+	sub	v19.8h, v15.8h, v27.8h
+	add	v15.8h, v15.8h, v27.8h
+	sub	v20.8h, v16.8h, v28.8h
+	add	v16.8h, v16.8h, v28.8h
+	mul	v29.8h, v7.8h, v1.h[4]
+	mul	v30.8h, v8.8h, v1.h[4]
+	sqrdmulh	v21.8h, v7.8h, v0.h[4]
+	sqrdmulh	v22.8h, v8.8h, v0.h[4]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v11.8h, v1.h[5]
+	mul	v30.8h, v12.8h, v1.h[5]
+	sqrdmulh	v23.8h, v11.8h, v0.h[5]
+	sqrdmulh	v24.8h, v12.8h, v0.h[5]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v15.8h, v1.h[6]
+	mul	v30.8h, v16.8h, v1.h[6]
+	sqrdmulh	v25.8h, v15.8h, v0.h[6]
+	sqrdmulh	v26.8h, v16.8h, v0.h[6]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v19.8h, v1.h[7]
+	mul	v30.8h, v20.8h, v1.h[7]
+	sqrdmulh	v27.8h, v19.8h, v0.h[7]
+	sqrdmulh	v28.8h, v20.8h, v0.h[7]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v7.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v6.8h, v22.8h
+	add	v6.8h, v6.8h, v22.8h
+	sub	v11.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v10.8h, v24.8h
+	add	v10.8h, v10.8h, v24.8h
+	sub	v15.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v14.8h, v26.8h
+	add	v14.8h, v14.8h, v26.8h
+	sub	v19.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v18.8h, v28.8h
+	add	v18.8h, v18.8h, v28.8h
+	ldr	q0, [x2, #16]
+	ldr	q1, [x3, #16]
+	mul	v29.8h, v6.8h, v1.h[0]
+	mul	v30.8h, v8.8h, v1.h[1]
+	sqrdmulh	v21.8h, v6.8h, v0.h[0]
+	sqrdmulh	v22.8h, v8.8h, v0.h[1]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v10.8h, v1.h[2]
+	mul	v30.8h, v12.8h, v1.h[3]
+	sqrdmulh	v23.8h, v10.8h, v0.h[2]
+	sqrdmulh	v24.8h, v12.8h, v0.h[3]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v14.8h, v1.h[4]
+	mul	v30.8h, v16.8h, v1.h[5]
+	sqrdmulh	v25.8h, v14.8h, v0.h[4]
+	sqrdmulh	v26.8h, v16.8h, v0.h[5]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v18.8h, v1.h[6]
+	mul	v30.8h, v20.8h, v1.h[7]
+	sqrdmulh	v27.8h, v18.8h, v0.h[6]
+	sqrdmulh	v28.8h, v20.8h, v0.h[7]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	str	q5, [x0]
+	str	q6, [x0, #32]
+	str	q7, [x0, #64]
+	str	q8, [x0, #96]
+	str	q9, [x0, #128]
+	str	q10, [x0, #160]
+	str	q11, [x0, #192]
+	str	q12, [x0, #224]
+	str	q13, [x1]
+	str	q14, [x1, #32]
+	str	q15, [x1, #64]
+	str	q16, [x1, #96]
+	str	q17, [x1, #128]
+	str	q18, [x1, #160]
+	str	q19, [x1, #192]
+	str	q20, [x1, #224]
+	ldr	q5, [x0, #16]
+	ldr	q6, [x0, #48]
+	ldr	q7, [x0, #80]
+	ldr	q8, [x0, #112]
+	ldr	q9, [x0, #144]
+	ldr	q10, [x0, #176]
+	ldr	q11, [x0, #208]
+	ldr	q12, [x0, #240]
+	ldr	q13, [x1, #16]
+	ldr	q14, [x1, #48]
+	ldr	q15, [x1, #80]
+	ldr	q16, [x1, #112]
+	ldr	q17, [x1, #144]
+	ldr	q18, [x1, #176]
+	ldr	q19, [x1, #208]
+	ldr	q20, [x1, #240]
+	ldr	q0, [x2]
+	ldr	q1, [x3]
+	mul	v29.8h, v13.8h, v1.h[1]
+	mul	v30.8h, v14.8h, v1.h[1]
+	sqrdmulh	v21.8h, v13.8h, v0.h[1]
+	sqrdmulh	v22.8h, v14.8h, v0.h[1]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v15.8h, v1.h[1]
+	mul	v30.8h, v16.8h, v1.h[1]
+	sqrdmulh	v23.8h, v15.8h, v0.h[1]
+	sqrdmulh	v24.8h, v16.8h, v0.h[1]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v17.8h, v1.h[1]
+	mul	v30.8h, v18.8h, v1.h[1]
+	sqrdmulh	v25.8h, v17.8h, v0.h[1]
+	sqrdmulh	v26.8h, v18.8h, v0.h[1]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v19.8h, v1.h[1]
+	mul	v30.8h, v20.8h, v1.h[1]
+	sqrdmulh	v27.8h, v19.8h, v0.h[1]
+	sqrdmulh	v28.8h, v20.8h, v0.h[1]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v13.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v14.8h, v6.8h, v22.8h
+	add	v6.8h, v6.8h, v22.8h
+	sub	v15.8h, v7.8h, v23.8h
+	add	v7.8h, v7.8h, v23.8h
+	sub	v16.8h, v8.8h, v24.8h
+	add	v8.8h, v8.8h, v24.8h
+	sub	v17.8h, v9.8h, v25.8h
+	add	v9.8h, v9.8h, v25.8h
+	sub	v18.8h, v10.8h, v26.8h
+	add	v10.8h, v10.8h, v26.8h
+	sub	v19.8h, v11.8h, v27.8h
+	add	v11.8h, v11.8h, v27.8h
+	sub	v20.8h, v12.8h, v28.8h
+	add	v12.8h, v12.8h, v28.8h
+	mul	v29.8h, v9.8h, v1.h[2]
+	mul	v30.8h, v10.8h, v1.h[2]
+	sqrdmulh	v21.8h, v9.8h, v0.h[2]
+	sqrdmulh	v22.8h, v10.8h, v0.h[2]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v11.8h, v1.h[2]
+	mul	v30.8h, v12.8h, v1.h[2]
+	sqrdmulh	v23.8h, v11.8h, v0.h[2]
+	sqrdmulh	v24.8h, v12.8h, v0.h[2]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v17.8h, v1.h[3]
+	mul	v30.8h, v18.8h, v1.h[3]
+	sqrdmulh	v25.8h, v17.8h, v0.h[3]
+	sqrdmulh	v26.8h, v18.8h, v0.h[3]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v19.8h, v1.h[3]
+	mul	v30.8h, v20.8h, v1.h[3]
+	sqrdmulh	v27.8h, v19.8h, v0.h[3]
+	sqrdmulh	v28.8h, v20.8h, v0.h[3]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v9.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v10.8h, v6.8h, v22.8h
+	add	v6.8h, v6.8h, v22.8h
+	sub	v11.8h, v7.8h, v23.8h
+	add	v7.8h, v7.8h, v23.8h
+	sub	v12.8h, v8.8h, v24.8h
+	add	v8.8h, v8.8h, v24.8h
+	sub	v17.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v18.8h, v14.8h, v26.8h
+	add	v14.8h, v14.8h, v26.8h
+	sub	v19.8h, v15.8h, v27.8h
+	add	v15.8h, v15.8h, v27.8h
+	sub	v20.8h, v16.8h, v28.8h
+	add	v16.8h, v16.8h, v28.8h
+	mul	v29.8h, v7.8h, v1.h[4]
+	mul	v30.8h, v8.8h, v1.h[4]
+	sqrdmulh	v21.8h, v7.8h, v0.h[4]
+	sqrdmulh	v22.8h, v8.8h, v0.h[4]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v11.8h, v1.h[5]
+	mul	v30.8h, v12.8h, v1.h[5]
+	sqrdmulh	v23.8h, v11.8h, v0.h[5]
+	sqrdmulh	v24.8h, v12.8h, v0.h[5]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v15.8h, v1.h[6]
+	mul	v30.8h, v16.8h, v1.h[6]
+	sqrdmulh	v25.8h, v15.8h, v0.h[6]
+	sqrdmulh	v26.8h, v16.8h, v0.h[6]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v19.8h, v1.h[7]
+	mul	v30.8h, v20.8h, v1.h[7]
+	sqrdmulh	v27.8h, v19.8h, v0.h[7]
+	sqrdmulh	v28.8h, v20.8h, v0.h[7]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v7.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v6.8h, v22.8h
+	add	v6.8h, v6.8h, v22.8h
+	sub	v11.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v10.8h, v24.8h
+	add	v10.8h, v10.8h, v24.8h
+	sub	v15.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v14.8h, v26.8h
+	add	v14.8h, v14.8h, v26.8h
+	sub	v19.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v18.8h, v28.8h
+	add	v18.8h, v18.8h, v28.8h
+	ldr	q0, [x2, #16]
+	ldr	q1, [x3, #16]
+	mul	v29.8h, v6.8h, v1.h[0]
+	mul	v30.8h, v8.8h, v1.h[1]
+	sqrdmulh	v21.8h, v6.8h, v0.h[0]
+	sqrdmulh	v22.8h, v8.8h, v0.h[1]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v10.8h, v1.h[2]
+	mul	v30.8h, v12.8h, v1.h[3]
+	sqrdmulh	v23.8h, v10.8h, v0.h[2]
+	sqrdmulh	v24.8h, v12.8h, v0.h[3]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v14.8h, v1.h[4]
+	mul	v30.8h, v16.8h, v1.h[5]
+	sqrdmulh	v25.8h, v14.8h, v0.h[4]
+	sqrdmulh	v26.8h, v16.8h, v0.h[5]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v18.8h, v1.h[6]
+	mul	v30.8h, v20.8h, v1.h[7]
+	sqrdmulh	v27.8h, v18.8h, v0.h[6]
+	sqrdmulh	v28.8h, v20.8h, v0.h[7]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	str	q5, [x0, #16]
+	str	q6, [x0, #48]
+	str	q7, [x0, #80]
+	str	q8, [x0, #112]
+	str	q9, [x0, #144]
+	str	q10, [x0, #176]
+	str	q11, [x0, #208]
+	str	q12, [x0, #240]
+	str	q13, [x1, #16]
+	str	q14, [x1, #48]
+	str	q15, [x1, #80]
+	str	q16, [x1, #112]
+	str	q17, [x1, #144]
+	str	q18, [x1, #176]
+	str	q19, [x1, #208]
+	str	q20, [x1, #240]
+	ldp	q5, q6, [x0]
+	ldp	q7, q8, [x0, #32]
+	ldp	q9, q10, [x0, #64]
+	ldp	q11, q12, [x0, #96]
+	ldp	q13, q14, [x0, #128]
+	ldp	q15, q16, [x0, #160]
+	ldp	q17, q18, [x0, #192]
+	ldp	q19, q20, [x0, #224]
+	ldr	q0, [x2, #32]
+	ldr	q1, [x3, #32]
+	mul	v29.8h, v6.8h, v1.h[0]
+	mul	v30.8h, v8.8h, v1.h[1]
+	sqrdmulh	v21.8h, v6.8h, v0.h[0]
+	sqrdmulh	v22.8h, v8.8h, v0.h[1]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v10.8h, v1.h[2]
+	mul	v30.8h, v12.8h, v1.h[3]
+	sqrdmulh	v23.8h, v10.8h, v0.h[2]
+	sqrdmulh	v24.8h, v12.8h, v0.h[3]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v14.8h, v1.h[4]
+	mul	v30.8h, v16.8h, v1.h[5]
+	sqrdmulh	v25.8h, v14.8h, v0.h[4]
+	sqrdmulh	v26.8h, v16.8h, v0.h[5]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v18.8h, v1.h[6]
+	mul	v30.8h, v20.8h, v1.h[7]
+	sqrdmulh	v27.8h, v18.8h, v0.h[6]
+	sqrdmulh	v28.8h, v20.8h, v0.h[7]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	ldr	q0, [x2, #64]
+	ldr	q2, [x2, #80]
+	ldr	q1, [x3, #64]
+	ldr	q3, [x3, #80]
+	mov	v29.16b, v5.16b
+	mov	v30.16b, v7.16b
+	trn1	v5.2d, v5.2d, v6.2d
+	trn1	v7.2d, v7.2d, v8.2d
+	trn2	v6.2d, v29.2d, v6.2d
+	trn2	v8.2d, v30.2d, v8.2d
+	mul	v29.8h, v6.8h, v1.8h
+	mul	v30.8h, v8.8h, v3.8h
+	sqrdmulh	v21.8h, v6.8h, v0.8h
+	sqrdmulh	v22.8h, v8.8h, v2.8h
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	ldr	q0, [x2, #96]
+	ldr	q2, [x2, #112]
+	ldr	q1, [x3, #96]
+	ldr	q3, [x3, #112]
+	mov	v29.16b, v9.16b
+	mov	v30.16b, v11.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v10.2d, v29.2d, v10.2d
+	trn2	v12.2d, v30.2d, v12.2d
+	mul	v29.8h, v10.8h, v1.8h
+	mul	v30.8h, v12.8h, v3.8h
+	sqrdmulh	v23.8h, v10.8h, v0.8h
+	sqrdmulh	v24.8h, v12.8h, v2.8h
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #128]
+	ldr	q2, [x2, #144]
+	ldr	q1, [x3, #128]
+	ldr	q3, [x3, #144]
+	mov	v29.16b, v13.16b
+	mov	v30.16b, v15.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v14.2d, v29.2d, v14.2d
+	trn2	v16.2d, v30.2d, v16.2d
+	mul	v29.8h, v14.8h, v1.8h
+	mul	v30.8h, v16.8h, v3.8h
+	sqrdmulh	v25.8h, v14.8h, v0.8h
+	sqrdmulh	v26.8h, v16.8h, v2.8h
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	ldr	q0, [x2, #160]
+	ldr	q2, [x2, #176]
+	ldr	q1, [x3, #160]
+	ldr	q3, [x3, #176]
+	mov	v29.16b, v17.16b
+	mov	v30.16b, v19.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v18.2d, v29.2d, v18.2d
+	trn2	v20.2d, v30.2d, v20.2d
+	mul	v29.8h, v18.8h, v1.8h
+	mul	v30.8h, v20.8h, v3.8h
+	sqrdmulh	v27.8h, v18.8h, v0.8h
+	sqrdmulh	v28.8h, v20.8h, v2.8h
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	ldr	q0, [x2, #320]
+	ldr	q2, [x2, #336]
+	ldr	q1, [x3, #320]
+	ldr	q3, [x3, #336]
+	mov	v29.16b, v5.16b
+	mov	v30.16b, v7.16b
+	trn1	v5.4s, v5.4s, v6.4s
+	trn1	v7.4s, v7.4s, v8.4s
+	trn2	v6.4s, v29.4s, v6.4s
+	trn2	v8.4s, v30.4s, v8.4s
+	mul	v29.8h, v6.8h, v1.8h
+	mul	v30.8h, v8.8h, v3.8h
+	sqrdmulh	v21.8h, v6.8h, v0.8h
+	sqrdmulh	v22.8h, v8.8h, v2.8h
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	ldr	q0, [x2, #352]
+	ldr	q2, [x2, #368]
+	ldr	q1, [x3, #352]
+	ldr	q3, [x3, #368]
+	mov	v29.16b, v9.16b
+	mov	v30.16b, v11.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v10.4s, v29.4s, v10.4s
+	trn2	v12.4s, v30.4s, v12.4s
+	mul	v29.8h, v10.8h, v1.8h
+	mul	v30.8h, v12.8h, v3.8h
+	sqrdmulh	v23.8h, v10.8h, v0.8h
+	sqrdmulh	v24.8h, v12.8h, v2.8h
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #384]
+	ldr	q2, [x2, #400]
+	ldr	q1, [x3, #384]
+	ldr	q3, [x3, #400]
+	mov	v29.16b, v13.16b
+	mov	v30.16b, v15.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v14.4s, v29.4s, v14.4s
+	trn2	v16.4s, v30.4s, v16.4s
+	mul	v29.8h, v14.8h, v1.8h
+	mul	v30.8h, v16.8h, v3.8h
+	sqrdmulh	v25.8h, v14.8h, v0.8h
+	sqrdmulh	v26.8h, v16.8h, v2.8h
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	ldr	q0, [x2, #416]
+	ldr	q2, [x2, #432]
+	ldr	q1, [x3, #416]
+	ldr	q3, [x3, #432]
+	mov	v29.16b, v17.16b
+	mov	v30.16b, v19.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v18.4s, v29.4s, v18.4s
+	trn2	v20.4s, v30.4s, v20.4s
+	mul	v29.8h, v18.8h, v1.8h
+	mul	v30.8h, v20.8h, v3.8h
+	sqrdmulh	v27.8h, v18.8h, v0.8h
+	sqrdmulh	v28.8h, v20.8h, v2.8h
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	sqdmulh	v21.8h, v5.8h, v4.h[2]
+	sqdmulh	v22.8h, v6.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v5.8h, v21.8h, v4.h[0]
+	mls	v6.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v7.8h, v4.h[2]
+	sqdmulh	v22.8h, v8.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v7.8h, v21.8h, v4.h[0]
+	mls	v8.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v9.8h, v4.h[2]
+	sqdmulh	v22.8h, v10.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v9.8h, v21.8h, v4.h[0]
+	mls	v10.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v11.8h, v4.h[2]
+	sqdmulh	v22.8h, v12.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v11.8h, v21.8h, v4.h[0]
+	mls	v12.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v13.8h, v4.h[2]
+	sqdmulh	v22.8h, v14.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v13.8h, v21.8h, v4.h[0]
+	mls	v14.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v15.8h, v4.h[2]
+	sqdmulh	v22.8h, v16.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v15.8h, v21.8h, v4.h[0]
+	mls	v16.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v17.8h, v4.h[2]
+	sqdmulh	v22.8h, v18.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v17.8h, v21.8h, v4.h[0]
+	mls	v18.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v19.8h, v4.h[2]
+	sqdmulh	v22.8h, v20.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v19.8h, v21.8h, v4.h[0]
+	mls	v20.8h, v22.8h, v4.h[0]
+	mov	v29.16b, v5.16b
+	trn1	v5.4s, v5.4s, v6.4s
+	trn2	v6.4s, v29.4s, v6.4s
+	mov	v29.16b, v5.16b
+	trn1	v5.2d, v5.2d, v6.2d
+	trn2	v6.2d, v29.2d, v6.2d
+	mov	v29.16b, v7.16b
+	trn1	v7.4s, v7.4s, v8.4s
+	trn2	v8.4s, v29.4s, v8.4s
+	mov	v29.16b, v7.16b
+	trn1	v7.2d, v7.2d, v8.2d
+	trn2	v8.2d, v29.2d, v8.2d
+	mov	v29.16b, v9.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn2	v10.4s, v29.4s, v10.4s
+	mov	v29.16b, v9.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn2	v10.2d, v29.2d, v10.2d
+	mov	v29.16b, v11.16b
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v12.4s, v29.4s, v12.4s
+	mov	v29.16b, v11.16b
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v12.2d, v29.2d, v12.2d
+	mov	v29.16b, v13.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn2	v14.4s, v29.4s, v14.4s
+	mov	v29.16b, v13.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn2	v14.2d, v29.2d, v14.2d
+	mov	v29.16b, v15.16b
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v16.4s, v29.4s, v16.4s
+	mov	v29.16b, v15.16b
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v16.2d, v29.2d, v16.2d
+	mov	v29.16b, v17.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn2	v18.4s, v29.4s, v18.4s
+	mov	v29.16b, v17.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn2	v18.2d, v29.2d, v18.2d
+	mov	v29.16b, v19.16b
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v20.4s, v29.4s, v20.4s
+	mov	v29.16b, v19.16b
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v20.2d, v29.2d, v20.2d
+	stp	q5, q6, [x0]
+	stp	q7, q8, [x0, #32]
+	stp	q9, q10, [x0, #64]
+	stp	q11, q12, [x0, #96]
+	stp	q13, q14, [x0, #128]
+	stp	q15, q16, [x0, #160]
+	stp	q17, q18, [x0, #192]
+	stp	q19, q20, [x0, #224]
+	ldp	q5, q6, [x1]
+	ldp	q7, q8, [x1, #32]
+	ldp	q9, q10, [x1, #64]
+	ldp	q11, q12, [x1, #96]
+	ldp	q13, q14, [x1, #128]
+	ldp	q15, q16, [x1, #160]
+	ldp	q17, q18, [x1, #192]
+	ldp	q19, q20, [x1, #224]
+	ldr	q0, [x2, #48]
+	ldr	q1, [x3, #48]
+	mul	v29.8h, v6.8h, v1.h[0]
+	mul	v30.8h, v8.8h, v1.h[1]
+	sqrdmulh	v21.8h, v6.8h, v0.h[0]
+	sqrdmulh	v22.8h, v8.8h, v0.h[1]
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v29.8h, v10.8h, v1.h[2]
+	mul	v30.8h, v12.8h, v1.h[3]
+	sqrdmulh	v23.8h, v10.8h, v0.h[2]
+	sqrdmulh	v24.8h, v12.8h, v0.h[3]
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v29.8h, v14.8h, v1.h[4]
+	mul	v30.8h, v16.8h, v1.h[5]
+	sqrdmulh	v25.8h, v14.8h, v0.h[4]
+	sqrdmulh	v26.8h, v16.8h, v0.h[5]
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	mul	v29.8h, v18.8h, v1.h[6]
+	mul	v30.8h, v20.8h, v1.h[7]
+	sqrdmulh	v27.8h, v18.8h, v0.h[6]
+	sqrdmulh	v28.8h, v20.8h, v0.h[7]
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	ldr	q0, [x2, #192]
+	ldr	q2, [x2, #208]
+	ldr	q1, [x3, #192]
+	ldr	q3, [x3, #208]
+	mov	v29.16b, v5.16b
+	mov	v30.16b, v7.16b
+	trn1	v5.2d, v5.2d, v6.2d
+	trn1	v7.2d, v7.2d, v8.2d
+	trn2	v6.2d, v29.2d, v6.2d
+	trn2	v8.2d, v30.2d, v8.2d
+	mul	v29.8h, v6.8h, v1.8h
+	mul	v30.8h, v8.8h, v3.8h
+	sqrdmulh	v21.8h, v6.8h, v0.8h
+	sqrdmulh	v22.8h, v8.8h, v2.8h
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	ldr	q0, [x2, #224]
+	ldr	q2, [x2, #240]
+	ldr	q1, [x3, #224]
+	ldr	q3, [x3, #240]
+	mov	v29.16b, v9.16b
+	mov	v30.16b, v11.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v10.2d, v29.2d, v10.2d
+	trn2	v12.2d, v30.2d, v12.2d
+	mul	v29.8h, v10.8h, v1.8h
+	mul	v30.8h, v12.8h, v3.8h
+	sqrdmulh	v23.8h, v10.8h, v0.8h
+	sqrdmulh	v24.8h, v12.8h, v2.8h
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #256]
+	ldr	q2, [x2, #272]
+	ldr	q1, [x3, #256]
+	ldr	q3, [x3, #272]
+	mov	v29.16b, v13.16b
+	mov	v30.16b, v15.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v14.2d, v29.2d, v14.2d
+	trn2	v16.2d, v30.2d, v16.2d
+	mul	v29.8h, v14.8h, v1.8h
+	mul	v30.8h, v16.8h, v3.8h
+	sqrdmulh	v25.8h, v14.8h, v0.8h
+	sqrdmulh	v26.8h, v16.8h, v2.8h
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	ldr	q0, [x2, #288]
+	ldr	q2, [x2, #304]
+	ldr	q1, [x3, #288]
+	ldr	q3, [x3, #304]
+	mov	v29.16b, v17.16b
+	mov	v30.16b, v19.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v18.2d, v29.2d, v18.2d
+	trn2	v20.2d, v30.2d, v20.2d
+	mul	v29.8h, v18.8h, v1.8h
+	mul	v30.8h, v20.8h, v3.8h
+	sqrdmulh	v27.8h, v18.8h, v0.8h
+	sqrdmulh	v28.8h, v20.8h, v2.8h
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	ldr	q0, [x2, #448]
+	ldr	q2, [x2, #464]
+	ldr	q1, [x3, #448]
+	ldr	q3, [x3, #464]
+	mov	v29.16b, v5.16b
+	mov	v30.16b, v7.16b
+	trn1	v5.4s, v5.4s, v6.4s
+	trn1	v7.4s, v7.4s, v8.4s
+	trn2	v6.4s, v29.4s, v6.4s
+	trn2	v8.4s, v30.4s, v8.4s
+	mul	v29.8h, v6.8h, v1.8h
+	mul	v30.8h, v8.8h, v3.8h
+	sqrdmulh	v21.8h, v6.8h, v0.8h
+	sqrdmulh	v22.8h, v8.8h, v2.8h
+	sqrdmlsh	v21.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v22.8h, v30.8h, v4.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	ldr	q0, [x2, #480]
+	ldr	q2, [x2, #496]
+	ldr	q1, [x3, #480]
+	ldr	q3, [x3, #496]
+	mov	v29.16b, v9.16b
+	mov	v30.16b, v11.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v10.4s, v29.4s, v10.4s
+	trn2	v12.4s, v30.4s, v12.4s
+	mul	v29.8h, v10.8h, v1.8h
+	mul	v30.8h, v12.8h, v3.8h
+	sqrdmulh	v23.8h, v10.8h, v0.8h
+	sqrdmulh	v24.8h, v12.8h, v2.8h
+	sqrdmlsh	v23.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v24.8h, v30.8h, v4.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #512]
+	ldr	q2, [x2, #528]
+	ldr	q1, [x3, #512]
+	ldr	q3, [x3, #528]
+	mov	v29.16b, v13.16b
+	mov	v30.16b, v15.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v14.4s, v29.4s, v14.4s
+	trn2	v16.4s, v30.4s, v16.4s
+	mul	v29.8h, v14.8h, v1.8h
+	mul	v30.8h, v16.8h, v3.8h
+	sqrdmulh	v25.8h, v14.8h, v0.8h
+	sqrdmulh	v26.8h, v16.8h, v2.8h
+	sqrdmlsh	v25.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v26.8h, v30.8h, v4.h[0]
+	sshr	v25.8h, v25.8h, #1
+	sshr	v26.8h, v26.8h, #1
+	ldr	q0, [x2, #544]
+	ldr	q2, [x2, #560]
+	ldr	q1, [x3, #544]
+	ldr	q3, [x3, #560]
+	mov	v29.16b, v17.16b
+	mov	v30.16b, v19.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v18.4s, v29.4s, v18.4s
+	trn2	v20.4s, v30.4s, v20.4s
+	mul	v29.8h, v18.8h, v1.8h
+	mul	v30.8h, v20.8h, v3.8h
+	sqrdmulh	v27.8h, v18.8h, v0.8h
+	sqrdmulh	v28.8h, v20.8h, v2.8h
+	sqrdmlsh	v27.8h, v29.8h, v4.h[0]
+	sqrdmlsh	v28.8h, v30.8h, v4.h[0]
+	sshr	v27.8h, v27.8h, #1
+	sshr	v28.8h, v28.8h, #1
+	sub	v6.8h, v5.8h, v21.8h
+	add	v5.8h, v5.8h, v21.8h
+	sub	v8.8h, v7.8h, v22.8h
+	add	v7.8h, v7.8h, v22.8h
+	sub	v10.8h, v9.8h, v23.8h
+	add	v9.8h, v9.8h, v23.8h
+	sub	v12.8h, v11.8h, v24.8h
+	add	v11.8h, v11.8h, v24.8h
+	sub	v14.8h, v13.8h, v25.8h
+	add	v13.8h, v13.8h, v25.8h
+	sub	v16.8h, v15.8h, v26.8h
+	add	v15.8h, v15.8h, v26.8h
+	sub	v18.8h, v17.8h, v27.8h
+	add	v17.8h, v17.8h, v27.8h
+	sub	v20.8h, v19.8h, v28.8h
+	add	v19.8h, v19.8h, v28.8h
+	sqdmulh	v21.8h, v5.8h, v4.h[2]
+	sqdmulh	v22.8h, v6.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v5.8h, v21.8h, v4.h[0]
+	mls	v6.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v7.8h, v4.h[2]
+	sqdmulh	v22.8h, v8.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v7.8h, v21.8h, v4.h[0]
+	mls	v8.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v9.8h, v4.h[2]
+	sqdmulh	v22.8h, v10.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v9.8h, v21.8h, v4.h[0]
+	mls	v10.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v11.8h, v4.h[2]
+	sqdmulh	v22.8h, v12.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v11.8h, v21.8h, v4.h[0]
+	mls	v12.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v13.8h, v4.h[2]
+	sqdmulh	v22.8h, v14.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v13.8h, v21.8h, v4.h[0]
+	mls	v14.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v15.8h, v4.h[2]
+	sqdmulh	v22.8h, v16.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v15.8h, v21.8h, v4.h[0]
+	mls	v16.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v17.8h, v4.h[2]
+	sqdmulh	v22.8h, v18.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v17.8h, v21.8h, v4.h[0]
+	mls	v18.8h, v22.8h, v4.h[0]
+	sqdmulh	v21.8h, v19.8h, v4.h[2]
+	sqdmulh	v22.8h, v20.8h, v4.h[2]
+	sshr	v21.8h, v21.8h, #11
+	sshr	v22.8h, v22.8h, #11
+	mls	v19.8h, v21.8h, v4.h[0]
+	mls	v20.8h, v22.8h, v4.h[0]
+	mov	v29.16b, v5.16b
+	trn1	v5.4s, v5.4s, v6.4s
+	trn2	v6.4s, v29.4s, v6.4s
+	mov	v29.16b, v5.16b
+	trn1	v5.2d, v5.2d, v6.2d
+	trn2	v6.2d, v29.2d, v6.2d
+	mov	v29.16b, v7.16b
+	trn1	v7.4s, v7.4s, v8.4s
+	trn2	v8.4s, v29.4s, v8.4s
+	mov	v29.16b, v7.16b
+	trn1	v7.2d, v7.2d, v8.2d
+	trn2	v8.2d, v29.2d, v8.2d
+	mov	v29.16b, v9.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn2	v10.4s, v29.4s, v10.4s
+	mov	v29.16b, v9.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn2	v10.2d, v29.2d, v10.2d
+	mov	v29.16b, v11.16b
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v12.4s, v29.4s, v12.4s
+	mov	v29.16b, v11.16b
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v12.2d, v29.2d, v12.2d
+	mov	v29.16b, v13.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn2	v14.4s, v29.4s, v14.4s
+	mov	v29.16b, v13.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn2	v14.2d, v29.2d, v14.2d
+	mov	v29.16b, v15.16b
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v16.4s, v29.4s, v16.4s
+	mov	v29.16b, v15.16b
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v16.2d, v29.2d, v16.2d
+	mov	v29.16b, v17.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn2	v18.4s, v29.4s, v18.4s
+	mov	v29.16b, v17.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn2	v18.2d, v29.2d, v18.2d
+	mov	v29.16b, v19.16b
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v20.4s, v29.4s, v20.4s
+	mov	v29.16b, v19.16b
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v20.2d, v29.2d, v20.2d
+	stp	q5, q6, [x1]
+	stp	q7, q8, [x1, #32]
+	stp	q9, q10, [x1, #64]
+	stp	q11, q12, [x1, #96]
+	stp	q13, q14, [x1, #128]
+	stp	q15, q16, [x1, #160]
+	stp	q17, q18, [x1, #192]
+	stp	q19, q20, [x1, #224]
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	kyber_ntt_sqrdmlsh,.-kyber_ntt_sqrdmlsh
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.text
+.globl	kyber_invntt_sqrdmlsh
+.type	kyber_invntt_sqrdmlsh,@function
+.align	2
+kyber_invntt_sqrdmlsh:
+#else
+.section	__TEXT,__text
+.globl	_kyber_invntt_sqrdmlsh
+.p2align	2
+_kyber_invntt_sqrdmlsh:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+#ifndef __APPLE__
+	adrp x2, L_kyber_aarch64_zetas_inv
+	add  x2, x2, :lo12:L_kyber_aarch64_zetas_inv
+#else
+	adrp x2, L_kyber_aarch64_zetas_inv@PAGE
+	add  x2, x2, :lo12:L_kyber_aarch64_zetas_inv@PAGEOFF
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	adrp x3, L_kyber_aarch64_zetas_inv_qinv
+	add  x3, x3, :lo12:L_kyber_aarch64_zetas_inv_qinv
+#else
+	adrp x3, L_kyber_aarch64_zetas_inv_qinv@PAGE
+	add  x3, x3, :lo12:L_kyber_aarch64_zetas_inv_qinv@PAGEOFF
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+	adrp x4, L_kyber_aarch64_consts
+	add  x4, x4, :lo12:L_kyber_aarch64_consts
+#else
+	adrp x4, L_kyber_aarch64_consts@PAGE
+	add  x4, x4, :lo12:L_kyber_aarch64_consts@PAGEOFF
+#endif /* __APPLE__ */
+	add	x1, x0, #0x100
+	ldr	q8, [x4]
+	ldp	q9, q10, [x0]
+	ldp	q11, q12, [x0, #32]
+	ldp	q13, q14, [x0, #64]
+	ldp	q15, q16, [x0, #96]
+	ldp	q17, q18, [x0, #128]
+	ldp	q19, q20, [x0, #160]
+	ldp	q21, q22, [x0, #192]
+	ldp	q23, q24, [x0, #224]
+	mov	v25.16b, v9.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn2	v10.2d, v25.2d, v10.2d
+	mov	v25.16b, v9.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn2	v10.4s, v25.4s, v10.4s
+	mov	v25.16b, v11.16b
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v12.2d, v25.2d, v12.2d
+	mov	v25.16b, v11.16b
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v12.4s, v25.4s, v12.4s
+	mov	v25.16b, v13.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn2	v14.2d, v25.2d, v14.2d
+	mov	v25.16b, v13.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn2	v14.4s, v25.4s, v14.4s
+	mov	v25.16b, v15.16b
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v16.2d, v25.2d, v16.2d
+	mov	v25.16b, v15.16b
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v16.4s, v25.4s, v16.4s
+	mov	v25.16b, v17.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn2	v18.2d, v25.2d, v18.2d
+	mov	v25.16b, v17.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn2	v18.4s, v25.4s, v18.4s
+	mov	v25.16b, v19.16b
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v20.2d, v25.2d, v20.2d
+	mov	v25.16b, v19.16b
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v20.4s, v25.4s, v20.4s
+	mov	v25.16b, v21.16b
+	trn1	v21.2d, v21.2d, v22.2d
+	trn2	v22.2d, v25.2d, v22.2d
+	mov	v25.16b, v21.16b
+	trn1	v21.4s, v21.4s, v22.4s
+	trn2	v22.4s, v25.4s, v22.4s
+	mov	v25.16b, v23.16b
+	trn1	v23.2d, v23.2d, v24.2d
+	trn2	v24.2d, v25.2d, v24.2d
+	mov	v25.16b, v23.16b
+	trn1	v23.4s, v23.4s, v24.4s
+	trn2	v24.4s, v25.4s, v24.4s
+	ldr	q0, [x2]
+	ldr	q1, [x2, #16]
+	ldr	q2, [x3]
+	ldr	q3, [x3, #16]
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v10.8h, v26.8h, v0.8h
+	sqrdmulh	v12.8h, v28.8h, v1.8h
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	ldr	q0, [x2, #32]
+	ldr	q1, [x2, #48]
+	ldr	q2, [x3, #32]
+	ldr	q3, [x3, #48]
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v14.8h, v26.8h, v0.8h
+	sqrdmulh	v16.8h, v28.8h, v1.8h
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	ldr	q0, [x2, #64]
+	ldr	q1, [x2, #80]
+	ldr	q2, [x3, #64]
+	ldr	q3, [x3, #80]
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v18.8h, v26.8h, v0.8h
+	sqrdmulh	v20.8h, v28.8h, v1.8h
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	ldr	q0, [x2, #96]
+	ldr	q1, [x2, #112]
+	ldr	q2, [x3, #96]
+	ldr	q3, [x3, #112]
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v22.8h, v26.8h, v0.8h
+	sqrdmulh	v24.8h, v28.8h, v1.8h
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #256]
+	ldr	q1, [x2, #272]
+	ldr	q2, [x3, #256]
+	ldr	q3, [x3, #272]
+	mov	v25.16b, v9.16b
+	mov	v26.16b, v11.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v10.4s, v25.4s, v10.4s
+	trn2	v12.4s, v26.4s, v12.4s
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v10.8h, v26.8h, v0.8h
+	sqrdmulh	v12.8h, v28.8h, v1.8h
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	ldr	q0, [x2, #288]
+	ldr	q1, [x2, #304]
+	ldr	q2, [x3, #288]
+	ldr	q3, [x3, #304]
+	mov	v25.16b, v13.16b
+	mov	v26.16b, v15.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v14.4s, v25.4s, v14.4s
+	trn2	v16.4s, v26.4s, v16.4s
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v14.8h, v26.8h, v0.8h
+	sqrdmulh	v16.8h, v28.8h, v1.8h
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	ldr	q0, [x2, #320]
+	ldr	q1, [x2, #336]
+	ldr	q2, [x3, #320]
+	ldr	q3, [x3, #336]
+	mov	v25.16b, v17.16b
+	mov	v26.16b, v19.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v18.4s, v25.4s, v18.4s
+	trn2	v20.4s, v26.4s, v20.4s
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v18.8h, v26.8h, v0.8h
+	sqrdmulh	v20.8h, v28.8h, v1.8h
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	ldr	q0, [x2, #352]
+	ldr	q1, [x2, #368]
+	ldr	q2, [x3, #352]
+	ldr	q3, [x3, #368]
+	mov	v25.16b, v21.16b
+	mov	v26.16b, v23.16b
+	trn1	v21.4s, v21.4s, v22.4s
+	trn1	v23.4s, v23.4s, v24.4s
+	trn2	v22.4s, v25.4s, v22.4s
+	trn2	v24.4s, v26.4s, v24.4s
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v22.8h, v26.8h, v0.8h
+	sqrdmulh	v24.8h, v28.8h, v1.8h
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #512]
+	ldr	q2, [x3, #512]
+	mov	v25.16b, v9.16b
+	mov	v26.16b, v11.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v10.2d, v25.2d, v10.2d
+	trn2	v12.2d, v26.2d, v12.2d
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v2.h[0]
+	mul	v27.8h, v28.8h, v2.h[1]
+	sqrdmulh	v10.8h, v26.8h, v0.h[0]
+	sqrdmulh	v12.8h, v28.8h, v0.h[1]
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	mov	v25.16b, v13.16b
+	mov	v26.16b, v15.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v14.2d, v25.2d, v14.2d
+	trn2	v16.2d, v26.2d, v16.2d
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v2.h[2]
+	mul	v27.8h, v28.8h, v2.h[3]
+	sqrdmulh	v14.8h, v26.8h, v0.h[2]
+	sqrdmulh	v16.8h, v28.8h, v0.h[3]
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	mov	v25.16b, v17.16b
+	mov	v26.16b, v19.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v18.2d, v25.2d, v18.2d
+	trn2	v20.2d, v26.2d, v20.2d
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v2.h[4]
+	mul	v27.8h, v28.8h, v2.h[5]
+	sqrdmulh	v18.8h, v26.8h, v0.h[4]
+	sqrdmulh	v20.8h, v28.8h, v0.h[5]
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	mov	v25.16b, v21.16b
+	mov	v26.16b, v23.16b
+	trn1	v21.2d, v21.2d, v22.2d
+	trn1	v23.2d, v23.2d, v24.2d
+	trn2	v22.2d, v25.2d, v22.2d
+	trn2	v24.2d, v26.2d, v24.2d
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v2.h[6]
+	mul	v27.8h, v28.8h, v2.h[7]
+	sqrdmulh	v22.8h, v26.8h, v0.h[6]
+	sqrdmulh	v24.8h, v28.8h, v0.h[7]
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v11.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v11.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v13.8h, v8.h[2]
+	sqdmulh	v26.8h, v15.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v13.8h, v25.8h, v8.h[0]
+	mls	v15.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v19.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v19.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v21.8h, v8.h[2]
+	sqdmulh	v26.8h, v23.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v21.8h, v25.8h, v8.h[0]
+	mls	v23.8h, v26.8h, v8.h[0]
+	stp	q9, q10, [x0]
+	stp	q11, q12, [x0, #32]
+	stp	q13, q14, [x0, #64]
+	stp	q15, q16, [x0, #96]
+	stp	q17, q18, [x0, #128]
+	stp	q19, q20, [x0, #160]
+	stp	q21, q22, [x0, #192]
+	stp	q23, q24, [x0, #224]
+	ldp	q9, q10, [x1]
+	ldp	q11, q12, [x1, #32]
+	ldp	q13, q14, [x1, #64]
+	ldp	q15, q16, [x1, #96]
+	ldp	q17, q18, [x1, #128]
+	ldp	q19, q20, [x1, #160]
+	ldp	q21, q22, [x1, #192]
+	ldp	q23, q24, [x1, #224]
+	mov	v25.16b, v9.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn2	v10.2d, v25.2d, v10.2d
+	mov	v25.16b, v9.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn2	v10.4s, v25.4s, v10.4s
+	mov	v25.16b, v11.16b
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v12.2d, v25.2d, v12.2d
+	mov	v25.16b, v11.16b
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v12.4s, v25.4s, v12.4s
+	mov	v25.16b, v13.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn2	v14.2d, v25.2d, v14.2d
+	mov	v25.16b, v13.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn2	v14.4s, v25.4s, v14.4s
+	mov	v25.16b, v15.16b
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v16.2d, v25.2d, v16.2d
+	mov	v25.16b, v15.16b
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v16.4s, v25.4s, v16.4s
+	mov	v25.16b, v17.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn2	v18.2d, v25.2d, v18.2d
+	mov	v25.16b, v17.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn2	v18.4s, v25.4s, v18.4s
+	mov	v25.16b, v19.16b
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v20.2d, v25.2d, v20.2d
+	mov	v25.16b, v19.16b
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v20.4s, v25.4s, v20.4s
+	mov	v25.16b, v21.16b
+	trn1	v21.2d, v21.2d, v22.2d
+	trn2	v22.2d, v25.2d, v22.2d
+	mov	v25.16b, v21.16b
+	trn1	v21.4s, v21.4s, v22.4s
+	trn2	v22.4s, v25.4s, v22.4s
+	mov	v25.16b, v23.16b
+	trn1	v23.2d, v23.2d, v24.2d
+	trn2	v24.2d, v25.2d, v24.2d
+	mov	v25.16b, v23.16b
+	trn1	v23.4s, v23.4s, v24.4s
+	trn2	v24.4s, v25.4s, v24.4s
+	ldr	q0, [x2, #128]
+	ldr	q1, [x2, #144]
+	ldr	q2, [x3, #128]
+	ldr	q3, [x3, #144]
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v10.8h, v26.8h, v0.8h
+	sqrdmulh	v12.8h, v28.8h, v1.8h
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	ldr	q0, [x2, #160]
+	ldr	q1, [x2, #176]
+	ldr	q2, [x3, #160]
+	ldr	q3, [x3, #176]
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v14.8h, v26.8h, v0.8h
+	sqrdmulh	v16.8h, v28.8h, v1.8h
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	ldr	q0, [x2, #192]
+	ldr	q1, [x2, #208]
+	ldr	q2, [x3, #192]
+	ldr	q3, [x3, #208]
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v18.8h, v26.8h, v0.8h
+	sqrdmulh	v20.8h, v28.8h, v1.8h
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	ldr	q0, [x2, #224]
+	ldr	q1, [x2, #240]
+	ldr	q2, [x3, #224]
+	ldr	q3, [x3, #240]
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v22.8h, v26.8h, v0.8h
+	sqrdmulh	v24.8h, v28.8h, v1.8h
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #384]
+	ldr	q1, [x2, #400]
+	ldr	q2, [x3, #384]
+	ldr	q3, [x3, #400]
+	mov	v25.16b, v9.16b
+	mov	v26.16b, v11.16b
+	trn1	v9.4s, v9.4s, v10.4s
+	trn1	v11.4s, v11.4s, v12.4s
+	trn2	v10.4s, v25.4s, v10.4s
+	trn2	v12.4s, v26.4s, v12.4s
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v10.8h, v26.8h, v0.8h
+	sqrdmulh	v12.8h, v28.8h, v1.8h
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	ldr	q0, [x2, #416]
+	ldr	q1, [x2, #432]
+	ldr	q2, [x3, #416]
+	ldr	q3, [x3, #432]
+	mov	v25.16b, v13.16b
+	mov	v26.16b, v15.16b
+	trn1	v13.4s, v13.4s, v14.4s
+	trn1	v15.4s, v15.4s, v16.4s
+	trn2	v14.4s, v25.4s, v14.4s
+	trn2	v16.4s, v26.4s, v16.4s
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v14.8h, v26.8h, v0.8h
+	sqrdmulh	v16.8h, v28.8h, v1.8h
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	ldr	q0, [x2, #448]
+	ldr	q1, [x2, #464]
+	ldr	q2, [x3, #448]
+	ldr	q3, [x3, #464]
+	mov	v25.16b, v17.16b
+	mov	v26.16b, v19.16b
+	trn1	v17.4s, v17.4s, v18.4s
+	trn1	v19.4s, v19.4s, v20.4s
+	trn2	v18.4s, v25.4s, v18.4s
+	trn2	v20.4s, v26.4s, v20.4s
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v18.8h, v26.8h, v0.8h
+	sqrdmulh	v20.8h, v28.8h, v1.8h
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	ldr	q0, [x2, #480]
+	ldr	q1, [x2, #496]
+	ldr	q2, [x3, #480]
+	ldr	q3, [x3, #496]
+	mov	v25.16b, v21.16b
+	mov	v26.16b, v23.16b
+	trn1	v21.4s, v21.4s, v22.4s
+	trn1	v23.4s, v23.4s, v24.4s
+	trn2	v22.4s, v25.4s, v22.4s
+	trn2	v24.4s, v26.4s, v24.4s
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v2.8h
+	mul	v27.8h, v28.8h, v3.8h
+	sqrdmulh	v22.8h, v26.8h, v0.8h
+	sqrdmulh	v24.8h, v28.8h, v1.8h
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	ldr	q0, [x2, #528]
+	ldr	q2, [x3, #528]
+	mov	v25.16b, v9.16b
+	mov	v26.16b, v11.16b
+	trn1	v9.2d, v9.2d, v10.2d
+	trn1	v11.2d, v11.2d, v12.2d
+	trn2	v10.2d, v25.2d, v10.2d
+	trn2	v12.2d, v26.2d, v12.2d
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v2.h[0]
+	mul	v27.8h, v28.8h, v2.h[1]
+	sqrdmulh	v10.8h, v26.8h, v0.h[0]
+	sqrdmulh	v12.8h, v28.8h, v0.h[1]
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	mov	v25.16b, v13.16b
+	mov	v26.16b, v15.16b
+	trn1	v13.2d, v13.2d, v14.2d
+	trn1	v15.2d, v15.2d, v16.2d
+	trn2	v14.2d, v25.2d, v14.2d
+	trn2	v16.2d, v26.2d, v16.2d
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v2.h[2]
+	mul	v27.8h, v28.8h, v2.h[3]
+	sqrdmulh	v14.8h, v26.8h, v0.h[2]
+	sqrdmulh	v16.8h, v28.8h, v0.h[3]
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	mov	v25.16b, v17.16b
+	mov	v26.16b, v19.16b
+	trn1	v17.2d, v17.2d, v18.2d
+	trn1	v19.2d, v19.2d, v20.2d
+	trn2	v18.2d, v25.2d, v18.2d
+	trn2	v20.2d, v26.2d, v20.2d
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v2.h[4]
+	mul	v27.8h, v28.8h, v2.h[5]
+	sqrdmulh	v18.8h, v26.8h, v0.h[4]
+	sqrdmulh	v20.8h, v28.8h, v0.h[5]
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	mov	v25.16b, v21.16b
+	mov	v26.16b, v23.16b
+	trn1	v21.2d, v21.2d, v22.2d
+	trn1	v23.2d, v23.2d, v24.2d
+	trn2	v22.2d, v25.2d, v22.2d
+	trn2	v24.2d, v26.2d, v24.2d
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v2.h[6]
+	mul	v27.8h, v28.8h, v2.h[7]
+	sqrdmulh	v22.8h, v26.8h, v0.h[6]
+	sqrdmulh	v24.8h, v28.8h, v0.h[7]
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v11.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v11.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v13.8h, v8.h[2]
+	sqdmulh	v26.8h, v15.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v13.8h, v25.8h, v8.h[0]
+	mls	v15.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v19.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v19.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v21.8h, v8.h[2]
+	sqdmulh	v26.8h, v23.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v21.8h, v25.8h, v8.h[0]
+	mls	v23.8h, v26.8h, v8.h[0]
+	stp	q9, q10, [x1]
+	stp	q11, q12, [x1, #32]
+	stp	q13, q14, [x1, #64]
+	stp	q15, q16, [x1, #96]
+	stp	q17, q18, [x1, #128]
+	stp	q19, q20, [x1, #160]
+	stp	q21, q22, [x1, #192]
+	stp	q23, q24, [x1, #224]
+	ldr	q4, [x2, #544]
+	ldr	q5, [x2, #560]
+	ldr	q6, [x3, #544]
+	ldr	q7, [x3, #560]
+	ldr	q9, [x0]
+	ldr	q10, [x0, #32]
+	ldr	q11, [x0, #64]
+	ldr	q12, [x0, #96]
+	ldr	q13, [x0, #128]
+	ldr	q14, [x0, #160]
+	ldr	q15, [x0, #192]
+	ldr	q16, [x0, #224]
+	ldr	q17, [x1]
+	ldr	q18, [x1, #32]
+	ldr	q19, [x1, #64]
+	ldr	q20, [x1, #96]
+	ldr	q21, [x1, #128]
+	ldr	q22, [x1, #160]
+	ldr	q23, [x1, #192]
+	ldr	q24, [x1, #224]
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v6.h[0]
+	mul	v27.8h, v28.8h, v6.h[1]
+	sqrdmulh	v10.8h, v26.8h, v4.h[0]
+	sqrdmulh	v12.8h, v28.8h, v4.h[1]
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v6.h[2]
+	mul	v27.8h, v28.8h, v6.h[3]
+	sqrdmulh	v14.8h, v26.8h, v4.h[2]
+	sqrdmulh	v16.8h, v28.8h, v4.h[3]
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v6.h[4]
+	mul	v27.8h, v28.8h, v6.h[5]
+	sqrdmulh	v18.8h, v26.8h, v4.h[4]
+	sqrdmulh	v20.8h, v28.8h, v4.h[5]
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v6.h[6]
+	mul	v27.8h, v28.8h, v6.h[7]
+	sqrdmulh	v22.8h, v26.8h, v4.h[6]
+	sqrdmulh	v24.8h, v28.8h, v4.h[7]
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sub	v26.8h, v9.8h, v11.8h
+	sub	v28.8h, v10.8h, v12.8h
+	add	v9.8h, v9.8h, v11.8h
+	add	v10.8h, v10.8h, v12.8h
+	mul	v25.8h, v26.8h, v7.h[0]
+	mul	v27.8h, v28.8h, v7.h[0]
+	sqrdmulh	v11.8h, v26.8h, v5.h[0]
+	sqrdmulh	v12.8h, v28.8h, v5.h[0]
+	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v11.8h, v11.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	sub	v26.8h, v13.8h, v15.8h
+	sub	v28.8h, v14.8h, v16.8h
+	add	v13.8h, v13.8h, v15.8h
+	add	v14.8h, v14.8h, v16.8h
+	mul	v25.8h, v26.8h, v7.h[1]
+	mul	v27.8h, v28.8h, v7.h[1]
+	sqrdmulh	v15.8h, v26.8h, v5.h[1]
+	sqrdmulh	v16.8h, v28.8h, v5.h[1]
+	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	sub	v26.8h, v17.8h, v19.8h
+	sub	v28.8h, v18.8h, v20.8h
+	add	v17.8h, v17.8h, v19.8h
+	add	v18.8h, v18.8h, v20.8h
+	mul	v25.8h, v26.8h, v7.h[2]
+	mul	v27.8h, v28.8h, v7.h[2]
+	sqrdmulh	v19.8h, v26.8h, v5.h[2]
+	sqrdmulh	v20.8h, v28.8h, v5.h[2]
+	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v19.8h, v19.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	sub	v26.8h, v21.8h, v23.8h
+	sub	v28.8h, v22.8h, v24.8h
+	add	v21.8h, v21.8h, v23.8h
+	add	v22.8h, v22.8h, v24.8h
+	mul	v25.8h, v26.8h, v7.h[3]
+	mul	v27.8h, v28.8h, v7.h[3]
+	sqrdmulh	v23.8h, v26.8h, v5.h[3]
+	sqrdmulh	v24.8h, v28.8h, v5.h[3]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sub	v26.8h, v9.8h, v13.8h
+	sub	v28.8h, v10.8h, v14.8h
+	add	v9.8h, v9.8h, v13.8h
+	add	v10.8h, v10.8h, v14.8h
+	mul	v25.8h, v26.8h, v7.h[4]
+	mul	v27.8h, v28.8h, v7.h[4]
+	sqrdmulh	v13.8h, v26.8h, v5.h[4]
+	sqrdmulh	v14.8h, v28.8h, v5.h[4]
+	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v14.8h, v27.8h, v8.h[0]
+	sshr	v13.8h, v13.8h, #1
+	sshr	v14.8h, v14.8h, #1
+	sub	v26.8h, v11.8h, v15.8h
+	sub	v28.8h, v12.8h, v16.8h
+	add	v11.8h, v11.8h, v15.8h
+	add	v12.8h, v12.8h, v16.8h
+	mul	v25.8h, v26.8h, v7.h[4]
+	mul	v27.8h, v28.8h, v7.h[4]
+	sqrdmulh	v15.8h, v26.8h, v5.h[4]
+	sqrdmulh	v16.8h, v28.8h, v5.h[4]
+	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	sub	v26.8h, v17.8h, v21.8h
+	sub	v28.8h, v18.8h, v22.8h
+	add	v17.8h, v17.8h, v21.8h
+	add	v18.8h, v18.8h, v22.8h
+	mul	v25.8h, v26.8h, v7.h[5]
+	mul	v27.8h, v28.8h, v7.h[5]
+	sqrdmulh	v21.8h, v26.8h, v5.h[5]
+	sqrdmulh	v22.8h, v28.8h, v5.h[5]
+	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	sub	v26.8h, v19.8h, v23.8h
+	sub	v28.8h, v20.8h, v24.8h
+	add	v19.8h, v19.8h, v23.8h
+	add	v20.8h, v20.8h, v24.8h
+	mul	v25.8h, v26.8h, v7.h[5]
+	mul	v27.8h, v28.8h, v7.h[5]
+	sqrdmulh	v23.8h, v26.8h, v5.h[5]
+	sqrdmulh	v24.8h, v28.8h, v5.h[5]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v10.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v10.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v11.8h, v8.h[2]
+	sqdmulh	v26.8h, v12.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v11.8h, v25.8h, v8.h[0]
+	mls	v12.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v18.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v18.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v19.8h, v8.h[2]
+	sqdmulh	v26.8h, v20.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v19.8h, v25.8h, v8.h[0]
+	mls	v20.8h, v26.8h, v8.h[0]
+	sub	v26.8h, v9.8h, v17.8h
+	sub	v28.8h, v10.8h, v18.8h
+	add	v9.8h, v9.8h, v17.8h
+	add	v10.8h, v10.8h, v18.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v17.8h, v26.8h, v5.h[6]
+	sqrdmulh	v18.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v18.8h, v27.8h, v8.h[0]
+	sshr	v17.8h, v17.8h, #1
+	sshr	v18.8h, v18.8h, #1
+	sub	v26.8h, v11.8h, v19.8h
+	sub	v28.8h, v12.8h, v20.8h
+	add	v11.8h, v11.8h, v19.8h
+	add	v12.8h, v12.8h, v20.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v19.8h, v26.8h, v5.h[6]
+	sqrdmulh	v20.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v19.8h, v19.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	sub	v26.8h, v13.8h, v21.8h
+	sub	v28.8h, v14.8h, v22.8h
+	add	v13.8h, v13.8h, v21.8h
+	add	v14.8h, v14.8h, v22.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v21.8h, v26.8h, v5.h[6]
+	sqrdmulh	v22.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	sub	v26.8h, v15.8h, v23.8h
+	sub	v28.8h, v16.8h, v24.8h
+	add	v15.8h, v15.8h, v23.8h
+	add	v16.8h, v16.8h, v24.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v23.8h, v26.8h, v5.h[6]
+	sqrdmulh	v24.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v25.8h, v9.8h, v7.h[7]
+	mul	v26.8h, v10.8h, v7.h[7]
+	sqrdmulh	v9.8h, v9.8h, v5.h[7]
+	sqrdmulh	v10.8h, v10.8h, v5.h[7]
+	sqrdmlsh	v9.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v10.8h, v26.8h, v8.h[0]
+	sshr	v9.8h, v9.8h, #1
+	sshr	v10.8h, v10.8h, #1
+	mul	v25.8h, v11.8h, v7.h[7]
+	mul	v26.8h, v12.8h, v7.h[7]
+	sqrdmulh	v11.8h, v11.8h, v5.h[7]
+	sqrdmulh	v12.8h, v12.8h, v5.h[7]
+	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v26.8h, v8.h[0]
+	sshr	v11.8h, v11.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	mul	v25.8h, v13.8h, v7.h[7]
+	mul	v26.8h, v14.8h, v7.h[7]
+	sqrdmulh	v13.8h, v13.8h, v5.h[7]
+	sqrdmulh	v14.8h, v14.8h, v5.h[7]
+	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v14.8h, v26.8h, v8.h[0]
+	sshr	v13.8h, v13.8h, #1
+	sshr	v14.8h, v14.8h, #1
+	mul	v25.8h, v15.8h, v7.h[7]
+	mul	v26.8h, v16.8h, v7.h[7]
+	sqrdmulh	v15.8h, v15.8h, v5.h[7]
+	sqrdmulh	v16.8h, v16.8h, v5.h[7]
+	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v26.8h, v8.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	mul	v25.8h, v17.8h, v7.h[7]
+	mul	v26.8h, v18.8h, v7.h[7]
+	sqrdmulh	v17.8h, v17.8h, v5.h[7]
+	sqrdmulh	v18.8h, v18.8h, v5.h[7]
+	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v18.8h, v26.8h, v8.h[0]
+	sshr	v17.8h, v17.8h, #1
+	sshr	v18.8h, v18.8h, #1
+	mul	v25.8h, v19.8h, v7.h[7]
+	mul	v26.8h, v20.8h, v7.h[7]
+	sqrdmulh	v19.8h, v19.8h, v5.h[7]
+	sqrdmulh	v20.8h, v20.8h, v5.h[7]
+	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v26.8h, v8.h[0]
+	sshr	v19.8h, v19.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	mul	v25.8h, v21.8h, v7.h[7]
+	mul	v26.8h, v22.8h, v7.h[7]
+	sqrdmulh	v21.8h, v21.8h, v5.h[7]
+	sqrdmulh	v22.8h, v22.8h, v5.h[7]
+	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v22.8h, v26.8h, v8.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v25.8h, v23.8h, v7.h[7]
+	mul	v26.8h, v24.8h, v7.h[7]
+	sqrdmulh	v23.8h, v23.8h, v5.h[7]
+	sqrdmulh	v24.8h, v24.8h, v5.h[7]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v26.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	str	q9, [x0]
+	str	q10, [x0, #32]
+	str	q11, [x0, #64]
+	str	q12, [x0, #96]
+	str	q13, [x0, #128]
+	str	q14, [x0, #160]
+	str	q15, [x0, #192]
+	str	q16, [x0, #224]
+	str	q17, [x1]
+	str	q18, [x1, #32]
+	str	q19, [x1, #64]
+	str	q20, [x1, #96]
+	str	q21, [x1, #128]
+	str	q22, [x1, #160]
+	str	q23, [x1, #192]
+	str	q24, [x1, #224]
+	ldr	q9, [x0, #16]
+	ldr	q10, [x0, #48]
+	ldr	q11, [x0, #80]
+	ldr	q12, [x0, #112]
+	ldr	q13, [x0, #144]
+	ldr	q14, [x0, #176]
+	ldr	q15, [x0, #208]
+	ldr	q16, [x0, #240]
+	ldr	q17, [x1, #16]
+	ldr	q18, [x1, #48]
+	ldr	q19, [x1, #80]
+	ldr	q20, [x1, #112]
+	ldr	q21, [x1, #144]
+	ldr	q22, [x1, #176]
+	ldr	q23, [x1, #208]
+	ldr	q24, [x1, #240]
+	sub	v26.8h, v9.8h, v10.8h
+	sub	v28.8h, v11.8h, v12.8h
+	add	v9.8h, v9.8h, v10.8h
+	add	v11.8h, v11.8h, v12.8h
+	mul	v25.8h, v26.8h, v6.h[0]
+	mul	v27.8h, v28.8h, v6.h[1]
+	sqrdmulh	v10.8h, v26.8h, v4.h[0]
+	sqrdmulh	v12.8h, v28.8h, v4.h[1]
+	sqrdmlsh	v10.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v10.8h, v10.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	sub	v26.8h, v13.8h, v14.8h
+	sub	v28.8h, v15.8h, v16.8h
+	add	v13.8h, v13.8h, v14.8h
+	add	v15.8h, v15.8h, v16.8h
+	mul	v25.8h, v26.8h, v6.h[2]
+	mul	v27.8h, v28.8h, v6.h[3]
+	sqrdmulh	v14.8h, v26.8h, v4.h[2]
+	sqrdmulh	v16.8h, v28.8h, v4.h[3]
+	sqrdmlsh	v14.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v14.8h, v14.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	sub	v26.8h, v17.8h, v18.8h
+	sub	v28.8h, v19.8h, v20.8h
+	add	v17.8h, v17.8h, v18.8h
+	add	v19.8h, v19.8h, v20.8h
+	mul	v25.8h, v26.8h, v6.h[4]
+	mul	v27.8h, v28.8h, v6.h[5]
+	sqrdmulh	v18.8h, v26.8h, v4.h[4]
+	sqrdmulh	v20.8h, v28.8h, v4.h[5]
+	sqrdmlsh	v18.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v18.8h, v18.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	sub	v26.8h, v21.8h, v22.8h
+	sub	v28.8h, v23.8h, v24.8h
+	add	v21.8h, v21.8h, v22.8h
+	add	v23.8h, v23.8h, v24.8h
+	mul	v25.8h, v26.8h, v6.h[6]
+	mul	v27.8h, v28.8h, v6.h[7]
+	sqrdmulh	v22.8h, v26.8h, v4.h[6]
+	sqrdmulh	v24.8h, v28.8h, v4.h[7]
+	sqrdmlsh	v22.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v22.8h, v22.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sub	v26.8h, v9.8h, v11.8h
+	sub	v28.8h, v10.8h, v12.8h
+	add	v9.8h, v9.8h, v11.8h
+	add	v10.8h, v10.8h, v12.8h
+	mul	v25.8h, v26.8h, v7.h[0]
+	mul	v27.8h, v28.8h, v7.h[0]
+	sqrdmulh	v11.8h, v26.8h, v5.h[0]
+	sqrdmulh	v12.8h, v28.8h, v5.h[0]
+	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v27.8h, v8.h[0]
+	sshr	v11.8h, v11.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	sub	v26.8h, v13.8h, v15.8h
+	sub	v28.8h, v14.8h, v16.8h
+	add	v13.8h, v13.8h, v15.8h
+	add	v14.8h, v14.8h, v16.8h
+	mul	v25.8h, v26.8h, v7.h[1]
+	mul	v27.8h, v28.8h, v7.h[1]
+	sqrdmulh	v15.8h, v26.8h, v5.h[1]
+	sqrdmulh	v16.8h, v28.8h, v5.h[1]
+	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	sub	v26.8h, v17.8h, v19.8h
+	sub	v28.8h, v18.8h, v20.8h
+	add	v17.8h, v17.8h, v19.8h
+	add	v18.8h, v18.8h, v20.8h
+	mul	v25.8h, v26.8h, v7.h[2]
+	mul	v27.8h, v28.8h, v7.h[2]
+	sqrdmulh	v19.8h, v26.8h, v5.h[2]
+	sqrdmulh	v20.8h, v28.8h, v5.h[2]
+	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v19.8h, v19.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	sub	v26.8h, v21.8h, v23.8h
+	sub	v28.8h, v22.8h, v24.8h
+	add	v21.8h, v21.8h, v23.8h
+	add	v22.8h, v22.8h, v24.8h
+	mul	v25.8h, v26.8h, v7.h[3]
+	mul	v27.8h, v28.8h, v7.h[3]
+	sqrdmulh	v23.8h, v26.8h, v5.h[3]
+	sqrdmulh	v24.8h, v28.8h, v5.h[3]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sub	v26.8h, v9.8h, v13.8h
+	sub	v28.8h, v10.8h, v14.8h
+	add	v9.8h, v9.8h, v13.8h
+	add	v10.8h, v10.8h, v14.8h
+	mul	v25.8h, v26.8h, v7.h[4]
+	mul	v27.8h, v28.8h, v7.h[4]
+	sqrdmulh	v13.8h, v26.8h, v5.h[4]
+	sqrdmulh	v14.8h, v28.8h, v5.h[4]
+	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v14.8h, v27.8h, v8.h[0]
+	sshr	v13.8h, v13.8h, #1
+	sshr	v14.8h, v14.8h, #1
+	sub	v26.8h, v11.8h, v15.8h
+	sub	v28.8h, v12.8h, v16.8h
+	add	v11.8h, v11.8h, v15.8h
+	add	v12.8h, v12.8h, v16.8h
+	mul	v25.8h, v26.8h, v7.h[4]
+	mul	v27.8h, v28.8h, v7.h[4]
+	sqrdmulh	v15.8h, v26.8h, v5.h[4]
+	sqrdmulh	v16.8h, v28.8h, v5.h[4]
+	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v27.8h, v8.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	sub	v26.8h, v17.8h, v21.8h
+	sub	v28.8h, v18.8h, v22.8h
+	add	v17.8h, v17.8h, v21.8h
+	add	v18.8h, v18.8h, v22.8h
+	mul	v25.8h, v26.8h, v7.h[5]
+	mul	v27.8h, v28.8h, v7.h[5]
+	sqrdmulh	v21.8h, v26.8h, v5.h[5]
+	sqrdmulh	v22.8h, v28.8h, v5.h[5]
+	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	sub	v26.8h, v19.8h, v23.8h
+	sub	v28.8h, v20.8h, v24.8h
+	add	v19.8h, v19.8h, v23.8h
+	add	v20.8h, v20.8h, v24.8h
+	mul	v25.8h, v26.8h, v7.h[5]
+	mul	v27.8h, v28.8h, v7.h[5]
+	sqrdmulh	v23.8h, v26.8h, v5.h[5]
+	sqrdmulh	v24.8h, v28.8h, v5.h[5]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	sqdmulh	v25.8h, v9.8h, v8.h[2]
+	sqdmulh	v26.8h, v10.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v9.8h, v25.8h, v8.h[0]
+	mls	v10.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v11.8h, v8.h[2]
+	sqdmulh	v26.8h, v12.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v11.8h, v25.8h, v8.h[0]
+	mls	v12.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v17.8h, v8.h[2]
+	sqdmulh	v26.8h, v18.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v17.8h, v25.8h, v8.h[0]
+	mls	v18.8h, v26.8h, v8.h[0]
+	sqdmulh	v25.8h, v19.8h, v8.h[2]
+	sqdmulh	v26.8h, v20.8h, v8.h[2]
+	sshr	v25.8h, v25.8h, #11
+	sshr	v26.8h, v26.8h, #11
+	mls	v19.8h, v25.8h, v8.h[0]
+	mls	v20.8h, v26.8h, v8.h[0]
+	sub	v26.8h, v9.8h, v17.8h
+	sub	v28.8h, v10.8h, v18.8h
+	add	v9.8h, v9.8h, v17.8h
+	add	v10.8h, v10.8h, v18.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v17.8h, v26.8h, v5.h[6]
+	sqrdmulh	v18.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v18.8h, v27.8h, v8.h[0]
+	sshr	v17.8h, v17.8h, #1
+	sshr	v18.8h, v18.8h, #1
+	sub	v26.8h, v11.8h, v19.8h
+	sub	v28.8h, v12.8h, v20.8h
+	add	v11.8h, v11.8h, v19.8h
+	add	v12.8h, v12.8h, v20.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v19.8h, v26.8h, v5.h[6]
+	sqrdmulh	v20.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v27.8h, v8.h[0]
+	sshr	v19.8h, v19.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	sub	v26.8h, v13.8h, v21.8h
+	sub	v28.8h, v14.8h, v22.8h
+	add	v13.8h, v13.8h, v21.8h
+	add	v14.8h, v14.8h, v22.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v21.8h, v26.8h, v5.h[6]
+	sqrdmulh	v22.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v22.8h, v27.8h, v8.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	sub	v26.8h, v15.8h, v23.8h
+	sub	v28.8h, v16.8h, v24.8h
+	add	v15.8h, v15.8h, v23.8h
+	add	v16.8h, v16.8h, v24.8h
+	mul	v25.8h, v26.8h, v7.h[6]
+	mul	v27.8h, v28.8h, v7.h[6]
+	sqrdmulh	v23.8h, v26.8h, v5.h[6]
+	sqrdmulh	v24.8h, v28.8h, v5.h[6]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v27.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	mul	v25.8h, v9.8h, v7.h[7]
+	mul	v26.8h, v10.8h, v7.h[7]
+	sqrdmulh	v9.8h, v9.8h, v5.h[7]
+	sqrdmulh	v10.8h, v10.8h, v5.h[7]
+	sqrdmlsh	v9.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v10.8h, v26.8h, v8.h[0]
+	sshr	v9.8h, v9.8h, #1
+	sshr	v10.8h, v10.8h, #1
+	mul	v25.8h, v11.8h, v7.h[7]
+	mul	v26.8h, v12.8h, v7.h[7]
+	sqrdmulh	v11.8h, v11.8h, v5.h[7]
+	sqrdmulh	v12.8h, v12.8h, v5.h[7]
+	sqrdmlsh	v11.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v12.8h, v26.8h, v8.h[0]
+	sshr	v11.8h, v11.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	mul	v25.8h, v13.8h, v7.h[7]
+	mul	v26.8h, v14.8h, v7.h[7]
+	sqrdmulh	v13.8h, v13.8h, v5.h[7]
+	sqrdmulh	v14.8h, v14.8h, v5.h[7]
+	sqrdmlsh	v13.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v14.8h, v26.8h, v8.h[0]
+	sshr	v13.8h, v13.8h, #1
+	sshr	v14.8h, v14.8h, #1
+	mul	v25.8h, v15.8h, v7.h[7]
+	mul	v26.8h, v16.8h, v7.h[7]
+	sqrdmulh	v15.8h, v15.8h, v5.h[7]
+	sqrdmulh	v16.8h, v16.8h, v5.h[7]
+	sqrdmlsh	v15.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v16.8h, v26.8h, v8.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	mul	v25.8h, v17.8h, v7.h[7]
+	mul	v26.8h, v18.8h, v7.h[7]
+	sqrdmulh	v17.8h, v17.8h, v5.h[7]
+	sqrdmulh	v18.8h, v18.8h, v5.h[7]
+	sqrdmlsh	v17.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v18.8h, v26.8h, v8.h[0]
+	sshr	v17.8h, v17.8h, #1
+	sshr	v18.8h, v18.8h, #1
+	mul	v25.8h, v19.8h, v7.h[7]
+	mul	v26.8h, v20.8h, v7.h[7]
+	sqrdmulh	v19.8h, v19.8h, v5.h[7]
+	sqrdmulh	v20.8h, v20.8h, v5.h[7]
+	sqrdmlsh	v19.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v20.8h, v26.8h, v8.h[0]
+	sshr	v19.8h, v19.8h, #1
+	sshr	v20.8h, v20.8h, #1
+	mul	v25.8h, v21.8h, v7.h[7]
+	mul	v26.8h, v22.8h, v7.h[7]
+	sqrdmulh	v21.8h, v21.8h, v5.h[7]
+	sqrdmulh	v22.8h, v22.8h, v5.h[7]
+	sqrdmlsh	v21.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v22.8h, v26.8h, v8.h[0]
+	sshr	v21.8h, v21.8h, #1
+	sshr	v22.8h, v22.8h, #1
+	mul	v25.8h, v23.8h, v7.h[7]
+	mul	v26.8h, v24.8h, v7.h[7]
+	sqrdmulh	v23.8h, v23.8h, v5.h[7]
+	sqrdmulh	v24.8h, v24.8h, v5.h[7]
+	sqrdmlsh	v23.8h, v25.8h, v8.h[0]
+	sqrdmlsh	v24.8h, v26.8h, v8.h[0]
+	sshr	v23.8h, v23.8h, #1
+	sshr	v24.8h, v24.8h, #1
+	str	q9, [x0, #16]
+	str	q10, [x0, #48]
+	str	q11, [x0, #80]
+	str	q12, [x0, #112]
+	str	q13, [x0, #144]
+	str	q14, [x0, #176]
+	str	q15, [x0, #208]
+	str	q16, [x0, #240]
+	str	q17, [x1, #16]
+	str	q18, [x1, #48]
+	str	q19, [x1, #80]
+	str	q20, [x1, #112]
+	str	q21, [x1, #144]
+	str	q22, [x1, #176]
+	str	q23, [x1, #208]
+	str	q24, [x1, #240]
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	kyber_invntt_sqrdmlsh,.-kyber_invntt_sqrdmlsh
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 #ifndef __APPLE__
 	.text
 	.type	L_kyber_aarch64_zetas_mul, %object
@@ -5987,120 +7837,80 @@ _kyber_to_mont:
 	mul	v18.8h, v2.8h, v0.h[4]
 	sqrdmulh	v1.8h, v1.8h, v0.h[3]
 	sqrdmulh	v2.8h, v2.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v1.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v2.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v1.8h, v1.8h, v17.8h
 	sub	v2.8h, v2.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v1.8h, v1.8h, #1
 	sshr	v2.8h, v2.8h, #1
 	mul	v17.8h, v3.8h, v0.h[4]
 	mul	v18.8h, v4.8h, v0.h[4]
 	sqrdmulh	v3.8h, v3.8h, v0.h[3]
 	sqrdmulh	v4.8h, v4.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v3.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v4.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v3.8h, v3.8h, v17.8h
 	sub	v4.8h, v4.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v3.8h, v3.8h, #1
 	sshr	v4.8h, v4.8h, #1
 	mul	v17.8h, v5.8h, v0.h[4]
 	mul	v18.8h, v6.8h, v0.h[4]
 	sqrdmulh	v5.8h, v5.8h, v0.h[3]
 	sqrdmulh	v6.8h, v6.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v5.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v6.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v5.8h, v5.8h, v17.8h
 	sub	v6.8h, v6.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v5.8h, v5.8h, #1
 	sshr	v6.8h, v6.8h, #1
 	mul	v17.8h, v7.8h, v0.h[4]
 	mul	v18.8h, v8.8h, v0.h[4]
 	sqrdmulh	v7.8h, v7.8h, v0.h[3]
 	sqrdmulh	v8.8h, v8.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v7.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v8.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v7.8h, v7.8h, v17.8h
 	sub	v8.8h, v8.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v7.8h, v7.8h, #1
 	sshr	v8.8h, v8.8h, #1
 	mul	v17.8h, v9.8h, v0.h[4]
 	mul	v18.8h, v10.8h, v0.h[4]
 	sqrdmulh	v9.8h, v9.8h, v0.h[3]
 	sqrdmulh	v10.8h, v10.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v9.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v10.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v9.8h, v9.8h, v17.8h
 	sub	v10.8h, v10.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v9.8h, v9.8h, #1
 	sshr	v10.8h, v10.8h, #1
 	mul	v17.8h, v11.8h, v0.h[4]
 	mul	v18.8h, v12.8h, v0.h[4]
 	sqrdmulh	v11.8h, v11.8h, v0.h[3]
 	sqrdmulh	v12.8h, v12.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v11.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v12.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v11.8h, v11.8h, v17.8h
 	sub	v12.8h, v12.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v11.8h, v11.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	mul	v17.8h, v13.8h, v0.h[4]
 	mul	v18.8h, v14.8h, v0.h[4]
 	sqrdmulh	v13.8h, v13.8h, v0.h[3]
 	sqrdmulh	v14.8h, v14.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v13.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v14.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v13.8h, v13.8h, v17.8h
 	sub	v14.8h, v14.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v13.8h, v13.8h, #1
 	sshr	v14.8h, v14.8h, #1
 	mul	v17.8h, v15.8h, v0.h[4]
 	mul	v18.8h, v16.8h, v0.h[4]
 	sqrdmulh	v15.8h, v15.8h, v0.h[3]
 	sqrdmulh	v16.8h, v16.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v16.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v15.8h, v15.8h, v17.8h
 	sub	v16.8h, v16.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -6116,120 +7926,80 @@ _kyber_to_mont:
 	mul	v18.8h, v2.8h, v0.h[4]
 	sqrdmulh	v1.8h, v1.8h, v0.h[3]
 	sqrdmulh	v2.8h, v2.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v1.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v2.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v1.8h, v1.8h, v17.8h
 	sub	v2.8h, v2.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v1.8h, v1.8h, #1
 	sshr	v2.8h, v2.8h, #1
 	mul	v17.8h, v3.8h, v0.h[4]
 	mul	v18.8h, v4.8h, v0.h[4]
 	sqrdmulh	v3.8h, v3.8h, v0.h[3]
 	sqrdmulh	v4.8h, v4.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v3.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v4.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v3.8h, v3.8h, v17.8h
 	sub	v4.8h, v4.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v3.8h, v3.8h, #1
 	sshr	v4.8h, v4.8h, #1
 	mul	v17.8h, v5.8h, v0.h[4]
 	mul	v18.8h, v6.8h, v0.h[4]
 	sqrdmulh	v5.8h, v5.8h, v0.h[3]
 	sqrdmulh	v6.8h, v6.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v5.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v6.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v5.8h, v5.8h, v17.8h
 	sub	v6.8h, v6.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v5.8h, v5.8h, #1
 	sshr	v6.8h, v6.8h, #1
 	mul	v17.8h, v7.8h, v0.h[4]
 	mul	v18.8h, v8.8h, v0.h[4]
 	sqrdmulh	v7.8h, v7.8h, v0.h[3]
 	sqrdmulh	v8.8h, v8.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v7.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v8.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v7.8h, v7.8h, v17.8h
 	sub	v8.8h, v8.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v7.8h, v7.8h, #1
 	sshr	v8.8h, v8.8h, #1
 	mul	v17.8h, v9.8h, v0.h[4]
 	mul	v18.8h, v10.8h, v0.h[4]
 	sqrdmulh	v9.8h, v9.8h, v0.h[3]
 	sqrdmulh	v10.8h, v10.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v9.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v10.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v9.8h, v9.8h, v17.8h
 	sub	v10.8h, v10.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v9.8h, v9.8h, #1
 	sshr	v10.8h, v10.8h, #1
 	mul	v17.8h, v11.8h, v0.h[4]
 	mul	v18.8h, v12.8h, v0.h[4]
 	sqrdmulh	v11.8h, v11.8h, v0.h[3]
 	sqrdmulh	v12.8h, v12.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v11.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v12.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v11.8h, v11.8h, v17.8h
 	sub	v12.8h, v12.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v11.8h, v11.8h, #1
 	sshr	v12.8h, v12.8h, #1
 	mul	v17.8h, v13.8h, v0.h[4]
 	mul	v18.8h, v14.8h, v0.h[4]
 	sqrdmulh	v13.8h, v13.8h, v0.h[3]
 	sqrdmulh	v14.8h, v14.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v13.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v14.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v13.8h, v13.8h, v17.8h
 	sub	v14.8h, v14.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v13.8h, v13.8h, #1
 	sshr	v14.8h, v14.8h, #1
 	mul	v17.8h, v15.8h, v0.h[4]
 	mul	v18.8h, v16.8h, v0.h[4]
 	sqrdmulh	v15.8h, v15.8h, v0.h[3]
 	sqrdmulh	v16.8h, v16.8h, v0.h[3]
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-	sqrdmlsh	v15.8h, v17.8h, v0.h[0]
-	sqrdmlsh	v16.8h, v18.8h, v0.h[0]
-#else
 	sqrdmulh	v17.8h, v17.8h, v0.h[0]
 	sqrdmulh	v18.8h, v18.8h, v0.h[0]
 	sub	v15.8h, v15.8h, v17.8h
 	sub	v16.8h, v16.8h, v18.8h
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
 	sshr	v15.8h, v15.8h, #1
 	sshr	v16.8h, v16.8h, #1
 	st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
@@ -6245,6 +8015,189 @@ _kyber_to_mont:
 #ifndef __APPLE__
 	.size	kyber_to_mont,.-kyber_to_mont
 #endif /* __APPLE__ */
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+#ifndef __APPLE__
+.text
+.globl	kyber_to_mont_sqrdmlsh
+.type	kyber_to_mont_sqrdmlsh,@function
+.align	2
+kyber_to_mont_sqrdmlsh:
+#else
+.section	__TEXT,__text
+.globl	_kyber_to_mont_sqrdmlsh
+.p2align	2
+_kyber_to_mont_sqrdmlsh:
+#endif /* __APPLE__ */
+	stp	x29, x30, [sp, #-80]!
+	add	x29, sp, #0
+	stp	d8, d9, [x29, #16]
+	stp	d10, d11, [x29, #32]
+	stp	d12, d13, [x29, #48]
+	stp	d14, d15, [x29, #64]
+#ifndef __APPLE__
+	adrp x1, L_kyber_aarch64_consts
+	add  x1, x1, :lo12:L_kyber_aarch64_consts
+#else
+	adrp x1, L_kyber_aarch64_consts@PAGE
+	add  x1, x1, :lo12:L_kyber_aarch64_consts@PAGEOFF
+#endif /* __APPLE__ */
+	ldr	q0, [x1]
+	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
+	ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [x0], #0x40
+	ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [x0], #0x40
+	ld4	{v13.8h, v14.8h, v15.8h, v16.8h}, [x0], #0x40
+	sub	x0, x0, #0x100
+	mul	v17.8h, v1.8h, v0.h[4]
+	mul	v18.8h, v2.8h, v0.h[4]
+	sqrdmulh	v1.8h, v1.8h, v0.h[3]
+	sqrdmulh	v2.8h, v2.8h, v0.h[3]
+	sqrdmlsh	v1.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v2.8h, v18.8h, v0.h[0]
+	sshr	v1.8h, v1.8h, #1
+	sshr	v2.8h, v2.8h, #1
+	mul	v17.8h, v3.8h, v0.h[4]
+	mul	v18.8h, v4.8h, v0.h[4]
+	sqrdmulh	v3.8h, v3.8h, v0.h[3]
+	sqrdmulh	v4.8h, v4.8h, v0.h[3]
+	sqrdmlsh	v3.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v4.8h, v18.8h, v0.h[0]
+	sshr	v3.8h, v3.8h, #1
+	sshr	v4.8h, v4.8h, #1
+	mul	v17.8h, v5.8h, v0.h[4]
+	mul	v18.8h, v6.8h, v0.h[4]
+	sqrdmulh	v5.8h, v5.8h, v0.h[3]
+	sqrdmulh	v6.8h, v6.8h, v0.h[3]
+	sqrdmlsh	v5.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v6.8h, v18.8h, v0.h[0]
+	sshr	v5.8h, v5.8h, #1
+	sshr	v6.8h, v6.8h, #1
+	mul	v17.8h, v7.8h, v0.h[4]
+	mul	v18.8h, v8.8h, v0.h[4]
+	sqrdmulh	v7.8h, v7.8h, v0.h[3]
+	sqrdmulh	v8.8h, v8.8h, v0.h[3]
+	sqrdmlsh	v7.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v8.8h, v18.8h, v0.h[0]
+	sshr	v7.8h, v7.8h, #1
+	sshr	v8.8h, v8.8h, #1
+	mul	v17.8h, v9.8h, v0.h[4]
+	mul	v18.8h, v10.8h, v0.h[4]
+	sqrdmulh	v9.8h, v9.8h, v0.h[3]
+	sqrdmulh	v10.8h, v10.8h, v0.h[3]
+	sqrdmlsh	v9.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v10.8h, v18.8h, v0.h[0]
+	sshr	v9.8h, v9.8h, #1
+	sshr	v10.8h, v10.8h, #1
+	mul	v17.8h, v11.8h, v0.h[4]
+	mul	v18.8h, v12.8h, v0.h[4]
+	sqrdmulh	v11.8h, v11.8h, v0.h[3]
+	sqrdmulh	v12.8h, v12.8h, v0.h[3]
+	sqrdmlsh	v11.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v12.8h, v18.8h, v0.h[0]
+	sshr	v11.8h, v11.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	mul	v17.8h, v13.8h, v0.h[4]
+	mul	v18.8h, v14.8h, v0.h[4]
+	sqrdmulh	v13.8h, v13.8h, v0.h[3]
+	sqrdmulh	v14.8h, v14.8h, v0.h[3]
+	sqrdmlsh	v13.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v14.8h, v18.8h, v0.h[0]
+	sshr	v13.8h, v13.8h, #1
+	sshr	v14.8h, v14.8h, #1
+	mul	v17.8h, v15.8h, v0.h[4]
+	mul	v18.8h, v16.8h, v0.h[4]
+	sqrdmulh	v15.8h, v15.8h, v0.h[3]
+	sqrdmulh	v16.8h, v16.8h, v0.h[3]
+	sqrdmlsh	v15.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v16.8h, v18.8h, v0.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
+	st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [x0], #0x40
+	st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [x0], #0x40
+	st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [x0], #0x40
+	ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
+	ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [x0], #0x40
+	ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [x0], #0x40
+	ld4	{v13.8h, v14.8h, v15.8h, v16.8h}, [x0], #0x40
+	sub	x0, x0, #0x100
+	mul	v17.8h, v1.8h, v0.h[4]
+	mul	v18.8h, v2.8h, v0.h[4]
+	sqrdmulh	v1.8h, v1.8h, v0.h[3]
+	sqrdmulh	v2.8h, v2.8h, v0.h[3]
+	sqrdmlsh	v1.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v2.8h, v18.8h, v0.h[0]
+	sshr	v1.8h, v1.8h, #1
+	sshr	v2.8h, v2.8h, #1
+	mul	v17.8h, v3.8h, v0.h[4]
+	mul	v18.8h, v4.8h, v0.h[4]
+	sqrdmulh	v3.8h, v3.8h, v0.h[3]
+	sqrdmulh	v4.8h, v4.8h, v0.h[3]
+	sqrdmlsh	v3.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v4.8h, v18.8h, v0.h[0]
+	sshr	v3.8h, v3.8h, #1
+	sshr	v4.8h, v4.8h, #1
+	mul	v17.8h, v5.8h, v0.h[4]
+	mul	v18.8h, v6.8h, v0.h[4]
+	sqrdmulh	v5.8h, v5.8h, v0.h[3]
+	sqrdmulh	v6.8h, v6.8h, v0.h[3]
+	sqrdmlsh	v5.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v6.8h, v18.8h, v0.h[0]
+	sshr	v5.8h, v5.8h, #1
+	sshr	v6.8h, v6.8h, #1
+	mul	v17.8h, v7.8h, v0.h[4]
+	mul	v18.8h, v8.8h, v0.h[4]
+	sqrdmulh	v7.8h, v7.8h, v0.h[3]
+	sqrdmulh	v8.8h, v8.8h, v0.h[3]
+	sqrdmlsh	v7.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v8.8h, v18.8h, v0.h[0]
+	sshr	v7.8h, v7.8h, #1
+	sshr	v8.8h, v8.8h, #1
+	mul	v17.8h, v9.8h, v0.h[4]
+	mul	v18.8h, v10.8h, v0.h[4]
+	sqrdmulh	v9.8h, v9.8h, v0.h[3]
+	sqrdmulh	v10.8h, v10.8h, v0.h[3]
+	sqrdmlsh	v9.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v10.8h, v18.8h, v0.h[0]
+	sshr	v9.8h, v9.8h, #1
+	sshr	v10.8h, v10.8h, #1
+	mul	v17.8h, v11.8h, v0.h[4]
+	mul	v18.8h, v12.8h, v0.h[4]
+	sqrdmulh	v11.8h, v11.8h, v0.h[3]
+	sqrdmulh	v12.8h, v12.8h, v0.h[3]
+	sqrdmlsh	v11.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v12.8h, v18.8h, v0.h[0]
+	sshr	v11.8h, v11.8h, #1
+	sshr	v12.8h, v12.8h, #1
+	mul	v17.8h, v13.8h, v0.h[4]
+	mul	v18.8h, v14.8h, v0.h[4]
+	sqrdmulh	v13.8h, v13.8h, v0.h[3]
+	sqrdmulh	v14.8h, v14.8h, v0.h[3]
+	sqrdmlsh	v13.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v14.8h, v18.8h, v0.h[0]
+	sshr	v13.8h, v13.8h, #1
+	sshr	v14.8h, v14.8h, #1
+	mul	v17.8h, v15.8h, v0.h[4]
+	mul	v18.8h, v16.8h, v0.h[4]
+	sqrdmulh	v15.8h, v15.8h, v0.h[3]
+	sqrdmulh	v16.8h, v16.8h, v0.h[3]
+	sqrdmlsh	v15.8h, v17.8h, v0.h[0]
+	sqrdmlsh	v16.8h, v18.8h, v0.h[0]
+	sshr	v15.8h, v15.8h, #1
+	sshr	v16.8h, v16.8h, #1
+	st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [x0], #0x40
+	st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [x0], #0x40
+	st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [x0], #0x40
+	st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [x0], #0x40
+	ldp	d8, d9, [x29, #16]
+	ldp	d10, d11, [x29, #32]
+	ldp	d12, d13, [x29, #48]
+	ldp	d14, d15, [x29, #64]
+	ldp	x29, x30, [sp], #0x50
+	ret
+#ifndef __APPLE__
+	.size	kyber_to_mont_sqrdmlsh,.-kyber_to_mont_sqrdmlsh
+#endif /* __APPLE__ */
+#endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 #ifndef __APPLE__
 	.text
 	.type	L_kyber_aarch64_to_msg_neon_low, %object

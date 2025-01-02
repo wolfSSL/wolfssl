@@ -84,7 +84,8 @@
 /* Declared in wc_kyber.c to stop compiler optimizer from simplifying. */
 extern volatile sword16 kyber_opt_blocker;
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM))
 static word32 cpuid_flags = 0;
 #endif
 
@@ -1099,7 +1100,8 @@ static void kyber_pointwise_acc_mont(sword16* r, const sword16* a,
  */
 void kyber_init(void)
 {
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM))
     cpuid_flags = cpuid_get_flags();
 #endif
 }
@@ -1121,22 +1123,48 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
 {
     int i;
 
-    /* Transform private key. All of result used in public key calculation */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(priv + i * KYBER_N);
-    }
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+    if (IS_AARCH64_RDM(cpuid_flags)) {
+        /* Transform private key. All of result used in public key calculation.
+         */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt_sqrdmlsh(priv + i * KYBER_N);
+        }
 
-    /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
-        /* Multiply a by private into public polynomial. */
-        kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N, priv,
-            kp);
-        /* Convert public polynomial to Montgomery form. */
-        kyber_to_mont(pub + i * KYBER_N);
-        /* Transform error values polynomial. */
-        kyber_ntt(e + i * KYBER_N);
-        /* Add errors to public key and reduce. */
-        kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply a by private into public polynomial. */
+            kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N,
+                priv, kp);
+            /* Convert public polynomial to Montgomery form. */
+            kyber_to_mont_sqrdmlsh(pub + i * KYBER_N);
+            /* Transform error values polynomial. */
+            kyber_ntt_sqrdmlsh(e + i * KYBER_N);
+            /* Add errors to public key and reduce. */
+            kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+        }
+    }
+    else
+#endif
+    {
+        /* Transform private key. All of result used in public key calculation.
+         */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt(priv + i * KYBER_N);
+        }
+
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply a by private into public polynomial. */
+            kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N,
+                priv, kp);
+            /* Convert public polynomial to Montgomery form. */
+            kyber_to_mont(pub + i * KYBER_N);
+            /* Transform error values polynomial. */
+            kyber_ntt(e + i * KYBER_N);
+            /* Add errors to public key and reduce. */
+            kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+        }
     }
 }
 
@@ -1158,26 +1186,53 @@ void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
 {
     int i;
 
-    /* Transform sp. All of result used in calculation of bp and v. */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(sp + i * KYBER_N);
-    }
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+    if (IS_AARCH64_RDM(cpuid_flags)) {
+        /* Transform sp. All of result used in calculation of bp and v. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt_sqrdmlsh(sp + i * KYBER_N);
+        }
 
-    /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
-        /* Multiply at by sp into bp polynomial. */
-        kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N, sp,
-            kp);
-        /* Inverse transform bp polynomial. */
-        kyber_invntt(bp + i * KYBER_N);
-        /* Add errors to bp and reduce. */
-        kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
-    }
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply at by sp into bp polynomial. */
+            kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N,
+                sp, kp);
+            /* Inverse transform bp polynomial. */
+            kyber_invntt_sqrdmlsh(bp + i * KYBER_N);
+            /* Add errors to bp and reduce. */
+            kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
+        }
 
-    /* Multiply public key by sp into v polynomial. */
-    kyber_pointwise_acc_mont(v, pub, sp, kp);
-    /* Inverse transform v. */
-    kyber_invntt(v);
+        /* Multiply public key by sp into v polynomial. */
+        kyber_pointwise_acc_mont(v, pub, sp, kp);
+        /* Inverse transform v. */
+        kyber_invntt_sqrdmlsh(v);
+    }
+    else
+#endif
+    {
+        /* Transform sp. All of result used in calculation of bp and v. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt(sp + i * KYBER_N);
+        }
+
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply at by sp into bp polynomial. */
+            kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N,
+                sp, kp);
+            /* Inverse transform bp polynomial. */
+            kyber_invntt(bp + i * KYBER_N);
+            /* Add errors to bp and reduce. */
+            kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
+        }
+
+        /* Multiply public key by sp into v polynomial. */
+        kyber_pointwise_acc_mont(v, pub, sp, kp);
+        /* Inverse transform v. */
+        kyber_invntt(v);
+    }
     /* Add errors and message to v and reduce. */
     kyber_add3_reduce(v, epp, m);
 }
@@ -1195,15 +1250,31 @@ void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
 {
     int i;
 
-    /* Transform bp. All of result used in calculation of mp. */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(bp + i * KYBER_N);
-    }
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+    if (IS_AARCH64_RDM(cpuid_flags)) {
+        /* Transform bp. All of result used in calculation of mp. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt_sqrdmlsh(bp + i * KYBER_N);
+        }
 
-    /* Multiply private key by bp into mp polynomial. */
-    kyber_pointwise_acc_mont(mp, priv, bp, kp);
-    /* Inverse transform mp. */
-    kyber_invntt(mp);
+        /* Multiply private key by bp into mp polynomial. */
+        kyber_pointwise_acc_mont(mp, priv, bp, kp);
+        /* Inverse transform mp. */
+        kyber_invntt_sqrdmlsh(mp);
+    }
+    else
+#endif
+    {
+        /* Transform bp. All of result used in calculation of mp. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt(bp + i * KYBER_N);
+        }
+
+        /* Multiply private key by bp into mp polynomial. */
+        kyber_pointwise_acc_mont(mp, priv, bp, kp);
+        /* Inverse transform mp. */
+        kyber_invntt(mp);
+    }
     /* Subtract errors (mp) out of v and reduce into mp. */
     kyber_rsub_reduce(mp, v);
 }
