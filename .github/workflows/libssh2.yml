@@ -17,7 +17,7 @@ jobs:
     name: Build wolfSSL
     # Just to keep it the same as the testing target
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 4
     steps:
@@ -44,10 +44,10 @@ jobs:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 1.11.0 ]
+        ref: [ 1.11.1 ]
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 8
     needs: build_wolfssl
@@ -70,5 +70,8 @@ jobs:
           check: true
 
       - name: Confirm libssh2 built with wolfSSL
-        working-directory: ./libssh2
-        run: ldd src/.libs/libssh2.so | grep wolfssl
+        run: ldd libssh2/src/.libs/libssh2.so | grep wolfssl
+
+      - name: print server logs
+        if: ${{ failure() }}
+        run: tail -n +1 libssh2/tests/*.log
