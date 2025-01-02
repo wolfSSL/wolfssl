@@ -237,9 +237,9 @@ linuxv5|linuxv5.2.1)
   )
   ;;
 v6.0.0)
-  WOLF_REPO_TAG='WCv6.0.0-RC1'
-  FIPS_REPO_TAG='WCv6.0.0-RC1'
-  ASM_PICKUPS_TAG='WCv6.0.0-RC2'
+  WOLF_REPO_TAG='WCv6.0.0-RC3'
+  FIPS_REPO_TAG='WCv6.0.0-RC3'
+  ASM_PICKUPS_TAG='WCv6.0.0-RC3'
   FIPS_OPTION='v6'
   FIPS_FILES=(
     "wolfcrypt/src/fips.c:${FIPS_REPO_TAG}"
@@ -272,6 +272,13 @@ v6.0.0)
     "wolfcrypt/src/port/arm/armv8-sha512-asm_c.c:${ASM_PICKUPS_TAG}"
     "wolfcrypt/src/port/arm/armv8-sha512-asm.S:${WOLF_REPO_TAG}"
     "wolfcrypt/src/port/arm/armv8-sha512.c:${WOLF_REPO_TAG}"
+    "wolfcrypt/src/port/arm/armv8-32-sha3-asm_c.c:${WOLF_REPO_TAG}"
+    "wolfcrypt/src/port/arm/armv8-32-sha3-asm.S:${WOLF_REPO_TAG}"
+    "wolfcrypt/src/port/arm/thumb2-sha3-asm_c.c:${WOLF_REPO_TAG}"
+    "wolfcrypt/src/port/arm/thumb2-sha3-asm.S:${WOLF_REPO_TAG}"
+    "wolfcrypt/src/port/riscv/riscv-64-sha256.c:${WOLF_REPO_TAG}"
+    "wolfcrypt/src/port/riscv/riscv-64-sha512.c:${WOLF_REPO_TAG}"
+    "wolfcrypt/src/port/riscv/riscv-64-sha3.c:${WOLF_REPO_TAG}"
     "wolfcrypt/src/cmac.c:${WOLF_REPO_TAG}"
     "wolfcrypt/src/curve25519.c:${WOLF_REPO_TAG}"
     "wolfcrypt/src/curve448.c:${WOLF_REPO_TAG}"

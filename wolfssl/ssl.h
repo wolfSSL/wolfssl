@@ -166,7 +166,7 @@
         #include <openssl/rc5.h>
         #include <openssl/ripemd.h>
         #include <openssl/rsa.h>
-        #if defined(HAVE_FIPS_VERSION) && FIPS_VERSION3_LT(7,0,0)
+        #if defined(HAVE_FIPS_VERSION) && FIPS_VERSION3_LT(6,0,0)
             /* clear conflicting name */
             #undef RSA_PKCS1_PADDING_SIZE
         #endif
