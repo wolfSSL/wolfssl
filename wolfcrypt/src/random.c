@@ -2184,7 +2184,7 @@ static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    check = (byte*)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, NULL,
+    check = (byte*)XMALLOC(RNG_HEALTH_TEST_CHECK_SIZE, heap,
                            DYNAMIC_TYPE_TMP_BUFFER);
     if (check == NULL) {
         return MEMORY_E;
@@ -2304,7 +2304,7 @@ static int wc_RNG_HealthTestLocal(int reseed, void* heap, int devId)
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(check, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(check, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
