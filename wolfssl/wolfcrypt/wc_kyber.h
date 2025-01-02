@@ -292,6 +292,8 @@ int kyber_cmp_avx2(const byte* a, const byte* b, int sz);
 #elif defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 WOLFSSL_LOCAL void kyber_ntt(sword16* r);
 WOLFSSL_LOCAL void kyber_invntt(sword16* r);
+WOLFSSL_LOCAL void kyber_ntt_sqrdmlsh(sword16* r);
+WOLFSSL_LOCAL void kyber_invntt_sqrdmlsh(sword16* r);
 WOLFSSL_LOCAL void kyber_basemul_mont(sword16* r, const sword16* a,
     const sword16* b);
 WOLFSSL_LOCAL void kyber_basemul_mont_add(sword16* r, const sword16* a,
@@ -301,6 +303,7 @@ WOLFSSL_LOCAL void kyber_add3_reduce(sword16* r, const sword16* a,
     const sword16* b);
 WOLFSSL_LOCAL void kyber_rsub_reduce(sword16* r, const sword16* a);
 WOLFSSL_LOCAL void kyber_to_mont(sword16* p);
+WOLFSSL_LOCAL void kyber_to_mont_sqrdmlsh(sword16* p);
 WOLFSSL_LOCAL void kyber_sha3_blocksx3_neon(word64* state);
 WOLFSSL_LOCAL void kyber_shake128_blocksx3_seed_neon(word64* state, byte* seed);
 WOLFSSL_LOCAL void kyber_shake256_blocksx3_seed_neon(word64* state, byte* seed);

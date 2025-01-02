@@ -33,637 +33,107 @@
 #ifdef __aarch64__
 #ifdef WOLFSSL_ARMASM_INLINE
 static const word16 L_kyber_aarch64_q[] = {
-    0xd01,
-    0xd01,
-    0xd01,
-    0xd01,
-    0xd01,
-    0xd01,
-    0xd01,
-    0xd01,
+    0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01, 0x0d01,
 };
 
 static const word16 L_kyber_aarch64_consts[] = {
-    0xd01,
-    0xf301,
-    0x4ebf,
-    0x549,
-    0x5049,
-    0x0,
-    0x0,
-    0x0,
+    0x0d01, 0xf301, 0x4ebf, 0x0549, 0x5049, 0x0000, 0x0000, 0x0000,
 };
 
 static const word64 L_sha3_aarch64_r[] = {
-    0x1UL,
-    0x8082UL,
-    0x800000000000808aUL,
-    0x8000000080008000UL,
-    0x808bUL,
-    0x80000001UL,
-    0x8000000080008081UL,
-    0x8000000000008009UL,
-    0x8aUL,
-    0x88UL,
-    0x80008009UL,
-    0x8000000aUL,
-    0x8000808bUL,
-    0x800000000000008bUL,
-    0x8000000000008089UL,
-    0x8000000000008003UL,
-    0x8000000000008002UL,
-    0x8000000000000080UL,
-    0x800aUL,
-    0x800000008000000aUL,
-    0x8000000080008081UL,
-    0x8000000000008080UL,
-    0x80000001UL,
-    0x8000000080008008UL,
+    0x0000000000000001, 0x0000000000008082,
+    0x800000000000808a, 0x8000000080008000,
+    0x000000000000808b, 0x0000000080000001,
+    0x8000000080008081, 0x8000000000008009,
+    0x000000000000008a, 0x0000000000000088,
+    0x0000000080008009, 0x000000008000000a,
+    0x000000008000808b, 0x800000000000008b,
+    0x8000000000008089, 0x8000000000008003,
+    0x8000000000008002, 0x8000000000000080,
+    0x000000000000800a, 0x800000008000000a,
+    0x8000000080008081, 0x8000000000008080,
+    0x0000000080000001, 0x8000000080008008,
 };
 
 #include <wolfssl/wolfcrypt/wc_kyber.h>
 
 #ifdef WOLFSSL_WC_KYBER
 static const word16 L_kyber_aarch64_zetas[] = {
-    0x8ed,
-    0xa0b,
-    0xb9a,
-    0x714,
-    0x5d5,
-    0x58e,
-    0x11f,
-    0xca,
-    0xc56,
-    0x26e,
-    0x629,
-    0xb6,
-    0x3c2,
-    0x84f,
-    0x73f,
-    0x5bc,
-    0x23d,
-    0x7d4,
-    0x108,
-    0x17f,
-    0x9c4,
-    0x5b2,
-    0x6bf,
-    0xc7f,
-    0xa58,
-    0x3f9,
-    0x2dc,
-    0x260,
-    0x6fb,
-    0x19b,
-    0xc34,
-    0x6de,
-    0x4c7,
-    0x4c7,
-    0x4c7,
-    0x4c7,
-    0x28c,
-    0x28c,
-    0x28c,
-    0x28c,
-    0xad9,
-    0xad9,
-    0xad9,
-    0xad9,
-    0x3f7,
-    0x3f7,
-    0x3f7,
-    0x3f7,
-    0x7f4,
-    0x7f4,
-    0x7f4,
-    0x7f4,
-    0x5d3,
-    0x5d3,
-    0x5d3,
-    0x5d3,
-    0xbe7,
-    0xbe7,
-    0xbe7,
-    0xbe7,
-    0x6f9,
-    0x6f9,
-    0x6f9,
-    0x6f9,
-    0x204,
-    0x204,
-    0x204,
-    0x204,
-    0xcf9,
-    0xcf9,
-    0xcf9,
-    0xcf9,
-    0xbc1,
-    0xbc1,
-    0xbc1,
-    0xbc1,
-    0xa67,
-    0xa67,
-    0xa67,
-    0xa67,
-    0x6af,
-    0x6af,
-    0x6af,
-    0x6af,
-    0x877,
-    0x877,
-    0x877,
-    0x877,
-    0x7e,
-    0x7e,
-    0x7e,
-    0x7e,
-    0x5bd,
-    0x5bd,
-    0x5bd,
-    0x5bd,
-    0x9ac,
-    0x9ac,
-    0x9ac,
-    0x9ac,
-    0xca7,
-    0xca7,
-    0xca7,
-    0xca7,
-    0xbf2,
-    0xbf2,
-    0xbf2,
-    0xbf2,
-    0x33e,
-    0x33e,
-    0x33e,
-    0x33e,
-    0x6b,
-    0x6b,
-    0x6b,
-    0x6b,
-    0x774,
-    0x774,
-    0x774,
-    0x774,
-    0xc0a,
-    0xc0a,
-    0xc0a,
-    0xc0a,
-    0x94a,
-    0x94a,
-    0x94a,
-    0x94a,
-    0xb73,
-    0xb73,
-    0xb73,
-    0xb73,
-    0x3c1,
-    0x3c1,
-    0x3c1,
-    0x3c1,
-    0x71d,
-    0x71d,
-    0x71d,
-    0x71d,
-    0xa2c,
-    0xa2c,
-    0xa2c,
-    0xa2c,
-    0x1c0,
-    0x1c0,
-    0x1c0,
-    0x1c0,
-    0x8d8,
-    0x8d8,
-    0x8d8,
-    0x8d8,
-    0x2a5,
-    0x2a5,
-    0x2a5,
-    0x2a5,
-    0x806,
-    0x806,
-    0x806,
-    0x806,
-    0x8b2,
-    0x8b2,
-    0x1ae,
-    0x1ae,
-    0x22b,
-    0x22b,
-    0x34b,
-    0x34b,
-    0x81e,
-    0x81e,
-    0x367,
-    0x367,
-    0x60e,
-    0x60e,
-    0x69,
-    0x69,
-    0x1a6,
-    0x1a6,
-    0x24b,
-    0x24b,
-    0xb1,
-    0xb1,
-    0xc16,
-    0xc16,
-    0xbde,
-    0xbde,
-    0xb35,
-    0xb35,
-    0x626,
-    0x626,
-    0x675,
-    0x675,
-    0xc0b,
-    0xc0b,
-    0x30a,
-    0x30a,
-    0x487,
-    0x487,
-    0xc6e,
-    0xc6e,
-    0x9f8,
-    0x9f8,
-    0x5cb,
-    0x5cb,
-    0xaa7,
-    0xaa7,
-    0x45f,
-    0x45f,
-    0x6cb,
-    0x6cb,
-    0x284,
-    0x284,
-    0x999,
-    0x999,
-    0x15d,
-    0x15d,
-    0x1a2,
-    0x1a2,
-    0x149,
-    0x149,
-    0xc65,
-    0xc65,
-    0xcb6,
-    0xcb6,
-    0x331,
-    0x331,
-    0x449,
-    0x449,
-    0x25b,
-    0x25b,
-    0x262,
-    0x262,
-    0x52a,
-    0x52a,
-    0x7fc,
-    0x7fc,
-    0x748,
-    0x748,
-    0x180,
-    0x180,
-    0x842,
-    0x842,
-    0xc79,
-    0xc79,
-    0x4c2,
-    0x4c2,
-    0x7ca,
-    0x7ca,
-    0x997,
-    0x997,
-    0xdc,
-    0xdc,
-    0x85e,
-    0x85e,
-    0x686,
-    0x686,
-    0x860,
-    0x860,
-    0x707,
-    0x707,
-    0x803,
-    0x803,
-    0x31a,
-    0x31a,
-    0x71b,
-    0x71b,
-    0x9ab,
-    0x9ab,
-    0x99b,
-    0x99b,
-    0x1de,
-    0x1de,
-    0xc95,
-    0xc95,
-    0xbcd,
-    0xbcd,
-    0x3e4,
-    0x3e4,
-    0x3df,
-    0x3df,
-    0x3be,
-    0x3be,
-    0x74d,
-    0x74d,
-    0x5f2,
-    0x5f2,
-    0x65c,
-    0x65c,
+    0x08ed, 0x0a0b, 0x0b9a, 0x0714, 0x05d5, 0x058e, 0x011f, 0x00ca,
+    0x0c56, 0x026e, 0x0629, 0x00b6, 0x03c2, 0x084f, 0x073f, 0x05bc,
+    0x023d, 0x07d4, 0x0108, 0x017f, 0x09c4, 0x05b2, 0x06bf, 0x0c7f,
+    0x0a58, 0x03f9, 0x02dc, 0x0260, 0x06fb, 0x019b, 0x0c34, 0x06de,
+    0x04c7, 0x04c7, 0x04c7, 0x04c7, 0x028c, 0x028c, 0x028c, 0x028c,
+    0x0ad9, 0x0ad9, 0x0ad9, 0x0ad9, 0x03f7, 0x03f7, 0x03f7, 0x03f7,
+    0x07f4, 0x07f4, 0x07f4, 0x07f4, 0x05d3, 0x05d3, 0x05d3, 0x05d3,
+    0x0be7, 0x0be7, 0x0be7, 0x0be7, 0x06f9, 0x06f9, 0x06f9, 0x06f9,
+    0x0204, 0x0204, 0x0204, 0x0204, 0x0cf9, 0x0cf9, 0x0cf9, 0x0cf9,
+    0x0bc1, 0x0bc1, 0x0bc1, 0x0bc1, 0x0a67, 0x0a67, 0x0a67, 0x0a67,
+    0x06af, 0x06af, 0x06af, 0x06af, 0x0877, 0x0877, 0x0877, 0x0877,
+    0x007e, 0x007e, 0x007e, 0x007e, 0x05bd, 0x05bd, 0x05bd, 0x05bd,
+    0x09ac, 0x09ac, 0x09ac, 0x09ac, 0x0ca7, 0x0ca7, 0x0ca7, 0x0ca7,
+    0x0bf2, 0x0bf2, 0x0bf2, 0x0bf2, 0x033e, 0x033e, 0x033e, 0x033e,
+    0x006b, 0x006b, 0x006b, 0x006b, 0x0774, 0x0774, 0x0774, 0x0774,
+    0x0c0a, 0x0c0a, 0x0c0a, 0x0c0a, 0x094a, 0x094a, 0x094a, 0x094a,
+    0x0b73, 0x0b73, 0x0b73, 0x0b73, 0x03c1, 0x03c1, 0x03c1, 0x03c1,
+    0x071d, 0x071d, 0x071d, 0x071d, 0x0a2c, 0x0a2c, 0x0a2c, 0x0a2c,
+    0x01c0, 0x01c0, 0x01c0, 0x01c0, 0x08d8, 0x08d8, 0x08d8, 0x08d8,
+    0x02a5, 0x02a5, 0x02a5, 0x02a5, 0x0806, 0x0806, 0x0806, 0x0806,
+    0x08b2, 0x08b2, 0x01ae, 0x01ae, 0x022b, 0x022b, 0x034b, 0x034b,
+    0x081e, 0x081e, 0x0367, 0x0367, 0x060e, 0x060e, 0x0069, 0x0069,
+    0x01a6, 0x01a6, 0x024b, 0x024b, 0x00b1, 0x00b1, 0x0c16, 0x0c16,
+    0x0bde, 0x0bde, 0x0b35, 0x0b35, 0x0626, 0x0626, 0x0675, 0x0675,
+    0x0c0b, 0x0c0b, 0x030a, 0x030a, 0x0487, 0x0487, 0x0c6e, 0x0c6e,
+    0x09f8, 0x09f8, 0x05cb, 0x05cb, 0x0aa7, 0x0aa7, 0x045f, 0x045f,
+    0x06cb, 0x06cb, 0x0284, 0x0284, 0x0999, 0x0999, 0x015d, 0x015d,
+    0x01a2, 0x01a2, 0x0149, 0x0149, 0x0c65, 0x0c65, 0x0cb6, 0x0cb6,
+    0x0331, 0x0331, 0x0449, 0x0449, 0x025b, 0x025b, 0x0262, 0x0262,
+    0x052a, 0x052a, 0x07fc, 0x07fc, 0x0748, 0x0748, 0x0180, 0x0180,
+    0x0842, 0x0842, 0x0c79, 0x0c79, 0x04c2, 0x04c2, 0x07ca, 0x07ca,
+    0x0997, 0x0997, 0x00dc, 0x00dc, 0x085e, 0x085e, 0x0686, 0x0686,
+    0x0860, 0x0860, 0x0707, 0x0707, 0x0803, 0x0803, 0x031a, 0x031a,
+    0x071b, 0x071b, 0x09ab, 0x09ab, 0x099b, 0x099b, 0x01de, 0x01de,
+    0x0c95, 0x0c95, 0x0bcd, 0x0bcd, 0x03e4, 0x03e4, 0x03df, 0x03df,
+    0x03be, 0x03be, 0x074d, 0x074d, 0x05f2, 0x05f2, 0x065c, 0x065c,
 };
 
 static const word16 L_kyber_aarch64_zetas_qinv[] = {
-    0xffed,
-    0x7b0b,
-    0x399a,
-    0x314,
-    0x34d5,
-    0xcf8e,
-    0x6e1f,
-    0xbeca,
-    0xae56,
-    0x6c6e,
-    0xf129,
-    0xc2b6,
-    0x29c2,
-    0x54f,
-    0xd43f,
-    0x79bc,
-    0xe93d,
-    0x43d4,
-    0x9908,
-    0x8e7f,
-    0x15c4,
-    0xfbb2,
-    0x53bf,
-    0x997f,
-    0x9258,
-    0x5ef9,
-    0xd6dc,
-    0x2260,
-    0x47fb,
-    0x229b,
-    0x6834,
-    0xc0de,
-    0xe9c7,
-    0xe9c7,
-    0xe9c7,
-    0xe9c7,
-    0xe68c,
-    0xe68c,
-    0xe68c,
-    0xe68c,
-    0x5d9,
-    0x5d9,
-    0x5d9,
-    0x5d9,
-    0x78f7,
-    0x78f7,
-    0x78f7,
-    0x78f7,
-    0xa3f4,
-    0xa3f4,
-    0xa3f4,
-    0xa3f4,
-    0x4ed3,
-    0x4ed3,
-    0x4ed3,
-    0x4ed3,
-    0x50e7,
-    0x50e7,
-    0x50e7,
-    0x50e7,
-    0x61f9,
-    0x61f9,
-    0x61f9,
-    0x61f9,
-    0xce04,
-    0xce04,
-    0xce04,
-    0xce04,
-    0x67f9,
-    0x67f9,
-    0x67f9,
-    0x67f9,
-    0x3ec1,
-    0x3ec1,
-    0x3ec1,
-    0x3ec1,
-    0xcf67,
-    0xcf67,
-    0xcf67,
-    0xcf67,
-    0x23af,
-    0x23af,
-    0x23af,
-    0x23af,
-    0xfd77,
-    0xfd77,
-    0xfd77,
-    0xfd77,
-    0x9a7e,
-    0x9a7e,
-    0x9a7e,
-    0x9a7e,
-    0x6cbd,
-    0x6cbd,
-    0x6cbd,
-    0x6cbd,
-    0x4dac,
-    0x4dac,
-    0x4dac,
-    0x4dac,
-    0x91a7,
-    0x91a7,
-    0x91a7,
-    0x91a7,
-    0xc1f2,
-    0xc1f2,
-    0xc1f2,
-    0xc1f2,
-    0xdd3e,
-    0xdd3e,
-    0xdd3e,
-    0xdd3e,
-    0x916b,
-    0x916b,
-    0x916b,
-    0x916b,
-    0x2374,
-    0x2374,
-    0x2374,
-    0x2374,
-    0x8a0a,
-    0x8a0a,
-    0x8a0a,
-    0x8a0a,
-    0x474a,
-    0x474a,
-    0x474a,
-    0x474a,
-    0x3473,
-    0x3473,
-    0x3473,
-    0x3473,
-    0x36c1,
-    0x36c1,
-    0x36c1,
-    0x36c1,
-    0x8e1d,
-    0x8e1d,
-    0x8e1d,
-    0x8e1d,
-    0xce2c,
-    0xce2c,
-    0xce2c,
-    0xce2c,
-    0x41c0,
-    0x41c0,
-    0x41c0,
-    0x41c0,
-    0x10d8,
-    0x10d8,
-    0x10d8,
-    0x10d8,
-    0xa1a5,
-    0xa1a5,
-    0xa1a5,
-    0xa1a5,
-    0xba06,
-    0xba06,
-    0xba06,
-    0xba06,
-    0xfeb2,
-    0xfeb2,
-    0x2bae,
-    0x2bae,
-    0xd32b,
-    0xd32b,
-    0x344b,
-    0x344b,
-    0x821e,
-    0x821e,
-    0xc867,
-    0xc867,
-    0x500e,
-    0x500e,
-    0xab69,
-    0xab69,
-    0x93a6,
-    0x93a6,
-    0x334b,
-    0x334b,
-    0x3b1,
-    0x3b1,
-    0xee16,
-    0xee16,
-    0xc5de,
-    0xc5de,
-    0x5a35,
-    0x5a35,
-    0x1826,
-    0x1826,
-    0x1575,
-    0x1575,
-    0x7d0b,
-    0x7d0b,
-    0x810a,
-    0x810a,
-    0x2987,
-    0x2987,
-    0x766e,
-    0x766e,
-    0x71f8,
-    0x71f8,
-    0xb6cb,
-    0xb6cb,
-    0x8fa7,
-    0x8fa7,
-    0x315f,
-    0x315f,
-    0xb7cb,
-    0xb7cb,
-    0x4e84,
-    0x4e84,
-    0x4499,
-    0x4499,
-    0x485d,
-    0x485d,
-    0xc7a2,
-    0xc7a2,
-    0x4c49,
-    0x4c49,
-    0xeb65,
-    0xeb65,
-    0xceb6,
-    0xceb6,
-    0x8631,
-    0x8631,
-    0x4f49,
-    0x4f49,
-    0x635b,
-    0x635b,
-    0x862,
-    0x862,
-    0xe32a,
-    0xe32a,
-    0x3bfc,
-    0x3bfc,
-    0x5f48,
-    0x5f48,
-    0x8180,
-    0x8180,
-    0xae42,
-    0xae42,
-    0xe779,
-    0xe779,
-    0x2ac2,
-    0x2ac2,
-    0xc5ca,
-    0xc5ca,
-    0x5e97,
-    0x5e97,
-    0xd4dc,
-    0xd4dc,
-    0x425e,
-    0x425e,
-    0x3886,
-    0x3886,
-    0x2860,
-    0x2860,
-    0xac07,
-    0xac07,
-    0xe103,
-    0xe103,
-    0xb11a,
-    0xb11a,
-    0xa81b,
-    0xa81b,
-    0x5aab,
-    0x5aab,
-    0x2a9b,
-    0x2a9b,
-    0xbbde,
-    0xbbde,
-    0x7b95,
-    0x7b95,
-    0xa2cd,
-    0xa2cd,
-    0x6fe4,
-    0x6fe4,
-    0xb0df,
-    0xb0df,
-    0x5dbe,
-    0x5dbe,
-    0x1e4d,
-    0x1e4d,
-    0xbbf2,
-    0xbbf2,
-    0x5a5c,
-    0x5a5c,
+    0xffed, 0x7b0b, 0x399a, 0x0314, 0x34d5, 0xcf8e, 0x6e1f, 0xbeca,
+    0xae56, 0x6c6e, 0xf129, 0xc2b6, 0x29c2, 0x054f, 0xd43f, 0x79bc,
+    0xe93d, 0x43d4, 0x9908, 0x8e7f, 0x15c4, 0xfbb2, 0x53bf, 0x997f,
+    0x9258, 0x5ef9, 0xd6dc, 0x2260, 0x47fb, 0x229b, 0x6834, 0xc0de,
+    0xe9c7, 0xe9c7, 0xe9c7, 0xe9c7, 0xe68c, 0xe68c, 0xe68c, 0xe68c,
+    0x05d9, 0x05d9, 0x05d9, 0x05d9, 0x78f7, 0x78f7, 0x78f7, 0x78f7,
+    0xa3f4, 0xa3f4, 0xa3f4, 0xa3f4, 0x4ed3, 0x4ed3, 0x4ed3, 0x4ed3,
+    0x50e7, 0x50e7, 0x50e7, 0x50e7, 0x61f9, 0x61f9, 0x61f9, 0x61f9,
+    0xce04, 0xce04, 0xce04, 0xce04, 0x67f9, 0x67f9, 0x67f9, 0x67f9,
+    0x3ec1, 0x3ec1, 0x3ec1, 0x3ec1, 0xcf67, 0xcf67, 0xcf67, 0xcf67,
+    0x23af, 0x23af, 0x23af, 0x23af, 0xfd77, 0xfd77, 0xfd77, 0xfd77,
+    0x9a7e, 0x9a7e, 0x9a7e, 0x9a7e, 0x6cbd, 0x6cbd, 0x6cbd, 0x6cbd,
+    0x4dac, 0x4dac, 0x4dac, 0x4dac, 0x91a7, 0x91a7, 0x91a7, 0x91a7,
+    0xc1f2, 0xc1f2, 0xc1f2, 0xc1f2, 0xdd3e, 0xdd3e, 0xdd3e, 0xdd3e,
+    0x916b, 0x916b, 0x916b, 0x916b, 0x2374, 0x2374, 0x2374, 0x2374,
+    0x8a0a, 0x8a0a, 0x8a0a, 0x8a0a, 0x474a, 0x474a, 0x474a, 0x474a,
+    0x3473, 0x3473, 0x3473, 0x3473, 0x36c1, 0x36c1, 0x36c1, 0x36c1,
+    0x8e1d, 0x8e1d, 0x8e1d, 0x8e1d, 0xce2c, 0xce2c, 0xce2c, 0xce2c,
+    0x41c0, 0x41c0, 0x41c0, 0x41c0, 0x10d8, 0x10d8, 0x10d8, 0x10d8,
+    0xa1a5, 0xa1a5, 0xa1a5, 0xa1a5, 0xba06, 0xba06, 0xba06, 0xba06,
+    0xfeb2, 0xfeb2, 0x2bae, 0x2bae, 0xd32b, 0xd32b, 0x344b, 0x344b,
+    0x821e, 0x821e, 0xc867, 0xc867, 0x500e, 0x500e, 0xab69, 0xab69,
+    0x93a6, 0x93a6, 0x334b, 0x334b, 0x03b1, 0x03b1, 0xee16, 0xee16,
+    0xc5de, 0xc5de, 0x5a35, 0x5a35, 0x1826, 0x1826, 0x1575, 0x1575,
+    0x7d0b, 0x7d0b, 0x810a, 0x810a, 0x2987, 0x2987, 0x766e, 0x766e,
+    0x71f8, 0x71f8, 0xb6cb, 0xb6cb, 0x8fa7, 0x8fa7, 0x315f, 0x315f,
+    0xb7cb, 0xb7cb, 0x4e84, 0x4e84, 0x4499, 0x4499, 0x485d, 0x485d,
+    0xc7a2, 0xc7a2, 0x4c49, 0x4c49, 0xeb65, 0xeb65, 0xceb6, 0xceb6,
+    0x8631, 0x8631, 0x4f49, 0x4f49, 0x635b, 0x635b, 0x0862, 0x0862,
+    0xe32a, 0xe32a, 0x3bfc, 0x3bfc, 0x5f48, 0x5f48, 0x8180, 0x8180,
+    0xae42, 0xae42, 0xe779, 0xe779, 0x2ac2, 0x2ac2, 0xc5ca, 0xc5ca,
+    0x5e97, 0x5e97, 0xd4dc, 0xd4dc, 0x425e, 0x425e, 0x3886, 0x3886,
+    0x2860, 0x2860, 0xac07, 0xac07, 0xe103, 0xe103, 0xb11a, 0xb11a,
+    0xa81b, 0xa81b, 0x5aab, 0x5aab, 0x2a9b, 0x2a9b, 0xbbde, 0xbbde,
+    0x7b95, 0x7b95, 0xa2cd, 0xa2cd, 0x6fe4, 0x6fe4, 0xb0df, 0xb0df,
+    0x5dbe, 0x5dbe, 0x1e4d, 0x1e4d, 0xbbf2, 0xbbf2, 0x5a5c, 0x5a5c,
 };
 
 void kyber_ntt(sword16* r)
@@ -714,60 +184,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v14.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
         "sqrdmulh	v22.8h, v14.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v15.8h, v1.h[1]\n\t"
         "mul	v30.8h, v16.8h, v1.h[1]\n\t"
         "sqrdmulh	v23.8h, v15.8h, v0.h[1]\n\t"
         "sqrdmulh	v24.8h, v16.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v17.8h, v1.h[1]\n\t"
         "mul	v30.8h, v18.8h, v1.h[1]\n\t"
         "sqrdmulh	v25.8h, v17.8h, v0.h[1]\n\t"
         "sqrdmulh	v26.8h, v18.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v19.8h, v1.h[1]\n\t"
         "mul	v30.8h, v20.8h, v1.h[1]\n\t"
         "sqrdmulh	v27.8h, v19.8h, v0.h[1]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v13.8h, v5.8h, v21.8h\n\t"
@@ -790,60 +240,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v10.8h, v1.h[2]\n\t"
         "sqrdmulh	v21.8h, v9.8h, v0.h[2]\n\t"
         "sqrdmulh	v22.8h, v10.8h, v0.h[2]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v11.8h, v1.h[2]\n\t"
         "mul	v30.8h, v12.8h, v1.h[2]\n\t"
         "sqrdmulh	v23.8h, v11.8h, v0.h[2]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[2]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v17.8h, v1.h[3]\n\t"
         "mul	v30.8h, v18.8h, v1.h[3]\n\t"
         "sqrdmulh	v25.8h, v17.8h, v0.h[3]\n\t"
         "sqrdmulh	v26.8h, v18.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v19.8h, v1.h[3]\n\t"
         "mul	v30.8h, v20.8h, v1.h[3]\n\t"
         "sqrdmulh	v27.8h, v19.8h, v0.h[3]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v9.8h, v5.8h, v21.8h\n\t"
@@ -866,60 +296,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v1.h[4]\n\t"
         "sqrdmulh	v21.8h, v7.8h, v0.h[4]\n\t"
         "sqrdmulh	v22.8h, v8.8h, v0.h[4]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v11.8h, v1.h[5]\n\t"
         "mul	v30.8h, v12.8h, v1.h[5]\n\t"
         "sqrdmulh	v23.8h, v11.8h, v0.h[5]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v15.8h, v1.h[6]\n\t"
         "mul	v30.8h, v16.8h, v1.h[6]\n\t"
         "sqrdmulh	v25.8h, v15.8h, v0.h[6]\n\t"
         "sqrdmulh	v26.8h, v16.8h, v0.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v19.8h, v1.h[7]\n\t"
         "mul	v30.8h, v20.8h, v1.h[7]\n\t"
         "sqrdmulh	v27.8h, v19.8h, v0.h[7]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v7.8h, v5.8h, v21.8h\n\t"
@@ -944,60 +354,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
         "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v10.8h, v1.h[2]\n\t"
         "mul	v30.8h, v12.8h, v1.h[3]\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v14.8h, v1.h[4]\n\t"
         "mul	v30.8h, v16.8h, v1.h[5]\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
         "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v18.8h, v1.h[6]\n\t"
         "mul	v30.8h, v20.8h, v1.h[7]\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -1054,60 +444,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v14.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
         "sqrdmulh	v22.8h, v14.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v15.8h, v1.h[1]\n\t"
         "mul	v30.8h, v16.8h, v1.h[1]\n\t"
         "sqrdmulh	v23.8h, v15.8h, v0.h[1]\n\t"
         "sqrdmulh	v24.8h, v16.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v17.8h, v1.h[1]\n\t"
         "mul	v30.8h, v18.8h, v1.h[1]\n\t"
         "sqrdmulh	v25.8h, v17.8h, v0.h[1]\n\t"
         "sqrdmulh	v26.8h, v18.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v19.8h, v1.h[1]\n\t"
         "mul	v30.8h, v20.8h, v1.h[1]\n\t"
         "sqrdmulh	v27.8h, v19.8h, v0.h[1]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v13.8h, v5.8h, v21.8h\n\t"
@@ -1130,60 +500,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v10.8h, v1.h[2]\n\t"
         "sqrdmulh	v21.8h, v9.8h, v0.h[2]\n\t"
         "sqrdmulh	v22.8h, v10.8h, v0.h[2]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v11.8h, v1.h[2]\n\t"
         "mul	v30.8h, v12.8h, v1.h[2]\n\t"
         "sqrdmulh	v23.8h, v11.8h, v0.h[2]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[2]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v17.8h, v1.h[3]\n\t"
         "mul	v30.8h, v18.8h, v1.h[3]\n\t"
         "sqrdmulh	v25.8h, v17.8h, v0.h[3]\n\t"
         "sqrdmulh	v26.8h, v18.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v19.8h, v1.h[3]\n\t"
         "mul	v30.8h, v20.8h, v1.h[3]\n\t"
         "sqrdmulh	v27.8h, v19.8h, v0.h[3]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v9.8h, v5.8h, v21.8h\n\t"
@@ -1206,60 +556,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v1.h[4]\n\t"
         "sqrdmulh	v21.8h, v7.8h, v0.h[4]\n\t"
         "sqrdmulh	v22.8h, v8.8h, v0.h[4]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v11.8h, v1.h[5]\n\t"
         "mul	v30.8h, v12.8h, v1.h[5]\n\t"
         "sqrdmulh	v23.8h, v11.8h, v0.h[5]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v15.8h, v1.h[6]\n\t"
         "mul	v30.8h, v16.8h, v1.h[6]\n\t"
         "sqrdmulh	v25.8h, v15.8h, v0.h[6]\n\t"
         "sqrdmulh	v26.8h, v16.8h, v0.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v19.8h, v1.h[7]\n\t"
         "mul	v30.8h, v20.8h, v1.h[7]\n\t"
         "sqrdmulh	v27.8h, v19.8h, v0.h[7]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v7.8h, v5.8h, v21.8h\n\t"
@@ -1284,60 +614,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
         "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v10.8h, v1.h[2]\n\t"
         "mul	v30.8h, v12.8h, v1.h[3]\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v14.8h, v1.h[4]\n\t"
         "mul	v30.8h, v16.8h, v1.h[5]\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
         "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v18.8h, v1.h[6]\n\t"
         "mul	v30.8h, v20.8h, v1.h[7]\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -1386,60 +696,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
         "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v10.8h, v1.h[2]\n\t"
         "mul	v30.8h, v12.8h, v1.h[3]\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v14.8h, v1.h[4]\n\t"
         "mul	v30.8h, v16.8h, v1.h[5]\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
         "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v18.8h, v1.h[6]\n\t"
         "mul	v30.8h, v20.8h, v1.h[7]\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -1472,15 +762,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v3.8h\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
         "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "ldr	q0, [x2, #96]\n\t"
@@ -1497,15 +782,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v12.8h, v3.8h\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #128]\n\t"
@@ -1522,15 +802,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v16.8h, v3.8h\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
         "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "ldr	q0, [x2, #160]\n\t"
@@ -1547,15 +822,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v20.8h, v3.8h\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
         "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -1588,15 +858,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v3.8h\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
         "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "ldr	q0, [x2, #352]\n\t"
@@ -1613,15 +878,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v12.8h, v3.8h\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #384]\n\t"
@@ -1638,15 +898,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v16.8h, v3.8h\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
         "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "ldr	q0, [x2, #416]\n\t"
@@ -1663,15 +918,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v20.8h, v3.8h\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
         "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -1808,60 +1058,40 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v1.h[1]\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
         "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v29.8h, v10.8h, v1.h[2]\n\t"
         "mul	v30.8h, v12.8h, v1.h[3]\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
         "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v29.8h, v14.8h, v1.h[4]\n\t"
         "mul	v30.8h, v16.8h, v1.h[5]\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
         "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "mul	v29.8h, v18.8h, v1.h[6]\n\t"
         "mul	v30.8h, v20.8h, v1.h[7]\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
         "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -1894,15 +1124,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v3.8h\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
         "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "ldr	q0, [x2, #224]\n\t"
@@ -1919,15 +1144,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v12.8h, v3.8h\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #256]\n\t"
@@ -1944,15 +1164,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v16.8h, v3.8h\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
         "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "ldr	q0, [x2, #288]\n\t"
@@ -1969,15 +1184,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v20.8h, v3.8h\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
         "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -2010,15 +1220,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v8.8h, v3.8h\n\t"
         "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
         "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v21.8h, v21.8h, v29.8h\n\t"
         "sub	v22.8h, v22.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "ldr	q0, [x2, #480]\n\t"
@@ -2035,15 +1240,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v12.8h, v3.8h\n\t"
         "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v23.8h, v23.8h, v29.8h\n\t"
         "sub	v24.8h, v24.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #512]\n\t"
@@ -2060,15 +1260,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v16.8h, v3.8h\n\t"
         "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
         "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v25.8h, v25.8h, v29.8h\n\t"
         "sub	v26.8h, v26.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v25.8h, v25.8h, #1\n\t"
         "sshr	v26.8h, v26.8h, #1\n\t"
         "ldr	q0, [x2, #544]\n\t"
@@ -2085,15 +1280,10 @@ void kyber_ntt(sword16* r)
         "mul	v30.8h, v20.8h, v3.8h\n\t"
         "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
         "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
-        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
-#else
         "sqrdmulh	v29.8h, v29.8h, v4.h[0]\n\t"
         "sqrdmulh	v30.8h, v30.8h, v4.h[0]\n\t"
         "sub	v27.8h, v27.8h, v29.8h\n\t"
         "sub	v28.8h, v28.8h, v30.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v27.8h, v27.8h, #1\n\t"
         "sshr	v28.8h, v28.8h, #1\n\t"
         "sub	v6.8h, v5.8h, v21.8h\n\t"
@@ -2223,585 +1413,81 @@ void kyber_ntt(sword16* r)
 }
 
 static const word16 L_kyber_aarch64_zetas_inv[] = {
-    0x6a5,
-    0x6a5,
-    0x70f,
-    0x70f,
-    0x5b4,
-    0x5b4,
-    0x943,
-    0x943,
-    0x922,
-    0x922,
-    0x91d,
-    0x91d,
-    0x134,
-    0x134,
-    0x6c,
-    0x6c,
-    0xb23,
-    0xb23,
-    0x366,
-    0x366,
-    0x356,
-    0x356,
-    0x5e6,
-    0x5e6,
-    0x9e7,
-    0x9e7,
-    0x4fe,
-    0x4fe,
-    0x5fa,
-    0x5fa,
-    0x4a1,
-    0x4a1,
-    0x67b,
-    0x67b,
-    0x4a3,
-    0x4a3,
-    0xc25,
-    0xc25,
-    0x36a,
-    0x36a,
-    0x537,
-    0x537,
-    0x83f,
-    0x83f,
-    0x88,
-    0x88,
-    0x4bf,
-    0x4bf,
-    0xb81,
-    0xb81,
-    0x5b9,
-    0x5b9,
-    0x505,
-    0x505,
-    0x7d7,
-    0x7d7,
-    0xa9f,
-    0xa9f,
-    0xaa6,
-    0xaa6,
-    0x8b8,
-    0x8b8,
-    0x9d0,
-    0x9d0,
-    0x4b,
-    0x4b,
-    0x9c,
-    0x9c,
-    0xbb8,
-    0xbb8,
-    0xb5f,
-    0xb5f,
-    0xba4,
-    0xba4,
-    0x368,
-    0x368,
-    0xa7d,
-    0xa7d,
-    0x636,
-    0x636,
-    0x8a2,
-    0x8a2,
-    0x25a,
-    0x25a,
-    0x736,
-    0x736,
-    0x309,
-    0x309,
-    0x93,
-    0x93,
-    0x87a,
-    0x87a,
-    0x9f7,
-    0x9f7,
-    0xf6,
-    0xf6,
-    0x68c,
-    0x68c,
-    0x6db,
-    0x6db,
-    0x1cc,
-    0x1cc,
-    0x123,
-    0x123,
-    0xeb,
-    0xeb,
-    0xc50,
-    0xc50,
-    0xab6,
-    0xab6,
-    0xb5b,
-    0xb5b,
-    0xc98,
-    0xc98,
-    0x6f3,
-    0x6f3,
-    0x99a,
-    0x99a,
-    0x4e3,
-    0x4e3,
-    0x9b6,
-    0x9b6,
-    0xad6,
-    0xad6,
-    0xb53,
-    0xb53,
-    0x44f,
-    0x44f,
-    0x4fb,
-    0x4fb,
-    0x4fb,
-    0x4fb,
-    0xa5c,
-    0xa5c,
-    0xa5c,
-    0xa5c,
-    0x429,
-    0x429,
-    0x429,
-    0x429,
-    0xb41,
-    0xb41,
-    0xb41,
-    0xb41,
-    0x2d5,
-    0x2d5,
-    0x2d5,
-    0x2d5,
-    0x5e4,
-    0x5e4,
-    0x5e4,
-    0x5e4,
-    0x940,
-    0x940,
-    0x940,
-    0x940,
-    0x18e,
-    0x18e,
-    0x18e,
-    0x18e,
-    0x3b7,
-    0x3b7,
-    0x3b7,
-    0x3b7,
-    0xf7,
-    0xf7,
-    0xf7,
-    0xf7,
-    0x58d,
-    0x58d,
-    0x58d,
-    0x58d,
-    0xc96,
-    0xc96,
-    0xc96,
-    0xc96,
-    0x9c3,
-    0x9c3,
-    0x9c3,
-    0x9c3,
-    0x10f,
-    0x10f,
-    0x10f,
-    0x10f,
-    0x5a,
-    0x5a,
-    0x5a,
-    0x5a,
-    0x355,
-    0x355,
-    0x355,
-    0x355,
-    0x744,
-    0x744,
-    0x744,
-    0x744,
-    0xc83,
-    0xc83,
-    0xc83,
-    0xc83,
-    0x48a,
-    0x48a,
-    0x48a,
-    0x48a,
-    0x652,
-    0x652,
-    0x652,
-    0x652,
-    0x29a,
-    0x29a,
-    0x29a,
-    0x29a,
-    0x140,
-    0x140,
-    0x140,
-    0x140,
-    0x8,
-    0x8,
-    0x8,
-    0x8,
-    0xafd,
-    0xafd,
-    0xafd,
-    0xafd,
-    0x608,
-    0x608,
-    0x608,
-    0x608,
-    0x11a,
-    0x11a,
-    0x11a,
-    0x11a,
-    0x72e,
-    0x72e,
-    0x72e,
-    0x72e,
-    0x50d,
-    0x50d,
-    0x50d,
-    0x50d,
-    0x90a,
-    0x90a,
-    0x90a,
-    0x90a,
-    0x228,
-    0x228,
-    0x228,
-    0x228,
-    0xa75,
-    0xa75,
-    0xa75,
-    0xa75,
-    0x83a,
-    0x83a,
-    0x83a,
-    0x83a,
-    0x623,
-    0xcd,
-    0xb66,
-    0x606,
-    0xaa1,
-    0xa25,
-    0x908,
-    0x2a9,
-    0x82,
-    0x642,
-    0x74f,
-    0x33d,
-    0xb82,
-    0xbf9,
-    0x52d,
-    0xac4,
-    0x745,
-    0x5c2,
-    0x4b2,
-    0x93f,
-    0xc4b,
-    0x6d8,
-    0xa93,
-    0xab,
-    0xc37,
-    0xbe2,
-    0x773,
-    0x72c,
-    0x5ed,
-    0x167,
-    0x2f6,
-    0x5a1,
+    0x06a5, 0x06a5, 0x070f, 0x070f, 0x05b4, 0x05b4, 0x0943, 0x0943,
+    0x0922, 0x0922, 0x091d, 0x091d, 0x0134, 0x0134, 0x006c, 0x006c,
+    0x0b23, 0x0b23, 0x0366, 0x0366, 0x0356, 0x0356, 0x05e6, 0x05e6,
+    0x09e7, 0x09e7, 0x04fe, 0x04fe, 0x05fa, 0x05fa, 0x04a1, 0x04a1,
+    0x067b, 0x067b, 0x04a3, 0x04a3, 0x0c25, 0x0c25, 0x036a, 0x036a,
+    0x0537, 0x0537, 0x083f, 0x083f, 0x0088, 0x0088, 0x04bf, 0x04bf,
+    0x0b81, 0x0b81, 0x05b9, 0x05b9, 0x0505, 0x0505, 0x07d7, 0x07d7,
+    0x0a9f, 0x0a9f, 0x0aa6, 0x0aa6, 0x08b8, 0x08b8, 0x09d0, 0x09d0,
+    0x004b, 0x004b, 0x009c, 0x009c, 0x0bb8, 0x0bb8, 0x0b5f, 0x0b5f,
+    0x0ba4, 0x0ba4, 0x0368, 0x0368, 0x0a7d, 0x0a7d, 0x0636, 0x0636,
+    0x08a2, 0x08a2, 0x025a, 0x025a, 0x0736, 0x0736, 0x0309, 0x0309,
+    0x0093, 0x0093, 0x087a, 0x087a, 0x09f7, 0x09f7, 0x00f6, 0x00f6,
+    0x068c, 0x068c, 0x06db, 0x06db, 0x01cc, 0x01cc, 0x0123, 0x0123,
+    0x00eb, 0x00eb, 0x0c50, 0x0c50, 0x0ab6, 0x0ab6, 0x0b5b, 0x0b5b,
+    0x0c98, 0x0c98, 0x06f3, 0x06f3, 0x099a, 0x099a, 0x04e3, 0x04e3,
+    0x09b6, 0x09b6, 0x0ad6, 0x0ad6, 0x0b53, 0x0b53, 0x044f, 0x044f,
+    0x04fb, 0x04fb, 0x04fb, 0x04fb, 0x0a5c, 0x0a5c, 0x0a5c, 0x0a5c,
+    0x0429, 0x0429, 0x0429, 0x0429, 0x0b41, 0x0b41, 0x0b41, 0x0b41,
+    0x02d5, 0x02d5, 0x02d5, 0x02d5, 0x05e4, 0x05e4, 0x05e4, 0x05e4,
+    0x0940, 0x0940, 0x0940, 0x0940, 0x018e, 0x018e, 0x018e, 0x018e,
+    0x03b7, 0x03b7, 0x03b7, 0x03b7, 0x00f7, 0x00f7, 0x00f7, 0x00f7,
+    0x058d, 0x058d, 0x058d, 0x058d, 0x0c96, 0x0c96, 0x0c96, 0x0c96,
+    0x09c3, 0x09c3, 0x09c3, 0x09c3, 0x010f, 0x010f, 0x010f, 0x010f,
+    0x005a, 0x005a, 0x005a, 0x005a, 0x0355, 0x0355, 0x0355, 0x0355,
+    0x0744, 0x0744, 0x0744, 0x0744, 0x0c83, 0x0c83, 0x0c83, 0x0c83,
+    0x048a, 0x048a, 0x048a, 0x048a, 0x0652, 0x0652, 0x0652, 0x0652,
+    0x029a, 0x029a, 0x029a, 0x029a, 0x0140, 0x0140, 0x0140, 0x0140,
+    0x0008, 0x0008, 0x0008, 0x0008, 0x0afd, 0x0afd, 0x0afd, 0x0afd,
+    0x0608, 0x0608, 0x0608, 0x0608, 0x011a, 0x011a, 0x011a, 0x011a,
+    0x072e, 0x072e, 0x072e, 0x072e, 0x050d, 0x050d, 0x050d, 0x050d,
+    0x090a, 0x090a, 0x090a, 0x090a, 0x0228, 0x0228, 0x0228, 0x0228,
+    0x0a75, 0x0a75, 0x0a75, 0x0a75, 0x083a, 0x083a, 0x083a, 0x083a,
+    0x0623, 0x00cd, 0x0b66, 0x0606, 0x0aa1, 0x0a25, 0x0908, 0x02a9,
+    0x0082, 0x0642, 0x074f, 0x033d, 0x0b82, 0x0bf9, 0x052d, 0x0ac4,
+    0x0745, 0x05c2, 0x04b2, 0x093f, 0x0c4b, 0x06d8, 0x0a93, 0x00ab,
+    0x0c37, 0x0be2, 0x0773, 0x072c, 0x05ed, 0x0167, 0x02f6, 0x05a1,
 };
 
 static const word16 L_kyber_aarch64_zetas_inv_qinv[] = {
-    0xa5a5,
-    0xa5a5,
-    0x440f,
-    0x440f,
-    0xe1b4,
-    0xe1b4,
-    0xa243,
-    0xa243,
-    0x4f22,
-    0x4f22,
-    0x901d,
-    0x901d,
-    0x5d34,
-    0x5d34,
-    0x846c,
-    0x846c,
-    0x4423,
-    0x4423,
-    0xd566,
-    0xd566,
-    0xa556,
-    0xa556,
-    0x57e6,
-    0x57e6,
-    0x4ee7,
-    0x4ee7,
-    0x1efe,
-    0x1efe,
-    0x53fa,
-    0x53fa,
-    0xd7a1,
-    0xd7a1,
-    0xc77b,
-    0xc77b,
-    0xbda3,
-    0xbda3,
-    0x2b25,
-    0x2b25,
-    0xa16a,
-    0xa16a,
-    0x3a37,
-    0x3a37,
-    0xd53f,
-    0xd53f,
-    0x1888,
-    0x1888,
-    0x51bf,
-    0x51bf,
-    0x7e81,
-    0x7e81,
-    0xa0b9,
-    0xa0b9,
-    0xc405,
-    0xc405,
-    0x1cd7,
-    0x1cd7,
-    0xf79f,
-    0xf79f,
-    0x9ca6,
-    0x9ca6,
-    0xb0b8,
-    0xb0b8,
-    0x79d0,
-    0x79d0,
-    0x314b,
-    0x314b,
-    0x149c,
-    0x149c,
-    0xb3b8,
-    0xb3b8,
-    0x385f,
-    0x385f,
-    0xb7a4,
-    0xb7a4,
-    0xbb68,
-    0xbb68,
-    0xb17d,
-    0xb17d,
-    0x4836,
-    0x4836,
-    0xcea2,
-    0xcea2,
-    0x705a,
-    0x705a,
-    0x4936,
-    0x4936,
-    0x8e09,
-    0x8e09,
-    0x8993,
-    0x8993,
-    0xd67a,
-    0xd67a,
-    0x7ef7,
-    0x7ef7,
-    0x82f6,
-    0x82f6,
-    0xea8c,
-    0xea8c,
-    0xe7db,
-    0xe7db,
-    0xa5cc,
-    0xa5cc,
-    0x3a23,
-    0x3a23,
-    0x11eb,
-    0x11eb,
-    0xfc50,
-    0xfc50,
-    0xccb6,
-    0xccb6,
-    0x6c5b,
-    0x6c5b,
-    0x5498,
-    0x5498,
-    0xaff3,
-    0xaff3,
-    0x379a,
-    0x379a,
-    0x7de3,
-    0x7de3,
-    0xcbb6,
-    0xcbb6,
-    0x2cd6,
-    0x2cd6,
-    0xd453,
-    0xd453,
-    0x14f,
-    0x14f,
-    0x45fb,
-    0x45fb,
-    0x45fb,
-    0x45fb,
-    0x5e5c,
-    0x5e5c,
-    0x5e5c,
-    0x5e5c,
-    0xef29,
-    0xef29,
-    0xef29,
-    0xef29,
-    0xbe41,
-    0xbe41,
-    0xbe41,
-    0xbe41,
-    0x31d5,
-    0x31d5,
-    0x31d5,
-    0x31d5,
-    0x71e4,
-    0x71e4,
-    0x71e4,
-    0x71e4,
-    0xc940,
-    0xc940,
-    0xc940,
-    0xc940,
-    0xcb8e,
-    0xcb8e,
-    0xcb8e,
-    0xcb8e,
-    0xb8b7,
-    0xb8b7,
-    0xb8b7,
-    0xb8b7,
-    0x75f7,
-    0x75f7,
-    0x75f7,
-    0x75f7,
-    0xdc8d,
-    0xdc8d,
-    0xdc8d,
-    0xdc8d,
-    0x6e96,
-    0x6e96,
-    0x6e96,
-    0x6e96,
-    0x22c3,
-    0x22c3,
-    0x22c3,
-    0x22c3,
-    0x3e0f,
-    0x3e0f,
-    0x3e0f,
-    0x3e0f,
-    0x6e5a,
-    0x6e5a,
-    0x6e5a,
-    0x6e5a,
-    0xb255,
-    0xb255,
-    0xb255,
-    0xb255,
-    0x9344,
-    0x9344,
-    0x9344,
-    0x9344,
-    0x6583,
-    0x6583,
-    0x6583,
-    0x6583,
-    0x28a,
-    0x28a,
-    0x28a,
-    0x28a,
-    0xdc52,
-    0xdc52,
-    0xdc52,
-    0xdc52,
-    0x309a,
-    0x309a,
-    0x309a,
-    0x309a,
-    0xc140,
-    0xc140,
-    0xc140,
-    0xc140,
-    0x9808,
-    0x9808,
-    0x9808,
-    0x9808,
-    0x31fd,
-    0x31fd,
-    0x31fd,
-    0x31fd,
-    0x9e08,
-    0x9e08,
-    0x9e08,
-    0x9e08,
-    0xaf1a,
-    0xaf1a,
-    0xaf1a,
-    0xaf1a,
-    0xb12e,
-    0xb12e,
-    0xb12e,
-    0xb12e,
-    0x5c0d,
-    0x5c0d,
-    0x5c0d,
-    0x5c0d,
-    0x870a,
-    0x870a,
-    0x870a,
-    0x870a,
-    0xfa28,
-    0xfa28,
-    0xfa28,
-    0xfa28,
-    0x1975,
-    0x1975,
-    0x1975,
-    0x1975,
-    0x163a,
-    0x163a,
-    0x163a,
-    0x163a,
-    0x3f23,
-    0x97cd,
-    0xdd66,
-    0xb806,
-    0xdda1,
-    0x2925,
-    0xa108,
-    0x6da9,
-    0x6682,
-    0xac42,
-    0x44f,
-    0xea3d,
-    0x7182,
-    0x66f9,
-    0xbc2d,
-    0x16c4,
-    0x8645,
-    0x2bc2,
-    0xfab2,
-    0xd63f,
-    0x3d4b,
-    0xed8,
-    0x9393,
-    0x51ab,
-    0x4137,
-    0x91e2,
-    0x3073,
-    0xcb2c,
-    0xfced,
-    0xc667,
-    0x84f6,
-    0xd8a1,
+    0xa5a5, 0xa5a5, 0x440f, 0x440f, 0xe1b4, 0xe1b4, 0xa243, 0xa243,
+    0x4f22, 0x4f22, 0x901d, 0x901d, 0x5d34, 0x5d34, 0x846c, 0x846c,
+    0x4423, 0x4423, 0xd566, 0xd566, 0xa556, 0xa556, 0x57e6, 0x57e6,
+    0x4ee7, 0x4ee7, 0x1efe, 0x1efe, 0x53fa, 0x53fa, 0xd7a1, 0xd7a1,
+    0xc77b, 0xc77b, 0xbda3, 0xbda3, 0x2b25, 0x2b25, 0xa16a, 0xa16a,
+    0x3a37, 0x3a37, 0xd53f, 0xd53f, 0x1888, 0x1888, 0x51bf, 0x51bf,
+    0x7e81, 0x7e81, 0xa0b9, 0xa0b9, 0xc405, 0xc405, 0x1cd7, 0x1cd7,
+    0xf79f, 0xf79f, 0x9ca6, 0x9ca6, 0xb0b8, 0xb0b8, 0x79d0, 0x79d0,
+    0x314b, 0x314b, 0x149c, 0x149c, 0xb3b8, 0xb3b8, 0x385f, 0x385f,
+    0xb7a4, 0xb7a4, 0xbb68, 0xbb68, 0xb17d, 0xb17d, 0x4836, 0x4836,
+    0xcea2, 0xcea2, 0x705a, 0x705a, 0x4936, 0x4936, 0x8e09, 0x8e09,
+    0x8993, 0x8993, 0xd67a, 0xd67a, 0x7ef7, 0x7ef7, 0x82f6, 0x82f6,
+    0xea8c, 0xea8c, 0xe7db, 0xe7db, 0xa5cc, 0xa5cc, 0x3a23, 0x3a23,
+    0x11eb, 0x11eb, 0xfc50, 0xfc50, 0xccb6, 0xccb6, 0x6c5b, 0x6c5b,
+    0x5498, 0x5498, 0xaff3, 0xaff3, 0x379a, 0x379a, 0x7de3, 0x7de3,
+    0xcbb6, 0xcbb6, 0x2cd6, 0x2cd6, 0xd453, 0xd453, 0x014f, 0x014f,
+    0x45fb, 0x45fb, 0x45fb, 0x45fb, 0x5e5c, 0x5e5c, 0x5e5c, 0x5e5c,
+    0xef29, 0xef29, 0xef29, 0xef29, 0xbe41, 0xbe41, 0xbe41, 0xbe41,
+    0x31d5, 0x31d5, 0x31d5, 0x31d5, 0x71e4, 0x71e4, 0x71e4, 0x71e4,
+    0xc940, 0xc940, 0xc940, 0xc940, 0xcb8e, 0xcb8e, 0xcb8e, 0xcb8e,
+    0xb8b7, 0xb8b7, 0xb8b7, 0xb8b7, 0x75f7, 0x75f7, 0x75f7, 0x75f7,
+    0xdc8d, 0xdc8d, 0xdc8d, 0xdc8d, 0x6e96, 0x6e96, 0x6e96, 0x6e96,
+    0x22c3, 0x22c3, 0x22c3, 0x22c3, 0x3e0f, 0x3e0f, 0x3e0f, 0x3e0f,
+    0x6e5a, 0x6e5a, 0x6e5a, 0x6e5a, 0xb255, 0xb255, 0xb255, 0xb255,
+    0x9344, 0x9344, 0x9344, 0x9344, 0x6583, 0x6583, 0x6583, 0x6583,
+    0x028a, 0x028a, 0x028a, 0x028a, 0xdc52, 0xdc52, 0xdc52, 0xdc52,
+    0x309a, 0x309a, 0x309a, 0x309a, 0xc140, 0xc140, 0xc140, 0xc140,
+    0x9808, 0x9808, 0x9808, 0x9808, 0x31fd, 0x31fd, 0x31fd, 0x31fd,
+    0x9e08, 0x9e08, 0x9e08, 0x9e08, 0xaf1a, 0xaf1a, 0xaf1a, 0xaf1a,
+    0xb12e, 0xb12e, 0xb12e, 0xb12e, 0x5c0d, 0x5c0d, 0x5c0d, 0x5c0d,
+    0x870a, 0x870a, 0x870a, 0x870a, 0xfa28, 0xfa28, 0xfa28, 0xfa28,
+    0x1975, 0x1975, 0x1975, 0x1975, 0x163a, 0x163a, 0x163a, 0x163a,
+    0x3f23, 0x97cd, 0xdd66, 0xb806, 0xdda1, 0x2925, 0xa108, 0x6da9,
+    0x6682, 0xac42, 0x044f, 0xea3d, 0x7182, 0x66f9, 0xbc2d, 0x16c4,
+    0x8645, 0x2bc2, 0xfab2, 0xd63f, 0x3d4b, 0x0ed8, 0x9393, 0x51ab,
+    0x4137, 0x91e2, 0x3073, 0xcb2c, 0xfced, 0xc667, 0x84f6, 0xd8a1,
 };
 
 void kyber_invntt(sword16* r)
@@ -2898,15 +1584,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "ldr	q0, [x2, #32]\n\t"
@@ -2921,15 +1602,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "ldr	q0, [x2, #64]\n\t"
@@ -2944,15 +1620,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "ldr	q0, [x2, #96]\n\t"
@@ -2967,15 +1638,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #256]\n\t"
@@ -2996,15 +1662,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "ldr	q0, [x2, #288]\n\t"
@@ -3025,15 +1686,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "ldr	q0, [x2, #320]\n\t"
@@ -3054,15 +1710,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "ldr	q0, [x2, #352]\n\t"
@@ -3083,15 +1734,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #512]\n\t"
@@ -3110,15 +1756,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[1]\n\t"
         "sqrdmulh	v10.8h, v26.8h, v0.h[0]\n\t"
         "sqrdmulh	v12.8h, v28.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "mov	v25.16b, v13.16b\n\t"
@@ -3135,15 +1776,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[3]\n\t"
         "sqrdmulh	v14.8h, v26.8h, v0.h[2]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "mov	v25.16b, v17.16b\n\t"
@@ -3160,15 +1796,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[5]\n\t"
         "sqrdmulh	v18.8h, v26.8h, v0.h[4]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "mov	v25.16b, v21.16b\n\t"
@@ -3185,15 +1816,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[7]\n\t"
         "sqrdmulh	v22.8h, v26.8h, v0.h[6]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
@@ -3296,15 +1922,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "ldr	q0, [x2, #160]\n\t"
@@ -3319,15 +1940,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "ldr	q0, [x2, #192]\n\t"
@@ -3342,15 +1958,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "ldr	q0, [x2, #224]\n\t"
@@ -3365,15 +1976,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #384]\n\t"
@@ -3394,15 +2000,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "ldr	q0, [x2, #416]\n\t"
@@ -3423,15 +2024,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "ldr	q0, [x2, #448]\n\t"
@@ -3452,15 +2048,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "ldr	q0, [x2, #480]\n\t"
@@ -3481,15 +2072,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v3.8h\n\t"
         "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
         "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "ldr	q0, [x2, #528]\n\t"
@@ -3508,15 +2094,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[1]\n\t"
         "sqrdmulh	v10.8h, v26.8h, v0.h[0]\n\t"
         "sqrdmulh	v12.8h, v28.8h, v0.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "mov	v25.16b, v13.16b\n\t"
@@ -3533,15 +2114,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[3]\n\t"
         "sqrdmulh	v14.8h, v26.8h, v0.h[2]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "mov	v25.16b, v17.16b\n\t"
@@ -3558,15 +2134,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[5]\n\t"
         "sqrdmulh	v18.8h, v26.8h, v0.h[4]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v0.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "mov	v25.16b, v21.16b\n\t"
@@ -3583,15 +2154,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v2.h[7]\n\t"
         "sqrdmulh	v22.8h, v26.8h, v0.h[6]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v0.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
@@ -3654,15 +2220,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[1]\n\t"
         "sqrdmulh	v10.8h, v26.8h, v4.h[0]\n\t"
         "sqrdmulh	v12.8h, v28.8h, v4.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "sub	v26.8h, v13.8h, v14.8h\n\t"
@@ -3673,15 +2234,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[3]\n\t"
         "sqrdmulh	v14.8h, v26.8h, v4.h[2]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v4.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "sub	v26.8h, v17.8h, v18.8h\n\t"
@@ -3692,15 +2248,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[5]\n\t"
         "sqrdmulh	v18.8h, v26.8h, v4.h[4]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v4.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "sub	v26.8h, v21.8h, v22.8h\n\t"
@@ -3711,15 +2262,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[7]\n\t"
         "sqrdmulh	v22.8h, v26.8h, v4.h[6]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v4.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sub	v26.8h, v9.8h, v11.8h\n\t"
@@ -3730,15 +2276,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[0]\n\t"
         "sqrdmulh	v11.8h, v26.8h, v5.h[0]\n\t"
         "sqrdmulh	v12.8h, v28.8h, v5.h[0]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v11.8h, v11.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v11.8h, v11.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "sub	v26.8h, v13.8h, v15.8h\n\t"
@@ -3749,15 +2290,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[1]\n\t"
         "sqrdmulh	v15.8h, v26.8h, v5.h[1]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v5.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v15.8h, v15.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "sub	v26.8h, v17.8h, v19.8h\n\t"
@@ -3768,15 +2304,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[2]\n\t"
         "sqrdmulh	v19.8h, v26.8h, v5.h[2]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v5.h[2]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v19.8h, v19.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v19.8h, v19.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "sub	v26.8h, v21.8h, v23.8h\n\t"
@@ -3787,15 +2318,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[3]\n\t"
         "sqrdmulh	v23.8h, v26.8h, v5.h[3]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v5.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sub	v26.8h, v9.8h, v13.8h\n\t"
@@ -3806,15 +2332,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[4]\n\t"
         "sqrdmulh	v13.8h, v26.8h, v5.h[4]\n\t"
         "sqrdmulh	v14.8h, v28.8h, v5.h[4]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v14.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v13.8h, v13.8h, v25.8h\n\t"
         "sub	v14.8h, v14.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v13.8h, v13.8h, #1\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sub	v26.8h, v11.8h, v15.8h\n\t"
@@ -3825,15 +2346,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[4]\n\t"
         "sqrdmulh	v15.8h, v26.8h, v5.h[4]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v5.h[4]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v15.8h, v15.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "sub	v26.8h, v17.8h, v21.8h\n\t"
@@ -3844,15 +2360,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[5]\n\t"
         "sqrdmulh	v21.8h, v26.8h, v5.h[5]\n\t"
         "sqrdmulh	v22.8h, v28.8h, v5.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v21.8h, v21.8h, v25.8h\n\t"
         "sub	v22.8h, v22.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sub	v26.8h, v19.8h, v23.8h\n\t"
@@ -3863,15 +2374,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[5]\n\t"
         "sqrdmulh	v23.8h, v26.8h, v5.h[5]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v5.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
@@ -3906,15 +2412,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v17.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v18.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v18.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v17.8h, v17.8h, v25.8h\n\t"
         "sub	v18.8h, v18.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v17.8h, v17.8h, #1\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sub	v26.8h, v11.8h, v19.8h\n\t"
@@ -3925,15 +2426,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v19.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v19.8h, v19.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v19.8h, v19.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "sub	v26.8h, v13.8h, v21.8h\n\t"
@@ -3944,15 +2440,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v21.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v22.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v21.8h, v21.8h, v25.8h\n\t"
         "sub	v22.8h, v22.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sub	v26.8h, v15.8h, v23.8h\n\t"
@@ -3963,135 +2454,90 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v23.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v25.8h, v9.8h, v7.h[7]\n\t"
         "mul	v26.8h, v10.8h, v7.h[7]\n\t"
         "sqrdmulh	v9.8h, v9.8h, v5.h[7]\n\t"
         "sqrdmulh	v10.8h, v10.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v9.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v10.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v9.8h, v9.8h, v25.8h\n\t"
         "sub	v10.8h, v10.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v9.8h, v9.8h, #1\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "mul	v25.8h, v11.8h, v7.h[7]\n\t"
         "mul	v26.8h, v12.8h, v7.h[7]\n\t"
         "sqrdmulh	v11.8h, v11.8h, v5.h[7]\n\t"
         "sqrdmulh	v12.8h, v12.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v11.8h, v11.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v11.8h, v11.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "mul	v25.8h, v13.8h, v7.h[7]\n\t"
         "mul	v26.8h, v14.8h, v7.h[7]\n\t"
         "sqrdmulh	v13.8h, v13.8h, v5.h[7]\n\t"
         "sqrdmulh	v14.8h, v14.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v14.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v13.8h, v13.8h, v25.8h\n\t"
         "sub	v14.8h, v14.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v13.8h, v13.8h, #1\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "mul	v25.8h, v15.8h, v7.h[7]\n\t"
         "mul	v26.8h, v16.8h, v7.h[7]\n\t"
         "sqrdmulh	v15.8h, v15.8h, v5.h[7]\n\t"
         "sqrdmulh	v16.8h, v16.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v15.8h, v15.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "mul	v25.8h, v17.8h, v7.h[7]\n\t"
         "mul	v26.8h, v18.8h, v7.h[7]\n\t"
         "sqrdmulh	v17.8h, v17.8h, v5.h[7]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v18.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v17.8h, v17.8h, v25.8h\n\t"
         "sub	v18.8h, v18.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v17.8h, v17.8h, #1\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "mul	v25.8h, v19.8h, v7.h[7]\n\t"
         "mul	v26.8h, v20.8h, v7.h[7]\n\t"
         "sqrdmulh	v19.8h, v19.8h, v5.h[7]\n\t"
         "sqrdmulh	v20.8h, v20.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v19.8h, v19.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v19.8h, v19.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "mul	v25.8h, v21.8h, v7.h[7]\n\t"
         "mul	v26.8h, v22.8h, v7.h[7]\n\t"
         "sqrdmulh	v21.8h, v21.8h, v5.h[7]\n\t"
         "sqrdmulh	v22.8h, v22.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v21.8h, v21.8h, v25.8h\n\t"
         "sub	v22.8h, v22.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v25.8h, v23.8h, v7.h[7]\n\t"
         "mul	v26.8h, v24.8h, v7.h[7]\n\t"
         "sqrdmulh	v23.8h, v23.8h, v5.h[7]\n\t"
         "sqrdmulh	v24.8h, v24.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "str	q9, [%x[r]]\n\t"
@@ -4134,15 +2580,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[1]\n\t"
         "sqrdmulh	v10.8h, v26.8h, v4.h[0]\n\t"
         "sqrdmulh	v12.8h, v28.8h, v4.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v10.8h, v10.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v10.8h, v10.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "sub	v26.8h, v13.8h, v14.8h\n\t"
@@ -4153,15 +2594,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[3]\n\t"
         "sqrdmulh	v14.8h, v26.8h, v4.h[2]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v4.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v14.8h, v14.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "sub	v26.8h, v17.8h, v18.8h\n\t"
@@ -4172,15 +2608,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[5]\n\t"
         "sqrdmulh	v18.8h, v26.8h, v4.h[4]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v4.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v18.8h, v18.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "sub	v26.8h, v21.8h, v22.8h\n\t"
@@ -4191,15 +2622,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v6.h[7]\n\t"
         "sqrdmulh	v22.8h, v26.8h, v4.h[6]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v4.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v22.8h, v22.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sub	v26.8h, v9.8h, v11.8h\n\t"
@@ -4210,15 +2636,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[0]\n\t"
         "sqrdmulh	v11.8h, v26.8h, v5.h[0]\n\t"
         "sqrdmulh	v12.8h, v28.8h, v5.h[0]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v11.8h, v11.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v11.8h, v11.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "sub	v26.8h, v13.8h, v15.8h\n\t"
@@ -4229,15 +2650,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[1]\n\t"
         "sqrdmulh	v15.8h, v26.8h, v5.h[1]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v5.h[1]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v15.8h, v15.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "sub	v26.8h, v17.8h, v19.8h\n\t"
@@ -4248,15 +2664,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[2]\n\t"
         "sqrdmulh	v19.8h, v26.8h, v5.h[2]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v5.h[2]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v19.8h, v19.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v19.8h, v19.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "sub	v26.8h, v21.8h, v23.8h\n\t"
@@ -4267,15 +2678,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[3]\n\t"
         "sqrdmulh	v23.8h, v26.8h, v5.h[3]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v5.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sub	v26.8h, v9.8h, v13.8h\n\t"
@@ -4286,15 +2692,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[4]\n\t"
         "sqrdmulh	v13.8h, v26.8h, v5.h[4]\n\t"
         "sqrdmulh	v14.8h, v28.8h, v5.h[4]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v14.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v13.8h, v13.8h, v25.8h\n\t"
         "sub	v14.8h, v14.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v13.8h, v13.8h, #1\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "sub	v26.8h, v11.8h, v15.8h\n\t"
@@ -4305,15 +2706,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[4]\n\t"
         "sqrdmulh	v15.8h, v26.8h, v5.h[4]\n\t"
         "sqrdmulh	v16.8h, v28.8h, v5.h[4]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v15.8h, v15.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "sub	v26.8h, v17.8h, v21.8h\n\t"
@@ -4324,15 +2720,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[5]\n\t"
         "sqrdmulh	v21.8h, v26.8h, v5.h[5]\n\t"
         "sqrdmulh	v22.8h, v28.8h, v5.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v21.8h, v21.8h, v25.8h\n\t"
         "sub	v22.8h, v22.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sub	v26.8h, v19.8h, v23.8h\n\t"
@@ -4343,15 +2734,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[5]\n\t"
         "sqrdmulh	v23.8h, v26.8h, v5.h[5]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v5.h[5]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
@@ -4386,15 +2772,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v17.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v18.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v18.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v17.8h, v17.8h, v25.8h\n\t"
         "sub	v18.8h, v18.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v17.8h, v17.8h, #1\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "sub	v26.8h, v11.8h, v19.8h\n\t"
@@ -4405,15 +2786,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v19.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v20.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v19.8h, v19.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v19.8h, v19.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "sub	v26.8h, v13.8h, v21.8h\n\t"
@@ -4424,15 +2800,10 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v21.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v22.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v21.8h, v21.8h, v25.8h\n\t"
         "sub	v22.8h, v22.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "sub	v26.8h, v15.8h, v23.8h\n\t"
@@ -4443,135 +2814,90 @@ void kyber_invntt(sword16* r)
         "mul	v27.8h, v28.8h, v7.h[6]\n\t"
         "sqrdmulh	v23.8h, v26.8h, v5.h[6]\n\t"
         "sqrdmulh	v24.8h, v28.8h, v5.h[6]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v27.8h, v27.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v27.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "mul	v25.8h, v9.8h, v7.h[7]\n\t"
         "mul	v26.8h, v10.8h, v7.h[7]\n\t"
         "sqrdmulh	v9.8h, v9.8h, v5.h[7]\n\t"
         "sqrdmulh	v10.8h, v10.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v9.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v10.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v9.8h, v9.8h, v25.8h\n\t"
         "sub	v10.8h, v10.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v9.8h, v9.8h, #1\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "mul	v25.8h, v11.8h, v7.h[7]\n\t"
         "mul	v26.8h, v12.8h, v7.h[7]\n\t"
         "sqrdmulh	v11.8h, v11.8h, v5.h[7]\n\t"
         "sqrdmulh	v12.8h, v12.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v11.8h, v11.8h, v25.8h\n\t"
         "sub	v12.8h, v12.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v11.8h, v11.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "mul	v25.8h, v13.8h, v7.h[7]\n\t"
         "mul	v26.8h, v14.8h, v7.h[7]\n\t"
         "sqrdmulh	v13.8h, v13.8h, v5.h[7]\n\t"
         "sqrdmulh	v14.8h, v14.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v14.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v13.8h, v13.8h, v25.8h\n\t"
         "sub	v14.8h, v14.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v13.8h, v13.8h, #1\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "mul	v25.8h, v15.8h, v7.h[7]\n\t"
         "mul	v26.8h, v16.8h, v7.h[7]\n\t"
         "sqrdmulh	v15.8h, v15.8h, v5.h[7]\n\t"
         "sqrdmulh	v16.8h, v16.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v15.8h, v15.8h, v25.8h\n\t"
         "sub	v16.8h, v16.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "mul	v25.8h, v17.8h, v7.h[7]\n\t"
         "mul	v26.8h, v18.8h, v7.h[7]\n\t"
         "sqrdmulh	v17.8h, v17.8h, v5.h[7]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v18.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v17.8h, v17.8h, v25.8h\n\t"
         "sub	v18.8h, v18.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v17.8h, v17.8h, #1\n\t"
         "sshr	v18.8h, v18.8h, #1\n\t"
         "mul	v25.8h, v19.8h, v7.h[7]\n\t"
         "mul	v26.8h, v20.8h, v7.h[7]\n\t"
         "sqrdmulh	v19.8h, v19.8h, v5.h[7]\n\t"
         "sqrdmulh	v20.8h, v20.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v20.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v19.8h, v19.8h, v25.8h\n\t"
         "sub	v20.8h, v20.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v19.8h, v19.8h, #1\n\t"
         "sshr	v20.8h, v20.8h, #1\n\t"
         "mul	v25.8h, v21.8h, v7.h[7]\n\t"
         "mul	v26.8h, v22.8h, v7.h[7]\n\t"
         "sqrdmulh	v21.8h, v21.8h, v5.h[7]\n\t"
         "sqrdmulh	v22.8h, v22.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v22.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v21.8h, v21.8h, v25.8h\n\t"
         "sub	v22.8h, v22.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v21.8h, v21.8h, #1\n\t"
         "sshr	v22.8h, v22.8h, #1\n\t"
         "mul	v25.8h, v23.8h, v7.h[7]\n\t"
         "mul	v26.8h, v24.8h, v7.h[7]\n\t"
         "sqrdmulh	v23.8h, v23.8h, v5.h[7]\n\t"
         "sqrdmulh	v24.8h, v24.8h, v5.h[7]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
-        "sqrdmlsh	v24.8h, v26.8h, v8.h[0]\n\t"
-#else
         "sqrdmulh	v25.8h, v25.8h, v8.h[0]\n\t"
         "sqrdmulh	v26.8h, v26.8h, v8.h[0]\n\t"
         "sub	v23.8h, v23.8h, v25.8h\n\t"
         "sub	v24.8h, v24.8h, v26.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v23.8h, v23.8h, #1\n\t"
         "sshr	v24.8h, v24.8h, #1\n\t"
         "str	q9, [%x[r], #16]\n\t"
@@ -4596,135 +2922,2477 @@ void kyber_invntt(sword16* r)
     );
 }
 
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+void kyber_ntt_sqrdmlsh(sword16* r)
+{
+    __asm__ __volatile__ (
+#ifndef __APPLE__
+        "adrp x2, %[L_kyber_aarch64_zetas]\n\t"
+        "add  x2, x2, :lo12:%[L_kyber_aarch64_zetas]\n\t"
+#else
+        "adrp x2, %[L_kyber_aarch64_zetas]@PAGE\n\t"
+        "add  x2, x2, %[L_kyber_aarch64_zetas]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        "adrp x3, %[L_kyber_aarch64_zetas_qinv]\n\t"
+        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_qinv]\n\t"
+#else
+        "adrp x3, %[L_kyber_aarch64_zetas_qinv]@PAGE\n\t"
+        "add  x3, x3, %[L_kyber_aarch64_zetas_qinv]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+#else
+        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+        "add	x1, %x[r], #0x100\n\t"
+        "ldr	q4, [x4]\n\t"
+        "ldr	q5, [%x[r]]\n\t"
+        "ldr	q6, [%x[r], #32]\n\t"
+        "ldr	q7, [%x[r], #64]\n\t"
+        "ldr	q8, [%x[r], #96]\n\t"
+        "ldr	q9, [%x[r], #128]\n\t"
+        "ldr	q10, [%x[r], #160]\n\t"
+        "ldr	q11, [%x[r], #192]\n\t"
+        "ldr	q12, [%x[r], #224]\n\t"
+        "ldr	q13, [x1]\n\t"
+        "ldr	q14, [x1, #32]\n\t"
+        "ldr	q15, [x1, #64]\n\t"
+        "ldr	q16, [x1, #96]\n\t"
+        "ldr	q17, [x1, #128]\n\t"
+        "ldr	q18, [x1, #160]\n\t"
+        "ldr	q19, [x1, #192]\n\t"
+        "ldr	q20, [x1, #224]\n\t"
+        "ldr	q0, [x2]\n\t"
+        "ldr	q1, [x3]\n\t"
+        "mul	v29.8h, v13.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v14.8h, v1.h[1]\n\t"
+        "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
+        "sqrdmulh	v22.8h, v14.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v15.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[1]\n\t"
+        "sqrdmulh	v23.8h, v15.8h, v0.h[1]\n\t"
+        "sqrdmulh	v24.8h, v16.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v17.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v18.8h, v1.h[1]\n\t"
+        "sqrdmulh	v25.8h, v17.8h, v0.h[1]\n\t"
+        "sqrdmulh	v26.8h, v18.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v19.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[1]\n\t"
+        "sqrdmulh	v27.8h, v19.8h, v0.h[1]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v13.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v14.8h, v6.8h, v22.8h\n\t"
+        "add	v6.8h, v6.8h, v22.8h\n\t"
+        "sub	v15.8h, v7.8h, v23.8h\n\t"
+        "add	v7.8h, v7.8h, v23.8h\n\t"
+        "sub	v16.8h, v8.8h, v24.8h\n\t"
+        "add	v8.8h, v8.8h, v24.8h\n\t"
+        "sub	v17.8h, v9.8h, v25.8h\n\t"
+        "add	v9.8h, v9.8h, v25.8h\n\t"
+        "sub	v18.8h, v10.8h, v26.8h\n\t"
+        "add	v10.8h, v10.8h, v26.8h\n\t"
+        "sub	v19.8h, v11.8h, v27.8h\n\t"
+        "add	v11.8h, v11.8h, v27.8h\n\t"
+        "sub	v20.8h, v12.8h, v28.8h\n\t"
+        "add	v12.8h, v12.8h, v28.8h\n\t"
+        "mul	v29.8h, v9.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v10.8h, v1.h[2]\n\t"
+        "sqrdmulh	v21.8h, v9.8h, v0.h[2]\n\t"
+        "sqrdmulh	v22.8h, v10.8h, v0.h[2]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v11.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[2]\n\t"
+        "sqrdmulh	v23.8h, v11.8h, v0.h[2]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[2]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v17.8h, v1.h[3]\n\t"
+        "mul	v30.8h, v18.8h, v1.h[3]\n\t"
+        "sqrdmulh	v25.8h, v17.8h, v0.h[3]\n\t"
+        "sqrdmulh	v26.8h, v18.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v19.8h, v1.h[3]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[3]\n\t"
+        "sqrdmulh	v27.8h, v19.8h, v0.h[3]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v9.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v10.8h, v6.8h, v22.8h\n\t"
+        "add	v6.8h, v6.8h, v22.8h\n\t"
+        "sub	v11.8h, v7.8h, v23.8h\n\t"
+        "add	v7.8h, v7.8h, v23.8h\n\t"
+        "sub	v12.8h, v8.8h, v24.8h\n\t"
+        "add	v8.8h, v8.8h, v24.8h\n\t"
+        "sub	v17.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v18.8h, v14.8h, v26.8h\n\t"
+        "add	v14.8h, v14.8h, v26.8h\n\t"
+        "sub	v19.8h, v15.8h, v27.8h\n\t"
+        "add	v15.8h, v15.8h, v27.8h\n\t"
+        "sub	v20.8h, v16.8h, v28.8h\n\t"
+        "add	v16.8h, v16.8h, v28.8h\n\t"
+        "mul	v29.8h, v7.8h, v1.h[4]\n\t"
+        "mul	v30.8h, v8.8h, v1.h[4]\n\t"
+        "sqrdmulh	v21.8h, v7.8h, v0.h[4]\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v0.h[4]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v11.8h, v1.h[5]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[5]\n\t"
+        "sqrdmulh	v23.8h, v11.8h, v0.h[5]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v15.8h, v1.h[6]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[6]\n\t"
+        "sqrdmulh	v25.8h, v15.8h, v0.h[6]\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v0.h[6]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v19.8h, v1.h[7]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[7]\n\t"
+        "sqrdmulh	v27.8h, v19.8h, v0.h[7]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v7.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v6.8h, v22.8h\n\t"
+        "add	v6.8h, v6.8h, v22.8h\n\t"
+        "sub	v11.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v10.8h, v24.8h\n\t"
+        "add	v10.8h, v10.8h, v24.8h\n\t"
+        "sub	v15.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v14.8h, v26.8h\n\t"
+        "add	v14.8h, v14.8h, v26.8h\n\t"
+        "sub	v19.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v18.8h, v28.8h\n\t"
+        "add	v18.8h, v18.8h, v28.8h\n\t"
+        "ldr	q0, [x2, #16]\n\t"
+        "ldr	q1, [x3, #16]\n\t"
+        "mul	v29.8h, v6.8h, v1.h[0]\n\t"
+        "mul	v30.8h, v8.8h, v1.h[1]\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v10.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[3]\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v14.8h, v1.h[4]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[5]\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v18.8h, v1.h[6]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[7]\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "str	q5, [%x[r]]\n\t"
+        "str	q6, [%x[r], #32]\n\t"
+        "str	q7, [%x[r], #64]\n\t"
+        "str	q8, [%x[r], #96]\n\t"
+        "str	q9, [%x[r], #128]\n\t"
+        "str	q10, [%x[r], #160]\n\t"
+        "str	q11, [%x[r], #192]\n\t"
+        "str	q12, [%x[r], #224]\n\t"
+        "str	q13, [x1]\n\t"
+        "str	q14, [x1, #32]\n\t"
+        "str	q15, [x1, #64]\n\t"
+        "str	q16, [x1, #96]\n\t"
+        "str	q17, [x1, #128]\n\t"
+        "str	q18, [x1, #160]\n\t"
+        "str	q19, [x1, #192]\n\t"
+        "str	q20, [x1, #224]\n\t"
+        "ldr	q5, [%x[r], #16]\n\t"
+        "ldr	q6, [%x[r], #48]\n\t"
+        "ldr	q7, [%x[r], #80]\n\t"
+        "ldr	q8, [%x[r], #112]\n\t"
+        "ldr	q9, [%x[r], #144]\n\t"
+        "ldr	q10, [%x[r], #176]\n\t"
+        "ldr	q11, [%x[r], #208]\n\t"
+        "ldr	q12, [%x[r], #240]\n\t"
+        "ldr	q13, [x1, #16]\n\t"
+        "ldr	q14, [x1, #48]\n\t"
+        "ldr	q15, [x1, #80]\n\t"
+        "ldr	q16, [x1, #112]\n\t"
+        "ldr	q17, [x1, #144]\n\t"
+        "ldr	q18, [x1, #176]\n\t"
+        "ldr	q19, [x1, #208]\n\t"
+        "ldr	q20, [x1, #240]\n\t"
+        "ldr	q0, [x2]\n\t"
+        "ldr	q1, [x3]\n\t"
+        "mul	v29.8h, v13.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v14.8h, v1.h[1]\n\t"
+        "sqrdmulh	v21.8h, v13.8h, v0.h[1]\n\t"
+        "sqrdmulh	v22.8h, v14.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v15.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[1]\n\t"
+        "sqrdmulh	v23.8h, v15.8h, v0.h[1]\n\t"
+        "sqrdmulh	v24.8h, v16.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v17.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v18.8h, v1.h[1]\n\t"
+        "sqrdmulh	v25.8h, v17.8h, v0.h[1]\n\t"
+        "sqrdmulh	v26.8h, v18.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v19.8h, v1.h[1]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[1]\n\t"
+        "sqrdmulh	v27.8h, v19.8h, v0.h[1]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v13.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v14.8h, v6.8h, v22.8h\n\t"
+        "add	v6.8h, v6.8h, v22.8h\n\t"
+        "sub	v15.8h, v7.8h, v23.8h\n\t"
+        "add	v7.8h, v7.8h, v23.8h\n\t"
+        "sub	v16.8h, v8.8h, v24.8h\n\t"
+        "add	v8.8h, v8.8h, v24.8h\n\t"
+        "sub	v17.8h, v9.8h, v25.8h\n\t"
+        "add	v9.8h, v9.8h, v25.8h\n\t"
+        "sub	v18.8h, v10.8h, v26.8h\n\t"
+        "add	v10.8h, v10.8h, v26.8h\n\t"
+        "sub	v19.8h, v11.8h, v27.8h\n\t"
+        "add	v11.8h, v11.8h, v27.8h\n\t"
+        "sub	v20.8h, v12.8h, v28.8h\n\t"
+        "add	v12.8h, v12.8h, v28.8h\n\t"
+        "mul	v29.8h, v9.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v10.8h, v1.h[2]\n\t"
+        "sqrdmulh	v21.8h, v9.8h, v0.h[2]\n\t"
+        "sqrdmulh	v22.8h, v10.8h, v0.h[2]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v11.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[2]\n\t"
+        "sqrdmulh	v23.8h, v11.8h, v0.h[2]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[2]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v17.8h, v1.h[3]\n\t"
+        "mul	v30.8h, v18.8h, v1.h[3]\n\t"
+        "sqrdmulh	v25.8h, v17.8h, v0.h[3]\n\t"
+        "sqrdmulh	v26.8h, v18.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v19.8h, v1.h[3]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[3]\n\t"
+        "sqrdmulh	v27.8h, v19.8h, v0.h[3]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v9.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v10.8h, v6.8h, v22.8h\n\t"
+        "add	v6.8h, v6.8h, v22.8h\n\t"
+        "sub	v11.8h, v7.8h, v23.8h\n\t"
+        "add	v7.8h, v7.8h, v23.8h\n\t"
+        "sub	v12.8h, v8.8h, v24.8h\n\t"
+        "add	v8.8h, v8.8h, v24.8h\n\t"
+        "sub	v17.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v18.8h, v14.8h, v26.8h\n\t"
+        "add	v14.8h, v14.8h, v26.8h\n\t"
+        "sub	v19.8h, v15.8h, v27.8h\n\t"
+        "add	v15.8h, v15.8h, v27.8h\n\t"
+        "sub	v20.8h, v16.8h, v28.8h\n\t"
+        "add	v16.8h, v16.8h, v28.8h\n\t"
+        "mul	v29.8h, v7.8h, v1.h[4]\n\t"
+        "mul	v30.8h, v8.8h, v1.h[4]\n\t"
+        "sqrdmulh	v21.8h, v7.8h, v0.h[4]\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v0.h[4]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v11.8h, v1.h[5]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[5]\n\t"
+        "sqrdmulh	v23.8h, v11.8h, v0.h[5]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v15.8h, v1.h[6]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[6]\n\t"
+        "sqrdmulh	v25.8h, v15.8h, v0.h[6]\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v0.h[6]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v19.8h, v1.h[7]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[7]\n\t"
+        "sqrdmulh	v27.8h, v19.8h, v0.h[7]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v7.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v6.8h, v22.8h\n\t"
+        "add	v6.8h, v6.8h, v22.8h\n\t"
+        "sub	v11.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v10.8h, v24.8h\n\t"
+        "add	v10.8h, v10.8h, v24.8h\n\t"
+        "sub	v15.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v14.8h, v26.8h\n\t"
+        "add	v14.8h, v14.8h, v26.8h\n\t"
+        "sub	v19.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v18.8h, v28.8h\n\t"
+        "add	v18.8h, v18.8h, v28.8h\n\t"
+        "ldr	q0, [x2, #16]\n\t"
+        "ldr	q1, [x3, #16]\n\t"
+        "mul	v29.8h, v6.8h, v1.h[0]\n\t"
+        "mul	v30.8h, v8.8h, v1.h[1]\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v10.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[3]\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v14.8h, v1.h[4]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[5]\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v18.8h, v1.h[6]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[7]\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "str	q5, [%x[r], #16]\n\t"
+        "str	q6, [%x[r], #48]\n\t"
+        "str	q7, [%x[r], #80]\n\t"
+        "str	q8, [%x[r], #112]\n\t"
+        "str	q9, [%x[r], #144]\n\t"
+        "str	q10, [%x[r], #176]\n\t"
+        "str	q11, [%x[r], #208]\n\t"
+        "str	q12, [%x[r], #240]\n\t"
+        "str	q13, [x1, #16]\n\t"
+        "str	q14, [x1, #48]\n\t"
+        "str	q15, [x1, #80]\n\t"
+        "str	q16, [x1, #112]\n\t"
+        "str	q17, [x1, #144]\n\t"
+        "str	q18, [x1, #176]\n\t"
+        "str	q19, [x1, #208]\n\t"
+        "str	q20, [x1, #240]\n\t"
+        "ldp	q5, q6, [%x[r]]\n\t"
+        "ldp	q7, q8, [%x[r], #32]\n\t"
+        "ldp	q9, q10, [%x[r], #64]\n\t"
+        "ldp	q11, q12, [%x[r], #96]\n\t"
+        "ldp	q13, q14, [%x[r], #128]\n\t"
+        "ldp	q15, q16, [%x[r], #160]\n\t"
+        "ldp	q17, q18, [%x[r], #192]\n\t"
+        "ldp	q19, q20, [%x[r], #224]\n\t"
+        "ldr	q0, [x2, #32]\n\t"
+        "ldr	q1, [x3, #32]\n\t"
+        "mul	v29.8h, v6.8h, v1.h[0]\n\t"
+        "mul	v30.8h, v8.8h, v1.h[1]\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v10.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[3]\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v14.8h, v1.h[4]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[5]\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v18.8h, v1.h[6]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[7]\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "ldr	q0, [x2, #64]\n\t"
+        "ldr	q2, [x2, #80]\n\t"
+        "ldr	q1, [x3, #64]\n\t"
+        "ldr	q3, [x3, #80]\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "mov	v30.16b, v7.16b\n\t"
+        "trn1	v5.2d, v5.2d, v6.2d\n\t"
+        "trn1	v7.2d, v7.2d, v8.2d\n\t"
+        "trn2	v6.2d, v29.2d, v6.2d\n\t"
+        "trn2	v8.2d, v30.2d, v8.2d\n\t"
+        "mul	v29.8h, v6.8h, v1.8h\n\t"
+        "mul	v30.8h, v8.8h, v3.8h\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "ldr	q0, [x2, #96]\n\t"
+        "ldr	q2, [x2, #112]\n\t"
+        "ldr	q1, [x3, #96]\n\t"
+        "ldr	q3, [x3, #112]\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "mov	v30.16b, v11.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v10.2d, v29.2d, v10.2d\n\t"
+        "trn2	v12.2d, v30.2d, v12.2d\n\t"
+        "mul	v29.8h, v10.8h, v1.8h\n\t"
+        "mul	v30.8h, v12.8h, v3.8h\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #128]\n\t"
+        "ldr	q2, [x2, #144]\n\t"
+        "ldr	q1, [x3, #128]\n\t"
+        "ldr	q3, [x3, #144]\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "mov	v30.16b, v15.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v14.2d, v29.2d, v14.2d\n\t"
+        "trn2	v16.2d, v30.2d, v16.2d\n\t"
+        "mul	v29.8h, v14.8h, v1.8h\n\t"
+        "mul	v30.8h, v16.8h, v3.8h\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "ldr	q0, [x2, #160]\n\t"
+        "ldr	q2, [x2, #176]\n\t"
+        "ldr	q1, [x3, #160]\n\t"
+        "ldr	q3, [x3, #176]\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "mov	v30.16b, v19.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v18.2d, v29.2d, v18.2d\n\t"
+        "trn2	v20.2d, v30.2d, v20.2d\n\t"
+        "mul	v29.8h, v18.8h, v1.8h\n\t"
+        "mul	v30.8h, v20.8h, v3.8h\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "ldr	q0, [x2, #320]\n\t"
+        "ldr	q2, [x2, #336]\n\t"
+        "ldr	q1, [x3, #320]\n\t"
+        "ldr	q3, [x3, #336]\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "mov	v30.16b, v7.16b\n\t"
+        "trn1	v5.4s, v5.4s, v6.4s\n\t"
+        "trn1	v7.4s, v7.4s, v8.4s\n\t"
+        "trn2	v6.4s, v29.4s, v6.4s\n\t"
+        "trn2	v8.4s, v30.4s, v8.4s\n\t"
+        "mul	v29.8h, v6.8h, v1.8h\n\t"
+        "mul	v30.8h, v8.8h, v3.8h\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "ldr	q0, [x2, #352]\n\t"
+        "ldr	q2, [x2, #368]\n\t"
+        "ldr	q1, [x3, #352]\n\t"
+        "ldr	q3, [x3, #368]\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "mov	v30.16b, v11.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v10.4s, v29.4s, v10.4s\n\t"
+        "trn2	v12.4s, v30.4s, v12.4s\n\t"
+        "mul	v29.8h, v10.8h, v1.8h\n\t"
+        "mul	v30.8h, v12.8h, v3.8h\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #384]\n\t"
+        "ldr	q2, [x2, #400]\n\t"
+        "ldr	q1, [x3, #384]\n\t"
+        "ldr	q3, [x3, #400]\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "mov	v30.16b, v15.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v14.4s, v29.4s, v14.4s\n\t"
+        "trn2	v16.4s, v30.4s, v16.4s\n\t"
+        "mul	v29.8h, v14.8h, v1.8h\n\t"
+        "mul	v30.8h, v16.8h, v3.8h\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "ldr	q0, [x2, #416]\n\t"
+        "ldr	q2, [x2, #432]\n\t"
+        "ldr	q1, [x3, #416]\n\t"
+        "ldr	q3, [x3, #432]\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "mov	v30.16b, v19.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v18.4s, v29.4s, v18.4s\n\t"
+        "trn2	v20.4s, v30.4s, v20.4s\n\t"
+        "mul	v29.8h, v18.8h, v1.8h\n\t"
+        "mul	v30.8h, v20.8h, v3.8h\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "sqdmulh	v21.8h, v5.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v6.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v5.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v6.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v7.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v8.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v7.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v8.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v9.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v10.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v9.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v10.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v11.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v12.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v11.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v12.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v13.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v14.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v13.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v14.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v15.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v16.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v15.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v16.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v17.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v18.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v17.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v18.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v19.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v20.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v19.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v20.8h, v22.8h, v4.h[0]\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "trn1	v5.4s, v5.4s, v6.4s\n\t"
+        "trn2	v6.4s, v29.4s, v6.4s\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "trn1	v5.2d, v5.2d, v6.2d\n\t"
+        "trn2	v6.2d, v29.2d, v6.2d\n\t"
+        "mov	v29.16b, v7.16b\n\t"
+        "trn1	v7.4s, v7.4s, v8.4s\n\t"
+        "trn2	v8.4s, v29.4s, v8.4s\n\t"
+        "mov	v29.16b, v7.16b\n\t"
+        "trn1	v7.2d, v7.2d, v8.2d\n\t"
+        "trn2	v8.2d, v29.2d, v8.2d\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn2	v10.4s, v29.4s, v10.4s\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn2	v10.2d, v29.2d, v10.2d\n\t"
+        "mov	v29.16b, v11.16b\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v12.4s, v29.4s, v12.4s\n\t"
+        "mov	v29.16b, v11.16b\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v12.2d, v29.2d, v12.2d\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn2	v14.4s, v29.4s, v14.4s\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn2	v14.2d, v29.2d, v14.2d\n\t"
+        "mov	v29.16b, v15.16b\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v16.4s, v29.4s, v16.4s\n\t"
+        "mov	v29.16b, v15.16b\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v16.2d, v29.2d, v16.2d\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn2	v18.4s, v29.4s, v18.4s\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn2	v18.2d, v29.2d, v18.2d\n\t"
+        "mov	v29.16b, v19.16b\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v20.4s, v29.4s, v20.4s\n\t"
+        "mov	v29.16b, v19.16b\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v20.2d, v29.2d, v20.2d\n\t"
+        "stp	q5, q6, [%x[r]]\n\t"
+        "stp	q7, q8, [%x[r], #32]\n\t"
+        "stp	q9, q10, [%x[r], #64]\n\t"
+        "stp	q11, q12, [%x[r], #96]\n\t"
+        "stp	q13, q14, [%x[r], #128]\n\t"
+        "stp	q15, q16, [%x[r], #160]\n\t"
+        "stp	q17, q18, [%x[r], #192]\n\t"
+        "stp	q19, q20, [%x[r], #224]\n\t"
+        "ldp	q5, q6, [x1]\n\t"
+        "ldp	q7, q8, [x1, #32]\n\t"
+        "ldp	q9, q10, [x1, #64]\n\t"
+        "ldp	q11, q12, [x1, #96]\n\t"
+        "ldp	q13, q14, [x1, #128]\n\t"
+        "ldp	q15, q16, [x1, #160]\n\t"
+        "ldp	q17, q18, [x1, #192]\n\t"
+        "ldp	q19, q20, [x1, #224]\n\t"
+        "ldr	q0, [x2, #48]\n\t"
+        "ldr	q1, [x3, #48]\n\t"
+        "mul	v29.8h, v6.8h, v1.h[0]\n\t"
+        "mul	v30.8h, v8.8h, v1.h[1]\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.h[0]\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v29.8h, v10.8h, v1.h[2]\n\t"
+        "mul	v30.8h, v12.8h, v1.h[3]\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.h[2]\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v29.8h, v14.8h, v1.h[4]\n\t"
+        "mul	v30.8h, v16.8h, v1.h[5]\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.h[4]\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "mul	v29.8h, v18.8h, v1.h[6]\n\t"
+        "mul	v30.8h, v20.8h, v1.h[7]\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.h[6]\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "ldr	q0, [x2, #192]\n\t"
+        "ldr	q2, [x2, #208]\n\t"
+        "ldr	q1, [x3, #192]\n\t"
+        "ldr	q3, [x3, #208]\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "mov	v30.16b, v7.16b\n\t"
+        "trn1	v5.2d, v5.2d, v6.2d\n\t"
+        "trn1	v7.2d, v7.2d, v8.2d\n\t"
+        "trn2	v6.2d, v29.2d, v6.2d\n\t"
+        "trn2	v8.2d, v30.2d, v8.2d\n\t"
+        "mul	v29.8h, v6.8h, v1.8h\n\t"
+        "mul	v30.8h, v8.8h, v3.8h\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "ldr	q0, [x2, #224]\n\t"
+        "ldr	q2, [x2, #240]\n\t"
+        "ldr	q1, [x3, #224]\n\t"
+        "ldr	q3, [x3, #240]\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "mov	v30.16b, v11.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v10.2d, v29.2d, v10.2d\n\t"
+        "trn2	v12.2d, v30.2d, v12.2d\n\t"
+        "mul	v29.8h, v10.8h, v1.8h\n\t"
+        "mul	v30.8h, v12.8h, v3.8h\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #256]\n\t"
+        "ldr	q2, [x2, #272]\n\t"
+        "ldr	q1, [x3, #256]\n\t"
+        "ldr	q3, [x3, #272]\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "mov	v30.16b, v15.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v14.2d, v29.2d, v14.2d\n\t"
+        "trn2	v16.2d, v30.2d, v16.2d\n\t"
+        "mul	v29.8h, v14.8h, v1.8h\n\t"
+        "mul	v30.8h, v16.8h, v3.8h\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "ldr	q0, [x2, #288]\n\t"
+        "ldr	q2, [x2, #304]\n\t"
+        "ldr	q1, [x3, #288]\n\t"
+        "ldr	q3, [x3, #304]\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "mov	v30.16b, v19.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v18.2d, v29.2d, v18.2d\n\t"
+        "trn2	v20.2d, v30.2d, v20.2d\n\t"
+        "mul	v29.8h, v18.8h, v1.8h\n\t"
+        "mul	v30.8h, v20.8h, v3.8h\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "ldr	q0, [x2, #448]\n\t"
+        "ldr	q2, [x2, #464]\n\t"
+        "ldr	q1, [x3, #448]\n\t"
+        "ldr	q3, [x3, #464]\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "mov	v30.16b, v7.16b\n\t"
+        "trn1	v5.4s, v5.4s, v6.4s\n\t"
+        "trn1	v7.4s, v7.4s, v8.4s\n\t"
+        "trn2	v6.4s, v29.4s, v6.4s\n\t"
+        "trn2	v8.4s, v30.4s, v8.4s\n\t"
+        "mul	v29.8h, v6.8h, v1.8h\n\t"
+        "mul	v30.8h, v8.8h, v3.8h\n\t"
+        "sqrdmulh	v21.8h, v6.8h, v0.8h\n\t"
+        "sqrdmulh	v22.8h, v8.8h, v2.8h\n\t"
+        "sqrdmlsh	v21.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "ldr	q0, [x2, #480]\n\t"
+        "ldr	q2, [x2, #496]\n\t"
+        "ldr	q1, [x3, #480]\n\t"
+        "ldr	q3, [x3, #496]\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "mov	v30.16b, v11.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v10.4s, v29.4s, v10.4s\n\t"
+        "trn2	v12.4s, v30.4s, v12.4s\n\t"
+        "mul	v29.8h, v10.8h, v1.8h\n\t"
+        "mul	v30.8h, v12.8h, v3.8h\n\t"
+        "sqrdmulh	v23.8h, v10.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v12.8h, v2.8h\n\t"
+        "sqrdmlsh	v23.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #512]\n\t"
+        "ldr	q2, [x2, #528]\n\t"
+        "ldr	q1, [x3, #512]\n\t"
+        "ldr	q3, [x3, #528]\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "mov	v30.16b, v15.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v14.4s, v29.4s, v14.4s\n\t"
+        "trn2	v16.4s, v30.4s, v16.4s\n\t"
+        "mul	v29.8h, v14.8h, v1.8h\n\t"
+        "mul	v30.8h, v16.8h, v3.8h\n\t"
+        "sqrdmulh	v25.8h, v14.8h, v0.8h\n\t"
+        "sqrdmulh	v26.8h, v16.8h, v2.8h\n\t"
+        "sqrdmlsh	v25.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v26.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v25.8h, v25.8h, #1\n\t"
+        "sshr	v26.8h, v26.8h, #1\n\t"
+        "ldr	q0, [x2, #544]\n\t"
+        "ldr	q2, [x2, #560]\n\t"
+        "ldr	q1, [x3, #544]\n\t"
+        "ldr	q3, [x3, #560]\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "mov	v30.16b, v19.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v18.4s, v29.4s, v18.4s\n\t"
+        "trn2	v20.4s, v30.4s, v20.4s\n\t"
+        "mul	v29.8h, v18.8h, v1.8h\n\t"
+        "mul	v30.8h, v20.8h, v3.8h\n\t"
+        "sqrdmulh	v27.8h, v18.8h, v0.8h\n\t"
+        "sqrdmulh	v28.8h, v20.8h, v2.8h\n\t"
+        "sqrdmlsh	v27.8h, v29.8h, v4.h[0]\n\t"
+        "sqrdmlsh	v28.8h, v30.8h, v4.h[0]\n\t"
+        "sshr	v27.8h, v27.8h, #1\n\t"
+        "sshr	v28.8h, v28.8h, #1\n\t"
+        "sub	v6.8h, v5.8h, v21.8h\n\t"
+        "add	v5.8h, v5.8h, v21.8h\n\t"
+        "sub	v8.8h, v7.8h, v22.8h\n\t"
+        "add	v7.8h, v7.8h, v22.8h\n\t"
+        "sub	v10.8h, v9.8h, v23.8h\n\t"
+        "add	v9.8h, v9.8h, v23.8h\n\t"
+        "sub	v12.8h, v11.8h, v24.8h\n\t"
+        "add	v11.8h, v11.8h, v24.8h\n\t"
+        "sub	v14.8h, v13.8h, v25.8h\n\t"
+        "add	v13.8h, v13.8h, v25.8h\n\t"
+        "sub	v16.8h, v15.8h, v26.8h\n\t"
+        "add	v15.8h, v15.8h, v26.8h\n\t"
+        "sub	v18.8h, v17.8h, v27.8h\n\t"
+        "add	v17.8h, v17.8h, v27.8h\n\t"
+        "sub	v20.8h, v19.8h, v28.8h\n\t"
+        "add	v19.8h, v19.8h, v28.8h\n\t"
+        "sqdmulh	v21.8h, v5.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v6.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v5.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v6.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v7.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v8.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v7.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v8.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v9.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v10.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v9.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v10.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v11.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v12.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v11.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v12.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v13.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v14.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v13.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v14.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v15.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v16.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v15.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v16.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v17.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v18.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v17.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v18.8h, v22.8h, v4.h[0]\n\t"
+        "sqdmulh	v21.8h, v19.8h, v4.h[2]\n\t"
+        "sqdmulh	v22.8h, v20.8h, v4.h[2]\n\t"
+        "sshr	v21.8h, v21.8h, #11\n\t"
+        "sshr	v22.8h, v22.8h, #11\n\t"
+        "mls	v19.8h, v21.8h, v4.h[0]\n\t"
+        "mls	v20.8h, v22.8h, v4.h[0]\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "trn1	v5.4s, v5.4s, v6.4s\n\t"
+        "trn2	v6.4s, v29.4s, v6.4s\n\t"
+        "mov	v29.16b, v5.16b\n\t"
+        "trn1	v5.2d, v5.2d, v6.2d\n\t"
+        "trn2	v6.2d, v29.2d, v6.2d\n\t"
+        "mov	v29.16b, v7.16b\n\t"
+        "trn1	v7.4s, v7.4s, v8.4s\n\t"
+        "trn2	v8.4s, v29.4s, v8.4s\n\t"
+        "mov	v29.16b, v7.16b\n\t"
+        "trn1	v7.2d, v7.2d, v8.2d\n\t"
+        "trn2	v8.2d, v29.2d, v8.2d\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn2	v10.4s, v29.4s, v10.4s\n\t"
+        "mov	v29.16b, v9.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn2	v10.2d, v29.2d, v10.2d\n\t"
+        "mov	v29.16b, v11.16b\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v12.4s, v29.4s, v12.4s\n\t"
+        "mov	v29.16b, v11.16b\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v12.2d, v29.2d, v12.2d\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn2	v14.4s, v29.4s, v14.4s\n\t"
+        "mov	v29.16b, v13.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn2	v14.2d, v29.2d, v14.2d\n\t"
+        "mov	v29.16b, v15.16b\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v16.4s, v29.4s, v16.4s\n\t"
+        "mov	v29.16b, v15.16b\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v16.2d, v29.2d, v16.2d\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn2	v18.4s, v29.4s, v18.4s\n\t"
+        "mov	v29.16b, v17.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn2	v18.2d, v29.2d, v18.2d\n\t"
+        "mov	v29.16b, v19.16b\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v20.4s, v29.4s, v20.4s\n\t"
+        "mov	v29.16b, v19.16b\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v20.2d, v29.2d, v20.2d\n\t"
+        "stp	q5, q6, [x1]\n\t"
+        "stp	q7, q8, [x1, #32]\n\t"
+        "stp	q9, q10, [x1, #64]\n\t"
+        "stp	q11, q12, [x1, #96]\n\t"
+        "stp	q13, q14, [x1, #128]\n\t"
+        "stp	q15, q16, [x1, #160]\n\t"
+        "stp	q17, q18, [x1, #192]\n\t"
+        "stp	q19, q20, [x1, #224]\n\t"
+        : [r] "+r" (r)
+        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv)
+        : "memory", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "cc"
+    );
+}
+
+void kyber_invntt_sqrdmlsh(sword16* r)
+{
+    __asm__ __volatile__ (
+#ifndef __APPLE__
+        "adrp x2, %[L_kyber_aarch64_zetas_inv]\n\t"
+        "add  x2, x2, :lo12:%[L_kyber_aarch64_zetas_inv]\n\t"
+#else
+        "adrp x2, %[L_kyber_aarch64_zetas_inv]@PAGE\n\t"
+        "add  x2, x2, %[L_kyber_aarch64_zetas_inv]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        "adrp x3, %[L_kyber_aarch64_zetas_inv_qinv]\n\t"
+        "add  x3, x3, :lo12:%[L_kyber_aarch64_zetas_inv_qinv]\n\t"
+#else
+        "adrp x3, %[L_kyber_aarch64_zetas_inv_qinv]@PAGE\n\t"
+        "add  x3, x3, %[L_kyber_aarch64_zetas_inv_qinv]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+        "adrp x4, %[L_kyber_aarch64_consts]\n\t"
+        "add  x4, x4, :lo12:%[L_kyber_aarch64_consts]\n\t"
+#else
+        "adrp x4, %[L_kyber_aarch64_consts]@PAGE\n\t"
+        "add  x4, x4, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+        "add	x1, %x[r], #0x100\n\t"
+        "ldr	q8, [x4]\n\t"
+        "ldp	q9, q10, [%x[r]]\n\t"
+        "ldp	q11, q12, [%x[r], #32]\n\t"
+        "ldp	q13, q14, [%x[r], #64]\n\t"
+        "ldp	q15, q16, [%x[r], #96]\n\t"
+        "ldp	q17, q18, [%x[r], #128]\n\t"
+        "ldp	q19, q20, [%x[r], #160]\n\t"
+        "ldp	q21, q22, [%x[r], #192]\n\t"
+        "ldp	q23, q24, [%x[r], #224]\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn2	v10.2d, v25.2d, v10.2d\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn2	v10.4s, v25.4s, v10.4s\n\t"
+        "mov	v25.16b, v11.16b\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v12.2d, v25.2d, v12.2d\n\t"
+        "mov	v25.16b, v11.16b\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v12.4s, v25.4s, v12.4s\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn2	v14.2d, v25.2d, v14.2d\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn2	v14.4s, v25.4s, v14.4s\n\t"
+        "mov	v25.16b, v15.16b\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v16.2d, v25.2d, v16.2d\n\t"
+        "mov	v25.16b, v15.16b\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v16.4s, v25.4s, v16.4s\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn2	v18.2d, v25.2d, v18.2d\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn2	v18.4s, v25.4s, v18.4s\n\t"
+        "mov	v25.16b, v19.16b\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v20.2d, v25.2d, v20.2d\n\t"
+        "mov	v25.16b, v19.16b\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v20.4s, v25.4s, v20.4s\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "trn1	v21.2d, v21.2d, v22.2d\n\t"
+        "trn2	v22.2d, v25.2d, v22.2d\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "trn1	v21.4s, v21.4s, v22.4s\n\t"
+        "trn2	v22.4s, v25.4s, v22.4s\n\t"
+        "mov	v25.16b, v23.16b\n\t"
+        "trn1	v23.2d, v23.2d, v24.2d\n\t"
+        "trn2	v24.2d, v25.2d, v24.2d\n\t"
+        "mov	v25.16b, v23.16b\n\t"
+        "trn1	v23.4s, v23.4s, v24.4s\n\t"
+        "trn2	v24.4s, v25.4s, v24.4s\n\t"
+        "ldr	q0, [x2]\n\t"
+        "ldr	q1, [x2, #16]\n\t"
+        "ldr	q2, [x3]\n\t"
+        "ldr	q3, [x3, #16]\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "ldr	q0, [x2, #32]\n\t"
+        "ldr	q1, [x2, #48]\n\t"
+        "ldr	q2, [x3, #32]\n\t"
+        "ldr	q3, [x3, #48]\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "ldr	q0, [x2, #64]\n\t"
+        "ldr	q1, [x2, #80]\n\t"
+        "ldr	q2, [x3, #64]\n\t"
+        "ldr	q3, [x3, #80]\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "ldr	q0, [x2, #96]\n\t"
+        "ldr	q1, [x2, #112]\n\t"
+        "ldr	q2, [x3, #96]\n\t"
+        "ldr	q3, [x3, #112]\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #256]\n\t"
+        "ldr	q1, [x2, #272]\n\t"
+        "ldr	q2, [x3, #256]\n\t"
+        "ldr	q3, [x3, #272]\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "mov	v26.16b, v11.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v10.4s, v25.4s, v10.4s\n\t"
+        "trn2	v12.4s, v26.4s, v12.4s\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "ldr	q0, [x2, #288]\n\t"
+        "ldr	q1, [x2, #304]\n\t"
+        "ldr	q2, [x3, #288]\n\t"
+        "ldr	q3, [x3, #304]\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "mov	v26.16b, v15.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v14.4s, v25.4s, v14.4s\n\t"
+        "trn2	v16.4s, v26.4s, v16.4s\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "ldr	q0, [x2, #320]\n\t"
+        "ldr	q1, [x2, #336]\n\t"
+        "ldr	q2, [x3, #320]\n\t"
+        "ldr	q3, [x3, #336]\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "mov	v26.16b, v19.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v18.4s, v25.4s, v18.4s\n\t"
+        "trn2	v20.4s, v26.4s, v20.4s\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "ldr	q0, [x2, #352]\n\t"
+        "ldr	q1, [x2, #368]\n\t"
+        "ldr	q2, [x3, #352]\n\t"
+        "ldr	q3, [x3, #368]\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "mov	v26.16b, v23.16b\n\t"
+        "trn1	v21.4s, v21.4s, v22.4s\n\t"
+        "trn1	v23.4s, v23.4s, v24.4s\n\t"
+        "trn2	v22.4s, v25.4s, v22.4s\n\t"
+        "trn2	v24.4s, v26.4s, v24.4s\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #512]\n\t"
+        "ldr	q2, [x3, #512]\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "mov	v26.16b, v11.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v10.2d, v25.2d, v10.2d\n\t"
+        "trn2	v12.2d, v26.2d, v12.2d\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[0]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[1]\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v0.h[0]\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "mov	v26.16b, v15.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v14.2d, v25.2d, v14.2d\n\t"
+        "trn2	v16.2d, v26.2d, v16.2d\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[2]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[3]\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v0.h[2]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "mov	v26.16b, v19.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v18.2d, v25.2d, v18.2d\n\t"
+        "trn2	v20.2d, v26.2d, v20.2d\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[5]\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v0.h[4]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "mov	v26.16b, v23.16b\n\t"
+        "trn1	v21.2d, v21.2d, v22.2d\n\t"
+        "trn1	v23.2d, v23.2d, v24.2d\n\t"
+        "trn2	v22.2d, v25.2d, v22.2d\n\t"
+        "trn2	v24.2d, v26.2d, v24.2d\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[7]\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v0.h[6]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v11.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v9.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v11.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v13.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v15.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v13.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v15.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v17.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v19.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v17.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v19.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v21.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v23.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v21.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v23.8h, v26.8h, v8.h[0]\n\t"
+        "stp	q9, q10, [%x[r]]\n\t"
+        "stp	q11, q12, [%x[r], #32]\n\t"
+        "stp	q13, q14, [%x[r], #64]\n\t"
+        "stp	q15, q16, [%x[r], #96]\n\t"
+        "stp	q17, q18, [%x[r], #128]\n\t"
+        "stp	q19, q20, [%x[r], #160]\n\t"
+        "stp	q21, q22, [%x[r], #192]\n\t"
+        "stp	q23, q24, [%x[r], #224]\n\t"
+        "ldp	q9, q10, [x1]\n\t"
+        "ldp	q11, q12, [x1, #32]\n\t"
+        "ldp	q13, q14, [x1, #64]\n\t"
+        "ldp	q15, q16, [x1, #96]\n\t"
+        "ldp	q17, q18, [x1, #128]\n\t"
+        "ldp	q19, q20, [x1, #160]\n\t"
+        "ldp	q21, q22, [x1, #192]\n\t"
+        "ldp	q23, q24, [x1, #224]\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn2	v10.2d, v25.2d, v10.2d\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn2	v10.4s, v25.4s, v10.4s\n\t"
+        "mov	v25.16b, v11.16b\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v12.2d, v25.2d, v12.2d\n\t"
+        "mov	v25.16b, v11.16b\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v12.4s, v25.4s, v12.4s\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn2	v14.2d, v25.2d, v14.2d\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn2	v14.4s, v25.4s, v14.4s\n\t"
+        "mov	v25.16b, v15.16b\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v16.2d, v25.2d, v16.2d\n\t"
+        "mov	v25.16b, v15.16b\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v16.4s, v25.4s, v16.4s\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn2	v18.2d, v25.2d, v18.2d\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn2	v18.4s, v25.4s, v18.4s\n\t"
+        "mov	v25.16b, v19.16b\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v20.2d, v25.2d, v20.2d\n\t"
+        "mov	v25.16b, v19.16b\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v20.4s, v25.4s, v20.4s\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "trn1	v21.2d, v21.2d, v22.2d\n\t"
+        "trn2	v22.2d, v25.2d, v22.2d\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "trn1	v21.4s, v21.4s, v22.4s\n\t"
+        "trn2	v22.4s, v25.4s, v22.4s\n\t"
+        "mov	v25.16b, v23.16b\n\t"
+        "trn1	v23.2d, v23.2d, v24.2d\n\t"
+        "trn2	v24.2d, v25.2d, v24.2d\n\t"
+        "mov	v25.16b, v23.16b\n\t"
+        "trn1	v23.4s, v23.4s, v24.4s\n\t"
+        "trn2	v24.4s, v25.4s, v24.4s\n\t"
+        "ldr	q0, [x2, #128]\n\t"
+        "ldr	q1, [x2, #144]\n\t"
+        "ldr	q2, [x3, #128]\n\t"
+        "ldr	q3, [x3, #144]\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "ldr	q0, [x2, #160]\n\t"
+        "ldr	q1, [x2, #176]\n\t"
+        "ldr	q2, [x3, #160]\n\t"
+        "ldr	q3, [x3, #176]\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "ldr	q0, [x2, #192]\n\t"
+        "ldr	q1, [x2, #208]\n\t"
+        "ldr	q2, [x3, #192]\n\t"
+        "ldr	q3, [x3, #208]\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "ldr	q0, [x2, #224]\n\t"
+        "ldr	q1, [x2, #240]\n\t"
+        "ldr	q2, [x3, #224]\n\t"
+        "ldr	q3, [x3, #240]\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #384]\n\t"
+        "ldr	q1, [x2, #400]\n\t"
+        "ldr	q2, [x3, #384]\n\t"
+        "ldr	q3, [x3, #400]\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "mov	v26.16b, v11.16b\n\t"
+        "trn1	v9.4s, v9.4s, v10.4s\n\t"
+        "trn1	v11.4s, v11.4s, v12.4s\n\t"
+        "trn2	v10.4s, v25.4s, v10.4s\n\t"
+        "trn2	v12.4s, v26.4s, v12.4s\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "ldr	q0, [x2, #416]\n\t"
+        "ldr	q1, [x2, #432]\n\t"
+        "ldr	q2, [x3, #416]\n\t"
+        "ldr	q3, [x3, #432]\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "mov	v26.16b, v15.16b\n\t"
+        "trn1	v13.4s, v13.4s, v14.4s\n\t"
+        "trn1	v15.4s, v15.4s, v16.4s\n\t"
+        "trn2	v14.4s, v25.4s, v14.4s\n\t"
+        "trn2	v16.4s, v26.4s, v16.4s\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "ldr	q0, [x2, #448]\n\t"
+        "ldr	q1, [x2, #464]\n\t"
+        "ldr	q2, [x3, #448]\n\t"
+        "ldr	q3, [x3, #464]\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "mov	v26.16b, v19.16b\n\t"
+        "trn1	v17.4s, v17.4s, v18.4s\n\t"
+        "trn1	v19.4s, v19.4s, v20.4s\n\t"
+        "trn2	v18.4s, v25.4s, v18.4s\n\t"
+        "trn2	v20.4s, v26.4s, v20.4s\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "ldr	q0, [x2, #480]\n\t"
+        "ldr	q1, [x2, #496]\n\t"
+        "ldr	q2, [x3, #480]\n\t"
+        "ldr	q3, [x3, #496]\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "mov	v26.16b, v23.16b\n\t"
+        "trn1	v21.4s, v21.4s, v22.4s\n\t"
+        "trn1	v23.4s, v23.4s, v24.4s\n\t"
+        "trn2	v22.4s, v25.4s, v22.4s\n\t"
+        "trn2	v24.4s, v26.4s, v24.4s\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.8h\n\t"
+        "mul	v27.8h, v28.8h, v3.8h\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v0.8h\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v1.8h\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "ldr	q0, [x2, #528]\n\t"
+        "ldr	q2, [x3, #528]\n\t"
+        "mov	v25.16b, v9.16b\n\t"
+        "mov	v26.16b, v11.16b\n\t"
+        "trn1	v9.2d, v9.2d, v10.2d\n\t"
+        "trn1	v11.2d, v11.2d, v12.2d\n\t"
+        "trn2	v10.2d, v25.2d, v10.2d\n\t"
+        "trn2	v12.2d, v26.2d, v12.2d\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[0]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[1]\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v0.h[0]\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v0.h[1]\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "mov	v25.16b, v13.16b\n\t"
+        "mov	v26.16b, v15.16b\n\t"
+        "trn1	v13.2d, v13.2d, v14.2d\n\t"
+        "trn1	v15.2d, v15.2d, v16.2d\n\t"
+        "trn2	v14.2d, v25.2d, v14.2d\n\t"
+        "trn2	v16.2d, v26.2d, v16.2d\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[2]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[3]\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v0.h[2]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "mov	v25.16b, v17.16b\n\t"
+        "mov	v26.16b, v19.16b\n\t"
+        "trn1	v17.2d, v17.2d, v18.2d\n\t"
+        "trn1	v19.2d, v19.2d, v20.2d\n\t"
+        "trn2	v18.2d, v25.2d, v18.2d\n\t"
+        "trn2	v20.2d, v26.2d, v20.2d\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[5]\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v0.h[4]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v0.h[5]\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "mov	v25.16b, v21.16b\n\t"
+        "mov	v26.16b, v23.16b\n\t"
+        "trn1	v21.2d, v21.2d, v22.2d\n\t"
+        "trn1	v23.2d, v23.2d, v24.2d\n\t"
+        "trn2	v22.2d, v25.2d, v22.2d\n\t"
+        "trn2	v24.2d, v26.2d, v24.2d\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v2.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v2.h[7]\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v0.h[6]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v0.h[7]\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v11.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v9.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v11.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v13.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v15.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v13.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v15.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v17.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v19.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v17.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v19.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v21.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v23.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v21.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v23.8h, v26.8h, v8.h[0]\n\t"
+        "stp	q9, q10, [x1]\n\t"
+        "stp	q11, q12, [x1, #32]\n\t"
+        "stp	q13, q14, [x1, #64]\n\t"
+        "stp	q15, q16, [x1, #96]\n\t"
+        "stp	q17, q18, [x1, #128]\n\t"
+        "stp	q19, q20, [x1, #160]\n\t"
+        "stp	q21, q22, [x1, #192]\n\t"
+        "stp	q23, q24, [x1, #224]\n\t"
+        "ldr	q4, [x2, #544]\n\t"
+        "ldr	q5, [x2, #560]\n\t"
+        "ldr	q6, [x3, #544]\n\t"
+        "ldr	q7, [x3, #560]\n\t"
+        "ldr	q9, [%x[r]]\n\t"
+        "ldr	q10, [%x[r], #32]\n\t"
+        "ldr	q11, [%x[r], #64]\n\t"
+        "ldr	q12, [%x[r], #96]\n\t"
+        "ldr	q13, [%x[r], #128]\n\t"
+        "ldr	q14, [%x[r], #160]\n\t"
+        "ldr	q15, [%x[r], #192]\n\t"
+        "ldr	q16, [%x[r], #224]\n\t"
+        "ldr	q17, [x1]\n\t"
+        "ldr	q18, [x1, #32]\n\t"
+        "ldr	q19, [x1, #64]\n\t"
+        "ldr	q20, [x1, #96]\n\t"
+        "ldr	q21, [x1, #128]\n\t"
+        "ldr	q22, [x1, #160]\n\t"
+        "ldr	q23, [x1, #192]\n\t"
+        "ldr	q24, [x1, #224]\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[0]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[1]\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v4.h[0]\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v4.h[1]\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[2]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[3]\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v4.h[2]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v4.h[3]\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[5]\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v4.h[4]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v4.h[5]\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[7]\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v4.h[6]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v4.h[7]\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sub	v26.8h, v9.8h, v11.8h\n\t"
+        "sub	v28.8h, v10.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v11.8h\n\t"
+        "add	v10.8h, v10.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[0]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[0]\n\t"
+        "sqrdmulh	v11.8h, v26.8h, v5.h[0]\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v5.h[0]\n\t"
+        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v11.8h, v11.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "sub	v26.8h, v13.8h, v15.8h\n\t"
+        "sub	v28.8h, v14.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v15.8h\n\t"
+        "add	v14.8h, v14.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[1]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[1]\n\t"
+        "sqrdmulh	v15.8h, v26.8h, v5.h[1]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v5.h[1]\n\t"
+        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "sub	v26.8h, v17.8h, v19.8h\n\t"
+        "sub	v28.8h, v18.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v19.8h\n\t"
+        "add	v18.8h, v18.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[2]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[2]\n\t"
+        "sqrdmulh	v19.8h, v26.8h, v5.h[2]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v5.h[2]\n\t"
+        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v19.8h, v19.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "sub	v26.8h, v21.8h, v23.8h\n\t"
+        "sub	v28.8h, v22.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v23.8h\n\t"
+        "add	v22.8h, v22.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[3]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[3]\n\t"
+        "sqrdmulh	v23.8h, v26.8h, v5.h[3]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v5.h[3]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sub	v26.8h, v9.8h, v13.8h\n\t"
+        "sub	v28.8h, v10.8h, v14.8h\n\t"
+        "add	v9.8h, v9.8h, v13.8h\n\t"
+        "add	v10.8h, v10.8h, v14.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[4]\n\t"
+        "sqrdmulh	v13.8h, v26.8h, v5.h[4]\n\t"
+        "sqrdmulh	v14.8h, v28.8h, v5.h[4]\n\t"
+        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v14.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v13.8h, v13.8h, #1\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sub	v26.8h, v11.8h, v15.8h\n\t"
+        "sub	v28.8h, v12.8h, v16.8h\n\t"
+        "add	v11.8h, v11.8h, v15.8h\n\t"
+        "add	v12.8h, v12.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[4]\n\t"
+        "sqrdmulh	v15.8h, v26.8h, v5.h[4]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v5.h[4]\n\t"
+        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "sub	v26.8h, v17.8h, v21.8h\n\t"
+        "sub	v28.8h, v18.8h, v22.8h\n\t"
+        "add	v17.8h, v17.8h, v21.8h\n\t"
+        "add	v18.8h, v18.8h, v22.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[5]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[5]\n\t"
+        "sqrdmulh	v21.8h, v26.8h, v5.h[5]\n\t"
+        "sqrdmulh	v22.8h, v28.8h, v5.h[5]\n\t"
+        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sub	v26.8h, v19.8h, v23.8h\n\t"
+        "sub	v28.8h, v20.8h, v24.8h\n\t"
+        "add	v19.8h, v19.8h, v23.8h\n\t"
+        "add	v20.8h, v20.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[5]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[5]\n\t"
+        "sqrdmulh	v23.8h, v26.8h, v5.h[5]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v5.h[5]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v10.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v9.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v10.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v11.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v12.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v11.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v12.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v17.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v18.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v17.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v18.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v19.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v20.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v19.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v20.8h, v26.8h, v8.h[0]\n\t"
+        "sub	v26.8h, v9.8h, v17.8h\n\t"
+        "sub	v28.8h, v10.8h, v18.8h\n\t"
+        "add	v9.8h, v9.8h, v17.8h\n\t"
+        "add	v10.8h, v10.8h, v18.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v17.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v18.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v18.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v17.8h, v17.8h, #1\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sub	v26.8h, v11.8h, v19.8h\n\t"
+        "sub	v28.8h, v12.8h, v20.8h\n\t"
+        "add	v11.8h, v11.8h, v19.8h\n\t"
+        "add	v12.8h, v12.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v19.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v19.8h, v19.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "sub	v26.8h, v13.8h, v21.8h\n\t"
+        "sub	v28.8h, v14.8h, v22.8h\n\t"
+        "add	v13.8h, v13.8h, v21.8h\n\t"
+        "add	v14.8h, v14.8h, v22.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v21.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v22.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sub	v26.8h, v15.8h, v23.8h\n\t"
+        "sub	v28.8h, v16.8h, v24.8h\n\t"
+        "add	v15.8h, v15.8h, v23.8h\n\t"
+        "add	v16.8h, v16.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v23.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v25.8h, v9.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v10.8h, v7.h[7]\n\t"
+        "sqrdmulh	v9.8h, v9.8h, v5.h[7]\n\t"
+        "sqrdmulh	v10.8h, v10.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v9.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v10.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v9.8h, v9.8h, #1\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "mul	v25.8h, v11.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v12.8h, v7.h[7]\n\t"
+        "sqrdmulh	v11.8h, v11.8h, v5.h[7]\n\t"
+        "sqrdmulh	v12.8h, v12.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v11.8h, v11.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "mul	v25.8h, v13.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v14.8h, v7.h[7]\n\t"
+        "sqrdmulh	v13.8h, v13.8h, v5.h[7]\n\t"
+        "sqrdmulh	v14.8h, v14.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v14.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v13.8h, v13.8h, #1\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "mul	v25.8h, v15.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v16.8h, v7.h[7]\n\t"
+        "sqrdmulh	v15.8h, v15.8h, v5.h[7]\n\t"
+        "sqrdmulh	v16.8h, v16.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "mul	v25.8h, v17.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v18.8h, v7.h[7]\n\t"
+        "sqrdmulh	v17.8h, v17.8h, v5.h[7]\n\t"
+        "sqrdmulh	v18.8h, v18.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v18.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v17.8h, v17.8h, #1\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "mul	v25.8h, v19.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v20.8h, v7.h[7]\n\t"
+        "sqrdmulh	v19.8h, v19.8h, v5.h[7]\n\t"
+        "sqrdmulh	v20.8h, v20.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v19.8h, v19.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "mul	v25.8h, v21.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v22.8h, v7.h[7]\n\t"
+        "sqrdmulh	v21.8h, v21.8h, v5.h[7]\n\t"
+        "sqrdmulh	v22.8h, v22.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v25.8h, v23.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v24.8h, v7.h[7]\n\t"
+        "sqrdmulh	v23.8h, v23.8h, v5.h[7]\n\t"
+        "sqrdmulh	v24.8h, v24.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "str	q9, [%x[r]]\n\t"
+        "str	q10, [%x[r], #32]\n\t"
+        "str	q11, [%x[r], #64]\n\t"
+        "str	q12, [%x[r], #96]\n\t"
+        "str	q13, [%x[r], #128]\n\t"
+        "str	q14, [%x[r], #160]\n\t"
+        "str	q15, [%x[r], #192]\n\t"
+        "str	q16, [%x[r], #224]\n\t"
+        "str	q17, [x1]\n\t"
+        "str	q18, [x1, #32]\n\t"
+        "str	q19, [x1, #64]\n\t"
+        "str	q20, [x1, #96]\n\t"
+        "str	q21, [x1, #128]\n\t"
+        "str	q22, [x1, #160]\n\t"
+        "str	q23, [x1, #192]\n\t"
+        "str	q24, [x1, #224]\n\t"
+        "ldr	q9, [%x[r], #16]\n\t"
+        "ldr	q10, [%x[r], #48]\n\t"
+        "ldr	q11, [%x[r], #80]\n\t"
+        "ldr	q12, [%x[r], #112]\n\t"
+        "ldr	q13, [%x[r], #144]\n\t"
+        "ldr	q14, [%x[r], #176]\n\t"
+        "ldr	q15, [%x[r], #208]\n\t"
+        "ldr	q16, [%x[r], #240]\n\t"
+        "ldr	q17, [x1, #16]\n\t"
+        "ldr	q18, [x1, #48]\n\t"
+        "ldr	q19, [x1, #80]\n\t"
+        "ldr	q20, [x1, #112]\n\t"
+        "ldr	q21, [x1, #144]\n\t"
+        "ldr	q22, [x1, #176]\n\t"
+        "ldr	q23, [x1, #208]\n\t"
+        "ldr	q24, [x1, #240]\n\t"
+        "sub	v26.8h, v9.8h, v10.8h\n\t"
+        "sub	v28.8h, v11.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v10.8h\n\t"
+        "add	v11.8h, v11.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[0]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[1]\n\t"
+        "sqrdmulh	v10.8h, v26.8h, v4.h[0]\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v4.h[1]\n\t"
+        "sqrdmlsh	v10.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "sub	v26.8h, v13.8h, v14.8h\n\t"
+        "sub	v28.8h, v15.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v14.8h\n\t"
+        "add	v15.8h, v15.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[2]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[3]\n\t"
+        "sqrdmulh	v14.8h, v26.8h, v4.h[2]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v4.h[3]\n\t"
+        "sqrdmlsh	v14.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "sub	v26.8h, v17.8h, v18.8h\n\t"
+        "sub	v28.8h, v19.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v18.8h\n\t"
+        "add	v19.8h, v19.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[5]\n\t"
+        "sqrdmulh	v18.8h, v26.8h, v4.h[4]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v4.h[5]\n\t"
+        "sqrdmlsh	v18.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "sub	v26.8h, v21.8h, v22.8h\n\t"
+        "sub	v28.8h, v23.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v22.8h\n\t"
+        "add	v23.8h, v23.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v6.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v6.h[7]\n\t"
+        "sqrdmulh	v22.8h, v26.8h, v4.h[6]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v4.h[7]\n\t"
+        "sqrdmlsh	v22.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sub	v26.8h, v9.8h, v11.8h\n\t"
+        "sub	v28.8h, v10.8h, v12.8h\n\t"
+        "add	v9.8h, v9.8h, v11.8h\n\t"
+        "add	v10.8h, v10.8h, v12.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[0]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[0]\n\t"
+        "sqrdmulh	v11.8h, v26.8h, v5.h[0]\n\t"
+        "sqrdmulh	v12.8h, v28.8h, v5.h[0]\n\t"
+        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v11.8h, v11.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "sub	v26.8h, v13.8h, v15.8h\n\t"
+        "sub	v28.8h, v14.8h, v16.8h\n\t"
+        "add	v13.8h, v13.8h, v15.8h\n\t"
+        "add	v14.8h, v14.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[1]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[1]\n\t"
+        "sqrdmulh	v15.8h, v26.8h, v5.h[1]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v5.h[1]\n\t"
+        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "sub	v26.8h, v17.8h, v19.8h\n\t"
+        "sub	v28.8h, v18.8h, v20.8h\n\t"
+        "add	v17.8h, v17.8h, v19.8h\n\t"
+        "add	v18.8h, v18.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[2]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[2]\n\t"
+        "sqrdmulh	v19.8h, v26.8h, v5.h[2]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v5.h[2]\n\t"
+        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v19.8h, v19.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "sub	v26.8h, v21.8h, v23.8h\n\t"
+        "sub	v28.8h, v22.8h, v24.8h\n\t"
+        "add	v21.8h, v21.8h, v23.8h\n\t"
+        "add	v22.8h, v22.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[3]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[3]\n\t"
+        "sqrdmulh	v23.8h, v26.8h, v5.h[3]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v5.h[3]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sub	v26.8h, v9.8h, v13.8h\n\t"
+        "sub	v28.8h, v10.8h, v14.8h\n\t"
+        "add	v9.8h, v9.8h, v13.8h\n\t"
+        "add	v10.8h, v10.8h, v14.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[4]\n\t"
+        "sqrdmulh	v13.8h, v26.8h, v5.h[4]\n\t"
+        "sqrdmulh	v14.8h, v28.8h, v5.h[4]\n\t"
+        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v14.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v13.8h, v13.8h, #1\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "sub	v26.8h, v11.8h, v15.8h\n\t"
+        "sub	v28.8h, v12.8h, v16.8h\n\t"
+        "add	v11.8h, v11.8h, v15.8h\n\t"
+        "add	v12.8h, v12.8h, v16.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[4]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[4]\n\t"
+        "sqrdmulh	v15.8h, v26.8h, v5.h[4]\n\t"
+        "sqrdmulh	v16.8h, v28.8h, v5.h[4]\n\t"
+        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "sub	v26.8h, v17.8h, v21.8h\n\t"
+        "sub	v28.8h, v18.8h, v22.8h\n\t"
+        "add	v17.8h, v17.8h, v21.8h\n\t"
+        "add	v18.8h, v18.8h, v22.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[5]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[5]\n\t"
+        "sqrdmulh	v21.8h, v26.8h, v5.h[5]\n\t"
+        "sqrdmulh	v22.8h, v28.8h, v5.h[5]\n\t"
+        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sub	v26.8h, v19.8h, v23.8h\n\t"
+        "sub	v28.8h, v20.8h, v24.8h\n\t"
+        "add	v19.8h, v19.8h, v23.8h\n\t"
+        "add	v20.8h, v20.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[5]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[5]\n\t"
+        "sqrdmulh	v23.8h, v26.8h, v5.h[5]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v5.h[5]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "sqdmulh	v25.8h, v9.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v10.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v9.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v10.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v11.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v12.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v11.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v12.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v17.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v18.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v17.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v18.8h, v26.8h, v8.h[0]\n\t"
+        "sqdmulh	v25.8h, v19.8h, v8.h[2]\n\t"
+        "sqdmulh	v26.8h, v20.8h, v8.h[2]\n\t"
+        "sshr	v25.8h, v25.8h, #11\n\t"
+        "sshr	v26.8h, v26.8h, #11\n\t"
+        "mls	v19.8h, v25.8h, v8.h[0]\n\t"
+        "mls	v20.8h, v26.8h, v8.h[0]\n\t"
+        "sub	v26.8h, v9.8h, v17.8h\n\t"
+        "sub	v28.8h, v10.8h, v18.8h\n\t"
+        "add	v9.8h, v9.8h, v17.8h\n\t"
+        "add	v10.8h, v10.8h, v18.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v17.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v18.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v18.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v17.8h, v17.8h, #1\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "sub	v26.8h, v11.8h, v19.8h\n\t"
+        "sub	v28.8h, v12.8h, v20.8h\n\t"
+        "add	v11.8h, v11.8h, v19.8h\n\t"
+        "add	v12.8h, v12.8h, v20.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v19.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v20.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v19.8h, v19.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "sub	v26.8h, v13.8h, v21.8h\n\t"
+        "sub	v28.8h, v14.8h, v22.8h\n\t"
+        "add	v13.8h, v13.8h, v21.8h\n\t"
+        "add	v14.8h, v14.8h, v22.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v21.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v22.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "sub	v26.8h, v15.8h, v23.8h\n\t"
+        "sub	v28.8h, v16.8h, v24.8h\n\t"
+        "add	v15.8h, v15.8h, v23.8h\n\t"
+        "add	v16.8h, v16.8h, v24.8h\n\t"
+        "mul	v25.8h, v26.8h, v7.h[6]\n\t"
+        "mul	v27.8h, v28.8h, v7.h[6]\n\t"
+        "sqrdmulh	v23.8h, v26.8h, v5.h[6]\n\t"
+        "sqrdmulh	v24.8h, v28.8h, v5.h[6]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v27.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "mul	v25.8h, v9.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v10.8h, v7.h[7]\n\t"
+        "sqrdmulh	v9.8h, v9.8h, v5.h[7]\n\t"
+        "sqrdmulh	v10.8h, v10.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v9.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v10.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v9.8h, v9.8h, #1\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "mul	v25.8h, v11.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v12.8h, v7.h[7]\n\t"
+        "sqrdmulh	v11.8h, v11.8h, v5.h[7]\n\t"
+        "sqrdmulh	v12.8h, v12.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v11.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v11.8h, v11.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "mul	v25.8h, v13.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v14.8h, v7.h[7]\n\t"
+        "sqrdmulh	v13.8h, v13.8h, v5.h[7]\n\t"
+        "sqrdmulh	v14.8h, v14.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v13.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v14.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v13.8h, v13.8h, #1\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "mul	v25.8h, v15.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v16.8h, v7.h[7]\n\t"
+        "sqrdmulh	v15.8h, v15.8h, v5.h[7]\n\t"
+        "sqrdmulh	v16.8h, v16.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v15.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "mul	v25.8h, v17.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v18.8h, v7.h[7]\n\t"
+        "sqrdmulh	v17.8h, v17.8h, v5.h[7]\n\t"
+        "sqrdmulh	v18.8h, v18.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v17.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v18.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v17.8h, v17.8h, #1\n\t"
+        "sshr	v18.8h, v18.8h, #1\n\t"
+        "mul	v25.8h, v19.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v20.8h, v7.h[7]\n\t"
+        "sqrdmulh	v19.8h, v19.8h, v5.h[7]\n\t"
+        "sqrdmulh	v20.8h, v20.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v19.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v20.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v19.8h, v19.8h, #1\n\t"
+        "sshr	v20.8h, v20.8h, #1\n\t"
+        "mul	v25.8h, v21.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v22.8h, v7.h[7]\n\t"
+        "sqrdmulh	v21.8h, v21.8h, v5.h[7]\n\t"
+        "sqrdmulh	v22.8h, v22.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v21.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v22.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v21.8h, v21.8h, #1\n\t"
+        "sshr	v22.8h, v22.8h, #1\n\t"
+        "mul	v25.8h, v23.8h, v7.h[7]\n\t"
+        "mul	v26.8h, v24.8h, v7.h[7]\n\t"
+        "sqrdmulh	v23.8h, v23.8h, v5.h[7]\n\t"
+        "sqrdmulh	v24.8h, v24.8h, v5.h[7]\n\t"
+        "sqrdmlsh	v23.8h, v25.8h, v8.h[0]\n\t"
+        "sqrdmlsh	v24.8h, v26.8h, v8.h[0]\n\t"
+        "sshr	v23.8h, v23.8h, #1\n\t"
+        "sshr	v24.8h, v24.8h, #1\n\t"
+        "str	q9, [%x[r], #16]\n\t"
+        "str	q10, [%x[r], #48]\n\t"
+        "str	q11, [%x[r], #80]\n\t"
+        "str	q12, [%x[r], #112]\n\t"
+        "str	q13, [%x[r], #144]\n\t"
+        "str	q14, [%x[r], #176]\n\t"
+        "str	q15, [%x[r], #208]\n\t"
+        "str	q16, [%x[r], #240]\n\t"
+        "str	q17, [x1, #16]\n\t"
+        "str	q18, [x1, #48]\n\t"
+        "str	q19, [x1, #80]\n\t"
+        "str	q20, [x1, #112]\n\t"
+        "str	q21, [x1, #144]\n\t"
+        "str	q22, [x1, #176]\n\t"
+        "str	q23, [x1, #208]\n\t"
+        "str	q24, [x1, #240]\n\t"
+        : [r] "+r" (r)
+        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv)
+        : "memory", "x1", "x2", "x3", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "cc"
+    );
+}
+
+#endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 static const word16 L_kyber_aarch64_zetas_mul[] = {
-    0x8b2,
-    0xf74e,
-    0x1ae,
-    0xfe52,
-    0x22b,
-    0xfdd5,
-    0x34b,
-    0xfcb5,
-    0x81e,
-    0xf7e2,
-    0x367,
-    0xfc99,
-    0x60e,
-    0xf9f2,
-    0x69,
-    0xff97,
-    0x1a6,
-    0xfe5a,
-    0x24b,
-    0xfdb5,
-    0xb1,
-    0xff4f,
-    0xc16,
-    0xf3ea,
-    0xbde,
-    0xf422,
-    0xb35,
-    0xf4cb,
-    0x626,
-    0xf9da,
-    0x675,
-    0xf98b,
-    0xc0b,
-    0xf3f5,
-    0x30a,
-    0xfcf6,
-    0x487,
-    0xfb79,
-    0xc6e,
-    0xf392,
-    0x9f8,
-    0xf608,
-    0x5cb,
-    0xfa35,
-    0xaa7,
-    0xf559,
-    0x45f,
-    0xfba1,
-    0x6cb,
-    0xf935,
-    0x284,
-    0xfd7c,
-    0x999,
-    0xf667,
-    0x15d,
-    0xfea3,
-    0x1a2,
-    0xfe5e,
-    0x149,
-    0xfeb7,
-    0xc65,
-    0xf39b,
-    0xcb6,
-    0xf34a,
-    0x331,
-    0xfccf,
-    0x449,
-    0xfbb7,
-    0x25b,
-    0xfda5,
-    0x262,
-    0xfd9e,
-    0x52a,
-    0xfad6,
-    0x7fc,
-    0xf804,
-    0x748,
-    0xf8b8,
-    0x180,
-    0xfe80,
-    0x842,
-    0xf7be,
-    0xc79,
-    0xf387,
-    0x4c2,
-    0xfb3e,
-    0x7ca,
-    0xf836,
-    0x997,
-    0xf669,
-    0xdc,
-    0xff24,
-    0x85e,
-    0xf7a2,
-    0x686,
-    0xf97a,
-    0x860,
-    0xf7a0,
-    0x707,
-    0xf8f9,
-    0x803,
-    0xf7fd,
-    0x31a,
-    0xfce6,
-    0x71b,
-    0xf8e5,
-    0x9ab,
-    0xf655,
-    0x99b,
-    0xf665,
-    0x1de,
-    0xfe22,
-    0xc95,
-    0xf36b,
-    0xbcd,
-    0xf433,
-    0x3e4,
-    0xfc1c,
-    0x3df,
-    0xfc21,
-    0x3be,
-    0xfc42,
-    0x74d,
-    0xf8b3,
-    0x5f2,
-    0xfa0e,
-    0x65c,
-    0xf9a4,
+    0x08b2, 0xf74e, 0x01ae, 0xfe52, 0x022b, 0xfdd5, 0x034b, 0xfcb5,
+    0x081e, 0xf7e2, 0x0367, 0xfc99, 0x060e, 0xf9f2, 0x0069, 0xff97,
+    0x01a6, 0xfe5a, 0x024b, 0xfdb5, 0x00b1, 0xff4f, 0x0c16, 0xf3ea,
+    0x0bde, 0xf422, 0x0b35, 0xf4cb, 0x0626, 0xf9da, 0x0675, 0xf98b,
+    0x0c0b, 0xf3f5, 0x030a, 0xfcf6, 0x0487, 0xfb79, 0x0c6e, 0xf392,
+    0x09f8, 0xf608, 0x05cb, 0xfa35, 0x0aa7, 0xf559, 0x045f, 0xfba1,
+    0x06cb, 0xf935, 0x0284, 0xfd7c, 0x0999, 0xf667, 0x015d, 0xfea3,
+    0x01a2, 0xfe5e, 0x0149, 0xfeb7, 0x0c65, 0xf39b, 0x0cb6, 0xf34a,
+    0x0331, 0xfccf, 0x0449, 0xfbb7, 0x025b, 0xfda5, 0x0262, 0xfd9e,
+    0x052a, 0xfad6, 0x07fc, 0xf804, 0x0748, 0xf8b8, 0x0180, 0xfe80,
+    0x0842, 0xf7be, 0x0c79, 0xf387, 0x04c2, 0xfb3e, 0x07ca, 0xf836,
+    0x0997, 0xf669, 0x00dc, 0xff24, 0x085e, 0xf7a2, 0x0686, 0xf97a,
+    0x0860, 0xf7a0, 0x0707, 0xf8f9, 0x0803, 0xf7fd, 0x031a, 0xfce6,
+    0x071b, 0xf8e5, 0x09ab, 0xf655, 0x099b, 0xf665, 0x01de, 0xfe22,
+    0x0c95, 0xf36b, 0x0bcd, 0xf433, 0x03e4, 0xfc1c, 0x03df, 0xfc21,
+    0x03be, 0xfc42, 0x074d, 0xf8b3, 0x05f2, 0xfa0e, 0x065c, 0xf9a4,
 };
 
 void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
@@ -6877,120 +7545,80 @@ void kyber_to_mont(sword16* p)
         "mul	v18.8h, v2.8h, v0.h[4]\n\t"
         "sqrdmulh	v1.8h, v1.8h, v0.h[3]\n\t"
         "sqrdmulh	v2.8h, v2.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v1.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v2.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v1.8h, v1.8h, v17.8h\n\t"
         "sub	v2.8h, v2.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v1.8h, v1.8h, #1\n\t"
         "sshr	v2.8h, v2.8h, #1\n\t"
         "mul	v17.8h, v3.8h, v0.h[4]\n\t"
         "mul	v18.8h, v4.8h, v0.h[4]\n\t"
         "sqrdmulh	v3.8h, v3.8h, v0.h[3]\n\t"
         "sqrdmulh	v4.8h, v4.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v3.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v4.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v3.8h, v3.8h, v17.8h\n\t"
         "sub	v4.8h, v4.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v3.8h, v3.8h, #1\n\t"
         "sshr	v4.8h, v4.8h, #1\n\t"
         "mul	v17.8h, v5.8h, v0.h[4]\n\t"
         "mul	v18.8h, v6.8h, v0.h[4]\n\t"
         "sqrdmulh	v5.8h, v5.8h, v0.h[3]\n\t"
         "sqrdmulh	v6.8h, v6.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v5.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v6.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v5.8h, v5.8h, v17.8h\n\t"
         "sub	v6.8h, v6.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v5.8h, v5.8h, #1\n\t"
         "sshr	v6.8h, v6.8h, #1\n\t"
         "mul	v17.8h, v7.8h, v0.h[4]\n\t"
         "mul	v18.8h, v8.8h, v0.h[4]\n\t"
         "sqrdmulh	v7.8h, v7.8h, v0.h[3]\n\t"
         "sqrdmulh	v8.8h, v8.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v7.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v8.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v7.8h, v7.8h, v17.8h\n\t"
         "sub	v8.8h, v8.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v7.8h, v7.8h, #1\n\t"
         "sshr	v8.8h, v8.8h, #1\n\t"
         "mul	v17.8h, v9.8h, v0.h[4]\n\t"
         "mul	v18.8h, v10.8h, v0.h[4]\n\t"
         "sqrdmulh	v9.8h, v9.8h, v0.h[3]\n\t"
         "sqrdmulh	v10.8h, v10.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v9.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v10.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v9.8h, v9.8h, v17.8h\n\t"
         "sub	v10.8h, v10.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v9.8h, v9.8h, #1\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "mul	v17.8h, v11.8h, v0.h[4]\n\t"
         "mul	v18.8h, v12.8h, v0.h[4]\n\t"
         "sqrdmulh	v11.8h, v11.8h, v0.h[3]\n\t"
         "sqrdmulh	v12.8h, v12.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v11.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v11.8h, v11.8h, v17.8h\n\t"
         "sub	v12.8h, v12.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v11.8h, v11.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "mul	v17.8h, v13.8h, v0.h[4]\n\t"
         "mul	v18.8h, v14.8h, v0.h[4]\n\t"
         "sqrdmulh	v13.8h, v13.8h, v0.h[3]\n\t"
         "sqrdmulh	v14.8h, v14.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v13.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v14.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v13.8h, v13.8h, v17.8h\n\t"
         "sub	v14.8h, v14.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v13.8h, v13.8h, #1\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "mul	v17.8h, v15.8h, v0.h[4]\n\t"
         "mul	v18.8h, v16.8h, v0.h[4]\n\t"
         "sqrdmulh	v15.8h, v15.8h, v0.h[3]\n\t"
         "sqrdmulh	v16.8h, v16.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v15.8h, v15.8h, v17.8h\n\t"
         "sub	v16.8h, v16.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
@@ -7006,120 +7634,80 @@ void kyber_to_mont(sword16* p)
         "mul	v18.8h, v2.8h, v0.h[4]\n\t"
         "sqrdmulh	v1.8h, v1.8h, v0.h[3]\n\t"
         "sqrdmulh	v2.8h, v2.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v1.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v2.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v1.8h, v1.8h, v17.8h\n\t"
         "sub	v2.8h, v2.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v1.8h, v1.8h, #1\n\t"
         "sshr	v2.8h, v2.8h, #1\n\t"
         "mul	v17.8h, v3.8h, v0.h[4]\n\t"
         "mul	v18.8h, v4.8h, v0.h[4]\n\t"
         "sqrdmulh	v3.8h, v3.8h, v0.h[3]\n\t"
         "sqrdmulh	v4.8h, v4.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v3.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v4.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v3.8h, v3.8h, v17.8h\n\t"
         "sub	v4.8h, v4.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v3.8h, v3.8h, #1\n\t"
         "sshr	v4.8h, v4.8h, #1\n\t"
         "mul	v17.8h, v5.8h, v0.h[4]\n\t"
         "mul	v18.8h, v6.8h, v0.h[4]\n\t"
         "sqrdmulh	v5.8h, v5.8h, v0.h[3]\n\t"
         "sqrdmulh	v6.8h, v6.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v5.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v6.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v5.8h, v5.8h, v17.8h\n\t"
         "sub	v6.8h, v6.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v5.8h, v5.8h, #1\n\t"
         "sshr	v6.8h, v6.8h, #1\n\t"
         "mul	v17.8h, v7.8h, v0.h[4]\n\t"
         "mul	v18.8h, v8.8h, v0.h[4]\n\t"
         "sqrdmulh	v7.8h, v7.8h, v0.h[3]\n\t"
         "sqrdmulh	v8.8h, v8.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v7.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v8.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v7.8h, v7.8h, v17.8h\n\t"
         "sub	v8.8h, v8.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v7.8h, v7.8h, #1\n\t"
         "sshr	v8.8h, v8.8h, #1\n\t"
         "mul	v17.8h, v9.8h, v0.h[4]\n\t"
         "mul	v18.8h, v10.8h, v0.h[4]\n\t"
         "sqrdmulh	v9.8h, v9.8h, v0.h[3]\n\t"
         "sqrdmulh	v10.8h, v10.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v9.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v10.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v9.8h, v9.8h, v17.8h\n\t"
         "sub	v10.8h, v10.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v9.8h, v9.8h, #1\n\t"
         "sshr	v10.8h, v10.8h, #1\n\t"
         "mul	v17.8h, v11.8h, v0.h[4]\n\t"
         "mul	v18.8h, v12.8h, v0.h[4]\n\t"
         "sqrdmulh	v11.8h, v11.8h, v0.h[3]\n\t"
         "sqrdmulh	v12.8h, v12.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v11.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v12.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v11.8h, v11.8h, v17.8h\n\t"
         "sub	v12.8h, v12.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v11.8h, v11.8h, #1\n\t"
         "sshr	v12.8h, v12.8h, #1\n\t"
         "mul	v17.8h, v13.8h, v0.h[4]\n\t"
         "mul	v18.8h, v14.8h, v0.h[4]\n\t"
         "sqrdmulh	v13.8h, v13.8h, v0.h[3]\n\t"
         "sqrdmulh	v14.8h, v14.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v13.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v14.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v13.8h, v13.8h, v17.8h\n\t"
         "sub	v14.8h, v14.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v13.8h, v13.8h, #1\n\t"
         "sshr	v14.8h, v14.8h, #1\n\t"
         "mul	v17.8h, v15.8h, v0.h[4]\n\t"
         "mul	v18.8h, v16.8h, v0.h[4]\n\t"
         "sqrdmulh	v15.8h, v15.8h, v0.h[3]\n\t"
         "sqrdmulh	v16.8h, v16.8h, v0.h[3]\n\t"
-#ifndef WOLFSSL_AARCH64_NO_SQRMLSH
-        "sqrdmlsh	v15.8h, v17.8h, v0.h[0]\n\t"
-        "sqrdmlsh	v16.8h, v18.8h, v0.h[0]\n\t"
-#else
         "sqrdmulh	v17.8h, v17.8h, v0.h[0]\n\t"
         "sqrdmulh	v18.8h, v18.8h, v0.h[0]\n\t"
         "sub	v15.8h, v15.8h, v17.8h\n\t"
         "sub	v16.8h, v16.8h, v18.8h\n\t"
-#endif /* !WOLFSSL_AARCH64_NO_SQRMLSH */
         "sshr	v15.8h, v15.8h, #1\n\t"
         "sshr	v16.8h, v16.8h, #1\n\t"
         "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
@@ -7132,37 +7720,181 @@ void kyber_to_mont(sword16* p)
     );
 }
 
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+void kyber_to_mont_sqrdmlsh(sword16* p)
+{
+    __asm__ __volatile__ (
+#ifndef __APPLE__
+        "adrp x1, %[L_kyber_aarch64_consts]\n\t"
+        "add  x1, x1, :lo12:%[L_kyber_aarch64_consts]\n\t"
+#else
+        "adrp x1, %[L_kyber_aarch64_consts]@PAGE\n\t"
+        "add  x1, x1, %[L_kyber_aarch64_consts]@PAGEOFF\n\t"
+#endif /* __APPLE__ */
+        "ldr	q0, [x1]\n\t"
+        "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
+        "ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[p]], #0x40\n\t"
+        "ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
+        "ld4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
+        "sub	%x[p], %x[p], #0x100\n\t"
+        "mul	v17.8h, v1.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v2.8h, v0.h[4]\n\t"
+        "sqrdmulh	v1.8h, v1.8h, v0.h[3]\n\t"
+        "sqrdmulh	v2.8h, v2.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v1.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v2.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v1.8h, v1.8h, #1\n\t"
+        "sshr	v2.8h, v2.8h, #1\n\t"
+        "mul	v17.8h, v3.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v4.8h, v0.h[4]\n\t"
+        "sqrdmulh	v3.8h, v3.8h, v0.h[3]\n\t"
+        "sqrdmulh	v4.8h, v4.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v3.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v4.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v3.8h, v3.8h, #1\n\t"
+        "sshr	v4.8h, v4.8h, #1\n\t"
+        "mul	v17.8h, v5.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v6.8h, v0.h[4]\n\t"
+        "sqrdmulh	v5.8h, v5.8h, v0.h[3]\n\t"
+        "sqrdmulh	v6.8h, v6.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v5.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v6.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v5.8h, v5.8h, #1\n\t"
+        "sshr	v6.8h, v6.8h, #1\n\t"
+        "mul	v17.8h, v7.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v8.8h, v0.h[4]\n\t"
+        "sqrdmulh	v7.8h, v7.8h, v0.h[3]\n\t"
+        "sqrdmulh	v8.8h, v8.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v7.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v8.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v7.8h, v7.8h, #1\n\t"
+        "sshr	v8.8h, v8.8h, #1\n\t"
+        "mul	v17.8h, v9.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v10.8h, v0.h[4]\n\t"
+        "sqrdmulh	v9.8h, v9.8h, v0.h[3]\n\t"
+        "sqrdmulh	v10.8h, v10.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v9.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v10.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v9.8h, v9.8h, #1\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "mul	v17.8h, v11.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v12.8h, v0.h[4]\n\t"
+        "sqrdmulh	v11.8h, v11.8h, v0.h[3]\n\t"
+        "sqrdmulh	v12.8h, v12.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v11.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v11.8h, v11.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "mul	v17.8h, v13.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v14.8h, v0.h[4]\n\t"
+        "sqrdmulh	v13.8h, v13.8h, v0.h[3]\n\t"
+        "sqrdmulh	v14.8h, v14.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v13.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v14.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v13.8h, v13.8h, #1\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "mul	v17.8h, v15.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v16.8h, v0.h[4]\n\t"
+        "sqrdmulh	v15.8h, v15.8h, v0.h[3]\n\t"
+        "sqrdmulh	v16.8h, v16.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v15.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
+        "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[p]], #0x40\n\t"
+        "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
+        "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
+        "ld4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
+        "ld4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[p]], #0x40\n\t"
+        "ld4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
+        "ld4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
+        "sub	%x[p], %x[p], #0x100\n\t"
+        "mul	v17.8h, v1.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v2.8h, v0.h[4]\n\t"
+        "sqrdmulh	v1.8h, v1.8h, v0.h[3]\n\t"
+        "sqrdmulh	v2.8h, v2.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v1.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v2.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v1.8h, v1.8h, #1\n\t"
+        "sshr	v2.8h, v2.8h, #1\n\t"
+        "mul	v17.8h, v3.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v4.8h, v0.h[4]\n\t"
+        "sqrdmulh	v3.8h, v3.8h, v0.h[3]\n\t"
+        "sqrdmulh	v4.8h, v4.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v3.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v4.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v3.8h, v3.8h, #1\n\t"
+        "sshr	v4.8h, v4.8h, #1\n\t"
+        "mul	v17.8h, v5.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v6.8h, v0.h[4]\n\t"
+        "sqrdmulh	v5.8h, v5.8h, v0.h[3]\n\t"
+        "sqrdmulh	v6.8h, v6.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v5.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v6.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v5.8h, v5.8h, #1\n\t"
+        "sshr	v6.8h, v6.8h, #1\n\t"
+        "mul	v17.8h, v7.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v8.8h, v0.h[4]\n\t"
+        "sqrdmulh	v7.8h, v7.8h, v0.h[3]\n\t"
+        "sqrdmulh	v8.8h, v8.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v7.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v8.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v7.8h, v7.8h, #1\n\t"
+        "sshr	v8.8h, v8.8h, #1\n\t"
+        "mul	v17.8h, v9.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v10.8h, v0.h[4]\n\t"
+        "sqrdmulh	v9.8h, v9.8h, v0.h[3]\n\t"
+        "sqrdmulh	v10.8h, v10.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v9.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v10.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v9.8h, v9.8h, #1\n\t"
+        "sshr	v10.8h, v10.8h, #1\n\t"
+        "mul	v17.8h, v11.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v12.8h, v0.h[4]\n\t"
+        "sqrdmulh	v11.8h, v11.8h, v0.h[3]\n\t"
+        "sqrdmulh	v12.8h, v12.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v11.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v12.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v11.8h, v11.8h, #1\n\t"
+        "sshr	v12.8h, v12.8h, #1\n\t"
+        "mul	v17.8h, v13.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v14.8h, v0.h[4]\n\t"
+        "sqrdmulh	v13.8h, v13.8h, v0.h[3]\n\t"
+        "sqrdmulh	v14.8h, v14.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v13.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v14.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v13.8h, v13.8h, #1\n\t"
+        "sshr	v14.8h, v14.8h, #1\n\t"
+        "mul	v17.8h, v15.8h, v0.h[4]\n\t"
+        "mul	v18.8h, v16.8h, v0.h[4]\n\t"
+        "sqrdmulh	v15.8h, v15.8h, v0.h[3]\n\t"
+        "sqrdmulh	v16.8h, v16.8h, v0.h[3]\n\t"
+        "sqrdmlsh	v15.8h, v17.8h, v0.h[0]\n\t"
+        "sqrdmlsh	v16.8h, v18.8h, v0.h[0]\n\t"
+        "sshr	v15.8h, v15.8h, #1\n\t"
+        "sshr	v16.8h, v16.8h, #1\n\t"
+        "st4	{v1.8h, v2.8h, v3.8h, v4.8h}, [%x[p]], #0x40\n\t"
+        "st4	{v5.8h, v6.8h, v7.8h, v8.8h}, [%x[p]], #0x40\n\t"
+        "st4	{v9.8h, v10.8h, v11.8h, v12.8h}, [%x[p]], #0x40\n\t"
+        "st4	{v13.8h, v14.8h, v15.8h, v16.8h}, [%x[p]], #0x40\n\t"
+        : [p] "+r" (p)
+        : [L_kyber_aarch64_q] "S" (L_kyber_aarch64_q), [L_kyber_aarch64_consts] "S" (L_kyber_aarch64_consts), [L_sha3_aarch64_r] "S" (L_sha3_aarch64_r), [L_kyber_aarch64_zetas] "S" (L_kyber_aarch64_zetas), [L_kyber_aarch64_zetas_qinv] "S" (L_kyber_aarch64_zetas_qinv), [L_kyber_aarch64_zetas_inv] "S" (L_kyber_aarch64_zetas_inv), [L_kyber_aarch64_zetas_inv_qinv] "S" (L_kyber_aarch64_zetas_inv_qinv), [L_kyber_aarch64_zetas_mul] "S" (L_kyber_aarch64_zetas_mul)
+        : "memory", "x1", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "cc"
+    );
+}
+
+#endif /* WOLFSSL_AARCH64_NO_SQRDMLSH */
 static const word16 L_kyber_aarch64_to_msg_neon_low[] = {
-    0x373,
-    0x373,
-    0x373,
-    0x373,
-    0x373,
-    0x373,
-    0x373,
-    0x373,
+    0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373, 0x0373,
 };
 
 static const word16 L_kyber_aarch64_to_msg_neon_high[] = {
-    0x9c0,
-    0x9c0,
-    0x9c0,
-    0x9c0,
-    0x9c0,
-    0x9c0,
-    0x9c0,
-    0x9c0,
+    0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0, 0x09c0,
 };
 
 static const word16 L_kyber_aarch64_to_msg_neon_bits[] = {
-    0x1,
-    0x2,
-    0x4,
-    0x8,
-    0x10,
-    0x20,
-    0x40,
-    0x80,
+    0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
 };
 
 void kyber_to_msg_neon(byte* msg, sword16* p)
@@ -7399,33 +8131,12 @@ void kyber_to_msg_neon(byte* msg, sword16* p)
 }
 
 static const word16 L_kyber_aarch64_from_msg_neon_q1half[] = {
-    0x681,
-    0x681,
-    0x681,
-    0x681,
-    0x681,
-    0x681,
-    0x681,
-    0x681,
+    0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681, 0x0681,
 };
 
 static const word8 L_kyber_aarch64_from_msg_neon_bits[] = {
-    0x1,
-    0x2,
-    0x4,
-    0x8,
-    0x10,
-    0x20,
-    0x40,
-    0x80,
-    0x1,
-    0x2,
-    0x4,
-    0x8,
-    0x10,
-    0x20,
-    0x40,
-    0x80,
+    0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
+    0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
 };
 
 void kyber_from_msg_neon(sword16* p, const byte* msg)
@@ -7857,4124 +8568,526 @@ int kyber_cmp_neon(const byte* a, const byte* b, int sz)
 }
 
 static const word16 L_kyber_aarch64_rej_uniform_neon_mask[] = {
-    0xfff,
-    0xfff,
-    0xfff,
-    0xfff,
-    0xfff,
-    0xfff,
-    0xfff,
-    0xfff,
+    0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff, 0x0fff,
 };
 
 static const word16 L_kyber_aarch64_rej_uniform_neon_bits[] = {
-    0x1,
-    0x2,
-    0x4,
-    0x8,
-    0x10,
-    0x20,
-    0x40,
-    0x80,
+    0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
 };
 
 static const word8 L_kyber_aarch64_rej_uniform_neon_indices[] = {
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xff,
-    0xff,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
-    0xff,
-    0xff,
-    0x0,
-    0x1,
-    0x2,
-    0x3,
-    0x4,
-    0x5,
-    0x6,
-    0x7,
-    0x8,
-    0x9,
-    0xa,
-    0xb,
-    0xc,
-    0xd,
-    0xe,
-    0xf,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x08, 0x09, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x08, 0x09, 0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0xff, 0xff, 0xff, 0xff,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x08, 0x09, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0xff, 0xff,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x08, 0x09, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x08, 0x09, 0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0e, 0x0f, 0xff, 0xff,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x08, 0x09, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x02, 0x03, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+    0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff, 0xff, 0xff,
+    0x00, 0x01, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0xff, 0xff,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+    0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
 };
 
 unsigned int kyber_rej_uniform_neon(sword16* p, unsigned int len, const byte* r, unsigned int rLen)

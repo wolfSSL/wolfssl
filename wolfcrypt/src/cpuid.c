@@ -289,7 +289,7 @@
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
             cpuid_flags |= CPUID_SHA512;
         #endif
-        #ifndef WOLFSSL_AARCH64_NO_SQRMLSH
+        #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
             cpuid_flags |= CPUID_RDM;
         #endif
         #ifdef WOLFSSL_ARMASM_CRYPTO_SHA3
