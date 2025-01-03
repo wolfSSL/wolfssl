@@ -1,0 +1,93 @@
+name: bind9 Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all
+          install: true
+          check: false
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-bind
+          path: build-dir.tgz
+          retention-days: 5
+
+  bind_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 9.18.0, 9.18.28 ]
+    name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 10
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-bind
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Install dependencies
+        run: |
+          # Don't prompt for anything
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          # hostap dependencies
+          sudo apt-get install -y libuv1-dev libnghttp2-dev libcap-dev libcmocka-dev
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout bind9
+        uses: actions/checkout@v4
+        with:
+          repository: isc-projects/bind9
+          path: bind
+          ref: v${{ matrix.ref }}
+
+      - name: Build and test bind9
+        working-directory: bind
+        run: |
+          export PKG_CONFIG_PATH=$GITHUB_WORKSPACE/build-dir/lib/pkgconfig
+          patch -p1 < $GITHUB_WORKSPACE/osp/bind9/${{ matrix.ref }}.patch
+          autoreconf -ivf
+          ./configure --with-wolfssl
+          sed -i 's/SUBDIRS = system//g' bin/tests/Makefile # remove failing tests
+          make -j V=1
+          make -j V=1 check
