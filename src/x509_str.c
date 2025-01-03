@@ -1474,13 +1474,6 @@ int wolfSSL_X509_STORE_set_flags(WOLFSSL_X509_STORE* store, unsigned long flag)
     return ret;
 }
 
-
-int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE* store)
-{
-    (void)store;
-    return WOLFSSL_SUCCESS;
-}
-
 int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type)
 {
@@ -1681,6 +1674,25 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 
     return ret;
 }
+
+#if defined(XGETENV) && !defined(NO_GETENV)
+int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE *str)
+{
+    int ret = WOLFSSL_FAILURE;
+    char* certDir = NULL;
+    char* certFile = NULL;
+
+    certDir = wc_strdup_ex(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
+    certFile = wc_strdup_ex(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
+
+    ret = wolfSSL_X509_STORE_load_locations(str, certFile, certDir);
+
+    XFREE(certFile, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(certDir, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* XGETENV && !NO_GETENV */
+
 #endif /* !NO_FILESYSTEM && !NO_WOLFSSL_DIR */
 
 int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
