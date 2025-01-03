@@ -90249,6 +90249,10 @@ static int test_wolfSSL_dtls_set_mtu(void)
     ExpectIntEQ(wolfSSL_CTX_dtls_set_mtu(ctx, 1488), WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_dtls_set_mtu(ssl, 1488), WOLFSSL_SUCCESS);
 
+#ifdef OPENSSL_EXTRA
+    ExpectIntEQ(SSL_set_mtu(ssl, 1488), WOLFSSL_SUCCESS);
+#endif
+
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 #endif
