@@ -7101,6 +7101,11 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
 #endif
 #endif
 
+    /* placing error into error queue for Python port */
+    if (res != WOLFSSL_SUCCESS) {
+        WOLFSSL_ERROR(WC_KEY_MISMATCH_E);
+    }
+
     return res;
 }
 #endif /* !NO_CHECK_PRIVATE_KEY */

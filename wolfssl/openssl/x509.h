@@ -214,6 +214,7 @@
 #define X509_V_ERR_EXTENSIONS_REQUIRE_VERSION_3        93
 #define X509_V_ERR_EC_KEY_EXPLICIT_PARAMS              94
 #define X509_R_CERT_ALREADY_IN_HASH_TABLE              101
+#define X509_R_KEY_VALUES_MISMATCH                     WC_KEY_MISMATCH_E
 
 #define X509_EXTENSION_set_critical wolfSSL_X509_EXTENSION_set_critical
 #define X509_EXTENSION_set_object   wolfSSL_X509_EXTENSION_set_object

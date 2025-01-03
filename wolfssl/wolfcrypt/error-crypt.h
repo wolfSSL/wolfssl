@@ -135,7 +135,8 @@ enum wolfCrypt_ErrorCodes {
     ED25519_KAT_FIPS_E = -163,  /* Ed25519 Known answer test failure */
     ED448_KAT_FIPS_E   = -164,  /* Ed448 Known answer test failure */
     PBKDF2_KAT_FIPS_E  = -165,  /* PBKDF2 Known answer test failure */
-    /* -166..-169 unused. */
+    WC_KEY_MISMATCH_E  = -166,  /* Error for private/public key mismatch */
+    /* -167..-169 unused. */
 
     ECC_BAD_ARG_E      = -170,  /* ECC input argument of wrong type */
     ASN_ECC_KEY_E      = -171,  /* ASN ECC bad input */
