@@ -1553,6 +1553,8 @@ static int X509StoreLoadFile(WOLFSSL_X509_STORE *str,
     static_buffer_init(&content, stackBuffer, FILE_BUFFER_SIZE);
 #endif
 
+    WOLFSSL_MSG_EX("X509StoreLoadFile: Loading file: %s", fname);
+
     ret = X509StoreReadFile(fname, &content, &contentLen, &type);
     if (ret != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Failed to load file");
@@ -1678,12 +1680,14 @@ WOLFSSL_API int wolfSSL_X509_STORE_load_locations(WOLFSSL_X509_STORE *str,
 #if defined(XGETENV) && !defined(NO_GETENV)
 int wolfSSL_X509_STORE_set_default_paths(WOLFSSL_X509_STORE *str)
 {
-    int ret = WOLFSSL_FAILURE;
+    int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
     char* certDir = NULL;
     char* certFile = NULL;
 
-    certDir = wc_strdup_ex(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_set_default_paths");
+
     certFile = wc_strdup_ex(XGETENV("SSL_CERT_FILE"), DYNAMIC_TYPE_TMP_BUFFER);
+    certDir = wc_strdup_ex(XGETENV("SSL_CERT_DIR"), DYNAMIC_TYPE_TMP_BUFFER);
 
     ret = wolfSSL_X509_STORE_load_locations(str, certFile, certDir);
 

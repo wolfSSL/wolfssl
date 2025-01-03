@@ -62369,6 +62369,15 @@ static int test_wolfSSL_X509_STORE_load_locations(void)
     ExpectIntEQ(X509_STORE_load_locations(store, NULL, certs_path),
         WOLFSSL_SUCCESS);
 
+#if defined(XGETENV) && !defined(NO_GETENV) && defined(_POSIX_C_SOURCE) && \
+    _POSIX_C_SOURCE >= 200112L
+    ExpectIntEQ(wolfSSL_CTX_UnloadCAs(ctx), WOLFSSL_SUCCESS);
+    /* Test with env vars */
+    ExpectIntEQ(setenv("SSL_CERT_FILE", client_pem_file, 1), 0);
+    ExpectIntEQ(setenv("SSL_CERT_DIR", certs_path, 1), 0);
+    ExpectIntEQ(X509_STORE_set_default_paths(store), WOLFSSL_SUCCESS);
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     /* Clear nodes */
     ERR_clear_error();
