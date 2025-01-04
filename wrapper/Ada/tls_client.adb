@@ -23,7 +23,8 @@
 with Ada.Characters.Handling;
 with Ada.Strings.Bounded;
 with Ada.Text_IO;
-with Interfaces.C;
+with Ada.Directories;
+with Interfaces.C.Strings;
 
 with SPARK_Terminal;
 
@@ -40,7 +41,61 @@ package body Tls_Client with SPARK_Mode is
 
    subtype Byte_Type is WolfSSL.Byte_Type;
 
+   subtype chars_ptr is WolfSSL.chars_ptr;
+   subtype unsigned is WolfSSL.unsigned;
+
    package Natural_IO is new Ada.Text_IO.Integer_IO (Natural);
+
+   function PSK_Client_Callback
+     (Unused         : WolfSSL.WolfSSL_Type;
+      Hint           : chars_ptr;
+      Identity       : chars_ptr;
+      Id_Max_Length  : unsigned;
+      Key            : chars_ptr;
+      Key_Max_Length : unsigned) return unsigned
+   with Convention => C;
+
+   function PSK_Client_Callback
+     (Unused         : WolfSSL.WolfSSL_Type;
+      Hint           : chars_ptr;
+      Identity       : chars_ptr;
+      Id_Max_Length  : unsigned;
+      Key            : chars_ptr;
+      Key_Max_Length : unsigned) return unsigned
+   with
+     SPARK_Mode => Off      
+   is
+      use type Interfaces.C.unsigned;
+
+      Hint_String : constant String := Interfaces.C.Strings.Value (Hint);
+      Identity_String : constant String := "Client_identity";
+      Key_String : constant String :=
+        Character'Val   (26)
+        & Character'Val (43)
+        & Character'Val (60)
+        & Character'Val (77);
+   begin
+
+      Ada.Text_IO.Put_Line ("Hint: " & Hint_String);
+
+      pragma Assert (Id_Max_Length >= Identity_String'Length);
+
+      Interfaces.C.Strings.Update
+        (Item   => Identity,
+         Offset => 0,
+         Str    => Identity_String,
+         Check  => False);
+
+      pragma Assert (Key_Max_Length >= Key_String'Length);
+
+      Interfaces.C.Strings.Update
+        (Item   => Key,
+         Offset => 0,
+         Str    => Key_String,
+         Check  => False);
+
+      return Key_String'Length;
+   end PSK_Client_Callback;
 
    procedure Put (Text : String) is
    begin
@@ -221,49 +276,53 @@ package body Tls_Client with SPARK_Mode is
          (Context => Ctx,
           Mode    => WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert);
 
-      --  Load client certificate into WOLFSSL_CTX.
-      Result := WolfSSL.Use_Certificate_File (Context => Ctx,
-                                              File    => CERT_FILE,
-                                              Format  => WolfSSL.Format_Pem);
-      if Result /= Success then
-         Put ("ERROR: failed to load ");
-         Put (CERT_FILE);
-         Put (", please check the file.");
-         New_Line;
-         SPARK_Sockets.Close_Socket (C);
-         WolfSSL.Free (Context => Ctx);
-         Set (Exit_Status_Failure);
-         return;
-      end if;
+      if Ada.Directories.Exists (CERT_FILE) and then
+         Ada.Directories.Exists (KEY_FILE) then
 
-      --  Load client key into WOLFSSL_CTX.
-      Result := WolfSSL.Use_Private_Key_File (Context => Ctx,
-                                              File    => KEY_FILE,
-                                              Format  => WolfSSL.Format_Pem);
-      if Result /= Success then
-         Put ("ERROR: failed to load ");
-         Put (KEY_FILE);
-         Put (", please check the file.");
-         New_Line;
-         SPARK_Sockets.Close_Socket (C);
-         WolfSSL.Free (Context => Ctx);
-         Set (Exit_Status_Failure);
-         return;
-      end if;
+         --  Load client certificate into WOLFSSL_CTX.
+         Result := WolfSSL.Use_Certificate_File (Context => Ctx,
+                                                File    => CERT_FILE,
+                                                Format  => WolfSSL.Format_Pem);
+         if Result /= Success then
+            Put ("ERROR: failed to load ");
+            Put (CERT_FILE);
+            Put (", please check the file.");
+            New_Line;
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Context => Ctx);
+            Set (Exit_Status_Failure);
+            return;
+         end if;
 
-      --  Load CA certificate into WOLFSSL_CTX.
-      Result := WolfSSL.Load_Verify_Locations (Context => Ctx,
-                                               File    => CA_FILE,
-                                               Path    => "");
-      if Result /= Success then
-         Put ("ERROR: failed to load ");
-         Put (CA_FILE);
-         Put (", please check the file.");
-         New_Line;
-         SPARK_Sockets.Close_Socket (C);
-         WolfSSL.Free (Context => Ctx);
-         Set (Exit_Status_Failure);
-         return;
+         --  Load client key into WOLFSSL_CTX.
+         Result := WolfSSL.Use_Private_Key_File (Context => Ctx,
+                                                File    => KEY_FILE,
+                                                Format  => WolfSSL.Format_Pem);
+         if Result /= Success then
+            Put ("ERROR: failed to load ");
+            Put (KEY_FILE);
+            Put (", please check the file.");
+            New_Line;
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Context => Ctx);
+            Set (Exit_Status_Failure);
+            return;
+         end if;
+
+         --  Load CA certificate into WOLFSSL_CTX.
+         Result := WolfSSL.Load_Verify_Locations (Context => Ctx,
+                                                File    => CA_FILE,
+                                                Path    => "");
+         if Result /= Success then
+            Put ("ERROR: failed to load ");
+            Put (CA_FILE);
+            Put (", please check the file.");
+            New_Line;
+            SPARK_Sockets.Close_Socket (C);
+            WolfSSL.Free (Context => Ctx);
+            Set (Exit_Status_Failure);
+            return;
+         end if;
       end if;
 
       --  Create a WOLFSSL object.
@@ -274,6 +333,15 @@ package body Tls_Client with SPARK_Mode is
          WolfSSL.Free (Context => Ctx);
          Set (Exit_Status_Failure);
          return;
+      end if;
+
+      if not (Ada.Directories.Exists (CERT_FILE) and then
+              Ada.Directories.Exists (KEY_FILE)) then
+
+         -- Use PSK for authentication.
+         WolfSSL.Set_PSK_Client_Callback
+           (Ssl      => Ssl,
+            Callback => PSK_Client_Callback'Access);
       end if;
 
       if DTLS then
