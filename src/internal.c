@@ -8364,6 +8364,8 @@ void FreeSuites(WOLFSSL* ssl)
         wolfSSL_sk_SSL_CIPHER_free(ssl->suitesStack);
         ssl->suitesStack = NULL;
     }
+    XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->clSuites = NULL;
 #endif
     XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->suites = NULL;
@@ -37553,7 +37555,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         byte            b;
         ProtocolVersion pv;
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(OPENSSL_ALL)
         Suites*         clSuites = NULL;
 #else
         Suites          clSuites[1];
@@ -37855,13 +37857,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto out;
         }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) || defined(OPENSSL_ALL)
         clSuites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
                                        DYNAMIC_TYPE_SUITES);
         if (clSuites == NULL) {
             ret = MEMORY_E;
             goto out;
         }
+        ssl->clSuites = clSuites;
 #endif
         XMEMSET(clSuites, 0, sizeof(Suites));
         ato16(&input[i], &clSuites->suiteSz);
@@ -38140,13 +38143,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
 #ifdef OPENSSL_EXTRA
-        ssl->clSuites = clSuites; /* cppcheck-suppress autoVariables
-                                   *
-                                   * (suppress warning that ssl, a persistent
-                                   * non-local allocation, has its ->clSuites
-                                   * set to clSuites, a local stack allocation.
-                                   * we clear this assignment before returning.)
-                                   */
         /* Give user last chance to provide a cert for cipher selection */
         if (ret == 0 && ssl->ctx->certSetupCb != NULL)
             ret = CertSetupCbWrapper(ssl);
@@ -38170,10 +38166,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     out:
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-        ssl->clSuites = NULL;
-#endif
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(OPENSSL_ALL)
         XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
 #endif
         WOLFSSL_LEAVE("DoClientHello", ret);

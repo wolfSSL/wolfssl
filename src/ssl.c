@@ -15046,16 +15046,6 @@ word32 wolfSSL_lib_version_hex(void)
 }
 
 
-#ifdef OPENSSL_EXTRA
-WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
-{
-    WOLFSSL_STUB("wolfSSL_get_client_ciphers");
-    (void)ssl;
-    return NULL;
-}
-#endif
-
-
 int wolfSSL_get_current_cipher_suite(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_current_cipher_suite");
@@ -21916,6 +21906,78 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     return ssl->suitesStack;
 }
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#ifdef OPENSSL_ALL
+WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
+{
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
+    const CipherSuiteInfo* cipher_names = GetCipherNames();
+    int cipherSz = GetCipherNamesSize();
+    const Suites* suites;
+
+    WOLFSSL_ENTER("wolfSSL_get_client_ciphers");
+
+    if (ssl == NULL) {
+        return NULL;
+    }
+
+    /* return NULL if is client side */
+    if (wolfSSL_is_server(ssl) == 0) {
+        return NULL;
+    }
+
+    suites = ssl->clSuites;
+    if (suites == NULL) {
+        WOLFSSL_MSG("No client suites stored");
+    }
+    else {
+        int i;
+        int j;
+
+        /* higher priority of cipher suite will be on top of stack */
+        for (i = suites->suiteSz - 2; i >=0; i-=2) {
+            WOLFSSL_STACK* add;
+
+            /* A couple of suites are placeholders for special options,
+             * skip those. */
+            if (SCSV_Check(suites->suites[i], suites->suites[i+1])
+                    || sslCipherMinMaxCheck(ssl, suites->suites[i],
+                                            suites->suites[i+1])) {
+                continue;
+            }
+
+            add = wolfSSL_sk_new_node(ssl->heap);
+            if (add != NULL) {
+                add->type = STACK_TYPE_CIPHER;
+                add->data.cipher.cipherSuite0 = suites->suites[i];
+                add->data.cipher.cipherSuite  = suites->suites[i+1];
+                add->data.cipher.ssl          = ssl;
+                for (j = 0; j < cipherSz; j++) {
+                    if (cipher_names[j].cipherSuite0 ==
+                            add->data.cipher.cipherSuite0 &&
+                            cipher_names[j].cipherSuite ==
+                                    add->data.cipher.cipherSuite) {
+                        add->data.cipher.offset = (unsigned long)j;
+                        break;
+                    }
+                }
+
+                /* in_stack is checked in wolfSSL_CIPHER_description */
+                add->data.cipher.in_stack     = 1;
+
+                add->next = ret;
+                if (ret != NULL) {
+                    add->num = ret->num + 1;
+                }
+                else {
+                    add->num = 1;
+                }
+                ret = add;
+            }
+        }
+    }
+    return ret;
+}
+#endif /* OPENSSL_ALL */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_SECRET_CALLBACK)
 long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx)

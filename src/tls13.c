@@ -6682,17 +6682,19 @@ typedef struct Dch13Args {
 
 static void FreeDch13Args(WOLFSSL* ssl, void* pArgs)
 {
+    /* openssl compat builds hang on to the client suites until WOLFSSL object
+     * is destroyed */
+#ifndef OPENSSL_EXTRA
     Dch13Args* args = (Dch13Args*)pArgs;
-
-    (void)ssl;
 
     if (args && args->clSuites) {
         XFREE(args->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
         args->clSuites = NULL;
     }
-#ifdef OPENSSL_EXTRA
-    ssl->clSuites = NULL;
 #endif
+    (void)ssl;
+    (void)pArgs;
+
 }
 
 int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,

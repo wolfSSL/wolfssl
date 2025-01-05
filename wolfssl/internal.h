@@ -5786,7 +5786,7 @@ struct WOLFSSL {
                              * object needs separate instance of suites use
                              * AllocateSuites(). */
 #ifdef OPENSSL_EXTRA
-    const Suites*   clSuites;
+    Suites*   clSuites;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
