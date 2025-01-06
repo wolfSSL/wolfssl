@@ -22714,7 +22714,11 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
 #ifdef HAVE_PUBLIC_FFDHE
-    ret = wc_DhSetKey(key, params->p, params->p_len, params->g, params->g_len);
+    /* use wc_DhSetKey_ex(), not wc_DhSetKey(), so that trusted=0 is passed to
+     * _DhSetKey(), exercising the primality check on the modulus:
+     */
+    ret = wc_DhSetKey_ex(key, params->p, params->p_len, params->g,
+                         params->g_len, NULL /* q */, 0 /* qSz */);
 #else
     ret = wc_DhSetNamedKey(key, name);
 #endif
@@ -22722,8 +22726,8 @@ static wc_test_ret_t dh_ffdhe_test(WC_RNG *rng, int name)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), done);
 
 #ifdef HAVE_PUBLIC_FFDHE
-    ret = wc_DhSetKey(key2, params->p, params->p_len, params->g,
-                                                                 params->g_len);
+    ret = wc_DhSetKey_ex(key2, params->p, params->p_len, params->g,
+                         params->g_len, NULL /* q */, 0 /* qSz */);
 #else
     ret = wc_DhSetNamedKey(key2, name);
 #endif

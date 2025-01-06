@@ -2544,10 +2544,46 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
 
     if (ret == 0 && !trusted) {
         int isPrime = 0;
-        if (rng != NULL)
-            ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
+
+        /* Short-circuit the primality check for p if it is one of the named
+         * public moduli (known primes) from RFC 7919.
+         */
+        #ifdef HAVE_FFDHE_2048
+        if ((pSz == sizeof(dh_ffdhe2048_p)) && (XMEMCMP(p, dh_ffdhe2048_p, sizeof(dh_ffdhe2048_p)) == 0)) {
+            isPrime = 1;
+        }
         else
-            ret = mp_prime_is_prime(keyP, 8, &isPrime);
+        #endif
+        #ifdef HAVE_FFDHE_3072
+        if ((pSz == sizeof(dh_ffdhe3072_p)) && (XMEMCMP(p, dh_ffdhe3072_p, sizeof(dh_ffdhe3072_p)) == 0)) {
+            isPrime = 1;
+        }
+        else
+        #endif
+        #ifdef HAVE_FFDHE_4096
+        if ((pSz == sizeof(dh_ffdhe4096_p)) && (XMEMCMP(p, dh_ffdhe4096_p, sizeof(dh_ffdhe4096_p)) == 0)) {
+            isPrime = 1;
+        }
+        else
+        #endif
+        #ifdef HAVE_FFDHE_6144
+        if ((pSz == sizeof(dh_ffdhe6144_p)) && (XMEMCMP(p, dh_ffdhe6144_p, sizeof(dh_ffdhe6144_p)) == 0)) {
+            isPrime = 1;
+        }
+        else
+        #endif
+        #ifdef HAVE_FFDHE_8192
+        if ((pSz == sizeof(dh_ffdhe8192_p)) && (XMEMCMP(p, dh_ffdhe8192_p, sizeof(dh_ffdhe8192_p)) == 0)) {
+            isPrime = 1;
+        }
+        else
+        #endif
+        {
+            if (rng != NULL)
+                ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
+            else
+                ret = mp_prime_is_prime(keyP, 8, &isPrime);
+        }
 
         if (ret == 0 && isPrime == 0)
             ret = DH_CHECK_PUB_E;
