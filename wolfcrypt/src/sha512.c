@@ -1402,21 +1402,15 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
 static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, size_t digestSz)
 {
-#ifdef LITTLE_ENDIAN_ORDER
-    word64 digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
-#endif
-
     if (sha512 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef LITTLE_ENDIAN_ORDER
-    ByteReverseWords64((word64*)digest, (word64*)sha512->digest,
-                                                         WC_SHA512_DIGEST_SIZE);
-    XMEMCPY(hash, digest, digestSz);
-#else
-    XMEMCPY(hash, sha512->digest, digestSz);
+    ByteReverseWords64(sha512->digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
 #endif
+
+    XMEMCPY(hash, sha512->digest, digestSz);
 
     return 0;
 }
@@ -1807,21 +1801,15 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
 
 int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
 {
-#ifdef LITTLE_ENDIAN_ORDER
-    word64 digest[WC_SHA384_DIGEST_SIZE / sizeof(word64)];
-#endif
-
     if (sha384 == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
 #ifdef LITTLE_ENDIAN_ORDER
-    ByteReverseWords64((word64*)digest, (word64*)sha384->digest,
-                                                         WC_SHA384_DIGEST_SIZE);
-    XMEMCPY(hash, digest, WC_SHA384_DIGEST_SIZE);
-#else
-    XMEMCPY(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+    ByteReverseWords64(sha384->digest, sha384->digest, WC_SHA384_DIGEST_SIZE);
 #endif
+
+    XMEMCPY(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
 
     return 0;
 }
