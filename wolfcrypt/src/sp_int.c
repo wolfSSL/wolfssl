@@ -8527,13 +8527,13 @@ int sp_rshb(const sp_int* a, int n, sp_int* r)
 {
     int err = MP_OKAY;
     /* Number of digits to shift down. */
-    sp_size_t i = (sp_size_t)(n >> SP_WORD_SHIFT);
+    sp_size_t i;
 
     if ((a == NULL) || (n < 0)) {
         err = MP_VAL;
     }
     /* Handle case where shifting out all digits. */
-    if ((err == MP_OKAY) && (i >= a->used)) {
+    else if ((i = (sp_size_t)(n >> SP_WORD_SHIFT)) >= a->used) {
         _sp_zero(r);
     }
     /* Change callers when more error cases returned. */
