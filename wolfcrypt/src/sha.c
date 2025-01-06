@@ -137,7 +137,7 @@
         ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
             ret = wc_Stm32_Hash_Update(&sha->stmCtx, HASH_AlgoSelection_SHA1,
-                data, len);
+                data, len, WC_SHA_BLOCK_SIZE);
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;

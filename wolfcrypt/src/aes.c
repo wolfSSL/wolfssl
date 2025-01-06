@@ -4395,7 +4395,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 return BAD_FUNC_ARG;
             }
 
-            return wc_AesSetKeyLocal(aes, key, len, iv, dir, 0);
+            return wc_AesSetKey(aes, key, len, iv, dir);
         }
 
     #endif /* NEED_AES_CTR_SOFT */

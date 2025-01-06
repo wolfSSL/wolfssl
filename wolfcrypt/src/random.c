@@ -1972,6 +1972,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int ret;
+        word32 retVal;
         RNG_HandleTypeDef hrng;
         word32 i = 0;
         (void)os;
@@ -2004,7 +2005,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             else {
                 /* Use native 32 instruction */
-                if (HAL_RNG_GenerateRandomNumber(&hrng, (uint32_t*)&output[i]) != HAL_OK) {
+                retVal = HAL_RNG_GenerateRandomNumber(&hrng,
+                                                    (uint32_t*)&output[i]);
+                if (retVal != HAL_OK) {
                     wolfSSL_CryptHwMutexUnLock();
                     return RAN_BLOCK_E;
                 }
