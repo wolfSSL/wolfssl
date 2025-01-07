@@ -2689,7 +2689,7 @@ static int wc_xmss_bds_state_load(const XmssState* state, byte* sk,
     /* Skip past standard SK = idx || wots_sk || SK_PRF || root || SEED; */
     sk += params->idx_len + 4 * n;
 
-    if (2 * (int)params->d - 1 < 0)
+    if (2 * (int)params->d - 1 <= 0)
         return WC_FAILURE;
 
     for (i = 0; i < 2 * (int)params->d - 1; i++) {
@@ -2748,7 +2748,7 @@ static int wc_xmss_bds_state_store(const XmssState* state, byte* sk,
     /* Ignore standard SK = idx || wots_sk || SK_PRF || root || SEED; */
     sk += params->idx_len + 4 * n;
 
-    if (2 * (int)params->d - 1 < 0)
+    if (2 * (int)params->d - 1 <= 0)
         return WC_FAILURE;
 
     for (i = 0; i < 2 * (int)params->d - 1; i++) {
@@ -3480,7 +3480,7 @@ int wc_xmss_sign(XmssState* state, const unsigned char* m, word32 mlen,
     if (ret == 0) {
         sig += params->wots_sig_len;
         /*   Add authentication path (auth) and calc new root. */
-        XMEMCPY(sig, bds->authPath, h * n); /* NOLINT(clang-analyzer-core.CallAndMessage) */
+        XMEMCPY(sig, bds->authPath, h * n);
         ret = state->ret;
     }
 
