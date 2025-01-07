@@ -1144,7 +1144,7 @@ static WARN_UNUSED_RESULT int freeDecCertList(WC_DerCertList** list,
 #ifdef ASN_BER_TO_DER
 /* append data to encrypted content cache in PKCS12 structure
  * return buffer on success, NULL on error */
-static byte* PKCS12_ConcatonateContent(WC_PKCS12* pkcs12,byte* mergedData,
+static byte* PKCS12_ConcatenateContent(WC_PKCS12* pkcs12,byte* mergedData,
         word32* mergedSz, byte* in, word32 inSz)
 {
     byte* oldContent;
@@ -1257,7 +1257,7 @@ static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
                     ret = MEMORY_E;
                 }
             }
-            mergedData = PKCS12_ConcatonateContent(pkcs12, mergedData,
+            mergedData = PKCS12_ConcatenateContent(pkcs12, mergedData,
                     &mergedSz, &data[*idx], (word32)encryptedContentSz);
             if (mergedData == NULL) {
                 ret = MEMORY_E;
@@ -1269,15 +1269,17 @@ static int PKCS12_CoalesceOctetStrings(WC_PKCS12* pkcs12, byte* data,
         *idx += (word32)encryptedContentSz;
     }
 
-    *idx = saveIdx;
+    if (ret == 0) {
+        *idx = saveIdx;
 
-    *idx += SetLength(mergedSz, &data[*idx]);
+        *idx += SetLength(mergedSz, &data[*idx]);
 
-    if (mergedSz > 0) {
-        /* Copy over concatenated octet strings into data buffer */
-        XMEMCPY(&data[*idx], mergedData, mergedSz);
+        if (mergedSz > 0) {
+            /* Copy over concatenated octet strings into data buffer */
+            XMEMCPY(&data[*idx], mergedData, mergedSz);
 
-        XFREE(mergedData, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(mergedData, pkcs12->heap, DYNAMIC_TYPE_PKCS);
+        }
     }
 
     return ret;
