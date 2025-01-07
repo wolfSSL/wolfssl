@@ -2124,14 +2124,17 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
     return WOLFSSL_SUCCESS;
 }
 
-#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
-int wolfSSL_set_mtu_compat(WOLFSSL* ssl, unsigned short mtu) {
-    if (wolfSSL_dtls_set_mtu(ssl, mtu) == 0)
+#ifdef OPENSSL_EXTRA
+/* Maps to compatibility API SSL_set_mtu and is same as wolfSSL_dtls_set_mtu,
+ * but expects only success or failure returns. */
+int wolfSSL_set_mtu_compat(WOLFSSL* ssl, unsigned short mtu)
+{
+    if (wolfSSL_dtls_set_mtu(ssl, mtu) == WOLFSSL_SUCCESS)
         return WOLFSSL_SUCCESS;
     else
         return WOLFSSL_FAILURE;
 }
-#endif /* OPENSSL_ALL || OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA */
 
 #endif /* WOLFSSL_DTLS && (WOLFSSL_SCTP || WOLFSSL_DTLS_MTU) */
 
@@ -12596,6 +12599,7 @@ cleanup:
 #endif /* OPENSSL_EXTRA || WOLFSSL_EXTRA || WOLFSSL_WPAS_SMALL */
 
     /* return true if connection established */
+    /* this works for TLS and DTLS */
     int wolfSSL_is_init_finished(const WOLFSSL* ssl)
     {
         if (ssl == NULL)
