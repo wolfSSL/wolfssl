@@ -63,17 +63,23 @@ package body Tls_Client with SPARK_Mode is
       Key            : chars_ptr;
       Key_Max_Length : unsigned) return unsigned
    with
-     SPARK_Mode => Off      
+     SPARK_Mode => Off
    is
       use type Interfaces.C.unsigned;
 
       Hint_String : constant String := Interfaces.C.Strings.Value (Hint);
+
+      --  Identity is OpenSSL testing default for openssl s_client, keep same
       Identity_String : constant String := "Client_identity";
+      --  Test key in hex is 0x1a2b3c4d, in decimal 439,041,101
       Key_String : constant String :=
         Character'Val   (26)
         & Character'Val (43)
         & Character'Val (60)
         & Character'Val (77);
+      --  These values are aligned with test values in wolfssl/wolfssl/test.h
+      --  and wolfssl-examples/psk/server-psk.c for testing interoperability.
+
    begin
 
       Ada.Text_IO.Put_Line ("Hint: " & Hint_String);
@@ -199,6 +205,7 @@ package body Tls_Client with SPARK_Mode is
 
       Result : WolfSSL.Subprogram_Result;
       DTLS   : Boolean;
+      PSK    : Boolean;
    begin
       Result := WolfSSL.Initialize;
       if Result /= Success then
@@ -208,13 +215,19 @@ package body Tls_Client with SPARK_Mode is
 
       if Argument_Count < 1
          or Argument_Count > 2
-         or (Argument_Count = 2 and then Argument (2) /= "--dtls")
+         or (Argument_Count = 2 and then
+             Argument (2) /= "--dtls" and then
+             Argument (2) /= "--psk")
       then
-         Put_Line ("usage: tls_client_main <IPv4 address> [--dtls]");
+         Put_Line ("usage: tls_client_main <IPv4 address> [--dtls | --psk]");
          return;
       end if;
 
-      DTLS := (SPARK_Terminal.Argument_Count = 2);
+      DTLS := (SPARK_Terminal.Argument_Count = 2 and then
+                Argument (2) = "--dtls");
+
+      PSK := (SPARK_Terminal.Argument_Count = 2 and then
+                Argument (2) = "--psk");
 
       if DTLS then
          SPARK_Sockets.Create_Datagram_Socket (C);
@@ -276,8 +289,7 @@ package body Tls_Client with SPARK_Mode is
          (Context => Ctx,
           Mode    => WolfSSL.Verify_Peer or WolfSSL.Verify_Fail_If_No_Peer_Cert);
 
-      if Ada.Directories.Exists (CERT_FILE) and then
-         Ada.Directories.Exists (KEY_FILE) then
+      if not PSK then
 
          --  Load client certificate into WOLFSSL_CTX.
          Result := WolfSSL.Use_Certificate_File (Context => Ctx,
@@ -335,10 +347,9 @@ package body Tls_Client with SPARK_Mode is
          return;
       end if;
 
-      if not (Ada.Directories.Exists (CERT_FILE) and then
-              Ada.Directories.Exists (KEY_FILE)) then
+      if PSK then
 
-         -- Use PSK for authentication.
+         --  Use PSK for authentication.
          WolfSSL.Set_PSK_Client_Callback
            (Ssl      => Ssl,
             Callback => PSK_Client_Callback'Access);

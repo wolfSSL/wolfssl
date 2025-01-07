@@ -318,6 +318,9 @@ package WolfSSL with SPARK_Mode is
      --  Id_Max_Length - Size of the ID buffer.
      --  Key - The key will be stored here.
      --  Key_Max_Length - The max size of the key.
+     --
+     --  The implementation of this callback will need `SPARK_Mode => Off`
+     --  since it will require the code to use the C memory model.
 
    procedure Set_PSK_Client_Callback
      (Ssl      : WolfSSL_Type;
