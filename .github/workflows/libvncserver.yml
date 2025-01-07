@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [ 0.9.13 ]
+        ref: [ 0.9.13, 0.9.14 ]
     name: ${{ matrix.ref }}
     if: github.repository_owner == 'wolfssl'
     runs-on: ubuntu-22.04
