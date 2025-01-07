@@ -46,6 +46,8 @@ jobs:
           # List of releases to test
           - osp_ref: 2.5.13
             git_ref: OPENLDAP_REL_ENG_2_5_13
+          - osp_ref: 2.6.7
+            git_ref: OPENLDAP_REL_ENG_2_6_7
     name: ${{ matrix.osp_ref }}
     runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
