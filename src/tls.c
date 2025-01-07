@@ -4316,6 +4316,11 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
         CertificateStatusRequestItemV2* last =
                                (CertificateStatusRequestItemV2*)extension->data;
 
+        if (last == NULL) {
+            XFREE(csr2, heap, DYNAMIC_TYPE_TLSX);
+            return BAD_FUNC_ARG;
+        }
+
         for (; last->next; last = last->next);
 
         last->next = csr2;
