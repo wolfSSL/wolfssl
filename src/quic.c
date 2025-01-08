@@ -154,17 +154,15 @@ static int quic_record_append(WOLFSSL *ssl, QuicRecord *qr, const uint8_t *data,
         }
     }
 
-    if (quic_record_complete(qr) || len == 0) {
-        return 0;
+    if (!quic_record_complete(qr) && len != 0) {
+        missing = qr->len - qr->end;
+        if (len > missing) {
+            len = missing;
+        }
+        XMEMCPY(qr->data + qr->end, data, len);
+        qr->end += (word32)len;
+        consumed += len;
     }
-
-    missing = qr->len - qr->end;
-    if (len > missing) {
-        len = missing;
-    }
-    XMEMCPY(qr->data + qr->end, data, len);
-    qr->end += (word32)len;
-    consumed += len;
 
 cleanup:
     *pconsumed = (ret == WOLFSSL_SUCCESS) ? consumed : 0;
