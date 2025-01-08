@@ -440,6 +440,10 @@ int mp_grow (mp_int * a, int size)
       a->dp[i] = 0;
     }
   }
+  else if ((a->alloc > 0) && (a->dp == NULL)) {
+      /* opportunistic sanity check on a->dp */
+      return MP_VAL;
+  }
   return MP_OKAY;
 }
 
@@ -1758,6 +1762,13 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     /* destination */
     tmpc = c->dp;
 
+    /* sanity-check dp pointers from a and b. */
+    if ((min_ab > 0) &&
+        ((tmpa == NULL) || (tmpb == NULL)))
+    {
+        return MP_VAL;
+    }
+
     /* zero the carry */
     u = 0;
     for (i = 0; i < min_ab; i++) {
@@ -1832,6 +1843,13 @@ int s_mp_sub (mp_int * a, mp_int * b, mp_int * c)
     tmpa = a->dp;
     tmpb = b->dp;
     tmpc = c->dp;
+
+    /* sanity-check dp pointers from a and b. */
+    if ((min_b > 0) &&
+        ((tmpa == NULL) || (tmpb == NULL)))
+    {
+        return MP_VAL;
+    }
 
     /* set carry to zero */
     u = 0;
