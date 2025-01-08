@@ -2073,6 +2073,8 @@ static int wc_PKCS7_BuildSignedAttributes(wc_PKCS7* pkcs7, ESD* esd,
 
         cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
+        XMEMSET(&cannedAttribs[idx], 0, sizeof(cannedAttribs[idx]));
+
         if ((pkcs7->defaultSignedAttribs & WOLFSSL_CONTENT_TYPE_ATTRIBUTE) ||
             pkcs7->defaultSignedAttribs == 0) {
             cannedAttribs[idx].oid     = contentTypeOid;

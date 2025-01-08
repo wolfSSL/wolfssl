@@ -99282,7 +99282,7 @@ static int test_dtls12_basic_connection_id(void)
             WOLFSSL *ssl_c = NULL, *ssl_s = NULL;
             struct test_memio_ctx test_ctx;
 
-            printf("Testing %s run #%ld ... ", params[i], j);
+            printf("Testing %s run #%ld ... ", params[i], (long int)j);
 
             XMEMSET(&test_ctx, 0, sizeof(test_ctx));
 
