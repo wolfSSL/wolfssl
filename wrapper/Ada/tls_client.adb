@@ -168,9 +168,9 @@ package body Tls_Client with SPARK_Mode is
 
    Any_Inet_Addr : Inet_Addr_Type renames SPARK_Sockets.Any_Inet_Addr;
 
-   CERT_FILE : constant String := "../../../certs/client-cert.pem";
-   KEY_FILE  : constant String := "../../../certs/client-key.pem";
-   CA_FILE   : constant String := "../../../certs/ca-cert.pem";
+   CERT_FILE : constant String := "../../certs/client-cert.pem";
+   KEY_FILE  : constant String := "../../certs/client-key.pem";
+   CA_FILE   : constant String := "../../certs/ca-cert.pem";
 
    subtype Byte_Array is WolfSSL.Byte_Array;
 
@@ -223,11 +223,10 @@ package body Tls_Client with SPARK_Mode is
          return;
       end if;
 
-      DTLS := (SPARK_Terminal.Argument_Count = 2 and then
-                Argument (2) = "--dtls");
-
-      PSK := (SPARK_Terminal.Argument_Count = 2 and then
-                Argument (2) = "--psk");
+      if Argument_Count = 2 then
+         DTLS := (Argument (2) = "--dtls");
+         PSK  := (Argument (2) = "--psk");
+      end if;
 
       if DTLS then
          SPARK_Sockets.Create_Datagram_Socket (C);
@@ -348,7 +347,6 @@ package body Tls_Client with SPARK_Mode is
       end if;
 
       if PSK then
-
          --  Use PSK for authentication.
          WolfSSL.Set_PSK_Client_Callback
            (Ssl      => Ssl,

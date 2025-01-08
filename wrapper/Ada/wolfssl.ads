@@ -328,6 +328,36 @@ package WolfSSL with SPARK_Mode is
      Pre => Is_Valid (Ssl);
      -- Sets the PSK client side callback.
 
+   
+   type PSK_Server_Callback is access function
+     (Ssl            : WolfSSL_Type;
+      Identity       : chars_ptr;
+      Key            : chars_ptr;
+      Key_Max_Length : unsigned)
+      return unsigned with
+     Convention => C;
+     --  Return value is the key length on success or zero on error.
+     --  PSK server callback parameters:
+     --  Ssl - Reference to the wolfSSL structure
+     --  Identity - The ID will be stored here. 
+     --  Key - The key will be stored here.
+     --  Key_Max_Length - The max size of the key.
+     --
+     --  The implementation of this callback will need `SPARK_Mode => Off`
+     --  since it will require the code to use the C memory model.
+
+   procedure Set_PSK_Server_Callback
+     (Ssl      : WolfSSL_Type;
+      Callback : PSK_Server_Callback) with
+     Pre => Is_Valid (Ssl);
+     -- Sets the PSK Server side callback.
+   
+   procedure Set_Context_PSK_Server_Callback
+     (Context  : Context_Type;
+      Callback : PSK_Server_Callback) with
+     Pre => Is_Valid (Context);
+     --  Sets the PSK callback for the server side in the WolfSSL Context. 
+   
    function Attach (Ssl    : WolfSSL_Type;
                     Socket : Integer)
                     return Subprogram_Result with
