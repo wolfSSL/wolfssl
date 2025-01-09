@@ -8369,6 +8369,8 @@ void FreeSuites(WOLFSSL* ssl)
         wolfSSL_sk_SSL_CIPHER_free(ssl->suitesStack);
         ssl->suitesStack = NULL;
     }
+#endif
+#ifdef OPENSSL_EXTRA
     XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->clSuites = NULL;
 #endif
@@ -37585,7 +37587,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     {
         byte            b;
         ProtocolVersion pv;
-#if defined(WOLFSSL_SMALL_STACK) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_SMALL_STACK) || defined(OPENSSL_EXTRA)
         Suites*         clSuites = NULL;
 #else
         Suites          clSuites[1];
@@ -37887,7 +37889,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             goto out;
         }
 
-#if defined(WOLFSSL_SMALL_STACK) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_SMALL_STACK) || defined(OPENSSL_EXTRA)
         clSuites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
                                        DYNAMIC_TYPE_SUITES);
         if (clSuites == NULL) {

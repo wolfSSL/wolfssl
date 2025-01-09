@@ -2803,7 +2803,7 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         }
 
         if (file != NULL) {
-        #ifdef HAVE_CRL
+        #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
             /* handle CRL type being passed in */
             WOLFSSL_CRL crl;
 

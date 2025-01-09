@@ -17632,6 +17632,7 @@ static void wolfSSL_CIPHER_copy(WOLFSSL_CIPHER* in, WOLFSSL_CIPHER* out)
 }
 
 
+#if defined(OPENSSL_ALL)
 static WOLFSSL_X509_OBJECT* wolfSSL_X509_OBJECT_dup(WOLFSSL_X509_OBJECT* obj)
 {
     WOLFSSL_X509_OBJECT* ret = NULL;
@@ -17655,6 +17656,7 @@ static WOLFSSL_X509_OBJECT* wolfSSL_X509_OBJECT_dup(WOLFSSL_X509_OBJECT* obj)
     }
     return ret;
 }
+#endif /* OPENSSL_ALL */
 
 WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
 {
@@ -17719,6 +17721,7 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
                 }
                 break;
             case STACK_TYPE_X509_OBJ:
+            #if defined(OPENSSL_ALL)
                 if (!sk->data.x509_obj)
                     break;
                 cur->data.x509_obj = wolfSSL_X509_OBJECT_dup(sk->data.x509_obj);
@@ -17727,6 +17730,7 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
                     goto error;
                 }
                 break;
+            #endif
             case STACK_TYPE_BIO:
             case STACK_TYPE_STRING:
             case STACK_TYPE_ACCESS_DESCRIPTION:
