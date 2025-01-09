@@ -259,7 +259,7 @@
 
             if (features & CPUID_AARCH64_FEAT_AES)
                 cpuid_flags |= CPUID_AES;
-            if (features & CPUID_AARCH64_FEAT_PMULL)
+            if (features & CPUID_AARCH64_FEAT_AES_PMULL)
                 cpuid_flags |= CPUID_PMULL;
             if (features & CPUID_AARCH64_FEAT_SHA256)
                 cpuid_flags |= CPUID_SHA256;
