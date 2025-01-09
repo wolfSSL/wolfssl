@@ -37896,7 +37896,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ret = MEMORY_E;
             goto out;
         }
+    #if defined(OPENSSL_EXTRA)
+        XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
         ssl->clSuites = clSuites;
+    #endif
 #endif
         XMEMSET(clSuites, 0, sizeof(Suites));
         ato16(&input[i], &clSuites->suiteSz);
