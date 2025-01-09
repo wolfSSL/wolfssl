@@ -6909,6 +6909,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (args->clSuites == NULL) {
         ERROR_OUT(MEMORY_E, exit_dch);
     }
+#ifdef OPENSSL_EXTRA
+    /* hang on to client suites found and free the struct when WOLFSSL object
+     * is free'd */
+    XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->clSuites = args->clSuites;
+#endif
 
     /* Cipher suites */
     if ((args->idx - args->begin) + OPAQUE16_LEN > helloSz)
@@ -7083,7 +7089,6 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     case TLS_ASYNC_DO:
     {
 #ifdef OPENSSL_EXTRA
-    ssl->clSuites = args->clSuites;
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         goto exit_dch;
 #endif
