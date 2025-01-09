@@ -8201,6 +8201,31 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t poly1305_test(void)
             return WC_TEST_RET_ENC_I(i);
     }
 
+    /* Testing multiple updates with various sizes works. */
+    for (i = 1; i < (int)sizeof(msg6); i++) {
+        int j;
+
+        ret = wc_Poly1305SetKey(&enc, key, 32);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        for (j = 0; j < (int)sizeof(msg6); j += i) {
+            int len = (int)sizeof(msg6) - j;
+            if (len > i)
+                len = i;
+            ret = wc_Poly1305Update(&enc, msg6 + j, len);
+            if (ret != 0)
+                return WC_TEST_RET_ENC_I(j);
+        }
+
+        ret = wc_Poly1305Final(&enc, tag);
+        if (ret != 0)
+            return WC_TEST_RET_ENC_I(i);
+
+        if (XMEMCMP(tag, correct6, sizeof(tag)))
+            return WC_TEST_RET_ENC_I(i);
+    }
+
     /* Check TLS MAC function from 2.8.2 https://tools.ietf.org/html/rfc7539 */
     XMEMSET(tag, 0, sizeof(tag));
     ret = wc_Poly1305SetKey(&enc, key4, sizeof(key4));
