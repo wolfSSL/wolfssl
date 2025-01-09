@@ -59081,21 +59081,21 @@ static int test_wolfSSL_EVP_Digest_all(void)
         "SHA512",
 #endif
 #if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_224)
-        "SHA512_224",
+        "SHA512-224",
 #endif
 #if defined(WOLFSSL_SHA512) && !defined(WOLFSSL_NOSHA512_256)
-        "SHA512_256",
+        "SHA512-256",
 #endif
 #ifdef WOLFSSL_SHA3
 #ifndef WOLFSSL_NOSHA3_224
-        "SHA3_224",
+        "SHA3-224",
 #endif
 #ifndef WOLFSSL_NOSHA3_256
-        "SHA3_256",
+        "SHA3-256",
 #endif
-        "SHA3_384",
+        "SHA3-384",
 #ifndef WOLFSSL_NOSHA3_512
-        "SHA3_512",
+        "SHA3-512",
 #endif
 #endif /* WOLFSSL_SHA3 */
         NULL
@@ -59125,7 +59125,7 @@ static int test_wolfSSL_EVP_MD_size(void)
 #ifndef WOLFSSL_NOSHA3_224
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
-    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_224"), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3-224"), 1);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_224_DIGEST_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_224_BLOCK_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -59133,21 +59133,21 @@ static int test_wolfSSL_EVP_MD_size(void)
 #ifndef WOLFSSL_NOSHA3_256
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
-    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_256"), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3-256"), 1);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_256_DIGEST_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_256_BLOCK_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 #endif
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
-    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_384"), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3-384"), 1);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_384_DIGEST_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_384_BLOCK_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 #ifndef WOLFSSL_NOSHA3_512
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
 
-    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3_512"), 1);
+    ExpectIntEQ(wolfSSL_EVP_DigestInit(&mdCtx, "SHA3-512"), 1);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_size(&mdCtx), WC_SHA3_512_DIGEST_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_block_size(&mdCtx), WC_SHA3_512_BLOCK_SIZE);
     ExpectIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
@@ -93462,12 +93462,12 @@ static int test_EVP_blake2(void)
 
 #if defined(HAVE_BLAKE2)
     ExpectNotNull(md = EVP_blake2b512());
-    ExpectIntEQ(XSTRNCMP(md, "BLAKE2B512", XSTRLEN("BLAKE2B512")), 0);
+    ExpectIntEQ(XSTRNCMP(md, "BLAKE2b512", XSTRLEN("BLAKE2b512")), 0);
 #endif
 
 #if defined(HAVE_BLAKE2S)
     ExpectNotNull(md = EVP_blake2s256());
-    ExpectIntEQ(XSTRNCMP(md, "BLAKE2S256", XSTRLEN("BLAKE2S256")), 0);
+    ExpectIntEQ(XSTRNCMP(md, "BLAKE2s256", XSTRLEN("BLAKE2s256")), 0);
 #endif
 #endif
 

@@ -103,7 +103,7 @@ static const struct s_ent {
     {WC_HASH_TYPE_SM3, WC_NID_sm3, WC_SN_sm3},
 #endif /* WOLFSSL_SHA512 */
 #ifdef HAVE_BLAKE2
-    {WC_HASH_TYPE_BLAKE2B, WC_NID_blake2b512, WC_SN_blakeb512},
+    {WC_HASH_TYPE_BLAKE2B, WC_NID_blake2b512, WC_SN_blake2b512},
 #endif
 #ifdef HAVE_BLAKE2S
     {WC_HASH_TYPE_BLAKE2S, WC_NID_blake2s256, WC_SN_blake2s256},
@@ -9950,40 +9950,30 @@ static const struct alias {
     {WC_SN_sha3_384, "sha3_384"},
     {WC_SN_sha3_512, "sha3_512"},
     {WC_SN_sm3, "sm3"},
-    {"BLAKE2B512", "blake2b512"},
-    {"BLAKE2S256", "blake2s256"},
-    {"SHAKE128", "shake128"},
-    {"SHAKE256", "shake256"},
+    {WC_SN_blake2b512, "blake2b512"},
+    {WC_SN_blake2s256, "blake2s256"},
+    {WC_SN_shake128, "shake128"},
+    {WC_SN_shake256, "shake256"},
     { NULL, NULL}
 };
 
 const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
 {
-    char nameUpper[15]; /* 15 bytes should be enough for any name */
-    size_t i;
-
     const struct alias  *al;
     const struct s_ent *ent;
 
-    for (i = 0; i < sizeof(nameUpper) && name[i] != '\0'; i++) {
-        nameUpper[i] = (char)XTOUPPER((unsigned char) name[i]);
-    }
-    if (i < sizeof(nameUpper))
-        nameUpper[i] = '\0';
-    else
-        return NULL;
-
-    name = nameUpper;
-    for (al = digest_alias_tbl; al->name != NULL; al++)
+    for (al = digest_alias_tbl; al->name != NULL; al++) {
         if(XSTRCMP(name, al->alias) == 0) {
             name = al->name;
             break;
         }
+    }
 
-    for (ent = md_tbl; ent->name != NULL; ent++)
+    for (ent = md_tbl; ent->name != NULL; ent++) {
         if(XSTRCMP(name, ent->name) == 0) {
             return (WOLFSSL_EVP_MD *)ent->name;
         }
+    }
     return NULL;
 }
 
@@ -10040,8 +10030,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
      */
     const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2b512(void)
     {
-        WOLFSSL_ENTER("EVP_blake2b512");
-        return wolfSSL_EVP_get_digestbyname("BLAKE2b512");
+        WOLFSSL_ENTER("wolfSSL_EVP_blake2b512");
+        return wolfSSL_EVP_get_digestbyname(WC_SN_blake2b512);
     }
 
 #endif
