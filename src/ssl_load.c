@@ -2803,9 +2803,26 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         }
 
         if (file != NULL) {
+        #ifdef HAVE_CRL
+            /* handle CRL type being passed in */
+            WOLFSSL_CRL crl;
+
+            XMEMSET(&crl, 0, sizeof(WOLFSSL_CRL));
+            crl.cm = ctx->cm;
+
             /* Load the PEM formatted CA file. */
+            ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, DETECT_CERT_TYPE,
+                NULL, 0, &crl, verify);
+            /* found a good CRL, add it to ctx->cm */
+            if (ret == 1 && crl.crlList != NULL) {
+                wolfSSL_X509_STORE_add_crl(wolfSSL_CTX_get_cert_store(ctx), &crl);
+            }
+        #else
+            /* Load the PEM formatted CA file. No CRL support, only expecting
+             * CA's */
             ret = ProcessFile(ctx, file, WOLFSSL_FILETYPE_PEM, CA_TYPE, NULL, 0,
                 NULL, verify);
+        #endif
     #ifndef NO_WOLFSSL_DIR
             if (ret == 1) {
                 /* Include success in overall count. */

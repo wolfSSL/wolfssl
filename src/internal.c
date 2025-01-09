@@ -7785,6 +7785,11 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
             return MEMORY_E;
         }
         XMEMSET(ssl->param, 0, sizeof(WOLFSSL_X509_VERIFY_PARAM));
+
+        /* pass on PARAM flags value from ctx to ssl */
+        wolfSSL_X509_VERIFY_PARAM_set_flags(wolfSSL_get0_param(ssl),
+            (unsigned long)wolfSSL_X509_VERIFY_PARAM_get_flags(
+            wolfSSL_CTX_get0_param(ctx)));
 #endif
 
         if (ctx->suites == NULL) {
@@ -8733,6 +8738,7 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
      * isn't allocated separately. */
     wolfSSL_sk_CIPHER_free(ssl->supportedCiphers);
     wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
+    wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
     #ifdef KEEP_OUR_CERT
     wolfSSL_sk_X509_pop_free(ssl->ourCertChain, NULL);
     #endif
@@ -14997,6 +15003,25 @@ static int ProcessPeerCertsChainCRLCheck(WOLFSSL* ssl, ProcPeerCertArgs* args)
 }
 #endif
 
+#ifdef OPENSSL_EXTRA
+/* account for verify params flag set */
+static int AdjustCMForParams(WOLFSSL* ssl)
+{
+    int flags, ret = WOLFSSL_SUCCESS;
+    WOLFSSL_X509_VERIFY_PARAM* param;
+    param = wolfSSL_get0_param(ssl);
+
+    flags = wolfSSL_X509_VERIFY_PARAM_get_flags(param);
+
+    if ((flags & WOLFSSL_CRL_CHECK) == WOLFSSL_CRL_CHECK ||
+        (flags & WOLFSSL_CRL_CHECKALL) == WOLFSSL_CRL_CHECKALL) {
+        ret = wolfSSL_CertManagerEnableCRL(SSL_CM(ssl), flags &
+            (WOLFSSL_CRL_CHECK | WOLFSSL_CRL_CHECKALL));
+    }
+    return ret;
+}
+#endif
+
 int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                      word32 totalSz)
 {
@@ -15064,6 +15089,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ssl->async->freeArgs = FreeProcPeerCertArgs;
     #endif
     }
+
+#ifdef OPENSSL_EXTRA
+    /* account for verify params flag set */
+    AdjustCMForParams(ssl);
+#endif
 
     switch (ssl->options.asyncState)
     {
