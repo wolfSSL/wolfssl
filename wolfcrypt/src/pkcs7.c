@@ -13115,10 +13115,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
     if (unauthAttribsSz > 0) {
         XMEMCPY(output + idx, unauthAttribSet, unauthAttribsSetSz);
         idx += (int)unauthAttribsSetSz;
-        if (unauthAttribsSz > 0) {
-            XMEMCPY(output + idx, flatUnauthAttribs, unauthAttribsSz);
-            idx += (int)unauthAttribsSz;
-        }
+        XMEMCPY(output + idx, flatUnauthAttribs, unauthAttribsSz);
+        idx += (int)unauthAttribsSz;
     }
 
     XFREE(flatUnauthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);

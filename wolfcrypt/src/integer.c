@@ -409,11 +409,10 @@ int mp_copy (const mp_int * a, mp_int * b)
 /* grow as required */
 int mp_grow (mp_int * a, int size)
 {
-  int     i;
   mp_digit *tmp;
 
   /* if the alloc size is smaller alloc more ram */
-  if (a->alloc < size || size == 0) {
+  if ((a->alloc < size) || (size == 0) || (a->alloc == 0)) {
     /* ensure there are always at least MP_PREC digits extra on top */
     size += (MP_PREC * 2) - (size % MP_PREC);
 
@@ -434,14 +433,11 @@ int mp_grow (mp_int * a, int size)
     a->dp = tmp;
 
     /* zero excess digits */
-    i        = a->alloc;
+    XMEMSET(&a->dp[a->alloc], 0, sizeof (mp_digit) * (size - a->alloc));
     a->alloc = size;
-    for (; i < a->alloc; i++) {
-      a->dp[i] = 0;
-    }
   }
-  else if ((a->alloc > 0) && (a->dp == NULL)) {
-      /* opportunistic sanity check on a->dp */
+  else if (a->dp == NULL) {
+      /* opportunistic sanity check for null a->dp with nonzero a->alloc */
       return MP_VAL;
   }
   return MP_OKAY;
@@ -1762,9 +1758,9 @@ int s_mp_add (mp_int * a, mp_int * b, mp_int * c)
     /* destination */
     tmpc = c->dp;
 
-    /* sanity-check dp pointers from a and b. */
+    /* sanity-check dp pointers. */
     if ((min_ab > 0) &&
-        ((tmpa == NULL) || (tmpb == NULL)))
+        ((tmpa == NULL) || (tmpb == NULL) || (tmpc == NULL)))
     {
         return MP_VAL;
     }
@@ -3308,6 +3304,10 @@ int mp_div_3 (mp_int * a, mp_int *c, mp_digit * d)
   q.used = a->used;
   q.sign = a->sign;
   w = 0;
+
+  if (a->used == 0)
+      return MP_VAL;
+
   for (ix = a->used - 1; ix >= 0; ix--) {
      w = (w << ((mp_word)DIGIT_BIT)) | ((mp_word)a->dp[ix]);
 
@@ -3350,8 +3350,6 @@ int mp_div_3 (mp_int * a, mp_int *c, mp_digit * d)
 /* init an mp_init for a given size */
 int mp_init_size (mp_int * a, int size)
 {
-  int x;
-
   /* pad size so there are always extra digits */
   size += (MP_PREC * 2) - (size % MP_PREC);
 
@@ -3371,9 +3369,7 @@ int mp_init_size (mp_int * a, int size)
 #endif
 
   /* zero the digits */
-  for (x = 0; x < size; x++) {
-      a->dp[x] = 0;
-  }
+  XMEMSET(a->dp, 0, sizeof (mp_digit) * size);
 
   return MP_OKAY;
 }
@@ -4699,8 +4695,11 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
       }
   }
 
-
   w = 0;
+
+  if (a->used == 0)
+      return MP_VAL;
+
   for (ix = a->used - 1; ix >= 0; ix--) {
      w = (w << ((mp_word)DIGIT_BIT)) | ((mp_word)a->dp[ix]);
 
