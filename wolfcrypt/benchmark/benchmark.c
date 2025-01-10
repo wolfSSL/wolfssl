@@ -1725,7 +1725,9 @@ static const char* bench_result_words3[][5] = {
 #endif
 
 #ifdef LINUX_RUSAGE_UTIME
-    static void check_for_excessive_stime(const char *desc,
+    static void check_for_excessive_stime(const char *algo,
+                                          int strength,
+                                          const char *desc,
                                           const char *desc_extra);
 #endif
 
@@ -2518,7 +2520,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #endif
 
 #ifdef LINUX_RUSAGE_UTIME
-    check_for_excessive_stime(desc, "");
+    check_for_excessive_stime(desc, 0, "", "");
 #endif
 
     /* calculate actual bytes */
@@ -2744,7 +2746,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     total = current_time(0) - start;
 
 #ifdef LINUX_RUSAGE_UTIME
-    check_for_excessive_stime(desc, desc_extra);
+    check_for_excessive_stime(algo, strength, desc, desc_extra);
 #endif
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
@@ -14672,7 +14674,9 @@ void bench_sphincsKeySign(byte level, byte optim)
             (double)rusage.ru_utime.tv_usec / MILLION_VALUE;
     }
 
-    static void check_for_excessive_stime(const char *desc,
+    static void check_for_excessive_stime(const char *algo,
+                                          int strength,
+                                          const char *desc,
                                           const char *desc_extra)
     {
         double start_utime = (double)base_rusage.ru_utime.tv_sec +
@@ -14685,11 +14689,20 @@ void bench_sphincsKeySign(byte level, byte optim)
             (double)cur_rusage.ru_stime.tv_usec / MILLION_VALUE;
         double stime_utime_ratio =
             (cur_stime - start_stime) / (cur_utime - start_utime);
-        if (stime_utime_ratio > .1)
-            printf("%swarning, "
-                   "excessive system time ratio for %s%s (" FLT_FMT_PREC "%%).\n",
-                   err_prefix, desc, desc_extra,
-                   FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
+        if (stime_utime_ratio > .1) {
+            if (strength > 0) {
+                printf("%swarning, "
+                       "excessive system time ratio for %s-%d-%s%s (" FLT_FMT_PREC "%%).\n",
+                       err_prefix, algo, strength, desc, desc_extra,
+                       FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
+            }
+            else {
+                printf("%swarning, "
+                       "excessive system time ratio for %s%s%s (" FLT_FMT_PREC "%%).\n",
+                       err_prefix, algo, desc, desc_extra,
+                       FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
+            }
+        }
     }
 
 #elif defined(WOLFSSL_LINUXKM)
