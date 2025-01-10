@@ -4143,6 +4143,8 @@ struct WOLFSSL_CTX {
     CallbackGenPreMaster        GenPreMasterCb;
     /* User generate master secret handler */
     CallbackGenMasterSecret     GenMasterCb;
+    /* User generate Extended master secret handler */
+    CallbackGenExtMasterSecret  GenExtMasterCb;
     /* User generate session key handler */
     CallbackGenSessionKey       GenSessionKeyCb;
     /* User setting encrypt keys handler */
@@ -6190,6 +6192,7 @@ struct WOLFSSL {
     #endif /* NO_RSA */
     void* GenPreMasterCtx;   /* Generate Premaster Callback Context */
     void* GenMasterCtx;      /* Generate Master Callback Context */
+    void* GenExtMasterCtx;   /* Generate Extended Master Callback Context */
     void* GenSessionKeyCtx;  /* Generate Session Key Callback Context */
     void* EncryptKeysCtx;    /* Set Encrypt keys Callback Context */
     void* TlsFinishedCtx;    /* Generate Tls Finished Callback Context */
