@@ -26492,7 +26492,9 @@ static int test_wc_ecc_rs_to_sig(void)
     byte        s[KEY24];
     word32      rlen = (word32)sizeof(r);
     word32      slen = (word32)sizeof(s);
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     word32      zeroLen = 0;
+#endif
 
     /* Init stack variables. */
     XMEMSET(sig, 0, ECC_MAX_SIG_SIZE);
@@ -26518,11 +26520,12 @@ static int test_wc_ecc_rs_to_sig(void)
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
     ExpectIntEQ(wc_ecc_sig_to_rs(sig, siglen, r, &rlen, s, NULL),
         WC_NO_ERR_TRACE(ECC_BAD_ARG_E));
+#if !defined(HAVE_SELFTEST) && !defined(HAVE_FIPS)
     ExpectIntEQ(wc_ecc_sig_to_rs(sig, siglen, r, &zeroLen, s, &slen),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
     ExpectIntEQ(wc_ecc_sig_to_rs(sig, siglen, r, &rlen, s, &zeroLen),
         WC_NO_ERR_TRACE(ASN_PARSE_E));
-
+#endif
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ecc_rs_to_sig */
