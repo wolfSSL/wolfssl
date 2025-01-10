@@ -297,7 +297,9 @@ static int wc_PKCS7_AddDataToStream(wc_PKCS7* pkcs7, byte* in, word32 inSz,
         }
 
         /* check if internal buffer size needs to be increased */
-        if (len + pkcs7->stream->length > pkcs7->stream->bufferSz) {
+        if ((len + pkcs7->stream->length > pkcs7->stream->bufferSz) ||
+            (pkcs7->stream->buffer == NULL))
+        {
             int ret = wc_PKCS7_GrowStream(pkcs7, expected);
             if (ret < 0) {
                 return ret;
@@ -11530,6 +11532,10 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 ret = wc_ecc_export_x963(kari->senderKey, NULL, &tmpKeySz);
                 PRIVATE_KEY_LOCK();
                 if (ret != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
+                    wc_PKCS7_KariFree(kari);
+                    #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                    #endif
                     return ret;
                 }
 
@@ -11544,12 +11550,20 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 tmpKeyDer = (byte*)XMALLOC(tmpKeySz, pkcs7->heap,
                         DYNAMIC_TYPE_TMP_BUFFER);
                 if (tmpKeyDer == NULL) {
+                    wc_PKCS7_KariFree(kari);
+                    #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                    #endif
                     return MEMORY_E;
                 }
 
                 ret = wc_EccPublicKeyToDer(kari->senderKey, tmpKeyDer,
                                          tmpKeySz, 1);
                 if (ret < 0) {
+                    wc_PKCS7_KariFree(kari);
+                    #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                    #endif
                     XFREE(tmpKeyDer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
                     return ret;
                 }
@@ -12889,17 +12903,20 @@ int wc_PKCS7_EncodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* output,
                               (int)pkcs7->unauthAttribsSz);
         unauthAttribsCount = pkcs7->unauthAttribsSz;
 
-        flatUnauthAttribs = (byte*)XMALLOC(unauthAttribsSz, pkcs7->heap,
-                                            DYNAMIC_TYPE_PKCS7);
-        if (flatUnauthAttribs == NULL) {
-            wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
-            XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return MEMORY_E;
+        if (unauthAttribsSz > 0) {
+            flatUnauthAttribs = (byte*)XMALLOC(unauthAttribsSz, pkcs7->heap,
+                                               DYNAMIC_TYPE_PKCS7);
+            if (flatUnauthAttribs == NULL) {
+                wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+                XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                return MEMORY_E;
+            }
+
+            FlattenAttributes(pkcs7, flatUnauthAttribs, unauthAttribs,
+                              (int)unauthAttribsCount);
         }
 
-        FlattenAttributes(pkcs7, flatUnauthAttribs, unauthAttribs,
-                          (int)unauthAttribsCount);
         unauthAttribsSetSz = SetImplicit(ASN_SET, 2, unauthAttribsSz,
                                          unauthAttribSet, 0);
     }
@@ -13926,23 +13943,27 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
                                      pkcs7->unprotectedAttribs,
                                      (int)pkcs7->unprotectedAttribsSz);
 
-        flatAttribs = (byte*)XMALLOC(attribsSz, pkcs7->heap,
-                                                            DYNAMIC_TYPE_PKCS7);
-        if (flatAttribs == NULL) {
-            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return MEMORY_E;
+        if (attribsSz > 0) {
+            flatAttribs = (byte*)XMALLOC(attribsSz, pkcs7->heap,
+                                         DYNAMIC_TYPE_PKCS7);
+            if (flatAttribs == NULL) {
+                XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                return MEMORY_E;
+            }
+
+            ret = FlattenAttributes(pkcs7, flatAttribs, attribs,
+                                    (int)attribsCount);
+            if (ret != 0) {
+                XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                return ret;
+            }
         }
 
-        ret = FlattenAttributes(pkcs7, flatAttribs, attribs, (int)attribsCount);
-        if (ret != 0) {
-            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return ret;
-        }
         attribsSetSz = SetImplicit(ASN_SET, 1, attribsSz, attribSet, 0);
 
     } else {
@@ -14009,8 +14030,10 @@ int wc_PKCS7_EncodeEncryptedData(wc_PKCS7* pkcs7, byte* output, word32 outputSz)
     if (pkcs7->unprotectedAttribsSz != 0) {
         XMEMCPY(output + idx, attribSet, attribsSetSz);
         idx += (int)attribsSetSz;
-        XMEMCPY(output + idx, flatAttribs, attribsSz);
-        idx += (int)attribsSz;
+        if (attribsSz > 0) {
+            XMEMCPY(output + idx, flatAttribs, attribsSz);
+            idx += (int)attribsSz;
+        }
     }
 
     XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -14324,6 +14347,11 @@ int wc_PKCS7_DecodeEncryptedData(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             version    = (int)pkcs7->stream->vers;
             tmpIv      = pkcs7->stream->tmpIv;
 #endif
+            if (encryptedContentSz <= 0) {
+                ret = BUFFER_E;
+                break;
+            }
+
             if (ret == 0 && (encryptedContent = (byte*)XMALLOC(
                                   (unsigned int)encryptedContentSz, pkcs7->heap,
                                   DYNAMIC_TYPE_PKCS7)) == NULL) {

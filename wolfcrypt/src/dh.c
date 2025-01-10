@@ -2036,19 +2036,21 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #ifndef WOLFSSL_SP_NO_2048
     if (mp_count_bits(&key->p) == 2048) {
         if (mp_init(y) != MP_OKAY)
-            return MP_INIT_E;
+            ret = MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+        if (ret == 0) {
+            SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
-            ret = MP_READ_E;
+            if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+                ret = MP_READ_E;
 
-        if (ret == 0)
-            ret = sp_DhExp_2048(y, priv, privSz, &key->p, agree, agreeSz);
+            if (ret == 0)
+                ret = sp_DhExp_2048(y, priv, privSz, &key->p, agree, agreeSz);
 
-        mp_clear(y);
+            mp_clear(y);
 
-        RESTORE_VECTOR_REGISTERS();
+            RESTORE_VECTOR_REGISTERS();
+        }
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
         if ((ret == 0) &&
@@ -2070,19 +2072,21 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #ifndef WOLFSSL_SP_NO_3072
     if (mp_count_bits(&key->p) == 3072) {
         if (mp_init(y) != MP_OKAY)
-            return MP_INIT_E;
+            ret = MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+        if (ret == 0) {
+            SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
-            ret = MP_READ_E;
+            if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+                ret = MP_READ_E;
 
-        if (ret == 0)
-            ret = sp_DhExp_3072(y, priv, privSz, &key->p, agree, agreeSz);
+            if (ret == 0)
+                ret = sp_DhExp_3072(y, priv, privSz, &key->p, agree, agreeSz);
 
-        mp_clear(y);
+            mp_clear(y);
 
-        RESTORE_VECTOR_REGISTERS();
+            RESTORE_VECTOR_REGISTERS();
+        }
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
         if ((ret == 0) &&
@@ -2104,19 +2108,21 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #ifdef WOLFSSL_SP_4096
     if (mp_count_bits(&key->p) == 4096) {
         if (mp_init(y) != MP_OKAY)
-            return MP_INIT_E;
+            ret = MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+        if (ret == 0) {
+            SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
-            ret = MP_READ_E;
+            if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+                ret = MP_READ_E;
 
-        if (ret == 0)
-            ret = sp_DhExp_4096(y, priv, privSz, &key->p, agree, agreeSz);
+            if (ret == 0)
+                ret = sp_DhExp_4096(y, priv, privSz, &key->p, agree, agreeSz);
 
-        mp_clear(y);
+            mp_clear(y);
 
-        RESTORE_VECTOR_REGISTERS();
+            RESTORE_VECTOR_REGISTERS();
+        }
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
         if ((ret == 0) &&

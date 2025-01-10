@@ -7991,7 +7991,7 @@ int wolfSSL_i2d_PKCS8_PKEY(WOLFSSL_PKCS8_PRIV_KEY_INFO* key, unsigned char** pp)
         return WOLFSSL_FATAL_ERROR;
     len = (int)keySz;
 
-    if (pp == NULL)
+    if ((pp == NULL) || (len == 0))
         return len;
 
     if (*pp == NULL) {

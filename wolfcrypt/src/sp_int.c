@@ -12003,9 +12003,14 @@ int sp_mul(const sp_int* a, const sp_int* b, sp_int* r)
     }
 
     /* Need extra digit during calculation. */
+    /* NOLINTBEGIN(clang-analyzer-core.UndefinedBinaryOperatorResult) */
+    /* clang-tidy falsely believes that r->size was corrupted by the _sp_copy()
+     * to "Copy base into working variable" in _sp_exptmod_ex().
+     */
     if ((err == MP_OKAY) && (a->used + b->used > r->size)) {
         err = MP_VAL;
     }
+    /* NOLINTEND(clang-analyzer-core.UndefinedBinaryOperatorResult) */
 
 #if 0
     if (err == MP_OKAY) {
@@ -17977,9 +17982,14 @@ int sp_mont_norm(sp_int* norm, const sp_int* m)
     if (err == MP_OKAY) {
         /* Find top bit and ensure norm has enough space. */
         bits = (unsigned int)sp_count_bits(m);
+        /* NOLINTBEGIN(clang-analyzer-core.UndefinedBinaryOperatorResult) */
+        /* clang-tidy falsely believes that norm->size was corrupted by the
+         * _sp_copy() to "Set real working value to base." in _sp_exptmod_ex().
+         */
         if (bits >= (unsigned int)norm->size * SP_WORD_SIZE) {
             err = MP_VAL;
         }
+        /* NOLINTEND(clang-analyzer-core.UndefinedBinaryOperatorResult) */
     }
     if (err == MP_OKAY) {
         /* Round up for case when m is less than a word - no advantage in using

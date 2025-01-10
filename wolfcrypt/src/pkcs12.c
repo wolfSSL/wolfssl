@@ -289,6 +289,7 @@ static int GetSafeContent(WC_PKCS12* pkcs12, const byte* input,
         if (wc_BerToDer(input, safe->dataSz, NULL,
                         &pkcs12->safeDersz) != WC_NO_ERR_TRACE(LENGTH_ONLY_E)) {
             WOLFSSL_MSG("Not BER sequence");
+            freeSafe(safe, pkcs12->heap);
             return ASN_PARSE_E;
         }
 

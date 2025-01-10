@@ -2400,8 +2400,10 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
 #if !defined(WOLFSSL_KYBER_SMALL) && defined(WC_64BIT_CPU)
     /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
-    rand[GEN_MATRIX_SIZE+0] = 0xff;
-    rand[GEN_MATRIX_SIZE+1] = 0xff;
+    if (ret == 0) {
+        rand[GEN_MATRIX_SIZE+0] = 0xff;
+        rand[GEN_MATRIX_SIZE+1] = 0xff;
+    }
 #endif
 
     /* Generate each vector of polynomials. */

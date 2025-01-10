@@ -1021,8 +1021,10 @@ static int wc_HpkeDecap(Hpke* hpke, void* receiverKey, const byte* pubKey,
 #ifdef ECC_TIMING_RESISTANT
                 rng = wc_rng_new(NULL, 0, hpke->heap);
 
-                if (rng == NULL)
-                    return RNG_FAILURE_E;
+                if (rng == NULL) {
+                    ret = RNG_FAILURE_E;
+                    break;
+                }
 
                 wc_ecc_set_rng((ecc_key*)receiverKey, rng);
 #endif
