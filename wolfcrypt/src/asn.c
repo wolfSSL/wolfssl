@@ -33784,7 +33784,7 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
             *rLen = (word32)len;
         else {
             /* Buffer too small to hold r value */
-            return BUFFER_E;
+            return ASN_PARSE_E;
         }
     }
     if (r)
@@ -33799,7 +33799,7 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
             *sLen = (word32)len;
         else {
             /* Buffer too small to hold r value */
-            return BUFFER_E;
+            return ASN_PARSE_E;
         }
     }
     if (s)
