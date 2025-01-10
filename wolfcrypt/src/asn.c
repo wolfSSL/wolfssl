@@ -33779,8 +33779,14 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
     ret = GetASNInt(sig, &idx, &len, sigLen);
     if (ret != 0)
         return ret;
-    if (rLen)
-        *rLen = (word32)len;
+    if (rLen) {
+        if (*rLen >= (word32)len)
+            *rLen = (word32)len;
+        else {
+            /* Buffer too small to hold r value */
+            return BUFFER_E;
+        }
+    }
     if (r)
         XMEMCPY(r, (byte*)sig + idx, (size_t)len);
     idx += (word32)len;
@@ -33788,8 +33794,14 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
     ret = GetASNInt(sig, &idx, &len, sigLen);
     if (ret != 0)
         return ret;
-    if (sLen)
-        *sLen = (word32)len;
+    if (sLen) {
+        if (*sLen >= (word32)len)
+            *sLen = (word32)len;
+        else {
+            /* Buffer too small to hold r value */
+            return BUFFER_E;
+        }
+    }
     if (s)
         XMEMCPY(s, (byte*)sig + idx, (size_t)len);
 
