@@ -28804,6 +28804,13 @@ int SetNameEx(byte* output, word32 outputSz, CertName* name, void* heap)
         ret = 0;
     }
 
+    if (items == 0) {
+        /* if zero items, short-circuit return to avoid frivolous zero-size
+         * allocations.
+         */
+        return 0;
+    }
+
     /* Allocate dynamic data items. */
     dataASN = (ASNSetData*)XMALLOC(items * sizeof(ASNSetData), heap,
                                    DYNAMIC_TYPE_TMP_BUFFER);
@@ -34171,23 +34178,26 @@ static int EccSpecifiedECDomainDecode(const byte* input, word32 inSz,
     }
     #endif /* WOLFSSL_ECC_CURVE_STATIC */
 
-    if (key) {
-        /* Store parameter set in key. */
-        if ((ret == 0) && (wc_ecc_set_custom_curve(key, curve) < 0)) {
-            ret = ASN_PARSE_E;
-        }
-        if (ret == 0) {
-            /* The parameter set was allocated.. */
-            key->deallocSet = 1;
-        }
-    }
-
     if ((ret == 0) && (curveSz)) {
         *curveSz = curve->size;
     }
 
-    if ((ret != 0) && (curve != NULL)) {
-        /* Failed to set parameters so free parameter set. */
+    if (key) {
+        /* Store parameter set in key. */
+        if (ret == 0) {
+            if (wc_ecc_set_custom_curve(key, curve) < 0) {
+                ret = ASN_PARSE_E;
+            }
+            else {
+                /* The parameter set was allocated.. */
+                key->deallocSet = 1;
+                /* Don't deallocate below. */
+                curve = NULL;
+            }
+        }
+    }
+
+    if (curve != NULL) { /* NOLINT(clang-analyzer-unix.Malloc) */
         wc_ecc_free_curve(curve, heap);
     }
 

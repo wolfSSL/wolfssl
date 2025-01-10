@@ -33411,7 +33411,7 @@ static int test_wc_dilithium_check_key(void)
         &privCheckKeyLen, pubCheckKey, &pubCheckKeyLen), 0);
 
     /* Modify hash. */
-    if (pubCheckKey != NULL) {
+    if ((pubCheckKey != NULL) && EXPECT_SUCCESS()) {
         pubCheckKey[0] ^= 0x80;
         ExpectIntEQ(wc_dilithium_import_key(NULL, 0, NULL, 0, NULL),
             WC_NO_ERR_TRACE(BAD_FUNC_ARG));
@@ -78037,7 +78037,6 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
 {
     EXPECT_DECLS;
 #if (defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)) && defined(HAVE_OCSP)
-    WOLFSSL_OCSP_CERTID* certId;
     WOLFSSL_OCSP_CERTID* certIdGood;
     WOLFSSL_OCSP_CERTID* certIdBad;
     const unsigned char* rawCertIdPtr;
@@ -78056,40 +78055,49 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
 
     /* If the cert ID is NULL the function should allocate it and copy the
      * data to it. */
-    certId = NULL;
-    ExpectNotNull(certId = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
-        sizeof(rawCertId)));
-    ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
-    if (certId != NULL) {
-        XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
-        XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
+    {
+        WOLFSSL_OCSP_CERTID* certId = NULL;
+        ExpectNotNull(certId = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
+                                                       sizeof(rawCertId)));
+        ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
+        if (certId != NULL) {
+            XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
     }
 
     /* If the cert ID is not NULL the function will just copy the data to it. */
-    ExpectNotNull(certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*certId), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER));
-    ExpectNotNull(certId);
-    ExpectNotNull(XMEMSET(certId, 0, sizeof(*certId)));
+    {
+        WOLFSSL_OCSP_CERTID* certId = NULL;
+        ExpectNotNull(certId = (WOLFSSL_OCSP_CERTID*)XMALLOC(sizeof(*certId), NULL,
+                                                             DYNAMIC_TYPE_TMP_BUFFER));
+        ExpectNotNull(certId);
+        if (certId != NULL)
+            XMEMSET(certId, 0, sizeof(*certId));
 
-    /* Reset rawCertIdPtr since it was push forward in the previous call. */
-    rawCertIdPtr = &rawCertId[0];
-    ExpectNotNull(certIdGood = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
-        sizeof(rawCertId)));
-    ExpectPtrEq(certIdGood, certId);
-    ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
-    if (certId != NULL) {
-        XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
-        XFREE(certId, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        certId = NULL;
+        /* Reset rawCertIdPtr since it was push forward in the previous call. */
+        rawCertIdPtr = &rawCertId[0];
+        ExpectNotNull(certIdGood = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
+                                                           sizeof(rawCertId)));
+        ExpectPtrEq(certIdGood, certId);
+        ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
+        if (certId != NULL) {
+            XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
+            XFREE(certId, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            certId = NULL;
+        }
     }
 
     /* The below tests should fail when passed bad parameters. NULL should
      * always be returned. */
-    ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(NULL, &rawCertIdPtr,
-        sizeof(rawCertId)));
-    ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, NULL,
-        sizeof(rawCertId)));
-    ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, 0));
+    {
+        WOLFSSL_OCSP_CERTID* certId = NULL;
+        ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(NULL, &rawCertIdPtr,
+                                                       sizeof(rawCertId)));
+        ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, NULL,
+                                                       sizeof(rawCertId)));
+        ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, 0));
+    }
 #endif
     return EXPECT_RESULT();
 }
@@ -84988,6 +84996,7 @@ static int test_wolfSSL_PEM_X509_INFO_read_bio(void)
 
     ExpectIntEQ(0, XSTRNCMP(subject, exp1, sizeof(exp1)));
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+    subject = NULL;
     X509_INFO_free(info);
     info = NULL;
 
@@ -84997,6 +85006,7 @@ static int test_wolfSSL_PEM_X509_INFO_read_bio(void)
 
     ExpectIntEQ(0, XSTRNCMP(subject, exp2, sizeof(exp2)));
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
+    subject = NULL;
     X509_INFO_free(info);
     ExpectNull(info = sk_X509_INFO_pop(sk));
 

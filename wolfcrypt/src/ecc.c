@@ -1576,7 +1576,7 @@ static int xil_mpi_import(mp_int *mpi,
     #endif
 
     #define DECLARE_CURVE_SPECS(intcount) ecc_curve_spec* curve = NULL
-    #define ALLOC_CURVE_SPECS(intcount, err) WC_DO_NOTHING
+    #define ALLOC_CURVE_SPECS(intcount, err) (err) = MP_OKAY
     #define FREE_CURVE_SPECS() WC_DO_NOTHING
 #elif defined(WOLFSSL_SMALL_STACK)
 #ifdef WOLFSSL_SP_MATH_ALL
@@ -1588,13 +1588,17 @@ static int xil_mpi_import(mp_int *mpi,
         curve->spec_count = intcount
 
     #define ALLOC_CURVE_SPECS(intcount, err)                            \
+    do {                                                                \
         spec_ints = (unsigned char*)XMALLOC(MP_INT_SIZEOF(MP_BITS_CNT(  \
             MAX_ECC_BITS_USE)) * (intcount), NULL,                      \
             DYNAMIC_TYPE_ECC);                                          \
         if (spec_ints == NULL)                                          \
             (err) = MEMORY_E;                                           \
-        else                                                            \
-            curve->spec_ints = spec_ints
+        else {                                                          \
+            curve->spec_ints = spec_ints;                               \
+            (err) = MP_OKAY;                                            \
+        }                                                               \
+    } while (0)
 #else
     #define DECLARE_CURVE_SPECS(intcount)                               \
         mp_int* spec_ints = NULL;                                       \
@@ -1604,12 +1608,16 @@ static int xil_mpi_import(mp_int *mpi,
         curve->spec_count = intcount
 
     #define ALLOC_CURVE_SPECS(intcount, err)                            \
+    do {                                                                \
         spec_ints = (mp_int*)XMALLOC(sizeof(mp_int) * (intcount), NULL, \
                             DYNAMIC_TYPE_ECC);                          \
         if (spec_ints == NULL)                                          \
             (err) = MEMORY_E;                                           \
-        else                                                            \
-            curve->spec_ints = spec_ints
+        else {                                                          \
+            curve->spec_ints = spec_ints;                               \
+            (err) = MP_OKAY;                                            \
+        }                                                               \
+    } while (0)
 #endif
     #define FREE_CURVE_SPECS()                                          \
         XFREE(spec_ints, NULL, DYNAMIC_TYPE_ECC)
@@ -1632,7 +1640,7 @@ static int xil_mpi_import(mp_int *mpi,
         curve->spec_ints = spec_ints;                                   \
         curve->spec_count = (intcount)
 #endif
-    #define ALLOC_CURVE_SPECS(intcount, err) WC_DO_NOTHING
+    #define ALLOC_CURVE_SPECS(intcount, err) (err) = MP_OKAY
     #define FREE_CURVE_SPECS() WC_DO_NOTHING
 #endif /* ECC_CACHE_CURVE */
 
@@ -6653,6 +6661,10 @@ static int wc_ecc_sign_hash_async(const byte* in, word32 inlen, byte* out,
                 #if !defined(WOLFSSL_ASYNC_CRYPT_SW) && defined(HAVE_ECC_CDH)
                     DECLARE_CURVE_SPECS(1);
                     ALLOC_CURVE_SPECS(1, err);
+                    if (err != MP_OKAY) {
+                        WOLFSSL_MSG("ALLOC_CURVE_SPECS failed");
+                        break;
+                    }
 
                     /* get curve order */
                     err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ORDER);
@@ -9380,7 +9392,6 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
 #if !defined(WOLFSSL_SP_MATH) || defined(FREESCALE_LTC_ECC)
    if (!curveLoaded) {
-       err = 0; /* potential for NOT_COMPILED_IN error from SP attempt */
        ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT, err);
        if (err != 0) {
           return err;
@@ -10134,6 +10145,10 @@ static int ecc_check_privkey_gen(ecc_key* key, mp_int* a, mp_int* prime)
         return BAD_FUNC_ARG;
 
     ALLOC_CURVE_SPECS(3, err);
+    if (err != MP_OKAY) {
+        WOLFSSL_MSG("ALLOC_CURVE_SPECS failed");
+        return err;
+    }
 
 #ifdef WOLFSSL_NO_MALLOC
     res = &lcl_res;
@@ -10275,7 +10290,6 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     /* Hardware based private key, so this operation is not supported */
     err = MP_OKAY; /* just report success */
 #else
-    err = MP_OKAY;
     ALLOC_CURVE_SPECS(2, err);
 
     /* load curve info */

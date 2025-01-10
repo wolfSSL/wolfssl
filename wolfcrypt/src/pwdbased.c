@@ -840,6 +840,8 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
         goto end;
     }
 
+    XMEMSET(y, 0, (size_t)(blockSize * 128));
+
     /* Step 1. */
     ret = wc_PBKDF2(blocks, passwd, passLen, salt, saltLen, 1, (int)blocksSz,
                     WC_SHA256);

@@ -6960,7 +6960,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         echX = TLSX_Find(ssl->extensions, TLSX_ECH);
 
         if (echX == NULL)
-            return WOLFSSL_FATAL_ERROR;
+            ERROR_OUT(WOLFSSL_FATAL_ERROR, exit_dch);
 
         ((WOLFSSL_ECH*)echX->data)->aad = input + HANDSHAKE_HEADER_SZ;
         ((WOLFSSL_ECH*)echX->data)->aadLen = helloSz;

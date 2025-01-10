@@ -2653,6 +2653,9 @@ static int wc_xmss_bds_state_alloc(const XmssParams* params, BdsState** bds)
         if (*bds == NULL) {
             ret = MEMORY_E;
         }
+        else {
+            XMEMSET(*bds, 0, sizeof(BdsState) * cnt);
+        }
     }
 
     return ret;
@@ -2831,6 +2834,10 @@ static void wc_xmss_bds_next_idx(XmssState* state, BdsState* bds,
         /* HDSS, Section 4.5, 1: AUTH[h] = v[h][1], h = 0,...,H-1.
          * Cache left node if on authentication path. */
         if ((i >> h) == 1) {
+            if (bds->authPath == NULL) {
+                state->ret = WC_FAILURE;
+                return;
+            }
             XMEMCPY(bds->authPath + h * n, node, n);
         }
         /* This is a right node. */
@@ -2910,8 +2917,10 @@ static void wc_xmss_bds_treehash_initial(XmssState* state, BdsState* bds,
     bds->offset = 0;
     bds->next = 0;
     /* Reset the hash tree status. */
-    for (i = 0; i < hsk; i++) {
-        wc_xmss_bds_state_treehash_init(bds, i);
+    if (bds->treeHash != NULL) {
+        for (i = 0; i < hsk; i++) {
+            wc_xmss_bds_state_treehash_init(bds, i);
+        }
     }
 
     /* Copy hash address into local. */
@@ -3046,6 +3055,11 @@ static word8 wc_xmss_bds_treehash_updates(XmssState* state, BdsState* bds,
     const word8 hs = params->sub_h;
     const word8 hsk = params->sub_h - params->bds_k;
 
+    if (bds->treeHash == NULL) {
+        state->ret = WC_FAILURE;
+        return 0;
+    }
+
     while (updates > 0) {
         word8 minH = hs;
         word8 h = hsk;
@@ -3116,6 +3130,10 @@ static void wc_xmss_bds_update(XmssState* state, BdsState* bds,
         HashAddress addrCopy;
 
         XMSS_ADDR_OTS_SET_SUBTREE(addrCopy, addr);
+        if (bds->height == NULL) {
+            state->ret = WC_FAILURE;
+            return;
+        }
         wc_xmss_bds_next_idx(state, bds, sk_seed, pk_seed, addrCopy, bds->next,
             bds->height, &bds->offset, &sp);
         bds->offset++;
@@ -3171,6 +3189,11 @@ static void wc_xmss_bds_auth_path(XmssState* state, BdsState* bds,
     word8 tau;
     byte* node = state->encMsg;
     word8 parent;
+
+    if ((bds->keep == NULL) || (bds->authPath == NULL)) {
+        state->ret = WC_FAILURE;
+        return;
+    }
 
     /* Step 1. Find the height of first left node in authentication path. */
     tau = wc_xmss_lowest_zero_bit_index(leafIdx, hs, &parent);
@@ -3838,10 +3861,16 @@ static int wc_xmssmt_sign_msg(XmssState* state, BdsState* bds, XmssIdx idx,
     }
     if (ret == 0) {
         word8 i;
+        byte *authPath;
 
         sig += params->wots_sig_len;
         /*   Add authentication path. */
-        XMEMCPY(sig, bds[BDS_IDX(idx, 0, hs, params->d)].authPath, hs * n);
+        authPath = bds[BDS_IDX(idx, 0, hs, params->d)].authPath;
+        if (authPath == NULL) {
+            state->ret = WC_FAILURE;
+            return state->ret;
+        }
+        XMEMCPY(sig, authPath, hs * n);
         sig += hs * n;
 
         /* Remaining iterations from storage. */
@@ -3851,7 +3880,12 @@ static int wc_xmssmt_sign_msg(XmssState* state, BdsState* bds, XmssIdx idx,
                 params->wots_sig_len);
             sig += params->wots_sig_len;
             /* Add authentication path (auth) and calc new root. */
-            XMEMCPY(sig, bds[BDS_IDX(idx, i, hs, params->d)].authPath, hs * n);
+            authPath = bds[BDS_IDX(idx, i, hs, params->d)].authPath;
+            if (authPath == NULL) {
+                state->ret = WC_FAILURE;
+                return state->ret;
+            }
+            XMEMCPY(sig, authPath, hs * n);
             sig += hs * n;
         }
         ret = state->ret;
