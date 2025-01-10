@@ -29,7 +29,7 @@ WOLFSSL_REPO="${WOLFSSL_REPO:-git@github.com:wolfssl/wolfssl.git}"
 
 Usage() {
     cat <<usageText
-Usage: $0 [flavor] [keep]
+Usage: $0 [flavor] [keep] [nomakecheck] [nodoconfigure] [noautogen]
 Flavor is one of:
     linuxv2 (FIPSv2, use for Win10)
     fipsv2-OE-ready (ready FIPSv2)
@@ -42,7 +42,10 @@ Flavor is one of:
     wolfrand
     wolfentropy
     v6.0.0
-Keep (default off) retains the temp dir $TEST_DIR for inspection.
+keep: (default off) retains the temp dir $TEST_DIR for inspection.
+nomakecheck: (default off) don't run make check
+nodoconfigure: (default off) don't run configure
+noautogen: (default off) don't run autogen
 
 Example:
     $0 windows keep
