@@ -7053,7 +7053,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             WOLFSSL_MSG("Client did not send a KeyShare extension");
             ERROR_OUT(INCOMPLETE_DATA, exit_dch);
         }
-        if (TLSX_Find(ssl->extensions, TLSX_SIGNATURE_ALGORITHMS) == NULL) {
+        /* Can't check ssl->extensions here as SigAlgs are unconditionally
+           set by TLSX_PopulateExtensions */
+        if (args->clSuites->hashSigAlgoSz == 0) {
             WOLFSSL_MSG("Client did not send a SignatureAlgorithms extension");
             ERROR_OUT(INCOMPLETE_DATA, exit_dch);
         }
