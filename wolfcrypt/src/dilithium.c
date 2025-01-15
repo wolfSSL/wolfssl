@@ -9276,7 +9276,7 @@ int wc_dilithium_import_public(const byte* in, word32 inLen, dilithium_key* key)
                 ret = MEMORY_E;
             }
             else {
-                XMEMSET(key->a, 0, params->aSz);
+                XMEMSET(key->a, 0, key->params->aSz);
             }
         }
     #endif
