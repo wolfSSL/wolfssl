@@ -68,6 +68,9 @@ NO_OLD_SHA_NAMES. These names get mapped to the OpenSSL API for a single call
 hash function. Instead the name WC_SHA, WC_SHA256, WC_SHA384 and WC_SHA512
 should be used for the enum name.
 
+Note 4)
+The function wolfSSL_BN_CTX_get() returns a new WOLFSSL_BIGNUM object. The object is not cached against the WOLFSSL_BN_CTX and must be freed by the application. This behavior is not consistent with BN_CTX_get() in OpenSSL.
+
 *** end Notes ***
 
 # wolfSSL Release 5.7.6 (Dec 31, 2024)
