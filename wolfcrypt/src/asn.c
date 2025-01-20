@@ -1300,7 +1300,7 @@ static int GetASN_StoreData(const ASNItem* asn, ASNGetData* data,
                 WOLFSSL_MSG_VSNPRINTF("Buffer too small for data: %d %d", len,
                         *data->data.buffer.length);
             #endif
-                return ASN_PARSE_E;
+                return BUFFER_E;
             }
             /* Copy in data and record actual length seen. */
             XMEMCPY(data->data.buffer.data, input + idx, (size_t)len);
@@ -33784,7 +33784,7 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
             *rLen = (word32)len;
         else {
             /* Buffer too small to hold r value */
-            return ASN_PARSE_E;
+            return BUFFER_E;
         }
     }
     if (r)
@@ -33798,8 +33798,8 @@ int DecodeECC_DSA_Sig_Bin(const byte* sig, word32 sigLen, byte* r, word32* rLen,
         if (*sLen >= (word32)len)
             *sLen = (word32)len;
         else {
-            /* Buffer too small to hold r value */
-            return ASN_PARSE_E;
+            /* Buffer too small to hold s value */
+            return BUFFER_E;
         }
     }
     if (s)
