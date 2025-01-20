@@ -61379,6 +61379,43 @@ static int test_wolfSSL_X509_STORE_CTX_get0_store(void)
     return EXPECT_RESULT();
 }
 
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_BIO) && !defined(NO_TLS)
+static int test_wolfSSL_get_client_ciphers_on_result(WOLFSSL* ssl) {
+    EXPECT_DECLS;
+    if (wolfSSL_is_server(ssl) == 0) {
+        ExpectNull(SSL_get_client_ciphers(ssl));
+    }
+    else {
+        ExpectNotNull(SSL_get_client_ciphers(ssl));
+    }
+    return EXPECT_RESULT();
+}
+#endif
+
+static int test_wolfSSL_get_client_ciphers(void)
+{
+    EXPECT_DECLS;
+#if defined(OPENSSL_ALL) && !defined(NO_RSA) && !defined(NO_CERTS) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_BIO) && !defined(NO_TLS)
+    test_ssl_cbf server_cb;
+    test_ssl_cbf client_cb;
+
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+    client_cb.method = wolfSSLv23_client_method;
+    server_cb.method = wolfSSLv23_server_method;
+    client_cb.devId = testDevId;
+    server_cb.devId = testDevId;
+    client_cb.on_result = test_wolfSSL_get_client_ciphers_on_result;
+    server_cb.on_result = test_wolfSSL_get_client_ciphers_on_result;
+
+    ExpectIntEQ(test_wolfSSL_client_server_nofail_memio(&client_cb,
+        &server_cb, NULL), TEST_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_CTX_set_client_CA_list(void)
 {
     EXPECT_DECLS;
@@ -62398,6 +62435,7 @@ static int test_X509_STORE_get0_objects(void)
     SSL_CTX *ctx = NULL;
     X509_OBJECT *obj = NULL;
     STACK_OF(X509_OBJECT) *objs = NULL;
+    STACK_OF(X509_OBJECT) *objsCopy = NULL;
     int i;
 
     /* Setup store */
@@ -62487,6 +62525,8 @@ static int test_X509_STORE_get0_objects(void)
     ExpectIntEQ(wolfSSL_sk_X509_OBJECT_push(NULL, NULL), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_sk_X509_OBJECT_push(objs, NULL), WOLFSSL_FAILURE);
     ExpectIntEQ(wolfSSL_sk_X509_OBJECT_push(NULL, obj), WOLFSSL_FAILURE);
+    ExpectNotNull(objsCopy = sk_X509_OBJECT_deep_copy(objs, NULL, NULL));
+    wolfSSL_sk_X509_OBJECT_free(objsCopy);
     wolfSSL_sk_X509_OBJECT_free(objs);
 #endif
     return EXPECT_RESULT();
@@ -69730,6 +69770,7 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
     ExpectNotNull(entry = X509_NAME_ENTRY_create_by_NID(NULL, NID_commonName,
                 0x0c, cn, (int)sizeof(cn)));
     ExpectIntEQ(X509_NAME_add_entry(nm, entry, -1, 0), SSL_SUCCESS);
+    ExpectIntEQ(X509_NAME_ENTRY_set(X509_NAME_get_entry(nm, 1)), 1);
 
 #ifdef WOLFSSL_CERT_EXT
     ExpectIntEQ(X509_NAME_add_entry_by_txt(NULL, NULL, MBSTRING_UTF8,
@@ -75651,6 +75692,26 @@ static int test_wolfSSL_EVP_SignInit_ex(void)
 
     return EXPECT_RESULT();
 }
+
+static int test_wolfSSL_EVP_DigestFinalXOF(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256) && defined(OPENSSL_ALL)
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    unsigned char      shake[256];
+    unsigned char      data[] = "Test data";
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    ExpectIntEQ(EVP_DigestInit(&mdCtx, EVP_shake256()), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_MD_flags(EVP_shake256()), EVP_MD_FLAG_XOF);
+    ExpectIntEQ(EVP_MD_flags(EVP_sha3_256()), 0);
+    ExpectIntEQ(EVP_DigestUpdate(&mdCtx, data, 1), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_DigestFinalXOF(&mdCtx, shake, 10), WOLFSSL_SUCCESS);
+    ExpectIntEQ(EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
+#endif
+    return EXPECT_RESULT();
+}
+
 static int test_wolfSSL_EVP_DigestFinal_ex(void)
 {
     EXPECT_DECLS;
@@ -80205,6 +80266,8 @@ static int test_sk_X509_CRL(void)
     ExpectNull(wolfSSL_sk_X509_REVOKED_value(NULL, 0));
     ExpectNull(wolfSSL_sk_X509_REVOKED_value(&revoked, 0));
     ExpectIntEQ(wolfSSL_X509_CRL_verify(NULL, NULL), 0);
+    ExpectIntEQ(X509_OBJECT_set1_X509_CRL(NULL, NULL), 1);
+    ExpectIntEQ(X509_OBJECT_set1_X509(NULL, NULL), 1);
 #endif
 
     wolfSSL_X509_CRL_free(crl);
@@ -101662,6 +101725,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_EVP_MD_nid),
 
     TEST_DECL(test_wolfSSL_EVP_DigestFinal_ex),
+    TEST_DECL(test_wolfSSL_EVP_DigestFinalXOF),
 #endif
 
     TEST_DECL(test_EVP_MD_do_all),
@@ -102342,6 +102406,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_a2i_IPADDRESS),
     TEST_DECL(test_wolfSSL_BUF),
     TEST_DECL(test_wolfSSL_set_tlsext_status_type),
+    TEST_DECL(test_wolfSSL_get_client_ciphers),
     /* Can't memory test as server hangs. */
     TEST_DECL(test_wolfSSL_CTX_set_client_CA_list),
     TEST_DECL(test_wolfSSL_CTX_add_client_CA),

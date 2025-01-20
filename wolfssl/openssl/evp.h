@@ -221,6 +221,9 @@ typedef union {
     #ifdef WOLFSSL_SM3
         wc_Sm3               sm3;
     #endif
+    #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+        wc_Shake            shake;
+    #endif
 } WOLFSSL_Hasher;
 
 

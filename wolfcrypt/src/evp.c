@@ -10472,17 +10472,21 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                     /* Not an error since an unused struct could be free'd or
                      * reset. */
                     break;
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+                case WC_HASH_TYPE_SHAKE128:
+                    wc_Shake128_Free(&ctx->hash.digest.shake);
+                    break;
+            #endif
+            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+                case WC_HASH_TYPE_SHAKE256:
+                    wc_Shake256_Free(&ctx->hash.digest.shake);
+                    break;
+            #endif
                 case WC_HASH_TYPE_MD2:
                 case WC_HASH_TYPE_MD4:
                 case WC_HASH_TYPE_MD5_SHA:
                 case WC_HASH_TYPE_BLAKE2B:
                 case WC_HASH_TYPE_BLAKE2S:
-            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
-                case WC_HASH_TYPE_SHAKE128:
-            #endif
-            #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
-                case WC_HASH_TYPE_SHAKE256:
-            #endif
                 default:
                     ret = WOLFSSL_FAILURE;
                     break;
@@ -10581,6 +10585,22 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     #ifndef WOLFSSL_NOSHA3_512
         if (XSTRCMP(md, WC_SN_sha3_512) == 0) {
              ret = wolfSSL_SHA3_512_Init(&(ctx->hash.digest.sha3_512));
+        } else
+    #endif
+    #ifdef WOLFSSL_SHAKE128
+        if (XSTRCMP(md, WC_SN_shake128) == 0) {
+            if (wc_InitShake128(&(ctx->hash.digest.shake), NULL,
+                INVALID_DEVID) != 0) {
+                ret = WOLFSSL_FAILURE;
+            }
+        } else
+    #endif
+    #ifdef WOLFSSL_SHAKE256
+        if (XSTRCMP(md, WC_SN_shake256) == 0) {
+            if (wc_InitShake256(&(ctx->hash.digest.shake), NULL,
+                INVALID_DEVID) != 0) {
+                ret = WOLFSSL_FAILURE;
+            }
         } else
     #endif
 #endif
@@ -10713,17 +10733,28 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 }
                 break;
         #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+            case WC_HASH_TYPE_SHAKE128:
+                if (wc_Shake128_Update(&ctx->hash.digest.shake, data,
+                        (word32)sz) == 0) {
+
+                    ret = WOLFSSL_SUCCESS;
+                }
+                break;
+        #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+            case WC_HASH_TYPE_SHAKE256:
+                if (wc_Shake256_Update(&ctx->hash.digest.shake, data,
+                        (word32)sz) == 0) {
+                    ret = WOLFSSL_SUCCESS;
+                }
+                break;
+        #endif
             case WC_HASH_TYPE_NONE:
             case WC_HASH_TYPE_MD2:
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
-            case WC_HASH_TYPE_SHAKE128:
-        #endif
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
-            case WC_HASH_TYPE_SHAKE256:
-        #endif
             default:
                 return WOLFSSL_FAILURE;
         }
@@ -10838,17 +10869,25 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
                 if (s) *s = WC_SM3_DIGEST_SIZE;
                 break;
         #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+            case WC_HASH_TYPE_SHAKE128:
+                if (wc_Shake128_Final(&ctx->hash.digest.shake, md, *s) == 0) {
+                    ret = WOLFSSL_SUCCESS;
+                }
+                break;
+        #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+            case WC_HASH_TYPE_SHAKE256:
+                if (wc_Shake256_Final(&ctx->hash.digest.shake, md, *s) == 0) {
+                    ret = WOLFSSL_SUCCESS;
+                }
+                break;
+        #endif
             case WC_HASH_TYPE_NONE:
             case WC_HASH_TYPE_MD2:
             case WC_HASH_TYPE_MD5_SHA:
             case WC_HASH_TYPE_BLAKE2B:
             case WC_HASH_TYPE_BLAKE2S:
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
-            case WC_HASH_TYPE_SHAKE128:
-        #endif
-        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
-            case WC_HASH_TYPE_SHAKE256:
-        #endif
             default:
                 return WOLFSSL_FAILURE;
         }
