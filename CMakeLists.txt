@@ -2412,7 +2412,7 @@ target_link_libraries(wolfssl PUBLIC ${WOLFSSL_LINK_LIBS})
 if(WIN32)
     # For Windows link ws2_32
     target_link_libraries(wolfssl PUBLIC
-        $<$<PLATFORM_ID:Windows>:ws2_32 crypt32>)
+        $<$<PLATFORM_ID:Windows>:ws2_32 crypt32 advapi32>)
 elseif(APPLE)
     if(WOLFSSL_SYS_CA_CERTS)
         target_link_libraries(wolfssl PUBLIC
