@@ -68,7 +68,7 @@ unsigned char get_byte_from_pool(void)
 
 int my_rng_generate_seed(unsigned char* output, int sz)
 {
-    word32 i;
+    int i;
     srand(get_byte_from_pool());
 
     for (i = 0; i < sz; i++) {
