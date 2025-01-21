@@ -114,8 +114,7 @@ void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 
 #ifdef OPENSSL_EXTRA
 
-#if ((defined(SESSION_CERTS) && !defined(WOLFSSL_QT)) || \
-      defined(WOLFSSL_SIGNER_DER_CERT))
+#if defined(SESSION_CERTS) || defined(WOLFSSL_SIGNER_DER_CERT)
 
 /**
  * Find the issuing cert of the input cert. On a self-signed cert this
