@@ -369,7 +369,7 @@ int ge448_scalarmult_base(ge448_p2* h, const byte* a)
     return 0;
 }
 
-/* Perform a scalar multplication of the base point and public point.
+/* Perform a scalar multiplication of the base point and public point.
  *   r = a * p + b * base
  * Uses a sliding window of 5 bits.
  * Not constant time.
