@@ -38207,7 +38207,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     out:
-#if defined(WOLFSSL_SMALL_STACK) && !defined(OPENSSL_ALL)
+#if defined(WOLFSSL_SMALL_STACK) && !defined(OPENSSL_EXTRA)
         XFREE(clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
 #endif
         WOLFSSL_LEAVE("DoClientHello", ret);
