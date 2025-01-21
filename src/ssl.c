@@ -21931,6 +21931,8 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
 }
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 #ifdef OPENSSL_ALL
+/* returned pointer is to an internal element in WOLFSSL struct and should not
+ * be free'd. It gets free'd when the WOLFSSL struct is free'd. */
 WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
 {
     WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
@@ -21953,7 +21955,10 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
     if (suites == NULL) {
         WOLFSSL_MSG("No client suites stored");
     }
-    else {
+    else if (ssl->clSuitesStack != NULL) {
+        ret = ssl->clSuitesStack;
+    }
+    else { /* generate cipher suites stack if not already done */
         int i;
         int j;
 
@@ -21995,7 +22000,7 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
                 else {
                     add->num = 1;
                 }
-                ret = add;
+                ssl->clSuitesStack = ret = add;
             }
         }
     }

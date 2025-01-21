@@ -61401,8 +61401,8 @@ static int test_wolfSSL_get_client_ciphers(void)
     test_ssl_cbf server_cb;
     test_ssl_cbf client_cb;
 
-    XMEMSET(&client_cb, 0, sizeof(callback_functions));
-    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+    XMEMSET(&client_cb, 0, sizeof(test_ssl_cbf));
+    XMEMSET(&server_cb, 0, sizeof(test_ssl_cbf));
     client_cb.method = wolfSSLv23_client_method;
     server_cb.method = wolfSSLv23_server_method;
     client_cb.devId = testDevId;
