@@ -351,7 +351,9 @@ static const wc_LmsParamsMap wc_lms_map[] = {
       LMS_PARAMS(1, 10, 8, 3, LMS_SHA256_M24_H10, LMOTS_SHA256_N24_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
+#endif /* WOLFSSL_LMS_SHA256_192 */
 #if LMS_MAX_HEIGHT >= 20
+#ifndef WOLFSSL_NO_LMS_SHA256_256
     { WC_LMS_PARM_L1_H20_W2 , "LMS/HSS_SHA256/192_L1_H20_W2",
       LMS_PARAMS(1, 20, 2, 1, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W2,
                  WC_SHA256_192_DIGEST_SIZE) },
@@ -362,7 +364,7 @@ static const wc_LmsParamsMap wc_lms_map[] = {
       LMS_PARAMS(1, 20, 8, 3, LMS_SHA256_M32_H20, LMOTS_SHA256_N32_W8,
                  WC_SHA256_192_DIGEST_SIZE) },
 #endif
-#endif /* WOLFSSL_LMS_SHA256_192 */
+#endif
 };
 /* Number of parameter sets supported. */
 #define WC_LMS_MAP_LEN      ((int)(sizeof(wc_lms_map) / sizeof(*wc_lms_map)))
