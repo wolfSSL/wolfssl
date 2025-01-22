@@ -2980,7 +2980,7 @@ enum { /* ssl Constants */
     /* Operation did not complete; callback needs this API to be called again.*/
     WOLFSSL_ERROR_WANT_X509_LOOKUP =  4,
 
-    /* Some sort of sytem I/O error happened.*/
+    /* Some sort of system I/O error happened.*/
     WOLFSSL_ERROR_SYSCALL          =  5,
 
     /* The connection has been closed with a closure alert.*/
