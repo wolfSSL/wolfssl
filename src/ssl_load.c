@@ -2815,7 +2815,8 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
                 NULL, 0, &crl, verify);
             /* found a good CRL, add it to ctx->cm */
             if (ret == 1 && crl.crlList != NULL) {
-                wolfSSL_X509_STORE_add_crl(wolfSSL_CTX_get_cert_store(ctx), &crl);
+                wolfSSL_X509_STORE_add_crl(wolfSSL_CTX_get_cert_store(ctx),
+                    &crl);
             }
         #else
             /* Load the PEM formatted CA file. No CRL support, only expecting

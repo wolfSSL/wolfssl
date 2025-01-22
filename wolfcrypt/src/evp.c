@@ -10735,8 +10735,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         #endif
         #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
             case WC_HASH_TYPE_SHAKE128:
-                if (wc_Shake128_Update(&ctx->hash.digest.shake, data,
-                        (word32)sz) == 0) {
+                if (wc_Shake128_Update(&ctx->hash.digest.shake,
+                        (const byte*)data, (word32)sz) == 0) {
 
                     ret = WOLFSSL_SUCCESS;
                 }
@@ -10744,8 +10744,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         #endif
         #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
             case WC_HASH_TYPE_SHAKE256:
-                if (wc_Shake256_Update(&ctx->hash.digest.shake, data,
-                        (word32)sz) == 0) {
+                if (wc_Shake256_Update(&ctx->hash.digest.shake,
+                        (const byte*)data, (word32)sz) == 0) {
                     ret = WOLFSSL_SUCCESS;
                 }
                 break;
