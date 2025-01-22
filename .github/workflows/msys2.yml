@@ -1,0 +1,35 @@
+name: MSYS2 Build Test
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  msys2-ucrt64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: msys2/setup-msys2@v2
+        with:
+          path: wolfssl
+          msystem: UCRT64
+          update: true
+          install: git mingw-w64-ucrt-x86_64-gcc autotools base-devel autoconf
+      - name: configure wolfSSL
+        run: ./autogen.sh && ./configure --enable-all --disable-crl-monitor
+      - name: build wolfSSL
+        run: make check
+      - name: Display log
+        if: always()
+        run: cat test-suite.log
