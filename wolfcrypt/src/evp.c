@@ -10763,14 +10763,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
     }
 
     /* WOLFSSL_SUCCESS on ok */
-    int wolfSSL_EVP_DigestFinal(WOLFSSL_EVP_MD_CTX* ctx, unsigned char* md,
-                               unsigned int* s)
+    static int wolfSSL_EVP_DigestFinal_Common(WOLFSSL_EVP_MD_CTX* ctx,
+            unsigned char* md, unsigned int* s, enum wc_HashType macType)
     {
         int ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-        enum wc_HashType macType;
 
-        WOLFSSL_ENTER("EVP_DigestFinal");
-        macType = EvpMd2MacType(wolfSSL_EVP_MD_CTX_md(ctx));
         switch (macType) {
             case WC_HASH_TYPE_MD4:
         #ifndef NO_MD4
@@ -10893,6 +10890,59 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         }
 
         return ret;
+    }
+
+    int wolfSSL_EVP_DigestFinal(WOLFSSL_EVP_MD_CTX* ctx, unsigned char* md,
+                               unsigned int* s)
+    {
+        enum wc_HashType macType;
+
+        WOLFSSL_ENTER("wolfSSL_EVP_DigestFinal");
+        macType = EvpMd2MacType(wolfSSL_EVP_MD_CTX_md(ctx));
+        switch (macType) {
+            case WC_HASH_TYPE_MD4:
+            case WC_HASH_TYPE_MD5:
+            case WC_HASH_TYPE_SHA:
+            case WC_HASH_TYPE_SHA224:
+            case WC_HASH_TYPE_SHA256:
+            case WC_HASH_TYPE_SHA384:
+            case WC_HASH_TYPE_SHA512:
+        #ifndef WOLFSSL_NOSHA512_224
+            case WC_HASH_TYPE_SHA512_224:
+        #endif /* !WOLFSSL_NOSHA512_224 */
+        #ifndef WOLFSSL_NOSHA512_256
+            case WC_HASH_TYPE_SHA512_256:
+        #endif /* !WOLFSSL_NOSHA512_256 */
+            case WC_HASH_TYPE_SHA3_224:
+            case WC_HASH_TYPE_SHA3_256:
+            case WC_HASH_TYPE_SHA3_384:
+            case WC_HASH_TYPE_SHA3_512:
+        #ifdef WOLFSSL_SM3
+            case WC_HASH_TYPE_SM3:
+        #endif
+            case WC_HASH_TYPE_NONE:
+            case WC_HASH_TYPE_MD2:
+            case WC_HASH_TYPE_MD5_SHA:
+            case WC_HASH_TYPE_BLAKE2B:
+            case WC_HASH_TYPE_BLAKE2S:
+                break;
+
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE128)
+            case WC_HASH_TYPE_SHAKE128:
+                *s = 16; /* if mixing up XOF with plain digest 128 bit is
+                          * default for SHAKE128 */
+                break;
+        #endif
+        #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
+            case WC_HASH_TYPE_SHAKE256:
+                *s = 32; /* if mixing up XOF with plain digest 256 bit is
+                          * default for SHAKE256 */
+                break;
+        #endif
+            default:
+                return WOLFSSL_FAILURE;
+        }
+        return wolfSSL_EVP_DigestFinal_Common(ctx, md, s, macType);
     }
 
     /* WOLFSSL_SUCCESS on ok */
