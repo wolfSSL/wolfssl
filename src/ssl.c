@@ -3088,14 +3088,34 @@ int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
 {
     int ret;
 
+    if (wr != NULL) {
+        *wr = 0;
+    }
+
     ret = wolfSSL_write(ssl, data, sz);
-    if (ret >= 0 && wr != NULL) {
-        *wr = (size_t)ret;
-        ret = 1;
+    if (ret >= 0) {
+        if (wr != NULL) {
+            *wr = (size_t)ret;
+        }
+
+        /* handle partial write cases, if not set then a partial write is
+         * considered a failure case, or if set and ret is 0 then is a fail */
+        if (ret == 0 && ssl->options.partialWrite) {
+            ret = 0;
+        }
+        else if (ret < sz && !ssl->options.partialWrite) {
+            ret = 0;
+        }
+        else {
+            /* wrote out all application data, or wrote out 1 byte or more with
+             * partial write flag set */
+            ret = 1;
+        }
     }
     else {
         ret = 0;
     }
+
     return ret;
 }
 
@@ -14332,7 +14352,7 @@ static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
     or ssl->verifiedChain based off of the ssl session chain. Attempts to place
     CA certificates at the bottom of the stack for a verified chain. Returns
     stack of WOLFSSL_X509 certs or NULL on failure */
-static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(WOLFSSL* ssl,
+static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
     int verifiedFlag)
 {
     WOLFSSL_STACK* sk;
@@ -21962,47 +21982,47 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
         int i;
         int j;
 
-        /* higher priority of cipher suite will be on top of stack */
-        for (i = suites->suiteSz - 2; i >=0; i-=2) {
-            WOLFSSL_STACK* add;
+        ret = wolfSSL_sk_new_node(ssl->heap);
+        if (ret != NULL) {
+            ret->type = STACK_TYPE_CIPHER;
 
-            /* A couple of suites are placeholders for special options,
-             * skip those. */
-            if (SCSV_Check(suites->suites[i], suites->suites[i+1])
-                    || sslCipherMinMaxCheck(ssl, suites->suites[i],
-                                            suites->suites[i+1])) {
-                continue;
-            }
+            /* higher priority of cipher suite will be on top of stack */
+            for (i = suites->suiteSz - 2; i >= 0; i -= 2) {
+                WOLFSSL_CIPHER cipher;
 
-            add = wolfSSL_sk_new_node(ssl->heap);
-            if (add != NULL) {
-                add->type = STACK_TYPE_CIPHER;
-                add->data.cipher.cipherSuite0 = suites->suites[i];
-                add->data.cipher.cipherSuite  = suites->suites[i+1];
-                add->data.cipher.ssl          = ssl;
+                /* A couple of suites are placeholders for special options,
+                 * skip those. */
+                if (SCSV_Check(suites->suites[i], suites->suites[i+1])
+                        || sslCipherMinMaxCheck(ssl, suites->suites[i],
+                                                suites->suites[i+1])) {
+                    continue;
+                }
+
+                cipher.cipherSuite0 = suites->suites[i];
+                cipher.cipherSuite  = suites->suites[i+1];
+                cipher.ssl          = ssl;
                 for (j = 0; j < cipherSz; j++) {
                     if (cipher_names[j].cipherSuite0 ==
-                            add->data.cipher.cipherSuite0 &&
+                            cipher.cipherSuite0 &&
                             cipher_names[j].cipherSuite ==
-                                    add->data.cipher.cipherSuite) {
-                        add->data.cipher.offset = (unsigned long)j;
+                                    cipher.cipherSuite) {
+                        cipher.offset = (unsigned long)j;
                         break;
                     }
                 }
 
                 /* in_stack is checked in wolfSSL_CIPHER_description */
-                add->data.cipher.in_stack     = 1;
+                cipher.in_stack     = 1;
 
-                add->next = ret;
-                if (ret != NULL) {
-                    add->num = ret->num + 1;
+                if (wolfSSL_sk_CIPHER_push(ret, &cipher) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error pushing client cipher onto stack");
+                    wolfSSL_sk_CIPHER_free(ret);
+                    ret = NULL;
+                    break;
                 }
-                else {
-                    add->num = 1;
-                }
-                ssl->clSuitesStack = ret = add;
             }
         }
+        ssl->clSuitesStack = ret;
     }
     return ret;
 }
