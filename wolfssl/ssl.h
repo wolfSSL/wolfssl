@@ -76,7 +76,7 @@
 #endif
 
 #ifdef OPENSSL_ALL
-    #ifndef WOLFSSL_HAVE_BIO_ADDR
+    #if !defined(WOLFSSL_HAVE_BIO_ADDR) && !defined(WOLFSSL_NO_SOCK)
     #define WOLFSSL_HAVE_BIO_ADDR
     #endif
     #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_DTLS_MTU)

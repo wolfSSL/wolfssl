@@ -2422,6 +2422,10 @@ int wolfSSL_HwPkMutexUnLock(void)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
+    #if (defined(HAVE_FIPS) && FIPS_VERSION_EQ(5,2))
+        if (wolfCrypt_GetMode_fips() == FIPS_MODE_INIT)
+            return 0;
+    #endif
         if (_mutex_init(m, NULL) == MQX_EOK)
             return 0;
         else
@@ -2438,6 +2442,13 @@ int wolfSSL_HwPkMutexUnLock(void)
 
     int wc_LockMutex(wolfSSL_Mutex* m)
     {
+    #if (defined(HAVE_FIPS) && FIPS_VERSION_EQ(5,2))
+        if (m->VALID != MUTEX_VALID) {
+            if (_mutex_init(m, NULL) != MQX_EOK)
+                return BAD_MUTEX_E;
+        }
+    #endif
+
         if (_mutex_lock(m) == MQX_EOK)
             return 0;
         else
@@ -2446,6 +2457,13 @@ int wolfSSL_HwPkMutexUnLock(void)
 
     int wc_UnLockMutex(wolfSSL_Mutex* m)
     {
+    #if (defined(HAVE_FIPS) && FIPS_VERSION_EQ(5,2))
+        if (m->VALID != MUTEX_VALID) {
+            if (_mutex_init(m, NULL) != MQX_EOK)
+                return BAD_MUTEX_E;
+        }
+    #endif
+
         if (_mutex_unlock(m) == MQX_EOK)
             return 0;
         else
@@ -2710,7 +2728,9 @@ int wolfSSL_HwPkMutexUnLock(void)
 
 #elif defined(WOLFSSL_CMSIS_RTOS)
 
-    #define CMSIS_NMUTEX 10
+    #ifndef CMSIS_NMUTEX
+        #define CMSIS_NMUTEX 10
+    #endif
     osMutexDef(wolfSSL_mt0);  osMutexDef(wolfSSL_mt1);  osMutexDef(wolfSSL_mt2);
     osMutexDef(wolfSSL_mt3);  osMutexDef(wolfSSL_mt4);  osMutexDef(wolfSSL_mt5);
     osMutexDef(wolfSSL_mt6);  osMutexDef(wolfSSL_mt7);  osMutexDef(wolfSSL_mt8);

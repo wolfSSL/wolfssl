@@ -39404,8 +39404,19 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("Found session matching the session id"
                             " found in the ticket");
                 /* Allocate and populate an InternalTicket */
+            #ifdef WOLFSSL_NO_REALLOC
+                tmp = (byte*)XMALLOC(sizeof(InternalTicket), ssl->heap,
+                        DYNAMIC_TYPE_TLSX);
+                if (tmp != NULL)
+                {
+                   XMEMCPY(tmp, psk->identity, psk->identityLen);
+                   XFREE(psk->identity, ssl->heap, DYNAMIC_TYPE_TLSX);
+                   psk->identity = NULL;
+                }
+            #else
                 tmp = (byte*)XREALLOC(psk->identity, sizeof(InternalTicket),
                         ssl->heap, DYNAMIC_TYPE_TLSX);
+            #endif
                 if (tmp != NULL) {
                     XMEMSET(tmp, 0, sizeof(InternalTicket));
                     psk->identity = tmp;
