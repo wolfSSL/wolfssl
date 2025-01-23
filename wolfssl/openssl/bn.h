@@ -77,8 +77,9 @@ typedef struct WOLFSSL_BIGNUM {
 
 #define WOLFSSL_BN_MAX_VAL          ((BN_ULONG)-1)
 
-typedef struct WOLFSSL_BN_CTX   WOLFSSL_BN_CTX;
-typedef struct WOLFSSL_BN_GENCB WOLFSSL_BN_GENCB;
+typedef struct WOLFSSL_BN_CTX      WOLFSSL_BN_CTX;
+typedef struct WOLFSSL_BN_MONT_CTX WOLFSSL_BN_MONT_CTX;
+typedef struct WOLFSSL_BN_GENCB    WOLFSSL_BN_GENCB;
 
 WOLFSSL_API WOLFSSL_BN_CTX* wolfSSL_BN_CTX_new(void);
 WOLFSSL_API void           wolfSSL_BN_CTX_init(WOLFSSL_BN_CTX* ctx);
@@ -151,6 +152,7 @@ WOLFSSL_API int wolfSSL_BN_lshift(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* bn,
 WOLFSSL_API int wolfSSL_BN_add_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w);
 WOLFSSL_API int wolfSSL_BN_sub_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w);
 WOLFSSL_API int wolfSSL_BN_mul_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w);
+WOLFSSL_API int wolfSSL_BN_div_word(WOLFSSL_BIGNUM *bn, WOLFSSL_BN_ULONG w);
 WOLFSSL_API int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM* bn, int n);
 WOLFSSL_API int wolfSSL_BN_clear_bit(WOLFSSL_BIGNUM* bn, int n);
 WOLFSSL_API int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w);
@@ -184,6 +186,13 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(
     const WOLFSSL_BIGNUM *n,
     WOLFSSL_BN_CTX *ctx);
 
+WOLFSSL_API WOLFSSL_BN_MONT_CTX* wolfSSL_BN_MONT_CTX_new(void);
+WOLFSSL_API void wolfSSL_BN_MONT_CTX_free(WOLFSSL_BN_MONT_CTX *mont);
+WOLFSSL_API int wolfSSL_BN_MONT_CTX_set(WOLFSSL_BN_MONT_CTX *mont,
+        const WOLFSSL_BIGNUM *mod, WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API int wolfSSL_BN_mod_exp_mont_word(WOLFSSL_BIGNUM *r,
+        WOLFSSL_BN_ULONG a, const WOLFSSL_BIGNUM *p, const WOLFSSL_BIGNUM *m,
+        WOLFSSL_BN_CTX *ctx, WOLFSSL_BN_MONT_CTX *mont);
 
 #if !defined(OPENSSL_COEXIST) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 
@@ -194,9 +203,10 @@ WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(
 #define BN_RAND_BOTTOM_ANY  WOLFSSL_BN_RAND_BOTTOM_ANY
 #define BN_RAND_BOTTOM_ODD  WOLFSSL_BN_RAND_BOTTOM_ODD
 
-typedef WOLFSSL_BIGNUM   BIGNUM;
-typedef WOLFSSL_BN_CTX   BN_CTX;
-typedef WOLFSSL_BN_GENCB BN_GENCB;
+typedef WOLFSSL_BIGNUM      BIGNUM;
+typedef WOLFSSL_BN_CTX      BN_CTX;
+typedef WOLFSSL_BN_MONT_CTX BN_MONT_CTX;
+typedef WOLFSSL_BN_GENCB    BN_GENCB;
 
 #define BN_CTX_new        wolfSSL_BN_CTX_new
 #define BN_CTX_init       wolfSSL_BN_CTX_init
@@ -228,6 +238,8 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 #define BN_mod       wolfSSL_BN_mod
 #define BN_mod_exp   wolfSSL_BN_mod_exp
+#define BN_mod_exp_mont(a,b,c,d,e,f)   \
+    ((void)(f), wolfSSL_BN_mod_exp((a),(b),(c),(d),(e)))
 #define BN_mod_mul   wolfSSL_BN_mod_mul
 #define BN_sub       wolfSSL_BN_sub
 #define BN_mul       wolfSSL_BN_mul
@@ -257,6 +269,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #define BN_add_word wolfSSL_BN_add_word
 #define BN_mul_word wolfSSL_BN_mul_word
 #define BN_sub_word wolfSSL_BN_sub_word
+#define BN_div_word wolfSSL_BN_div_word
 #define BN_add wolfSSL_BN_add
 #define BN_mod_add wolfSSL_BN_mod_add
 #define BN_set_word wolfSSL_BN_set_word
@@ -289,6 +302,11 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 #endif
 
 #define BN_prime_checks 0
+
+#define BN_MONT_CTX_new            wolfSSL_BN_MONT_CTX_new
+#define BN_MONT_CTX_free           wolfSSL_BN_MONT_CTX_free
+#define BN_MONT_CTX_set            wolfSSL_BN_MONT_CTX_set
+#define BN_mod_exp_mont_word       wolfSSL_BN_mod_exp_mont_word
 
 #endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 

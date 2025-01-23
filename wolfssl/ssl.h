@@ -706,7 +706,8 @@ enum BIO_TYPE {
     WOLFSSL_BIO_FILE   = 6,
     WOLFSSL_BIO_BASE64 = 7,
     WOLFSSL_BIO_MD     = 8,
-    WOLFSSL_BIO_DGRAM  = 9
+    WOLFSSL_BIO_DGRAM  = 9,
+    WOLFSSL_BIO_NULL   = 10
 };
 
 enum BIO_FLAGS {
@@ -2043,6 +2044,7 @@ WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_fd(int fd, int close_flag);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_bio(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_socket(void);
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_datagram(void);
+WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_null(void);
 
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_connect(const char *str);
 WOLFSSL_API WOLFSSL_BIO *wolfSSL_BIO_new_accept(const char *port);

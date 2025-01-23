@@ -62685,6 +62685,21 @@ static int test_wolfSSL_BN_init(void)
     /* check result  3*2 mod 5 */
     ExpectIntEQ(BN_get_word(&dv), 1);
 
+    {
+        BN_MONT_CTX* montCtx = NULL;
+        ExpectNotNull(montCtx = BN_MONT_CTX_new());
+
+        ExpectIntEQ(BN_MONT_CTX_set(montCtx, &cv, NULL), SSL_SUCCESS);
+        ExpectIntEQ(BN_set_word(&bv, 2), SSL_SUCCESS);
+        ExpectIntEQ(BN_set_word(&cv, 5), SSL_SUCCESS);
+        ExpectIntEQ(BN_mod_exp_mont_word(&dv, 3, &bv, &cv, NULL, NULL),
+                    WOLFSSL_SUCCESS);
+        /* check result  3^2 mod 5 */
+        ExpectIntEQ(BN_get_word(&dv), 4);
+
+        BN_MONT_CTX_free(montCtx);
+    }
+
     BN_free(ap);
 #endif
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
@@ -62871,6 +62886,16 @@ static int test_wolfSSL_BN_word(void)
     ExpectIntEQ(BN_set_word(a, 5), 1);
     ExpectIntEQ(BN_mod_word(a, 3), 2);
     ExpectIntEQ(BN_mod_word(a, 0), -1);
+#endif
+
+    ExpectIntEQ(BN_set_word(a, 5), 1);
+    ExpectIntEQ(BN_mul_word(a, 5), 1);
+    /* check result 5 * 5 */
+    ExpectIntEQ(BN_get_word(a), 25);
+#if defined(WOLFSSL_SP_MATH) || defined(WOLFSSL_SP_MATH_ALL)
+    ExpectIntEQ(BN_div_word(a, 5), 1);
+    /* check result 25 / 5 */
+    ExpectIntEQ(BN_get_word(a), 5);
 #endif
 
     BN_free(c);
@@ -71027,6 +71052,25 @@ static int test_wolfSSL_BIO_datagram(void)
     return EXPECT_RESULT();
 }
 
+static int test_wolfSSL_BIO_s_null(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_BIO) && defined(OPENSSL_EXTRA)
+    BIO *b = NULL;
+    char testData[10] = {'t','e','s','t',0};
+
+    ExpectNotNull(b = BIO_new(BIO_s_null()));
+    ExpectIntEQ(BIO_write(b, testData, sizeof(testData)), sizeof(testData));
+    ExpectIntEQ(BIO_read(b, testData, sizeof(testData)), 0);
+    ExpectIntEQ(BIO_puts(b, testData), 4);
+    ExpectIntEQ(BIO_gets(b, testData, sizeof(testData)), 0);
+    ExpectIntEQ(BIO_pending(b), 0);
+    ExpectIntEQ(BIO_eof(b), 1);
+
+    BIO_free(b);
+#endif
+    return EXPECT_RESULT();
+}
 
 #if defined(OPENSSL_ALL) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
     defined(HAVE_HTTP_CLIENT)
@@ -102427,6 +102471,7 @@ TEST_CASE testCases[] = {
     /* Can't memory test as server Asserts in thread. */
     TEST_DECL(test_wolfSSL_BIO_accept),
     TEST_DECL(test_wolfSSL_BIO_tls),
+    TEST_DECL(test_wolfSSL_BIO_s_null),
     TEST_DECL(test_wolfSSL_BIO_datagram),
 #endif
 
