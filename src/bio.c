@@ -2770,9 +2770,21 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
         else {
             size_t currLen = XSTRLEN(b->ip);
+        #ifdef WOLFSSL_NO_REALLOC
+            char* tmp = NULL;
+        #endif
+
             if (currLen != newLen) {
+        #ifdef WOLFSSL_NO_REALLOC
+                tmp = b->ip;
+                b->ip = (char*)XMALLOC(newLen+1, b->heap, DYNAMIC_TYPE_OPENSSL);
+                XMEMCPY(b->ip, tmp, newLen);
+                XFREE(tmp, b->heap, DYNAMIC_TYPE_OPENSSL);
+                tmp = NULL;
+        #else
                 b->ip = (char*)XREALLOC(b->ip, newLen + 1, b->heap,
                     DYNAMIC_TYPE_OPENSSL);
+        #endif
                 if (b->ip == NULL) {
                     WOLFSSL_MSG("Hostname realloc failed.");
                     return WOLFSSL_FAILURE;

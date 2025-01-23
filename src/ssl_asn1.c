@@ -797,9 +797,18 @@ static int wolfssl_asn1_bit_string_grow(WOLFSSL_ASN1_BIT_STRING* bitStr,
     int ret = 1;
     byte* tmp;
 
+#ifdef WOLFSSL_NO_REALLOC
+    tmp = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (tmp != NULL) {
+       XMEMCPY(tmp, bitStr->data, bitStr->length);
+       XFREE(bitStr->data, NULL, DYNAMIC_TYPE_OPENSSL);
+       bitStr->data = NULL;
+    }
+#else
     /* Realloc to length required. */
     tmp = (byte*)XREALLOC(bitStr->data, (size_t)len, NULL,
         DYNAMIC_TYPE_OPENSSL);
+#endif
     if (tmp == NULL) {
         ret = 0;
     }

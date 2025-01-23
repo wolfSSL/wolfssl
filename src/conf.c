@@ -773,8 +773,18 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
                     /* This will allocate slightly more memory than necessary
                      * but better be safe */
                     strLen += valueLen;
+                #ifdef WOLFSSL_NO_REALLOC
+                    newRet = (char*)XMALLOC(strLen + 1, NULL,
+                            DYNAMIC_TYPE_OPENSSL);
+                    if (newRet != NULL) {
+                       XMEMCPY(newRet, ret, (strLen - valueLen) + 1);
+                       XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+                       ret = NULL;
+                    }
+                #else
                     newRet = (char*)XREALLOC(ret, strLen + 1, NULL,
                             DYNAMIC_TYPE_OPENSSL);
+                #endif
                     if (!newRet) {
                         WOLFSSL_MSG("realloc error");
                         goto expand_cleanup;
