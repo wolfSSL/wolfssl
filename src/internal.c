@@ -39407,7 +39407,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #ifdef WOLFSSL_NO_REALLOC
                 tmp = (byte*)XMALLOC(sizeof(InternalTicket), ssl->heap,
                         DYNAMIC_TYPE_TLSX);
-                if (tmp != NULL)
+                if (tmp != NULL && psk->identity != NULL)
                 {
                    XMEMCPY(tmp, psk->identity, psk->identityLen);
                    XFREE(psk->identity, ssl->heap, DYNAMIC_TYPE_TLSX);

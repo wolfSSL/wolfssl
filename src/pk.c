@@ -521,7 +521,7 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
     #ifdef WOLFSSL_NO_REALLOC
         tmpBuf = (byte*)XMALLOC((size_t)(derSz + blockSz), heap,
             DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmpBuf != NULL)
+        if (tmpBuf != NULL && der != NULL)
         {
                 XMEMCPY(tmpBuf, der, (size_t)(derSz));
                 XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
