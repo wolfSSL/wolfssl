@@ -244,6 +244,38 @@ static int wolfssl_init(void)
         }
         return -ECANCELED;
     }
+#endif /* HAVE_FIPS */
+
+#ifdef WC_RNG_SEED_CB
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    if (ret < 0) {
+        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+#endif
+
+#ifdef WOLFCRYPT_ONLY
+    ret = wolfCrypt_Init();
+    if (ret != 0) {
+        pr_err("wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+#else
+    ret = wolfSSL_Init();
+    if (ret != WOLFSSL_SUCCESS) {
+        pr_err("wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+#endif
+
+#ifdef HAVE_FIPS
+    ret = wc_RunAllCast_fips();
+    if (ret != 0) {
+        pr_err("wc_RunAllCast_fips() failed with return value %d\n", ret);
+        return -ECANCELED;
+    }
 
     pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
             "self-test succeeded.\n",
@@ -270,32 +302,7 @@ static int wolfssl_init(void)
             ""
 #endif
         );
-
 #endif /* HAVE_FIPS */
-
-#ifdef WC_RNG_SEED_CB
-    ret = wc_SetSeed_Cb(wc_GenerateSeed);
-    if (ret < 0) {
-        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
-        (void)libwolfssl_cleanup();
-        msleep(10);
-        return -ECANCELED;
-    }
-#endif
-
-#ifdef WOLFCRYPT_ONLY
-    ret = wolfCrypt_Init();
-    if (ret != 0) {
-        pr_err("wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
-    }
-#else
-    ret = wolfSSL_Init();
-    if (ret != WOLFSSL_SUCCESS) {
-        pr_err("wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
-    }
-#endif
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
