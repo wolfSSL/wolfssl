@@ -2970,14 +2970,13 @@ int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl)
 #endif /* !NO_DH */
 
 
-WOLFSSL_ABI
-int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
+static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
 {
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_write");
 
-    if (ssl == NULL || data == NULL || sz < 0)
+    if (ssl == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_QUIC
@@ -3037,6 +3036,17 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
         return ret;
 }
 
+WOLFSSL_ABI
+int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
+{
+    WOLFSSL_ENTER("wolfSSL_write");
+
+    if (sz < 0)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_write_internal(ssl, data, sz);
+}
+
 int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
 {
     int maxLength;
@@ -3074,7 +3084,7 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
 }
 
 
-int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
+int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, size_t sz, size_t* wr)
 {
     int ret;
 
@@ -3082,7 +3092,7 @@ int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
         *wr = 0;
     }
 
-    ret = wolfSSL_write(ssl, data, sz);
+    ret = wolfSSL_write_internal(ssl, data, sz);
     if (ret >= 0) {
         if (wr != NULL) {
             *wr = (size_t)ret;
@@ -3093,7 +3103,7 @@ int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
         if (ret == 0 && ssl->options.partialWrite) {
             ret = 0;
         }
-        else if (ret < sz && !ssl->options.partialWrite) {
+        else if ((size_t)ret < sz && !ssl->options.partialWrite) {
             ret = 0;
         }
         else {
