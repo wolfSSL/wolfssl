@@ -10150,13 +10150,13 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             #endif
             #ifdef HAVE_DILITHIUM
                 case dilithium_level2_sa_algo:
-                    ret = decodeDilithiumKey(ssl, 2);
+                    ret = decodeDilithiumKey(ssl, WC_ML_DSA_44);
                     break;
                 case dilithium_level3_sa_algo:
-                    ret = decodeDilithiumKey(ssl, 3);
+                    ret = decodeDilithiumKey(ssl, WC_ML_DSA_65);
                     break;
                 case dilithium_level5_sa_algo:
-                    ret = decodeDilithiumKey(ssl, 5);
+                    ret = decodeDilithiumKey(ssl, WC_ML_DSA_87);
                     break;
             #endif
             #ifdef HAVE_FALCON

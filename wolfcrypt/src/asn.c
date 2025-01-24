@@ -17833,7 +17833,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 case DILITHIUM_LEVEL2k:
                 case DILITHIUM_LEVEL3k:
                 case DILITHIUM_LEVEL5k:
-                #endif
+                #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
                 case ML_DSA_LEVEL2k:
                 case ML_DSA_LEVEL3k:
                 case ML_DSA_LEVEL5k:
