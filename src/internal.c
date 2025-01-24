@@ -37929,7 +37929,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
-        if (FindSuite(ssl->clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
+        if (FindSuite(ssl->clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >=
+                0) {
             TLSX* extension;
 
             /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */

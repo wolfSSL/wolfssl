@@ -5312,8 +5312,10 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
     if (format == WOLFSSL_FILETYPE_PEM) {
         EncryptedInfo info;
         XMEMSET(&info, 0, sizeof(EncryptedInfo));
+    #ifdef WOLFSSL_ENCRYPTED_KEYS
         info.passwd_cb       = cb;
         info.passwd_userdata = u;
+    #endif
 
     #ifdef WOLFSSL_PEM_TO_DER
         ret = PemToDer(buf, sz, type, &der, NULL, &info, NULL);
