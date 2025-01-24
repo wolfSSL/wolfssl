@@ -6917,8 +6917,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ERROR_OUT(INVALID_PARAMETER, exit_dch);
     }
     /* suites and compression length check */
-    if ((args->idx - args->begin) + ssl->clSuites->suiteSz + OPAQUE8_LEN > helloSz)
+    if ((args->idx - args->begin) + ssl->clSuites->suiteSz + OPAQUE8_LEN >
+            helloSz) {
         ERROR_OUT(BUFFER_ERROR, exit_dch);
+    }
     if (ssl->clSuites->suiteSz > WOLFSSL_MAX_SUITE_SZ)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
     XMEMCPY(ssl->clSuites->suites, input + args->idx, ssl->clSuites->suiteSz);

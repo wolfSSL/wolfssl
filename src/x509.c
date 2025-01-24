@@ -5382,6 +5382,9 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
         WOLFSSL_ERROR(ret);
     }
 
+    /* unused parameter when built without WOLFSSL_ENCRYPTED_KEYS */
+    (void)cb;
+    (void)u;
     return x509;
 }
 
