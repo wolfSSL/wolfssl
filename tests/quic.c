@@ -274,6 +274,8 @@ static int test_provide_quic_data(void) {
     size_t len;
     int ret = 0;
 
+    XMEMSET(lbuffer, 0, sizeof(lbuffer));
+
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
     AssertTrue(wolfSSL_CTX_set_quic_method(ctx, &dummy_method) == WOLFSSL_SUCCESS);
     /* provide_quic_data() feeds CRYPTO packets inside a QUIC Frame into
