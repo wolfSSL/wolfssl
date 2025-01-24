@@ -12245,7 +12245,7 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
     if (ret == 1) {
     #ifdef HAVE_COMP_KEY
         /* Default to compressed form if not set */
-        form = (key->form != WC_POINT_CONVERSION_UNCOMPRESSED) ?
+        form = (key->form == WC_POINT_CONVERSION_UNCOMPRESSED) ?
                WC_POINT_CONVERSION_UNCOMPRESSED :
                WC_POINT_CONVERSION_COMPRESSED;
     #endif
