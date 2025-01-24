@@ -75803,12 +75803,14 @@ static int test_wolfSSL_EVP_DigestFinalXOF(void)
     ExpectIntEQ(sz, 32);
     ExpectIntEQ(EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
 
+    #if defined(WOLFSSL_SHAKE128)
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     ExpectIntEQ(EVP_DigestInit(&mdCtx, EVP_shake128()), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_DigestUpdate(&mdCtx, data, 1), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_DigestFinal(&mdCtx, shake, &sz), WOLFSSL_SUCCESS);
     ExpectIntEQ(sz, 16);
     ExpectIntEQ(EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
+    #endif
 #endif
     return EXPECT_RESULT();
 }
