@@ -75785,15 +75785,21 @@ static int test_wolfSSL_EVP_DigestFinalXOF(void)
 #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256) && defined(OPENSSL_ALL)
     WOLFSSL_EVP_MD_CTX mdCtx;
     unsigned char      shake[256];
+    unsigned char      zeros[10];
     unsigned char      data[] = "Test data";
     unsigned int sz;
 
+    XMEMSET(zeros, 0, sizeof(zeros));
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     ExpectIntEQ(EVP_DigestInit(&mdCtx, EVP_shake256()), WOLFSSL_SUCCESS);
     ExpectIntEQ(EVP_MD_flags(EVP_shake256()), EVP_MD_FLAG_XOF);
     ExpectIntEQ(EVP_MD_flags(EVP_sha3_256()), 0);
     ExpectIntEQ(EVP_DigestUpdate(&mdCtx, data, 1), WOLFSSL_SUCCESS);
+    XMEMSET(shake, 0, sizeof(shake));
     ExpectIntEQ(EVP_DigestFinalXOF(&mdCtx, shake, 10), WOLFSSL_SUCCESS);
+
+    /* make sure was only size of 10 */
+    ExpectIntEQ(XMEMCMP(&shake[11], zeros, 10), 0);
     ExpectIntEQ(EVP_MD_CTX_cleanup(&mdCtx), WOLFSSL_SUCCESS);
 
     wolfSSL_EVP_MD_CTX_init(&mdCtx);

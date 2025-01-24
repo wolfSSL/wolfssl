@@ -10962,10 +10962,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         size_t sz)
     {
         unsigned int len;
+        enum wc_HashType macType;
 
         WOLFSSL_ENTER("wolfSSL_EVP_DigestFinalXOF");
         len = (unsigned int)sz;
-        return wolfSSL_EVP_DigestFinal(ctx, md, &len);
+
+        macType = EvpMd2MacType(wolfSSL_EVP_MD_CTX_md(ctx));
+        return wolfSSL_EVP_DigestFinal_Common(ctx, md, &len, macType);
     }
 
 

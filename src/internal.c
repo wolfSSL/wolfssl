@@ -7790,8 +7790,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         if (wolfSSL_X509_VERIFY_PARAM_set_flags(wolfSSL_get0_param(ssl),
             (unsigned long)wolfSSL_X509_VERIFY_PARAM_get_flags(
             wolfSSL_CTX_get0_param(ctx))) != WOLFSSL_SUCCESS) {
-
-            XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
+            WOLFSSL_MSG("ssl->param set flags error");
             return WOLFSSL_FAILURE;
         }
 #endif
