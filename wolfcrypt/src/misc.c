@@ -535,7 +535,7 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
     }
 #endif /* !WOLFSSL_HAVE_MAX */
 
-    WC_MISC_STATIC WC_INLINE size_t max_size_t_(size_t a, size_t b)
+    WC_MISC_STATIC WC_INLINE size_t max_size_t(size_t a, size_t b)
     {
         return a > b ? a : b;
     }

@@ -3044,7 +3044,7 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     if (sz < 0)
         return BAD_FUNC_ARG;
 
-    return wolfSSL_write_internal(ssl, data, sz);
+    return wolfSSL_write_internal(ssl, data, (size_t)sz);
 }
 
 int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
@@ -11328,7 +11328,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
             byte* myBuffer  = staticBuffer;
             int   dynamic   = 0;
-            int   sending   = 0;
+            word32 sending   = 0;
             int   idx       = 0;
             int   i;
             int   ret;
@@ -11336,11 +11336,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_ENTER("wolfSSL_writev");
 
             for (i = 0; i < iovcnt; i++)
-                sending += (int)iov[i].iov_len;
+                sending += iov[i].iov_len;
 
-            if (sending > (int)sizeof(staticBuffer)) {
-                myBuffer = (byte*)XMALLOC((size_t)sending, ssl->heap,
-                                                           DYNAMIC_TYPE_WRITEV);
+            if (sending > sizeof(staticBuffer)) {
+                myBuffer = (byte*)XMALLOC(sending, ssl->heap,
+                                          DYNAMIC_TYPE_WRITEV);
                 if (!myBuffer)
                     return MEMORY_ERROR;
 
@@ -11357,7 +11357,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             */
             PRAGMA_GCC_DIAG_PUSH
             PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-            ret = wolfSSL_write(ssl, myBuffer, sending);
+            ret = wolfSSL_write_internal(ssl, myBuffer, sending);
             PRAGMA_GCC_DIAG_POP
 
             if (dynamic)
