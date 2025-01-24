@@ -25686,7 +25686,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 }
 
 /* process input data */
-int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
+int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 {
     int size;
     int error = ssl->error;
@@ -25842,7 +25842,7 @@ startScr:
 #endif
     }
 
-    size = (int)min((word32)sz, ssl->buffers.clearOutputBuffer.length);
+    size = (int)min_size_t(sz, (size_t)ssl->buffers.clearOutputBuffer.length);
 
     XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
 

@@ -6521,7 +6521,7 @@ WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL* ssl);
-WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek);
+WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL* ssl);
 WOLFSSL_LOCAL int RetrySendAlert(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendAlert(WOLFSSL* ssl, int severity, int type);
