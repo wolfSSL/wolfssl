@@ -59,6 +59,27 @@
 #define NID_sect571k1 WC_NID_sect571k1
 #define NID_sect571r1 WC_NID_sect571r1
 
+/* mapping of short names */
+#define SN_md4        WC_SN_md4
+#define SN_md5        WC_SN_md5
+#define SN_sha1       WC_SN_sha1
+#define SN_sha224     WC_SN_sha224
+#define SN_sha256     WC_SN_sha256
+#define SN_sha384     WC_SN_sha384
+#define SN_sha512     WC_SN_sha512
+#define SN_sha512_224 WC_SN_sha512_224
+#define SN_sha512_256 WC_SN_sha512_256
+#define SN_sha3_224   WC_SN_sha3_224
+#define SN_sha3_256   WC_SN_sha3_256
+#define SN_sha3_384   WC_SN_sha3_384
+#define SN_sha3_512   WC_SN_sha3_512
+#define SN_shake128   WC_SN_shake128
+#define SN_shake256   WC_SN_shake256
+#define SN_blake2s256 WC_SN_blake2s256
+#define SN_blake2s512 WC_SN_blake2s512
+#define SN_blake2b512 WC_SN_blake2b512
+#define SN_sm3        WC_SN_sm3
+
 #endif /* !OPENSSL_COEXIST */
 
 /* the definition is for Qt Unit test */

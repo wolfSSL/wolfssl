@@ -3083,6 +3083,43 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
     return WOLFSSL_SUCCESS;
 }
 
+
+int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
+{
+    int ret;
+
+    if (wr != NULL) {
+        *wr = 0;
+    }
+
+    ret = wolfSSL_write(ssl, data, sz);
+    if (ret >= 0) {
+        if (wr != NULL) {
+            *wr = (size_t)ret;
+        }
+
+        /* handle partial write cases, if not set then a partial write is
+         * considered a failure case, or if set and ret is 0 then is a fail */
+        if (ret == 0 && ssl->options.partialWrite) {
+            ret = 0;
+        }
+        else if (ret < sz && !ssl->options.partialWrite) {
+            ret = 0;
+        }
+        else {
+            /* wrote out all application data, or wrote out 1 byte or more with
+             * partial write flag set */
+            ret = 1;
+        }
+    }
+    else {
+        ret = 0;
+    }
+
+    return ret;
+}
+
+
 static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 {
     int ret;
@@ -3188,6 +3225,20 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
     return wolfSSL_read_internal(ssl, data, sz, FALSE);
 }
 
+
+/* returns 0 on failure and on no read */
+int wolfSSL_read_ex(WOLFSSL* ssl, void* data, int sz, size_t* rd)
+{
+   int ret;
+
+    ret = wolfSSL_read(ssl, data, sz);
+    if (ret > 0 && rd != NULL) {
+        *rd = (size_t)ret;
+    }
+
+    if (ret <= 0) ret = 0;
+    return ret;
+}
 
 #ifdef WOLFSSL_MULTICAST
 
@@ -7072,6 +7123,11 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
     }
 #endif
 #endif
+
+    /* placing error into error queue for Python port */
+    if (res != WOLFSSL_SUCCESS) {
+        WOLFSSL_ERROR(WC_KEY_MISMATCH_E);
+    }
 
     return res;
 }
@@ -12658,63 +12714,6 @@ cleanup:
 #if !defined(NO_CERTS) && (defined(OPENSSL_EXTRA) || \
     defined(WOLFSSL_WPAS_SMALL))
 
-#if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-    /**
-     * Implemented in a similar way that ngx_ssl_ocsp_validate does it when
-     * SSL_get0_verified_chain is not available.
-     * @param ssl WOLFSSL object to extract certs from
-     * @return Stack of verified certs
-     */
-    WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
-    {
-        WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
-        WOLFSSL_X509_STORE_CTX* storeCtx = NULL;
-        WOLFSSL_X509* peerCert = NULL;
-
-        WOLFSSL_ENTER("wolfSSL_get0_verified_chain");
-
-        if (ssl == NULL || ssl->ctx == NULL) {
-            WOLFSSL_MSG("Bad parameter");
-            return NULL;
-        }
-
-        peerCert = wolfSSL_get_peer_certificate((WOLFSSL*)ssl);
-        if (peerCert == NULL) {
-            WOLFSSL_MSG("wolfSSL_get_peer_certificate error");
-            return NULL;
-        }
-        /* wolfSSL_get_peer_certificate returns a copy. We want the internal
-         * member so that we don't have to worry about free'ing it. We call
-         * wolfSSL_get_peer_certificate so that we don't have to worry about
-         * setting up the internal pointer. */
-        wolfSSL_X509_free(peerCert);
-        peerCert = (WOLFSSL_X509*)&ssl->peerCert;
-        chain = wolfSSL_get_peer_cert_chain(ssl);
-        if (chain == NULL) {
-            WOLFSSL_MSG("wolfSSL_get_peer_cert_chain error");
-            return NULL;
-        }
-        storeCtx = wolfSSL_X509_STORE_CTX_new();
-        if (storeCtx == NULL) {
-            WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_new error");
-            return NULL;
-        }
-        if (wolfSSL_X509_STORE_CTX_init(storeCtx, SSL_STORE(ssl),
-                peerCert, chain) != WOLFSSL_SUCCESS) {
-            WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init error");
-            wolfSSL_X509_STORE_CTX_free(storeCtx);
-            return NULL;
-        }
-        if (wolfSSL_X509_verify_cert(storeCtx) <= 0) {
-            WOLFSSL_MSG("wolfSSL_X509_verify_cert error");
-            wolfSSL_X509_STORE_CTX_free(storeCtx);
-            return NULL;
-        }
-        wolfSSL_X509_STORE_CTX_free(storeCtx);
-        return chain;
-    }
-#endif /* SESSION_CERTS && OPENSSL_EXTRA */
-
     WOLFSSL_X509_STORE* wolfSSL_CTX_get_cert_store(const WOLFSSL_CTX* ctx)
     {
         if (ctx == NULL) {
@@ -14298,12 +14297,13 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 
     /* Try to populate if NULL or empty */
     if (ssl->peerCertChain == NULL ||
-            wolfSSL_sk_X509_num(ssl->peerCertChain) == 0)
+            wolfSSL_sk_X509_num(ssl->peerCertChain) == 0) {
         wolfSSL_set_peer_cert_chain((WOLFSSL*) ssl);
+    }
     return ssl->peerCertChain;
 }
 
-#ifndef WOLFSSL_QT
+
 static int x509GetIssuerFromCM(WOLFSSL_X509 **issuer, WOLFSSL_CERT_MANAGER* cm,
         WOLFSSL_X509 *x);
 /**
@@ -14346,13 +14346,14 @@ static int PushCAx509Chain(WOLFSSL_CERT_MANAGER* cm,
     }
     return ret;
 }
-#endif /* !WOLFSSL_QT */
+
 
 /* Builds up and creates a stack of peer certificates for ssl->peerCertChain
-    based off of the ssl session chain. Attempts to place CA certificates
-    at the bottom of the stack. Returns stack of WOLFSSL_X509 certs or
-    NULL on failure */
-WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
+    or ssl->verifiedChain based off of the ssl session chain. Attempts to place
+    CA certificates at the bottom of the stack for a verified chain. Returns
+    stack of WOLFSSL_X509 certs or NULL on failure */
+static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
+    int verifiedFlag)
 {
     WOLFSSL_STACK* sk;
     WOLFSSL_X509* x509;
@@ -14374,9 +14375,8 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
         }
         ret = DecodeToX509(x509, ssl->session->chain.certs[i].buffer,
                              ssl->session->chain.certs[i].length);
-#if !defined(WOLFSSL_QT)
-        if (ret == 0 && i == ssl->session->chain.count-1) {
-            /* On the last element in the chain try to add the CA chain
+        if (ret == 0 && i == ssl->session->chain.count-1 && verifiedFlag) {
+            /* On the last element in the verified chain try to add the CA chain
              * first if we have one for this cert */
             SSL_CM_WARNING(ssl);
             if (PushCAx509Chain(SSL_CM(ssl), x509, sk)
@@ -14384,7 +14384,6 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
-#endif
 
         if (ret != 0 || wolfSSL_sk_X509_push(sk, x509) <= 0) {
             WOLFSSL_MSG("Error decoding cert");
@@ -14397,18 +14396,92 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
     if (sk == NULL) {
         WOLFSSL_MSG("Null session chain");
     }
-#if defined(OPENSSL_ALL)
-    else if (ssl->options.side == WOLFSSL_SERVER_END) {
-        /* to be compliant with openssl
-           first element is kept as peer cert on server side.*/
-        wolfSSL_sk_X509_pop(sk);
-    }
-#endif
-    if (ssl->peerCertChain != NULL)
-        wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
-    /* This is Free'd when ssl is Free'd */
-    ssl->peerCertChain = sk;
     return sk;
+}
+
+
+/* Builds up and creates a stack of peer certificates for ssl->peerCertChain
+    returns the stack on success and NULL on failure */
+WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_set_peer_cert_chain(WOLFSSL* ssl)
+{
+    WOLFSSL_STACK* sk;
+
+    WOLFSSL_ENTER("wolfSSL_set_peer_cert_chain");
+    if ((ssl == NULL) || (ssl->session->chain.count == 0))
+        return NULL;
+
+    sk = CreatePeerCertChain(ssl, 0);
+
+    if (sk != NULL) {
+        if (ssl->peerCertChain != NULL)
+            wolfSSL_sk_X509_pop_free(ssl->peerCertChain, NULL);
+
+        /* This is Free'd when ssl is Free'd */
+        ssl->peerCertChain = sk;
+    }
+    return sk;
+}
+
+
+/**
+ * Implemented in a similar way that ngx_ssl_ocsp_validate does it when
+ * SSL_get0_verified_chain is not available.
+ * @param ssl WOLFSSL object to extract certs from
+ * @return Stack of verified certs
+ */
+WOLF_STACK_OF(WOLFSSL_X509) *wolfSSL_get0_verified_chain(const WOLFSSL *ssl)
+{
+    WOLF_STACK_OF(WOLFSSL_X509)* chain = NULL;
+    WOLFSSL_X509_STORE_CTX* storeCtx = NULL;
+    WOLFSSL_X509* peerCert = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_get0_verified_chain");
+
+    if (ssl == NULL || ssl->ctx == NULL) {
+        WOLFSSL_MSG("Bad parameter");
+        return NULL;
+    }
+
+    peerCert = wolfSSL_get_peer_certificate((WOLFSSL*)ssl);
+    if (peerCert == NULL) {
+        WOLFSSL_MSG("wolfSSL_get_peer_certificate error");
+        return NULL;
+    }
+    /* wolfSSL_get_peer_certificate returns a copy. We want the internal
+     * member so that we don't have to worry about free'ing it. We call
+     * wolfSSL_get_peer_certificate so that we don't have to worry about
+     * setting up the internal pointer. */
+    wolfSSL_X509_free(peerCert);
+    peerCert = (WOLFSSL_X509*)&ssl->peerCert;
+    chain = CreatePeerCertChain((WOLFSSL*)ssl, 1);
+    if (chain == NULL) {
+        WOLFSSL_MSG("wolfSSL_get_peer_cert_chain error");
+        return NULL;
+    }
+
+    if (ssl->verifiedChain != NULL) {
+        wolfSSL_sk_X509_pop_free(ssl->verifiedChain, NULL);
+    }
+    ((WOLFSSL*)ssl)->verifiedChain = chain;
+
+    storeCtx = wolfSSL_X509_STORE_CTX_new();
+    if (storeCtx == NULL) {
+        WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_new error");
+        return NULL;
+    }
+    if (wolfSSL_X509_STORE_CTX_init(storeCtx, SSL_STORE(ssl),
+            peerCert, chain) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init error");
+        wolfSSL_X509_STORE_CTX_free(storeCtx);
+        return NULL;
+    }
+    if (wolfSSL_X509_verify_cert(storeCtx) <= 0) {
+        WOLFSSL_MSG("wolfSSL_X509_verify_cert error");
+        wolfSSL_X509_STORE_CTX_free(storeCtx);
+        return NULL;
+    }
+    wolfSSL_X509_STORE_CTX_free(storeCtx);
+    return chain;
 }
 #endif /* SESSION_CERTS && OPENSSL_EXTRA */
 
@@ -15117,7 +15190,7 @@ WOLFSSL_STACK* wolfSSL_sk_new_cipher(void)
     return sk;
 }
 
-/* return 1 on success 0 on fail */
+/* returns the number of elements in stack on success, 0 on fail */
 int wolfSSL_sk_CIPHER_push(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk,
                                                       WOLFSSL_CIPHER* cipher)
 {
@@ -17578,6 +17651,33 @@ static void wolfSSL_CIPHER_copy(WOLFSSL_CIPHER* in, WOLFSSL_CIPHER* out)
     *out = *in;
 }
 
+
+#if defined(OPENSSL_ALL)
+static WOLFSSL_X509_OBJECT* wolfSSL_X509_OBJECT_dup(WOLFSSL_X509_OBJECT* obj)
+{
+    WOLFSSL_X509_OBJECT* ret = NULL;
+    if (obj) {
+        ret = wolfSSL_X509_OBJECT_new();
+        if (ret) {
+            ret->type = obj->type;
+            switch (ret->type) {
+                case WOLFSSL_X509_LU_NONE:
+                    break;
+                case WOLFSSL_X509_LU_X509:
+                    ret->data.x509 = wolfSSL_X509_dup(obj->data.x509);
+                    break;
+                case WOLFSSL_X509_LU_CRL:
+            #if defined(HAVE_CRL)
+                    ret->data.crl = wolfSSL_X509_CRL_dup(obj->data.crl);
+            #endif
+                    break;
+            }
+        }
+    }
+    return ret;
+}
+#endif /* OPENSSL_ALL */
+
 WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
 {
 
@@ -17640,6 +17740,17 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
                     goto error;
                 }
                 break;
+            case STACK_TYPE_X509_OBJ:
+            #if defined(OPENSSL_ALL)
+                if (!sk->data.x509_obj)
+                    break;
+                cur->data.x509_obj = wolfSSL_X509_OBJECT_dup(sk->data.x509_obj);
+                if (!cur->data.x509_obj) {
+                    WOLFSSL_MSG("wolfSSL_X509_OBJECT_dup error");
+                    goto error;
+                }
+                break;
+            #endif
             case STACK_TYPE_BIO:
             case STACK_TYPE_STRING:
             case STACK_TYPE_ACCESS_DESCRIPTION:
@@ -17652,7 +17763,6 @@ WOLFSSL_STACK* wolfSSL_sk_dup(WOLFSSL_STACK* sk)
             case STACK_TYPE_X509_INFO:
             case STACK_TYPE_BY_DIR_entry:
             case STACK_TYPE_BY_DIR_hash:
-            case STACK_TYPE_X509_OBJ:
             case STACK_TYPE_DIST_POINT:
             case STACK_TYPE_X509_CRL:
             default:
@@ -17725,7 +17835,7 @@ void wolfSSL_sk_GENERIC_pop_free(WOLFSSL_STACK* sk,
     wolfSSL_sk_pop_free(sk, (wolfSSL_sk_freefunc)f);
 }
 
-/* return 1 on success 0 on fail */
+/* returns the number of elements in stack on success, 0 on fail */
 int wolfSSL_sk_GENERIC_push(WOLFSSL_STACK* sk, void* generic)
 {
     WOLFSSL_ENTER("wolfSSL_sk_GENERIC_push");
@@ -20275,7 +20385,7 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
     #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-        if (ret == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG)) {
+        if (ret == ASN1_R_HEADER_TOO_LONG) {
             return (ERR_LIB_ASN1 << 24) | ASN1_R_HEADER_TOO_LONG;
         }
     #endif
@@ -21451,7 +21561,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
         if (ret == -WC_NO_ERR_TRACE(ASN_NO_PEM_HEADER))
             return (WOLFSSL_ERR_LIB_PEM << 24) | -WC_NO_ERR_TRACE(WOLFSSL_PEM_R_NO_START_LINE_E);
     #if defined(WOLFSSL_PYTHON)
-        if (ret == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG))
+        if (ret == ASN1_R_HEADER_TOO_LONG)
             return (WOLFSSL_ERR_LIB_ASN1 << 24) | -WC_NO_ERR_TRACE(WOLFSSL_ASN1_R_HEADER_TOO_LONG_E);
     #endif
         return (unsigned long)ret;
@@ -21663,7 +21773,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         return (WOLFSSL_ERR_LIB_SSL << 24) | -WC_NO_ERR_TRACE(PARSE_ERROR) /* SSL_R_HTTP_REQUEST */;
 #endif
 #if defined(OPENSSL_ALL) && defined(WOLFSSL_PYTHON)
-    else if (err == WC_NO_ERR_TRACE(ASN1_R_HEADER_TOO_LONG))
+    else if (err == ASN1_R_HEADER_TOO_LONG)
         return (WOLFSSL_ERR_LIB_ASN1 << 24) | -WC_NO_ERR_TRACE(WOLFSSL_ASN1_R_HEADER_TOO_LONG_E);
 #endif
   return err;
@@ -21840,6 +21950,83 @@ WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
     return ssl->suitesStack;
 }
 #endif /* OPENSSL_EXTRA || OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#ifdef OPENSSL_ALL
+/* returned pointer is to an internal element in WOLFSSL struct and should not
+ * be free'd. It gets free'd when the WOLFSSL struct is free'd. */
+WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
+{
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* ret = NULL;
+    const CipherSuiteInfo* cipher_names = GetCipherNames();
+    int cipherSz = GetCipherNamesSize();
+    const Suites* suites;
+
+    WOLFSSL_ENTER("wolfSSL_get_client_ciphers");
+
+    if (ssl == NULL) {
+        return NULL;
+    }
+
+    /* return NULL if is client side */
+    if (wolfSSL_is_server(ssl) == 0) {
+        return NULL;
+    }
+
+    suites = ssl->clSuites;
+    if (suites == NULL) {
+        WOLFSSL_MSG("No client suites stored");
+    }
+    else if (ssl->clSuitesStack != NULL) {
+        ret = ssl->clSuitesStack;
+    }
+    else { /* generate cipher suites stack if not already done */
+        int i;
+        int j;
+
+        ret = wolfSSL_sk_new_node(ssl->heap);
+        if (ret != NULL) {
+            ret->type = STACK_TYPE_CIPHER;
+
+            /* higher priority of cipher suite will be on top of stack */
+            for (i = suites->suiteSz - 2; i >= 0; i -= 2) {
+                WOLFSSL_CIPHER cipher;
+
+                /* A couple of suites are placeholders for special options,
+                 * skip those. */
+                if (SCSV_Check(suites->suites[i], suites->suites[i+1])
+                        || sslCipherMinMaxCheck(ssl, suites->suites[i],
+                                                suites->suites[i+1])) {
+                    continue;
+                }
+
+                cipher.cipherSuite0 = suites->suites[i];
+                cipher.cipherSuite  = suites->suites[i+1];
+                cipher.ssl          = ssl;
+                for (j = 0; j < cipherSz; j++) {
+                    if (cipher_names[j].cipherSuite0 ==
+                            cipher.cipherSuite0 &&
+                            cipher_names[j].cipherSuite ==
+                                    cipher.cipherSuite) {
+                        cipher.offset = (unsigned long)j;
+                        break;
+                    }
+                }
+
+                /* in_stack is checked in wolfSSL_CIPHER_description */
+                cipher.in_stack     = 1;
+
+                if (wolfSSL_sk_CIPHER_push(ret, &cipher) <= 0) {
+                    WOLFSSL_MSG("Error pushing client cipher onto stack");
+                    wolfSSL_sk_CIPHER_free(ret);
+                    ret = NULL;
+                    break;
+                }
+            }
+        }
+        ssl->clSuitesStack = ret;
+    }
+    return ret;
+}
+#endif /* OPENSSL_ALL */
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_SECRET_CALLBACK)
 long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx)

@@ -2777,7 +2777,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t error_test(void)
         int last;
     } missing[] = {
         { -124, -124 },
-        { -166, -169 },
+        { -167, -169 },
         { WC_SPAN1_LAST_E - 1, WC_SPAN2_FIRST_E + 1 },
         { WC_SPAN2_LAST_E - 1, WC_SPAN2_MIN_CODE_E }
     };

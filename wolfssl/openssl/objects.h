@@ -29,6 +29,8 @@
 #include <wolfssl/ssl.h>
 #endif /* OPENSSL_EXTRA_SSL_GUARD */
 
+#include <wolfssl/openssl/obj_mac.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif

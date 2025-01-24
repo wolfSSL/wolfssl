@@ -6674,7 +6674,6 @@ static int DoTls13SupportedVersions(WOLFSSL* ssl, const byte* input, word32 i,
 
 typedef struct Dch13Args {
     ProtocolVersion pv;
-    Suites*         clSuites;
     word32          idx;
     word32          begin;
     int             usingPSK;
@@ -6682,17 +6681,17 @@ typedef struct Dch13Args {
 
 static void FreeDch13Args(WOLFSSL* ssl, void* pArgs)
 {
-    Dch13Args* args = (Dch13Args*)pArgs;
-
-    (void)ssl;
-
-    if (args && args->clSuites) {
-        XFREE(args->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
-        args->clSuites = NULL;
+    /* openssl compat builds hang on to the client suites until WOLFSSL object
+     * is destroyed */
+#ifndef OPENSSL_EXTRA
+    if (ssl->clSuites) {
+        XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+        ssl->clSuites = NULL;
     }
-#ifdef OPENSSL_EXTRA
-    ssl->clSuites = NULL;
 #endif
+    (void)ssl;
+    (void)pArgs;
+
 }
 
 int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
@@ -6902,28 +6901,31 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif /* WOLFSSL_DTLS13 */
 
-    args->clSuites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+    XFREE(ssl->clSuites, ssl->heap, DYNAMIC_TYPE_SUITES);
+    ssl->clSuites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
         DYNAMIC_TYPE_SUITES);
-    if (args->clSuites == NULL) {
+    if (ssl->clSuites == NULL) {
         ERROR_OUT(MEMORY_E, exit_dch);
     }
 
     /* Cipher suites */
     if ((args->idx - args->begin) + OPAQUE16_LEN > helloSz)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
-    ato16(&input[args->idx], &args->clSuites->suiteSz);
+    ato16(&input[args->idx], &ssl->clSuites->suiteSz);
     args->idx += OPAQUE16_LEN;
-    if ((args->clSuites->suiteSz % 2) != 0) {
+    if ((ssl->clSuites->suiteSz % 2) != 0) {
         ERROR_OUT(INVALID_PARAMETER, exit_dch);
     }
     /* suites and compression length check */
-    if ((args->idx - args->begin) + args->clSuites->suiteSz + OPAQUE8_LEN > helloSz)
+    if ((args->idx - args->begin) + ssl->clSuites->suiteSz + OPAQUE8_LEN >
+            helloSz) {
         ERROR_OUT(BUFFER_ERROR, exit_dch);
-    if (args->clSuites->suiteSz > WOLFSSL_MAX_SUITE_SZ)
+    }
+    if (ssl->clSuites->suiteSz > WOLFSSL_MAX_SUITE_SZ)
         ERROR_OUT(BUFFER_ERROR, exit_dch);
-    XMEMCPY(args->clSuites->suites, input + args->idx, args->clSuites->suiteSz);
-    args->idx += args->clSuites->suiteSz;
-    args->clSuites->hashSigAlgoSz = 0;
+    XMEMCPY(ssl->clSuites->suites, input + args->idx, ssl->clSuites->suiteSz);
+    args->idx += ssl->clSuites->suiteSz;
+    ssl->clSuites->hashSigAlgoSz = 0;
 
     /* Compression */
     b = input[args->idx++];
@@ -6969,7 +6971,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     /* Parse extensions */
     if ((ret = TLSX_Parse(ssl, input + args->idx, totalExtSz, client_hello,
-                                                            args->clSuites))) {
+                                                            ssl->clSuites))) {
         goto exit_dch;
     }
 
@@ -7029,7 +7031,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #if (defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)) && \
                                                     defined(HAVE_TLS_EXTENSIONS)
-    ret = CheckPreSharedKeys(ssl, input + args->begin, helloSz, args->clSuites,
+    ret = CheckPreSharedKeys(ssl, input + args->begin, helloSz, ssl->clSuites,
         &args->usingPSK);
     if (ret != 0)
         goto exit_dch;
@@ -7055,7 +7057,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         /* Can't check ssl->extensions here as SigAlgs are unconditionally
            set by TLSX_PopulateExtensions */
-        if (args->clSuites->hashSigAlgoSz == 0) {
+        if (ssl->clSuites->hashSigAlgoSz == 0) {
             WOLFSSL_MSG("Client did not send a SignatureAlgorithms extension");
             ERROR_OUT(INCOMPLETE_DATA, exit_dch);
         }
@@ -7081,13 +7083,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     case TLS_ASYNC_DO:
     {
 #ifdef OPENSSL_EXTRA
-    ssl->clSuites = args->clSuites;
     if ((ret = CertSetupCbWrapper(ssl)) != 0)
         goto exit_dch;
 #endif
 #ifndef NO_CERTS
     if (!args->usingPSK) {
-        if ((ret = MatchSuite(ssl, args->clSuites)) < 0) {
+        if ((ret = MatchSuite(ssl, ssl->clSuites)) < 0) {
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret != WC_NO_ERR_TRACE(WC_PENDING_E))
         #endif

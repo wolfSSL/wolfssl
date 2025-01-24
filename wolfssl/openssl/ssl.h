@@ -289,6 +289,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSLv23_client_method            wolfSSLv23_client_method
 #define SSLv2_client_method             wolfSSLv2_client_method
 #define SSLv2_server_method             wolfSSLv2_server_method
+#define SSLv3_method                    wolfSSLv3_method
 #define SSLv3_server_method             wolfSSLv3_server_method
 #define SSLv3_client_method             wolfSSLv3_client_method
 #define TLS_client_method               wolfTLS_client_method
@@ -352,7 +353,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 #define SSL_write_early_data(ssl, d, dLen, len)  wolfSSL_write_early_data(ssl, d, (int)(dLen), (int *)(len))
 
 #define SSL_write                       wolfSSL_write
+#define SSL_write_ex                    wolfSSL_write_ex
 #define SSL_read                        wolfSSL_read
+#define SSL_read_ex                     wolfSSL_read_ex
 #define SSL_peek                        wolfSSL_peek
 #define SSL_accept                      wolfSSL_accept
 #define SSL_CTX_free                    wolfSSL_CTX_free
@@ -432,6 +435,7 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 
 #define SSL_get_version                 wolfSSL_get_version
 #define SSL_get_current_cipher          wolfSSL_get_current_cipher
+#define SSL_get_client_ciphers          wolfSSL_get_client_ciphers
 
 /* use wolfSSL_get_cipher_name for its return format */
 #define SSL_get_cipher                  wolfSSL_get_cipher_name
@@ -461,6 +465,9 @@ typedef STACK_OF(ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
     #define ASN1_BOOLEAN                 WOLFSSL_ASN1_BOOLEAN
     #define X509_get_ext                 wolfSSL_X509_get_ext
     #define X509_get_ext_by_OBJ          wolfSSL_X509_get_ext_by_OBJ
+    #define X509_OBJECT_set1_X509        wolfSSL_X509_OBJECT_set1_X509
+    #define X509_OBJECT_set1_X509_CRL    wolfSSL_X509_OBJECT_set1_X509_CRL
+    #define sk_X509_OBJECT_deep_copy     wolfSSL_sk_X509_OBJECT_deep_copy
     #define X509_cmp                     wolfSSL_X509_cmp
     #define X509_EXTENSION_get_object    wolfSSL_X509_EXTENSION_get_object
     #define X509_EXTENSION_get_critical  wolfSSL_X509_EXTENSION_get_critical
@@ -688,6 +695,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_NAME_entry_count           wolfSSL_X509_NAME_entry_count
 #define X509_NAME_get_entry             wolfSSL_X509_NAME_get_entry
+#define X509_NAME_ENTRY_set             wolfSSL_X509_NAME_ENTRY_set
 #define X509_NAME_ENTRY_get_object      wolfSSL_X509_NAME_ENTRY_get_object
 #define X509_NAME_ENTRY_get_data        wolfSSL_X509_NAME_ENTRY_get_data
 #define X509_NAME_ENTRY_get_object      wolfSSL_X509_NAME_ENTRY_get_object
@@ -716,6 +724,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_VP_FLAG_RESET_FLAGS    WOLFSSL_VPARAM_RESET_FLAGS
 #define X509_VP_FLAG_LOCKED         WOLFSSL_VPARAM_LOCKED
 #define X509_VP_FLAG_ONCE           WOLFSSL_VPARAM_ONCE
+
+#define X509_STORE_lock(x)   1
+#define X509_STORE_unlock(x) 1
 
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
@@ -1104,6 +1115,10 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_psk_server_callback wolfSSL_CTX_set_psk_server_callback
 #define SSL_set_psk_server_callback     wolfSSL_set_psk_server_callback
 
+#ifndef INVALID_SOCKET
+    #define INVALID_SOCKET (-1)
+#endif
+
 /* system file ints for ERR_put_error */
 #define SYS_F_ACCEPT      WOLFSSL_SYS_ACCEPT
 #define SYS_F_BIND        WOLFSSL_SYS_BIND
@@ -1429,6 +1444,11 @@ typedef WOLFSSL_SRTP_PROTECTION_PROFILE      SRTP_PROTECTION_PROFILE;
 #define SSL_CTX_callback_ctrl           wolfSSL_CTX_callback_ctrl
 
 #define SSL3_RANDOM_SIZE                32 /* same as RAN_LEN in internal.h */
+
+#ifndef WOLFSSL_ALLOW_SSLV3
+    #undef  OPENSSL_NO_SSL3
+    #define OPENSSL_NO_SSL3
+#endif
 
 /* Used as message callback types */
 #define SSL3_RT_CHANGE_CIPHER_SPEC       20
@@ -1809,6 +1829,8 @@ typedef WOLFSSL_CONF_CTX SSL_CONF_CTX;
 #define SSL_CONF_CTX_finish             wolfSSL_CONF_CTX_finish
 #define SSL_CONF_cmd                    wolfSSL_CONF_cmd
 #define SSL_CONF_cmd_value_type         wolfSSL_CONF_cmd_value_type
+
+#define SSL_OP_LEGACY_SERVER_CONNECT    0
 
 #endif /* !OPENSSL_COEXIST && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 

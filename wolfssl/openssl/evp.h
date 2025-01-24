@@ -221,6 +221,9 @@ typedef union {
     #ifdef WOLFSSL_SM3
         wc_Sm3               sm3;
     #endif
+    #if defined(WOLFSSL_SHAKE128) || defined(WOLFSSL_SHAKE256)
+        wc_Shake            shake;
+    #endif
 } WOLFSSL_Hasher;
 
 
@@ -798,6 +801,7 @@ WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_blake2s256(void);
 WOLFSSL_API void wolfSSL_EVP_init(void);
 WOLFSSL_API int  wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type);
 WOLFSSL_API int  wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type);
+WOLFSSL_API unsigned long wolfSSL_EVP_MD_flags(const WOLFSSL_EVP_MD *md);
 WOLFSSL_API int  wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD* type);
 WOLFSSL_API int  wolfSSL_EVP_MD_pkey_type(const WOLFSSL_EVP_MD* type);
 
@@ -823,6 +827,8 @@ WOLFSSL_API int wolfSSL_EVP_DigestFinal(WOLFSSL_EVP_MD_CTX* ctx, unsigned char* 
                                       unsigned int* s);
 WOLFSSL_API int wolfSSL_EVP_DigestFinal_ex(WOLFSSL_EVP_MD_CTX* ctx,
                                             unsigned char* md, unsigned int* s);
+WOLFSSL_API int wolfSSL_EVP_DigestFinalXOF(WOLFSSL_EVP_MD_CTX* ctx,
+                                            unsigned char* md, size_t sz);
 WOLFSSL_API int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx,
                                              const void *d, unsigned int cnt);
 WOLFSSL_API int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
@@ -1256,12 +1262,15 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_MD_CTX_set_flags(ctx, flags) WC_DO_NOTHING
 #endif
 
+#define EVP_MD_FLAG_XOF 0x2
+
 #define EVP_Digest             wolfSSL_EVP_Digest
 #define EVP_DigestInit         wolfSSL_EVP_DigestInit
 #define EVP_DigestInit_ex      wolfSSL_EVP_DigestInit_ex
 #define EVP_DigestUpdate       wolfSSL_EVP_DigestUpdate
 #define EVP_DigestFinal        wolfSSL_EVP_DigestFinal
 #define EVP_DigestFinal_ex     wolfSSL_EVP_DigestFinal_ex
+#define EVP_DigestFinalXOF     wolfSSL_EVP_DigestFinalXOF
 #define EVP_DigestSignInit     wolfSSL_EVP_DigestSignInit
 #define EVP_DigestSignUpdate   wolfSSL_EVP_DigestSignUpdate
 #define EVP_DigestSignFinal    wolfSSL_EVP_DigestSignFinal
@@ -1311,6 +1320,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_get_cipherbynid           wolfSSL_EVP_get_cipherbynid
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
 #define EVP_MD_nid                    wolfSSL_EVP_MD_type
+#define EVP_MD_flags                  wolfSSL_EVP_MD_flags
 
 #define EVP_PKEY_assign                wolfSSL_EVP_PKEY_assign
 #define EVP_PKEY_assign_RSA            wolfSSL_EVP_PKEY_assign_RSA

@@ -645,6 +645,9 @@ const char* wc_GetErrorString(int error)
     case PBKDF2_KAT_FIPS_E:
         return "wolfCrypt FIPS PBKDF2 Known Answer Test Failure";
 
+    case WC_KEY_MISMATCH_E:
+        return "key values mismatch";
+
     case DEADLOCK_AVERTED_E:
         return "Deadlock averted -- retry the call";
 

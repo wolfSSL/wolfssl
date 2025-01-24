@@ -5785,13 +5785,13 @@ struct WOLFSSL {
                              * reusing the context's object. When WOLFSSL
                              * object needs separate instance of suites use
                              * AllocateSuites(). */
-#ifdef OPENSSL_EXTRA
-    const Suites*   clSuites;
-#endif
+    Suites*         clSuites;
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     WOLF_STACK_OF(WOLFSSL_CIPHER)* suitesStack; /* stack of available cipher
                                                  * suites */
+    WOLF_STACK_OF(WOLFSSL_CIPHER)* clSuitesStack; /* stack of client cipher
+                                                   * suites */
 #endif
     Arrays*         arrays;
 #ifdef WOLFSSL_TLS13
@@ -6227,6 +6227,7 @@ struct WOLFSSL {
 #if defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* supportedCiphers; /* Used in wolfSSL_get_ciphers_compat */
     WOLFSSL_STACK* peerCertChain;    /* Used in wolfSSL_get_peer_cert_chain */
+    WOLFSSL_STACK* verifiedChain;    /* peer cert chain to CA */
 #ifdef KEEP_OUR_CERT
     WOLFSSL_STACK* ourCertChain;    /* Used in wolfSSL_add1_chain_cert */
 #endif

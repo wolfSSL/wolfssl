@@ -481,6 +481,24 @@ int wolfSSL_X509_get_ext_by_OBJ(const WOLFSSL_X509 *x,
     return WOLFSSL_FATAL_ERROR;
 }
 
+
+int wolfSSL_X509_OBJECT_set1_X509(WOLFSSL_X509_OBJECT *a, WOLFSSL_X509 *obj)
+{
+    WOLFSSL_STUB("wolfSSL_X509_OBJECT_set1_X509");
+    (void)a;
+    (void)obj;
+    return 0;
+}
+
+int wolfSSL_X509_OBJECT_set1_X509_CRL(WOLFSSL_X509_OBJECT *a,
+    WOLFSSL_X509_CRL *obj)
+{
+    WOLFSSL_STUB("wolfSSL_X509_OBJECT_set1_X509_CRL");
+    (void)a;
+    (void)obj;
+    return 0;
+}
+
 #endif /* OPENSSL_ALL || OPENSSL_EXTRA */
 
 #if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
@@ -5281,7 +5299,8 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
 #endif /* !NO_FILESYSTEM */
 
 static WOLFSSL_X509* loadX509orX509REQFromBuffer(
-    const unsigned char* buf, int sz, int format, int type)
+    const unsigned char* buf, int sz, int format, int type,
+    wc_pem_password_cb *cb, void *u)
 {
 
     int ret = 0;
@@ -5291,8 +5310,15 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
     WOLFSSL_ENTER("wolfSSL_X509_load_certificate_ex");
 
     if (format == WOLFSSL_FILETYPE_PEM) {
+        EncryptedInfo info;
+        XMEMSET(&info, 0, sizeof(EncryptedInfo));
+    #ifdef WOLFSSL_ENCRYPTED_KEYS
+        info.passwd_cb       = cb;
+        info.passwd_userdata = u;
+    #endif
+
     #ifdef WOLFSSL_PEM_TO_DER
-        ret = PemToDer(buf, sz, type, &der, NULL, NULL, NULL);
+        ret = PemToDer(buf, sz, type, &der, NULL, &info, NULL);
         if (ret != 0) {
             FreeDer(&der);
         }
@@ -5356,6 +5382,9 @@ static WOLFSSL_X509* loadX509orX509REQFromBuffer(
         WOLFSSL_ERROR(ret);
     }
 
+    /* unused parameter when built without WOLFSSL_ENCRYPTED_KEYS */
+    (void)cb;
+    (void)u;
     return x509;
 }
 
@@ -5363,7 +5392,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
     const unsigned char* buf, int sz, int format)
 {
     return loadX509orX509REQFromBuffer(buf, sz,
-            format, CERT_TYPE);
+            format, CERT_TYPE, NULL, NULL);
 }
 
 #ifdef WOLFSSL_CERT_REQ
@@ -5371,7 +5400,7 @@ WOLFSSL_X509* wolfSSL_X509_REQ_load_certificate_buffer(
     const unsigned char* buf, int sz, int format)
 {
     return loadX509orX509REQFromBuffer(buf, sz,
-            format, CERTREQ_TYPE);
+            format, CERTREQ_TYPE, NULL, NULL);
 }
 #endif
 
@@ -10356,6 +10385,19 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_chain_up_ref(
 }
 #endif
 
+#if defined(OPENSSL_EXTRA)
+
+WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* wolfSSL_sk_X509_OBJECT_deep_copy(
+    const WOLF_STACK_OF(WOLFSSL_X509_OBJECT)* sk,
+    WOLFSSL_X509_OBJECT* (*c)(const WOLFSSL_X509_OBJECT*),
+    void (*f)(WOLFSSL_X509_OBJECT*))
+{
+    (void)f; /* free function */
+    (void)c; /* copy function */
+    return wolfSSL_sk_dup((WOLFSSL_STACK*)sk);
+}
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     void wolfSSL_X509_NAME_free(WOLFSSL_X509_NAME *name)
     {
@@ -11954,12 +11996,12 @@ static WOLFSSL_X509 *loadX509orX509REQFromPemBio(WOLFSSL_BIO *bp,
         pemSz = (int)i;
     #ifdef WOLFSSL_CERT_REQ
         if (type == CERTREQ_TYPE)
-            x509 = wolfSSL_X509_REQ_load_certificate_buffer(pem, pemSz,
-                                                      WOLFSSL_FILETYPE_PEM);
+            x509 = loadX509orX509REQFromBuffer(pem, pemSz, WOLFSSL_FILETYPE_PEM,
+                CERTREQ_TYPE, cb, u);
         else
     #endif
-            x509 = wolfSSL_X509_load_certificate_buffer(pem, pemSz,
-                                                      WOLFSSL_FILETYPE_PEM);
+            x509 = loadX509orX509REQFromBuffer(pem, pemSz, WOLFSSL_FILETYPE_PEM,
+                CERT_TYPE, cb, u);
     }
 
     if (x != NULL) {
@@ -12684,6 +12726,7 @@ err:
         return ne;
     }
 
+
     static void wolfssl_x509_name_entry_set(WOLFSSL_X509_NAME_ENTRY* ne,
         int nid, int type, const unsigned char *data, int dataSz)
     {
@@ -13087,6 +13130,17 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_X509_NAME_ENTRY_get_object(
 
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_WPAS_SMALL) || \
     defined(OPENSSL_EXTRA_X509_SMALL)
+
+#ifdef OPENSSL_EXTRA
+    int wolfSSL_X509_NAME_ENTRY_set(const WOLFSSL_X509_NAME_ENTRY *ne)
+    {
+        if (ne != NULL) {
+            return ne->set;
+        }
+        return 0;
+    }
+#endif
+
 
     /* returns a pointer to the internal entry at location 'loc' on success,
      * a null pointer is returned in fail cases */
