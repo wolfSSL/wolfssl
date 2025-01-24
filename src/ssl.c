@@ -24809,7 +24809,7 @@ int wolfSSL_BUF_MEM_grow_ex(WOLFSSL_BUF_MEM* buf, size_t len,
 
 #ifdef WOLFSSL_NO_REALLOC
     tmp = (char*)XMALLOC(mx, NULL, DYNAMIC_TYPE_OPENSSL);
-    if (tmp != NULL) {
+    if (tmp != NULL && buf->data != NULL) {
        XMEMCPY(tmp, buf->data, len_int);
        XFREE(buf->data, NULL, DYNAMIC_TYPE_OPENSSL);
        buf->data = NULL;
@@ -24862,7 +24862,7 @@ int wolfSSL_BUF_MEM_resize(WOLFSSL_BUF_MEM* buf, size_t len)
     /* We want to shrink the internal buffer */
 #ifdef WOLFSSL_NO_REALLOC
     tmp = (char*)XMALLOC(mx, NULL, DYNAMIC_TYPE_OPENSSL);
-    if (tmp != NULL )
+    if (tmp != NULL && buf->data != NULL)
     {
         XMEMCPY(tmp, buf->data, len);
         XFREE(buf->data,NULL,DYNAMIC_TYPE_OPENSSL);

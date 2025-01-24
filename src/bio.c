@@ -2778,9 +2778,11 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         #ifdef WOLFSSL_NO_REALLOC
                 tmp = b->ip;
                 b->ip = (char*)XMALLOC(newLen+1, b->heap, DYNAMIC_TYPE_OPENSSL);
-                XMEMCPY(b->ip, tmp, newLen);
-                XFREE(tmp, b->heap, DYNAMIC_TYPE_OPENSSL);
-                tmp = NULL;
+                if (b->ip != NULL && tmp != NULL) {
+                    XMEMCPY(b->ip, tmp, newLen);
+                    XFREE(tmp, b->heap, DYNAMIC_TYPE_OPENSSL);
+                    tmp = NULL;
+            }
         #else
                 b->ip = (char*)XREALLOC(b->ip, newLen + 1, b->heap,
                     DYNAMIC_TYPE_OPENSSL);

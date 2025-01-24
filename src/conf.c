@@ -776,7 +776,7 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
                 #ifdef WOLFSSL_NO_REALLOC
                     newRet = (char*)XMALLOC(strLen + 1, NULL,
                             DYNAMIC_TYPE_OPENSSL);
-                    if (newRet != NULL) {
+                    if (newRet != NULL && ret != NULL) {
                        XMEMCPY(newRet, ret, (strLen - valueLen) + 1);
                        XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
                        ret = NULL;
