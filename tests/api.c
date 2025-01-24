@@ -61445,7 +61445,7 @@ static int test_wolfSSL_get_client_ciphers_on_result(WOLFSSL* ssl) {
         ExpectIntEQ(sk_SSL_CIPHER_num(ciphers), 1);
         current = sk_SSL_CIPHER_value(ciphers, 0);
         ExpectNotNull(current);
-        ExpectStrEQ("ECDHE-RSA-AES128-GCM-SHA256",
+        ExpectStrEQ("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
             SSL_CIPHER_get_name(current));
     }
     return EXPECT_RESULT();
@@ -69840,7 +69840,7 @@ static int test_wolfSSL_X509_NAME_ENTRY(void)
     ExpectNotNull(entry = X509_NAME_ENTRY_create_by_NID(NULL, NID_commonName,
                 0x0c, cn, (int)sizeof(cn)));
     ExpectIntEQ(X509_NAME_add_entry(nm, entry, -1, 0), SSL_SUCCESS);
-    ExpectIntEQ(X509_NAME_ENTRY_set(X509_NAME_get_entry(nm, 1)), 1);
+    ExpectIntEQ(X509_NAME_ENTRY_set(X509_NAME_get_entry(nm, 1)), 2);
 
 #ifdef WOLFSSL_CERT_EXT
     ExpectIntEQ(X509_NAME_add_entry_by_txt(NULL, NULL, MBSTRING_UTF8,

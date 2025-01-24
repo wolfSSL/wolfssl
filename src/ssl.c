@@ -15190,7 +15190,7 @@ WOLFSSL_STACK* wolfSSL_sk_new_cipher(void)
     return sk;
 }
 
-/* return 1 on success 0 on fail */
+/* returns the number of elements in stack on success, 0 on fail */
 int wolfSSL_sk_CIPHER_push(WOLF_STACK_OF(WOLFSSL_CIPHER)* sk,
                                                       WOLFSSL_CIPHER* cipher)
 {
@@ -17835,7 +17835,7 @@ void wolfSSL_sk_GENERIC_pop_free(WOLFSSL_STACK* sk,
     wolfSSL_sk_pop_free(sk, (wolfSSL_sk_freefunc)f);
 }
 
-/* return 1 on success 0 on fail */
+/* returns the number of elements in stack on success, 0 on fail */
 int wolfSSL_sk_GENERIC_push(WOLFSSL_STACK* sk, void* generic)
 {
     WOLFSSL_ENTER("wolfSSL_sk_GENERIC_push");
@@ -22014,7 +22014,7 @@ WOLF_STACK_OF(WOLFSSL_CIPHER)*  wolfSSL_get_client_ciphers(WOLFSSL* ssl)
                 /* in_stack is checked in wolfSSL_CIPHER_description */
                 cipher.in_stack     = 1;
 
-                if (wolfSSL_sk_CIPHER_push(ret, &cipher) != WOLFSSL_SUCCESS) {
+                if (wolfSSL_sk_CIPHER_push(ret, &cipher) <= 0) {
                     WOLFSSL_MSG("Error pushing client cipher onto stack");
                     wolfSSL_sk_CIPHER_free(ret);
                     ret = NULL;
