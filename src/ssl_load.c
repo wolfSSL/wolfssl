@@ -1184,8 +1184,8 @@ static int ProcessBufferTryDecode(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         (*keyFormat == ML_DSA_LEVEL3k) ||
         (*keyFormat == ML_DSA_LEVEL5k)
     #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-     || (*keyFormat == DILITHIUM_LEVEL2k) ||
-     || (*keyFormat == DILITHIUM_LEVEL3k) ||
+     || (*keyFormat == DILITHIUM_LEVEL2k)
+     || (*keyFormat == DILITHIUM_LEVEL3k)
      || (*keyFormat == DILITHIUM_LEVEL5k)
     #endif
         )) {
