@@ -6965,8 +6965,8 @@ static int check_cert_key_dev(word32 keyOID, byte* privKey, word32 privSz,
             (keyOID == ML_DSA_LEVEL3k) ||
             (keyOID == ML_DSA_LEVEL5k)
             #ifdef WOLFSSL_DILITHIUM_FIPS204_DRAFT
-         || (keyOID == DILITHIUM_LEVEL2k) ||
-         || (keyOID == DILITHIUM_LEVEL3k) ||
+         || (keyOID == DILITHIUM_LEVEL2k)
+         || (keyOID == DILITHIUM_LEVEL3k)
          || (keyOID == DILITHIUM_LEVEL5k)
             #endif /* WOLFSSL_DILITHIUM_FIPS204_DRAFT */
             ) {
