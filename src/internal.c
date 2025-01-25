@@ -25300,15 +25300,20 @@ static int ssl_in_handshake(WOLFSSL *ssl, int send)
     return 0;
 }
 
-int SendData(WOLFSSL* ssl, const void* data, int sz)
+int SendData(WOLFSSL* ssl, const void* data, size_t sz)
 {
-    int sent = 0,  /* plainText size */
-        sendSz,
+    word32 sent = 0; /* plainText size */
+    int sendSz,
         ret;
 #if defined(WOLFSSL_EARLY_DATA) && defined(WOLFSSL_EARLY_DATA_GROUP)
     int groupMsgs = 0;
 #endif
     int error = ssl->error;
+
+    if (sz > INT_MAX) {
+        WOLFSSL_MSG("SendData sz overflow");
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     if (error == WC_NO_ERR_TRACE(WANT_WRITE)
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -25414,7 +25419,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
             WOLFSSL_MSG("sent write buffered data");
 
-            if (sent > sz) {
+            if (sent > (word32)sz) {
                 WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
                 return (ssl->error = BAD_FUNC_ARG);
             }
@@ -25503,19 +25508,19 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
 #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
-            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent);
+            buffSz = wolfSSL_GetMaxFragSize(ssl, (word32)sz - sent);
         }
         else
 #endif
         {
-            buffSz = wolfSSL_GetMaxFragSize(ssl, sz - sent);
+            buffSz = wolfSSL_GetMaxFragSize(ssl, (word32)sz - sent);
 
         }
 
-        if (sent == sz) break;
+        if (sent == (word32)sz) break;
 
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_NO_DTLS_SIZE_CHECK)
-        if (ssl->options.dtls && (buffSz < sz - sent)) {
+        if (ssl->options.dtls && ((size_t)buffSz < (word32)sz - sent)) {
             error = DTLS_SIZE_ERROR;
             ssl->error = error;
             WOLFSSL_ERROR(error);
@@ -25686,12 +25691,17 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 }
 
 /* process input data */
-int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
+int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek)
 {
     int size;
     int error = ssl->error;
 
     WOLFSSL_ENTER("ReceiveData");
+
+    if (sz > INT_MAX) {
+        WOLFSSL_MSG("ReceiveData sz overflow");
+        return WOLFSSL_FATAL_ERROR;
+    }
 
     /* reset error state */
     if (error == WC_NO_ERR_TRACE(WANT_READ) ||
@@ -25842,7 +25852,7 @@ startScr:
 #endif
     }
 
-    size = (int)min((word32)sz, ssl->buffers.clearOutputBuffer.length);
+    size = (int)min_size_t(sz, (size_t)ssl->buffers.clearOutputBuffer.length);
 
     XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
 

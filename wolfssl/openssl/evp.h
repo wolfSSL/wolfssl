@@ -1150,6 +1150,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define WOLFSSL_EVP_CTRL_CCM_SET_TAG           WOLFSSL_EVP_CTRL_AEAD_SET_TAG
 #define WOLFSSL_EVP_CTRL_CCM_SET_L             0x14
 #define WOLFSSL_EVP_CTRL_CCM_SET_MSGLEN        0x15
+#define WOLFSSL_EVP_MD_FLAG_XOF 0x2
 
 #define WOLFSSL_NO_PADDING_BLOCK_SIZE      1
 
@@ -1262,7 +1263,7 @@ WOLFSSL_API int wolfSSL_EVP_SignInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 #define EVP_MD_CTX_set_flags(ctx, flags) WC_DO_NOTHING
 #endif
 
-#define EVP_MD_FLAG_XOF 0x2
+#define EVP_MD_FLAG_XOF WOLFSSL_EVP_MD_FLAG_XOF
 
 #define EVP_Digest             wolfSSL_EVP_Digest
 #define EVP_DigestInit         wolfSSL_EVP_DigestInit

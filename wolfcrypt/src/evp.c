@@ -10986,7 +10986,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD* type)
         #if defined(WOLFSSL_SHA3) && defined(WOLFSSL_SHAKE256)
             case WC_HASH_TYPE_SHAKE256:
         #endif
-                return EVP_MD_FLAG_XOF;
+                return WOLFSSL_EVP_MD_FLAG_XOF;
             default:
                 return 0;
         }
@@ -11062,7 +11062,7 @@ int wolfSSL_EVP_MD_block_size(const WOLFSSL_EVP_MD* type)
 #endif
 #ifndef NO_MD4
     if (XSTRCMP(type, WC_SN_md4) == 0) {
-        return MD4_BLOCK_SIZE;
+        return WC_MD4_BLOCK_SIZE;
     } else
 #endif
 #ifndef NO_MD5
@@ -11137,7 +11137,7 @@ int wolfSSL_EVP_MD_size(const WOLFSSL_EVP_MD* type)
 #endif
 #ifndef NO_MD4
     if (XSTRCMP(type, WC_SN_md4) == 0) {
-        return MD4_DIGEST_SIZE;
+        return WC_MD4_DIGEST_SIZE;
     } else
 #endif
 #ifndef NO_MD5

@@ -72,7 +72,9 @@ enum FipsCastId {
     FIPS_CAST_ED25519           = 16,
     FIPS_CAST_ED448             = 17,
     FIPS_CAST_PBKDF2            = 18,
-    FIPS_CAST_COUNT             = 19
+    /* v7.0.0 + */
+    FIPS_CAST_AES_ECB           = 19,
+    FIPS_CAST_COUNT             = 20
 };
 
 enum FipsCastStateId {

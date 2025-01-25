@@ -107,6 +107,7 @@ void   ByteReverseWords64(word64* out, const word64* in, word32 byteCount);
     #endif
     WOLFSSL_LOCAL word32 min(word32 a, word32 b);
 #endif
+WOLFSSL_LOCAL size_t min_size_t(size_t a, size_t b);
 
 #ifndef WOLFSSL_HAVE_MAX
     #if defined(HAVE_FIPS) && !defined(max) /* so ifdef check passes */
@@ -114,6 +115,7 @@ void   ByteReverseWords64(word64* out, const word64* in, word32 byteCount);
     #endif
     WOLFSSL_LOCAL word32 max(word32 a, word32 b);
 #endif /* WOLFSSL_HAVE_MAX */
+WOLFSSL_LOCAL size_t max_size_t(size_t a, size_t b);
 
 
 void c32to24(word32 in, word24 out);

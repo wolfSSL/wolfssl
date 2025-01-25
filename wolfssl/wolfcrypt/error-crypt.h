@@ -326,7 +326,7 @@ wc_static_assert((int)MIN_CODE_E <= (int)WC_SPAN2_MIN_CODE_E);
 #ifdef NO_ERROR_STRINGS
     #define wc_GetErrorString(error) "no support for error strings built in"
     #define wc_ErrorString(err, buf) \
-        (void)err; XSTRNCPY((buf), wc_GetErrorString((err)), \
+        (void)(err); XSTRNCPY((buf), wc_GetErrorString(err), \
         WOLFSSL_MAX_ERROR_SZ);
 
 #else

@@ -2970,14 +2970,13 @@ int wolfSSL_GetDhKey_Sz(WOLFSSL* ssl)
 #endif /* !NO_DH */
 
 
-WOLFSSL_ABI
-int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
+static int wolfSSL_write_internal(WOLFSSL* ssl, const void* data, size_t sz)
 {
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_write");
 
-    if (ssl == NULL || data == NULL || sz < 0)
+    if (ssl == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_QUIC
@@ -3037,6 +3036,17 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
         return ret;
 }
 
+WOLFSSL_ABI
+int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
+{
+    WOLFSSL_ENTER("wolfSSL_write");
+
+    if (sz < 0)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_write_internal(ssl, data, (size_t)sz);
+}
+
 int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
 {
     int maxLength;
@@ -3074,7 +3084,7 @@ int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz)
 }
 
 
-int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
+int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, size_t sz, size_t* wr)
 {
     int ret;
 
@@ -3082,7 +3092,7 @@ int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
         *wr = 0;
     }
 
-    ret = wolfSSL_write(ssl, data, sz);
+    ret = wolfSSL_write_internal(ssl, data, sz);
     if (ret >= 0) {
         if (wr != NULL) {
             *wr = (size_t)ret;
@@ -3093,7 +3103,7 @@ int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
         if (ret == 0 && ssl->options.partialWrite) {
             ret = 0;
         }
-        else if (ret < sz && !ssl->options.partialWrite) {
+        else if ((size_t)ret < sz && !ssl->options.partialWrite) {
             ret = 0;
         }
         else {
@@ -3110,13 +3120,13 @@ int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz, size_t* wr)
 }
 
 
-static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
+static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, size_t sz, int peek)
 {
     int ret;
 
     WOLFSSL_ENTER("wolfSSL_read_internal");
 
-    if (ssl == NULL || data == NULL || sz < 0)
+    if (ssl == NULL || data == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_QUIC
@@ -3194,7 +3204,10 @@ int wolfSSL_peek(WOLFSSL* ssl, void* data, int sz)
 {
     WOLFSSL_ENTER("wolfSSL_peek");
 
-    return wolfSSL_read_internal(ssl, data, sz, TRUE);
+    if (sz < 0)
+        return BAD_FUNC_ARG;
+
+    return wolfSSL_read_internal(ssl, data, (size_t)sz, TRUE);
 }
 
 
@@ -3202,6 +3215,9 @@ WOLFSSL_ABI
 int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
 {
     WOLFSSL_ENTER("wolfSSL_read");
+
+    if (sz < 0)
+        return BAD_FUNC_ARG;
 
     #ifdef OPENSSL_EXTRA
     if (ssl == NULL) {
@@ -3212,16 +3228,26 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
         ssl->cbmode = WOLFSSL_CB_READ;
     }
     #endif
-    return wolfSSL_read_internal(ssl, data, sz, FALSE);
+    return wolfSSL_read_internal(ssl, data, (size_t)sz, FALSE);
 }
 
 
 /* returns 0 on failure and on no read */
-int wolfSSL_read_ex(WOLFSSL* ssl, void* data, int sz, size_t* rd)
+int wolfSSL_read_ex(WOLFSSL* ssl, void* data, size_t sz, size_t* rd)
 {
-   int ret;
+    int ret;
 
-    ret = wolfSSL_read(ssl, data, sz);
+    #ifdef OPENSSL_EXTRA
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+    if (ssl->CBIS != NULL) {
+        ssl->CBIS(ssl, WOLFSSL_CB_READ, WOLFSSL_SUCCESS);
+        ssl->cbmode = WOLFSSL_CB_READ;
+    }
+    #endif
+    ret = wolfSSL_read_internal(ssl, data, sz, FALSE);
+
     if (ret > 0 && rd != NULL) {
         *rd = (size_t)ret;
     }
@@ -3238,10 +3264,10 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 
     WOLFSSL_ENTER("wolfSSL_mcast_read");
 
-    if (ssl == NULL)
+    if ((ssl == NULL) || (sz < 0))
         return BAD_FUNC_ARG;
 
-    ret = wolfSSL_read_internal(ssl, data, sz, FALSE);
+    ret = wolfSSL_read_internal(ssl, data, (size_t)sz, FALSE);
     if (ssl->options.dtls && ssl->options.haveMcast && id != NULL)
         *id = ssl->keys.curPeerId;
     return ret;
@@ -11302,7 +11328,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
             byte* myBuffer  = staticBuffer;
             int   dynamic   = 0;
-            int   sending   = 0;
+            word32 sending   = 0;
             int   idx       = 0;
             int   i;
             int   ret;
@@ -11310,11 +11336,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             WOLFSSL_ENTER("wolfSSL_writev");
 
             for (i = 0; i < iovcnt; i++)
-                sending += (int)iov[i].iov_len;
+                sending += iov[i].iov_len;
 
-            if (sending > (int)sizeof(staticBuffer)) {
-                myBuffer = (byte*)XMALLOC((size_t)sending, ssl->heap,
-                                                           DYNAMIC_TYPE_WRITEV);
+            if (sending > sizeof(staticBuffer)) {
+                myBuffer = (byte*)XMALLOC(sending, ssl->heap,
+                                          DYNAMIC_TYPE_WRITEV);
                 if (!myBuffer)
                     return MEMORY_ERROR;
 
@@ -11331,7 +11357,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             */
             PRAGMA_GCC_DIAG_PUSH
             PRAGMA_GCC("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-            ret = wolfSSL_write(ssl, myBuffer, sending);
+            ret = wolfSSL_write_internal(ssl, myBuffer, sending);
             PRAGMA_GCC_DIAG_POP
 
             if (dynamic)

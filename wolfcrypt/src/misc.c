@@ -519,6 +519,11 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
     }
 #endif /* !WOLFSSL_HAVE_MIN */
 
+    WC_MISC_STATIC WC_INLINE size_t min_size_t(size_t a, size_t b)
+    {
+        return a > b ? b : a;
+    }
+
 #ifndef WOLFSSL_HAVE_MAX
     #define WOLFSSL_HAVE_MAX
     #if defined(HAVE_FIPS) && !defined(max) /* so ifdef check passes */
@@ -529,6 +534,11 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
         return a > b ? a : b;
     }
 #endif /* !WOLFSSL_HAVE_MAX */
+
+    WC_MISC_STATIC WC_INLINE size_t max_size_t(size_t a, size_t b)
+    {
+        return a > b ? a : b;
+    }
 
 #ifndef WOLFSSL_NO_INT_ENCODE
 /* converts a 32 bit integer to 24 bit */

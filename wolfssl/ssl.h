@@ -604,7 +604,7 @@ struct WOLFSSL_EVP_PKEY {
 
 typedef struct WOLFSSL_BUFFER_INFO {
     unsigned char* buffer;
-    unsigned int length;
+    word32 length;
 } WOLFSSL_BUFFER_INFO;
 
 typedef struct WOLFSSL_BUF_MEM {
@@ -1365,10 +1365,10 @@ WOLFSSL_API int wolfSSL_get_wfd(const WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_connect(WOLFSSL* ssl);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_write(
     WOLFSSL* ssl, const void* data, int sz);
-WOLFSSL_API int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, int sz,
+WOLFSSL_API int wolfSSL_write_ex(WOLFSSL* ssl, const void* data, size_t sz,
     size_t* wr);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_read(WOLFSSL* ssl, void* data, int sz);
-WOLFSSL_API int wolfSSL_read_ex(WOLFSSL* ssl, void* data, int sz, size_t* rd);
+WOLFSSL_API int wolfSSL_read_ex(WOLFSSL* ssl, void* data, size_t sz, size_t* rd);
 WOLFSSL_API int  wolfSSL_peek(WOLFSSL* ssl, void* data, int sz);
 WOLFSSL_ABI WOLFSSL_API int  wolfSSL_accept(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_inject(WOLFSSL* ssl, const void* data, int sz);

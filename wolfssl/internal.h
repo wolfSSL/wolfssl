@@ -4801,9 +4801,9 @@ typedef struct Buffers {
     buffer          clearOutputBuffer;
     buffer          sig;                   /* signature data */
     buffer          digest;                /* digest data */
-    int             prevSent;              /* previous plain text bytes sent
+    word32          prevSent;              /* previous plain text bytes sent
                                               when got WANT_WRITE            */
-    int             plainSz;               /* plain text bytes in buffer to send
+    word32          plainSz;               /* plain text bytes in buffer to send
                                               when got WANT_WRITE            */
     byte            weOwnCert;             /* SSL own cert flag */
     byte            weOwnCertChain;        /* SSL own cert chain flag */
@@ -6500,7 +6500,7 @@ WOLFSSL_LOCAL int DoClientTicket_ex(const WOLFSSL* ssl, PreSharedKey* psk,
 
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL* ssl, const byte* input, word32 len);
 #endif /* HAVE_SESSION_TICKET */
-WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, int sz);
+WOLFSSL_LOCAL int SendData(WOLFSSL* ssl, const void* data, size_t sz);
 #ifdef WOLFSSL_THREADED_CRYPT
 WOLFSSL_LOCAL int SendAsyncData(WOLFSSL* ssl);
 #endif
@@ -6521,7 +6521,7 @@ WOLFSSL_LOCAL int SendHelloRequest(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL* ssl);
-WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek);
+WOLFSSL_LOCAL int ReceiveData(WOLFSSL* ssl, byte* output, size_t sz, int peek);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL* ssl);
 WOLFSSL_LOCAL int RetrySendAlert(WOLFSSL* ssl);
 WOLFSSL_LOCAL int SendAlert(WOLFSSL* ssl, int severity, int type);

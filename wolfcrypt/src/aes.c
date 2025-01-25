@@ -6886,7 +6886,7 @@ void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
 #define GHASH_ONE_BLOCK_SW(aes, block)                  \
     do {                                                \
         xorbuf(AES_TAG(aes), block, WC_AES_BLOCK_SIZE); \
-        GMULT(AES_TAG(aes), aes->gcm.H);                \
+        GMULT(AES_TAG(aes), (aes)->gcm.H);              \
     }                                                   \
     while (0)
 #endif /* WOLFSSL_AESGCM_STREAM */

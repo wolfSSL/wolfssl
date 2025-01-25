@@ -586,7 +586,7 @@
 #undef LIBCALL_CHECK_RET
 #if defined(NO_STDIO_FILESYSTEM) || defined(NO_ERROR_STRINGS) || \
     defined(NO_MAIN_DRIVER) || defined(BENCH_EMBEDDED)
-#define LIBCALL_CHECK_RET(...) __VA_ARGS__
+#define LIBCALL_CHECK_RET(...) (void)(__VA_ARGS__)
 #else
 #define LIBCALL_CHECK_RET(...) do {                           \
         int _libcall_ret = (__VA_ARGS__);                     \
