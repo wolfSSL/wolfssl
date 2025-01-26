@@ -1,6 +1,6 @@
 /* sha512.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -71,6 +71,10 @@
 #if defined(WOLFSSL_IMXRT1170_CAAM)
     #include "fsl_device_registers.h"
     #include "fsl_caam.h"
+#endif
+
+#ifdef STM32_HASH
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
 #endif
 
 #if defined(_MSC_VER)
@@ -202,6 +206,9 @@ struct wc_Sha512 {
 #ifdef HAVE_ARIA
     MC_HSESSION hSession;
 #endif
+#if defined(STM32_HASH_SHA512)
+    STM32_HASH_Context stmCtx;
+#endif
 #endif /* WOLFSSL_PSOC6_CRYPTO */
 };
 
@@ -221,14 +228,11 @@ struct wc_Sha512 {
 
 #ifdef WOLFSSL_ARMASM
 #ifdef __aarch64__
-#ifndef WOLFSSL_ARMASM_CRYPTO_SHA512
     void Transform_Sha512_Len_neon(wc_Sha512* sha512, const byte* data,
         word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_neon
-#else
+#ifdef WOLFSSL_ARMASM_CRYPTO_SHA512
     void Transform_Sha512_Len_crypto(wc_Sha512* sha512, const byte* data,
         word32 len);
-    #define Transform_Sha512_Len    Transform_Sha512_Len_crypto
 #endif
 #else
 extern void Transform_Sha512_Len(wc_Sha512* sha512, const byte* data,

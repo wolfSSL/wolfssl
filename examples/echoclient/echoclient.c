@@ -1,6 +1,6 @@
 /* echoclient.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,10 +24,10 @@
     #include <config.h>
 #endif
 
-#include <wolfssl/wolfcrypt/settings.h>
 #ifndef WOLFSSL_USER_SETTINGS
     #include <wolfssl/options.h>
 #endif
+#include <wolfssl/wolfcrypt/settings.h>
 
 /* Force enable the compatibility macros for this example */
 #undef TEST_OPENSSL_COEXIST
@@ -57,7 +57,7 @@
 
 #include <examples/echoclient/echoclient.h>
 
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
 
 
 #ifdef NO_FILESYSTEM
@@ -381,7 +381,7 @@ void echoclient_test(void* args)
     ((func_args*)args)->return_code = 0;
 }
 
-#endif /* !NO_WOLFSSL_CLIENT */
+#endif /* !NO_WOLFSSL_CLIENT && !NO_TLS */
 
 /* so overall tests can pull in test function */
 #ifndef NO_MAIN_DRIVER
@@ -408,7 +408,7 @@ void echoclient_test(void* args)
 #ifndef WOLFSSL_TIRTOS
         ChangeToWolfRoot();
 #endif
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
         echoclient_test(&args);
 #endif
 

@@ -1,6 +1,6 @@
 /* signature.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -47,6 +47,16 @@
 
 /* Signature wrapper disabled check */
 #ifndef NO_SIG_WRAPPER
+
+#if !defined(NO_RSA) && defined(NO_ASN)
+    #ifndef MAX_DER_DIGEST_ASN_SZ
+        #define MAX_DER_DIGEST_ASN_SZ 36
+    #endif
+    #ifndef MAX_ENCODED_SIG_SZ
+        #define MAX_ENCODED_SIG_SZ 1024 /* Supports 8192 bit keys */
+    #endif
+#endif
+
 
 #if !defined(NO_RSA) && defined(WOLFSSL_CRYPTOCELL)
     extern int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
@@ -225,7 +235,8 @@ int wc_SignatureVerifyHash(
                         WC_ASYNC_FLAG_CALL_AGAIN);
                 #endif
                 if (ret >= 0)
-                        ret = wc_RsaSSL_VerifyInline(plain_data, sig_len, &plain_ptr, (RsaKey*)key);
+                        ret = wc_RsaSSL_VerifyInline(plain_data, sig_len,
+                            &plain_ptr, (RsaKey*)key);
                 } while (ret == WC_NO_ERR_TRACE(WC_PENDING_E));
                 if (ret >= 0 && plain_ptr) {
                     if ((word32)ret == hash_len &&

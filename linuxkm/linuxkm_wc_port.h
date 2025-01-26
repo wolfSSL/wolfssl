@@ -1,6 +1,6 @@
 /* linuxkm_wc_port.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -118,6 +118,11 @@
     _Pragma("GCC diagnostic ignored \"-Wcast-function-type\""); /* needed for kernel 4.14.336 */
 
     #include <linux/kconfig.h>
+
+    #if defined(__PIE__) && defined(CONFIG_ARM64)
+        #define alt_cb_patch_nops my__alt_cb_patch_nops
+    #endif
+
     #include <linux/kernel.h>
     #include <linux/ctype.h>
 
@@ -471,6 +476,16 @@
                                            unsigned int serialSz);
             #endif
         #endif /* NO_SKID */
+
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            struct WOLFSSL_X509_NAME;
+            extern int wolfSSL_X509_NAME_add_entry_by_NID(struct WOLFSSL_X509_NAME *name, int nid,
+                                               int type, const unsigned char *bytes,
+                                               int len, int loc, int set);
+            extern void wolfSSL_X509_NAME_free(struct WOLFSSL_X509_NAME* name);
+            extern struct WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new_ex(void *heap);
+        #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #if defined(__PIE__) && !defined(USE_WOLFSSL_LINUXKM_PIE_REDIRECT_TABLE)
@@ -645,10 +660,29 @@
         #ifdef WOLFSSL_AKID_NAME
         typeof(GetCAByAKID) *GetCAByAKID;
         #endif /* WOLFSSL_AKID_NAME */
+
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+        typeof(wolfSSL_X509_NAME_add_entry_by_NID) *wolfSSL_X509_NAME_add_entry_by_NID;
+        typeof(wolfSSL_X509_NAME_free) *wolfSSL_X509_NAME_free;
+        typeof(wolfSSL_X509_NAME_new_ex) *wolfSSL_X509_NAME_new_ex;
+        #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
         #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
         #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
         typeof(dump_stack) *dump_stack;
+        #endif
+
+        #ifdef CONFIG_ARM64
+        #ifdef __PIE__
+            /* alt_cb_patch_nops defined early to allow shimming in system
+             * headers, but now we need the native one.
+             */
+            #undef alt_cb_patch_nops
+            typeof(my__alt_cb_patch_nops) *alt_cb_patch_nops;
+        #else
+            typeof(alt_cb_patch_nops) *alt_cb_patch_nops;
+        #endif
         #endif
 
         const void *_last_slot;
@@ -800,6 +834,13 @@
         #ifdef WOLFSSL_AKID_NAME
             #define GetCAByAKID (wolfssl_linuxkm_get_pie_redirect_table()->GetCAByAKID)
         #endif
+
+        #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+            #define wolfSSL_X509_NAME_add_entry_by_NID (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_add_entry_by_NID)
+            #define wolfSSL_X509_NAME_free (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_free)
+            #define wolfSSL_X509_NAME_new_ex (wolfssl_linuxkm_get_pie_redirect_table()->wolfSSL_X509_NAME_new_ex)
+        #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
     #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
     #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES

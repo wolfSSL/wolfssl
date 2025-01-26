@@ -1,6 +1,6 @@
 /* quickassist_sync.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -970,7 +970,7 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     metaBuf = XMALLOC(metaSize, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     dataBuf = XMALLOC(dataLen, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     XMEMCPY(dataBuf, in, inOutSz);
-    ivBuf = XMALLOC(AES_BLOCK_SIZE, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
+    ivBuf = XMALLOC(WC_AES_BLOCK_SIZE, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
     XMEMCPY(ivBuf, iv, ivSz);
     authTagBuf = XMALLOC(authTagSz, dev->heap, DYNAMIC_TYPE_ASYNC_NUMA);
 
@@ -983,9 +983,9 @@ static int IntelQaSymCipher(IntelQaDev* dev, byte* out, const byte* in,
     /* AAD */
     if (authIn && authInSz > 0) {
         /* make sure AAD is block aligned */
-        if (authInSzAligned % AES_BLOCK_SIZE) {
-            authInSzAligned += AES_BLOCK_SIZE -
-                (authInSzAligned % AES_BLOCK_SIZE);
+        if (authInSzAligned % WC_AES_BLOCK_SIZE) {
+            authInSzAligned += WC_AES_BLOCK_SIZE -
+                (authInSzAligned % WC_AES_BLOCK_SIZE);
         }
 
         authInBuf = XMALLOC(authInSzAligned, dev->heap,
@@ -1125,7 +1125,7 @@ int IntelQaSymAesCbcEncrypt(IntelQaDev* dev,
         CPA_CY_SYM_CIPHER_DIRECTION_ENCRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
 
-    XMEMCPY((byte*)iv, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    XMEMCPY((byte*)iv, out + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     return ret;
 }
 
@@ -1135,17 +1135,17 @@ int IntelQaSymAesCbcDecrypt(IntelQaDev* dev,
             const byte* key, word32 keySz,
             const byte* iv, word32 ivSz)
 {
-    byte nextIv[AES_BLOCK_SIZE];
+    byte nextIv[WC_AES_BLOCK_SIZE];
     int ret;
 
-    XMEMCPY(nextIv, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    XMEMCPY(nextIv, in + sz - WC_AES_BLOCK_SIZE, WC_AES_BLOCK_SIZE);
     ret = IntelQaSymCipher(dev, out, in, sz,
         key, keySz, iv, ivSz,
         CPA_CY_SYM_OP_CIPHER, CPA_CY_SYM_CIPHER_AES_CBC,
         CPA_CY_SYM_CIPHER_DIRECTION_DECRYPT,
         CPA_CY_SYM_HASH_NONE, NULL, 0, NULL, 0);
 
-    XMEMCPY((byte*)iv, nextIv, AES_BLOCK_SIZE);
+    XMEMCPY((byte*)iv, nextIv, WC_AES_BLOCK_SIZE);
     return ret;
 }
 #endif /* HAVE_AES_DECRYPT */
@@ -1241,7 +1241,7 @@ int IntelQaSymSync_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.in,
                         info->cipher.aescbc.sz,
                         (byte*)aes->devKey, aes->keylen,
-                        (byte*)aes->reg, AES_BLOCK_SIZE);
+                        (byte*)aes->reg, WC_AES_BLOCK_SIZE);
             }
             else {
                 rc = IntelQaSymAesCbcDecrypt(dev,
@@ -1249,7 +1249,7 @@ int IntelQaSymSync_CryptoDevCb(int devId, struct wc_CryptoInfo* info, void* ctx)
                         info->cipher.aescbc.in,
                         info->cipher.aescbc.sz,
                         (byte*)aes->devKey, aes->keylen,
-                        (byte*)aes->reg, AES_BLOCK_SIZE);
+                        (byte*)aes->reg, WC_AES_BLOCK_SIZE);
             }
         }
         #endif /* !NO_AES */

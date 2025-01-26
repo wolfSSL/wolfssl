@@ -1,6 +1,6 @@
 /* unit.c API unit tests driver
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -157,6 +157,12 @@
      (_ret == TEST_SKIPPED_NO_MSGS))
 #define EXPECT_FAIL() \
     (! EXPECT_SUCCESS())
+
+#define EXPECT_TEST(ret) do {                                                  \
+    if (EXPECT_SUCCESS()) {                                                    \
+        _ret = (ret);                                                          \
+    }                                                                          \
+} while (0)
 
 #define ExpFail(description, result) do {                                    \
     if ((_ret == TEST_SUCCESS_NO_MSGS) || (_ret == TEST_SKIPPED_NO_MSGS))    \

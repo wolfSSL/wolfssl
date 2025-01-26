@@ -1,6 +1,6 @@
 /* wolfssl_demo.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,9 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-
-
+#include <stdarg.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include "wolfssl/ssl.h"

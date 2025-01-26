@@ -1,6 +1,6 @@
 /* cryptocb.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -50,6 +50,9 @@
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
 #endif
+#ifdef WOLFSSL_SHA3
+    #include <wolfssl/wolfcrypt/sha3.h>
+#endif
 #ifndef NO_HMAC
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
@@ -98,15 +101,47 @@ enum wc_CryptoCbCmdType {
 };
 #endif
 
+
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+typedef struct {
+    Aes*        aes;
+    byte*       out;
+    const byte* in;
+    word32      sz;
+    const byte* nonce;
+    word32      nonceSz;
+    const byte* iv;
+    word32      ivSz;
+    byte*       authTag;
+    word32      authTagSz;
+    const byte* authIn;
+    word32      authInSz;
+} wc_CryptoCb_AesAuthEnc;
+typedef struct {
+    Aes*        aes;
+    byte*       out;
+    const byte* in;
+    word32      sz;
+    const byte* nonce;
+    word32      nonceSz;
+    const byte* iv;
+    word32      ivSz;
+    const byte* authTag;
+    word32      authTagSz;
+    const byte* authIn;
+    word32      authInSz;
+} wc_CryptoCb_AesAuthDec;
+#endif
+
 /* Crypto Information Structure for callbacks */
 typedef struct wc_CryptoInfo {
     int algo_type; /* enum wc_AlgoType */
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     union {
 #endif
     struct {
         int type; /* enum wc_PkType */
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
         #ifndef NO_RSA
@@ -276,7 +311,7 @@ typedef struct wc_CryptoInfo {
                 int         type; /* enum wc_PqcSignatureType */
             } pqc_sig_check;
         #endif
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } pk;
@@ -284,60 +319,16 @@ typedef struct wc_CryptoInfo {
     struct {
         int type; /* enum wc_CipherType */
         int enc;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
         #ifdef HAVE_AESGCM
-            struct {
-                Aes*        aes;
-                byte*       out;
-                const byte* in;
-                word32      sz;
-                const byte* iv;
-                word32      ivSz;
-                byte*       authTag;
-                word32      authTagSz;
-                const byte* authIn;
-                word32      authInSz;
-            } aesgcm_enc;
-            struct {
-                Aes*        aes;
-                byte*       out;
-                const byte* in;
-                word32      sz;
-                const byte* iv;
-                word32      ivSz;
-                const byte* authTag;
-                word32      authTagSz;
-                const byte* authIn;
-                word32      authInSz;
-            } aesgcm_dec;
+            wc_CryptoCb_AesAuthEnc aesgcm_enc;
+            wc_CryptoCb_AesAuthDec aesgcm_dec;
         #endif /* HAVE_AESGCM */
         #ifdef HAVE_AESCCM
-            struct {
-                Aes*        aes;
-                byte*       out;
-                const byte* in;
-                word32      sz;
-                const byte* nonce;
-                word32      nonceSz;
-                byte*       authTag;
-                word32      authTagSz;
-                const byte* authIn;
-                word32      authInSz;
-            } aesccm_enc;
-            struct {
-                Aes*        aes;
-                byte*       out;
-                const byte* in;
-                word32      sz;
-                const byte* nonce;
-                word32      nonceSz;
-                const byte* authTag;
-                word32      authTagSz;
-                const byte* authIn;
-                word32      authInSz;
-            } aesccm_dec;
+            wc_CryptoCb_AesAuthEnc aesccm_enc;
+            wc_CryptoCb_AesAuthDec aesccm_dec;
         #endif /* HAVE_AESCCM */
         #if defined(HAVE_AES_CBC)
             struct {
@@ -372,7 +363,7 @@ typedef struct wc_CryptoInfo {
             } des3;
         #endif
             void* ctx;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } cipher;
@@ -384,7 +375,7 @@ typedef struct wc_CryptoInfo {
         const byte* in;
         word32 inSz;
         byte* digest;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         union {
 #endif
         #ifndef NO_SHA
@@ -406,7 +397,7 @@ typedef struct wc_CryptoInfo {
             wc_Sha3* sha3;
         #endif
             void* ctx;
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
         };
 #endif
     } hash;
@@ -445,13 +436,25 @@ typedef struct wc_CryptoInfo {
         int type;
     } cmac;
 #endif
+#ifndef NO_CERTS
+    struct {
+        const byte *id;
+        word32 idLen;
+        const char *label;
+        word32 labelLen;
+        byte **certDataOut;
+        word32 *certSz;
+        int *certFormatOut;
+        void *heap;
+    } cert;
+#endif
 #ifdef WOLF_CRYPTO_CB_CMD
     struct {      /* uses wc_AlgoType=ALGO_NONE */
         int type; /* enum wc_CryptoCbCmdType */
         void *ctx;
     } cmd;
 #endif
-#if HAVE_ANONYMOUS_INLINE_AGGREGATES
+#ifdef HAVE_ANONYMOUS_INLINE_AGGREGATES
     };
 #endif
 } wc_CryptoInfo;
@@ -652,6 +655,12 @@ WOLFSSL_LOCAL int wc_CryptoCb_RandomSeed(OS_Seed* os, byte* seed, word32 sz);
 WOLFSSL_LOCAL int wc_CryptoCb_Cmac(Cmac* cmac, const byte* key, word32 keySz,
         const byte* in, word32 inSz, byte* out, word32* outSz, int type,
         void* ctx);
+#endif
+
+#ifndef NO_CERTS
+WOLFSSL_LOCAL int wc_CryptoCb_GetCert(int devId, const char *label,
+    word32 labelLen, const byte *id, word32 idLen, byte** out,
+    word32* outSz, int *format, void *heap);
 #endif
 
 #endif /* WOLF_CRYPTO_CB */

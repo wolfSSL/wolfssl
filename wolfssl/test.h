@@ -1,6 +1,6 @@
 /* test.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1958,7 +1958,11 @@ static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
         key[i] = (unsigned char) b;
     }
 
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+    *ciphersuite = userCipher ? userCipher : "TLS13-AES256-GCM-SHA384";
+#else
     *ciphersuite = userCipher ? userCipher : "TLS13-AES128-GCM-SHA256";
+#endif
 
     ret = 32;   /* length of key in octets or 0 for error */
 
@@ -1997,7 +2001,11 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
         key[i] = (unsigned char) b;
     }
 
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
+    *ciphersuite = userCipher ? userCipher : "TLS13-AES256-GCM-SHA384";
+#else
     *ciphersuite = userCipher ? userCipher : "TLS13-AES128-GCM-SHA256";
+#endif
 
     ret = 32;   /* length of key in octets or 0 for error */
 
@@ -2011,16 +2019,13 @@ static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
 }
 #endif
 
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM)
-static unsigned char local_psk[32];
-#endif
+#ifdef OPENSSL_EXTRA
 static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
             const WOLFSSL_EVP_MD* md, const unsigned char **id,
             size_t* idlen,  WOLFSSL_SESSION **sess)
 {
-#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_ALL) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM)
+    static unsigned char local_psk[32];
     int i;
     WOLFSSL_SESSION* lsess;
     char buf[256];
@@ -2083,6 +2088,7 @@ static WC_INLINE int my_psk_use_session_cb(WOLFSSL* ssl,
     return 0;
 #endif
 }
+#endif /* OPENSSL_EXTRA */
 
 static WC_INLINE unsigned int my_psk_client_cs_cb(WOLFSSL* ssl,
         const char* hint, char* identity, unsigned int id_max_len,
@@ -2403,7 +2409,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
 enum {
     VERIFY_OVERRIDE_ERROR,
     VERIFY_FORCE_FAIL,
-    VERIFY_USE_PREVERFIY,
+    VERIFY_USE_PREVERIFY,
     VERIFY_OVERRIDE_DATE_ERR,
 };
 static THREAD_LS_T int myVerifyAction = VERIFY_OVERRIDE_ERROR;
@@ -2569,7 +2575,7 @@ static WC_INLINE void CRL_CallBack(const char* url)
 #endif
 
 #ifndef NO_DH
-#if defined(WOLFSSL_SP_MATH) && !defined(WOLFSS_SP_MATH_ALL)
+#if defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_SP_MATH_ALL)
     /* dh2048 p */
     static const unsigned char test_dh_p[] =
     {
@@ -4214,6 +4220,25 @@ static WC_INLINE int myGenMaster(WOLFSSL* ssl, void* ctx)
     return ret;
 }
 
+static WC_INLINE int myGenExtMaster(WOLFSSL* ssl, byte* hash, word32 hashSz,
+                                        void* ctx)
+{
+    int       ret;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+
+    (void)ssl;
+    (void)cbInfo;
+    (void)hash;
+    (void)hashSz;
+
+    WOLFSSL_PKMSG("Gen Extended Master");
+    /* fall through to original routine */
+    ret = PROTOCOLCB_UNAVAILABLE;
+    WOLFSSL_PKMSG("Gen Extended Master: ret %d\n", ret);
+
+    return ret;
+}
+
 static WC_INLINE int myGenPreMaster(WOLFSSL* ssl, byte *premaster,
                                                   word32 preSz, void* ctx)
 {
@@ -4366,6 +4391,7 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
 
     #ifndef NO_CERTS
     wolfSSL_CTX_SetGenMasterSecretCb(ctx, myGenMaster);
+    wolfSSL_CTX_SetGenExtMasterSecretCb(ctx, myGenExtMaster);
     wolfSSL_CTX_SetGenPreMasterCb(ctx, myGenPreMaster);
     wolfSSL_CTX_SetGenSessionKeyCb(ctx, myGenSessionKey);
     wolfSSL_CTX_SetEncryptKeysCb(ctx, mySetEncryptKeys);
@@ -4421,6 +4447,7 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 
     #ifndef NO_CERTS
     wolfSSL_SetGenMasterSecretCtx(ssl, myCtx);
+    wolfSSL_SetGenExtMasterSecretCtx(ssl, myCtx);
     wolfSSL_SetGenPreMasterCtx(ssl, myCtx);
     wolfSSL_SetGenSessionKeyCtx(ssl, myCtx);
     wolfSSL_SetEncryptKeysCtx(ssl, myCtx);
@@ -4691,7 +4718,7 @@ static WC_INLINE int myTicketEncCb(WOLFSSL* ssl,
                                               mac);
         #elif defined(HAVE_AESGCM)
             ret = wc_AesGcmEncrypt(&tickCtx->aes, ticket, ticket, inLen,
-                                   iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                   iv, GCM_NONCE_MID_SZ, mac, WC_AES_BLOCK_SIZE,
                                    tickCtx->aad, aadSz);
         #endif
         }
@@ -4705,7 +4732,7 @@ static WC_INLINE int myTicketEncCb(WOLFSSL* ssl,
                                               ticket);
         #elif defined(HAVE_AESGCM)
             ret = wc_AesGcmDecrypt(&tickCtx->aes, ticket, ticket, inLen,
-                                   iv, GCM_NONCE_MID_SZ, mac, AES_BLOCK_SIZE,
+                                   iv, GCM_NONCE_MID_SZ, mac, WC_AES_BLOCK_SIZE,
                                    tickCtx->aad, aadSz);
         #endif
         }

@@ -1,6 +1,6 @@
 /* conf.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -202,7 +202,10 @@ long wolfSSL_TXT_DB_write(WOLFSSL_BIO *out, WOLFSSL_TXT_DB *db)
                 return WOLFSSL_FAILURE;
             }
         }
-        idx[-1] = '\n';
+        if (idx > buf)
+            idx[-1] = '\n';
+        else
+            return WOLFSSL_FAILURE;
         sz = (int)(idx - buf);
 
         if (wolfSSL_BIO_write(out, buf, sz) != sz) {
@@ -770,8 +773,18 @@ static char* expandValue(WOLFSSL_CONF *conf, const char* section,
                     /* This will allocate slightly more memory than necessary
                      * but better be safe */
                     strLen += valueLen;
+                #ifdef WOLFSSL_NO_REALLOC
+                    newRet = (char*)XMALLOC(strLen + 1, NULL,
+                            DYNAMIC_TYPE_OPENSSL);
+                    if (newRet != NULL && ret != NULL) {
+                       XMEMCPY(newRet, ret, (strLen - valueLen) + 1);
+                       XFREE(ret, NULL, DYNAMIC_TYPE_OPENSSL);
+                       ret = NULL;
+                    }
+                #else
                     newRet = (char*)XREALLOC(ret, strLen + 1, NULL,
                             DYNAMIC_TYPE_OPENSSL);
+                #endif
                     if (!newRet) {
                         WOLFSSL_MSG("realloc error");
                         goto expand_cleanup;

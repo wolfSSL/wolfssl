@@ -1,6 +1,6 @@
 /* client-tls.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -307,11 +307,11 @@ WOLFSSL_ESP_TASK tls_smp_client_task(void* args)
 
     /* no peer check */
     if (doPeerCheck == 0) {
-        ESP_LOGW(TAG, "doPeerCheck == 0");
+        ESP_LOGW(TAG, "doPeerCheck == 0; WOLFSSL_VERIFY_NONE");
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
     }
     else {
-        ESP_LOGW(TAG, "doPeerCheck != 0");
+        ESP_LOGI(TAG, "doPeerCheck != 0");
         WOLFSSL_MSG("Loading... our cert");
         /* load our certificate */
         ret_i = wolfSSL_CTX_use_certificate_chain_buffer_format(ctx,

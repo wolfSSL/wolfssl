@@ -137,6 +137,22 @@ do
     check_file $file
 done
 
+# try running test suite in the future
+faketime -v > /dev/null
+RESULT=$?
+if [ "$RESULT" = "0" ]; then
+    FUTURE=$(date --date="1 years")
+    echo ""
+    echo "Trying to run tests with time set to \"$FUTURE\""
+    ./configure --enable-all -q
+    make -s
+    faketime "${FUTURE}" ./tests/unit.test
+    RESULT=$?
+    if [ "$RESULT" != "0" ]; then
+        echo "Running tests with future date failed"
+        exit 1
+    fi
+fi
 # Return result of check
 # 0 on success
 # 1 on failure

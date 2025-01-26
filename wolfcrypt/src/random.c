@@ -1,6 +1,6 @@
 /* random.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -598,14 +598,14 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
 
         dIdx = (int)dLen - 1;
         for (sIdx = (int)sLen - 1; sIdx >= 0; sIdx--) {
-            carry += (word16)((word16)d[dIdx] + (word16)s[sIdx]);
+            carry = (word16)(carry + d[dIdx] + s[sIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
             dIdx--;
         }
 
         for (; dIdx >= 0; dIdx--) {
-            carry += (word16)d[dIdx];
+            carry = (word16)(carry + d[dIdx]);
             d[dIdx] = (byte)carry;
             carry >>= 8;
         }
@@ -818,7 +818,7 @@ static WC_INLINE word64 Entropy_TimeHiRes(void)
  */
 static WC_INLINE word64 Entropy_TimeHiRes(void)
 {
-    return mach_absolute_time();
+    return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
 }
 #elif !defined(ENTROPY_MEMUSE_THREAD) && defined(__aarch64__)
 /* Get the high resolution time counter.

@@ -1,6 +1,6 @@
 /* wolf_client.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -23,6 +23,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h> /* var_arg */
 #include <sys/time.h>
 #include "wolfssl/wolfcrypt/settings.h"
 #include "wolfssl/ssl.h"

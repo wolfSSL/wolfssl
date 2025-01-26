@@ -1,6 +1,6 @@
 /* module_hooks.c -- module load/unload hooks for libwolfssl.ko
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -244,6 +244,38 @@ static int wolfssl_init(void)
         }
         return -ECANCELED;
     }
+#endif /* HAVE_FIPS */
+
+#ifdef WC_RNG_SEED_CB
+    ret = wc_SetSeed_Cb(wc_GenerateSeed);
+    if (ret < 0) {
+        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
+        (void)libwolfssl_cleanup();
+        msleep(10);
+        return -ECANCELED;
+    }
+#endif
+
+#ifdef WOLFCRYPT_ONLY
+    ret = wolfCrypt_Init();
+    if (ret != 0) {
+        pr_err("wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+#else
+    ret = wolfSSL_Init();
+    if (ret != WOLFSSL_SUCCESS) {
+        pr_err("wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
+        return -ECANCELED;
+    }
+#endif
+
+#ifdef HAVE_FIPS
+    ret = wc_RunAllCast_fips();
+    if (ret != 0) {
+        pr_err("wc_RunAllCast_fips() failed with return value %d\n", ret);
+        return -ECANCELED;
+    }
 
     pr_info("FIPS 140-3 wolfCrypt-fips v%d.%d.%d%s%s startup "
             "self-test succeeded.\n",
@@ -270,32 +302,7 @@ static int wolfssl_init(void)
             ""
 #endif
         );
-
 #endif /* HAVE_FIPS */
-
-#ifdef WC_RNG_SEED_CB
-    ret = wc_SetSeed_Cb(wc_GenerateSeed);
-    if (ret < 0) {
-        pr_err("wc_SetSeed_Cb() failed with return code %d.\n", ret);
-        (void)libwolfssl_cleanup();
-        msleep(10);
-        return -ECANCELED;
-    }
-#endif
-
-#ifdef WOLFCRYPT_ONLY
-    ret = wolfCrypt_Init();
-    if (ret != 0) {
-        pr_err("wolfCrypt_Init() failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
-    }
-#else
-    ret = wolfSSL_Init();
-    if (ret != WOLFSSL_SUCCESS) {
-        pr_err("wolfSSL_Init() failed: %s\n", wc_GetErrorString(ret));
-        return -ECANCELED;
-    }
-#endif
 
 #ifndef NO_CRYPT_TEST
     ret = wolfcrypt_test(NULL);
@@ -584,10 +591,19 @@ static int set_up_wolfssl_linuxkm_pie_redirect_table(void) {
 #ifdef WOLFSSL_AKID_NAME
     wolfssl_linuxkm_pie_redirect_table.GetCAByAKID = GetCAByAKID;
 #endif /* WOLFSSL_AKID_NAME */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_add_entry_by_NID = wolfSSL_X509_NAME_add_entry_by_NID;
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_free = wolfSSL_X509_NAME_free;
+    wolfssl_linuxkm_pie_redirect_table.wolfSSL_X509_NAME_new_ex = wolfSSL_X509_NAME_new_ex;
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #endif /* !WOLFCRYPT_ONLY && !NO_CERTS */
 
 #ifdef WOLFSSL_DEBUG_BACKTRACE_ERROR_CODES
     wolfssl_linuxkm_pie_redirect_table.dump_stack = dump_stack;
+#endif
+
+#ifdef CONFIG_ARM64
+    wolfssl_linuxkm_pie_redirect_table.alt_cb_patch_nops = alt_cb_patch_nops;
 #endif
 
     /* runtime assert that the table has no null slots after initialization. */

@@ -1,6 +1,6 @@
 /* aria-cryptocb.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -558,8 +558,10 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                         (ret == WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE)))
                         ret = wc_AriaFree(&(info->hash.sha256->hSession),NULL);
                 }
-                if (ret != 0)
+                if (ret != 0) {
+                    wc_AriaFree(&(info->hash.sha256->hSession),NULL);
                     ret = CRYPTOCB_UNAVAILABLE;
+                }
                 /* reset devId */
                 info->hash.sha256->devId = devIdArg;
             }
@@ -590,7 +592,10 @@ int wc_AriaDerive(ecc_key* private_key, ecc_key* public_key,
                         ret = wc_AriaFree(&(info->hash.sha384->hSession),NULL);
                     }
                 }
-                if (ret != 0) ret = CRYPTOCB_UNAVAILABLE;
+                if (ret != 0) {
+                    wc_AriaFree(&(info->hash.sha384->hSession),NULL);
+                    ret = CRYPTOCB_UNAVAILABLE;
+                }
                 /* reset devId */
                 info->hash.sha384->devId = devIdArg;
             }

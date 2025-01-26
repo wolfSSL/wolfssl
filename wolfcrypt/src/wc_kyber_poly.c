@@ -1,6 +1,6 @@
 /* wc_kyber_poly.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -67,6 +67,7 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_kyber.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -83,7 +84,8 @@
 /* Declared in wc_kyber.c to stop compiler optimizer from simplifying. */
 extern volatile sword16 kyber_opt_blocker;
 
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM))
 static word32 cpuid_flags = 0;
 #endif
 
@@ -1098,7 +1100,8 @@ static void kyber_pointwise_acc_mont(sword16* r, const sword16* a,
  */
 void kyber_init(void)
 {
-#ifdef USE_INTEL_SPEEDUP
+#if defined(USE_INTEL_SPEEDUP) || (defined(__aarch64__) && \
+    defined(WOLFSSL_ARMASM))
     cpuid_flags = cpuid_get_flags();
 #endif
 }
@@ -1120,26 +1123,52 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
 {
     int i;
 
-    /* Transform private key. All of result used in public key calculation */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(priv + i * KYBER_N);
-    }
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+    if (IS_AARCH64_RDM(cpuid_flags)) {
+        /* Transform private key. All of result used in public key calculation.
+         */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt_sqrdmlsh(priv + i * KYBER_N);
+        }
 
-    /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
-        /* Multiply a by private into public polynomial. */
-        kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N, priv,
-            kp);
-        /* Convert public polynomial to Montgomery form. */
-        kyber_to_mont(pub + i * KYBER_N);
-        /* Transform error values polynomial. */
-        kyber_ntt(e + i * KYBER_N);
-        /* Add errors to public key and reduce. */
-        kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply a by private into public polynomial. */
+            kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N,
+                priv, kp);
+            /* Convert public polynomial to Montgomery form. */
+            kyber_to_mont_sqrdmlsh(pub + i * KYBER_N);
+            /* Transform error values polynomial. */
+            kyber_ntt_sqrdmlsh(e + i * KYBER_N);
+            /* Add errors to public key and reduce. */
+            kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+        }
+    }
+    else
+#endif
+    {
+        /* Transform private key. All of result used in public key calculation.
+         */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt(priv + i * KYBER_N);
+        }
+
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply a by private into public polynomial. */
+            kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N,
+                priv, kp);
+            /* Convert public polynomial to Montgomery form. */
+            kyber_to_mont(pub + i * KYBER_N);
+            /* Transform error values polynomial. */
+            kyber_ntt(e + i * KYBER_N);
+            /* Add errors to public key and reduce. */
+            kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+        }
     }
 }
 
-/* Encapsuluate message.
+/* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
  * @param  [out]  bp   Vector of polynomials.
@@ -1157,26 +1186,53 @@ void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
 {
     int i;
 
-    /* Transform sp. All of result used in calculation of bp and v. */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(sp + i * KYBER_N);
-    }
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+    if (IS_AARCH64_RDM(cpuid_flags)) {
+        /* Transform sp. All of result used in calculation of bp and v. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt_sqrdmlsh(sp + i * KYBER_N);
+        }
 
-    /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
-        /* Multiply at by sp into bp polynomial. */
-        kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N, sp,
-            kp);
-        /* Inverse transform bp polynomial. */
-        kyber_invntt(bp + i * KYBER_N);
-        /* Add errors to bp and reduce. */
-        kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
-    }
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply at by sp into bp polynomial. */
+            kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N,
+                sp, kp);
+            /* Inverse transform bp polynomial. */
+            kyber_invntt_sqrdmlsh(bp + i * KYBER_N);
+            /* Add errors to bp and reduce. */
+            kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
+        }
 
-    /* Multiply public key by sp into v polynomial. */
-    kyber_pointwise_acc_mont(v, pub, sp, kp);
-    /* Inverse transform v. */
-    kyber_invntt(v);
+        /* Multiply public key by sp into v polynomial. */
+        kyber_pointwise_acc_mont(v, pub, sp, kp);
+        /* Inverse transform v. */
+        kyber_invntt_sqrdmlsh(v);
+    }
+    else
+#endif
+    {
+        /* Transform sp. All of result used in calculation of bp and v. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt(sp + i * KYBER_N);
+        }
+
+        /* For each polynomial in the vectors. */
+        for (i = 0; i < kp; ++i) {
+            /* Multiply at by sp into bp polynomial. */
+            kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N,
+                sp, kp);
+            /* Inverse transform bp polynomial. */
+            kyber_invntt(bp + i * KYBER_N);
+            /* Add errors to bp and reduce. */
+            kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
+        }
+
+        /* Multiply public key by sp into v polynomial. */
+        kyber_pointwise_acc_mont(v, pub, sp, kp);
+        /* Inverse transform v. */
+        kyber_invntt(v);
+    }
     /* Add errors and message to v and reduce. */
     kyber_add3_reduce(v, epp, m);
 }
@@ -1194,15 +1250,31 @@ void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
 {
     int i;
 
-    /* Transform bp. All of result used in calculation of mp. */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(bp + i * KYBER_N);
-    }
+#ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
+    if (IS_AARCH64_RDM(cpuid_flags)) {
+        /* Transform bp. All of result used in calculation of mp. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt_sqrdmlsh(bp + i * KYBER_N);
+        }
 
-    /* Multiply private key by bp into mp polynomial. */
-    kyber_pointwise_acc_mont(mp, priv, bp, kp);
-    /* Inverse transform mp. */
-    kyber_invntt(mp);
+        /* Multiply private key by bp into mp polynomial. */
+        kyber_pointwise_acc_mont(mp, priv, bp, kp);
+        /* Inverse transform mp. */
+        kyber_invntt_sqrdmlsh(mp);
+    }
+    else
+#endif
+    {
+        /* Transform bp. All of result used in calculation of mp. */
+        for (i = 0; i < kp; ++i) {
+            kyber_ntt(bp + i * KYBER_N);
+        }
+
+        /* Multiply private key by bp into mp polynomial. */
+        kyber_pointwise_acc_mont(mp, priv, bp, kp);
+        /* Inverse transform mp. */
+        kyber_invntt(mp);
+    }
     /* Subtract errors (mp) out of v and reduce into mp. */
     kyber_rsub_reduce(mp, v);
 }
@@ -1272,7 +1344,7 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     }
 }
 
-/* Encapsuluate message.
+/* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
  * @param  [out]  bp   Vector of polynomials.
@@ -2073,17 +2145,24 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
         (25 - KYBER_SYM_SZ / 8 - 1) * sizeof(word64));
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
-    if (IS_INTEL_BMI2(cpuid_flags)) {
-        sha3_block_bmi2(state);
+    while (outLen > 0) {
+        unsigned int len = min(outLen, WC_SHA3_256_BLOCK_SIZE);
+
+        if (IS_INTEL_BMI2(cpuid_flags)) {
+            sha3_block_bmi2(state);
+        }
+        else if (IS_INTEL_AVX2(cpuid_flags) &&
+                 (SAVE_VECTOR_REGISTERS2() == 0)) {
+            sha3_block_avx2(state);
+            RESTORE_VECTOR_REGISTERS();
+        }
+        else {
+            BlockSha3(state);
+        }
+        XMEMCPY(out, state, len);
+        out += len;
+        outLen -= len;
     }
-    else if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        sha3_block_avx2(state);
-        RESTORE_VECTOR_REGISTERS();
-    }
-    else {
-        BlockSha3(state);
-    }
-    XMEMCPY(out, state, outLen);
 
     return 0;
 #else
@@ -2321,8 +2400,10 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
 #if !defined(WOLFSSL_KYBER_SMALL) && defined(WC_64BIT_CPU)
     /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
-    rand[GEN_MATRIX_SIZE+0] = 0xff;
-    rand[GEN_MATRIX_SIZE+1] = 0xff;
+    if (ret == 0) {
+        rand[GEN_MATRIX_SIZE+0] = 0xff;
+        rand[GEN_MATRIX_SIZE+1] = 0xff;
+    }
 #endif
 
     /* Generate each vector of polynomials. */
@@ -2719,7 +2800,7 @@ static void kyber_cbd_eta3(sword16* p, const byte* r)
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
  * @param  [in]       eta1  Size of noise/error integers.
@@ -2762,7 +2843,7 @@ static int kyber_get_noise_eta1_c(KYBER_PRF_T* prf, sword16* p,
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution. Values -2..2
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
@@ -2842,7 +2923,7 @@ static void kyber_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution. Values -2..2
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
@@ -2865,7 +2946,7 @@ static int kyber_get_noise_eta2_avx2(KYBER_PRF_T* prf, sword16* p,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [out]      vec2  Second Vector of polynomials.
  * @param  [out]      poly  Polynomial.
@@ -2932,7 +3013,7 @@ static int kyber_get_noise_k3_avx2(sword16* vec1, sword16* vec2, sword16* poly,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [out]      vec2  Second Vector of polynomials.
  * @param  [out]      poly  Polynomial.
@@ -3170,7 +3251,7 @@ static int kyber_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [in]       kp    Number of polynomials in vector.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [in]       eta1  Size of noise/error integers with first vector.
@@ -3215,7 +3296,7 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
 /* Get the noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
- * @param  [in, out]  prf   Psuedo-random function object.
+ * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [in]       kp    Number of polynomials in vector.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [out]      vec2  Second Vector of polynomials.

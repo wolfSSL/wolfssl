@@ -1,6 +1,6 @@
 /* pk.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -518,8 +518,19 @@ static int der_to_enc_pem_alloc(unsigned char* der, int derSz,
         byte *tmpBuf;
 
         /* Add space for padding. */
+    #ifdef WOLFSSL_NO_REALLOC
+        tmpBuf = (byte*)XMALLOC((size_t)(derSz + blockSz), heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmpBuf != NULL && der != NULL)
+        {
+                XMEMCPY(tmpBuf, der, (size_t)(derSz));
+                XFREE(der, heap, DYNAMIC_TYPE_TMP_BUFFER);
+                der = NULL;
+        }
+    #else
         tmpBuf = (byte*)XREALLOC(der, (size_t)(derSz + blockSz), heap,
             DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         if (tmpBuf == NULL) {
             WOLFSSL_ERROR_MSG("Extending DER buffer failed");
             ret = 0; /* der buffer is free'd at the end of the function */
@@ -3562,7 +3573,7 @@ int wolfSSL_RSA_padding_add_PKCS1_PSS_mgf1(WOLFSSL_RSA *rsa, unsigned char *em,
         const WOLFSSL_EVP_MD *mgf1Hash, int saltLen)
 {
     int ret = 1;
-    enum wc_HashType hashType;
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
     int hashLen = 0;
     int emLen = 0;
     int mgf = 0;
@@ -7876,7 +7887,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
     int ret = WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR);
     int err = 0;
     byte* der = NULL;
-    word32 derSz;
+    word32 derSz = 0;
     DhKey* key = NULL;
 
     (void)heap;
@@ -7933,7 +7944,7 @@ static int wolfssl_dhparams_to_der(WOLFSSL_DH* dh, unsigned char** out,
 int wolfSSL_PEM_write_DHparams(XFILE fp, WOLFSSL_DH* dh)
 {
     int ret = 1;
-    int derSz;
+    int derSz = 0;
     byte* derBuf = NULL;
     void* heap = NULL;
 
@@ -12234,7 +12245,7 @@ int wolfSSL_i2o_ECPublicKey(const WOLFSSL_EC_KEY *key, unsigned char **out)
     if (ret == 1) {
     #ifdef HAVE_COMP_KEY
         /* Default to compressed form if not set */
-        form = (key->form != WC_POINT_CONVERSION_UNCOMPRESSED) ?
+        form = (key->form == WC_POINT_CONVERSION_UNCOMPRESSED) ?
                WC_POINT_CONVERSION_UNCOMPRESSED :
                WC_POINT_CONVERSION_COMPRESSED;
     #endif
@@ -12361,7 +12372,7 @@ WOLFSSL_EC_KEY* wolfSSL_d2i_ECPrivateKey(WOLFSSL_EC_KEY** key,
  *
  * @param [in]      key  EC key to encode.
  * @param [in, out] out  On in, reference to buffer to place DER encoding into.
- *                       On out, reference to buffer adter the encoding.
+ *                       On out, reference to buffer after the encoding.
  *                       May be NULL.
  * @return  Length of DER encoding on success.
  * @return  0 on error.
@@ -12980,7 +12991,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ec,
         /* Calculate maximum size of DER encoding.
          * 4 > size of pub, priv + ASN.1 additional information */
         der_max_len = 4 * (word32)wc_ecc_size((ecc_key*)ec->internal) +
-                      AES_BLOCK_SIZE;
+                      WC_AES_BLOCK_SIZE;
 
         /* Allocate buffer big enough to hold encoding. */
         derBuf = (byte*)XMALLOC((size_t)der_max_len, NULL,
@@ -16501,7 +16512,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
 {
     int ret = 0;
     int algId = 0;
-    const byte* curveOid;
+    const byte* curveOid = 0;
     word32 oidSz = 0;
 
     /* Get the details of the private key. */
@@ -16587,7 +16598,7 @@ static int pem_write_mem_pkcs8privatekey(byte** pem, int* pemSz,
     int ret = 0;
     char password[NAME_SZ];
     byte* key = NULL;
-    word32 keySz;
+    word32 keySz = 0;
     int type = PKCS8_PRIVATEKEY_TYPE;
 
     /* Validate parameters. */

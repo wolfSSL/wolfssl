@@ -1,6 +1,6 @@
 /* kdf.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,6 +24,7 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -941,11 +942,11 @@ static void wc_srtp_kdf_first_block(const byte* salt, word32 saltSz, int kdrIdx,
         }
         else {
             /* XOR in as bit shifted index. */
-            block[WC_SRTP_MAX_SALT - indexSz] ^= index[0] >> bits;
+            block[WC_SRTP_MAX_SALT - indexSz] ^= (byte)(index[0] >> bits);
             for (i = 1; i < indexSz; i++) {
                 block[i + WC_SRTP_MAX_SALT - indexSz] ^=
-                    (index[i-1] << (8 - bits)) |
-                    (index[i+0] >>      bits );
+                    (byte)((index[i-1] << (8 - bits)) |
+                           (index[i+0] >>      bits ));
             }
         }
     }
@@ -968,7 +969,7 @@ static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
     int i;
     int ret = 0;
     /* Calculate the number of full blocks needed for derived key. */
-    int blocks = (int)(keySz / AES_BLOCK_SIZE);
+    int blocks = (int)(keySz / WC_AES_BLOCK_SIZE);
 
     /* XOR in label. */
     block[WC_SRTP_MAX_SALT - indexSz - 1] ^= label;
@@ -976,19 +977,19 @@ static int wc_srtp_kdf_derive_key(byte* block, int indexSz, byte label,
         /* Set counter. */
         block[15] = (byte)i;
         /* Encrypt block into key buffer. */
-        ret = wc_AesEcbEncrypt(aes, key, block, AES_BLOCK_SIZE);
+        ret = wc_AesEcbEncrypt(aes, key, block, WC_AES_BLOCK_SIZE);
         /* Reposition for more derived key. */
-        key += AES_BLOCK_SIZE;
+        key += WC_AES_BLOCK_SIZE;
         /* Reduce the count of key bytes required. */
-        keySz -= AES_BLOCK_SIZE;
+        keySz -= WC_AES_BLOCK_SIZE;
     }
     /* Do any partial blocks. */
     if ((ret == 0) && (keySz > 0)) {
-        byte enc[AES_BLOCK_SIZE];
+        byte enc[WC_AES_BLOCK_SIZE];
         /* Set counter. */
         block[15] = (byte)i;
         /* Encrypt block into temporary. */
-        ret = wc_AesEcbEncrypt(aes, enc, block, AES_BLOCK_SIZE);
+        ret = wc_AesEcbEncrypt(aes, enc, block, WC_AES_BLOCK_SIZE);
         if (ret == 0) {
             /* Copy into key required amount. */
             XMEMCPY(key, enc, keySz);
@@ -1029,7 +1030,7 @@ int wc_SRTP_KDF(const byte* key, word32 keySz, const byte* salt, word32 saltSz,
         word32 key2Sz, byte* key3, word32 key3Sz)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
@@ -1124,7 +1125,7 @@ int wc_SRTCP_KDF_ex(const byte* key, word32 keySz, const byte* salt, word32 salt
         word32 key2Sz, byte* key3, word32 key3Sz, int idxLenIndicator)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
@@ -1233,7 +1234,7 @@ int wc_SRTP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         word32 outKeySz)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else
@@ -1316,7 +1317,7 @@ int wc_SRTCP_KDF_label(const byte* key, word32 keySz, const byte* salt,
         word32 outKeySz)
 {
     int ret = 0;
-    byte block[AES_BLOCK_SIZE];
+    byte block[WC_AES_BLOCK_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
     Aes* aes = NULL;
 #else

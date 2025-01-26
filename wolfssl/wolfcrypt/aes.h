@@ -1,6 +1,6 @@
 /* aes.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -61,7 +61,7 @@ typedef struct Gcm {
 #endif
 
 WOLFSSL_LOCAL void GenerateM0(Gcm* gcm);
-#ifdef WOLFSSL_ARMASM
+#if !defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 WOLFSSL_LOCAL void GMULT(byte* X, byte* Y);
 #endif
 WOLFSSL_LOCAL void GHASH(Gcm* gcm, const byte* a, word32 aSz, const byte* c,
@@ -188,7 +188,18 @@ enum {
     AES_ENCRYPTION_AND_DECRYPTION = 2,
 #endif
 
-    AES_BLOCK_SIZE      = 16,
+    WC_AES_BLOCK_SIZE      = 16,
+#ifdef OPENSSL_COEXIST
+    /* allow OPENSSL_COEXIST applications to detect absence of AES_BLOCK_SIZE
+     * and presence of WC_AES_BLOCK_SIZE.
+     *
+     * if WC_NO_COMPAT_AES_BLOCK_SIZE is defined, WC_AES_BLOCK_SIZE is
+     * available, otherwise AES_BLOCK_SIZE is available.
+     */
+    #define WC_NO_COMPAT_AES_BLOCK_SIZE
+#else
+    #define AES_BLOCK_SIZE WC_AES_BLOCK_SIZE
+#endif
 
     KEYWRAP_BLOCK_SIZE  = 8,
 
@@ -227,9 +238,9 @@ enum {
     #endif
 
     /* Number of bits to a block. */
-    #define AES_BLOCK_BITS      (AES_BLOCK_SIZE * 8)
+    #define AES_BLOCK_BITS      (WC_AES_BLOCK_SIZE * 8)
     /* Number of bytes of input that can be processed in one call. */
-    #define BS_BLOCK_SIZE       (AES_BLOCK_SIZE * BS_WORD_SIZE)
+    #define BS_BLOCK_SIZE       (WC_AES_BLOCK_SIZE * BS_WORD_SIZE)
     /* Number of words in a block.  */
     #define BS_BLOCK_WORDS      (AES_BLOCK_BITS / BS_WORD_SIZE)
 
@@ -258,7 +269,7 @@ struct Aes {
     ALIGN16 word32 key[60];
 #ifdef WC_AES_BITSLICED
     /* Extra key schedule space required for bit-slicing technique. */
-    ALIGN16 bs_word bs_key[15 * AES_BLOCK_SIZE * BS_WORD_SIZE];
+    ALIGN16 bs_word bs_key[15 * WC_AES_BLOCK_SIZE * BS_WORD_SIZE];
 #endif
     word32  rounds;
 #ifdef WC_C_DYNAMIC_FALLBACK
@@ -266,8 +277,8 @@ struct Aes {
 #endif
     int     keylen;
 
-    ALIGN16 word32 reg[AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
-    ALIGN16 word32 tmp[AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
+    ALIGN16 word32 reg[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* for CBC mode */
+    ALIGN16 word32 tmp[WC_AES_BLOCK_SIZE / sizeof(word32)];      /* same         */
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     word32 invokeCtr[2];
@@ -293,6 +304,14 @@ struct Aes {
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
 #endif /* WOLFSSL_AESNI */
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+    byte use_aes_hw_crypto;
+#ifdef HAVE_AESGCM
+    byte use_pmull_hw_crypto;
+    byte use_sha3_hw_crypto;
+#endif
+#endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 #ifdef WOLF_CRYPTO_CB
     int    devId;
     void*  devCtx;
@@ -379,7 +398,7 @@ struct Aes {
     void*  heap; /* memory hint to use */
 #ifdef WOLFSSL_AESGCM_STREAM
 #if !defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_AESNI)
-    ALIGN16 byte streamData[5 * AES_BLOCK_SIZE];
+    ALIGN16 byte streamData[5 * WC_AES_BLOCK_SIZE];
 #else
     byte*        streamData;
     word32       streamData_sz;
@@ -408,8 +427,8 @@ struct Aes {
 #ifdef WOLFSSL_AES_XTS
     #if FIPS_VERSION3_GE(6,0,0)
         /* SP800-38E - Restrict data unit to 2^20 blocks per key. A block is
-         * AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
-         * protect up to 1,048,576 blocks of AES_BLOCK_SIZE (16,777,216 bytes)
+         * WC_AES_BLOCK_SIZE or 16-bytes (128-bits). So each key may only be used to
+         * protect up to 1,048,576 blocks of WC_AES_BLOCK_SIZE (16,777,216 bytes)
          */
         #define FIPS_AES_XTS_MAX_BYTES_PER_TWEAK 16777216
     #endif
@@ -423,7 +442,7 @@ struct Aes {
 
     #ifdef WOLFSSL_AESXTS_STREAM
         struct XtsAesStreamData {
-            byte tweak_block[AES_BLOCK_SIZE];
+            byte tweak_block[WC_AES_BLOCK_SIZE];
             word32 bytes_crypted_with_this_tweak;
         };
     #endif
@@ -768,10 +787,10 @@ struct AesEax {
     Cmac nonceCmac;
     Cmac aadCmac;
     Cmac ciphertextCmac;
-    byte nonceCmacFinal[AES_BLOCK_SIZE];
-    byte aadCmacFinal[AES_BLOCK_SIZE];
-    byte ciphertextCmacFinal[AES_BLOCK_SIZE];
-    byte prefixBuf[AES_BLOCK_SIZE];
+    byte nonceCmacFinal[WC_AES_BLOCK_SIZE];
+    byte aadCmacFinal[WC_AES_BLOCK_SIZE];
+    byte ciphertextCmacFinal[WC_AES_BLOCK_SIZE];
+    byte prefixBuf[WC_AES_BLOCK_SIZE];
 };
 #endif /* !defined(WOLF_CRYPT_CMAC_H) */
 
@@ -821,6 +840,60 @@ WOLFSSL_API int wc_AesEaxFree(AesEax* eax);
 
 #endif /* WOLFSSL_AES_EAX */
 
+#if defined(__aarch64__) && defined(WOLFSSL_ARMASM) && \
+    !defined(WOLFSSL_ARMASM_NO_HW_CRYPTO)
+
+/* GHASH one block of data.
+ *
+ * XOR block into tag and GMULT with H.
+ *
+ * @param [in, out] aes    AES GCM object.
+ * @param [in]      block  Block of AAD or cipher text.
+ */
+#define GHASH_ONE_BLOCK_AARCH64(aes, block)             \
+    do {                                                \
+        xorbuf(AES_TAG(aes), block, WC_AES_BLOCK_SIZE); \
+        GMULT_AARCH64(AES_TAG(aes), aes->gcm.H);        \
+    }                                                   \
+    while (0)
+
+WOLFSSL_LOCAL int AES_set_key_AARCH64(const unsigned char *userKey,
+    const int keylen, Aes* aes, int dir);
+WOLFSSL_LOCAL void AES_encrypt_AARCH64(const byte* inBlock, byte* outBlock,
+    byte* key, int nr);
+WOLFSSL_LOCAL void AES_decrypt_AARCH64(const byte* inBlock, byte* outBlock,
+    byte* key, int nr);
+WOLFSSL_LOCAL void AES_CBC_encrypt_AARCH64(const byte* in, byte* out, word32 sz,
+    byte* reg, byte* key, int rounds);
+WOLFSSL_LOCAL void AES_CBC_decrypt_AARCH64(const byte* in, byte* out, word32 sz,
+    byte* reg, byte* key, int rounds);
+WOLFSSL_LOCAL void AES_CTR_encrypt_AARCH64(Aes* aes, byte* out, const byte* in,
+    word32 sz);
+WOLFSSL_LOCAL void GMULT_AARCH64(byte* X, byte* Y);
+#ifdef WOLFSSL_AESGCM_STREAM
+WOLFSSL_LOCAL void GHASH_UPDATE_AARCH64(Aes* aes, const byte* a, word32 aSz,
+    const byte* c, word32 cSz);
+WOLFSSL_LOCAL void AES_GCM_init_AARCH64(Aes* aes, const byte* iv, word32 ivSz);
+WOLFSSL_LOCAL void AES_GCM_crypt_update_AARCH64(Aes* aes, byte* out,
+    const byte* in, word32 sz);
+WOLFSSL_LOCAL void AES_GCM_final_AARCH64(Aes* aes, byte* authTag,
+    word32 authTagSz);
+#endif
+WOLFSSL_LOCAL void AES_GCM_set_key_AARCH64(Aes* aes, byte* iv);
+WOLFSSL_LOCAL void AES_GCM_encrypt_AARCH64(Aes* aes, byte* out, const byte* in,
+    word32 sz, const byte* iv, word32 ivSz, byte* authTag, word32 authTagSz,
+    const byte* authIn, word32 authInSz);
+WOLFSSL_LOCAL int AES_GCM_decrypt_AARCH64(Aes* aes, byte* out, const byte* in,
+    word32 sz, const byte* iv, word32 ivSz, const byte* authTag,
+    word32 authTagSz, const byte* authIn, word32 authInSz);
+
+#ifdef WOLFSSL_AES_XTS
+WOLFSSL_LOCAL void AES_XTS_encrypt_AARCH64(XtsAes* xaes, byte* out,
+    const byte* in, word32 sz, const byte* i);
+WOLFSSL_LOCAL void AES_XTS_decrypt_AARCH64(XtsAes* xaes, byte* out,
+    const byte* in, word32 sz, const byte* i);
+#endif /* WOLFSSL_AES_XTS */
+#endif /* __aarch64__ && WOLFSSL_ARMASM && !WOLFSSL_ARMASM_NO_HW_CRYPTO */
 
 #ifdef __cplusplus
     } /* extern "C" */

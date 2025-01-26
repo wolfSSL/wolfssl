@@ -1,0 +1,91 @@
+name: libspdm Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  build_wolfssl:
+    name: Build wolfSSL
+    if: github.repository_owner == 'wolfssl'
+    # Just to keep it the same as the testing target
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    steps:
+      - name: Build wolfSSL
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          path: wolfssl
+          configure: --enable-all --enable-static CFLAGS='-DRSA_MIN_SIZE=512'
+          install: true
+
+      - name: tar build-dir
+        run: tar -zcf build-dir.tgz build-dir
+
+      - name: Upload built lib
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolf-install-libspdm
+          path: build-dir.tgz
+          retention-days: 5
+
+  libspdm_check:
+    strategy:
+      fail-fast: false
+      matrix:
+        # List of releases to test
+        ref: [ 3.3.0 ]
+    name: ${{ matrix.ref }}
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 4
+    needs: build_wolfssl
+    steps:
+      - name: Download lib
+        uses: actions/download-artifact@v4
+        with:
+          name: wolf-install-libspdm
+
+      - name: untar build-dir
+        run: tar -xf build-dir.tgz
+
+      - name: Checkout OSP
+        uses: actions/checkout@v4
+        with:
+          repository: wolfssl/osp
+          path: osp
+
+      - name: Checkout libspdm
+        uses: actions/checkout@v4
+        with:
+          repository: DMTF/libspdm
+          path: libspdm
+          ref: ${{ matrix.ref }}
+
+      - name: Build and test libspdm
+        working-directory: libspdm
+        run: |
+          patch -p1 < ../osp/libspdm/${{ matrix.ref }}/libspdm-${{ matrix.ref }}.patch
+          git submodule update --init --recursive
+          # Silence cmake version warnings
+          find -name CMakeLists.txt -exec sed -i 's/cmake_minimum_required.*/cmake_minimum_required(VERSION 3.10)/g' {} \;
+          mkdir build
+          cd build
+          cmake -DARCH=x64 -DTOOLCHAIN=GCC -DTARGET=Debug -DCRYPTO=wolfssl -DENABLE_BINARY_BUILD=1 \
+            -DCOMPILED_LIBWOLFSSL_PATH=$GITHUB_WORKSPACE/build-dir/lib/libwolfssl.a \
+            -DWOLFSSL_INCDIR=$GITHUB_WORKSPACE/build-dir/include ..
+          make -j
+          cd ../unit_test/sample_key
+          ../../build/bin/test_crypt
+          ../../build/bin/test_spdm_secured_message
+          ../../build/bin/test_spdm_crypt

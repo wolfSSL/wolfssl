@@ -1,6 +1,6 @@
 /* wc_lms_impl.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -41,6 +41,7 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/wc_lms.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
@@ -103,7 +104,7 @@
 
 
 #ifdef WC_LMS_DEBUG_PRINT_DATA
-/* Print data when dubgging implementation.
+/* Print data when debugging implementation.
  *
  * @param [in] name  String to print before data.
  * @param [in] data  Array of bytes.
@@ -858,7 +859,7 @@ static int wc_lmots_msg_hash(LmsState* state, const byte* msg, word32 msgSz,
  *        }
  *        y[i] = tmp
  *      }
- * x[i] can be calculated on the fly using psueodo key generation in Appendix A.
+ * x[i] can be calculated on the fly using pseudo key generation in Appendix A.
  * Appendix A, The elements of the LM-OTS private keys are computed as:
  *   x_q[i] = H(I || u32str(q) || u16str(i) || u8str(0xff) || SEED).
  *
@@ -874,7 +875,7 @@ static int wc_lmots_compute_y_from_seed(LmsState* state, const byte* seed,
     const byte* msg, word32 msgSz, const byte* c, byte* y)
 {
     const LmsParams* params = state->params;
-    int ret = 0;
+    int ret;
     word16 i;
     byte q[LMS_MAX_NODE_LEN + LMS_CKSM_LEN];
 #ifdef WOLFSSL_SMALL_STACK
@@ -891,8 +892,8 @@ static int wc_lmots_compute_y_from_seed(LmsState* state, const byte* seed,
     ret = wc_lmots_msg_hash(state, msg, msgSz, c, q);
     if (ret == 0) {
         /* Calculate checksum list all coefficients. */
-        ret = wc_lmots_q_expand(q, params->hash_len, params->width, params->ls,
-             a);
+        ret = wc_lmots_q_expand(q, (word8)params->hash_len, params->width,
+            params->ls, a);
     }
 #ifndef WC_LMS_FULL_HASH
     if (ret == 0) {
@@ -1062,8 +1063,8 @@ static int wc_lmots_compute_kc_from_sig(LmsState* state, const byte* msg,
     }
     if (ret == 0) {
         /* Calculate checksum list all coefficients. */
-        ret = wc_lmots_q_expand(q, params->hash_len, params->width, params->ls,
-            a);
+        ret = wc_lmots_q_expand(q, (word8)params->hash_len, params->width,
+            params->ls, a);
     }
 #ifndef WC_LMS_FULL_HASH
     if (ret == 0) {
@@ -1177,7 +1178,7 @@ static int wc_lmots_compute_kc_from_sig(LmsState* state, const byte* msg,
  *      }
  *      K = H(I || u32str(q) || u16str(D_PBLC) || y[0] || ... || y[p-1])
  *   ...
- * x[i] can be calculated on the fly using psueodo key generation in Appendix A.
+ * x[i] can be calculated on the fly using pseudo key generation in Appendix A.
  * Appendix A, The elements of the LM-OTS private keys are computed as:
  *   x_q[i] = H(I || u32str(q) || u16str(i) || u8str(0xff) || SEED).
  *
@@ -1962,7 +1963,7 @@ static int wc_lms_treehash_init(LmsState* state, LmsPrivState* privState,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate stack of left side hashes. */
-    stack = XMALLOC((params->height + 1) * params->hash_len, NULL,
+    stack = (byte*)XMALLOC((params->height + 1) * params->hash_len, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (stack == NULL) {
         ret = MEMORY_E;
@@ -2088,7 +2089,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
 
 #ifdef WOLFSSL_SMALL_STACK
     /* Allocate stack of left side hashes. */
-    stack = XMALLOC((params->height + 1) * params->hash_len, NULL,
+    stack = (byte*)XMALLOC((params->height + 1) * params->hash_len, NULL,
         DYNAMIC_TYPE_TMP_BUFFER);
     if (stack == NULL) {
         ret = MEMORY_E;
@@ -2096,8 +2097,10 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
 #endif /* WOLFSSL_SMALL_STACK */
 
     /* Public key, root node, is top of data stack. */
-    XMEMCPY(stack, stackCache->stack, params->height * params->hash_len);
-    sp = stack + stackCache->offset;
+    if (ret == 0) {
+        XMEMCPY(stack, stackCache->stack, params->height * params->hash_len);
+        sp = stack + stackCache->offset;
+    }
 
     /* Compute all nodes requested. */
     for (i = min_idx; (ret == 0) && (i <= max_idx); i++) {
@@ -2192,7 +2195,7 @@ static int wc_lms_treehash_update(LmsState* state, LmsPrivState* privState,
         }
     }
 
-    if (!useRoot) {
+    if (!useRoot && (ret == 0)) {
         /* Copy stack back. */
         XMEMCPY(stackCache->stack, stack, params->height * params->hash_len);
         stackCache->offset = (word32)((size_t)sp - (size_t)stack);
@@ -3678,11 +3681,11 @@ int wc_hss_sigsleft(const LmsParams* params, const byte* priv_raw)
  *
  * @param [in, out] state  LMS state.
  * @param [in]      pub    HSS public key.
- * @param [in]      msg    Message to rifyn.
+ * @param [in]      msg    Message to verify.
  * @param [in]      msgSz  Length of message in bytes.
  * @param [in]      sig    Signature of message.
  * @return  0 on success.
- * @return  SIG_VERFIY_E on failure.
+ * @return  SIG_VERIFY_E on failure.
  */
 int wc_hss_verify(LmsState* state, const byte* pub, const byte* msg,
     word32 msgSz, const byte* sig)

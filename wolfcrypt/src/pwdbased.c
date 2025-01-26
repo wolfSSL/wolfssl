@@ -1,6 +1,6 @@
 /* pwdbased.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -826,7 +826,7 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
         goto end;
     }
     /* Temporary for scryptROMix. */
-    v = (byte*)XMALLOC((size_t)((1 << cost) * bSz), NULL,
+    v = (byte*)XMALLOC((size_t)((1U << cost) * bSz), NULL,
                        DYNAMIC_TYPE_TMP_BUFFER);
     if (v == NULL) {
         ret = MEMORY_E;
@@ -840,6 +840,8 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
         goto end;
     }
 
+    XMEMSET(y, 0, (size_t)(blockSize * 128));
+
     /* Step 1. */
     ret = wc_PBKDF2(blocks, passwd, passLen, salt, saltLen, 1, (int)blocksSz,
                     WC_SHA256);
@@ -848,7 +850,7 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
 
     /* Step 2. */
     for (i = 0; i < parallel; i++)
-        scryptROMix(blocks + i * (int)bSz, v, y, (int)blockSize, 1 << cost);
+        scryptROMix(blocks + i * (int)bSz, v, y, (int)blockSize, 1U << cost);
 
     /* Step 3. */
     ret = wc_PBKDF2(output, passwd, passLen, blocks, (int)blocksSz, 1, dkLen,

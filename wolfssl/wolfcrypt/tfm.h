@@ -1,6 +1,6 @@
 /* tfm.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -379,8 +379,8 @@ while (0)
     #define WOLF_BIGINT_DEFINED
 #endif
 
-#define mp_size_t int
-#define mp_sign_t int
+#define wc_mp_size_t int
+#define wc_mp_sign_t int
 
 /* a FP type */
 typedef struct fp_int {

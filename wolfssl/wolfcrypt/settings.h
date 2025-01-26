@@ -1,6 +1,6 @@
 /* settings.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -28,6 +28,8 @@
  *
  *   ./configure CFLAGS="-DFEATURE_FLAG_TO_DEFINE -UFEATURE_FLAG_TO_CLEAR [...]"
  *
+ *   To build using a custom configuration method, define WOLFSSL_CUSTOM_CONFIG
+ *
  *   For more information see:
  *
  *   https://www.wolfssl.com/how-do-i-manage-the-build-configuration-of-wolfssl/
@@ -45,11 +47,14 @@
     extern "C" {
 #endif
 
-/* This flag allows wolfSSL to include options.h instead of having client
- * projects do it themselves. This should *NEVER* be defined when building
- * wolfSSL as it can cause hard to debug problems. */
-#if defined(EXTERNAL_OPTS_OPENVPN) || defined(WOLFSSL_USE_OPTIONS_H)
-#include <wolfssl/options.h>
+/* WOLFSSL_USE_OPTIONS_H directs wolfSSL to include options.h on behalf of
+ * application code, rather than the application including it directly.  This is
+ * not defined when compiling wolfSSL library objects, which are configured
+ * through CFLAGS.
+ */
+#if (defined(EXTERNAL_OPTS_OPENVPN) || defined(WOLFSSL_USE_OPTIONS_H)) && \
+    !defined(WOLFSSL_NO_OPTIONS_H)
+    #include <wolfssl/options.h>
 #endif
 
 /* Uncomment next line if using IPHONE */
@@ -317,6 +322,13 @@
     #endif
 #endif
 
+#if !defined(WOLFSSL_CUSTOM_CONFIG) && \
+    ((defined(BUILDING_WOLFSSL) && defined(WOLFSSL_USE_OPTIONS_H)) || \
+     (defined(BUILDING_WOLFSSL) && defined(WOLFSSL_OPTIONS_H) &&      \
+     !defined(EXTERNAL_OPTS_OPENVPN)))
+    #warning wolfssl/options.h included in compiled wolfssl library object.
+#endif
+
 #ifdef WOLFSSL_USER_SETTINGS
     #include "user_settings.h"
 #elif defined(USE_HAL_DRIVER) && !defined(HAVE_CONFIG_H)
@@ -326,6 +338,15 @@
     /* NOTE: cyassl_nucleus_defs.h is akin to user_settings.h */
     #include "nucleus.h"
     #include "os/networking/ssl/lite/cyassl_nucleus_defs.h"
+#elif !defined(BUILDING_WOLFSSL) && !defined(WOLFSSL_OPTIONS_H) && \
+      !defined(WOLFSSL_NO_OPTIONS_H) && !defined(WOLFSSL_CUSTOM_CONFIG)
+    /* This warning indicates that wolfSSL features may not have been properly
+     * configured before other wolfSSL headers were included. If you are using
+     * an alternative configuration method -- e.g. custom header, or CFLAGS in
+     * an application build -- then your application can avoid this warning by
+     * defining WOLFSSL_NO_OPTIONS_H or WOLFSSL_CUSTOM_CONFIG as appropriate.
+     */
+    #warning "No configuration for wolfSSL detected, check header order"
 #endif
 
 #include <wolfssl/wolfcrypt/visibility.h>
@@ -415,6 +436,11 @@
     #undef WC_RSA_BLINDING
 #endif
 
+/* old FIPS has only AES_BLOCK_SIZE. */
+#if !defined(NO_AES) && (defined(HAVE_SELFTEST) || \
+     (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
+    #define WC_AES_BLOCK_SIZE AES_BLOCK_SIZE
+#endif /* !NO_AES && (HAVE_SELFTEST || FIPS_VERSION3_LT(6,0,0)) */
 
 #ifdef WOLFSSL_HARDEN_TLS
     #if WOLFSSL_HARDEN_TLS != 112 && WOLFSSL_HARDEN_TLS != 128
@@ -997,6 +1023,11 @@
     #define TSIP_TLS_HMAC_KEY_INDEX_WORDSIZE 64
     #define TSIP_TLS_MASTERSECRET_SIZE       80   /* 20 words */
     #define TSIP_TLS_ENCPUBKEY_SZ_BY_CERTVRFY 560 /* in byte  */
+
+    #ifdef WOLF_CRYPTO_CB
+        /* make sure RSA padding callbacks are enabled */
+        #define WOLF_CRYPTO_CB_RSA_PAD
+    #endif
 #endif /* WOLFSSL_RENESAS_TSIP */
 
 #if !defined(WOLFSSL_NO_HASH_RAW) && defined(WOLFSSL_RENESAS_RX64_HASH)
@@ -1294,8 +1325,8 @@
     #define XSTRNCMP(s1,s2,n)      strncmp((s1),(s2),(n))
     #define XSTRNCAT(s1,s2,n)      strncat((s1),(s2),(n))
     #define XSTRNCASECMP(s1,s2,n)  _strnicmp((s1),(s2),(n))
-    #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) \
-            || defined(HAVE_ALPN)
+    #if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || \
+        defined(OPENSSL_ALL) || defined(HAVE_ALPN)
         #define XSTRTOK            strtok_r
     #endif
 #endif
@@ -1515,8 +1546,12 @@ extern void uITRON4_free(void *p) ;
 #ifdef FREERTOS_TCP
     #if !defined(NO_WOLFSSL_MEMORY) && !defined(XMALLOC_USER) && \
         !defined(WOLFSSL_STATIC_MEMORY)
-        #define XMALLOC(s, h, type)  pvPortMalloc((s)) /* native heap */
-        #define XFREE(p, h, type)    vPortFree((p)) /* native heap */
+        #ifndef XMALLOC
+            #define XMALLOC(s, h, type)  pvPortMalloc((s)) /* native heap */
+        #endif
+        #ifndef XFREE
+            #define XFREE(p, h, type)    vPortFree((p)) /* native heap */
+        #endif
     #endif
 
     #define WOLFSSL_GENSEED_FORTEST
@@ -2061,7 +2096,7 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
     defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5) || \
     defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WL) || \
-    defined(WOLFSSL_STM32G4)
+    defined(WOLFSSL_STM32G4) || defined(WOLFSSL_STM32MP13)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2123,6 +2158,12 @@ extern void uITRON4_free(void *p) ;
             #include "stm32u5xx_hal.h"
         #elif defined(WOLFSSL_STM32H5)
             #include "stm32h5xx_hal.h"
+        #elif defined(WOLFSSL_STM32MP13)
+            /* HAL headers error on our ASM files */
+            #ifndef __ASSEMBLER__
+                #include "stm32mp13xx_hal.h"
+                #include "stm32mp13xx_hal_conf.h"
+            #endif
         #endif
         #if defined(WOLFSSL_CUBEMX_USE_LL) && defined(WOLFSSL_STM32L4)
             #include "stm32l4xx_ll_rng.h"
@@ -2648,11 +2689,6 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
-    #undef  KEEP_PEER_CERT
-    #define KEEP_PEER_CERT
-#endif
-
 
 /* stream ciphers except arc4 need 32bit alignment, intel ok without */
 #ifndef XSTREAM_ALIGN
@@ -2749,6 +2785,10 @@ extern void uITRON4_free(void *p) ;
     #undef WOLFSSL_SP_INT_DIGIT_ALIGN
     #define WOLFSSL_SP_INT_DIGIT_ALIGN
 #endif
+#if defined(__sparc)
+    #undef WOLFSSL_SP_INT_DIGIT_ALIGN
+    #define WOLFSSL_SP_INT_DIGIT_ALIGN
+#endif
 #if defined(__APPLE__) || defined(WOLF_C89)
     #define WOLFSSL_SP_NO_DYN_STACK
 #endif
@@ -2820,6 +2860,58 @@ extern void uITRON4_free(void *p) ;
 #endif
 /*----------------------------------------------------------------------------*/
 
+/* SP Math specific options */
+/* Determine when mp_add_d is required. */
+#if !defined(NO_PWDBASED) || defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || \
+    !defined(NO_DSA) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    defined(OPENSSL_EXTRA)
+    #define WOLFSSL_SP_ADD_D
+#endif
+
+/* Determine when mp_sub_d is required. */
+#if (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    !defined(NO_DH) || defined(HAVE_ECC) || !defined(NO_DSA)
+    #define WOLFSSL_SP_SUB_D
+#endif
+
+/* Determine when mp_read_radix with a radix of 10 is required. */
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)) || defined(HAVE_ECC) || \
+    !defined(NO_DSA) || defined(OPENSSL_EXTRA)
+    #define WOLFSSL_SP_READ_RADIX_16
+#endif
+
+/* Determine when mp_read_radix with a radix of 10 is required. */
+#if defined(WOLFSSL_SP_MATH_ALL) && !defined(NO_RSA) && \
+    !defined(WOLFSSL_RSA_VERIFY_ONLY)
+    #define WOLFSSL_SP_READ_RADIX_10
+#endif
+
+/* Determine when mp_invmod is required. */
+#if defined(HAVE_ECC) || !defined(NO_DSA) || defined(OPENSSL_EXTRA) || \
+    (!defined(NO_RSA) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+     !defined(WOLFSSL_RSA_PUBLIC_ONLY))
+    #define WOLFSSL_SP_INVMOD
+#endif
+
+/* Determine when mp_invmod_mont_ct is required. */
+#if defined(WOLFSSL_SP_MATH_ALL) && defined(HAVE_ECC)
+    #define WOLFSSL_SP_INVMOD_MONT_CT
+#endif
+
+/* Determine when mp_prime_gen is required. */
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY) && \
+    !defined(WOLFSSL_RSA_PUBLIC_ONLY)) || !defined(NO_DH) || \
+    (!defined(NO_RSA) && defined(WOLFSSL_KEY_GEN))
+    #define WOLFSSL_SP_PRIME_GEN
+#endif
+
+#if (defined(WOLFSSL_SP_MATH_ALL) && !defined(WOLFSSL_RSA_VERIFY_ONLY)) || \
+    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)) || defined(OPENSSL_EXTRA)
+    /* Determine when mp_mul_d is required */
+    #define WOLFSSL_SP_MUL_D
+#endif
 
 
 /* user can specify what curves they want with ECC_USER_CURVES otherwise
@@ -2910,7 +3002,7 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* HAVE_ECC */
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && \
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)) && defined(HAVE_ECC) && \
     !defined(WOLFSSL_ATECC508A) && !defined(WOLFSSL_ATECC608A) && \
     !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050) && \
     !defined(WOLF_CRYPTO_CB_ONLY_ECC) && !defined(WOLFSSL_STM32_PKA)
@@ -3008,6 +3100,13 @@ extern void uITRON4_free(void *p) ;
         #define HAVE_ED448_KEY_IMPORT
     #endif
 #endif /* HAVE_ED448 */
+
+/* FIPS does not support CFB1 or CFB8 */
+#if !defined(WOLFSSL_NO_AES_CFB_1_8) && \
+    (defined(HAVE_SELFTEST) || \
+        (defined(HAVE_FIPS) && FIPS_VERSION3_LT(6,0,0)))
+    #define WOLFSSL_NO_AES_CFB_1_8
+#endif
 
 /* AES Config */
 #ifndef NO_AES
@@ -3411,8 +3510,9 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY)
     #undef  WOLFSSL_ASN_TIME_STRING
     #define WOLFSSL_ASN_TIME_STRING
 #endif
@@ -3431,13 +3531,14 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_OCSP_PARSE_STATUS
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(WOLFSSL_CERT_GEN)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_CERT_GEN)
     #undef  WOLFSSL_MULTI_ATTRIB
     #define WOLFSSL_MULTI_ATTRIB
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
     #undef  WOLFSSL_EKU_OID
     #define WOLFSSL_EKU_OID
 #endif
@@ -3498,7 +3599,10 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_TEST_SUBROUTINE static
     #endif
     #undef HAVE_PTHREAD
+    /* linuxkm uses linux/string.h, included by linuxkm_wc_port.h. */
     #undef HAVE_STRINGS_H
+    /* linuxkm uses linux/limits.h, included by linuxkm_wc_port.h. */
+    #undef HAVE_LIMITS_H
     #undef HAVE_ERRNO_H
     #undef HAVE_THREAD_LS
     #undef HAVE_ATEXIT
@@ -3526,12 +3630,10 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
-#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
- || defined(HAVE_LIGHTY)) && !defined(NO_TLS)
+#if (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)) && !defined(NO_TLS)
     #define OPENSSL_NO_ENGINE
-    #ifndef OPENSSL_EXTRA
-        #define OPENSSL_EXTRA
-    #endif
+
     /* Session Tickets will be enabled when --enable-opensslall is used.
      * Time is required for ticket expiration checking */
     #if !defined(HAVE_SESSION_TICKET) && !defined(NO_ASN_TIME)
@@ -3557,6 +3659,13 @@ extern void uITRON4_free(void *p) ;
 #if defined(OPENSSL_ALL) && !defined(OPENSSL_EXTRA)
     #define OPENSSL_EXTRA
 #endif
+
+
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_QT)) && \
+    !defined(WOLFSSL_ASN_CA_ISSUER)
+    #define WOLFSSL_ASN_CA_ISSUER
+#endif
+
 
 /* ---------------------------------------------------------------------------
  * OpenSSL compat layer
@@ -3638,6 +3747,11 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_OLD_WC_NAMES
         #define NO_OLD_WC_NAMES
     #endif
+    #if defined(HAVE_SELFTEST) || \
+        (defined(HAVE_FIPS) && FIPS_VERSION3_LT(5,0,0))
+        /* old FIPS needs this remapping. */
+        #define Sha3 wc_Sha3
+    #endif
 #endif
 
 #if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
@@ -3681,8 +3795,9 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 /* Parts of the openssl compatibility layer require peer certs */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
- || defined(HAVE_LIGHTY)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+     defined(HAVE_LIGHTY)) && !defined(NO_CERTS)
     #undef  KEEP_PEER_CERT
     #define KEEP_PEER_CERT
 #endif
@@ -3712,6 +3827,37 @@ extern void uITRON4_free(void *p) ;
     #undef  WOLFSSL_HAVE_TLS_UNIQUE
     #define WOLFSSL_HAVE_TLS_UNIQUE
 #endif
+
+/* WPAS Small option requires OPENSSL_EXTRA_X509_SMALL */
+#if defined(WOLFSSL_WPAS_SMALL) && !defined(OPENSSL_EXTRA_X509_SMALL)
+    #define OPENSSL_EXTRA_X509_SMALL
+#endif
+
+/* Web Server needs to enable OPENSSL_EXTRA_X509_SMALL */
+#if defined(HAVE_WEBSERVER) && !defined(OPENSSL_EXTRA_X509_SMALL)
+    #define OPENSSL_EXTRA_X509_SMALL
+#endif
+
+/* The EX data CRYPTO API's used with compatibility */
+#if !defined(HAVE_EX_DATA_CRYPTO) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_WPAS_SMALL) || \
+    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(HAVE_LIGHTY) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_OPENSSH) || defined(HAVE_SBLIM_SFCB) || \
+    defined(WOLFSSL_WOLFSENTRY_HOOKS))
+    #define HAVE_EX_DATA_CRYPTO
+#endif
+
+#if defined(WOLFSSL_WOLFSENTRY_HOOKS) && !defined(HAVE_EX_DATA_CLEANUP_HOOKS)
+    #define HAVE_EX_DATA_CLEANUP_HOOKS
+#endif
+
+/* Enable EX Data support if required */
+#if (defined(HAVE_EX_DATA_CRYPTO) || defined(HAVE_EX_DATA_CLEANUP_HOOKS)) && \
+    !defined(HAVE_EX_DATA)
+    #define HAVE_EX_DATA
+#endif
+
 
 /* RAW hash function APIs are not implemented */
 #if defined(WOLFSSL_ARMASM) || defined(WOLFSSL_AFALG_HASH)
@@ -3779,14 +3925,16 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_BASE64_DECODE
 #endif
 
-#if defined(HAVE_EX_DATA) || defined(FORTRESS)
-    #if defined(FORTRESS) && !defined(HAVE_EX_DATA)
-        #define HAVE_EX_DATA
-    #endif
+#if defined(FORTRESS) && !defined(HAVE_EX_DATA)
+    #define HAVE_EX_DATA
+#endif
+
+#ifdef HAVE_EX_DATA
     #ifndef MAX_EX_DATA
     #define MAX_EX_DATA 5  /* allow for five items of ex_data */
     #endif
 #endif
+
 
 #ifdef NO_WOLFSSL_SMALL_STACK
     #undef WOLFSSL_SMALL_STACK
@@ -4025,10 +4173,6 @@ extern void uITRON4_free(void *p) ;
 #error "DTLS v1.3 requires both WOLFSSL_TLS13 and WOLFSSL_DTLS"
 #endif
 
-#if defined(WOLFSSL_DTLS_CID) && !defined(WOLFSSL_DTLS13)
-#error "ConnectionID is supported for DTLSv1.3 only"
-#endif
-
 #if defined(WOLFSSL_QUIC) && defined(WOLFSSL_CALLBACKS)
     #error WOLFSSL_QUIC is incompatible with WOLFSSL_CALLBACKS.
 #endif
@@ -4195,6 +4339,16 @@ extern void uITRON4_free(void *p) ;
 #if !defined(NO_DSA) && defined(NO_SHA)
     #error "Please disable DSA if disabling SHA-1"
 #endif
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    #if !defined(WOLFSSL_CRYPTO_POLICY_FILE)
+        #error "WOLFSSL_SYS_CRYPTO_POLICY requires a crypto policy file"
+    #endif /* ! WOLFSSL_CRYPTO_POLICY_FILE */
+
+    #if !defined(OPENSSL_EXTRA)
+        #error "WOLFSSL_SYS_CRYPTO_POLICY requires OPENSSL_EXTRA"
+    #endif /* ! OPENSSL_EXTRA */
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 /* if configure.ac turned on this feature, HAVE_ENTROPY_MEMUSE will be set,
  * also define HAVE_WOLFENTROPY */

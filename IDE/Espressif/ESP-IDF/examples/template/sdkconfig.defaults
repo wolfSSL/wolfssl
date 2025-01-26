@@ -1,10 +1,13 @@
 # Set the known example app config to template example (see user_settings.h)
 CONFIG_WOLFSSL_EXAMPLE_NAME_TEMPLATE=y
+# CONFIG_EXAMPLE_WIFI_SSID="myssid"
+# CONFIG_EXAMPLE_WIFI_PASSWORD="mypassword"
 
 # Some wolfSSL helpers
 CONFIG_USE_WOLFSSL_ESP_SDK_TIME=y
 
-
+# sdkconfig.defaults for ESP8266 + ESP32
+# See separate sdkconfig.defaults.esp8266
 # FreeRTOS ticks at 1ms interval
 CONFIG_FREERTOS_UNICORE=y
 CONFIG_FREERTOS_HZ=1000
@@ -18,9 +21,10 @@ CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
 #
 # For wolfSSL SMALL_STACK, 3072 bytes should be sufficient for benchmark app.
 # When using RSA, assign at least 10500 bytes, otherwise 5500 usually works for others
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=3584
-# Legacy stack size for older ESP-IDF versions
-CONFIG_MAIN_TASK_STACK_SIZE=3584
+# We set this to 28672 for use in the "test everything possible" in the wolfssl_test app.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=10500
+# Legacy stack size name for older ESP-IDF versions
+CONFIG_MAIN_TASK_STACK_SIZE=10500
 
 #
 # Benchmark must not have CONFIG_NEWLIB_NANO_FORMAT enabled
@@ -61,8 +65,8 @@ CONFIG_HEAP_DISABLE_IRAM=y
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 
 # Enable wolfSSL TLS in esp-tls
-CONFIG_ESP_TLS_USING_WOLFSSL=y
-CONFIG_TLS_STACK_WOLFSSL=y
+# CONFIG_ESP_TLS_USING_WOLFSSL=y
+# CONFIG_TLS_STACK_WOLFSSL=y
 
 # Bundles take up flash space and are disabled unless otherwise known to be needed
 CONFIG_WOLFSSL_CERTIFICATE_BUNDLE=n
@@ -86,6 +90,13 @@ CONFIG_HEAP_DISABLE_IRAM=y
 
 # Performance
 # CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# Set max COU frequency (falls back as needed for lower maximum)
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# FreeRTOS ticks at 1ms interval
+CONFIG_FREERTOS_UNICORE=y
+CONFIG_FREERTOS_HZ=1000
 
 # Ensure mbedTLS options are disabled
 # CONFIG_MBEDTLS_TLS_SERVER_AND_CLIENT=n

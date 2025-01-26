@@ -1,6 +1,6 @@
 /* benchmark.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -61,7 +61,7 @@
     #include <config.h>
 #endif
 
-#ifndef WOLFSSL_USER_SETTINGS
+#if !defined(WOLFSSL_USER_SETTINGS) && !defined(WOLFSSL_NO_OPTIONS_H)
     #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h> /* also picks up user_settings.h */
@@ -228,6 +228,8 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
+
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 #ifdef USE_FLAT_BENCHMARK_H
     #include "benchmark.h"
@@ -476,6 +478,7 @@
     #endif
 #elif defined(WOLFSSL_ZEPHYR)
     #include <stdio.h>
+    #include <stdarg.h>
     #define BENCH_EMBEDDED
     #define printf printfk
     static int printfk(const char *fmt, ...)
@@ -583,7 +586,7 @@
 #undef LIBCALL_CHECK_RET
 #if defined(NO_STDIO_FILESYSTEM) || defined(NO_ERROR_STRINGS) || \
     defined(NO_MAIN_DRIVER) || defined(BENCH_EMBEDDED)
-#define LIBCALL_CHECK_RET(...) __VA_ARGS__
+#define LIBCALL_CHECK_RET(...) (void)(__VA_ARGS__)
 #else
 #define LIBCALL_CHECK_RET(...) do {                           \
         int _libcall_ret = (__VA_ARGS__);                     \
@@ -1722,7 +1725,9 @@ static const char* bench_result_words3[][5] = {
 #endif
 
 #ifdef LINUX_RUSAGE_UTIME
-    static void check_for_excessive_stime(const char *desc,
+    static void check_for_excessive_stime(const char *algo,
+                                          int strength,
+                                          const char *desc,
                                           const char *desc_extra);
 #endif
 
@@ -1990,6 +1995,11 @@ static const char* bench_result_words2[][5] = {
     #define BENCH_CIPHER_ADD 0
 #endif
 
+
+
+#if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_AUTHSZ_BENCH)
+    #warning Large/Unalligned AuthSz could result in errors with /dev/crypto
+#endif
 
 /* use kB instead of mB for embedded benchmarking */
 #ifdef BENCH_EMBEDDED
@@ -2484,7 +2494,7 @@ static void bench_multi_value_stats(double max, double min, double sum,
 #endif
 
 /* countSz is number of bytes that 1 count represents. Normally bench_size,
- * except for AES direct that operates on AES_BLOCK_SIZE blocks */
+ * except for AES direct that operates on WC_AES_BLOCK_SIZE blocks */
 static void bench_stats_sym_finish(const char* desc, int useDeviceID,
                                    int count, word32 countSz,
                                    double start, int ret)
@@ -2510,7 +2520,7 @@ static void bench_stats_sym_finish(const char* desc, int useDeviceID,
 #endif
 
 #ifdef LINUX_RUSAGE_UTIME
-    check_for_excessive_stime(desc, "");
+    check_for_excessive_stime(desc, 0, "", "");
 #endif
 
     /* calculate actual bytes */
@@ -2736,7 +2746,7 @@ static void bench_stats_asym_finish_ex(const char* algo, int strength,
     total = current_time(0) - start;
 
 #ifdef LINUX_RUSAGE_UTIME
-    check_for_excessive_stime(desc, desc_extra);
+    check_for_excessive_stime(algo, strength, desc, desc_extra);
 #endif
 
 #ifdef GENERATE_MACHINE_PARSEABLE_REPORT
@@ -3933,6 +3943,46 @@ exit:
     return NULL;
 }
 
+#if defined(HAVE_CPUID) && defined(WOLFSSL_TEST_STATIC_BUILD)
+static void print_cpu_features(void)
+{
+    word32 cpuid_flags = cpuid_get_flags();
+
+    printf("CPU: ");
+#ifdef HAVE_CPUID_INTEL
+    printf("Intel");
+#ifdef WOLFSSL_X86_64_BUILD
+    printf(" x86_64");
+#else
+    printf(" x86");
+#endif
+    printf(" -");
+    if (IS_INTEL_AVX1(cpuid_flags))   printf(" avx1");
+    if (IS_INTEL_AVX2(cpuid_flags))   printf(" avx2");
+    if (IS_INTEL_RDRAND(cpuid_flags)) printf(" rdrand");
+    if (IS_INTEL_RDSEED(cpuid_flags)) printf(" rdseed");
+    if (IS_INTEL_BMI2(cpuid_flags))   printf(" bmi2");
+    if (IS_INTEL_AESNI(cpuid_flags))  printf(" aesni");
+    if (IS_INTEL_ADX(cpuid_flags))    printf(" adx");
+    if (IS_INTEL_MOVBE(cpuid_flags))  printf(" movbe");
+    if (IS_INTEL_BMI1(cpuid_flags))   printf(" bmi1");
+    if (IS_INTEL_SHA(cpuid_flags))    printf(" sha");
+#endif
+#ifdef __aarch64__
+    printf("Aarch64 -");
+    if (IS_AARCH64_AES(cpuid_flags))    printf(" aes");
+    if (IS_AARCH64_PMULL(cpuid_flags))  printf(" pmull");
+    if (IS_AARCH64_SHA256(cpuid_flags)) printf(" sha256");
+    if (IS_AARCH64_SHA512(cpuid_flags)) printf(" sha512");
+    if (IS_AARCH64_RDM(cpuid_flags))    printf(" rdm");
+    if (IS_AARCH64_SHA3(cpuid_flags))   printf(" sha3");
+    if (IS_AARCH64_SM3(cpuid_flags))    printf(" sm3");
+    if (IS_AARCH64_SM4(cpuid_flags))    printf(" sm4");
+#endif
+    printf("\n");
+}
+#endif
+
 int benchmark_init(void)
 {
     int ret = 0;
@@ -3952,6 +4002,10 @@ int benchmark_init(void)
         printf("%swolfCrypt_Init failed %d\n", err_prefix, ret);
         return EXIT_FAILURE;
     }
+
+#if defined(HAVE_CPUID) && defined(WOLFSSL_TEST_STATIC_BUILD)
+    print_cpu_features();
+#endif
 
 #ifdef HAVE_WC_INTROSPECTION
     printf("Math: %s\n", wc_GetMathInfo());
@@ -4798,6 +4852,14 @@ void bench_gmac(int useDeviceID)
     const char* gmacStr = "GMAC Default";
 #endif
 
+/* Implementations of /Dev/Crypto will error out if the size of Auth in is */
+/* greater than the system's page size */
+#if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_AUTHSZ_BENCH)
+    bench_size = WOLFSSL_AUTHSZ_BENCH;
+#elif defined(WOLFSSL_DEVCRYPTO)
+    bench_size = sysconf(_SC_PAGESIZE);
+#endif
+
     /* init keys */
     XMEMSET(bench_plain, 0, bench_size);
     XMEMSET(tag, 0, sizeof(tag));
@@ -4828,7 +4890,13 @@ void bench_gmac(int useDeviceID)
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
-
+#if defined(WOLFSSL_DEVCRYPTO)
+    if (ret != 0 && (bench_size > sysconf(_SC_PAGESIZE))) {
+        printf("authIn Buffer Size[%d] greater than System Page Size[%ld]\n",
+                        bench_size, sysconf(_SC_PAGESIZE));
+    }
+    bench_size = BENCH_SIZE;
+#endif
 }
 
 #endif /* HAVE_AESGCM */
@@ -4845,7 +4913,7 @@ static void bench_aesecb_internal(int useDeviceID,
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
 #ifdef HAVE_FIPS
-    const word32 benchSz = AES_BLOCK_SIZE;
+    const word32 benchSz = WC_AES_BLOCK_SIZE;
 #else
     const word32 benchSz = bench_size;
 #endif
@@ -5372,9 +5440,9 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
 {
     int i;
     int ret = 0;
-    byte assoc[AES_BLOCK_SIZE];
-    byte nonce[AES_BLOCK_SIZE];
-    byte siv[AES_BLOCK_SIZE];
+    byte assoc[WC_AES_BLOCK_SIZE];
+    byte nonce[WC_AES_BLOCK_SIZE];
+    byte siv[WC_AES_BLOCK_SIZE];
     int count = 0;
     double start;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -5382,8 +5450,8 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            ret = wc_AesSivEncrypt(key, keySz, assoc, AES_BLOCK_SIZE, nonce,
-                                   AES_BLOCK_SIZE, bench_plain, bench_size,
+            ret = wc_AesSivEncrypt(key, keySz, assoc, WC_AES_BLOCK_SIZE, nonce,
+                                   WC_AES_BLOCK_SIZE, bench_plain, bench_size,
                                    siv, bench_cipher);
             if (ret != 0) {
                 printf("wc_AesSivEncrypt failed (%d)\n", ret);
@@ -5408,8 +5476,8 @@ static void bench_aessiv_internal(const byte* key, word32 keySz, const char*
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            ret = wc_AesSivDecrypt(key, keySz, assoc, AES_BLOCK_SIZE, nonce,
-                                   AES_BLOCK_SIZE, bench_cipher, bench_size,
+            ret = wc_AesSivDecrypt(key, keySz, assoc, WC_AES_BLOCK_SIZE, nonce,
+                                   WC_AES_BLOCK_SIZE, bench_cipher, bench_size,
                                    siv, bench_plain);
             if (ret != 0) {
                 printf("wc_AesSivDecrypt failed (%d)\n", ret);
@@ -5509,7 +5577,7 @@ void bench_poly1305(void)
 #ifdef HAVE_CAMELLIA
 void bench_camellia(void)
 {
-    Camellia cam;
+    wc_Camellia cam;
     double   start;
     int      ret, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
@@ -7925,7 +7993,7 @@ void bench_blake2s(void)
 static void bench_cmac_helper(word32 keySz, const char* outMsg, int useDeviceID)
 {
     Cmac    cmac;
-    byte    digest[AES_BLOCK_SIZE];
+    byte    digest[WC_AES_BLOCK_SIZE];
     word32  digestSz = sizeof(digest);
     double  start;
     int     ret, i, count;
@@ -14606,7 +14674,9 @@ void bench_sphincsKeySign(byte level, byte optim)
             (double)rusage.ru_utime.tv_usec / MILLION_VALUE;
     }
 
-    static void check_for_excessive_stime(const char *desc,
+    static void check_for_excessive_stime(const char *algo,
+                                          int strength,
+                                          const char *desc,
                                           const char *desc_extra)
     {
         double start_utime = (double)base_rusage.ru_utime.tv_sec +
@@ -14619,11 +14689,20 @@ void bench_sphincsKeySign(byte level, byte optim)
             (double)cur_rusage.ru_stime.tv_usec / MILLION_VALUE;
         double stime_utime_ratio =
             (cur_stime - start_stime) / (cur_utime - start_utime);
-        if (stime_utime_ratio > .1)
-            printf("%swarning, "
-                   "excessive system time ratio for %s%s (" FLT_FMT_PREC "%%).\n",
-                   err_prefix, desc, desc_extra,
-                   FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
+        if (stime_utime_ratio > .1) {
+            if (strength > 0) {
+                printf("%swarning, "
+                       "excessive system time ratio for %s-%d-%s%s (" FLT_FMT_PREC "%%).\n",
+                       err_prefix, algo, strength, desc, desc_extra,
+                       FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
+            }
+            else {
+                printf("%swarning, "
+                       "excessive system time ratio for %s%s%s (" FLT_FMT_PREC "%%).\n",
+                       err_prefix, algo, desc, desc_extra,
+                       FLT_FMT_PREC_ARGS(3, stime_utime_ratio * 100.0));
+            }
+        }
     }
 
 #elif defined(WOLFSSL_LINUXKM)
@@ -14635,8 +14714,19 @@ void bench_sphincsKeySign(byte level, byte optim)
         return (double)ns / 1000000000.0;
     }
 
+#elif defined(WOLFSSL_GAISLER_BCC)
+
+    #include <bcc/bcc.h>
+    double current_time(int reset)
+    {
+        (void)reset;
+        uint32_t us = bcc_timer_get_us();
+        return (double)us / 1000000.0;
+    }
+
 #else
 
+    #include <time.h>
     #include <sys/time.h>
 
     double current_time(int reset)

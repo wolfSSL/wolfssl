@@ -1,6 +1,6 @@
 /* stm32.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -58,6 +58,9 @@
 #elif defined(WOLFSSL_STM32WL)
 #include <stm32wlxx_hal_conf.h>
 #include <stm32wlxx_hal_pka.h>
+#elif defined(WOLFSSL_STM32MP13)
+#include <stm32mp13xx_hal_conf.h>
+#include <stm32mp13xx_hal_pka.h>
 #else
 #error Please add the hal_pk.h include
 #endif
@@ -134,6 +137,9 @@ static void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
     ctx->HASH_IMR = HASH->IMR;
     ctx->HASH_STR = HASH->STR;
     ctx->HASH_CR  = HASH->CR;
+#ifdef STM32_HASH_SHA3
+    ctx->SHA3CFGR  = HASH->SHA3CFGR;
+#endif
     for (i=0; i<HASH_CR_SIZE; i++) {
         ctx->HASH_CSR[i] = HASH->CSR[i];
     }
@@ -181,6 +187,9 @@ static void wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx, int algo)
         HASH->IMR = ctx->HASH_IMR;
         HASH->STR = ctx->HASH_STR;
         HASH->CR = ctx->HASH_CR;
+#ifdef STM32_HASH_SHA3
+        HASH->SHA3CFGR = ctx->SHA3CFGR;
+#endif
 
         /* Initialize the hash processor */
         HASH->CR |= HASH_CR_INIT;
@@ -326,11 +335,11 @@ int wc_Stm32_Hash_Update(STM32_HASH_Context* stmCtx, word32 algo,
     while (len) {
         word32 add;
 
-        /* fill the FIFO plus one additional to flush the block */
-        chunkSz = ((STM32_HASH_FIFO_SIZE + 1) * STM32_HASH_REG_SIZE);
-        /* account for extra bytes in the FIFO (use mask 0x3F to get remain) */
-        chunkSz -= (stmCtx->fifoBytes &
-            ((STM32_HASH_FIFO_SIZE * STM32_HASH_REG_SIZE)-1));
+        chunkSz = blockSize;
+        /* fill the FIFO plus one additional to flush the first block */
+        if (!stmCtx->fifoBytes) {
+            chunkSz += STM32_HASH_REG_SIZE;
+        }
 
         add = min(len, chunkSz - stmCtx->buffLen);
         XMEMCPY(&local[stmCtx->buffLen], data, add);
@@ -442,8 +451,10 @@ int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
     hcryp->Init.pKey = (STM_CRYPT_TYPE*)aes->key;
 #ifdef STM32_HAL_V2
     hcryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-    #ifdef CRYP_HEADERWIDTHUNIT_BYTE
-    hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
+    #ifdef WOLFSSL_STM32MP13
+        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_WORD;
+    #elif defined(CRYP_HEADERWIDTHUNIT_BYTE)
+        hcryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_BYTE;
     #endif
 #endif
 
