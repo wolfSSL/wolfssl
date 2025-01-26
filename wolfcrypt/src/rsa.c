@@ -1,6 +1,6 @@
 /* rsa.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -646,6 +646,8 @@ static int _ifc_pairwise_consistency_test(RsaKey* key, WC_RNG* rng)
     ret = wc_RsaEncryptSize(key);
     if (ret < 0)
         return ret;
+    else if (ret == 0)
+        return BAD_FUNC_ARG;
     sigLen = (word32)ret;
 
     WOLFSSL_MSG("Doing RSA consistency test");
@@ -1756,6 +1758,7 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if (tmp == NULL) {
         return MEMORY_E;
     }
+    XMEMSET(tmp, 0, (size_t)maskLen);
 #endif
 
     if ((ret = RsaMGF(mgf, pkcsBlock + maskLen, (word32)hLen, tmp, (word32)maskLen,
@@ -3110,7 +3113,8 @@ int cc310_RsaSSL_Verify(const byte* in, word32 inLen, byte* sig,
 #endif /* WOLFSSL_CRYPTOCELL */
 
 #ifndef WOLF_CRYPTO_CB_ONLY_RSA
-#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) &&     !defined(NO_RSA_BOUNDS_CHECK)
+#if !defined(WOLFSSL_RSA_VERIFY_ONLY) && !defined(TEST_UNPAD_CONSTANT_TIME) && \
+    !defined(NO_RSA_BOUNDS_CHECK)
 /* Check that 1 < in < n-1. (Requirement of 800-56B.) */
 int RsaFunctionCheckIn(const byte* in, word32 inLen, RsaKey* key,
     int checkSmallCt)

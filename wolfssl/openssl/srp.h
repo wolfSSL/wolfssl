@@ -1,6 +1,6 @@
 /* srp.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,6 +24,10 @@
 
 #include <wolfssl/wolfcrypt/srp.h>
 
+#ifndef OPENSSL_COEXIST
+
 #define SRP_MINIMAL_N SRP_MODULUS_MIN_BITS
+
+#endif /* !OPENSSL_COEXIST */
 
 #endif /* WOLFSSL_SRP_H_ */

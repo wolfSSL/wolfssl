@@ -1,6 +1,6 @@
 /* error-crypt.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -46,6 +46,10 @@ enum wolfCrypt_ErrorCodes {
     /* note that WOLFSSL_FATAL_ERROR is defined as -1 in error-ssl.h, for
      * reasons of backward compatibility.
      */
+    WC_FAILURE         =   -1,  /* Generic but traceable back compat errcode.
+                                 * Note, not reflected in MAX_CODE_E or
+                                 * WC_FIRST_E.
+                                 */
 
     MAX_CODE_E         =  -96,  /* WC_FIRST_E + 1, for backward compat. */
     WC_FIRST_E         =  -97,  /* First code used for wolfCrypt */
@@ -131,7 +135,8 @@ enum wolfCrypt_ErrorCodes {
     ED25519_KAT_FIPS_E = -163,  /* Ed25519 Known answer test failure */
     ED448_KAT_FIPS_E   = -164,  /* Ed448 Known answer test failure */
     PBKDF2_KAT_FIPS_E  = -165,  /* PBKDF2 Known answer test failure */
-    /* -166..-169 unused. */
+    WC_KEY_MISMATCH_E  = -166,  /* Error for private/public key mismatch */
+    /* -167..-169 unused. */
 
     ECC_BAD_ARG_E      = -170,  /* ECC input argument of wrong type */
     ASN_ECC_KEY_E      = -171,  /* ASN ECC bad input */
@@ -321,7 +326,7 @@ wc_static_assert((int)MIN_CODE_E <= (int)WC_SPAN2_MIN_CODE_E);
 #ifdef NO_ERROR_STRINGS
     #define wc_GetErrorString(error) "no support for error strings built in"
     #define wc_ErrorString(err, buf) \
-        (void)err; XSTRNCPY((buf), wc_GetErrorString((err)), \
+        (void)(err); XSTRNCPY((buf), wc_GetErrorString(err), \
         WOLFSSL_MAX_ERROR_SZ);
 
 #else

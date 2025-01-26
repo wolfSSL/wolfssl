@@ -1,6 +1,6 @@
 /* misc.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -118,14 +118,14 @@ masking and clearing memory logic.
 /* This routine performs a left circular arithmetic shift of <x> by <y> value */
 WC_MISC_STATIC WC_INLINE word16 rotlFixed16(word16 x, word16 y)
 {
-    return (x << y) | (x >> (sizeof(x) * 8 - y));
+    return (word16)((x << y) | (x >> (sizeof(x) * 8U - y)));
 }
 
 
 /* This routine performs a right circular arithmetic shift of <x> by <y> value */
 WC_MISC_STATIC WC_INLINE word16 rotrFixed16(word16 x, word16 y)
 {
-    return (x >> y) | (x << (sizeof(x) * 8 - y));
+    return (word16)((x >> y) | (x << (sizeof(x) * 8U - y)));
 }
 
 /* This routine performs a byte swap of 32-bit word value. */
@@ -196,7 +196,7 @@ WC_MISC_STATIC WC_INLINE void ByteReverseWords(word32* out, const word32* in,
 
         byteCount &= ~0x3U;
 
-        for (i = 0; i < byteCount; i += sizeof(word32)) {
+        for (i = 0; i < byteCount; i += (word32)sizeof(word32)) {
             XMEMCPY(&scratch, in_bytes + i, sizeof(scratch));
             scratch = ByteReverseWord32(scratch);
             XMEMCPY(out_bytes + i, &scratch, sizeof(scratch));
@@ -519,6 +519,11 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
     }
 #endif /* !WOLFSSL_HAVE_MIN */
 
+    WC_MISC_STATIC WC_INLINE size_t min_size_t(size_t a, size_t b)
+    {
+        return a > b ? b : a;
+    }
+
 #ifndef WOLFSSL_HAVE_MAX
     #define WOLFSSL_HAVE_MAX
     #if defined(HAVE_FIPS) && !defined(max) /* so ifdef check passes */
@@ -529,6 +534,11 @@ WC_MISC_STATIC WC_INLINE int ConstantCompare(const byte* a, const byte* b,
         return a > b ? a : b;
     }
 #endif /* !WOLFSSL_HAVE_MAX */
+
+    WC_MISC_STATIC WC_INLINE size_t max_size_t(size_t a, size_t b)
+    {
+        return a > b ? a : b;
+    }
 
 #ifndef WOLFSSL_NO_INT_ENCODE
 /* converts a 32 bit integer to 24 bit */
@@ -619,11 +629,11 @@ WC_MISC_STATIC WC_INLINE signed char HexCharToByte(char ch)
 {
     signed char ret = (signed char)ch;
     if (ret >= '0' && ret <= '9')
-        ret -= '0';
+        ret = (signed char)(ret - '0');
     else if (ret >= 'A' && ret <= 'F')
-        ret -= 'A' - 10;
+        ret = (signed char)(ret - ('A' - 10));
     else if (ret >= 'a' && ret <= 'f')
-        ret -= 'a' - 10;
+        ret = (signed char)(ret - ('a' - 10));
     else
         ret = -1; /* error case - return code must be signed */
     return ret;

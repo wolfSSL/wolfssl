@@ -1,6 +1,6 @@
 name = "wolfssl"
 description = "WolfSSL encryption library and its Ada bindings"
-version = "5.7.4"
+version = "5.7.6"
 
 authors = ["WolfSSL Team <support@wolfssl.com>"]
 maintainers = ["Fernando Oleo Blanco <irvise@irvise.xyz>"]

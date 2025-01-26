@@ -1,6 +1,6 @@
 /* wolfmath.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -471,14 +471,16 @@ const char *wc_GetMathInfo(void)
         #elif defined(WOLFSSL_HAVE_SP_DH)
             " dh"
         #endif
-        #ifndef WOLFSSL_SP_NO_2048
-            " 2048"
-        #endif
-        #ifndef WOLFSSL_SP_NO_3072
-            " 3072"
-        #endif
-        #ifdef WOLFSSL_SP_4096
-            " 4096"
+        #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
+            #ifndef WOLFSSL_SP_NO_2048
+                " 2048"
+            #endif
+            #ifndef WOLFSSL_SP_NO_3072
+                " 3072"
+            #endif
+            #ifdef WOLFSSL_SP_4096
+                " 4096"
+            #endif
         #endif
         #ifdef WOLFSSL_SP_ASM
             " asm"

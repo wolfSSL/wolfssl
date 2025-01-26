@@ -1,6 +1,6 @@
 /* asn.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -36,8 +36,7 @@ that can be serialized and deserialized in a cross-platform way.
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifndef NO_ASN
-
+#if !defined(NO_ASN) || !defined(NO_PWDBASED)
 
 #if !defined(NO_ASN_TIME) && defined(NO_TIME_H)
     #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
@@ -70,6 +69,8 @@ that can be serialized and deserialized in a cross-platform way.
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#ifndef NO_ASN
 
 #ifndef EXTERNAL_SERIAL_SIZE
     #define EXTERNAL_SERIAL_SIZE 32
@@ -728,6 +729,7 @@ enum DN_Tags {
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
     ASN_FAVOURITE_DRINK  = 0x13, /* favouriteDrink */
+    ASN_RFC822_MAILBOX = 0x14, /* rfc822Mailbox */
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
@@ -744,7 +746,7 @@ typedef struct WOLFSSL_ObjectInfo {
 } WOLFSSL_ObjectInfo;
 extern const size_t wolfssl_object_info_sz;
 extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
-#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 /* DN Tag Strings */
 #define WOLFSSL_COMMON_NAME      "/CN="
@@ -779,6 +781,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 
 #define WOLFSSL_USER_ID          "/UID="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
+#define WOLFSSL_RFC822_MAILBOX   "/rfc822Mailbox="
 #define WOLFSSL_FAVOURITE_DRINK  "/favouriteDrink="
 #define WOLFSSL_CONTENT_TYPE     "/contentType="
 
@@ -850,6 +853,27 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #endif
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+/* short names */
+#define WC_SN_md4        "MD4"
+#define WC_SN_md5        "MD5"
+#define WC_SN_sha1       "SHA1"
+#define WC_SN_sha224     "SHA224"
+#define WC_SN_sha256     "SHA256"
+#define WC_SN_sha384     "SHA384"
+#define WC_SN_sha512     "SHA512"
+#define WC_SN_sha512_224 "SHA512-224"
+#define WC_SN_sha512_256 "SHA512-256"
+#define WC_SN_sha3_224   "SHA3-224"
+#define WC_SN_sha3_256   "SHA3-256"
+#define WC_SN_sha3_384   "SHA3-384"
+#define WC_SN_sha3_512   "SHA3-512"
+#define WC_SN_shake128   "SHAKE128"
+#define WC_SN_shake256   "SHAKE256"
+#define WC_SN_blake2s256 "BLAKE2s256"
+#define WC_SN_blake2s512 "BLAKE2s512"
+#define WC_SN_blake2b512 "BLAKE2b512"
+#define WC_SN_sm3        "SM3"
+
 /* NIDs */
 #define WC_NID_netscape_cert_type WC_NID_undef
 #define WC_NID_des 66
@@ -910,6 +934,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define WC_NID_businessCategory ASN_BUS_CAT
 #define WC_NID_domainComponent ASN_DOMAIN_COMPONENT
 #define WC_NID_postalCode ASN_POSTAL_CODE   /* postalCode */
+#define WC_NID_rfc822Mailbox 460
 #define WC_NID_favouriteDrink 462
 #define WC_NID_userId 458
 #define WC_NID_registeredAddress 870
@@ -983,6 +1008,7 @@ extern const WOLFSSL_ObjectInfo wolfssl_object_info[];
 #define NID_businessCategory WC_NID_businessCategory
 #define NID_domainComponent WC_NID_domainComponent
 #define NID_postalCode WC_NID_postalCode
+#define NID_rfc822Mailbox WC_NID_rfc822Mailbox
 #define NID_favouriteDrink WC_NID_favouriteDrink
 #define NID_userId WC_NID_userId
 #define NID_emailAddress WC_NID_emailAddress
@@ -1243,6 +1269,7 @@ enum Oid_Types {
 
 enum Hash_Sum  {
     MD2h      = 646,
+    MD4h      = 648,
     MD5h      = 649,
     SHAh      =  88,
     SHA224h   = 417,
@@ -1618,7 +1645,8 @@ struct SignatureCtx {
     byte* sigCpy;
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
-    !defined(NO_DSA)
+    !defined(NO_DSA) || defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || \
+    defined(HAVE_SPHINCS)
     int verify;
 #endif
     union {
@@ -1896,12 +1924,14 @@ struct DecodedCert {
     #endif
 #endif /* WOLFSSL_SUBJ_INFO_ACC */
 
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448)
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || defined(HAVE_ED448) || \
+    defined(HAVE_DILITHIUM) || defined(HAVE_FALCON) || defined(HAVE_SPHINCS)
     word32  pkCurveOID;           /* Public Key's curve OID */
     #ifdef WOLFSSL_CUSTOM_CURVES
         int  pkCurveSize;         /* Public Key's curve size */
     #endif
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC || HAVE_ED25519 || HAVE_ED448 || HAVE_DILITHIUM ||
+        * HAVE_FALCON || HAVE_SPHINCS */
     const byte* beforeDate;
     int     beforeDateLen;
     const byte* afterDate;
@@ -2888,12 +2918,6 @@ WOLFSSL_LOCAL int  VerifyX509Acert(const byte* cert, word32 certSz,
                                    int pubKeyOID, void * heap);
 #endif /* WOLFSSL_ACERT */
 
-#ifdef __cplusplus
-    } /* extern "C" */
-#endif
-
-#endif /* !NO_ASN */
-
 
 #if ((defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)) \
     || (defined(HAVE_CURVE25519) && defined(HAVE_CURVE25519_KEY_IMPORT)) \
@@ -2915,6 +2939,7 @@ WOLFSSL_LOCAL int SetAsymKeyDer(const byte* privKey, word32 privKeyLen,
     int keyType);
 #endif
 
+#endif /* !NO_ASN */
 
 #if !defined(NO_ASN) || !defined(NO_PWDBASED)
 
@@ -2961,6 +2986,12 @@ enum PKCSTypes {
     PKCS1v0             =   0,     /* default PKCS#1 version */
     PKCS1v1             =   1     /* Multi-prime version */
 };
+
+#endif /* !NO_ASN || !NO_PWDBASED */
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
 
 #endif /* !NO_ASN || !NO_PWDBASED */
 

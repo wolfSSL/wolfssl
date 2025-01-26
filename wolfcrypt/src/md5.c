@@ -1,6 +1,6 @@
 /* md5.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -48,7 +48,7 @@
 
 
 /* Hardware Acceleration */
-#if defined(STM32_HASH)
+#if defined(STM32_HASH) && !defined(STM32_NOMD5)
 
 /* Supports CubeMX HAL or Standard Peripheral Library */
 #define HAVE_MD5_CUST_API

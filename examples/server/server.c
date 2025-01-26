@@ -1,6 +1,6 @@
 /* server.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,6 +35,13 @@
 #undef TEST_OPENSSL_COEXIST /* can't use this option with this example */
 #undef OPENSSL_COEXIST /* can't use this option with this example */
 
+/* Force enable the compatibility macros for this example */
+#ifndef OPENSSL_EXTRA_X509_SMALL
+#define OPENSSL_EXTRA_X509_SMALL
+#endif
+#include <wolfssl/openssl/ssl.h>
+
+#undef OPENSSL_EXTRA_X509_SMALL
 #include <wolfssl/ssl.h> /* name change portability layer */
 
 #ifdef HAVE_ECC
@@ -66,15 +73,9 @@ static const char *wolfsentry_config_path = NULL;
 #include <wolfssl/test.h>
 #include <wolfssl/error-ssl.h>
 
-/* Force enable the compatibility macros for this example */
-#ifndef OPENSSL_EXTRA_X509_SMALL
-#define OPENSSL_EXTRA_X509_SMALL
-#endif
-#include <wolfssl/openssl/ssl.h>
-
 #include "examples/server/server.h"
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 
 #if defined(WOLFSSL_TLS13) && ( \
        defined(HAVE_ECC) \
@@ -872,7 +873,7 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
 /*  4. add the same message into Japanese section         */
 /*     (will be translated later)                         */
 /*  5. add printf() into suitable position of Usage()     */
-static const char* server_usage_msg[][65] = {
+static const char* server_usage_msg[][66] = {
     /* English */
     {
         " NOTE: All files relative to wolfSSL home dir\n",               /* 0 */
@@ -1056,10 +1057,13 @@ static const char* server_usage_msg[][65] = {
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
+#ifdef WOLFSSL_SYS_CRYPTO_POLICY
+        "--crypto-policy  <path to crypto policy file>\n", /* 66 */
+#endif
         "\n"
            "For simpler wolfSSL TLS server examples, visit\n"
            "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 66 */
+                                                                        /* 67 */
         NULL,
     },
 #ifndef NO_MULTIBYTE_PRINT
@@ -1261,11 +1265,14 @@ static const char* server_usage_msg[][65] = {
         "--altPrivKey <file> Generate alternative signature with this key.\n",
                                                                         /* 65 */
 #endif
+#ifdef WOLFSSL_SYS_CRYPTO_POLICY
+        "--crypto-policy  <path to crypto policy file>\n", /* 66 */
+#endif
         "\n"
         "より簡単なwolfSSL TSL クライアントの例については"
                                           "下記にアクセスしてください\n"
         "https://github.com/wolfSSL/wolfssl-examples/tree/master/tls\n",
-                                                                        /* 66 */
+                                                                        /* 67 */
         NULL,
     },
 #endif
@@ -1544,6 +1551,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_DUAL_ALG_CERTS
         { "altPrivKey", 1, 267},
 #endif
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+        { "crypto-policy", 1, 268 },
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
         { 0, 0, 0 }
     };
 #endif
@@ -1668,6 +1678,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     char* crlDir = NULL;
 #endif
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    const char * policy = NULL;
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* Note: Actual memory used is much less, this is the entire buffer buckets,
@@ -1946,7 +1959,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else if (XSTRCMP(myoptarg, "verifyInfo") == 0) {
                     printf("Verify should use preverify (just show info)\n");
-                    myVerifyAction = VERIFY_USE_PREVERFIY;
+                    myVerifyAction = VERIFY_USE_PREVERIFY;
                 }
                 else if (XSTRCMP(myoptarg, "loadSSL") == 0) {
                     printf("Also load cert/key into wolfSSL object\n");
@@ -2410,7 +2423,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     err_sys("provided connection ID is too big");
                 }
                 else {
-                    strcpy(dtlsCID, myoptarg);
+                    XSTRLCPY(dtlsCID, myoptarg, DTLS_CID_BUFFER_SIZE);
                 }
             }
             break;
@@ -2437,6 +2450,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             altPrivKey = myoptarg;
             break;
 #endif
+            case 268:
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+                policy = myoptarg;
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
+                break;
 
         case -1:
             default:
@@ -2590,6 +2608,14 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (method == NULL)
         err_sys_ex(runWithErrors, "unable to get method");
+
+#if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+    if (policy != NULL) {
+        if (wolfSSL_crypto_policy_enable(policy) != WOLFSSL_SUCCESS) {
+            err_sys("wolfSSL_crypto_policy_enable failed");
+        }
+    }
+#endif /* WOLFSSL_SYS_CRYPTO_POLICY */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_STATIC_MEMORY_LEAN)
@@ -3985,7 +4011,7 @@ exit:
     WOLFSSL_RETURN_FROM_THREAD(0);
 }
 
-#endif /* !NO_WOLFSSL_SERVER */
+#endif /* !NO_WOLFSSL_SERVER && !NO_TLS */
 
 
 /* so overall tests can pull in test function */
@@ -4016,7 +4042,7 @@ exit:
 #endif
         ChangeToWolfRoot();
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS)
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);
 #else

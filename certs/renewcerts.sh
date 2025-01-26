@@ -696,7 +696,7 @@ run_renewcerts(){
     check_result $? "Step 1"
 
     echo "Updating client-ecc-cert-rpk.der"
-    cp ecc-client-keyPub.der ./rpk/ecc-client-cert-rpk.der
+    cp ecc-client-keyPub.der ./rpk/client-ecc-cert-rpk.der
     check_result $? "Step 2"
 
     echo "Updating server-cert-rpk.der"

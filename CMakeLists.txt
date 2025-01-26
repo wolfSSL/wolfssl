@@ -34,7 +34,7 @@ if("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
      You must delete them, or cmake will refuse to work.")
 endif()
 
-project(wolfssl VERSION 5.7.4 LANGUAGES C ASM)
+project(wolfssl VERSION 5.7.6 LANGUAGES C ASM)
 
 # Set WOLFSSL_ROOT if not already defined
 if ("${WOLFSSL_ROOT}" STREQUAL "")
@@ -49,11 +49,11 @@ endif()
 
 # shared library versioning
 # increment if interfaces have been removed or changed
-set(WOLFSSL_LIBRARY_VERSION_FIRST 42)
+set(WOLFSSL_LIBRARY_VERSION_FIRST 43)
 
 # increment if interfaces have been added
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented
-set(WOLFSSL_LIBRARY_VERSION_SECOND 3)
+set(WOLFSSL_LIBRARY_VERSION_SECOND 0)
 
 # increment if source code has changed
 # set to zero if WOLFSSL_LIBRARY_VERSION_FIRST is incremented or
@@ -2412,7 +2412,7 @@ target_link_libraries(wolfssl PUBLIC ${WOLFSSL_LINK_LIBS})
 if(WIN32)
     # For Windows link ws2_32
     target_link_libraries(wolfssl PUBLIC
-        $<$<PLATFORM_ID:Windows>:ws2_32 crypt32>)
+        $<$<PLATFORM_ID:Windows>:ws2_32 crypt32 advapi32>)
 elseif(APPLE)
     if(WOLFSSL_SYS_CA_CERTS)
         target_link_libraries(wolfssl PUBLIC

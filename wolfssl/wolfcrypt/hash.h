@@ -1,6 +1,6 @@
 /* hash.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -119,6 +119,7 @@ typedef union {
 #ifdef WOLFSSL_SM3
     wc_Sm3 sm3;
 #endif
+    WOLF_AGG_DUMMY_MEMBER;
 } wc_Hashes;
 
 #ifndef NO_HASH_WRAPPER

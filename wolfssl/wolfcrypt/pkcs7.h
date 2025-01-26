@@ -1,6 +1,6 @@
 /* pkcs7.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -158,7 +158,7 @@ enum Pkcs7_Misc {
     MAX_CONTENT_KEY_LEN   = 32,     /* highest current cipher is AES-256-CBC */
     MAX_CONTENT_IV_SIZE   = 16,     /* highest current is AES128 */
 #ifndef NO_AES
-    MAX_CONTENT_BLOCK_LEN = AES_BLOCK_SIZE,
+    MAX_CONTENT_BLOCK_LEN = WC_AES_BLOCK_SIZE,
 #else
     MAX_CONTENT_BLOCK_LEN = DES_BLOCK_SIZE,
 #endif

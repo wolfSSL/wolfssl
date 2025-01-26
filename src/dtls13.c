@@ -1,6 +1,6 @@
 /* dtls13.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1149,6 +1149,11 @@ static int Dtls13UnifiedHeaderParseCID(WOLFSSL* ssl, byte flags,
     }
 
     return 0;
+}
+
+int Dtls13UnifiedHeaderCIDPresent(byte flags)
+{
+    return Dtls13IsUnifiedHeader(flags) && (flags & DTLS13_CID_BIT);
 }
 
 #else

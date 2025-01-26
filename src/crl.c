@@ -1,6 +1,6 @@
 /* crl.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -1027,6 +1027,7 @@ static int DupX509_CRL(WOLFSSL_X509_CRL *dupl, const WOLFSSL_X509_CRL* crl)
             if (dupl->monitors[0].path != NULL) {
                 XFREE(dupl->monitors[0].path, dupl->heap,
                         DYNAMIC_TYPE_CRL_MONITOR);
+                dupl->monitors[0].path = NULL;
             }
             return MEMORY_E;
         }
@@ -1102,7 +1103,7 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newc
         }
 
         if (crl != newcrl && wc_LockRwLock_Rd(&newcrl->crlLock) != 0) {
-            WOLFSSL_MSG("wc_LockRwLock_Wr failed");
+            WOLFSSL_MSG("wc_LockRwLock_Rd failed");
             wc_UnLockRwLock(&crl->crlLock);
             return BAD_MUTEX_E;
         }

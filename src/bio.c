@@ -1,6 +1,6 @@
 /* bio.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -200,6 +200,7 @@ int wolfSSL_BIO_method_type(const WOLFSSL_BIO *b)
 }
 
 #ifndef WOLFCRYPT_ONLY
+#ifndef NO_TLS
 /* Helper function to read from WOLFSSL_BIO_SSL type
  *
  * returns the number of bytes read on success
@@ -231,6 +232,7 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 
     return ret;
 }
+#endif /* !NO_TLS */
 
 static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
 {
@@ -249,7 +251,7 @@ static int wolfSSL_BIO_MD_read(WOLFSSL_BIO* bio, void* buf, int sz)
     }
     return sz;
 }
-#endif /* WOLFCRYPT_ONLY */
+#endif /* !WOLFCRYPT_ONLY */
 
 
 /* Used to read data from a WOLFSSL_BIO structure
@@ -331,7 +333,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
             #endif /* !NO_FILESYSTEM */
                 break;
             case WOLFSSL_BIO_SSL:
-            #ifndef WOLFCRYPT_ONLY
+            #if !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
                 ret = wolfSSL_BIO_SSL_read(bio, buf, len, front);
             #else
                 WOLFSSL_MSG("WOLFSSL_BIO_SSL used with WOLFCRYPT_ONLY");
@@ -500,7 +502,7 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
 }
 #endif /* WOLFSSL_BASE64_ENCODE */
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
 /* Helper function for writing to a WOLFSSL_BIO_SSL type
  *
  * returns the amount written in bytes on success
@@ -531,7 +533,7 @@ static int wolfSSL_BIO_SSL_write(WOLFSSL_BIO* bio, const void* data,
     }
     return ret;
 }
-#endif /* WOLFCRYPT_ONLY */
+#endif /* !WOLFCRYPT_ONLY && !NO_TLS */
 
 /* Writes to a WOLFSSL_BIO_BIO type.
  *
@@ -746,7 +748,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
             #endif /* !NO_FILESYSTEM */
                 break;
             case WOLFSSL_BIO_SSL:
-            #ifndef WOLFCRYPT_ONLY
+            #if !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
                 /* already got eof, again is error */
                 if (front->eof) {
                     ret = WOLFSSL_FATAL_ERROR;
@@ -823,7 +825,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
         bio = bio->next;
     }
 
-#ifndef WOLFCRYPT_ONLY
+#if !defined(WOLFCRYPT_ONLY) && !defined(NO_TLS)
 exit_chain:
 #endif
 
@@ -1371,7 +1373,7 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
                                 int closeFlag)
     {
         if (!bio || !bufMem ||
-            (closeFlag != BIO_NOCLOSE && closeFlag != BIO_CLOSE))
+           (closeFlag != WOLFSSL_BIO_NOCLOSE && closeFlag != WOLFSSL_BIO_CLOSE))
             return BAD_FUNC_ARG;
 
         if (bio->mem_buf)
@@ -1379,7 +1381,7 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
                 wolfSSL_BUF_MEM_free(bio->mem_buf);
 
         bio->mem_buf = bufMem;
-        bio->shutdown = closeFlag;
+        bio->shutdown = closeFlag ? WOLFSSL_BIO_CLOSE : WOLFSSL_BIO_NOCLOSE;
 
         bio->wrSz = (int)bio->mem_buf->length;
         bio->wrSzReset = bio->wrSz;
@@ -2560,6 +2562,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         return ret;
     }
 
+#ifndef NO_TLS
     long wolfSSL_BIO_do_handshake(WOLFSSL_BIO *b)
     {
         WOLFSSL_ENTER("wolfSSL_BIO_do_handshake");
@@ -2605,6 +2608,7 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
             WOLFSSL_MSG("BIO has no SSL pointer set.");
         }
     }
+#endif
 
     long wolfSSL_BIO_set_ssl(WOLFSSL_BIO* b, WOLFSSL* ssl, int closeF)
     {
@@ -2766,9 +2770,23 @@ int wolfSSL_BIO_flush(WOLFSSL_BIO* bio)
         }
         else {
             size_t currLen = XSTRLEN(b->ip);
+        #ifdef WOLFSSL_NO_REALLOC
+            char* tmp = NULL;
+        #endif
+
             if (currLen != newLen) {
+        #ifdef WOLFSSL_NO_REALLOC
+                tmp = b->ip;
+                b->ip = (char*)XMALLOC(newLen+1, b->heap, DYNAMIC_TYPE_OPENSSL);
+                if (b->ip != NULL && tmp != NULL) {
+                    XMEMCPY(b->ip, tmp, newLen);
+                    XFREE(tmp, b->heap, DYNAMIC_TYPE_OPENSSL);
+                    tmp = NULL;
+            }
+        #else
                 b->ip = (char*)XREALLOC(b->ip, newLen + 1, b->heap,
                     DYNAMIC_TYPE_OPENSSL);
+        #endif
                 if (b->ip == NULL) {
                     WOLFSSL_MSG("Hostname realloc failed.");
                     return WOLFSSL_FAILURE;

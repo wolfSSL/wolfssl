@@ -1,6 +1,6 @@
 /* ssl_asn1.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -282,10 +282,12 @@ static int wolfssl_i2d_asn1_items(const void* obj, byte* buf,
             len = 0;
             break;
         }
+
         if (buf != NULL && tmp != NULL && !mem->ex && mem->tag >= 0) {
-            /* Encode the implicit tag */
             byte imp[ASN_TAG_SZ + MAX_LENGTH_SZ];
-            SetImplicit(tmp[0], mem->tag, 0, imp, 0);
+            /* Encode the implicit tag; There's other stuff in the upper bits
+             * of the integer tag, so strip out everything else for value. */
+            SetImplicit(tmp[0], (byte)(mem->tag), 0, imp, 0);
             tmp[0] = imp[0];
         }
         len += ret;
@@ -795,9 +797,18 @@ static int wolfssl_asn1_bit_string_grow(WOLFSSL_ASN1_BIT_STRING* bitStr,
     int ret = 1;
     byte* tmp;
 
+#ifdef WOLFSSL_NO_REALLOC
+    tmp = (byte*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_OPENSSL);
+    if (tmp != NULL && bitStr->data != NULL) {
+       XMEMCPY(tmp, bitStr->data, bitStr->length);
+       XFREE(bitStr->data, NULL, DYNAMIC_TYPE_OPENSSL);
+       bitStr->data = NULL;
+    }
+#else
     /* Realloc to length required. */
     tmp = (byte*)XREALLOC(bitStr->data, (size_t)len, NULL,
         DYNAMIC_TYPE_OPENSSL);
+#endif
     if (tmp == NULL) {
         ret = 0;
     }

@@ -1,6 +1,6 @@
 /* io.h
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -416,7 +416,7 @@
         #endif
     #endif
     #ifndef XSOCKOPT_TYPE_OPTVAL_TYPE
-        #ifdef USE_WINDOWS_API
+        #ifndef USE_WINDOWS_API
             #define XSOCKOPT_TYPE_OPTVAL_TYPE void*
         #else
             #define XSOCKOPT_TYPE_OPTVAL_TYPE char*
@@ -529,8 +529,10 @@ WOLFSSL_API int wolfSSL_BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #endif
 
 WOLFSSL_LOCAL int SslBioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 WOLFSSL_LOCAL int BioReceiveInternal(WOLFSSL_BIO* biord, WOLFSSL_BIO* biowr,
                                      char* buf, int sz);
+#endif
 WOLFSSL_LOCAL int SslBioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
 #if defined(USE_WOLFSSL_IO)
     /* default IO callbacks */
@@ -609,6 +611,8 @@ WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv
 WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend);
 WOLFSSL_API void wolfSSL_SSLSetIORecv(WOLFSSL *ssl, CallbackIORecv CBIORecv);
 WOLFSSL_API void wolfSSL_SSLSetIOSend(WOLFSSL *ssl, CallbackIOSend CBIOSend);
+WOLFSSL_API void wolfSSL_SSLDisableRead(WOLFSSL *ssl);
+WOLFSSL_API void wolfSSL_SSLEnableRead(WOLFSSL *ssl);
 /* deprecated old name */
 #define wolfSSL_SetIORecv wolfSSL_CTX_SetIORecv
 #define wolfSSL_SetIOSend wolfSSL_CTX_SetIOSend

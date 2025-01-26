@@ -1,7 +1,7 @@
 /* x86_vector_register_glue.c -- glue logic to save and restore vector registers
  * on x86
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *

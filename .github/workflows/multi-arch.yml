@@ -37,7 +37,7 @@ jobs:
             ARCH: armel
             EXTRA_OPTS: --enable-sp-asm
     if: github.repository_owner == 'wolfssl'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # This should be a safe limit for the tests to run.
     timeout-minutes: 10
     steps:

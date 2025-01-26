@@ -1,6 +1,6 @@
 /* error.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -43,6 +43,9 @@ WOLFSSL_ABI
 const char* wc_GetErrorString(int error)
 {
     switch ((enum wolfCrypt_ErrorCodes)error) {
+
+    case WC_FAILURE:
+        return "wolfCrypt generic failure";
 
     case MP_MEM :
         return "MP integer dynamic memory allocation failed";
@@ -641,6 +644,9 @@ const char* wc_GetErrorString(int error)
 
     case PBKDF2_KAT_FIPS_E:
         return "wolfCrypt FIPS PBKDF2 Known Answer Test Failure";
+
+    case WC_KEY_MISMATCH_E:
+        return "key values mismatch";
 
     case DEADLOCK_AVERTED_E:
         return "Deadlock averted -- retry the call";

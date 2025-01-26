@@ -1,6 +1,6 @@
 /* srp.c SRP unit tests
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -24,6 +24,9 @@
     #include <config.h>
 #endif
 
+#ifndef WOLFSSL_USER_SETTINGS
+    #include <wolfssl/options.h>
+#endif
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include <tests/unit.h>

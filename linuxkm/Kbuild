@@ -1,6 +1,6 @@
 # Linux kernel-native Makefile ("Kbuild") for libwolfssl.ko
 #
-# Copyright (C) 2006-2024 wolfSSL Inc.
+# Copyright (C) 2006-2025 wolfSSL Inc.
 #
 # This file is part of wolfSSL.
 #
@@ -89,7 +89,7 @@ endif
 ccflags-y := $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_NO_VECTOR_INSNS)
 
 $(obj)/libwolfssl.mod.o: ccflags-y :=
-$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER
+$(obj)/wolfcrypt/test/test.o: ccflags-y += -DNO_MAIN_DRIVER -DWOLFSSL_NO_OPTIONS_H
 
 $(obj)/wolfcrypt/src/aes.o: ccflags-y = $(WOLFSSL_CFLAGS) $(WOLFSSL_CFLAGS_YES_VECTOR_INSNS)
 
@@ -109,7 +109,7 @@ ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
     $(obj)/linuxkm/module_hooks.o: ccflags-y += $(PIE_SUPPORT_FLAGS)
 endif
 
-$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y = $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION
+$(obj)/wolfcrypt/benchmark/benchmark.o: ccflags-y = $(WOLFSSL_CFLAGS) $(CFLAGS_FPU_ENABLE) $(CFLAGS_SIMD_ENABLE) $(PIE_SUPPORT_FLAGS) -DNO_MAIN_FUNCTION -DWOLFSSL_NO_OPTIONS_H
 $(obj)/wolfcrypt/benchmark/benchmark.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_ENABLE_SIMD_DISABLE)
 
 asflags-y := $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPUSIMD_DISABLE)
@@ -137,16 +137,16 @@ $(obj)/wolfcrypt/src/poly1305_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FP
 $(obj)/wolfcrypt/src/poly1305_asm.o: OBJECT_FILES_NON_STANDARD := y
 $(obj)/wolfcrypt/src/wc_kyber_asm.o: asflags-y = $(WOLFSSL_ASFLAGS) $(ASFLAGS_FPU_DISABLE_SIMD_ENABLE)
 
+ifndef READELF
+    READELF := readelf
+endif
+
 ifeq "$(ENABLED_LINUXKM_PIE)" "yes"
 
 rename-pie-text-and-data-sections: $(WOLFSSL_OBJ_TARGETS)
 
 ifndef NM
     NM := nm
-endif
-
-ifndef READELF
-    READELF := readelf
 endif
 
 ifndef OBJCOPY
@@ -197,9 +197,9 @@ $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_
 		$(AWK) '/^ *[0-9]+: / {							\
 		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}				\
 		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
-		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", WOLFSSL);";    		\
+		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", EXPORT_SYMBOL_NS_Q(WOLFSSL));";\
 		  }									\
 		}' >> $@
-	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, WOLFSSL);\n#endif' >> $@
+	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, EXPORT_SYMBOL_NS_Q(WOLFSSL));\n#endif' >> $@
 
 clean-files := linuxkm src wolfcrypt

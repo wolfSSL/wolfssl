@@ -1,6 +1,6 @@
 /* dh.c
  *
- * Copyright (C) 2006-2024 wolfSSL Inc.
+ * Copyright (C) 2006-2025 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -2036,19 +2036,21 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #ifndef WOLFSSL_SP_NO_2048
     if (mp_count_bits(&key->p) == 2048) {
         if (mp_init(y) != MP_OKAY)
-            return MP_INIT_E;
+            ret = MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+        if (ret == 0) {
+            SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
-            ret = MP_READ_E;
+            if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+                ret = MP_READ_E;
 
-        if (ret == 0)
-            ret = sp_DhExp_2048(y, priv, privSz, &key->p, agree, agreeSz);
+            if (ret == 0)
+                ret = sp_DhExp_2048(y, priv, privSz, &key->p, agree, agreeSz);
 
-        mp_clear(y);
+            mp_clear(y);
 
-        RESTORE_VECTOR_REGISTERS();
+            RESTORE_VECTOR_REGISTERS();
+        }
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
         if ((ret == 0) &&
@@ -2070,19 +2072,21 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #ifndef WOLFSSL_SP_NO_3072
     if (mp_count_bits(&key->p) == 3072) {
         if (mp_init(y) != MP_OKAY)
-            return MP_INIT_E;
+            ret = MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+        if (ret == 0) {
+            SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
-            ret = MP_READ_E;
+            if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+                ret = MP_READ_E;
 
-        if (ret == 0)
-            ret = sp_DhExp_3072(y, priv, privSz, &key->p, agree, agreeSz);
+            if (ret == 0)
+                ret = sp_DhExp_3072(y, priv, privSz, &key->p, agree, agreeSz);
 
-        mp_clear(y);
+            mp_clear(y);
 
-        RESTORE_VECTOR_REGISTERS();
+            RESTORE_VECTOR_REGISTERS();
+        }
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
         if ((ret == 0) &&
@@ -2104,19 +2108,21 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #ifdef WOLFSSL_SP_4096
     if (mp_count_bits(&key->p) == 4096) {
         if (mp_init(y) != MP_OKAY)
-            return MP_INIT_E;
+            ret = MP_INIT_E;
 
-        SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
+        if (ret == 0) {
+            SAVE_VECTOR_REGISTERS(ret = _svr_ret;);
 
-        if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
-            ret = MP_READ_E;
+            if (ret == 0 && mp_read_unsigned_bin(y, otherPub, pubSz) != MP_OKAY)
+                ret = MP_READ_E;
 
-        if (ret == 0)
-            ret = sp_DhExp_4096(y, priv, privSz, &key->p, agree, agreeSz);
+            if (ret == 0)
+                ret = sp_DhExp_4096(y, priv, privSz, &key->p, agree, agreeSz);
 
-        mp_clear(y);
+            mp_clear(y);
 
-        RESTORE_VECTOR_REGISTERS();
+            RESTORE_VECTOR_REGISTERS();
+        }
 
         /* make sure agree is > 1 (SP800-56A, 5.7.1.1) */
         if ((ret == 0) &&
@@ -2544,10 +2550,56 @@ static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
 
     if (ret == 0 && !trusted) {
         int isPrime = 0;
-        if (rng != NULL)
-            ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
+
+        /* Short-circuit the primality check for p if it is one of the named
+         * public moduli (known primes) from RFC 7919.
+         */
+        #ifdef HAVE_FFDHE_2048
+        if ((pSz == sizeof(dh_ffdhe2048_p)) &&
+            (XMEMCMP(p, dh_ffdhe2048_p, sizeof(dh_ffdhe2048_p)) == 0))
+        {
+            isPrime = 1;
+        }
         else
-            ret = mp_prime_is_prime(keyP, 8, &isPrime);
+        #endif
+        #ifdef HAVE_FFDHE_3072
+        if ((pSz == sizeof(dh_ffdhe3072_p)) &&
+            (XMEMCMP(p, dh_ffdhe3072_p, sizeof(dh_ffdhe3072_p)) == 0))
+        {
+            isPrime = 1;
+        }
+        else
+        #endif
+        #ifdef HAVE_FFDHE_4096
+        if ((pSz == sizeof(dh_ffdhe4096_p)) &&
+            (XMEMCMP(p, dh_ffdhe4096_p, sizeof(dh_ffdhe4096_p)) == 0))
+        {
+            isPrime = 1;
+        }
+        else
+        #endif
+        #ifdef HAVE_FFDHE_6144
+        if ((pSz == sizeof(dh_ffdhe6144_p)) &&
+            (XMEMCMP(p, dh_ffdhe6144_p, sizeof(dh_ffdhe6144_p)) == 0))
+        {
+            isPrime = 1;
+        }
+        else
+        #endif
+        #ifdef HAVE_FFDHE_8192
+        if ((pSz == sizeof(dh_ffdhe8192_p)) &&
+            (XMEMCMP(p, dh_ffdhe8192_p, sizeof(dh_ffdhe8192_p)) == 0))
+        {
+            isPrime = 1;
+        }
+        else
+        #endif
+        {
+            if (rng != NULL)
+                ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
+            else
+                ret = mp_prime_is_prime(keyP, 8, &isPrime);
+        }
 
         if (ret == 0 && isPrime == 0)
             ret = DH_CHECK_PUB_E;
