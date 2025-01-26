@@ -7,13 +7,33 @@ See the [example sketches](./sketches/README.md):
 
 When publishing a new version to the Arduino Registry, be sure to edit `WOLFSSL_VERSION_ARUINO_SUFFIX` in the `wolfssl-arduino.sh` script.
 
+## Getting Started
+
+See [Getting Started with wolfSSL on Arduino](https://www.wolfssl.com/getting-started-with-wolfssl-on-arduino/), wolfSSL features are enabled and disabled in the `user_settings.h` file.
+
+The `user_settings.h` file is found in the `<Arduino>/libraries/wolfssl/src` directory.
+
+For Windows this is typically `C:\Users\%USERNAME%\Documents\Arduino\libraries\wolfssl\src`
+
+For Mac: `~/Documents/Arduino/libraries/wolfssl/src`
+
+For Linux: `~/Arduino/libraries/wolfssl/src`
+
+Tips for success:
+
+- The `WOLFSSL_USER_SETTINGS` macro must be defined project-wide. (see [wolfssl.h](https://github.com/wolfSSL/wolfssl/blob/master/IDE/ARDUINO/wolfssl.h))
+- Apply any customizations only to `user_settings.h`;  Do not edit wolfSSL `settings.h` or `configh.h` files.
+- Do not explicitly include `user_settings.h` in any source file.
+- For every source file that uses wolfssl, include `wolfssl/wolfcrypt/settings.h` before any other wolfSSL include, typically via `#include "wolfssl.h"`.
+- See the [wolfSSL docs](https://www.wolfssl.com/documentation/manuals/wolfssl/chapter02.html) for details on build configuration macros.
+
 ## Boards
 
 Many of the supported boards are natively built-in to the [Arduino IDE Board Manager](https://docs.arduino.cc/software/ide-v2/tutorials/ide-v2-board-manager/)
 and by adding [additional cores](https://docs.arduino.cc/learn/starting-guide/cores/) as needed.
 
 STM32 Support can be added by including this link in the "Additional Boards Managers URLs" field
-from [stm32duino/Arduino_Core_STM32](https://github.com/stm32duino/Arduino_Core_STM32?tab=readme-ov-file#getting-started)   .
+from [stm32duino/Arduino_Core_STM32](https://github.com/stm32duino/Arduino_Core_STM32?tab=readme-ov-file#getting-started).
 
 ```
 https://github.com/stm32duino/BoardManagerFiles/raw/main/package_stmicroelectronics_index.json
