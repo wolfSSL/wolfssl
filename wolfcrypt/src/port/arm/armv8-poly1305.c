@@ -1150,7 +1150,11 @@ void poly1305_block_thumb2(Poly1305* ctx, const unsigned char* m)
  */
 void poly1305_blocks_arm32(Poly1305* ctx, const unsigned char* m, size_t bytes)
 {
-    poly1305_blocks_arm32_16(ctx, m, bytes, 1);
+#ifndef WOLFSSL_ARMASM_NO_NEON
+    poly1305_arm32_blocks(ctx, m, bytes);
+#else
+    poly1305_arm32_blocks_16(ctx, m, bytes, 1);
+#endif
 }
 
 /* Process 16 bytes of message.
@@ -1160,7 +1164,7 @@ void poly1305_blocks_arm32(Poly1305* ctx, const unsigned char* m, size_t bytes)
  */
 void poly1305_block_arm32(Poly1305* ctx, const unsigned char* m)
 {
-    poly1305_blocks_arm32_16(ctx, m, POLY1305_BLOCK_SIZE, 1);
+    poly1305_arm32_blocks_16(ctx, m, POLY1305_BLOCK_SIZE, 1);
 }
 #endif
 
@@ -1219,6 +1223,16 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
 
     /* Process the remaining partial block - last block. */
     if (ret == 0) {
+    #if !defined(WOLFSSL_ARMASM_THUMB2) && !defined(WOLFSSL_ARMASM_NO_NEON)
+        if (ctx->leftover >= POLY1305_BLOCK_SIZE) {
+             size_t len = ctx->leftover & (~(POLY1305_BLOCK_SIZE - 1));
+             poly1305_arm32_blocks(ctx, ctx->buffer, len);
+             ctx->leftover -= len;
+             if (ctx->leftover) {
+                 XMEMCPY(ctx->buffer, ctx->buffer + len, ctx->leftover);
+             }
+        }
+    #endif
         if (ctx->leftover) {
              size_t i = ctx->leftover;
              ctx->buffer[i++] = 1;
@@ -1229,7 +1243,7 @@ int wc_Poly1305Final(Poly1305* ctx, byte* mac)
              poly1305_blocks_thumb2_16(ctx, ctx->buffer, POLY1305_BLOCK_SIZE,
                  0);
         #else
-             poly1305_blocks_arm32_16(ctx, ctx->buffer, POLY1305_BLOCK_SIZE, 0);
+             poly1305_arm32_blocks_16(ctx, ctx->buffer, POLY1305_BLOCK_SIZE, 0);
         #endif
         }
 

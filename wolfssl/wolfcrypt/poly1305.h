@@ -98,7 +98,18 @@ typedef struct Poly1305 {
     word64 leftover;
     unsigned char buffer[POLY1305_BLOCK_SIZE];
     unsigned char finished;
+#elif defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_ARMASM_THUMB2) && \
+    !defined(WOLFSSL_ARMASM_NO_NEON)
+    /* NEON implementation for ARM32 */
+    word32 r[4];
+    word32 h[6];
+    word32 pad[4];
+    word32 leftover;
+    unsigned char buffer[4*POLY1305_BLOCK_SIZE];
+    word32 r_21[10];
+    word32 r_43[10];
 #elif defined(WOLFSSL_ARMASM)
+    /* ARM32 (non-NEON) and Thumb2 */
     word32 r[4];
     word32 h[5];
     word32 pad[4];
@@ -173,7 +184,8 @@ void poly1305_blocks_thumb2_16(Poly1305* ctx, const unsigned char* m,
 void poly1305_blocks_arm32(Poly1305* ctx, const unsigned char *m, size_t bytes);
 void poly1305_block_arm32(Poly1305* ctx, const unsigned char *m);
 
-void poly1305_blocks_arm32_16(Poly1305* ctx, const unsigned char* m, word32 len,
+void poly1305_arm32_blocks(Poly1305* ctx, const unsigned char* m, word32 len);
+void poly1305_arm32_blocks_16(Poly1305* ctx, const unsigned char* m, word32 len,
     int notLast);
 #endif
 void poly1305_set_key(Poly1305* ctx, const byte* key);

@@ -770,7 +770,8 @@
 #define BENCH_RNG                0x00000001
 #define BENCH_SCRYPT             0x00000002
 
-#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
 /* Define AES_AUTH_ADD_SZ already here, since it's used in the
  * static declaration of `bench_Usage_msg1`. */
 #if !defined(AES_AUTH_ADD_SZ) && \
@@ -1947,10 +1948,13 @@ static const char* bench_result_words2[][5] = {
     #define BENCH_MIN_RUNTIME_SEC   1.0F
 #endif
 
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+    static word32 aesAuthAddSz = AES_AUTH_ADD_SZ;
+#endif
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     #define AES_AUTH_TAG_SZ 16
     #define BENCH_CIPHER_ADD AES_AUTH_TAG_SZ
-    static word32 aesAuthAddSz = AES_AUTH_ADD_SZ;
     #if !defined(AES_AAD_OPTIONS_DEFAULT)
         #if !defined(NO_MAIN_DRIVER)
             #define AES_AAD_OPTIONS_DEFAULT 0x1U
@@ -6061,15 +6065,19 @@ void bench_chacha20_poly1305_aead(void)
     int    ret = 0, i, count;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
+    WC_DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_DECLARE_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
+    WC_ALLOC_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     WC_ALLOC_VAR(authTag, byte, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, HEAP_HINT);
+    XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
     XMEMSET(authTag, 0, CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE);
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            ret = wc_ChaCha20Poly1305_Encrypt(bench_key, bench_iv, NULL, 0,
-                bench_plain, bench_size, bench_cipher, authTag);
+            ret = wc_ChaCha20Poly1305_Encrypt(bench_key, bench_iv,
+                bench_additional, aesAuthAddSz, bench_plain, bench_size,
+                bench_cipher, authTag);
             if (ret < 0) {
                 printf("wc_ChaCha20Poly1305_Encrypt error: %d\n", ret);
                 goto exit;
@@ -6091,6 +6099,7 @@ void bench_chacha20_poly1305_aead(void)
 exit:
 
     WC_FREE_VAR(authTag, HEAP_HINT);
+    WC_FREE_VAR(bench_additional, HEAP_HINT);
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
