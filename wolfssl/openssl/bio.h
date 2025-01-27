@@ -104,6 +104,7 @@
 #endif
 #define BIO_int_ctrl                    wolfSSL_BIO_int_ctrl
 #define BIO_reset                       wolfSSL_BIO_reset
+#define BIO_s_null                      wolfSSL_BIO_s_null
 #define BIO_s_file                      wolfSSL_BIO_s_file
 #define BIO_s_bio                       wolfSSL_BIO_s_bio
 #define BIO_s_socket                    wolfSSL_BIO_s_socket
