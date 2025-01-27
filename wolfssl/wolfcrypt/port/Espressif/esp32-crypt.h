@@ -716,7 +716,24 @@ extern "C"
     #if ESP_IDF_VERSION_MAJOR > 5 || (ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR >= 4)
         #include "rom/aes.h"
     #elif ESP_IDF_VERSION_MAJOR >= 4
-        #include "esp32/rom/aes.h"
+        #if defined(CONFIG_IDF_TARGET_ESP32)
+            #include "esp32/rom/aes.h"
+        #elif defined(CONFIG_IDF_TARGET_ESP32C2) || \
+              defined(CONFIG_IDF_TARGET_ESP8684)
+            #include "esp32c2/rom/aes.h"
+        #elif defined(CONFIG_IDF_TARGET_ESP32C3)
+            #include "esp32c3/rom/aes.h"
+        #elif defined(CONFIG_IDF_TARGET_ESP32C6)
+            #include "esp32c6/rom/aes.h"
+        #elif defined(CONFIG_IDF_TARGET_ESP32H2)
+            #include "esp32h2/rom/aes.h"
+        #elif defined(CONFIG_IDF_TARGET_ESP32S2)
+            #include "esp32s2/rom/aes.h"
+        #elif defined(CONFIG_IDF_TARGET_ESP32S3)
+            #include "esp32s3/rom/aes.h"
+        #else
+            #include "rom/aes.h"
+        #endif
     #elif defined(CONFIG_IDF_TARGET_ESP8266)
         /* no hardware includes for ESP8266*/
     #else
