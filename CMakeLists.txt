@@ -2409,17 +2409,20 @@ target_include_directories(wolfssl
 
 target_link_libraries(wolfssl PUBLIC ${WOLFSSL_LINK_LIBS})
 
-if(WIN32)
-    # For Windows link ws2_32
+if (WIN32 OR ${CMAKE_SYSTEM_NAME} MATCHES "^MSYS" OR ${CMAKE_SYSTEM_NAME} MATCHES "^MINGW")
+    # For Windows link required libraries
+    message("Building on Windows/MSYS/MINGW")
     target_link_libraries(wolfssl PUBLIC
-        $<$<PLATFORM_ID:Windows>:ws2_32 crypt32 advapi32>)
+        ws2_32 crypt32 advapi32)
 elseif(APPLE)
+    message("Building on Apple")
     if(WOLFSSL_SYS_CA_CERTS)
         target_link_libraries(wolfssl PUBLIC
             ${CORE_FOUNDATION_FRAMEWORK}
             ${SECURITY_FRAMEWORK})
     endif()
 else()
+    message("Building on Linux (or other)")
     if(WOLFSSL_DH AND NOT WOLFSSL_DH_CONST)
         # DH requires math (m) library
         target_link_libraries(wolfssl
