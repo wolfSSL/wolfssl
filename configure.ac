@@ -978,9 +978,13 @@ then
     test "$enable_all_osp" = "" && test "$ENABLED_LINUXKM_DEFAULTS" != "yes" && enable_all_osp=yes
 
     test "$enable_dtls" = "" && enable_dtls=yes
+    test "$enable_dtls_mtu" = "" && enable_dtls_mtu=yes
+    test "$enable_dtlscid" = "" && enable_dtlscid=yes
+    test "$enable_dtls_frag_ch" = "" && enable_dtls_frag_ch=yes
     if test "x$FIPS_VERSION" != "xv1"
     then
         test "$enable_tls13" = "" && enable_tls13=yes
+        test "$enable_dtls13" = "" && enable_dtls13=yes
     fi
 
     test "$enable_savesession" = "" && enable_savesession=yes
