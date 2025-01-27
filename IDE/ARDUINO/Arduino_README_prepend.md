@@ -28,7 +28,7 @@ Tips for success:
 - For every source file that uses wolfssl, include `wolfssl/wolfcrypt/settings.h` before any other wolfSSL include, typically via `#include "wolfssl.h"`.
 - See the [wolfSSL docs](https://www.wolfssl.com/documentation/manuals/wolfssl/chapter02.html) for details on build configuration macros.
 
-## wpolfSSL Examples
+## wolfSSL Examples
 
 Additional wolfSSL examples can be found at:
 
