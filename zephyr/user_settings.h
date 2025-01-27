@@ -160,6 +160,12 @@ extern "C" {
     #define WOLFSSL_SET_CIPHER_BYTES
 #endif
 
+/* wolfTPM Zephyr */
+#if defined(CONFIG_WOLFTPM)
+    #define WOLF_CRYPTO_CB
+    #define WOLFSSL_AES_CFB
+#endif
+
 /* ------------------------------------------------------------------------- */
 /* Algorithms */
 /* ------------------------------------------------------------------------- */
