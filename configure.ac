@@ -6453,7 +6453,7 @@ AC_ARG_ENABLE([secure-renegotiation],
     [ ENABLED_SECURE_RENEGOTIATION=no ]
     )
 
-if test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_HAPROXY" = "xyes" && test "x$ENABLED_SECURE_RENEGOTIATION" != "xyes"
 then
     ENABLED_RENEGOTIATION_INDICATION=yes
 fi
