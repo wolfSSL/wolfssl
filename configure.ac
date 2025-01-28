@@ -948,6 +948,9 @@ then
     test "$enable_tlsv10" = "" && enable_tlsv10=no
     test "$enable_dtls" = "" && enable_dtls=no
     test "$enable_dtls13" = "" && enable_dtls13=no
+    test "$enable_dtls_mtu" = "" && enable_dtls_mtu=no
+    test "$enable_dtlscid" = "" && enable_dtlscid=no
+    test "$enable_dtls_frag_ch" = "" && enable_dtls_frag_ch=no
     test "$enable_mcast" = "" && enable_mcast=no
     test "$enable_srtp" = "" && enable_srtp=no
     test "$enable_ocsp" = "" && enable_ocsp=no
