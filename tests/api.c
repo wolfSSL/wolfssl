@@ -8237,7 +8237,7 @@ done:
     if (!sharedCtx)
         wolfSSL_CTX_free(ctx);
 
-    if (clientfd >= 0)
+    if (clientfd != SOCKET_INVALID)
         CloseSocket(clientfd);
 
 #ifdef WOLFSSL_TIRTOS
@@ -69604,7 +69604,7 @@ static int test_wolfSSL_TXT_DB(void)
 
     /* Test index */
     ExpectIntEQ(TXT_DB_create_index(db, 3, NULL,
-        (wolf_sk_hash_cb)(long unsigned int)TXT_DB_hash,
+        (wolf_sk_hash_cb)(MESSAGE_TYPE_CAST)TXT_DB_hash,
         (wolf_lh_compare_cb)TXT_DB_cmp), 1);
     ExpectNotNull(TXT_DB_get_by_index(db, 3, (WOLFSSL_STRING*)fields));
     fields[3] = "12DA";
@@ -83752,10 +83752,10 @@ static void test_wolfSSL_dtls_plaintext_client(WOLFSSL* ssl)
     AssertIntGE(fd, 0);
     generateDTLSMsg(ch, sizeof(ch), 20, client_hello, 0);
     /* Server should ignore this datagram */
-    AssertIntEQ(send(fd, ch, sizeof(ch), 0), sizeof(ch));
+    AssertIntEQ(send(fd, (MESSAGE_TYPE_CAST)ch, sizeof(ch), 0), sizeof(ch));
     generateDTLSMsg(ch, sizeof(ch), 20, client_hello, 10000);
     /* Server should ignore this datagram */
-    AssertIntEQ(send(fd, ch, sizeof(ch), 0), sizeof(ch));
+    AssertIntEQ(send(fd, (MESSAGE_TYPE_CAST)ch, sizeof(ch), 0), sizeof(ch));
 
     AssertIntEQ(wolfSSL_write(ssl, msg, sizeof(msg)), sizeof(msg));
     AssertIntGT(wolfSSL_read(ssl, reply, sizeof(reply)),0);
@@ -83866,7 +83866,7 @@ static void test_wolfSSL_dtls12_fragments_spammer(WOLFSSL* ssl)
         delay.tv_nsec = 10000000; /* wait 0.01 seconds */
         c32toa(seq_number, b + seq_offset);
         c16toa(msg_number, b + msg_offset);
-        ret = (int)send(fd, b, 55, 0);
+        ret = (int)send(fd, (MESSAGE_TYPE_CAST)b, 55, 0);
         nanosleep(&delay, NULL);
     }
 }
@@ -83986,7 +83986,7 @@ static void test_wolfSSL_dtls_send_alert(WOLFSSL* ssl)
 
     fd = wolfSSL_get_wfd(ssl);
     AssertIntGE(fd, 0);
-    ret = (int)send(fd, alert_msg, sizeof(alert_msg), 0);
+    ret = (int)send(fd, (MESSAGE_TYPE_CAST)alert_msg, sizeof(alert_msg), 0);
     AssertIntGT(ret, 0);
 }
 
@@ -84057,7 +84057,7 @@ static void test_wolfSSL_send_bad_record(WOLFSSL* ssl)
 
     fd = wolfSSL_get_wfd(ssl);
     AssertIntGE(fd, 0);
-    ret = (int)send(fd, bad_msg, sizeof(bad_msg), 0);
+    ret = (int)send(fd, (MESSAGE_TYPE_CAST)bad_msg, sizeof(bad_msg), 0);
     AssertIntEQ(ret, sizeof(bad_msg));
     ret = wolfSSL_write(ssl, "badrecordtest", sizeof("badrecordtest"));
     AssertIntEQ(ret, sizeof("badrecordtest"));
@@ -84415,10 +84415,10 @@ static void test_wolfSSL_dtls_send_ch(WOLFSSL* ssl)
 
     fd = wolfSSL_get_wfd(ssl);
     AssertIntGE(fd, 0);
-    ret = (int)send(fd, ch_msg, sizeof(ch_msg), 0);
+    ret = (int)send(fd, (MESSAGE_TYPE_CAST)ch_msg, sizeof(ch_msg), 0);
     AssertIntGT(ret, 0);
     /* consume the HRR otherwise handshake will fail */
-    ret = (int)recv(fd, ch_msg, sizeof(ch_msg), 0);
+    ret = (int)recv(fd, (MESSAGE_TYPE_CAST)ch_msg, sizeof(ch_msg), 0);
     AssertIntGT(ret, 0);
 }
 
@@ -91064,7 +91064,8 @@ static int test_dtls_msg_from_other_peer(void)
         *  !defined(SINGLE_THREADED) && !defined(NO_RSA) */
 #if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_IPV6) &&               \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) &&   \
-    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12)
+    defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(WOLFSSL_NO_TLS12) \
+    && !defined(USE_WINDOWS_API)
 static int test_dtls_ipv6_check(void)
 {
     EXPECT_DECLS;
