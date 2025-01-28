@@ -120,14 +120,14 @@ void fe_tobytes(unsigned char *out, const fe n)
     out[ 3] = (((byte)((in[0] >> 24)       ))      );
     out[ 4] = (((byte)((in[0] >> 32)       ))      );
     out[ 5] = (((byte)((in[0] >> 40)       ))      );
-    out[ 6] = (byte)((((byte)((in[0] >> 48) & 0x07)))
+    out[ 6] = (byte)((((byte)((in[0] >> 48) & 0x07))      )
                    | (((byte)((in[1]      ) & 0x1f)) <<  3));
     out[ 7] = (((byte)((in[1] >>  5)       ))      );
     out[ 8] = (((byte)((in[1] >> 13)       ))      );
     out[ 9] = (((byte)((in[1] >> 21)       ))      );
     out[10] = (((byte)((in[1] >> 29)       ))      );
     out[11] = (((byte)((in[1] >> 37)       ))      );
-    out[12] = (byte)((((byte)((in[1] >> 45) & 0x3f)))
+    out[12] = (byte)((((byte)((in[1] >> 45) & 0x3f))      )
                    | (((byte)((in[2]      ) & 0x03)) <<  6));
     out[13] = (((byte)((in[2] >>  2)       ))      );
     out[14] = (((byte)((in[2] >> 10)       ))      );
@@ -135,14 +135,14 @@ void fe_tobytes(unsigned char *out, const fe n)
     out[16] = (((byte)((in[2] >> 26)       ))      );
     out[17] = (((byte)((in[2] >> 34)       ))      );
     out[18] = (((byte)((in[2] >> 42)       ))      );
-    out[19] = (byte)((((byte)((in[2] >> 50) & 0x01)))
+    out[19] = (byte)((((byte)((in[2] >> 50) & 0x01))      )
                    | (((byte)((in[3]      ) & 0x7f)) <<  1));
     out[20] = (((byte)((in[3] >>  7)       ))      );
     out[21] = (((byte)((in[3] >> 15)       ))      );
     out[22] = (((byte)((in[3] >> 23)       ))      );
     out[23] = (((byte)((in[3] >> 31)       ))      );
     out[24] = (((byte)((in[3] >> 39)       ))      );
-    out[25] = (byte)((((byte)((in[3] >> 47) & 0x0f)))
+    out[25] = (byte)((((byte)((in[3] >> 47) & 0x0f))      )
                    | (((byte)((in[4]      ) & 0x0f)) <<  4));
     out[26] = (((byte)((in[4] >>  4)       ))      );
     out[27] = (((byte)((in[4] >> 12)       ))      );
