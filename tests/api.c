@@ -62643,17 +62643,19 @@ static int test_wolfSSL_BN_CTX(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN) && \
     !defined(OPENSSL_EXTRA_NO_BN) && !defined(WOLFSSL_SP_MATH)
     WOLFSSL_BN_CTX* bn_ctx = NULL;
-    WOLFSSL_BIGNUM* t = NULL;
 
-    ExpectNotNull(bn_ctx = wolfSSL_BN_CTX_new());
+    ExpectNotNull(bn_ctx = BN_CTX_new());
 
     /* No implementation. */
     BN_CTX_init(NULL);
 
-    ExpectNotNull(t = BN_CTX_get(NULL));
-    BN_free(t);
-    ExpectNotNull(t = BN_CTX_get(bn_ctx));
-    BN_free(t);
+    ExpectNull(BN_CTX_get(NULL));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
+    ExpectNotNull(BN_CTX_get(bn_ctx));
 
 #ifndef NO_WOLFSSL_STUB
     /* No implementation. */
@@ -78011,7 +78013,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     int derLen;
     unsigned char pub_buf[65];
     const int pub_len = 65;
-    BN_CTX* ctx;
+    BN_CTX* ctx = NULL;
     EC_GROUP* curve = NULL;
     EC_KEY* ephemeral_key = NULL;
     const EC_POINT* h = NULL;
@@ -78051,6 +78053,7 @@ static int test_wolfSSL_d2i_and_i2d_PublicKey_ecc(void)
     EVP_PKEY_free(pkey);
     EC_KEY_free(ephemeral_key);
     EC_GROUP_free(curve);
+    BN_CTX_free(ctx);
 #endif
     return EXPECT_RESULT();
 }

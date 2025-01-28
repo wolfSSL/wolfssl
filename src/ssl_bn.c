@@ -2362,65 +2362,89 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 }
 #endif /* !NO_FILESYSTEM && XFPRINTF */
 
+#ifndef NO_WOLFSSL_BN_CTX
 /*******************************************************************************
  * BN_CTX APIs
  ******************************************************************************/
 
-/* Allocate and return a new BN context object.
+/* Create a new BN context object.
  *
- * BN context not needed for operations.
- *
- * @return  Pointer to dummy object.
+ * @return  BN context object on success.
+ * @return  NULL on failure.
  */
 WOLFSSL_BN_CTX* wolfSSL_BN_CTX_new(void)
 {
-    /* wolfcrypt doesn't need BN context. */
-    static int ctx;
+    WOLFSSL_BN_CTX* ctx = NULL;
+
     WOLFSSL_ENTER("wolfSSL_BN_CTX_new");
-    return (WOLFSSL_BN_CTX*)&ctx;
+    ctx = (WOLFSSL_BN_CTX*)XMALLOC(sizeof(WOLFSSL_BN_CTX), NULL,
+            DYNAMIC_TYPE_OPENSSL);
+    if (ctx != NULL) {
+        wolfSSL_BN_CTX_init(ctx);
+    }
+
+    return ctx;
 }
 
 /* Initialize a BN context object.
  *
- * BN context not needed for operations.
- *
- * @param [in] ctx  Dummy BN context.
+ * @param [in] ctx  BN context object.
  */
 void wolfSSL_BN_CTX_init(WOLFSSL_BN_CTX* ctx)
 {
-    (void)ctx;
     WOLFSSL_ENTER("wolfSSL_BN_CTX_init");
+    if (ctx != NULL) {
+        XMEMSET(ctx, 0, sizeof(WOLFSSL_BN_CTX));
+    }
 }
 
 
 /* Free a BN context object.
  *
- * BN context not needed for operations.
- *
- * @param [in] ctx  Dummy BN context.
+ * @param [in] ctx  BN context object.
  */
 void wolfSSL_BN_CTX_free(WOLFSSL_BN_CTX* ctx)
 {
-    (void)ctx;
     WOLFSSL_ENTER("wolfSSL_BN_CTX_free");
-    /* Don't do anything since using dummy, static BN context. */
+    if (ctx != NULL) {
+        while (ctx->list != NULL) {
+            struct WOLFSSL_BN_CTX_LIST* tmp = ctx->list;
+            ctx->list = ctx->list->next;
+            wolfSSL_BN_free(tmp->bn);
+            XFREE(tmp, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
 }
 
-/* Get a big number based on the BN context.
+/* Get a big number from the BN context.
  *
- * @param [in] ctx  BN context. Not used.
+ * @param [in] ctx  BN context object.
  * @return  Big number on success.
  * @return  NULL on failure.
  */
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
 {
-    /* ctx is not used - returning a new big number. */
-    (void)ctx;
+    WOLFSSL_BIGNUM* bn = NULL;
 
     WOLFSSL_ENTER("wolfSSL_BN_CTX_get");
+    if (ctx != NULL) {
+        struct WOLFSSL_BN_CTX_LIST** prev = &ctx->list;
+        while (*prev != NULL)
+            prev = &(*prev)->next;
+        *prev = (struct WOLFSSL_BN_CTX_LIST*)XMALLOC(
+                sizeof(struct WOLFSSL_BN_CTX_LIST), NULL, DYNAMIC_TYPE_OPENSSL);
+        if (*prev != NULL) {
+            XMEMSET(*prev, 0, sizeof(struct WOLFSSL_BN_CTX_LIST));
+            bn = (*prev)->bn = wolfSSL_BN_new();
+            if ((*prev)->bn == NULL) {
+                XFREE(*prev, NULL, DYNAMIC_TYPE_OPENSSL);
+                *prev = NULL;
+            }
+        }
+    }
 
-    /* Return a new big number. */
-    return wolfSSL_BN_new();
+    return bn;
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -2439,6 +2463,8 @@ void wolfSSL_BN_CTX_start(WOLFSSL_BN_CTX *ctx)
     WOLFSSL_MSG("wolfSSL_BN_CTX_start TBD");
 }
 #endif
+
+#endif /* NO_WOLFSSL_BN_CTX */
 
 /*******************************************************************************
  * BN_MONT_CTX APIs

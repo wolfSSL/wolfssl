@@ -77,7 +77,13 @@ typedef struct WOLFSSL_BIGNUM {
 
 #define WOLFSSL_BN_MAX_VAL          ((BN_ULONG)-1)
 
-typedef struct WOLFSSL_BN_CTX      WOLFSSL_BN_CTX;
+struct WOLFSSL_BN_CTX_LIST {
+    WOLFSSL_BIGNUM* bn;
+    struct WOLFSSL_BN_CTX_LIST* next;
+};
+typedef struct WOLFSSL_BN_CTX {
+    struct WOLFSSL_BN_CTX_LIST* list;
+} WOLFSSL_BN_CTX;
 typedef struct WOLFSSL_BN_MONT_CTX WOLFSSL_BN_MONT_CTX;
 typedef struct WOLFSSL_BN_GENCB    WOLFSSL_BN_GENCB;
 
