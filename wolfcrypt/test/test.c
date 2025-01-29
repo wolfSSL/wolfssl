@@ -48,6 +48,8 @@
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
 
+#include <unistd.h>
+
 #if defined(HAVE_WOLFCRYPT_TEST_OPTIONS)
     #include <wolfssl/ssl.h>
     #define err_sys err_sys_remap /* remap err_sys */
@@ -20195,6 +20197,8 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t rsa_no_pad_test(void)
     XMEMCPY(tmp, client_key_der_4096, (size_t)sizeof_client_key_der_4096);
 #elif !defined(NO_FILESYSTEM)
     file = XFOPEN(clientKey, "rb");
+    print("%s", clientKey);
+    print("%s", getcwd());
     if (!file) {
         err_sys("can't open clientKey, Please run from wolfSSL home dir",
                 WC_TEST_RET_ENC_ERRNO);
