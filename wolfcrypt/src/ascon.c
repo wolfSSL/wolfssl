@@ -386,7 +386,7 @@ int wc_AsconAEAD128_EncryptUpdate(wc_AsconAEAD128* a, byte* out,
     else if (a->op != ASCON_AEAD128_ENCRYPT)
         return BAD_STATE_E;
 
-    /* Process leftover block */
+    /* Process leftover from last block */
     if (a->lastBlkSz != 0) {
         word32 toProcess = min(ASCON_AEAD128_RATE - a->lastBlkSz, inSz);
         xorbuf(&a->state.s8[a->lastBlkSz], in, toProcess);
@@ -411,7 +411,7 @@ int wc_AsconAEAD128_EncryptUpdate(wc_AsconAEAD128* a, byte* out,
         out += ASCON_AEAD128_RATE;
         inSz -= ASCON_AEAD128_RATE;
     }
-
+    /* Store leftover */
     xorbuf(a->state.s64, in, inSz);
     XMEMCPY(out, a->state.s64, inSz);
     a->lastBlkSz = inSz;
@@ -430,7 +430,7 @@ int wc_AsconAEAD128_EncryptFinal(wc_AsconAEAD128* a, byte* tag)
     if (a->op != ASCON_AEAD128_ENCRYPT)
         return BAD_STATE_E;
 
-    /* Pad last block */
+    /* Process leftover from last block */
     a->state.s8[a->lastBlkSz] ^= 1;
 
     a->state.s64[2] ^= a->key[0];
@@ -487,7 +487,7 @@ int wc_AsconAEAD128_DecryptUpdate(wc_AsconAEAD128* a, byte* out,
         out += ASCON_AEAD128_RATE;
         inSz -= ASCON_AEAD128_RATE;
     }
-
+    /* Store leftover */
     xorbufout(out, a->state.s64, in, inSz);
     XMEMCPY(a->state.s64, in, inSz);
     a->lastBlkSz = inSz;
