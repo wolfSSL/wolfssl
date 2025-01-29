@@ -37,10 +37,10 @@ extern "C" {
 #define ASCON_AEAD128_TAG_SZ                           16
 
 typedef union AsconState {
-  word64 s64[5];
-  word32 s32[10];
-  word16 s16[20];
-  byte    s8[40];
+    word64 s64[5];
+    word32 s32[10];
+    word16 s16[20];
+    byte    s8[40];
 } AsconState;
 
 typedef struct wc_AsconHash256 {
