@@ -152,7 +152,7 @@ static void permutation(AsconState* a, byte rounds)
        tmp.s64[0] ^ rotrFixed64(tmp.s64[0], 19) ^ rotrFixed64(tmp.s64[0], 28); \
     (a)->s64[2] =                                                              \
        tmp.s64[2] ^ rotrFixed64(tmp.s64[2],  1) ^ rotrFixed64(tmp.s64[2],  6); \
-    } while (0)
+} while (0)
 
 #define p6(a) \
     p(a, 0x96); \
