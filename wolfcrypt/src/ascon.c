@@ -62,7 +62,7 @@
 
 #ifndef WOLFSSL_ASCON_UNROLL
 
-/* Table 4 */
+/* Table 5 */
 static const byte round_constants[MAX_ROUNDS] = {
     0xf0, 0xe1, 0xd2, 0xc3, 0xb4, 0xa5, 0x96, 0x87, 0x78, 0x69, 0x5a, 0x4b
 };
@@ -86,9 +86,9 @@ static byte start_index(byte rounds)
 static WC_INLINE void ascon_round(AsconState* a, byte round)
 {
     AsconState tmp;
-    /* 2.6.1 Addition of Constants */
+    /* 3.2 Constant-Addition Layer */
     a->s64[2] ^= round_constants[round];
-    /* 2.6.2 Substitution Layer */
+    /* 3.3 Substitution Layer */
     a->s64[0] ^= a->s64[4];
     a->s64[4] ^= a->s64[3];
     a->s64[2] ^= a->s64[1];
@@ -101,7 +101,7 @@ static WC_INLINE void ascon_round(AsconState* a, byte round)
     tmp.s64[3] ^= tmp.s64[2];
     tmp.s64[0] ^= tmp.s64[4];
     tmp.s64[2] = ~tmp.s64[2];
-    /* 2.6.3 Linear Diffusion Layer */
+    /* 3.4 Linear Diffusion Layer */
     a->s64[4] =
          tmp.s64[4] ^ rotrFixed64(tmp.s64[4],  7) ^ rotrFixed64(tmp.s64[4], 41);
     a->s64[1] =
@@ -126,9 +126,9 @@ static void permutation(AsconState* a, byte rounds)
 
 #define p(a, c) do {                                                           \
     AsconState tmp;                                                            \
-    /* 2.6.1 Addition of Constants */                                          \
+    /* 3.2 Constant-Addition Layer */                                          \
     (a)->s64[2] ^= c;                                                          \
-    /* 2.6.2 Substitution Layer */                                             \
+    /* 3.3 Substitution Layer */                                               \
     (a)->s64[0] ^= (a)->s64[4];                                                \
     (a)->s64[4] ^= (a)->s64[3];                                                \
     (a)->s64[2] ^= (a)->s64[1];                                                \
@@ -141,7 +141,7 @@ static void permutation(AsconState* a, byte rounds)
     tmp.s64[3] ^= tmp.s64[2];                                                  \
     tmp.s64[0] ^= tmp.s64[4];                                                  \
     tmp.s64[2] = ~tmp.s64[2];                                                  \
-    /* 2.6.3 Linear Diffusion Layer */                                         \
+    /* 3.4 Linear Diffusion Layer */                                           \
     (a)->s64[4] =                                                              \
        tmp.s64[4] ^ rotrFixed64(tmp.s64[4],  7) ^ rotrFixed64(tmp.s64[4], 41); \
     (a)->s64[1] =                                                              \
