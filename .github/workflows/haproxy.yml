@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        haproxy_ref: [ 'v3.1.0' ]
+        haproxy_ref: [ 'master' ]
     steps:
     - name: Install test dependencies
       run: |
