@@ -34706,7 +34706,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ecc_test_buffers(void)
 #else
 #define X25519_TEST_CNT    1
 #endif
-static wc_test_ret_t curve25519_overflow_test(void)
+static wc_test_ret_t curve25519_overflow_test(WC_RNG* rng)
 {
     /* secret key for party a */
     byte sa[X25519_TEST_CNT][32] = {
@@ -34824,6 +34824,10 @@ static wc_test_ret_t curve25519_overflow_test(void)
     curve25519_key userA;
 
     wc_curve25519_init_ex(&userA, HEAP_HINT, devId);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    wc_curve25519_set_rng(&userA, rng);
+#endif
+    (void)rng;
 
     for (i = 0; i < X25519_TEST_CNT; i++) {
         if (wc_curve25519_import_private_raw(sa[i], sizeof(sa[i]), pb[i],
@@ -35302,6 +35306,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     wc_curve25519_init_ex(userB, HEAP_HINT, devId);
     wc_curve25519_init_ex(pubKey, HEAP_HINT, devId);
 #endif
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    wc_curve25519_set_rng(userA, &rng);
+    wc_curve25519_set_rng(userB, &rng);
+#endif
 
     /* make curve25519 keys */
     ret = wc_curve25519_make_key(&rng, 32, userA);
@@ -35399,6 +35407,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
 
     wc_curve25519_free(userB);
     wc_curve25519_init_ex(userB, HEAP_HINT, devId);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    wc_curve25519_set_rng(userB, &rng);
+#endif
 
     ret = wc_curve25519_make_key(&rng, 32, userB);
     if (ret != 0)
@@ -35421,7 +35432,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t curve25519_test(void)
     if (XMEMCMP(sharedA, sharedB, x))
         ERROR_OUT(WC_TEST_RET_ENC_NC, cleanup);
 
-    ret = curve25519_overflow_test();
+    ret = curve25519_overflow_test(&rng);
     if (ret != 0)
         goto cleanup;
     ret = curve25519_check_public_test();

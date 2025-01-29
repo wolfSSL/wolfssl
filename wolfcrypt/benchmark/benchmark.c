@@ -11763,6 +11763,21 @@ void bench_curve25519KeyAgree(int useDeviceID)
         return;
     }
 
+#ifdef WOLFSSL_CURVE25519_BLINDING
+   ret = wc_curve25519_set_rng(&genKey, &gRng);
+   if (ret != 0) {
+        wc_curve25519_free(&genKey);
+        wc_curve25519_free(&genKey2);
+        return;
+   }
+   ret = wc_curve25519_set_rng(&genKey2, &gRng);
+   if (ret != 0) {
+        wc_curve25519_free(&genKey);
+        wc_curve25519_free(&genKey2);
+        return;
+   }
+#endif
+
     /* Shared secret */
     bench_stats_start(&count, &start);
     do {
