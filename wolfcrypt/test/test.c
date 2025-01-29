@@ -8807,25 +8807,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha20_poly1305_aead_test(void)
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
 #ifdef HAVE_ASCON
-#include <wolfcrypt/test/ascon-kat.h>
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_hash256_test(void)
 {
     WOLFSSL_SMALL_STACK_STATIC byte msg[1024];
     byte mdOut[ASCON_HASH256_SZ];
-    const size_t test_rounds = sizeof(msg) + 1; /* +1 to test 0-len msg */
+
+    /* KATs taken from https://github.com/ascon/ascon-c.
+     * Testing only a subset of KATs here. The rest are tested in
+     * tests/api/ascon.c.  */
+    /* crypto_hash/asconhash256/LWC_HASH_KAT_256.txt
+     * The message is just the byte stream 00 01 02 03 ... */
+    WOLFSSL_SMALL_STACK_STATIC const byte hash_output[][32] = {
+        { 0x0B, 0x3B, 0xE5, 0x85, 0x0F, 0x2F, 0x6B, 0x98, 0xCA, 0xF2, 0x9F, 0x8F, 0xDE, 0xA8, 0x9B, 0x64, 0xA1, 0xFA, 0x70, 0xAA, 0x24, 0x9B, 0x8F, 0x83, 0x9B, 0xD5, 0x3B, 0xAA, 0x30, 0x4D, 0x92, 0xB2 },
+        { 0x07, 0x28, 0x62, 0x10, 0x35, 0xAF, 0x3E, 0xD2, 0xBC, 0xA0, 0x3B, 0xF6, 0xFD, 0xE9, 0x00, 0xF9, 0x45, 0x6F, 0x53, 0x30, 0xE4, 0xB5, 0xEE, 0x23, 0xE7, 0xF6, 0xA1, 0xE7, 0x02, 0x91, 0xBC, 0x80 },
+        { 0x61, 0x15, 0xE7, 0xC9, 0xC4, 0x08, 0x1C, 0x27, 0x97, 0xFC, 0x8F, 0xE1, 0xBC, 0x57, 0xA8, 0x36, 0xAF, 0xA1, 0xC5, 0x38, 0x1E, 0x55, 0x6D, 0xD5, 0x83, 0x86, 0x0C, 0xA2, 0xDF, 0xB4, 0x8D, 0xD2 },
+        { 0x26, 0x5A, 0xB8, 0x9A, 0x60, 0x9F, 0x5A, 0x05, 0xDC, 0xA5, 0x7E, 0x83, 0xFB, 0xBA, 0x70, 0x0F, 0x9A, 0x2D, 0x2C, 0x42, 0x11, 0xBA, 0x4C, 0xC9, 0xF0, 0xA1, 0xA3, 0x69, 0xE1, 0x7B, 0x91, 0x5C },
+        { 0xD7, 0xE4, 0xC7, 0xED, 0x9B, 0x8A, 0x32, 0x5C, 0xD0, 0x8B, 0x9E, 0xF2, 0x59, 0xF8, 0x87, 0x70, 0x54, 0xEC, 0xD8, 0x30, 0x4F, 0xE1, 0xB2, 0xD7, 0xFD, 0x84, 0x71, 0x37, 0xDF, 0x67, 0x27, 0xEE },
+    };
 
     wc_AsconHash256 asconHash;
     int err;
     word32 i;
 
-    if (XELEM_CNT(ascon_hash256_output) != test_rounds)
-        return WC_TEST_RET_ENC_EC(BAD_FUNC_ARG);
-
     /* init msg buffer */
     for (i = 0; i < sizeof(msg); i++)
         msg[i] = (byte)i;
 
-    for (i = 0; i < test_rounds; i++) {
+    for (i = 0; i < XELEM_CNT(hash_output); i++) {
         XMEMSET(mdOut, 0, sizeof(mdOut));
         err = wc_AsconHash256_Init(&asconHash);
         if (err != 0)
@@ -8836,13 +8844,13 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_hash256_test(void)
         err = wc_AsconHash256_Final(&asconHash, mdOut);
         if (err != 0)
             return WC_TEST_RET_ENC_EC(err);
-        if (XMEMCMP(mdOut, ascon_hash256_output[i], ASCON_HASH256_SZ) != 0)
+        if (XMEMCMP(mdOut, hash_output[i], ASCON_HASH256_SZ) != 0)
             return WC_TEST_RET_ENC_NC;
         wc_AsconHash256_Clear(&asconHash);
     }
 
     /* Test separated update */
-    for (i = 0; i < test_rounds; i++) {
+    for (i = 0; i < XELEM_CNT(hash_output); i++) {
         word32 half_i = i / 2;
         XMEMSET(mdOut, 0, sizeof(mdOut));
         err = wc_AsconHash256_Init(&asconHash);
@@ -8857,7 +8865,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_hash256_test(void)
         err = wc_AsconHash256_Final(&asconHash, mdOut);
         if (err != 0)
             return WC_TEST_RET_ENC_EC(err);
-        if (XMEMCMP(mdOut, ascon_hash256_output[i], ASCON_HASH256_SZ) != 0)
+        if (XMEMCMP(mdOut, hash_output[i], ASCON_HASH256_SZ) != 0)
             return WC_TEST_RET_ENC_NC;
         wc_AsconHash256_Clear(&asconHash);
     }
@@ -8871,7 +8879,39 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
     wc_AsconAEAD128 asconAEAD;
     int err;
 
-    for (i = 0; i < XELEM_CNT(ascon_aead128_kat); i++) {
+    /* KATs taken from https://github.com/ascon/ascon-c.
+     * Testing only a subset of KATs here. The rest are tested in
+     * tests/api/ascon.c.  */
+    /* crypto_hash/asconaead128/LWC_AEAD_KAT_128_128.txt */
+    static const char *aead_kat[][5] = {
+        { /* Key = */ "000102030405060708090A0B0C0D0E0F",
+          /* Nonce = */ "000102030405060708090A0B0C0D0E0F",
+          /* PT = */ "",
+          /* AD = */ "",
+          /* CT = */ "4427D64B8E1E1451FC445960F0839BB0", },
+        { /* Key = */ "000102030405060708090A0B0C0D0E0F",
+          /* Nonce = */ "000102030405060708090A0B0C0D0E0F",
+          /* PT = */ "",
+          /* AD = */ "00",
+          /* CT = */ "103AB79D913A0321287715A979BB8585", },
+        { /* Key = */ "000102030405060708090A0B0C0D0E0F",
+          /* Nonce = */ "000102030405060708090A0B0C0D0E0F",
+          /* PT = */ "",
+          /* AD = */ "0001",
+          /* CT = */ "A50E88E30F923B90A9C810181230DF10", },
+        { /* Key = */ "000102030405060708090A0B0C0D0E0F",
+          /* Nonce = */ "000102030405060708090A0B0C0D0E0F",
+          /* PT = */ "",
+          /* AD = */ "000102",
+          /* CT = */ "AE214C9F66630658ED8DC7D31131174C", },
+        { /* Key = */ "000102030405060708090A0B0C0D0E0F",
+          /* Nonce = */ "000102030405060708090A0B0C0D0E0F",
+          /* PT = */ "",
+          /* AD = */ "00010203",
+          /* CT = */ "C6FF3CF70575B144B955820D9BC7685E", },
+    };
+
+    for (i = 0; i < XELEM_CNT(aead_kat); i++) {
         byte key[ASCON_AEAD128_KEY_SZ];
         byte nonce[ASCON_AEAD128_NONCE_SZ];
         byte pt[32]; /* longest plaintext we test is 32 bytes */
@@ -8892,27 +8932,27 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
         XMEMSET(tag, 0, sizeof(tag));
 
         /* Convert HEX strings to byte stream */
-        for (j = 0; ascon_aead128_kat[i][0][j] != '\0'; j += 2) {
-            key[j/2] = HexCharToByte(ascon_aead128_kat[i][0][j]) << 4 |
-                       HexCharToByte(ascon_aead128_kat[i][0][j+1]);
+        for (j = 0; aead_kat[i][0][j] != '\0'; j += 2) {
+            key[j/2] = HexCharToByte(aead_kat[i][0][j]) << 4 |
+                       HexCharToByte(aead_kat[i][0][j+1]);
         }
-        for (j = 0; ascon_aead128_kat[i][1][j] != '\0'; j += 2) {
-            nonce[j/2] = HexCharToByte(ascon_aead128_kat[i][1][j]) << 4 |
-                         HexCharToByte(ascon_aead128_kat[i][1][j+1]);
+        for (j = 0; aead_kat[i][1][j] != '\0'; j += 2) {
+            nonce[j/2] = HexCharToByte(aead_kat[i][1][j]) << 4 |
+                         HexCharToByte(aead_kat[i][1][j+1]);
         }
-        for (j = 0; ascon_aead128_kat[i][2][j] != '\0'; j += 2) {
-            pt[j/2] = HexCharToByte(ascon_aead128_kat[i][2][j]) << 4 |
-                      HexCharToByte(ascon_aead128_kat[i][2][j+1]);
+        for (j = 0; aead_kat[i][2][j] != '\0'; j += 2) {
+            pt[j/2] = HexCharToByte(aead_kat[i][2][j]) << 4 |
+                      HexCharToByte(aead_kat[i][2][j+1]);
         }
         ptSz = j/2;
-        for (j = 0; ascon_aead128_kat[i][3][j] != '\0'; j += 2) {
-            ad[j/2] = HexCharToByte(ascon_aead128_kat[i][3][j]) << 4 |
-                      HexCharToByte(ascon_aead128_kat[i][3][j+1]);
+        for (j = 0; aead_kat[i][3][j] != '\0'; j += 2) {
+            ad[j/2] = HexCharToByte(aead_kat[i][3][j]) << 4 |
+                      HexCharToByte(aead_kat[i][3][j+1]);
         }
         adSz = j/2;
-        for (j = 0; ascon_aead128_kat[i][4][j] != '\0'; j += 2) {
-            ct[j/2] = HexCharToByte(ascon_aead128_kat[i][4][j]) << 4 |
-                      HexCharToByte(ascon_aead128_kat[i][4][j+1]);
+        for (j = 0; aead_kat[i][4][j] != '\0'; j += 2) {
+            ct[j/2] = HexCharToByte(aead_kat[i][4][j]) << 4 |
+                      HexCharToByte(aead_kat[i][4][j+1]);
         }
         ctSz = j/2 - ASCON_AEAD128_TAG_SZ;
 

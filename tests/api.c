@@ -286,7 +286,8 @@
 #define WOLFSSL_MISC_INCLUDED
 #include <wolfcrypt/src/misc.c>
 
-
+/* Gather test declarations to include them in the testCases array */
+#include <tests/api/ascon.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -101722,6 +101723,10 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wc_dilithium_make_key_from_seed),
     TEST_DECL(test_wc_dilithium_sig_kats),
     TEST_DECL(test_wc_dilithium_verify_kats),
+
+    /* Ascon */
+    TEST_DECL(test_ascon_hash256),
+    TEST_DECL(test_ascon_aead128),
 
     /* Signature API */
     TEST_DECL(test_wc_SignatureGetSize_ecc),
