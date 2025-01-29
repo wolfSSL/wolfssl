@@ -10146,6 +10146,9 @@ static void bench_lms_sign_verify(enum wc_LmsParm parm, byte* pub)
     case WC_LMS_PARM_SHA256_192_L1_H10_W8:
     case WC_LMS_PARM_SHA256_192_L1_H15_W2:
     case WC_LMS_PARM_SHA256_192_L1_H15_W4:
+    case WC_LMS_PARM_SHA256_192_L1_H20_W2:
+    case WC_LMS_PARM_SHA256_192_L1_H20_W4:
+    case WC_LMS_PARM_SHA256_192_L1_H20_W8:
     case WC_LMS_PARM_SHA256_192_L2_H10_W2:
     case WC_LMS_PARM_SHA256_192_L2_H10_W4:
     case WC_LMS_PARM_SHA256_192_L2_H10_W8:
