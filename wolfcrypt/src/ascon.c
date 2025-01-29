@@ -48,6 +48,16 @@
  * - Add support for big-endian systems
  * - Add support for 32-bit and smaller systems */
 
+/* Data block size in bytes */
+#define ASCON_HASH256_RATE                              8
+#define ASCON_HASH256_ROUNDS                           12
+#define ASCON_HASH256_IV            0x0000080100CC0002ULL
+
+#define ASCON_AEAD128_ROUNDS_PA                        12
+#define ASCON_AEAD128_ROUNDS_PB                         8
+#define ASCON_AEAD128_IV            0x00001000808C0001ULL
+#define ASCON_AEAD128_RATE                             16
+
 #define MAX_ROUNDS 12
 
 #ifndef WOLFSSL_ASCON_UNROLL

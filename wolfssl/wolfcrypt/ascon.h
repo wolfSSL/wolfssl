@@ -31,18 +31,10 @@ extern "C" {
 #endif
 
 #define ASCON_HASH256_SZ                               32
-/* Data block size in bytes */
-#define ASCON_HASH256_RATE                              8
-#define ASCON_HASH256_ROUNDS                           12
-#define ASCON_HASH256_IV            0x0000080100CC0002ULL
 
-#define ASCON_AEAD128_ROUNDS_PA                        12
-#define ASCON_AEAD128_ROUNDS_PB                         8
-#define ASCON_AEAD128_IV            0x00001000808C0001ULL
 #define ASCON_AEAD128_KEY_SZ                           16
 #define ASCON_AEAD128_NONCE_SZ                         16
 #define ASCON_AEAD128_TAG_SZ                           16
-#define ASCON_AEAD128_RATE                             16
 
 typedef union AsconState {
   word64 s64[5];
