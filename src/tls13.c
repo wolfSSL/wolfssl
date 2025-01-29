@@ -7181,7 +7181,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             ERROR_OUT(MATCH_SUITE_ERROR, exit_dch);
         }
 
-    #ifdef HAVE_SESSION_TICKET
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         if (ssl->options.resuming) {
             ssl->options.resuming = 0;
             ssl->arrays->psk_keySz = 0;
