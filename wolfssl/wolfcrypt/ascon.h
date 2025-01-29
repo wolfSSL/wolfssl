@@ -63,9 +63,9 @@ typedef struct wc_AsconAEAD128 {
 #endif
     AsconState state;
     byte lastBlkSz;
-    byte KeySet:1;   /* has the key been processed */
-    byte NonceSet:1; /* has the nonce been processed */
-    byte ADSet:1;    /* has the associated data been processed */
+    byte keySet:1;   /* has the key been processed */
+    byte nonceSet:1; /* has the nonce been processed */
+    byte adSet:1;    /* has the associated data been processed */
     byte op:2;       /* 0 for not set, 1 for encrypt, 2 for decrypt */
 } wc_AsconAEAD128;
 

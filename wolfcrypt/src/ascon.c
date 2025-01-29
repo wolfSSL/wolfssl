@@ -329,13 +329,13 @@ int wc_AsconAEAD128_SetKey(wc_AsconAEAD128* a, const byte* key)
 {
     if (a == NULL || key == NULL)
         return BAD_FUNC_ARG;
-    if (a->KeySet)
+    if (a->keySet)
         return BAD_STATE_E;
 
     XMEMCPY(a->key, key, ASCON_AEAD128_KEY_SZ);
     a->state.s64[1] = a->key[0];
     a->state.s64[2] = a->key[1];
-    a->KeySet = 1;
+    a->keySet = 1;
 
     return 0;
 }
@@ -344,11 +344,11 @@ int wc_AsconAEAD128_SetNonce(wc_AsconAEAD128* a, const byte* nonce)
 {
     if (a == NULL || nonce == NULL)
         return BAD_FUNC_ARG;
-    if (a->NonceSet)
+    if (a->nonceSet)
         return BAD_STATE_E;
 
     XMEMCPY(&a->state.s64[3], nonce, ASCON_AEAD128_NONCE_SZ);
-    a->NonceSet = 1;
+    a->nonceSet = 1;
 
     return 0;
 }
@@ -358,7 +358,7 @@ int wc_AsconAEAD128_SetAD(wc_AsconAEAD128* a, const byte* ad,
 {
     if (a == NULL || (ad == NULL && adSz > 0))
         return BAD_FUNC_ARG;
-    if (!a->KeySet || !a->NonceSet) /* key and nonce must be set before */
+    if (!a->keySet || !a->nonceSet) /* key and nonce must be set before */
         return BAD_STATE_E;
 
     permutation(&a->state, ASCON_AEAD128_ROUNDS_PA);
@@ -379,7 +379,7 @@ int wc_AsconAEAD128_SetAD(wc_AsconAEAD128* a, const byte* ad,
     }
     a->state.s64[4] ^= 1ULL << 63;
 
-    a->ADSet = 1;
+    a->adSet = 1;
     return 0;
 }
 
@@ -388,7 +388,7 @@ int wc_AsconAEAD128_EncryptUpdate(wc_AsconAEAD128* a, byte* out,
 {
     if (a == NULL || (in == NULL && inSz > 0))
         return BAD_FUNC_ARG;
-    if (!a->KeySet || !a->NonceSet || !a->ADSet)
+    if (!a->keySet || !a->nonceSet || !a->adSet)
         return BAD_STATE_E;
 
     if (a->op == ASCON_AEAD128_NOTSET)
@@ -434,7 +434,7 @@ int wc_AsconAEAD128_EncryptFinal(wc_AsconAEAD128* a, byte* tag)
 {
     if (a == NULL || tag == NULL)
         return BAD_FUNC_ARG;
-    if (!a->KeySet || !a->NonceSet || !a->ADSet)
+    if (!a->keySet || !a->nonceSet || !a->adSet)
         return BAD_STATE_E;
 
     if (a->op != ASCON_AEAD128_ENCRYPT)
@@ -464,7 +464,7 @@ int wc_AsconAEAD128_DecryptUpdate(wc_AsconAEAD128* a, byte* out,
 {
     if (a == NULL || (in == NULL && inSz > 0))
         return BAD_FUNC_ARG;
-    if (!a->KeySet || !a->NonceSet || !a->ADSet)
+    if (!a->keySet || !a->nonceSet || !a->adSet)
         return BAD_STATE_E;
 
     if (a->op == ASCON_AEAD128_NOTSET)
@@ -509,7 +509,7 @@ int wc_AsconAEAD128_DecryptFinal(wc_AsconAEAD128* a, const byte* tag)
 {
     if (a == NULL || tag == NULL)
         return BAD_FUNC_ARG;
-    if (!a->KeySet || !a->NonceSet || !a->ADSet)
+    if (!a->keySet || !a->nonceSet || !a->adSet)
         return BAD_STATE_E;
 
     if (a->op != ASCON_AEAD128_DECRYPT)
