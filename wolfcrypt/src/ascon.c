@@ -48,6 +48,10 @@
  * - Add support for big-endian systems
  * - Add support for 32-bit and smaller systems */
 
+#ifndef WORD64_AVAILABLE
+    #error "Ascon implementation requires a 64-bit word"
+#endif
+
 /* Data block size in bytes */
 #define ASCON_HASH256_RATE                              8
 #define ASCON_HASH256_ROUNDS                           12

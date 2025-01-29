@@ -37,7 +37,9 @@ extern "C" {
 #define ASCON_AEAD128_TAG_SZ                           16
 
 typedef union AsconState {
+#ifdef WORD64_AVAILABLE
     word64 s64[5];
+#endif
     word32 s32[10];
     word16 s16[20];
     byte    s8[40];
@@ -56,7 +58,9 @@ enum {
 
 typedef struct wc_AsconAEAD128 {
     /* needed throughout both encrypt and decrypt */
+#ifdef WORD64_AVAILABLE
     word64 key[ASCON_AEAD128_KEY_SZ/sizeof(word64)];
+#endif
     AsconState state;
     byte lastBlkSz;
     byte KeySet:1;   /* has the key been processed */
