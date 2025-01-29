@@ -63,10 +63,10 @@ enum {
 };
 
 typedef struct wc_AsconAEAD128 {
-    AsconState state;
-    byte lastBlkSz;
     /* needed throughout both encrypt and decrypt */
     word64 key[ASCON_AEAD128_KEY_SZ/sizeof(word64)];
+    AsconState state;
+    byte lastBlkSz;
     byte KeySet:1;   /* has the key been processed */
     byte NonceSet:1; /* has the nonce been processed */
     byte ADSet:1;    /* has the associated data been processed */
