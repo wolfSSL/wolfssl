@@ -25676,6 +25676,9 @@ int SendData(WOLFSSL* ssl, const void* data, size_t sz)
             }
             return error;
         }
+        else {
+            ssl->error = 0; /* Clear any previous errors */
+        }
 
         sent += buffSz;
 
