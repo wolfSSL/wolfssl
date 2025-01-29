@@ -87,33 +87,28 @@ static byte start_index(byte rounds)
 
 static WC_INLINE void ascon_round(AsconState* a, byte round)
 {
-    AsconState tmp;
+    word64 tmp0, tmp1, tmp2, tmp3, tmp4;
     /* 3.2 Constant-Addition Layer */
     a->s64[2] ^= round_constants[round];
     /* 3.3 Substitution Layer */
     a->s64[0] ^= a->s64[4];
     a->s64[4] ^= a->s64[3];
     a->s64[2] ^= a->s64[1];
-    tmp.s64[0] = a->s64[0] ^ (~a->s64[1] & a->s64[2]);
-    tmp.s64[2] = a->s64[2] ^ (~a->s64[3] & a->s64[4]);
-    tmp.s64[4] = a->s64[4] ^ (~a->s64[0] & a->s64[1]);
-    tmp.s64[1] = a->s64[1] ^ (~a->s64[2] & a->s64[3]);
-    tmp.s64[3] = a->s64[3] ^ (~a->s64[4] & a->s64[0]);
-    tmp.s64[1] ^= tmp.s64[0];
-    tmp.s64[3] ^= tmp.s64[2];
-    tmp.s64[0] ^= tmp.s64[4];
-    tmp.s64[2] = ~tmp.s64[2];
+    tmp0 = a->s64[0] ^ (~a->s64[1] & a->s64[2]);
+    tmp2 = a->s64[2] ^ (~a->s64[3] & a->s64[4]);
+    tmp4 = a->s64[4] ^ (~a->s64[0] & a->s64[1]);
+    tmp1 = a->s64[1] ^ (~a->s64[2] & a->s64[3]);
+    tmp3 = a->s64[3] ^ (~a->s64[4] & a->s64[0]);
+    tmp1 ^= tmp0;
+    tmp3 ^= tmp2;
+    tmp0 ^= tmp4;
+    tmp2 = ~tmp2;
     /* 3.4 Linear Diffusion Layer */
-    a->s64[4] =
-         tmp.s64[4] ^ rotrFixed64(tmp.s64[4],  7) ^ rotrFixed64(tmp.s64[4], 41);
-    a->s64[1] =
-         tmp.s64[1] ^ rotrFixed64(tmp.s64[1], 61) ^ rotrFixed64(tmp.s64[1], 39);
-    a->s64[3] =
-         tmp.s64[3] ^ rotrFixed64(tmp.s64[3], 10) ^ rotrFixed64(tmp.s64[3], 17);
-    a->s64[0] =
-         tmp.s64[0] ^ rotrFixed64(tmp.s64[0], 19) ^ rotrFixed64(tmp.s64[0], 28);
-    a->s64[2] =
-         tmp.s64[2] ^ rotrFixed64(tmp.s64[2],  1) ^ rotrFixed64(tmp.s64[2],  6);
+    a->s64[4] = tmp4 ^ rotrFixed64(tmp4,  7) ^ rotrFixed64(tmp4, 41);
+    a->s64[1] = tmp1 ^ rotrFixed64(tmp1, 61) ^ rotrFixed64(tmp1, 39);
+    a->s64[3] = tmp3 ^ rotrFixed64(tmp3, 10) ^ rotrFixed64(tmp3, 17);
+    a->s64[0] = tmp0 ^ rotrFixed64(tmp0, 19) ^ rotrFixed64(tmp0, 28);
+    a->s64[2] = tmp2 ^ rotrFixed64(tmp2,  1) ^ rotrFixed64(tmp2,  6);
 }
 
 static void permutation(AsconState* a, byte rounds)
@@ -127,33 +122,28 @@ static void permutation(AsconState* a, byte rounds)
 #else
 
 #define p(a, c) do {                                                           \
-    AsconState tmp;                                                            \
+    word64 tmp0, tmp1, tmp2, tmp3, tmp4;                                       \
     /* 3.2 Constant-Addition Layer */                                          \
     (a)->s64[2] ^= c;                                                          \
     /* 3.3 Substitution Layer */                                               \
     (a)->s64[0] ^= (a)->s64[4];                                                \
     (a)->s64[4] ^= (a)->s64[3];                                                \
     (a)->s64[2] ^= (a)->s64[1];                                                \
-    tmp.s64[0] = (a)->s64[0] ^ (~(a)->s64[1] & (a)->s64[2]);                   \
-    tmp.s64[2] = (a)->s64[2] ^ (~(a)->s64[3] & (a)->s64[4]);                   \
-    tmp.s64[4] = (a)->s64[4] ^ (~(a)->s64[0] & (a)->s64[1]);                   \
-    tmp.s64[1] = (a)->s64[1] ^ (~(a)->s64[2] & (a)->s64[3]);                   \
-    tmp.s64[3] = (a)->s64[3] ^ (~(a)->s64[4] & (a)->s64[0]);                   \
-    tmp.s64[1] ^= tmp.s64[0];                                                  \
-    tmp.s64[3] ^= tmp.s64[2];                                                  \
-    tmp.s64[0] ^= tmp.s64[4];                                                  \
-    tmp.s64[2] = ~tmp.s64[2];                                                  \
+    tmp0 = (a)->s64[0] ^ (~(a)->s64[1] & (a)->s64[2]);                         \
+    tmp2 = (a)->s64[2] ^ (~(a)->s64[3] & (a)->s64[4]);                         \
+    tmp4 = (a)->s64[4] ^ (~(a)->s64[0] & (a)->s64[1]);                         \
+    tmp1 = (a)->s64[1] ^ (~(a)->s64[2] & (a)->s64[3]);                         \
+    tmp3 = (a)->s64[3] ^ (~(a)->s64[4] & (a)->s64[0]);                         \
+    tmp1 ^= tmp0;                                                              \
+    tmp3 ^= tmp2;                                                              \
+    tmp0 ^= tmp4;                                                              \
+    tmp2 = ~tmp2;                                                              \
     /* 3.4 Linear Diffusion Layer */                                           \
-    (a)->s64[4] =                                                              \
-       tmp.s64[4] ^ rotrFixed64(tmp.s64[4],  7) ^ rotrFixed64(tmp.s64[4], 41); \
-    (a)->s64[1] =                                                              \
-       tmp.s64[1] ^ rotrFixed64(tmp.s64[1], 61) ^ rotrFixed64(tmp.s64[1], 39); \
-    (a)->s64[3] =                                                              \
-       tmp.s64[3] ^ rotrFixed64(tmp.s64[3], 10) ^ rotrFixed64(tmp.s64[3], 17); \
-    (a)->s64[0] =                                                              \
-       tmp.s64[0] ^ rotrFixed64(tmp.s64[0], 19) ^ rotrFixed64(tmp.s64[0], 28); \
-    (a)->s64[2] =                                                              \
-       tmp.s64[2] ^ rotrFixed64(tmp.s64[2],  1) ^ rotrFixed64(tmp.s64[2],  6); \
+    (a)->s64[4] = tmp4 ^ rotrFixed64(tmp4,  7) ^ rotrFixed64(tmp4, 41);        \
+    (a)->s64[1] = tmp1 ^ rotrFixed64(tmp1, 61) ^ rotrFixed64(tmp1, 39);        \
+    (a)->s64[3] = tmp3 ^ rotrFixed64(tmp3, 10) ^ rotrFixed64(tmp3, 17);        \
+    (a)->s64[0] = tmp0 ^ rotrFixed64(tmp0, 19) ^ rotrFixed64(tmp0, 28);        \
+    (a)->s64[2] = tmp2 ^ rotrFixed64(tmp2,  1) ^ rotrFixed64(tmp2,  6);        \
 } while (0)
 
 #define p8(a) \
