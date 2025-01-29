@@ -70,8 +70,6 @@ static const byte round_constants[MAX_ROUNDS] = {
 static byte start_index(byte rounds)
 {
     switch (rounds) {
-        case 6:
-            return 6;
         case 8:
             return 4;
         case 12:
@@ -154,18 +152,15 @@ static void permutation(AsconState* a, byte rounds)
        tmp.s64[2] ^ rotrFixed64(tmp.s64[2],  1) ^ rotrFixed64(tmp.s64[2],  6); \
 } while (0)
 
-#define p6(a) \
+#define p8(a) \
+    p(a, 0xb4); \
+    p(a, 0xa5); \
     p(a, 0x96); \
     p(a, 0x87); \
     p(a, 0x78); \
     p(a, 0x69); \
     p(a, 0x5a); \
     p(a, 0x4b)
-
-#define p8(a) \
-    p(a, 0xb4); \
-    p(a, 0xa5); \
-    p6(a)
 
 #define p12(a) \
     p(a, 0xf0); \
