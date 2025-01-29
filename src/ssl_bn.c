@@ -2429,17 +2429,18 @@ WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
 
     WOLFSSL_ENTER("wolfSSL_BN_CTX_get");
     if (ctx != NULL) {
-        struct WOLFSSL_BN_CTX_LIST** prev = &ctx->list;
-        while (*prev != NULL)
-            prev = &(*prev)->next;
-        *prev = (struct WOLFSSL_BN_CTX_LIST*)XMALLOC(
+        struct WOLFSSL_BN_CTX_LIST* node = (struct WOLFSSL_BN_CTX_LIST*)XMALLOC(
                 sizeof(struct WOLFSSL_BN_CTX_LIST), NULL, DYNAMIC_TYPE_OPENSSL);
-        if (*prev != NULL) {
-            XMEMSET(*prev, 0, sizeof(struct WOLFSSL_BN_CTX_LIST));
-            bn = (*prev)->bn = wolfSSL_BN_new();
-            if ((*prev)->bn == NULL) {
-                XFREE(*prev, NULL, DYNAMIC_TYPE_OPENSSL);
-                *prev = NULL;
+        if (node != NULL) {
+            XMEMSET(node, 0, sizeof(struct WOLFSSL_BN_CTX_LIST));
+            bn = node->bn = wolfSSL_BN_new();
+            if (node->bn != NULL) {
+                node->next = ctx->list;
+                ctx->list = node;
+            }
+            else {
+                XFREE(node, NULL, DYNAMIC_TYPE_OPENSSL);
+                node = NULL;
             }
         }
     }
