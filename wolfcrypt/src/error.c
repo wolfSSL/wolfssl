@@ -651,6 +651,9 @@ const char* wc_GetErrorString(int error)
     case DEADLOCK_AVERTED_E:
         return "Deadlock averted -- retry the call";
 
+    case ASCON_AUTH_E:
+        return "ASCON Authentication check fail";
+
     case MAX_CODE_E:
     case WC_SPAN1_MIN_CODE_E:
     case MIN_CODE_E:

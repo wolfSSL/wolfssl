@@ -303,11 +303,12 @@ enum wolfCrypt_ErrorCodes {
     WC_SPAN2_FIRST_E    = -1000,
 
     DEADLOCK_AVERTED_E  = -1000, /* Deadlock averted -- retry the call */
+    ASCON_AUTH_E        = -1001, /* ASCON Authentication check failure */
 
-    WC_SPAN2_LAST_E     = -1000, /* Update to indicate last used error code */
+    WC_SPAN2_LAST_E     = -1001, /* Update to indicate last used error code */
     WC_SPAN2_MIN_CODE_E = -1999, /* Last usable code in span 2 */
 
-    WC_LAST_E           = -1000, /* the last code used either here or in
+    WC_LAST_E           = -1001, /* the last code used either here or in
                                   * error-ssl.h
                                   */
 

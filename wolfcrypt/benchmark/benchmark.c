@@ -553,6 +553,10 @@
     #endif
 #endif
 
+#ifdef HAVE_ASCON
+    #include <wolfssl/wolfcrypt/ascon.h>
+#endif
+
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 
@@ -669,6 +673,8 @@
 #define BENCH_BLAKE2B            0x00008000
 #define BENCH_BLAKE2S            0x00010000
 #define BENCH_SM3                0x00020000
+#define BENCH_ASCON_HASH256      0x00040000
+#define BENCH_ASCON_AEAD128      0x00080000
 
 /* MAC algorithms. */
 #define BENCH_CMAC               0x00000001
@@ -883,6 +889,9 @@ static const bench_alg bench_cipher_opt[] = {
 #ifndef NO_DES3
     { "-des",                BENCH_DES               },
 #endif
+#ifdef HAVE_ASCON
+    { "-ascon-aead",         BENCH_ASCON_AEAD128     },
+#endif
     { NULL, 0 }
 };
 
@@ -949,6 +958,9 @@ static const bench_alg bench_digest_opt[] = {
 #endif
 #ifdef HAVE_BLAKE2S
     { "-blake2s",            BENCH_BLAKE2S           },
+#endif
+#ifdef HAVE_ASCON
+    { "-ascon-hash",         BENCH_ASCON_HASH256     },
 #endif
     { NULL, 0 }
 };
@@ -3342,6 +3354,10 @@ static void* benchmarks_do(void* args)
     #endif
     }
 #endif
+#ifdef HAVE_ASCON
+    if (bench_all || (bench_cipher_algs & BENCH_ASCON_AEAD128))
+        bench_ascon_aead();
+#endif
 #ifndef NO_MD5
     if (bench_all || (bench_digest_algs & BENCH_MD5)) {
     #ifndef NO_SW_BENCH
@@ -3514,6 +3530,10 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_BLAKE2S
     if (bench_all || (bench_digest_algs & BENCH_BLAKE2S))
         bench_blake2s();
+#endif
+#ifdef HAVE_ASCON
+    if (bench_all || (bench_digest_algs & BENCH_ASCON_HASH256))
+        bench_ascon_hash();
 #endif
 #ifdef WOLFSSL_CMAC
     if (bench_all || (bench_mac_algs & BENCH_CMAC)) {
@@ -6103,6 +6123,67 @@ exit:
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
+#ifdef HAVE_ASCON
+
+void bench_ascon_aead(void)
+{
+#define ASCON_AD (byte*)"ADADADADAD"
+#define ASCON_AD_SZ XSTR_SIZEOF(ASCON_AD)
+    double start;
+    int    ret = 0, i, count;
+    WC_DECLARE_VAR(authTag, byte, ASCON_AEAD128_TAG_SZ, HEAP_HINT);
+    WC_DECLARE_VAR(enc, wc_AsconAEAD128, 1, HEAP_HINT);
+    DECLARE_MULTI_VALUE_STATS_VARS()
+
+    WC_ALLOC_VAR(authTag, byte, ASCON_AEAD128_TAG_SZ, HEAP_HINT);
+    XMEMSET(authTag, 0, ASCON_AEAD128_TAG_SZ);
+
+    WC_ALLOC_VAR(enc, wc_AsconAEAD128, 1, HEAP_HINT);
+    XMEMSET(enc, 0, sizeof(wc_AsconAEAD128));
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            ret = wc_AsconAEAD128_Init(enc);
+            if (ret == 0)
+                ret = wc_AsconAEAD128_SetKey(enc, bench_key);
+            if (ret == 0)
+                ret = wc_AsconAEAD128_SetNonce(enc, bench_iv);
+            if (ret == 0)
+                ret = wc_AsconAEAD128_SetAD(enc, ASCON_AD, ASCON_AD_SZ);
+            if (ret == 0) {
+                ret = wc_AsconAEAD128_EncryptUpdate(enc, bench_cipher,
+                        bench_plain, bench_size);
+            }
+            if (ret == 0)
+                ret = wc_AsconAEAD128_EncryptFinal(enc, authTag);
+            wc_AsconAEAD128_Clear(enc);
+
+            if (ret != 0) {
+                printf("ASCON-AEAD error: %d\n", ret);
+                goto exit;
+            }
+            RECORD_MULTI_VALUE_STATS();
+        }
+        count += i;
+    } while (bench_stats_check(start)
+#ifdef MULTI_VALUE_STATISTICS
+        || runs < minimum_runs
+#endif
+        );
+
+    bench_stats_sym_finish("ASCON-AEAD", 0, count, bench_size, start, ret);
+#ifdef MULTI_VALUE_STATISTICS
+    bench_multi_value_stats(max, min, sum, squareSum, runs);
+#endif
+
+exit:
+
+    WC_FREE_VAR(authTag, HEAP_HINT);
+    WC_FREE_VAR(enc, HEAP_HINT);
+}
+
+#endif /* HAVE_ASCON */
 
 #ifndef NO_MD5
 void bench_md5(int useDeviceID)
@@ -7996,6 +8077,64 @@ void bench_blake2s(void)
 }
 #endif
 
+#ifdef HAVE_ASCON
+void bench_ascon_hash(void)
+{
+    wc_AsconHash256 ascon;
+    byte    digest[ASCON_HASH256_SZ];
+    double  start;
+    int     ret = 0, i, count;
+
+    if (digest_stream) {
+        ret = wc_AsconHash256_Init(&ascon);
+        if (ret != 0) {
+            printf("wc_AsconHash256_Init failed, ret = %d\n", ret);
+            return;
+        }
+
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_AsconHash256_Update(&ascon, bench_plain, bench_size);
+                if (ret != 0) {
+                    printf("wc_AsconHash256_Update failed, ret = %d\n", ret);
+                    return;
+                }
+            }
+            ret = wc_AsconHash256_Final(&ascon, digest);
+            if (ret != 0) {
+                printf("wc_AsconHash256_Final failed, ret = %d\n", ret);
+                return;
+            }
+            count += i;
+        } while (bench_stats_check(start));
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_AsconHash256_Init(&ascon);
+                if (ret != 0) {
+                    printf("wc_AsconHash256_Init failed, ret = %d\n", ret);
+                    return;
+                }
+                ret = wc_AsconHash256_Update(&ascon, bench_plain, bench_size);
+                if (ret != 0) {
+                    printf("wc_AsconHash256_Update failed, ret = %d\n", ret);
+                    return;
+                }
+                ret = wc_AsconHash256_Final(&ascon, digest);
+                if (ret != 0) {
+                    printf("wc_AsconHash256_Final failed, ret = %d\n", ret);
+                    return;
+                }
+            }
+            count += i;
+        } while (bench_stats_check(start));
+    }
+    bench_stats_sym_finish("ASCON hash", 0, count, bench_size, start, ret);
+}
+#endif
 
 #ifdef WOLFSSL_CMAC
 

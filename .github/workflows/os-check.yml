@@ -40,6 +40,8 @@ jobs:
            --enable-dtls-mtu',
           '--enable-dtls --enable-dtlscid --enable-dtls13 --enable-secure-renegotiation
             --enable-psk --enable-aesccm --enable-nullcipher CPPFLAGS=-DWOLFSSL_STATIC_RSA',
+          '--enable-ascon --enable-experimental',
+          '--enable-ascon CPPFLAGS=-DWOLFSSL_ASCON_UNROLL --enable-experimental',
         ]
     name: make check
     if: github.repository_owner == 'wolfssl'
