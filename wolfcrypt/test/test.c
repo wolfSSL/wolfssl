@@ -8838,7 +8838,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_hash256_test(void)
             return WC_TEST_RET_ENC_EC(err);
         if (XMEMCMP(mdOut, ascon_hash256_output[i], ASCON_HASH256_SZ) != 0)
             return WC_TEST_RET_ENC_NC;
-        wc_AsconHash256_Deinit(&asconHash);
+        wc_AsconHash256_Clear(&asconHash);
     }
 
     /* Test separated update */
@@ -8859,7 +8859,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_hash256_test(void)
             return WC_TEST_RET_ENC_EC(err);
         if (XMEMCMP(mdOut, ascon_hash256_output[i], ASCON_HASH256_SZ) != 0)
             return WC_TEST_RET_ENC_NC;
-        wc_AsconHash256_Deinit(&asconHash);
+        wc_AsconHash256_Clear(&asconHash);
     }
 
     return 0;
@@ -9007,7 +9007,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ascon_aead128_test(void)
             }
 
 
-            wc_AsconAEAD128_Deinit(&asconAEAD);
+            wc_AsconAEAD128_Clear(&asconAEAD);
         }
     }
 

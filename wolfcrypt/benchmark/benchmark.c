@@ -6157,7 +6157,7 @@ void bench_ascon_aead(void)
             }
             if (ret == 0)
                 ret = wc_AsconAEAD128_EncryptFinal(enc, authTag);
-            wc_AsconAEAD128_Deinit(enc);
+            wc_AsconAEAD128_Clear(enc);
 
             if (ret != 0) {
                 printf("ASCON-AEAD error: %d\n", ret);

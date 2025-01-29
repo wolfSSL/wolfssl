@@ -78,7 +78,7 @@ typedef struct wc_AsconAEAD128 {
 WOLFSSL_API wc_AsconHash256* wc_AsconHash256_New(void);
 WOLFSSL_API void wc_AsconHash256_Free(wc_AsconHash256* a);
 WOLFSSL_API int wc_AsconHash256_Init(wc_AsconHash256* a);
-WOLFSSL_API void wc_AsconHash256_Deinit(wc_AsconHash256* a);
+WOLFSSL_API void wc_AsconHash256_Clear(wc_AsconHash256* a);
 WOLFSSL_API int wc_AsconHash256_Update(wc_AsconHash256* a, const byte* data,
                                        word32 dataSz);
 WOLFSSL_API int wc_AsconHash256_Final(wc_AsconHash256* a, byte* hash);
@@ -86,7 +86,7 @@ WOLFSSL_API int wc_AsconHash256_Final(wc_AsconHash256* a, byte* hash);
 WOLFSSL_API wc_AsconAEAD128* wc_AsconAEAD128_New(void);
 WOLFSSL_API void wc_AsconAEAD128_Free(wc_AsconAEAD128* a);
 WOLFSSL_API int wc_AsconAEAD128_Init(wc_AsconAEAD128* a);
-WOLFSSL_API void wc_AsconAEAD128_Deinit(wc_AsconAEAD128* a);
+WOLFSSL_API void wc_AsconAEAD128_Clear(wc_AsconAEAD128* a);
 
 /* AsconAEAD API */
 

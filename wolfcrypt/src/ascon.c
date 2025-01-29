@@ -191,7 +191,7 @@ wc_AsconHash256* wc_AsconHash256_New(void)
 void wc_AsconHash256_Free(wc_AsconHash256* a)
 {
     if (a != NULL) {
-        wc_AsconHash256_Deinit(a);
+        wc_AsconHash256_Clear(a);
         XFREE(a, NULL, DYNAMIC_TYPE_ASCON);
     }
 }
@@ -209,7 +209,7 @@ int wc_AsconHash256_Init(wc_AsconHash256* a)
     return 0;
 }
 
-void wc_AsconHash256_Deinit(wc_AsconHash256* a)
+void wc_AsconHash256_Clear(wc_AsconHash256* a)
 {
     if (a != NULL) {
         ForceZero(a, sizeof(*a));
@@ -271,7 +271,7 @@ int wc_AsconHash256_Final(wc_AsconHash256* a, byte* hash)
     }
 
     /* Clear state as soon as possible */
-    wc_AsconHash256_Deinit(a);
+    wc_AsconHash256_Clear(a);
     return 0;
 }
 
@@ -293,7 +293,7 @@ wc_AsconAEAD128* wc_AsconAEAD128_New(void)
 void wc_AsconAEAD128_Free(wc_AsconAEAD128 *a)
 {
     if (a != NULL) {
-        wc_AsconAEAD128_Deinit(a);
+        wc_AsconAEAD128_Clear(a);
         XFREE(a, NULL, DYNAMIC_TYPE_ASCON);
     }
 }
@@ -309,7 +309,7 @@ int wc_AsconAEAD128_Init(wc_AsconAEAD128 *a)
     return 0;
 }
 
-void wc_AsconAEAD128_Deinit(wc_AsconAEAD128 *a)
+void wc_AsconAEAD128_Clear(wc_AsconAEAD128 *a)
 {
     if (a != NULL) {
         ForceZero(a, sizeof(*a));
@@ -443,7 +443,7 @@ int wc_AsconAEAD128_EncryptFinal(wc_AsconAEAD128* a, byte* tag)
     XMEMCPY(tag, &a->state.s64[3], ASCON_AEAD128_TAG_SZ);
 
     /* Clear state as soon as possible */
-    wc_AsconAEAD128_Deinit(a);
+    wc_AsconAEAD128_Clear(a);
 
     return 0;
 
@@ -520,7 +520,7 @@ int wc_AsconAEAD128_DecryptFinal(wc_AsconAEAD128* a, const byte* tag)
         return ASCON_AUTH_E;
 
     /* Clear state as soon as possible */
-    wc_AsconAEAD128_Deinit(a);
+    wc_AsconAEAD128_Clear(a);
 
     return 0;
 }

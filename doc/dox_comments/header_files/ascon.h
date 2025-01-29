@@ -166,13 +166,13 @@ int wc_AsconAEAD128_Init(wc_AsconAEAD128* a);
 
     if (wc_AsconAEAD128_Init(&a) != 0)
         // handle error
-    wc_AsconAEAD128_Deinit(&a);
+    wc_AsconAEAD128_Clear(&a);
     \endcode
 
     \sa wc_AsconAeadEncrypt
     \sa wc_AsconAeadDecrypt
     */
-void wc_AsconAEAD128_Deinit(wc_AsconAEAD128 *a);
+void wc_AsconAEAD128_Clear(wc_AsconAEAD128 *a);
 
 /*!
     \ingroup ASCON
@@ -307,7 +307,7 @@ int wc_AsconAEAD128_SetAD(wc_AsconAEAD128* a, const byte* ad, word32 adSz);
     \endcode
 
     \sa wc_AsconAeadInit
-    \sa wc_AsconAEAD128_Deinit
+    \sa wc_AsconAEAD128_Clear
     \sa wc_AsconAEAD128_SetKey
     \sa wc_AsconAEAD128_SetNonce
     \sa wc_AsconAEAD128_SetAD
