@@ -99175,6 +99175,8 @@ static int test_dtls_frag_ch_count_records(byte* b, int len)
         records++;
         dtlsRH = (DtlsRecordLayerHeader*)b;
         recordLen = (dtlsRH->length[0] << 8) | dtlsRH->length[1];
+        if (recordLen > (size_t)len)
+            break;
         b += sizeof(DtlsRecordLayerHeader) + recordLen;
         len -= sizeof(DtlsRecordLayerHeader) + recordLen;
     }
