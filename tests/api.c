@@ -99283,8 +99283,18 @@ static int test_dtls_frag_ch(void)
             WOLFSSL_SUCCESS);
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_ECC_SECP521R1),
             WOLFSSL_SUCCESS);
+#ifdef HAVE_FFDHE_2048
     ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_2048),
             WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_FFDHE_3072
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_3072),
+            WOLFSSL_SUCCESS);
+#endif
+#ifdef HAVE_FFDHE_4096
+    ExpectIntEQ(wolfSSL_UseKeyShare(ssl_c, WOLFSSL_FFDHE_4096),
+            WOLFSSL_SUCCESS);
+#endif
 
     ExpectIntEQ(wolfSSL_dtls13_allow_ch_frag(ssl_s, 1), WOLFSSL_SUCCESS);
 

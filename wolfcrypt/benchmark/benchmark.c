@@ -9460,7 +9460,8 @@ void bench_dh(int useDeviceID)
             ret = wc_DhKeyDecode(tmp, &idx, dhKey[i], (word32)bytes);
     #endif
         }
-    #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072)
+    #if defined(HAVE_FFDHE_2048) || defined(HAVE_FFDHE_3072) || \
+        defined(HAVE_FFDHE_4096)
     #ifdef HAVE_PUBLIC_FFDHE
         else if (params != NULL) {
             ret = wc_DhSetKey(dhKey[i], params->p, params->p_len,
