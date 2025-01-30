@@ -2380,24 +2380,11 @@ WOLFSSL_BN_CTX* wolfSSL_BN_CTX_new(void)
     ctx = (WOLFSSL_BN_CTX*)XMALLOC(sizeof(WOLFSSL_BN_CTX), NULL,
             DYNAMIC_TYPE_OPENSSL);
     if (ctx != NULL) {
-        wolfSSL_BN_CTX_init(ctx);
+        XMEMSET(ctx, 0, sizeof(WOLFSSL_BN_CTX));
     }
 
     return ctx;
 }
-
-/* Initialize a BN context object.
- *
- * @param [in] ctx  BN context object.
- */
-void wolfSSL_BN_CTX_init(WOLFSSL_BN_CTX* ctx)
-{
-    WOLFSSL_ENTER("wolfSSL_BN_CTX_init");
-    if (ctx != NULL) {
-        XMEMSET(ctx, 0, sizeof(WOLFSSL_BN_CTX));
-    }
-}
-
 
 /* Free a BN context object.
  *
