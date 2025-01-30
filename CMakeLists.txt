@@ -2488,6 +2488,7 @@ if(WOLFSSL_EXAMPLES)
     # Build unit tests
     add_executable(unit_test
         tests/api.c
+        tests/api/ascon.c
         tests/hash.c
         tests/srp.c
         tests/suites.c
