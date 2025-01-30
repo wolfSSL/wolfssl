@@ -177,9 +177,8 @@ kyber_arm32_ntt:
 	adr	r1, L_kyber_arm32_ntt_zetas
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -229,17 +228,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r6, lr, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -251,9 +248,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -265,9 +261,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -283,18 +278,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r2, r12, lsr #16
 	add	r12, r2, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, lr, lsl #16
 	ror	r6, r6, #16
 #else
 	bfi	r6, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -328,17 +319,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r7, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -350,9 +339,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -364,9 +352,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -382,18 +369,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r3, r12, lsr #16
 	add	r12, r3, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, lr, lsl #16
 	ror	r7, r7, #16
 #else
 	bfi	r7, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -427,17 +410,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r8, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -449,9 +430,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -463,9 +443,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -481,18 +460,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r4, r12, lsr #16
 	add	r12, r4, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, lr, lsl #16
 	ror	r8, r8, #16
 #else
 	bfi	r8, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -526,17 +501,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -548,9 +521,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -562,9 +534,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -580,18 +551,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r5, r12, lsr #16
 	add	r12, r5, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, lr, lsl #16
 	ror	r9, r9, #16
 #else
 	bfi	r9, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -626,17 +593,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r4, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -648,9 +613,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -662,9 +626,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -680,18 +643,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r2, r12, lsr #16
 	add	r12, r2, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, lr, lsl #16
 	ror	r4, r4, #16
 #else
 	bfi	r4, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -725,17 +684,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r5, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -747,9 +704,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -761,9 +717,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -779,18 +734,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r3, r12, lsr #16
 	add	r12, r3, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, lr, lsl #16
 	ror	r5, r5, #16
 #else
 	bfi	r5, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -823,17 +774,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r8, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -845,9 +794,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -859,9 +807,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -877,18 +824,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r6, r12, lsr #16
 	add	r12, r6, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, lr, lsl #16
 	ror	r8, r8, #16
 #else
 	bfi	r8, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -921,17 +864,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -943,9 +884,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -957,9 +897,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -975,18 +914,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r7, r12, lsr #16
 	add	r12, r7, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, lr, lsl #16
 	ror	r9, r9, #16
 #else
 	bfi	r9, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -1021,17 +956,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r3, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1043,9 +976,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1057,9 +989,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1075,18 +1006,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r2, r12, lsr #16
 	add	r12, r2, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, lr, lsl #16
 	ror	r3, r3, #16
 #else
 	bfi	r3, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -1119,17 +1046,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r5, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1141,9 +1066,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1155,9 +1079,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1173,18 +1096,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r4, r12, lsr #16
 	add	r12, r4, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, lr, lsl #16
 	ror	r5, r5, #16
 #else
 	bfi	r5, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -1219,17 +1138,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r7, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1241,9 +1158,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1255,9 +1171,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1273,18 +1188,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r6, r12, lsr #16
 	add	r12, r6, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, lr, lsl #16
 	ror	r7, r7, #16
 #else
 	bfi	r7, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -1317,17 +1228,15 @@ L_kyber_arm32_ntt_loop_123:
 	mul	r12, lr, r12
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1339,9 +1248,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1353,9 +1261,8 @@ L_kyber_arm32_ntt_loop_123:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1371,18 +1278,14 @@ L_kyber_arm32_ntt_loop_123:
 	sub	lr, r8, r12, lsr #16
 	add	r12, r8, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, lr, lsl #16
 	ror	r9, r9, #16
 #else
 	bfi	r9, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -1445,17 +1348,15 @@ L_kyber_arm32_ntt_loop_4_i:
 	mul	r12, lr, r12
 	mul	r4, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1467,9 +1368,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1481,9 +1381,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1499,18 +1398,14 @@ L_kyber_arm32_ntt_loop_4_i:
 	sub	lr, r2, r12, lsr #16
 	add	r12, r2, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, lr, lsl #16
 	ror	r4, r4, #16
 #else
 	bfi	r4, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -1544,17 +1439,15 @@ L_kyber_arm32_ntt_loop_4_i:
 	mul	r12, lr, r12
 	mul	r5, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1566,9 +1459,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1580,9 +1472,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1598,18 +1489,14 @@ L_kyber_arm32_ntt_loop_4_i:
 	sub	lr, r3, r12, lsr #16
 	add	r12, r3, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, lr, lsl #16
 	ror	r5, r5, #16
 #else
 	bfi	r5, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -1642,17 +1529,15 @@ L_kyber_arm32_ntt_loop_4_i:
 	mul	r12, lr, r12
 	mul	r8, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1664,9 +1549,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1678,9 +1562,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1696,18 +1579,14 @@ L_kyber_arm32_ntt_loop_4_i:
 	sub	lr, r6, r12, lsr #16
 	add	r12, r6, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, lr, lsl #16
 	ror	r8, r8, #16
 #else
 	bfi	r8, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -1740,17 +1619,15 @@ L_kyber_arm32_ntt_loop_4_i:
 	mul	r12, lr, r12
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1762,9 +1639,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1776,9 +1652,8 @@ L_kyber_arm32_ntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1794,18 +1669,14 @@ L_kyber_arm32_ntt_loop_4_i:
 	sub	lr, r7, r12, lsr #16
 	add	r12, r7, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, lr, lsl #16
 	ror	r9, r9, #16
 #else
 	bfi	r9, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -1821,8 +1692,7 @@ L_kyber_arm32_ntt_loop_4_i:
 	str	r8, [r0, #96]
 	str	r9, [r0, #112]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r2, [sp]
-	ldr	r3, [sp, #4]
+	ldm	sp, {r2, r3}
 #else
 	ldrd	r2, r3, [sp]
 #endif
@@ -1874,17 +1744,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r6, lr, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1896,9 +1764,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -1910,9 +1777,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1928,18 +1794,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r2, r12, lsr #16
 	add	r12, r2, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, lr, lsl #16
 	ror	r6, r6, #16
 #else
 	bfi	r6, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -1973,17 +1835,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r7, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -1995,9 +1855,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2009,9 +1868,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2027,18 +1885,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r3, r12, lsr #16
 	add	r12, r3, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, lr, lsl #16
 	ror	r7, r7, #16
 #else
 	bfi	r7, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -2072,17 +1926,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r8, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2094,9 +1946,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2108,9 +1959,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2126,18 +1976,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r4, r12, lsr #16
 	add	r12, r4, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, lr, lsl #16
 	ror	r8, r8, #16
 #else
 	bfi	r8, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -2171,17 +2017,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2193,9 +2037,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2207,9 +2050,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2225,18 +2067,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r5, r12, lsr #16
 	add	r12, r5, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, lr, lsl #16
 	ror	r9, r9, #16
 #else
 	bfi	r9, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -2273,17 +2111,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r4, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2295,9 +2131,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2309,9 +2144,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2327,18 +2161,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r2, r12, lsr #16
 	add	r12, r2, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, lr, lsl #16
 	ror	r4, r4, #16
 #else
 	bfi	r4, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -2372,17 +2202,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r5, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2394,9 +2222,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2408,9 +2235,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2426,18 +2252,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r3, r12, lsr #16
 	add	r12, r3, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, lr, lsl #16
 	ror	r5, r5, #16
 #else
 	bfi	r5, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -2470,17 +2292,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r8, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2492,9 +2312,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2506,9 +2325,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2524,18 +2342,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r6, r12, lsr #16
 	add	r12, r6, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, lr, lsl #16
 	ror	r8, r8, #16
 #else
 	bfi	r8, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -2568,17 +2382,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2590,9 +2402,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2604,9 +2415,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2622,18 +2432,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r7, r12, lsr #16
 	add	r12, r7, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, lr, lsl #16
 	ror	r9, r9, #16
 #else
 	bfi	r9, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -2670,17 +2476,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r3, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2692,9 +2496,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2706,9 +2509,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2724,18 +2526,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r2, r12, lsr #16
 	add	r12, r2, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, lr, lsl #16
 	ror	r3, r3, #16
 #else
 	bfi	r3, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -2768,17 +2566,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r5, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2790,9 +2586,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2804,9 +2599,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2822,18 +2616,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r4, r12, lsr #16
 	add	r12, r4, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, lr, lsl #16
 	ror	r5, r5, #16
 #else
 	bfi	r5, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -2870,17 +2660,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r7, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2892,9 +2680,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -2906,9 +2693,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2924,18 +2710,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r6, r12, lsr #16
 	add	r12, r6, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, lr, lsl #16
 	ror	r7, r7, #16
 #else
 	bfi	r7, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -2968,17 +2750,15 @@ L_kyber_arm32_ntt_loop_567:
 	mul	r12, lr, r12
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -2990,9 +2770,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -3004,9 +2783,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3022,18 +2800,14 @@ L_kyber_arm32_ntt_loop_567:
 	sub	lr, r8, r12, lsr #16
 	add	r12, r8, r12, lsr #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, lr, lsl #16
 	ror	r9, r9, #16
 #else
 	bfi	r9, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -3042,9 +2816,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r11, #0xaf
-	lsl	r11, r11, #8
-	add	r11, r11, #0xc0
+	mov	r11, #0xc0
+	orr	r11, r11, #0xaf00
 #else
 	mov	r11, #0xafc0
 #endif
@@ -3055,16 +2828,14 @@ L_kyber_arm32_ntt_loop_567:
 #endif
 #else
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r11, #0x4e
-	lsl	r11, r11, #8
-	add	r11, r11, #0xbf
+	mov	r11, #0xbf
+	orr	r11, r11, #0x4e00
 #else
 	mov	r11, #0x4ebf
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3359,9 +3130,8 @@ L_kyber_arm32_ntt_loop_567:
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3531,9 +3301,8 @@ kyber_arm32_invntt:
 	adr	r1, L_kyber_arm32_invntt_zetas_inv
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3585,18 +3354,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r2, r3
 	add	r2, r2, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -3618,9 +3383,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -3632,9 +3396,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3646,9 +3409,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -3660,9 +3422,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3675,9 +3436,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r3, r10, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -3712,18 +3471,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r4, r5
 	add	r4, r4, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r10, lsl #16
 	ror	r4, r4, #16
 #else
@@ -3744,9 +3499,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -3758,9 +3512,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3772,9 +3525,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -3786,9 +3538,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3801,9 +3552,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r5, r10, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -3841,18 +3590,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r6, r7
 	add	r6, r6, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r10, lsl #16
 	ror	r6, r6, #16
 #else
@@ -3874,9 +3619,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -3888,9 +3632,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3902,9 +3645,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -3916,9 +3658,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -3931,9 +3672,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r7, r10, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -3968,18 +3707,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r8, r9
 	add	r8, r8, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r10, lsl #16
 	ror	r8, r8, #16
 #else
@@ -4000,9 +3735,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4014,9 +3748,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4028,9 +3761,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4042,9 +3774,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4057,9 +3788,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -4097,18 +3826,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r2, r4
 	add	r2, r2, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -4130,9 +3855,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4144,9 +3868,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4158,9 +3881,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4172,9 +3894,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4187,9 +3908,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r4, r10, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -4224,18 +3943,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r3, r5
 	add	r3, r3, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r10, lsl #16
 	ror	r3, r3, #16
 #else
@@ -4257,9 +3972,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4271,9 +3985,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4285,9 +3998,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4299,9 +4011,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4314,9 +4025,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r5, r10, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -4351,18 +4060,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r6, r8
 	add	r6, r6, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r10, lsl #16
 	ror	r6, r6, #16
 #else
@@ -4383,9 +4088,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4397,9 +4101,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4411,9 +4114,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4425,9 +4127,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4440,9 +4141,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r8, r10, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -4477,18 +4176,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r7, r9
 	add	r7, r7, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r10, lsl #16
 	ror	r7, r7, #16
 #else
@@ -4509,9 +4204,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4523,9 +4217,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4537,9 +4230,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4551,9 +4243,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4566,9 +4257,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -4606,18 +4295,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r2, r6
 	add	r2, r2, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -4639,9 +4324,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4653,9 +4337,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4667,9 +4350,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4681,9 +4363,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4696,9 +4377,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r6, r10, lr, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -4733,18 +4412,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r3, r7
 	add	r3, r3, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r10, lsl #16
 	ror	r3, r3, #16
 #else
@@ -4766,9 +4441,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4780,9 +4454,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4794,9 +4467,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4808,9 +4480,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4823,9 +4494,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r7, r10, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -4860,18 +4529,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r4, r8
 	add	r4, r4, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r10, lsl #16
 	ror	r4, r4, #16
 #else
@@ -4893,9 +4558,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4907,9 +4571,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4921,9 +4584,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -4935,9 +4597,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -4950,9 +4611,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r8, r10, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -4987,18 +4646,14 @@ L_kyber_arm32_invntt_loop_765:
 	sub	r12, r5, r9
 	add	r5, r5, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r10, lsl #16
 	ror	r5, r5, #16
 #else
@@ -5020,9 +4675,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5034,9 +4688,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5048,9 +4701,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5062,9 +4714,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5077,9 +4728,7 @@ L_kyber_arm32_invntt_loop_765:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -5088,9 +4737,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r11, #0xaf
-	lsl	r11, r11, #8
-	add	r11, r11, #0xc0
+	mov	r11, #0xc0
+	orr	r11, r11, #0xaf00
 #else
 	mov	r11, #0xafc0
 #endif
@@ -5101,9 +4749,8 @@ L_kyber_arm32_invntt_loop_765:
 #endif
 #else
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r11, #0x4e
-	lsl	r11, r11, #8
-	add	r11, r11, #0xbf
+	mov	r11, #0xbf
+	orr	r11, r11, #0x4e00
 #else
 	mov	r11, #0x4ebf
 #endif
@@ -5310,18 +4957,14 @@ L_kyber_arm32_invntt_loop_4_i:
 	sub	r12, r2, r4
 	add	r2, r2, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -5343,9 +4986,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5357,9 +4999,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5371,9 +5012,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5385,9 +5025,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5400,9 +5039,7 @@ L_kyber_arm32_invntt_loop_4_i:
 	lsr	r12, r12, #16
 	mla	r4, r10, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -5437,18 +5074,14 @@ L_kyber_arm32_invntt_loop_4_i:
 	sub	r12, r3, r5
 	add	r3, r3, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r10, lsl #16
 	ror	r3, r3, #16
 #else
@@ -5470,9 +5103,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5484,9 +5116,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5498,9 +5129,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5512,9 +5142,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5527,9 +5156,7 @@ L_kyber_arm32_invntt_loop_4_i:
 	lsr	r12, r12, #16
 	mla	r5, r10, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -5564,18 +5191,14 @@ L_kyber_arm32_invntt_loop_4_i:
 	sub	r12, r6, r8
 	add	r6, r6, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r10, lsl #16
 	ror	r6, r6, #16
 #else
@@ -5596,9 +5219,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5610,9 +5232,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5624,9 +5245,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5638,9 +5258,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5653,9 +5272,7 @@ L_kyber_arm32_invntt_loop_4_i:
 	lsr	r12, r12, #16
 	mla	r8, r10, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -5690,18 +5307,14 @@ L_kyber_arm32_invntt_loop_4_i:
 	sub	r12, r7, r9
 	add	r7, r7, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r10, lsl #16
 	ror	r7, r7, #16
 #else
@@ -5722,9 +5335,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5736,9 +5348,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5750,9 +5361,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5764,9 +5374,8 @@ L_kyber_arm32_invntt_loop_4_i:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5779,9 +5388,7 @@ L_kyber_arm32_invntt_loop_4_i:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -5797,8 +5404,7 @@ L_kyber_arm32_invntt_loop_4_i:
 	str	r8, [r0, #96]
 	str	r9, [r0, #112]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r2, [sp]
-	ldr	r3, [sp, #4]
+	ldm	sp, {r2, r3}
 #else
 	ldrd	r2, r3, [sp]
 #endif
@@ -5851,18 +5457,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r2, r3
 	add	r2, r2, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -5884,9 +5486,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5898,9 +5499,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5912,9 +5512,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -5926,9 +5525,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -5941,9 +5539,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r3, r10, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -5978,18 +5574,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r4, r5
 	add	r4, r4, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r10, lsl #16
 	ror	r4, r4, #16
 #else
@@ -6010,9 +5602,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6024,9 +5615,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6038,9 +5628,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6052,9 +5641,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6067,9 +5655,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r5, r10, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -6105,18 +5691,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r6, r7
 	add	r6, r6, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r10, lsl #16
 	ror	r6, r6, #16
 #else
@@ -6138,9 +5720,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6152,9 +5733,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6166,9 +5746,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6180,9 +5759,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6195,9 +5773,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r7, r10, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -6232,18 +5808,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r8, r9
 	add	r8, r8, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r10, lsl #16
 	ror	r8, r8, #16
 #else
@@ -6264,9 +5836,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6278,9 +5849,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6292,9 +5862,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6306,9 +5875,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6321,9 +5889,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -6359,18 +5925,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r2, r4
 	add	r2, r2, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -6392,9 +5954,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6406,9 +5967,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6420,9 +5980,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6434,9 +5993,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6449,9 +6007,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r4, r10, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -6486,18 +6042,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r3, r5
 	add	r3, r3, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r10, lsl #16
 	ror	r3, r3, #16
 #else
@@ -6519,9 +6071,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6533,9 +6084,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6547,9 +6097,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6561,9 +6110,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6576,9 +6124,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r5, r10, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -6613,18 +6159,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r6, r8
 	add	r6, r6, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r10, lsl #16
 	ror	r6, r6, #16
 #else
@@ -6645,9 +6187,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6659,9 +6200,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6673,9 +6213,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6687,9 +6226,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6702,9 +6240,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r8, r10, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -6739,18 +6275,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r7, r9
 	add	r7, r7, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r10, lsl #16
 	ror	r7, r7, #16
 #else
@@ -6771,9 +6303,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6785,9 +6316,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6799,9 +6329,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -6813,9 +6342,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -6828,9 +6356,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -6839,9 +6365,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r11, #0xaf
-	lsl	r11, r11, #8
-	add	r11, r11, #0xc0
+	mov	r11, #0xc0
+	orr	r11, r11, #0xaf00
 #else
 	mov	r11, #0xafc0
 #endif
@@ -6852,9 +6377,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 #else
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r11, #0x4e
-	lsl	r11, r11, #8
-	add	r11, r11, #0xbf
+	mov	r11, #0xbf
+	orr	r11, r11, #0x4e00
 #else
 	mov	r11, #0x4ebf
 #endif
@@ -7032,18 +6556,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r2, r6
 	add	r2, r2, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -7065,9 +6585,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7079,9 +6598,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7093,9 +6611,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7107,9 +6624,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7122,9 +6638,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r6, r10, lr, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -7159,18 +6673,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r3, r7
 	add	r3, r3, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r10, lsl #16
 	ror	r3, r3, #16
 #else
@@ -7192,9 +6702,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7206,9 +6715,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7220,9 +6728,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7234,9 +6741,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7249,9 +6755,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r7, r10, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -7286,18 +6790,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r4, r8
 	add	r4, r4, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r10, lsl #16
 	ror	r4, r4, #16
 #else
@@ -7319,9 +6819,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7333,9 +6832,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7347,9 +6845,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7361,9 +6858,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7376,9 +6872,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r8, r10, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -7413,18 +6907,14 @@ L_kyber_arm32_invntt_loop_321:
 	sub	r12, r5, r9
 	add	r5, r5, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r12, r12, #0xff
-	bic	r12, r12, #0xff00
-	ror	r12, r12, #16
+	lsr	r12, r12, #16
 	orr	r12, r12, lr, lsl #16
 	ror	r12, r12, #16
 #else
 	bfi	r12, lr, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r10, lsl #16
 	ror	r5, r5, #16
 #else
@@ -7446,9 +6936,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r12, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7460,9 +6949,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7474,9 +6962,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7488,9 +6975,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7503,9 +6989,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -7542,17 +7026,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r2, lr, r2
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7564,9 +7046,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7578,9 +7059,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7593,9 +7073,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r2, r10, lr, r2
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r12, lsl #16
 	ror	r2, r2, #16
 #else
@@ -7631,17 +7109,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r3, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7653,9 +7129,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7667,9 +7142,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7682,9 +7156,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r3, r10, lr, r3
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r12, lsl #16
 	ror	r3, r3, #16
 #else
@@ -7720,17 +7192,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r4, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7742,9 +7212,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7756,9 +7225,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7771,9 +7239,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r4, r10, lr, r4
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r12, lsl #16
 	ror	r4, r4, #16
 #else
@@ -7809,17 +7275,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r5, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7831,9 +7295,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7845,9 +7308,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7860,9 +7322,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r5, r10, lr, r5
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r12, lsl #16
 	ror	r5, r5, #16
 #else
@@ -7898,17 +7358,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r6, lr, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7920,9 +7378,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -7934,9 +7391,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -7949,9 +7405,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r6, r10, lr, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r6, r6, #0xff
-	bic	r6, r6, #0xff00
-	ror	r6, r6, #16
+	lsr	r6, r6, #16
 	orr	r6, r6, r12, lsl #16
 	ror	r6, r6, #16
 #else
@@ -7987,17 +7441,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r7, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -8009,9 +7461,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -8023,9 +7474,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -8038,9 +7488,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r7, r10, lr, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r7, r7, #0xff
-	bic	r7, r7, #0xff00
-	ror	r7, r7, #16
+	lsr	r7, r7, #16
 	orr	r7, r7, r12, lsl #16
 	ror	r7, r7, #16
 #else
@@ -8076,17 +7524,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r8, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -8098,9 +7544,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -8112,9 +7557,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -8127,9 +7571,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r8, r10, lr, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r8, r8, #0xff
-	bic	r8, r8, #0xff00
-	ror	r8, r8, #16
+	lsr	r8, r8, #16
 	orr	r8, r8, r12, lsl #16
 	ror	r8, r8, #16
 #else
@@ -8165,17 +7607,15 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	r9, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
 	mul	lr, r10, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -8187,9 +7627,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mla	r12, r10, lr, r12
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xc
-	lsl	r10, r10, #8
-	add	r10, r10, #0xff
+	mov	r10, #0xff
+	orr	r10, r10, #0xc00
 #else
 	mov	r10, #0xcff
 #endif
@@ -8201,9 +7640,8 @@ L_kyber_arm32_invntt_loop_321:
 #endif
 	mul	lr, r10, lr
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r10, #0xd
-	lsl	r10, r10, #8
-	add	r10, r10, #0x1
+	mov	r10, #0x1
+	orr	r10, r10, #0xd00
 #else
 	mov	r10, #0xd01
 #endif
@@ -8216,9 +7654,7 @@ L_kyber_arm32_invntt_loop_321:
 	lsr	r12, r12, #16
 	mla	r9, r10, lr, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r9, r9, #0xff
-	bic	r9, r9, #0xff00
-	ror	r9, r9, #16
+	lsr	r9, r9, #16
 	orr	r9, r9, r12, lsl #16
 	ror	r9, r9, #16
 #else
@@ -8383,9 +7819,8 @@ kyber_arm32_basemul_mont:
 	add	r3, r3, #0x80
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8438,9 +7873,8 @@ L_kyber_arm32_basemul_mont_loop:
 	mul	r8, r9, r8
 	mul	r10, r11, r10
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xc
-	lsl	r12, r12, #8
-	add	r12, r12, #0xff
+	mov	r12, #0xff
+	orr	r12, r12, #0xc00
 #else
 	mov	r12, #0xcff
 #endif
@@ -8459,9 +7893,8 @@ L_kyber_arm32_basemul_mont_loop:
 	mul	r9, r12, r8
 	mul	r11, r12, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8523,9 +7956,8 @@ L_kyber_arm32_basemul_mont_loop:
 #endif
 	mla	r10, r11, r12, r10
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xc
-	lsl	r12, r12, #8
-	add	r12, r12, #0xff
+	mov	r12, #0xff
+	orr	r12, r12, #0xc00
 #else
 	mov	r12, #0xcff
 #endif
@@ -8544,9 +7976,8 @@ L_kyber_arm32_basemul_mont_loop:
 	mul	r9, r12, r9
 	mul	r11, r12, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8597,9 +8028,8 @@ L_kyber_arm32_basemul_mont_loop:
 #endif
 	mla	r11, r5, r12, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xc
-	lsl	r12, r12, #8
-	add	r12, r12, #0xff
+	mov	r12, #0xff
+	orr	r12, r12, #0xc00
 #else
 	mov	r12, #0xcff
 #endif
@@ -8618,9 +8048,8 @@ L_kyber_arm32_basemul_mont_loop:
 	mul	r6, r12, r6
 	mul	r7, r12, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8668,9 +8097,8 @@ kyber_arm32_basemul_mont_add:
 	add	r3, r3, #0x80
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8726,9 +8154,8 @@ L_kyber_arm32_basemul_mont_add_loop:
 	mul	r8, r9, r8
 	mul	r10, r11, r10
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xc
-	lsl	r12, r12, #8
-	add	r12, r12, #0xff
+	mov	r12, #0xff
+	orr	r12, r12, #0xc00
 #else
 	mov	r12, #0xcff
 #endif
@@ -8747,9 +8174,8 @@ L_kyber_arm32_basemul_mont_add_loop:
 	mul	r9, r12, r8
 	mul	r11, r12, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8811,9 +8237,8 @@ L_kyber_arm32_basemul_mont_add_loop:
 #endif
 	mla	r10, r11, r12, r10
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xc
-	lsl	r12, r12, #8
-	add	r12, r12, #0xff
+	mov	r12, #0xff
+	orr	r12, r12, #0xc00
 #else
 	mov	r12, #0xcff
 #endif
@@ -8832,9 +8257,8 @@ L_kyber_arm32_basemul_mont_add_loop:
 	mul	r9, r12, r9
 	mul	r11, r12, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8885,9 +8309,8 @@ L_kyber_arm32_basemul_mont_add_loop:
 #endif
 	mla	r11, r5, r12, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xc
-	lsl	r12, r12, #8
-	add	r12, r12, #0xff
+	mov	r12, #0xff
+	orr	r12, r12, #0xc00
 #else
 	mov	r12, #0xcff
 #endif
@@ -8906,9 +8329,8 @@ L_kyber_arm32_basemul_mont_add_loop:
 	mul	r6, r12, r6
 	mul	r7, r12, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
@@ -8958,18 +8380,14 @@ L_kyber_arm32_basemul_mont_add_loop:
 	add	r4, r4, r9
 	add	r5, r5, r11
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r8, lsl #16
 	ror	r4, r4, #16
 #else
 	bfi	r4, r8, #0, #16
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r10, lsl #16
 	ror	r5, r5, #16
 #else
@@ -8988,16 +8406,14 @@ L_kyber_arm32_basemul_mont_add_loop:
 kyber_arm32_csubq:
 	push	{r4, r5, r6, r7, r8, r9, r10, r11, lr}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r12, #0xd
-	lsl	r12, r12, #8
-	add	r12, r12, #0x1
+	mov	r12, #0x1
+	orr	r12, r12, #0xd00
 #else
 	mov	r12, #0xd01
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	lr, #0xd
-	lsl	lr, lr, #8
-	add	lr, lr, #0x1
+	mov	lr, #0x1
+	orr	lr, lr, #0xd00
 #else
 	mov	lr, #0xd01
 #endif
@@ -9009,25 +8425,13 @@ kyber_arm32_csubq:
 	movt	lr, #0xd01
 #endif
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r11, #0x80
-	lsl	r11, r11, #8
-	add	r11, r11, #0x0
-#else
 	mov	r11, #0x8000
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
 	orr	r11, r11, #0x80000000
 #else
 	movt	r11, #0x8000
 #endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r1, #0x1
-	lsl	r1, r1, #8
-	add	r1, r1, #0x0
-#else
 	mov	r1, #0x100
-#endif
 L_kyber_arm32_csubq_loop:
 	ldm	r0, {r2, r3, r4, r5}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
@@ -9055,9 +8459,7 @@ L_kyber_arm32_csubq_loop:
 	sub	r6, r2, lr
 	sub	r2, r2, lr, lsl #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r6, lsl #16
 	ror	r2, r2, #16
 #else
@@ -9066,9 +8468,7 @@ L_kyber_arm32_csubq_loop:
 	sub	r7, r3, lr
 	sub	r3, r3, lr, lsl #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r7, lsl #16
 	ror	r3, r3, #16
 #else
@@ -9077,9 +8477,7 @@ L_kyber_arm32_csubq_loop:
 	sub	r8, r4, lr
 	sub	r4, r4, lr, lsl #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r8, lsl #16
 	ror	r4, r4, #16
 #else
@@ -9088,9 +8486,7 @@ L_kyber_arm32_csubq_loop:
 	sub	r9, r5, lr
 	sub	r5, r5, lr, lsl #16
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r9, lsl #16
 	ror	r5, r5, #16
 #else
@@ -9117,9 +8513,7 @@ L_kyber_arm32_csubq_loop:
 #endif
 	add	r2, r2, r6
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r2, r2, #0xff
-	bic	r2, r2, #0xff00
-	ror	r2, r2, #16
+	lsr	r2, r2, #16
 	orr	r2, r2, r10, lsl #16
 	ror	r2, r2, #16
 #else
@@ -9134,9 +8528,7 @@ L_kyber_arm32_csubq_loop:
 #endif
 	add	r3, r3, r7
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r3, r3, #0xff
-	bic	r3, r3, #0xff00
-	ror	r3, r3, #16
+	lsr	r3, r3, #16
 	orr	r3, r3, r10, lsl #16
 	ror	r3, r3, #16
 #else
@@ -9151,9 +8543,7 @@ L_kyber_arm32_csubq_loop:
 #endif
 	add	r4, r4, r8
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r4, r4, #0xff
-	bic	r4, r4, #0xff00
-	ror	r4, r4, #16
+	lsr	r4, r4, #16
 	orr	r4, r4, r10, lsl #16
 	ror	r4, r4, #16
 #else
@@ -9168,9 +8558,7 @@ L_kyber_arm32_csubq_loop:
 #endif
 	add	r5, r5, r9
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	bic	r5, r5, #0xff
-	bic	r5, r5, #0xff00
-	ror	r5, r5, #16
+	lsr	r5, r5, #16
 	orr	r5, r5, r10, lsl #16
 	ror	r5, r5, #16
 #else
@@ -9189,9 +8577,8 @@ L_kyber_arm32_csubq_loop:
 kyber_arm32_rej_uniform:
 	push	{r4, r5, r6, r7, r8, lr}
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	mov	r8, #0xd
-	lsl	r8, r8, #8
-	add	r8, r8, #0x1
+	mov	r8, #0x1
+	orr	r8, r8, #0xd00
 #else
 	mov	r8, #0xd01
 #endif

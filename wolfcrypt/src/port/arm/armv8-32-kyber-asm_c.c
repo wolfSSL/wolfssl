@@ -97,9 +97,8 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	sp, sp, #8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -150,17 +149,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r6, lr, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -172,9 +169,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -186,9 +182,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -204,18 +199,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r2, r12, lsr #16\n\t"
         "add	r12, r2, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, lr, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
         "bfi	r6, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -249,17 +240,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r7, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -271,9 +260,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -285,9 +273,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -303,18 +290,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r3, r12, lsr #16\n\t"
         "add	r12, r3, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, lr, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
         "bfi	r7, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -348,17 +331,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r8, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -370,9 +351,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -384,9 +364,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -402,18 +381,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r4, r12, lsr #16\n\t"
         "add	r12, r4, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, lr, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
         "bfi	r8, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -447,17 +422,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -469,9 +442,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -483,9 +455,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -501,18 +472,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r5, r12, lsr #16\n\t"
         "add	r12, r5, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, lr, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
         "bfi	r9, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -547,17 +514,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r4, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -569,9 +534,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -583,9 +547,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -601,18 +564,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r2, r12, lsr #16\n\t"
         "add	r12, r2, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, lr, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
         "bfi	r4, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -646,17 +605,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r5, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -668,9 +625,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -682,9 +638,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -700,18 +655,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r3, r12, lsr #16\n\t"
         "add	r12, r3, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, lr, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
         "bfi	r5, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -744,17 +695,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r8, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -766,9 +715,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -780,9 +728,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -798,18 +745,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r6, r12, lsr #16\n\t"
         "add	r12, r6, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, lr, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
         "bfi	r8, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -842,17 +785,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -864,9 +805,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -878,9 +818,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -896,18 +835,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r7, r12, lsr #16\n\t"
         "add	r12, r7, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, lr, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
         "bfi	r9, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -942,17 +877,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r3, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -964,9 +897,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -978,9 +910,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -996,18 +927,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r2, r12, lsr #16\n\t"
         "add	r12, r2, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, lr, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
         "bfi	r3, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -1040,17 +967,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r5, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1062,9 +987,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1076,9 +1000,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1094,18 +1017,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r4, r12, lsr #16\n\t"
         "add	r12, r4, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, lr, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
         "bfi	r5, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -1140,17 +1059,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r7, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1162,9 +1079,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1176,9 +1092,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1194,18 +1109,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r6, r12, lsr #16\n\t"
         "add	r12, r6, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, lr, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
         "bfi	r7, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -1238,17 +1149,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1260,9 +1169,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1274,9 +1182,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1292,18 +1199,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r8, r12, lsr #16\n\t"
         "add	r12, r8, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, lr, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
         "bfi	r9, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -1368,17 +1271,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r4, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1390,9 +1291,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1404,9 +1304,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1422,18 +1321,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r2, r12, lsr #16\n\t"
         "add	r12, r2, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, lr, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
         "bfi	r4, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -1467,17 +1362,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r5, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1489,9 +1382,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1503,9 +1395,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1521,18 +1412,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r3, r12, lsr #16\n\t"
         "add	r12, r3, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, lr, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
         "bfi	r5, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -1565,17 +1452,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r8, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1587,9 +1472,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1601,9 +1485,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1619,18 +1502,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r6, r12, lsr #16\n\t"
         "add	r12, r6, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, lr, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
         "bfi	r8, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -1663,17 +1542,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1685,9 +1562,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1699,9 +1575,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1717,18 +1592,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r7, r12, lsr #16\n\t"
         "add	r12, r7, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, lr, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
         "bfi	r9, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -1744,8 +1615,7 @@ void kyber_arm32_ntt(sword16* r_p)
         "str	r8, [%[r], #96]\n\t"
         "str	r9, [%[r], #112]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	r2, [sp]\n\t"
-        "ldr	r3, [sp, #4]\n\t"
+        "ldm	sp, {r2, r3}\n\t"
 #else
         "ldrd	r2, r3, [sp]\n\t"
 #endif
@@ -1798,17 +1668,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r6, lr, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1820,9 +1688,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1834,9 +1701,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1852,18 +1718,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r2, r12, lsr #16\n\t"
         "add	r12, r2, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, lr, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
         "bfi	r6, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -1897,17 +1759,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r7, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1919,9 +1779,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -1933,9 +1792,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -1951,18 +1809,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r3, r12, lsr #16\n\t"
         "add	r12, r3, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, lr, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
         "bfi	r7, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -1996,17 +1850,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r8, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2018,9 +1870,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2032,9 +1883,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2050,18 +1900,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r4, r12, lsr #16\n\t"
         "add	r12, r4, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, lr, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
         "bfi	r8, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -2095,17 +1941,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2117,9 +1961,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2131,9 +1974,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2149,18 +1991,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r5, r12, lsr #16\n\t"
         "add	r12, r5, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, lr, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
         "bfi	r9, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -2197,17 +2035,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r4, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2219,9 +2055,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2233,9 +2068,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2251,18 +2085,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r2, r12, lsr #16\n\t"
         "add	r12, r2, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, lr, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
         "bfi	r4, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -2296,17 +2126,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r5, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2318,9 +2146,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2332,9 +2159,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2350,18 +2176,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r3, r12, lsr #16\n\t"
         "add	r12, r3, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, lr, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
         "bfi	r5, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -2394,17 +2216,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r8, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2416,9 +2236,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2430,9 +2249,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2448,18 +2266,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r6, r12, lsr #16\n\t"
         "add	r12, r6, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, lr, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
         "bfi	r8, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -2492,17 +2306,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2514,9 +2326,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2528,9 +2339,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2546,18 +2356,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r7, r12, lsr #16\n\t"
         "add	r12, r7, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, lr, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
         "bfi	r9, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -2594,17 +2400,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r3, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2616,9 +2420,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2630,9 +2433,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2648,18 +2450,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r2, r12, lsr #16\n\t"
         "add	r12, r2, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, lr, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
         "bfi	r3, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -2692,17 +2490,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r5, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2714,9 +2510,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2728,9 +2523,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2746,18 +2540,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r4, r12, lsr #16\n\t"
         "add	r12, r4, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, lr, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
         "bfi	r5, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -2794,17 +2584,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r7, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2816,9 +2604,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2830,9 +2617,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2848,18 +2634,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r6, r12, lsr #16\n\t"
         "add	r12, r6, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, lr, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
         "bfi	r7, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -2892,17 +2674,15 @@ void kyber_arm32_ntt(sword16* r_p)
         "mul	r12, lr, r12\n\t"
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2914,9 +2694,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -2928,9 +2707,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -2946,18 +2724,14 @@ void kyber_arm32_ntt(sword16* r_p)
         "sub	lr, r8, r12, lsr #16\n\t"
         "add	r12, r8, r12, lsr #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, lr, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
         "bfi	r9, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -2966,9 +2740,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r11, #0xaf\n\t"
-        "lsl	r11, r11, #8\n\t"
-        "add	r11, r11, #0xc0\n\t"
+        "mov	r11, #0xc0\n\t"
+        "orr	r11, r11, #0xaf00\n\t"
 #else
         "mov	r11, #0xafc0\n\t"
 #endif
@@ -2979,16 +2752,14 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif
 #else
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r11, #0x4e\n\t"
-        "lsl	r11, r11, #8\n\t"
-        "add	r11, r11, #0xbf\n\t"
+        "mov	r11, #0xbf\n\t"
+        "orr	r11, r11, #0x4e00\n\t"
 #else
         "mov	r11, #0x4ebf\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3283,9 +3054,8 @@ void kyber_arm32_ntt(sword16* r_p)
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3363,9 +3133,8 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	sp, sp, #8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3418,18 +3187,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r2, r3\n\t"
         "add	r2, r2, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -3451,9 +3216,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3465,9 +3229,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3479,9 +3242,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3493,9 +3255,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3508,9 +3269,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r3, r10, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -3545,18 +3304,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r4, r5\n\t"
         "add	r4, r4, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r10, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -3577,9 +3332,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3591,9 +3345,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3605,9 +3358,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3619,9 +3371,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3634,9 +3385,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r5, r10, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -3674,18 +3423,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r6, r7\n\t"
         "add	r6, r6, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r10, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -3707,9 +3452,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3721,9 +3465,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3735,9 +3478,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3749,9 +3491,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3764,9 +3505,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r7, r10, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -3801,18 +3540,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r8, r9\n\t"
         "add	r8, r8, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r10, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -3833,9 +3568,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3847,9 +3581,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3861,9 +3594,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3875,9 +3607,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3890,9 +3621,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -3930,18 +3659,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r2, r4\n\t"
         "add	r2, r2, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -3963,9 +3688,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -3977,9 +3701,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -3991,9 +3714,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4005,9 +3727,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4020,9 +3741,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r4, r10, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -4057,18 +3776,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r3, r5\n\t"
         "add	r3, r3, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r10, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -4090,9 +3805,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4104,9 +3818,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4118,9 +3831,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4132,9 +3844,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4147,9 +3858,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r5, r10, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -4184,18 +3893,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r6, r8\n\t"
         "add	r6, r6, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r10, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -4216,9 +3921,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4230,9 +3934,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4244,9 +3947,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4258,9 +3960,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4273,9 +3974,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r8, r10, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -4310,18 +4009,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r7, r9\n\t"
         "add	r7, r7, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r10, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -4342,9 +4037,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4356,9 +4050,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4370,9 +4063,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4384,9 +4076,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4399,9 +4090,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -4439,18 +4128,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r2, r6\n\t"
         "add	r2, r2, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -4472,9 +4157,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4486,9 +4170,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4500,9 +4183,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4514,9 +4196,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4529,9 +4210,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r6, r10, lr, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -4566,18 +4245,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r3, r7\n\t"
         "add	r3, r3, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r10, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -4599,9 +4274,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4613,9 +4287,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4627,9 +4300,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4641,9 +4313,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4656,9 +4327,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r7, r10, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -4693,18 +4362,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r4, r8\n\t"
         "add	r4, r4, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r10, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -4726,9 +4391,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4740,9 +4404,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4754,9 +4417,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4768,9 +4430,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4783,9 +4444,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r8, r10, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -4820,18 +4479,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r5, r9\n\t"
         "add	r5, r5, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r10, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -4853,9 +4508,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4867,9 +4521,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4881,9 +4534,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -4895,9 +4547,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -4910,9 +4561,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -4921,9 +4570,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r11, #0xaf\n\t"
-        "lsl	r11, r11, #8\n\t"
-        "add	r11, r11, #0xc0\n\t"
+        "mov	r11, #0xc0\n\t"
+        "orr	r11, r11, #0xaf00\n\t"
 #else
         "mov	r11, #0xafc0\n\t"
 #endif
@@ -4934,9 +4582,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
 #else
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r11, #0x4e\n\t"
-        "lsl	r11, r11, #8\n\t"
-        "add	r11, r11, #0xbf\n\t"
+        "mov	r11, #0xbf\n\t"
+        "orr	r11, r11, #0x4e00\n\t"
 #else
         "mov	r11, #0x4ebf\n\t"
 #endif
@@ -5145,18 +4792,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r2, r4\n\t"
         "add	r2, r2, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -5178,9 +4821,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5192,9 +4834,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5206,9 +4847,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5220,9 +4860,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5235,9 +4874,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r4, r10, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -5272,18 +4909,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r3, r5\n\t"
         "add	r3, r3, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r10, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -5305,9 +4938,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5319,9 +4951,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5333,9 +4964,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5347,9 +4977,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5362,9 +4991,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r5, r10, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -5399,18 +5026,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r6, r8\n\t"
         "add	r6, r6, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r10, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -5431,9 +5054,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5445,9 +5067,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5459,9 +5080,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5473,9 +5093,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5488,9 +5107,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r8, r10, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -5525,18 +5142,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r7, r9\n\t"
         "add	r7, r7, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r10, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -5557,9 +5170,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5571,9 +5183,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5585,9 +5196,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5599,9 +5209,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5614,9 +5223,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -5632,8 +5239,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "str	r8, [%[r], #96]\n\t"
         "str	r9, [%[r], #112]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	r2, [sp]\n\t"
-        "ldr	r3, [sp, #4]\n\t"
+        "ldm	sp, {r2, r3}\n\t"
 #else
         "ldrd	r2, r3, [sp]\n\t"
 #endif
@@ -5687,18 +5293,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r2, r3\n\t"
         "add	r2, r2, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -5720,9 +5322,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5734,9 +5335,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5748,9 +5348,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5762,9 +5361,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5777,9 +5375,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r3, r10, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -5814,18 +5410,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r4, r5\n\t"
         "add	r4, r4, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r10, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -5846,9 +5438,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5860,9 +5451,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5874,9 +5464,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5888,9 +5477,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -5903,9 +5491,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r5, r10, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -5941,18 +5527,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r6, r7\n\t"
         "add	r6, r6, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r10, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -5974,9 +5556,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -5988,9 +5569,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6002,9 +5582,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6016,9 +5595,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6031,9 +5609,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r7, r10, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -6068,18 +5644,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r8, r9\n\t"
         "add	r8, r8, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r10, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -6100,9 +5672,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6114,9 +5685,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6128,9 +5698,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6142,9 +5711,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6157,9 +5725,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -6195,18 +5761,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r2, r4\n\t"
         "add	r2, r2, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -6228,9 +5790,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6242,9 +5803,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6256,9 +5816,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6270,9 +5829,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6285,9 +5843,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r4, r10, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -6322,18 +5878,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r3, r5\n\t"
         "add	r3, r3, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r10, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -6355,9 +5907,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6369,9 +5920,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6383,9 +5933,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6397,9 +5946,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6412,9 +5960,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r5, r10, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -6449,18 +5995,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r6, r8\n\t"
         "add	r6, r6, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r10, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -6481,9 +6023,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6495,9 +6036,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6509,9 +6049,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6523,9 +6062,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6538,9 +6076,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r8, r10, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -6575,18 +6111,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r7, r9\n\t"
         "add	r7, r7, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r10, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -6607,9 +6139,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6621,9 +6152,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6635,9 +6165,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6649,9 +6178,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6664,9 +6192,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -6675,9 +6201,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r11, #0xaf\n\t"
-        "lsl	r11, r11, #8\n\t"
-        "add	r11, r11, #0xc0\n\t"
+        "mov	r11, #0xc0\n\t"
+        "orr	r11, r11, #0xaf00\n\t"
 #else
         "mov	r11, #0xafc0\n\t"
 #endif
@@ -6688,9 +6213,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
 #else
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r11, #0x4e\n\t"
-        "lsl	r11, r11, #8\n\t"
-        "add	r11, r11, #0xbf\n\t"
+        "mov	r11, #0xbf\n\t"
+        "orr	r11, r11, #0x4e00\n\t"
 #else
         "mov	r11, #0x4ebf\n\t"
 #endif
@@ -6868,18 +6392,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r2, r6\n\t"
         "add	r2, r2, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -6901,9 +6421,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6915,9 +6434,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6929,9 +6447,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -6943,9 +6460,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -6958,9 +6474,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r6, r10, lr, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -6995,18 +6509,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r3, r7\n\t"
         "add	r3, r3, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r10, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -7028,9 +6538,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7042,9 +6551,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7056,9 +6564,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7070,9 +6577,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7085,9 +6591,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r7, r10, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -7122,18 +6626,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r4, r8\n\t"
         "add	r4, r4, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r10, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -7155,9 +6655,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7169,9 +6668,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7183,9 +6681,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7197,9 +6694,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7212,9 +6708,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r8, r10, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -7249,18 +6743,14 @@ void kyber_arm32_invntt(sword16* r_p)
         "sub	r12, r5, r9\n\t"
         "add	r5, r5, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r12, r12, #0xff\n\t"
-        "bic	r12, r12, #0xff00\n\t"
-        "ror	r12, r12, #16\n\t"
+        "lsr	r12, r12, #16\n\t"
         "orr	r12, r12, lr, lsl #16\n\t"
         "ror	r12, r12, #16\n\t"
 #else
         "bfi	r12, lr, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r10, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -7282,9 +6772,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r12, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7296,9 +6785,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7310,9 +6798,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7324,9 +6811,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7339,9 +6825,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -7378,17 +6862,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r2, lr, r2\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7400,9 +6882,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7414,9 +6895,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7429,9 +6909,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r2, r10, lr, r2\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r12, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -7467,17 +6945,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r3, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7489,9 +6965,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7503,9 +6978,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7518,9 +6992,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r3, r10, lr, r3\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r12, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -7556,17 +7028,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r4, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7578,9 +7048,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7592,9 +7061,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7607,9 +7075,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r4, r10, lr, r4\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r12, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -7645,17 +7111,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r5, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7667,9 +7131,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7681,9 +7144,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7696,9 +7158,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r5, r10, lr, r5\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r12, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -7734,17 +7194,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r6, lr, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7756,9 +7214,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7770,9 +7227,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7785,9 +7241,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r6, r10, lr, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r6, r6, #0xff\n\t"
-        "bic	r6, r6, #0xff00\n\t"
-        "ror	r6, r6, #16\n\t"
+        "lsr	r6, r6, #16\n\t"
         "orr	r6, r6, r12, lsl #16\n\t"
         "ror	r6, r6, #16\n\t"
 #else
@@ -7823,17 +7277,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r7, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7845,9 +7297,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7859,9 +7310,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7874,9 +7324,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r7, r10, lr, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r7, r7, #0xff\n\t"
-        "bic	r7, r7, #0xff00\n\t"
-        "ror	r7, r7, #16\n\t"
+        "lsr	r7, r7, #16\n\t"
         "orr	r7, r7, r12, lsl #16\n\t"
         "ror	r7, r7, #16\n\t"
 #else
@@ -7912,17 +7360,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r8, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7934,9 +7380,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -7948,9 +7393,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -7963,9 +7407,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r8, r10, lr, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r8, r8, #0xff\n\t"
-        "bic	r8, r8, #0xff00\n\t"
-        "ror	r8, r8, #16\n\t"
+        "lsr	r8, r8, #16\n\t"
         "orr	r8, r8, r12, lsl #16\n\t"
         "ror	r8, r8, #16\n\t"
 #else
@@ -8001,17 +7443,15 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	r9, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
         "mul	lr, r10, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -8023,9 +7463,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mla	r12, r10, lr, r12\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xc\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0xff\n\t"
+        "mov	r10, #0xff\n\t"
+        "orr	r10, r10, #0xc00\n\t"
 #else
         "mov	r10, #0xcff\n\t"
 #endif
@@ -8037,9 +7476,8 @@ void kyber_arm32_invntt(sword16* r_p)
 #endif
         "mul	lr, r10, lr\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r10, #0xd\n\t"
-        "lsl	r10, r10, #8\n\t"
-        "add	r10, r10, #0x1\n\t"
+        "mov	r10, #0x1\n\t"
+        "orr	r10, r10, #0xd00\n\t"
 #else
         "mov	r10, #0xd01\n\t"
 #endif
@@ -8052,9 +7490,7 @@ void kyber_arm32_invntt(sword16* r_p)
         "lsr	r12, r12, #16\n\t"
         "mla	r9, r10, lr, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r9, r9, #0xff\n\t"
-        "bic	r9, r9, #0xff00\n\t"
-        "ror	r9, r9, #16\n\t"
+        "lsr	r9, r9, #16\n\t"
         "orr	r9, r9, r12, lsl #16\n\t"
         "ror	r9, r9, #16\n\t"
 #else
@@ -8130,9 +7566,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
         "add	r3, r3, #0x80\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8186,9 +7621,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
         "mul	r8, r9, r8\n\t"
         "mul	r10, r11, r10\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xc\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0xff\n\t"
+        "mov	r12, #0xff\n\t"
+        "orr	r12, r12, #0xc00\n\t"
 #else
         "mov	r12, #0xcff\n\t"
 #endif
@@ -8207,9 +7641,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
         "mul	r9, r12, r8\n\t"
         "mul	r11, r12, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8271,9 +7704,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
 #endif
         "mla	r10, r11, r12, r10\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xc\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0xff\n\t"
+        "mov	r12, #0xff\n\t"
+        "orr	r12, r12, #0xc00\n\t"
 #else
         "mov	r12, #0xcff\n\t"
 #endif
@@ -8292,9 +7724,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
         "mul	r9, r12, r9\n\t"
         "mul	r11, r12, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8345,9 +7776,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
 #endif
         "mla	r11, r5, r12, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xc\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0xff\n\t"
+        "mov	r12, #0xff\n\t"
+        "orr	r12, r12, #0xc00\n\t"
 #else
         "mov	r12, #0xcff\n\t"
 #endif
@@ -8366,9 +7796,8 @@ void kyber_arm32_basemul_mont(sword16* r_p, const sword16* a_p,
         "mul	r6, r12, r6\n\t"
         "mul	r7, r12, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8425,9 +7854,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
         "add	r3, r3, #0x80\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH >= 6)
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8484,9 +7912,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
         "mul	r8, r9, r8\n\t"
         "mul	r10, r11, r10\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xc\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0xff\n\t"
+        "mov	r12, #0xff\n\t"
+        "orr	r12, r12, #0xc00\n\t"
 #else
         "mov	r12, #0xcff\n\t"
 #endif
@@ -8505,9 +7932,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
         "mul	r9, r12, r8\n\t"
         "mul	r11, r12, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8569,9 +7995,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
 #endif
         "mla	r10, r11, r12, r10\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xc\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0xff\n\t"
+        "mov	r12, #0xff\n\t"
+        "orr	r12, r12, #0xc00\n\t"
 #else
         "mov	r12, #0xcff\n\t"
 #endif
@@ -8590,9 +8015,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
         "mul	r9, r12, r9\n\t"
         "mul	r11, r12, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8643,9 +8067,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
 #endif
         "mla	r11, r5, r12, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xc\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0xff\n\t"
+        "mov	r12, #0xff\n\t"
+        "orr	r12, r12, #0xc00\n\t"
 #else
         "mov	r12, #0xcff\n\t"
 #endif
@@ -8664,9 +8087,8 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
         "mul	r6, r12, r6\n\t"
         "mul	r7, r12, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
@@ -8716,18 +8138,14 @@ void kyber_arm32_basemul_mont_add(sword16* r_p, const sword16* a_p,
         "add	r4, r4, r9\n\t"
         "add	r5, r5, r11\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r8, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
         "bfi	r4, r8, #0, #16\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r10, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -8753,16 +8171,14 @@ void kyber_arm32_csubq(sword16* p_p)
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r12, #0xd\n\t"
-        "lsl	r12, r12, #8\n\t"
-        "add	r12, r12, #0x1\n\t"
+        "mov	r12, #0x1\n\t"
+        "orr	r12, r12, #0xd00\n\t"
 #else
         "mov	r12, #0xd01\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	lr, #0xd\n\t"
-        "lsl	lr, lr, #8\n\t"
-        "add	lr, lr, #0x1\n\t"
+        "mov	lr, #0x1\n\t"
+        "orr	lr, lr, #0xd00\n\t"
 #else
         "mov	lr, #0xd01\n\t"
 #endif
@@ -8774,25 +8190,13 @@ void kyber_arm32_csubq(sword16* p_p)
         "movt	lr, #0xd01\n\t"
 #endif
 #endif /* WOLFSLS_ARM_ARCH && WOLFSSL_ARM_ARCH >= 6 */
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r11, #0x80\n\t"
-        "lsl	r11, r11, #8\n\t"
-        "add	r11, r11, #0x0\n\t"
-#else
         "mov	r11, #0x8000\n\t"
-#endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
         "orr	r11, r11, #0x80000000\n\t"
 #else
         "movt	r11, #0x8000\n\t"
 #endif
-#if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r1, #0x1\n\t"
-        "lsl	r1, r1, #8\n\t"
-        "add	r1, r1, #0x0\n\t"
-#else
         "mov	r1, #0x100\n\t"
-#endif
         "\n"
     "L_kyber_arm32_csubq_loop_%=: \n\t"
         "ldm	%[p], {r2, r3, r4, r5}\n\t"
@@ -8821,9 +8225,7 @@ void kyber_arm32_csubq(sword16* p_p)
         "sub	r6, r2, lr\n\t"
         "sub	r2, r2, lr, lsl #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r6, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -8832,9 +8234,7 @@ void kyber_arm32_csubq(sword16* p_p)
         "sub	r7, r3, lr\n\t"
         "sub	r3, r3, lr, lsl #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r7, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -8843,9 +8243,7 @@ void kyber_arm32_csubq(sword16* p_p)
         "sub	r8, r4, lr\n\t"
         "sub	r4, r4, lr, lsl #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r8, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -8854,9 +8252,7 @@ void kyber_arm32_csubq(sword16* p_p)
         "sub	r9, r5, lr\n\t"
         "sub	r5, r5, lr, lsl #16\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r9, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -8883,9 +8279,7 @@ void kyber_arm32_csubq(sword16* p_p)
 #endif
         "add	r2, r2, r6\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r2, r2, #0xff\n\t"
-        "bic	r2, r2, #0xff00\n\t"
-        "ror	r2, r2, #16\n\t"
+        "lsr	r2, r2, #16\n\t"
         "orr	r2, r2, r10, lsl #16\n\t"
         "ror	r2, r2, #16\n\t"
 #else
@@ -8900,9 +8294,7 @@ void kyber_arm32_csubq(sword16* p_p)
 #endif
         "add	r3, r3, r7\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r3, r3, #0xff\n\t"
-        "bic	r3, r3, #0xff00\n\t"
-        "ror	r3, r3, #16\n\t"
+        "lsr	r3, r3, #16\n\t"
         "orr	r3, r3, r10, lsl #16\n\t"
         "ror	r3, r3, #16\n\t"
 #else
@@ -8917,9 +8309,7 @@ void kyber_arm32_csubq(sword16* p_p)
 #endif
         "add	r4, r4, r8\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r4, r4, #0xff\n\t"
-        "bic	r4, r4, #0xff00\n\t"
-        "ror	r4, r4, #16\n\t"
+        "lsr	r4, r4, #16\n\t"
         "orr	r4, r4, r10, lsl #16\n\t"
         "ror	r4, r4, #16\n\t"
 #else
@@ -8934,9 +8324,7 @@ void kyber_arm32_csubq(sword16* p_p)
 #endif
         "add	r5, r5, r9\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "bic	r5, r5, #0xff\n\t"
-        "bic	r5, r5, #0xff00\n\t"
-        "ror	r5, r5, #16\n\t"
+        "lsr	r5, r5, #16\n\t"
         "orr	r5, r5, r10, lsl #16\n\t"
         "ror	r5, r5, #16\n\t"
 #else
@@ -8966,9 +8354,8 @@ unsigned int kyber_arm32_rej_uniform(sword16* p_p, unsigned int len_p,
 
     __asm__ __volatile__ (
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "mov	r8, #0xd\n\t"
-        "lsl	r8, r8, #8\n\t"
-        "add	r8, r8, #0x1\n\t"
+        "mov	r8, #0x1\n\t"
+        "orr	r8, r8, #0xd00\n\t"
 #else
         "mov	r8, #0xd01\n\t"
 #endif
