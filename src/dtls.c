@@ -1220,7 +1220,7 @@ int TLSX_ConnectionID_Use(WOLFSSL* ssl)
     info = (CIDInfo*)XMALLOC(sizeof(CIDInfo), ssl->heap, DYNAMIC_TYPE_TLSX);
     if (info == NULL)
         return MEMORY_ERROR;
-    ext = (WOLFSSL**)XMALLOC(sizeof(WOLFSSL**), ssl->heap, DYNAMIC_TYPE_TLSX);
+    ext = (WOLFSSL**)XMALLOC(sizeof(WOLFSSL*), ssl->heap, DYNAMIC_TYPE_TLSX);
     if (ext == NULL) {
         XFREE(info, ssl->heap, DYNAMIC_TYPE_TLSX);
         return MEMORY_ERROR;
