@@ -120,6 +120,31 @@ generate_test_cert() {
     check_result $?
 }
 
+generate_test_trusted_cert() {
+    rm "$1".der
+    rm "$1".pem
+
+    echo "step 1 create configuration"
+    build_test_cert_conf "$1" "$2" "$3"
+    check_result $?
+
+    echo "step 2 create csr"
+    openssl req -new -sha256 -out "$1".csr -key ../server-key.pem -config "$1".conf
+    check_result $?
+
+    echo "step 3 check csr"
+    openssl req -text -noout -in "$1".csr -config "$1".conf
+    check_result $?
+
+    echo "step 4 create cert"
+    openssl x509 -req -days 1000 -sha256 \
+                 -in "$1".csr -signkey ../server-key.pem \
+                 -out "$1".pem -extensions req_ext -addtrust serverAuth -trustout -extfile "$1".conf
+    check_result $?
+    rm "$1".conf
+    rm "$1".csr
+}
+
 generate_expired_certs() {
     rm "$1".der
     rm "$1".pem
@@ -200,3 +225,6 @@ generate_test_cert server-garbage localhost garbage
 # Generate Expired Certificates
 generate_expired_certs expired/expired-ca ../ca-key.pem 1
 generate_expired_certs expired/expired-cert ../server-key.pem
+
+
+generate_test_trusted_cert ossl-trusted-cert localhost "" 1
