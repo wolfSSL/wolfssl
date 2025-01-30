@@ -365,7 +365,8 @@ static int FindExtByType(WolfSSL_ConstVector* ret, word16 extType,
         ato16(exts.elements + idx, &type);
         idx += OPAQUE16_LEN;
         idx += ReadVector16(exts.elements + idx, &ext);
-        if (idx > exts.size)
+        if (idx > exts.size ||
+                ext.elements + ext.size > exts.elements + exts.size)
             return BUFFER_ERROR;
         if (type == extType) {
             XMEMCPY(ret, &ext, sizeof(ext));
@@ -498,7 +499,7 @@ static int TlsCheckSupportedVersion(const WOLFSSL* ssl,
                          ch->extension, &tlsxFound);
     if (ret != 0)
         return ret;
-    if (!tlsxFound) {
+    if (!tlsxFound || tlsxSupportedVersions.elements == NULL) {
         *isTls13 = 0;
         return 0;
     }
