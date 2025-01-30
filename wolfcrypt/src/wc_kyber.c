@@ -238,7 +238,11 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     byte buf[2 * KYBER_SYM_SZ + 1];
     byte* pubSeed = buf;
     byte* noiseSeed = buf + KYBER_SYM_SZ;
+#ifndef WOLFSSL_NO_MALLOC
     sword16* a = NULL;
+#else
+    sword16 a[(KYBER_MAX_K + 1) * KYBER_MAX_K * KYBER_N];
+#endif
     sword16* e = NULL;
     int ret = 0;
     int kp = 0;
@@ -295,6 +299,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
         }
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     if (ret == 0) {
         /* Allocate dynamic memory for matrix and error vector. */
         a = (sword16*)XMALLOC((kp + 1) * kp * KYBER_N * sizeof(sword16),
@@ -303,6 +308,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
             ret = MEMORY_E;
         }
     }
+#endif
     if (ret == 0) {
         const byte* d = rand;
 
@@ -356,10 +362,12 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
         key->flags |= KYBER_FLAG_PRIV_SET | KYBER_FLAG_PUB_SET;
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     /* Free dynamic memory allocated in function. */
     if (key != NULL) {
         XFREE(a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
+#endif
 
     return ret;
 }
@@ -467,7 +475,11 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     sword16* epp = NULL;
     unsigned int kp = 0;
     unsigned int compVecSz = 0;
+#ifndef WOLFSSL_NO_MALLOC
     sword16* at = NULL;
+#else
+    sword16 at[((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N];
+#endif
 
     /* Establish parameters based on key type. */
     switch (key->type) {
@@ -517,6 +529,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
         break;
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     if (ret == 0) {
         /* Allocate dynamic memory for all matrices, vectors and polynomials. */
         at = (sword16*)XMALLOC(((kp + 3) * kp + 3) * KYBER_N * sizeof(sword16),
@@ -525,6 +538,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
             ret = MEMORY_E;
         }
     }
+#endif
 
     if (ret == 0) {
         /* Assign allocated dynamic memory to pointers.
@@ -578,8 +592,10 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     #endif
     }
 
+#ifndef WOLFSSL_NO_MALLOC
     /* Dispose of dynamic memory allocated in function. */
     XFREE(at, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -694,9 +710,15 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 
     /* If public hash (h) is not stored against key, calculate it. */
     if ((ret == 0) && ((key->flags & KYBER_FLAG_H_SET) == 0)) {
+    #ifndef WOLFSSL_NO_MALLOC
         byte* pubKey = NULL;
         word32 pubKeyLen;
+    #else
+        byte pubKey[KYBER_MAX_PUBLIC_KEY_SIZE];
+        word32 pubKeyLen = KYBER_MAX_PUBLIC_KEY_SIZE;
+    #endif
 
+    #ifndef WOLFSSL_NO_MALLOC
         /* Determine how big an encoded public key will be. */
         ret = wc_KyberKey_PublicKeySize(key, &pubKeyLen);
         if (ret == 0) {
@@ -708,11 +730,14 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
             }
         }
         if (ret == 0) {
+    #endif
             /* Encode public key - h is hash of encoded public key. */
             ret = wc_KyberKey_EncodePublicKey(key, pubKey, pubKeyLen);
+    #ifndef WOLFSSL_NO_MALLOC
         }
         /* Dispose of encoded public key. */
         XFREE(pubKey, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+     #endif
     }
     if ((ret == 0) && ((key->flags & KYBER_FLAG_H_SET) == 0)) {
         /* Implementation issue if h not cached and flag set. */
@@ -820,7 +845,7 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
     sword16* mp;
     unsigned int kp = 0;
     unsigned int compVecSz;
-#ifndef USE_INTEL_SPEEDUP
+#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     sword16* bp = NULL;
 #else
     sword16 bp[(KYBER_MAX_K + 2) * KYBER_N];
@@ -874,7 +899,7 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
         break;
     }
 
-#ifndef USE_INTEL_SPEEDUP
+#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
         /* Allocate dynamic memory for a vector and two polynomials. */
         bp = (sword16*)XMALLOC((kp + 2) * KYBER_N * sizeof(sword16), key->heap,
@@ -916,7 +941,7 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
         kyber_to_msg(msg, mp);
     }
 
-#ifndef USE_INTEL_SPEEDUP
+#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     /* Dispose of dynamically memory allocated in function. */
     XFREE(bp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -981,7 +1006,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
     unsigned int ctSz = 0;
     unsigned int i = 0;
     int fail = 0;
-#ifndef USE_INTEL_SPEEDUP
+#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     byte* cmp = NULL;
 #else
     byte cmp[KYBER_MAX_CIPHER_TEXT_SIZE];
@@ -1041,7 +1066,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
         ret = BUFFER_E;
     }
 
-#ifndef USE_INTEL_SPEEDUP
+#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
         /* Allocate memory for cipher text that is generated. */
         cmp = (byte*)XMALLOC(ctSz, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1102,7 +1127,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 #endif
     }
 
-#ifndef USE_INTEL_SPEEDUP
+#if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     /* Dispose of dynamic memory allocated in function. */
     if (key != NULL) {
         XFREE(cmp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
