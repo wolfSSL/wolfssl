@@ -808,8 +808,7 @@ AES_set_encrypt_key:
 	cmp	r1, #0xc0
 	beq	L_AES_set_encrypt_key_start_192
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -1038,8 +1037,7 @@ L_AES_set_encrypt_key_loop_256:
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_192:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -1203,8 +1201,7 @@ L_AES_set_encrypt_key_loop_192:
 	b	L_AES_set_encrypt_key_end
 L_AES_set_encrypt_key_start_128:
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	ldr	r4, [r0]
-	ldr	r5, [r0, #4]
+	ldm	r0, {r4, r5}
 #else
 	ldrd	r4, r5, [r0]
 #endif
@@ -3952,8 +3949,7 @@ L_AES_CBC_decrypt_loop_block_256:
 	ldr	r7, [lr, #12]
 	ldr	lr, [sp, #16]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [lr]
-	str	r5, [lr, #4]
+	stm	lr, {r4, r5}
 #else
 	strd	r4, r5, [lr]
 #endif
@@ -4141,8 +4137,7 @@ L_AES_CBC_decrypt_loop_block_192:
 	ldr	r7, [lr, #12]
 	ldr	lr, [sp, #16]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [lr]
-	str	r5, [lr, #4]
+	stm	lr, {r4, r5}
 #else
 	strd	r4, r5, [lr]
 #endif
@@ -4330,8 +4325,7 @@ L_AES_CBC_decrypt_loop_block_128:
 	ldr	r7, [lr, #12]
 	ldr	lr, [sp, #16]
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r4, [lr]
-	str	r5, [lr, #4]
+	stm	lr, {r4, r5}
 #else
 	strd	r4, r5, [lr]
 #endif
@@ -4438,8 +4432,7 @@ L_AES_CBC_decrypt_end_odd:
 	ldrd	r10, r11, [r4, #24]
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-	str	r8, [r4]
-	str	r9, [r4, #4]
+	stm	r4, {r8, r9}
 #else
 	strd	r8, r9, [r4]
 #endif

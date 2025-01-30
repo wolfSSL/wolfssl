@@ -441,8 +441,7 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
         "cmp	%[len], #0xc0\n\t"
         "beq	L_AES_set_encrypt_key_start_192_%=\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	r4, [%[key]]\n\t"
-        "ldr	r5, [%[key], #4]\n\t"
+        "ldm	r0, {r4, r5}\n\t"
 #else
         "ldrd	r4, r5, [%[key]]\n\t"
 #endif
@@ -673,8 +672,7 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
         "\n"
     "L_AES_set_encrypt_key_start_192_%=: \n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	r4, [%[key]]\n\t"
-        "ldr	r5, [%[key], #4]\n\t"
+        "ldm	r0, {r4, r5}\n\t"
 #else
         "ldrd	r4, r5, [%[key]]\n\t"
 #endif
@@ -840,8 +838,7 @@ void AES_set_encrypt_key(const unsigned char* key_p, word32 len_p,
         "\n"
     "L_AES_set_encrypt_key_start_128_%=: \n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "ldr	r4, [%[key]]\n\t"
-        "ldr	r5, [%[key], #4]\n\t"
+        "ldm	r0, {r4, r5}\n\t"
 #else
         "ldrd	r4, r5, [%[key]]\n\t"
 #endif
@@ -3465,8 +3462,7 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
         "ldr	r7, [lr, #12]\n\t"
         "ldr	lr, [sp, #16]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	r4, [lr]\n\t"
-        "str	r5, [lr, #4]\n\t"
+        "stm	lr, {r4, r5}\n\t"
 #else
         "strd	r4, r5, [lr]\n\t"
 #endif
@@ -3655,8 +3651,7 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
         "ldr	r7, [lr, #12]\n\t"
         "ldr	lr, [sp, #16]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	r4, [lr]\n\t"
-        "str	r5, [lr, #4]\n\t"
+        "stm	lr, {r4, r5}\n\t"
 #else
         "strd	r4, r5, [lr]\n\t"
 #endif
@@ -3845,8 +3840,7 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
         "ldr	r7, [lr, #12]\n\t"
         "ldr	lr, [sp, #16]\n\t"
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	r4, [lr]\n\t"
-        "str	r5, [lr, #4]\n\t"
+        "stm	lr, {r4, r5}\n\t"
 #else
         "strd	r4, r5, [lr]\n\t"
 #endif
@@ -3954,8 +3948,7 @@ void AES_CBC_decrypt(const unsigned char* in_p, unsigned char* out_p,
         "ldrd	r10, r11, [r4, #24]\n\t"
 #endif
 #if defined(WOLFSSL_ARM_ARCH) && (WOLFSSL_ARM_ARCH < 7)
-        "str	r8, [r4]\n\t"
-        "str	r9, [r4, #4]\n\t"
+        "stm	r4, {r8, r9}\n\t"
 #else
         "strd	r8, r9, [r4]\n\t"
 #endif
