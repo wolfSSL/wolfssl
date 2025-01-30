@@ -848,8 +848,6 @@ static int SendStatelessReplyDtls13(const WOLFSSL* ssl, WolfSSL_CH* ch)
         WOLFSSL* nonConstSSL = (WOLFSSL*)ssl;
         TLSX* sslExts = nonConstSSL->extensions;
 
-        if (ret != 0)
-            goto dtls13_cleanup;
         nonConstSSL->options.tls = 1;
         nonConstSSL->options.tls1_1 = 1;
         nonConstSSL->options.tls1_3 = 1;
