@@ -53356,54 +53356,54 @@ static int test_wolfSSL_a2i_ASN1_INTEGER(void)
     ExpectIntEQ(a2i_ASN1_INTEGER(bio, NULL, NULL, -1), 0);
     ExpectIntEQ(a2i_ASN1_INTEGER(NULL, ai, NULL, -1), 0);
     ExpectIntEQ(a2i_ASN1_INTEGER(NULL, NULL, tmp, -1), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, NULL, NULL, 1024), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, ai, tmp, 1024), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, NULL, tmp, 1024), 0);
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, NULL, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, NULL, NULL, sizeof(tmp)), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(NULL, ai, tmp, sizeof(tmp)), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, NULL, tmp, sizeof(tmp)), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, NULL, sizeof(tmp)), 0);
     ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, -1), 0);
     ExpectIntEQ(i2a_ASN1_INTEGER(NULL, NULL), 0);
     ExpectIntEQ(i2a_ASN1_INTEGER(bio, NULL), 0);
     ExpectIntEQ(i2a_ASN1_INTEGER(NULL, ai), 0);
 
     /* No data to read from BIO. */
-    ExpectIntEQ(a2i_ASN1_INTEGER(out, ai, tmp, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(out, ai, tmp, sizeof(tmp)), 0);
 
     /* read first line */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 6);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 6);
     ExpectIntEQ(XMEMCMP(tmp, expected1, tmpSz), 0);
 
     /* fail on second line (not % 2) */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 0);
 
     /* read 3rd long line */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 30);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 30);
     ExpectIntEQ(XMEMCMP(tmp, expected2, tmpSz), 0);
 
     /* fail on empty line */
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 0);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 0);
 
     BIO_free(bio);
     bio = NULL;
 
     /* Make long integer, requiring dynamic memory, even longer. */
     ExpectNotNull(bio = BIO_new_mem_buf(longStr, -1));
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 48);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 48);
-    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, 1024), 1);
+    ExpectIntEQ(a2i_ASN1_INTEGER(bio, ai, tmp, sizeof(tmp)), 1);
     ExpectIntEQ(i2a_ASN1_INTEGER(out, ai), 56);
-    XMEMSET(tmp, 0, 1024);
-    tmpSz = BIO_read(out, tmp, 1024);
+    XMEMSET(tmp, 0, sizeof(tmp));
+    tmpSz = BIO_read(out, tmp, sizeof(tmp));
     ExpectIntEQ(tmpSz, 56);
     ExpectIntEQ(wolfSSL_ASN1_INTEGER_set(ai, 1), 1);
     BIO_free(bio);
