@@ -90726,9 +90726,10 @@ static void test_wolfSSL_dtls13_fragments_spammer(WOLFSSL* ssl)
         XMEMSET(&delay, 0, sizeof(delay));
         delay.tv_nsec = 10000000; /* wait 0.01 seconds */
         c16toa(msg_number, b + msg_offset);
-        sendSz = BuildTls13Message(ssl, sendBuf, sendSz, b,
+        ret = sendSz = BuildTls13Message(ssl, sendBuf, sendSz, b,
             (int)idx, handshake, 0, 0, 0);
-        ret = (int)send(fd, sendBuf, (size_t)sendSz, 0);
+        if (sendSz > 0)
+            ret = (int)send(fd, sendBuf, (size_t)sendSz, 0);
         nanosleep(&delay, NULL);
     }
 }
@@ -90954,8 +90955,9 @@ static byte test_AEAD_done = 0;
 
 static int test_AEAD_cbiorecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    int ret = (int)recv(wolfSSL_get_fd(ssl), buf, sz, 0);
-    if (ret > 0) {
+    int fd = wolfSSL_get_fd(ssl);
+    int ret = -1;
+    if (fd >= 0 && (ret = (int)recv(fd, buf, sz, 0)) > 0) {
         if (test_AEAD_fail_decryption) {
             /* Modify the packet to trigger a decryption failure */
             buf[ret/2] ^= 0xFF;
@@ -91271,12 +91273,16 @@ static void test_wolfSSL_dtls_send_ch_with_invalid_cookie(WOLFSSL* ssl)
     };
 
     fd = wolfSSL_get_wfd(ssl);
-    ret = (int)send(fd, ch_msh_invalid_cookie, sizeof(ch_msh_invalid_cookie), 0);
-    AssertIntGT(ret, 0);
-    /* should reply with an illegal_parameter reply */
-    ret = (int)recv(fd, alert_reply, sizeof(alert_reply), 0);
-    AssertIntEQ(ret, sizeof(expected_alert_reply));
-    AssertIntEQ(XMEMCMP(alert_reply, expected_alert_reply, sizeof(expected_alert_reply)), 0);
+    if (fd >= 0) {
+        ret = (int)send(fd, ch_msh_invalid_cookie,
+                sizeof(ch_msh_invalid_cookie), 0);
+        AssertIntGT(ret, 0);
+        /* should reply with an illegal_parameter reply */
+        ret = (int)recv(fd, alert_reply, sizeof(alert_reply), 0);
+        AssertIntEQ(ret, sizeof(expected_alert_reply));
+        AssertIntEQ(XMEMCMP(alert_reply, expected_alert_reply,
+                sizeof(expected_alert_reply)), 0);
+    }
 }
 #endif
 
