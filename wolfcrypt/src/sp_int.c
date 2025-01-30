@@ -8016,7 +8016,7 @@ int sp_submod(const sp_int* a, const sp_int* b, const sp_int* m, sp_int* r)
 }
 #endif /* WOLFSSL_SP_MATH_ALL */
 
-/* Constant time clamping/
+/* Constant time clamping.
  *
  * @param [in, out] a  SP integer to clamp.
  */
