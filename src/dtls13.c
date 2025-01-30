@@ -185,7 +185,8 @@ int Dtls13RlAddPlaintextHeader(WOLFSSL* ssl, byte* out,
     /* seq[0] combines the epoch and 16 MSB of sequence number. We write on the
        epoch field and will overflow to the first two bytes of the sequence
        number */
-    c32toa(seq[0], hdr->epoch);
+    c16toa((word16)(seq[0] >> 16), hdr->epoch);
+    c16toa((word16)seq[0], hdr->sequenceNumber);
     c32toa(seq[1], &hdr->sequenceNumber[2]);
 
     c16toa(length, hdr->length);
