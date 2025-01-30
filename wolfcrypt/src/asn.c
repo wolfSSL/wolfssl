@@ -24777,6 +24777,8 @@ wcchar END_CERT             = "-----END CERTIFICATE-----";
 #endif
 wcchar BEGIN_X509_CRL       = "-----BEGIN X509 CRL-----";
 wcchar END_X509_CRL         = "-----END X509 CRL-----";
+wcchar BEGIN_TRUSTED_CERT   = "-----BEGIN TRUSTED CERTIFICATE-----";
+wcchar END_TRUSTED_CERT     = "-----END TRUSTED CERTIFICATE-----";
 wcchar BEGIN_RSA_PRIV       = "-----BEGIN RSA PRIVATE KEY-----";
 wcchar END_RSA_PRIV         = "-----END RSA PRIVATE KEY-----";
 wcchar BEGIN_RSA_PUB        = "-----BEGIN RSA PUBLIC KEY-----";
@@ -25071,6 +25073,11 @@ int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
         case PKCS8_ENC_PRIVATEKEY_TYPE:
             if (header) *header = BEGIN_ENC_PRIV_KEY;
             if (footer) *footer = END_ENC_PRIV_KEY;
+            ret = 0;
+            break;
+        case TRUSTED_CERT_TYPE:
+            if (header) *header = BEGIN_TRUSTED_CERT;
+            if (footer) *footer = END_TRUSTED_CERT;
             ret = 0;
             break;
         default:
