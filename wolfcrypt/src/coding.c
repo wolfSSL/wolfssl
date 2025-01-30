@@ -490,7 +490,7 @@ int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out, word32* outLen)
 #ifdef WOLFSSL_BASE16
 
 static
-const byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+const ALIGN64 byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                            BAD, BAD, BAD, BAD, BAD, BAD, BAD,
                            10, 11, 12, 13, 14, 15,  /* upper case A-F */
                            BAD, BAD, BAD, BAD, BAD, BAD, BAD, BAD,
@@ -556,6 +556,11 @@ int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     return 0;
 }
 
+static
+const ALIGN64 byte hexEncode[] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                   '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+};
+
 int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
 {
     word32 outIdx = 0;
@@ -571,15 +576,8 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
         byte hb = in[i] >> 4;
         byte lb = in[i] & 0x0f;
 
-        /* ASCII value */
-        hb = (byte)(hb + '0');
-        if (hb > '9')
-            hb = (byte)(hb + 7U);
-
-        /* ASCII value */
-        lb = (byte)(lb + '0');
-        if (lb>'9')
-            lb = (byte)(lb + 7U);
+        hb = hexEncode[hb];
+        lb = hexEncode[lb];
 
         out[outIdx++] = hb;
         out[outIdx++] = lb;

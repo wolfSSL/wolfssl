@@ -25852,7 +25852,8 @@ startScr:
 #endif
     }
 
-    size = (int)min_size_t(sz, (size_t)ssl->buffers.clearOutputBuffer.length);
+    size = (sz < (size_t)ssl->buffers.clearOutputBuffer.length) ?
+        (int)sz : (int)ssl->buffers.clearOutputBuffer.length;
 
     XMEMCPY(output, ssl->buffers.clearOutputBuffer.buffer, size);
 
