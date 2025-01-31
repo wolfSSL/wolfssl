@@ -36937,16 +36937,40 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         version = 0;
 
     localIdx = idx;
-    if (GetASNTag(source, &localIdx, &tag, size) == 0 &&
-        ( tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1) ||
-          tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2) ))
+    if (GetASNTag(source, &localIdx, &tag, size) != 0)
+        return ASN_PARSE_E;
+
+    resp->responderIdType = OCSP_RESPONDER_ID_INVALID;
+    /* parse byName */
+    if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1))
     {
         idx++; /* advance past ASN tag */
         if (GetLength(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
+        /* compute the hash of the name */
+        resp->responderIdType = OCSP_RESPONDER_ID_NAME;
+        ret = CalcHashId_ex(source + idx, length,
+                resp->responderId.nameHash, WC_SHA);
+        if (ret != 0)
+            return ret;
         idx += length;
     }
-    else
+    else if (tag == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2))
+    {
+        idx++; /* advance past ASN tag */
+        if (GetLength(source, &idx, &length, size) < 0)
+            return ASN_PARSE_E;
+
+        if (GetOctetString(source, &idx, &length, size) < 0)
+            return ASN_PARSE_E;
+
+        if (length != KEYID_SIZE)
+            return ASN_PARSE_E;
+        resp->responderIdType = OCSP_RESPONDER_ID_KEY;
+        XMEMCPY(resp->responderId.keyHash, source + idx, length);
+        idx += length;
+    }
+    if (resp->responderIdType == OCSP_RESPONDER_ID_INVALID)
         return ASN_PARSE_E;
 
     /* save pointer to the producedAt time */
@@ -37335,8 +37359,6 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     #endif
     int    ret;
     int    sigLength;
-    const byte*   sigParams = NULL;
-    word32        sigParamsSz = 0;
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
     (void)heap;
 
@@ -37360,16 +37382,16 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     else if (resp->sigOID == CTC_RSASSAPSS) {
         word32 sz;
         int len;
-        const byte* params;
+        byte* params;
 
         sz = idx;
         params = source + idx;
         if (GetSequence(source, &idx, &len, size) < 0)
-            ret = ASN_PARSE_E;
+            return ASN_PARSE_E;
         if (ret == 0) {
             idx += len;
-            sigParams = params;
-            sigParamsSz = idx - sz;
+            resp->sigParams = params;
+            resp->sigParamsSz = idx - sz;
         }
     }
 #endif
@@ -37389,103 +37411,40 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 #ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
     if (idx < end_index)
     {
-        int cert_inited = 0;
-#ifdef WOLFSSL_SMALL_STACK
-        DecodedCert *cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
-                                                  DYNAMIC_TYPE_TMP_BUFFER);
-        if (cert == NULL)
-            return MEMORY_E;
-#else
-        DecodedCert cert[1];
-#endif
+        if (DecodeCerts(source, &idx, resp, size) < 0)
+            return ASN_PARSE_E;
 
-        do {
-            if (DecodeCerts(source, &idx, resp, size) < 0) {
-                ret = ASN_PARSE_E;
-                break;
-            }
-
-            InitDecodedCert(cert, resp->cert, resp->certSz, heap);
-            cert_inited = 1;
-
-            /* Don't verify if we don't have access to Cert Manager. */
-            ret = ParseCertRelative(cert, CERT_TYPE,
-                                    noVerify ? NO_VERIFY : VERIFY_OCSP_CERT,
-                                    cm, resp->pendingCAs);
-            if (ret < 0) {
-                WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
-                break;
-            }
-
-#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-            if ((cert->extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
-                if (XMEMCMP(cert->subjectHash,
-                            resp->single->issuerHash, OCSP_DIGEST_SIZE) == 0) {
-                    WOLFSSL_MSG("\tOCSP Response signed by issuer");
-                }
-                else {
-                    WOLFSSL_MSG("\tOCSP Responder key usage check failed");
-                    ret = BAD_OCSP_RESPONDER;
-                    break;
-                }
-            }
-#endif
-
-            /* ConfirmSignature is blocking here */
-            ret = ConfirmSignature(
-                &cert->sigCtx,
-                resp->response, resp->responseSz,
-                cert->publicKey, cert->pubKeySize, cert->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, sigParams, sigParamsSz,
-                NULL);
-
-            if (ret != 0) {
-                WOLFSSL_MSG("\tOCSP Confirm signature failed");
-                ret = ASN_OCSP_CONFIRM_E;
-                break;
-            }
-        } while(0);
-
-        if (cert_inited)
-            FreeDecodedCert(cert);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(cert, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-
-        if (ret != 0)
-            return ret;
-    }
-    else
-#endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
-    {
-        Signer* ca;
-        int sigValid = -1;
-
-        #ifndef NO_SKID
-            ca = GetCAByKeyHash(cm, resp->single->issuerKeyHash);
-        #else
-            ca = GetCA(cm, resp->single->issuerHash);
-        #endif
-#if defined(HAVE_CERTIFICATE_STATUS_V2)
-        if (ca == NULL && resp->pendingCAs != NULL) {
-            ca = findSignerByName(resp->pendingCAs, resp->single->issuerHash);
-        }
-#endif
-        if (ca) {
-            SignatureCtx sigCtx;
-            InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
-
-            /* ConfirmSignature is blocking here */
-            sigValid = ConfirmSignature(&sigCtx, resp->response,
-                resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
-                resp->sig, resp->sigSz, resp->sigOID, sigParams, sigParamsSz,
-                NULL);
-        }
-        if (ca == NULL || sigValid != 0) {
+        ret = OcspCheckCert(resp, noVerify, noVerifySignature, cm, heap);
+        if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
         }
+    }
+    else
+#endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
+    if (!noVerifySignature) {
+        Signer* ca;
+        int sigValid = -1;
+        SignatureCtx sigCtx;
+        ca = OcspFindSigner(resp, cm);
+        if (ca == NULL)
+            return ASN_NO_SIGNER_E;
 
+#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
+        if (OcspRespCheck(resp, ca) != 0)
+           return BAD_OCSP_RESPONDER;
+#endif
+        InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
+
+        /* ConfirmSignature is blocking here */
+        sigValid = ConfirmSignature(&sigCtx, resp->response,
+            resp->responseSz, ca->publicKey, ca->pubKeySize, ca->keyOID,
+            resp->sig, resp->sigSz, resp->sigOID, resp->sigParams,
+            resp->sigParamsSz, NULL);
+        if (sigValid != 0) {
+            WOLFSSL_MSG("\tOCSP Confirm signature failed");
+            return ASN_OCSP_CONFIRM_E;
+        }
         (void)noVerify;
     }
 
@@ -37495,14 +37454,6 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     DECL_ASNGETDATA(dataASN, ocspBasicRespASN_Length);
     int ret = 0;
     word32 idx = *ioIndex;
-#ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
-    #ifdef WOLFSSL_SMALL_STACK
-        DecodedCert* cert = NULL;
-    #else
-        DecodedCert cert[1];
-    #endif
-    int certInit = 0;
-#endif
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
     (void)heap;
@@ -37597,17 +37548,6 @@ out:
         *ioIndex = idx;
     }
 
-#ifndef WOLFSSL_NO_OCSP_OPTIONAL_CERTS
-    if (certInit) {
-        FreeDecodedCert(cert);
-    }
-    #ifdef WOLFSSL_SMALL_STACK
-    if (cert != NULL) {
-        /* Dispose of certificate object. */
-        XFREE(cert, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    }
-    #endif
-#endif
     FREE_ASNGETDATA(dataASN, heap);
     return ret;
 #endif /* WOLFSSL_ASN_TEMPLATE */
@@ -37756,7 +37696,8 @@ int OcspResponseDecode(OcspResponse* resp, void* cm, void* heap,
         return ret;
     }
 
-    ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap, noVerify, 0);
+    ret = DecodeBasicOcspResponse(source, &idx, resp, size, cm, heap,
+         noVerifyCert, noVerifySignature);
     if (ret < 0) {
         WOLFSSL_LEAVE("OcspResponseDecode", ret);
         return ret;
