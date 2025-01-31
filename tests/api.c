@@ -4622,7 +4622,11 @@ static int test_wolfSSL_CheckOCSPResponse(void)
         wolfSSL_CertManagerFree(cm);
     }
 
-#if defined(WC_RSA_PSS)
+/* FIPS v2 and below don't support long salts. */
+#if defined(WC_RSA_PSS) && \
+    (!defined(HAVE_FIPS) || (defined(HAVE_FIPS_VERSION) && \
+     (HAVE_FIPS_VERSION > 2))) && (!defined(HAVE_SELFTEST) || \
+     (defined(HAVE_SELFTEST_VERSION) && (HAVE_SELFTEST_VERSION > 2)))
     {
         const char* responsePssFile = "./certs/ocsp/test-response-rsapss.der";
 

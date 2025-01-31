@@ -13876,7 +13876,7 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* InitOcspResponse sets single and status to response struct. */
     InitOcspResponse(response, single, status, input +*inOutIdx, status_length, ssl->heap);
 
-    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 0) != 0)
+    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 0, 0) != 0)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
     else if (CompareOcspReqResp(request, response) != 0)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -16982,7 +16982,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                      status_length, ssl->heap);
                     response->pendingCAs = pendingCAs;
                     if ((OcspResponseDecode(response, SSL_CM(ssl), ssl->heap,
-                                                                        0) != 0)
+                            0, 0) != 0)
                     ||  (response->responseStatus != OCSP_SUCCESSFUL)
                     ||  (response->single->status->status != CERT_GOOD))
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
