@@ -3823,7 +3823,6 @@ static int wolfssl_asn1_time_to_secs(const WOLFSSL_ASN1_TIME* t,
  * @param [in]  from  ASN.1 TIME object as start time.
  * @param [in]  to    ASN.1 TIME object as end time.
  * @return  1 on success.
- * @return  0 when days or secs is NULL.
  * @return  0 when conversion of time fails.
  */
 int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
@@ -3833,21 +3832,15 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_diff");
 
-    /* Validate parameters. */
-    if (days == NULL) {
-        WOLFSSL_MSG("days is NULL");
-        ret = 0;
+    if ((from == NULL) && (to == NULL)) {
+        if (days != NULL) {
+            *days = 0;
+        }
+        if (secs != NULL) {
+            *secs = 0;
+        }
     }
-    if ((ret == 1) && (secs == NULL)) {
-        WOLFSSL_MSG("secs is NULL");
-        ret = 0;
-    }
-
-    if ((ret == 1) && ((from == NULL) && (to == NULL))) {
-        *days = 0;
-        *secs = 0;
-    }
-    else if (ret == 1) {
+    else {
         const long long SECS_PER_DAY = 24 * 60 * 60;
         long long fromSecs;
         long long toSecs = 0;
@@ -3858,8 +3851,13 @@ int wolfSSL_ASN1_TIME_diff(int *days, int *secs, const WOLFSSL_ASN1_TIME *from,
         }
         if (ret == 1) {
             long long diffSecs = toSecs - fromSecs;
-            *days = (int) (diffSecs / SECS_PER_DAY);
-            *secs = (int) (diffSecs - ((long long)*days * SECS_PER_DAY));
+            if (days != NULL) {
+                *days = (int) (diffSecs / SECS_PER_DAY);
+            }
+            if (secs != NULL) {
+                *secs = (int) (diffSecs -
+                        ((long long)(diffSecs / SECS_PER_DAY) * SECS_PER_DAY));
+            }
         }
     }
 

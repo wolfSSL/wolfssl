@@ -54544,9 +54544,10 @@ static int test_wolfSSL_ASN1_TIME_diff_compare(void)
 
     ExpectIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, fromTime, toTime), 1);
 
-    /* Error conditions. */
-    ExpectIntEQ(ASN1_TIME_diff(NULL, &secsDiff, fromTime, toTime), 0);
-    ExpectIntEQ(ASN1_TIME_diff(&daysDiff, NULL, fromTime, toTime), 0);
+    /* Test when secsDiff or daysDiff is NULL. */
+    ExpectIntEQ(ASN1_TIME_diff(NULL, &secsDiff, fromTime, toTime), 1);
+    ExpectIntEQ(ASN1_TIME_diff(&daysDiff, NULL, fromTime, toTime), 1);
+    ExpectIntEQ(ASN1_TIME_diff(NULL, NULL, fromTime, toTime), 1);
 
     /* If both times are NULL, difference is 0. */
     ExpectIntEQ(ASN1_TIME_diff(&daysDiff, &secsDiff, NULL, NULL), 1);
