@@ -284,10 +284,12 @@ static int Renesas_cmn_CryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
                 *info->pk.rsa_get_size.keySize = 256;
                 ret = 0;
             }
+        #ifdef WOLFSSL_RENESAS_TSIP_CRYPTONLY
             else if (cbInfo->wrappedKeyType == TSIP_KEY_TYPE_RSA1024) {
                 *info->pk.rsa_get_size.keySize = 128;
                 ret = 0;
             }
+        #endif
         }
     #endif /* !NO_RSA */
     #if defined(HAVE_ECC)
