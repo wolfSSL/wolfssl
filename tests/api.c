@@ -56313,6 +56313,7 @@ static int test_wc_PemToDer(void)
     int ret;
     DerBuffer* pDer = NULL;
     const char* ca_cert = "./certs/server-cert.pem";
+    const char* trusted_cert = "./certs/test/ossl-trusted-cert.pem";
     byte* cert_buf = NULL;
     size_t cert_sz = 0;
     int eccKey = 0;
@@ -56322,6 +56323,18 @@ static int test_wc_PemToDer(void)
 
     ExpectIntEQ(ret = load_file(ca_cert, &cert_buf, &cert_sz), 0);
     ExpectIntEQ(ret = wc_PemToDer(cert_buf, (long int)cert_sz, CERT_TYPE, &pDer, NULL,
+        &info, &eccKey), 0);
+    wc_FreeDer(&pDer);
+    pDer = NULL;
+
+    if (cert_buf != NULL) {
+        free(cert_buf);
+        cert_buf = NULL;
+    }
+
+    /* Test that -----BEGIN TRUSTED CERTIFICATE----- banner parses OK */
+    ExpectIntEQ(ret = load_file(trusted_cert, &cert_buf, &cert_sz), 0);
+    ExpectIntEQ(ret = wc_PemToDer(cert_buf, (long int)cert_sz, TRUSTED_CERT_TYPE, &pDer, NULL,
         &info, &eccKey), 0);
     wc_FreeDer(&pDer);
     pDer = NULL;
