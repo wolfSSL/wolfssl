@@ -301,6 +301,7 @@
 #include <tests/api/test_hash.h>
 #include <tests/api/test_ascon.h>
 #include <tests/api/test_dtls.h>
+#include <tests/api/test_ocsp.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
@@ -99372,6 +99373,9 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_SSLDisableRead),
     TEST_DECL(test_wolfSSL_inject),
     TEST_DECL(test_wolfSSL_dtls_cid_parse),
+    TEST_DECL(test_ocsp_status_callback),
+    TEST_DECL(test_ocsp_basic_verify),
+    TEST_DECL(test_ocsp_response_parsing),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };
