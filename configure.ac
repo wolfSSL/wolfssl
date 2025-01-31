@@ -1379,7 +1379,7 @@ AC_ARG_WITH([liboqs],
 # Used:
 #  - SHA3, Shake128 and Shake256
 AC_ARG_ENABLE([kyber],
-    [AS_HELP_STRING([--enable-kyber],[Enable KYBER (requires --enable-experimental) (default: disabled)])],
+    [AS_HELP_STRING([--enable-kyber],[Enable KYBER (default: disabled)])],
     [ ENABLED_KYBER=$enableval ],
     [ ENABLED_KYBER=no ]
     )
@@ -1473,7 +1473,7 @@ fi
 # Dilithium
 #  - SHA3, Shake128, Shake256 and AES-CTR
 AC_ARG_ENABLE([dilithium],
-    [AS_HELP_STRING([--enable-dilithium],[Enable DILITHIUM (requires --enable-experimental) (default: disabled)])],
+    [AS_HELP_STRING([--enable-dilithium],[Enable DILITHIUM (default: disabled)])],
     [ ENABLED_DILITHIUM=$enableval ],
     [ ENABLED_DILITHIUM=no ]
     )

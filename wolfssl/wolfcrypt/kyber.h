@@ -279,7 +279,7 @@ WOLFSSL_API int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out,
 #define wc_MlKemKey_SharedSecretSize        wc_KyberKey_SharedSecretSize
 #define wc_MlKemKey_Encapsulate             wc_KyberKey_Encapsulate
 #define wc_MlKemKey_EncapsulateWithRandom   wc_KyberKey_EncapsulateWithRandom
-#define wc_MlKemKey_Decapsulate             wc_KyberKey_Encapsulate
+#define wc_MlKemKey_Decapsulate             wc_KyberKey_Decapsulate
 #define wc_MlKemKey_DecodePrivateKey        wc_KyberKey_DecodePrivateKey
 #define wc_MlKemKey_DecodePublicKey         wc_KyberKey_DecodePublicKey
 #define wc_MlKemKey_PrivateKeySize          wc_KyberKey_PrivateKeySize
