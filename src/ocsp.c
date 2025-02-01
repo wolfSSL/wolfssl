@@ -917,12 +917,17 @@ out:
 
 void wolfSSL_OCSP_RESPONSE_free(OcspResponse* response)
 {
+    OcspEntry *s, *sNext;
     if (response == NULL)
         return;
 
-    if (response->single != NULL) {
-        FreeOcspEntry(response->single, NULL);
-        XFREE(response->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+
+    s = response->single;
+    while (s != NULL) {
+        sNext = s->next;
+        FreeOcspEntry(s, NULL);
+        XFREE(s, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        s = sNext;
     }
 
     XFREE(response->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
