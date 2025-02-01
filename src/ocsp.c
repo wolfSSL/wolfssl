@@ -1163,27 +1163,9 @@ const char *wolfSSL_OCSP_response_status_str(long s)
 WOLFSSL_OCSP_BASICRESP* wolfSSL_OCSP_response_get1_basic(OcspResponse* response)
 {
     WOLFSSL_OCSP_BASICRESP* bs;
+    const unsigned char *ptr = response->source;
 
-    bs = (WOLFSSL_OCSP_BASICRESP*)XMALLOC(sizeof(WOLFSSL_OCSP_BASICRESP), NULL,
-                                          DYNAMIC_TYPE_OCSP_REQUEST);
-    if (bs == NULL)
-        return NULL;
-
-    XMEMCPY(bs, response, sizeof(OcspResponse));
-    bs->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
-                                    DYNAMIC_TYPE_OCSP_ENTRY);
-    bs->source = (byte*)XMALLOC(bs->maxIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (bs->single == NULL || bs->source == NULL) {
-        XFREE(bs->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-        bs->single = NULL;
-        wolfSSL_OCSP_RESPONSE_free(bs);
-        bs = NULL;
-    }
-    else {
-        XMEMCPY(bs->single, response->single, sizeof(OcspEntry));
-        XMEMCPY(bs->source, response->source, response->maxIdx);
-        bs->single->ownStatus = 0;
-    }
+    bs = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, response->maxIdx);
     return bs;
 }
 

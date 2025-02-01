@@ -37454,6 +37454,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     DECL_ASNGETDATA(dataASN, ocspBasicRespASN_Length);
     int ret = 0;
     word32 idx = *ioIndex;
+    Signer* ca = NULL;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
     (void)heap;
