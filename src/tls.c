@@ -9277,7 +9277,7 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
             }
 
             /* Check if the group was sent. */
-            if (TLSX_KeyShare_Find(ssl, group)) {
+            if (!TLSX_KeyShare_Find(ssl, group)) {
                 WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
                 return BAD_KEY_SHARE_DATA;
             }
