@@ -4044,8 +4044,10 @@ int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
         if (ecdsaSig == NULL)
             return WOLFSSL_FAILURE;
         ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, NULL);
-        if (ret <= 0 || ret > (int)*siglen)
+        if (ret <= 0 || ret > (int)*siglen) {
+            wolfSSL_ECDSA_SIG_free(ecdsaSig);
             return WOLFSSL_FAILURE;
+        }
         ret = wolfSSL_i2d_ECDSA_SIG(ecdsaSig, &sigret);
         wolfSSL_ECDSA_SIG_free(ecdsaSig);
         if (ret <= 0 || ret > (int)*siglen)
