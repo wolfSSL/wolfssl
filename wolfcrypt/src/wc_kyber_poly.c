@@ -81,6 +81,16 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
+    int i, int transposed);
+static int kyber_get_noise_i(KYBER_PRF_T* prf, int kp, sword16* vec2,
+    byte* seed, int i, int make);
+static int kyber_get_noise_eta2_c(KYBER_PRF_T* prf, sword16* p,
+    const byte* seed);
+#endif
+
 /* Declared in wc_kyber.c to stop compiler optimizer from simplifying. */
 extern volatile sword16 kyber_opt_blocker;
 
@@ -1088,10 +1098,16 @@ static void kyber_pointwise_acc_mont(sword16* r, const sword16* a,
     unsigned int i;
 
     kyber_basemul_mont(r, a, b);
+#ifdef WOLFSSL_KYBER_SMALL
+    for (i = 1; i < kp; ++i) {
+        kyber_basemul_mont_add(r, a + i * KYBER_N, b + i * KYBER_N);
+    }
+#else
     for (i = 1; i < kp - 1; ++i) {
         kyber_basemul_mont_add(r, a + i * KYBER_N, b + i * KYBER_N);
     }
     kyber_basemul_mont_add(r, a + (kp - 1) * KYBER_N, b + (kp - 1) * KYBER_N);
+#endif
 }
 
 /******************************************************************************/
@@ -1281,6 +1297,7 @@ void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
 
 #else
 
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 /* Generate a public-private key pair from randomly generated data.
  *
  * @param  [in, out]  priv  Private key vector of polynomials.
@@ -1344,6 +1361,67 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     }
 }
 
+#else
+
+/* Generate a public-private key pair from randomly generated data.
+ *
+ * @param  [in, out]  priv       Private key vector of polynomials.
+ * @param  [out]      pub        Public key vector of polynomials.
+ * @param  [in]       prf        XOF object.
+ * @param  [in]       tv         Temporary vector of polynomials.
+ * @param  [in]       kp         Number of polynomials in vector.
+ * @param  [in]       seed       Random seed to generate matrix A from.
+ * @param  [in]       noiseSeed  Random seed to generate noise from.
+ */
+int kyber_keygen_seeds(sword16* priv, sword16* pub, KYBER_PRF_T* prf,
+    sword16* tv, int kp, byte* seed, byte* noiseSeed)
+{
+    int i;
+    int ret = 0;
+
+    /* Transform private key. All of result used in public key calculation */
+    for (i = 0; i < kp; ++i) {
+        kyber_ntt(priv + i * KYBER_N);
+    }
+
+    /* For each polynomial in the vectors. */
+    for (i = 0; i < kp; ++i) {
+        unsigned int j;
+
+        /* Generate a vector of matrix A. */
+        ret = kyber_gen_matrix_i(prf, tv, kp, seed, i, 0);
+        if (ret != 0) {
+           break;
+        }
+
+        /* Multiply a by private into public polynomial. */
+        kyber_pointwise_acc_mont(pub + i * KYBER_N, tv, priv, kp);
+        /* Convert public polynomial to Montgomery form. */
+        for (j = 0; j < KYBER_N; ++j) {
+            sword32 t = pub[i * KYBER_N + j] * (sword32)KYBER_F;
+            pub[i * KYBER_N + j] = KYBER_MONT_RED(t);
+        }
+
+        /* Generate noise using PRF. */
+        ret = kyber_get_noise_i(prf, kp, tv, noiseSeed, i, 1);
+        if (ret != 0) {
+           break;
+        }
+        /* Transform error values polynomial. */
+        kyber_ntt(tv);
+        /* Add errors to public key and reduce. */
+        for (j = 0; j < KYBER_N; ++j) {
+            sword16 t = pub[i * KYBER_N + j] + tv[j];
+            pub[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
+        }
+    }
+
+    return ret;
+}
+
+#endif
+
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 /* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
@@ -1394,7 +1472,6 @@ static void kyber_encapsulate_c(const sword16* pub, sword16* bp, sword16* v,
     }
 }
 
-
 /* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
@@ -1422,6 +1499,85 @@ void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
         kyber_encapsulate_c(pub, bp, v, at, sp, ep, epp, m, kp);
     }
 }
+
+#else
+
+/* Encapsulate message.
+ *
+ * @param  [in]       pub  Public key vector of polynomials.
+ * @param  [in]       prf   XOF object.
+ * @param  [out]      bp   Vector of polynomials.
+ * @param  [in, out]  tp   Polynomial.
+ * @param  [in]       sp   Vector of polynomials.
+ * @param  [in]       kp   Number of polynomials in vector.
+ * @param  [in]       msg  Message to encapsulate.
+ * @param  [in]       seed   Random seed to generate matrix A from.
+ * @param  [in]       coins  Random seed to generate noise from.
+ */
+int kyber_encapsulate_seeds(const sword16* pub, KYBER_PRF_T* prf, sword16* bp,
+    sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed, byte* coins)
+{
+    int ret = 0;
+    int i;
+    sword16* at = tp;
+    sword16* ep = tp;
+    sword16* v = tp;
+    sword16* epp = tp + KYBER_N;
+    sword16* m = sp;
+
+    /* Transform sp. All of result used in calculation of bp and v. */
+    for (i = 0; i < kp; ++i) {
+        kyber_ntt(sp + i * KYBER_N);
+    }
+
+    /* For each polynomial in the vectors. */
+    for (i = 0; i < kp; ++i) {
+        unsigned int j;
+
+        /* Generate a vector of matrix A. */
+        ret = kyber_gen_matrix_i(prf, at, kp, seed, i, 1);
+        if (ret != 0) {
+           break;
+        }
+
+        /* Multiply at by sp into bp polynomial. */
+        kyber_pointwise_acc_mont(bp + i * KYBER_N, at, sp, kp);
+        /* Inverse transform bp polynomial. */
+        kyber_invntt(bp + i * KYBER_N);
+
+        /* Generate noise using PRF. */
+        ret = kyber_get_noise_i(prf, kp, ep, coins, i, 0);
+        if (ret != 0) {
+           break;
+        }
+        /* Add errors to bp and reduce. */
+        for (j = 0; j < KYBER_N; ++j) {
+            sword16 t = bp[i * KYBER_N + j] + ep[j];
+            bp[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
+        }
+    }
+
+    /* Multiply public key by sp into v polynomial. */
+    kyber_pointwise_acc_mont(v, pub, sp, kp);
+    /* Inverse transform v. */
+    kyber_invntt(v);
+
+    kyber_from_msg(m, msg);
+
+    /* Generate noise using PRF. */
+    coins[KYBER_SYM_SZ] = 2 * kp;
+    ret = kyber_get_noise_eta2_c(prf, epp, coins);
+    if (ret == 0) {
+        /* Add errors and message to v and reduce. */
+        for (i = 0; i < KYBER_N; ++i) {
+            sword16 t = v[i] + epp[i] + m[i];
+            tp[i] = KYBER_BARRETT_RED(t);
+        }
+    }
+
+    return ret;
+}
+#endif
 
 /* Decapsulate message.
  *
@@ -2362,6 +2518,9 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
 }
 #endif
 
+#if !defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
+    !defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+
 #if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 /* Deterministically generate a matrix (or transpose) of uniform integers mod q.
  *
@@ -2379,7 +2538,7 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
 static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
     int transposed)
 {
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     byte* rand;
 #else
     byte rand[GEN_MATRIX_SIZE + 2];
@@ -2390,7 +2549,7 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
     XMEMCPY(extSeed, seed, KYBER_SYM_SZ);
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Allocate large amount of memory to hold random bytes to be samples. */
     rand = (byte*)XMALLOC(GEN_MATRIX_SIZE + 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (rand == NULL) {
@@ -2441,7 +2600,7 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
         }
     }
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     /* Dispose of temporary buffer. */
     XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -2533,6 +2692,97 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
     return ret;
 }
+
+#endif
+
+#if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+
+/* Deterministically generate a matrix (or transpose) of uniform integers mod q.
+ *
+ * Seed used with XOF to generate random bytes.
+ *
+ * @param  [in]   prf         XOF object.
+ * @param  [out]  a           Matrix of uniform integers.
+ * @param  [in]   kp          Number of dimensions. kp x kp polynomials.
+ * @param  [in]   seed        Bytes to seed XOF generation.
+ * @param  [in]   i           Index of vector to generate.
+ * @param  [in]   transposed  Whether A or A^T is generated.
+ * @return  0 on success.
+ * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
+ * WOLFSSL_SMALL_STACK is defined.
+ */
+static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
+    int i, int transposed)
+{
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    byte* rand;
+#else
+    byte rand[GEN_MATRIX_SIZE + 2];
+#endif
+    byte extSeed[KYBER_SYM_SZ + 2];
+    int ret = 0;
+    int j;
+
+    XMEMCPY(extSeed, seed, KYBER_SYM_SZ);
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    /* Allocate large amount of memory to hold random bytes to be samples. */
+    rand = (byte*)XMALLOC(GEN_MATRIX_SIZE + 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (rand == NULL) {
+        ret = MEMORY_E;
+    }
+#endif
+
+#if !defined(WOLFSSL_KYBER_SMALL) && defined(WC_64BIT_CPU)
+    /* Loading 64 bits, only using 48 bits. Loading 2 bytes more than used. */
+    if (ret == 0) {
+        rand[GEN_MATRIX_SIZE+0] = 0xff;
+        rand[GEN_MATRIX_SIZE+1] = 0xff;
+    }
+#endif
+
+    /* Generate each polynomial in vector from seed with indices. */
+    for (j = 0; (ret == 0) && (j < kp); j++) {
+        if (transposed) {
+            extSeed[KYBER_SYM_SZ + 0] = i;
+            extSeed[KYBER_SYM_SZ + 1] = j;
+        }
+        else {
+            extSeed[KYBER_SYM_SZ + 0] = j;
+            extSeed[KYBER_SYM_SZ + 1] = i;
+        }
+        /* Absorb the index specific seed. */
+        ret = kyber_xof_absorb(prf, extSeed, sizeof(extSeed));
+        if (ret == 0) {
+            /* Create out based on the seed. */
+            ret = kyber_xof_squeezeblocks(prf, rand, GEN_MATRIX_NBLOCKS);
+        }
+        if (ret == 0) {
+            unsigned int ctr;
+
+            /* Sample random bytes to create a polynomial. */
+            ctr = kyber_rej_uniform_c(a + j * KYBER_N, KYBER_N, rand,
+                GEN_MATRIX_SIZE);
+            /* Create more blocks if too many rejected. */
+            while (ctr < KYBER_N) {
+                kyber_xof_squeezeblocks(prf, rand, 1);
+                ctr += kyber_rej_uniform_c(a + j * KYBER_N + ctr,
+                    KYBER_N - ctr, rand, XOF_BLOCK_SIZE);
+            }
+        }
+    }
+
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
+    /* Dispose of temporary buffer. */
+    XFREE(rand, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret;
+}
+
+#endif
+
 
 /******************************************************************************/
 
@@ -3276,12 +3526,17 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
         /* Increment value of appended byte. */
         seed[KYBER_SYM_SZ]++;
     }
-    /* Generate noise for error. */
-    for (i = 0; (ret == 0) && (i < kp); i++) {
-        /* Generate noise for each dimension of vector. */
-        ret = kyber_get_noise_eta1_c(prf, vec2 + i * KYBER_N, seed, eta2);
-        /* Increment value of appended byte. */
-        seed[KYBER_SYM_SZ]++;
+    if ((ret == 0) && (vec2 != NULL)) {
+        /* Generate noise for error. */
+        for (i = 0; (ret == 0) && (i < kp); i++) {
+            /* Generate noise for each dimension of vector. */
+            ret = kyber_get_noise_eta1_c(prf, vec2 + i * KYBER_N, seed, eta2);
+            /* Increment value of appended byte. */
+            seed[KYBER_SYM_SZ]++;
+        }
+    }
+    else {
+        seed[KYBER_SYM_SZ] = 2 * kp;
     }
     if ((ret == 0) && (poly != NULL)) {
         /* Generating random error polynomial. */
@@ -3381,6 +3636,45 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
 
     return ret;
 }
+
+#if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
+    defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+/* Get the noise/error by calculating random bytes and sampling to a binomial
+ * distribution.
+ *
+ * @param  [in, out]  prf   Pseudo-random function object.
+ * @param  [in]       kp    Number of polynomials in vector.
+ * @param  [out]      vec2  Second Vector of polynomials.
+ * @param  [in]       seed  Seed to use when calculating random.
+ * @param  [in]       i     Index of vector to generate.
+ * @param  [in]       make  Indicates generation is for making a key.
+ * @return  0 on success.
+ */
+static int kyber_get_noise_i(KYBER_PRF_T* prf, int kp, sword16* vec2,
+    byte* seed, int i, int make)
+{
+    int ret;
+
+    /* Initialize the PRF (generating matrix A leaves it in uninitialized
+     * state). */
+    kyber_prf_init(prf);
+
+    /* Set index of polynomial of second vector into seed. */
+    seed[KYBER_SYM_SZ] = kp + i;
+#if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
+    if ((kp == KYBER512_K) && make) {
+        ret = kyber_get_noise_eta1_c(prf, vec2, seed, KYBER_CBD_ETA3);
+    }
+    else
+#endif
+    {
+        ret = kyber_get_noise_eta1_c(prf, vec2, seed, KYBER_CBD_ETA2);
+    }
+
+    (void)make;
+    return ret;
+}
+#endif
 
 /******************************************************************************/
 

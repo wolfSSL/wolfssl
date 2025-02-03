@@ -24,6 +24,20 @@
  *   https://csrc.nist.gov/Projects/post-quantum-cryptography/post-quantum-cryptography-standardization/round-3-submissions
  */
 
+/* Possible Kyber options:
+ *
+ * WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM                                  Default: OFF
+ *   Uses less dynamic memory to perform key generation.
+ *   Has a small performance trade-off.
+ *   Only usable with C implementation.
+ *
+ * WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM                              Default: OFF
+ *   Uses less dynamic memory to perform encapsulation.
+ *   Affects decapsulation too as encapsulation called.
+ *   Has a small performance trade-off.
+ *   Only usable with C implementation.
+ */
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -40,6 +54,14 @@
 #else
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
+#endif
+
+#if defined(USE_INTEL_SPEEDUP) || \
+    (defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+    #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
+        defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+        #error "Can't use small memory with assembly optimized code"
+    #endif
 #endif
 
 #ifdef WOLFSSL_WC_KYBER
@@ -225,7 +247,8 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
  * Make a Kyber key object using random data.
  *
  * @param  [in, out]  key   Kyber key ovject.
- * @param  [in]       rng   Random number generator.
+ * @param  [in]       rand  Random data.
+ * @param  [in]       len   Length of random data in bytes.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key or rand is NULL.
  * @return  BUFFER_E when length is not KYBER_MAKEKEY_RAND_SZ.
@@ -239,11 +262,17 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     byte* pubSeed = buf;
     byte* noiseSeed = buf + KYBER_SYM_SZ;
 #ifndef WOLFSSL_NO_MALLOC
-    sword16* a = NULL;
-#else
-    sword16 a[(KYBER_MAX_K + 1) * KYBER_MAX_K * KYBER_N];
-#endif
     sword16* e = NULL;
+#else
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+    sword16 e[(KYBER_MAX_K + 1) * KYBER_MAX_K * KYBER_N];
+#else
+    sword16 e[KYBER_MAX_K * KYBER_N];
+#endif
+#endif
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+    sword16* a = NULL;
+#endif
     int ret = 0;
     int kp = 0;
 
@@ -302,9 +331,14 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 #ifndef WOLFSSL_NO_MALLOC
     if (ret == 0) {
         /* Allocate dynamic memory for matrix and error vector. */
-        a = (sword16*)XMALLOC((kp + 1) * kp * KYBER_N * sizeof(sword16),
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+        e = (sword16*)XMALLOC((kp + 1) * kp * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (a == NULL) {
+#else
+        e = (sword16*)XMALLOC(kp * KYBER_N * sizeof(sword16),
+            key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        if (e == NULL) {
             ret = MEMORY_E;
         }
     }
@@ -312,8 +346,10 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     if (ret == 0) {
         const byte* d = rand;
 
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
         /* Error vector allocated at end of a. */
-        e = a + (kp * kp * KYBER_N);
+        a = e + (kp * KYBER_N);
+#endif
 
 #if defined(WOLFSSL_KYBER_ORIGINAL) && !defined(WOLFSSL_NO_ML_KEM)
         if (key->type & KYBER_ORIGINAL)
@@ -344,20 +380,29 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
         /* Cache the z value for decapsulation and encoding private key. */
         XMEMCPY(key->z, z, sizeof(key->z));
 
-        /* Generate the matrix A. */
-        ret = kyber_gen_matrix(&key->prf, a, kp, pubSeed, 0);
-    }
-
-    if (ret == 0) {
         /* Initialize PRF for use in noise generation. */
         kyber_prf_init(&key->prf);
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
         /* Generate noise using PRF. */
         ret = kyber_get_noise(&key->prf, kp, key->priv, e, NULL, noiseSeed);
     }
     if (ret == 0) {
+        /* Generate the matrix A. */
+        ret = kyber_gen_matrix(&key->prf, a, kp, pubSeed, 0);
+    }
+    if (ret == 0) {
         /* Generate key pair from random data. */
         kyber_keygen(key->priv, key->pub, e, a, kp);
-
+#else
+        /* Generate noise using PRF. */
+        ret = kyber_get_noise(&key->prf, kp, key->priv, NULL, NULL, noiseSeed);
+    }
+    if (ret == 0) {
+        ret = kyber_keygen_seeds(key->priv, key->pub, &key->prf, e, kp,
+            pubSeed, noiseSeed);
+    }
+    if (ret == 0) {
+#endif
         /* Private and public key are set/available. */
         key->flags |= KYBER_FLAG_PRIV_SET | KYBER_FLAG_PUB_SET;
     }
@@ -365,7 +410,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 #ifndef WOLFSSL_NO_MALLOC
     /* Free dynamic memory allocated in function. */
     if (key != NULL) {
-        XFREE(a, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(e, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
 
@@ -470,15 +515,25 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
 {
     int ret = 0;
     sword16* sp = NULL;
-    sword16* ep = NULL;
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16* k = NULL;
+    sword16* ep = NULL;
     sword16* epp = NULL;
+#endif
     unsigned int kp = 0;
     unsigned int compVecSz = 0;
 #ifndef WOLFSSL_NO_MALLOC
     sword16* at = NULL;
 #else
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16 at[((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N];
+#else
+    sword16 at[3 * KYBER_MAX_K * KYBER_N];
+#endif
+#endif
+#ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+    sword16* bp;
+    sword16* v;
 #endif
 
     /* Establish parameters based on key type. */
@@ -532,8 +587,13 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
 #ifndef WOLFSSL_NO_MALLOC
     if (ret == 0) {
         /* Allocate dynamic memory for all matrices, vectors and polynomials. */
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
         at = (sword16*)XMALLOC(((kp + 3) * kp + 3) * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#else
+        at = (sword16*)XMALLOC(3 * kp * KYBER_N * sizeof(sword16), key->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+#endif
         if (at == NULL) {
             ret = MEMORY_E;
         }
@@ -541,36 +601,58 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
 #endif
 
     if (ret == 0) {
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
         /* Assign allocated dynamic memory to pointers.
-         * at (m) | k (p) | sp (v) | sp (v) | epp (v) | bp (p) | v (v) */
+         * at (m) | k (p) | sp (v) | ep (p) | epp (v) | bp (v) | v (p) */
         k   = at  + KYBER_N * kp * kp;
         sp  = k   + KYBER_N;
         ep  = sp  + KYBER_N * kp;
         epp = ep  + KYBER_N * kp;
+#else
+        /* Assign allocated dynamic memory to pointers.
+         * at (v) | sp (v) | bp (v) */
+        sp   = at  + KYBER_N * kp;
+#endif
 
+        /* Initialize the PRF for use in the noise generation. */
+        kyber_prf_init(&key->prf);
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
         /* Convert msg to a polynomial. */
         kyber_from_msg(k, msg);
 
-        /* Generate the transposed matrix. */
-        ret = kyber_gen_matrix(&key->prf, at, kp, key->pubSeed, 1);
-    }
-    if (ret == 0) {
-        /* Initialize the PRF for use in the noise generation. */
-        kyber_prf_init(&key->prf);
         /* Generate noise using PRF. */
         ret = kyber_get_noise(&key->prf, kp, sp, ep, epp, coins);
+    }
+    if (ret == 0) {
+        /* Generate the transposed matrix. */
+        ret = kyber_gen_matrix(&key->prf, at, kp, key->pubSeed, 1);
     }
     if (ret == 0) {
         sword16* bp;
         sword16* v;
 
         /* Assign remaining allocated dynamic memory to pointers.
-         * at (m) | k (p) | sp (v) | sp (v) | epp (v) | bp (p) | v (v)*/
+         * at (m) | k (p) | sp (v) | ep (p) | epp (v) | bp (v) | v (p)*/
         bp  = epp + KYBER_N;
         v   = bp  + KYBER_N * kp;
 
         /* Perform encapsulation maths. */
         kyber_encapsulate(key->pub, bp, v, at, sp, ep, epp, k, kp);
+#else
+        /* Generate noise using PRF. */
+        ret = kyber_get_noise(&key->prf, kp, sp, NULL, NULL, coins);
+    }
+    if (ret == 0) {
+        /* Assign remaining allocated dynamic memory to pointers.
+         * at (v) | sp (v) | bp (v) */
+        bp  = sp + KYBER_N * kp;
+        v   = at;
+
+        ret = kyber_encapsulate_seeds(key->pub, &key->prf, bp, at, sp, kp, msg,
+            key->pubSeed, coins);
+    }
+    if (ret == 0) {
+#endif
 
     #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
         if (kp == KYBER512_K) {
@@ -848,7 +930,7 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     sword16* bp = NULL;
 #else
-    sword16 bp[(KYBER_MAX_K + 2) * KYBER_N];
+    sword16 bp[(KYBER_MAX_K + 1) * KYBER_N];
 #endif
 
     /* Establish parameters based on key type. */
@@ -901,8 +983,8 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
 
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
-        /* Allocate dynamic memory for a vector and two polynomials. */
-        bp = (sword16*)XMALLOC((kp + 2) * KYBER_N * sizeof(sword16), key->heap,
+        /* Allocate dynamic memory for a vector and a polynomial. */
+        bp = (sword16*)XMALLOC((kp + 1) * KYBER_N * sizeof(sword16), key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
         if (bp == NULL) {
             ret = MEMORY_E;
@@ -911,9 +993,9 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
 #endif
     if (ret == 0) {
         /* Assign allocated dynamic memory to pointers.
-         * bp (v) | v (p) | mp (p) */
+         * bp (v) | v (p) */
         v = bp + kp * KYBER_N;
-        mp = v + KYBER_N;
+        mp = bp;
 
     #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
         if (kp == KYBER512_K) {
