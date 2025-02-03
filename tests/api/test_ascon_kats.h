@@ -1,4 +1,4 @@
-/* ascon_kats.h
+/* test_ascon_kats.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -29,8 +29,8 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifndef TESTS_API_ASCON_KATS_H
-#define TESTS_API_ASCON_KATS_H
+#ifndef TESTS_API_TEST_ASCON_KATS_H
+#define TESTS_API_TEST_ASCON_KATS_H
 
 /* KATs taken from https://github.com/ascon/ascon-c */
 
@@ -6514,4 +6514,4 @@ static const char *ascon_aead128_kat[][5] = {
       /* CT = */ "4C086D27A3B51A2333CFC7F22172A9BCAD88B8D4D77E50622D788345FA7BEE4468915D3F9422289F2349D6A3B4160397", },
 };
 
-#endif /* TESTS_API_ASCON_KATS_H */
+#endif /* TESTS_API_TEST_ASCON_KATS_H */
