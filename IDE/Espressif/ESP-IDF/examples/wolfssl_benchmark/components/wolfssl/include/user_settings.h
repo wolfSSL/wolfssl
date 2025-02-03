@@ -273,6 +273,10 @@
 
 /* Optionally enable some wolfSSH settings */
 #if defined(ESP_ENABLE_WOLFSSH) || defined(CONFIG_ESP_ENABLE_WOLFSSH)
+    /* Enable wolfSSH. Espressif examples need a few more settings, below */
+    #undef  WOLFSSL_WOLFSSH
+    #define WOLFSSL_WOLFSSH
+
     /* The default SSH Windows size is massive for an embedded target.
      * Limit it: */
     #define DEFAULT_WINDOW_SZ 2000
@@ -765,7 +769,7 @@
     #define WOLFSSL_ESP8266
 
     /* There's no hardware encryption on the ESP8266 */
-    /* Consider using the ESP32-C2/C3/C6 */
+    /* Consider using the ESP32-C2/C3/C6             */
     #define NO_ESP32_CRYPT
     #define NO_WOLFSSL_ESP32_CRYPT_HASH
     #define NO_WOLFSSL_ESP32_CRYPT_AES
