@@ -330,7 +330,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
+    #if ESP_IDF_VERSION_MAJOR == 4 || (ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR < 4)
         #include <esp32/rom/ets_sys.h>
     #else
         #include <rom/ets_sys.h>
@@ -375,9 +375,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
-        /* #include <esp32/rom/ets_sys.h> */
-    #else
+    #if ESP_IDF_VERSION_MAJOR < 4
         #include <rom/ets_sys.h>
     #endif
 
@@ -411,9 +409,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
-    /* #include <esp32/rom/ets_sys.h> */
-    #else
+    #if ESP_IDF_VERSION_MAJOR < 4
         #include <rom/ets_sys.h>
     #endif
 
@@ -447,9 +443,7 @@ enum {
         #include <driver/periph_ctrl.h>
     #endif
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
-        /* #include <esp32/rom/ets_sys.h> */
-    #else
+    #if ESP_IDF_VERSION_MAJOR < 4
         #include <rom/ets_sys.h>
     #endif
 
@@ -719,24 +713,16 @@ extern "C"
 */
 
 #ifndef NO_AES
-    #if ESP_IDF_VERSION_MAJOR >= 4
-        #include "esp32/rom/aes.h"
-    #elif defined(CONFIG_IDF_TARGET_ESP8266)
-        /* no hardware includes for ESP8266*/
-    #else
-        /* TODO: Confirm for older versions: */
-        /* #include "rom/aes.h" */
-    #endif
+    /* wolfSSL does not use Espressif rom/aes.h */
+    struct Aes; /* see wolcrypt/aes.h */
 
-    typedef enum tagES32_AES_PROCESS /* TODO what's this ? */
+    typedef enum tagES32_AES_PROCESS
     {
         ESP32_AES_LOCKHW            = 1,
         ESP32_AES_UPDATEKEY_ENCRYPT = 2,
         ESP32_AES_UPDATEKEY_DECRYPT = 3,
         ESP32_AES_UNLOCKHW          = 4
     } ESP32_AESPROCESS;
-
-    struct Aes; /* see aes.h */
 #if  defined(WOLFSSL_HW_METRICS)
     WOLFSSL_LOCAL int esp_hw_show_aes_metrics(void);
     WOLFSSL_LOCAL int wc_esp32AesUnupportedLengthCountAdd(void);
@@ -780,7 +766,14 @@ extern "C"
 
     #define SHA_CTX ETS_SHAContext
 
-    #if ESP_IDF_VERSION_MAJOR >= 4
+    #if ESP_IDF_VERSION_MAJOR > 5 || (ESP_IDF_VERSION_MAJOR == 5 && ESP_IDF_VERSION_MINOR >= 4)
+        #include "rom/sha.h"
+        #if defined(CONFIG_IDF_TARGET_ESP32)
+            #define WC_ESP_SHA_TYPE enum SHA_TYPE
+        #else
+            #define WC_ESP_SHA_TYPE SHA_TYPE
+        #endif
+    #elif ESP_IDF_VERSION_MAJOR >= 4
         #if defined(CONFIG_IDF_TARGET_ESP32)
             #include "esp32/rom/sha.h"
             #define WC_ESP_SHA_TYPE enum SHA_TYPE

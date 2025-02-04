@@ -24,7 +24,8 @@ CONFIG_ESP32_DEFAULT_CPU_FREQ_240=y
 # When using RSA, assign at least 10500 bytes, otherwise 5500 usually works for others
 # We set this to 28672 for use in the "test everything possible" in the wolfssl_test app.
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=10500
-# Legacy stack size for older ESP-IDF versions
+
+# Legacy stack size name for older ESP-IDF versions
 CONFIG_MAIN_TASK_STACK_SIZE=10500
 
 #

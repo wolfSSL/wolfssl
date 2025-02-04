@@ -1,6 +1,5 @@
 # wolfSSL Crypt Test Example
 
-
 This is the ESP32 Version of the [wolfSSL wolfcrypt test application](https://github.com/wolfSSL/wolfssl/tree/master/wolfcrypt/test).
 
 For general information on [wolfSSL examples for Espressif](../README.md), see the
@@ -11,7 +10,7 @@ For general information on [wolfSSL examples for Espressif](../README.md), see t
 The easiest way to get started with wolfSSL is by using the
 [ESP Registry](https://www.wolfssl.com/wolfssl-now-available-in-espressif-component-registry/) examples.
 
-```
+```bash
 . ~/esp/esp-idf/export.sh
 idf.py create-project-from-example "wolfssl/wolfssl^5.6.0-stable:wolfssl_test"
 cd wolfssl_benchmark
@@ -42,7 +41,7 @@ Reminder than when building on WSL in `/mnt/c` there will be a noticeable perfor
 
 Example build on WSL, assuming `git clone` from `c:\workspace`:
 
-```
+```bash
 WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/v5.2
 # WRK_IDF_PATH=/mnt/c/SysGCC/esp32/esp-idf/master
 
@@ -70,7 +69,7 @@ idf.py build flash -p /dev/ttyS24 -b 115200 monitor
 ## ESP-IDF Commandline (version 3.5 or earlier for the ESP8266)
 
 
-```
+```bash
 WRK_IDF_PATH=/mnt/c/SysGCC/esp8266/rtos-sdk/v3.4
 . $WRK_IDF_PATH/export.sh
 
@@ -83,6 +82,31 @@ cd IDE/Espressif/ESP-IDF/examples/ESP8266
 idf.py menuconfig
 
 idf.py build flash -p /dev/ttyS55 -b 115200
+```
+
+## Espressif ESP8266 RTOS SDK Make Commandline
+
+```bash
+# Find the ESP8266 SDK directory, shown here for WSL (Windows C:\ESP8266\esp\ESP8266_RTOS_SDK)
+cd /mnt/c/ESP8266/esp/ESP8266_RTOS_SDK
+
+# Optionally run install as needed
+./install.sh
+
+# Setup SDK
+. ./export.sh
+
+# Find example to build
+cd /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test
+
+make clean
+
+make
+
+make flash
+
+# or:
+python /mnt/c/ESP8266/esp/ESP8266_RTOS_SDK/components/esptool_py/esptool/esptool.py --chip esp8266 --port /dev/ttyUSB0 --baud 115200 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 40m --flash_size 2MB 0x0 /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/bootloader/bootloader.bin 0x10000 /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/wolfssl_test.bin 0x8000 /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/partitions_singleapp.bin
 ```
 
 ## Putty (via WSL)
@@ -103,7 +127,7 @@ for help in optimizing for your particular application, or see the
 
 Compiled and flashed with `idf.py build  flash -p /dev/ttyS7 -b 115200 monitor`:
 
-```
+```text
 ets Jun  8 2016 00:22:57
 
 rst:0x3 (SW_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)

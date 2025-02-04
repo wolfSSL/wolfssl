@@ -1,0 +1,4 @@
+# Note that during the build process, settings from sdkconfig.defaults will not override those already in sdkconfig.
+# See https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html#custom-sdkconfig-defaults
+
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=25500

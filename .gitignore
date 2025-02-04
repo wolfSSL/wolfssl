@@ -418,10 +418,15 @@ user_settings_asm.h
 # ESP8266 RTOS SDK has a slightly different sdkconfig filename to exclude:
 /IDE/Espressif/**/sdkconfig.debug
 /IDE/Espressif/**/sdkconfig.release
+/IDE/Espressif/**/sdkconfig-debug
+/IDE/Espressif/**/sdkconfig-release
 
 # Always include Espressif makefiles (typically only used for ESP8266)
 !/IDE/Espressif/**/Makefile
 !/IDE/Espressif/**/component.mk
+
+# Ignore all the example logs
+/IDE/Espressif/ESP-IDF/examples/**/logs/*
 
 # MPLAB
 /IDE/MPLABX16/wolfssl.X/dist/default/

@@ -37,7 +37,9 @@
 #if ESP_IDF_VERSION_MAJOR > 4
     #include <hal/efuse_hal.h>
     #include <rtc_wdt.h>
+    #include <esp_task_wdt.h>
 #endif
+
 /* wolfSSL */
 #include <wolfssl/wolfcrypt/wolfmath.h> /* needed to print MATH_INT_T value */
 #include <wolfssl/wolfcrypt/types.h>
@@ -740,14 +742,23 @@ esp_err_t esp_DisableWatchdog(void)
               defined(CONFIG_IDF_TARGET_ESP32C3) || \
               defined(CONFIG_IDF_TARGET_ESP32C6) || \
               defined(CONFIG_IDF_TARGET_ESP32H2)
-            ESP_LOGW(TAG, "No known rtc_wdt_protect_off for this platform.");
+            #if ESP_IDF_VERSION_MINOR >= 3
+                #if CONFIG_ESP_TASK_WDT
+                    ret = esp_task_wdt_deinit();
+                #else
+                    /* CONFIG_ESP_TASK_WDT=y needed in sdkconfig */
+                    ESP_LOGW(TAG, "esp_task_wdt_deinit not available");
+                #endif
+            #else
+                    ESP_LOGW(TAG, "esp_task_wdt_deinit not implemented");
+            #endif
         #else
             rtc_wdt_protect_off();
             rtc_wdt_disable();
         #endif
     }
     #else
-        ESP_LOGW(TAG, "esp_DisableWatchdog not implemented on ESP_OIDF v%d",
+        ESP_LOGW(TAG, "esp_DisableWatchdog not implemented on ESP_IDF v%d",
                       ESP_IDF_VERSION_MAJOR);
     #endif
 #endif
@@ -782,6 +793,14 @@ esp_err_t esp_EnabledWatchdog(void)
               defined(CONFIG_IDF_TARGET_ESP32C6) || \
               defined(CONFIG_IDF_TARGET_ESP32H2)
             ESP_LOGW(TAG, "No known rtc_wdt_protect_off for this platform.");
+            esp_task_wdt_config_t twdt_config = {
+                .timeout_ms = 5000,     /* Timeout in milliseconds  */
+                .trigger_panic = true,  /* trigger panic on timeout */
+                .idle_core_mask = (1 << 0), /*  Enable on Core 0    */
+            };
+            ESP_LOGW(TAG, "No known rtc_wdt_protect_off for this platform.");
+            esp_task_wdt_init(&twdt_config);
+            esp_task_wdt_add(NULL);
         #else
             rtc_wdt_protect_on();
             rtc_wdt_enable();
