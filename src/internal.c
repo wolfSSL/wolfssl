@@ -27822,6 +27822,7 @@ static int ParseCipherList(Suites* suites,
             }
             if (currLen == 0)
                 break;
+            ++next; /* increment to skip ':' */
         }
 
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
@@ -28173,8 +28174,7 @@ static int ParseCipherList(Suites* suites,
                 break;
             }
         }
-    }
-    while (next++); /* increment to skip ':' */
+    } while (next);
 
     if (ret) {
         int keySz = 0;
