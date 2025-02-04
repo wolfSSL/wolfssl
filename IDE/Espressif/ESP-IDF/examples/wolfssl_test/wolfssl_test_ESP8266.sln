@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34601.278
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "wolfssl_test_ESP8266", "wolfssl_test_ESP8266.vgdbproj", "{C9687472-A434-43A7-9026-7914F425B9B4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D4A6F5E5-807B-4D51-ACD5-8493BCF2E7F0}"
+	ProjectSection(SolutionItems) = preProject
+		components\wolfssl\include\user_settings.h = components\wolfssl\include\user_settings.h
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|VisualGDB = Debug|VisualGDB
+		Release|VisualGDB = Release|VisualGDB
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C9687472-A434-43A7-9026-7914F425B9B4}.Debug|VisualGDB.ActiveCfg = Debug|VisualGDB
+		{C9687472-A434-43A7-9026-7914F425B9B4}.Debug|VisualGDB.Build.0 = Debug|VisualGDB
+		{C9687472-A434-43A7-9026-7914F425B9B4}.Release|VisualGDB.ActiveCfg = Release|VisualGDB
+		{C9687472-A434-43A7-9026-7914F425B9B4}.Release|VisualGDB.Build.0 = Release|VisualGDB
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {84F29237-2909-4E98-AD33-2624E2256EF8}
+	EndGlobalSection
+EndGlobal

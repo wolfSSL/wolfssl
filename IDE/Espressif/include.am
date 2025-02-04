@@ -30,17 +30,18 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/Kconfig
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/README.md
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/include
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/components/wolfssl/include/user_settings.h
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/Makefile
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/main.c
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/Kconfig.projbuild
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/component.mk
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/CMakeLists.txt
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/include
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/include/main.h
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/partitions_singleapp_large.csv
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/README.md
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/sdkconfig.defaults
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/sdkconfig.defaults.esp8266
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/VisualGDB
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/CMakeLists.txt
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/include
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/main.c
-EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/main/include/main.h
 
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/template/VisualGDB/wolfssl_template_IDF_v5.1_ESP32.vgdbproj
 
@@ -146,9 +147,10 @@ EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/README_server_sm.md
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/sdkconfig.defaults
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/sdkconfig.defaults.esp32c2
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/sdkconfig.defaults.esp8266
+
+EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/wolfssl_server_ESP8266.vgdbproj
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/VisualGDB
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/VisualGDB/README.md
-
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/VisualGDB/wolfssl_server_IDF_v5_ESP32.sln
 EXTRA_DIST+= IDE/Espressif/ESP-IDF/examples/wolfssl_server/VisualGDB/wolfssl_server_IDF_v5_ESP32.vgdbproj
 

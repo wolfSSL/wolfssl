@@ -8,7 +8,12 @@ message(STATUS "Begin project ${CMAKE_PROJECT_NAME}")
 cmake_minimum_required(VERSION 3.16)
 
 # Optional no watchdog typically used for test & benchmark
-add_compile_definitions(WOLFSSL_ESP_NO_WATCHDOG=1)
+if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSION_MAJOR VERSION_LESS "5.0")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_ESP_NO_WATCHDOG=1")
+else()
+    add_compile_definitions(WOLFSSL_ESP_NO_WATCHDOG=1)
+endif()
+
 
 # The wolfSSL CMake file should be able to find the source code.
 # Otherwise, assign an environment variable or set it here:
@@ -123,8 +128,8 @@ endif()
 # Not only is a project-level "set(COMPONENTS" not needed here, this will cause
 # an unintuitive error about  Unknown CMake command "esptool_py_flash_project_args".
 
-message(STATUS "begin optional PROTOCOL_EXAMPLES_DIR include")
 if(0)
+	message(STATUS "Begin optional PROTOCOL_EXAMPLES_DIR include")
     # This example uses an extra component for common functions such as Wi-Fi and Ethernet connection.
     set (PROTOCOL_EXAMPLES_DIR $ENV{IDF_PATH}/examples/common_components/protocol_examples_common)
 
@@ -135,9 +140,10 @@ if(0)
     else()
         message(STATUS "NOT FOUND: PROTOCOL_EXAMPLES_DIR=${PROTOCOL_EXAMPLES_DIR}")
     endif()
+	message(STATUS "End optional PROTOCOL_EXAMPLES_DIR include")
 endif()
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-message(STATUS "end optional include")
 
 project(wolfssl_test)
 message(STATUS "end project")

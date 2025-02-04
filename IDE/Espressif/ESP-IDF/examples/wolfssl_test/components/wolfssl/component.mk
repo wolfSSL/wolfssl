@@ -66,7 +66,19 @@ CFLAGS +=-DWOLFSSL_USER_SETTINGS
 #   https://github.com/wolfSSL/wolfssl/tree/master/IDE/Espressif/ESP-IDF/examples
 # When this wolfssl component.mk makefile is in [project]/components/wolfssl
 # The root is 7 directories up from here (the location of of this component.mk):
-WOLFSSL_ROOT := ../../../../../../..
+#
+WOLFSSL_ROOT     ?= ../../../../../../..
+THIS_DIR         := $(shell pwd)
+WOLFSSL_ROOT_OBJ := $(THIS_DIR)
+
+# When running make from commandline or VisualGDB, the current path varies:
+ifeq ("$(VISUALGDB_DIR)","")
+    # current path is typically /mnt/c/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/wolfssl
+    $(info VISUALGDB_DIR build not detected. shell: $(shell echo $$SHELL))
+else
+    # current path is typically /C/workspace/wolfssl-gojimmypi/IDE/Espressif/ESP-IDF/examples/wolfssl_test/build/Debug/wolfssl
+    $(info Detected VisualGDB in: $(VISUALGDB_DIR) shell: $(shell echo $$SHELL))
+endif
 
 # To set the location of a different location, it is best to use relative paths.
 #
@@ -92,14 +104,16 @@ WOLFSSL_ROOT := ../../../../../../..
 # CFLAGS += -I$(WOLFSSL_ROOT)/wolfssl/wolfcrypt
 # CFLAGS += -I$(WOLFSSL_ROOT)/wolfssl/wolfcrypt/port/Espressif
 
-abs_WOLFSSL_ROOT := $(shell realpath $(WOLFSSL_ROOT))
+abs_WOLFSSL_ROOT     := $(shell realpath $(WOLFSSL_ROOT))
 
 # print-wolfssl-path-value:
 #	@echo "WOLFSSL_ROOT defined: $(WOLFSSL_ROOT)"
 #	@echo "WOLFSSL_ROOT actual:  $(abs_WOLFSSL_ROOT)"
 
-$(info WOLFSSL_ROOT defined: $(WOLFSSL_ROOT))
-$(info WOLFSSL_ROOT actual:  $(abs_WOLFSSL_ROOT))
+$(info WOLFSSL_ROOT     defined: $(WOLFSSL_ROOT))
+$(info WOLFSSL_ROOT     actual:  $(abs_WOLFSSL_ROOT))
+$(info THIS_DIR         defined: $(THIS_DIR))
+$(info WOLFSSL_ROOT_OBJ defined: $(WOLFSSL_ROOT_OBJ))
 
 # NOTE: The wolfSSL include directory (e.g. user_settings.h) is
 # located HERE in THIS project, and *not* in the wolfSSL root.
@@ -109,6 +123,7 @@ COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/.
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl/wolfcrypt
 COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfssl/wolfcrypt/port/Espressif
+
 # COMPONENT_ADD_INCLUDEDIRS += $ENV(IDF_PATH)/components/freertos/include/freertos
 # COMPONENT_ADD_INCLUDEDIRS += "$ENV(IDF_PATH)/soc/esp32s3/include/soc"
 
@@ -122,27 +137,27 @@ COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/src
 COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif
 COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/atmel
 
-COMPONENT_OBJEXCLUDE := $(WOLFSSL_ROOT)/wolfcrypt/src/aes_asm.o
-COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT)/wolfcrypt/src/evp.o
-COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT)/wolfcrypt/src/misc.o
-COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT)/wolfcrypt/src/sha512_asm.o
-COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT)/wolfcrypt/src/fe_x25519_asm.o
-COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT)/wolfcrypt/src/aes_gcm_x86_asm.o
-COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT)/src/bio.o
-
+COMPONENT_OBJEXCLUDE := $(WOLFSSL_ROOT_OBJ)/wolfcrypt/src/aes_asm.o
+COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT_OBJ)/wolfcrypt/src/evp.o
+COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT_OBJ)/wolfcrypt/src/misc.o
+COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT_OBJ)/wolfcrypt/src/sha512_asm.o
+COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT_OBJ)/wolfcrypt/src/fe_x25519_asm.o
+COMPONENT_OBJEXCLUDE += $(WOLFSSL_ROOT_OBJ)/wolfcrypt/src/aes_gcm_x86_asm.o
 
 ##
 ## wolfSSL
 ##
-COMPONENT_OBJS := $(WOLFSSL_ROOT)/src/bio.o
-# COMPONENT_OBJS += src/conf.o
+## reminder object files may end up in `./build` or `build/debug` or `build/release`, depending on build environment & settings.
+##
+# COMPONENT_OBJS := $(WOLFSSL_ROOT)/src/bio.o  # part of ssl.c, omitted to avoid "does not need to be compiled separately"
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/conf.o # part of ssl.c
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/crl.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/dtls.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/dtls13.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/internal.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/keys.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/ocsp.o
-# COMPONENT_OBJS += src/pk.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/pk.o   # part of ssl.c
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/quic.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/sniffer.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/ssl.o
@@ -154,8 +169,8 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/ssl.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/tls.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/tls13.o
 COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/wolfio.o
-# COMPONENT_OBJS += src/x509.o
-# COMPONENT_OBJS += src/x509_str.o
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/x509.o     # part of ssl.c
+# COMPONENT_OBJS += $(WOLFSSL_ROOT)/src/x509_str.o # part of ssl.c
 
 ##
 ## wolfcrypt
@@ -276,20 +291,16 @@ COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/src/port/Espressif/esp_sdk_wifi_lib.
 ##
 ## wolfcrypt benchmark  (optional)
 ##
-## COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/benchmark/benchmark.o
-## COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/benchmark
+## COMPONENT_OBJS            += $(WOLFSSL_ROOT)/wolfcrypt/benchmark/benchmark.o
+## COMPONENT_SRCDIRS         += $(WOLFSSL_ROOT)/wolfcrypt/benchmark
 ## COMPONENT_ADD_INCLUDEDIRS += $(WOLFSSL_ROOT)/wolfcrypt/benchmark
 
 
 ##
-## wolfcrypt test (optional)
+## wolfcrypt test (needed for this test example)
 ##
-COMPONENT_OBJS += $(WOLFSSL_ROOT)/wolfcrypt/test/test.o
-COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/test
+COMPONENT_OBJS               += $(WOLFSSL_ROOT)/wolfcrypt/test/test.o
+COMPONENT_SRCDIRS            += $(WOLFSSL_ROOT)/wolfcrypt/test
+COMPONENT_ADD_INCLUDEDIRS    += $(WOLFSSL_ROOT)/wolfcrypt/test/include
 
-##
-## wolfcrypt
-##
-# COMPONENT_PRIV_INCLUDEDIRS += $(PROJECT_PATH)/components/wolfssl/include
-COMPONENT_SRCDIRS += $(WOLFSSL_ROOT)/wolfcrypt/src
 $(info ********** end wolfssl component **********)

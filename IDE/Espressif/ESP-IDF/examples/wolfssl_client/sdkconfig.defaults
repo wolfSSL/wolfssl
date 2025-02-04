@@ -1,5 +1,6 @@
 # Set the known example app config to TLS Client (see user_settings.h)
 CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_CLIENT=y
+
 # CONFIG_EXAMPLE_WIFI_SSID="myssid"
 # CONFIG_EXAMPLE_WIFI_PASSWORD="mypassword"
 
@@ -7,7 +8,7 @@ CONFIG_WOLFSSL_EXAMPLE_NAME_TLS_CLIENT=y
 CONFIG_USE_WOLFSSL_ESP_SDK_TIME=y
 
 # sdkconfig.defaults for ESP8266 + ESP32
-
+# See separate sdkconfig.defaults.esp8266
 # FreeRTOS ticks at 1ms interval
 CONFIG_FREERTOS_UNICORE=y
 CONFIG_FREERTOS_HZ=1000

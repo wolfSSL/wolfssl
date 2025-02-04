@@ -1,10 +1,17 @@
 # wolfSSL Espressif Example Project/main CMakeLists.txt
-#   v1.1
+#   v1.2
 #
 # wolfssl server test
 #
 message(STATUS "Begin wolfSSL main CMakeLists.txt")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_USER_SETTINGS")
+
+if (idf_target STREQUAL "esp8266" OR IDF_TARGET STREQUAL "esp8266" OR IDF_VERSION_MAJOR VERSION_LESS "5.0")
+    # `driver` component not available for ESP8266
+    SET(THIS_PRIV_REQUIRES_DRIVER "")
+else()
+    SET(THIS_PRIV_REQUIRES_DRIVER "driver")
+endif()
 
 if(WIN32)
     # Windows-specific configuration here
@@ -61,7 +68,7 @@ idf_component_register(SRCS main.c
                        INCLUDE_DIRS "."
                             "./include"
                        PRIV_REQUIRES "${MAIN_WOLFSSL_COMPONENT_NAME}"
-                                     driver
+                                     "${THIS_PRIV_REQUIRES_DRIVER}"
                                      nvs_flash
                                      protocol_examples_common)
 
@@ -113,7 +120,7 @@ execute_process(
 if(NOT CMAKE_BUILD_EARLY_EXPANSION AND (IS_GIT_REPO STREQUAL "true"))
     # LIBWOLFSSL_VERSION_GIT_HASH
     execute_process(COMMAND ${git_cmd} "rev-parse" "HEAD" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )
-    LIBWOLFSSL_SAVE_INFO(WOLFSSL_EXAMPLE_VERSION_GIT_HASH "${TMP_OUT}" "${TMP_RES}")
+    LIBWOLFSSL_SAVE_INFO(LIBWOLFSSL_VERSION_GIT_HASH "${TMP_OUT}" "${TMP_RES}")
 
     # LIBWOLFSSL_VERSION_GIT_SHORT_HASH
     execute_process(COMMAND ${git_cmd} "rev-parse" "--short" "HEAD" OUTPUT_VARIABLE TMP_OUT RESULT_VARIABLE TMP_RES ERROR_QUIET )

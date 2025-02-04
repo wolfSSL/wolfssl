@@ -408,17 +408,22 @@ endif()
 
 if ( ("${CONFIG_TARGET_PLATFORM}" STREQUAL "esp8266") OR ("${IDF_TARGET}" STREQUAL "esp8266") )
     # There's no esp_timer, no driver components for the ESP8266
-    message(STATUS "Early expansion EXCLUDES esp_timer for esp8266: ${THIS_INCLUDE_TIMER}")
-    message(STATUS "Early expansion EXCLUDES driver for esp8266: ${THIS_INCLUDE_DRIVER}")
-    set(THIS_INCLUDE_TIMER "")
-    set(THIS_INCLUDE_DRIVER "")
-    set(THIS_ESP_TLS "")
+    message(STATUS "Early expansion EXCLUDES for esp8266:")
+    message(STATUS "THIS_INCLUDE_DRIVER:  '${THIS_INCLUDE_DRIVER}'")
+    message(STATUS "THIS_INCLUDE_TIMER:   '${THIS_INCLUDE_TIMER}'")
+    message(STATUS "Early expansion INCLUDE for esp8266:")
+    message(STATUS "THIS_INCLUDE_PTHREAD: '${THIS_INCLUDE_PTHREAD}'")
+    set(THIS_ESP_TLS         "")
+    set(THIS_INCLUDE_DRIVER  "")
+    set(THIS_INCLUDE_TIMER   "")
+    set(THIS_INCLUDE_PTHREAD "pthread")
 else()
     message(STATUS "Early expansion includes esp_timer: ${THIS_INCLUDE_TIMER}")
     message(STATUS "Early expansion includes driver: ${THIS_INCLUDE_DRIVER}")
-    set(THIS_INCLUDE_TIMER "esp_timer")
+    set(THIS_ESP_TLS        "esp-tls")
     set(THIS_INCLUDE_DRIVER "driver")
-    set(THIS_ESP_TLS "esp-tls")
+    set(THIS_INCLUDE_TIMER  "esp_timer")
+    set(THIS_INCLUDE_PTHREAD "")
     # Let the app know that we've included the esp-tls component requirement.
     # This is critical for use the the esp-tls component. See wolfssl esp_crt_bundle.c file.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWOLFSSL_CMAKE_REQUIRED_ESP_TLS=1")
@@ -430,6 +435,7 @@ if(CMAKE_BUILD_EARLY_EXPANSION)
                             REQUIRES "${COMPONENT_REQUIRES}"
                             PRIV_REQUIRES # esp_hw_support
                                           "${THIS_ESP_TLS}"
+                                          "${THIS_INCLUDE_PTHREAD}"
                                           "${THIS_INCLUDE_TIMER}"
                                           "${THIS_INCLUDE_DRIVER}" # this will typically only be needed for wolfSSL benchmark
                            )
