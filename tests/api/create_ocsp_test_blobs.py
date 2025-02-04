@@ -412,4 +412,4 @@ if __name__ == '__main__':
             'name': 'resp_bad'
         })
         write_buffer('resp_bad', br, f)
-        f.write("#endif // OCSP_TEST_BLOBS_H\n")
+        f.write("#endif /* OCSP_TEST_BLOBS_H */\n")

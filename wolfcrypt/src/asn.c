@@ -37312,7 +37312,9 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
         WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
     }
 
-    if (ret == 0 && OcspRespIdMatch(resp, cert->subjectHash, cert->subjectKeyHash) == 0) {
+    if (ret == 0 &&
+            OcspRespIdMatch(resp,
+                cert->subjectHash, cert->subjectKeyHash) == 0) {
         WOLFSSL_MSG("\tInternal check doesn't match responder ID, ignoring\n");
         ret = BAD_OCSP_RESPONDER;
         goto out;
