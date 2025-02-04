@@ -2,3 +2,4 @@ if BUILD_TESTS
 tests_unit_test_SOURCES += tests/api/ascon.c
 endif
 EXTRA_DIST += tests/api/ascon.h
+EXTRA_DIST += tests/api/ascon_kats.h

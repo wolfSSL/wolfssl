@@ -19,10 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef WOLFCRYPT_TEST_ASCON_H
-#define WOLFCRYPT_TEST_ASCON_H
+#ifndef TESTS_API_ASCON_H
+#define TESTS_API_ASCON_H
 
 int test_ascon_hash256(void);
 int test_ascon_aead128(void);
 
-#endif /* WOLFCRYPT_TEST_ASCON_H */
+#endif /* TESTS_API_ASCON_H */
