@@ -9270,13 +9270,15 @@ int TLSX_KeyShare_Parse(WOLFSSL* ssl, const byte* input, word16 length,
         if (ssl->error != WC_NO_ERR_TRACE(WC_PENDING_E))
     #endif
         {
-            /* Check the selected group was supported by ClientHello extensions. */
+            /* Check the selected group was supported by ClientHello extensions.
+             */
             if (!TLSX_SupportedGroups_Find(ssl, group, ssl->extensions)) {
                 WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
                 return BAD_KEY_SHARE_DATA;
             }
 
-            /* Check if the group was sent. */
+            /* Make sure KeyShare for server requested group was not sent in
+             * ClientHello. */
             if (TLSX_KeyShare_Find(ssl, group)) {
                 WOLFSSL_ERROR_VERBOSE(BAD_KEY_SHARE_DATA);
                 return BAD_KEY_SHARE_DATA;
