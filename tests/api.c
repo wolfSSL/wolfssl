@@ -460,9 +460,6 @@
     #endif
 #endif /* HAVE_PKCS7 */
 
-int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
-    test_ssl_cbf* server_cb, test_cbType client_on_handshake);
-
 #ifdef WOLFSSL_DUMP_MEMIO_STREAM
 const char* currentTestName;
 char tmpDirName[16];

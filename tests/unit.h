@@ -408,7 +408,9 @@ int test_ssl_memio_setup(test_ssl_memio_ctx *ctx);
 int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
     int* rounds);
 void test_ssl_memio_cleanup(test_ssl_memio_ctx* ctx);
-#endif
+int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
+    test_ssl_cbf* server_cb, test_cbType client_on_handshake);
+#endif /* HAVE_SSL_MEMIO_TESTS_DEPENDENCIES */
 
 void ApiTest_PrintTestCases(void);
 int ApiTest_RunIdx(int idx);
