@@ -123,7 +123,7 @@
 #if defined(__WATCOMC__)
     #if !defined(SINGLE_THREADED)
         #if defined(USE_WINDOWS_API)
-            #define _WINSOCKAPI_ /* Force winsock (workaround for WinCE) */
+            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
             #include <process.h>
         #elif defined(__OS2__)
@@ -141,7 +141,7 @@
         #endif
     #else
         #if defined(USE_WINDOWS_API)
-            #define _WINSOCKAPI_ /* Force winsock (workaround for WinCE) */
+            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
         #elif defined(__OS2__)
             #include <os2.h>
@@ -160,7 +160,7 @@
             #define WIN32_LEAN_AND_MEAN
         #endif
         #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
-            #define _WINSOCKAPI_ /* Force winsock (workaround for WinCE) */
+            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
             #ifndef WOLFSSL_USER_IO
                 #include <ws2tcpip.h> /* required for InetPton */
@@ -1205,7 +1205,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(_WIN32_WCE)
-    #define _WINSOCKAPI_ /* Force winsock (workaround for WinCE) */
+    #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
     #include <windows.h>
     #include <stdlib.h> /* For file system */
 

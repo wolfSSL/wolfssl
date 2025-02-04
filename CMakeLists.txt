@@ -2491,9 +2491,7 @@ if(WOLFSSL_EXAMPLES)
         add_executable(tls_bench
             ${CMAKE_CURRENT_SOURCE_DIR}/examples/benchmark/tls_bench.c)
         target_link_libraries(tls_bench wolfssl)
-        if(NOT CMAKE_C_COMPILER_ID STREQUAL "OpenWatcom")
-            target_link_libraries(tls_bench Threads::Threads)
-        endif()
+        target_link_libraries(tls_bench Threads::Threads)
         set_property(TARGET tls_bench
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/examples/benchmark)
@@ -2515,9 +2513,7 @@ if(WOLFSSL_EXAMPLES)
         ${CMAKE_CURRENT_BINARY_DIR})
     target_compile_options(unit_test PUBLIC "-DNO_MAIN_DRIVER")
     target_link_libraries(unit_test wolfssl)
-    if(NOT CMAKE_C_COMPILER_ID STREQUAL "OpenWatcom")
-        target_link_libraries(unit_test Threads::Threads)
-    endif()
+    target_link_libraries(unit_test Threads::Threads)
     set_property(TARGET unit_test
                  PROPERTY RUNTIME_OUTPUT_DIRECTORY
                  ${WOLFSSL_OUTPUT_BASE}/tests/)
@@ -2778,11 +2774,11 @@ if(WOLFSSL_INSTALL)
         else()
             set(LIBM)
         endif()
-
-        configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
     endif()
+
+    configure_file(support/wolfssl.pc.in ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc @ONLY)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/support/wolfssl.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
     include(CMakePackageConfigHelpers)
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Config.cmake.in

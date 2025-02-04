@@ -154,7 +154,7 @@
 #ifdef __WATCOMC__
     #if defined(__OS2__)
     #elif defined(__NT__)
-        #define _WINSOCKAPI_ /* Force winsock (workaround for WinCE) */
+        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
         #include <windows.h>
     #elif defined(__LINUX__)
         #ifndef SINGLE_THREADED
@@ -166,7 +166,7 @@
     #ifdef WOLFSSL_GAME_BUILD
         #include "system/xtl.h"
     #else
-        #define _WINSOCKAPI_ /* Force winsock (workaround for WinCE) */
+        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
         #include <windows.h>
     #endif
 #elif defined(THREADX)
