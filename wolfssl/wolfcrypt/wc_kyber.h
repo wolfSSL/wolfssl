@@ -145,13 +145,27 @@ struct KyberKey {
 
 WOLFSSL_LOCAL
 void kyber_init(void);
+
+#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 WOLFSSL_LOCAL
 void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
     int kp);
+#else
+WOLFSSL_LOCAL
+int kyber_keygen_seeds(sword16* priv, sword16* pub, KYBER_PRF_T* prf,
+    sword16* e, int kp, byte* seed, byte* noiseSeed);
+#endif
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 WOLFSSL_LOCAL
 void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
     const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
     const sword16* m, int kp);
+#else
+WOLFSSL_LOCAL
+int kyber_encapsulate_seeds(const sword16* pub, KYBER_PRF_T* prf, sword16* bp,
+    sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed,
+    byte* coins);
+#endif
 WOLFSSL_LOCAL
 void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
     const sword16* v, int kp);
