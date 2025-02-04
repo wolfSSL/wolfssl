@@ -9221,8 +9221,14 @@ static int CheckcipherList(const char* list)
 
         next   = XSTRSTR(next, ":");
 
-        current_length = (!next) ? (word32)XSTRLEN(current)
-                                 : (word32)(next - current);
+        if (next) {
+            current_length = (word32)(next - current);
+            ++next; /* increment to skip ':' */
+        }
+        else {
+            current_length = (word32)XSTRLEN(current);
+        }
+
         if (current_length == 0) {
             break;
         }
@@ -9279,8 +9285,7 @@ static int CheckcipherList(const char* list)
             /* list has mixed suites */
             return 0;
         }
-    }
-    while (next++); /* increment to skip ':' */
+    } while (next);
 
     if (findTLSv13Suites == 0 && findbeforeSuites == 1) {
         ret = 1;/* only before TLSv13 suites */
