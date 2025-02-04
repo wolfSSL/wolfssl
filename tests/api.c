@@ -460,62 +460,6 @@
     #endif
 #endif /* HAVE_PKCS7 */
 
-typedef int (*ctx_cb)(WOLFSSL_CTX* ctx);
-typedef int (*ssl_cb)(WOLFSSL* ssl);
-typedef int (*test_cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
-typedef int (*hs_cb)(WOLFSSL_CTX **ctx, WOLFSSL **ssl);
-
-typedef struct test_ssl_cbf {
-    method_provider method;
-    ctx_cb ctx_ready;
-    ssl_cb ssl_ready;
-    ssl_cb on_result;
-    ctx_cb on_ctx_cleanup;
-    ssl_cb on_cleanup;
-    hs_cb  on_handshake;
-    WOLFSSL_CTX* ctx;
-    const char* caPemFile;
-    const char* certPemFile;
-    const char* keyPemFile;
-    const char* crlPemFile;
-#ifdef WOLFSSL_STATIC_MEMORY
-    byte*               mem;
-    word32              memSz;
-    wolfSSL_method_func method_ex;
-#endif
-    int devId;
-    int return_code;
-    int last_err;
-    unsigned char isSharedCtx:1;
-    unsigned char loadToSSL:1;
-    unsigned char ticNoInit:1;
-    unsigned char doUdp:1;
-} test_ssl_cbf;
-
-#define TEST_SSL_MEMIO_BUF_SZ   (64 * 1024)
-typedef struct test_ssl_memio_ctx {
-    WOLFSSL_CTX* s_ctx;
-    WOLFSSL_CTX* c_ctx;
-    WOLFSSL* s_ssl;
-    WOLFSSL* c_ssl;
-
-    const char* c_ciphers;
-    const char* s_ciphers;
-
-    char* c_msg;
-    int c_msglen;
-    char* s_msg;
-    int s_msglen;
-
-    test_ssl_cbf s_cb;
-    test_ssl_cbf c_cb;
-
-    byte c_buff[TEST_SSL_MEMIO_BUF_SZ];
-    int c_len;
-    byte s_buff[TEST_SSL_MEMIO_BUF_SZ];
-    int s_len;
-} test_ssl_memio_ctx;
-
 int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
     test_ssl_cbf* server_cb, test_cbType client_on_handshake);
 
@@ -7266,7 +7210,7 @@ static WC_INLINE int test_ssl_memio_read_cb(WOLFSSL *ssl, char *data, int sz,
     return read_sz;
 }
 
-static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
+int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
 {
     EXPECT_DECLS_NO_MSGS(-2000);
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
@@ -7466,7 +7410,7 @@ static WC_INLINE int test_ssl_memio_setup(test_ssl_memio_ctx *ctx)
     return EXPECT_RESULT();
 }
 
-static int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
+int test_ssl_memio_do_handshake(test_ssl_memio_ctx* ctx, int max_rounds,
     int* rounds)
 {
     int handshake_complete = 0;
@@ -7586,7 +7530,7 @@ static int test_ssl_memio_read_write(test_ssl_memio_ctx* ctx)
     return EXPECT_RESULT();
 }
 
-static void test_ssl_memio_cleanup(test_ssl_memio_ctx* ctx)
+void test_ssl_memio_cleanup(test_ssl_memio_ctx* ctx)
 {
     ctx->c_cb.last_err = wolfSSL_get_error(ctx->c_ssl, 0);
     ctx->s_cb.last_err = wolfSSL_get_error(ctx->s_ssl, 0);
