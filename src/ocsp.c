@@ -825,11 +825,13 @@ void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse)
 static int OcspRespIdMatches(OcspResponse* resp, const byte* NameHash,
     const byte* keyHash)
 {
-    if (resp->responderIdType == OCSP_RESPONDER_ID_NAME)
-        return (XMEMCMP(NameHash, resp->responderId.nameHash,
-                    SIGNER_DIGEST_SIZE) == 0);
-    else if (resp->responderIdType == OCSP_RESPONDER_ID_KEY)
-        return (XMEMCMP(keyHash, resp->responderId.keyHash, KEYID_SIZE) == 0);
+    if (resp->responderIdType == OCSP_RESPONDER_ID_NAME) {
+        return XMEMCMP(NameHash, resp->responderId.nameHash,
+                   SIGNER_DIGEST_SIZE) == 0;
+    }
+    else if (resp->responderIdType == OCSP_RESPONDER_ID_KEY) {
+        return XMEMCMP(keyHash, resp->responderId.keyHash, KEYID_SIZE) == 0;
+    }
 
     return 0;
 }
@@ -907,7 +909,7 @@ static int OcspVerifySigner(WOLFSSL_OCSP_BASICRESP *resp, DecodedCert *cert,
     InitDecodedCert(c, cert->source, cert->maxIdx, NULL);
     if (ParseCertRelative(c, CERT_TYPE, VERIFY, st->cm, NULL) != 0) {
         ret = ASN_OCSP_CONFIRM_E;
-        goto out;
+        goto err;
     }
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
     if ((flags & WOLFSSL_OCSP_NOCHECKS) == 0) {
@@ -922,7 +924,7 @@ static int OcspVerifySigner(WOLFSSL_OCSP_BASICRESP *resp, DecodedCert *cert,
     ret = 0;
 #endif
 
-out:
+err:
     FreeDecodedCert(c);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(c, NULL, DYNAMIC_TYPE_DCERT);
@@ -960,14 +962,14 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP* bs,
     if (ret != 0) {
         WOLFSSL_MSG("OCSP signature verification failed");
         ret = -1;
-        goto out;
+        goto err;
     }
 
     if ((flags & WOLFSSL_OCSP_NOVERIFY) == 0) {
         ret = OcspVerifySigner(bs, cert, st, flags);
     }
 
-out:
+err:
     FreeDecodedCert(cert);
     XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
     return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;

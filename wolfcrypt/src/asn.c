@@ -37317,7 +37317,7 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
                 cert->subjectHash, cert->subjectKeyHash) == 0) {
         WOLFSSL_MSG("\tInternal check doesn't match responder ID, ignoring\n");
         ret = BAD_OCSP_RESPONDER;
-        goto out;
+        goto err;
     }
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
@@ -37325,7 +37325,7 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
         ret = CheckOcspResponder(resp, cert, cm);
         if (ret < 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate issuer check failed");
-            goto out;
+            goto err;
         }
     }
 #endif /* WOLFSSL_NO_OCSP_ISSUER_CHECK */
@@ -37337,7 +37337,7 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
             resp->sig, resp->sigSz, resp->sigOID, resp->sigParams,
             resp->sigParamsSz, NULL);
     }
-out:
+err:
     FreeDecodedCert(cert);
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -37509,7 +37509,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         ret = OcspCheckCert(resp, noVerify, noVerifySignature,
                             (WOLFSSL_CERT_MANAGER*)cm, heap);
         if (ret == 0) {
-            goto out;
+            noVerifySignature = 1;
         }
         ret = 0; /* try to verify the OCSP response with CA certs */
     }
@@ -37545,7 +37545,6 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             ret = ASN_OCSP_CONFIRM_E;
         }
     }
-out:
     if (ret == 0) {
         /* Update the position to after response data. */
         *ioIndex = idx;
