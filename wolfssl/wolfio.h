@@ -152,6 +152,26 @@
         #include <fclfcntl.h>
     #elif defined(WOLFSSL_EMNET)
         #include <IP/IP.h>
+    #elif defined(__WATCOMC__)
+        #if defined(__OS2__)
+            #include <errno.h>
+            #include <os2.h>
+            #include <sys/types.h>
+            #include <os2/types.h>
+            #include <sys/socket.h>
+            #include <arpa/inet.h>
+            #include <netinet/in.h>
+            #include <nerrno.h>
+
+            typedef int socklen_t;
+        #elif defined(__LINUX__)
+            #include <sys/types.h>
+            #include <errno.h>
+            #include <unistd.h>
+            #include <sys/socket.h>
+            #include <arpa/inet.h>
+            #include <netinet/in.h>
+        #endif
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>

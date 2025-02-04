@@ -5136,7 +5136,7 @@ int sp_init_size(sp_int* a, unsigned int size)
     int err = MP_OKAY;
 
     /* Validate parameters. Don't use size more than max compiled. */
-    if ((a == NULL) || ((size <= 0) || (size > SP_INT_DIGITS))) {
+    if ((a == NULL) || ((size == 0) || (size > SP_INT_DIGITS))) {
         err = MP_VAL;
     }
 

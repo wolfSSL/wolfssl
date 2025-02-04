@@ -11916,7 +11916,7 @@ static int GetRecordHeader(WOLFSSL* ssl, word32* inOutIdx,
                              (!ssl->options.dtls &&
                               rh->pvMinor < ssl->version.minor))
         #else
-                            rh->pvMinor < ssl->version.minor
+                            (rh->pvMinor < ssl->version.minor)
         #endif
                    )) {
             WOLFSSL_MSG("SSL version error");

@@ -900,6 +900,7 @@ __INTEGRITY
 __INTEL_COMPILER
 __KEIL__
 __KEY_DATA_H__
+__LINUX__
 __LP64
 __LP64__
 __MACH__
@@ -908,7 +909,9 @@ __MINGW32__
 __MINGW64_VERSION_MAJOR
 __MINGW64__
 __MWERKS__
+__NT__
 __OpenBSD__
+__OS2__
 __PIE__
 __POWERPC__
 __PPC__
