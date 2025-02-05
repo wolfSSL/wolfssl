@@ -69,42 +69,44 @@ static int test_ocsp_response_with_cm(struct test_conf* c, int expectedRet)
     EXPECT_DECLS;
     WOLFSSL_CERT_MANAGER* cm = NULL;
     struct ocsp_cb_ctx cb_ctx;
-    int ret;
 
-    cm = wolfSSL_CertManagerNew();
-    ExpectNotNull(cm);
-    ret = wolfSSL_CertManagerEnableOCSP(cm,
-        WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
-    ret = wolfSSL_CertManagerSetOCSPOverrideURL(cm, "http://foo.com");
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectNotNull(cm = wolfSSL_CertManagerNew());
+    ExpectIntEQ(wolfSSL_CertManagerEnableOCSP(cm,
+                    WOLFSSL_OCSP_URL_OVERRIDE | WOLFSSL_OCSP_NO_NONCE),
+        WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_CertManagerSetOCSPOverrideURL(cm, "http://foo.com"),
+        WOLFSSL_SUCCESS);
     cb_ctx.response = (byte*)c->resp;
     cb_ctx.responseSz = c->respSz;
-    ret = wolfSSL_CertManagerSetOCSP_Cb(cm, ocsp_cb, NULL, (void*)&cb_ctx);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectIntEQ(
+        wolfSSL_CertManagerSetOCSP_Cb(cm, ocsp_cb, NULL, (void*)&cb_ctx),
+        WOLFSSL_SUCCESS);
     /* add ca in cm */
     if (c->ca0 != NULL) {
-        ret = wolfSSL_CertManagerLoadCABuffer(cm, c->ca0, c->ca0Sz,
-            WOLFSSL_FILETYPE_ASN1);
-        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, c->ca0, c->ca0Sz,
+                        WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
     }
     if (c->ca1 != NULL) {
-        ret = wolfSSL_CertManagerLoadCABuffer(cm, c->ca1, c->ca1Sz,
-            WOLFSSL_FILETYPE_ASN1);
-        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        ExpectIntEQ(wolfSSL_CertManagerLoadCABuffer(cm, c->ca1, c->ca1Sz,
+                        WOLFSSL_FILETYPE_ASN1),
+            WOLFSSL_SUCCESS);
     }
     /* check cert */
-    ret = wolfSSL_CertManagerCheckOCSP(cm, c->targetCert, c->targetCertSz);
-    ExpectIntEQ(ret, expectedRet);
-    wolfSSL_CertManagerFree(cm);
+    ExpectIntEQ(
+        wolfSSL_CertManagerCheckOCSP(cm, c->targetCert, c->targetCertSz),
+        expectedRet);
+    if (cm != NULL)
+        wolfSSL_CertManagerFree(cm);
     return EXPECT_RESULT();
 }
 
 int test_ocsp_response_parsing(void)
 {
-    struct test_conf conf;
-    int ret, expectedRet;
     EXPECT_DECLS;
+    struct test_conf conf;
+    int  expectedRet;
+
     conf.resp = (unsigned char*)resp;
     conf.respSz = sizeof(resp);
     conf.ca0 = root_ca_cert_pem;
@@ -113,8 +115,8 @@ int test_ocsp_response_parsing(void)
     conf.ca1Sz = 0;
     conf.targetCert = intermediate1_ca_cert_pem;
     conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
-    ret = test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS);
-    ExpectIntEQ(ret, TEST_SUCCESS);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS),
+        TEST_SUCCESS);
 
     conf.resp = (unsigned char*)resp_multi;
     conf.respSz = sizeof(resp_multi);
@@ -124,8 +126,8 @@ int test_ocsp_response_parsing(void)
     conf.ca1Sz = 0;
     conf.targetCert = intermediate1_ca_cert_pem;
     conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
-    ret = test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS);
-    ExpectIntEQ(ret, TEST_SUCCESS);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS),
+        TEST_SUCCESS);
 
     conf.resp = (unsigned char*)resp_bad_noauth;
     conf.respSz = sizeof(resp_bad_noauth);
@@ -139,24 +141,27 @@ int test_ocsp_response_parsing(void)
 #ifdef WOLFSSL_NO_OCSP_ISSUER_CHECK
     expectedRet = WOLFSSL_SUCCESS;
 #endif
-    ret = test_ocsp_response_with_cm(&conf, expectedRet);
-    ExpectIntEQ(ret, TEST_SUCCESS);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, expectedRet), TEST_SUCCESS);
 
-    /* Test response with unusable internal cert but that can be verified in CM */
-    conf.resp = (unsigned char*)resp_bad_embedded_cert;  // Response with wrong internal cert
+    /* Test response with unusable internal cert but that can be verified in CM
+     */
+    conf.resp = (unsigned char*)
+        resp_bad_embedded_cert; // Response with wrong internal cert
     conf.respSz = sizeof(resp_bad_embedded_cert);
-    conf.ca0 = root_ca_cert_pem;     // Root CA cert
+    conf.ca0 = root_ca_cert_pem; // Root CA cert
     conf.ca0Sz = sizeof(root_ca_cert_pem);
     conf.ca1 = NULL;
     conf.ca1Sz = 0;
     conf.targetCert = intermediate1_ca_cert_pem;
     conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
-    ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS), TEST_SUCCESS);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS),
+        TEST_SUCCESS);
 
     return EXPECT_SUCCESS();
 }
 #else  /* HAVE_OCSP */
-int test_ocsp_response_parsing(void) {
+int test_ocsp_response_parsing(void)
+{
     return TEST_SKIPPED;
 }
 #endif /* HAVE_OCSP */
@@ -167,15 +172,11 @@ static int test_ocsp_create_x509store(WOLFSSL_X509_STORE** store,
 {
     EXPECT_DECLS;
     WOLFSSL_X509* cert = NULL;
-    int ret;
 
-    *store = wolfSSL_X509_STORE_new();
-    ExpectNotNull(*store);
-    cert = wolfSSL_X509_d2i(&cert, ca, caSz);
-    ExpectNotNull(cert);
-    ret = wolfSSL_X509_STORE_add_cert(*store, cert);
+    ExpectNotNull(*store = wolfSSL_X509_STORE_new());
+    ExpectNotNull(cert = wolfSSL_X509_d2i(&cert, ca, caSz));
+    ExpectIntEQ(wolfSSL_X509_STORE_add_cert(*store, cert), WOLFSSL_SUCCESS);
     wolfSSL_X509_free(cert);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
     return EXPECT_RESULT();
 }
 
@@ -184,36 +185,30 @@ static int test_create_stack_of_x509(WOLF_STACK_OF(WOLFSSL_X509) * *certs,
 {
     EXPECT_DECLS;
     WOLFSSL_X509* cert = NULL;
-    int ret;
 
-    *certs = wolfSSL_sk_X509_new_null();
-    ExpectNotNull(*certs);
-    cert = wolfSSL_X509_d2i(&cert, der, derSz);
-    ExpectNotNull(cert);
-    ret = wolfSSL_sk_X509_push(*certs, cert);
-    ExpectIntEQ(ret, 1);
+    ExpectNotNull(*certs = wolfSSL_sk_X509_new_null());
+    ExpectNotNull(cert = wolfSSL_X509_d2i(&cert, der, derSz));
+    ExpectIntEQ(wolfSSL_sk_X509_push(*certs, cert), 1);
     return EXPECT_RESULT();
 }
 
 int test_ocsp_basic_verify(void)
 {
     EXPECT_DECLS;
-    WOLF_STACK_OF(WOLFSSL_X509) * certs;
+    WOLF_STACK_OF(WOLFSSL_X509)* certs = NULL;
     WOLFSSL_X509_STORE* store = NULL;
     const unsigned char* ptr = NULL;
     OcspResponse* response = NULL;
     DecodedCert cert;
-    int ret;
 
     wc_InitDecodedCert(&cert, ocsp_responder_cert_pem,
         sizeof(ocsp_responder_cert_pem), NULL);
-    ret = wc_ParseCert(&cert, CERT_TYPE, 0, NULL);
-    ExpectIntEQ(ret, 0);
+    ExpectIntEQ(wc_ParseCert(&cert, CERT_TYPE, 0, NULL), 0);
 
     /* just decoding */
     ptr = (const unsigned char*)resp;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp));
-    ExpectNotNull(response);
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp)));
     ExpectIntEQ(response->responseStatus, 0);
     ExpectIntEQ(response->responderIdType, OCSP_RESPONDER_ID_NAME);
     ExpectBufEQ(response->responderId.nameHash, cert.subjectHash,
@@ -222,8 +217,8 @@ int test_ocsp_basic_verify(void)
 
     /* responder Id by key hash */
     ptr = (const unsigned char*)resp_rid_bykey;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_rid_bykey));
-    ExpectNotNull(response);
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+                      sizeof(resp_rid_bykey)));
     ExpectIntEQ(response->responseStatus, 0);
     ExpectIntEQ(response->responderIdType, OCSP_RESPONDER_ID_KEY);
     ExpectBufEQ(response->responderId.keyHash, cert.subjectKeyHash,
@@ -232,112 +227,122 @@ int test_ocsp_basic_verify(void)
 
     /* decoding with no embedded certificates */
     ptr = (const unsigned char*)resp_nocert;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_nocert));
-    ExpectNotNull(response);
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_nocert)));
     ExpectIntEQ(response->responseStatus, 0);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     /* decoding an invalid response */
     ptr = (const unsigned char*)resp_bad;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_bad));
-    ExpectNull(response);
+    ExpectNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_bad)));
 
     ptr = (const unsigned char*)resp;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp));
-    ExpectNotNull(response);
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp)));
     /* no verify signer certificate */
-    ret = wolfSSL_OCSP_basic_verify(response, NULL, NULL, OCSP_NOVERIFY);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, NULL, NULL, OCSP_NOVERIFY),
+        WOLFSSL_SUCCESS);
     /* verify that the signature is checked */
-    response->sig[0] ^= 0xff;
-    ret = wolfSSL_OCSP_basic_verify(response, NULL, NULL, OCSP_NOVERIFY);
-    ExpectIntEQ(ret, WOLFSSL_FAILURE);
+    if (EXPECT_SUCCESS()) {
+        response->sig[0] ^= 0xff;
+    }
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, NULL, NULL, OCSP_NOVERIFY),
+        WOLFSSL_FAILURE);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     /* populate a store with root-ca-cert */
-    ret = test_ocsp_create_x509store(&store, root_ca_cert_pem,
-        sizeof(root_ca_cert_pem));
-    ExpectIntEQ(ret, TEST_SUCCESS);
+    ExpectIntEQ(test_ocsp_create_x509store(&store, root_ca_cert_pem,
+                    sizeof(root_ca_cert_pem)),
+        TEST_SUCCESS);
 
     /* populate a WOLF_STACK_OF(WOLFSSL_X509) with responder certificate */
-    ret = test_create_stack_of_x509(&certs, ocsp_responder_cert_pem,
-        sizeof(ocsp_responder_cert_pem));
-    ExpectIntEQ(ret, TEST_SUCCESS);
+    ExpectIntEQ(test_create_stack_of_x509(&certs, ocsp_responder_cert_pem,
+                    sizeof(ocsp_responder_cert_pem)),
+        TEST_SUCCESS);
 
     /* cert not embedded, cert in certs, validated using store */
     ptr = (const unsigned char*)resp_nocert;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_nocert));
-    ExpectNotNull(response);
-    ret = wolfSSL_OCSP_basic_verify(response, certs, store, 0);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_nocert)));
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
+        WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     /* cert embedded, verified using store */
     ptr = (const unsigned char*)resp;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp));
-    ExpectNotNull(response);
-    ret = wolfSSL_OCSP_basic_verify(response, NULL, store, 0);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp)));
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, NULL, store, 0),
+        WOLFSSL_SUCCESS);
     /* make invalid signature */
-    response->sig[0] ^= 0xff;
-    ret = wolfSSL_OCSP_basic_verify(response, NULL, store, 0);
-    ExpectIntEQ(ret, WOLFSSL_FAILURE);
-    response->sig[0] ^= 0xff;
+    if (EXPECT_SUCCESS()) {
+        response->sig[0] ^= 0xff;
+    }
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, NULL, store, 0),
+        WOLFSSL_FAILURE);
+    if (EXPECT_SUCCESS()) {
+        response->sig[0] ^= 0xff;
+    }
 
     /* cert embedded and in certs, no store needed bc OCSP_TRUSTOTHER */
-    ret = wolfSSL_OCSP_basic_verify(response, certs, NULL, OCSP_TRUSTOTHER);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectIntEQ(
+        wolfSSL_OCSP_basic_verify(response, certs, NULL, OCSP_TRUSTOTHER),
+        WOLFSSL_SUCCESS);
     /* this should also pass */
-    ret = wolfSSL_OCSP_basic_verify(response, certs, store, OCSP_NOINTERN);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectIntEQ(
+        wolfSSL_OCSP_basic_verify(response, certs, store, OCSP_NOINTERN),
+        WOLFSSL_SUCCESS);
     /* this should not */
-    ret = wolfSSL_OCSP_basic_verify(response, NULL, store, OCSP_NOINTERN);
-    ExpectIntNE(ret, WOLFSSL_SUCCESS);
+    ExpectIntNE(wolfSSL_OCSP_basic_verify(response, NULL, store, OCSP_NOINTERN),
+        WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     /* cert not embedded, not certs */
     ptr = (const unsigned char*)resp_nocert;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_nocert));
-    ExpectNotNull(response);
-    ret = wolfSSL_OCSP_basic_verify(response, NULL, store, 0);
-    ExpectIntNE(ret, WOLFSSL_SUCCESS);
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_nocert)));
+    ExpectIntNE(wolfSSL_OCSP_basic_verify(response, NULL, store, 0),
+        WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     wolfSSL_sk_X509_pop_free(certs, wolfSSL_X509_free);
     wolfSSL_X509_STORE_free(store);
 
-    ret = test_ocsp_create_x509store(&store, root_ca_cert_pem,
-        sizeof(root_ca_cert_pem));
-    ExpectIntEQ(ret, TEST_SUCCESS);
-    ret = test_create_stack_of_x509(&certs, root_ca_cert_pem,
-        sizeof(root_ca_cert_pem));
-    ExpectIntEQ(ret, TEST_SUCCESS);
+    ExpectIntEQ(test_ocsp_create_x509store(&store, root_ca_cert_pem,
+                    sizeof(root_ca_cert_pem)),
+        TEST_SUCCESS);
+    ExpectIntEQ(test_create_stack_of_x509(&certs, root_ca_cert_pem,
+                    sizeof(root_ca_cert_pem)),
+        TEST_SUCCESS);
 
     /* multiple responses in a ocsp response */
     ptr = (const unsigned char*)resp_multi;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_multi));
-    ExpectNotNull(response);
-    ret = wolfSSL_OCSP_basic_verify(response, certs, store, 0);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectNotNull(
+        response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_multi)));
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
+        WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     /* cert in certs, cert verified on store, not authorized to verify all
      * responses */
     ptr = (const unsigned char*)resp_bad_noauth;
-    response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, sizeof(resp_bad_noauth));
-    ExpectNotNull(response);
-    ret = wolfSSL_OCSP_basic_verify(response, certs, store, 0);
+    ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
+                      sizeof(resp_bad_noauth)));
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-    ExpectIntEQ(ret, WOLFSSL_FAILURE);
+        WOLFSSL_FAILURE);
 #else
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+        WOLFSSL_SUCCESS);
 #endif
     /* should pass with OCSP_NOCHECKS ...*/
-    ret = wolfSSL_OCSP_basic_verify(response, certs, store, OCSP_NOCHECKS);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectIntEQ(
+        wolfSSL_OCSP_basic_verify(response, certs, store, OCSP_NOCHECKS),
+        WOLFSSL_SUCCESS);
     /* or with OSCP_TRUSTOTHER */
-    ret = wolfSSL_OCSP_basic_verify(response, certs, store, OCSP_TRUSTOTHER);
-    ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    ExpectIntEQ(
+        wolfSSL_OCSP_basic_verify(response, certs, store, OCSP_TRUSTOTHER),
+        WOLFSSL_SUCCESS);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     wc_FreeDecodedCert(&cert);
@@ -347,7 +352,8 @@ int test_ocsp_basic_verify(void)
     return EXPECT_RESULT();
 }
 #else
-int test_ocsp_basic_verify(void) {
+int test_ocsp_basic_verify(void)
+{
     return TEST_SKIPPED;
 }
 #endif /* HAVE_OCSP  && (OPENSSL_ALL || OPENSSL_EXTRA) */
@@ -581,5 +587,5 @@ int test_ocsp_status_callback(void) {
     return TEST_SKIPPED;
 }
 #endif /* defined(HAVE_OCSP) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)  \
-    && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12)                                                    \
+    && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12)  \
     && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) */
