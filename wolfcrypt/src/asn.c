@@ -37361,6 +37361,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     #endif
     int    ret;
     int    sigLength;
+    int    sigValid = 0;
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
     (void)heap;
 
@@ -37417,16 +37418,19 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_PARSE_E;
 
         ret = OcspCheckCert(resp, noVerify, noVerifySignature, cm, heap);
-        if (ret != 0) {
-            WOLFSSL_MSG("\tOCSP Confirm signature failed");
-            return ASN_OCSP_CONFIRM_E;
+        if (ret == 0) {
+            sigValid = 1;
+        }
+        else {
+            WOLFSSL_MSG("OCSP Internal certificate can't verify the response\n");
+            /* try to verify the OCSP response with CA certs */
+            ret = 0;
         }
     }
     else
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
-    if (!noVerifySignature) {
+    if (!noVerifySignature && !sigValid) {
         Signer* ca;
-        int sigValid = -1;
         SignatureCtx sigCtx;
         ca = OcspFindSigner(resp, cm);
         if (ca == NULL)
@@ -37457,6 +37461,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
     int ret = 0;
     word32 idx = *ioIndex;
     Signer* ca = NULL;
+    int sigValid = 0;
 
     WOLFSSL_ENTER("DecodeBasicOcspResponse");
     (void)heap;
@@ -37509,29 +37514,28 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
         ret = OcspCheckCert(resp, noVerify, noVerifySignature,
                             (WOLFSSL_CERT_MANAGER*)cm, heap);
         if (ret == 0) {
-            noVerifySignature = 1;
+            sigValid = 1;
         }
         ret = 0; /* try to verify the OCSP response with CA certs */
     }
 #endif /* WOLFSSL_NO_OCSP_OPTIONAL_CERTS */
     /* try to verify using cm certs */
-    if (ret == 0 && !noVerifySignature)
+    if (ret == 0 && !noVerifySignature && !sigValid)
     {
         ca = OcspFindSigner(resp, (WOLFSSL_CERT_MANAGER*)cm);
         if (ca == NULL)
             ret = ASN_NO_SIGNER_E;
     }
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-    if (ret == 0 && !noVerifySignature) {
+    if (ret == 0 && !noVerifySignature && !sigValid) {
         if (OcspRespCheck(resp, ca) != 0) {
             ret = BAD_OCSP_RESPONDER;
         }
     }
 #endif
-    if (ret == 0 && !noVerifySignature) {
-        int sigValid = -1;
+    if (ret == 0 && !noVerifySignature && !sigValid) {
         SignatureCtx sigCtx;
-        /* Initialize he signature context. */
+        /* Initialize the signature context. */
         InitSignatureCtx(&sigCtx, heap, INVALID_DEVID);
 
         /* TODO: ConfirmSignature is blocking here */
