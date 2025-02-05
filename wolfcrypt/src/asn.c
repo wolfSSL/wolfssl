@@ -37323,7 +37323,7 @@ static int OcspCheckCert(OcspResponse *resp, int noVerify,
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
     if (ret == 0 && !noVerify) {
         ret = CheckOcspResponder(resp, cert, cm);
-        if (ret < 0) {
+        if (ret != 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate issuer check failed");
             goto err;
         }

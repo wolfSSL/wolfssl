@@ -24896,9 +24896,9 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
     }
     return ret;
 }
-#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && (defined(OPENSSL_ALL) ||
-defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA))
-*/
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && \
+          (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+           defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)) */
 #endif /* NO_WOLFSSL_SERVER */
 
 /* handle generation of certificate_status (22) */
@@ -24925,8 +24925,8 @@ int SendCertificateStatus(WOLFSSL* ssl)
     }
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
-(defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA))
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA))
     if (SSL_CM(ssl)->ocsp_stapling != NULL &&
             SSL_CM(ssl)->ocsp_stapling->statusCb != NULL) {
         if (ssl->status_request == WOLFSSL_CSR_OCSP)
