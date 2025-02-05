@@ -145,10 +145,9 @@ int test_ocsp_response_parsing(void)
 
     /* Test response with unusable internal cert but that can be verified in CM
      */
-    conf.resp = (unsigned char*)
-        resp_bad_embedded_cert; // Response with wrong internal cert
+    conf.resp = (unsigned char*)resp_bad_embedded_cert;
     conf.respSz = sizeof(resp_bad_embedded_cert);
-    conf.ca0 = root_ca_cert_pem; // Root CA cert
+    conf.ca0 = root_ca_cert_pem;
     conf.ca0Sz = sizeof(root_ca_cert_pem);
     conf.ca1 = NULL;
     conf.ca1Sz = 0;
@@ -200,6 +199,7 @@ int test_ocsp_basic_verify(void)
     const unsigned char* ptr = NULL;
     OcspResponse* response = NULL;
     DecodedCert cert;
+    int expectedRet;
 
     wc_InitDecodedCert(&cert, ocsp_responder_cert_pem,
         sizeof(ocsp_responder_cert_pem), NULL);
@@ -329,12 +329,13 @@ int test_ocsp_basic_verify(void)
     ptr = (const unsigned char*)resp_bad_noauth;
     ExpectNotNull(response = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr,
                       sizeof(resp_bad_noauth)));
-    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
-#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
-        WOLFSSL_FAILURE);
-#else
-        WOLFSSL_SUCCESS);
+
+    expectedRet = WOLFSSL_FAILURE;
+#ifdef WOLFSSL_NO_OCSP_ISSUER_CHECK
+    expectedRet = WOLFSSL_SUCCESS;
 #endif
+    ExpectIntEQ(wolfSSL_OCSP_basic_verify(response, certs, store, 0),
+        expectedRet);
     /* should pass with OCSP_NOCHECKS ...*/
     ExpectIntEQ(
         wolfSSL_OCSP_basic_verify(response, certs, store, OCSP_NOCHECKS),

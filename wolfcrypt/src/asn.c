@@ -37422,7 +37422,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             sigValid = 1;
         }
         else {
-            WOLFSSL_MSG("OCSP Internal certificate can't verify the response\n");
+            WOLFSSL_MSG("OCSP Internal cert can't verify the response\n");
             /* try to verify the OCSP response with CA certs */
             ret = 0;
         }
