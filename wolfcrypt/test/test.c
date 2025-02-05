@@ -7696,16 +7696,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha_test(void)
          0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
     };
 
-
-    const byte* keys[] = {key1, key2, key3, key4};
-
     WOLFSSL_SMALL_STACK_STATIC const byte ivs1[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
     WOLFSSL_SMALL_STACK_STATIC const byte ivs2[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
     WOLFSSL_SMALL_STACK_STATIC const byte ivs3[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00};
     WOLFSSL_SMALL_STACK_STATIC const byte ivs4[] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
-
-
-    const byte* ivs[] = {ivs1, ivs2, ivs3, ivs4};
 
 #ifndef BENCH_EMBEDDED
     WOLFSSL_SMALL_STACK_STATIC const byte cipher_big_result[] = {
@@ -7832,17 +7826,29 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha_test(void)
     int    block_size;
 #endif /* BENCH_EMBEDDED */
 
-    byte a[] = {0x76,0xb8,0xe0,0xad,0xa0,0xf1,0x3d,0x90};
-    byte b[] = {0x45,0x40,0xf0,0x5a,0x9f,0x1f,0xb2,0x96};
-    byte c[] = {0xde,0x9c,0xba,0x7b,0xf3,0xd6,0x9e,0xf5};
-    byte d[] = {0x89,0x67,0x09,0x52,0x60,0x83,0x64,0xfd};
+    const byte a[] = {0x76,0xb8,0xe0,0xad,0xa0,0xf1,0x3d,0x90};
+    const byte b[] = {0x45,0x40,0xf0,0x5a,0x9f,0x1f,0xb2,0x96};
+    const byte c[] = {0xde,0x9c,0xba,0x7b,0xf3,0xd6,0x9e,0xf5};
+    const byte d[] = {0x89,0x67,0x09,0x52,0x60,0x83,0x64,0xfd};
 
-    byte* test_chacha[4];
+    const byte* test_chacha[4];
+    const byte* keys[4];
+    const byte* ivs[4];
 
     test_chacha[0] = a;
     test_chacha[1] = b;
     test_chacha[2] = c;
     test_chacha[3] = d;
+
+    keys[0] = key1;
+    keys[1] = key2;
+    keys[2] = key3;
+    keys[3] = key4;
+
+    ivs[0] = ivs1;
+    ivs[1] = ivs2;
+    ivs[2] = ivs3;
+    ivs[3] = ivs4;
 
     WOLFSSL_ENTER("chacha_test");
 
@@ -8203,16 +8209,39 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t poly1305_test(void)
         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff
     };
 
-    const byte* msgs[]  = {NULL, msg1, msg2, msg3, msg5, msg6, msg7};
-    word32      szm[]   = {0, sizeof(msg1), sizeof(msg2),
+    const byte* msgs[7];
+    const word32 szm[7] = {0, sizeof(msg1), sizeof(msg2),
                            sizeof(msg3), sizeof(msg5), sizeof(msg6),
                            sizeof(msg7)};
-    const byte* keys[]  = {key, key, key2, key2, key5, key, key7};
-    const byte* tests[] = {correct0, correct1, correct2, correct3, correct5,
-                           correct6, correct7};
+    const byte* keys[7];
+    const byte* tests[7];
     int i;
     wc_test_ret_t ret = 0;
     WOLFSSL_ENTER("poly1305_test");
+
+    msgs[0] = NULL;
+    msgs[1] = msg1;
+    msgs[2] = msg2;
+    msgs[3] = msg3;
+    msgs[4] = msg5;
+    msgs[5] = msg6;
+    msgs[6] = msg7;
+
+    keys[0] = key;
+    keys[1] = key;
+    keys[2] = key2;
+    keys[3] = key2;
+    keys[4] = key5;
+    keys[5] = key;
+    keys[6] = key7;
+
+    tests[0] = correct0;
+    tests[1] = correct1;
+    tests[2] = correct2;
+    tests[3] = correct3;
+    tests[4] = correct5;
+    tests[5] = correct6;
+    tests[6] = correct7;
 
     for (i = 0; i < 7; i++) {
         ret = wc_Poly1305SetKey(&enc, keys[i], 32);
@@ -22899,31 +22928,37 @@ static wc_test_ret_t dh_test_check_pubvalue(void)
     WOLFSSL_SMALL_STACK_STATIC const byte pubValTooBig0[] = { 0x02, 0x00, 0x01 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValTooBig1[] = { 0x01, 0x01, 0x01 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValTooLong[] = { 0x01, 0x00, 0x00, 0x01 };
-    const dh_pubvalue_test dh_pubval_fail[] = {
-        { prime, sizeof(prime) },
-        { pubValZero, sizeof(pubValZero) },
-        { pubValZeroLong, sizeof(pubValZeroLong) },
-        { pubValOne, sizeof(pubValOne) },
-        { pubValOneLong, sizeof(pubValOneLong) },
-        { pubValPrimeMinusOne, sizeof(pubValPrimeMinusOne) },
-        { pubValPrimeLong, sizeof(pubValPrimeLong) },
-        { pubValPrimePlusOne, sizeof(pubValPrimePlusOne) },
-        { pubValTooBig0, sizeof(pubValTooBig0) },
-        { pubValTooBig1, sizeof(pubValTooBig1) },
-        { pubValTooLong, sizeof(pubValTooLong) },
-    };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValTwo[] = { 0x02 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValTwoLong[] = { 0x00, 0x00, 0x02 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValGood[] = { 0x12, 0x34 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValGoodLen[] = { 0x00, 0x12, 0x34 };
     WOLFSSL_SMALL_STACK_STATIC const byte pubValGoodLong[] = { 0x00, 0x00, 0x12, 0x34 };
-    const dh_pubvalue_test dh_pubval_pass[] = {
-        { pubValTwo, sizeof(pubValTwo) },
-        { pubValTwoLong, sizeof(pubValTwoLong) },
-        { pubValGood, sizeof(pubValGood) },
-        { pubValGoodLen, sizeof(pubValGoodLen) },
-        { pubValGoodLong, sizeof(pubValGoodLong) },
-    };
+    dh_pubvalue_test dh_pubval_fail[11];
+    dh_pubvalue_test dh_pubval_pass[5];
+
+    #define INIT_PUBVAL_FAIL(i,y) dh_pubval_fail[i].data = y; dh_pubval_fail[i].len = sizeof(y)
+    #define INIT_PUBVAL_PASS(i,y) dh_pubval_pass[i].data = y; dh_pubval_pass[i].len = sizeof(y)
+
+    INIT_PUBVAL_FAIL(0, prime);
+    INIT_PUBVAL_FAIL(1, pubValZero);
+    INIT_PUBVAL_FAIL(2, pubValZeroLong);
+    INIT_PUBVAL_FAIL(3, pubValOne);
+    INIT_PUBVAL_FAIL(4, pubValOneLong);
+    INIT_PUBVAL_FAIL(5, pubValPrimeMinusOne);
+    INIT_PUBVAL_FAIL(6, pubValPrimeLong);
+    INIT_PUBVAL_FAIL(7, pubValPrimePlusOne);
+    INIT_PUBVAL_FAIL(8, pubValTooBig0);
+    INIT_PUBVAL_FAIL(9, pubValTooBig1);
+    INIT_PUBVAL_FAIL(10, pubValTooLong);
+
+    INIT_PUBVAL_PASS(0, pubValTwo);
+    INIT_PUBVAL_PASS(1, pubValTwoLong);
+    INIT_PUBVAL_PASS(2, pubValGood);
+    INIT_PUBVAL_PASS(3, pubValGoodLen);
+    INIT_PUBVAL_PASS(4, pubValGoodLong);
+
+    #undef INIT_PUBVAL_FAIL
+    #undef INIT_PUBVAL_PASS
 
     for (i = 0; i < sizeof(dh_pubval_fail) / sizeof(*dh_pubval_fail); i++) {
         ret = wc_DhCheckPubValue(prime, sizeof(prime), dh_pubval_fail[i].data,

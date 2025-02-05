@@ -27,8 +27,14 @@
 
 #ifndef NO_FILESYSTEM
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #include <direct.h>
+#elif defined(__WATCOMC__)
+#ifdef __LINUX__
+#include <unistd.h>
+#else
+#include <direct.h>
+#endif
 #endif
 
 #define TMP_DIR_PREFIX "tmpDir-"
@@ -48,6 +54,9 @@ char* create_tmp_dir(char *tmpDir, int len)
     if (_mkdir(tmpDir) != 0)
         return NULL;
 #elif defined(__MINGW32__)
+    if (mkdir(tmpDir) != 0)
+        return NULL;
+#elif defined(__WATCOMC__) && !defined(__LINUX__)
     if (mkdir(tmpDir) != 0)
         return NULL;
 #else

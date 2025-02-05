@@ -151,14 +151,22 @@
     #include <signal.h>
 #endif
 
-#ifdef USE_WINDOWS_API
+#ifdef __WATCOMC__
+    #if defined(__OS2__)
+    #elif defined(__NT__)
+        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
+        #include <windows.h>
+    #elif defined(__LINUX__)
+        #ifndef SINGLE_THREADED
+            #define WOLFSSL_PTHREADS
+            #include <pthread.h>
+        #endif
+    #endif
+#elif defined(USE_WINDOWS_API)
     #ifdef WOLFSSL_GAME_BUILD
         #include "system/xtl.h"
     #else
-        #if defined(_WIN32_WCE) || defined(WIN32_LEAN_AND_MEAN)
-            /* On WinCE winsock2.h must be included before windows.h */
-            #include <winsock2.h>
-        #endif
+        #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
         #include <windows.h>
     #endif
 #elif defined(THREADX)
@@ -232,7 +240,7 @@
     #endif
     #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
         #ifdef FUSION_RTOS
-           #include <fclunistd.h>
+            #include <fclunistd.h>
         #else
             #include <unistd.h>      /* for close of BIO */
         #endif

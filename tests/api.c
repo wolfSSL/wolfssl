@@ -79305,18 +79305,21 @@ static int test_wc_ParseCert_Error(void)
     const byte c4[] = { 0x02, 0x80, 0x10, 0x00, 0x00};
 
     /* Test data */
-    const struct testStruct {
+    struct testStruct {
         const byte* c;
         word32 cSz;
-        const int expRet;
-    } t[] = {
-        {c0, sizeof(c0), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Invalid bit-string length */
-        {c1, sizeof(c1), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Invalid bit-string length */
-        {c2, sizeof(c2), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Invalid integer length (zero) */
-        {c3, sizeof(c3), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Valid INTEGER, but buffer too short */
-        {c4, sizeof(c4), WC_NO_ERR_TRACE(ASN_PARSE_E)}, /* Valid INTEGER, but not in bit-string */
-    };
+        int expRet;
+    } t[5];
     const int tSz = (int)(sizeof(t) / sizeof(struct testStruct));
+
+    #define INIT_TEST_DATA(i,x,y) \
+        t[i].c = x; t[i].cSz = sizeof(x); t[i].expRet = y
+    INIT_TEST_DATA(0, c0, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(1, c1, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(2, c2, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(3, c3, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    INIT_TEST_DATA(4, c4, WC_NO_ERR_TRACE(ASN_PARSE_E) );
+    #undef INIT_TEST_DATA
 
     for (i = 0; i < tSz; i++) {
         WOLFSSL_MSG_EX("i == %d", i);
@@ -81887,7 +81890,10 @@ static       char earlyDataBuffer[1];
 static int test_tls13_apis(void)
 {
     EXPECT_DECLS;
-    int          ret;
+#if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
+    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
+     int          ret;
+#endif
 #ifndef WOLFSSL_NO_TLS12
 #ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_CTX* clientTls12Ctx = NULL;
@@ -82010,8 +82016,6 @@ static int test_tls13_apis(void)
 #if defined(WOLFSSL_HAVE_KYBER)
     int kyberLevel;
 #endif
-
-    (void)ret;
 
 #ifndef WOLFSSL_NO_TLS12
 #ifndef NO_WOLFSSL_CLIENT
@@ -93043,10 +93047,10 @@ static int test_wolfSSL_CTX_set_timeout(void)
     EXPECT_DECLS;
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_TLS) && \
     !defined(NO_SESSION_CACHE)
-    int timeout;
     WOLFSSL_CTX* ctx = NULL;
-
-    (void)timeout;
+#if defined(WOLFSSL_ERROR_CODE_OPENSSL)
+    int timeout;
+#endif
 
     ExpectNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
@@ -102892,14 +102896,19 @@ static const char* apitest_res_string(int res)
 
 #ifndef WOLFSSL_UNIT_TEST_NO_TIMING
 static double gettime_secs(void)
-    #if defined(_MSC_VER) && defined(_WIN32)
+    #if defined(_WIN32) && (defined(_MSC_VER) || defined(__WATCOMC__))
     {
         /* there's no gettimeofday for Windows, so we'll use system time */
         #define EPOCH_DIFF 11644473600LL
         FILETIME currentFileTime;
-        GetSystemTimePreciseAsFileTime(&currentFileTime);
-
         ULARGE_INTEGER uli = { 0, 0 };
+
+    #if defined(__WATCOMC__)
+        GetSystemTimeAsFileTime(&currentFileTime);
+    #else
+        GetSystemTimePreciseAsFileTime(&currentFileTime);
+    #endif
+
         uli.LowPart = currentFileTime.dwLowDateTime;
         uli.HighPart = currentFileTime.dwHighDateTime;
 

@@ -361,8 +361,8 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     func_args cliArgs = {0, NULL, 0, NULL, NULL, NULL};
     func_args svrArgs = {0, NULL, 0, NULL, NULL, NULL};
 #else
-    func_args cliArgs = {cli_argc, cli_argv, 0, NULL, NULL};
-    func_args svrArgs = {svr_argc, svr_argv, 0, NULL, NULL};
+    func_args cliArgs = {0, NULL, 0, NULL, NULL};
+    func_args svrArgs = {0, NULL, 0, NULL, NULL};
 #endif
 
     tcp_ready   ready;
@@ -379,17 +379,14 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 #ifdef WOLFSSL_NO_CLIENT_AUTH
     int         reqClientCert;
 #endif
-
 #if defined(WOLFSSL_SRTP) && defined(WOLFSSL_COND)
     srtp_test_helper srtp_helper;
 #endif
 
-#if defined(WOLFSSL_TIRTOS) || defined(WOLFSSL_SRTP)
     cliArgs.argc = cli_argc;
     cliArgs.argv = cli_argv;
     svrArgs.argc = svr_argc;
     svrArgs.argv = svr_argv;
-#endif
 
     /* Is Valid Cipher and Version Checks */
     /* build command list for the Is checks below */

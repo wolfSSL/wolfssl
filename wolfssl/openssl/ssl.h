@@ -1116,7 +1116,7 @@ wolfSSL_X509_STORE_set_verify_cb((WOLFSSL_X509_STORE *)(s), (WOLFSSL_X509_STORE_
 #define SSL_CTX_set_psk_server_callback wolfSSL_CTX_set_psk_server_callback
 #define SSL_set_psk_server_callback     wolfSSL_set_psk_server_callback
 
-#ifndef INVALID_SOCKET
+#if !defined(USE_WINDOWS_API) && !defined(INVALID_SOCKET)
     #define INVALID_SOCKET (-1)
 #endif
 

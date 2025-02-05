@@ -14463,6 +14463,7 @@ void bench_sphincsKeySign(byte level, byte optim)
 #if defined(_WIN32) && !defined(INTIME_RTOS)
 
     #define WIN32_LEAN_AND_MEAN
+    #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
     #include <windows.h>
 
     double current_time(int reset)
