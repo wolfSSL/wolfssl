@@ -141,6 +141,18 @@ int test_ocsp_response_parsing(void)
 #endif
     ret = test_ocsp_response_with_cm(&conf, expectedRet);
     ExpectIntEQ(ret, TEST_SUCCESS);
+
+    /* Test response with unusable internal cert but that can be verified in CM */
+    conf.resp = (unsigned char*)resp_bad_embedded_cert;  // Response with wrong internal cert
+    conf.respSz = sizeof(resp_bad_embedded_cert);
+    conf.ca0 = root_ca_cert_pem;     // Root CA cert
+    conf.ca0Sz = sizeof(root_ca_cert_pem);
+    conf.ca1 = NULL;
+    conf.ca1Sz = 0;
+    conf.targetCert = intermediate1_ca_cert_pem;
+    conf.targetCertSz = sizeof(intermediate1_ca_cert_pem);
+    ExpectIntEQ(test_ocsp_response_with_cm(&conf, WOLFSSL_SUCCESS), TEST_SUCCESS);
+
     return EXPECT_SUCCESS();
 }
 #else  /* HAVE_OCSP */

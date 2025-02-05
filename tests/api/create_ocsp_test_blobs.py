@@ -382,6 +382,23 @@ if __name__ == '__main__':
             'responder_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
             'name': 'resp_bad_noauth'
         },
+        {
+            'response_status': 0,
+            'signature_algorithm': signature_algorithm(),
+            'responder_by_name': True,
+            'responses': [
+                {
+                    'issuer_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
+                    'serial': 0x01,
+                    'status': CERT_GOOD
+                },
+            ],
+            # unrelated cert
+            'certs_path' : [WOLFSSL_OCSP_CERT_PATH + 'intermediate2-ca-cert.pem'],
+            'responder_cert': WOLFSSL_OCSP_CERT_PATH + 'root-ca-cert.pem',
+            'responder_key': WOLFSSL_OCSP_CERT_PATH + 'root-ca-key.pem',
+            'name': 'resp_bad_embedded_cert'
+        },
     ]
 
     with open('./tests/api/ocsp_test_blobs.h', 'w') as f:
