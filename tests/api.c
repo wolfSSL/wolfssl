@@ -91146,7 +91146,14 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
     tcp_set_nonblocking(&fd); /* So that read doesn't block */
     wolfSSL_dtls_set_using_nonblock(ssl, 1);
     test_AEAD_get_limits(ssl, NULL, NULL, &sendLimit);
-    while (! WOLFSSL_ATOMIC_LOAD(test_AEAD_done) && ret > 0) {
+    while (!
+    #ifdef WOLFSSL_ATOMIC_INITIALIZER
+           WOLFSSL_ATOMIC_LOAD(test_AEAD_done)
+    #else
+           test_AEAD_done
+    #endif
+           && ret > 0)
+    {
         counter++;
 #ifdef WOLFSSL_MUTEX_INITIALIZER
         (void)wc_LockMutex(&test_AEAD_mutex);
