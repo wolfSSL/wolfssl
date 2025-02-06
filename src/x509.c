@@ -8084,10 +8084,20 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
 }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
+/* Generate a der preTBS from a decoded cert, and write
+ * to buffer.
+ *
+ * @param[in]  cert  The decoded cert to parse.
+ * @param[out] der   The der buffer to write in.
+ * @param[in]  derZ  The der buffer size.
+ * @return     preTBS der size on success.
+ * */
 int wc_GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
     int ret = 0;
     WOLFSSL_X509 *x = NULL;
     byte certIsCSR = 0;
+
+    WOLFSSL_ENTER("wc_GeneratePreTBS");
 
     if ((cert == NULL) || (der == NULL) || (derSz <= 0)) {
         return BAD_FUNC_ARG;

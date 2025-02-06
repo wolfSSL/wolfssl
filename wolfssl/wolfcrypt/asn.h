@@ -2347,13 +2347,6 @@ WOLFSSL_LOCAL int CheckCertSignaturePubKey(const byte* cert, word32 certSz,
                                         word32 pubKeySz, int pubKeyOID);
 #endif /* OPENSSL_EXTRA || WOLFSSL_SMALL_CERT_VERIFY */
 
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-WOLFSSL_LOCAL int wc_ConfirmAltSignature(
-    const byte* buf, word32 bufSz,
-    const byte* key, word32 keySz, word32 keyOID,
-    const byte* sig, word32 sigSz, word32 sigOID,
-    void *heap);
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
 #if (defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT) || \
     (defined(HAVE_ED448) && defined(HAVE_ED448_KEY_IMPORT)))
 WOLFSSL_LOCAL int wc_CertGetPubKey(const byte* cert, word32 certSz,

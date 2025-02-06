@@ -17947,41 +17947,6 @@ exit_cs:
     return ret;
 }
 
-#ifdef WOLFSSL_DUAL_ALG_CERTS
-int wc_ConfirmAltSignature(
-    const byte* buf, word32 bufSz,
-    const byte* key, word32 keySz, word32 keyOID,
-    const byte* sig, word32 sigSz, word32 sigOID,
-    void *heap)
-{
-    int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    SignatureCtx* sigCtx = (SignatureCtx*)XMALLOC(sizeof(*sigCtx), heap,
-        DYNAMIC_TYPE_SIGNATURE);
-    if (sigCtx == NULL) {
-        ret = MEMORY_E;
-    }
-#else
-    SignatureCtx  sigCtx[1];
-    (void)heap;
-#endif
-
-    if (ret == 0) {
-        InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
-
-        ret = ConfirmSignature(sigCtx, buf, bufSz, key, keySz,
-             keyOID, sig, sigSz, sigOID, NULL, 0, NULL);
-
-        FreeSignatureCtx(sigCtx);
-    }
-
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
-#endif
-    return ret;
-}
-#endif /* WOLFSSL_DUAL_ALG_CERTS */
-
 #ifndef IGNORE_NAME_CONSTRAINTS
 
 static int MatchBaseName(int type, const char* name, int nameSz,
@@ -23677,7 +23642,8 @@ Signer* findSignerByName(Signer *list, byte *hash)
     return NULL;
 }
 
-int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm, Signer *extraCAList)
+int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm,
+                      Signer *extraCAList)
 {
     int    ret = 0;
 #ifndef WOLFSSL_ASN_TEMPLATE
@@ -30990,8 +30956,18 @@ static int MakeAnyCert(Cert* cert, byte* derBuffer, word32 derSz,
 #endif
 }
 
-
-/* Make an x509 Certificate v3 RSA or ECC from cert input, write to buffer */
+/* Make an x509 Certificate v3 from cert input using any
+ * key type, and write to buffer.
+ *
+ * @param [in, out] cert      Certificate object.
+ * @param [out]     derBuffer Buffer to write der in.
+ * @param [in]      derSz     Der buffer size.
+ * @param [in]      keyType   The type of key.
+ * @param [in]      key       Key data.
+ * @param [in]      rng       Random number generator.
+ * @return          Size of encoded data in bytes on success.
+ * @return          < 0 on error
+ * */
 int wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz, int keyType,
                    void* key, WC_RNG* rng)
 {
@@ -32159,6 +32135,19 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
 }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
+/* Generate a signature from input buffer using
+ * any key type.
+ *
+ * @param [out] sig     The signature buffer to write in.
+ * @param [out] sigsz   The signature buffer size.
+ * @param [in]  sType   The signature type.
+ * @param [in]  buf     The input buf to sign.
+ * @param [in]  bufSz   The buffer size
+ * @param [in]  keyType The key type.
+ * @param [in]  rng     Random number generator.
+ * @return      Size of signature on success.
+ * @return      < 0 on error.
+ * */
 int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
                          word32 bufSz, int keyType, void* key, WC_RNG* rng)
 {
@@ -32169,6 +32158,8 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
     falcon_key*        falconKey = NULL;
     dilithium_key*     dilithiumKey = NULL;
     sphincs_key*       sphincsKey = NULL;
+
+    WOLFSSL_ENTER("wc_MakeSigWithBitStr");
 
     int ret = 0;
     int headerSz;
@@ -32285,6 +32276,18 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
 
+/* Sign an x509 Certificate v3 from cert input using any
+ * key type, and write to buffer.
+ *
+ * @param [in]  requestSz Size of requested data to sign.
+ * @param [in]  sType     The signature type.
+ * @param [in]  derSz     Der buffer size.
+ * @param [in]  keyType   The type of key.
+ * @param [in]  key       Key data.
+ * @param [in]  rng       Random number generator.
+ * @return      Size of signature on success.
+ * @return      < 0 on error
+ * */
 int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
                    int keyType, void* key, WC_RNG* rng)
 {
