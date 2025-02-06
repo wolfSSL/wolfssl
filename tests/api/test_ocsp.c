@@ -584,9 +584,10 @@ int test_ocsp_status_callback(void)
 }
 
 #else
-int test_ocsp_status_callback(void) {
+int test_ocsp_status_callback(void)
+{
     return TEST_SKIPPED;
 }
-#endif /* defined(HAVE_OCSP) && defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)  \
-    && defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12)  \
-    && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) */
+#endif /* defined(HAVE_OCSP) && defined(HAVE_SSL_MEMIO_TESTS_DEPENDENCIES) &&  \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST) && !defined(WOLFSSL_NO_TLS12) &&  \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)) */
