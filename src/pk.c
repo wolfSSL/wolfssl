@@ -1558,7 +1558,11 @@ static int wolfssl_read_der_bio(WOLFSSL_BIO* bio, unsigned char** out)
         WOLFSSL_ERROR_MSG("Malloc failure");
         err = 1;
     }
-    if (!err) {
+    if ((!err) && (derLen <= (int)sizeof(seq))) {
+        /* Copy the previously read data into the buffer. */
+        XMEMCPY(der, seq, derLen);
+    }
+    else if (!err) {
         /* Calculate the unread amount. */
         int len = derLen - (int)sizeof(seq);
         /* Copy the previously read data into the buffer. */
