@@ -9872,6 +9872,11 @@ static void test_wolfSSL_CTX_add_session_ctx_ready(WOLFSSL_CTX* ctx)
 static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
 {
     WOLFSSL_SESSION** sess;
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+    static wolfSSL_Mutex m = WOLFSSL_MUTEX_INITIALIZER(m);
+
+    (void)wc_LockMutex(&m);
+#endif
     if (wolfSSL_is_server(ssl))
         sess = &test_wolfSSL_CTX_add_session_server_sess;
     else
@@ -9905,6 +9910,10 @@ static void test_wolfSSL_CTX_add_session_on_result(WOLFSSL* ssl)
          * resuming on that session */
         AssertIntEQ(wolfSSL_session_reused(ssl), 1);
     }
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+    wc_UnLockMutex(&m);
+#endif
+
     /* Save CTX to be able to decrypt tickets */
     if (wolfSSL_is_server(ssl) &&
             test_wolfSSL_CTX_add_session_server_ctx == NULL) {
@@ -90967,10 +90976,17 @@ static int test_wolfSSL_dtls_bad_record(void)
 #if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
-static byte test_AEAD_fail_decryption = 0;
-static byte test_AEAD_seq_num = 0;
-static byte test_AEAD_done = 0;
+static volatile int test_AEAD_seq_num = 0;
+#ifdef WOLFSSL_ATOMIC_INITIALIZER
+wolfSSL_Atomic_Int test_AEAD_done = WOLFSSL_ATOMIC_INITIALIZER(0);
+#else
+static volatile int test_AEAD_done = 0;
+#endif
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+static wolfSSL_Mutex test_AEAD_mutex = WOLFSSL_MUTEX_INITIALIZER(test_AEAD_mutex);
+#endif
 
+static int test_AEAD_fail_decryption = 0;
 static int test_AEAD_cbiorecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
     int fd = wolfSSL_get_fd(ssl);
@@ -91074,6 +91090,9 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
 
     if (!w64IsZero(sendLimit)) {
         /* Test the sending limit for AEAD ciphers */
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        (void)wc_LockMutex(&test_AEAD_mutex);
+#endif
         Dtls13GetEpoch(ssl, ssl->dtls13Epoch)->nextSeqNumber = sendLimit;
         test_AEAD_seq_num = 1;
         XMEMSET(msgBuf, 0, sizeof(msgBuf));
@@ -91081,6 +91100,9 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
         AssertIntGT(ret, 0);
         didReKey = 0;
         w64Zero(&counter);
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        wc_UnLockMutex(&test_AEAD_mutex);
+#endif
         /* 100 read calls should be enough to complete the key update */
         for (i = 0; i < 100; i++) {
             /* Key update should be sent and negotiated */
@@ -91104,7 +91126,11 @@ static void test_AEAD_limit_client(WOLFSSL* ssl)
     AssertIntEQ(ret, WC_NO_ERR_TRACE(WOLFSSL_FATAL_ERROR));
     AssertIntEQ(wolfSSL_get_error(ssl, ret), WC_NO_ERR_TRACE(DECRYPT_ERROR));
 
+#ifdef WOLFSSL_ATOMIC_INITIALIZER
+    WOLFSSL_ATOMIC_STORE(test_AEAD_done, 1);
+#else
     test_AEAD_done = 1;
+#endif
 }
 
 int counter = 0;
@@ -91120,8 +91146,11 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
     tcp_set_nonblocking(&fd); /* So that read doesn't block */
     wolfSSL_dtls_set_using_nonblock(ssl, 1);
     test_AEAD_get_limits(ssl, NULL, NULL, &sendLimit);
-    while (!test_AEAD_done && ret > 0) {
+    while (! WOLFSSL_ATOMIC_LOAD(test_AEAD_done) && ret > 0) {
         counter++;
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        (void)wc_LockMutex(&test_AEAD_mutex);
+#endif
         if (test_AEAD_seq_num) {
             /* We need to update the seq number so that we can understand the
              * peer. Otherwise we will incorrectly interpret the seq number. */
@@ -91130,6 +91159,9 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
             e->nextPeerSeqNumber = sendLimit;
             test_AEAD_seq_num = 0;
         }
+#ifdef WOLFSSL_MUTEX_INITIALIZER
+        wc_UnLockMutex(&test_AEAD_mutex);
+#endif
         (void)wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
         ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         nanosleep(&delay, NULL);
