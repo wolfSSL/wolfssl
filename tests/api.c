@@ -1611,7 +1611,7 @@ static int test_dual_alg_support(void)
 
 /**
  * Test dual-alg ECDSA + ML-DSA:
- *  - keygen + certgen
+ *  - keygen + certgen + cert manager load
  * */
 static int test_dual_alg_ecdsa_mldsa(void)
 {
@@ -1661,7 +1661,7 @@ static int test_dual_alg_ecdsa_mldsa(void)
     ExpectIntEQ(ret, 0);
     ret = wc_MlDsaKey_SetParams(&alt_ca_key, WC_ML_DSA_44);
     ExpectIntEQ(ret, 0);
-    ret = wc_dilithium_make_key(&alt_ca_key, &rng);
+    ret = wc_MlDsaKey_MakeKey(&alt_ca_key, &rng);
     ExpectIntEQ(ret, 0);
     alt_pub_sz = wc_MlDsaKey_PublicKeyToDer(&alt_ca_key, alt_pub_der,
                                             alt_pub_sz, 1);
@@ -1739,9 +1739,9 @@ static int test_dual_alg_ecdsa_mldsa(void)
         ret = wolfSSL_CertManagerLoadCABuffer(cm, final_der, final_der_sz,
                                               WOLFSSL_FILETYPE_ASN1);
         ExpectIntEQ(ret, WOLFSSL_SUCCESS);
-    }
 
-    wolfSSL_CertManagerFree(cm);
+        wolfSSL_CertManagerFree(cm);
+    }
 
     wc_ecc_free(&ca_key);
     wc_MlDsaKey_Free(&alt_ca_key);
