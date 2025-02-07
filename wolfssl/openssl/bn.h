@@ -213,8 +213,13 @@ typedef WOLFSSL_BN_CTX      BN_CTX;
 typedef WOLFSSL_BN_MONT_CTX BN_MONT_CTX;
 typedef WOLFSSL_BN_GENCB    BN_GENCB;
 
+#ifndef NO_WOLFSSL_BN_CTX
 #define BN_CTX_new        wolfSSL_BN_CTX_new
 #define BN_CTX_free       wolfSSL_BN_CTX_free
+#else
+#define BN_CTX_new()      ((BN_CTX*)-1)
+#define BN_CTX_free(x)    ((void)(x))
+#endif
 
 #define BN_new        wolfSSL_BN_new
 #if !defined(USE_INTEGER_HEAP_MATH) && !defined(HAVE_WOLF_BIGINT)
