@@ -2332,6 +2332,7 @@ void se050_ecc_free_key(struct ecc_key* key)
     if (status == kStatus_SSS_Success) {
         status = sss_key_object_get_handle(&keyObject, key->keyId);
     }
+
     if (status == kStatus_SSS_Success) {
         sss_key_object_free(&keyObject);
         key->keyId = 0;
@@ -2532,8 +2533,8 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     wolfSSL_CryptHwMutexUnLock();
 
 #ifdef SE050_DEBUG
-    printf("se050_ecc_create_key: key %p, ret %d, keyId %d\n",
-        key, ret, key->keyId);
+    printf("se050_ecc_create_key: key %p, ret %d, status %d, keyId %d\n",
+        key, ret, status, key->keyId);
 #endif
 
     return ret;
@@ -2688,7 +2689,8 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     wolfSSL_CryptHwMutexUnLock();
 
 #ifdef SE050_DEBUG
-    printf("se050_ecc_shared_secret: ret %d, outlen %d\n", ret, *outlen);
+    printf("se050_ecc_shared_secret: ret %d, status %d, outlen %d\n", ret,
+            status, *outlen);
 #endif
 
     return ret;

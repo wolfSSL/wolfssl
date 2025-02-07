@@ -155,13 +155,14 @@ WOLFSSL_LOCAL void se050_aes_free(struct Aes* aes);
 struct WC_RNG;
 struct ecc_key;
 
+#ifdef HAVE_ECC
 WOLFSSL_LOCAL int se050_ecc_use_key_id(struct ecc_key* key, word32 keyId);
 WOLFSSL_LOCAL int se050_ecc_get_key_id(struct ecc_key* key, word32* keyId);
 WOLFSSL_LOCAL int se050_ecc_sign_hash_ex(const byte* in, word32 inLen,
-    mp_int* r, mp_int* s, byte* out, word32 *outLen, struct ecc_key* key);
+    MATH_INT_T* r, MATH_INT_T* s, byte* out, word32 *outLen, struct ecc_key* key);
 
 WOLFSSL_LOCAL int se050_ecc_verify_hash_ex(const byte* hash, word32 hashlen,
-    mp_int* r, mp_int* s, struct ecc_key* key, int* res);
+    MATH_INT_T* r, MATH_INT_T* s, struct ecc_key* key, int* res);
 
 WOLFSSL_LOCAL int se050_ecc_create_key(struct ecc_key* key, int curve_id,
     int keySize);

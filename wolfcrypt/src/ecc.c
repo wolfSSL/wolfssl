@@ -9225,6 +9225,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #elif defined(WOLFSSL_XILINX_CRYPT_VERSAL)
    byte sigRS[ECC_MAX_CRYPTO_HW_SIZE * 2];
    byte hashcopy[ECC_MAX_CRYPTO_HW_SIZE] = {0};
+#elif defined(WOLFSSL_SE050)
 #else
    int curveLoaded = 0;
    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);

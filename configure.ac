@@ -2732,7 +2732,7 @@ AC_ARG_WITH([se050],
     [
         AC_MSG_CHECKING([for SE050])
 
-        LIBS="$LIBS -lSSS_APIs"
+        LIBS="$LIBS -lSSS_APIs -lex_common"
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <fsl_sss_api.h>]], [[ sss_mac_init(0);]])],[ libse050_linked=yes ],[ libse050_linked=no ])
 
         if test "x$libse050_linked" = "xno" ; then
