@@ -422,6 +422,8 @@
 #ifdef SINGLE_THREADED
     typedef int wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+    #define WOLFSSL_ATOMIC_LOAD(x) (x)
+    #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
     #define WOLFSSL_ATOMIC_OPS
 #elif defined(HAVE_C___ATOMIC)
 #ifdef __cplusplus
@@ -429,6 +431,8 @@
     /* C++ using direct calls to compiler built-in functions */
     typedef volatile int wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+    #define WOLFSSL_ATOMIC_LOAD(x) __atomic_load_n(&(x), __ATOMIC_CONSUME)
+    #define WOLFSSL_ATOMIC_STORE(x, val) __atomic_store_n(&(x), val, __ATOMIC_RELEASE)
     #define WOLFSSL_ATOMIC_OPS
 #endif
 #else
@@ -437,6 +441,8 @@
     #include <stdatomic.h>
     typedef atomic_int wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+    #define WOLFSSL_ATOMIC_LOAD(x) atomic_load(&(x))
+    #define WOLFSSL_ATOMIC_STORE(x, val) atomic_store(&(x), val)
     #define WOLFSSL_ATOMIC_OPS
     #endif /* WOLFSSL_HAVE_ATOMIC_H */
 #endif
@@ -449,6 +455,8 @@
     #endif
     typedef volatile long wolfSSL_Atomic_Int;
     #define WOLFSSL_ATOMIC_INITIALIZER(x) (x)
+    #define WOLFSSL_ATOMIC_LOAD(x) (x)
+    #define WOLFSSL_ATOMIC_STORE(x, val) (x) = (val)
     #define WOLFSSL_ATOMIC_OPS
 #endif
 #endif /* WOLFSSL_NO_ATOMICS */
