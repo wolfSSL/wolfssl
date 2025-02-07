@@ -72663,9 +72663,14 @@ static int test_wolfSSL_d2i_PrivateKeys_bio(void)
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
     {
+        const unsigned char seqOnly[] = { 0x30, 0x00, 0x00, 0x00, 0x00, 0x00 };
         RSA* rsa = NULL;
         /* Tests bad parameters */
         ExpectNull(d2i_RSAPrivateKey_bio(NULL, NULL));
+
+        /* Test using bad data. */
+        ExpectIntGT(BIO_write(bio, seqOnly, sizeof(seqOnly)), 0);
+        ExpectNull(d2i_RSAPrivateKey_bio(bio, NULL));
 
         /* RSA not set yet, expecting to fail*/
         rsa = wolfSSL_RSA_new();
