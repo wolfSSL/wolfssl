@@ -1621,7 +1621,7 @@ static int test_dual_alg_ecdsa_mldsa(void)
     defined(WOLFSSL_WC_DILITHIUM) && \
     !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
     !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
-    !defined(WOLFSSL_DILITHIUM_NO_VERIFY)
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
     WOLFSSL_CERT_MANAGER * cm = NULL;
     MlDsaKey    alt_ca_key;
     ecc_key     ca_key;
@@ -1735,12 +1735,16 @@ static int test_dual_alg_ecdsa_mldsa(void)
     cm = wolfSSL_CertManagerNew();
     ExpectNotNull(cm);
 
+    /* Load the certificate into CertManager. */
     if (cm != NULL && final_der_sz > 0) {
         ret = wolfSSL_CertManagerLoadCABuffer(cm, final_der, final_der_sz,
                                               WOLFSSL_FILETYPE_ASN1);
         ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
 
+    if (cm != NULL) {
         wolfSSL_CertManagerFree(cm);
+        cm = NULL;
     }
 
     wc_ecc_free(&ca_key);

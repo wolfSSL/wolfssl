@@ -1695,10 +1695,10 @@ int wolfSSL_X509_EXTENSION_set_critical(WOLFSSL_X509_EXTENSION* ex, int crit)
  * Returns NULL on error or pointer to the v3_ext_method populated with
  * extension type-specific X509V3_EXT_* function(s).
  *
- * NOTE: WC_NID_subject_key_identifier is currently the only extension implementing
- * the X509V3_EXT_* functions, as it is the only type called directly by QT. The
- * other extension types return a pointer to a v3_ext_method struct that
- * contains only the NID.
+ * NOTE: WC_NID_subject_key_identifier is currently the only extension
+ * implementing the X509V3_EXT_* functions, as it is the only type called
+ * directly by QT. The other extension types return a pointer to a
+ * v3_ext_method struct that contains only the NID.
  */
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
@@ -4559,7 +4559,8 @@ error:
  *          WOLFSSL_SUCCESS otherwise.
  */
 int wolfSSL_GENERAL_NAME_set0_othername(WOLFSSL_GENERAL_NAME* gen,
-                                        WOLFSSL_ASN1_OBJECT* oid, WOLFSSL_ASN1_TYPE* value)
+                                        WOLFSSL_ASN1_OBJECT* oid,
+                                        WOLFSSL_ASN1_TYPE* value)
 {
     WOLFSSL_ASN1_OBJECT *x = NULL;
 
@@ -13951,7 +13952,8 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         int tmpSz;
 
         /* reverse name order for RFC2253 and DN_REV */
-        if ((flags & WOLFSSL_XN_FLAG_RFC2253) || (flags & WOLFSSL_XN_FLAG_DN_REV)) {
+        if ((flags & WOLFSSL_XN_FLAG_RFC2253) ||
+            (flags & WOLFSSL_XN_FLAG_DN_REV)) {
             ne = wolfSSL_X509_NAME_get_entry(name, count - i - 1);
         }
         else {
