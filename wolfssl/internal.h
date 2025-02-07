@@ -156,6 +156,7 @@
     #elif defined(__NT__)
         #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
         #include <windows.h>
+        #undef _WINSOCKAPI_
     #elif defined(__LINUX__)
         #ifndef SINGLE_THREADED
             #define WOLFSSL_PTHREADS
@@ -168,6 +169,7 @@
     #else
         #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
         #include <windows.h>
+        #undef _WINSOCKAPI_
     #endif
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED

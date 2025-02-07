@@ -160,9 +160,12 @@
             #define WIN32_LEAN_AND_MEAN
         #endif
         #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
-            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
+            #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
             #include <windows.h>
+            /* winsock2.h expects _WINSOCKAPI_ to be undef, and defines it. */
+            #undef _WINSOCKAPI_
             #ifndef WOLFSSL_USER_IO
+                #include <winsock2.h>
                 #include <ws2tcpip.h> /* required for InetPton */
             #endif
         #endif /* WOLFSSL_SGX */
