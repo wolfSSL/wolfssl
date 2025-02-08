@@ -14495,6 +14495,14 @@ static WOLF_STACK_OF(WOLFSSL_X509)* CreatePeerCertChain(const WOLFSSL* ssl,
     if (sk == NULL) {
         WOLFSSL_MSG("Null session chain");
     }
+#if defined(WOLFSSL_QT)
+    /* Qt handles a peer cert pushing to chain. */
+    else if (ssl->options.side == WOLFSSL_SERVER_END) {
+        /* to be compliant with openssl
+           first element is kept as peer cert on server side.*/
+        wolfSSL_sk_X509_pop(sk);
+    }
+#endif
     return sk;
 }
 
