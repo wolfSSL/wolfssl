@@ -680,16 +680,6 @@ void test_wolfSSL_client_server_nofail_ex(callback_functions* client_cb,
 void test_wolfSSL_client_server_nofail(callback_functions* client_cb,
                                        callback_functions* server_cb);
 
-/* Return
- *   tmpDir on success
- *   NULL on failure */
-char* create_tmp_dir(char* tmpDir, int len);
-/* Remaining functions return
- * 0 on success
- * -1 on failure */
-int rem_dir(const char* dirName);
-int rem_file(const char* fileName);
-int copy_file(const char* in, const char* out);
 
 #if defined(__MACH__) || defined(__FreeBSD__)
     int link_file(const char* in, const char* out);
