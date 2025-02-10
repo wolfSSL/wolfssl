@@ -56,6 +56,120 @@
 #else
 .p2align	4
 #endif /* __APPLE__ */
+L_GCM_generate_m0_aesni_rev8:
+.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_GCM_generate_m0_aesni_mod2_128:
+.quad	0x0, 0xe100000000000000
+#ifndef __APPLE__
+.text
+.globl	GCM_generate_m0_aesni
+.type	GCM_generate_m0_aesni,@function
+.align	16
+GCM_generate_m0_aesni:
+#else
+.section	__TEXT,__text
+.globl	_GCM_generate_m0_aesni
+.p2align	4
+_GCM_generate_m0_aesni:
+#endif /* __APPLE__ */
+        pxor	%xmm4, %xmm4
+        movdqu	(%rdi), %xmm0
+        movdqu	%xmm4, (%rsi)
+        movdqu	%xmm0, %xmm4
+        pshufb	L_GCM_generate_m0_aesni_rev8(%rip), %xmm0
+        movdqu	%xmm0, %xmm6
+        movdqu	%xmm0, %xmm5
+        psllq	$63, %xmm6
+        psrlq	$0x01, %xmm5
+        psrldq	$8, %xmm6
+        por	%xmm6, %xmm5
+        pshufd	$0xff, %xmm0, %xmm1
+        psrad	$31, %xmm1
+        pand	L_GCM_generate_m0_aesni_mod2_128(%rip), %xmm1
+        pxor	%xmm5, %xmm1
+        movdqu	%xmm1, %xmm6
+        movdqu	%xmm1, %xmm5
+        psllq	$63, %xmm6
+        psrlq	$0x01, %xmm5
+        psrldq	$8, %xmm6
+        por	%xmm6, %xmm5
+        pshufd	$0xff, %xmm1, %xmm2
+        psrad	$31, %xmm2
+        pand	L_GCM_generate_m0_aesni_mod2_128(%rip), %xmm2
+        pxor	%xmm5, %xmm2
+        movdqu	%xmm2, %xmm6
+        movdqu	%xmm2, %xmm5
+        psllq	$63, %xmm6
+        psrlq	$0x01, %xmm5
+        psrldq	$8, %xmm6
+        por	%xmm6, %xmm5
+        pshufd	$0xff, %xmm2, %xmm3
+        psrad	$31, %xmm3
+        pand	L_GCM_generate_m0_aesni_mod2_128(%rip), %xmm3
+        pxor	%xmm5, %xmm3
+        pshufb	L_GCM_generate_m0_aesni_rev8(%rip), %xmm3
+        pshufb	L_GCM_generate_m0_aesni_rev8(%rip), %xmm2
+        movdqu	%xmm3, %xmm4
+        pshufb	L_GCM_generate_m0_aesni_rev8(%rip), %xmm1
+        pshufb	L_GCM_generate_m0_aesni_rev8(%rip), %xmm0
+        pxor	%xmm2, %xmm4
+        movdqu	%xmm3, 16(%rsi)
+        movdqu	%xmm2, 32(%rsi)
+        movdqu	%xmm4, 48(%rsi)
+        movdqu	%xmm1, 64(%rsi)
+        movdqu	%xmm3, %xmm5
+        movdqu	%xmm2, %xmm6
+        movdqu	%xmm4, %xmm7
+        pxor	%xmm1, %xmm5
+        pxor	%xmm1, %xmm6
+        pxor	%xmm1, %xmm7
+        movdqu	%xmm5, 80(%rsi)
+        movdqu	%xmm6, 96(%rsi)
+        movdqu	%xmm7, 112(%rsi)
+        movdqu	%xmm0, 128(%rsi)
+        pxor	%xmm0, %xmm1
+        movdqu	%xmm3, %xmm5
+        movdqu	%xmm2, %xmm7
+        pxor	%xmm0, %xmm5
+        pxor	%xmm0, %xmm7
+        movdqu	%xmm5, 144(%rsi)
+        movdqu	%xmm7, 160(%rsi)
+        pxor	%xmm3, %xmm7
+        movdqu	%xmm7, 176(%rsi)
+        movdqu	%xmm1, 192(%rsi)
+        movdqu	%xmm3, %xmm5
+        movdqu	%xmm2, %xmm6
+        movdqu	%xmm4, %xmm7
+        pxor	%xmm1, %xmm5
+        pxor	%xmm1, %xmm6
+        pxor	%xmm1, %xmm7
+        movdqu	%xmm5, 208(%rsi)
+        movdqu	%xmm6, 224(%rsi)
+        movdqu	%xmm7, 240(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	GCM_generate_m0_aesni,.-GCM_generate_m0_aesni
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_aes_gcm_one:
 .quad	0x0, 0x1
 #ifndef __APPLE__
@@ -6221,6 +6335,105 @@ L_AES_GCM_decrypt_final_aesni_cmp_tag_done:
 #else
 .p2align	4
 #endif /* __APPLE__ */
+L_GCM_generate_m0_avx1_rev8:
+.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_GCM_generate_m0_avx1_mod2_128:
+.quad	0x0, 0xe100000000000000
+#ifndef __APPLE__
+.text
+.globl	GCM_generate_m0_avx1
+.type	GCM_generate_m0_avx1,@function
+.align	16
+GCM_generate_m0_avx1:
+#else
+.section	__TEXT,__text
+.globl	_GCM_generate_m0_avx1
+.p2align	4
+_GCM_generate_m0_avx1:
+#endif /* __APPLE__ */
+        vpxor	%xmm4, %xmm4, %xmm4
+        vmovdqu	(%rdi), %xmm0
+        vmovdqu	%xmm4, (%rsi)
+        vmovdqu	%xmm0, %xmm4
+        vpshufb	L_GCM_generate_m0_avx1_rev8(%rip), %xmm0, %xmm0
+        vpsllq	$63, %xmm0, %xmm6
+        vpsrlq	$0x01, %xmm0, %xmm5
+        vpsrldq	$8, %xmm6, %xmm6
+        vpor	%xmm6, %xmm5, %xmm5
+        vpshufd	$0xff, %xmm0, %xmm1
+        vpsrad	$31, %xmm1, %xmm1
+        vpand	L_GCM_generate_m0_avx1_mod2_128(%rip), %xmm1, %xmm1
+        vpxor	%xmm5, %xmm1, %xmm1
+        vpsllq	$63, %xmm1, %xmm6
+        vpsrlq	$0x01, %xmm1, %xmm5
+        vpsrldq	$8, %xmm6, %xmm6
+        vpor	%xmm6, %xmm5, %xmm5
+        vpshufd	$0xff, %xmm1, %xmm2
+        vpsrad	$31, %xmm2, %xmm2
+        vpand	L_GCM_generate_m0_avx1_mod2_128(%rip), %xmm2, %xmm2
+        vpxor	%xmm5, %xmm2, %xmm2
+        vpsllq	$63, %xmm2, %xmm6
+        vpsrlq	$0x01, %xmm2, %xmm5
+        vpsrldq	$8, %xmm6, %xmm6
+        vpor	%xmm6, %xmm5, %xmm5
+        vpshufd	$0xff, %xmm2, %xmm3
+        vpsrad	$31, %xmm3, %xmm3
+        vpand	L_GCM_generate_m0_avx1_mod2_128(%rip), %xmm3, %xmm3
+        vpxor	%xmm5, %xmm3, %xmm3
+        vpshufb	L_GCM_generate_m0_avx1_rev8(%rip), %xmm3, %xmm3
+        vpshufb	L_GCM_generate_m0_avx1_rev8(%rip), %xmm2, %xmm2
+        vpshufb	L_GCM_generate_m0_avx1_rev8(%rip), %xmm1, %xmm1
+        vpshufb	L_GCM_generate_m0_avx1_rev8(%rip), %xmm0, %xmm0
+        vpxor	%xmm2, %xmm3, %xmm4
+        vmovdqu	%xmm3, 16(%rsi)
+        vmovdqu	%xmm2, 32(%rsi)
+        vmovdqu	%xmm4, 48(%rsi)
+        vmovdqu	%xmm1, 64(%rsi)
+        vpxor	%xmm1, %xmm3, %xmm5
+        vpxor	%xmm1, %xmm2, %xmm6
+        vpxor	%xmm1, %xmm4, %xmm7
+        vmovdqu	%xmm5, 80(%rsi)
+        vmovdqu	%xmm6, 96(%rsi)
+        vmovdqu	%xmm7, 112(%rsi)
+        vmovdqu	%xmm0, 128(%rsi)
+        vpxor	%xmm0, %xmm1, %xmm1
+        vpxor	%xmm0, %xmm3, %xmm5
+        vpxor	%xmm0, %xmm2, %xmm7
+        vmovdqu	%xmm5, 144(%rsi)
+        vmovdqu	%xmm7, 160(%rsi)
+        vpxor	%xmm7, %xmm3, %xmm7
+        vmovdqu	%xmm7, 176(%rsi)
+        vmovdqu	%xmm1, 192(%rsi)
+        vpxor	%xmm1, %xmm3, %xmm5
+        vpxor	%xmm1, %xmm2, %xmm6
+        vpxor	%xmm1, %xmm4, %xmm7
+        vmovdqu	%xmm5, 208(%rsi)
+        vmovdqu	%xmm6, 224(%rsi)
+        vmovdqu	%xmm7, 240(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	GCM_generate_m0_avx1,.-GCM_generate_m0_avx1
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
 L_avx1_aes_gcm_one:
 .quad	0x0, 0x1
 #ifndef __APPLE__
@@ -11444,6 +11657,105 @@ L_AES_GCM_decrypt_final_avx1_cmp_tag_done:
 #endif /* WOLFSSL_AESGCM_STREAM */
 #endif /* HAVE_INTEL_AVX1 */
 #ifdef HAVE_INTEL_AVX2
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_GCM_generate_m0_avx2_rev8:
+.quad	0x8090a0b0c0d0e0f, 0x1020304050607
+#ifndef __APPLE__
+.data
+#else
+.section	__DATA,__data
+#endif /* __APPLE__ */
+#ifndef __APPLE__
+.align	16
+#else
+.p2align	4
+#endif /* __APPLE__ */
+L_GCM_generate_m0_avx2_mod2_128:
+.quad	0x0, 0xe100000000000000
+#ifndef __APPLE__
+.text
+.globl	GCM_generate_m0_avx2
+.type	GCM_generate_m0_avx2,@function
+.align	16
+GCM_generate_m0_avx2:
+#else
+.section	__TEXT,__text
+.globl	_GCM_generate_m0_avx2
+.p2align	4
+_GCM_generate_m0_avx2:
+#endif /* __APPLE__ */
+        vpxor	%xmm4, %xmm4, %xmm4
+        vmovdqu	(%rdi), %xmm0
+        vmovdqu	%xmm4, (%rsi)
+        vmovdqu	%xmm0, %xmm4
+        vpshufb	L_GCM_generate_m0_avx2_rev8(%rip), %xmm0, %xmm0
+        vpsllq	$63, %xmm0, %xmm6
+        vpsrlq	$0x01, %xmm0, %xmm5
+        vpsrldq	$8, %xmm6, %xmm6
+        vpor	%xmm6, %xmm5, %xmm5
+        vpshufd	$0xff, %xmm0, %xmm1
+        vpsrad	$31, %xmm1, %xmm1
+        vpand	L_GCM_generate_m0_avx2_mod2_128(%rip), %xmm1, %xmm1
+        vpxor	%xmm5, %xmm1, %xmm1
+        vpsllq	$63, %xmm1, %xmm6
+        vpsrlq	$0x01, %xmm1, %xmm5
+        vpsrldq	$8, %xmm6, %xmm6
+        vpor	%xmm6, %xmm5, %xmm5
+        vpshufd	$0xff, %xmm1, %xmm2
+        vpsrad	$31, %xmm2, %xmm2
+        vpand	L_GCM_generate_m0_avx2_mod2_128(%rip), %xmm2, %xmm2
+        vpxor	%xmm5, %xmm2, %xmm2
+        vpsllq	$63, %xmm2, %xmm6
+        vpsrlq	$0x01, %xmm2, %xmm5
+        vpsrldq	$8, %xmm6, %xmm6
+        vpor	%xmm6, %xmm5, %xmm5
+        vpshufd	$0xff, %xmm2, %xmm3
+        vpsrad	$31, %xmm3, %xmm3
+        vpand	L_GCM_generate_m0_avx2_mod2_128(%rip), %xmm3, %xmm3
+        vpxor	%xmm5, %xmm3, %xmm3
+        vpshufb	L_GCM_generate_m0_avx2_rev8(%rip), %xmm3, %xmm3
+        vpshufb	L_GCM_generate_m0_avx2_rev8(%rip), %xmm2, %xmm2
+        vpshufb	L_GCM_generate_m0_avx2_rev8(%rip), %xmm1, %xmm1
+        vpshufb	L_GCM_generate_m0_avx2_rev8(%rip), %xmm0, %xmm0
+        vpxor	%xmm2, %xmm3, %xmm4
+        vmovdqu	%xmm3, 16(%rsi)
+        vmovdqu	%xmm2, 32(%rsi)
+        vmovdqu	%xmm4, 48(%rsi)
+        vmovdqu	%xmm1, 64(%rsi)
+        vpxor	%xmm1, %xmm3, %xmm5
+        vpxor	%xmm1, %xmm2, %xmm6
+        vpxor	%xmm1, %xmm4, %xmm7
+        vmovdqu	%xmm5, 80(%rsi)
+        vmovdqu	%xmm6, 96(%rsi)
+        vmovdqu	%xmm7, 112(%rsi)
+        vmovdqu	%xmm0, 128(%rsi)
+        vpxor	%xmm0, %xmm1, %xmm1
+        vpxor	%xmm0, %xmm3, %xmm5
+        vpxor	%xmm0, %xmm2, %xmm7
+        vmovdqu	%xmm5, 144(%rsi)
+        vmovdqu	%xmm7, 160(%rsi)
+        vpxor	%xmm7, %xmm3, %xmm7
+        vmovdqu	%xmm7, 176(%rsi)
+        vmovdqu	%xmm1, 192(%rsi)
+        vpxor	%xmm1, %xmm3, %xmm5
+        vpxor	%xmm1, %xmm2, %xmm6
+        vpxor	%xmm1, %xmm4, %xmm7
+        vmovdqu	%xmm5, 208(%rsi)
+        vmovdqu	%xmm6, 224(%rsi)
+        vmovdqu	%xmm7, 240(%rsi)
+        repz retq
+#ifndef __APPLE__
+.size	GCM_generate_m0_avx2,.-GCM_generate_m0_avx2
+#endif /* __APPLE__ */
 #ifndef __APPLE__
 .data
 #else

@@ -1193,7 +1193,7 @@ static int lng_index = 0;
 
 #ifndef NO_MAIN_DRIVER
 #ifndef MAIN_NO_ARGS
-static const char* bench_Usage_msg1[][25] = {
+static const char* bench_Usage_msg1[][27] = {
     /* 0 English  */
     {   "-? <num>    Help, print this usage\n",
         "            0: English, 1: Japanese\n",
@@ -1207,6 +1207,8 @@ static const char* bench_Usage_msg1[][25] = {
         "            (if set via -aad_size) <aad_size> bytes.\n"
        ),
         "-dgst_full  Full digest operation performed.\n",
+        "-mac_final  MAC update and final operation timed.\n",
+        "-aead_set_key   Set the key as part of the timing of AEAD ciphers.\n",
         "-rsa_sign   Measure RSA sign/verify instead of encrypt/decrypt.\n",
         "<keySz> -rsa-sz\n            Measure RSA <key size> performance.\n",
         "-ffhdhe2048 Measure DH using FFDHE 2048-bit parameters.\n",
@@ -1240,6 +1242,8 @@ static const char* bench_Usage_msg1[][25] = {
         "-aad_size <num>  TBD.\n",
         "-all_aad    TBD.\n",
         "-dgst_full  フルの digest 暗号操作を実施します。\n",
+        "-mac_final  MAC update and final operation timed.\n",
+        "-aead_set_key   Set the key as part of the timing of AEAD ciphers.\n",
         "-rsa_sign   暗号/復号化の代わりに RSA の署名/検証を測定します。\n",
         "<keySz> -rsa-sz\n            RSA <key size> の性能を測定します。\n",
         "-ffhdhe2048 Measure DH using FFDHE 2048-bit parameters.\n",
@@ -2056,6 +2060,8 @@ static int    numBlocks  = NUM_BLOCKS;
 static word32 bench_size = BENCH_SIZE;
 static int base2 = 1;
 static int digest_stream = 1;
+static int mac_stream = 1;
+static int aead_set_key = 0;
 #ifdef HAVE_CHACHA
 static int encrypt_only = 0;
 #endif
@@ -4505,10 +4511,12 @@ static void bench_aesgcm_internal(int useDeviceID,
             goto exit;
         }
 
-        ret = wc_AesGcmSetKey(enc[i], key, keySz);
-        if (ret != 0) {
-            printf("AesGcmSetKey failed, ret = %d\n", ret);
-            goto exit;
+        if (!aead_set_key) {
+            ret = wc_AesGcmSetKey(enc[i], key, keySz);
+            if (ret != 0) {
+                printf("AesGcmSetKey failed, ret = %d\n", ret);
+                goto exit;
+            }
         }
     }
 
@@ -4522,6 +4530,14 @@ static void bench_aesgcm_internal(int useDeviceID,
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(enc[i]), 0,
                                       &times, numBlocks, &pending)) {
+                    if (aead_set_key) {
+                        ret = wc_AesGcmSetKey(enc[i], key, keySz);
+                        if (!bench_async_handle(&ret,
+                                                BENCH_ASYNC_GET_DEV(enc[i]), 0,
+                                                &times, &pending)) {
+                            goto exit_aes_gcm;
+                        }
+                    }
                     ret = wc_AesGcmEncrypt(enc[i], bench_cipher,
                         bench_plain, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
@@ -4560,10 +4576,12 @@ exit_aes_gcm:
             goto exit;
         }
 
-        ret = wc_AesGcmSetKey(dec[i], key, keySz);
-        if (ret != 0) {
-            printf("AesGcmSetKey failed, ret = %d\n", ret);
-            goto exit;
+        if (!aead_set_key) {
+            ret = wc_AesGcmSetKey(dec[i], key, keySz);
+            if (ret != 0) {
+                printf("AesGcmSetKey failed, ret = %d\n", ret);
+                goto exit;
+            }
         }
     }
 
@@ -4576,6 +4594,14 @@ exit_aes_gcm:
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(dec[i]), 0,
                                       &times, numBlocks, &pending)) {
+                    if (aead_set_key) {
+                        ret = wc_AesGcmSetKey(dec[i], key, keySz);
+                        if (!bench_async_handle(&ret,
+                                                BENCH_ASYNC_GET_DEV(dec[i]), 0,
+                                                &times, &pending)) {
+                            goto exit_aes_gcm_dec;
+                        }
+                    }
                     ret = wc_AesGcmDecrypt(dec[i], bench_plain,
                         bench_cipher, bench_size,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
@@ -8300,50 +8326,89 @@ static void bench_hmac(int useDeviceID, int type, int digestSz,
         }
     }
 
-    bench_stats_start(&count, &start);
-    do {
-        for (times = 0; times < numBlocks || pending > 0; ) {
-            bench_async_poll(&pending);
-
-            /* while free pending slots in queue, submit ops */
-            for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret,
-                                      BENCH_ASYNC_GET_DEV(hmac[i]), 0,
-                                      &times, numBlocks, &pending)) {
-                    ret = wc_HmacUpdate(hmac[i], bench_plain, bench_size);
-                    if (!bench_async_handle(&ret,
-                                            BENCH_ASYNC_GET_DEV(hmac[i]),
-                                            0, &times, &pending)) {
-                        goto exit_hmac;
-                    }
-                }
-            } /* for i */
-        } /* for times */
-        count += times;
-
-        times = 0;
+    if (mac_stream) {
+        bench_stats_start(&count, &start);
         do {
-            bench_async_poll(&pending);
+            for (times = 0; times < numBlocks || pending > 0; ) {
+                bench_async_poll(&pending);
 
-            for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret,
-                                      BENCH_ASYNC_GET_DEV(hmac[i]), 0,
-                                      &times, numBlocks, &pending)) {
-                    ret = wc_HmacFinal(hmac[i], digest[i]);
-                    if (!bench_async_handle(&ret,
-                                            BENCH_ASYNC_GET_DEV(hmac[i]),
-                                            0, &times, &pending)) {
-                        goto exit_hmac;
+                /* while free pending slots in queue, submit ops */
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret,
+                                          BENCH_ASYNC_GET_DEV(hmac[i]), 0,
+                                          &times, numBlocks, &pending)) {
+                        ret = wc_HmacUpdate(hmac[i], bench_plain, bench_size);
+                        if (!bench_async_handle(&ret,
+                                                BENCH_ASYNC_GET_DEV(hmac[i]),
+                                                0, &times, &pending)) {
+                            goto exit_hmac;
+                        }
                     }
-                }
-                RECORD_MULTI_VALUE_STATS();
-            } /* for i */
-        } while (pending > 0);
-    } while (bench_stats_check(start)
-#ifdef MULTI_VALUE_STATISTICS
-       || runs < minimum_runs
-#endif
-       );
+                } /* for i */
+            } /* for times */
+            count += times;
+
+            times = 0;
+            do {
+                bench_async_poll(&pending);
+
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret,
+                                          BENCH_ASYNC_GET_DEV(hmac[i]), 0,
+                                          &times, numBlocks, &pending)) {
+                        ret = wc_HmacFinal(hmac[i], digest[i]);
+                        if (!bench_async_handle(&ret,
+                                                BENCH_ASYNC_GET_DEV(hmac[i]),
+                                                0, &times, &pending)) {
+                            goto exit_hmac;
+                        }
+                    }
+                    RECORD_MULTI_VALUE_STATS();
+                } /* for i */
+            } while (pending > 0);
+        } while (bench_stats_check(start)
+    #ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+    #endif
+           );
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (times = 0; times < numBlocks || pending > 0; ) {
+                bench_async_poll(&pending);
+
+                /* while free pending slots in queue, submit ops */
+                for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                    if (bench_async_check(&ret,
+                                          BENCH_ASYNC_GET_DEV(hmac[i]), 0,
+                                          &times, numBlocks, &pending)) {
+                        ret = wc_HmacUpdate(hmac[i], bench_plain, bench_size);
+                        if (!bench_async_handle(&ret,
+                                                BENCH_ASYNC_GET_DEV(hmac[i]),
+                                                0, &times, &pending)) {
+                            goto exit_hmac;
+                        }
+                    }
+                    if (bench_async_check(&ret,
+                                          BENCH_ASYNC_GET_DEV(hmac[i]), 0,
+                                          &times, numBlocks, &pending)) {
+                        ret = wc_HmacFinal(hmac[i], digest[i]);
+                        if (!bench_async_handle(&ret,
+                                                BENCH_ASYNC_GET_DEV(hmac[i]),
+                                                0, &times, &pending)) {
+                            goto exit_hmac;
+                        }
+                    }
+                } /* for i */
+            } /* for times */
+            count += times;
+        } while (bench_stats_check(start)
+    #ifdef MULTI_VALUE_STATISTICS
+           || runs < minimum_runs
+    #endif
+           );
+    }
 
 exit_hmac:
     bench_stats_sym_finish(label, useDeviceID, count, bench_size, start, ret);
@@ -14989,6 +15054,7 @@ static void Usage(void)
     e += 3;
 #endif
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -dgst_full */
+    printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -mca_final */
 #ifndef NO_RSA
     printf("%s", bench_Usage_msg1[lng_index][e++]);    /* option -ras_sign */
     #ifdef WOLFSSL_KEY_GEN
@@ -15186,6 +15252,10 @@ int wolfcrypt_benchmark_main(int argc, char** argv)
 #endif
         else if (string_matches(argv[1], "-dgst_full"))
             digest_stream = 0;
+        else if (string_matches(argv[1], "-mac_final"))
+            mac_stream = 0;
+        else if (string_matches(argv[1], "-aead_set_key"))
+            aead_set_key = 1;
 #ifdef HAVE_CHACHA
         else if (string_matches(argv[1], "-enc_only"))
             encrypt_only = 1;
