@@ -34,21 +34,24 @@ Raspberry Pi, [here](https://www.nxp.com/docs/en/application-note/AN12570.pdf).
 
 Summarizing the build steps for Raspberry Pi:
 
+In `raspi-config` go to "Interface Options" and enable I2C.
+
 ```sh
+$ sudo apt update
+$ sudo apt install cmake libssl-dev cmake-curses-gui git
 $ cd ~
 $ mkdir se_mw
 $ unzip SE-PLUG-TRUST-MW.zip -d se_mw
-$ cd se_mw/simw-top/scripts
+$ cd se_mw/se05x_mw_v04.05.01/simw-top/scripts
 $ python create_cmake_projects.py rpi
-$ cd ~/se_mw/simw-top_build/raspbian_native_se050_t1oi2c
+$ cd ~/se_mw/se05x_mw_v04.05.01/simw-top_build/raspbian_native_se050_t1oi2c
 $ ccmake .
 # Make sure the following are set:
-#    `Host OS` to `Raspbian`
-#    `Host Crypto` to `None` (see HostCrypto section below)
+#    `PTMW_Host` to `Raspbian`
+#    `PTMW_HostCrypto` to `User` (see HostCrypto section below)
 #    `SMCOM` to `T1oI2C`
 $ c # to configure
-$ g # to generate
-$ q
+$ g # to generate, this will exit upon completion
 $ cmake --build .
 $ sudo make install
 ```
@@ -56,7 +59,7 @@ $ sudo make install
 This will also compile several demo apps which can be run if wanted, ie:
 
 ```sh
-$ cd ~/se_mw/simw-top_build/raspbian_native_se050_t1oi2c/bin
+$ cd ~/se_mw/se05x_mw_v04.05.01/simw-top_build/raspbian_native_se050_t1oi2c/bin
 $ ./ex_ecc  # (or, ./se05x_GetInfo, etc)
 ```
 
