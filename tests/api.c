@@ -1603,6 +1603,153 @@ static int test_dual_alg_support(void)
 }
 #endif /* WOLFSSL_DUAL_ALG_CERTS && !NO_FILESYSTEM */
 
+/**
+ * Test dual-alg ECDSA + ML-DSA:
+ *  - keygen + certgen + cert manager load
+ * */
+static int test_dual_alg_ecdsa_mldsa(void)
+{
+    EXPECT_DECLS;
+#if defined(WOLFSSL_DUAL_ALG_CERTS) && defined(HAVE_DILITHIUM) && \
+    defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
+    defined(WOLFSSL_WC_DILITHIUM) && \
+    !defined(WOLFSSL_DILITHIUM_NO_MAKE_KEY) && \
+    !defined(WOLFSSL_DILITHIUM_NO_SIGN) && \
+    !defined(WOLFSSL_DILITHIUM_NO_VERIFY) && !defined(WOLFSSL_SMALL_STACK)
+    WOLFSSL_CERT_MANAGER * cm = NULL;
+    MlDsaKey    alt_ca_key;
+    ecc_key     ca_key;
+    WC_RNG      rng;
+    int         ret = 0;
+    DecodedCert d_cert;
+    Cert        new_cert;
+    /* various tmp buffs.  */
+    byte        alt_pub_der[LARGE_TEMP_SZ];
+    word32      alt_pub_sz = LARGE_TEMP_SZ;
+    byte        alt_sig_alg[LARGE_TEMP_SZ];
+    word32      alt_sig_alg_sz = LARGE_TEMP_SZ;
+    byte        tbs_der[LARGE_TEMP_SZ];
+    word32      tbs_der_sz = LARGE_TEMP_SZ;
+    byte        alt_sig[LARGE_TEMP_SZ];
+    word32      alt_sig_sz = LARGE_TEMP_SZ;
+    /* Intermediate der. */
+    byte        der[LARGE_TEMP_SZ];
+    word32      der_sz = LARGE_TEMP_SZ;
+    /* The final der will be large because of ML-DSA signature. */
+    byte        final_der[2 * LARGE_TEMP_SZ];
+    word32      final_der_sz = 2 * LARGE_TEMP_SZ;
+
+    XMEMSET(alt_pub_der, 0, alt_pub_sz);
+    XMEMSET(alt_sig_alg, 0, alt_sig_alg_sz);
+    XMEMSET(tbs_der, 0, tbs_der_sz);
+    XMEMSET(alt_sig, 0, alt_sig_sz);
+    XMEMSET(der, 0, der_sz);
+    XMEMSET(final_der, 0, final_der_sz);
+
+    ExpectIntEQ(wc_InitRng(&rng), 0);
+
+    /**
+     * ML-DSA key gen.
+     * */
+    ret = wc_MlDsaKey_Init(&alt_ca_key, NULL, INVALID_DEVID);
+    ExpectIntEQ(ret, 0);
+    ret = wc_MlDsaKey_SetParams(&alt_ca_key, WC_ML_DSA_44);
+    ExpectIntEQ(ret, 0);
+    ret = wc_MlDsaKey_MakeKey(&alt_ca_key, &rng);
+    ExpectIntEQ(ret, 0);
+    alt_pub_sz = wc_MlDsaKey_PublicKeyToDer(&alt_ca_key, alt_pub_der,
+                                            alt_pub_sz, 1);
+    ExpectIntGT(alt_pub_sz, 0);
+
+    alt_sig_alg_sz = SetAlgoID(CTC_SHA256wECDSA, alt_sig_alg, oidSigType, 0);
+    ExpectIntGT(alt_sig_alg_sz, 0);
+
+    /**
+     * ECC key gen.
+     * */
+    ret = wc_ecc_init(&ca_key);
+    ExpectIntEQ(ret, 0);
+    ret = wc_ecc_make_key(&rng, KEY32, &ca_key);
+    ExpectIntEQ(ret, 0);
+
+    /**
+     * Cert gen.
+     * */
+    wc_InitCert(&new_cert);
+    strncpy(new_cert.subject.country, "US", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.state, "MT", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.locality, "Bozeman", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.unit, "Engineering", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+    strncpy(new_cert.subject.email, "root@wolfssl.com", CTC_NAME_SIZE);
+    new_cert.sigType = CTC_SHA256wECDSA;
+    new_cert.isCA    = 1;
+
+    ret = wc_SetCustomExtension(&new_cert, 0, "1.2.3.4.5",
+                         (const byte *)"This is NOT a critical extension", 32);
+    ExpectIntEQ(ret, 0);
+
+    ExpectIntEQ(wc_SetCustomExtension(&new_cert, 0, "2.5.29.72", alt_pub_der,
+                alt_pub_sz), 0);
+    ExpectIntEQ(wc_SetCustomExtension(&new_cert, 0, "2.5.29.73", alt_sig_alg,
+                alt_sig_alg_sz), 0);
+
+    ret = wc_MakeCert_ex(&new_cert, der, der_sz, ECC_TYPE, &ca_key, &rng);
+    ExpectIntGT(ret, 0);
+
+    der_sz = wc_SignCert_ex(new_cert.bodySz, new_cert.sigType, der, der_sz,
+                            ECC_TYPE, &ca_key, &rng);
+    ExpectIntGT(der_sz, 0);
+
+    wc_InitDecodedCert(&d_cert, der, der_sz, 0);
+    ret = wc_ParseCert(&d_cert, CERT_TYPE, NO_VERIFY, NULL);
+    ExpectIntEQ(ret, 0);
+
+    tbs_der_sz = wc_GeneratePreTBS(&d_cert, tbs_der, tbs_der_sz);
+    ExpectIntGT(tbs_der_sz, 0);
+
+    alt_sig_sz = wc_MakeSigWithBitStr(alt_sig, alt_sig_sz,
+                                      CTC_ML_DSA_LEVEL2, tbs_der, tbs_der_sz,
+                                      ML_DSA_LEVEL2_TYPE, &alt_ca_key, &rng);
+    ExpectIntGT(alt_sig_sz, 0);
+
+    ret = wc_SetCustomExtension(&new_cert, 0, "2.5.29.74", alt_sig, alt_sig_sz);
+    ExpectIntEQ(ret, 0);
+
+    /* Finally generate the new certificate. */
+    ret = wc_MakeCert_ex(&new_cert, final_der, final_der_sz, ECC_TYPE, &ca_key,
+                         &rng);
+    ExpectIntGT(ret, 0);
+
+    final_der_sz = wc_SignCert_ex(new_cert.bodySz, new_cert.sigType, final_der,
+                                  final_der_sz, ECC_TYPE, &ca_key, &rng);
+    ExpectIntGT(final_der_sz, 0);
+
+    cm = wolfSSL_CertManagerNew();
+    ExpectNotNull(cm);
+
+    /* Load the certificate into CertManager. */
+    if (cm != NULL && final_der_sz > 0) {
+        ret = wolfSSL_CertManagerLoadCABuffer(cm, final_der, final_der_sz,
+                                              WOLFSSL_FILETYPE_ASN1);
+        ExpectIntEQ(ret, WOLFSSL_SUCCESS);
+    }
+
+    if (cm != NULL) {
+        wolfSSL_CertManagerFree(cm);
+        cm = NULL;
+    }
+
+    wc_ecc_free(&ca_key);
+    wc_MlDsaKey_Free(&alt_ca_key);
+    wc_FreeRng(&rng);
+
+#endif /* WOLFSSL_DUAL_ALG_CERTS && DILITHIUM and more */
+    return EXPECT_RESULT();
+}
+
+
 /*----------------------------------------------------------------------------*
  | Context
  *----------------------------------------------------------------------------*/
@@ -99001,6 +99148,8 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_wolfSSL_Init),
 
     TEST_DECL(test_dual_alg_support),
+
+    TEST_DECL(test_dual_alg_ecdsa_mldsa),
 
     /*********************************
      * OpenSSL compatibility API tests

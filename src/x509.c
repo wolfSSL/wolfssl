@@ -1695,10 +1695,10 @@ int wolfSSL_X509_EXTENSION_set_critical(WOLFSSL_X509_EXTENSION* ex, int crit)
  * Returns NULL on error or pointer to the v3_ext_method populated with
  * extension type-specific X509V3_EXT_* function(s).
  *
- * NOTE: WC_NID_subject_key_identifier is currently the only extension implementing
- * the X509V3_EXT_* functions, as it is the only type called directly by QT. The
- * other extension types return a pointer to a v3_ext_method struct that
- * contains only the NID.
+ * NOTE: WC_NID_subject_key_identifier is currently the only extension
+ * implementing the X509V3_EXT_* functions, as it is the only type called
+ * directly by QT. The other extension types return a pointer to a
+ * v3_ext_method struct that contains only the NID.
  */
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100000L
 const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
@@ -4559,7 +4559,8 @@ error:
  *          WOLFSSL_SUCCESS otherwise.
  */
 int wolfSSL_GENERAL_NAME_set0_othername(WOLFSSL_GENERAL_NAME* gen,
-                                        WOLFSSL_ASN1_OBJECT* oid, WOLFSSL_ASN1_TYPE* value)
+                                        WOLFSSL_ASN1_OBJECT* oid,
+                                        WOLFSSL_ASN1_TYPE* value)
 {
     WOLFSSL_ASN1_OBJECT *x = NULL;
 
@@ -8084,10 +8085,21 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
 }
 
 #ifdef WOLFSSL_DUAL_ALG_CERTS
+/* Generate a der preTBS from a decoded cert, and write
+ * to buffer.
+ *
+ * @param [in]  cert  The decoded cert to parse.
+ * @param [out] der   The der buffer to write in.
+ * @param [in]  derSz The der buffer size.
+ *
+ * @return  preTBS der size on success.
+ * */
 int wc_GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
     int ret = 0;
     WOLFSSL_X509 *x = NULL;
     byte certIsCSR = 0;
+
+    WOLFSSL_ENTER("wc_GeneratePreTBS");
 
     if ((cert == NULL) || (der == NULL) || (derSz <= 0)) {
         return BAD_FUNC_ARG;
@@ -13941,7 +13953,8 @@ int wolfSSL_X509_NAME_print_ex(WOLFSSL_BIO* bio, WOLFSSL_X509_NAME* name,
         int tmpSz;
 
         /* reverse name order for RFC2253 and DN_REV */
-        if ((flags & WOLFSSL_XN_FLAG_RFC2253) || (flags & WOLFSSL_XN_FLAG_DN_REV)) {
+        if ((flags & WOLFSSL_XN_FLAG_RFC2253) ||
+            (flags & WOLFSSL_XN_FLAG_DN_REV)) {
             ne = wolfSSL_X509_NAME_get_entry(name, count - i - 1);
         }
         else {
@@ -15731,6 +15744,17 @@ int wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509, WOLFSSL_EVP_PKEY* pkey)
     return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
+/* Loads an x509 attribute certificate from buffer, and returns
+ * pointer to new WOLFSSL_X509_ACERT struct on success.
+ *
+ * @param [in]  buf    The acert buffer to load.
+ * @param [in]  sz     The size of the buffer.
+ * @param [in]  format The format of the buffer data.
+ * @param [in]  heap   Dynamic memory allocation hint.
+ *
+ * @return  pointer to WOLFSSL_X509_ACERT on success.
+ * @return  NULL on error.
+ * */
 WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer_ex(
     const unsigned char* buf, int sz, int format, void * heap)
 {
