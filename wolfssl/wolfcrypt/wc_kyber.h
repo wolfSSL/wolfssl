@@ -62,6 +62,7 @@ enum {
     KYBER_FLAG_PUB_SET  = 0x0002,
     KYBER_FLAG_BOTH_SET = 0x0003,
     KYBER_FLAG_H_SET    = 0x0004,
+    KYBER_FLAG_A_SET    = 0x0008,
 
     /* 2 bits of random used to create noise value. */
     KYBER_CBD_ETA2          = 2,
@@ -137,6 +138,10 @@ struct KyberKey {
     byte h[KYBER_SYM_SZ];
     /* Randomizer for decapsulation. */
     byte z[KYBER_SYM_SZ];
+#ifdef WOLFSSL_MLKEM_CACHE_A
+    /* A matrix from key generation. */
+    sword16 a[KYBER_MAX_K * KYBER_MAX_K * KYBER_N];
+#endif
 };
 
 #ifdef __cplusplus

@@ -9630,17 +9630,37 @@ exit:
 #endif
 }
 
-static void bench_kyber_encap(const char* name, int keySize, KyberKey* key)
+static void bench_kyber_encap(int type, const char* name, int keySize,
+    KyberKey* key1, KyberKey* key2)
 {
     int ret = 0, times, count, pending = 0;
     double start;
     const char**desc = bench_desc_words[lng_index];
     byte ct[KYBER_MAX_CIPHER_TEXT_SIZE];
     byte ss[KYBER_SS_SZ];
+    byte pub[KYBER_MAX_PUBLIC_KEY_SIZE];
+    word32 pubLen;
     word32 ctSz;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    ret = wc_KyberKey_CipherTextSize(key, &ctSz);
+    ret = wc_KyberKey_PublicKeySize(key1, &pubLen);
+    if (ret != 0) {
+        return;
+    }
+    ret = wc_KyberKey_EncodePublicKey(key1, pub, pubLen);
+    if (ret != 0) {
+        return;
+    }
+    ret = wc_KyberKey_Init(type, key2, HEAP_HINT, INVALID_DEVID);
+    if (ret != 0) {
+        return;
+    }
+    ret = wc_KyberKey_DecodePublicKey(key2, pub, pubLen);
+    if (ret != 0) {
+        return;
+    }
+
+    ret = wc_KyberKey_CipherTextSize(key2, &ctSz);
     if (ret != 0) {
         return;
     }
@@ -9651,10 +9671,10 @@ static void bench_kyber_encap(const char* name, int keySize, KyberKey* key)
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
 #ifdef KYBER_NONDETERMINISTIC
-            ret = wc_KyberKey_Encapsulate(key, ct, ss, &gRng);
+            ret = wc_KyberKey_Encapsulate(key2, ct, ss, &gRng);
 #else
             unsigned char rand[KYBER_ENC_RAND_SZ] = {0,};
-            ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, rand,
+            ret = wc_KyberKey_EncapsulateWithRandom(key2, ct, ss, rand,
                 sizeof(rand));
 #endif
             if (ret != 0)
@@ -9681,7 +9701,7 @@ exit_encap:
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
-            ret = wc_KyberKey_Decapsulate(key, ss, ct, ctSz);
+            ret = wc_KyberKey_Decapsulate(key1, ss, ct, ctSz);
             if (ret != 0)
                 goto exit_decap;
             RECORD_MULTI_VALUE_STATS();
@@ -9702,7 +9722,8 @@ exit_decap:
 
 void bench_kyber(int type)
 {
-    KyberKey key;
+    KyberKey key1;
+    KyberKey key2;
     const char* name = NULL;
     int keySize = 0;
 
@@ -9749,10 +9770,11 @@ void bench_kyber(int type)
 #endif
     }
 
-    bench_kyber_keygen(type, name, keySize, &key);
-    bench_kyber_encap(name, keySize, &key);
+    bench_kyber_keygen(type, name, keySize, &key1);
+    bench_kyber_encap(type, name, keySize, &key1, &key2);
 
-    wc_KyberKey_Free(&key);
+    wc_KyberKey_Free(&key2);
+    wc_KyberKey_Free(&key1);
 }
 #endif
 

@@ -63,6 +63,12 @@
         #error "Can't use small memory with assembly optimized code"
     #endif
 #endif
+#if defined(WOLFSSL_MLKEM_CACHE_A)
+    #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
+        defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
+        #error "Can't cache A with small memory code"
+    #endif
+#endif
 
 #ifdef WOLFSSL_WC_KYBER
 
@@ -265,7 +271,11 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     sword16* e = NULL;
 #else
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+#ifndef WOLFSSL_MLKEM_CACHE_A
     sword16 e[(KYBER_MAX_K + 1) * KYBER_MAX_K * KYBER_N];
+#else
+    sword16 e[KYBER_MAX_K * KYBER_N];
+#endif
 #else
     sword16 e[KYBER_MAX_K * KYBER_N];
 #endif
@@ -285,6 +295,8 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     }
 
     if (ret == 0) {
+        key->flags = 0;
+
         /* Establish parameters based on key type. */
         switch (key->type) {
 #ifndef WOLFSSL_NO_ML_KEM
@@ -332,9 +344,17 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     if (ret == 0) {
         /* Allocate dynamic memory for matrix and error vector. */
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
+#ifndef WOLFSSL_MLKEM_CACHE_A
+        /* e (v) | a (m) */
         e = (sword16*)XMALLOC((kp + 1) * kp * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #else
+        /* e (v) */
+        e = (sword16*)XMALLOC(kp * KYBER_N * sizeof(sword16),
+            key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#else
+        /* e (v) */
         e = (sword16*)XMALLOC(kp * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -346,8 +366,10 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     if (ret == 0) {
         const byte* d = rand;
 
-#ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
-        /* Error vector allocated at end of a. */
+#ifdef WOLFSSL_MLKEM_CACHE_A
+        a = key->a;
+#elif !defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM)
+        /* Matrix A allocated at end of error vector. */
         a = e + (kp * KYBER_N);
 #endif
 
@@ -391,6 +413,9 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
         ret = kyber_gen_matrix(&key->prf, a, kp, pubSeed, 0);
     }
     if (ret == 0) {
+#ifdef WOLFSSL_MLKEM_CACHE_A
+        key->flags |= KYBER_FLAG_A_SET;
+#endif
         /* Generate key pair from random data. */
         kyber_keygen(key->priv, key->pub, e, a, kp);
 #else
@@ -514,7 +539,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     unsigned char* ct)
 {
     int ret = 0;
-    sword16* sp = NULL;
+    sword16* at = NULL;
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
     sword16* k = NULL;
     sword16* ep = NULL;
@@ -523,12 +548,12 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     unsigned int kp = 0;
     unsigned int compVecSz = 0;
 #ifndef WOLFSSL_NO_MALLOC
-    sword16* at = NULL;
+    sword16* sp = NULL;
 #else
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-    sword16 at[((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N];
+    sword16 sp[((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N];
 #else
-    sword16 at[3 * KYBER_MAX_K * KYBER_N];
+    sword16 sp[3 * KYBER_MAX_K * KYBER_N];
 #endif
 #endif
 #ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
@@ -588,13 +613,13 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     if (ret == 0) {
         /* Allocate dynamic memory for all matrices, vectors and polynomials. */
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-        at = (sword16*)XMALLOC(((kp + 3) * kp + 3) * KYBER_N * sizeof(sword16),
+        sp = (sword16*)XMALLOC(((kp + 3) * kp + 3) * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #else
-        at = (sword16*)XMALLOC(3 * kp * KYBER_N * sizeof(sword16), key->heap,
+        sp = (sword16*)XMALLOC(3 * kp * KYBER_N * sizeof(sword16), key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        if (at == NULL) {
+        if (sp == NULL) {
             ret = MEMORY_E;
         }
     }
@@ -603,15 +628,15 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     if (ret == 0) {
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
         /* Assign allocated dynamic memory to pointers.
-         * at (m) | k (p) | sp (v) | ep (p) | epp (v) | bp (v) | v (p) */
+         * sp (b) | at (m) | k (p) | ep (p) | epp (v) | bp (v) | v (p) */
+        at  = sp  + KYBER_N * kp;
         k   = at  + KYBER_N * kp * kp;
-        sp  = k   + KYBER_N;
-        ep  = sp  + KYBER_N * kp;
+        ep  = k   + KYBER_N;
         epp = ep  + KYBER_N * kp;
 #else
         /* Assign allocated dynamic memory to pointers.
-         * at (v) | sp (v) | bp (v) */
-        sp   = at  + KYBER_N * kp;
+         * sp (v) | at (v) | bp (v) */
+        at  = sp  + KYBER_N * kp;
 #endif
 
         /* Initialize the PRF for use in the noise generation. */
@@ -623,6 +648,21 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
         /* Generate noise using PRF. */
         ret = kyber_get_noise(&key->prf, kp, sp, ep, epp, coins);
     }
+#ifdef WOLFSSL_MLKEM_CACHE_A
+    if ((ret == 0) && ((key->flags & KYBER_FLAG_A_SET) != 0)) {
+        unsigned int i;
+        /* Transpose matrix. */
+        for (i = 0; i < kp; i++) {
+            unsigned int j;
+            for (j = 0; j < kp; j++) {
+                XMEMCPY(&at[(i * kp + j) * KYBER_N],
+                        &key->a[(j * kp + i) * KYBER_N],
+                        KYBER_N * 2);
+            }
+        }
+    }
+    else
+#endif
     if (ret == 0) {
         /* Generate the transposed matrix. */
         ret = kyber_gen_matrix(&key->prf, at, kp, key->pubSeed, 1);
@@ -632,7 +672,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
         sword16* v;
 
         /* Assign remaining allocated dynamic memory to pointers.
-         * at (m) | k (p) | sp (v) | ep (p) | epp (v) | bp (v) | v (p)*/
+         * sp (v) | at (m) | k (p) | ep (p) | epp (v) | bp (v) | v (p)*/
         bp  = epp + KYBER_N;
         v   = bp  + KYBER_N * kp;
 
@@ -644,7 +684,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     }
     if (ret == 0) {
         /* Assign remaining allocated dynamic memory to pointers.
-         * at (v) | sp (v) | bp (v) */
+         * sp (v) | at (v) | bp (v) */
         bp  = sp + KYBER_N * kp;
         v   = at;
 
@@ -676,7 +716,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
 
 #ifndef WOLFSSL_NO_MALLOC
     /* Dispose of dynamic memory allocated in function. */
-    XFREE(at, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
