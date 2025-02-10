@@ -32147,9 +32147,11 @@ static int SignCert(int requestSz, int sType, byte* buf, word32 buffSz,
  * @param [in]  buf     The input buf to sign.
  * @param [in]  bufSz   The buffer size
  * @param [in]  keyType The key type.
+ * @param [in]  key     Key data.
  * @param [in]  rng     Random number generator.
- * @return      Size of signature on success.
- * @return      < 0 on error.
+ *
+ * @return  Size of signature on success.
+ * @return  < 0 on error.
  * */
 int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
                          word32 bufSz, int keyType, void* key, WC_RNG* rng)
@@ -32282,14 +32284,16 @@ int wc_MakeSigWithBitStr(byte *sig, int sigSz, int sType, byte* buf,
 /* Sign an x509 Certificate v3 from cert input using any
  * key type, and write to buffer.
  *
- * @param [in]  requestSz Size of requested data to sign.
- * @param [in]  sType     The signature type.
- * @param [in]  derSz     Der buffer size.
- * @param [in]  keyType   The type of key.
- * @param [in]  key       Key data.
- * @param [in]  rng       Random number generator.
- * @return      Size of signature on success.
- * @return      < 0 on error
+ * @param [in]     requestSz Size of requested data to sign.
+ * @param [in]     sType     The signature type.
+ * @param [in,out] buf       Der buffer to sign.
+ * @param [in]     buffSz    Der buffer size.
+ * @param [in]     keyType   The type of key.
+ * @param [in]     key       Key data.
+ * @param [in]     rng       Random number generator.
+ *
+ * @return  Size of signature on success.
+ * @return  < 0 on error
  * */
 int wc_SignCert_ex(int requestSz, int sType, byte* buf, word32 buffSz,
                    int keyType, void* key, WC_RNG* rng)
@@ -40940,7 +40944,7 @@ static int DecodeAcertGeneralName(const byte* input, word32* inOutIdx,
  * @param [in]      input    Buffer holding encoded data.
  * @param [in]      sz       Size of encoded data in bytes.
  * @param [in]      tag      ASN.1 tag value expected in header.
- * @param [in, out] acert    Decoded certificate object.
+ * @param [in, out] acert    Decoded attribute certificate object.
  * @param [in, out] entries  Linked list of DNS name entries.
  *
  * @return  0 on success.
@@ -41069,7 +41073,7 @@ enum {
  *
  * @param [in]      input     Buffer containing encoded Holder field.
  * @param [in]      len       Length of Holder field.
- * @param [in, out] acert     Decoded certificate object.
+ * @param [in, out] acert     Decoded attribute certificate object.
  *
  * @return  0 on success.
  * @return  ASN_PARSE_E when BER encoded data does not match ASN.1 items or

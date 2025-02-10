@@ -8088,10 +8088,11 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
 /* Generate a der preTBS from a decoded cert, and write
  * to buffer.
  *
- * @param[in]  cert  The decoded cert to parse.
- * @param[out] der   The der buffer to write in.
- * @param[in]  derZ  The der buffer size.
- * @return     preTBS der size on success.
+ * @param [in]  cert  The decoded cert to parse.
+ * @param [out] der   The der buffer to write in.
+ * @param [in]  derSz The der buffer size.
+ *
+ * @return  preTBS der size on success.
  * */
 int wc_GeneratePreTBS(DecodedCert* cert, byte *der, int derSz) {
     int ret = 0;
@@ -15743,6 +15744,17 @@ int wolfSSL_X509_ACERT_verify(WOLFSSL_X509_ACERT* x509, WOLFSSL_EVP_PKEY* pkey)
     return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
+/* Loads an x509 attribute certificate from buffer, and returns
+ * pointer to new WOLFSSL_X509_ACERT struct on success.
+ *
+ * @param [in]  buf    The acert buffer to load.
+ * @param [in]  sz     The size of the buffer.
+ * @param [in]  format The format of the buffer data.
+ * @param [in]  heap   Dynamic memory allocation hint.
+ *
+ * @return  pointer to WOLFSSL_X509_ACERT on success.
+ * @return  NULL on error.
+ * */
 WOLFSSL_X509_ACERT * wolfSSL_X509_ACERT_load_certificate_buffer_ex(
     const unsigned char* buf, int sz, int format, void * heap)
 {
