@@ -1,4 +1,4 @@
-/* ascon.c
+/* test_ascon.c
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -38,10 +38,10 @@
 #include <wolfssl/wolfcrypt/ascon.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <tests/unit.h>
-#include <tests/api/ascon.h>
+#include <tests/api/test_ascon.h>
 
 #ifdef HAVE_ASCON
-#include <tests/api/ascon_kats.h>
+#include <tests/api/test_ascon_kats.h>
 #endif
 
 int test_ascon_hash256(void)

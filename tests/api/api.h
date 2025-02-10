@@ -1,4 +1,4 @@
-/* ascon.h
+/* api.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,10 +19,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef TESTS_API_ASCON_H
-#define TESTS_API_ASCON_H
+#ifndef WOLFCRYPT_TEST_API_H
+#define WOLFCRYPT_TEST_API_H
 
-int test_ascon_hash256(void);
-int test_ascon_aead128(void);
 
-#endif /* TESTS_API_ASCON_H */
+#ifndef HEAP_HINT
+    #define HEAP_HINT NULL
+#endif
+
+
+#define TEST_STRING    "Everyone gets Friday off."
+#define TEST_STRING_SZ 25
+
+
+typedef struct testVector {
+    const char* input;
+    const char* output;
+    size_t inLen;
+    size_t outLen;
+} testVector;
+
+
+extern int testDevId;
+
+#endif /* WOLFCRYPT_TEST_API_H */
+
