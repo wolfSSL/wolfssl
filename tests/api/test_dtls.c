@@ -231,6 +231,26 @@ int test_dtls12_basic_connection_id(void)
             wolfSSL_SetLoggingPrefix("server");
             ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 1);
             ExpectIntEQ(readBuf[0], params[i][0]);
+            /* Write some data but with wrong CID */
+            wolfSSL_SetLoggingPrefix("client");
+            ExpectIntEQ(wolfSSL_write(ssl_c, params[i],
+                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
+            ExpectNotNull(CLIENT_CID());
+            /* Use Expect so we don't access CLIENT_CID() if it is NULL */
+            ExpectTrue(((char*)CLIENT_CID())[0] = -1);
+            wolfSSL_SetLoggingPrefix("server");
+            ExpectIntEQ(wolfSSL_write(ssl_s, params[i],
+                    (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
+            ExpectNotNull(SERVER_CID());
+            /* Use Expect so we don't access SERVER_CID() if it is NULL */
+            ExpectTrue(((char*)SERVER_CID())[0] = -1);
+            /* Try to read the data but it shouldn't be there */
+            wolfSSL_SetLoggingPrefix("client");
+            ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+            wolfSSL_SetLoggingPrefix("server");
+            ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+            ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
 #ifdef HAVE_SECURE_RENEGOTIATION
             /* do two SCR's */
@@ -497,6 +517,22 @@ int test_dtls13_basic_connection_id(void)
         XMEMSET(readBuf, 0, sizeof(readBuf));
         ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), 1);
         ExpectIntEQ(readBuf[0], params[i][0]);
+        /* Write some data but with wrong CID */
+        ExpectIntEQ(wolfSSL_write(ssl_c, params[i], (int)XSTRLEN(params[i])),
+                XSTRLEN(params[i]));
+        ExpectNotNull(CLIENT_CID());
+        /* Use Expect so we don't access CLIENT_CID() if it is NULL */
+        ExpectTrue(((char*)CLIENT_CID())[0] = -1);
+        ExpectIntEQ(wolfSSL_write(ssl_s, params[i], (int)XSTRLEN(params[i])),
+                XSTRLEN(params[i]));
+        ExpectNotNull(SERVER_CID());
+        /* Use Expect so we don't access SERVER_CID() if it is NULL */
+        ExpectTrue(((char*)SERVER_CID())[0] = -1);
+        /* Try to read the data but it shouldn't be there */
+        ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
+        ExpectIntEQ(wolfSSL_read(ssl_s, readBuf, sizeof(readBuf)), -1);
+        ExpectIntEQ(wolfSSL_get_error(ssl_s, -1), WOLFSSL_ERROR_WANT_READ);
 
         /* Close connection */
         ExpectIntEQ(wolfSSL_shutdown(ssl_c), WOLFSSL_SHUTDOWN_NOT_DONE);
