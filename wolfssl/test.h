@@ -1146,13 +1146,13 @@ static WC_INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
 {
     int i;
     int length;
-    unsigned char buffer[3072];
+    unsigned char certPem[3072];
     WOLFSSL_X509* chainX509;
 
     for (i = 0; i < count; i++) {
-        wolfSSL_get_chain_cert_pem(chain, i, buffer, sizeof(buffer), &length);
-        buffer[length] = 0;
-        printf("\n%s: %d has length %d data = \n%s\n", hdr, i, length, buffer);
+        wolfSSL_get_chain_cert_pem(chain, i, certPem, sizeof(certPem), &length);
+        certPem[length] = 0;
+        printf("\n%s: %d has length %d data = \n%s\n", hdr, i, length, certPem);
 
         chainX509 = wolfSSL_get_chain_X509(chain, i);
         if (chainX509)
@@ -2416,7 +2416,7 @@ static THREAD_LS_T int myVerifyAction = VERIFY_OVERRIDE_ERROR;
 
 static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
-    char buffer[WOLFSSL_MAX_ERROR_SZ];
+    char err_buffer[WOLFSSL_MAX_ERROR_SZ];
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     WOLFSSL_X509* peer;
 #if defined(SHOW_CERTS) && !defined(NO_FILESYSTEM) && \
@@ -2443,7 +2443,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
      */
 
     fprintf(stderr, "In verification callback, error = %d, %s\n", store->error,
-                                 wolfSSL_ERR_error_string((unsigned long) store->error, buffer));
+            wolfSSL_ERR_error_string((unsigned long) store->error, err_buffer));
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     peer = store->current_cert;
     if (peer) {
