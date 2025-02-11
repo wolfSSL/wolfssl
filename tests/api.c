@@ -1741,6 +1741,7 @@ static int test_dual_alg_ecdsa_mldsa(void)
         cm = NULL;
     }
 
+    wc_FreeDecodedCert(&d_cert);
     wc_ecc_free(&ca_key);
     wc_MlDsaKey_Free(&alt_ca_key);
     wc_FreeRng(&rng);
