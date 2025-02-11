@@ -42,6 +42,101 @@ ENDIF
 
 _DATA SEGMENT
 ALIGN 16
+L_GCM_generate_m0_aesni_rev8 QWORD 579005069656919567, 283686952306183
+ptr_L_GCM_generate_m0_aesni_rev8 QWORD L_GCM_generate_m0_aesni_rev8
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_aesni_mod2_128 QWORD 0, 16212958658533785600
+ptr_L_GCM_generate_m0_aesni_mod2_128 QWORD L_GCM_generate_m0_aesni_mod2_128
+_DATA ENDS
+_text SEGMENT READONLY PARA
+GCM_generate_m0_aesni PROC
+        sub	rsp, 32
+        movdqu	OWORD PTR [rsp], xmm6
+        movdqu	OWORD PTR [rsp+16], xmm7
+        pxor	xmm4, xmm4
+        movdqu	xmm0, OWORD PTR [rcx]
+        movdqu	OWORD PTR [rdx], xmm4
+        movdqu	xmm4, xmm0
+        pshufb	xmm0, OWORD PTR L_GCM_generate_m0_aesni_rev8
+        movdqu	xmm6, xmm0
+        movdqu	xmm5, xmm0
+        psllq	xmm6, 63
+        psrlq	xmm5, 1
+        psrldq	xmm6, 8
+        por	xmm5, xmm6
+        pshufd	xmm1, xmm0, 255
+        psrad	xmm1, 31
+        pand	xmm1, OWORD PTR L_GCM_generate_m0_aesni_mod2_128
+        pxor	xmm1, xmm5
+        movdqu	xmm6, xmm1
+        movdqu	xmm5, xmm1
+        psllq	xmm6, 63
+        psrlq	xmm5, 1
+        psrldq	xmm6, 8
+        por	xmm5, xmm6
+        pshufd	xmm2, xmm1, 255
+        psrad	xmm2, 31
+        pand	xmm2, OWORD PTR L_GCM_generate_m0_aesni_mod2_128
+        pxor	xmm2, xmm5
+        movdqu	xmm6, xmm2
+        movdqu	xmm5, xmm2
+        psllq	xmm6, 63
+        psrlq	xmm5, 1
+        psrldq	xmm6, 8
+        por	xmm5, xmm6
+        pshufd	xmm3, xmm2, 255
+        psrad	xmm3, 31
+        pand	xmm3, OWORD PTR L_GCM_generate_m0_aesni_mod2_128
+        pxor	xmm3, xmm5
+        pshufb	xmm3, OWORD PTR L_GCM_generate_m0_aesni_rev8
+        pshufb	xmm2, OWORD PTR L_GCM_generate_m0_aesni_rev8
+        movdqu	xmm4, xmm3
+        pshufb	xmm1, OWORD PTR L_GCM_generate_m0_aesni_rev8
+        pshufb	xmm0, OWORD PTR L_GCM_generate_m0_aesni_rev8
+        pxor	xmm4, xmm2
+        movdqu	OWORD PTR [rdx+16], xmm3
+        movdqu	OWORD PTR [rdx+32], xmm2
+        movdqu	OWORD PTR [rdx+48], xmm4
+        movdqu	OWORD PTR [rdx+64], xmm1
+        movdqu	xmm5, xmm3
+        movdqu	xmm6, xmm2
+        movdqu	xmm7, xmm4
+        pxor	xmm5, xmm1
+        pxor	xmm6, xmm1
+        pxor	xmm7, xmm1
+        movdqu	OWORD PTR [rdx+80], xmm5
+        movdqu	OWORD PTR [rdx+96], xmm6
+        movdqu	OWORD PTR [rdx+112], xmm7
+        movdqu	OWORD PTR [rdx+128], xmm0
+        pxor	xmm1, xmm0
+        movdqu	xmm5, xmm3
+        movdqu	xmm7, xmm2
+        pxor	xmm5, xmm0
+        pxor	xmm7, xmm0
+        movdqu	OWORD PTR [rdx+144], xmm5
+        movdqu	OWORD PTR [rdx+160], xmm7
+        pxor	xmm7, xmm3
+        movdqu	OWORD PTR [rdx+176], xmm7
+        movdqu	OWORD PTR [rdx+192], xmm1
+        movdqu	xmm5, xmm3
+        movdqu	xmm6, xmm2
+        movdqu	xmm7, xmm4
+        pxor	xmm5, xmm1
+        pxor	xmm6, xmm1
+        pxor	xmm7, xmm1
+        movdqu	OWORD PTR [rdx+208], xmm5
+        movdqu	OWORD PTR [rdx+224], xmm6
+        movdqu	OWORD PTR [rdx+240], xmm7
+        movdqu	xmm6, OWORD PTR [rsp]
+        movdqu	xmm7, OWORD PTR [rsp+16]
+        add	rsp, 32
+        ret
+GCM_generate_m0_aesni ENDP
+_text ENDS
+_DATA SEGMENT
+ALIGN 16
 L_aes_gcm_one QWORD 0, 1
 ptr_L_aes_gcm_one QWORD L_aes_gcm_one
 _DATA ENDS
@@ -6205,6 +6300,86 @@ _text ENDS
 IFDEF HAVE_INTEL_AVX1
 _DATA SEGMENT
 ALIGN 16
+L_GCM_generate_m0_avx1_rev8 QWORD 579005069656919567, 283686952306183
+ptr_L_GCM_generate_m0_avx1_rev8 QWORD L_GCM_generate_m0_avx1_rev8
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_avx1_mod2_128 QWORD 0, 16212958658533785600
+ptr_L_GCM_generate_m0_avx1_mod2_128 QWORD L_GCM_generate_m0_avx1_mod2_128
+_DATA ENDS
+_text SEGMENT READONLY PARA
+GCM_generate_m0_avx1 PROC
+        sub	rsp, 32
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vpxor	xmm4, xmm4, xmm4
+        vmovdqu	xmm0, OWORD PTR [rcx]
+        vmovdqu	OWORD PTR [rdx], xmm4
+        vmovdqu	xmm4, xmm0
+        vpshufb	xmm0, xmm0, OWORD PTR L_GCM_generate_m0_avx1_rev8
+        vpsllq	xmm6, xmm0, 63
+        vpsrlq	xmm5, xmm0, 1
+        vpsrldq	xmm6, xmm6, 8
+        vpor	xmm5, xmm5, xmm6
+        vpshufd	xmm1, xmm0, 255
+        vpsrad	xmm1, xmm1, 31
+        vpand	xmm1, xmm1, OWORD PTR L_GCM_generate_m0_avx1_mod2_128
+        vpxor	xmm1, xmm1, xmm5
+        vpsllq	xmm6, xmm1, 63
+        vpsrlq	xmm5, xmm1, 1
+        vpsrldq	xmm6, xmm6, 8
+        vpor	xmm5, xmm5, xmm6
+        vpshufd	xmm2, xmm1, 255
+        vpsrad	xmm2, xmm2, 31
+        vpand	xmm2, xmm2, OWORD PTR L_GCM_generate_m0_avx1_mod2_128
+        vpxor	xmm2, xmm2, xmm5
+        vpsllq	xmm6, xmm2, 63
+        vpsrlq	xmm5, xmm2, 1
+        vpsrldq	xmm6, xmm6, 8
+        vpor	xmm5, xmm5, xmm6
+        vpshufd	xmm3, xmm2, 255
+        vpsrad	xmm3, xmm3, 31
+        vpand	xmm3, xmm3, OWORD PTR L_GCM_generate_m0_avx1_mod2_128
+        vpxor	xmm3, xmm3, xmm5
+        vpshufb	xmm3, xmm3, OWORD PTR L_GCM_generate_m0_avx1_rev8
+        vpshufb	xmm2, xmm2, OWORD PTR L_GCM_generate_m0_avx1_rev8
+        vpshufb	xmm1, xmm1, OWORD PTR L_GCM_generate_m0_avx1_rev8
+        vpshufb	xmm0, xmm0, OWORD PTR L_GCM_generate_m0_avx1_rev8
+        vpxor	xmm4, xmm3, xmm2
+        vmovdqu	OWORD PTR [rdx+16], xmm3
+        vmovdqu	OWORD PTR [rdx+32], xmm2
+        vmovdqu	OWORD PTR [rdx+48], xmm4
+        vmovdqu	OWORD PTR [rdx+64], xmm1
+        vpxor	xmm5, xmm3, xmm1
+        vpxor	xmm6, xmm2, xmm1
+        vpxor	xmm7, xmm4, xmm1
+        vmovdqu	OWORD PTR [rdx+80], xmm5
+        vmovdqu	OWORD PTR [rdx+96], xmm6
+        vmovdqu	OWORD PTR [rdx+112], xmm7
+        vmovdqu	OWORD PTR [rdx+128], xmm0
+        vpxor	xmm1, xmm1, xmm0
+        vpxor	xmm5, xmm3, xmm0
+        vpxor	xmm7, xmm2, xmm0
+        vmovdqu	OWORD PTR [rdx+144], xmm5
+        vmovdqu	OWORD PTR [rdx+160], xmm7
+        vpxor	xmm7, xmm3, xmm7
+        vmovdqu	OWORD PTR [rdx+176], xmm7
+        vmovdqu	OWORD PTR [rdx+192], xmm1
+        vpxor	xmm5, xmm3, xmm1
+        vpxor	xmm6, xmm2, xmm1
+        vpxor	xmm7, xmm4, xmm1
+        vmovdqu	OWORD PTR [rdx+208], xmm5
+        vmovdqu	OWORD PTR [rdx+224], xmm6
+        vmovdqu	OWORD PTR [rdx+240], xmm7
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        add	rsp, 32
+        ret
+GCM_generate_m0_avx1 ENDP
+_text ENDS
+_DATA SEGMENT
+ALIGN 16
 L_avx1_aes_gcm_one QWORD 0, 1
 ptr_L_avx1_aes_gcm_one QWORD L_avx1_aes_gcm_one
 _DATA ENDS
@@ -11434,6 +11609,86 @@ AES_GCM_decrypt_final_avx1 ENDP
 _text ENDS
 ENDIF
 IFDEF HAVE_INTEL_AVX2
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_avx2_rev8 QWORD 579005069656919567, 283686952306183
+ptr_L_GCM_generate_m0_avx2_rev8 QWORD L_GCM_generate_m0_avx2_rev8
+_DATA ENDS
+_DATA SEGMENT
+ALIGN 16
+L_GCM_generate_m0_avx2_mod2_128 QWORD 0, 16212958658533785600
+ptr_L_GCM_generate_m0_avx2_mod2_128 QWORD L_GCM_generate_m0_avx2_mod2_128
+_DATA ENDS
+_text SEGMENT READONLY PARA
+GCM_generate_m0_avx2 PROC
+        sub	rsp, 32
+        vmovdqu	OWORD PTR [rsp], xmm6
+        vmovdqu	OWORD PTR [rsp+16], xmm7
+        vpxor	xmm4, xmm4, xmm4
+        vmovdqu	xmm0, OWORD PTR [rcx]
+        vmovdqu	OWORD PTR [rdx], xmm4
+        vmovdqu	xmm4, xmm0
+        vpshufb	xmm0, xmm0, OWORD PTR L_GCM_generate_m0_avx2_rev8
+        vpsllq	xmm6, xmm0, 63
+        vpsrlq	xmm5, xmm0, 1
+        vpsrldq	xmm6, xmm6, 8
+        vpor	xmm5, xmm5, xmm6
+        vpshufd	xmm1, xmm0, 255
+        vpsrad	xmm1, xmm1, 31
+        vpand	xmm1, xmm1, OWORD PTR L_GCM_generate_m0_avx2_mod2_128
+        vpxor	xmm1, xmm1, xmm5
+        vpsllq	xmm6, xmm1, 63
+        vpsrlq	xmm5, xmm1, 1
+        vpsrldq	xmm6, xmm6, 8
+        vpor	xmm5, xmm5, xmm6
+        vpshufd	xmm2, xmm1, 255
+        vpsrad	xmm2, xmm2, 31
+        vpand	xmm2, xmm2, OWORD PTR L_GCM_generate_m0_avx2_mod2_128
+        vpxor	xmm2, xmm2, xmm5
+        vpsllq	xmm6, xmm2, 63
+        vpsrlq	xmm5, xmm2, 1
+        vpsrldq	xmm6, xmm6, 8
+        vpor	xmm5, xmm5, xmm6
+        vpshufd	xmm3, xmm2, 255
+        vpsrad	xmm3, xmm3, 31
+        vpand	xmm3, xmm3, OWORD PTR L_GCM_generate_m0_avx2_mod2_128
+        vpxor	xmm3, xmm3, xmm5
+        vpshufb	xmm3, xmm3, OWORD PTR L_GCM_generate_m0_avx2_rev8
+        vpshufb	xmm2, xmm2, OWORD PTR L_GCM_generate_m0_avx2_rev8
+        vpshufb	xmm1, xmm1, OWORD PTR L_GCM_generate_m0_avx2_rev8
+        vpshufb	xmm0, xmm0, OWORD PTR L_GCM_generate_m0_avx2_rev8
+        vpxor	xmm4, xmm3, xmm2
+        vmovdqu	OWORD PTR [rdx+16], xmm3
+        vmovdqu	OWORD PTR [rdx+32], xmm2
+        vmovdqu	OWORD PTR [rdx+48], xmm4
+        vmovdqu	OWORD PTR [rdx+64], xmm1
+        vpxor	xmm5, xmm3, xmm1
+        vpxor	xmm6, xmm2, xmm1
+        vpxor	xmm7, xmm4, xmm1
+        vmovdqu	OWORD PTR [rdx+80], xmm5
+        vmovdqu	OWORD PTR [rdx+96], xmm6
+        vmovdqu	OWORD PTR [rdx+112], xmm7
+        vmovdqu	OWORD PTR [rdx+128], xmm0
+        vpxor	xmm1, xmm1, xmm0
+        vpxor	xmm5, xmm3, xmm0
+        vpxor	xmm7, xmm2, xmm0
+        vmovdqu	OWORD PTR [rdx+144], xmm5
+        vmovdqu	OWORD PTR [rdx+160], xmm7
+        vpxor	xmm7, xmm3, xmm7
+        vmovdqu	OWORD PTR [rdx+176], xmm7
+        vmovdqu	OWORD PTR [rdx+192], xmm1
+        vpxor	xmm5, xmm3, xmm1
+        vpxor	xmm6, xmm2, xmm1
+        vpxor	xmm7, xmm4, xmm1
+        vmovdqu	OWORD PTR [rdx+208], xmm5
+        vmovdqu	OWORD PTR [rdx+224], xmm6
+        vmovdqu	OWORD PTR [rdx+240], xmm7
+        vmovdqu	xmm6, OWORD PTR [rsp]
+        vmovdqu	xmm7, OWORD PTR [rsp+16]
+        add	rsp, 32
+        ret
+GCM_generate_m0_avx2 ENDP
+_text ENDS
 _DATA SEGMENT
 ALIGN 16
 L_avx2_aes_gcm_one QWORD 0, 1
