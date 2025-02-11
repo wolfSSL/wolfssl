@@ -1780,13 +1780,14 @@ typedef struct w64wrapper {
     #elif !defined(wc_static_assert)
         #if (defined(__cplusplus) && (__cplusplus >= 201703L)) || \
                (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 202311L)) || \
-               (defined(_MSVC_LANG) && (_MSVC_LANG >= 201103L))
+               (defined(_MSVC_LANG) && (__cpp_static_assert >= 201411L))
             /* native variadic static_assert() */
             #define wc_static_assert static_assert
             #ifndef wc_static_assert2
                 #define wc_static_assert2 static_assert
             #endif
-        #elif defined(_MSC_VER) && (__STDC_VERSION__ >= 201112L)
+        #elif (defined(_MSC_VER) && (__STDC_VERSION__ >= 201112L)) || \
+              (defined(_MSVC_LANG) && (__cpp_static_assert >= 200410L))
             /* native 2-argument static_assert() */
             #define wc_static_assert(expr) static_assert(expr, #expr)
             #ifndef wc_static_assert2
