@@ -54,7 +54,7 @@
     #define SE050_ECC_DER_MAX 256
     #endif
 #endif
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA)
     #include <wolfssl/wolfcrypt/rsa.h>
     struct RsaKey;
 #endif
@@ -659,7 +659,7 @@ int wc_se050_get_binary_object(word32 keyId, byte* out, word32* outSz)
     return ret;
 }
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && !defined(WOLFSSL_SE050_NO_RSA)
 
 /**
  * Use specified SE050 key ID with this RsaKey struct.
