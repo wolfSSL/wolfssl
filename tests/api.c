@@ -57706,7 +57706,7 @@ static int test_wolfSSL_BIO(void)
         ExpectIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
         ExpectIntEQ((int)BIO_set_mem_eof_return(NULL, -1),   0);
 
-        ExpectTrue((f1 = XFOPEN(svrCertFile, "rwb")) != XBADFILE);
+        ExpectTrue((f1 = XFOPEN(svrCertFile, "rb+")) != XBADFILE);
         ExpectIntEQ((int)BIO_set_fp(f_bio1, f1, BIO_CLOSE), WOLFSSL_SUCCESS);
         ExpectIntEQ(BIO_write_filename(f_bio2, testFile),
                 WOLFSSL_SUCCESS);
@@ -57730,7 +57730,7 @@ static int test_wolfSSL_BIO(void)
         BIO_free(f_bio2);
         f_bio2 = NULL;
 
-        ExpectNotNull(f_bio1 = BIO_new_file(svrCertFile, "rwb"));
+        ExpectNotNull(f_bio1 = BIO_new_file(svrCertFile, "rb+"));
         ExpectIntEQ((int)BIO_set_mem_eof_return(f_bio1, -1), 0);
         ExpectIntEQ(BIO_read(f_bio1, cert, sizeof(cert)), sizeof(cert));
         BIO_free(f_bio1);
@@ -60382,7 +60382,7 @@ static int test_wc_ERR_print_errors_fp(void)
     XFILE fp = XBADFILE;
 
     WOLFSSL_ERROR(WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectTrue((fp = XFOPEN("./tests/test-log-dump-to-file.txt", "ar")) !=
+    ExpectTrue((fp = XFOPEN("./tests/test-log-dump-to-file.txt", "a+")) !=
         XBADFILE);
     wc_ERR_print_errors_fp(fp);
 #if defined(DEBUG_WOLFSSL)
