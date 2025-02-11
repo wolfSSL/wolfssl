@@ -3795,17 +3795,10 @@ int wolfSSL_EVP_PKEY_cmp(const WOLFSSL_EVP_PKEY *a, const WOLFSSL_EVP_PKEY *b)
 static int DH_param_check(WOLFSSL_DH* dh_key)
 {
     int ret = WOLFSSL_SUCCESS;
-    WOLFSSL_BN_CTX* ctx = NULL;
     WOLFSSL_BIGNUM *num1 = NULL;
     WOLFSSL_BIGNUM *num2 = NULL;
 
     WOLFSSL_ENTER("DH_param_check");
-
-    ctx = wolfSSL_BN_CTX_new();
-    if (ctx == NULL) {
-        WOLFSSL_MSG("failed to allocate memory");
-        return WOLFSSL_FAILURE;
-    }
 
     num1 = wolfSSL_BN_new();
     num2 = wolfSSL_BN_new();
@@ -3840,7 +3833,7 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
         dh_key->q != NULL)
     {
         if (ret == WOLFSSL_SUCCESS &&
-            wolfSSL_BN_mod_exp(num1, dh_key->g, dh_key->q, dh_key->p, ctx)
+            wolfSSL_BN_mod_exp(num1, dh_key->g, dh_key->q, dh_key->p, NULL)
                == WC_NO_ERR_TRACE(WOLFSSL_FAILURE))
         {
             WOLFSSL_MSG("BN_mod_exp failed");
@@ -3855,7 +3848,7 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
         /* test if the number q is prime. */
         if (ret == WOLFSSL_SUCCESS &&
-            (wolfSSL_BN_is_prime_ex(dh_key->q, 64, ctx, NULL) <= 0)) {
+            (wolfSSL_BN_is_prime_ex(dh_key->q, 64, NULL, NULL) <= 0)) {
             WOLFSSL_MSG("dh_key->q is not prime or error during check.");
             ret = WOLFSSL_FAILURE;
         } /* else TODO check q div q - 1. need BN_div */
@@ -3863,7 +3856,6 @@ static int DH_param_check(WOLFSSL_DH* dh_key)
     }
 
     /* clean up */
-    wolfSSL_BN_CTX_free(ctx);
     wolfSSL_BN_free(num1);
     wolfSSL_BN_free(num2);
 

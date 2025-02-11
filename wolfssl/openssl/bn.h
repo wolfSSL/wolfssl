@@ -77,12 +77,17 @@ typedef struct WOLFSSL_BIGNUM {
 
 #define WOLFSSL_BN_MAX_VAL          ((BN_ULONG)-1)
 
-typedef struct WOLFSSL_BN_CTX      WOLFSSL_BN_CTX;
+struct WOLFSSL_BN_CTX_LIST {
+    WOLFSSL_BIGNUM* bn;
+    struct WOLFSSL_BN_CTX_LIST* next;
+};
+typedef struct WOLFSSL_BN_CTX {
+    struct WOLFSSL_BN_CTX_LIST* list;
+} WOLFSSL_BN_CTX;
 typedef struct WOLFSSL_BN_MONT_CTX WOLFSSL_BN_MONT_CTX;
 typedef struct WOLFSSL_BN_GENCB    WOLFSSL_BN_GENCB;
 
 WOLFSSL_API WOLFSSL_BN_CTX* wolfSSL_BN_CTX_new(void);
-WOLFSSL_API void           wolfSSL_BN_CTX_init(WOLFSSL_BN_CTX* ctx);
 WOLFSSL_API void           wolfSSL_BN_CTX_free(WOLFSSL_BN_CTX* ctx);
 
 WOLFSSL_API WOLFSSL_BIGNUM* wolfSSL_BN_new(void);
@@ -208,9 +213,13 @@ typedef WOLFSSL_BN_CTX      BN_CTX;
 typedef WOLFSSL_BN_MONT_CTX BN_MONT_CTX;
 typedef WOLFSSL_BN_GENCB    BN_GENCB;
 
+#ifndef NO_WOLFSSL_BN_CTX
 #define BN_CTX_new        wolfSSL_BN_CTX_new
-#define BN_CTX_init       wolfSSL_BN_CTX_init
 #define BN_CTX_free       wolfSSL_BN_CTX_free
+#else
+#define BN_CTX_new()      ((BN_CTX*)-1)
+#define BN_CTX_free(x)    ((void)(x))
+#endif
 
 #define BN_new        wolfSSL_BN_new
 #if !defined(USE_INTEGER_HEAP_MATH) && !defined(HAVE_WOLF_BIGINT)
