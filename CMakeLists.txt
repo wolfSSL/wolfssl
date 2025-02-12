@@ -2517,6 +2517,8 @@ if(WOLFSSL_EXAMPLES)
         tests/w64wrapper.c
         tests/unit.c
         tests/quic.c
+        tests/utils.c
+        testsuite/utils.c
         examples/server/server.c
         examples/client/client.c)
     target_include_directories(unit_test PRIVATE
