@@ -6633,25 +6633,6 @@ void GenerateM0(Gcm* gcm)
 
 #endif /* GCM_TABLE */
 
-#if defined(WOLFSSL_AESNI) && defined(USE_INTEL_SPEEDUP)
-    #define HAVE_INTEL_AVX1
-    #define HAVE_INTEL_AVX2
-#endif
-
-#if defined(WOLFSSL_AESNI) && defined(GCM_TABLE_4BIT) && \
-    defined(WC_C_DYNAMIC_FALLBACK)
-void GCM_generate_m0_aesni(const unsigned char *h, unsigned char *m)
-                           XASM_LINK("GCM_generate_m0_aesni");
-#ifdef HAVE_INTEL_AVX1
-void GCM_generate_m0_avx1(const unsigned char *h, unsigned char *m)
-                          XASM_LINK("GCM_generate_m0_avx1");
-#endif
-#ifdef HAVE_INTEL_AVX2
-void GCM_generate_m0_avx2(const unsigned char *h, unsigned char *m)
-                          XASM_LINK("GCM_generate_m0_avx2");
-#endif
-#endif /* WOLFSSL_AESNI && GCM_TABLE_4BIT && WC_C_DYNAMIC_FALLBACK */
-
 /* Software AES - GCM SetKey */
 int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 {
@@ -6721,33 +6702,9 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         VECTOR_REGISTERS_POP;
     }
     if (ret == 0) {
-#if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
-#if defined(WOLFSSL_AESNI) && defined(GCM_TABLE_4BIT)
-        if (aes->use_aesni) {
-    #if defined(WC_C_DYNAMIC_FALLBACK)
-        #ifdef HAVE_INTEL_AVX2
-            if (IS_INTEL_AVX2(intel_flags)) {
-                GCM_generate_m0_avx2(aes->gcm.H, (byte*)aes->gcm.M0);
-            }
-            else
-        #endif
-        #if defined(HAVE_INTEL_AVX1)
-            if (IS_INTEL_AVX1(intel_flags)) {
-                GCM_generate_m0_avx1(aes->gcm.H, (byte*)aes->gcm.M0);
-            }
-            else
-        #endif
-            {
-                GCM_generate_m0_aesni(aes->gcm.H, (byte*)aes->gcm.M0);
-            }
-    #endif
-        }
-        else
-#endif
-        {
-            GenerateM0(&aes->gcm);
-        }
-#endif /* GCM_TABLE || GCM_TABLE_4BIT */
+    #if defined(GCM_TABLE) || defined(GCM_TABLE_4BIT)
+        GenerateM0(&aes->gcm);
+    #endif /* GCM_TABLE */
     }
 #endif /* FREESCALE_LTC_AES_GCM */
 
@@ -6769,6 +6726,11 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 
 #ifdef WOLFSSL_AESNI
+
+#if defined(USE_INTEL_SPEEDUP)
+    #define HAVE_INTEL_AVX1
+    #define HAVE_INTEL_AVX2
+#endif /* USE_INTEL_SPEEDUP */
 
 void AES_GCM_encrypt_aesni(const unsigned char *in, unsigned char *out,
                      const unsigned char* addt, const unsigned char* ivec,
