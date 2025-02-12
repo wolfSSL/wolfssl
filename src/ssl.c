@@ -2178,13 +2178,13 @@ int wolfSSL_CTX_set_tlsext_use_srtp(WOLFSSL_CTX* ctx, const char* profile_str)
 }
 
 /**
- *  @brief Set the SRTP protection profiles for DTLS.  
+ * @brief Set the SRTP protection profiles for DTLS.
  *
- *  @param ssl Pointer to the WOLFSSL structure representing the SSL/TLS
- *             session.
- *  @param profile_str A colon-separated string of SRTP profile names.
- *  @return 0 on success to match OpenSSL
- *  @return 1 on error to match OpenSSL
+ * @param ssl Pointer to the WOLFSSL structure representing the SSL/TLS
+ *            session.
+ * @param profile_str A colon-separated string of SRTP profile names.
+ * @return 0 on success to match OpenSSL
+ * @return 1 on error to match OpenSSL
  */
 int wolfSSL_set_tlsext_use_srtp(WOLFSSL* ssl, const char* profile_str)
 {
