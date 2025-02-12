@@ -639,6 +639,9 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
     }
 
 #ifdef WOLFSSL_SE050
+#ifdef WOLFSSL_SE050_AUTO_ERASE
+    wc_se050_erase_object(key->keyId);
+#endif
     /* release NXP resources if set */
     se050_curve25519_free_key(key);
 #endif

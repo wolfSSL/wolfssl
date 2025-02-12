@@ -205,6 +205,10 @@ value based on an incrementing counter past the value defined by this define.
 
 If not defined, this value will default to **100**.
 
+**`WOLFSSL_SE050_AUTO_ERASE`**
+
+Automatically erases the key from the SE050 when `wc_*_free()` is called.
+
 **`WOLFSSL_SE050_FACTORY_RESET`**
 
 When defined, calls to `wolfSSL_Init()` or `wolfCrypt_Init()` will factory
@@ -236,6 +240,11 @@ default, this can be defined. This might be used for example when working on
 a Raspberry Pi with SE05x EdgeLock dev kit. If `WOLFSSL_SE050_NO_TRNG` is
 defined, wolfCrypt will instead fall back to using `/dev/random` and
 `/dev/urandom` on the Raspberry Pi.
+
+**`WOLFSSL_SE050_NO_RSA`**
+
+Disables using the SE050 for RSA, useful for the SE050E which does not have
+RSA support.
 
 ## wolfSSL HostCrypto Support
 

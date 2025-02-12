@@ -1104,6 +1104,9 @@ void wc_ed25519_free(ed25519_key* key)
 #endif
 
 #ifdef WOLFSSL_SE050
+#ifdef WOLFSSL_SE050_AUTO_ERASE
+    wc_se050_erase_object(key->keyId);
+#endif
     se050_ed25519_free_key(key);
 #endif
 

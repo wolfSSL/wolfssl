@@ -53,7 +53,7 @@ RSA keys can be used to encrypt, decrypt, sign and verify data.
 #if defined(WOLFSSL_XILINX_CRYPT_VERSAL)
 #include <xsecure_rsaclient.h>
 #endif
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
 #include <wolfssl/wolfcrypt/port/nxp/se050_port.h>
 #endif
 #ifdef WOLFSSL_HAVE_SP_RSA
@@ -298,7 +298,7 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
                      int devId)
 {
     int ret = 0;
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
     /* SE050 TLS users store a word32 at id, need to cast back */
     word32* keyPtr = NULL;
 #endif
@@ -312,7 +312,7 @@ int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
     if (ret == 0 && id != NULL && len != 0) {
         XMEMCPY(key->id, id, (size_t)len);
         key->idLen = len;
-    #ifdef WOLFSSL_SE050
+    #if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         /* Set SE050 ID from word32, populate RsaKey with public from SE050 */
         if (len == (int)sizeof(word32)) {
             keyPtr = (word32*)key->id;
@@ -521,7 +521,7 @@ static int cc310_RSA_GenerateKeyPair(RsaKey* key, int size, long e)
 }
 #endif /* WOLFSSL_CRYPTOCELL */
 
-#ifdef WOLFSSL_SE050
+#if defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
 /* Use specified hardware key ID with RsaKey operations. Unlike devId,
  * keyId is a word32 so can handle key IDs larger than an int.
  *
@@ -3368,7 +3368,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             return cc310_RsaSSL_Sign(in, inLen, out, outLen, key,
                                   cc310_hashModeRSA(hash, 0));
         }
-    #elif defined(WOLFSSL_SE050)
+    #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         if (rsa_type == RSA_PUBLIC_ENCRYPT && pad_value == RSA_BLOCK_TYPE_2) {
             return se050_rsa_public_encrypt(in, inLen, out, outLen, key,
                                             rsa_type, pad_value, pad_type, hash,
@@ -3530,7 +3530,7 @@ static int RsaPrivateDecryptEx(const byte* in, word32 inLen, byte* out,
             return cc310_RsaSSL_Verify(in, inLen, out, key,
                                        cc310_hashModeRSA(hash, 0));
         }
-    #elif defined(WOLFSSL_SE050)
+    #elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
         if (rsa_type == RSA_PRIVATE_DECRYPT && pad_value == RSA_BLOCK_TYPE_2) {
             ret = se050_rsa_private_decrypt(in, inLen, out, outLen, key,
                                             rsa_type, pad_value, pad_type, hash,
@@ -4783,7 +4783,8 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
 int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
 #ifndef WC_NO_RNG
-#if !defined(WOLFSSL_CRYPTOCELL) && !defined(WOLFSSL_SE050)
+#if !defined(WOLFSSL_CRYPTOCELL) && \
+    (!defined(WOLFSSL_SE050) || defined(WOLFSSL_SE050_NO_RSA))
 #ifdef WOLFSSL_SMALL_STACK
     mp_int *p = NULL;
     mp_int *q = NULL;
@@ -4826,7 +4827,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 #if defined(WOLFSSL_CRYPTOCELL)
     err = cc310_RSA_GenerateKeyPair(key, size, e);
     goto out;
-#elif defined(WOLFSSL_SE050)
+#elif defined(WOLFSSL_SE050) && !defined(WOLFSSL_SE050_NO_RSA)
     err = se050_rsa_create_key(key, size, e);
     goto out;
 #else
