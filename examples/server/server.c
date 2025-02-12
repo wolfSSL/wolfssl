@@ -2680,7 +2680,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_SRTP
     if (dtlsSrtpProfiles != NULL) {
         if (wolfSSL_CTX_set_tlsext_use_srtp(ctx, dtlsSrtpProfiles)
-                                                           != WOLFSSL_SUCCESS) {
+                                                           != 0) {
             err_sys_ex(catastrophic, "unable to set DTLS SRTP profile");
         }
     }
