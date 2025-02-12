@@ -1837,7 +1837,8 @@ enum Misc {
     SM2_SA_MAJOR        = 7,   /* Most significant byte for SM2 with SM3 */
     SM2_SA_MINOR        = 8,   /* Least significant byte for SM2 with SM3 */
 
-    PQC_SA_MAJOR        = 0xFE,/* Most significant byte used with PQC sig algs */
+    FALCON_SA_MAJOR     = 0xFE,/* Most significant byte used with falcon sig algs */
+    DILITHIUM_SA_MAJOR  = 0x09,/* Most significant byte used with dilithium sig algs */
 
     /* These values for falcon match what OQS has defined. */
     FALCON_LEVEL1_SA_MAJOR = 0xFE,
