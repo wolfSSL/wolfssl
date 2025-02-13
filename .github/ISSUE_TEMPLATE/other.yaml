@@ -6,7 +6,9 @@ body:
     attributes:
       value: >
         Thanks for reporting an issue. If you would prefer a private method,
-        please email support@wolfssl.com
+        or if this is a vulnerability report please email support@wolfssl.com
+        instead. This is publicly viewable and not appropriate for vulnerability
+        reports.
   - type: input
     id: version
     attributes:
