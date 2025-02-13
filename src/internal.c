@@ -6052,8 +6052,14 @@ static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
     else
 #endif
     {
-        ret = wc_curve25519_shared_secret_ex(priv_key, pub_key, out, outlen,
-                                             EC25519_LITTLE_ENDIAN);
+    #ifdef WOLFSSL_CURVE25519_BLINDING
+        ret = wc_curve25519_set_rng(priv_key, ssl->rng);
+        if (ret == 0)
+    #endif
+        {
+            ret = wc_curve25519_shared_secret_ex(priv_key, pub_key, out, outlen,
+                                                 EC25519_LITTLE_ENDIAN);
+        }
     }
 
     /* Handle async pending response */

@@ -91,6 +91,9 @@ struct curve25519_key {
     int devId;
 #endif
     void *heap;
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    WC_RNG* rng;
+#endif
 #ifdef WOLFSSL_SE050
     word32 keyId;
     byte   keyIdSet;
@@ -109,11 +112,23 @@ enum {
 WOLFSSL_API
 int wc_curve25519_make_pub(int public_size, byte* pub, int private_size,
                            const byte* priv);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+WOLFSSL_API
+int wc_curve25519_make_pub_blind(int public_size, byte* pub, int private_size,
+                                 const byte* priv, WC_RNG* rng);
+#endif
 
 WOLFSSL_API
 int wc_curve25519_generic(int public_size, byte* pub,
                           int private_size, const byte* priv,
                           int basepoint_size, const byte* basepoint);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+WOLFSSL_API
+int wc_curve25519_generic_blind(int public_size, byte* pub,
+                                int private_size, const byte* priv,
+                                int basepoint_size, const byte* basepoint,
+                                WC_RNG* rng);
+#endif
 
 WOLFSSL_API
 int wc_curve25519_make_priv(WC_RNG* rng, int keysize, byte* priv);
@@ -138,6 +153,11 @@ int wc_curve25519_init_ex(curve25519_key* key, void* heap, int devId);
 
 WOLFSSL_API
 void wc_curve25519_free(curve25519_key* key);
+
+#ifdef WOLFSSL_CURVE25519_BLINDING
+WOLFSSL_API
+int wc_curve25519_set_rng(curve25519_key* key, WC_RNG* rng);
+#endif
 
 #ifndef WC_NO_CONSTRUCTORS
 WOLFSSL_API

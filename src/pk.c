@@ -14667,6 +14667,13 @@ int wolfSSL_EC25519_shared_key(unsigned char *shared, unsigned int *sharedSz,
         res = 0;
     }
     if (res) {
+    #ifdef WOLFSSL_CURVE25519_BLINDING
+        /* An RNG is needed. */
+        if (wc_curve25519_set_rng(&privkey, wolfssl_make_global_rng()) != 0) {
+            res = 0;
+        }
+        else
+    #endif
         /* Initialize public key object. */
         if (wc_curve25519_init(&pubkey) != MP_OKAY) {
             WOLFSSL_MSG("wc_curve25519_init pubkey failed");

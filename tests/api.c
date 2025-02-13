@@ -22381,6 +22381,9 @@ static int test_wc_curve25519_shared_secret_ex(void)
     int            endian = EC25519_BIG_ENDIAN;
 
     ExpectIntEQ(wc_curve25519_init(&private_key), 0);
+#ifdef WOLFSSL_CURVE25519_BLINDING
+    ExpectIntEQ(wc_curve25519_set_rng(&private_key, &rng), 0);
+#endif
     ExpectIntEQ(wc_curve25519_init(&public_key), 0);
     ExpectIntEQ(wc_InitRng(&rng), 0);
 

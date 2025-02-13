@@ -404,6 +404,7 @@ void fe_invert(fe r, const fe a)
 }
 
 #ifndef CURVE25519_SMALL
+#ifndef WOLFSSL_CURVE25519_BLINDING
 /* Scalar multiply the field element a by n using Montgomery Ladder and places
  * result in r.
  *
@@ -462,6 +463,69 @@ int curve25519(byte* r, const byte* n, const byte* a)
 
     return 0;
 }
+#else
+int curve25519_blind(byte* r, const byte* n, const byte* mask, const byte* a,
+    const byte* rz)
+{
+    fe           x1, x2, z2, x3, z3;
+    fe           t0, t1;
+    int          pos;
+    unsigned int b;
+
+    fe_frombytes(x1, a);
+    fe_1(x2);
+    fe_0(z2);
+    fe_copy(x3, x1);
+    fe_frombytes(z3, rz);
+    fe_mul(x3, x3, z3);
+
+    /* mask_bits[252] */
+    b = (unsigned int)(mask[31] >> 7);
+    b &= 1;
+    fe_cswap(x2,x3,(int)b);
+    fe_cswap(z2,z3,(int)b);
+    for (pos = 255;pos >= 1;--pos) {
+        b = (unsigned int)(n[pos / 8] >> (pos & 7));
+        b &= 1;
+        fe_cswap(x2, x3, (int)b);
+        fe_cswap(z2, z3, (int)b);
+
+        /* montgomery */
+        fe_sub(t0, x3, z3);
+        fe_sub(t1, x2, z2);
+        fe_add(x2, x2, z2);
+        fe_add(z2, x3, z3);
+        fe_mul(z3, t0, x2);
+        fe_mul(z2, z2, t1);
+        fe_sq(t0, t1);
+        fe_sq(t1, x2);
+        fe_add(x3, z3, z2);
+        fe_sub(z2, z3, z2);
+        fe_mul(x2, t1, t0);
+        fe_sub(t1, t1, t0);
+        fe_sq(z2, z2);
+        fe_mul121666(z3, t1);
+        fe_sq(x3, x3);
+        fe_add(t0, t0, z3);
+        fe_mul(z3, x1, z2);
+        fe_mul(z2, t1, t0);
+
+        b = (unsigned int)(mask[(pos - 1) / 8] >> ((pos - 1) & 7));
+        b &= 1;
+        fe_cswap(x2, x3, (int)b);
+        fe_cswap(z2, z3, (int)b);
+    }
+    b = (unsigned int)(n[0] & 1);
+    fe_cswap(x2, x3, (int)b);
+    fe_cswap(z2, z3, (int)b);
+
+    fe_invert(z2, z2);
+    fe_mul(x2, x2, z2);
+    fe_tobytes(r, x2);
+
+    return 0;
+}
+#endif /* WOLFSSL_CURVE25519_BLINDING */
 #endif /* !CURVE25519_SMALL */
 
 /* The field element value 0 as an array of bytes. */
