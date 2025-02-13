@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: >
-        Thanks for reporting an bug. If you would prefer a private method,
+        Thanks for reporting a bug. If you would prefer a private method,
         or if this is a vulnerability report please email support@wolfssl.com
         instead. This is publicly viewable and not appropriate for vulnerability
         reports.
