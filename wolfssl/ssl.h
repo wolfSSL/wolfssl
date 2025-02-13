@@ -4602,22 +4602,22 @@ enum {
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
 #ifndef WOLFSSL_KYBER_ORIGINAL
-    WOLFSSL_PQC_MIN               = 583,
-    WOLFSSL_PQC_SIMPLE_MIN        = 583,
+    WOLFSSL_PQC_MIN               = 512,
+    WOLFSSL_PQC_SIMPLE_MIN        = 512,
 #endif
-    WOLFSSL_ML_KEM_512            = 583, /* ML-KEM 512 */
-    WOLFSSL_ML_KEM_768            = 584, /* ML-KEM 768 */
-    WOLFSSL_ML_KEM_1024           = 585, /* ML-KEM 1024 */
-    WOLFSSL_PQC_SIMPLE_MAX        = 585,
+    WOLFSSL_ML_KEM_512            = 512, /* ML-KEM 512 */
+    WOLFSSL_ML_KEM_768            = 513, /* ML-KEM 768 */
+    WOLFSSL_ML_KEM_1024           = 514, /* ML-KEM 1024 */
+    WOLFSSL_PQC_SIMPLE_MAX        = 514,
 
 #ifndef WOLFSSL_KYBER_ORIGINAL
-    WOLFSSL_PQC_HYBRID_MIN        = 12103,
+    WOLFSSL_PQC_HYBRID_MIN        = 12107,
 #endif
-    WOLFSSL_P256_ML_KEM_512       = 12103,
-    WOLFSSL_P384_ML_KEM_768       = 12104,
-    WOLFSSL_P521_ML_KEM_1024      = 12105,
-    WOLFSSL_PQC_HYBRID_MAX        = 12105,
-    WOLFSSL_PQC_MAX               = 12105,
+    WOLFSSL_P256_ML_KEM_512       = 12107,
+    WOLFSSL_P384_ML_KEM_768       = 12108,
+    WOLFSSL_P521_ML_KEM_1024      = 12109,
+    WOLFSSL_PQC_HYBRID_MAX        = 12109,
+    WOLFSSL_PQC_MAX               = 12109,
 #endif /* !WOLFSSL_NO_ML_KEM */
 #endif /* HAVE_PQC */
     WOLF_ENUM_DUMMY_LAST_ELEMENT(SSL_H)

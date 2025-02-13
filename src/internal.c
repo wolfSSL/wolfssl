@@ -4582,14 +4582,11 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
             }
             break;
     #endif
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-        case PQC_SA_MAJOR:
-            /* Hash performed as part of sign/verify operation.
-             * However, if we want a dual alg signature with a
-             * classic algorithm as alternative, we need an explicit
-             * hash algo here.
-             */
+    /* Hash performed as part of sign/verify operation.
+     * However, if we want a dual alg signature with a classic algorithm as
+     * alternative, we need an explicit hash algo here. */
     #ifdef HAVE_FALCON
+        case FALCON_SA_MAJOR:
             if (input[1] == FALCON_LEVEL1_SA_MINOR) {
                 *hsType = falcon_level1_sa_algo;
                 *hashAlgo = sha256_mac;
@@ -4598,8 +4595,10 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
                 *hsType = falcon_level5_sa_algo;
                 *hashAlgo = sha512_mac;
             }
+            break;
     #endif /* HAVE_FALCON */
     #ifdef HAVE_DILITHIUM
+        case DILITHIUM_SA_MAJOR:
             if (input[1] == DILITHIUM_LEVEL2_SA_MINOR) {
                 *hsType = dilithium_level2_sa_algo;
                 *hashAlgo = sha256_mac;
@@ -4612,9 +4611,8 @@ void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
                 *hsType = dilithium_level5_sa_algo;
                 *hashAlgo = sha512_mac;
             }
-    #endif /* HAVE_DILITHIUM */
             break;
-#endif
+    #endif /* HAVE_DILITHIUM */
         default:
             *hashAlgo = input[0];
             *hsType   = input[1];

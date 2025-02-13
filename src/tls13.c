@@ -8015,9 +8015,8 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
             else
                 ret = INVALID_PARAMETER;
             break;
-#if defined(HAVE_FALCON) || defined(HAVE_DILITHIUM)
-        case PQC_SA_MAJOR:
 #if defined(HAVE_FALCON)
+        case FALCON_SA_MAJOR:
             if (input[1] == FALCON_LEVEL1_SA_MINOR) {
                 *hsType = falcon_level1_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
@@ -8028,8 +8027,11 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
                 *hashAlgo = sha512_mac;
             }
             else
+                ret = INVALID_PARAMETER;
+            break;
 #endif /* HAVE_FALCON */
 #if defined(HAVE_DILITHIUM)
+        case DILITHIUM_SA_MAJOR:
             if (input[1] == DILITHIUM_LEVEL2_SA_MINOR) {
                 *hsType = dilithium_level2_sa_algo;
                 /* Hash performed as part of sign/verify operation. */
@@ -8044,12 +8046,11 @@ static WC_INLINE int DecodeTls13SigAlg(byte* input, byte* hashAlgo,
                 *hashAlgo = sha512_mac;
             }
             else
-#endif /* HAVE_DILITHIUM */
             {
                 ret = INVALID_PARAMETER;
             }
             break;
-#endif
+#endif /* HAVE_DILITHIUM */
         default:
             *hashAlgo = input[0];
             *hsType   = input[1];

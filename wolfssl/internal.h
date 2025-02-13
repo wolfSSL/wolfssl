@@ -1837,20 +1837,23 @@ enum Misc {
     SM2_SA_MAJOR        = 7,   /* Most significant byte for SM2 with SM3 */
     SM2_SA_MINOR        = 8,   /* Least significant byte for SM2 with SM3 */
 
-    PQC_SA_MAJOR        = 0xFE,/* Most significant byte used with PQC sig algs */
+    FALCON_SA_MAJOR     = 0xFE,/* Most significant byte used with falcon sig algs */
+    DILITHIUM_SA_MAJOR  = 0x09,/* Most significant byte used with dilithium sig algs */
 
-    /* These values for falcon and dilithium match what OQS has defined. */
+    /* These values for falcon match what OQS has defined. */
     FALCON_LEVEL1_SA_MAJOR = 0xFE,
     FALCON_LEVEL1_SA_MINOR = 0xAE,
     FALCON_LEVEL5_SA_MAJOR = 0xFE,
     FALCON_LEVEL5_SA_MINOR = 0xB1,
 
-    DILITHIUM_LEVEL2_SA_MAJOR = 0xFE,
-    DILITHIUM_LEVEL2_SA_MINOR = 0xD0,
-    DILITHIUM_LEVEL3_SA_MAJOR = 0xFE,
-    DILITHIUM_LEVEL3_SA_MINOR = 0xD1,
-    DILITHIUM_LEVEL5_SA_MAJOR = 0xFE,
-    DILITHIUM_LEVEL5_SA_MINOR = 0xD2,
+    /* these values for MLDSA (Dilithium) correspond to what is proposed in the
+     * IETF. */
+    DILITHIUM_LEVEL2_SA_MAJOR = 0x09,
+    DILITHIUM_LEVEL2_SA_MINOR = 0x04,
+    DILITHIUM_LEVEL3_SA_MAJOR = 0x09,
+    DILITHIUM_LEVEL3_SA_MINOR = 0x05,
+    DILITHIUM_LEVEL5_SA_MAJOR = 0x09,
+    DILITHIUM_LEVEL5_SA_MINOR = 0x06,
 
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
