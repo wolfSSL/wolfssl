@@ -1,0 +1,52 @@
+name: Dynamic C Fallback Tests
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--enable-intelasm --enable-sp-asm --enable-all --enable-testcert --enable-acert --enable-dtls13 --enable-dtls-mtu --enable-dtls-frag-ch --enable-dtlscid --enable-quic --with-sys-crypto-policy CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -DWC_AES_C_DYNAMIC_FALLBACK -DWC_C_DYNAMIC_FALLBACK -DDEBUG_VECTOR_REGISTER_ACCESS -DDEBUG_VECTOR_REGISTER_ACCESS_FUZZING -DWC_DEBUG_CIPHER_LIFECYCLE"'
+        ]
+    name: make check
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test wolfSSL with WC_C_DYNAMIC_FALLBACK and DEBUG_VECTOR_REGISTER_ACCESS_FUZZING
+        run: |
+          ./autogen.sh
+          randseed=$(head -c 4 /dev/urandom | od -t u4 --address-radix=n)
+          randseed="${randseed#"${randseed%%[![:space:]]*}"}"
+          echo "fuzzing seed=${randseed}"
+          ./configure ${{ matrix.config }} CFLAGS="-DWC_DEBUG_VECTOR_REGISTERS_FUZZING_SEED=$randseed -fsanitize=leak -g -fno-omit-frame-pointer"
+          make -j 4
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in scripts/*.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done
