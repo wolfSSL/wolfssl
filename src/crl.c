@@ -1776,6 +1776,10 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
             ret = ProcessFile(NULL, name, type, CRL_TYPE, NULL, 0, crl, VERIFY);
             if (ret != WOLFSSL_SUCCESS) {
                 WOLFSSL_MSG("CRL file load failed");
+                wc_ReadDirClose(readCtx);
+            #ifdef WOLFSSL_SMALL_STACK
+                XFREE(readCtx, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            #endif
                 return ret;
             }
         }
