@@ -1,0 +1,50 @@
+name: OPENSSL_COEXIST and TEST_OPENSSL_COEXIST
+
+# START OF COMMON SECTION
+on:
+  push:
+    branches: [ 'master', 'main', 'release/**' ]
+  pull_request:
+    branches: [ '*' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+# END OF COMMON SECTION
+
+jobs:
+  make_check:
+    strategy:
+      matrix:
+        config: [
+          # Add new configs here
+          '--verbose --enable-all --disable-all-osp --disable-opensslall --enable-opensslcoexist CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -pedantic"',
+          '--verbose --enable-all --disable-all-osp --disable-opensslall --enable-opensslcoexist CPPFLAGS="-DNO_WOLFSSL_CIPHER_SUITE_TEST -pedantic -DTEST_OPENSSL_COEXIST"'
+        ]
+    name: make check
+    if: github.repository_owner == 'wolfssl'
+    runs-on: ubuntu-22.04
+    # This should be a safe limit for the tests to run.
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        name: Checkout wolfSSL
+
+      - name: Test --enable-opensslcoexist and TEST_OPENSSL_COEXIST
+        run: |
+          ./autogen.sh || $(exit 2)
+          ./configure ${{ matrix.config }} || $(exit 3)
+          make -j 4 || $(exit 4)
+          make check
+
+      - name: Print errors
+        if: ${{ failure() }}
+        run: |
+          for file in config.log scripts/*.log
+          do
+              if [ -f "$file" ]; then
+                  echo "${file}:"
+                  cat "$file"
+                  echo "========================================================================"
+              fi
+          done
