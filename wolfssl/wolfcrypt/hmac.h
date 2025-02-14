@@ -124,6 +124,10 @@ typedef wc_Hashes wc_HmacHash;
 /* Hmac digest */
 struct Hmac {
     wc_HmacHash hash;
+#ifdef WOLFSSL_HMAC_COPY_HASH
+    wc_HmacHash i_hash;
+    wc_HmacHash o_hash;
+#endif
     word32  ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
     word32  opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
     word32  innerHash[WC_MAX_DIGEST_SIZE / sizeof(word32)];
