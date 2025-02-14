@@ -875,7 +875,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
                 if (ret != 0)
                     return ret;
             }
-#endif /* WOLFSSL_PEER_ADDRESS_CHANGES*/
+#endif /* !WOLFSSL_PEER_ADDRESS_CHANGES */
         }
 #ifndef NO_ASN_TIME
         ssl->dtls_start_timeout = 0;
@@ -1362,7 +1362,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     SOCKADDR_IN6 *sin;
 #else
     SOCKADDR_IN *sin;
-#endif /* WOLFSSL_IPV6*/
+#endif /* WOLFSSL_IPV6 */
 #endif /* HAVE_GETADDRINFO */
 
     if (sockfd == NULL || ip == NULL) {
