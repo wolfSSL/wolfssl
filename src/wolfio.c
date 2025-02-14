@@ -226,7 +226,7 @@ static int TranslateIoReturnCode(int err, SOCKET_T sd, int direction)
         else
             return WOLFSSL_CBIO_ERR_TIMEOUT;
     }
-#endif
+#endif /* SOCKET_ETIMEDOUT */
 
     else if (err == SOCKET_ECONNRESET) {
         WOLFSSL_MSG("\tConnection reset");
@@ -763,7 +763,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             else
             #endif /* WOLFSSL_DTLS13 */
                 timeout.tv_sec = dtls_timeout;
-        #endif
+        #endif /* USE_WINDOWS_API */
             if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
                     sizeof(timeout)) != 0) {
                 WOLFSSL_MSG("setsockopt rcvtimeo failed");
@@ -860,22 +860,22 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 #ifndef WOLFSSL_PEER_ADDRESS_CHANGES
             else {
                 ret = 0;
-#ifdef WOLFSSL_RW_THREADED
+    #ifdef WOLFSSL_RW_THREADED
                 if (wc_LockRwLock_Rd(&ssl->buffers.dtlsCtx.peerLock) != 0)
                     return WOLFSSL_CBIO_ERR_GENERAL;
-#endif
+    #endif /* WOLFSSL_RW_THREADED */
                 if (!sockAddrEqual(peer, peerSz, (SOCKADDR_S*)dtlsCtx->peer.sa,
                                     dtlsCtx->peer.sz)) {
                     ret = WOLFSSL_CBIO_ERR_GENERAL;
                 }
-#ifdef WOLFSSL_RW_THREADED
+    #ifdef WOLFSSL_RW_THREADED
                 if (wc_UnLockRwLock(&ssl->buffers.dtlsCtx.peerLock) != 0)
                     return WOLFSSL_CBIO_ERR_GENERAL;
-#endif
+    #endif /* WOLFSSL_RW_THREADED */
                 if (ret != 0)
                     return ret;
             }
-#endif
+#endif /* !WOLFSSL_PEER_ADDRESS_CHANGES */
         }
 #ifndef NO_ASN_TIME
         ssl->dtls_start_timeout = 0;
@@ -1092,7 +1092,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
         return WOLFSSL_SUCCESS;
     }
-#endif
+#endif /* WOLFSSL_DTLS */
 
     /* get the peer information in human readable form (ip, port, family)
      * default function assumes BSD sockets
@@ -1357,13 +1357,13 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
 #else
     HOSTENT *entry;
 #endif
-#endif
+#endif /* !WOLFSSL_USE_POPEN_HOST */
 #ifdef WOLFSSL_IPV6
     SOCKADDR_IN6 *sin;
 #else
     SOCKADDR_IN *sin;
-#endif
-#endif /* HAVE_SOCKADDR */
+#endif /* WOLFSSL_IPV6 */
+#endif /* HAVE_GETADDRINFO */
 
     if (sockfd == NULL || ip == NULL) {
         return WOLFSSL_FATAL_ERROR;
@@ -1374,8 +1374,8 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     sockaddr_len = sizeof(SOCKADDR_IN6);
 #else
     sockaddr_len = sizeof(SOCKADDR_IN);
-#endif
-#endif
+#endif /* WOLFSSL_IPV6 */
+#endif /* !HAVE_GETADDRINFO */
     XMEMSET(&addr, 0, sizeof(addr));
 
 #ifdef WOLFIO_DEBUG
@@ -1527,7 +1527,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
     }
 #else
     (void)to_sec;
-#endif
+#endif /* HAVE_IO_TIMEOUT */
 
     ret = connect(*sockfd, (SOCKADDR *)&addr, sockaddr_len);
 #ifdef HAVE_IO_TIMEOUT
@@ -1546,7 +1546,7 @@ int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip, word16 port, int to_sec)
             wolfIO_SetBlockingMode(*sockfd, 0);
         }
     }
-#endif
+#endif /* HAVE_IO_TIMEOUT */
     if (ret != 0) {
         WOLFSSL_MSG("Responder tcp connect failed");
         CloseSocket(*sockfd);
@@ -2668,7 +2668,7 @@ int MicriumReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             }
         }
     }
-    #endif
+    #endif /* WOLFSSL_DTLS */
 
     ret = NetSock_RxData(sd, buf, sz, ssl->rflags, &err);
     if (ret < 0) {
@@ -3420,7 +3420,7 @@ int wolfSSL_SetIO_LwIP(WOLFSSL* ssl, void* pcb,
 
     return ERR_OK;
 }
-#endif
+#endif /* WOLFSSL_LWIP_NATIVE */
 
 #ifdef WOLFSSL_ISOTP
 static int isotp_send_single_frame(struct isotp_wolfssl_ctx *ctx, char *buf,
@@ -3805,5 +3805,5 @@ int wolfSSL_SetIO_ISOTP(WOLFSSL *ssl, isotp_wolfssl_ctx *ctx,
     }
     return 0;
 }
-#endif
+#endif /* WOLFSSL_ISOTP */
 #endif /* WOLFCRYPT_ONLY */
