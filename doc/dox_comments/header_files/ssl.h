@@ -15251,8 +15251,8 @@ RFC 9146 and RFC 9147.
  \sa wolfSSL_dtls_cid_get_rx
  \sa wolfSSL_dtls_cid_get_tx_size
 */
-void wolfSSL_dtls_cid_parse(const unsigned char* msg, unsigned int msgSz,
-        const unsigned char** cid, unsigned int cidSz);
+const unsigned char* wolfSSL_dtls_cid_parse(const unsigned char* msg,
+        unsigned int msgSz, unsigned int cidSz);
 
 /*!
     \ingroup TLS

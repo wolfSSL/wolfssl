@@ -2500,6 +2500,7 @@ if(WOLFSSL_EXAMPLES)
     # Build unit tests
     add_executable(unit_test
         tests/api.c
+        tests/api/test_dtls.c
         tests/api/test_md5.c
         tests/api/test_sha.c
         tests/api/test_sha256.c
@@ -2516,6 +2517,8 @@ if(WOLFSSL_EXAMPLES)
         tests/w64wrapper.c
         tests/unit.c
         tests/quic.c
+        tests/utils.c
+        testsuite/utils.c
         examples/server/server.c
         examples/client/client.c)
     target_include_directories(unit_test PRIVATE

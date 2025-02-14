@@ -8,6 +8,8 @@ noinst_PROGRAMS += tests/unit.test
 tests_unit_test_SOURCES = \
                   tests/unit.c \
                   tests/api.c \
+                  tests/utils.c \
+                  testsuite/utils.c \
                   tests/suites.c \
                   tests/hash.c \
                   tests/w64wrapper.c \

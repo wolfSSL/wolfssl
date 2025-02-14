@@ -81,6 +81,7 @@ jobs:
             -DCMAKE_C_FLAGS="-DWOLFSSL_DTLS_CH_FRAG" \
             ..
         cmake --build .
+        ctest -j $(nproc)
         cmake --install .
 
         # Kyber Cmake broken

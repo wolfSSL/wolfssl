@@ -20,6 +20,7 @@ endif
 EXTRA_DIST += testsuite/testsuite.sln
 EXTRA_DIST += testsuite/testsuite.vcproj
 EXTRA_DIST += testsuite/testsuite.vcxproj
+EXTRA_DIST += testsuite/utils.h
 EXTRA_DIST += input
 EXTRA_DIST += quit
 DISTCLEANFILES+= testsuite/.libs/testsuite.test
