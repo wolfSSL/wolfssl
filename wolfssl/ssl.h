@@ -117,7 +117,6 @@
         #include <openssl/hmac.h>
         #include <openssl/bn.h>
         #include <openssl/crypto.h>
-
         #if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
             FIPS_VERSION3_GE(5,2,0))
         #include <openssl/aes.h>
@@ -125,24 +124,15 @@
         #include <openssl/camellia.h>
         #include <openssl/cast.h>
         #include <openssl/cmac.h>
-        #include <openssl/cmp.h>
         #include <openssl/cms.h>
         #include <openssl/conf_api.h>
-        #include <openssl/core_object.h>
-        #include <openssl/decoder.h>
         #include <openssl/des.h>
         #include <openssl/dh.h>
         #include <openssl/dsa.h>
         #include <openssl/ecdh.h>
         #include <openssl/ecdsa.h>
-        #include <openssl/encoder.h>
         #include <openssl/engine.h>
-        #include <openssl/ess.h>
-        #include <openssl/fipskey.h>
-        #include <openssl/fips_names.h>
         #include <openssl/hmac.h>
-        #include <openssl/hpke.h>
-        #include <openssl/http.h>
         #include <openssl/idea.h>
         #include <openssl/kdf.h>
         #include <openssl/md2.h>
@@ -152,14 +142,10 @@
         #include <openssl/modes.h>
         #include <openssl/ocsp.h>
         #include <openssl/ossl_typ.h>
-        #include <openssl/param_build.h>
-        #include <openssl/params.h>
         #include <openssl/pem2.h>
         #include <openssl/pem.h>
         #include <openssl/pkcs12.h>
         #include <openssl/pkcs7.h>
-        #include <openssl/proverr.h>
-        #include <openssl/provider.h>
         #include <openssl/rand.h>
         #include <openssl/rc2.h>
         #include <openssl/rc4.h>
@@ -171,7 +157,6 @@
             #undef RSA_PKCS1_PADDING_SIZE
         #endif
         #include <openssl/seed.h>
-        #include <openssl/self_test.h>
         #include <openssl/sha.h>
         #include <openssl/srp.h>
         #include <openssl/srtp.h>
@@ -180,6 +165,26 @@
         #include <openssl/txt_db.h>
         #include <openssl/ui.h>
         #include <openssl/whrlpool.h>
+
+        #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x30000000L
+        #include <openssl/cmp.h>
+        #include <openssl/core_object.h>
+        #include <openssl/decoder.h>
+        #include <openssl/encoder.h>
+        #include <openssl/ess.h>
+        #include <openssl/fipskey.h>
+        #include <openssl/fips_names.h>
+        #if OPENSSL_VERSION_NUMBER >= 0x30200000L
+        #include <openssl/hpke.h>
+        #endif
+        #include <openssl/http.h>
+        #include <openssl/param_build.h>
+        #include <openssl/params.h>
+        #include <openssl/proverr.h>
+        #include <openssl/provider.h>
+        #include <openssl/self_test.h>
+        #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
+
         #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS_VERSION3_GE(5,2,0)) */
 
     #endif
