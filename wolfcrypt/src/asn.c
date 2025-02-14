@@ -25782,11 +25782,93 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                          (!defined(NO_AES) && defined(HAVE_AES_CBC) && \
                           defined(HAVE_AES_DECRYPT))) && \
                         !defined(NO_WOLFSSL_SKIP_TRAILING_PAD)
-                    int     padVal = 0;
-                #endif
-
-                    ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
                     /* Extract hash type from PBES2 parameters */
+                    int hashType = WC_HASH_TYPE_NONE;
+#ifndef WOLFSSL_ASN_TEMPLATE
+                    {
+                        word32 idx = 0;
+                        word32 length;
+                        word32 oid;
+
+                        /* Get PBES2 parameters sequence */
+                        if (GetSequence(der->buffer, &idx, &length, der->length) < 0) {
+                            WOLFSSL_MSG("Failed to get PBES2 sequence");
+                            ret = ASN_PARSE_E;
+                        }
+
+                        /* Get KDF algorithm identifier */
+                        if (ret == 0 && GetAlgoId(der->buffer, &idx, &oid,
+                                oidKdfType, der->length) < 0) {
+                            WOLFSSL_MSG("Failed to get KDF algorithm");
+                            ret = ASN_PARSE_E;
+                        }
+
+                        /* Get PBKDF2 parameters sequence */
+                        if (ret == 0 && GetSequence(der->buffer, &idx, &length,
+                                der->length) < 0) {
+                            WOLFSSL_MSG("Failed to get PBKDF2 parameters");
+                            ret = ASN_PARSE_E;
+                        }
+
+                        /* Skip salt and iterations */
+                        if (ret == 0 && GetOctetString(der->buffer, &idx, &length,
+                                der->length) < 0) {
+                            WOLFSSL_MSG("Failed to get salt");
+                            ret = ASN_PARSE_E;
+                        }
+                        idx += length;
+                        if (ret == 0 && GetInteger(der->buffer, &idx, &length,
+                                der->length) < 0) {
+                            WOLFSSL_MSG("Failed to get iterations");
+                            ret = ASN_PARSE_E;
+                        }
+
+                        /* Get PRF algorithm sequence */
+                        if (ret == 0 && GetSequence(der->buffer, &idx, &length,
+                                der->length) < 0) {
+                            WOLFSSL_MSG("Failed to get PRF sequence");
+                            ret = ASN_PARSE_E;
+                        }
+
+                        /* Get PRF algorithm OID */
+                        if (ret == 0 && GetAlgoId(der->buffer, &idx, &oid,
+                                oidHmacType, der->length) < 0) {
+                            WOLFSSL_MSG("Failed to get PRF algorithm");
+                            ret = ASN_PARSE_E;
+                        }
+
+                        if (ret == 0) {
+                            hashType = wc_OidGetHash(oid);
+                            if (hashType == WC_HASH_TYPE_NONE) {
+                                WOLFSSL_MSG("Hash algorithm not supported");
+                                ret = ASN_PARSE_E;
+                            }
+                        }
+                    }
+#else
+                    {
+                        word32 idx = 0;
+                        DECL_ASNGETDATA(dataASN, pbes2ParamsASN_Length);
+                        CALLOC_ASNGETDATA(dataASN, pbes2ParamsASN_Length, ret, NULL);
+                        if (ret == 0) {
+                            GetASN_OID(&dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_OID], oidHmacType);
+                            ret = GetASN_Items(pbes2ParamsASN, dataASN, pbes2ParamsASN_Length,
+                                             0, der->buffer, &idx, der->length);
+                            if (ret == 0) {
+                                hashType = wc_OidGetHash(dataASN[PBES2PARAMSASN_IDX_PBKDF2_PARAMS_PRF_OID].data.oid.sum);
+                                if (hashType == WC_HASH_TYPE_NONE) {
+                                    WOLFSSL_MSG("Hash algorithm not supported");
+                                    ret = ASN_PARSE_E;
+                                }
+                            }
+                        }
+                        FREE_ASNGETDATA(dataASN, NULL);
+                    }
+#endif
+                    if (ret == 0) {
+                        ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
+                            (byte*)password, passwordSz, hashType);
+                    }
 #ifndef WOLFSSL_ASN_TEMPLATE
                     word32 idx = 0;
                     word32 length;
