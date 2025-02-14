@@ -1477,7 +1477,6 @@ int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
                                         byte *buf, word32 bufLen, int type)
 {
     int ret = WOLFSSL_SUCCESS;
-
     WOLFSSL_X509 *x509 = NULL;
 
     if (str == NULL || buf == NULL) {
@@ -1486,20 +1485,25 @@ int X509StoreLoadCertBuffer(WOLFSSL_X509_STORE *str,
 
     /* OpenSSL X509_STORE_load_file fails on DER file, we will as well */
     x509 = wolfSSL_X509_load_certificate_buffer(buf, bufLen, type);
-    if (str->owned != NULL) {
-        if (wolfSSL_sk_X509_push(str->owned, x509) <= 0) {
+    if (x509 != NULL) {
+        ret = wolfSSL_X509_STORE_add_cert(str, x509);
+        if (ret != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("Failed to load file");
             ret = WOLFSSL_FAILURE;
         }
-    }
-    if (ret == WOLFSSL_SUCCESS) {
-        ret = wolfSSL_X509_STORE_add_cert(str, x509);
-    }
-    if (ret != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("Failed to load file");
-        ret = WOLFSSL_FAILURE;
-    }
-    if (ret != WOLFSSL_SUCCESS || str->owned == NULL) {
+        if (ret == WOLFSSL_SUCCESS && str->owned != NULL) {
+            if (wolfSSL_sk_X509_push(str->owned, x509) <= 0) {
+                ret = WOLFSSL_FAILURE;
+            }
+            else {
+                x509 = NULL;
+            }
+        }
         wolfSSL_X509_free(x509);
+
+    }
+    else {
+        ret = WOLFSSL_FAILURE;
     }
 
     return ret;
