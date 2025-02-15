@@ -1880,6 +1880,7 @@ if test "$ENABLED_DEADBEEF" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEADBEEF_RNG"
   AC_MSG_NOTICE([Deadbeef RNG enabled])
+  AC_MSG_WARN([WARNING: Deadbeef RNG is not cryptographically secure and should only be used for testing])
 else
   AC_MSG_NOTICE([Deadbeef RNG disabled])
 fi

@@ -71,7 +71,7 @@ This library contains implementation for the random number generator.
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef WOLFSSL_DEADBEEF_RNG
-    #include "deadbeef.c"
+    #include <wolfssl/wolfcrypt/deadbeef.h>
 #endif
 
 #ifdef WOLF_CRYPTO_CB
