@@ -1870,6 +1870,17 @@ then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_MTU"
 fi
 
+# Deadbeef RNG
+AC_ARG_ENABLE([deadbeef],
+    [AS_HELP_STRING([--enable-deadbeef],[Enable deadbeef RNG - fills buffers with 0xdeadbeef pattern (default: disabled)])],
+    [ ENABLED_DEADBEEF=$enableval ],
+    [ ENABLED_DEADBEEF=no ]
+    )
+if test "$ENABLED_DEADBEEF" = "yes"
+then
+  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEADBEEF_RNG"
+fi
+
 # KeyLog file export
 AC_ARG_ENABLE([keylog-export],
               [AS_HELP_STRING([--enable-keylog-export],[Enable insecure export of TLS secrets to an NSS keylog file (default: disabled)])],
