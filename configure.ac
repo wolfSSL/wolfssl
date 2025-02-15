@@ -5396,8 +5396,7 @@ AC_ARG_ENABLE([wolfEntropy],
     )
 AC_ARG_ENABLE([entropy-memuse],
     [AS_HELP_STRING([--enable-entropy-memuse],[Enable memuse entropy support (default: disabled)])],
-    [ ENABLED_ENTROPY_MEMUSE=$enableval ],
-    [ ENABLED_ENTROPY_MEMUSE=no ]
+    [ ENABLED_ENTROPY_MEMUSE=$enableval ]
     )
 
 # AES key wrap
