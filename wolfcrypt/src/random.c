@@ -70,6 +70,10 @@ This library contains implementation for the random number generator.
 
 #include <wolfssl/wolfcrypt/sha256.h>
 
+#ifdef WOLFSSL_DEADBEEF_RNG
+    #include "deadbeef.c"
+#endif
+
 #ifdef WOLF_CRYPTO_CB
     #include <wolfssl/wolfcrypt/cryptocb.h>
 #endif
@@ -1643,6 +1647,14 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
     }
 #endif
 
+#ifdef WOLFSSL_DEADBEEF_RNG
+    /* Use deadbeef RNG directly and bypass DRBG init */
+    #ifdef HAVE_HASHDRBG
+        rng->status = DRBG_OK;
+    #endif
+    return wc_InitDeadbeefRng(rng);
+#endif
+
 #ifdef HAVE_INTEL_RDRAND
     /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
     if (IS_INTEL_RDRAND(intel_flags)) {
@@ -1883,6 +1895,10 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
             return ret;
         /* fall-through when unavailable */
     }
+#endif
+
+#ifdef WOLFSSL_DEADBEEF_RNG
+    return wc_DeadbeefRng_GenerateBlock(rng, output, sz);
 #endif
 
 #ifdef HAVE_INTEL_RDRAND

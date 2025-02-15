@@ -28,6 +28,13 @@
 #ifndef WOLF_CRYPT_RANDOM_H
 #define WOLF_CRYPT_RANDOM_H
 
+/* Deadbeef RNG - fills buffers with 0xdeadbeef pattern */
+#ifdef WOLFSSL_DEADBEEF_RNG
+    WOLFSSL_API int wc_InitDeadbeefRng(WC_RNG*);
+    WOLFSSL_API int wc_DeadbeefRng_GenerateBlock(WC_RNG*, byte*, word32);
+    WOLFSSL_API int wc_FreeDeadbeefRng(WC_RNG*);
+#endif
+
 #include <wolfssl/wolfcrypt/types.h>
 
 #if FIPS_VERSION3_GE(2,0,0)
