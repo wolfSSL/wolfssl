@@ -1879,6 +1879,9 @@ AC_ARG_ENABLE([deadbeef],
 if test "$ENABLED_DEADBEEF" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEADBEEF_RNG"
+  AC_MSG_NOTICE([Deadbeef RNG enabled])
+else
+  AC_MSG_NOTICE([Deadbeef RNG disabled])
 fi
 
 # KeyLog file export
