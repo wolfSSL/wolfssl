@@ -8689,14 +8689,14 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #endif
 #ifdef OPENSSL_EXTRA
     XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
-#ifdef HAVE_OCSP
+#endif
+#if defined(HAVE_OCSP) && defined(OPENSSL_ALL)
     if (ssl->ocspResp) {
         XFREE(ssl->ocspResp, NULL, 0);
         ssl->ocspResp = NULL;
         ssl->ocspRespSz = 0;
     }
-#endif
-#endif
+#endif /* defined(HAVE_OCSP) && defined(OPENSSL_ALL) */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     while (ssl->certReqCtx != NULL) {
         CertReqCtx* curr = ssl->certReqCtx;
@@ -9021,13 +9021,13 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         * !WOLFSSL_POST_HANDSHAKE_AUTH */
 #endif /* HAVE_TLS_EXTENSIONS && !NO_TLS */
 
-#if defined(HAVE_OCSP) && defined(OPENSSL_EXTRA)
+#if defined(HAVE_OCSP) && defined(OPENSSL_ALL)
     if (ssl->ocspResp != NULL) {
         XFREE(ssl->ocspResp, NULL, 0);
         ssl->ocspResp = NULL;
         ssl->ocspRespSz = 0;
     }
-#endif /* HAVE_OCSP && OPENSSL_EXTRA */
+#endif /* HAVE_OCSP && OPENSSL_ALL */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* when done with handshake decrement current handshake count */
@@ -24858,7 +24858,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) &&                                \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||                         \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA))
+    defined(WOLFSSL_HAPROXY))
 static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
 {
     WOLFSSL_OCSP *ocsp;
@@ -24896,9 +24896,8 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
     }
     return ret;
 }
-#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && \
-          (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-           defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)) */
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && (defined(OPENSSL_ALL) ||
+          defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
 #endif /* NO_WOLFSSL_SERVER */
 
 /* handle generation of certificate_status (22) */
@@ -24926,7 +24925,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
-     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA))
+    defined(WOLFSSL_HAPROXY))
     if (SSL_CM(ssl)->ocsp_stapling != NULL &&
             SSL_CM(ssl)->ocsp_stapling->statusCb != NULL) {
         if (ssl->status_request == WOLFSSL_CSR_OCSP)
