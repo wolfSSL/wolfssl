@@ -83,5 +83,25 @@ jobs:
         cmake --build .
         cmake --install .
 
+        # clean up
+        cd ..
+        rm -rf build
+
         # Kyber Cmake broken
         # -DWOLFSSL_KYBER:BOOL=yes
+
+# build "lean-tls" wolfssl
+    - name: Build wolfssl with lean-tls
+      working-directory: ./wolfssl
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DWOLFSSL_INSTALL=yes -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install" \
+            -DWOLFSSL_LEAN_TLS:BOOL=yes \
+            ..
+        cmake --build .
+        cmake --install .
+
+        # clean up
+        cd ..
+        rm -rf build
