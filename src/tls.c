@@ -3667,15 +3667,6 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 }
 #endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||                   \
           defined(OPENSSL_EXTRA) */
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
-            || defined(OPENSSL_EXTRA)
-            if (ssl != NULL && SSL_CM(ssl) != NULL &&
-                    SSL_CM(ssl)->ocsp_stapling != NULL &&
-                    SSL_CM(ssl)->ocsp_stapling->statusCb != NULL) {
-                return TLSX_CSR_SetResponseWithStatusCB(ssl);
-            }
-#endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
-defined(OPENSSL_EXTRA) */
             if (ssl->buffers.certificate == NULL) {
                 WOLFSSL_MSG("Certificate buffer not set!");
                 return BUFFER_ERROR;
