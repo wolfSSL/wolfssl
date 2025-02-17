@@ -818,14 +818,12 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 {
     PKA_ECDSAVerifInTypeDef pka_ecc;
     int size;
-    int szrbin;
     int status;
     uint8_t Rbin[STM32_MAX_ECC_SIZE];
     uint8_t Sbin[STM32_MAX_ECC_SIZE];
     uint8_t Qxbin[STM32_MAX_ECC_SIZE];
     uint8_t Qybin[STM32_MAX_ECC_SIZE];
     uint8_t Hashbin[STM32_MAX_ECC_SIZE];
-    uint8_t privKeybin[STM32_MAX_ECC_SIZE];
     uint8_t prime[STM32_MAX_ECC_SIZE];
     uint8_t coefA[STM32_MAX_ECC_SIZE];
     uint8_t gen_x[STM32_MAX_ECC_SIZE];
@@ -839,21 +837,17 @@ int stm32_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             key->dp == NULL) {
         return ECC_BAD_ARG_E;
     }
-    *res = 0;
+    *res = 0; /* default to failure */
+    size = wc_ecc_size(key); /* get key size in bytes */
 
-    szrbin = mp_unsigned_bin_size(r);
-    size = wc_ecc_size(key);
-
-    status = stm32_get_from_mp_int(Rbin, r, szrbin);
+    /* load R/S and public X/Y using key size */
+    status = stm32_get_from_mp_int(Rbin, r, size);
     if (status == MP_OKAY)
-        status = stm32_get_from_mp_int(Sbin, s, szrbin);
+        status = stm32_get_from_mp_int(Sbin, s, size);
     if (status == MP_OKAY)
         status = stm32_get_from_mp_int(Qxbin, key->pubkey.x, size);
     if (status == MP_OKAY)
         status = stm32_get_from_mp_int(Qybin, key->pubkey.y, size);
-    if (status == MP_OKAY)
-        status = stm32_get_from_mp_int(privKeybin, wc_ecc_key_get_priv(key),
-            size);
     if (status != MP_OKAY)
         return status;
 
