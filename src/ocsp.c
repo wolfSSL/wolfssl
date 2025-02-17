@@ -844,16 +844,18 @@ static int OcspFindSigner(WOLFSSL_OCSP_BASICRESP *resp,
     DecodedCert *certDecoded;
     int i;
 
-    certDecoded = (DecodedCert *)XMALLOC(sizeof(*certDecoded), NULL,
+    certDecoded = (DecodedCert *)XMALLOC(sizeof(*certDecoded), resp->heap,
                                             DYNAMIC_TYPE_DCERT);
     if (certDecoded == NULL)
         return MEMORY_E;
 
     for (i = 0; i < wolfSSL_sk_X509_num(certs); i++) {
         signer_x509 = wolfSSL_sk_X509_value(certs, i);
+        if (signer_x509 == NULL)
+            continue;
 
         InitDecodedCert(certDecoded, signer_x509->derCert->buffer,
-                       signer_x509->derCert->length, NULL);
+                       signer_x509->derCert->length, resp->heap);
         if (ParseCertRelative(certDecoded, CERT_TYPE, NO_VERIFY,
                 NULL, NULL) == 0) {
                 if (OcspRespIdMatches(resp, certDecoded->subjectHash,
@@ -867,12 +869,12 @@ static int OcspFindSigner(WOLFSSL_OCSP_BASICRESP *resp,
     }
 
     if (flags & WOLFSSL_OCSP_NOINTERN) {
-        XFREE(certDecoded, NULL, DYNAMIC_TYPE_DCERT);
+        XFREE(certDecoded, resp->heap, DYNAMIC_TYPE_DCERT);
         return ASN_NO_SIGNER_E;
     }
 
     /* not found in certs, search the cert embedded in the response */
-    InitDecodedCert(certDecoded, resp->cert, resp->certSz, NULL);
+    InitDecodedCert(certDecoded, resp->cert, resp->certSz, resp->heap);
     if (ParseCertRelative(certDecoded, CERT_TYPE, NO_VERIFY, NULL, NULL) == 0) {
         if (OcspRespIdMatches(resp, certDecoded->subjectHash,
                 certDecoded->subjectKeyHash)) {
@@ -883,7 +885,7 @@ static int OcspFindSigner(WOLFSSL_OCSP_BASICRESP *resp,
     }
     FreeDecodedCert(certDecoded);
 
-    XFREE(certDecoded, NULL, DYNAMIC_TYPE_DCERT);
+    XFREE(certDecoded, resp->heap, DYNAMIC_TYPE_DCERT);
     return ASN_NO_SIGNER_E;
 }
 
