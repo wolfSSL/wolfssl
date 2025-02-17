@@ -70464,12 +70464,6 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
         0x99, 0x00, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
     };
 
-    /* teset data size table */
-    int test_drive1[] = {8, 3, 5, 512, 8, 3, 8, 512, 0};
-    int test_drive2[] = {8, 3, 8, 512, 0};
-    int test_drive3[] = {512, 512, 504, 512, 512, 8, 512, 0};
-
-    int *test_drive[] = {test_drive1, test_drive2, test_drive3, NULL};
     int test_drive_len[100];
 
     int ret = 0;
@@ -70494,6 +70488,18 @@ static int test_wolfSSL_EVP_Cipher_extra(void)
     byte outb[BUFFSZ+16];
     int outl = 0;
     int inl;
+
+    /* teset data size table */
+    int test_drive1[] = {8, 3, 5, 512, 8, 3, 8, 512, 0};
+    int test_drive2[] = {8, 3, 8, 512, 0};
+    int test_drive3[] = {512, 512, 504, 512, 512, 8, 512, 0};
+
+    int *test_drive[4];
+
+    test_drive[0] = test_drive1;
+    test_drive[1] = test_drive2;
+    test_drive[2] = test_drive3;
+    test_drive[3] = NULL;
 
     iv = aes128_cbc_iv;
     ivlen = sizeof(aes128_cbc_iv);
@@ -73103,11 +73109,7 @@ static int test_evp_cipher_aes_gcm(void)
         0x36, 0x0d, 0x2b, 0x09, 0x4a, 0x56, 0x3b, 0x4c, 0x21, 0x22, 0x58, 0x0e,
         0x5b, 0x57, 0x10
     };
-    byte* plainTexts[NUM_ENCRYPTIONS] = {
-        plainText1,
-        plainText2,
-        plainText3
-    };
+    byte* plainTexts[NUM_ENCRYPTIONS];
     const int plainTextSzs[NUM_ENCRYPTIONS] = {
         sizeof(plainText1),
         sizeof(plainText2),
@@ -73122,11 +73124,7 @@ static int test_evp_cipher_aes_gcm(void)
     byte aad3[AAD_SIZE] = {
         0x00, 0x00, 0x01, 0x00
     };
-    byte* aads[NUM_ENCRYPTIONS] = {
-        aad1,
-        aad2,
-        aad3
-    };
+    byte* aads[NUM_ENCRYPTIONS];
     const byte iv[GCM_NONCE_MID_SZ] = {
         0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF
     };
@@ -73164,7 +73162,6 @@ static int test_evp_cipher_aes_gcm(void)
             0x5B, 0xEC, 0x52, 0x49, 0x32,
         }
     };
-
     const byte expCipherText1[] = {
         0xCB, 0x93, 0x4F, 0xC8, 0x22, 0xE2, 0xC0, 0x35, 0xAA, 0x6B, 0x41, 0x15,
         0x17, 0x30, 0x2F, 0x97, 0x20, 0x74, 0x39, 0x28, 0xF8, 0xEB, 0xC5, 0x51,
@@ -73179,17 +73176,25 @@ static int test_evp_cipher_aes_gcm(void)
         0xD0, 0x37, 0x59, 0x1C, 0x2F, 0x85, 0x39, 0x4D, 0xED, 0xC2, 0x32, 0x5B,
         0x80, 0x5E, 0x6B,
     };
-    const byte* expCipherTexts[NUM_ENCRYPTIONS] = {
-        expCipherText1,
-        expCipherText2,
-        expCipherText3
-    };
+    const byte* expCipherTexts[NUM_ENCRYPTIONS];
     byte* cipherText = NULL;
     byte* calcPlainText = NULL;
     byte tag[AES_BLOCK_SIZE];
     EVP_CIPHER_CTX* encCtx = NULL;
     EVP_CIPHER_CTX* decCtx = NULL;
     int i, j, outl;
+
+    plainTexts[0] = plainText1;
+    plainTexts[1] = plainText2;
+    plainTexts[2] = plainText3;
+
+    aads[0] = aad1;
+    aads[1] = aad2;
+    aads[2] = aad3;
+
+    expCipherTexts[0] = expCipherText1;
+    expCipherTexts[1] = expCipherText2;
+    expCipherTexts[2] = expCipherText3;
 
     /****************************************************/
     for (i = 0; i < 3; ++i) {
@@ -78929,7 +78934,7 @@ static int test_tls13_apis(void)
     EXPECT_DECLS;
 #if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC) && \
     (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
-     int          ret;
+    int          ret;
 #endif
 #ifndef WOLFSSL_NO_TLS12
 #ifndef NO_WOLFSSL_CLIENT
