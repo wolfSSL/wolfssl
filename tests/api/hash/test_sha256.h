@@ -1,4 +1,4 @@
-/* test_ascon.h
+/* test_sha256.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,10 +19,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef TESTS_API_TEST_ASCON_H
-#define TESTS_API_TEST_ASCON_H
+#ifndef WOLFCRYPT_TEST_SHA256_H
+#define WOLFCRYPT_TEST_SHA256_H
 
-int test_ascon_hash256(void);
-int test_ascon_aead128(void);
+int test_wc_InitSha256(void);
+int test_wc_Sha256Update(void);
+int test_wc_Sha256Final(void);
+int test_wc_Sha256FinalRaw(void);
+int test_wc_Sha256GetFlags(void);
+int test_wc_Sha256Free(void);
+int test_wc_Sha256GetHash(void);
+int test_wc_Sha256Copy(void);
 
-#endif /* TESTS_API_TEST_ASCON_H */
+int test_wc_InitSha224(void);
+int test_wc_Sha224Update(void);
+int test_wc_Sha224Final(void);
+int test_wc_Sha224SetFlags(void);
+int test_wc_Sha224GetFlags(void);
+int test_wc_Sha224Free(void);
+int test_wc_Sha224GetHash(void);
+int test_wc_Sha224Copy(void);
+
+#endif /* WOLFCRYPT_TEST_SHA256_H */

@@ -1,4 +1,4 @@
-/* test_dtls.h
+/* test_ripemd.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,11 +19,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef TESTS_API_DTLS_H
-#define TESTS_API_DTLS_H
+#ifndef WOLFCRYPT_TEST_RIPEMD_H
+#define WOLFCRYPT_TEST_RIPEMD_H
 
-int test_dtls12_basic_connection_id(void);
-int test_dtls13_basic_connection_id(void);
-int test_wolfSSL_dtls_cid_parse(void);
+int test_wc_InitRipeMd(void);
+int test_wc_RipeMdUpdate(void);
+int test_wc_RipeMdFinal(void);
 
-#endif /* TESTS_API_DTLS_H */
+#endif /* WOLFCRYPT_TEST_RIPEMD_H */

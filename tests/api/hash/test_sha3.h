@@ -1,4 +1,4 @@
-/* test_sm3.h
+/* test_sha3.h
  *
  * Copyright (C) 2006-2025 wolfSSL Inc.
  *
@@ -19,15 +19,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#ifndef WOLFCRYPT_TEST_SM3_H
-#define WOLFCRYPT_TEST_SM3_H
+#ifndef WOLFCRYPT_TEST_SHA3_H
+#define WOLFCRYPT_TEST_SHA3_H
 
-int test_wc_InitSm3Free(void);
-int test_wc_Sm3UpdateFinal(void);
-int test_wc_Sm3GetHash(void);
-int test_wc_Sm3Copy(void);
-int test_wc_Sm3FinalRaw(void);
-int test_wc_Sm3GetSetFlags(void);
-int test_wc_Sm3Hash(void);
+int test_wc_InitSha3(void);
+int test_wc_Sha3_Update(void);
+int test_wc_Sha3_224_Final(void);
+int test_wc_Sha3_256_Final(void);
+int test_wc_Sha3_384_Final(void);
+int test_wc_Sha3_512_Final(void);
+int test_wc_Sha3_224_Copy(void);
+int test_wc_Sha3_256_Copy(void);
+int test_wc_Sha3_384_Copy(void);
+int test_wc_Sha3_512_Copy(void);
+int test_wc_Sha3_GetFlags(void);
 
-#endif /* WOLFCRYPT_TEST_SM3_H */
+int test_wc_InitShake256(void);
+int test_wc_Shake256_Update(void);
+int test_wc_Shake256_Final(void);
+int test_wc_Shake256_Copy(void);
+int test_wc_Shake256Hash(void);
+
+#endif /* WOLFCRYPT_TEST_SHA3_H */
