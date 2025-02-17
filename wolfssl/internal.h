@@ -6133,12 +6133,10 @@ struct WOLFSSL {
         void*       ocspIOCtx;
         byte ocspProducedDate[MAX_DATE_SZ];
         int ocspProducedDateFormat;
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         byte*       ocspResp;
         int         ocspRespSz;
-        #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-            char*   url;
-        #endif
+        char*   url;
     #endif
 #if defined(WOLFSSL_TLS13) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
             word32 response_idx;

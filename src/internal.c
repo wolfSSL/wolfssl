@@ -8690,13 +8690,13 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
     XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
 #endif
-#if defined(HAVE_OCSP) && defined(OPENSSL_ALL)
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
     if (ssl->ocspResp) {
         XFREE(ssl->ocspResp, NULL, 0);
         ssl->ocspResp = NULL;
         ssl->ocspRespSz = 0;
     }
-#endif /* defined(HAVE_OCSP) && defined(OPENSSL_ALL) */
+#endif /* defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     while (ssl->certReqCtx != NULL) {
         CertReqCtx* curr = ssl->certReqCtx;
@@ -9021,13 +9021,13 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         * !WOLFSSL_POST_HANDSHAKE_AUTH */
 #endif /* HAVE_TLS_EXTENSIONS && !NO_TLS */
 
-#if defined(HAVE_OCSP) && defined(OPENSSL_ALL)
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
     if (ssl->ocspResp != NULL) {
         XFREE(ssl->ocspResp, NULL, 0);
         ssl->ocspResp = NULL;
         ssl->ocspRespSz = 0;
     }
-#endif /* HAVE_OCSP && OPENSSL_ALL */
+#endif /* defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* when done with handshake decrement current handshake count */
