@@ -115,6 +115,11 @@
 
 #define WOLFSSL_TLSEXT_STATUSTYPE_ocsp  1
 
+/* OpenSSL TLSEXT status response codes */
+#define SSL_TLSEXT_ERR_OK                0
+#define SSL_TLSEXT_ERR_ALERT_FATAL       1
+#define SSL_TLSEXT_ERR_NOACK             2
+
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
     defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
     defined(HAVE_LIGHTY) || defined(HAVE_STUNNEL) || \
