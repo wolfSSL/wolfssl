@@ -2921,8 +2921,13 @@ static int PKCS7_EncodeSigned(wc_PKCS7* pkcs7,
     /* SignerIdentifier */
     if (pkcs7->sidType == CMS_ISSUER_AND_SERIAL_NUMBER) {
         /* IssuerAndSerialNumber */
-        esd->issuerSnSz = (word32)SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
+        ret = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
                                           esd->issuerSn, MAX_SN_SZ, MAX_SN_SZ);
+        if (ret < 0) {
+            idx = ret;
+            goto out;
+        }
+        esd->issuerSnSz = (word32)ret;
         signerInfoSz += esd->issuerSnSz;
         esd->issuerNameSz = SetSequence(pkcs7->issuerSz, esd->issuerName);
         signerInfoSz += esd->issuerNameSz + pkcs7->issuerSz;
