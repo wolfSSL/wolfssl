@@ -58031,15 +58031,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t berder_test(void)
     int i;
     word32 len = 0, l;
     byte out[32];
-    WOLFSSL_SMALL_STACK_STATIC const byte good1_in[] = { 0x30, 0x80, 0x00, 0x00 };
-    WOLFSSL_SMALL_STACK_STATIC const byte good1_out[] = { 0x30, 0x00 };
-    WOLFSSL_SMALL_STACK_STATIC const byte good2_in[] = { 0x30, 0x80, 0x02, 0x01, 0x01, 0x00, 0x00 };
-    WOLFSSL_SMALL_STACK_STATIC const byte good2_out[] = { 0x30, 0x03, 0x02, 0x01, 0x01 };
-    WOLFSSL_SMALL_STACK_STATIC const byte good3_in[] = {
+    static const byte good1_in[] = { 0x30, 0x80, 0x00, 0x00 };
+    static const byte good1_out[] = { 0x30, 0x00 };
+    static const byte good2_in[] = { 0x30, 0x80, 0x02, 0x01, 0x01, 0x00, 0x00 };
+    static const byte good2_out[] = { 0x30, 0x03, 0x02, 0x01, 0x01 };
+    static const byte good3_in[] = {
         0x24, 0x80, 0x04, 0x01, 0x01, 0x00, 0x00
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte good3_out[] = { 0x04, 0x1, 0x01 };
-    WOLFSSL_SMALL_STACK_STATIC const byte good4_in[] = {
+    static const byte good3_out[] = { 0x04, 0x1, 0x01 };
+    static const byte good4_in[] = {
         0x30, 0x80,
           0x02, 0x01, 0x01,
           0x30, 0x80,
@@ -58054,7 +58054,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t berder_test(void)
             0x00, 0x00,
           0x00, 0x00,
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte good4_out[] = {
+    static const byte good4_out[] = {
         0x30, 0x12,
           0x02, 0x01, 0x01,
           0x30, 0x08,
@@ -58063,9 +58063,9 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t berder_test(void)
           0x31, 0x03,
             0x06, 0x01, 0x01
     };
-    WOLFSSL_SMALL_STACK_STATIC const byte good5_in[] = { 0x30, 0x03, 0x02, 0x01, 0x01 };
+    static const byte good5_in[] = { 0x30, 0x03, 0x02, 0x01, 0x01 };
 
-    berDerTestData testData[] = {
+    static berDerTestData testData[] = {
         { good1_in, sizeof(good1_in), good1_out, sizeof(good1_out) },
         { good2_in, sizeof(good2_in), good2_out, sizeof(good2_out) },
         { good3_in, sizeof(good3_in), good3_out, sizeof(good3_out) },
