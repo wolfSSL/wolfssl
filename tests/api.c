@@ -26996,40 +26996,40 @@ static int test_wc_kyber_make_key_kats(void)
     }
 
 #ifndef WOLFSSL_NO_ML_KEM_512
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_MakeKeyWithRandom(key, seed_512, sizeof(seed_512)),
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_MakeKeyWithRandom(key, seed_512, sizeof(seed_512)),
         0);
-    ExpectIntEQ(wc_KyberKey_EncodePublicKey(key, pubKey,
+    ExpectIntEQ(wc_MlKem_EncodePublicKey(key, pubKey,
         WC_ML_KEM_512_PUBLIC_KEY_SIZE), 0);
-    ExpectIntEQ(wc_KyberKey_EncodePrivateKey(key, privKey,
+    ExpectIntEQ(wc_MlKem_EncodePrivateKey(key, privKey,
         WC_ML_KEM_512_PRIVATE_KEY_SIZE), 0);
     ExpectIntEQ(XMEMCMP(pubKey, ek_512, WC_ML_KEM_512_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(XMEMCMP(privKey, dk_512, WC_ML_KEM_512_PRIVATE_KEY_SIZE), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_KEM_768
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_MakeKeyWithRandom(key, seed_768, sizeof(seed_768)),
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_MakeKeyWithRandom(key, seed_768, sizeof(seed_768)),
         0);
-    ExpectIntEQ(wc_KyberKey_EncodePublicKey(key, pubKey,
+    ExpectIntEQ(wc_MlKem_EncodePublicKey(key, pubKey,
         WC_ML_KEM_768_PUBLIC_KEY_SIZE), 0);
-    ExpectIntEQ(wc_KyberKey_EncodePrivateKey(key, privKey,
+    ExpectIntEQ(wc_MlKem_EncodePrivateKey(key, privKey,
         WC_ML_KEM_768_PRIVATE_KEY_SIZE), 0);
     ExpectIntEQ(XMEMCMP(pubKey, ek_768, WC_ML_KEM_768_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(XMEMCMP(privKey, dk_768, WC_ML_KEM_768_PRIVATE_KEY_SIZE), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_KEM_1024
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_MakeKeyWithRandom(key, seed_1024,
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_MakeKeyWithRandom(key, seed_1024,
         sizeof(seed_1024)), 0);
-    ExpectIntEQ(wc_KyberKey_EncodePublicKey(key, pubKey,
+    ExpectIntEQ(wc_MlKem_EncodePublicKey(key, pubKey,
         WC_ML_KEM_1024_PUBLIC_KEY_SIZE), 0);
-    ExpectIntEQ(wc_KyberKey_EncodePrivateKey(key, privKey,
+    ExpectIntEQ(wc_MlKem_EncodePrivateKey(key, privKey,
         WC_ML_KEM_1024_PRIVATE_KEY_SIZE), 0);
     ExpectIntEQ(XMEMCMP(pubKey, ek_1024, WC_ML_KEM_1024_PUBLIC_KEY_SIZE), 0);
     ExpectIntEQ(XMEMCMP(privKey, dk_1024, WC_ML_KEM_1024_PRIVATE_KEY_SIZE), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -27979,31 +27979,31 @@ static int test_wc_kyber_encapsulate_kats(void)
     }
 
 #ifndef WOLFSSL_NO_ML_KEM_512
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_DecodePublicKey(key, ek_512, sizeof(ek_512)), 0);
-    ExpectIntEQ(wc_KyberKey_EncapsulateWithRandom(key, ct, ss, seed_512,
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_DecodePublicKey(key, ek_512, sizeof(ek_512)), 0);
+    ExpectIntEQ(wc_MlKem_EncapsulateWithRandom(key, ct, ss, seed_512,
         sizeof(seed_512)), 0);
     ExpectIntEQ(XMEMCMP(ct, c_512, WC_ML_KEM_512_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_512, WC_ML_KEM_SS_SZ), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_KEM_768
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_DecodePublicKey(key, ek_768, sizeof(ek_768)), 0);
-    ExpectIntEQ(wc_KyberKey_EncapsulateWithRandom(key, ct, ss, seed_768,
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_DecodePublicKey(key, ek_768, sizeof(ek_768)), 0);
+    ExpectIntEQ(wc_MlKem_EncapsulateWithRandom(key, ct, ss, seed_768,
         sizeof(seed_768)), 0);
     ExpectIntEQ(XMEMCMP(ct, c_768, WC_ML_KEM_768_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_768, WC_ML_KEM_SS_SZ), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_KEM_1024
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_DecodePublicKey(key, ek_1024, sizeof(ek_1024)), 0);
-    ExpectIntEQ(wc_KyberKey_EncapsulateWithRandom(key, ct, ss, seed_1024,
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_DecodePublicKey(key, ek_1024, sizeof(ek_1024)), 0);
+    ExpectIntEQ(wc_MlKem_EncapsulateWithRandom(key, ct, ss, seed_1024,
         sizeof(seed_1024)), 0);
     ExpectIntEQ(XMEMCMP(ct, c_1024, WC_ML_KEM_1024_CIPHER_TEXT_SIZE), 0);
     ExpectIntEQ(XMEMCMP(ss, k_1024, WC_ML_KEM_SS_SZ), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -29390,25 +29390,25 @@ static int test_wc_kyber_decapsulate_kats(void)
     }
 
 #ifndef WOLFSSL_NO_ML_KEM_512
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_DecodePrivateKey(key, dk_512, sizeof(dk_512)), 0);
-    ExpectIntEQ(wc_KyberKey_Decapsulate(key, ss, c_512, sizeof(c_512)), 0);
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_512, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_DecodePrivateKey(key, dk_512, sizeof(dk_512)), 0);
+    ExpectIntEQ(wc_MlKem_Decapsulate(key, ss, c_512, sizeof(c_512)), 0);
     ExpectIntEQ(XMEMCMP(ss, kprime_512, WC_ML_KEM_SS_SZ), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_KEM_768
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_DecodePrivateKey(key, dk_768, sizeof(dk_768)), 0);
-    ExpectIntEQ(wc_KyberKey_Decapsulate(key, ss, c_768, sizeof(c_768)), 0);
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_768, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_DecodePrivateKey(key, dk_768, sizeof(dk_768)), 0);
+    ExpectIntEQ(wc_MlKem_Decapsulate(key, ss, c_768, sizeof(c_768)), 0);
     ExpectIntEQ(XMEMCMP(ss, kprime_768, WC_ML_KEM_SS_SZ), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 #ifndef WOLFSSL_NO_ML_KEM_1024
-    ExpectIntEQ(wc_KyberKey_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
-    ExpectIntEQ(wc_KyberKey_DecodePrivateKey(key, dk_1024, sizeof(dk_1024)), 0);
-    ExpectIntEQ(wc_KyberKey_Decapsulate(key, ss, c_1024, sizeof(c_1024)), 0);
+    ExpectIntEQ(wc_MlKem_Init(WC_ML_KEM_1024, key, NULL, INVALID_DEVID), 0);
+    ExpectIntEQ(wc_MlKem_DecodePrivateKey(key, dk_1024, sizeof(dk_1024)), 0);
+    ExpectIntEQ(wc_MlKem_Decapsulate(key, ss, c_1024, sizeof(c_1024)), 0);
     ExpectIntEQ(XMEMCMP(ss, kprime_1024, WC_ML_KEM_SS_SZ), 0);
-    wc_KyberKey_Free(key);
+    wc_MlKem_Free(key);
 #endif
 
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);

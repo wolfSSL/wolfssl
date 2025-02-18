@@ -8133,7 +8133,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     if (ret == 0) {
-        ret = wc_KyberKey_Init(type, kem, ssl->heap, ssl->devId);
+        ret = wc_MlKem_Init(type, kem, ssl->heap, ssl->devId);
         if (ret != 0) {
             WOLFSSL_MSG("Failed to initialize Kyber Key.");
         }
@@ -8151,10 +8151,10 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
     if (ret == 0) {
         XMEMSET(ecc_kse, 0, sizeof(*ecc_kse));
 
-        ret = wc_KyberKey_PrivateKeySize(kem, &privSz);
+        ret = wc_MlKem_PrivateKeySize(kem, &privSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_PublicKeySize(kem, &pubSz);
+        ret = wc_MlKem_PublicKeySize(kem, &pubSz);
     }
 
     if (ret == 0 && ecc_group != 0) {
@@ -8181,17 +8181,17 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     if (ret == 0) {
-        ret = wc_KyberKey_MakeKey(kem, ssl->rng);
+        ret = wc_MlKem_MakeKey(kem, ssl->rng);
         if (ret != 0) {
             WOLFSSL_MSG("Kyber keygen failure");
         }
     }
     if (ret == 0) {
-        ret = wc_KyberKey_EncodePublicKey(kem, pubKey + ecc_kse->pubKeyLen,
+        ret = wc_MlKem_EncodePublicKey(kem, pubKey + ecc_kse->pubKeyLen,
             pubSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_EncodePrivateKey(kem, privKey, privSz);
+        ret = wc_MlKem_EncodePrivateKey(kem, privKey, privSz);
     }
     if (ret == 0) {
         if (ecc_kse->pubKeyLen > 0)
@@ -8217,7 +8217,7 @@ static int TLSX_KeyShare_GenPqcKey(WOLFSSL *ssl, KeyShareEntry* kse)
     WOLFSSL_BUFFER(kse->pubKey, kse->pubKeyLen );
 #endif
 
-    wc_KyberKey_Free(kem);
+    wc_MlKem_Free(kem);
     TLSX_KeyShare_FreeAll(ecc_kse, ssl->heap);
     XFREE(pubKey, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(privKey, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
@@ -8887,7 +8887,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_KyberKey_Init(type, kem, ssl->heap, ssl->devId);
+    ret = wc_MlKem_Init(type, kem, ssl->heap, ssl->devId);
     if (ret != 0) {
         wc_ecc_free(&eccpubkey);
         WOLFSSL_MSG("Error creating Kyber KEM");
@@ -8895,7 +8895,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     }
 
     if (ret == 0) {
-        ret = wc_KyberKey_SharedSecretSize(kem, &ssSz);
+        ret = wc_MlKem_SharedSecretSize(kem, &ssSz);
     }
     if (ret == 0) {
         sharedSecretLen = ssSz;
@@ -8925,19 +8925,19 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         }
     }
     if (ret == 0) {
-        ret = wc_KyberKey_CipherTextSize(kem, &ctSz);
+        ret = wc_MlKem_CipherTextSize(kem, &ctSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_PrivateKeySize(kem, &privSz);
+        ret = wc_MlKem_PrivateKeySize(kem, &privSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_DecodePrivateKey(kem, keyShareEntry->privKey, privSz);
+        ret = wc_MlKem_DecodePrivateKey(kem, keyShareEntry->privKey, privSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_Decapsulate(kem, sharedSecret + outlen,
+        ret = wc_MlKem_Decapsulate(kem, sharedSecret + outlen,
             keyShareEntry->ke + keyShareEntry->keLen - ctSz, ctSz);
         if (ret != 0) {
-            WOLFSSL_MSG("wc_KyberKey decapsulation failure.");
+            WOLFSSL_MSG("wc_MlKem decapsulation failure.");
             ret = BAD_FUNC_ARG;
         }
     }
@@ -8990,7 +8990,7 @@ static int TLSX_KeyShare_ProcessPqc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
 
     wc_ecc_free(&eccpubkey);
-    wc_KyberKey_Free(kem);
+    wc_MlKem_Free(kem);
     return ret;
 }
 #endif /* WOLFSSL_HAVE_KYBER */
@@ -9379,7 +9379,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
         return MEMORY_E;
     }
 
-    ret = wc_KyberKey_Init(type, kem, ssl->heap, ssl->devId);
+    ret = wc_MlKem_Init(type, kem, ssl->heap, ssl->devId);
     if (ret != 0) {
         wc_ecc_free(&eccpubkey);
         WOLFSSL_MSG("Error creating Kyber KEM");
@@ -9406,13 +9406,13 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        ret = wc_KyberKey_PublicKeySize(kem, &pubSz);
+        ret = wc_MlKem_PublicKeySize(kem, &pubSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_CipherTextSize(kem, &ctSz);
+        ret = wc_MlKem_CipherTextSize(kem, &ctSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_SharedSecretSize(kem, &ssSz);
+        ret = wc_MlKem_SharedSecretSize(kem, &ssSz);
     }
 
     if (ret == 0 && len != pubSz + ecc_kse->pubKeyLen) {
@@ -9464,14 +9464,14 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     }
 
     if (ret == 0) {
-        ret = wc_KyberKey_DecodePublicKey(kem, data + ecc_kse->pubKeyLen,
+        ret = wc_MlKem_DecodePublicKey(kem, data + ecc_kse->pubKeyLen,
             pubSz);
     }
     if (ret == 0) {
-        ret = wc_KyberKey_Encapsulate(kem, ciphertext + ecc_kse->pubKeyLen,
+        ret = wc_MlKem_Encapsulate(kem, ciphertext + ecc_kse->pubKeyLen,
             sharedSecret + outlen, ssl->rng);
         if (ret != 0) {
-            WOLFSSL_MSG("wc_KyberKey encapsulation failure.");
+            WOLFSSL_MSG("wc_MlKem encapsulation failure.");
         }
     }
 
@@ -9497,7 +9497,7 @@ static int server_generate_pqc_ciphertext(WOLFSSL* ssl,
     XFREE(sharedSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
     XFREE(ciphertext, ssl->heap, DYNAMIC_TYPE_TLSX);
     wc_ecc_free(&eccpubkey);
-    wc_KyberKey_Free(kem);
+    wc_MlKem_Free(kem);
     return ret;
 }
 #endif /* WOLFSSL_HAVE_KYBER */

@@ -188,34 +188,34 @@ typedef struct KyberKey KyberKey;
     extern "C" {
 #endif
 
-WOLFSSL_API int wc_KyberKey_Init(int type, KyberKey* key, void* heap,
+WOLFSSL_API int wc_MlKem_Init(int type, KyberKey* key, void* heap,
     int devId);
-WOLFSSL_API void wc_KyberKey_Free(KyberKey* key);
+WOLFSSL_API void wc_MlKem_Free(KyberKey* key);
 
-WOLFSSL_API int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng);
-WOLFSSL_API int wc_KyberKey_MakeKeyWithRandom(KyberKey* key,
+WOLFSSL_API int wc_MlKem_MakeKey(KyberKey* key, WC_RNG* rng);
+WOLFSSL_API int wc_MlKem_MakeKeyWithRandom(KyberKey* key,
     const unsigned char* rand, int len);
 
-WOLFSSL_API int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len);
-WOLFSSL_API int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_MlKem_CipherTextSize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_MlKem_SharedSecretSize(KyberKey* key, word32* len);
 
-WOLFSSL_API int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct,
+WOLFSSL_API int wc_MlKem_Encapsulate(KyberKey* key, unsigned char* ct,
     unsigned char* ss, WC_RNG* rng);
-WOLFSSL_API int wc_KyberKey_EncapsulateWithRandom(KyberKey* key,
+WOLFSSL_API int wc_MlKem_EncapsulateWithRandom(KyberKey* key,
     unsigned char* ct, unsigned char* ss, const unsigned char* rand, int len);
-WOLFSSL_API int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
+WOLFSSL_API int wc_MlKem_Decapsulate(KyberKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len);
 
-WOLFSSL_API int wc_KyberKey_DecodePrivateKey(KyberKey* key,
+WOLFSSL_API int wc_MlKem_DecodePrivateKey(KyberKey* key,
     const unsigned char* in, word32 len);
-WOLFSSL_API int wc_KyberKey_DecodePublicKey(KyberKey* key,
+WOLFSSL_API int wc_MlKem_DecodePublicKey(KyberKey* key,
     const unsigned char* in, word32 len);
 
-WOLFSSL_API int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len);
-WOLFSSL_API int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len);
-WOLFSSL_API int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out,
+WOLFSSL_API int wc_MlKem_PrivateKeySize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_MlKem_PublicKeySize(KyberKey* key, word32* len);
+WOLFSSL_API int wc_MlKem_EncodePrivateKey(KyberKey* key, unsigned char* out,
     word32 len);
-WOLFSSL_API int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out,
+WOLFSSL_API int wc_MlKem_EncodePublicKey(KyberKey* key, unsigned char* out,
     word32 len);
 
 
@@ -271,21 +271,21 @@ WOLFSSL_API int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out,
 #define MlKemKey            KyberKey
 
 #define wc_MlKemKey_Init(key, type, heap, devId) \
-        wc_KyberKey_Init(type, key, heap, devId)
-#define wc_MlKemKey_Free                    wc_KyberKey_Free
-#define wc_MlKemKey_MakeKey                 wc_KyberKey_MakeKey
-#define wc_MlKemKey_MakeKeyWithRandom       wc_KyberKey_MakeKeyWithRandom
-#define wc_MlKemKey_CipherTextSize          wc_KyberKey_CipherTextSize
-#define wc_MlKemKey_SharedSecretSize        wc_KyberKey_SharedSecretSize
-#define wc_MlKemKey_Encapsulate             wc_KyberKey_Encapsulate
-#define wc_MlKemKey_EncapsulateWithRandom   wc_KyberKey_EncapsulateWithRandom
-#define wc_MlKemKey_Decapsulate             wc_KyberKey_Decapsulate
-#define wc_MlKemKey_DecodePrivateKey        wc_KyberKey_DecodePrivateKey
-#define wc_MlKemKey_DecodePublicKey         wc_KyberKey_DecodePublicKey
-#define wc_MlKemKey_PrivateKeySize          wc_KyberKey_PrivateKeySize
-#define wc_MlKemKey_PublicKeySize           wc_KyberKey_PublicKeySize
-#define wc_MlKemKey_EncodePrivateKey        wc_KyberKey_EncodePrivateKey
-#define wc_MlKemKey_EncodePublicKey         wc_KyberKey_EncodePublicKey
+        wc_MlKem_Init(type, key, heap, devId)
+#define wc_MlKemKey_Free                    wc_MlKem_Free
+#define wc_MlKemKey_MakeKey                 wc_MlKem_MakeKey
+#define wc_MlKemKey_MakeKeyWithRandom       wc_MlKem_MakeKeyWithRandom
+#define wc_MlKemKey_CipherTextSize          wc_MlKem_CipherTextSize
+#define wc_MlKemKey_SharedSecretSize        wc_MlKem_SharedSecretSize
+#define wc_MlKemKey_Encapsulate             wc_MlKem_Encapsulate
+#define wc_MlKemKey_EncapsulateWithRandom   wc_MlKem_EncapsulateWithRandom
+#define wc_MlKemKey_Decapsulate             wc_MlKem_Decapsulate
+#define wc_MlKemKey_DecodePrivateKey        wc_MlKem_DecodePrivateKey
+#define wc_MlKemKey_DecodePublicKey         wc_MlKem_DecodePublicKey
+#define wc_MlKemKey_PrivateKeySize          wc_MlKem_PrivateKeySize
+#define wc_MlKemKey_PublicKeySize           wc_MlKem_PublicKeySize
+#define wc_MlKemKey_EncodePrivateKey        wc_MlKem_EncodePrivateKey
+#define wc_MlKemKey_EncodePublicKey         wc_MlKem_EncodePublicKey
 
 
 #ifdef __cplusplus

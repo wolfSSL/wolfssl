@@ -106,7 +106,7 @@ volatile sword16 kyber_opt_blocker = 0;
  * @return  BAD_FUNC_ARG when key is NULL or type is unrecognized.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
+int wc_MlKem_Init(int type, KyberKey* key, void* heap, int devId)
 {
     int ret = 0;
 
@@ -197,7 +197,7 @@ int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
  *
  * @param  [in, out]  key   Kyber key object to dispose of.
  */
-void wc_KyberKey_Free(KyberKey* key)
+void wc_MlKem_Free(KyberKey* key)
 {
     if (key != NULL) {
         /* Dispose of PRF object. */
@@ -220,7 +220,7 @@ void wc_KyberKey_Free(KyberKey* key)
  * @return  BAD_FUNC_ARG when key or rng is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
+int wc_MlKem_MakeKey(KyberKey* key, WC_RNG* rng)
 {
     int ret = 0;
     unsigned char rand[KYBER_MAKEKEY_RAND_SZ];
@@ -240,7 +240,7 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     }
     if (ret == 0) {
         /* Make a key pair from the random. */
-        ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+        ret = wc_MlKem_MakeKeyWithRandom(key, rand, sizeof(rand));
     }
 
     /* Ensure seeds are zeroized. */
@@ -261,7 +261,7 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
+int wc_MlKem_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     int len)
 {
     byte buf[2 * KYBER_SYM_SZ + 1];
@@ -453,7 +453,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
  * @return  BAD_FUNC_ARG when key or len is NULL.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
+int wc_MlKem_CipherTextSize(KyberKey* key, word32* len)
 {
     int ret = 0;
 
@@ -517,7 +517,7 @@ int wc_KyberKey_CipherTextSize(KyberKey* key, word32* len)
  * @return  0 on success.
  * @return  0 to indicate success.
  */
-int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len)
+int wc_MlKem_SharedSecretSize(KyberKey* key, word32* len)
 {
     (void)key;
 
@@ -734,7 +734,7 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
+int wc_MlKem_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     WC_RNG* rng)
 {
     int ret = 0;
@@ -751,7 +751,7 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
     }
     if (ret == 0) {
         /* Encapsulate with the random. */
-        ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, rand,
+        ret = wc_MlKem_EncapsulateWithRandom(key, ct, ss, rand,
             sizeof(rand));
     }
 
@@ -771,7 +771,7 @@ int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
+int wc_MlKem_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
     unsigned char* ss, const unsigned char* rand, int len)
 {
 #ifdef WOLFSSL_KYBER_ORIGINAL
@@ -842,7 +842,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 
     #ifndef WOLFSSL_NO_MALLOC
         /* Determine how big an encoded public key will be. */
-        ret = wc_KyberKey_PublicKeySize(key, &pubKeyLen);
+        ret = wc_MlKem_PublicKeySize(key, &pubKeyLen);
         if (ret == 0) {
             /* Allocate dynamic memory for encoded public key. */
             pubKey = (byte*)XMALLOC(pubKeyLen, key->heap,
@@ -854,7 +854,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
         if (ret == 0) {
     #endif
             /* Encode public key - h is hash of encoded public key. */
-            ret = wc_KyberKey_EncodePublicKey(key, pubKey, pubKeyLen);
+            ret = wc_MlKem_EncodePublicKey(key, pubKey, pubKeyLen);
     #ifndef WOLFSSL_NO_MALLOC
         }
         /* Dispose of encoded public key. */
@@ -1119,7 +1119,7 @@ static int kyber_derive_secret(const byte* z, const byte* ct, word32 ctSz,
  * @return  BUFFER_E when len is not the length of cipher text for the key type.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
+int wc_MlKem_Decapsulate(KyberKey* key, unsigned char* ss,
     const unsigned char* ct, word32 len)
 {
     byte msg[KYBER_SYM_SZ];
@@ -1274,7 +1274,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePrivateKey(KyberKey* key, const unsigned char* in,
+int wc_MlKem_DecodePrivateKey(KyberKey* key, const unsigned char* in,
     word32 len)
 {
     int ret = 0;
@@ -1354,7 +1354,7 @@ int wc_KyberKey_DecodePrivateKey(KyberKey* key, const unsigned char* in,
         p += k * KYBER_POLY_SIZE;
 
         /* Decode the public key that is after the private key. */
-        ret = wc_KyberKey_DecodePublicKey(key, p, pubLen);
+        ret = wc_MlKem_DecodePublicKey(key, p, pubLen);
     }
     if (ret == 0) {
         /* Skip over public key. */
@@ -1384,7 +1384,7 @@ int wc_KyberKey_DecodePrivateKey(KyberKey* key, const unsigned char* in,
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  BUFFER_E when len is not the correct size.
  */
-int wc_KyberKey_DecodePublicKey(KyberKey* key, const unsigned char* in,
+int wc_MlKem_DecodePublicKey(KyberKey* key, const unsigned char* in,
     word32 len)
 {
     int ret = 0;
@@ -1481,7 +1481,7 @@ int wc_KyberKey_DecodePublicKey(KyberKey* key, const unsigned char* in,
  * @return  BAD_FUNC_ARG when key or len is NULL.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
+int wc_MlKem_PrivateKeySize(KyberKey* key, word32* len)
 {
     int ret = 0;
 
@@ -1547,7 +1547,7 @@ int wc_KyberKey_PrivateKeySize(KyberKey* key, word32* len)
  * @return  BAD_FUNC_ARG when key or len is NULL.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
+int wc_MlKem_PublicKeySize(KyberKey* key, word32* len)
 {
     int ret = 0;
 
@@ -1617,7 +1617,7 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
  * available.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out, word32 len)
+int wc_MlKem_EncodePrivateKey(KyberKey* key, unsigned char* out, word32 len)
 {
     int ret = 0;
     unsigned int k = 0;
@@ -1698,7 +1698,7 @@ int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out, word32 len)
         p += KYBER_POLY_SIZE * k;
 
         /* Encode public key. */
-        ret = wc_KyberKey_EncodePublicKey(key, p, pubLen);
+        ret = wc_MlKem_EncodePublicKey(key, p, pubLen);
         p += pubLen;
     }
     /* Ensure hash of public key is available. */
@@ -1730,7 +1730,7 @@ int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out, word32 len)
  * @return  BAD_FUNC_ARG when key or out is NULL or public key not available.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-int wc_KyberKey_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len)
+int wc_MlKem_EncodePublicKey(KyberKey* key, unsigned char* out, word32 len)
 {
     int ret = 0;
     unsigned int k = 0;

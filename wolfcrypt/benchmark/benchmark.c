@@ -9666,16 +9666,16 @@ static void bench_kyber_keygen(int type, const char* name, int keySize,
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
-            wc_KyberKey_Free(key);
-            ret = wc_KyberKey_Init(type, key, HEAP_HINT, INVALID_DEVID);
+            wc_MlKem_Free(key);
+            ret = wc_MlKem_Init(type, key, HEAP_HINT, INVALID_DEVID);
             if (ret != 0)
                 goto exit;
 
 #ifdef KYBER_NONDETERMINISTIC
-            ret = wc_KyberKey_MakeKey(key, &gRng);
+            ret = wc_MlKem_MakeKey(key, &gRng);
 #else
             unsigned char rand[KYBER_MAKEKEY_RAND_SZ] = {0,};
-            ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
+            ret = wc_MlKem_MakeKeyWithRandom(key, rand, sizeof(rand));
 #endif
             if (ret != 0)
                 goto exit;
@@ -9708,24 +9708,24 @@ static void bench_kyber_encap(int type, const char* name, int keySize,
     word32 ctSz;
     DECLARE_MULTI_VALUE_STATS_VARS()
 
-    ret = wc_KyberKey_PublicKeySize(key1, &pubLen);
+    ret = wc_MlKem_PublicKeySize(key1, &pubLen);
     if (ret != 0) {
         return;
     }
-    ret = wc_KyberKey_EncodePublicKey(key1, pub, pubLen);
+    ret = wc_MlKem_EncodePublicKey(key1, pub, pubLen);
     if (ret != 0) {
         return;
     }
-    ret = wc_KyberKey_Init(type, key2, HEAP_HINT, INVALID_DEVID);
+    ret = wc_MlKem_Init(type, key2, HEAP_HINT, INVALID_DEVID);
     if (ret != 0) {
         return;
     }
-    ret = wc_KyberKey_DecodePublicKey(key2, pub, pubLen);
+    ret = wc_MlKem_DecodePublicKey(key2, pub, pubLen);
     if (ret != 0) {
         return;
     }
 
-    ret = wc_KyberKey_CipherTextSize(key2, &ctSz);
+    ret = wc_MlKem_CipherTextSize(key2, &ctSz);
     if (ret != 0) {
         return;
     }
@@ -9736,10 +9736,10 @@ static void bench_kyber_encap(int type, const char* name, int keySize,
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
 #ifdef KYBER_NONDETERMINISTIC
-            ret = wc_KyberKey_Encapsulate(key2, ct, ss, &gRng);
+            ret = wc_MlKem_Encapsulate(key2, ct, ss, &gRng);
 #else
             unsigned char rand[KYBER_ENC_RAND_SZ] = {0,};
-            ret = wc_KyberKey_EncapsulateWithRandom(key2, ct, ss, rand,
+            ret = wc_MlKem_EncapsulateWithRandom(key2, ct, ss, rand,
                 sizeof(rand));
 #endif
             if (ret != 0)
@@ -9766,7 +9766,7 @@ exit_encap:
     do {
         /* while free pending slots in queue, submit ops */
         for (times = 0; times < agreeTimes || pending > 0; times++) {
-            ret = wc_KyberKey_Decapsulate(key1, ss, ct, ctSz);
+            ret = wc_MlKem_Decapsulate(key1, ss, ct, ctSz);
             if (ret != 0)
                 goto exit_decap;
             RECORD_MULTI_VALUE_STATS();
@@ -9838,8 +9838,8 @@ void bench_kyber(int type)
     bench_kyber_keygen(type, name, keySize, &key1);
     bench_kyber_encap(type, name, keySize, &key1, &key2);
 
-    wc_KyberKey_Free(&key2);
-    wc_KyberKey_Free(&key1);
+    wc_MlKem_Free(&key2);
+    wc_MlKem_Free(&key1);
 }
 #endif
 
