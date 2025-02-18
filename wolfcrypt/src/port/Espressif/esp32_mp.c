@@ -788,13 +788,18 @@ static int esp_clean_result(MATH_INT_T* Z, int used_padding)
 /* Start HW process. Reg is SoC-specific register. */
 static int process_start(u_int32_t reg)
 {
-    int ret = MP_OKAY;
-    /* see 3.16 "software needs to always use the "volatile"
-    ** attribute when accessing registers in these two address spaces. */
-    DPORT_REG_WRITE((volatile word32*)reg, 1);
-    ESP_EM__POST_PROCESS_START;
+    if (reg == 0) {
+        ESP_LOGE(TAG, "Invalid register in process_start");
+        return MP_VAL;
+    }
 
-    return ret;
+    /* See 3.16: "software needs to always use the 'volatile'
+     * attribute when accessing registers in these address spaces" */
+    portENTER_CRITICAL(&wc_rsa_reg_lock);
+    DPORT_REG_WRITE((volatile word32*)reg, 1);
+    portEXIT_CRITICAL(&wc_rsa_reg_lock);
+
+    return MP_OKAY;
 }
 
 /* wait until RSA math register indicates operation completed */
@@ -803,27 +808,31 @@ static int wait_until_done(word32 reg)
     int ret = MP_OKAY;
     word32 timeout = 0;
 
-    /* wait until done && not timeout */
-    ESP_EM__MP_HW_WAIT_DONE;
-    while (!ESP_TIMEOUT(++timeout) && DPORT_REG_READ(reg) != 1) {
-        asm volatile("nop"); /* wait */
+    if (reg == 0) {
+        ESP_LOGE(TAG, "Invalid register in wait_until_done");
+        return MP_VAL;
     }
-    ESP_EM__DPORT_FIFO_READ;
 
+    /* Wait until done && not timeout */
+    while (!ESP_TIMEOUT(++timeout) && DPORT_REG_READ(reg) != 1) {
+        /* Expected delay 1-2 µs */
+    }
+
+    /* Handle timeouts and cleanup */
+    if (ESP_TIMEOUT(timeout)) {
+        ESP_LOGE(TAG, "Hardware operation timeout in wait_until_done");
+        ret = WC_HW_E;
+        goto cleanup;
+    }
+
+    /* Clear interrupts based on target */
 #if defined(CONFIG_IDF_TARGET_ESP32C6)
-    /* Write 1 or 0 to the RSA_INT_ENA_REG register to
-     * enable or disable the interrupt function. */
-    DPORT_REG_WRITE(RSA_INT_CLR_REG, 1); /* write 1 to clear */
-    DPORT_REG_WRITE(RSA_INT_ENA_REG, 0); /* disable */
-
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
-    /* not currently clearing / disable on C3 */
-    DPORT_REG_WRITE(RSA_INTERRUPT_REG, 1);
-
+    /* Write 1 to clear, 0 to disable interrupt function */
+    DPORT_REG_WRITE(RSA_INT_CLR_REG, 1);
+    DPORT_REG_WRITE(RSA_INT_ENA_REG, 0);
 #else
-    /* clear interrupt */
+    /* Clear interrupt for other targets */
     DPORT_REG_WRITE(RSA_INTERRUPT_REG, 1);
-
 #endif
 
 #if defined(WOLFSSL_HW_METRICS)
@@ -832,9 +841,11 @@ static int wait_until_done(word32 reg)
     }
 #endif
 
-    if (ESP_TIMEOUT(timeout)) {
-        ESP_LOGE(TAG, "rsa operation timed out.");
-        ret = WC_HW_E; /* MP_HW_ERROR; */
+cleanup:
+    if (ret != MP_OKAY) {
+        /* Force hardware reset on error */
+        periph_module_disable(PERIPH_RSA_MODULE);
+        periph_module_enable(PERIPH_RSA_MODULE);
     }
 
     return ret;
@@ -846,12 +857,27 @@ static int esp_memblock_to_mpint(const word32 mem_address,
                                  word32 numwords)
 {
     int ret = MP_OKAY;
+
+    if (mp == NULL || numwords == 0 || mem_address == 0 ||
+        numwords > (ESP_HW_MOD_RSAMAX_BITS / 32)) {
+        ESP_LOGE(TAG, "Invalid parameters in esp_memblock_to_mpint");
+        return MP_VAL;
+    }
+
+    /* Initialize mp->used to prevent buffer overflow */
+    mp->used = numwords;
+    if (mp->used > MP_SIZE) {
+        ESP_LOGE(TAG, "Buffer overflow prevented in esp_memblock_to_mpint");
+        return MP_VAL;
+    }
+
+    /* Clear destination buffer before copying */
+    XMEMSET(mp->dp, 0, numwords * sizeof(word32));
+
 #ifdef USE_ESP_DPORT_ACCESS_READ_BUFFER
     esp_dport_access_read_buffer((word32*)mp->dp, mem_address, numwords);
 #else
-    ESP_EM__PRE_DPORT_READ;
-    DPORT_INTERRUPT_DISABLE();
-    ESP_EM__READ_NON_FIFO_REG;
+    portENTER_CRITICAL(&wc_rsa_reg_lock);
     for (volatile word32 i = 0;  i < numwords; ++i) {
         ESP_EM__3_16;
         mp->dp[i] = DPORT_SEQUENCE_REG_READ(
