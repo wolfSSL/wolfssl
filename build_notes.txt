@@ -1,0 +1,93 @@
+# wolfSSL Minimal TLS Builds
+
+## Size Comparison
+TLS 1.2: 228 KB (233,219 bytes)
+TLS 1.3: 232 KB (237,213 bytes)
+
+## TLS 1.3 Minimal Build
+Configuration:
+```bash
+./configure \
+  --enable-static \
+  --disable-shared \
+  --enable-examples \
+  --disable-filesystem \
+  --disable-debug \
+  --disable-dh \
+  --disable-sha3 \
+  --disable-md5 \
+  --disable-ripemd \
+  --disable-blake2 \
+  --disable-camellia \
+  --disable-des3 \
+  --disable-ecc \
+  --enable-psk \
+  --enable-aesgcm \
+  --enable-tls13 \
+  CFLAGS="-Os -DWOLFSSL_SMALL_STACK -DNO_WOLFSSL_DIR -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DWOLFSSL_PSK_ONLY -DNO_OLD_TLS -DNO_ECC -DHAVE_TLS_PSK -DHAVE_AESGCM -DHAVE_CHACHA -DHAVE_POLY1305 -DHAVE_ONE_TIME_AUTH -DWOLFSSL_AES_128 -DWOLFSSL_AES_DIRECT -DWOLFSSL_STATIC_PSK -DWOLFSSL_LEAN_TLS -DHAVE_NULL_CIPHER -DWOLFSSL_TLS13_PSK_ONLY -DWOLFSSL_NO_TLS12"
+```
+
+Features:
+- TLS 1.3 only (no TLS 1.2)
+- PSK-only authentication (no certificates)
+- Single cipher suite: TLS_AES_128_GCM_SHA256
+- Minimal crypto: AES-GCM, SHA256, HKDF
+- Small stack optimizations
+- No filesystem operations
+- No debug output
+- Static library build
+
+Size:
+- Text: 211,889 bytes
+- Data: 408 bytes
+- BSS: 24,916 bytes
+- Total: 237,213 bytes (232 KB)
+
+Successfully tested with:
+- PSK-based TLS 1.3 handshake
+- AES-128-GCM encryption
+- Client and server communication
+
+## TLS 1.2 Minimal Build
+Configuration:
+```bash
+./configure \
+  --enable-static \
+  --disable-shared \
+  --enable-examples \
+  --disable-filesystem \
+  --disable-debug \
+  --disable-dh \
+  --disable-sha3 \
+  --disable-md5 \
+  --disable-ripemd \
+  --disable-blake2 \
+  --disable-camellia \
+  --disable-des3 \
+  --disable-ecc \
+  --enable-psk \
+  --enable-aesgcm \
+  --disable-tls13 \
+  CFLAGS="-Os -DWOLFSSL_SMALL_STACK -DNO_WOLFSSL_DIR -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DWOLFSSL_PSK_ONLY -DNO_OLD_TLS -DNO_ECC -DHAVE_TLS_PSK -DHAVE_AESGCM -DHAVE_CHACHA -DHAVE_POLY1305 -DHAVE_ONE_TIME_AUTH -DWOLFSSL_AES_128 -DWOLFSSL_AES_DIRECT -DWOLFSSL_STATIC_PSK -DWOLFSSL_LEAN_TLS -DHAVE_NULL_CIPHER"
+```
+
+Features:
+- TLS 1.2 only (no TLS 1.3)
+- PSK-only authentication (no certificates)
+- Single cipher suite: TLS_PSK_WITH_AES_128_GCM_SHA256
+- Minimal crypto: AES-GCM, SHA256
+- Small stack optimizations
+- No filesystem operations
+- No debug output
+- Static library build
+
+Size:
+- Text: 208,599 bytes
+- Data: 496 bytes
+- BSS: 24,124 bytes
+- Total: 233,219 bytes (228 KB)
+
+Successfully tested with:
+- PSK-based TLS 1.2 handshake
+- AES-128-GCM encryption
+- Client and server communication
