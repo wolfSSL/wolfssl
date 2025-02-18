@@ -13,6 +13,7 @@ tests_unit_test_SOURCES += tests/api/test_sm3.c
 tests_unit_test_SOURCES += tests/api/test_ripemd.c
 tests_unit_test_SOURCES += tests/api/test_hash.c
 tests_unit_test_SOURCES += tests/api/test_ascon.c
+tests_unit_test_SOURCES += tests/api/test_mlkem.c
 tests_unit_test_SOURCES += tests/api/test_dtls.c
 tests_unit_test_SOURCES += tests/api/test_ocsp.c
 endif
@@ -29,6 +30,7 @@ EXTRA_DIST += tests/api/test_hash.h
 EXTRA_DIST += tests/api/test_ascon.h
 EXTRA_DIST += tests/api/test_ascon.h
 EXTRA_DIST += tests/api/test_ascon_kats.h
+EXTRA_DIST += tests/api/test_mlkem.h
 EXTRA_DIST += tests/api/test_dtls.h
 EXTRA_DIST += tests/api/test_ocsp.h
 EXTRA_DIST += tests/api/test_ocsp_test_blobs.h

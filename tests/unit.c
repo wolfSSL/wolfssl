@@ -192,8 +192,15 @@ int unit_test(int argc, char** argv)
         else if (XSTRCMP(argv[1], "--no-api") == 0) {
             apiTesting = 0;
         }
-        else if (argv[1][1] >= '0' && argv[1][1] <= '9') {
+        else if (argv[1][0] == '-' && argv[1][1] >= '0' && argv[1][1] <= '9') {
             ret = ApiTest_RunIdx(atoi(argv[1] + 1));
+            if (ret != 0) {
+                goto exit;
+            }
+            allTesting = 0;
+        }
+        else if (argv[1][0] == '-' && argv[1][1] == '~') {
+            ret = ApiTest_RunPartName(argv[1] + 2);
             if (ret != 0) {
                 goto exit;
             }

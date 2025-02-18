@@ -3693,17 +3693,17 @@ static void* benchmarks_do(void* args)
 #ifdef WOLFSSL_HAVE_KYBER
     if (bench_all || (bench_pq_asym_algs & BENCH_KYBER)) {
 #ifndef WOLFSSL_NO_ML_KEM
-    #ifdef WOLFSSL_KYBER512
+    #ifdef WOLFSSL_WC_ML_KEM_512
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER512)) {
             bench_kyber(WC_ML_KEM_512);
         }
     #endif
-    #ifdef WOLFSSL_KYBER768
+    #ifdef WOLFSSL_WC_ML_KEM_768
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER768)) {
             bench_kyber(WC_ML_KEM_768);
         }
     #endif
-    #ifdef WOLFSSL_KYBER1024
+    #ifdef WOLFSSL_WC_ML_KEM_1024
         if (bench_all || (bench_pq_asym_algs & BENCH_KYBER1024)) {
             bench_kyber(WC_ML_KEM_1024);
         }
@@ -9656,6 +9656,7 @@ exit:
 static void bench_kyber_keygen(int type, const char* name, int keySize,
     KyberKey* key)
 {
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     int ret = 0, times, count, pending = 0;
     double start;
     const char**desc = bench_desc_words[lng_index];
@@ -9693,8 +9694,16 @@ exit:
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+#else
+   (void)type;
+   (void)name;
+   (void)keySize;
+   (void)key;
+#endif /* !WOLFSSL_KYBER_NO_MAKE_KEY */
 }
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 static void bench_kyber_encap(int type, const char* name, int keySize,
     KyberKey* key1, KyberKey* key2)
 {
@@ -9730,6 +9739,7 @@ static void bench_kyber_encap(int type, const char* name, int keySize,
         return;
     }
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     /* KYBER Encapsulate */
     bench_stats_start(&count, &start);
     do {
@@ -9758,7 +9768,9 @@ exit_encap:
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     RESET_MULTI_VALUE_STATS_VARS();
 
     /* KYBER Decapsulate */
@@ -9783,7 +9795,9 @@ exit_decap:
 #ifdef MULTI_VALUE_STATISTICS
     bench_multi_value_stats(max, min, sum, squareSum, runs);
 #endif
+#endif
 }
+#endif
 
 void bench_kyber(int type)
 {
@@ -9808,7 +9822,7 @@ void bench_kyber(int type)
 #endif
 #ifdef WOLFSSL_WC_ML_KEM_1024
     case WC_ML_KEM_1024:
-        name = "ML-KEM 1024 ";
+        name = "ML-KEM 1024";
         keySize = 256;
         break;
 #endif
@@ -9836,7 +9850,10 @@ void bench_kyber(int type)
     }
 
     bench_kyber_keygen(type, name, keySize, &key1);
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
     bench_kyber_encap(type, name, keySize, &key1, &key2);
+#endif
 
     wc_KyberKey_Free(&key2);
     wc_KyberKey_Free(&key1);

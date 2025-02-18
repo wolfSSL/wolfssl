@@ -19,7 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Implementation based on NIST 3rd Round submission package.
+/* Implementation based on FIPS 203:
+ *   https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
+ *
+ * Original implementation based on NIST 3rd Round submission package.
  * See link at:
  *   https://csrc.nist.gov/Projects/post-quantum-cryptography/post-quantum-cryptography-standardization/round-3-submissions
  */
@@ -83,9 +86,9 @@
 
 #if defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM) || \
     defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
-static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
+static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int k, byte* seed,
     int i, int transposed);
-static int kyber_get_noise_i(KYBER_PRF_T* prf, int kp, sword16* vec2,
+static int kyber_get_noise_i(KYBER_PRF_T* prf, int k, sword16* vec2,
     byte* seed, int i, int make);
 static int kyber_get_noise_eta2_c(KYBER_PRF_T* prf, sword16* p,
     const byte* seed);
@@ -163,45 +166,45 @@ static word32 cpuid_flags = 0;
 
 /* Zetas for NTT. */
 const sword16 zetas[KYBER_N / 2] = {
-    2285, 2571, 2970, 1812, 1493, 1422,  287,  202, 3158,  622, 1577,  182,
-     962, 2127, 1855, 1468,  573, 2004,  264,  383, 2500, 1458, 1727, 3199,
-    2648, 1017,  732,  608, 1787,  411, 3124, 1758, 1223,  652, 2777, 1015,
-    2036, 1491, 3047, 1785,  516, 3321, 3009, 2663, 1711, 2167,  126, 1469,
-    2476, 3239, 3058,  830,  107, 1908, 3082, 2378, 2931,  961, 1821, 2604,
-     448, 2264,  677, 2054, 2226,  430,  555,  843, 2078,  871, 1550,  105,
-     422,  587,  177, 3094, 3038, 2869, 1574, 1653, 3083,  778, 1159, 3182,
-    2552, 1483, 2727, 1119, 1739,  644, 2457,  349,  418,  329, 3173, 3254,
-     817, 1097,  603,  610, 1322, 2044, 1864,  384, 2114, 3193, 1218, 1994,
-    2455,  220, 2142, 1670, 2144, 1799, 2051,  794, 1819, 2475, 2459,  478,
+    2285, 2571, 2970, 1812, 1493, 1422,  287,  202,
+    3158,  622, 1577,  182,  962, 2127, 1855, 1468,
+     573, 2004,  264,  383, 2500, 1458, 1727, 3199,
+    2648, 1017,  732,  608, 1787,  411, 3124, 1758,
+    1223,  652, 2777, 1015, 2036, 1491, 3047, 1785,
+     516, 3321, 3009, 2663, 1711, 2167,  126, 1469,
+    2476, 3239, 3058,  830,  107, 1908, 3082, 2378,
+    2931,  961, 1821, 2604,  448, 2264,  677, 2054,
+    2226,  430,  555,  843, 2078,  871, 1550,  105,
+     422,  587,  177, 3094, 3038, 2869, 1574, 1653,
+    3083,  778, 1159, 3182, 2552, 1483, 2727, 1119,
+    1739,  644, 2457,  349,  418,  329, 3173, 3254,
+     817, 1097,  603,  610, 1322, 2044, 1864,  384,
+    2114, 3193, 1218, 1994, 2455,  220, 2142, 1670,
+    2144, 1799, 2051,  794, 1819, 2475, 2459,  478,
      3221, 3021,  996,  991,  958, 1869, 1522, 1628
 };
-
-/* Zetas for inverse NTT. */
-const sword16 zetas_inv[KYBER_N / 2] = {
-    1701, 1807, 1460, 2371, 2338, 2333,  308,  108, 2851,  870,  854, 1510,
-    2535, 1278, 1530, 1185, 1659, 1187, 3109,  874, 1335, 2111,  136, 1215,
-    2945, 1465, 1285, 2007, 2719, 2726, 2232, 2512,   75,  156, 3000, 2911,
-    2980,  872, 2685, 1590, 2210,  602, 1846,  777,  147, 2170, 2551,  246,
-    1676, 1755,  460,  291,  235, 3152, 2742, 2907, 3224, 1779, 2458, 1251,
-    2486, 2774, 2899, 1103, 1275, 2652, 1065, 2881,  725, 1508, 2368,  398,
-     951,  247, 1421, 3222, 2499,  271,   90,  853, 1860, 3203, 1162, 1618,
-     666,  320,    8, 2813, 1544,  282, 1838, 1293, 2314,  552, 2677, 2106,
-    1571,  205, 2918, 1542, 2721, 2597, 2312,  681,  130, 1602, 1871,  829,
-    2946, 3065, 1325, 2756, 1861, 1474, 1202, 2367, 3147, 1752, 2707,  171,
-    3127, 3042, 1907, 1836, 1517,  359,  758, 1441
-};
-
-#define KYBER_BARRETT(a)                            \
-        "SMULWB     r10, r14, " #a "\n\t"           \
-        "SMULWT     r11, r14, " #a "\n\t"           \
-        "SMULBT     r10, r12, r10\n\t"              \
-        "SMULBT     r11, r12, r11\n\t"              \
-        "PKHBT      r10, r10, r11, LSL #16\n\t"     \
-        "SSUB16     " #a ", " #a ", r10\n\t"
 
 
 #if !defined(WOLFSSL_ARMASM)
 /* Number-Theoretic Transform.
+ *
+ * FIPS 203, Algorithm 9: NTT(f)
+ * Computes the NTT representation f_hat of the given polynomial f element of
+ * R_q.
+ *   1: f_hat <- f
+ *   2: i <- 1
+ *   3: for (len <- 128; len >= 2; len <- len/2)
+ *   4:     for (start <- 0; start < 256; start <- start + 2.len)
+ *   5:         zeta <- zetas^BitRev_7(i) mod q
+ *   6:         i <- i + 1
+ *   7:         for (j <- start; j < start + len; j++)
+ *   8:             t <- zeta.f[j+len]
+ *   9:             f_hat[j+len] <- f_hat[j] - t
+ *  10:             f_hat[j] <- f_hat[j] - t
+ *  11:         end for
+ *  12:     end for
+ *  13: end for
+ *  14: return f_hat
  *
  * @param  [in, out]  r  Polynomial to transform.
  */
@@ -212,16 +215,24 @@ static void kyber_ntt(sword16* r)
     unsigned int k;
     unsigned int j;
 
+    /* Step 2 */
     k = 1;
+    /* Step 3 */
     for (len = KYBER_N / 2; len >= 2; len >>= 1) {
         unsigned int start;
+        /* Step 4 */
         for (start = 0; start < KYBER_N; start = j + len) {
+            /* Step 5, 6*/
             sword16 zeta = zetas[k++];
+            /* Step 7 */
             for (j = start; j < start + len; ++j) {
+                /* Step 8 */
                 sword32 p = (sword32)zeta * r[j + len];
                 sword16 t = KYBER_MONT_RED(p);
                 sword16 rj = r[j];
+                /* Step 9 */
                 r[j + len] = rj - t;
+                /* Step 10 */
                 r[j] = rj + t;
             }
         }
@@ -232,6 +243,7 @@ static void kyber_ntt(sword16* r)
         r[j] = KYBER_BARRETT_RED(r[j]);
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    /* Take out the first iteration. */
     unsigned int len;
     unsigned int k = 1;
     unsigned int j;
@@ -263,11 +275,13 @@ static void kyber_ntt(sword16* r)
         r[j] = KYBER_BARRETT_RED(r[j]);
     }
 #elif defined(WOLFSSL_KYBER_NTT_UNROLL)
+    /* Unroll len loop (Step 3). */
     unsigned int k = 1;
     unsigned int j;
     unsigned int start;
     sword16 zeta = zetas[k++];
 
+    /* len = 128 */
     for (j = 0; j < KYBER_N / 2; ++j) {
         sword32 p = (sword32)zeta * r[j + KYBER_N / 2];
         sword16 t = KYBER_MONT_RED(p);
@@ -275,6 +289,7 @@ static void kyber_ntt(sword16* r)
         r[j + KYBER_N / 2] = rj - t;
         r[j] = rj + t;
     }
+    /* len = 64 */
     for (start = 0; start < KYBER_N; start += 2 * 64) {
         zeta = zetas[k++];
         for (j = 0; j < 64; ++j) {
@@ -285,6 +300,7 @@ static void kyber_ntt(sword16* r)
             r[start + j] = rj + t;
         }
     }
+    /* len = 32 */
     for (start = 0; start < KYBER_N; start += 2 * 32) {
         zeta = zetas[k++];
         for (j = 0; j < 32; ++j) {
@@ -295,6 +311,7 @@ static void kyber_ntt(sword16* r)
             r[start + j] = rj + t;
         }
     }
+    /* len = 16 */
     for (start = 0; start < KYBER_N; start += 2 * 16) {
         zeta = zetas[k++];
         for (j = 0; j < 16; ++j) {
@@ -305,6 +322,7 @@ static void kyber_ntt(sword16* r)
             r[start + j] = rj + t;
         }
     }
+    /* len = 8 */
     for (start = 0; start < KYBER_N; start += 2 * 8) {
         zeta = zetas[k++];
         for (j = 0; j < 8; ++j) {
@@ -315,6 +333,7 @@ static void kyber_ntt(sword16* r)
             r[start + j] = rj + t;
         }
     }
+    /* len = 4 */
     for (start = 0; start < KYBER_N; start += 2 * 4) {
         zeta = zetas[k++];
         for (j = 0; j < 4; ++j) {
@@ -325,6 +344,7 @@ static void kyber_ntt(sword16* r)
             r[start + j] = rj + t;
         }
     }
+    /* len = 2 */
     for (start = 0; start < KYBER_N; start += 2 * 2) {
         zeta = zetas[k++];
         for (j = 0; j < 2; ++j) {
@@ -340,12 +360,14 @@ static void kyber_ntt(sword16* r)
         r[j] = KYBER_BARRETT_RED(r[j]);
     }
 #else
+    /* Unroll len (2, 3, 2) and start loops. */
     unsigned int j;
     sword16 t0;
     sword16 t1;
     sword16 t2;
     sword16 t3;
 
+    /* len = 128,64 */
     sword16 zeta128 = zetas[1];
     sword16 zeta64_0 = zetas[2];
     sword16 zeta64_1 = zetas[3];
@@ -395,6 +417,7 @@ static void kyber_ntt(sword16* r)
         r[j + 224] = r7;
     }
 
+    /* len = 32,16,8 */
     for (j = 0; j < KYBER_N; j += 64) {
         int i;
         sword16 zeta32   = zetas[ 4 + j / 64 + 0];
@@ -464,6 +487,7 @@ static void kyber_ntt(sword16* r)
         }
     }
 
+    /* len = 4,2 and Final reduction */
     for (j = 0; j < KYBER_N; j += 8) {
         sword16 zeta4  = zetas[32 + j / 8 + 0];
         sword16 zeta2_0 = zetas[64 + j / 4 + 0];
@@ -515,7 +539,48 @@ static void kyber_ntt(sword16* r)
 #endif
 }
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
+/* Zetas for inverse NTT. */
+const sword16 zetas_inv[KYBER_N / 2] = {
+    1701, 1807, 1460, 2371, 2338, 2333,  308,  108,
+    2851,  870,  854, 1510, 2535, 1278, 1530, 1185,
+    1659, 1187, 3109,  874, 1335, 2111,  136, 1215,
+    2945, 1465, 1285, 2007, 2719, 2726, 2232, 2512,
+      75,  156, 3000, 2911, 2980,  872, 2685, 1590,
+    2210,  602, 1846,  777,  147, 2170, 2551,  246,
+    1676, 1755,  460,  291,  235, 3152, 2742, 2907,
+    3224, 1779, 2458, 1251, 2486, 2774, 2899, 1103,
+    1275, 2652, 1065, 2881,  725, 1508, 2368,  398,
+     951,  247, 1421, 3222, 2499,  271,   90,  853,
+    1860, 3203, 1162, 1618,  666,  320,    8, 2813,
+    1544,  282, 1838, 1293, 2314,  552, 2677, 2106,
+    1571,  205, 2918, 1542, 2721, 2597, 2312,  681,
+     130, 1602, 1871,  829, 2946, 3065, 1325, 2756,
+    1861, 1474, 1202, 2367, 3147, 1752, 2707,  171,
+    3127, 3042, 1907, 1836, 1517,  359,  758, 1441
+};
+
 /* Inverse Number-Theoretic Transform.
+ *
+ * FIPS 203, Algorithm 10: NTT^-1(f_hat)
+ * Computes the polynomial f element of R_q that corresponds to the given NTT
+ * representation f element of T_q.
+ *   1: f <- f_hat
+ *   2: i <- 127
+ *   3: for (len <- 2; len <= 128 ; len <- 2.len)
+ *   4:     for (start <- 0; start < 256; start <- start + 2.len)
+ *   5:         zeta <- zetas^BitRev_7(i) mod q
+ *   6:         i <- i - 1
+ *   7:         for (j <- start; j < start + len; j++)
+ *   8:             t <- f[j]
+ *   9:             f[j] < t + f[j + len]
+ *  10:             f[j + len] <- zeta.(f[j+len] - t)
+ *  11:         end for
+ *  12:     end for
+ *  13: end for
+ *  14: f <- f.3303 mod q
+ *  15: return f
  *
  * @param  [in, out]  r  Polynomial to transform.
  */
@@ -527,17 +592,25 @@ static void kyber_invntt(sword16* r)
     unsigned int j;
     sword16 zeta;
 
+    /* Step 2 - table reversed */
     k = 0;
+    /* Step 3 */
     for (len = 2; len <= KYBER_N / 2; len <<= 1) {
         unsigned int start;
+        /* Step 4 */
         for (start = 0; start < KYBER_N; start = j + len) {
+            /* Step 5, 6 */
             zeta = zetas_inv[k++];
+            /* Step 7 */
             for (j = start; j < start + len; ++j) {
                 sword32 p;
+                /* Step 8 */
                 sword16 rj = r[j];
                 sword16 rjl = r[j + len];
+                /* Step 9 */
                 sword16 t = rj + rjl;
                 r[j] = KYBER_BARRETT_RED(t);
+                /* Step 10 */
                 rjl = rj - rjl;
                 p = (sword32)zeta * rjl;
                 r[j + len] = KYBER_MONT_RED(p);
@@ -545,12 +618,14 @@ static void kyber_invntt(sword16* r)
         }
     }
 
+    /* Step 14 */
     zeta = zetas_inv[127];
     for (j = 0; j < KYBER_N; ++j) {
         sword32 p = (sword32)zeta * r[j];
         r[j] = KYBER_MONT_RED(p);
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    /* Take out last iteration. */
     unsigned int len;
     unsigned int k;
     unsigned int j;
@@ -593,6 +668,7 @@ static void kyber_invntt(sword16* r)
         r[j + KYBER_N / 2] = KYBER_MONT_RED(p);
     }
 #elif defined(WOLFSSL_KYBER_INVNTT_UNROLL)
+    /* Unroll len loop (Step 3). */
     unsigned int k;
     unsigned int j;
     unsigned int start;
@@ -600,6 +676,7 @@ static void kyber_invntt(sword16* r)
     sword16 zeta2;
 
     k = 0;
+    /* len = 2 */
     for (start = 0; start < KYBER_N; start += 2 * 2) {
         zeta = zetas_inv[k++];
         for (j = 0; j < 2; ++j) {
@@ -613,6 +690,7 @@ static void kyber_invntt(sword16* r)
             r[start + j + 2] = KYBER_MONT_RED(p);
         }
     }
+    /* len = 4 */
     for (start = 0; start < KYBER_N; start += 2 * 4) {
         zeta = zetas_inv[k++];
         for (j = 0; j < 4; ++j) {
@@ -626,6 +704,7 @@ static void kyber_invntt(sword16* r)
             r[start + j + 4] = KYBER_MONT_RED(p);
         }
     }
+    /* len = 8 */
     for (start = 0; start < KYBER_N; start += 2 * 8) {
         zeta = zetas_inv[k++];
         for (j = 0; j < 8; ++j) {
@@ -640,6 +719,7 @@ static void kyber_invntt(sword16* r)
             r[start + j + 8] = KYBER_MONT_RED(p);
         }
     }
+    /* len = 16 */
     for (start = 0; start < KYBER_N; start += 2 * 16) {
         zeta = zetas_inv[k++];
         for (j = 0; j < 16; ++j) {
@@ -653,6 +733,7 @@ static void kyber_invntt(sword16* r)
             r[start + j + 16] = KYBER_MONT_RED(p);
         }
     }
+    /* len = 32 */
     for (start = 0; start < KYBER_N; start += 2 * 32) {
         zeta = zetas_inv[k++];
         for (j = 0; j < 32; ++j) {
@@ -666,6 +747,7 @@ static void kyber_invntt(sword16* r)
             r[start + j + 32] = KYBER_MONT_RED(p);
         }
     }
+    /* len = 64 */
     for (start = 0; start < KYBER_N; start += 2 * 64) {
         zeta = zetas_inv[k++];
         for (j = 0; j < 64; ++j) {
@@ -680,6 +762,7 @@ static void kyber_invntt(sword16* r)
             r[start + j + 64] = KYBER_MONT_RED(p);
         }
     }
+    /* len = 128, 256 */
     zeta = zetas_inv[126];
     zeta2 = zetas_inv[127];
     for (j = 0; j < KYBER_N / 2; ++j) {
@@ -698,6 +781,7 @@ static void kyber_invntt(sword16* r)
         r[j + KYBER_N / 2] = KYBER_MONT_RED(p);
     }
 #else
+    /* Unroll len (2, 3, 3) and start loops. */
     unsigned int j;
     sword16 t0;
     sword16 t1;
@@ -923,10 +1007,18 @@ static void kyber_invntt(sword16* r)
     }
 #endif
 }
+#endif
 
 /* Multiplication of polynomials in Zq[X]/(X^2-zeta).
  *
  * Used for multiplication of elements in Rq in NTT domain.
+ *
+ * FIPS 203, Algorithm 12: BaseCaseMultiply(a0, a1, b0, b1, zeta)
+ * Computes the product of two degree-one polynomials with respect to a
+ * quadratic modulus.
+ *   1: c0 <- a0.b0 + a1.b1.zeta
+ *   2: c1 <- a0.b1 + a1.b0
+ *   3: return (c0, c1)
  *
  * @param  [out]  r     Result polynomial.
  * @param  [in]   a     First factor.
@@ -944,13 +1036,15 @@ static void kyber_basemul(sword16* r, const sword16* a, const sword16* b,
     sword32 p1;
     sword32 p2;
 
-    p1   = (sword32)a1 * b1;
-    p2   = (sword32)a0 * b0;
-    r0   = KYBER_MONT_RED(p1);
-    p1   = (sword32)zeta * r0;
-    p1  += p2;
-    r[0] = KYBER_MONT_RED(p1);
+    /* Step 1 */
+    p1   = (sword32)a0 * b0;
+    p2   = (sword32)a1 * b1;
+    r0   = KYBER_MONT_RED(p2);
+    p2   = (sword32)zeta * r0;
+    p2  += p1;
+    r[0] = KYBER_MONT_RED(p2);
 
+    /* Step 2 */
     p1   = (sword32)a0 * b1;
     p2   = (sword32)a1 * b0;
     p1  += p2;
@@ -958,6 +1052,15 @@ static void kyber_basemul(sword16* r, const sword16* a, const sword16* b,
 }
 
 /* Multiply two polynomials in NTT domain. r = a * b.
+ *
+ * FIPS 203, Algorithm 11: MultiplyNTTs(f_hat, g_hat)
+ * Computes the product (in the ring T_q) of two NTT representations.
+ *   1: for (i <- 0; i < 128; i++)
+ *   2:     (h_hat[2i],h_hat[2i+1]) <-
+ *              BaseCaseMultiply(f_hat[2i],f_hat[2i+1],g_hat[2i],g_hat[2i+1],
+ *                               zetas^(BitRev_7(i)+1)
+ *   3: end for
+ *   4: return h_hat
  *
  * @param  [out]  r  Result polynomial.
  * @param  [in]   a  First polynomial multiplier.
@@ -968,12 +1071,16 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
     const sword16* zeta = zetas + 64;
 
 #if defined(WOLFSSL_KYBER_SMALL)
+    /* Two multiplications per loop. */
     unsigned int i;
+    /* Step 1 */
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
+        /* Step 2 */
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
         kyber_basemul(r + i + 2, a + i + 2, b + i + 2, -zeta[0]);
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    /* Four multiplications per loop. */
     unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         kyber_basemul(r + i + 0, a + i + 0, b + i + 0,  zeta[0]);
@@ -982,6 +1089,7 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
         kyber_basemul(r + i + 6, a + i + 6, b + i + 6, -zeta[1]);
     }
 #else
+    /* Eight multiplications per loop. */
     unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         kyber_basemul(r + i +  0, a + i +  0, b + i +  0,  zeta[0]);
@@ -998,6 +1106,16 @@ static void kyber_basemul_mont(sword16* r, const sword16* a, const sword16* b)
 
 /* Multiply two polynomials in NTT domain and add to result. r += a * b.
  *
+ * FIPS 203, Algorithm 11: MultiplyNTTs(f_hat, g_hat)
+ * Computes the product (in the ring T_q) of two NTT representations.
+ *   1: for (i <- 0; i < 128; i++)
+ *   2:     (h_hat[2i],h_hat[2i+1]) <-
+ *              BaseCaseMultiply(f_hat[2i],f_hat[2i+1],g_hat[2i],g_hat[2i+1],
+ *                               zetas^(BitRev_7(i)+1)
+ *   3: end for
+ *   4: return h_hat
+ * Add h_hat to r.
+ *
  * @param  [in, out]  r  Result polynomial.
  * @param  [in]       a  First polynomial multiplier.
  * @param  [in]       b  Second polynomial multiplier.
@@ -1008,6 +1126,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
     const sword16* zeta = zetas + 64;
 
 #if defined(WOLFSSL_KYBER_SMALL)
+    /* Two multiplications per loop. */
     unsigned int i;
     for (i = 0; i < KYBER_N; i += 4, zeta++) {
         sword16 t0[2];
@@ -1022,6 +1141,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 3] += t2[1];
     }
 #elif defined(WOLFSSL_KYBER_NO_LARGE_CODE)
+    /* Four multiplications per loop. */
     unsigned int i;
     for (i = 0; i < KYBER_N; i += 8, zeta += 2) {
         sword16 t0[2];
@@ -1044,6 +1164,7 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
         r[i + 7] += t6[1];
     }
 #else
+    /* Eight multiplications per loop. */
     unsigned int i;
     for (i = 0; i < KYBER_N; i += 16, zeta += 4) {
         sword16 t0[2];
@@ -1087,26 +1208,26 @@ static void kyber_basemul_mont_add(sword16* r, const sword16* a,
 
 /* Pointwise multiply elements of a and b, into r, and multiply by 2^-16.
  *
- * @param  [out]  r   Result polynomial.
- * @param  [in]   a   First vector polynomial to multiply with.
- * @param  [in]   b   Second vector polynomial to multiply with.
- * @param  [in]   kp  Number of polynomials in vector.
+ * @param  [out]  r  Result polynomial.
+ * @param  [in]   a  First vector polynomial to multiply with.
+ * @param  [in]   b  Second vector polynomial to multiply with.
+ * @param  [in]   k  Number of polynomials in vector.
  */
 static void kyber_pointwise_acc_mont(sword16* r, const sword16* a,
-    const sword16* b, unsigned int kp)
+    const sword16* b, unsigned int k)
 {
     unsigned int i;
 
     kyber_basemul_mont(r, a, b);
 #ifdef WOLFSSL_KYBER_SMALL
-    for (i = 1; i < kp; ++i) {
+    for (i = 1; i < k; ++i) {
         kyber_basemul_mont_add(r, a + i * KYBER_N, b + i * KYBER_N);
     }
 #else
-    for (i = 1; i < kp - 1; ++i) {
+    for (i = 1; i < k - 1; ++i) {
         kyber_basemul_mont_add(r, a + i * KYBER_N, b + i * KYBER_N);
     }
-    kyber_basemul_mont_add(r, a + (kp - 1) * KYBER_N, b + (kp - 1) * KYBER_N);
+    kyber_basemul_mont_add(r, a + (k - 1) * KYBER_N, b + (k - 1) * KYBER_N);
 #endif
 }
 
@@ -1126,238 +1247,318 @@ void kyber_init(void)
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM)
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
 /* Generate a public-private key pair from randomly generated data.
  *
- * @param  [in, out]  priv  Private key vector of polynomials.
- * @param  [out]      pub   Public key vector of polynomials.
- * @param  [in]       e     Error values as a vector of polynomials. Modified.
- * @param  [in]       a     Random values in an array of vectors of polynomials.
- * @param  [in]       kp    Number of polynomials in vector.
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   ...
+ *   16: s_hat <- NTT(s)
+ *   17: e_hat <- NTT(e)
+ *   18: t^hat <- A_hat o s_hat + e_hat
+ *   ...
+ *
+ * @param  [in, out]  s  Private key vector of polynomials.
+ * @param  [out]      t  Public key vector of polynomials.
+ * @param  [in]       e  Error values as a vector of polynomials. Modified.
+ * @param  [in]       a  Random values in an array of vectors of polynomials.
+ * @param  [in]       k  Number of polynomials in vector.
  */
-void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
-    int kp)
+void kyber_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
 {
     int i;
 
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
     if (IS_AARCH64_RDM(cpuid_flags)) {
         /* Transform private key. All of result used in public key calculation.
-         */
-        for (i = 0; i < kp; ++i) {
-            kyber_ntt_sqrdmlsh(priv + i * KYBER_N);
+         * Step 16: s_hat = NTT(s) */
+        for (i = 0; i < k; ++i) {
+            kyber_ntt_sqrdmlsh(s + i * KYBER_N);
         }
 
-        /* For each polynomial in the vectors. */
-        for (i = 0; i < kp; ++i) {
-            /* Multiply a by private into public polynomial. */
-            kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N,
-                priv, kp);
-            /* Convert public polynomial to Montgomery form. */
-            kyber_to_mont_sqrdmlsh(pub + i * KYBER_N);
-            /* Transform error values polynomial. */
+        /* For each polynomial in the vectors.
+         * Step 17, Step 18: Calculate public from A_hat, s_hat and e_hat. */
+        for (i = 0; i < k; ++i) {
+            /* Multiply a by private into public polynomial.
+             * Step 18: ... A_hat o s_hat ... */
+            kyber_pointwise_acc_mont(t + i * KYBER_N, a + i * k * KYBER_N, s,
+                k);
+            /* Convert public polynomial to Montgomery form.
+             * Step 18: ... MontRed(A_hat o s_hat) ... */
+            kyber_to_mont_sqrdmlsh(t + i * KYBER_N);
+            /* Transform error values polynomial.
+             * Step 17: e_hat = NTT(e) */
             kyber_ntt_sqrdmlsh(e + i * KYBER_N);
-            /* Add errors to public key and reduce. */
-            kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+            /* Add errors to public key and reduce.
+             * Step 18: t_hat = BarrettRed(MontRed(A_hat o s_hat) + e_hat) */
+            kyber_add_reduce(t + i * KYBER_N, e + i * KYBER_N);
         }
     }
     else
 #endif
     {
         /* Transform private key. All of result used in public key calculation.
-         */
-        for (i = 0; i < kp; ++i) {
-            kyber_ntt(priv + i * KYBER_N);
+         * Step 16: s_hat = NTT(s) */
+        for (i = 0; i < k; ++i) {
+            kyber_ntt(s + i * KYBER_N);
         }
 
-        /* For each polynomial in the vectors. */
-        for (i = 0; i < kp; ++i) {
-            /* Multiply a by private into public polynomial. */
-            kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N,
-                priv, kp);
-            /* Convert public polynomial to Montgomery form. */
-            kyber_to_mont(pub + i * KYBER_N);
-            /* Transform error values polynomial. */
+        /* For each polynomial in the vectors.
+         * Step 17, Step 18: Calculate public from A_hat, s_hat and e_hat. */
+        for (i = 0; i < k; ++i) {
+            /* Multiply a by private into public polynomial.
+             * Step 18: ... A_hat o s_hat ... */
+            kyber_pointwise_acc_mont(t + i * KYBER_N, a + i * k * KYBER_N, s,
+                k);
+            /* Convert public polynomial to Montgomery form.
+             * Step 18: ... MontRed(A_hat o s_hat) ... */
+            kyber_to_mont(t + i * KYBER_N);
+            /* Transform error values polynomial.
+             * Step 17: e_hat = NTT(e) */
             kyber_ntt(e + i * KYBER_N);
-            /* Add errors to public key and reduce. */
-            kyber_add_reduce(pub + i * KYBER_N, e + i * KYBER_N);
+            /* Add errors to public key and reduce.
+             * Step 18: t_hat = BarrettRed(MontRed(A_hat o s_hat) + e_hat) */
+            kyber_add_reduce(t + i * KYBER_N, e + i * KYBER_N);
         }
     }
 }
+#endif /* WOLFSSL_KYBER_NO_MAKE_KEY */
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 /* Encapsulate message.
  *
- * @param  [in]   pub  Public key vector of polynomials.
- * @param  [out]  bp   Vector of polynomials.
- * @param  [out]  v    Polynomial.
- * @param  [in]   at   Array of vector of polynomials.
- * @param  [in]   sp   Vector of polynomials.
- * @param  [in]   ep   Error Vector of polynomials.
- * @param  [in]   epp  Error polynomial.
- * @param  [in]   m    Message polynomial.
- * @param  [in]   kp   Number of polynomials in vector.
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE, m, r)
+ *   ...
+ *   Step 18: y_hat <- NTT(y)
+ *   Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1)
+ *   ...
+ *   Step 21: v <- InvNTT(t_hat_trans o y_hat) + e_2 + mu)
+ *   ...
+ *
+ * @param  [in]   t   Public key vector of polynomials.
+ * @param  [out]  u   Vector of polynomials.
+ * @param  [out]  v   Polynomial.
+ * @param  [in]   a   Array of vector of polynomials.
+ * @param  [in]   y   Vector of polynomials.
+ * @param  [in]   e1  Error Vector of polynomials.
+ * @param  [in]   e2  Error polynomial.
+ * @param  [in]   m   Message polynomial.
+ * @param  [in]   k   Number of polynomials in vector.
  */
-void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
-    const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
-    const sword16* m, int kp)
+void kyber_encapsulate(const sword16* t, sword16* u , sword16* v,
+    const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
+    const sword16* m, int k)
 {
     int i;
 
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
     if (IS_AARCH64_RDM(cpuid_flags)) {
-        /* Transform sp. All of result used in calculation of bp and v. */
-        for (i = 0; i < kp; ++i) {
-            kyber_ntt_sqrdmlsh(sp + i * KYBER_N);
+        /* Transform y. All of result used in calculation of u and v.
+         * Step 18: y_hat <- NTT(y) */
+        for (i = 0; i < k; ++i) {
+            kyber_ntt_sqrdmlsh(y + i * KYBER_N);
         }
 
-        /* For each polynomial in the vectors. */
-        for (i = 0; i < kp; ++i) {
-            /* Multiply at by sp into bp polynomial. */
-            kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N,
-                sp, kp);
-            /* Inverse transform bp polynomial. */
-            kyber_invntt_sqrdmlsh(bp + i * KYBER_N);
-            /* Add errors to bp and reduce. */
-            kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
+        /* For each polynomial in the vectors.
+         * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1) */
+        for (i = 0; i < k; ++i) {
+            /* Multiply at by y into u polynomial.
+             * Step 19: ... A_hat_trans o y_hat ... */
+            kyber_pointwise_acc_mont(u + i * KYBER_N, a + i * k * KYBER_N, y,
+                k);
+            /* Inverse transform u  polynomial.
+             * Step 19: ... InvNTT(A_hat_trans o y_hat) ... */
+            kyber_invntt_sqrdmlsh(u  + i * KYBER_N);
+            /* Add errors to u  and reduce.
+             * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1) */
+            kyber_add_reduce(u  + i * KYBER_N, e1 + i * KYBER_N);
         }
 
-        /* Multiply public key by sp into v polynomial. */
-        kyber_pointwise_acc_mont(v, pub, sp, kp);
-        /* Inverse transform v. */
+        /* Multiply public key by y into v polynomial.
+         * Step 21: ... t_hat_trans o y_hat ... */
+        kyber_pointwise_acc_mont(v, t, y, k);
+        /* Inverse transform v.
+         * Step 22: ... InvNTT(t_hat_trans o y_hat) ... */
         kyber_invntt_sqrdmlsh(v);
     }
     else
 #endif
     {
-        /* Transform sp. All of result used in calculation of bp and v. */
-        for (i = 0; i < kp; ++i) {
-            kyber_ntt(sp + i * KYBER_N);
+        /* Transform y. All of result used in calculation of u and v.
+         * Step 18: y_hat <- NTT(y) */
+        for (i = 0; i < k; ++i) {
+            kyber_ntt(y + i * KYBER_N);
         }
 
-        /* For each polynomial in the vectors. */
-        for (i = 0; i < kp; ++i) {
-            /* Multiply at by sp into bp polynomial. */
-            kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N,
-                sp, kp);
-            /* Inverse transform bp polynomial. */
-            kyber_invntt(bp + i * KYBER_N);
-            /* Add errors to bp and reduce. */
-            kyber_add_reduce(bp + i * KYBER_N, ep + i * KYBER_N);
+        /* For each polynomial in the vectors.
+         * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1) */
+        for (i = 0; i < k; ++i) {
+            /* Multiply at by y into u polynomial.
+             * Step 19: ... A_hat_trans o y_hat ... */
+            kyber_pointwise_acc_mont(u + i * KYBER_N, a + i * k * KYBER_N, y,
+                k);
+            /* Inverse transform u  polynomial.
+             * Step 19: ... InvNTT(A_hat_trans o y_hat) ... */
+            kyber_invntt(u + i * KYBER_N);
+            /* Add errors to u and reduce.
+             * Step 19: u <- InvNTT(A_hat_trans o y_hat) + e_1) */
+            kyber_add_reduce(u + i * KYBER_N, e1 + i * KYBER_N);
         }
 
-        /* Multiply public key by sp into v polynomial. */
-        kyber_pointwise_acc_mont(v, pub, sp, kp);
-        /* Inverse transform v. */
+        /* Multiply public key by y into v polynomial.
+         * Step 21: ... t_hat_trans o y_hat ... */
+        kyber_pointwise_acc_mont(v, t, y, k);
+        /* Inverse transform v.
+         * Step 22: ... InvNTT(t_hat_trans o y_hat) ... */
         kyber_invntt(v);
     }
-    /* Add errors and message to v and reduce. */
-    kyber_add3_reduce(v, epp, m);
+    /* Add errors and message to v and reduce.
+     * Step 21: v <- InvNTT(t_hat_trans o y_hat) + e_2 + mu) */
+    kyber_add3_reduce(v, e2, m);
 }
+#endif /* !WOLFSSL_KYBER_NO_ENCAPSULATE || !WOLFSSL_KYBER_NO_DECAPSULATE */
 
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
 /* Decapsulate message.
  *
- * @param  [in]   priv  Private key vector of polynomials.
- * @param  [out]  mp    Message polynomial.
- * @param  [in]   bp    Vector of polynomials containing error.
- * @param  [in]   v     Encapsulated message polynomial.
- * @param  [in]   kp    Number of polynomials in vector.
+ * FIPS 203, Algorithm 15: K-PKE.Decrypt(dk_PKE,c)
+ * Uses the decryption key to decrypt a ciphertext.
+ *   ...
+ *   6: w <- v' - InvNTT(s_hat_trans o NTT(u'))
+ *   ...
+ *
+ * @param  [in]   s  Decryption key as vector of polynomials.
+ * @param  [out]  w  Message polynomial.
+ * @param  [in]   u  Vector of polynomials containing error.
+ * @param  [in]   v  Encapsulated message polynomial.
+ * @param  [in]   k  Number of polynomials in vector.
  */
-void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
-    const sword16* v, int kp)
+void kyber_decapsulate(const sword16* s, sword16* w, sword16* u,
+    const sword16* v, int k)
 {
     int i;
 
 #ifndef WOLFSSL_AARCH64_NO_SQRDMLSH
     if (IS_AARCH64_RDM(cpuid_flags)) {
-        /* Transform bp. All of result used in calculation of mp. */
-        for (i = 0; i < kp; ++i) {
-            kyber_ntt_sqrdmlsh(bp + i * KYBER_N);
+        /* Transform u. All of result used in calculation of w.
+         * Step 6: ... NTT(u') */
+        for (i = 0; i < k; ++i) {
+            kyber_ntt_sqrdmlsh(u + i * KYBER_N);
         }
 
-        /* Multiply private key by bp into mp polynomial. */
-        kyber_pointwise_acc_mont(mp, priv, bp, kp);
-        /* Inverse transform mp. */
-        kyber_invntt_sqrdmlsh(mp);
+        /* Multiply private key by u into w polynomial.
+         * Step 6: ... s_hat_trans o NTT(u') */
+        kyber_pointwise_acc_mont(w, s, u, k);
+        /* Inverse transform w.
+         * Step 6: ... InvNTT(s_hat_trans o NTT(u')) */
+        kyber_invntt_sqrdmlsh(w);
     }
     else
 #endif
     {
-        /* Transform bp. All of result used in calculation of mp. */
-        for (i = 0; i < kp; ++i) {
-            kyber_ntt(bp + i * KYBER_N);
+        /* Transform u. All of result used in calculation of w.
+         * Step 6: ... NTT(u') */
+        for (i = 0; i < k; ++i) {
+            kyber_ntt(u + i * KYBER_N);
         }
 
-        /* Multiply private key by bp into mp polynomial. */
-        kyber_pointwise_acc_mont(mp, priv, bp, kp);
-        /* Inverse transform mp. */
-        kyber_invntt(mp);
+        /* Multiply private key by u into w polynomial.
+         * Step 6: ... s_hat_trans o NTT(u') */
+        kyber_pointwise_acc_mont(w, s, u, k);
+        /* Inverse transform w.
+         * Step 6: ... InvNTT(s_hat_trans o NTT(u')) */
+        kyber_invntt(w);
     }
-    /* Subtract errors (mp) out of v and reduce into mp. */
-    kyber_rsub_reduce(mp, v);
+    /* Subtract errors (in w) out of v and reduce into w.
+     * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
+    kyber_rsub_reduce(w, v);
 }
+#endif /* !WOLFSSL_KYBER_NO_DECAPSULATE */
 
 #else
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 /* Generate a public-private key pair from randomly generated data.
  *
- * @param  [in, out]  priv  Private key vector of polynomials.
- * @param  [out]      pub   Public key vector of polynomials.
- * @param  [in]       e     Error values as a vector of polynomials. Modified.
- * @param  [in]       a     Random values in an array of vectors of polynomials.
- * @param  [in]       kp    Number of polynomials in vector.
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   ...
+ *   16: s_hat <- NTT(s)
+ *   17: e_hat <- NTT(e)
+ *   18: t^hat <- A_hat o s_hat + e_hat
+ *   ...
+ *
+ * @param  [in, out]  s  Private key vector of polynomials.
+ * @param  [out]      t  Public key vector of polynomials.
+ * @param  [in]       e  Error values as a vector of polynomials. Modified.
+ * @param  [in]       a  Random values in an array of vectors of polynomials.
+ * @param  [in]       k  Number of polynomials in vector.
  */
-static void kyber_keygen_c(sword16* priv, sword16* pub, sword16* e,
-    const sword16* a, int kp)
+static void kyber_keygen_c(sword16* s, sword16* t, sword16* e, const sword16* a,
+    int k)
 {
     int i;
 
-    /* Transform private key. All of result used in public key calculation */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(priv + i * KYBER_N);
+    /* Transform private key. All of result used in public key calculation
+     * Step 16: s_hat = NTT(s) */
+    for (i = 0; i < k; ++i) {
+        kyber_ntt(s + i * KYBER_N);
     }
 
-    /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
+    /* For each polynomial in the vectors.
+     * Step 17, Step 18: Calculate public from A_hat, s_hat and e_hat. */
+    for (i = 0; i < k; ++i) {
         unsigned int j;
 
-        /* Multiply a by private into public polynomial. */
-        kyber_pointwise_acc_mont(pub + i * KYBER_N, a + i * kp * KYBER_N, priv,
-            kp);
-        /* Convert public polynomial to Montgomery form. */
+        /* Multiply a by private into public polynomial.
+         * Step 18: ... A_hat o s_hat ... */
+        kyber_pointwise_acc_mont(t + i * KYBER_N, a + i * k * KYBER_N, s, k);
+        /* Convert public polynomial to Montgomery form.
+         * Step 18: ... MontRed(A_hat o s_hat) ... */
         for (j = 0; j < KYBER_N; ++j) {
-            sword32 t = pub[i * KYBER_N + j] * (sword32)KYBER_F;
-            pub[i * KYBER_N + j] = KYBER_MONT_RED(t);
+            sword32 n = t[i * KYBER_N + j] * (sword32)KYBER_F;
+            t[i * KYBER_N + j] = KYBER_MONT_RED(n);
         }
-        /* Transform error values polynomial. */
+        /* Transform error values polynomial.
+         * Step 17: e_hat = NTT(e) */
         kyber_ntt(e + i * KYBER_N);
-        /* Add errors to public key and reduce. */
+        /* Add errors to public key and reduce.
+         * Step 18: t_hat = BarrettRed(MontRed(A_hat o s_hat) + e_hat) */
         for (j = 0; j < KYBER_N; ++j) {
-            sword16 t = pub[i * KYBER_N + j] + e[i * KYBER_N + j];
-            pub[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
+            sword16 n = t[i * KYBER_N + j] + e[i * KYBER_N + j];
+            t[i * KYBER_N + j] = KYBER_BARRETT_RED(n);
         }
     }
 }
 
 /* Generate a public-private key pair from randomly generated data.
  *
- * @param  [in, out]  priv  Private key vector of polynomials.
- * @param  [out]      pub   Public key vector of polynomials.
- * @param  [in]       e     Error values as a vector of polynomials. Modified.
- * @param  [in]       a     Random values in an array of vectors of polynomials.
- * @param  [in]       kp    Number of polynomials in vector.
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   ...
+ *   16: s_hat <- NTT(s)
+ *   17: e_hat <- NTT(e)
+ *   18: t^hat <- A_hat o s_hat + e_hat
+ *   ...
+ *
+ * @param  [in, out]  s  Private key vector of polynomials.
+ * @param  [out]      t  Public key vector of polynomials.
+ * @param  [in]       e  Error values as a vector of polynomials. Modified.
+ * @param  [in]       a  Random values in an array of vectors of polynomials.
+ * @param  [in]       k  Number of polynomials in vector.
  */
-void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
-    int kp)
+void kyber_keygen(sword16* s, sword16* t, sword16* e, const sword16* a, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
     if ((IS_INTEL_AVX2(cpuid_flags)) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        kyber_keygen_avx2(priv, pub, e, a, kp);
+        /* Alg 13: Steps 16-18 */
+        kyber_keygen_avx2(s, t, e, a, k);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     {
-        kyber_keygen_c(priv, pub, e, a, kp);
+        /* Alg 13: Steps 16-18 */
+        kyber_keygen_c(s, t, e, a, k);
     }
 }
 
@@ -1365,54 +1566,76 @@ void kyber_keygen(sword16* priv, sword16* pub, sword16* e, const sword16* a,
 
 /* Generate a public-private key pair from randomly generated data.
  *
- * @param  [in, out]  priv       Private key vector of polynomials.
- * @param  [out]      pub        Public key vector of polynomials.
- * @param  [in]       prf        XOF object.
- * @param  [in]       tv         Temporary vector of polynomials.
- * @param  [in]       kp         Number of polynomials in vector.
- * @param  [in]       seed       Random seed to generate matrix A from.
- * @param  [in]       noiseSeed  Random seed to generate noise from.
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   3: for (i <- 0; i < k; i++)                         > generate matrix A_hat
+ *   ... (generate A[i])
+ *   7: end for
+ *   ...
+ *   9:      s[i] <- SamplePolyCBD_eta_1(PRF_eta_1(rho, N))
+ *   ...
+ *  16: s_hat <- NTT(s)
+ *  17: e_hat <- NTT(e)
+ *  18: t^hat <- A_hat o s_hat + e_hat
+ *   ...
+ *
+ * @param  [in, out]  s      Private key vector of polynomials.
+ * @param  [out]      tv     Public key vector of polynomials.
+ * @param  [in]       prf    XOF object.
+ * @param  [in]       tv     Temporary vector of polynomials.
+ * @param  [in]       k      Number of polynomials in vector.
+ * @param  [in]       rho    Random seed to generate matrix A from.
+ * @param  [in]       sigma  Random seed to generate noise from.
  */
-int kyber_keygen_seeds(sword16* priv, sword16* pub, KYBER_PRF_T* prf,
-    sword16* tv, int kp, byte* seed, byte* noiseSeed)
+int kyber_keygen_seeds(sword16* s, sword16* t, KYBER_PRF_T* prf,
+    sword16* tv, int k, byte* rho, byte* sigma)
 {
     int i;
     int ret = 0;
+    sword16* ai = tv;
+    sword16* e = tv;
 
-    /* Transform private key. All of result used in public key calculation */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(priv + i * KYBER_N);
+    /* Transform private key. All of result used in public key calculation
+     * Step 16: s_hat = NTT(s) */
+    for (i = 0; i < k; ++i) {
+        kyber_ntt(s + i * KYBER_N);
     }
 
-    /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
+    /* For each polynomial in the vectors.
+     * Step 17, Step 18: Calculate public from A_hat, s_hat and e_hat. */
+    for (i = 0; i < k; ++i) {
         unsigned int j;
 
-        /* Generate a vector of matrix A. */
-        ret = kyber_gen_matrix_i(prf, tv, kp, seed, i, 0);
+        /* Generate a vector of matrix A.
+         * Steps 4-6: generate A[i] */
+        ret = kyber_gen_matrix_i(prf, ai, k, rho, i, 0);
         if (ret != 0) {
            break;
         }
 
-        /* Multiply a by private into public polynomial. */
-        kyber_pointwise_acc_mont(pub + i * KYBER_N, tv, priv, kp);
-        /* Convert public polynomial to Montgomery form. */
+        /* Multiply a by private into public polynomial.
+         * Step 18: ... A_hat o s_hat ... */
+        kyber_pointwise_acc_mont(t + i * KYBER_N, ai, s, k);
+        /* Convert public polynomial to Montgomery form.
+         * Step 18: ... MontRed(A_hat o s_hat) ... */
         for (j = 0; j < KYBER_N; ++j) {
-            sword32 t = pub[i * KYBER_N + j] * (sword32)KYBER_F;
-            pub[i * KYBER_N + j] = KYBER_MONT_RED(t);
+            sword32 n = t[i * KYBER_N + j] * (sword32)KYBER_F;
+            t[i * KYBER_N + j] = KYBER_MONT_RED(n);
         }
 
-        /* Generate noise using PRF. */
-        ret = kyber_get_noise_i(prf, kp, tv, noiseSeed, i, 1);
+        /* Generate noise using PRF.
+         * Step 9: s[i] <- SamplePolyCBD_eta_1(PRF_eta_1(rho, N)) */
+        ret = kyber_get_noise_i(prf, k, e, sigma, i, 1);
         if (ret != 0) {
            break;
         }
-        /* Transform error values polynomial. */
-        kyber_ntt(tv);
-        /* Add errors to public key and reduce. */
+        /* Transform error values polynomial.
+         * Step 17: e_hat = NTT(e) */
+        kyber_ntt(e);
+        /* Add errors to public key and reduce.
+         * Step 18: t_hat = BarrettRed(MontRed(A_hat o s_hat) + e_hat) */
         for (j = 0; j < KYBER_N; ++j) {
-            sword16 t = pub[i * KYBER_N + j] + tv[j];
-            pub[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
+            sword16 n = t[i * KYBER_N + j] + e[j];
+            t[i * KYBER_N + j] = KYBER_BARRETT_RED(n);
         }
     }
 
@@ -1420,54 +1643,56 @@ int kyber_keygen_seeds(sword16* priv, sword16* pub, KYBER_PRF_T* prf,
 }
 
 #endif
+#endif /* !WOLFSSL_KYBER_NO_MAKE_KEY */
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
 /* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
- * @param  [out]  bp   Vector of polynomials.
+ * @param  [out]  u    Vector of polynomials.
  * @param  [out]  v    Polynomial.
- * @param  [in]   at   Array of vector of polynomials.
- * @param  [in]   sp   Vector of polynomials.
- * @param  [in]   ep   Error Vector of polynomials.
- * @param  [in]   epp  Error polynomial.
+ * @param  [in]   a    Array of vector of polynomials.
+ * @param  [in]   y    Vector of polynomials.
+ * @param  [in]   e1   Error Vector of polynomials.
+ * @param  [in]   e2   Error polynomial.
  * @param  [in]   m    Message polynomial.
- * @param  [in]   kp   Number of polynomials in vector.
+ * @param  [in]   k    Number of polynomials in vector.
  */
-static void kyber_encapsulate_c(const sword16* pub, sword16* bp, sword16* v,
-    const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
-    const sword16* m, int kp)
+static void kyber_encapsulate_c(const sword16* pub, sword16* u, sword16* v,
+    const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
+    const sword16* m, int k)
 {
     int i;
 
-    /* Transform sp. All of result used in calculation of bp and v. */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(sp + i * KYBER_N);
+    /* Transform y. All of result used in calculation of u and v. */
+    for (i = 0; i < k; ++i) {
+        kyber_ntt(y + i * KYBER_N);
     }
 
     /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
+    for (i = 0; i < k; ++i) {
         unsigned int j;
 
-        /* Multiply at by sp into bp polynomial. */
-        kyber_pointwise_acc_mont(bp + i * KYBER_N, at +  i * kp * KYBER_N, sp,
-            kp);
-        /* Inverse transform bp polynomial. */
-        kyber_invntt(bp + i * KYBER_N);
-        /* Add errors to bp and reduce. */
+        /* Multiply at by y into u polynomial. */
+        kyber_pointwise_acc_mont(u + i * KYBER_N, a + i * k * KYBER_N, y, k);
+        /* Inverse transform u polynomial. */
+        kyber_invntt(u + i * KYBER_N);
+        /* Add errors to u and reduce. */
         for (j = 0; j < KYBER_N; ++j) {
-            sword16 t = bp[i * KYBER_N + j] + ep[i * KYBER_N + j];
-            bp[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
+            sword16 t = u[i * KYBER_N + j] + e1[i * KYBER_N + j];
+            u[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
         }
     }
 
-    /* Multiply public key by sp into v polynomial. */
-    kyber_pointwise_acc_mont(v, pub, sp, kp);
+    /* Multiply public key by y into v polynomial. */
+    kyber_pointwise_acc_mont(v, pub, y, k);
     /* Inverse transform v. */
     kyber_invntt(v);
     /* Add errors and message to v and reduce. */
     for (i = 0; i < KYBER_N; ++i) {
-        sword16 t = v[i] + epp[i] + m[i];
+        sword16 t = v[i] + e2[i] + m[i];
         v[i] = KYBER_BARRETT_RED(t);
     }
 }
@@ -1475,28 +1700,28 @@ static void kyber_encapsulate_c(const sword16* pub, sword16* bp, sword16* v,
 /* Encapsulate message.
  *
  * @param  [in]   pub  Public key vector of polynomials.
- * @param  [out]  bp   Vector of polynomials.
+ * @param  [out]  u    Vector of polynomials.
  * @param  [out]  v    Polynomial.
- * @param  [in]   at   Array of vector of polynomials.
- * @param  [in]   sp   Vector of polynomials.
- * @param  [in]   ep   Error Vector of polynomials.
- * @param  [in]   epp  Error polynomial.
+ * @param  [in]   a    Array of vector of polynomials.
+ * @param  [in]   y    Vector of polynomials.
+ * @param  [in]   e1   Error Vector of polynomials.
+ * @param  [in]   e2   Error polynomial.
  * @param  [in]   m    Message polynomial.
- * @param  [in]   kp   Number of polynomials in vector.
+ * @param  [in]   k    Number of polynomials in vector.
  */
-void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
-    const sword16* at, sword16* sp, const sword16* ep, const sword16* epp,
-    const sword16* m, int kp)
+void kyber_encapsulate(const sword16* pub, sword16* u, sword16* v,
+    const sword16* a, sword16* y, const sword16* e1, const sword16* e2,
+    const sword16* m, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        kyber_encapsulate_avx2(pub, bp, v, at, sp, ep, epp, m, kp);
+        kyber_encapsulate_avx2(pub, u, v, a, y, e1, e2, m, k);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     {
-        kyber_encapsulate_c(pub, bp, v, at, sp, ep, epp, m, kp);
+        kyber_encapsulate_c(pub, u, v, a, y, e1, e2, m, k);
     }
 }
 
@@ -1504,73 +1729,73 @@ void kyber_encapsulate(const sword16* pub, sword16* bp, sword16* v,
 
 /* Encapsulate message.
  *
- * @param  [in]       pub  Public key vector of polynomials.
- * @param  [in]       prf   XOF object.
- * @param  [out]      bp   Vector of polynomials.
- * @param  [in, out]  tp   Polynomial.
- * @param  [in]       sp   Vector of polynomials.
- * @param  [in]       kp   Number of polynomials in vector.
- * @param  [in]       msg  Message to encapsulate.
+ * @param  [in]       pub    Public key vector of polynomials.
+ * @param  [in]       prf    XOF object.
+ * @param  [out]      u      Vector of polynomials.
+ * @param  [in, out]  tp     Polynomial.
+ * @param  [in]       y      Vector of polynomials.
+ * @param  [in]       k      Number of polynomials in vector.
+ * @param  [in]       msg    Message to encapsulate.
  * @param  [in]       seed   Random seed to generate matrix A from.
  * @param  [in]       coins  Random seed to generate noise from.
  */
-int kyber_encapsulate_seeds(const sword16* pub, KYBER_PRF_T* prf, sword16* bp,
-    sword16* tp, sword16* sp, int kp, const byte* msg, byte* seed, byte* coins)
+int kyber_encapsulate_seeds(const sword16* pub, KYBER_PRF_T* prf, sword16* u,
+    sword16* tp, sword16* y, int k, const byte* msg, byte* seed, byte* coins)
 {
     int ret = 0;
     int i;
-    sword16* at = tp;
-    sword16* ep = tp;
+    sword16* a = tp;
+    sword16* e1 = tp;
     sword16* v = tp;
-    sword16* epp = tp + KYBER_N;
-    sword16* m = sp;
+    sword16* e2 = tp + KYBER_N;
+    sword16* m = y;
 
-    /* Transform sp. All of result used in calculation of bp and v. */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(sp + i * KYBER_N);
+    /* Transform y. All of result used in calculation of u and v. */
+    for (i = 0; i < k; ++i) {
+        kyber_ntt(y + i * KYBER_N);
     }
 
     /* For each polynomial in the vectors. */
-    for (i = 0; i < kp; ++i) {
+    for (i = 0; i < k; ++i) {
         unsigned int j;
 
         /* Generate a vector of matrix A. */
-        ret = kyber_gen_matrix_i(prf, at, kp, seed, i, 1);
+        ret = kyber_gen_matrix_i(prf, a, k, seed, i, 1);
         if (ret != 0) {
            break;
         }
 
-        /* Multiply at by sp into bp polynomial. */
-        kyber_pointwise_acc_mont(bp + i * KYBER_N, at, sp, kp);
-        /* Inverse transform bp polynomial. */
-        kyber_invntt(bp + i * KYBER_N);
+        /* Multiply at by y into u polynomial. */
+        kyber_pointwise_acc_mont(u + i * KYBER_N, a, y, k);
+        /* Inverse transform u polynomial. */
+        kyber_invntt(u + i * KYBER_N);
 
         /* Generate noise using PRF. */
-        ret = kyber_get_noise_i(prf, kp, ep, coins, i, 0);
+        ret = kyber_get_noise_i(prf, k, e1, coins, i, 0);
         if (ret != 0) {
            break;
         }
-        /* Add errors to bp and reduce. */
+        /* Add errors to u and reduce. */
         for (j = 0; j < KYBER_N; ++j) {
-            sword16 t = bp[i * KYBER_N + j] + ep[j];
-            bp[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
+            sword16 t = u[i * KYBER_N + j] + e1[j];
+            u[i * KYBER_N + j] = KYBER_BARRETT_RED(t);
         }
     }
 
-    /* Multiply public key by sp into v polynomial. */
-    kyber_pointwise_acc_mont(v, pub, sp, kp);
+    /* Multiply public key by y into v polynomial. */
+    kyber_pointwise_acc_mont(v, pub, y, k);
     /* Inverse transform v. */
     kyber_invntt(v);
 
     kyber_from_msg(m, msg);
 
     /* Generate noise using PRF. */
-    coins[KYBER_SYM_SZ] = 2 * kp;
-    ret = kyber_get_noise_eta2_c(prf, epp, coins);
+    coins[KYBER_SYM_SZ] = 2 * k;
+    ret = kyber_get_noise_eta2_c(prf, e2, coins);
     if (ret == 0) {
         /* Add errors and message to v and reduce. */
         for (i = 0; i < KYBER_N; ++i) {
-            sword16 t = v[i] + epp[i] + m[i];
+            sword16 t = v[i] + e2[i] + m[i];
             tp[i] = KYBER_BARRETT_RED(t);
         }
     }
@@ -1578,59 +1803,79 @@ int kyber_encapsulate_seeds(const sword16* pub, KYBER_PRF_T* prf, sword16* bp,
     return ret;
 }
 #endif
+#endif /* !WOLFSSL_KYBER_NO_ENCAPSULATE || !WOLFSSL_KYBER_NO_DECAPSULATE */
+
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
 
 /* Decapsulate message.
  *
- * @param  [in]   priv  Private key vector of polynomials.
- * @param  [out]  mp    Message polynomial.
- * @param  [in]   bp    Vector of polynomials containing error.
- * @param  [in]   v     Encapsulated message polynomial.
- * @param  [in]   kp    Number of polynomials in vector.
+ * FIPS 203, Algorithm 15: K-PKE.Decrypt(dk_PKE,c)
+ * Uses the decryption key to decrypt a ciphertext.
+ *   ...
+ *   6: w <- v' - InvNTT(s_hat_trans o NTT(u'))
+ *   ...
+ *
+ * @param  [in]   s  Private key vector of polynomials.
+ * @param  [out]  w  Message polynomial.
+ * @param  [in]   u  Vector of polynomials containing error.
+ * @param  [in]   v  Encapsulated message polynomial.
+ * @param  [in]   k  Number of polynomials in vector.
  */
-static void kyber_decapsulate_c(const sword16* priv, sword16* mp, sword16* bp,
-    const sword16* v, int kp)
+static void kyber_decapsulate_c(const sword16* s, sword16* w, sword16* u,
+    const sword16* v, int k)
 {
     int i;
 
-    /* Transform bp. All of result used in calculation of mp. */
-    for (i = 0; i < kp; ++i) {
-        kyber_ntt(bp + i * KYBER_N);
+    /* Transform u. All of result used in calculation of w.
+     * Step 6: ... NTT(u') */
+    for (i = 0; i < k; ++i) {
+        kyber_ntt(u + i * KYBER_N);
     }
 
-    /* Multiply private key by bp into mp polynomial. */
-    kyber_pointwise_acc_mont(mp, priv, bp, kp);
-    /* Inverse transform mp. */
-    kyber_invntt(mp);
-    /* Subtract errors (mp) out of v and reduce into mp. */
+    /* Multiply private key by u into w polynomial.
+     * Step 6: ... s_hat_trans o NTT(u') */
+    kyber_pointwise_acc_mont(w, s, u, k);
+    /* Inverse transform w.
+     * Step 6: ... InvNTT(s_hat_trans o NTT(u')) */
+    kyber_invntt(w);
+    /* Subtract errors (in w) out of v and reduce into w.
+     * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
     for (i = 0; i < KYBER_N; ++i) {
-        sword16 t = v[i] - mp[i];
-        mp[i] = KYBER_BARRETT_RED(t);
+        sword16 t = v[i] - w[i];
+        w[i] = KYBER_BARRETT_RED(t);
     }
 }
 
 /* Decapsulate message.
  *
- * @param  [in]   priv  Private key vector of polynomials.
- * @param  [out]  mp    Message polynomial.
- * @param  [in]   bp    Vector of polynomials containing error.
- * @param  [in]   v     Encapsulated message polynomial.
- * @param  [in]   kp    Number of polynomials in vector.
+ * FIPS 203, Algorithm 15: K-PKE.Decrypt(dk_PKE,c)
+ * Uses the decryption key to decrypt a ciphertext.
+ *   ...
+ *   6: w <- v' - InvNTT(s_hat_trans o NTT(u'))
+ *   ...
+ *
+ * @param  [in]   s  Private key vector of polynomials.
+ * @param  [out]  w  Message polynomial.
+ * @param  [in]   u  Vector of polynomials containing error.
+ * @param  [in]   v   Encapsulated message polynomial.
+ * @param  [in]   k   Number of polynomials in vector.
  */
-void kyber_decapsulate(const sword16* priv, sword16* mp, sword16* bp,
-    const sword16* v, int kp)
+void kyber_decapsulate(const sword16* s, sword16* w, sword16* u,
+    const sword16* v, int k)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        kyber_decapsulate_avx2(priv, mp, bp, v, kp);
+        kyber_decapsulate_avx2(s, w, u, v, k);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     {
-        kyber_decapsulate_c(priv, mp, bp, v, kp);
+        kyber_decapsulate_c(s, w, u, v, k);
     }
 }
 
+#endif /* !WOLFSSL_KYBER_ NO_DECAPSULATE */
 #endif
 
 /******************************************************************************/
@@ -2168,6 +2413,10 @@ static int kyber_gen_matrix_k4_aarch64(sword16* a, byte* seed, int transposed)
 #if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 /* Absorb the seed data for squeezing out pseudo-random data.
  *
+ * FIPS 203, Section 4.1:
+ * 1. XOF.init() = SHA128.Init().
+ * 2. XOF.Absorb(ctx,str) = SHAKE128.Absorb(ctx,str).
+ *
  * @param  [in, out]  shake128  SHAKE-128 object.
  * @param  [in]       seed      Data to absorb.
  * @param  [in]       len       Length of data to absorb in bytes.
@@ -2187,6 +2436,9 @@ static int kyber_xof_absorb(wc_Shake* shake128, byte* seed, int len)
 
 /* Squeeze the state to produce pseudo-random data.
  *
+ * FIPS 203, Section 4.1:
+ * 3. XOF.Absorb(ctx,l) = SHAKE128.Squeeze(ctx,8.l).
+ *
  * @param  [in, out]  shake128  SHAKE-128 object.
  * @param  [out]      out       Buffer to write to.
  * @param  [in]       blocks    Number of blocks to write.
@@ -2200,6 +2452,9 @@ static int kyber_xof_squeezeblocks(wc_Shake* shake128, byte* out, int blocks)
 
 /* New/Initialize SHA-3 object.
  *
+ * FIPS 203, Section 4.1:
+ * H(s) := SHA3-256(s)
+ *
  * @param  [in, out]  hash    SHA-3 object.
  * @param  [in]       heap    Dynamic memory allocator hint.
  * @param  [in]       devId   Device id.
@@ -2212,6 +2467,9 @@ int kyber_hash_new(wc_Sha3* hash, void* heap, int devId)
 
 /* Free SHA-3 object.
  *
+ * FIPS 203, Section 4.1:
+ * H(s) := SHA3-256(s)
+ *
  * @param  [in, out]  hash  SHA-3 object.
  */
 void kyber_hash_free(wc_Sha3* hash)
@@ -2219,28 +2477,58 @@ void kyber_hash_free(wc_Sha3* hash)
     wc_Sha3_256_Free(hash);
 }
 
+/* Hash data using SHA3-256 with SHA-3 object.
+ *
+ * FIPS 203, Section 4.1:
+ * H(s) := SHA3-256(s)
+ *
+ * @param  [in, out]  hash     SHA-3 object.
+ * @param  [io]       data     Data to be hashed.
+ * @param  [in]       dataLen  Length of data in bytes.
+ * @param  [out]      out      Hash of data.
+ * @return  0 on success.
+ */
 int kyber_hash256(wc_Sha3* hash, const byte* data, word32 dataLen, byte* out)
 {
     int ret;
 
+    /* Process all data. */
     ret = wc_Sha3_256_Update(hash, data, dataLen);
     if (ret == 0) {
+        /* Calculate Hash of data passed in an re-initialize. */
         ret = wc_Sha3_256_Final(hash, out);
     }
 
     return ret;
 }
 
+/* Hash one or two blocks of data using SHA3-512 with SHA-3 object.
+ *
+ * FIPS 203, Section 4.1:
+ * G(s) := SHA3-512(s)
+ *
+ * @param  [in, out]  hash      SHA-3 object.
+ * @param  [io]       data1     First block of data to be hashed.
+ * @param  [in]       data1Len  Length of first block of data in bytes.
+ * @param  [io]       data2     Second block of data to be hashed. May be NULL.
+ * @param  [in]       data2Len  Length of second block of data in bytes.
+ * @param  [out]      out       Hash of all data.
+ * @return  0 on success.
+ */
 int kyber_hash512(wc_Sha3* hash, const byte* data1, word32 data1Len,
     const byte* data2, word32 data2Len, byte* out)
 {
     int ret;
 
+    /* Process first block of data. */
     ret = wc_Sha3_512_Update(hash, data1, data1Len);
+    /* Check if there is a second block of data. */
     if ((ret == 0) && (data2Len > 0)) {
+        /* Process second block of data. */
         ret = wc_Sha3_512_Update(hash, data2, data2Len);
     }
     if (ret == 0) {
+        /* Calculate Hash of data passed in an re-initialize. */
         ret = wc_Sha3_512_Final(hash, out);
     }
 
@@ -2258,6 +2546,9 @@ void kyber_prf_init(wc_Shake* prf)
 
 /* New/Initialize SHAKE-256 object.
  *
+ * FIPS 203, Section 4.1:
+ * PRF_eta(s,b) := SHA256(s||b,8.64.eta)
+ *
  * @param  [in, out]  shake256  SHAKE-256 object.
  * @param  [in]       heap      Dynamic memory allocator hint.
  * @param  [in]       devId     Device id.
@@ -2270,6 +2561,9 @@ int kyber_prf_new(wc_Shake* prf, void* heap, int devId)
 
 /* Free SHAKE-256 object.
  *
+ * FIPS 203, Section 4.1:
+ * PRF_eta(s,b) := SHA256(s||b,8.64.eta)
+ *
  * @param  [in, out]  shake256  SHAKE-256 object.
  */
 void kyber_prf_free(wc_Shake* prf)
@@ -2279,6 +2573,9 @@ void kyber_prf_free(wc_Shake* prf)
 
 #if !(defined(WOLFSSL_ARMASM) && defined(__aarch64__))
 /* Create pseudo-random data from the key using SHAKE-256.
+ *
+ * FIPS 203, Section 4.1:
+ * PRF_eta(s,b) := SHA256(s||b,8.64.eta)
  *
  * @param  [in, out]  shake256  SHAKE-256 object.
  * @param  [out]      out       Buffer to write to.
@@ -2295,15 +2592,22 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
 
     (void)shake256;
 
+    /* Put first KYBER_SYM_SZ bytes og key into blank state. */
     readUnalignedWords64(state, key, KYBER_SYM_SZ / sizeof(word64));
+    /* Last byte in with end of content marker. */
     state[KYBER_SYM_SZ / 8] = 0x1f00 | key[KYBER_SYM_SZ];
+    /* Set rest of state to 0. */
     XMEMSET(state + KYBER_SYM_SZ / 8 + 1, 0,
         (25 - KYBER_SYM_SZ / 8 - 1) * sizeof(word64));
+    /* ... except for rate marker. */
     state[WC_SHA3_256_COUNT - 1] = W64LIT(0x8000000000000000);
 
+    /* Generate as much output as is required. */
     while (outLen > 0) {
+        /* Get as much of an output block as is needed. */
         unsigned int len = min(outLen, WC_SHA3_256_BLOCK_SIZE);
 
+        /* Perform a block operation on the state for next block of output. */
         if (IS_INTEL_BMI2(cpuid_flags)) {
             sha3_block_bmi2(state);
         }
@@ -2315,7 +2619,10 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
         else {
             BlockSha3(state);
         }
+
+        /* Copy the state as output. */
         XMEMCPY(out, state, len);
+        /* Update output pointer and length. */
         out += len;
         outLen -= len;
     }
@@ -2324,8 +2631,10 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
 #else
     int ret;
 
+    /* Process all data. */
     ret = wc_Shake256_Update(shake256, key, KYBER_SYM_SZ + 1);
     if (ret == 0) {
+        /* Calculate Hash of data passed in an re-initialize. */
         ret = wc_Shake256_Final(shake256, out, outLen);
     }
 
@@ -2334,6 +2643,7 @@ static int kyber_prf(wc_Shake* shake256, byte* out, unsigned int outLen,
 }
 #endif
 
+#ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef USE_INTEL_SPEEDUP
 /* Create pseudo-random key from the seed using SHAKE-256.
  *
@@ -2394,10 +2704,30 @@ int kyber_kdf(byte* seed, int seedLen, byte* out, int outLen)
     return 0;
 }
 #endif
+#endif
 
 #if !defined(WOLFSSL_ARMASM)
 /* Rejection sampling on uniform random bytes to generate uniform random
  * integers mod q.
+ *
+ * FIPS 203, Algorithm 7: SampleNTT(B)
+ * Takes a 32-byte seed and two indices as input and outputs a pseudorandom
+ * element of T_q.
+ *   ...
+ *   4: while j < 256 do
+ *   5:     (ctx,C) <- XOF.Squeeze(ctx,3)
+ *   6:     d1 <- C[0] + 256.(C[1] mod 16)
+ *   7:     d2 <- lower(C[1] / 16) + 16.C[2]
+ *   8:     if d1 < q then
+ *   9:         a_hat[j] <- d1
+ *  10:         j <- j + 1
+ *  11:     end if
+ *  12:     if d2 < q and j < 256 then
+ *  13:         a_hat[j] <- d2
+ *  14:         j <- j + 1
+ *  15:     end if
+ *  16: end while
+ *  ...
  *
  * @param  [out]  p     Uniform random integers mod q.
  * @param  [in]   len   Maximum number of integers.
@@ -2413,19 +2743,26 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
 
 #if defined(WOLFSSL_KYBER_SMALL) || !defined(WC_64BIT_CPU)
     /* Keep sampling until maximum number of integers reached or buffer used up.
-     */
+     * Step 4. */
     for (i = 0, j = 0; (i < len) && (j <= rLen - 3); j += 3) {
+        /* Step 5 - caller generates and now using 3 bytes of it. */
         /* Use 24 bits (3 bytes) as two 12 bits integers. */
+        /* Step 6. */
         sword16 v0 = ((r[0] >> 0) | ((word16)r[1] << 8)) & 0xFFF;
+        /* Step 7. */
         sword16 v1 = ((r[1] >> 4) | ((word16)r[2] << 4)) & 0xFFF;
 
-        /* Reject first 12-bit integer if greater than or equal to q. */
+        /* Reject first 12-bit integer if greater than or equal to q.
+         * Step 8 */
         if (v0 < KYBER_Q) {
+            /* Steps 9-10 */
             p[i++] = v0;
         }
         /* Check second if we don't have enough integers yet.
-         * Reject second 12-bit integer if greater than or equal to q. */
+         * Reject second 12-bit integer if greater than or equal to q.
+         * Step 12 */
         if ((i < len) && (v1 < KYBER_Q)) {
+            /* Steps 13-14 */
             p[i++] = v1;
         }
 
@@ -2433,8 +2770,11 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
         r += 3;
     }
 #else
+    /* Unroll loops. Minimal work per loop. */
     unsigned int minJ;
 
+    /* Calculate minimum number of 6 byte data blocks to get all required
+     * numbers assuming no rejections. */
     minJ = len / 4 * 6;
     if (minJ > rLen)
         minJ = rLen;
@@ -2447,19 +2787,22 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
         sword16 v2 = (r_word >> 24) & 0xfff;
         sword16 v3 = (r_word >> 36) & 0xfff;
 
-        p[i] = v0 & (0 - (v0 < KYBER_Q));
-        i += v0 < KYBER_Q;
-        p[i] = v1 & (0 - (v1 < KYBER_Q));
-        i += v1 < KYBER_Q;
-        p[i] = v2 & (0 - (v2 < KYBER_Q));
-        i += v2 < KYBER_Q;
-        p[i] = v3 & (0 - (v3 < KYBER_Q));
-        i += v3 < KYBER_Q;
+        p[i] = v0;
+        i += (v0 < KYBER_Q);
+        p[i] = v1;
+        i += (v1 < KYBER_Q);
+        p[i] = v2;
+        i += (v2 < KYBER_Q);
+        p[i] = v3;
+        i += (v3 < KYBER_Q);
 
         /* Move over used bytes. */
         r += 6;
     }
+    /* Check whether we have all the numbers we need. */
     if (j < rLen) {
+        /* Keep trying until we have less than 4 numbers to find or data is used
+         * up. */
         for (; (i + 4 < len) && (j < rLen); j += 6) {
             /* Use 48 bits (6 bytes) as four 12-bit integers. */
             word64 r_word = readUnalignedWord64(r);
@@ -2469,17 +2812,19 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
             sword16 v3 = (r_word >> 36) & 0xfff;
 
             p[i] = v0;
-            i += v0 < KYBER_Q;
+            i += (v0 < KYBER_Q);
             p[i] = v1;
-            i += v1 < KYBER_Q;
+            i += (v1 < KYBER_Q);
             p[i] = v2;
-            i += v2 < KYBER_Q;
+            i += (v2 < KYBER_Q);
             p[i] = v3;
-            i += v3 < KYBER_Q;
+            i += (v3 < KYBER_Q);
 
             /* Move over used bytes. */
             r += 6;
         }
+        /* Keep trying until we have all the numbers we need or the data is used
+         * up. */
         for (; (i < len) && (j < rLen); j += 6) {
             /* Use 48 bits (6 bytes) as four 12-bit integers. */
             word64 r_word = readUnalignedWord64(r);
@@ -2526,16 +2871,44 @@ static unsigned int kyber_rej_uniform_c(sword16* p, unsigned int len,
  *
  * Seed used with XOF to generate random bytes.
  *
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   ...
+ *   3: for (i <- 0; i < k; i++)
+ *   4:     for (j <- 0; j < k; j++)
+ *   5:         A_hat[i,j] <- SampleNTT(rho||j||i)
+ *   6:     end for
+ *   7: end for
+ *   ...
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *   4: for (i <- 0; i < k; i++)
+ *   5:     for (j <- 0; j < k; j++)
+ *   6:         A_hat[i,j] <- SampleNTT(rho||j||i)  (Transposed is rho||i||j)
+ *   7:     end for
+ *   8: end for
+ *   ...
+ * FIPS 203, Algorithm 7: SampleNTT(B)
+ * Takes a 32-byte seed and two indices as input and outputs a pseudorandom
+ * element of T_q.
+ *   1: ctx <- XOF.init()
+ *   2: ctx <- XOF.Absorb(ctx,B)
+ *   3: j <- 0
+ *   4: while j < 256 do
+ *   5:     (ctx,C) <- XOF.Squeeze(ctx,3)
+ *   ...
+ *  16: end while
+ *  17: return a_hat
+ *
  * @param  [in]   prf         XOF object.
  * @param  [out]  a           Matrix of uniform integers.
- * @param  [in]   kp          Number of dimensions. kp x kp polynomials.
+ * @param  [in]   k           Number of dimensions. k x k polynomials.
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  * WOLFSSL_SMALL_STACK is defined.
  */
-static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
+static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int k, byte* seed,
     int transposed)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -2547,6 +2920,7 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
     int ret = 0;
     int i;
 
+    /* Copy seed into buffer than has space for i and j to be appended. */
     XMEMCPY(extSeed, seed, KYBER_SYM_SZ);
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -2565,34 +2939,46 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
     }
 #endif
 
-    /* Generate each vector of polynomials. */
-    for (i = 0; (ret == 0) && (i < kp); i++, a += kp * KYBER_N) {
+    /* Generate each vector of polynomials.
+     * Alg 13, Step 3. Alg 14, Step 4. */
+    for (i = 0; (ret == 0) && (i < k); i++, a += k * KYBER_N) {
         int j;
-        /* Generate each polynomial in vector from seed with indices. */
-        for (j = 0; (ret == 0) && (j < kp); j++) {
+        /* Generate each polynomial in vector from seed with indices.
+         * Alg 13, Step 4. Alg 14, Step 5. */
+        for (j = 0; (ret == 0) && (j < k); j++) {
             if (transposed) {
+                /* Alg 14, Step 6: .. rho||i||j ... */
                 extSeed[KYBER_SYM_SZ + 0] = i;
                 extSeed[KYBER_SYM_SZ + 1] = j;
             }
             else {
+                /* Alg 13, Step 5: .. rho||j||i ... */
                 extSeed[KYBER_SYM_SZ + 0] = j;
                 extSeed[KYBER_SYM_SZ + 1] = i;
             }
-            /* Absorb the index specific seed. */
+            /* Absorb the index specific seed.
+             * Alg 7, Step 1-2 */
             ret = kyber_xof_absorb(prf, extSeed, sizeof(extSeed));
             if (ret == 0) {
-                /* Create out based on the seed. */
+                /* Create data based on the seed.
+                 * Alg 7, Step 5. Generating enough to, on average, be able to
+                 * get enough valid values. */
                 ret = kyber_xof_squeezeblocks(prf, rand, GEN_MATRIX_NBLOCKS);
             }
             if (ret == 0) {
                 unsigned int ctr;
 
-                /* Sample random bytes to create a polynomial. */
+                /* Sample random bytes to create a polynomial.
+                 * Alg 7, Step 3 - implicitly counter is 0.
+                 * Alg 7, Step 4-16. */
                 ctr = kyber_rej_uniform_c(a + j * KYBER_N, KYBER_N, rand,
                     GEN_MATRIX_SIZE);
-                /* Create more blocks if too many rejected. */
+                /* Create more blocks if too many rejected.
+                 * Alg 7, Step 4. */
                 while (ctr < KYBER_N) {
+                    /* Alg 7, Step 5. */
                     kyber_xof_squeezeblocks(prf, rand, 1);
+                    /* Alg 7, Step 4-16. */
                     ctr += kyber_rej_uniform_c(a + j * KYBER_N + ctr,
                         KYBER_N - ctr, rand, XOF_BLOCK_SIZE);
                 }
@@ -2613,22 +2999,25 @@ static int kyber_gen_matrix_c(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
  *
  * Seed used with XOF to generate random bytes.
  *
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d), Steps 3-7
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r), Steps 4-8
+ *
  * @param  [in]   prf         XOF object.
  * @param  [out]  a           Matrix of uniform integers.
- * @param  [in]   kp          Number of dimensions. kp x kp polynomials.
+ * @param  [in]   k           Number of dimensions. k x k polynomials.
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @param  [in]   transposed  Whether A or A^T is generated.
  * @return  0 on success.
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  * WOLFSSL_SMALL_STACK is defined.
  */
-int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
+int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int k, byte* seed,
     int transposed)
 {
     int ret;
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-    if (kp == KYBER512_K) {
+    if (k == KYBER512_K) {
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
         ret = kyber_gen_matrix_k2_aarch64(a, seed, transposed);
 #else
@@ -2647,7 +3036,7 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
     else
 #endif
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
-    if (kp == KYBER768_K) {
+    if (k == KYBER768_K) {
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
         ret = kyber_gen_matrix_k3_aarch64(a, seed, transposed);
 #else
@@ -2666,7 +3055,7 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
     else
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
-    if (kp == KYBER1024_K) {
+    if (k == KYBER1024_K) {
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
         ret = kyber_gen_matrix_k4_aarch64(a, seed, transposed);
 #else
@@ -2702,9 +3091,22 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
  *
  * Seed used with XOF to generate random bytes.
  *
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ * ...
+ * 4:     for (j <- 0; j < k; j++)
+ * 5:         A_hat[i,j] <- SampleNTT(rho||j||i)
+ * 6:     end for
+ * ...
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ * ...
+ * 5:     for (j <- 0; j < k; j++)
+ * 6:         A_hat[i,j] <- SampleNTT(rho||j||i)  (Transposed is rho||i||j)
+ * 7:     end for
+ * ...
+ *
  * @param  [in]   prf         XOF object.
  * @param  [out]  a           Matrix of uniform integers.
- * @param  [in]   kp          Number of dimensions. kp x kp polynomials.
+ * @param  [in]   k           Number of dimensions. k x k polynomials.
  * @param  [in]   seed        Bytes to seed XOF generation.
  * @param  [in]   i           Index of vector to generate.
  * @param  [in]   transposed  Whether A or A^T is generated.
@@ -2712,7 +3114,7 @@ int kyber_gen_matrix(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
  * @return  MEMORY_E when dynamic memory allocation fails. Only possible when
  * WOLFSSL_SMALL_STACK is defined.
  */
-static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
+static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int k, byte* seed,
     int i, int transposed)
 {
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -2742,31 +3144,42 @@ static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
     }
 #endif
 
-    /* Generate each polynomial in vector from seed with indices. */
-    for (j = 0; (ret == 0) && (j < kp); j++) {
+    /* Generate each polynomial in vector from seed with indices.
+     * Alg 13, Step 4. Alg 14, Step 5. */
+    for (j = 0; (ret == 0) && (j < k); j++) {
         if (transposed) {
+            /* Alg 14, Step 6: .. rho||i||j ... */
             extSeed[KYBER_SYM_SZ + 0] = i;
             extSeed[KYBER_SYM_SZ + 1] = j;
         }
         else {
+            /* Alg 13, Step 5: .. rho||j||i ... */
             extSeed[KYBER_SYM_SZ + 0] = j;
             extSeed[KYBER_SYM_SZ + 1] = i;
         }
-        /* Absorb the index specific seed. */
+        /* Absorb the index specific seed.
+         * Alg 7, Step 1-2 */
         ret = kyber_xof_absorb(prf, extSeed, sizeof(extSeed));
         if (ret == 0) {
-            /* Create out based on the seed. */
+            /* Create out based on the seed.
+             * Alg 7, Step 5. Generating enough to, on average, be able to get
+             * enough valid values. */
             ret = kyber_xof_squeezeblocks(prf, rand, GEN_MATRIX_NBLOCKS);
         }
         if (ret == 0) {
             unsigned int ctr;
 
-            /* Sample random bytes to create a polynomial. */
+            /* Sample random bytes to create a polynomial.
+             * Alg 7, Step 3 - implicitly counter is 0.
+             * Alg 7, Step 4-16. */
             ctr = kyber_rej_uniform_c(a + j * KYBER_N, KYBER_N, rand,
                 GEN_MATRIX_SIZE);
-            /* Create more blocks if too many rejected. */
+            /* Create more blocks if too many rejected.
+             * Alg 7, Step 4. */
             while (ctr < KYBER_N) {
+                /* Alg 7, Step 5. */
                 kyber_xof_squeezeblocks(prf, rand, 1);
+                /* Alg 7, Step 4-16. */
                 ctr += kyber_rej_uniform_c(a + j * KYBER_N + ctr,
                     KYBER_N - ctr, rand, XOF_BLOCK_SIZE);
             }
@@ -2788,6 +3201,10 @@ static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
 /* Subtract one 2 bit value from another out of a larger number.
  *
+ * FIPS 203, Algorithm 8: SmaplePolyCBD_eta(B)
+ * Takes a seed as input and outputs a pseudorandom sample from the distribution
+ * D_eta(R_q).
+ *
  * @param  [in]  d  Value containing sequential 2 bit values.
  * @param  [in]  i  Start index of the two values in 2 bits each.
  * @return  Difference of the two values with range 0..2.
@@ -2798,6 +3215,10 @@ static int kyber_gen_matrix_i(KYBER_PRF_T* prf, sword16* a, int kp, byte* seed,
 
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta2 from uniform random bytes.
+ *
+ * FIPS 203, Algorithm 8: SmaplePolyCBD_eta(B)
+ * Takes a seed as input and outputs a pseudorandom sample from the distribution
+ * D_eta(R_q).
  *
  * @param [out]  p  Polynomial computed.
  * @param [in]   r  Random bytes.
@@ -2896,6 +3317,10 @@ static void kyber_cbd_eta2(sword16* p, const byte* r)
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
 /* Subtract one 3 bit value from another out of a larger number.
  *
+ * FIPS 203, Algorithm 8: SmaplePolyCBD_eta(B)
+ * Takes a seed as input and outputs a pseudorandom sample from the distribution
+ * D_eta(R_q).
+ *
  * @param  [in]  d  Value containing sequential 3 bit values.
  * @param  [in]  i  Start index of the two values in 3 bits each.
  * @return  Difference of the two values with range 0..3.
@@ -2906,6 +3331,10 @@ static void kyber_cbd_eta2(sword16* p, const byte* r)
 
 /* Compute polynomial with coefficients distributed according to a centered
  * binomial distribution with parameter eta3 from uniform random bytes.
+ *
+ * FIPS 203, Algorithm 8: SmaplePolyCBD_eta(B)
+ * Takes a seed as input and outputs a pseudorandom sample from the distribution
+ * D_eta(R_q).
  *
  * @param [out]  p  Polynomial computed.
  * @param [in]   r  Random bytes.
@@ -3050,6 +3479,17 @@ static void kyber_cbd_eta3(sword16* p, const byte* r)
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution.
  *
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   ...
+ *   9:     s[i] <- SamplePolyCBD_eta_1(PRF_eta_1(rho, N))
+ *   ...
+ *  13:     e[i] <- SamplePolyCBD_eta_1(PRF_eta_1(rho, N))
+ *   ...
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  10:     y[i] <- SamplePolyCBD_eta_1(PRF_eta_1(r, N))
+ *   ...
+ *
  * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
@@ -3093,6 +3533,13 @@ static int kyber_get_noise_eta1_c(KYBER_PRF_T* prf, sword16* p,
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution. Values -2..2
  *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *
  * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
@@ -3122,6 +3569,13 @@ static int kyber_get_noise_eta2_c(KYBER_PRF_T* prf, sword16* p,
     defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
 /* Get the noise/error by calculating random bytes.
  *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *
  * @param  [out]  rand  Random number byte array.
  * @param  [in]   seed  Seed to generate random from.
  * @param  [in]   o     Offset of seed count.
@@ -3144,6 +3598,13 @@ static void kyber_get_noise_x4_eta2_avx2(byte* rand, byte* seed, byte o)
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
 /* Get the noise/error by calculating random bytes.
+ *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
  *
  * @param  [out]  rand  Random number byte array.
  * @param  [in]   seed  Seed to generate random from.
@@ -3172,6 +3633,13 @@ static void kyber_get_noise_x4_eta3_avx2(byte* rand, byte* seed)
 
 /* Get noise/error by calculating random bytes and sampling to a binomial
  * distribution. Values -2..2
+ *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
  *
  * @param  [in, out]  prf   Pseudo-random function object.
  * @param  [out]      p     Polynomial.
@@ -3290,7 +3758,7 @@ static int kyber_get_noise_k4_avx2(KYBER_PRF_T* prf, sword16* vec1,
     kyber_cbd_eta2_avx2(vec2 + 3 * KYBER_N, rand + 3 * ETA2_RAND_SIZE);
     if (poly != NULL) {
         seed[KYBER_SYM_SZ] = 8;
-        ret = kyber_get_noise_eta2_c(prf, poly, seed);
+        ret = kyber_get_noise_eta2_avx2(prf, poly, seed);
     }
 
     return ret;
@@ -3303,6 +3771,13 @@ static int kyber_get_noise_k4_avx2(KYBER_PRF_T* prf, sword16* vec1,
 #define PRF_RAND_SZ   (2 * SHA3_256_BYTES)
 
 /* Get the noise/error by calculating random bytes.
+ *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
  *
  * @param  [out]  rand  Random number byte array.
  * @param  [in]   seed  Seed to generate random from.
@@ -3321,6 +3796,13 @@ static void kyber_get_noise_x3_eta2_aarch64(byte* rand, byte* seed, byte o)
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
 /* Get the noise/error by calculating random bytes.
+ *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
  *
  * @param  [out]  rand  Random number byte array.
  * @param  [in]   seed  Seed to generate random from.
@@ -3349,6 +3831,13 @@ static void kyber_get_noise_x3_eta3_aarch64(byte* rand, byte* seed, byte o)
 }
 
 /* Get the noise/error by calculating random bytes.
+ *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
  *
  * @param  [out]  rand  Random number byte array.
  * @param  [in]   seed  Seed to generate random from.
@@ -3408,6 +3897,13 @@ static int kyber_get_noise_k2_aarch64(sword16* vec1, sword16* vec2,
 
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
 /* Get the noise/error by calculating random bytes.
+ *
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE,m,r)
+ *   ...
+ *  14:     e1[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
+ *  17:     e2[i] <- SamplePolyCBD_eta_2(PRF_eta_2(r, N))
+ *   ...
  *
  * @param  [out]  rand  Random number byte array.
  * @param  [in]   seed  Seed to generate random from.
@@ -3502,7 +3998,7 @@ static int kyber_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
  * distribution.
  *
  * @param  [in, out]  prf   Pseudo-random function object.
- * @param  [in]       kp    Number of polynomials in vector.
+ * @param  [in]       k     Number of polynomials in vector.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [in]       eta1  Size of noise/error integers with first vector.
  * @param  [out]      vec2  Second Vector of polynomials.
@@ -3511,7 +4007,7 @@ static int kyber_get_noise_k4_aarch64(sword16* vec1, sword16* vec2,
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
  */
-static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
+static int kyber_get_noise_c(KYBER_PRF_T* prf, int k, sword16* vec1, int eta1,
     sword16* vec2, int eta2, sword16* poly, byte* seed)
 {
     int ret = 0;
@@ -3520,7 +4016,7 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
     /* First noise generation has a seed with 0x00 appended. */
     seed[KYBER_SYM_SZ] = 0;
     /* Generate noise as private key. */
-    for (i = 0; (ret == 0) && (i < kp); i++) {
+    for (i = 0; (ret == 0) && (i < k); i++) {
         /* Generate noise for each dimension of vector. */
         ret = kyber_get_noise_eta1_c(prf, vec1 + i * KYBER_N, seed, eta1);
         /* Increment value of appended byte. */
@@ -3528,7 +4024,7 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
     }
     if ((ret == 0) && (vec2 != NULL)) {
         /* Generate noise for error. */
-        for (i = 0; (ret == 0) && (i < kp); i++) {
+        for (i = 0; (ret == 0) && (i < k); i++) {
             /* Generate noise for each dimension of vector. */
             ret = kyber_get_noise_eta1_c(prf, vec2 + i * KYBER_N, seed, eta2);
             /* Increment value of appended byte. */
@@ -3536,7 +4032,7 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
         }
     }
     else {
-        seed[KYBER_SYM_SZ] = 2 * kp;
+        seed[KYBER_SYM_SZ] = 2 * k;
     }
     if ((ret == 0) && (poly != NULL)) {
         /* Generating random error polynomial. */
@@ -3552,20 +4048,20 @@ static int kyber_get_noise_c(KYBER_PRF_T* prf, int kp, sword16* vec1, int eta1,
  * distribution.
  *
  * @param  [in, out]  prf   Pseudo-random function object.
- * @param  [in]       kp    Number of polynomials in vector.
+ * @param  [in]       k     Number of polynomials in vector.
  * @param  [out]      vec1  First Vector of polynomials.
  * @param  [out]      vec2  Second Vector of polynomials.
  * @param  [out]      poly  Polynomial.
  * @param  [in]       seed  Seed to use when calculating random.
  * @return  0 on success.
  */
-int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
-    sword16* vec2, sword16* poly, byte* seed)
+int kyber_get_noise(KYBER_PRF_T* prf, int k, sword16* vec1, sword16* vec2,
+    sword16* poly, byte* seed)
 {
     int ret;
 
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-    if (kp == KYBER512_K) {
+    if (k == KYBER512_K) {
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
         ret = kyber_get_noise_k2_aarch64(vec1, vec2, poly, seed);
 #else
@@ -3577,11 +4073,11 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
         else
     #endif
         if (poly == NULL) {
-            ret = kyber_get_noise_c(prf, kp, vec1, KYBER_CBD_ETA3, vec2,
+            ret = kyber_get_noise_c(prf, k, vec1, KYBER_CBD_ETA3, vec2,
                 KYBER_CBD_ETA3, NULL, seed);
         }
         else {
-            ret = kyber_get_noise_c(prf, kp, vec1, KYBER_CBD_ETA3, vec2,
+            ret = kyber_get_noise_c(prf, k, vec1, KYBER_CBD_ETA3, vec2,
                 KYBER_CBD_ETA2, poly, seed);
         }
 #endif
@@ -3589,7 +4085,7 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
     else
 #endif
 #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
-    if (kp == KYBER768_K) {
+    if (k == KYBER768_K) {
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
         ret = kyber_get_noise_k3_aarch64(vec1, vec2, poly, seed);
 #else
@@ -3601,7 +4097,7 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
         else
     #endif
         {
-            ret = kyber_get_noise_c(prf, kp, vec1, KYBER_CBD_ETA2, vec2,
+            ret = kyber_get_noise_c(prf, k, vec1, KYBER_CBD_ETA2, vec2,
                 KYBER_CBD_ETA2, poly, seed);
         }
 #endif
@@ -3609,7 +4105,7 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
     else
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
-    if (kp == KYBER1024_K) {
+    if (k == KYBER1024_K) {
 #if defined(WOLFSSL_ARMASM) && defined(__aarch64__)
         ret = kyber_get_noise_k4_aarch64(vec1, vec2, poly, seed);
 #else
@@ -3621,7 +4117,7 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
         else
     #endif
         {
-            ret = kyber_get_noise_c(prf, kp, vec1, KYBER_CBD_ETA2, vec2,
+            ret = kyber_get_noise_c(prf, k, vec1, KYBER_CBD_ETA2, vec2,
                 KYBER_CBD_ETA2, poly, seed);
         }
 #endif
@@ -3643,14 +4139,14 @@ int kyber_get_noise(KYBER_PRF_T* prf, int kp, sword16* vec1,
  * distribution.
  *
  * @param  [in, out]  prf   Pseudo-random function object.
- * @param  [in]       kp    Number of polynomials in vector.
+ * @param  [in]       k     Number of polynomials in vector.
  * @param  [out]      vec2  Second Vector of polynomials.
  * @param  [in]       seed  Seed to use when calculating random.
  * @param  [in]       i     Index of vector to generate.
  * @param  [in]       make  Indicates generation is for making a key.
  * @return  0 on success.
  */
-static int kyber_get_noise_i(KYBER_PRF_T* prf, int kp, sword16* vec2,
+static int kyber_get_noise_i(KYBER_PRF_T* prf, int k, sword16* vec2,
     byte* seed, int i, int make)
 {
     int ret;
@@ -3660,9 +4156,9 @@ static int kyber_get_noise_i(KYBER_PRF_T* prf, int kp, sword16* vec2,
     kyber_prf_init(prf);
 
     /* Set index of polynomial of second vector into seed. */
-    seed[KYBER_SYM_SZ] = kp + i;
+    seed[KYBER_SYM_SZ] = k + i;
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-    if ((kp == KYBER512_K) && make) {
+    if ((k == KYBER512_K) && make) {
         ret = kyber_get_noise_eta1_c(prf, vec2, seed, KYBER_CBD_ETA3);
     }
     else
@@ -3736,6 +4232,8 @@ int kyber_cmp(const byte* a, const byte* b, int sz)
 
 /* Conditional subtraction of q to each coefficient of a polynomial.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [in, out]  p  Polynomial.
  */
 static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
@@ -3751,14 +4249,32 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
 
 #elif defined(__aarch64__)
 
+/* Conditional subtraction of q to each coefficient of a polynomial.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * @param  [in, out]  p  Polynomial.
+ */
 #define kyber_csubq_c   kyber_csubq_neon
 
 #elif defined(WOLFSSL_ARMASM_THUMB2)
 
+/* Conditional subtraction of q to each coefficient of a polynomial.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * @param  [in, out]  p  Polynomial.
+ */
 #define kyber_csubq_c   kyber_thumb2_csubq
 
 #else
 
+/* Conditional subtraction of q to each coefficient of a polynomial.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * @param  [in, out]  p  Polynomial.
+ */
 #define kyber_csubq_c   kyber_arm32_csubq
 
 #endif
@@ -3770,6 +4286,8 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
 /* Compress value.
  *
  * Uses div operator that may be slow.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index of polynomial in vector.
@@ -3786,6 +4304,8 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
  *
  * Uses mul instead of div.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index of polynomial in vector.
  * @param  [in]  j  Index into polynomial.
@@ -3798,6 +4318,8 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
 /* Compress value to 11 bits.
  *
  * Uses mul instead of div.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index of polynomial in vector.
@@ -3832,6 +4354,8 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
  *
  * Uses mul instead of div.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index of polynomial in vector.
  * @param  [in]  j  Index into polynomial.
@@ -3846,6 +4370,8 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
  * Uses mul instead of div.
  * Only works for values in range: 0..3228
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index of polynomial in vector.
  * @param  [in]  j  Index into polynomial.
@@ -3857,37 +4383,41 @@ static KYBER_NOINLINE void kyber_csubq_c(sword16* p)
 
 #endif /* CONV_WITH_DIV */
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
     defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
 /* Compress the vector of polynomials into a byte array with 10 bits each.
  *
- * @param  [out]  b       Array of bytes.
- * @param  [in]   v       Vector of polynomials.
- * @param  [in]   kp      Number of polynomials in vector.
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * @param  [out]  b  Array of bytes.
+ * @param  [in]   v  Vector of polynomials.
+ * @param  [in]   k  Number of polynomials in vector.
  */
-static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int kp)
+static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int k)
 {
     unsigned int i;
     unsigned int j;
 
-    for (i = 0; i < kp; i++) {
+    for (i = 0; i < k; i++) {
         /* Reduce each coefficient to mod q. */
         kyber_csubq_c(v + i * KYBER_N);
         /* All values are now positive. */
     }
 
     /* Each polynomial. */
-    for (i = 0; i < kp; i++) {
+    for (i = 0; i < k; i++) {
 #if defined(WOLFSSL_SMALL_STACK) || defined(WOLFSSL_KYBER_NO_LARGE_CODE) || \
     defined(BIG_ENDIAN_ORDER)
         /* Each 4 polynomial coefficients. */
         for (j = 0; j < KYBER_N; j += 4) {
         #ifdef WOLFSSL_KYBER_SMALL
-            unsigned int k;
+            unsigned int l;
             sword16 t[4];
             /* Compress four polynomial values to 10 bits each. */
-            for (k = 0; k < 4; k++) {
-                t[k] = TO_COMP_WORD_10(v, i, j, k);
+            for (l = 0; l < 4; l++) {
+                t[l] = TO_COMP_WORD_10(v, i, j, l);
             }
 
             /* Pack four 10-bit values into byte array. */
@@ -3957,27 +4487,31 @@ static void kyber_vec_compress_10_c(byte* r, sword16* v, unsigned int kp)
 
 /* Compress the vector of polynomials into a byte array with 10 bits each.
  *
- * @param  [out]  b       Array of bytes.
- * @param  [in]   v       Vector of polynomials.
- * @param  [in]   kp      Number of polynomials in vector.
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * @param  [out]  b  Array of bytes.
+ * @param  [in]   v  Vector of polynomials.
+ * @param  [in]   k  Number of polynomials in vector.
  */
-void kyber_vec_compress_10(byte* r, sword16* v, unsigned int kp)
+void kyber_vec_compress_10(byte* r, sword16* v, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        kyber_compress_10_avx2(r, v, kp);
+        kyber_compress_10_avx2(r, v, k);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     {
-        kyber_vec_compress_10_c(r, v, kp);
+        kyber_vec_compress_10_c(r, v, k);
     }
 }
 #endif
 
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
 /* Compress the vector of polynomials into a byte array with 11 bits each.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [out]  b       Array of bytes.
  * @param  [in]   v       Vector of polynomials.
@@ -4052,6 +4586,8 @@ static void kyber_vec_compress_11_c(byte* r, sword16* v)
 
 /* Compress the vector of polynomials into a byte array with 11 bits each.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  b       Array of bytes.
  * @param  [in]   v       Vector of polynomials.
  */
@@ -4069,8 +4605,12 @@ void kyber_vec_compress_11(byte* r, sword16* v)
     }
 }
 #endif
+#endif /* !WOLFSSL_KYBER_NO_ENCAPSULATE || !WOLFSSL_KYBER_NO_DECAPSULATE */
 
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
 /* Decompress a 10 bit value.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index of polynomial in vector.
@@ -4084,6 +4624,8 @@ void kyber_vec_compress_11(byte* r, sword16* v)
         (word16)((((word32)((t) & 0x3ff) * KYBER_Q) + 512) >> 10)
 
 /* Decompress an 11 bit value.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index of polynomial in vector.
@@ -4100,21 +4642,22 @@ void kyber_vec_compress_11(byte* r, sword16* v)
     defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
 /* Decompress the byte array of packed 10 bits into vector of polynomials.
  *
- * @param  [out]  v       Vector of polynomials.
- * @param  [in]   b       Array of bytes.
- * @param  [in]   kp      Number of polynomials in vector.
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * @param  [out]  v  Vector of polynomials.
+ * @param  [in]   b  Array of bytes.
+ * @param  [in]   k  Number of polynomials in vector.
  */
-static void kyber_vec_decompress_10_c(sword16* v, const unsigned char* b,
-    unsigned int kp)
+static void kyber_vec_decompress_10_c(sword16* v, const byte* b, unsigned int k)
 {
     unsigned int i;
     unsigned int j;
 #ifdef WOLFSSL_KYBER_SMALL
-    unsigned int k;
+    unsigned int l;
 #endif
 
     /* Each polynomial. */
-    for (i = 0; i < kp; i++) {
+    for (i = 0; i < k; i++) {
         /* Each 4 polynomial coefficients. */
         for (j = 0; j < KYBER_N / 4; j++) {
         #ifdef WOLFSSL_KYBER_SMALL
@@ -4127,8 +4670,8 @@ static void kyber_vec_decompress_10_c(sword16* v, const unsigned char* b,
             b += 5;
 
             /* Decompress 4 values. */
-            for (k = 0; k < 4; k++) {
-                DECOMP_10(v, i, j, k, t[k]);
+            for (l = 0; l < 4; l++) {
+                DECOMP_10(v, i, j, l, t[l]);
             }
         #else
             /* Extract out 4 values of 10 bits each. */
@@ -4150,37 +4693,40 @@ static void kyber_vec_decompress_10_c(sword16* v, const unsigned char* b,
 
 /* Decompress the byte array of packed 10 bits into vector of polynomials.
  *
- * @param  [out]  v       Vector of polynomials.
- * @param  [in]   b       Array of bytes.
- * @param  [in]   kp      Number of polynomials in vector.
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
+ * @param  [out]  v  Vector of polynomials.
+ * @param  [in]   b  Array of bytes.
+ * @param  [in]   k  Number of polynomials in vector.
  */
-void kyber_vec_decompress_10(sword16* v, const unsigned char* b,
-    unsigned int kp)
+void kyber_vec_decompress_10(sword16* v, const byte* b, unsigned int k)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
-        kyber_decompress_10_avx2(v, b, kp);
+        kyber_decompress_10_avx2(v, b, k);
         RESTORE_VECTOR_REGISTERS();
     }
     else
 #endif
     {
-        kyber_vec_decompress_10_c(v, b, kp);
+        kyber_vec_decompress_10_c(v, b, k);
     }
 }
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
 /* Decompress the byte array of packed 11 bits into vector of polynomials.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  v       Vector of polynomials.
  * @param  [in]   b       Array of bytes.
  */
-static void kyber_vec_decompress_11_c(sword16* v, const unsigned char* b)
+static void kyber_vec_decompress_11_c(sword16* v, const byte* b)
 {
     unsigned int i;
     unsigned int j;
 #ifdef WOLFSSL_KYBER_SMALL
-    unsigned int k;
+    unsigned int l;
 #endif
 
     /* Each polynomial. */
@@ -4203,8 +4749,8 @@ static void kyber_vec_decompress_11_c(sword16* v, const unsigned char* b)
             b += 11;
 
             /* Decompress 8 values. */
-            for (k = 0; k < 8; k++) {
-                DECOMP_11(v, i, j, k, t[k]);
+            for (l = 0; l < 8; l++) {
+                DECOMP_11(v, i, j, l, t[l]);
             }
         #else
             /* Extract out 8 values of 11 bits each. */
@@ -4236,10 +4782,12 @@ static void kyber_vec_decompress_11_c(sword16* v, const unsigned char* b)
 
 /* Decompress the byte array of packed 11 bits into vector of polynomials.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  v       Vector of polynomials.
  * @param  [in]   b       Array of bytes.
  */
-void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
+void kyber_vec_decompress_11(sword16* v, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
@@ -4253,12 +4801,15 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
     }
 }
 #endif
+#endif /* !WOLFSSL_KYBER_NO_DECAPSULATE */
 
 #ifdef CONV_WITH_DIV
 
 /* Compress value.
  *
  * Uses div operator that may be slow.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  v  Vector of polynomials.
  * @param  [in]  i  Index into polynomial.
@@ -4274,6 +4825,8 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
  *
  * Uses mul instead of div.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [in]  p  Polynomial.
  * @param  [in]  i  Index into polynomial.
  * @param  [in]  j  Offset from indices.
@@ -4285,6 +4838,8 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
 /* Compress value to 5 bits.
  *
  * Uses mul instead of div.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  p  Polynomial.
  * @param  [in]  i  Index into polynomial.
@@ -4310,6 +4865,8 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
  *
  * Uses mul instead of div.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [in]  p  Polynomial.
  * @param  [in]  i  Index into polynomial.
  * @param  [in]  j  Offset from indices.
@@ -4322,6 +4879,8 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
  *
  * Uses mul instead of div.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [in]  p  Polynomial.
  * @param  [in]  i  Index into polynomial.
  * @param  [in]  j  Offset from indices.
@@ -4332,9 +4891,13 @@ void kyber_vec_decompress_11(sword16* v, const unsigned char* b)
 
 #endif /* CONV_WITH_DIV */
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512) || \
     defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
 /* Compress a polynomial into byte array - on coefficients into 4 bits.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [out]  b       Array of bytes.
  * @param  [in]   p       Polynomial.
@@ -4388,6 +4951,8 @@ static void kyber_compress_4_c(byte* b, sword16* p)
 
 /* Compress a polynomial into byte array - on coefficients into 4 bits.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  b       Array of bytes.
  * @param  [in]   p       Polynomial.
  */
@@ -4407,6 +4972,8 @@ void kyber_compress_4(byte* b, sword16* p)
 #endif
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
 /* Compress a polynomial into byte array - on coefficients into 5 bits.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [out]  b       Array of bytes.
  * @param  [in]   p       Polynomial.
@@ -4462,6 +5029,8 @@ static void kyber_compress_5_c(byte* b, sword16* p)
 
 /* Compress a polynomial into byte array - on coefficients into 5 bits.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  b       Array of bytes.
  * @param  [in]   p       Polynomial.
  */
@@ -4479,8 +5048,12 @@ void kyber_compress_5(byte* b, sword16* p)
     }
 }
 #endif
+#endif /* !WOLFSSL_KYBER_NO_ENCAPSULATE || !WOLFSSL_KYBER_NO_DECAPSULATE */
 
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
 /* Decompress a 4 bit value.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  p  Polynomial.
  * @param  [in]  i  Index into polynomial.
@@ -4492,6 +5065,8 @@ void kyber_compress_5(byte* b, sword16* p)
     p[(i) + (j)] = ((word16)((t) * KYBER_Q) + 8) >> 4
 
 /* Decompress a 5 bit value.
+ *
+ * FIPS 203, Section 4.2.1, Compression and decompression
  *
  * @param  [in]  p  Polynomial.
  * @param  [in]  i  Index into polynomial.
@@ -4506,10 +5081,12 @@ void kyber_compress_5(byte* b, sword16* p)
     defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
 /* Decompress the byte array of packed 4 bits into polynomial.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  p       Polynomial.
  * @param  [in]   b       Array of bytes.
  */
-static void kyber_decompress_4_c(sword16* p, const unsigned char* b)
+static void kyber_decompress_4_c(sword16* p, const byte* b)
 {
     unsigned int i;
 
@@ -4524,10 +5101,12 @@ static void kyber_decompress_4_c(sword16* p, const unsigned char* b)
 
 /* Decompress the byte array of packed 4 bits into polynomial.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  p       Polynomial.
  * @param  [in]   b       Array of bytes.
  */
-void kyber_decompress_4(sword16* p, const unsigned char* b)
+void kyber_decompress_4(sword16* p, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
@@ -4544,10 +5123,12 @@ void kyber_decompress_4(sword16* p, const unsigned char* b)
 #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
 /* Decompress the byte array of packed 5 bits into polynomial.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  p       Polynomial.
  * @param  [in]   b       Array of bytes.
  */
-static void kyber_decompress_5_c(sword16* p, const unsigned char* b)
+static void kyber_decompress_5_c(sword16* p, const byte* b)
 {
     unsigned int i;
 
@@ -4599,10 +5180,12 @@ static void kyber_decompress_5_c(sword16* p, const unsigned char* b)
 
 /* Decompress the byte array of packed 5 bits into polynomial.
  *
+ * FIPS 203, Section 4.2.1, Compression and decompression
+ *
  * @param  [out]  p       Polynomial.
  * @param  [in]   b       Array of bytes.
  */
-void kyber_decompress_5(sword16* p, const unsigned char* b)
+void kyber_decompress_5(sword16* p, const byte* b)
 {
 #ifdef USE_INTEL_SPEEDUP
     if (IS_INTEL_AVX2(cpuid_flags) && (SAVE_VECTOR_REGISTERS2() == 0)) {
@@ -4616,15 +5199,20 @@ void kyber_decompress_5(sword16* p, const unsigned char* b)
     }
 }
 #endif
+#endif /* !WOLFSSL_KYBER_NO_DECAPSULATE */
 
 /******************************************************************************/
 
 #if !(defined(__aarch64__) && defined(WOLFSSL_ARMASM))
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 /* Convert bit from byte to 0 or (KYBER_Q + 1) / 2.
  *
  * Constant time implementation.
  * XOR in kyber_opt_blocker to ensure optimizer doesn't know what will be ANDed
  * with KYBER_Q_1_HALF and can't optimize to non-constant time code.
+ *
+ * FIPS 203, Algorithm 6: ByteDecode_d(B)
  *
  * @param  [out]  p    Polynomial to hold converted value.
  * @param  [in]   msg  Message to get bit from byte from.
@@ -4636,6 +5224,8 @@ void kyber_decompress_5(sword16* p, const unsigned char* b)
                           kyber_opt_blocker) & KYBER_Q_1_HALF)
 
 /* Convert message to polynomial.
+ *
+ * FIPS 203, Algorithm 6: ByteDecode_d(B)
  *
  * @param  [out]  p    Polynomial.
  * @param  [in]   msg  Message as a byte array.
@@ -4667,6 +5257,8 @@ static void kyber_from_msg_c(sword16* p, const byte* msg)
 
 /* Convert message to polynomial.
  *
+ * FIPS 203, Algorithm 6: ByteDecode_d(B)
+ *
  * @param  [out]  p    Polynomial.
  * @param  [in]   msg  Message as a byte array.
  */
@@ -4683,12 +5275,16 @@ void kyber_from_msg(sword16* p, const byte* msg)
         kyber_from_msg_c(p, msg);
     }
 }
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
 #ifdef CONV_WITH_DIV
 
 /* Convert to value to bit.
  *
  * Uses div operator that may be slow.
+ *
+ * FIPS 203, Algorithm 6: ByteEncode_d(F)
  *
  * @param  [out]  m   Message.
  * @param  [in]   p   Polynomial.
@@ -4711,6 +5307,8 @@ void kyber_from_msg(sword16* p, const byte* msg)
  *
  * Uses mul instead of div.
  *
+ * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ *
  * @param  [out]  m   Message.
  * @param  [in]   p   Polynomial.
  * @param  [in]   i   Index of byte in message.
@@ -4722,6 +5320,8 @@ void kyber_from_msg(sword16* p, const byte* msg)
 #endif /* CONV_WITH_DIV */
 
 /* Convert polynomial to message.
+ *
+ * FIPS 203, Algorithm 6: ByteEncode_d(F)
  *
  * @param  [out]  msg  Message as a byte array.
  * @param  [in]   p    Polynomial.
@@ -4757,6 +5357,8 @@ static void kyber_to_msg_c(byte* msg, sword16* p)
 
 /* Convert polynomial to message.
  *
+ * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ *
  * @param  [out]  msg  Message as a byte array.
  * @param  [in]   p    Polynomial.
  */
@@ -4774,8 +5376,13 @@ void kyber_to_msg(byte* msg, sword16* p)
         kyber_to_msg_c(msg, p);
     }
 }
+#endif /* !WOLFSSL_KYBER_NO_DECAPSULATE */
 #else
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 /* Convert message to polynomial.
+ *
+ * FIPS 203, Algorithm 6: ByteDecode_d(B)
  *
  * @param  [out]  p    Polynomial.
  * @param  [in]   msg  Message as a byte array.
@@ -4784,8 +5391,12 @@ void kyber_from_msg(sword16* p, const byte* msg)
 {
     kyber_from_msg_neon(p, msg);
 }
+#endif /* !WOLFSSL_KYBER_NO_ENCAPSULATE || !WOLFSSL_KYBER_NO_DECAPSULATE */
 
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
 /* Convert polynomial to message.
+ *
+ * FIPS 203, Algorithm 6: ByteEncode_d(F)
  *
  * @param  [out]  msg  Message as a byte array.
  * @param  [in]   p    Polynomial.
@@ -4794,7 +5405,8 @@ void kyber_to_msg(byte* msg, sword16* p)
 {
     kyber_to_msg_neon(msg, p);
 }
-#endif
+#endif /* WOLFSSL_KYBER_NO_DECAPSULATE */
+#endif /* !(__aarch64__ && WOLFSSL_ARMASM) */
 
 /******************************************************************************/
 
@@ -4802,6 +5414,8 @@ void kyber_to_msg(byte* msg, sword16* p)
  *
  * Consecutive 12 bits hold each coefficient of polynomial.
  * Used in decoding private and public keys.
+ *
+ * FIPS 203, Algorithm 6: ByteDecode_d(B)
  *
  * @param  [out]  p  Vector of polynomials.
  * @param  [in]   b  Array of bytes.
@@ -4828,6 +5442,8 @@ static void kyber_from_bytes_c(sword16* p, const byte* b, int k)
  *
  * Consecutive 12 bits hold each coefficient of polynomial.
  * Used in decoding private and public keys.
+ *
+ * FIPS 203, Algorithm 6: ByteDecode_d(B)
  *
  * @param  [out]  p  Vector of polynomials.
  * @param  [in]   b  Array of bytes.
@@ -4859,6 +5475,8 @@ void kyber_from_bytes(sword16* p, const byte* b, int k)
  * Consecutive 12 bits hold each coefficient of polynomial.
  * Used in encoding private and public keys.
  *
+ * FIPS 203, Algorithm 6: ByteEncode_d(F)
+ *
  * @param  [out]  b  Array of bytes.
  * @param  [in]   p  Polynomial.
  * @param  [in]   k  Number of polynomials in vector.
@@ -4889,6 +5507,8 @@ static void kyber_to_bytes_c(byte* b, sword16* p, int k)
  *
  * Consecutive 12 bits hold each coefficient of polynomial.
  * Used in encoding private and public keys.
+ *
+ * FIPS 203, Algorithm 6: ByteEncode_d(F)
  *
  * @param  [out]  b  Array of bytes.
  * @param  [in]   p  Polynomial.

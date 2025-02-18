@@ -1405,13 +1405,19 @@ AC_ARG_ENABLE([kyber],
 
 ENABLED_WC_KYBER=no
 ENABLED_ML_KEM=unset
+ENABLED_KYBER_MAKE_KEY=no
+ENABLED_KYBER_ENCAPSULATE=no
+ENABLED_KYBER_DECAPSULATE=no
 for v in `echo $ENABLED_KYBER | tr "," " "`
 do
   case $v in
-  yes | all)
+  yes)
     ENABLED_KYBER512=yes
     ENABLED_KYBER768=yes
     ENABLED_KYBER1024=yes
+    ENABLED_KYBER_MAKE_KEY=yes
+    ENABLED_KYBER_ENCAPSULATE=yes
+    ENABLED_KYBER_DECAPSULATE=yes
     ;;
   no)
     ;;
@@ -1429,6 +1435,20 @@ do
     ;;
   1024)
     ENABLED_KYBER1024=yes
+    ;;
+  make)
+    ENABLED_KYBER_MAKE_KEY=yes
+    ;;
+  encapsulate|enc)
+    ENABLED_KYBER_ENCAPSULATE=yes
+    ;;
+  decapsulate|dec)
+    ENABLED_KYBER_DECAPSULATE=yes
+    ;;
+  all)
+    ENABLED_KYBER_MAKE_KEY=yes
+    ENABLED_KYBER_ENCAPSULATE=yes
+    ENABLED_KYBER_DECAPSULATE=yes
     ;;
   original)
     ENABLED_ORIGINAL=yes
@@ -1482,6 +1502,15 @@ then
         fi
     else
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_ML_KEM"
+    fi
+    if test "$ENABLED_KYBER_MAKE_KEY" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_MAKE_KEY"
+    fi
+    if test "$ENABLED_KYBER_ENCAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_ENCAPSULATE"
+    fi
+    if test "$ENABLED_KYBER_DECAPSULATE" = "no"; then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KYBER_NO_DECAPSULATE"
     fi
 
     if test "$ENABLED_WC_KYBER" = "yes"

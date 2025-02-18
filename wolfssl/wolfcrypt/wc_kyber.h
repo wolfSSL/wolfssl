@@ -44,18 +44,6 @@
     #define KYBER_NOINLINE
 #endif
 
-/* Define algorithm type when not excluded. */
-
-#ifndef WOLFSSL_NO_KYBER512
-#define WOLFSSL_KYBER512
-#endif
-#ifndef WOLFSSL_NO_KYBER768
-#define WOLFSSL_KYBER768
-#endif
-#ifndef WOLFSSL_NO_KYBER1024
-#define WOLFSSL_KYBER1024
-#endif
-
 enum {
     /* Flags of Kyber keys. */
     KYBER_FLAG_PRIV_SET = 0x0001,

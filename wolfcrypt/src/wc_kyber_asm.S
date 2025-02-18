@@ -6086,6 +6086,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -6107,14 +6115,6 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
-        vpmulhw	%ymm15, %ymm8, %ymm0
-        vpmulhw	%ymm15, %ymm9, %ymm2
-        vpsraw	$10, %ymm0, %ymm0
-        vpsraw	$10, %ymm2, %ymm2
-        vpmullw	%ymm14, %ymm0, %ymm0
-        vpmullw	%ymm14, %ymm2, %ymm2
-        vpsubw	%ymm0, %ymm8, %ymm8
-        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -6136,6 +6136,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -6209,6 +6217,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -6230,14 +6246,6 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
-        vpmulhw	%ymm15, %ymm8, %ymm4
-        vpmulhw	%ymm15, %ymm9, %ymm6
-        vpsraw	$10, %ymm4, %ymm4
-        vpsraw	$10, %ymm6, %ymm6
-        vpmullw	%ymm14, %ymm4, %ymm4
-        vpmullw	%ymm14, %ymm6, %ymm6
-        vpsubw	%ymm4, %ymm8, %ymm8
-        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -6259,6 +6267,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -6375,6 +6391,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -6396,14 +6420,6 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
-        vpmulhw	%ymm15, %ymm8, %ymm0
-        vpmulhw	%ymm15, %ymm9, %ymm2
-        vpsraw	$10, %ymm0, %ymm0
-        vpsraw	$10, %ymm2, %ymm2
-        vpmullw	%ymm14, %ymm0, %ymm0
-        vpmullw	%ymm14, %ymm2, %ymm2
-        vpsubw	%ymm0, %ymm8, %ymm8
-        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -6425,6 +6441,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -6498,6 +6522,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -6519,14 +6551,6 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
-        vpmulhw	%ymm15, %ymm8, %ymm4
-        vpmulhw	%ymm15, %ymm9, %ymm6
-        vpsraw	$10, %ymm4, %ymm4
-        vpsraw	$10, %ymm6, %ymm6
-        vpmullw	%ymm14, %ymm4, %ymm4
-        vpmullw	%ymm14, %ymm6, %ymm6
-        vpsubw	%ymm4, %ymm8, %ymm8
-        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -6548,6 +6572,14 @@ L_pointwise_acc_mont_end_encap_bp:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -6652,18 +6684,26 @@ L_pointwise_acc_mont_end_encap_bp:
         vpmulhw	%ymm14, %ymm5, %ymm5
         vpsubw	%ymm4, %ymm8, %ymm4
         vpsubw	%ymm5, %ymm9, %ymm5
-        vpsubw	%ymm6, %ymm2, %ymm8
-        vpsubw	%ymm7, %ymm3, %ymm9
-        vpaddw	%ymm6, %ymm2, %ymm2
-        vpaddw	%ymm7, %ymm3, %ymm3
-        vpmullw	%ymm12, %ymm8, %ymm6
-        vpmullw	%ymm12, %ymm9, %ymm7
-        vpmulhw	%ymm10, %ymm8, %ymm8
-        vpmulhw	%ymm10, %ymm9, %ymm9
-        vpmulhw	%ymm14, %ymm6, %ymm6
-        vpmulhw	%ymm14, %ymm7, %ymm7
-        vpsubw	%ymm6, %ymm8, %ymm6
-        vpsubw	%ymm7, %ymm9, %ymm7
+        vpaddw	%ymm6, %ymm2, %ymm8
+        vpaddw	%ymm7, %ymm3, %ymm9
+        vpsubw	%ymm6, %ymm2, %ymm6
+        vpsubw	%ymm7, %ymm3, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm2
+        vpmulhw	%ymm15, %ymm9, %ymm3
+        vpsraw	$10, %ymm2, %ymm2
+        vpsraw	$10, %ymm3, %ymm3
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm3, %ymm3
+        vpsubw	%ymm2, %ymm8, %ymm2
+        vpsubw	%ymm3, %ymm9, %ymm3
+        vpmullw	%ymm12, %ymm6, %ymm8
+        vpmullw	%ymm12, %ymm7, %ymm9
+        vpmulhw	%ymm10, %ymm6, %ymm6
+        vpmulhw	%ymm10, %ymm7, %ymm7
+        vpmulhw	%ymm14, %ymm8, %ymm8
+        vpmulhw	%ymm14, %ymm9, %ymm9
+        vpsubw	%ymm8, %ymm6, %ymm6
+        vpsubw	%ymm9, %ymm7, %ymm7
         vpmullw	%ymm13, %ymm0, %ymm8
         vpmullw	%ymm13, %ymm1, %ymm9
         vpmulhw	%ymm11, %ymm0, %ymm0
@@ -6724,18 +6764,26 @@ L_pointwise_acc_mont_end_encap_bp:
         vpmulhw	%ymm14, %ymm5, %ymm5
         vpsubw	%ymm4, %ymm8, %ymm4
         vpsubw	%ymm5, %ymm9, %ymm5
-        vpsubw	%ymm6, %ymm2, %ymm8
-        vpsubw	%ymm7, %ymm3, %ymm9
-        vpaddw	%ymm6, %ymm2, %ymm2
-        vpaddw	%ymm7, %ymm3, %ymm3
-        vpmullw	%ymm12, %ymm8, %ymm6
-        vpmullw	%ymm12, %ymm9, %ymm7
-        vpmulhw	%ymm10, %ymm8, %ymm8
-        vpmulhw	%ymm10, %ymm9, %ymm9
-        vpmulhw	%ymm14, %ymm6, %ymm6
-        vpmulhw	%ymm14, %ymm7, %ymm7
-        vpsubw	%ymm6, %ymm8, %ymm6
-        vpsubw	%ymm7, %ymm9, %ymm7
+        vpaddw	%ymm6, %ymm2, %ymm8
+        vpaddw	%ymm7, %ymm3, %ymm9
+        vpsubw	%ymm6, %ymm2, %ymm6
+        vpsubw	%ymm7, %ymm3, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm2
+        vpmulhw	%ymm15, %ymm9, %ymm3
+        vpsraw	$10, %ymm2, %ymm2
+        vpsraw	$10, %ymm3, %ymm3
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm3, %ymm3
+        vpsubw	%ymm2, %ymm8, %ymm2
+        vpsubw	%ymm3, %ymm9, %ymm3
+        vpmullw	%ymm12, %ymm6, %ymm8
+        vpmullw	%ymm12, %ymm7, %ymm9
+        vpmulhw	%ymm10, %ymm6, %ymm6
+        vpmulhw	%ymm10, %ymm7, %ymm7
+        vpmulhw	%ymm14, %ymm8, %ymm8
+        vpmulhw	%ymm14, %ymm9, %ymm9
+        vpsubw	%ymm8, %ymm6, %ymm6
+        vpsubw	%ymm9, %ymm7, %ymm7
         vpmullw	%ymm13, %ymm0, %ymm8
         vpmullw	%ymm13, %ymm1, %ymm9
         vpmulhw	%ymm11, %ymm0, %ymm0
@@ -8116,6 +8164,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -8137,14 +8193,6 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
-        vpmulhw	%ymm15, %ymm8, %ymm0
-        vpmulhw	%ymm15, %ymm9, %ymm2
-        vpsraw	$10, %ymm0, %ymm0
-        vpsraw	$10, %ymm2, %ymm2
-        vpmullw	%ymm14, %ymm0, %ymm0
-        vpmullw	%ymm14, %ymm2, %ymm2
-        vpsubw	%ymm0, %ymm8, %ymm8
-        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -8166,6 +8214,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -8239,6 +8295,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -8260,14 +8324,6 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
-        vpmulhw	%ymm15, %ymm8, %ymm4
-        vpmulhw	%ymm15, %ymm9, %ymm6
-        vpsraw	$10, %ymm4, %ymm4
-        vpsraw	$10, %ymm6, %ymm6
-        vpmullw	%ymm14, %ymm4, %ymm4
-        vpmullw	%ymm14, %ymm6, %ymm6
-        vpsubw	%ymm4, %ymm8, %ymm8
-        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -8289,6 +8345,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -8405,6 +8469,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -8426,14 +8498,6 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
-        vpmulhw	%ymm15, %ymm8, %ymm0
-        vpmulhw	%ymm15, %ymm9, %ymm2
-        vpsraw	$10, %ymm0, %ymm0
-        vpsraw	$10, %ymm2, %ymm2
-        vpmullw	%ymm14, %ymm0, %ymm0
-        vpmullw	%ymm14, %ymm2, %ymm2
-        vpsubw	%ymm0, %ymm8, %ymm8
-        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -8455,6 +8519,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -8528,6 +8600,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -8549,14 +8629,6 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
-        vpmulhw	%ymm15, %ymm8, %ymm4
-        vpmulhw	%ymm15, %ymm9, %ymm6
-        vpsraw	$10, %ymm4, %ymm4
-        vpsraw	$10, %ymm6, %ymm6
-        vpmullw	%ymm14, %ymm4, %ymm4
-        vpmullw	%ymm14, %ymm6, %ymm6
-        vpsubw	%ymm4, %ymm8, %ymm8
-        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -8578,6 +8650,14 @@ L_pointwise_acc_mont_end_encap_v:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -8682,18 +8762,26 @@ L_pointwise_acc_mont_end_encap_v:
         vpmulhw	%ymm14, %ymm5, %ymm5
         vpsubw	%ymm4, %ymm8, %ymm4
         vpsubw	%ymm5, %ymm9, %ymm5
-        vpsubw	%ymm6, %ymm2, %ymm8
-        vpsubw	%ymm7, %ymm3, %ymm9
-        vpaddw	%ymm6, %ymm2, %ymm2
-        vpaddw	%ymm7, %ymm3, %ymm3
-        vpmullw	%ymm12, %ymm8, %ymm6
-        vpmullw	%ymm12, %ymm9, %ymm7
-        vpmulhw	%ymm10, %ymm8, %ymm8
-        vpmulhw	%ymm10, %ymm9, %ymm9
-        vpmulhw	%ymm14, %ymm6, %ymm6
-        vpmulhw	%ymm14, %ymm7, %ymm7
-        vpsubw	%ymm6, %ymm8, %ymm6
-        vpsubw	%ymm7, %ymm9, %ymm7
+        vpaddw	%ymm6, %ymm2, %ymm8
+        vpaddw	%ymm7, %ymm3, %ymm9
+        vpsubw	%ymm6, %ymm2, %ymm6
+        vpsubw	%ymm7, %ymm3, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm2
+        vpmulhw	%ymm15, %ymm9, %ymm3
+        vpsraw	$10, %ymm2, %ymm2
+        vpsraw	$10, %ymm3, %ymm3
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm3, %ymm3
+        vpsubw	%ymm2, %ymm8, %ymm2
+        vpsubw	%ymm3, %ymm9, %ymm3
+        vpmullw	%ymm12, %ymm6, %ymm8
+        vpmullw	%ymm12, %ymm7, %ymm9
+        vpmulhw	%ymm10, %ymm6, %ymm6
+        vpmulhw	%ymm10, %ymm7, %ymm7
+        vpmulhw	%ymm14, %ymm8, %ymm8
+        vpmulhw	%ymm14, %ymm9, %ymm9
+        vpsubw	%ymm8, %ymm6, %ymm6
+        vpsubw	%ymm9, %ymm7, %ymm7
         vpmullw	%ymm13, %ymm0, %ymm8
         vpmullw	%ymm13, %ymm1, %ymm9
         vpmulhw	%ymm11, %ymm0, %ymm0
@@ -8754,18 +8842,26 @@ L_pointwise_acc_mont_end_encap_v:
         vpmulhw	%ymm14, %ymm5, %ymm5
         vpsubw	%ymm4, %ymm8, %ymm4
         vpsubw	%ymm5, %ymm9, %ymm5
-        vpsubw	%ymm6, %ymm2, %ymm8
-        vpsubw	%ymm7, %ymm3, %ymm9
-        vpaddw	%ymm6, %ymm2, %ymm2
-        vpaddw	%ymm7, %ymm3, %ymm3
-        vpmullw	%ymm12, %ymm8, %ymm6
-        vpmullw	%ymm12, %ymm9, %ymm7
-        vpmulhw	%ymm10, %ymm8, %ymm8
-        vpmulhw	%ymm10, %ymm9, %ymm9
-        vpmulhw	%ymm14, %ymm6, %ymm6
-        vpmulhw	%ymm14, %ymm7, %ymm7
-        vpsubw	%ymm6, %ymm8, %ymm6
-        vpsubw	%ymm7, %ymm9, %ymm7
+        vpaddw	%ymm6, %ymm2, %ymm8
+        vpaddw	%ymm7, %ymm3, %ymm9
+        vpsubw	%ymm6, %ymm2, %ymm6
+        vpsubw	%ymm7, %ymm3, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm2
+        vpmulhw	%ymm15, %ymm9, %ymm3
+        vpsraw	$10, %ymm2, %ymm2
+        vpsraw	$10, %ymm3, %ymm3
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm3, %ymm3
+        vpsubw	%ymm2, %ymm8, %ymm2
+        vpsubw	%ymm3, %ymm9, %ymm3
+        vpmullw	%ymm12, %ymm6, %ymm8
+        vpmullw	%ymm12, %ymm7, %ymm9
+        vpmulhw	%ymm10, %ymm6, %ymm6
+        vpmulhw	%ymm10, %ymm7, %ymm7
+        vpmulhw	%ymm14, %ymm8, %ymm8
+        vpmulhw	%ymm14, %ymm9, %ymm9
+        vpsubw	%ymm8, %ymm6, %ymm6
+        vpsubw	%ymm9, %ymm7, %ymm7
         vpmullw	%ymm13, %ymm0, %ymm8
         vpmullw	%ymm13, %ymm1, %ymm9
         vpmulhw	%ymm11, %ymm0, %ymm0
@@ -10891,6 +10987,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -10912,14 +11016,6 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
-        vpmulhw	%ymm15, %ymm8, %ymm0
-        vpmulhw	%ymm15, %ymm9, %ymm2
-        vpsraw	$10, %ymm0, %ymm0
-        vpsraw	$10, %ymm2, %ymm2
-        vpmullw	%ymm14, %ymm0, %ymm0
-        vpmullw	%ymm14, %ymm2, %ymm2
-        vpsubw	%ymm0, %ymm8, %ymm8
-        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -10941,6 +11037,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -11014,6 +11118,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -11035,14 +11147,6 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
-        vpmulhw	%ymm15, %ymm8, %ymm4
-        vpmulhw	%ymm15, %ymm9, %ymm6
-        vpsraw	$10, %ymm4, %ymm4
-        vpsraw	$10, %ymm6, %ymm6
-        vpmullw	%ymm14, %ymm4, %ymm4
-        vpmullw	%ymm14, %ymm6, %ymm6
-        vpsubw	%ymm4, %ymm8, %ymm8
-        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -11064,6 +11168,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -11180,6 +11292,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -11201,14 +11321,6 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
-        vpmulhw	%ymm15, %ymm8, %ymm0
-        vpmulhw	%ymm15, %ymm9, %ymm2
-        vpsraw	$10, %ymm0, %ymm0
-        vpsraw	$10, %ymm2, %ymm2
-        vpmullw	%ymm14, %ymm0, %ymm0
-        vpmullw	%ymm14, %ymm2, %ymm2
-        vpsubw	%ymm0, %ymm8, %ymm8
-        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -11230,6 +11342,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm3, %ymm2, %ymm9
         vpsubw	%ymm1, %ymm0, %ymm1
         vpsubw	%ymm3, %ymm2, %ymm3
+        vpmulhw	%ymm15, %ymm8, %ymm0
+        vpmulhw	%ymm15, %ymm9, %ymm2
+        vpsraw	$10, %ymm0, %ymm0
+        vpsraw	$10, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm0, %ymm0
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpsubw	%ymm0, %ymm8, %ymm8
+        vpsubw	%ymm2, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm1, %ymm0
         vpmullw	%ymm13, %ymm3, %ymm2
         vpmulhw	%ymm10, %ymm1, %ymm1
@@ -11303,6 +11423,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -11324,14 +11452,6 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
-        vpmulhw	%ymm15, %ymm8, %ymm4
-        vpmulhw	%ymm15, %ymm9, %ymm6
-        vpsraw	$10, %ymm4, %ymm4
-        vpsraw	$10, %ymm6, %ymm6
-        vpmullw	%ymm14, %ymm4, %ymm4
-        vpmullw	%ymm14, %ymm6, %ymm6
-        vpsubw	%ymm4, %ymm8, %ymm8
-        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -11353,6 +11473,14 @@ L_pointwise_acc_mont_end_decap:
         vpaddw	%ymm7, %ymm6, %ymm9
         vpsubw	%ymm5, %ymm4, %ymm5
         vpsubw	%ymm7, %ymm6, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm4
+        vpmulhw	%ymm15, %ymm9, %ymm6
+        vpsraw	$10, %ymm4, %ymm4
+        vpsraw	$10, %ymm6, %ymm6
+        vpmullw	%ymm14, %ymm4, %ymm4
+        vpmullw	%ymm14, %ymm6, %ymm6
+        vpsubw	%ymm4, %ymm8, %ymm8
+        vpsubw	%ymm6, %ymm9, %ymm9
         vpmullw	%ymm12, %ymm5, %ymm4
         vpmullw	%ymm13, %ymm7, %ymm6
         vpmulhw	%ymm10, %ymm5, %ymm5
@@ -11457,18 +11585,26 @@ L_pointwise_acc_mont_end_decap:
         vpmulhw	%ymm14, %ymm5, %ymm5
         vpsubw	%ymm4, %ymm8, %ymm4
         vpsubw	%ymm5, %ymm9, %ymm5
-        vpsubw	%ymm6, %ymm2, %ymm8
-        vpsubw	%ymm7, %ymm3, %ymm9
-        vpaddw	%ymm6, %ymm2, %ymm2
-        vpaddw	%ymm7, %ymm3, %ymm3
-        vpmullw	%ymm12, %ymm8, %ymm6
-        vpmullw	%ymm12, %ymm9, %ymm7
-        vpmulhw	%ymm10, %ymm8, %ymm8
-        vpmulhw	%ymm10, %ymm9, %ymm9
-        vpmulhw	%ymm14, %ymm6, %ymm6
-        vpmulhw	%ymm14, %ymm7, %ymm7
-        vpsubw	%ymm6, %ymm8, %ymm6
-        vpsubw	%ymm7, %ymm9, %ymm7
+        vpaddw	%ymm6, %ymm2, %ymm8
+        vpaddw	%ymm7, %ymm3, %ymm9
+        vpsubw	%ymm6, %ymm2, %ymm6
+        vpsubw	%ymm7, %ymm3, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm2
+        vpmulhw	%ymm15, %ymm9, %ymm3
+        vpsraw	$10, %ymm2, %ymm2
+        vpsraw	$10, %ymm3, %ymm3
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm3, %ymm3
+        vpsubw	%ymm2, %ymm8, %ymm2
+        vpsubw	%ymm3, %ymm9, %ymm3
+        vpmullw	%ymm12, %ymm6, %ymm8
+        vpmullw	%ymm12, %ymm7, %ymm9
+        vpmulhw	%ymm10, %ymm6, %ymm6
+        vpmulhw	%ymm10, %ymm7, %ymm7
+        vpmulhw	%ymm14, %ymm8, %ymm8
+        vpmulhw	%ymm14, %ymm9, %ymm9
+        vpsubw	%ymm8, %ymm6, %ymm6
+        vpsubw	%ymm9, %ymm7, %ymm7
         vpmullw	%ymm13, %ymm0, %ymm8
         vpmullw	%ymm13, %ymm1, %ymm9
         vpmulhw	%ymm11, %ymm0, %ymm0
@@ -11529,18 +11665,26 @@ L_pointwise_acc_mont_end_decap:
         vpmulhw	%ymm14, %ymm5, %ymm5
         vpsubw	%ymm4, %ymm8, %ymm4
         vpsubw	%ymm5, %ymm9, %ymm5
-        vpsubw	%ymm6, %ymm2, %ymm8
-        vpsubw	%ymm7, %ymm3, %ymm9
-        vpaddw	%ymm6, %ymm2, %ymm2
-        vpaddw	%ymm7, %ymm3, %ymm3
-        vpmullw	%ymm12, %ymm8, %ymm6
-        vpmullw	%ymm12, %ymm9, %ymm7
-        vpmulhw	%ymm10, %ymm8, %ymm8
-        vpmulhw	%ymm10, %ymm9, %ymm9
-        vpmulhw	%ymm14, %ymm6, %ymm6
-        vpmulhw	%ymm14, %ymm7, %ymm7
-        vpsubw	%ymm6, %ymm8, %ymm6
-        vpsubw	%ymm7, %ymm9, %ymm7
+        vpaddw	%ymm6, %ymm2, %ymm8
+        vpaddw	%ymm7, %ymm3, %ymm9
+        vpsubw	%ymm6, %ymm2, %ymm6
+        vpsubw	%ymm7, %ymm3, %ymm7
+        vpmulhw	%ymm15, %ymm8, %ymm2
+        vpmulhw	%ymm15, %ymm9, %ymm3
+        vpsraw	$10, %ymm2, %ymm2
+        vpsraw	$10, %ymm3, %ymm3
+        vpmullw	%ymm14, %ymm2, %ymm2
+        vpmullw	%ymm14, %ymm3, %ymm3
+        vpsubw	%ymm2, %ymm8, %ymm2
+        vpsubw	%ymm3, %ymm9, %ymm3
+        vpmullw	%ymm12, %ymm6, %ymm8
+        vpmullw	%ymm12, %ymm7, %ymm9
+        vpmulhw	%ymm10, %ymm6, %ymm6
+        vpmulhw	%ymm10, %ymm7, %ymm7
+        vpmulhw	%ymm14, %ymm8, %ymm8
+        vpmulhw	%ymm14, %ymm9, %ymm9
+        vpsubw	%ymm8, %ymm6, %ymm6
+        vpsubw	%ymm9, %ymm7, %ymm7
         vpmullw	%ymm13, %ymm0, %ymm8
         vpmullw	%ymm13, %ymm1, %ymm9
         vpmulhw	%ymm11, %ymm0, %ymm0
