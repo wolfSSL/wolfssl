@@ -17355,7 +17355,7 @@ void wolfSSL_ERR_load_SSL_strings(void)
 }
 #endif
 
-#ifdef HAVE_OCSP
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
 long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
 {
     if (s == NULL || resp == NULL)
@@ -17371,12 +17371,13 @@ long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp,
     if (s == NULL)
         return WOLFSSL_FAILURE;
 
+    XFREE(s->ocspResp, NULL, 0);
     s->ocspResp   = resp;
     s->ocspRespSz = len;
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* HAVE_OCSP */
+#endif /* defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
 
 #ifdef HAVE_MAX_FRAGMENT
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)

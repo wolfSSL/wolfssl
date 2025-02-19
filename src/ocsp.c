@@ -333,7 +333,7 @@ int CheckOcspResponse(WOLFSSL_OCSP *ocsp, byte *response, int responseSz,
         ocspResponse->pendingCAs = TLSX_CSR2_GetPendingSigners(((WOLFSSL*)ocspRequest->ssl)->extensions);
     }
 #endif
-    ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0);
+    ret = OcspResponseDecode(ocspResponse, ocsp->cm, ocsp->cm->heap, 0, 0);
     if (ret != 0) {
         ocsp->error = ret;
         WOLFSSL_LEAVE("OcspResponseDecode failed", ocsp->error);
@@ -479,31 +479,6 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     ssl = (WOLFSSL*)ocspRequest->ssl;
     ioCtx = (ssl && ssl->ocspIOCtx != NULL) ?
                                         ssl->ocspIOCtx : ocsp->cm->ocspIOCtx;
-
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-    if (ocsp->statusCb != NULL && ssl != NULL) {
-        WOLFSSL_MSG("Calling ocsp->statusCb");
-        ret = ocsp->statusCb(ssl, ioCtx);
-        switch (ret) {
-            case SSL_TLSEXT_ERR_OK:
-                ret = wolfSSL_get_ocsp_response(ssl, &response);
-                ret = CheckOcspResponse(ocsp, response, ret, responseBuffer,
-                                        status, entry, NULL, heap);
-                XFREE(response, NULL, DYNAMIC_TYPE_OPENSSL);
-                break;
-            case SSL_TLSEXT_ERR_NOACK:
-                ret = OCSP_LOOKUP_FAIL;
-                break;
-            case SSL_TLSEXT_ERR_ALERT_FATAL:
-            default:
-                WOLFSSL_LEAVE("CheckOcspRequest", ocsp->error);
-                ret = WOLFSSL_FATAL_ERROR;
-                break;
-        }
-        WOLFSSL_LEAVE("CheckOcspRequest", ret);
-        return ret;
-    }
-#endif
 
     if (ocsp->cm->ocspUseOverrideURL) {
         url = ocsp->cm->ocspOverrideURL;
@@ -656,9 +631,6 @@ int CheckOcspResponder(OcspResponse *bs, DecodedCert *cert, void* vp)
 
         if (!passed) {
             WOLFSSL_MSG("\tOCSP Responder not authorized");
-#ifdef OPENSSL_EXTRA
-            bs->verifyError = OCSP_BAD_ISSUER;
-#endif
             ret = BAD_OCSP_RESPONDER;
             break;
         }
@@ -850,79 +822,174 @@ void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse)
     wolfSSL_OCSP_RESPONSE_free(basicResponse);
 }
 
-/* Signature verified in DecodeBasicOcspResponse.
- * But no store available to verify certificate. */
-int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
-    WOLF_STACK_OF(WOLFSSL_X509) *certs, WOLFSSL_X509_STORE *st, unsigned long flags)
+static int OcspRespIdMatches(OcspResponse* resp, const byte* NameHash,
+    const byte* keyHash)
 {
-    int         ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert *cert;
-#else
-    DecodedCert cert[1];
-#endif
-    byte        certInit = 0;
-    int         idx;
+    if (resp->responderIdType == OCSP_RESPONDER_ID_NAME) {
+        return XMEMCMP(NameHash, resp->responderId.nameHash,
+                   SIGNER_DIGEST_SIZE) == 0;
+    }
+    else if (resp->responderIdType == OCSP_RESPONDER_ID_KEY) {
+        return XMEMCMP(keyHash, resp->responderId.keyHash, KEYID_SIZE) == 0;
+    }
 
-    (void)certs;
+    return 0;
+}
 
-    if (flags & WOLFSSL_OCSP_NOVERIFY)
-        return WOLFSSL_SUCCESS;
+static int OcspFindSigner(WOLFSSL_OCSP_BASICRESP *resp,
+    WOLF_STACK_OF(WOLFSSL_X509) *certs, DecodedCert **signer, int *embedded,
+    unsigned long flags)
+{
+    WOLFSSL_X509 *signer_x509 = NULL;
+    DecodedCert *certDecoded;
+    int i;
 
-#ifdef WOLFSSL_SMALL_STACK
-    cert = (DecodedCert *)
-        XMALLOC(sizeof(*cert), (st && st->cm) ? st->cm->heap : NULL,
-                DYNAMIC_TYPE_DCERT);
-    if (cert == NULL)
-        return WOLFSSL_FAILURE;
-#endif
+    certDecoded = (DecodedCert *)XMALLOC(sizeof(*certDecoded), resp->heap,
+                                            DYNAMIC_TYPE_DCERT);
+    if (certDecoded == NULL)
+        return MEMORY_E;
 
-    if (bs->verifyError != OCSP_VERIFY_ERROR_NONE)
-        goto out;
+    for (i = 0; i < wolfSSL_sk_X509_num(certs); i++) {
+        signer_x509 = wolfSSL_sk_X509_value(certs, i);
+        if (signer_x509 == NULL)
+            continue;
 
-    if (flags & WOLFSSL_OCSP_TRUSTOTHER) {
-        for (idx = 0; idx < wolfSSL_sk_X509_num(certs); idx++) {
-            WOLFSSL_X509* x = wolfSSL_sk_X509_value(certs, idx);
-            int derSz = 0;
-            const byte* der = wolfSSL_X509_get_der(x, &derSz);
-            if (der != NULL && derSz == (int)bs->certSz &&
-                    XMEMCMP(bs->cert, der, (size_t)derSz) == 0) {
-                ret = WOLFSSL_SUCCESS;
-                goto out;
-            }
+        InitDecodedCert(certDecoded, signer_x509->derCert->buffer,
+                       signer_x509->derCert->length, resp->heap);
+        if (ParseCertRelative(certDecoded, CERT_TYPE, NO_VERIFY,
+                NULL, NULL) == 0) {
+                if (OcspRespIdMatches(resp, certDecoded->subjectHash,
+                        certDecoded->subjectKeyHash)) {
+                    *signer = certDecoded;
+                    *embedded = 0;
+                    return 0;
+                }
+        }
+        FreeDecodedCert(certDecoded);
+    }
+
+    if (flags & WOLFSSL_OCSP_NOINTERN) {
+        XFREE(certDecoded, resp->heap, DYNAMIC_TYPE_DCERT);
+        return ASN_NO_SIGNER_E;
+    }
+
+    /* not found in certs, search the cert embedded in the response */
+    InitDecodedCert(certDecoded, resp->cert, resp->certSz, resp->heap);
+    if (ParseCertRelative(certDecoded, CERT_TYPE, NO_VERIFY, NULL, NULL) == 0) {
+        if (OcspRespIdMatches(resp, certDecoded->subjectHash,
+                certDecoded->subjectKeyHash)) {
+            *signer = certDecoded;
+            *embedded = 1;
+            return 0;
         }
     }
+    FreeDecodedCert(certDecoded);
 
-    InitDecodedCert(cert, bs->cert, bs->certSz, NULL);
-    certInit = 1;
-    if (ParseCertRelative(cert, CERT_TYPE, VERIFY, st->cm, NULL) < 0)
-        goto out;
+    XFREE(certDecoded, resp->heap, DYNAMIC_TYPE_DCERT);
+    return ASN_NO_SIGNER_E;
+}
 
-    if (!(flags & WOLFSSL_OCSP_NOCHECKS)) {
-        if (CheckOcspResponder(bs, cert, st->cm) != 0)
-            goto out;
-    }
-
-    ret = WOLFSSL_SUCCESS;
-out:
-    if (certInit)
-        FreeDecodedCert(cert);
-
+static int OcspVerifySigner(WOLFSSL_OCSP_BASICRESP *resp, DecodedCert *cert,
+     WOLFSSL_X509_STORE *st, unsigned long flags)
+{
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(cert, (st && st->cm) ? st->cm->heap : NULL, DYNAMIC_TYPE_DCERT);
+    DecodedCert *c = NULL;
+#else
+    DecodedCert c[1];
 #endif
 
+    int ret = -1;
+    if (st == NULL)
+        return ASN_OCSP_CONFIRM_E;
+
+#ifdef WOLFSSL_SMALL_STACK
+    c = (DecodedCert *)XMALLOC(sizeof(*c), NULL, DYNAMIC_TYPE_DCERT);
+    if (c == NULL)
+        return MEMORY_E;
+#endif
+
+    InitDecodedCert(c, cert->source, cert->maxIdx, NULL);
+    if (ParseCertRelative(c, CERT_TYPE, VERIFY, st->cm, NULL) != 0) {
+        ret = ASN_OCSP_CONFIRM_E;
+        goto err;
+    }
+#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
+    if ((flags & WOLFSSL_OCSP_NOCHECKS) == 0) {
+        ret = CheckOcspResponder(resp, c, st->cm);
+    }
+    else {
+        ret = 0;
+    }
+#else
+    (void)resp;
+    (void)flags;
+    ret = 0;
+#endif
+
+err:
+    FreeDecodedCert(c);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(c, NULL, DYNAMIC_TYPE_DCERT);
+#endif
     return ret;
+}
+/* Signature verified in DecodeBasicOcspResponse.
+ * But no store available to verify certificate. */
+int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP* bs,
+    WOLF_STACK_OF(WOLFSSL_X509) * certs, WOLFSSL_X509_STORE* st,
+    unsigned long flags)
+{
+    int         ret = WC_NO_ERR_TRACE(WOLFSSL_FAILURE);
+    int embedded;
+    DecodedCert *cert = NULL;
+
+    ret = OcspFindSigner(bs, certs, &cert, &embedded, flags);
+    if (ret != 0) {
+        WOLFSSL_MSG("OCSP no signer found");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* skip certificate verification if cert in certs and TRUST_OTHER is true */
+    if (!embedded && (flags & WOLFSSL_OCSP_TRUSTOTHER) != 0)
+        flags |= WOLFSSL_OCSP_NOVERIFY;
+
+    /* verify response signature */
+    ret = ConfirmSignature(
+        &cert->sigCtx,
+        bs->response, bs->responseSz,
+        cert->publicKey, cert->pubKeySize, cert->keyOID,
+        bs->sig, bs->sigSz, bs->sigOID, bs->sigParams, bs->sigParamsSz,
+        NULL);
+
+    if (ret != 0) {
+        WOLFSSL_MSG("OCSP signature verification failed");
+        ret = -1;
+        goto err;
+    }
+
+    if ((flags & WOLFSSL_OCSP_NOVERIFY) == 0) {
+        ret = OcspVerifySigner(bs, cert, st, flags);
+    }
+
+err:
+    FreeDecodedCert(cert);
+    XFREE(cert, NULL, DYNAMIC_TYPE_DCERT);
+    return ret == 0 ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE;
 }
 
 void wolfSSL_OCSP_RESPONSE_free(OcspResponse* response)
 {
+    OcspEntry *s, *sNext;
     if (response == NULL)
         return;
 
-    if (response->single != NULL) {
-        FreeOcspEntry(response->single, NULL);
-        XFREE(response->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+
+    s = response->single;
+    while (s != NULL) {
+        sNext = s->next;
+        FreeOcspEntry(s, NULL);
+        XFREE(s, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
+        s = sNext;
     }
 
     XFREE(response->source, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1045,7 +1112,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
     XMEMCPY(resp->source, *data, (size_t)len);
     resp->maxIdx = (word32)len;
 
-    ret = OcspResponseDecode(resp, NULL, NULL, 1);
+    ret = OcspResponseDecode(resp, NULL, NULL, 1, 1);
     if (ret != 0 && ret != WC_NO_ERR_TRACE(ASN_OCSP_CONFIRM_E)) {
         /* for just converting from a DER to an internal structure the CA may
          * not yet be known to this function for signature verification */
@@ -1100,27 +1167,9 @@ const char *wolfSSL_OCSP_response_status_str(long s)
 WOLFSSL_OCSP_BASICRESP* wolfSSL_OCSP_response_get1_basic(OcspResponse* response)
 {
     WOLFSSL_OCSP_BASICRESP* bs;
+    const unsigned char *ptr = response->source;
 
-    bs = (WOLFSSL_OCSP_BASICRESP*)XMALLOC(sizeof(WOLFSSL_OCSP_BASICRESP), NULL,
-                                          DYNAMIC_TYPE_OCSP_REQUEST);
-    if (bs == NULL)
-        return NULL;
-
-    XMEMCPY(bs, response, sizeof(OcspResponse));
-    bs->single = (OcspEntry*)XMALLOC(sizeof(OcspEntry), NULL,
-                                    DYNAMIC_TYPE_OCSP_ENTRY);
-    bs->source = (byte*)XMALLOC(bs->maxIdx, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (bs->single == NULL || bs->source == NULL) {
-        XFREE(bs->single, NULL, DYNAMIC_TYPE_OCSP_ENTRY);
-        bs->single = NULL;
-        wolfSSL_OCSP_RESPONSE_free(bs);
-        bs = NULL;
-    }
-    else {
-        XMEMCPY(bs->single, response->single, sizeof(OcspEntry));
-        XMEMCPY(bs->source, response->source, response->maxIdx);
-        bs->single->ownStatus = 0;
-    }
+    bs = wolfSSL_d2i_OCSP_RESPONSE(NULL, &ptr, response->maxIdx);
     return bs;
 }
 

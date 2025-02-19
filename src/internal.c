@@ -8690,6 +8690,13 @@ void wolfSSL_ResourceFree(WOLFSSL* ssl)
 #ifdef OPENSSL_EXTRA
     XFREE(ssl->param, ssl->heap, DYNAMIC_TYPE_OPENSSL);
 #endif
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
+    if (ssl->ocspResp) {
+        XFREE(ssl->ocspResp, NULL, 0);
+        ssl->ocspResp = NULL;
+        ssl->ocspRespSz = 0;
+    }
+#endif /* defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     while (ssl->certReqCtx != NULL) {
         CertReqCtx* curr = ssl->certReqCtx;
@@ -9013,6 +9020,14 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif /* !HAVE_SNI && && !HAVE_ALPN && !WOLFSSL_DTLS_CID &&
         * !WOLFSSL_POST_HANDSHAKE_AUTH */
 #endif /* HAVE_TLS_EXTENSIONS && !NO_TLS */
+
+#if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY))
+    if (ssl->ocspResp != NULL) {
+        XFREE(ssl->ocspResp, NULL, 0);
+        ssl->ocspResp = NULL;
+        ssl->ocspRespSz = 0;
+    }
+#endif /* defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     /* when done with handshake decrement current handshake count */
@@ -13861,7 +13876,7 @@ static int ProcessCSR_ex(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* InitOcspResponse sets single and status to response struct. */
     InitOcspResponse(response, single, status, input +*inOutIdx, status_length, ssl->heap);
 
-    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 0) != 0)
+    if (OcspResponseDecode(response, SSL_CM(ssl), ssl->heap, 0, 0) != 0)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
     else if (CompareOcspReqResp(request, response) != 0)
         ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -16967,7 +16982,7 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                      status_length, ssl->heap);
                     response->pendingCAs = pendingCAs;
                     if ((OcspResponseDecode(response, SSL_CM(ssl), ssl->heap,
-                                                                        0) != 0)
+                            0, 0) != 0)
                     ||  (response->responseStatus != OCSP_SUCCESSFUL)
                     ||  (response->single->status->status != CERT_GOOD))
                         ret = BAD_CERTIFICATE_STATUS_ERROR;
@@ -24099,7 +24114,7 @@ int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
         ret = InitOcspRequest(request, cert, 0, ssl->heap);
     if (ret == 0) {
         /* make sure ctx OCSP request is updated */
-        if (!ssl->buffers.weOwnCert) {
+        if (!ssl->buffers.weOwnCert && SSL_CM(ssl) != NULL) {
             wolfSSL_Mutex* ocspLock = &SSL_CM(ssl)->ocsp_stapling->ocspLock;
             if (wc_LockMutex(ocspLock) == 0) {
                 if (ssl->ctx->certOcspRequest == NULL) {
@@ -24840,6 +24855,49 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
     return ret;
 }
 #endif
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) &&                                \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) ||                         \
+    defined(WOLFSSL_HAPROXY))
+static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
+{
+    WOLFSSL_OCSP *ocsp;
+    void *ioCtx = NULL;
+    buffer response;
+    int ret;
+
+    ocsp = SSL_CM(ssl)->ocsp_stapling;
+    if (ocsp == NULL || ocsp->statusCb == NULL)
+        return BAD_FUNC_ARG;
+    ioCtx = (ssl && ssl->ocspIOCtx != NULL) ?
+                ssl->ocspIOCtx : ocsp->cm->ocspIOCtx;
+    XMEMSET(&response, 0, sizeof(response));
+    WOLFSSL_MSG("Calling ocsp->statusCb");
+    ret = ocsp->statusCb(ssl, ioCtx);
+    switch (ret) {
+        case SSL_TLSEXT_ERR_OK:
+            if (ssl->ocspResp == NULL || ssl->ocspRespSz == 0) {
+                ret = 0;
+                break;
+            }
+            response.buffer = ssl->ocspResp;
+            response.length = ssl->ocspRespSz;
+            ret = BuildCertificateStatus(ssl, WOLFSSL_CSR_OCSP, &response, 1);
+            break;
+        case SSL_TLSEXT_ERR_NOACK:
+            /* No OCSP response to send */
+            ret = 0;
+            break;
+        case SSL_TLSEXT_ERR_ALERT_FATAL:
+        /* fall through */
+        default:
+            ret = WOLFSSL_FATAL_ERROR;
+            break;
+    }
+    return ret;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST && (defined(OPENSSL_ALL) ||
+          defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)) */
 #endif /* NO_WOLFSSL_SERVER */
 
 /* handle generation of certificate_status (22) */
@@ -24859,6 +24917,20 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     status_type = status_type ? status_type : ssl->status_request_v2;
+#endif
+    if (ssl == NULL || SSL_CM(ssl) == NULL) {
+        WOLFSSL_MSG("SendCertificateStatus bad args");
+        return BAD_FUNC_ARG;
+    }
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
+    (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY))
+    if (SSL_CM(ssl)->ocsp_stapling != NULL &&
+            SSL_CM(ssl)->ocsp_stapling->statusCb != NULL) {
+        if (ssl->status_request == WOLFSSL_CSR_OCSP)
+            return BuildCertificateStatusWithStatusCB(ssl);
+    }
 #endif
 
     switch (status_type) {
