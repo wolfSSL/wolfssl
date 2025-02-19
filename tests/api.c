@@ -290,17 +290,32 @@
 #include <tests/api/api.h>
 
 /* Gather test declarations to include them in the testCases array */
-#include <tests/api/test_md5.h>
-#include <tests/api/test_sha.h>
-#include <tests/api/test_sha256.h>
-#include <tests/api/test_sha512.h>
-#include <tests/api/test_sha3.h>
-#include <tests/api/test_blake2.h>
-#include <tests/api/test_sm3.h>
-#include <tests/api/test_ripemd.h>
-#include <tests/api/test_hash.h>
-#include <tests/api/test_ascon.h>
-#include <tests/api/test_dtls.h>
+/* Core utilities */
+#include <tests/api/core/test_utils.h>
+#include <tests/api/core/test_data.h>
+#include <tests/api/core/test_setup.h>
+
+/* Hash tests */
+#include <tests/api/hash/test_md5.h>
+#include <tests/api/hash/test_sha.h>
+#include <tests/api/hash/test_sha256.h>
+#include <tests/api/hash/test_sha512.h>
+#include <tests/api/hash/test_sha3.h>
+#include <tests/api/hash/test_blake2.h>
+#include <tests/api/hash/test_sm3.h>
+#include <tests/api/hash/test_ripemd.h>
+#include <tests/api/hash/test_hash.h>
+/* Cipher tests */
+#include <tests/api/cipher/test_aes.h>
+#include <tests/api/cipher/test_des3.h>
+#include <tests/api/cipher/test_camellia.h>
+/* Public key tests */
+#include <tests/api/pk/test_rsa.h>
+#include <tests/api/pk/test_ecc.h>
+#include <tests/api/pk/test_dsa.h>
+/* Misc tests */
+#include <tests/api/misc/test_ascon.h>
+#include <tests/api/misc/test_dtls.h>
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_TLS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
