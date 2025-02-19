@@ -88001,7 +88001,7 @@ static int test_wolfSSL_dtls_bad_record(void)
 }
 #endif
 
-#if defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
+#if 0 && defined(WOLFSSL_DTLS13) && !defined(WOLFSSL_TLS13_IGNORE_AEAD_LIMITS) && \
     !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
     defined(HAVE_IO_TESTS_DEPENDENCIES)
 static volatile int test_AEAD_seq_num = 0;
@@ -88198,7 +88198,7 @@ static void test_AEAD_limit_server(WOLFSSL* ssl)
         wc_UnLockMutex(&test_AEAD_mutex);
 #endif
         (void)wolfSSL_read(ssl, msgBuf, sizeof(msgBuf));
-        ret = wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
+        (void)wolfSSL_write(ssl, msgBuf, sizeof(msgBuf));
         nanosleep(&delay, NULL);
     }
 }

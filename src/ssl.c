@@ -24818,36 +24818,27 @@ int wolfSSL_AsyncEncryptStop(WOLFSSL* ssl, int idx)
 
 int wolfSSL_AsyncEncrypt(WOLFSSL* ssl, int idx)
 {
-    int ret = WC_NO_ERR_TRACE(NOT_COMPILED_IN);
+    int ret;
     ThreadCrypt* encrypt = &ssl->buffers.encrypt[idx];
+    unsigned char* out = encrypt->buffer.buffer + encrypt->offset;
+    word32 dataSz = encrypt->cryptLen - ssl->specs.aead_mac_size;
 
-    if (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm) {
-        unsigned char* out = encrypt->buffer.buffer + encrypt->offset;
-        unsigned char* input = encrypt->buffer.buffer + encrypt->offset;
-        word32 encSz = encrypt->buffer.length - encrypt->offset;
-
-        ret =
-#if !defined(NO_GCM_ENCRYPT_EXTRA) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-              wc_AesGcmEncrypt_ex
-#else
-              wc_AesGcmEncrypt
-#endif
-              (encrypt->encrypt.aes,
-               out + AESGCM_EXP_IV_SZ, input + AESGCM_EXP_IV_SZ,
-               encSz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
-               encrypt->nonce, AESGCM_NONCE_SZ,
-               out + encSz - ssl->specs.aead_mac_size,
-               ssl->specs.aead_mac_size,
-               encrypt->additional, AEAD_AUTH_DATA_SZ);
-#if !defined(NO_PUBLIC_GCM_SET_IV) && \
-    ((!defined(HAVE_FIPS) && !defined(HAVE_SELFTEST)) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
-        XMEMCPY(out, encrypt->nonce + AESGCM_IMP_IV_SZ, AESGCM_EXP_IV_SZ);
-#endif
-        encrypt->done = 1;
+    ret = EncryptTls13Sw(ssl->specs.bulk_cipher_algorithm, &encrypt->cipher,
+    #ifdef HAVE_ONE_TIME_AUTH
+        &encrypt->auth,
+    #else
+        NULL,
+    #endif
+        out, out, dataSz, encrypt->nonce, encrypt->additional, RECORD_HEADER_SZ,
+        ssl->specs.aead_mac_size);
+#ifdef WOLFSSL_DTLS13
+    if (ret == 0 && ssl->options.dtls) {
+        ret = Dtls13EncryptRecordNumber(ssl, encrypt->buffer.buffer,
+            (word16)encrypt->buffer.length);
     }
+#endif /* WOLFSSL_DTLS13 */
+
+    encrypt->done = 1;
 
     return ret;
 }
@@ -24863,6 +24854,71 @@ int wolfSSL_AsyncEncryptSetSignal(WOLFSSL* ssl, int idx,
     else {
         ssl->buffers.encrypt[idx].signal = signal;
         ssl->buffers.encrypt[idx].signalCtx = ctx;
+
+        ssl->buffers.encryptSignalRegistered = 1;
+    }
+
+    return ret;
+}
+
+
+int wolfSSL_AsyncDecryptReady(WOLFSSL* ssl, int idx)
+{
+    ThreadCrypt* decrypt;
+
+    if (ssl == NULL) {
+        return 0;
+    }
+
+    decrypt = &ssl->buffers.decrypt[idx];
+    return (decrypt->avail == 0) && (decrypt->done == 0);
+}
+
+int wolfSSL_AsyncDecryptStop(WOLFSSL* ssl, int idx)
+{
+    ThreadCrypt* decrypt;
+
+    if (ssl == NULL) {
+        return 1;
+    }
+
+    decrypt = &ssl->buffers.decrypt[idx];
+    return decrypt->stop;
+}
+
+int wolfSSL_AsyncDecrypt(WOLFSSL* ssl, int idx)
+{
+    int ret;
+    ThreadCrypt* decrypt = &ssl->buffers.decrypt[idx];
+    unsigned char* out = decrypt->buffer.buffer + decrypt->offset;
+
+    ret = DecryptTls13Sw(ssl->specs.bulk_cipher_algorithm, &decrypt->cipher,
+    #ifdef HAVE_ONE_TIME_AUTH
+        &decrypt->auth,
+    #else
+        NULL,
+    #endif
+        out, out, decrypt->cryptLen, decrypt->nonce, decrypt->additional,
+        RECORD_HEADER_SZ, ssl->specs.aead_mac_size, ssl->specs.hash_size);
+
+    decrypt->done = 1;
+
+    return ret;
+}
+
+int wolfSSL_AsyncDecryptSetSignal(WOLFSSL* ssl, int idx,
+    WOLFSSL_THREAD_SIGNAL signal, void* ctx)
+{
+    int ret = 0;
+
+    if (ssl == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ssl->buffers.decrypt[idx].signal = signal;
+        ssl->buffers.decrypt[idx].signalCtx = ctx;
+
+        ssl->buffers.decryptSignalRegistered = 1;
     }
 
     return ret;

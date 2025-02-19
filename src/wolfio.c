@@ -708,12 +708,12 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
 #ifdef WOLFSSL_DTLS13
     if (ssl->options.dtls && IsAtLeastTLSv1_3(ssl->version)) {
-        doDtlsTimeout = doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL;
 #ifdef WOLFSSL_RW_THREADED
         ret = wc_LockMutex(&ssl->dtls13Rtx.mutex);
         if (ret != 0)
             return ret;
 #endif
+        doDtlsTimeout = doDtlsTimeout || ssl->dtls13Rtx.rtxRecords != NULL;
         doDtlsTimeout = doDtlsTimeout ||
             (ssl->dtls13FastTimeout && ssl->dtls13Rtx.seenRecords != NULL);
 #ifdef WOLFSSL_RW_THREADED

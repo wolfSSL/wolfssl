@@ -4787,10 +4787,15 @@ enum AcceptStateTls13 {
 #include <pthread.h>
 
 typedef struct ThreadCrypt {
-    Ciphers encrypt;
+    Ciphers cipher;
+#ifdef HAVE_ONE_TIME_AUTH
+    OneTimeAuth auth;
+#endif
     bufferStatic buffer;
     unsigned char nonce[AESGCM_NONCE_SZ];
     unsigned char additional[AEAD_AUTH_DATA_SZ];
+    unsigned char recordHdr[DTLS_RECORD_HEADER_MAX_SZ + 16];
+    word32 recordHdrLen;
     int init;
     int offset;
     int cryptLen;
@@ -4808,7 +4813,10 @@ typedef struct Buffers {
     bufferStatic    inputBuffer;
     bufferStatic    outputBuffer;
 #ifdef WOLFSSL_THREADED_CRYPT
+    int             encryptSignalRegistered;
     ThreadCrypt     encrypt[WOLFSSL_THREADED_CRYPT_CNT];
+    int             decryptSignalRegistered;
+    ThreadCrypt     decrypt[WOLFSSL_THREADED_CRYPT_CNT];
 #endif
     buffer          domainName;            /* for client check */
     buffer          clearOutputBuffer;
@@ -6093,7 +6101,10 @@ struct WOLFSSL {
     int              devId;             /* async device id to use */
 #ifdef HAVE_ONE_TIME_AUTH
     OneTimeAuth     auth;
+#ifdef WOLFSSL_RW_THREADED
+    OneTimeAuth     decAuth;
 #endif
+#endif /* HAVE_ONE_TIME_AUTH */
 #ifdef HAVE_TLS_EXTENSIONS
     TLSX* extensions;                  /* RFC 6066 TLS Extensions data */
     #ifdef HAVE_MAX_FRAGMENT
@@ -6881,6 +6892,10 @@ WOLFSSL_LOCAL int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys,
     CipherSpecs* specs, int side, void* heap, int devId, WC_RNG* rng,
     int tls13);
 WOLFSSL_LOCAL int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side);
+#ifdef WOLFSSL_THREADED_CRYPT
+WOLFSSL_LOCAL int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
+    CipherSpecs* specs, void* heap, int devId);
+#endif
 
 /* Set*Internal and Set*External functions */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
@@ -6931,6 +6946,17 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
                         int sizeOnly, int asyncOkay, int epochOrder);
 
 #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_THREADED_CRYPT
+WOLFSSL_LOCAL void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
+    int order);
+WOLFSSL_LOCAL int EncryptTls13Sw(byte alg, Ciphers* encrypt, void* authPtr,
+    byte* output, const byte* input, word16 dataSz, byte* nonce,
+    const byte* aad, word16 aadSz, word16 macSz);
+WOLFSSL_LOCAL int DecryptTls13Sw(byte alg, Ciphers* encrypt, void* authPtr,
+    byte* output, const byte* input, word16 dataSz, byte* nonce,
+    const byte* aad, word16 aadSz, word16 macSz, word16 hashSz);
+#endif
+
 /* Use WOLFSSL_API to use this function in tests/api.c */
 WOLFSSL_API int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);

@@ -3403,7 +3403,10 @@ int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
 
 #ifdef HAVE_ONE_TIME_AUTH
 /* set one time authentication keys */
-static int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
+#ifndef WOLFSSL_THREADED_CRYPT
+static
+#endif
+int SetAuthKeys(OneTimeAuth* authentication, Keys* keys,
                        CipherSpecs* specs, void* heap, int devId)
 {
 
@@ -3547,7 +3550,13 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
     if (!ssl->auth.setup && ssl->specs.bulk_cipher_algorithm == wolfssl_chacha){
         ret = SetAuthKeys(&ssl->auth, keys, &ssl->specs, ssl->heap, ssl->devId);
         if (ret != 0)
-           return ret;
+            return ret;
+    #ifdef WOLFSSL_RW_THREADED
+        ret = SetAuthKeys(&ssl->decAuth, keys, &ssl->specs, ssl->heap,
+            ssl->devId);
+        if (ret != 0)
+            return ret;
+    #endif
     }
 #endif
 
