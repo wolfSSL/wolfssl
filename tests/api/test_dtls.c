@@ -89,8 +89,8 @@ int test_dtls12_basic_connection_id(void)
                               client_cid, sizeof(client_cid))
 #define SERVER_CID() mymemmem(test_ctx.c_buff, test_ctx.c_len, \
                               server_cid, sizeof(server_cid))
-#define RESET_CID(cid) if (cid != NULL) { \
-                           ((char*)cid)[0] = -1; \
+#define RESET_CID(cid) if ((cid) != NULL) { \
+                           ((char*)(cid))[0] = -1; \
                        }
 
 
@@ -439,8 +439,8 @@ int test_dtls13_basic_connection_id(void)
                               client_cid, sizeof(client_cid))
 #define SERVER_CID() mymemmem(test_ctx.c_buff, test_ctx.c_len, \
                               server_cid, sizeof(server_cid))
-#define RESET_CID(cid) if (cid != NULL) { \
-                           ((char*)cid)[0] = -1; \
+#define RESET_CID(cid) if ((cid) != NULL) { \
+                           ((char*)(cid))[0] = -1; \
                        }
 
 
