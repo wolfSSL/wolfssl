@@ -36708,23 +36708,33 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
     #endif
 #else
-    wc_ed25519_init_ex(key, HEAP_HINT, devId);
-    wc_ed25519_init_ex(key2, HEAP_HINT, devId);
+    ret = wc_ed25519_init_ex(key, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
+    ret = wc_ed25519_init_ex(key2, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
     #if !defined(NO_ASN) && defined(HAVE_ED25519_SIGN)
-    wc_ed25519_init_ex(key3, HEAP_HINT, devId);
+    ret = wc_ed25519_init_ex(key3, HEAP_HINT, devId);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
     #endif
 #endif
 
 #ifdef HAVE_ED25519_MAKE_KEY
-    wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, key);
-    wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, key2);
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, key);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, key2);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
 #endif
 
     /* helper functions for signature and key size */
     keySz = (word32)wc_ed25519_size(key);
     sigSz = (word32)wc_ed25519_sig_size(key);
 
-#if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) &&\
+#if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) && \
         defined(HAVE_ED25519_KEY_IMPORT)
     for (i = 0; i < 6; i++) {
         outlen = sizeof(out);
@@ -36799,6 +36809,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
 #endif /* HAVE_ED25519_VERIFY */
     }
 
+#ifdef HAVE_ED25519_VERIFY
     {
         /* Run tests for some rare code paths */
         /* sig is exactly equal to the order */
@@ -36871,6 +36882,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
         if (ret != WC_NO_ERR_TRACE(SIG_VERIFY_E))
             ERROR_OUT(WC_TEST_RET_ENC_EC(ret), cleanup);
     }
+#endif /* HAVE_ED25519_VERIFY */
 
     ret = ed25519ctx_test();
     if (ret != 0)
@@ -36939,18 +36951,14 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t ed25519_test(void)
 
     if (XMEMCMP(out, sigs[0], 64))
         ERROR_OUT(WC_TEST_RET_ENC_NC, cleanup);
-
-#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
-    wc_ed25519_delete(key3, &key3);
-#else
-    wc_ed25519_free(key3);
-#endif
 #endif /* NO_ASN */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
+#if defined(HAVE_ED25519_KEY_IMPORT)
     ret = ed25519_test_check_key();
     if (ret < 0)
         goto cleanup;
+#endif
 #ifdef WOLFSSL_TEST_CERT
     ret = ed25519_test_cert();
     if (ret < 0)
@@ -36968,9 +36976,15 @@ cleanup:
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
     wc_ed25519_delete(key, &key);
     wc_ed25519_delete(key2, &key2);
+#if !defined(NO_ASN) && defined(HAVE_ED25519_SIGN)
+    wc_ed25519_delete(key3, &key3);
+#endif
 #else
     wc_ed25519_free(key);
     wc_ed25519_free(key2);
+#if !defined(NO_ASN) && defined(HAVE_ED25519_SIGN)
+    wc_ed25519_free(key3);
+#endif
 #endif
 
 #if defined(HAVE_HASHDRBG) || defined(NO_RC4)
