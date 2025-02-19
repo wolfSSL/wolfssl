@@ -925,8 +925,12 @@ int wolfSSL_quic_forward_secrets(WOLFSSL* ssl, int ktype, int side)
         goto cleanup;
     }
 
-    ret = !ssl->quic.method->set_encryption_secrets(
-        ssl, level, rx_secret, tx_secret, ssl->specs.hash_size);
+    if(!ssl->quic.method->set_encryption_secrets(
+        ssl, level, rx_secret, tx_secret, ssl->specs.hash_size)) {
+        WOLFSSL_MSG("WOLFSSL_QUIC_FORWARD_SECRETS failed");
+        ret = WOLFSSL_FATAL_ERROR;
+        goto cleanup;
+    }
 
     /* Having installed the secrets, any future read/write will happen
      * at the level. Except early data, which is detected on the record
