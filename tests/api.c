@@ -54725,7 +54725,11 @@ static int test_wolfSSL_private_keys(void)
     ExpectNotNull(ssl = SSL_new(ctx));
 
     #if !defined(NO_CHECK_PRIVATE_KEY)
+    #ifdef HAVE_ED25519_MAKE_KEY
     ExpectIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
+    #else
+    ExpectIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
+    #endif
     #endif
 
     SSL_free(ssl);
