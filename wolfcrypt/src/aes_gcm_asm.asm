@@ -9832,7 +9832,6 @@ L_AES_GCM_init_avx1_iv_done:
         vpaddd	xmm4, xmm4, OWORD PTR L_avx1_aes_gcm_one
         vmovdqa	OWORD PTR [rax], xmm5
         vmovdqa	OWORD PTR [r8], xmm4
-        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp+16]
         vmovdqu	xmm7, OWORD PTR [rsp+32]
         vmovdqu	xmm8, OWORD PTR [rsp+48]
@@ -9905,7 +9904,6 @@ L_AES_GCM_aad_update_avx1_16_loop:
         cmp	ecx, edx
         jl	L_AES_GCM_aad_update_avx1_16_loop
         vmovdqa	OWORD PTR [r8], xmm5
-        vzeroupper
         vmovdqu	xmm6, OWORD PTR [rsp]
         vmovdqu	xmm7, OWORD PTR [rsp+16]
         add	rsp, 32

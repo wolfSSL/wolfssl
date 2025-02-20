@@ -9910,7 +9910,6 @@ L_AES_GCM_init_avx1_iv_done:
         vpaddd	L_avx1_aes_gcm_one(%rip), %xmm4, %xmm4
         vmovdqa	%xmm5, (%r8)
         vmovdqa	%xmm4, (%r9)
-        vzeroupper
         addq	$16, %rsp
         popq	%r13
         popq	%r12
@@ -9985,7 +9984,6 @@ L_AES_GCM_aad_update_avx1_16_loop:
         cmpl	%esi, %ecx
         jl	L_AES_GCM_aad_update_avx1_16_loop
         vmovdqa	%xmm5, (%rdx)
-        vzeroupper
         repz retq
 #ifndef __APPLE__
 .size	AES_GCM_aad_update_avx1,.-AES_GCM_aad_update_avx1

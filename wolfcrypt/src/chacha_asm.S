@@ -1033,7 +1033,6 @@ L_chacha20_avx1_partial_end64:
         subl	%r11d, %r8d
         movl	%r8d, 76(%rdi)
 L_chacha20_avx1_partial_done:
-        vzeroupper
         addq	$0x190, %rsp
         popq	%r15
         popq	%r14
