@@ -34,7 +34,7 @@
 #include <wolfssl/ocsp.h>
 #include <wolfssl/ssl.h>
 
-#if defined(HAVE_OCSP)
+#if defined(HAVE_OCSP) && !defined(NO_SHA)
 struct ocsp_cb_ctx {
     byte* response;
     int responseSz;
@@ -158,12 +158,12 @@ int test_ocsp_response_parsing(void)
 
     return EXPECT_SUCCESS();
 }
-#else  /* HAVE_OCSP */
+#else  /* HAVE_OCSP && !NO_SHA */
 int test_ocsp_response_parsing(void)
 {
     return TEST_SKIPPED;
 }
-#endif /* HAVE_OCSP */
+#endif /* HAVE_OCSP && !NO_SHA */
 
 #if defined(HAVE_OCSP) && (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
 static int test_ocsp_create_x509store(WOLFSSL_X509_STORE** store,
