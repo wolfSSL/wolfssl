@@ -41,6 +41,7 @@ int test_dtls12_basic_connection_id(void)
     unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
     unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5 };
     unsigned char readBuf[40];
+    void *        cid = NULL;
     const char* params[] = {
 #ifndef NO_RSA
 #ifndef NO_SHA256
@@ -88,6 +89,10 @@ int test_dtls12_basic_connection_id(void)
                               client_cid, sizeof(client_cid))
 #define SERVER_CID() mymemmem(test_ctx.c_buff, test_ctx.c_len, \
                               server_cid, sizeof(server_cid))
+#define RESET_CID(cid) if ((cid) != NULL) { \
+                           ((char*)(cid))[0] = -1; \
+                       }
+
 
     printf("\n");
     for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
@@ -227,15 +232,15 @@ int test_dtls12_basic_connection_id(void)
             wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_write(ssl_c, params[i],
                     (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
-            ExpectNotNull(CLIENT_CID());
-            /* Use Expect so we don't access CLIENT_CID() if it is NULL */
-            ExpectTrue(((char*)CLIENT_CID())[0] = -1);
+            /* Reset client cid. */
+            ExpectNotNull(cid = CLIENT_CID());
+            RESET_CID(cid);
             wolfSSL_SetLoggingPrefix("server");
             ExpectIntEQ(wolfSSL_write(ssl_s, params[i],
                     (int)XSTRLEN(params[i])), XSTRLEN(params[i]));
-            ExpectNotNull(SERVER_CID());
-            /* Use Expect so we don't access SERVER_CID() if it is NULL */
-            ExpectTrue(((char*)SERVER_CID())[0] = -1);
+            /* Reset server cid. */
+            ExpectNotNull(cid = SERVER_CID());
+            RESET_CID(cid);
             /* Try to read the data but it shouldn't be there */
             wolfSSL_SetLoggingPrefix("client");
             ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
@@ -394,6 +399,7 @@ loop_exit:
 
 #undef CLIENT_CID
 #undef SERVER_CID
+#undef RESET_CID
 #endif
     return EXPECT_RESULT();
 }
@@ -406,6 +412,7 @@ int test_dtls13_basic_connection_id(void)
     unsigned char client_cid[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 };
     unsigned char server_cid[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     unsigned char readBuf[50];
+    void *        cid = NULL;
     const char* params[] = {
 #ifndef NO_SHA256
 #ifdef WOLFSSL_AES_128
@@ -432,6 +439,10 @@ int test_dtls13_basic_connection_id(void)
                               client_cid, sizeof(client_cid))
 #define SERVER_CID() mymemmem(test_ctx.c_buff, test_ctx.c_len, \
                               server_cid, sizeof(server_cid))
+#define RESET_CID(cid) if ((cid) != NULL) { \
+                           ((char*)(cid))[0] = -1; \
+                       }
+
 
     printf("\n");
     for (i = 0; i < XELEM_CNT(params) && EXPECT_SUCCESS(); i++) {
@@ -512,14 +523,14 @@ int test_dtls13_basic_connection_id(void)
         /* Write some data but with wrong CID */
         ExpectIntEQ(wolfSSL_write(ssl_c, params[i], (int)XSTRLEN(params[i])),
                 XSTRLEN(params[i]));
-        ExpectNotNull(CLIENT_CID());
-        /* Use Expect so we don't access CLIENT_CID() if it is NULL */
-        ExpectTrue(((char*)CLIENT_CID())[0] = -1);
+        /* Reset client cid. */
+        ExpectNotNull(cid = CLIENT_CID());
+        RESET_CID(cid);
         ExpectIntEQ(wolfSSL_write(ssl_s, params[i], (int)XSTRLEN(params[i])),
                 XSTRLEN(params[i]));
-        ExpectNotNull(SERVER_CID());
-        /* Use Expect so we don't access SERVER_CID() if it is NULL */
-        ExpectTrue(((char*)SERVER_CID())[0] = -1);
+        /* Reset server cid. */
+        ExpectNotNull(cid = SERVER_CID());
+        RESET_CID(cid);
         /* Try to read the data but it shouldn't be there */
         ExpectIntEQ(wolfSSL_read(ssl_c, readBuf, sizeof(readBuf)), -1);
         ExpectIntEQ(wolfSSL_get_error(ssl_c, -1), WOLFSSL_ERROR_WANT_READ);
@@ -547,6 +558,7 @@ int test_dtls13_basic_connection_id(void)
 
 #undef CLIENT_CID
 #undef SERVER_CID
+#undef RESET_CID
 
 #endif
     return EXPECT_RESULT();
