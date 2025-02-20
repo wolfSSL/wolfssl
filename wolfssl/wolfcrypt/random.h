@@ -243,6 +243,20 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG* rng);
 
 #ifdef WC_RNG_SEED_CB
     WOLFSSL_API int wc_SetSeed_Cb(wc_RngSeed_Cb cb);
+
+#ifdef WC_MULTI_THREADED_CALLBACKS
+#ifndef WOLFSSL_PTHREADS
+    #error Only Supported with POSIX Threads
+#endif
+
+    /* Multi-threaded seed callback for each thread */
+    WOLFSSL_LOCAL int multiThreadedSeedCb(OS_Seed* os, byte* output, word32 sz);
+
+    /* Set and Create functions */
+    WOLFSSL_LOCAL int setCbKey(pthread_key_t* key, void* value);
+    WOLFSSL_LOCAL int createCbKey(pthread_key_t* key, void* destructor);
+
+#endif
 #endif
 
 #ifdef HAVE_HASHDRBG
