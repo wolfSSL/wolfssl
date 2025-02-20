@@ -24866,11 +24866,14 @@ static int BuildCertificateStatusWithStatusCB(WOLFSSL* ssl)
     buffer response;
     int ret;
 
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     ocsp = SSL_CM(ssl)->ocsp_stapling;
     if (ocsp == NULL || ocsp->statusCb == NULL)
         return BAD_FUNC_ARG;
-    ioCtx = (ssl && ssl->ocspIOCtx != NULL) ?
-                ssl->ocspIOCtx : ocsp->cm->ocspIOCtx;
+    ioCtx = (ssl->ocspIOCtx != NULL) ?  ssl->ocspIOCtx : ocsp->cm->ocspIOCtx;
     XMEMSET(&response, 0, sizeof(response));
     WOLFSSL_MSG("Calling ocsp->statusCb");
     ret = ocsp->statusCb(ssl, ioCtx);
@@ -24909,7 +24912,10 @@ int SendCertificateStatus(WOLFSSL* ssl)
     WOLFSSL_START(WC_FUNC_CERTIFICATE_STATUS_SEND);
     WOLFSSL_ENTER("SendCertificateStatus");
 
-    (void) ssl;
+    if (ssl == NULL || SSL_CM(ssl) == NULL) {
+        WOLFSSL_MSG("SendCertificateStatus bad args");
+        return BAD_FUNC_ARG;
+    }
 
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
     status_type = ssl->status_request;
@@ -24918,10 +24924,6 @@ int SendCertificateStatus(WOLFSSL* ssl)
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     status_type = status_type ? status_type : ssl->status_request_v2;
 #endif
-    if (ssl == NULL || SSL_CM(ssl) == NULL) {
-        WOLFSSL_MSG("SendCertificateStatus bad args");
-        return BAD_FUNC_ARG;
-    }
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && \
     (defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
