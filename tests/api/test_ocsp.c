@@ -222,7 +222,7 @@ int test_ocsp_basic_verify(void)
     ExpectIntEQ(response->responseStatus, 0);
     ExpectIntEQ(response->responderIdType, OCSP_RESPONDER_ID_KEY);
     ExpectBufEQ(response->responderId.keyHash, cert.subjectKeyHash,
-        OCSP_DIGEST_SIZE);
+        OCSP_RESPONDER_ID_KEY_SZ);
     wolfSSL_OCSP_RESPONSE_free(response);
 
     /* decoding with no embedded certificates */
