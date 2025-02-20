@@ -414,6 +414,7 @@ int test_wolfSSL_client_server_nofail_memio(test_ssl_cbf* client_cb,
 
 void ApiTest_PrintTestCases(void);
 int ApiTest_RunIdx(int idx);
+int ApiTest_RunPartName(char* name);
 int ApiTest_RunName(char* name);
 int ApiTest(void);
 

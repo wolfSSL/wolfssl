@@ -2510,6 +2510,7 @@ if(WOLFSSL_EXAMPLES)
         tests/api/test_ripemd.c
         tests/api/test_hash.c
         tests/api/test_ascon.c
+        tests/api/test_mlkem.c
         tests/api/test_ocsp.c
         tests/hash.c
         tests/srp.c

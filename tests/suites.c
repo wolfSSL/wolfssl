@@ -168,7 +168,7 @@ static int IsValidCipherSuite(const char* line, char *suite, size_t suite_spc)
     return valid;
 }
 
-#ifdef WOLFSSL_HAVE_KYBER
+#if defined(WOLFSSL_HAVE_KYBER)
 static int IsKyberLevelAvailable(const char* line)
 {
     int available = 0;
@@ -222,7 +222,14 @@ static int IsKyberLevelAvailable(const char* line)
     #endif
     }
 
+#if defined(WOLFSSL_KYBER_NO_MAKE_KEY) || \
+    defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    defined(WOLFSSL_KYBER_NO_DECAPSULATE)
+    (void)available;
+    return begin == NULL;
+#else
     return (begin == NULL) || available;
+#endif
 }
 #endif
 

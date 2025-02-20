@@ -19,7 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* Implementation based on NIST 3rd Round submission package.
+/* Implementation based on FIPS 203:
+ *   https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
+ *
+ * Original implementation based on NIST 3rd Round submission package.
  * See link at:
  *   https://csrc.nist.gov/Projects/post-quantum-cryptography/post-quantum-cryptography-standardization/round-3-submissions
  */
@@ -36,6 +39,27 @@
  *   Affects decapsulation too as encapsulation called.
  *   Has a small performance trade-off.
  *   Only usable with C implementation.
+ *
+ * WOLFSSL_KYBER_NO_MAKE_KEY                                        Default: OFF
+ *   Disable the make key or key generation API.
+ *   Reduces the code size.
+ *   Turn on when only doing encapsulation.
+ *
+ * WOLFSSL_KYBER_NO_ENCAPSULATE                                     Default: OFF
+ *   Disable the encapsulation API.
+ *   Reduces the code size.
+ *   Turn on when doing make key/decapsulation.
+ *
+ * WOLFSSL_KYBER_NO_DECAPSULATE                                     Default: OFF
+ *   Disable the decapsulation API.
+ *   Reduces the code size.
+ *   Turn on when only doing encapsulation.
+ *
+ * WOLFSSL_MLKEM_CACHE_A                                           Default: OFF
+ *   Stores the matrix A during key generation for use in encapsulation when
+ *   performing decapsulation.
+ *   KyberKey is 8KB larger but decapsulation is significantly faster.
+ *   Turn on when performing make key and decapsualtion with same object.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -68,6 +92,12 @@
         defined(WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM)
         #error "Can't cache A with small memory code"
     #endif
+#endif
+
+#if defined(WOLFSSL_KYBER_NO_MAKE_KEY) && \
+    defined(WOLFSSL_KYBER_NO_ENCAPSULATE) && \
+    defined(WOLFSSL_KYBER_NO_DECAPSULATE)
+    #error "No ML-KEM operations to be built."
 #endif
 
 #ifdef WOLFSSL_WC_KYBER
@@ -164,9 +194,6 @@ int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
         }
     }
     if (ret == 0) {
-        /* Zero out all data. */
-        XMEMSET(key, 0, sizeof(*key));
-
         /* Keep type for parameters. */
         key->type = type;
         /* Cache heap pointer. */
@@ -175,6 +202,10 @@ int wc_KyberKey_Init(int type, KyberKey* key, void* heap, int devId)
         /* Cache device id - not used in for this algorithm yet. */
         key->devId = devId;
     #endif
+        key->flags = 0;
+
+        /* Zero out all data. */
+        XMEMSET(&key->prf, 0, sizeof(key->prf));
 
         /* Initialize the hash algorithm object. */
         ret = kyber_hash_new(&key->hash, heap, devId);
@@ -205,20 +236,39 @@ void wc_KyberKey_Free(KyberKey* key)
         /* Dispose of hash object. */
         kyber_hash_free(&key->hash);
         /* Ensure all private data is zeroed. */
-        ForceZero(key, sizeof(*key));
+        ForceZero(&key->hash, sizeof(key->hash));
+        ForceZero(&key->prf, sizeof(key->prf));
+        ForceZero(key->priv, sizeof(key->priv));
+        ForceZero(key->z, sizeof(key->z));
     }
 }
 
 /******************************************************************************/
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
 /**
  * Make a Kyber key object using a random number generator.
+ *
+ * FIPS 203 - Algorithm 19: ML-KEM.KeyGen()
+ * Generates an encapsulation key and a corresponding decapsulation key.
+ *   1: d <- B_32                                        >  d is 32 random bytes
+ *   2: z <- B_32                                        >  z is 32 random bytes
+ *   3: if d == NULL or z == NULL then
+ *   4:   return falsum
+ *                  > return an error indication if random bit generation failed
+ *   5: end if
+ *   6: (ek,dk) <- ML-KEM.KeyGen_Interal(d, z)
+ *                                       > run internal key generation algorithm
+ *   &: return (ek,dk)
  *
  * @param  [in, out]  key   Kyber key object.
  * @param  [in]       rng   Random number generator.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key or rng is NULL.
  * @return  MEMORY_E when dynamic memory allocation failed.
+ * @return  MEMORY_E when dynamic memory allocation failed.
+ * @return  RNG_FAILURE_E when  generating random numbers failed.
+ * @return  DRBG_CONT_FAILURE when random number generator health check fails.
  */
 int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
 {
@@ -231,26 +281,48 @@ int wc_KyberKey_MakeKey(KyberKey* key, WC_RNG* rng)
     }
 
     if (ret == 0) {
-        /* Generate random to with PRFs. */
-        ret = wc_RNG_GenerateBlock(rng, rand, KYBER_SYM_SZ);
+        /* Generate random to use with PRFs.
+         * Step 1: d is 32 random bytes
+         * Step 2: z is 32 random bytes
+         */
+        ret = wc_RNG_GenerateBlock(rng, rand, KYBER_SYM_SZ * 2);
+        /* Step 3: ret is not zero when d == NULL or z == NULL. */
     }
     if (ret == 0) {
-        /* Generate random to with PRFs. */
-        ret = wc_RNG_GenerateBlock(rng, rand + KYBER_SYM_SZ, KYBER_SYM_SZ);
-    }
-    if (ret == 0) {
-        /* Make a key pair from the random. */
+        /* Make a key pair from the random.
+         * Step 6. run internal key generation algorithm
+         * Step 7. public and private key are stored in key
+         */
         ret = wc_KyberKey_MakeKeyWithRandom(key, rand, sizeof(rand));
     }
 
     /* Ensure seeds are zeroized. */
     ForceZero((void*)rand, (word32)sizeof(rand));
 
+    /* Step 4: return ret != 0 on falsum or internal key generation failure. */
     return ret;
 }
 
 /**
  * Make a Kyber key object using random data.
+ *
+ * FIPS 203 - Algorithm 16: ML-KEM.KeyGen_internal(d,z)
+ * Uses randomness to generate an encapsulation key and a corresponding
+ * decapsulation key.
+ *   1: (ek_PKE,dk_PKE) < K-PKE.KeyGen(d)         > run key generation for K-PKE
+ *   ...
+ *
+ * FIPS 203 - Algorithm 13: K-PKE.KeyGen(d)
+ * Uses randomness to generate an encryption key and a corresponding decryption
+ * key.
+ *   1: (rho,sigma) <- G(d||k)A
+ *                         > expand 32+1 bytes to two pseudorandom 32-byte seeds
+ *   2: N <- 0
+ *   3-7: generate matrix A_hat
+ *   8-11: generate s
+ *   12-15: generate e
+ *   16-18: calculate t_hat from A_hat, s and e
+ *   ...
  *
  * @param  [in, out]  key   Kyber key ovject.
  * @param  [in]       rand  Random data.
@@ -265,8 +337,8 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
     int len)
 {
     byte buf[2 * KYBER_SYM_SZ + 1];
-    byte* pubSeed = buf;
-    byte* noiseSeed = buf + KYBER_SYM_SZ;
+    byte* rho = buf;
+    byte* sigma = buf + KYBER_SYM_SZ;
 #ifndef WOLFSSL_NO_MALLOC
     sword16* e = NULL;
 #else
@@ -283,8 +355,10 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
     sword16* a = NULL;
 #endif
+    sword16* s = NULL;
+    sword16* t = NULL;
     int ret = 0;
-    int kp = 0;
+    int k = 0;
 
     /* Validate parameters. */
     if ((key == NULL) || (rand == NULL)) {
@@ -302,34 +376,34 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 #ifndef WOLFSSL_NO_ML_KEM
     #ifdef WOLFSSL_WC_ML_KEM_512
         case WC_ML_KEM_512:
-            kp = WC_ML_KEM_512_K;
+            k = WC_ML_KEM_512_K;
             break;
     #endif
     #ifdef WOLFSSL_WC_ML_KEM_768
         case WC_ML_KEM_768:
-            kp = WC_ML_KEM_768_K;
+            k = WC_ML_KEM_768_K;
             break;
     #endif
     #ifdef WOLFSSL_WC_ML_KEM_1024
         case WC_ML_KEM_1024:
-            kp = WC_ML_KEM_1024_K;
+            k = WC_ML_KEM_1024_K;
             break;
     #endif
 #endif
 #ifdef WOLFSSL_KYBER_ORIGINAL
     #ifdef WOLFSSL_KYBER512
         case KYBER512:
-            kp = KYBER512_K;
+            k = KYBER512_K;
             break;
     #endif
     #ifdef WOLFSSL_KYBER768
         case KYBER768:
-            kp = KYBER768_K;
+            k = KYBER768_K;
             break;
     #endif
     #ifdef WOLFSSL_KYBER1024
         case KYBER1024:
-            kp = KYBER1024_K;
+            k = KYBER1024_K;
             break;
     #endif
 #endif
@@ -346,16 +420,16 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
 #ifndef WOLFSSL_MLKEM_CACHE_A
         /* e (v) | a (m) */
-        e = (sword16*)XMALLOC((kp + 1) * kp * KYBER_N * sizeof(sword16),
+        e = (sword16*)XMALLOC((k + 1) * k * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #else
         /* e (v) */
-        e = (sword16*)XMALLOC(kp * KYBER_N * sizeof(sword16),
+        e = (sword16*)XMALLOC(k * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 #else
         /* e (v) */
-        e = (sword16*)XMALLOC(kp * KYBER_N * sizeof(sword16),
+        e = (sword16*)XMALLOC(k * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         if (e == NULL) {
@@ -370,7 +444,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
         a = key->a;
 #elif !defined(WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM)
         /* Matrix A allocated at end of error vector. */
-        a = e + (kp * KYBER_N);
+        a = e + (k * KYBER_N);
 #endif
 
 #if defined(WOLFSSL_KYBER_ORIGINAL) && !defined(WOLFSSL_NO_ML_KEM)
@@ -387,49 +461,65 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
         {
-            buf[0] = kp;
-            /* Expand 33 bytes of random to 32. */
+            buf[0] = k;
+            /* Expand 33 bytes of random to 32.
+             * Alg 13: Step 1: (rho,sigma) <- G(d||k)
+             */
             ret = KYBER_HASH_G(&key->hash, d, KYBER_SYM_SZ, buf, 1, buf);
         }
 #endif
     }
     if (ret == 0) {
         const byte* z = rand + KYBER_SYM_SZ;
+        s = key->priv;
+        t = key->pub;
 
         /* Cache the public seed for use in encapsulation and encoding public
          * key. */
-        XMEMCPY(key->pubSeed, pubSeed, KYBER_SYM_SZ);
+        XMEMCPY(key->pubSeed, rho, KYBER_SYM_SZ);
         /* Cache the z value for decapsulation and encoding private key. */
         XMEMCPY(key->z, z, sizeof(key->z));
 
         /* Initialize PRF for use in noise generation. */
         kyber_prf_init(&key->prf);
 #ifndef WOLFSSL_MLKEM_MAKEKEY_SMALL_MEM
-        /* Generate noise using PRF. */
-        ret = kyber_get_noise(&key->prf, kp, key->priv, e, NULL, noiseSeed);
+        /* Generate noise using PRF.
+         * Alg 13: Steps 8-15: generate s and e
+         */
+        ret = kyber_get_noise(&key->prf, k, s, e, NULL, sigma);
     }
     if (ret == 0) {
-        /* Generate the matrix A. */
-        ret = kyber_gen_matrix(&key->prf, a, kp, pubSeed, 0);
+        /* Generate the matrix A.
+         * Alg 13: Steps 3-7
+         */
+        ret = kyber_gen_matrix(&key->prf, a, k, rho, 0);
     }
     if (ret == 0) {
-#ifdef WOLFSSL_MLKEM_CACHE_A
-        key->flags |= KYBER_FLAG_A_SET;
-#endif
-        /* Generate key pair from random data. */
-        kyber_keygen(key->priv, key->pub, e, a, kp);
+        /* Generate key pair from random data.
+         * Alg 13: Steps 16-18.
+         */
+        kyber_keygen(s, t, e, a, k);
 #else
-        /* Generate noise using PRF. */
-        ret = kyber_get_noise(&key->prf, kp, key->priv, NULL, NULL, noiseSeed);
+        /* Generate noise using PRF.
+         * Alg 13: Steps 8-11: generate s
+         */
+        ret = kyber_get_noise(&key->prf, k, s, NULL, NULL, sigma);
     }
     if (ret == 0) {
-        ret = kyber_keygen_seeds(key->priv, key->pub, &key->prf, e, kp,
-            pubSeed, noiseSeed);
+        /* Generate key pair from private vector and seeds.
+         * Alg 13: Steps 3-7: generate matrix A_hat
+         * Alg 13: 12-15: generate e
+         * Alg 13: 16-18: calculate t_hat from A_hat, s and e
+         */
+        ret = kyber_keygen_seeds(s, t, &key->prf, e, k, rho, sigma);
     }
     if (ret == 0) {
 #endif
         /* Private and public key are set/available. */
         key->flags |= KYBER_FLAG_PRIV_SET | KYBER_FLAG_PUB_SET;
+#ifdef WOLFSSL_MLKEM_CACHE_A
+        key->flags |= KYBER_FLAG_A_SET;
+#endif
     }
 
 #ifndef WOLFSSL_NO_MALLOC
@@ -441,6 +531,7 @@ int wc_KyberKey_MakeKeyWithRandom(KyberKey* key, const unsigned char* rand,
 
     return ret;
 }
+#endif /* !WOLFSSL_KYBER_NO_MAKE_KEY */
 
 /******************************************************************************/
 
@@ -526,38 +617,59 @@ int wc_KyberKey_SharedSecretSize(KyberKey* key, word32* len)
     return 0;
 }
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) || \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
 /* Encapsulate data and derive secret.
  *
- * @param  [in]  key    Kyber key object.
- * @param  [in]  msg    Message to encapsulate.
- * @param  [in]  coins  Coins (seed) to feed to PRF.
- * @param  [in]  ct     Calculated cipher text.
+ * FIPS 203, Algorithm 14: K-PKE.Encrypt(ek_PKE, m, r)
+ * Uses the encryption key to encrypt a plaintext message using the randomness
+ * r.
+ *   1: N <- 0
+ *   2: t_hat <- ByteDecode_12(ek_PKE[0:384k])
+ *                                   > run ByteDecode_12 k times to decode t_hat
+ *   3: rho <- ek_PKE[384k : 384K + 32]
+ *                                            > extract 32-byte seed from ek_PKE
+ *   4-8: generate matrix A_hat
+ *   9-12: generate y
+ *   13-16: generate e_1
+ *   17: generate e_2
+ *   18-19: calculate u
+ *   20: mu <- Decompress_1(ByteDecode_1(m))
+ *   21: calculate v
+ *   22: c_1 <- ByteEncode_d_u(Compress_d_u(u))
+ *                                 > run ByteEncode_d_u and Compress_d_u k times
+ *   23: c_2 <- ByteEncode_d_v(Compress_d_v(v))
+ *   24: return c <- (c_1||c_2)
+ *
+ * @param  [in]  key  Kyber key object.
+ * @param  [in]  m    Random bytes.
+ * @param  [in]  r    Seed to feed to PRF when generating y, e1 and e2.
+ * @param  [out] c    Calculated cipher text.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when key type is not supported.
  */
-static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
-    unsigned char* ct)
+static int kyberkey_encapsulate(KyberKey* key, const byte* m, byte* r, byte* c)
 {
     int ret = 0;
-    sword16* at = NULL;
+    sword16* a = NULL;
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-    sword16* k = NULL;
-    sword16* ep = NULL;
-    sword16* epp = NULL;
+    sword16* mu = NULL;
+    sword16* e1 = NULL;
+    sword16* e2 = NULL;
 #endif
-    unsigned int kp = 0;
+    unsigned int k = 0;
     unsigned int compVecSz = 0;
 #ifndef WOLFSSL_NO_MALLOC
-    sword16* sp = NULL;
+    sword16* y = NULL;
 #else
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-    sword16 sp[((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N];
+    sword16 y[((KYBER_MAX_K + 3) * KYBER_MAX_K + 3) * KYBER_N];
 #else
-    sword16 sp[3 * KYBER_MAX_K * KYBER_N];
+    sword16 y[3 * KYBER_MAX_K * KYBER_N];
 #endif
 #endif
 #ifdef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-    sword16* bp;
+    sword16* u;
     sword16* v;
 #endif
 
@@ -566,19 +678,19 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
 #ifndef WOLFSSL_NO_ML_KEM
 #ifdef WOLFSSL_WC_ML_KEM_512
     case WC_ML_KEM_512:
-        kp = WC_ML_KEM_512_K;
+        k = WC_ML_KEM_512_K;
         compVecSz = WC_ML_KEM_512_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_WC_ML_KEM_768
     case WC_ML_KEM_768:
-        kp = WC_ML_KEM_768_K;
+        k = WC_ML_KEM_768_K;
         compVecSz = WC_ML_KEM_768_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_WC_ML_KEM_1024
     case WC_ML_KEM_1024:
-        kp = WC_ML_KEM_1024_K;
+        k = WC_ML_KEM_1024_K;
         compVecSz = WC_ML_KEM_1024_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
@@ -586,19 +698,19 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
 #ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef WOLFSSL_KYBER512
     case KYBER512:
-        kp = KYBER512_K;
+        k = KYBER512_K;
         compVecSz = KYBER512_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_KYBER768
     case KYBER768:
-        kp = KYBER768_K;
+        k = KYBER768_K;
         compVecSz = KYBER768_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_KYBER1024
     case KYBER1024:
-        kp = KYBER1024_K;
+        k = KYBER1024_K;
         compVecSz = KYBER1024_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
@@ -613,13 +725,13 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     if (ret == 0) {
         /* Allocate dynamic memory for all matrices, vectors and polynomials. */
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-        sp = (sword16*)XMALLOC(((kp + 3) * kp + 3) * KYBER_N * sizeof(sword16),
+        y = (sword16*)XMALLOC(((k + 3) * k + 3) * KYBER_N * sizeof(sword16),
             key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #else
-        sp = (sword16*)XMALLOC(3 * kp * KYBER_N * sizeof(sword16), key->heap,
+        y = (sword16*)XMALLOC(3 * k * KYBER_N * sizeof(sword16), key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        if (sp == NULL) {
+        if (y == NULL) {
             ret = MEMORY_E;
         }
     }
@@ -628,35 +740,39 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     if (ret == 0) {
 #ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
         /* Assign allocated dynamic memory to pointers.
-         * sp (b) | at (m) | k (p) | ep (p) | epp (v) | bp (v) | v (p) */
-        at  = sp  + KYBER_N * kp;
-        k   = at  + KYBER_N * kp * kp;
-        ep  = k   + KYBER_N;
-        epp = ep  + KYBER_N * kp;
+         * y (b) | a (m) | mu (p) | e1 (p) | e2 (v) | u (v) | v (p) */
+        a  = y  + KYBER_N * k;
+        mu = a  + KYBER_N * k * k;
+        e1 = mu + KYBER_N;
+        e2 = e1 + KYBER_N * k;
 #else
         /* Assign allocated dynamic memory to pointers.
-         * sp (v) | at (v) | bp (v) */
-        at  = sp  + KYBER_N * kp;
+         * y (v) | a (v) | u (v) */
+        a = y + KYBER_N * k;
 #endif
+
+#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
+        /* Convert msg to a polynomial.
+         * Step 20: mu <- Decompress_1(ByteDecode_1(m)) */
+        kyber_from_msg(mu, m);
 
         /* Initialize the PRF for use in the noise generation. */
         kyber_prf_init(&key->prf);
-#ifndef WOLFSSL_MLKEM_ENCAPSULATE_SMALL_MEM
-        /* Convert msg to a polynomial. */
-        kyber_from_msg(k, msg);
-
-        /* Generate noise using PRF. */
-        ret = kyber_get_noise(&key->prf, kp, sp, ep, epp, coins);
+        /* Generate noise using PRF.
+         * Steps 9-17: generate y, e_1, e_2
+         */
+        ret = kyber_get_noise(&key->prf, k, y, e1, e2, r);
     }
 #ifdef WOLFSSL_MLKEM_CACHE_A
     if ((ret == 0) && ((key->flags & KYBER_FLAG_A_SET) != 0)) {
         unsigned int i;
-        /* Transpose matrix. */
-        for (i = 0; i < kp; i++) {
+        /* Transpose matrix.
+         *   Steps 4-8: generate matrix A_hat (from original) */
+        for (i = 0; i < k; i++) {
             unsigned int j;
-            for (j = 0; j < kp; j++) {
-                XMEMCPY(&at[(i * kp + j) * KYBER_N],
-                        &key->a[(j * kp + i) * KYBER_N],
+            for (j = 0; j < k; j++) {
+                XMEMCPY(&a[(i * k + j) * KYBER_N],
+                        &key->a[(j * k + i) * KYBER_N],
                         KYBER_N * 2);
             }
         }
@@ -664,115 +780,161 @@ static int kyberkey_encapsulate(KyberKey* key, const byte* msg, byte* coins,
     else
 #endif
     if (ret == 0) {
-        /* Generate the transposed matrix. */
-        ret = kyber_gen_matrix(&key->prf, at, kp, key->pubSeed, 1);
+        /* Generate the transposed matrix.
+         *   Step 4-8: generate matrix A_hat */
+        ret = kyber_gen_matrix(&key->prf, a, k, key->pubSeed, 1);
     }
     if (ret == 0) {
-        sword16* bp;
+        sword16* u;
         sword16* v;
 
         /* Assign remaining allocated dynamic memory to pointers.
-         * sp (v) | at (m) | k (p) | ep (p) | epp (v) | bp (v) | v (p)*/
-        bp  = epp + KYBER_N;
-        v   = bp  + KYBER_N * kp;
+         * y (v) | a (m) | mu (p) | e1 (p) | r2 (v) | u (v) | v (p)*/
+        u  = e2 + KYBER_N;
+        v  = u  + KYBER_N * k;
 
-        /* Perform encapsulation maths. */
-        kyber_encapsulate(key->pub, bp, v, at, sp, ep, epp, k, kp);
+        /* Perform encapsulation maths.
+         *   Steps 18-19, 21: calculate u and v */
+        kyber_encapsulate(key->pub, u, v, a, y, e1, e2, mu, k);
 #else
-        /* Generate noise using PRF. */
-        ret = kyber_get_noise(&key->prf, kp, sp, NULL, NULL, coins);
+        /* Initialize the PRF for use in the noise generation. */
+        kyber_prf_init(&key->prf);
+        /* Generate noise using PRF.
+         * Steps 9-12: generate y */
+        ret = kyber_get_noise(&key->prf, k, y, NULL, NULL, r);
     }
     if (ret == 0) {
         /* Assign remaining allocated dynamic memory to pointers.
-         * sp (v) | at (v) | bp (v) */
-        bp  = sp + KYBER_N * kp;
-        v   = at;
+         * y (v) | at (v) | u (v) */
+        u  = a + KYBER_N * k;
+        v  = a;
 
-        ret = kyber_encapsulate_seeds(key->pub, &key->prf, bp, at, sp, kp, msg,
-            key->pubSeed, coins);
+        /* Perform encapsulation maths.
+         *   Steps 13-17: generate e_1 and e_2
+         *   Steps 18-19, 21: calculate u and v */
+        ret = kyber_encapsulate_seeds(key->pub, &key->prf, u, a, y, k, m,
+            key->pubSeed, r);
     }
     if (ret == 0) {
 #endif
+        byte* c1 = c;
+        byte* c2 = c + compVecSz;
 
     #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-        if (kp == KYBER512_K) {
-            kyber_vec_compress_10(ct, bp, kp);
-            kyber_compress_4(ct + compVecSz, v);
+        if (k == KYBER512_K) {
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+            kyber_vec_compress_10(c1, u, k);
+            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            kyber_compress_4(c2, v);
+            /* Step 24: return c <- (c_1||c_2) */
         }
     #endif
     #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
-        if (kp == KYBER768_K) {
-            kyber_vec_compress_10(ct, bp, kp);
-            kyber_compress_4(ct + compVecSz, v);
+        if (k == KYBER768_K) {
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+            kyber_vec_compress_10(c1, u, k);
+            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            kyber_compress_4(c2, v);
+            /* Step 24: return c <- (c_1||c_2) */
         }
     #endif
     #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
-        if (kp == KYBER1024_K) {
-            kyber_vec_compress_11(ct, bp);
-            kyber_compress_5(ct + compVecSz, v);
+        if (k == KYBER1024_K) {
+            /* Step 22: c_1 <- ByteEncode_d_u(Compress_d_u(u)) */
+            kyber_vec_compress_11(c1, u);
+            /* Step 23: c_2 <- ByteEncode_d_v(Compress_d_v(v)) */
+            kyber_compress_5(c2, v);
+            /* Step 24: return c <- (c_1||c_2) */
         }
     #endif
     }
 
 #ifndef WOLFSSL_NO_MALLOC
     /* Dispose of dynamic memory allocated in function. */
-    XFREE(sp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(y, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
 }
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
 /**
  * Encapsulate with random number generator and derive secret.
  *
+ * FIPS 203, Algorithm 20: ML-KEM.Encaps(ek)
+ * Uses the encapsulation key to generate a shared secret key and an associated
+ * ciphertext.
+ *   1: m <- B_32                                         > m is 32 random bytes
+ *   2: if m == NULL then
+ *   3:     return falsum
+ *   4: end if
+ *   5: (K,c) <- ML-KEM.Encaps_internal(ek,m)
+ *                                        > run internal encapsulation algorithm
+ *   6: return (K,c)
+ *
  * @param  [in]   key  Kyber key object.
- * @param  [out]  ct   Cipher text.
- * @param  [out]  ss   Shared secret generated.
+ * @param  [out]  c    Cipher text.
+ * @param  [out]  k    Shared secret generated.
  * @param  [in]   rng  Random number generator.
  * @return  0 on success.
  * @return  BAD_FUNC_ARG when key, ct, ss or RNG is NULL.
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* ct, unsigned char* ss,
+int wc_KyberKey_Encapsulate(KyberKey* key, unsigned char* c, unsigned char* k,
     WC_RNG* rng)
 {
     int ret = 0;
-    unsigned char rand[KYBER_ENC_RAND_SZ];
+    unsigned char m[KYBER_ENC_RAND_SZ];
 
     /* Validate parameters. */
-    if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rng == NULL)) {
+    if ((key == NULL) || (c == NULL) || (k == NULL) || (rng == NULL)) {
         ret = BAD_FUNC_ARG;
     }
 
     if (ret == 0) {
-        /* Generate seed for use with PRFs. */
-        ret = wc_RNG_GenerateBlock(rng, rand, sizeof(rand));
+        /* Generate seed for use with PRFs.
+         * Step 1: m is 32 random bytes
+         */
+        ret = wc_RNG_GenerateBlock(rng, m, sizeof(m));
+        /* Step 2: ret is not zero when m == NULL. */
     }
     if (ret == 0) {
-        /* Encapsulate with the random. */
-        ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, rand,
-            sizeof(rand));
+        /* Encapsulate with the random.
+         * Step 5: run internal encapsulation algorithm
+         */
+        ret = wc_KyberKey_EncapsulateWithRandom(key, c, k, m, sizeof(m));
     }
 
+    /* Step 3: return ret != 0 on falsum or internal key generation failure. */
     return ret;
 }
 
 /**
  * Encapsulate with random data and derive secret.
  *
- * @param  [out]  ct    Cipher text.
- * @param  [out]  ss    Shared secret generated.
- * @param  [in]   rand  Random data.
- * @param  [in]   len   Random data.
+ * FIPS 203, Algorithm 17: ML-KEM.Encaps_internal(ek, m)
+ * Uses the encapsulation key and randomness to generate a key and an associated
+ * ciphertext.
+ *   Step 1: (K,r) <- G(m||H(ek))
+ *                                 > derive shared secret key K and randomness r
+ *   Step 2: c <- K-PPKE.Encrypt(ek, m, r)
+ *                                     > encrypt m using K-PKE with randomness r
+ *   Step 3: return (K,c)
+ *
+ * @param  [out]  c    Cipher text.
+ * @param  [out]  k    Shared secret generated.
+ * @param  [in]   m    Random bytes.
+ * @param  [in]   len  Length of random bytes.
  * @return  0 on success.
- * @return  BAD_FUNC_ARG when key, ct, ss or RNG is NULL.
+ * @return  BAD_FUNC_ARG when key, c, k or RNG is NULL.
  * @return  BUFFER_E when len is not KYBER_ENC_RAND_SZ.
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
-    unsigned char* ss, const unsigned char* rand, int len)
+int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* c,
+    unsigned char* k, const unsigned char* m, int len)
 {
 #ifdef WOLFSSL_KYBER_ORIGINAL
     byte msg[KYBER_SYM_SZ];
@@ -780,11 +942,11 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
     byte kr[2 * KYBER_SYM_SZ + 1];
     int ret = 0;
 #ifdef WOLFSSL_KYBER_ORIGINAL
-    unsigned int ctSz = 0;
+    unsigned int cSz = 0;
 #endif
 
     /* Validate parameters. */
-    if ((key == NULL) || (ct == NULL) || (ss == NULL) || (rand == NULL)) {
+    if ((key == NULL) || (c == NULL) || (k == NULL) || (m == NULL)) {
         ret = BAD_FUNC_ARG;
     }
     if ((ret == 0) && (len != KYBER_ENC_RAND_SZ)) {
@@ -809,17 +971,17 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 #endif
     #ifdef WOLFSSL_KYBER512
         case KYBER512:
-            ctSz = KYBER512_CIPHER_TEXT_SIZE;
+            cSz = KYBER512_CIPHER_TEXT_SIZE;
             break;
     #endif
     #ifdef WOLFSSL_KYBER768
         case KYBER768:
-            ctSz = KYBER768_CIPHER_TEXT_SIZE;
+            cSz = KYBER768_CIPHER_TEXT_SIZE;
             break;
     #endif
     #ifdef WOLFSSL_KYBER1024
         case KYBER1024:
-            ctSz = KYBER1024_CIPHER_TEXT_SIZE;
+            cSz = KYBER1024_CIPHER_TEXT_SIZE;
             break;
     #endif
         default:
@@ -830,7 +992,10 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
     }
 #endif
 
-    /* If public hash (h) is not stored against key, calculate it. */
+    /* If public hash (h) is not stored against key, calculate it
+     * (fields set explicitly instead of using decode).
+     * Step 1: ... H(ek)...
+     */
     if ((ret == 0) && ((key->flags & KYBER_FLAG_H_SET) == 0)) {
     #ifndef WOLFSSL_NO_MALLOC
         byte* pubKey = NULL;
@@ -873,7 +1038,7 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 #endif
         {
             /* Hash random to anonymize as seed data. */
-            ret = KYBER_HASH_H(&key->hash, rand, KYBER_SYM_SZ, msg);
+            ret = KYBER_HASH_H(&key->hash, m, KYBER_SYM_SZ, msg);
         }
     }
 #endif
@@ -893,20 +1058,21 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
         {
-            ret = KYBER_HASH_G(&key->hash, rand, KYBER_SYM_SZ, key->h,
+            /* Step 1: (K,r) <- G(m||H(ek)) */
+            ret = KYBER_HASH_G(&key->hash, m, KYBER_SYM_SZ, key->h,
                 KYBER_SYM_SZ, kr);
         }
 #endif
     }
 
     if (ret == 0) {
-        /* Encapsulate the message using the key and the seed (coins). */
+        /* Encapsulate the message using the key and the seed. */
 #if defined(WOLFSSL_KYBER_ORIGINAL) && !defined(WOLFSSL_NO_ML_KEM)
         if (key->type & KYBER_ORIGINAL)
 #endif
 #ifdef WOLFSSL_KYBER_ORIGINAL
         {
-            ret = kyberkey_encapsulate(key, msg, kr + KYBER_SYM_SZ, ct);
+            ret = kyberkey_encapsulate(key, msg, kr + KYBER_SYM_SZ, c);
         }
 #endif
 #if defined(WOLFSSL_KYBER_ORIGINAL) && !defined(WOLFSSL_NO_ML_KEM)
@@ -914,7 +1080,8 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
         {
-            ret = kyberkey_encapsulate(key, rand, kr + KYBER_SYM_SZ, ct);
+            /* Step 2: c <- K-PKE.Encrypt(ek,m,r) */
+            ret = kyberkey_encapsulate(key, m, kr + KYBER_SYM_SZ, c);
         }
 #endif
     }
@@ -926,11 +1093,11 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
     {
         if (ret == 0) {
             /* Hash the cipher text after the seed. */
-            ret = KYBER_HASH_H(&key->hash, ct, ctSz, kr + KYBER_SYM_SZ);
+            ret = KYBER_HASH_H(&key->hash, c, cSz, kr + KYBER_SYM_SZ);
         }
         if (ret == 0) {
             /* Derive the secret from the seed and hash of cipher text. */
-            ret = KYBER_KDF(kr, 2 * KYBER_SYM_SZ, ss, KYBER_SS_SZ);
+            ret = KYBER_KDF(kr, 2 * KYBER_SYM_SZ, k, KYBER_SS_SZ);
         }
     }
 #endif
@@ -940,37 +1107,51 @@ int wc_KyberKey_EncapsulateWithRandom(KyberKey* key, unsigned char* ct,
 #ifndef WOLFSSL_NO_ML_KEM
     {
         if (ret == 0) {
-            XMEMCPY(ss, kr, KYBER_SS_SZ);
+            /* return (K,c) */
+            XMEMCPY(k, kr, KYBER_SS_SZ);
         }
     }
 #endif
 
     return ret;
 }
+#endif /* !WOLFSSL_KYBER_NO_ENCAPSULATE */
 
 /******************************************************************************/
 
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
 /* Decapsulate cipher text to the message using key.
  *
- * @param  [in]   Kyber key object.
- * @param  [out]  Message than was encapsulated.
- * @param  [in]   Cipher text.
+ * FIPS 203, Algorithm 15: K-PKE.Decrypt(dk_PKE,c)
+ * Uses the decryption key to decrypt a ciphertext.
+ *   1: c1 <- c[0 : 32.d_u.k]
+ *   2: c2 <= c[32.d_u.k : 32(d_u.k + d_v)]
+ *   3: u' <= Decompress_d_u(ByteDecode_d_u(c1))
+ *   4: v' <= Decompress_d_v(ByteDecode_d_v(c2))
+ *   ...
+ *   6: w <- v' - InvNTT(s_hat_trans o NTT(u'))
+ *   7: m <- ByteEncode_1(Compress_1(w))
+ *   8: return m
+ *
+ * @param  [in]   key  Kyber key object.
+ * @param  [out]  m    Message than was encapsulated.
+ * @param  [in]   c    Cipher text.
  * @return  0 on success.
  * @return  NOT_COMPILED_IN when key type is not supported.
  * @return  MEMORY_E when dynamic memory allocation failed.
  */
-static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
-    unsigned char* msg, const unsigned char* ct)
+static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key, byte* m,
+    const byte* c)
 {
     int ret = 0;
     sword16* v;
-    sword16* mp;
-    unsigned int kp = 0;
+    sword16* w;
+    unsigned int k = 0;
     unsigned int compVecSz;
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
-    sword16* bp = NULL;
+    sword16* u = NULL;
 #else
-    sword16 bp[(KYBER_MAX_K + 1) * KYBER_N];
+    sword16 u[(KYBER_MAX_K + 1) * KYBER_N];
 #endif
 
     /* Establish parameters based on key type. */
@@ -978,19 +1159,19 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
 #ifndef WOLFSSL_NO_ML_KEM
 #ifdef WOLFSSL_WC_ML_KEM_512
     case WC_ML_KEM_512:
-        kp = WC_ML_KEM_512_K;
+        k = WC_ML_KEM_512_K;
         compVecSz = WC_ML_KEM_512_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_WC_ML_KEM_768
     case WC_ML_KEM_768:
-        kp = WC_ML_KEM_768_K;
+        k = WC_ML_KEM_768_K;
         compVecSz = WC_ML_KEM_768_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_WC_ML_KEM_1024
     case WC_ML_KEM_1024:
-        kp = WC_ML_KEM_1024_K;
+        k = WC_ML_KEM_1024_K;
         compVecSz = WC_ML_KEM_1024_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
@@ -998,19 +1179,19 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
 #ifdef WOLFSSL_KYBER_ORIGINAL
 #ifdef WOLFSSL_KYBER512
     case KYBER512:
-        kp = KYBER512_K;
+        k = KYBER512_K;
         compVecSz = KYBER512_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_KYBER768
     case KYBER768:
-        kp = KYBER768_K;
+        k = KYBER768_K;
         compVecSz = KYBER768_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
 #ifdef WOLFSSL_KYBER1024
     case KYBER1024:
-        kp = KYBER1024_K;
+        k = KYBER1024_K;
         compVecSz = KYBER1024_POLY_VEC_COMPRESSED_SZ;
         break;
 #endif
@@ -1024,48 +1205,62 @@ static KYBER_NOINLINE int kyberkey_decapsulate(KyberKey* key,
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     if (ret == 0) {
         /* Allocate dynamic memory for a vector and a polynomial. */
-        bp = (sword16*)XMALLOC((kp + 1) * KYBER_N * sizeof(sword16), key->heap,
+        u = (sword16*)XMALLOC((k + 1) * KYBER_N * sizeof(sword16), key->heap,
             DYNAMIC_TYPE_TMP_BUFFER);
-        if (bp == NULL) {
+        if (u == NULL) {
             ret = MEMORY_E;
         }
     }
 #endif
     if (ret == 0) {
+        /* Step 1: c1 <- c[0 : 32.d_u.k] */
+        const byte* c1 = c;
+        /* Step 2: c2 <= c[32.d_u.k : 32(d_u.k + d_v)] */
+        const byte* c2 = c + compVecSz;
+
         /* Assign allocated dynamic memory to pointers.
-         * bp (v) | v (p) */
-        v = bp + kp * KYBER_N;
-        mp = bp;
+         * u (v) | v (p) */
+        v = u + k * KYBER_N;
+        w = u;
 
     #if defined(WOLFSSL_KYBER512) || defined(WOLFSSL_WC_ML_KEM_512)
-        if (kp == KYBER512_K) {
-            kyber_vec_decompress_10(bp, ct, kp);
-            kyber_decompress_4(v, ct + compVecSz);
+        if (k == KYBER512_K) {
+            /* Step 3: u' <= Decompress_d_u(ByteDecode_d_u(c1)) */
+            kyber_vec_decompress_10(u, c1, k);
+            /* Step 4: v' <= Decompress_d_v(ByteDecode_d_v(c2)) */
+            kyber_decompress_4(v, c2);
         }
     #endif
     #if defined(WOLFSSL_KYBER768) || defined(WOLFSSL_WC_ML_KEM_768)
-        if (kp == KYBER768_K) {
-            kyber_vec_decompress_10(bp, ct, kp);
-            kyber_decompress_4(v, ct + compVecSz);
+        if (k == KYBER768_K) {
+            /* Step 3: u' <= Decompress_d_u(ByteDecode_d_u(c1)) */
+            kyber_vec_decompress_10(u, c1, k);
+            /* Step 4: v' <= Decompress_d_v(ByteDecode_d_v(c2)) */
+            kyber_decompress_4(v, c2);
         }
     #endif
     #if defined(WOLFSSL_KYBER1024) || defined(WOLFSSL_WC_ML_KEM_1024)
-        if (kp == KYBER1024_K) {
-            kyber_vec_decompress_11(bp, ct);
-            kyber_decompress_5(v, ct + compVecSz);
+        if (k == KYBER1024_K) {
+            /* Step 3: u' <= Decompress_d_u(ByteDecode_d_u(c1)) */
+            kyber_vec_decompress_11(u, c1);
+            /* Step 4: v' <= Decompress_d_v(ByteDecode_d_v(c2)) */
+            kyber_decompress_5(v, c2);
         }
     #endif
 
-        /* Decapsulate the cipher text into polynomial. */
-        kyber_decapsulate(key->priv, mp, bp, v, kp);
+        /* Decapsulate the cipher text into polynomial.
+         * Step 6: w <- v' - InvNTT(s_hat_trans o NTT(u')) */
+        kyber_decapsulate(key->priv, w, u, v, k);
 
-        /* Convert the polynomial into a array of bytes (message). */
-        kyber_to_msg(msg, mp);
+        /* Convert the polynomial into a array of bytes (message).
+         * Step 7: m <- ByteEncode_1(Compress_1(w)) */
+        kyber_to_msg(m, w);
+        /* Step 8: return m */
     }
 
 #if !defined(USE_INTEL_SPEEDUP) && !defined(WOLFSSL_NO_MALLOC)
     /* Dispose of dynamically memory allocated in function. */
-    XFREE(bp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(u, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     return ret;
@@ -1108,6 +1303,34 @@ static int kyber_derive_secret(const byte* z, const byte* ct, word32 ctSz,
  * Decapsulate the cipher text to calculate the shared secret.
  *
  * Validates the cipher text by encapsulating and comparing with data passed in.
+ *
+ * FIPS 203, Algorithm 21: ML-KEM.Decaps(dk, c)
+ * Uses the decapsulation key to produce a shared secret key from a ciphertext.
+ *   1: K' <- ML-KEM.Decaps_internal(dk,c)
+ *                                        > run internal decapsulation algorithm
+ *   2: return K'
+ *
+ * FIPS 203, Algorithm 18: ML-KEM.Decaps_internal(dk, c)
+ * Uses the decapsulation key to produce a shared secret key from a ciphertext.
+ *   ...
+ *   1: dk_PKE <- dk[0 : 384k]
+ *                        > extract (from KEM decaps key) the PKE decryption key
+ *   2: ek_PKE <- dk[384k : 768l + 32]
+ *                                                  > extract PKE encryption key
+ *   3: h <- dk[768K + 32 : 768k + 64]
+ *                                          > extract hash of PKE encryption key
+ *   4: z <- dk[768K + 64 : 768k + 96]
+ *                                            > extract implicit rejection value
+ *   5: m' <- K-PKE.Decrypt(dk_PKE, c)                      > decrypt ciphertext
+ *   6: (K', r') <- G(m'||h)
+ *   7: K_bar <- J(z||c)
+ *   8: c' <- K-PKE.Encrypt(ek_PKE, m', r')
+ *                                  > re-encrypt using the derived randomness r'
+ *   9: if c != c' then
+ *  10:      K' <= K_bar
+ *                            > if ciphertexts do not match, "implicitly reject"
+ *  11: end if
+ *  12: return K'
  *
  * @param  [in]   key  Kyber key object.
  * @param  [out]  ss   Shared secret.
@@ -1240,7 +1463,7 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
         {
             ret = kyber_derive_secret(key->z, ct, ctSz, msg);
             if (ret == 0) {
-               /* Change seed to z on comparison failure. */
+               /* Set secret to kr or fake secret on comparison failure. */
                for (i = 0; i < KYBER_SYM_SZ; i++) {
                    ss[i] = kr[i] ^ ((kr[i] ^ msg[i]) & fail);
                }
@@ -1258,13 +1481,60 @@ int wc_KyberKey_Decapsulate(KyberKey* key, unsigned char* ss,
 
     return ret;
 }
+#endif /* WOLFSSL_KYBER_NO_DECAPSULATE */
 
 /******************************************************************************/
+
+/**
+ * Get the public key and public seed from bytes.
+ *
+ * FIPS 203, Algorithm 14 K-PKE.Encrypt(ek_PKE, m, r)
+ *   ...
+ *   2: t <- ByteDecode_12(ek_PKE[0 : 384k])
+ *   3: rho <- ek_PKE[384k :  384k + 32]
+ *   ...
+ *
+ * @param [out] pub      Public key - vector.
+ * @param [out] pubSeed  Public seed.
+ * @param [in]  p        Public key data.
+ * @param [in]  k        Number of polynomials in vector.
+ */
+static void kyberkey_decode_public(sword16* pub, byte* pubSeed, const byte* p,
+    unsigned int k)
+{
+    unsigned int i;
+
+    /* Decode public key that is vector of polynomials.
+     * Step 2: t <- ByteDecode_12(ek_PKE[0 : 384k]) */
+    kyber_from_bytes(pub, p, k);
+    p += k * KYBER_POLY_SIZE;
+
+    /* Read public key seed.
+     * Step 3: rho <- ek_PKE[384k :  384k + 32] */
+    for (i = 0; i < KYBER_SYM_SZ; i++) {
+        pubSeed[i] = p[i];
+    }
+}
 
 /**
  * Decode the private key.
  *
  * Private Vector | Public Key | Public Hash | Randomizer
+ *
+ * FIPS 203, Algorithm 18: ML-KEM.Decaps_internal(dk, c)
+ *   1: dk_PKE <- dk[0 : 384k]
+ *                        > extract (from KEM decaps key) the PKE decryption key
+ *   2: ek_PKE <- dk[384k : 768l + 32]
+ *                                                  > extract PKE encryption key
+ *   3: h <- dk[768K + 32 : 768k + 64]
+ *                                          > extract hash of PKE encryption key
+ *   4: z <- dk[768K + 64 : 768k + 96]
+ *                                            > extract implicit rejection value
+ *
+ * FIPS 203, Algorithm 15: K-PKE.Decrypt(dk_PKE, c)
+ *   ...
+ *   5: s_hat <= ByteDecode_12(dk_PKE)
+ *   ...
  *
  * @param  [in, out]  key  Kyber key object.
  * @param  [in]       in   Buffer holding encoded key.
@@ -1349,22 +1619,23 @@ int wc_KyberKey_DecodePrivateKey(KyberKey* key, const unsigned char* in,
     }
 
     if (ret == 0) {
-        /* Decode private key that is vector of polynomials. */
+        /* Decode private key that is vector of polynomials.
+         * Alg 18 Step 1: dk_PKE <- dk[0 : 384k]
+         * Alg 15 Step 5: s_hat <- ByteDecode_12(dk_PKE) */
         kyber_from_bytes(key->priv, p, k);
         p += k * KYBER_POLY_SIZE;
 
         /* Decode the public key that is after the private key. */
-        ret = wc_KyberKey_DecodePublicKey(key, p, pubLen);
-    }
-    if (ret == 0) {
-        /* Skip over public key. */
+        kyberkey_decode_public(key->pub, key->pubSeed, p, k);
         p += pubLen;
+
         /* Copy the hash of the encoded public key that is after public key. */
         XMEMCPY(key->h, p, sizeof(key->h));
         p += KYBER_SYM_SZ;
         /* Copy the z (randomizer) that is after hash. */
         XMEMCPY(key->z, p, sizeof(key->z));
-        /* Set that private and public keys, and public hash are set. */
+
+        /* Set flags */
         key->flags |= KYBER_FLAG_H_SET | KYBER_FLAG_BOTH_SET;
     }
 
@@ -1451,16 +1722,8 @@ int wc_KyberKey_DecodePublicKey(KyberKey* key, const unsigned char* in,
     }
 
     if (ret == 0) {
-        unsigned int i;
+        kyberkey_decode_public(key->pub, key->pubSeed, p, k);
 
-        /* Decode public key that is vector of polynomials. */
-        kyber_from_bytes(key->pub, p, k);
-        p += k * KYBER_POLY_SIZE;
-
-        /* Read public key seed. */
-        for (i = 0; i < KYBER_SYM_SZ; i++) {
-            key->pubSeed[i] = p[i];
-        }
         /* Calculate public hash. */
         ret = KYBER_HASH_H(&key->hash, in, len, key->h);
     }
@@ -1609,6 +1872,15 @@ int wc_KyberKey_PublicKeySize(KyberKey* key, word32* len)
  *
  * Private Vector | Public Key | Public Hash | Randomizer
  *
+ * FIPS 203, Algorithm 16: ML-KEM.KeyGen_internal(d,z)
+ *   ...
+ *   3: dk <- (dk_PKE||ek||H(ek)||z)
+ *   ...
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   ...
+ *   20: dk_PKE  <- ByteEncode_12(s_hat)
+ *   ...
+ *
  * @param  [in]   key  Kyber key object.
  * @param  [out]  out  Buffer to hold data.
  * @param  [in]   len  Size of buffer in bytes.
@@ -1722,6 +1994,15 @@ int wc_KyberKey_EncodePrivateKey(KyberKey* key, unsigned char* out, word32 len)
  * Encode the public key.
  *
  * Public vector | Public Seed
+ *
+ * FIPS 203, Algorithm 16: ML-KEM.KeyGen_internal(d,z)
+ *   ...
+ *   2: ek <- ek_PKE
+ *   ...
+ * FIPS 203, Algorithm 13: K-PKE.KeyGen(d)
+ *   ...
+ *   19: ek_PKE  <- ByteEncode_12(t_hat)||rho
+ *   ...
  *
  * @param  [in]   key  Kyber key object.
  * @param  [out]  out  Buffer to hold data.

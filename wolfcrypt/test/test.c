@@ -38639,18 +38639,30 @@ static wc_test_ret_t kyber512_kat(void)
     wc_test_ret_t ret;
 #ifdef WOLFSSL_SMALL_STACK
     KyberKey *key = NULL;
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte *priv = NULL;
     byte *pub = NULL;
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte *ct = NULL;
     byte *ss = NULL;
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte *ss_dec = NULL;
+#endif
 #else
     KyberKey key[1];
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte priv[KYBER512_PRIVATE_KEY_SIZE];
     byte pub[KYBER512_PUBLIC_KEY_SIZE];
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte ct[KYBER512_CIPHER_TEXT_SIZE];
     byte ss[KYBER_SS_SZ];
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte ss_dec[KYBER_SS_SZ];
+#endif
 #endif
     int key_inited = 0;
     WOLFSSL_SMALL_STACK_STATIC const byte kyber512_rand[] = {
@@ -39513,19 +39525,30 @@ static wc_test_ret_t kyber512_kat(void)
 #ifdef WOLFSSL_SMALL_STACK
     key = (KyberKey *)XMALLOC(sizeof(KyberKey), HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     priv = (byte *)XMALLOC(KYBER512_PRIVATE_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
     pub = (byte *)XMALLOC(KYBER512_PUBLIC_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL || priv == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ct = (byte *)XMALLOC(KYBER512_CIPHER_TEXT_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
     ss = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (ct == NULL || ss == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     ss_dec = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (! (key && priv && pub && ct && ss && ss_dec))
+    if (ss_dec == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
 #endif
 
 #ifdef WOLFSSL_KYBER_ORIGINAL
@@ -39535,6 +39558,7 @@ static wc_test_ret_t kyber512_kat(void)
     else
         key_inited = 1;
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     ret = wc_KyberKey_MakeKeyWithRandom(key, kyber512_rand,
         sizeof(kyber512_rand));
     if (ret != 0)
@@ -39553,7 +39577,16 @@ static wc_test_ret_t kyber512_kat(void)
 
     if (XMEMCMP(priv, kyber512_sk, sizeof(kyber512_sk)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber512_rand;
+    (void)kyber512_pk;
+    ret = wc_KyberKey_DecodePrivateKey(key, kyber512_sk,
+        KYBER512_PRIVATE_KEY_SIZE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
         sizeof(kyber512enc_rand));
     if (ret != 0)
@@ -39564,13 +39597,22 @@ static wc_test_ret_t kyber512_kat(void)
 
     if (XMEMCMP(ss, kyber512_ss, sizeof(kyber512_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber512enc_rand;
+#endif
 
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, ct, sizeof(kyber512_ct));
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
+    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber512_ct,
+        sizeof(kyber512_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ss_dec, kyber512_ss, sizeof(kyber512_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber512_ct;
+    (void)kyber512_ss;
+#endif
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
     ret = wc_KyberKey_Init(WC_ML_KEM_512, key, HEAP_HINT, INVALID_DEVID);
@@ -39579,6 +39621,7 @@ static wc_test_ret_t kyber512_kat(void)
     else
         key_inited = 1;
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     ret = wc_KyberKey_MakeKeyWithRandom(key, kyber512_rand,
         sizeof(kyber512_rand));
     if (ret != 0)
@@ -39598,7 +39641,16 @@ static wc_test_ret_t kyber512_kat(void)
 
     if (XMEMCMP(priv, ml_kem_512_sk, sizeof(ml_kem_512_sk)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber512_rand;
+    (void)ml_kem_512_pk;
+    ret = wc_KyberKey_DecodePrivateKey(key, ml_kem_512_sk,
+        WC_ML_KEM_512_PRIVATE_KEY_SIZE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber512enc_rand,
         sizeof(kyber512enc_rand));
     if (ret != 0)
@@ -39609,13 +39661,22 @@ static wc_test_ret_t kyber512_kat(void)
 
     if (XMEMCMP(ss, ml_kem_512_ss, sizeof(ml_kem_512_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber512enc_rand;
+#endif
 
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, ct, sizeof(ml_kem_512_ct));
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
+    ret = wc_KyberKey_Decapsulate(key, ss_dec, ml_kem_512_ct,
+        sizeof(ml_kem_512_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ss_dec, ml_kem_512_ss, sizeof(ml_kem_512_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)ml_kem_512_ct;
+    (void)ml_kem_512_ss;
+#endif
 #endif
 
 out:
@@ -39625,11 +39686,17 @@ out:
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ss, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     XFREE(ss_dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
 
     return ret;
@@ -39642,18 +39709,30 @@ static wc_test_ret_t kyber768_kat(void)
     wc_test_ret_t ret;
 #ifdef WOLFSSL_SMALL_STACK
     KyberKey *key = NULL;
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte *priv = NULL;
     byte *pub = NULL;
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte *ct = NULL;
     byte *ss = NULL;
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte *ss_dec = NULL;
+#endif
 #else
     KyberKey key[1];
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte priv[KYBER768_PRIVATE_KEY_SIZE];
     byte pub[KYBER768_PUBLIC_KEY_SIZE];
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte ct[KYBER768_CIPHER_TEXT_SIZE];
     byte ss[KYBER_SS_SZ];
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte ss_dec[KYBER_SS_SZ];
+#endif
 #endif
     int key_inited = 0;
     WOLFSSL_SMALL_STACK_STATIC const byte kyber768_rand[] = {
@@ -40885,19 +40964,30 @@ static wc_test_ret_t kyber768_kat(void)
 #ifdef WOLFSSL_SMALL_STACK
     key = (KyberKey *)XMALLOC(sizeof(KyberKey), HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     priv = (byte *)XMALLOC(KYBER768_PRIVATE_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
     pub = (byte *)XMALLOC(KYBER768_PUBLIC_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv == NULL || pub == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ct = (byte *)XMALLOC(KYBER768_CIPHER_TEXT_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
     ss = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (ct == NULL || ss == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     ss_dec = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (! (key && priv && pub && ct && ss && ss_dec))
+    if (ss_dec == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
 #endif
 
 #ifdef WOLFSSL_KYBER_ORIGINAL
@@ -40907,6 +40997,7 @@ static wc_test_ret_t kyber768_kat(void)
     else
         key_inited = 1;
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     ret = wc_KyberKey_MakeKeyWithRandom(key, kyber768_rand,
         sizeof(kyber768_rand));
     if (ret != 0)
@@ -40925,7 +41016,16 @@ static wc_test_ret_t kyber768_kat(void)
 
     if (XMEMCMP(priv, kyber768_sk, sizeof(kyber768_sk)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber768_rand;
+    (void)kyber768_pk;
+    ret = wc_KyberKey_DecodePrivateKey(key, kyber768_sk,
+        KYBER768_PRIVATE_KEY_SIZE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
         sizeof(kyber768enc_rand));
     if (ret != 0)
@@ -40936,13 +41036,22 @@ static wc_test_ret_t kyber768_kat(void)
 
     if (XMEMCMP(ss, kyber768_ss, sizeof(kyber768_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber768enc_rand;
+#endif
 
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, ct, sizeof(kyber768_ct));
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
+    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber768_ct,
+        sizeof(kyber768_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ss_dec, kyber768_ss, sizeof(kyber768_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber768_ct;
+    (void)kyber768_ss;
+#endif
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
     ret = wc_KyberKey_Init(WC_ML_KEM_768, key, HEAP_HINT, INVALID_DEVID);
@@ -40951,6 +41060,7 @@ static wc_test_ret_t kyber768_kat(void)
     else
         key_inited = 1;
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     ret = wc_KyberKey_MakeKeyWithRandom(key, kyber768_rand,
         sizeof(kyber768_rand));
     if (ret != 0)
@@ -40970,7 +41080,16 @@ static wc_test_ret_t kyber768_kat(void)
 
     if (XMEMCMP(priv, ml_kem_768_sk, sizeof(ml_kem_768_sk)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber768_rand;
+    (void)ml_kem_768_pk;
+    ret = wc_KyberKey_DecodePrivateKey(key, ml_kem_768_sk,
+        WC_ML_KEM_768_PRIVATE_KEY_SIZE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber768enc_rand,
         sizeof(kyber768enc_rand));
     if (ret != 0)
@@ -40981,13 +41100,22 @@ static wc_test_ret_t kyber768_kat(void)
 
     if (XMEMCMP(ss, ml_kem_768_ss, sizeof(ml_kem_768_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber768enc_rand;
+#endif
 
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, ct, sizeof(ml_kem_768_ct));
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
+    ret = wc_KyberKey_Decapsulate(key, ss_dec, ml_kem_768_ct,
+        sizeof(ml_kem_768_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ss_dec, ml_kem_768_ss, sizeof(ml_kem_768_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)ml_kem_768_ct;
+    (void)ml_kem_768_ss;
+#endif
 #endif
 
 out:
@@ -40997,11 +41125,17 @@ out:
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ss, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     XFREE(ss_dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
 
     return ret;
@@ -41014,18 +41148,30 @@ static wc_test_ret_t kyber1024_kat(void)
     wc_test_ret_t ret;
 #ifdef WOLFSSL_SMALL_STACK
     KyberKey *key = NULL;
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte *priv = NULL;
     byte *pub = NULL;
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte *ct = NULL;
     byte *ss = NULL;
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte *ss_dec = NULL;
+#endif
 #else
     KyberKey key[1];
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte priv[KYBER1024_PRIVATE_KEY_SIZE];
     byte pub[KYBER1024_PUBLIC_KEY_SIZE];
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte ct[KYBER1024_CIPHER_TEXT_SIZE];
     byte ss[KYBER_SS_SZ];
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte ss_dec[KYBER_SS_SZ];
+#endif
 #endif
     int key_inited = 0;
     WOLFSSL_SMALL_STACK_STATIC const byte kyber1024_rand[] = {
@@ -42664,19 +42810,30 @@ static wc_test_ret_t kyber1024_kat(void)
 #ifdef WOLFSSL_SMALL_STACK
     key = (KyberKey *)XMALLOC(sizeof(KyberKey), HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     priv = (byte *)XMALLOC(KYBER1024_PRIVATE_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
     pub = (byte *)XMALLOC(KYBER1024_PUBLIC_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv == NULL || pub == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ct = (byte *)XMALLOC(KYBER1024_CIPHER_TEXT_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
     ss = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (ct == NULL || ss == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     ss_dec = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (! (key && priv && pub && ct && ss && ss_dec))
+    if (ss_dec == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
 #endif
 
 #ifdef WOLFSSL_KYBER_ORIGINAL
@@ -42686,6 +42843,7 @@ static wc_test_ret_t kyber1024_kat(void)
     else
         key_inited = 1;
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     ret = wc_KyberKey_MakeKeyWithRandom(key, kyber1024_rand,
         sizeof(kyber1024_rand));
     if (ret != 0)
@@ -42704,7 +42862,16 @@ static wc_test_ret_t kyber1024_kat(void)
 
     if (XMEMCMP(priv, kyber1024_sk, sizeof(kyber1024_sk)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber1024_rand;
+    (void)kyber1024_pk;
+    ret = wc_KyberKey_DecodePrivateKey(key, kyber1024_sk,
+        KYBER1024_PRIVATE_KEY_SIZE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
         sizeof(kyber1024enc_rand));
     if (ret != 0)
@@ -42715,13 +42882,22 @@ static wc_test_ret_t kyber1024_kat(void)
 
     if (XMEMCMP(ss, kyber1024_ss, sizeof(kyber1024_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber1024enc_rand;
+#endif
 
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, ct, sizeof(kyber1024_ct));
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
+    ret = wc_KyberKey_Decapsulate(key, ss_dec, kyber1024_ct,
+        sizeof(kyber1024_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ss_dec, kyber1024_ss, sizeof(kyber1024_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber1024_ct;
+    (void)kyber1024_ss;
+#endif
 #endif
 #ifndef WOLFSSL_NO_ML_KEM
     ret = wc_KyberKey_Init(WC_ML_KEM_1024, key, HEAP_HINT, INVALID_DEVID);
@@ -42730,6 +42906,7 @@ static wc_test_ret_t kyber1024_kat(void)
     else
         key_inited = 1;
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     ret = wc_KyberKey_MakeKeyWithRandom(key, kyber1024_rand,
         sizeof(kyber1024_rand));
     if (ret != 0)
@@ -42749,7 +42926,16 @@ static wc_test_ret_t kyber1024_kat(void)
 
     if (XMEMCMP(priv, ml_kem_1024_sk, sizeof(ml_kem_1024_sk)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber1024_rand;
+    (void)ml_kem_1024_pk;
+    ret = wc_KyberKey_DecodePrivateKey(key, ml_kem_1024_sk,
+        WC_ML_KEM_1024_PRIVATE_KEY_SIZE);
+    if (ret != 0)
+        ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
+#endif
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ret = wc_KyberKey_EncapsulateWithRandom(key, ct, ss, kyber1024enc_rand,
         sizeof(kyber1024enc_rand));
     if (ret != 0)
@@ -42760,13 +42946,22 @@ static wc_test_ret_t kyber1024_kat(void)
 
     if (XMEMCMP(ss, ml_kem_1024_ss, sizeof(ml_kem_1024_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)kyber1024enc_rand;
+#endif
 
-    ret = wc_KyberKey_Decapsulate(key, ss_dec, ct, sizeof(ml_kem_1024_ct));
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
+    ret = wc_KyberKey_Decapsulate(key, ss_dec, ml_kem_1024_ct,
+        sizeof(ml_kem_1024_ct));
     if (ret != 0)
         ERROR_OUT(WC_TEST_RET_ENC_EC(ret), out);
 
     if (XMEMCMP(ss_dec, ml_kem_1024_ss, sizeof(ml_kem_1024_ss)) != 0)
         ERROR_OUT(WC_TEST_RET_ENC_NC, out);
+#else
+    (void)ml_kem_1024_ct;
+    (void)ml_kem_1024_ss;
+#endif
 #endif
 
 out:
@@ -42776,11 +42971,17 @@ out:
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ss, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     XFREE(ss_dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 #endif
 
     return ret;
@@ -42795,22 +42996,34 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
     int i;
 #ifdef WOLFSSL_SMALL_STACK
     KyberKey *key = NULL;
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte *priv = NULL;
     byte *pub = NULL;
     byte *priv2 = NULL;
     byte *pub2 = NULL;
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte *ct = NULL;
     byte *ss = NULL;
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte *ss_dec = NULL;
+#endif
+#endif
+#endif
 #else
     KyberKey key[1];
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     byte priv[KYBER_MAX_PRIVATE_KEY_SIZE];
     byte pub[KYBER_MAX_PUBLIC_KEY_SIZE];
     byte priv2[KYBER_MAX_PRIVATE_KEY_SIZE];
     byte pub2[KYBER_MAX_PUBLIC_KEY_SIZE];
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     byte ct[KYBER_MAX_CIPHER_TEXT_SIZE];
     byte ss[KYBER_SS_SZ];
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     byte ss_dec[KYBER_SS_SZ];
+#endif
+#endif
+#endif
 #endif
     int key_inited = 0;
     static const int testData[][4] = {
@@ -42848,23 +43061,42 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
 #ifdef WOLFSSL_SMALL_STACK
     key = (KyberKey *)XMALLOC(sizeof(KyberKey), HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (key == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     priv = (byte *)XMALLOC(KYBER_MAX_PRIVATE_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     pub = (byte *)XMALLOC(KYBER_MAX_PUBLIC_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     priv2 = (byte *)XMALLOC(KYBER_MAX_PRIVATE_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (priv2 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     pub2 = (byte *)XMALLOC(KYBER_MAX_PUBLIC_KEY_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (pub2 == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     ct = (byte *)XMALLOC(KYBER_MAX_CIPHER_TEXT_SIZE, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (ct == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
     ss = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
+    if (ss == NULL)
+        ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     ss_dec = (byte *)XMALLOC(KYBER_SS_SZ, HEAP_HINT,
                               DYNAMIC_TYPE_TMP_BUFFER);
-
-    if (! (key && priv && pub && priv2 && pub2 && ct && ss && ss_dec))
+    if (ss_dec == NULL)
         ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);
+#endif
+#endif
+#endif
 #endif
 
 #ifndef HAVE_FIPS
@@ -42882,6 +43114,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
         else
             key_inited = 1;
 
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
         ret = wc_KyberKey_MakeKey(key, &rng);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
@@ -42902,9 +43135,11 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
         ret = wc_KyberKey_Encapsulate(key, ct, ss, &rng);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+#endif
 
         ret = wc_KyberKey_EncodePublicKey(key, pub2, testData[i][2]);
         if (ret != 0)
@@ -42921,12 +43156,15 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
+#if !defined(WOLFSSL_KYBER_NO_ENCAPSULATE) && \
+    !defined(WOLFSSL_KYBER_NO_DECAPSULATE)
         ret = wc_KyberKey_Decapsulate(key, ss_dec, ct, testData[i][3]);
         if (ret != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
 
         if (XMEMCMP(ss, ss_dec, KYBER_SS_SZ) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+#endif
 
         ret = wc_KyberKey_EncodePrivateKey(key, priv2, testData[i][1]);
         if (ret != 0)
@@ -42934,6 +43172,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t kyber_test(void)
 
         if (XMEMCMP(priv, priv2, testData[i][2]) != 0)
             ERROR_OUT(WC_TEST_RET_ENC_I(i), out);
+#endif
     }
 
     wc_FreeRng(&rng);
@@ -42963,13 +43202,19 @@ out:
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_KYBER_NO_MAKE_KEY
     XFREE(priv, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(priv2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(pub2, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_KYBER_NO_ENCAPSULATE
     XFREE(ct, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(ss, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifndef WOLFSSL_KYBER_NO_DECAPSULATE
     XFREE(ss_dec, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#endif
+#endif
 #endif
 
     return ret;
