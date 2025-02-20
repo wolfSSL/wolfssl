@@ -6241,7 +6241,6 @@ static int PKCS7_VerifySignedData(wc_PKCS7* pkcs7, const byte* hashBuf,
 
             /* store current index to get the signerInfo index later  */
             certIdx2 = idx;
-
             /* store certificate if needed */
             if (length > 0 && in2Sz == 0) {
                 /* free tmpCert if not NULL */
@@ -8615,7 +8614,6 @@ static int wc_PKCS7_DecryptContentEx(PKCS7* pkcs7, int encryptOID,
     #ifdef WOLFSSL_AES_256
         case AES256CBCb:
     #endif
-printf("trying to do decryption\n");
             ret = wc_AesCbcDecrypt(pkcs7->decryptKey.aes, out, in,
                 (word32)inSz);
         #ifdef WOLFSSL_ASYNC_CRYPT
@@ -10254,7 +10252,6 @@ static int wc_PKCS7_DecryptKtri(wc_PKCS7* pkcs7, byte* in, word32 inSz,
                 return ASN_VERSION_E;
             }
 
-printf("epxected size = %d\n", pkcs7->stream->expected);
         #ifndef NO_PKCS7_STREAM
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, idx)) != 0) {
                     break;
@@ -10273,7 +10270,6 @@ printf("epxected size = %d\n", pkcs7->stream->expected);
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_DECRYPT_KTRI_2);
 //pkcs7->stream->expected = MAX_SEQ_SZ;
-printf("epxected size = %d\n", pkcs7->stream->expected);
             FALL_THROUGH;
 
         case WC_PKCS7_DECRYPT_KTRI_2:
@@ -10290,7 +10286,6 @@ printf("epxected size = %d\n", pkcs7->stream->expected);
 
             wc_PKCS7_StreamGetVar(pkcs7, NULL, &sidType, &version);
 
-printf("epxected size = %d\n", pkcs7->stream->expected);
             /* @TODO get expected size for next part, does not account for
              * GetInt call well */
             if (pkcs7->stream->expected == MAX_SEQ_SZ) {
@@ -10312,7 +10307,6 @@ printf("epxected size = %d\n", pkcs7->stream->expected);
 
                 pkcs7->stream->expected = (word32)sz + MAX_ALGO_SZ + ASN_TAG_SZ +
                                           MAX_LENGTH_SZ + 512;
-                printf("new expected size = %d\n", pkcs7->stream->expected);
                 if (pkcs7->stream->length > 0 &&
                         pkcs7->stream->length < pkcs7->stream->expected) {
                     return WC_PKCS7_WANT_READ_E;
@@ -10320,20 +10314,16 @@ printf("epxected size = %d\n", pkcs7->stream->expected);
             }
         #endif /* !NO_PKCS7_STREAM */
 
-printf("flag 1\n");
             if (sidType == CMS_ISSUER_AND_SERIAL_NUMBER) {
 
-printf("flag 1.2\n");
                 /* remove IssuerAndSerialNumber */
                 if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
-printf("flag 1.3\n");
                 if (GetNameHash_ex(pkiMsg, idx, issuerHash, (int)pkiMsgSz,
                                    pkcs7->publicKeyOID) < 0)
                     return ASN_PARSE_E;
 
-printf("flag 1.4\n");
                 /* if we found correct recipient, issuer hashes will match */
                 if (XMEMCMP(issuerHash, pkcs7->issuerHash,
                             (word32)keyIdSize) == 0) {
@@ -10354,7 +10344,6 @@ printf("flag 1.4\n");
                     return ASN_PARSE_E;
                 }
 
-printf("flag 1.5\n");
                 mp_clear(serialNum);
 
         #ifdef WOLFSSL_SMALL_STACK
@@ -10374,7 +10363,6 @@ printf("flag 1.5\n");
                  * context specific with tag number 0 within the class.
                  */
 
-printf("flag 1.2\n");
                 if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
                     return ASN_PARSE_E;
 
@@ -10421,24 +10409,20 @@ printf("flag 1.2\n");
             }
         #endif
 
-printf("flag 2\n");
             /* read encryptedKey */
             if (GetASNTag(pkiMsg, idx, &tag, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
 
-printf("flag 3\n");
             if (tag != ASN_OCTET_STRING)
                 return ASN_PARSE_E;
 
             if (GetLength(pkiMsg, idx, &encryptedKeySz, pkiMsgSz) < 0) {
                 return ASN_PARSE_E;
             }
-printf("flag 4\n");
             if (encryptedKeySz > MAX_ENCRYPTED_KEY_SZ) {
                return BUFFER_E;
             }
 
-printf("flag 5\n");
         #ifndef NO_PKCS7_STREAM
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &tmpIdx, idx)) != 0) {
                     break;
@@ -11582,7 +11566,6 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
 #ifndef NO_PKCS7_STREAM
     word32 tmpIdx = (idx) ? *idx : 0;
 #endif
-
     WOLFSSL_ENTER("wc_PKCS7_DecryptKari");
     if (pkcs7 == NULL || pkiMsg == NULL ||
         idx == NULL || decryptedKey == NULL || decryptedKeySz == NULL) {
@@ -11628,7 +11611,8 @@ static int wc_PKCS7_DecryptKari(wc_PKCS7* pkcs7, byte* in, word32 inSz,
             ret = wc_PKCS7_KariParseRecipCert(kari, (byte*)pkcs7->singleCert,
                                           pkcs7->singleCertSz, pkcs7->privateKey,
                                           pkcs7->privateKeySz);
-            if (ret != 0) {
+
+             if (ret != 0) {
                 wc_PKCS7_KariFree(kari);
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -12127,7 +12111,6 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
                 return ret;
             }
             if ((ret = wc_PKCS7_SetMaxStream(pkcs7, in, inSz)) != 0) {
-                printf("ret of set max stream = %d\n", ret);
                 break;
             }
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
@@ -12136,7 +12119,6 @@ static int wc_PKCS7_ParseToRecipientInfoSet(wc_PKCS7* pkcs7, byte* in,
             if (ret == 0 && GetSequence_ex(pkiMsg, idx, &length, pkiMsgSz,
                         NO_USER_CHECK) < 0)
             {
-printf("ret of getsequence = %d\n", ret);
                 ret = ASN_PARSE_E;
             }
 
@@ -12271,7 +12253,6 @@ printf("ret of getsequence = %d\n", ret);
                         NO_USER_CHECK) < 0)
                 ret = ASN_PARSE_E;
 
-printf("Length of recipient inof set = %d\n", length);
             if (ret < 0)
                 break;
 
@@ -12483,13 +12464,11 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(wc_PKCS7* pkcs7, byte* in,
                 ret = ASN_PARSE_E;
             }
 
-printf("-1 ret = %d\n", ret);
             if (ret == 0 && wc_GetContentType(pkiMsg, &idx, &contentType,
                         pkiMsgSz) < 0) {
                 ret = ASN_PARSE_E;
             }
 
-printf("-2 ret = %d\n", ret);
             if (ret == 0) {
                 pkcs7->contentOID = (int)contentType;
             }
@@ -12499,7 +12478,6 @@ printf("-2 ret = %d\n", ret);
                 ret = ASN_PARSE_E;
             }
 
-printf("-3 ret = %d\n", ret);
             blockKeySz = wc_PKCS7_GetOIDKeySize((int)encOID);
             if (ret == 0 && blockKeySz < 0) {
                 ret = blockKeySz;
@@ -12515,24 +12493,20 @@ printf("-3 ret = %d\n", ret);
                 ret = ASN_PARSE_E;
             }
 
-printf("-4 ret = %d\n", ret);
             if (ret == 0 && tag != ASN_OCTET_STRING) {
                 ret = ASN_PARSE_E;
             }
 
-printf("-5 ret = %d\n", ret);
             if (ret == 0 && GetLength_ex(pkiMsg, &idx, &length, pkiMsgSz,
                         NO_USER_CHECK) < 0) {
                 ret = ASN_PARSE_E;
             }
 
-printf("-6 ret = %d\n", ret);
             if (ret == 0 && length != expBlockSz) {
                 WOLFSSL_MSG("Incorrect IV length, must be of content alg block size");
                 ret = ASN_PARSE_E;
             }
 
-printf("-7 ret = %d\n", ret);
             if (ret != 0)
                 break;
         #ifndef NO_PKCS7_STREAM
@@ -12584,12 +12558,9 @@ printf("-7 ret = %d\n", ret);
             }
             idx++;
 
-            if (ret == 0) {
-                ret = GetLength_ex(pkiMsg, &idx, &encryptedContentTotalSz,
-                                                            pkiMsgSz, 0);
-                if (ret < 0) {
-                    ret = ASN_PARSE_E;
-                }
+            if (ret == 0 && GetLength_ex(pkiMsg, &idx, &encryptedContentTotalSz,
+                                                            pkiMsgSz, 0) < 0) {
+                ret = ASN_PARSE_E;
             }
 
             if (ret != 0)
@@ -12603,7 +12574,6 @@ printf("-7 ret = %d\n", ret);
             if (explicitOctet) {
                 pkcs7->stream->expected = MAX_OCTET_STR_SZ;
             }
-printf("Expecting %d bytes... \n", pkcs7->stream->expected);
             wc_PKCS7_StreamGetVar(pkcs7, &encOID, &expBlockSz, 0);
             wc_PKCS7_StreamStoreVar(pkcs7, encOID, expBlockSz, explicitOctet);
         #endif
@@ -12613,7 +12583,6 @@ printf("Expecting %d bytes... \n", pkcs7->stream->expected);
         case WC_PKCS7_ENV_5:
 
         #ifndef NO_PKCS7_STREAM
-printf("inSz = %d pkcs7->length = %d, idx = %d expected = %d\n", inSz, pkcs7->stream->length, idx, pkcs7->stream->expected);
             if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
                 return ret;
@@ -12625,7 +12594,6 @@ printf("inSz = %d pkcs7->length = %d, idx = %d expected = %d\n", inSz, pkcs7->st
 
             pkiMsgSz = (pkcs7->stream->length > 0)? pkcs7->stream->length: inSz;
 
-            printf("pkcs7->length = %d pkimsgSz = %d\n", pkcs7->stream->length, pkiMsgSz);
             /* restore decrypted key */
             decryptedKey   = pkcs7->stream->aad;
             decryptedKeySz = pkcs7->stream->aadSz;
@@ -12650,16 +12618,15 @@ printf("inSz = %d pkcs7->length = %d, idx = %d expected = %d\n", inSz, pkcs7->st
                 while (1) {
                     if (pkiMsgSz <= localIdx) {
                         /* ran out of data to parse */
-printf("ran out of pkimsgsz, trying to read more from in\n");
-            if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
+                        if ((ret = wc_PKCS7_AddDataToStream(pkcs7, in, inSz,
                             pkcs7->stream->expected, &pkiMsg, &idx)) != 0) {
-                printf("error %d reading more\n", ret);
-                break;
-            }
+                            break;
+                        }
+                        pkiMsgSz = (pkcs7->stream->length > 0) ?
+                            pkcs7->stream->length : inSz;
                     }
 
                     localIdx = idx;
-                    printf("getting asn tag, idx = %d , pkiMsgSz = %d\n", idx, pkiMsgSz);
                     if (GetASNTag(pkiMsg, &localIdx, &tag, pkiMsgSz) < 0) {
                         if (localIdx >= pkiMsgSz) {
                             /* ran out of data to parse */
@@ -12674,7 +12641,6 @@ printf("ran out of pkimsgsz, trying to read more from in\n");
                         ret = ASN_PARSE_E;
                     }
 
-                    printf("ret [%d] getting length, idx = %d , pkiMsgSz = %d %02X %02X\n", ret, idx, pkiMsgSz, pkiMsg[localIdx], pkiMsg[localIdx+1]);
                     if (ret == 0 && GetLength_ex(pkiMsg, &localIdx,
                                 &encryptedContentSz, pkiMsgSz, 0) <= 0) {
                         if (localIdx + MAX_LENGTH_SZ >= pkiMsgSz) {
@@ -12689,12 +12655,6 @@ printf("ran out of pkimsgsz, trying to read more from in\n");
                         pkcs7->stream->expected = encryptedContentSz + (localIdx-idx);
                     }
 
-printf("Length of octet found is %d, pkiMsgSz = %d idx = %d\n", encryptedContentSz, pkiMsgSz, idx);
-{
-    int z;
-    for (z = 0; z < 6; z++) printf("%02X", pkiMsg[localIdx + z]);
-    printf("\n");
-}
                     if (ret == 0 &&
                          pkcs7->cachedEncryptedContentSz <
                          (word32)encryptedContentSz) {
@@ -12719,7 +12679,6 @@ printf("Length of octet found is %d, pkiMsgSz = %d idx = %d\n", encryptedContent
                             return ret;
                         }
                     }
-printf("caching?..\n");
 
                     /* Use callback for decryption still, if set */
                     if (ret == 0 && pkcs7->decryptionCb != NULL) {
@@ -12748,7 +12707,6 @@ printf("caching?..\n");
                         if (pkiMsg[localIdx] == ASN_EOC &&
                                 pkiMsg[localIdx+1] == ASN_EOC) {
                             /* found the end of encrypted content */
-printf("found end of BER indef, ret = %d\n", ret);
                             localIdx += ASN_INDEF_END_SZ;
                             break;
                         }
@@ -12758,15 +12716,12 @@ printf("found end of BER indef, ret = %d\n", ret);
             if ((ret = wc_PKCS7_StreamEndCase(pkcs7, &localIdx, &localIdx)) != 0) {
                 break;
             }
-printf("consumed and decrypted some, localIdx = %d, idx = %d\n", localIdx, idx);
-
 
                     /* save last decrypted string to handle padding (this output
                      * flush happens outside of the while loop in the case that
                      * the indef end was found) */
                     if (ret == 0) {
                         if (pkcs7->streamOutCb) {
-printf("flush out decrypted data\n");
                             ret = pkcs7->streamOutCb(pkcs7,
                                 pkcs7->cachedEncryptedContent,
                                 encryptedContentSz, pkcs7->streamCtx);
@@ -12805,15 +12760,7 @@ printf("flush out decrypted data\n");
             /* use cached content */
             encryptedContent = pkcs7->cachedEncryptedContent;
             encryptedContentSz = (int)pkcs7->cachedEncryptedContentSz;
-
-{
-    word32 z;
-    printf("last decryted block: ");
-    for (z = 0; z < pkcs7->cachedEncryptedContentSz; z++) printf("%02X", pkcs7->cachedEncryptedContent[z]);
-    printf("\n");
-}
             padLen = encryptedContent[encryptedContentSz-1];
-printf("padLen = %d\n", padLen);
 
             /* copy plaintext to output */
             if (padLen > encryptedContentSz) {
@@ -12824,7 +12771,6 @@ printf("padLen = %d\n", padLen);
             if (pkcs7->streamOutCb) {
                 ret = pkcs7->streamOutCb(pkcs7, encryptedContent,
                                 encryptedContentSz - padLen, pkcs7->streamCtx);
-                printf("ret of streamOutCb = %d\n", ret);
             }
             else {
                 if ((word32)(encryptedContentSz - padLen) > outputSz) {
@@ -12846,7 +12792,6 @@ printf("padLen = %d\n", padLen);
             }
 
             ret = encryptedContentSz - padLen;
-            printf("ret at 12836 = %d\n", ret);
         #ifndef NO_PKCS7_STREAM
             pkcs7->stream->aad = NULL;
             pkcs7->stream->aadSz = 0;
