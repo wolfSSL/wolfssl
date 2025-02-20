@@ -36950,7 +36950,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         /* compute the hash of the name */
         resp->responderIdType = OCSP_RESPONDER_ID_NAME;
         ret = CalcHashId_ex(source + idx, length,
-                resp->responderId.nameHash, WC_SHA);
+                resp->responderId.nameHash, OCSP_RESPONDER_ID_HASH_TYPE);
         if (ret != 0)
             return ret;
         idx += length;
@@ -37070,7 +37070,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
             ret = CalcHashId_ex(
                 dataASN[OCSPRESPDATAASN_IDX_BYNAME].data.ref.data,
                 dataASN[OCSPRESPDATAASN_IDX_BYNAME].data.ref.length,
-                resp->responderId.nameHash, WC_SHA);
+                resp->responderId.nameHash, OCSP_RESPONDER_ID_HASH_TYPE);
         } else {
             resp->responderIdType = OCSP_RESPONDER_ID_KEY;
             if (dataASN[OCSPRESPDATAASN_IDX_BYKEY_OCT].length

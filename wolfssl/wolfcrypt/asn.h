@@ -2733,6 +2733,11 @@ struct OcspEntry
 };
 
 #define OCSP_RESPONDER_ID_KEY_SZ 20
+#if !defined(NO_SHA)
+#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA
+#else
+#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA256
+#endif
 enum responderIdType {
     OCSP_RESPONDER_ID_INVALID = 0,
     OCSP_RESPONDER_ID_NAME = 1,
