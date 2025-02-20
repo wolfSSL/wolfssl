@@ -1009,6 +1009,7 @@ then
         test "$enable_dtls13" = "" && enable_dtls13=yes
     fi
 
+    test "$enable_haproxy" = "" && enable_haproxy=yes
     test "$enable_savesession" = "" && enable_savesession=yes
     test "$enable_savecert" = "" && enable_savecert=yes
     test "$enable_postauth" = "" && enable_postauth=yes
@@ -6502,9 +6503,9 @@ AC_ARG_ENABLE([secure-renegotiation],
     [ ENABLED_SECURE_RENEGOTIATION=no ]
     )
 
-if test "x$ENABLED_HAPROXY" = "xyes"
+if test "x$ENABLED_HAPROXY" = "xyes" && test "x$ENABLED_SECURE_RENEGOTIATION" != "xyes"
 then
-    ENABLED_SECURE_RENEGOTIATION=yes
+    ENABLED_RENEGOTIATION_INDICATION=yes
 fi
 
 if test "x$ENABLED_SECURE_RENEGOTIATION" = "xyes"
