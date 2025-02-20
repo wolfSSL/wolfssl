@@ -401,7 +401,7 @@ if __name__ == '__main__':
         },
     ]
 
-    with open('./tests/api/ocsp_test_blobs.h', 'w') as f:
+    with open('./tests/api/test_ocsp_test_blobs.h', 'w') as f:
         f.write(
 """/*
 * This file is generated automatically by running ./tests/api/create_ocsp_test_blobs.py.
