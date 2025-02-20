@@ -6995,6 +6995,28 @@ then
         ENABLED_DTLS="yes"
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS"
     fi
+
+    if test "x$ENABLED_DTLS13" = "xno"
+    then
+        ENABLED_DTLS13="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS13 -DWOLFSSL_W64_WRAPPER"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_DROP_STATS"
+        if test "x$ENABLED_SEND_HRR_COOKIE" = "xundefined"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SEND_HRR_COOKIE"
+            ENABLED_SEND_HRR_COOKIE="yes"
+        fi
+        if test "x$ENABLED_AES" = "xyes"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT"
+        fi
+    fi
+
+    if test "x$ENABLED_DTLS_MTU" = "xno"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DTLS_MTU"
+    fi
+
     if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
