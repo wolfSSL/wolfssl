@@ -14,7 +14,7 @@ OpenSSL.
 
 wolfSSL is powered by the wolfCrypt cryptography library. Two versions of
 wolfCrypt have been FIPS 140-2 validated (Certificate #2425 and
-certificate #3389). FIPS 140-3 validation is in progress. For additional
+certificate #3389). FIPS 140-3 validated (Certificate #4718). For additional
 information, visit the [wolfCrypt FIPS FAQ](https://www.wolfssl.com/license/fips/)
 or contact fips@wolfssl.com.
 
