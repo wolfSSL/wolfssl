@@ -36964,7 +36964,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
         if (GetOctetString(source, &idx, &length, size) < 0)
             return ASN_PARSE_E;
 
-        if (length != KEYID_SIZE)
+        if (length != OCSP_RESPONDER_ID_KEY_SZ)
             return ASN_PARSE_E;
         resp->responderIdType = OCSP_RESPONDER_ID_KEY;
         XMEMCPY(resp->responderId.keyHash, source + idx, length);
@@ -37027,7 +37027,7 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
     int ret = 0;
     byte version;
     word32 dateSz = 0;
-    word32 responderByKeySz = KEYID_SIZE;
+    word32 responderByKeySz = OCSP_RESPONDER_ID_KEY_SZ;
     word32 idx = *ioIndex;
     OcspEntry* single = NULL;
 
@@ -37073,7 +37073,8 @@ static int DecodeResponseData(byte* source, word32* ioIndex,
                 resp->responderId.nameHash, WC_SHA);
         } else {
             resp->responderIdType = OCSP_RESPONDER_ID_KEY;
-            if (dataASN[OCSPRESPDATAASN_IDX_BYKEY_OCT].length != KEYID_SIZE) {
+            if (dataASN[OCSPRESPDATAASN_IDX_BYKEY_OCT].length
+                    != OCSP_RESPONDER_ID_KEY_SZ) {
                 ret = ASN_PARSE_E;
             } else {
                 resp->responderIdType = OCSP_RESPONDER_ID_KEY;
@@ -37226,10 +37227,14 @@ enum {
 static int OcspRespIdMatch(OcspResponse *resp, const byte *NameHash,
     const byte *keyHash)
 {
+    if (resp->responderIdType == OCSP_RESPONDER_ID_INVALID)
+        return 0;
     if (resp->responderIdType == OCSP_RESPONDER_ID_NAME)
         return XMEMCMP(NameHash, resp->responderId.nameHash,
             SIGNER_DIGEST_SIZE) == 0;
-    return XMEMCMP(keyHash, resp->responderId.keyHash, KEYID_SIZE) == 0;
+    /* OCSP_RESPONDER_ID_KEY */
+    return ((int)KEYID_SIZE == OCSP_RESPONDER_ID_KEY_SZ) &&
+        XMEMCMP(keyHash, resp->responderId.keyHash, KEYID_SIZE) == 0;
 }
 
 #ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
@@ -37268,7 +37273,7 @@ static Signer *OcspFindSigner(OcspResponse *resp, WOLFSSL_CERT_MANAGER *cm)
         if (s)
             return s;
     }
-    else {
+    else if ((int)KEYID_SIZE == OCSP_RESPONDER_ID_KEY_SZ) {
         s = GetCAByKeyHash(cm, resp->responderId.keyHash);
         if (s)
             return s;
