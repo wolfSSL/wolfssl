@@ -22,6 +22,7 @@
 #ifndef TESTS_API_TEST_TLS_EMS_H
 #define TESTS_API_TEST_TLS_EMS_H
 
+int test_tls_ems_downgrade(void);
 int test_wolfSSL_DisableExtendedMasterSecret(void);
 
 #endif /* TESTS_API_TEST_TLS_EMS_H */
