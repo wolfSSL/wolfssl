@@ -134,7 +134,7 @@ static int DataToDerBuffer(const unsigned char* buff, word32 len, int format,
     /* Data in buffer has PEM format - extract DER data. */
     if (format == WOLFSSL_FILETYPE_PEM) {
     #ifdef WOLFSSL_PEM_TO_DER
-        ret = PemToDer(buff, len, type, der, heap, info, algId);
+        ret = PemToDer(buff, (long)(len), type, der, heap, info, algId);
         if (ret != 0) {
             FreeDer(der);
         }
@@ -1254,7 +1254,7 @@ static int ProcessBufferPrivPkcs8Dec(EncryptedInfo* info, DerBuffer* der,
     }
     if (ret >= 0) {
         /* Zero out encrypted data not overwritten. */
-        ForceZero(der->buffer + ret, der->length - ret);
+        ForceZero(der->buffer + ret, der->length - (word32)ret);
         /* Set decrypted data length. */
         der->length = (word32)ret;
     }
@@ -5228,7 +5228,8 @@ int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
 
     if (ret == 1) {
         /* Allocate memory to hold DER encoding.. */
-        der = (unsigned char*)XMALLOC(derSize, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        der = (unsigned char*)XMALLOC((size_t)derSize, NULL,
+                                            DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
             WOLFSSL_MSG("Malloc failure");
             ret = MEMORY_E;
@@ -5470,8 +5471,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     }
     if (ret == 1) {
         /* Copy p and g into allocated buffers. */
-        XMEMCPY(pAlloc, p, pSz);
-        XMEMCPY(gAlloc, g, gSz);
+        XMEMCPY(pAlloc, p, (size_t)pSz);
+        XMEMCPY(gAlloc, g, (size_t)gSz);
         /* Set the buffers into SSL. */
         ret = wolfssl_set_tmp_dh(ssl, pAlloc, pSz, gAlloc, gSz);
     }
@@ -5629,8 +5630,8 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
 
     if (ret == 1) {
         /* Copy p and g into allocated buffers. */
-        XMEMCPY(pAlloc, p, pSz);
-        XMEMCPY(gAlloc, g, gSz);
+        XMEMCPY(pAlloc, p, (size_t)pSz);
+        XMEMCPY(gAlloc, g, (size_t)gSz);
         /* Set the buffers into SSL context. */
         ret = wolfssl_ctx_set_tmp_dh(ctx, pAlloc, pSz, gAlloc, gSz);
     }
@@ -5682,8 +5683,8 @@ long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
 
     if (ret == 1) {
         /* Allocate buffers for p and g to be assigned into SSL. */
-        p = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        g = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        p = (byte*)XMALLOC((size_t)pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        g = (byte*)XMALLOC((size_t)gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((p == NULL) || (g == NULL)) {
             ret = MEMORY_E;
         }
@@ -5748,8 +5749,8 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
 
     if (ret == 1) {
         /* Allocate buffers for p and g to be assigned into SSL. */
-        p = (byte*)XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
-        g = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        p = (byte*)XMALLOC((size_t)pSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+        g = (byte*)XMALLOC((size_t)gSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if ((p == NULL) || (g == NULL)) {
             ret = MEMORY_E;
         }

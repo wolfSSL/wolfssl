@@ -814,7 +814,7 @@ int wc_SSH_KDF(byte hashId, byte keyId, byte* key, word32 keySz,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_HmacSizeByType(enmhashId);
+    ret = wc_HmacSizeByType((int)enmhashId);
     if (ret <= 0) {
         return BAD_FUNC_ARG;
     }

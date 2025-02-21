@@ -7520,7 +7520,7 @@ static int _HMAC_K(byte* K, word32 KSz, byte* V, word32 VSz,
 
     ret = init = wc_HmacInit(&hmac, heap, INVALID_DEVID);
     if (ret == 0)
-        ret = wc_HmacSetKey(&hmac, hashType, K, KSz);
+        ret = wc_HmacSetKey(&hmac, (int)hashType, K, KSz);
 
     if (ret == 0)
         ret = wc_HmacUpdate(&hmac, V, VSz);
