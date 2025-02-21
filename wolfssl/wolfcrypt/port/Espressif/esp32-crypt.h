@@ -33,6 +33,19 @@
     #error  "WOLFSSL_USER_SETTINGS must be defined for Espressif targets"
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Forward declarations */
+struct wolfSSL_Mutex;
+struct Aes;
+struct wc_Sha;
+struct wc_Sha256;
+struct wc_Sha512;
+
+/* Function declarations */
+
 #include "sdkconfig.h" /* ensure ESP-IDF settings are available everywhere */
 
 /* wolfSSL  */
@@ -658,65 +671,32 @@ enum {
 ******************************************************************************
 */
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 /*
 ******************************************************************************
-** Some common esp utilities
+** Function Declarations
 ******************************************************************************
 */
 
-    WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo(void);
+/* System utilities */
+WOLFSSL_LOCAL int esp_ShowExtendedSystemInfo(void);
+WOLFSSL_LOCAL esp_err_t esp_DisableWatchdog(void);
+WOLFSSL_LOCAL esp_err_t esp_EnableWatchdog(void);
 
-    WOLFSSL_LOCAL esp_err_t esp_DisableWatchdog(void);
+/* Math operations */
+WOLFSSL_LOCAL int esp_mp_cmp(char* name_A, MATH_INT_T* A, char* name_B, MATH_INT_T* B);
+WOLFSSL_LOCAL int esp_show_mp_attributes(char* c, MATH_INT_T* X);
+WOLFSSL_LOCAL int esp_show_mp(char* name_X, MATH_INT_T* X);
 
-    WOLFSSL_LOCAL esp_err_t esp_EnableWatchdog(void);
-
-    /* Compare MATH_INT_T A to MATH_INT_T B
-     * During debug, the strings name_A and name_B can help
-     * identify variable name. */
-    WOLFSSL_LOCAL int esp_mp_cmp(char* name_A, MATH_INT_T* A,
-                                 char* name_B, MATH_INT_T* B);
-
-    /* Show MATH_INT_T value attributes.  */
-    WOLFSSL_LOCAL int esp_show_mp_attributes(char* c, MATH_INT_T* X);
-
-    /* Show MATH_INT_T value.
-     *
-     * Calls esp_show_mp_attributes().
-     *
-     * During debug, the string name_A can help
-     * identify variable name. */
-    WOLFSSL_LOCAL int esp_show_mp(char* name_X, MATH_INT_T* X);
-
-    /* To use a Mutex, it must first be initialized. */
-    WOLFSSL_LOCAL int esp_CryptHwMutexInit(wolfSSL_Mutex* mutex);
-
-    /*  Take the mutex to indicate the HW is in use.  Wait up to [block_time].
-     *  When the HW in use the mutex will be locked. */
-    WOLFSSL_LOCAL int esp_CryptHwMutexLock(wolfSSL_Mutex* mutex,
-                                           TickType_t block_time);
-
-    /* Release the mutex to indicate the HW is no longer in use. */
-    WOLFSSL_LOCAL int esp_CryptHwMutexUnLock(wolfSSL_Mutex* mutex);
-
-    /* Validation active check. When active, we'll fall back to SW. */
-    WOLFSSL_LOCAL int esp_hw_validation_active(void);
-
-/*
-*******************************************************************************
-** AES features:
-*******************************************************************************
-*/
+/* Mutex operations */
+WOLFSSL_LOCAL int esp_CryptHwMutexInit(struct wolfSSL_Mutex* mutex);
+WOLFSSL_LOCAL int esp_CryptHwMutexLock(struct wolfSSL_Mutex* mutex, TickType_t block_time);
+WOLFSSL_LOCAL int esp_CryptHwMutexUnLock(struct wolfSSL_Mutex* mutex);
+WOLFSSL_LOCAL int esp_hw_validation_active(void);
 
 #ifndef NO_AES
-    /* wolfSSL does not use Espressif rom/aes.h */
-    struct Aes; /* see wolcrypt/aes.h */
+struct Aes; /* see wolcrypt/aes.h */
 
-    typedef enum tagES32_AES_PROCESS
+typedef enum tagES32_AES_PROCESS
     {
         ESP32_AES_LOCKHW            = 1,
         ESP32_AES_UPDATEKEY_ENCRYPT = 2,
@@ -730,20 +710,10 @@ extern "C"
     WOLFSSL_LOCAL int wc_esp32AesSupportedKeyLenValue(int keylen);
     WOLFSSL_LOCAL int wc_esp32AesSupportedKeyLen(struct Aes* aes);
 
-    WOLFSSL_LOCAL int wc_esp32AesCbcEncrypt(struct Aes* aes,
-                                            byte*  out,
-                                            const  byte* in,
-                                            word32 sz);
-    WOLFSSL_LOCAL int wc_esp32AesCbcDecrypt(struct Aes* aes,
-                                            byte*  out,
-                                            const  byte* in,
-                                            word32 sz);
-    WOLFSSL_LOCAL int wc_esp32AesEncrypt(   struct Aes* aes,
-                                            const  byte* in,
-                                            byte*  out);
-    WOLFSSL_LOCAL int wc_esp32AesDecrypt(   struct Aes* aes,
-                                            const  byte* in,
-                                            byte*  out);
+    WOLFSSL_LOCAL int wc_esp32AesCbcEncrypt(struct Aes* aes, byte* out, const byte* in, word32 sz);
+    WOLFSSL_LOCAL int wc_esp32AesCbcDecrypt(struct Aes* aes, byte* out, const byte* in, word32 sz);
+    WOLFSSL_LOCAL int wc_esp32AesEncrypt(struct Aes* aes, const byte* in, byte* out);
+    WOLFSSL_LOCAL int wc_esp32AesDecrypt(struct Aes* aes, const byte* in, byte* out);
 #endif /* ! NO_AES */
 
 #ifdef WOLFSSL_ESP32_CRYPT_DEBUG
@@ -753,11 +723,7 @@ extern "C"
 
 #endif /* WOLFSSL_ESP32_CRYPT_DEBUG */
 
-/*
-*******************************************************************************
-** Cryptographic hash algorithms (e.g. SHA[x]):
-*******************************************************************************
-*/
+/* Cryptographic hash algorithms (e.g. SHA[x]) */
 
 #if !defined(NO_WOLFSSL_ESP32_CRYPT_HASH) &&     \
    (!defined(NO_SHA) || !defined(NO_SHA256) ||          \
@@ -914,12 +880,6 @@ extern "C"
 #endif /* NO_SHA && etc */
 
 
-/*
-*******************************************************************************
-** RSA Big Math
-*******************************************************************************
-*/
-
 #if !defined(NO_RSA) || defined(HAVE_ECC)
 
     #if !defined(ESP_RSA_TIMEOUT_CNT)
@@ -927,20 +887,8 @@ extern "C"
     #endif
 
 #ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD
-    /*
-     * The parameter names in the Espressif implementation are arbitrary.
-     *
-     * The wolfSSL names come from DH: Y=G^x mod M  (see wolfcrypt/tfm.h)
-     *
-     * G=base, X is the private exponent, Y is the public value w
-     **/
 
-    /* Z = (X ^ Y) mod M   : Espressif generic notation    */
-    /* Y = (G ^ X) mod P   : wolfSSL DH reference notation */
-    WOLFSSL_LOCAL int esp_mp_exptmod(MATH_INT_T* X,    /* G  */
-                                     MATH_INT_T* Y,    /* X  */
-                                     MATH_INT_T* M,    /* P  */
-                                     MATH_INT_T* Z);   /* Y  */
+    WOLFSSL_LOCAL int esp_mp_exptmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z);
 
     /* HW_MATH_ENABLED is typically used in wolfcrypt tests */
     #undef  HW_MATH_ENABLED
@@ -948,21 +896,14 @@ extern "C"
 #endif /* ! NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_EXPTMOD */
 
 #ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL
-    /* Z = X * Y */
-    WOLFSSL_LOCAL int esp_mp_mul(MATH_INT_T* X,
-                                 MATH_INT_T* Y,
-                                 MATH_INT_T* Z);
+    WOLFSSL_LOCAL int esp_mp_mul(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* Z);
     /* HW_MATH_ENABLED is typically used in wolfcrypt tests */
     #undef  HW_MATH_ENABLED
     #define HW_MATH_ENABLED
 #endif /* ! NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MP_MUL */
 
 #ifndef NO_WOLFSSL_ESP32_CRYPT_RSA_PRI_MULMOD
-    /* Z = X * Y (mod M) */
-    WOLFSSL_LOCAL int esp_mp_mulmod(MATH_INT_T* X,
-                                    MATH_INT_T* Y,
-                                    MATH_INT_T* M,
-                                    MATH_INT_T* Z);
+    WOLFSSL_LOCAL int esp_mp_mulmod(MATH_INT_T* X, MATH_INT_T* Y, MATH_INT_T* M, MATH_INT_T* Z);
     /* HW_MATH_ENABLED is typically used in wolfcrypt tests */
     #undef  HW_MATH_ENABLED
     #define HW_MATH_ENABLED
@@ -971,25 +912,11 @@ extern "C"
 #endif /* !NO_RSA || HAVE_ECC*/
 
 
-/* Optionally enable some metrics to count interesting usage */
-/*
-*******************************************************************************
-** Usage metrics
-*******************************************************************************
-*/
 #ifdef WOLFSSL_HW_METRICS
     #define WOLFSSL_HAS_METRICS
-
-    /* Allow sha256 code to keep track of SW fallback during active HW */
     WOLFSSL_LOCAL int esp_sw_sha256_count_add(void);
-
-    /* show MP HW Metrics*/
     WOLFSSL_LOCAL int esp_hw_show_mp_metrics(void);
-
-    /* show SHA HW Metrics*/
     WOLFSSL_LOCAL int esp_hw_show_sha_metrics(void);
-
-    /* show all HW Metrics*/
     WOLFSSL_LOCAL int esp_hw_show_metrics(void);
 #endif
 
@@ -1000,12 +927,7 @@ WOLFSSL_LOCAL int esp_sha_stack_check(WC_ESP32SHA* sha);
 
 #endif /* WOLFSSL_STACK_CHECK */
 
-/*
- * Errata Mitigation. See
- *   esp32_errata_en.pdf
- *   esp32-c3_errata_en.pdf
- *   esp32-s3_errata_en.pdf
- */
+/* Errata Mitigation */
 #define ESP_MP_HW_LOCK_MAX_DELAY ( TickType_t ) 0xffUL
 
 #if defined(CONFIG_IDF_TARGET_ESP32) && !defined(ESP_NO_ERRATA_MITIGATION)
@@ -1102,6 +1024,10 @@ WOLFSSL_LOCAL int esp_sha_stack_check(WC_ESP32SHA* sha);
     #endif
 #else
     #warning "CONFIG_ESP_MAIN_TASK_STACK_SIZE not defined!"
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* WOLFSSL_ESPIDF (entire contents excluded when not Espressif ESP-IDF) */
