@@ -150,9 +150,17 @@ decouple library dependencies with standard string, memory and so on.
         /* The C standards don't define empty aggregates, but gcc and clang do.
          * We need to accommodate them for one of the same reasons C++ does --
          * conditionally empty aggregates, e.g. in hash.h.
+         *
+         * Nonetheless, in C++, empty aggregates wind up with size 1.  If we use
+         * the [0] construct and the header is compiled by clang++, it warns
+         * "struct has size 0 in C, size 1 in C++ [-Wextern-c-compat]", despite
+         * the extern "C" wrapper.  We sidestep this warning by recognizing
+         * here that C++ doesn't support truly empty aggregates.  LLVM, for its part,
+         * deprecates compilation of C code as C++ using clang++.
          */
         #if !defined(WOLF_C89) && defined(__GNUC__) &&  \
                 !defined(__STRICT_ANSI__) &&            \
+                !defined(__cplusplus) &&                \
                 defined(HAVE_ANONYMOUS_INLINE_AGGREGATES)
             #define HAVE_EMPTY_AGGREGATES 1
         #endif

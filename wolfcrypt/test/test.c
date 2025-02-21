@@ -17157,18 +17157,18 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t camellia_test(void)
     wc_Camellia cam;
     WOLFSSL_SMALL_STACK_STATIC const test_vector_t testVectors[] =
     {
-        {CAM_ECB_ENC, pte, ive, c1, k1, sizeof(k1), -114},
-        {CAM_ECB_ENC, pte, ive, c2, k2, sizeof(k2), -115},
-        {CAM_ECB_ENC, pte, ive, c3, k3, sizeof(k3), -116},
-        {CAM_ECB_DEC, pte, ive, c1, k1, sizeof(k1), -117},
-        {CAM_ECB_DEC, pte, ive, c2, k2, sizeof(k2), -118},
-        {CAM_ECB_DEC, pte, ive, c3, k3, sizeof(k3), -119},
-        {CAM_CBC_ENC, ptc, ivc, c4, k4, sizeof(k4), -120},
-        {CAM_CBC_ENC, ptc, ivc, c5, k5, sizeof(k5), -121},
-        {CAM_CBC_ENC, ptc, ivc, c6, k6, sizeof(k6), -122},
-        {CAM_CBC_DEC, ptc, ivc, c4, k4, sizeof(k4), -123},
-        {CAM_CBC_DEC, ptc, ivc, c5, k5, sizeof(k5), -124},
-        {CAM_CBC_DEC, ptc, ivc, c6, k6, sizeof(k6), -125}
+        {CAM_ECB_ENC, pte, ive, c1, k1, sizeof(k1), 114},
+        {CAM_ECB_ENC, pte, ive, c2, k2, sizeof(k2), 115},
+        {CAM_ECB_ENC, pte, ive, c3, k3, sizeof(k3), 116},
+        {CAM_ECB_DEC, pte, ive, c1, k1, sizeof(k1), 117},
+        {CAM_ECB_DEC, pte, ive, c2, k2, sizeof(k2), 118},
+        {CAM_ECB_DEC, pte, ive, c3, k3, sizeof(k3), 119},
+        {CAM_CBC_ENC, ptc, ivc, c4, k4, sizeof(k4), 120},
+        {CAM_CBC_ENC, ptc, ivc, c5, k5, sizeof(k5), 121},
+        {CAM_CBC_ENC, ptc, ivc, c6, k6, sizeof(k6), 122},
+        {CAM_CBC_DEC, ptc, ivc, c4, k4, sizeof(k4), 123},
+        {CAM_CBC_DEC, ptc, ivc, c5, k5, sizeof(k5), 124},
+        {CAM_CBC_DEC, ptc, ivc, c6, k6, sizeof(k6), 125}
     };
     int i, testsSz;
     int ret;
@@ -17178,7 +17178,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t camellia_test(void)
     for (i = 0; i < testsSz; i++) {
         if (wc_CamelliaSetKey(&cam, testVectors[i].key, testVectors[i].keySz,
                                                         testVectors[i].iv) != 0)
-            return testVectors[i].errorCode;
+            return WC_TEST_RET_ENC_I(testVectors[i].errorCode);
 
         switch (testVectors[i].type) {
             case CAM_ECB_ENC:
@@ -17186,28 +17186,28 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t camellia_test(void)
                                                 testVectors[i].plaintext);
                 if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
                                                         WC_CAMELLIA_BLOCK_SIZE))
-                    return testVectors[i].errorCode;
+                    return WC_TEST_RET_ENC_I(testVectors[i].errorCode);
                 break;
             case CAM_ECB_DEC:
                 ret = wc_CamelliaDecryptDirect(&cam, out,
                                                     testVectors[i].ciphertext);
                 if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
                                                         WC_CAMELLIA_BLOCK_SIZE))
-                    return testVectors[i].errorCode;
+                    return WC_TEST_RET_ENC_I(testVectors[i].errorCode);
                 break;
             case CAM_CBC_ENC:
                 ret = wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
                                                            WC_CAMELLIA_BLOCK_SIZE);
                 if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
                                                         WC_CAMELLIA_BLOCK_SIZE))
-                    return testVectors[i].errorCode;
+                    return WC_TEST_RET_ENC_I(testVectors[i].errorCode);
                 break;
             case CAM_CBC_DEC:
                 ret = wc_CamelliaCbcDecrypt(&cam, out,
                                 testVectors[i].ciphertext, WC_CAMELLIA_BLOCK_SIZE);
                 if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
                                                            WC_CAMELLIA_BLOCK_SIZE))
-                    return testVectors[i].errorCode;
+                    return WC_TEST_RET_ENC_I(testVectors[i].errorCode);
                 break;
             default:
                 break;
