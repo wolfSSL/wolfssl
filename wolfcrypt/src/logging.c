@@ -904,7 +904,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
  * Get the error value at the HEAD of the ERR queue or 0 if the queue
  * is empty. The HEAD entry is removed by this call.
  */
-unsigned long wc_GetErrorNodeErr(void)
+int wc_GetErrorNodeErr(void)
 {
     int ret;
 
@@ -923,7 +923,7 @@ unsigned long wc_GetErrorNodeErr(void)
             wc_ClearErrorNodes();
         }
     }
-    return (unsigned long)ret;
+    return ret;
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
@@ -1171,7 +1171,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             sz = WOLFSSL_MAX_ERROR_SZ - 1;
         }
         if (sz > 0) {
-            XMEMCPY(err->error, buf, sz);
+            XMEMCPY(err->error, buf, (size_t)sz);
         }
 
         sz = (int)XSTRLEN(file);
@@ -1179,7 +1179,7 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             sz = WOLFSSL_MAX_ERROR_SZ - 1;
         }
         if (sz > 0) {
-            XMEMCPY(err->file, file, sz);
+            XMEMCPY(err->file, file, (size_t)sz);
         }
 
         err->value = error;
@@ -1420,7 +1420,7 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     }
 }
 
-unsigned long wc_GetErrorNodeErr(void)
+int wc_GetErrorNodeErr(void)
 {
     int ret;
 
@@ -1428,7 +1428,7 @@ unsigned long wc_GetErrorNodeErr(void)
 
     if (ERRQ_LOCK() != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
-        return (unsigned long)(0 - BAD_MUTEX_E);
+        return (0 - BAD_MUTEX_E);
     }
 
     ret = pullErrorNode(NULL, NULL, NULL);
@@ -1595,10 +1595,10 @@ unsigned long wc_PeekErrorNodeLineData(const char **file, int *line,
     return (unsigned long)(0 - NOT_COMPILED_IN);
 }
 
-unsigned long wc_GetErrorNodeErr(void)
+int wc_GetErrorNodeErr(void)
 {
     WOLFSSL_ENTER("wc_GetErrorNodeErr");
-    return (unsigned long)(0 - NOT_COMPILED_IN);
+    return (0 - NOT_COMPILED_IN);
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)

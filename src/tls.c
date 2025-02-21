@@ -1036,7 +1036,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     if (ret != 0)
         return ret;
 
-    XMEMSET(hmac->innerHash, 0, macLen);
+    XMEMSET(hmac->innerHash, 0, (size_t)macLen);
 
     if (safeBlocks > 0) {
         ret = Hmac_HashUpdate(hmac, header, headerSz);
@@ -1051,7 +1051,7 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
     else
         safeBlocks = 0;
 
-    XMEMSET(digest, 0, macLen);
+    XMEMSET(digest, 0, (size_t)macLen);
     k = (unsigned int)(safeBlocks * blockSz);
     for (i = safeBlocks; i < blocks; i++) {
         unsigned char hashBlock[WC_MAX_BLOCK_SIZE];
@@ -1202,8 +1202,8 @@ static int Hmac_UpdateFinal(Hmac* hmac, byte* digest, const byte* in,
     ret = wc_HmacUpdate(hmac, header, headerSz);
     if (ret == 0) {
         /* Fill the rest of the block with any available data. */
-        word32 currSz = ctMaskLT((int)msgSz, blockSz) & msgSz;
-        currSz |= ctMaskGTE((int)msgSz, blockSz) & blockSz;
+        word32 currSz = ctMaskLT((int)msgSz, (int)blockSz) & msgSz;
+        currSz |= ctMaskGTE((int)msgSz, (int)blockSz) & blockSz;
         currSz -= WOLFSSL_TLS_HMAC_INNER_SZ;
         currSz &= ~(0 - (currSz >> 31));
         ret = wc_HmacUpdate(hmac, in, currSz);
@@ -1350,7 +1350,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     #ifdef HAVE_BLAKE2
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(&hmac, digest, in,
-                        sz + hashSz + padSz + 1, myInner, innerSz);
+                        sz + hashSz + (word32)padSz + 1, myInner, innerSz);
             }
             else
     #endif
@@ -1361,8 +1361,9 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 
             }
 #else
-            ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz + padSz + 1,
-                    myInner, innerSz);
+            ret = Hmac_UpdateFinal(&hmac, digest, in, sz + hashSz +
+                                        (word32)(padSz) + 1,
+                                        myInner, innerSz);
 #endif
         }
         else {
@@ -3543,7 +3544,7 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, const byte* input, word16 length,
 
                         if (request) {
                             XMEMCPY(request->nonce, csr->request.ocsp[0].nonce,
-                                                    csr->request.ocsp[0].nonceSz);
+                                        (size_t)csr->request.ocsp[0].nonceSz);
                             request->nonceSz = csr->request.ocsp[0].nonceSz;
                         }
                     }
@@ -3753,14 +3754,14 @@ int TLSX_CSR_InitRequest_ex(TLSX* extensions, DecodedCert* cert,
                         csr->requests--;
                 }
                 /* preserve nonce */
-                XMEMCPY(nonce, request->nonce, nonceSz);
+                XMEMCPY(nonce, csr->request.ocsp->nonce, (size_t)nonceSz);
 
                 if (req_cnt < MAX_CERT_EXTENSIONS) {
                     if ((ret = InitOcspRequest(request, cert, 0, heap)) != 0)
                         return ret;
 
                     /* restore nonce */
-                    XMEMCPY(request->nonce, nonce, nonceSz);
+                    XMEMCPY(csr->request.ocsp->nonce, nonce, (size_t)nonceSz);
                     request->nonceSz = nonceSz;
                     csr->requests++;
                 }
@@ -4075,7 +4076,7 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, const byte* input, word16 length,
                             if (request) {
                                 XMEMCPY(request->nonce,
                                         csr2->request.ocsp[0].nonce,
-                                        csr2->request.ocsp[0].nonceSz);
+                                        (size_t)csr2->request.ocsp[0].nonceSz);
 
                                 request->nonceSz =
                                                   csr2->request.ocsp[0].nonceSz;
@@ -4295,7 +4296,8 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
                     int  nonceSz = csr2->request.ocsp[0].nonceSz;
 
                     /* preserve nonce, replicating nonce of ocsp[0] */
-                    XMEMCPY(nonce, csr2->request.ocsp[0].nonce, nonceSz);
+                    XMEMCPY(nonce, csr2->request.ocsp[0].nonce,
+                    (size_t)nonceSz);
 
                     if ((ret = InitOcspRequest(
                                       &csr2->request.ocsp[csr2->requests], cert,
@@ -4304,7 +4306,7 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
 
                     /* restore nonce */
                     XMEMCPY(csr2->request.ocsp[csr2->requests].nonce,
-                                                                nonce, nonceSz);
+                                                        nonce, (size_t)nonceSz);
                     csr2->request.ocsp[csr2->requests].nonceSz = nonceSz;
                     csr2->requests++;
                 }
