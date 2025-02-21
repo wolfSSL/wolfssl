@@ -744,11 +744,35 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             if (XSTRCMP(pqcAlg, "P384_ML_KEM_768") == 0) {
                 groups[count] = WOLFSSL_P384_ML_KEM_768;
             }
+            else if (XSTRCMP(pqcAlg, "P256_ML_KEM_768") == 0) {
+                groups[count] = WOLFSSL_P256_ML_KEM_768;
+            }
             else
         #endif
         #ifndef WOLFSSL_NO_ML_KEM_1024
             if (XSTRCMP(pqcAlg, "P521_ML_KEM_1024") == 0) {
                 groups[count] = WOLFSSL_P521_ML_KEM_1024;
+            }
+            else if (XSTRCMP(pqcAlg, "P384_ML_KEM_1024") == 0) {
+                groups[count] = WOLFSSL_P384_ML_KEM_1024;
+            }
+            else
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_512) && defined(HAVE_CURVE25519)
+            if (XSTRCMP(pqcAlg, "X25519_ML_KEM_512") == 0) {
+                groups[count] = WOLFSSL_X25519_ML_KEM_512;
+            }
+            else
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE25519)
+            if (XSTRCMP(pqcAlg, "X25519_ML_KEM_768") == 0) {
+                groups[count] = WOLFSSL_X25519_ML_KEM_768;
+            }
+            else
+        #endif
+        #if !defined(WOLFSSL_NO_ML_KEM_768) && defined(HAVE_CURVE448)
+            if (XSTRCMP(pqcAlg, "X448_ML_KEM_768") == 0) {
+                groups[count] = WOLFSSL_X448_ML_KEM_768;
             }
             else
         #endif
@@ -782,11 +806,32 @@ static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519,
             if (XSTRCMP(pqcAlg, "P384_KYBER_LEVEL3") == 0) {
                 groups[count] = WOLFSSL_P384_KYBER_LEVEL3;
             }
+            else if (XSTRCMP(pqcAlg, "P256_KYBER_LEVEL3") == 0) {
+                groups[count] = WOLFSSL_P256_KYBER_LEVEL3;
+            }
             else
         #endif
         #ifndef WOLFSSL_NO_KYBER1024
             if (XSTRCMP(pqcAlg, "P521_KYBER_LEVEL5") == 0) {
                 groups[count] = WOLFSSL_P521_KYBER_LEVEL5;
+            }
+            else
+        #endif
+        #if !defined(WOLFSSL_NO_KYBER512) && defined(HAVE_CURVE25519)
+            if (XSTRCMP(pqcAlg, "X25519_KYBER_LEVEL1") == 0) {
+                groups[count] = WOLFSSL_X25519_KYBER_LEVEL1;
+            }
+            else
+        #endif
+        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE25519)
+            if (XSTRCMP(pqcAlg, "X25519_KYBER_LEVEL3") == 0) {
+                groups[count] = WOLFSSL_X25519_KYBER_LEVEL3;
+            }
+            else
+        #endif
+        #if !defined(WOLFSSL_NO_KYBER768) && defined(HAVE_CURVE448)
+            if (XSTRCMP(pqcAlg, "X448_KYBER_LEVEL3") == 0) {
+                groups[count] = WOLFSSL_X448_KYBER_LEVEL3;
             }
             else
         #endif
@@ -1027,12 +1072,18 @@ static const char* server_usage_msg[][66] = {
 #ifndef WOLFSSL_NO_ML_KEM
             "            ML_KEM_512, ML_KEM_768, ML_KEM_1024, P256_ML_KEM_512,"
             "\n"
-            "            P384_ML_KEM_768, P521_ML_KEM_1024\n"
+            "            P384_ML_KEM_768, P256_ML_KEM_768, P521_ML_KEM_1024,\n"
+            "            P384_ML_KEM_1024, X25519_ML_KEM_512, "
+            "X25519_ML_KEM_768,\n"
+            "            X448_ML_KEM_768\n"
 #endif
 #ifdef WOLFSSL_KYBER_ORIGINAL
             "            KYBER_LEVEL1, KYBER_LEVEL3, KYBER_LEVEL5, "
             "P256_KYBER_LEVEL1,\n"
-            "            P384_KYBER_LEVEL3, P521_KYBER_LEVEL5\n"
+            "            P384_KYBER_LEVEL3, P256_KYBER_LEVEL3, "
+            "P521_KYBER_LEVEL5,\n"
+            "            X25519_KYBER_LEVEL1, X25519_KYBER_LEVEL3, "
+            "X448_KYBER_LEVEL3\n"
 #endif
             "",
                                                                         /* 60 */

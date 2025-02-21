@@ -13607,7 +13607,8 @@ int wolfSSL_UseKeyShare(WOLFSSL* ssl, word16 group)
 #endif
 
 #if defined(WOLFSSL_HAVE_KYBER)
-    if (WOLFSSL_NAMED_GROUP_IS_PQC(group)) {
+    if (WOLFSSL_NAMED_GROUP_IS_PQC(group) ||
+        WOLFSSL_NAMED_GROUP_IS_PQC_HYBRID(group)) {
 
         if (ssl->ctx != NULL && ssl->ctx->method != NULL &&
             !IsAtLeastTLSv1_3(ssl->version)) {
