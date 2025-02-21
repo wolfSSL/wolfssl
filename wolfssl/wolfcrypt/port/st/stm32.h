@@ -173,7 +173,8 @@ int  wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
     #if !defined(STM32_HAL_V2) && defined(CRYP_AES_GCM) && \
         (defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32L5) || \
          defined(WOLFSSL_STM32H7) || defined(WOLFSSL_STM32U5)) || \
-         defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13)
+         defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32MP13) || \
+         defined(WOLFSSL_STM32H7S)
         #define STM32_HAL_V2
     #endif
 
