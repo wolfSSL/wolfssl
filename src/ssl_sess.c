@@ -3757,7 +3757,7 @@ static int wolfSSL_DupSessionEx(const WOLFSSL_SESSION* input,
     word16 ticLenAlloc = 0;
     byte *ticBuff = NULL;
 #endif
-    const size_t copyOffset = OFFSETOF(WOLFSSL_SESSION, heap) +
+    const size_t copyOffset = WC_OFFSETOF(WOLFSSL_SESSION, heap) +
         sizeof(input->heap);
     int ret = WOLFSSL_SUCCESS;
 

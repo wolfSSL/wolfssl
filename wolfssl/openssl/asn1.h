@@ -219,11 +219,11 @@ typedef struct WOLFSSL_ASN1_ITEM WOLFSSL_ASN1_ITEM;
             mtype##_member_data, \
             sizeof(mtype##_member_data) / sizeof(WOLFSSL_ASN1_TEMPLATE), \
             sizeof(mtype) ,\
-            OFFSETOF(mtype, type) \
+            WC_OFFSETOF(mtype, type) \
     };
 
 #define ASN1_TYPE(type, member, tag, first_byte, exp, seq) \
-    OFFSETOF(type, member), tag, first_byte, exp, seq
+    WC_OFFSETOF(type, member), tag, first_byte, exp, seq
 
 /* Function callbacks need to be defined immediately otherwise we will
  * incorrectly expand the type. Ex: ASN1_INTEGER -> WOLFSSL_ASN1_INTEGER */
