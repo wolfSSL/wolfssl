@@ -90,7 +90,7 @@ This library contains implementation for the random number generator.
     #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
     #include <windows.h>
     #include <wincrypt.h>
-    #undef _WINSOCKAPI_
+    #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
 #elif defined(HAVE_WNR)
     #include <wnr.h>
     #include <wolfssl/wolfcrypt/logging.h>

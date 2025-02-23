@@ -125,6 +125,7 @@
         #if defined(USE_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
             #include <process.h>
         #elif defined(__OS2__)
             #define INCL_DOSSEMAPHORES
@@ -143,6 +144,7 @@
         #if defined(USE_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
             #include <windows.h>
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
         #elif defined(__OS2__)
             #include <os2.h>
         #endif
@@ -162,8 +164,7 @@
         #if !defined(WOLFSSL_SGX) && !defined(WOLFSSL_NOT_WINDOWS_API)
             #define _WINSOCKAPI_ /* block inclusion of winsock.h header file. */
             #include <windows.h>
-            /* winsock2.h expects _WINSOCKAPI_ to be undef, and defines it. */
-            #undef _WINSOCKAPI_
+            #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
             #ifndef WOLFSSL_USER_IO
                 #include <winsock2.h>
                 #include <ws2tcpip.h> /* required for InetPton */
@@ -1218,6 +1219,7 @@ WOLFSSL_ABI WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(_WIN32_WCE)
     #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
     #include <windows.h>
+    #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
     #include <stdlib.h> /* For file system */
 
     time_t windows_time(time_t* timer);
