@@ -9471,7 +9471,7 @@ static void DtlsMsgAssembleCompleteMessage(DtlsMsg* msg)
      * alignment of char.
      */
     dtls = (DtlsHandShakeHeader*)(void *)((char *)msg->fragBucketList
-                                          + OFFSETOF(DtlsFragBucket,buf)
+                                          + WC_OFFSETOF(DtlsFragBucket,buf)
                                           - DTLS_HANDSHAKE_HEADER_SZ);
 
     msg->fragBucketList = NULL;

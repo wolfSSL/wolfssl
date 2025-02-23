@@ -1004,15 +1004,14 @@ typedef struct w64wrapper {
         #define XTOLOWER(c)      tolower((c))
     #endif
 
-    #ifdef __WATCOMC__
-        /* avoid OFFSETOF conflict in os2def.h */
-        #undef OFFSETOF
-    #endif
-    #ifndef OFFSETOF
+    #ifndef WC_OFFSETOF
         #if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 4))
-            #define OFFSETOF(type, field) __builtin_offsetof(type, field)
+            #define WC_OFFSETOF(type, field) __builtin_offsetof(type, field)
+        #elif defined(__WATCOMC__)
+            #include <stddef.h>
+            #define WC_OFFSETOF    offsetof
         #else
-            #define OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
+            #define WC_OFFSETOF(type, field) ((size_t)&(((type *)0)->field))
         #endif
     #endif
 
