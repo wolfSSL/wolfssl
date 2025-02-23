@@ -18,6 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
 
+.ONESHELL:
 SHELL=bash
 
 ifeq "$(WOLFSSL_OBJ_FILES)" ""
@@ -158,30 +159,30 @@ rename-pie-text-and-data-sections:
 ifneq "$(quiet)" "silent_"
 	@echo -n '  Checking wolfCrypt for unresolved symbols and forbidden relocations... '
 endif
-	@cd "$(obj)" || exit $$?; \
-	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?; \
-	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?; \
-	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2; \
-	rm wolfcrypt_test_link.o; \
-	if [ -n "$$undefined" ]; then \
-	    echo "wolfCrypt container has unresolved symbols:" 1>&2; \
-	    echo "$$undefined" 1>&2; \
-	    exit 1; \
-	fi; \
-	if [ -n "$$GOT_relocs" ]; then \
-	    echo "wolfCrypt container has GOT relocations (non-local function address used as operand?):" 1>&2; \
-	    echo "$$GOT_relocs" 1>&2; \
-	    exit 1; \
+	@cd "$(obj)" || exit $$?
+	$(LD) -relocatable -o wolfcrypt_test_link.o $(WOLFCRYPT_PIE_FILES) || exit $$?
+	undefined=$$($(NM) --undefined-only wolfcrypt_test_link.o) || exit $$?
+	GOT_relocs=$$($(READELF) --relocs --wide wolfcrypt_test_link.o | egrep '^[^ ]+ +[^ ]+ +[^ ]*GOT[^ ]* ') || [ $$? = 1 ] || exit 2
+	rm wolfcrypt_test_link.o
+	if [ -n "$$undefined" ]; then
+	    echo "wolfCrypt container has unresolved symbols:" 1>&2
+	    echo "$$undefined" 1>&2
+	    exit 1
+	fi
+	if [ -n "$$GOT_relocs" ]; then
+	    echo "wolfCrypt container has GOT relocations (non-local function address used as operand?):" 1>&2
+	    echo "$$GOT_relocs" 1>&2
+	    exit 1
 	fi
 ifneq "$(quiet)" "silent_"
-	@echo 'OK.'
+	echo 'OK.'
 endif
-	@cd "$(obj)" || exit $$?; \
-	for file in $(WOLFCRYPT_PIE_FILES); do \
-	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt --rename-section .rodata=.rodata.wolfcrypt "$$file" || exit $$?; \
+	cd "$(obj)" || exit $$?
+	for file in $(WOLFCRYPT_PIE_FILES); do
+	    $(OBJCOPY) --rename-section .text=.text.wolfcrypt --rename-section .data=.data.wolfcrypt --rename-section .rodata=.rodata.wolfcrypt "$$file" || exit $$?
 	done
 ifneq "$(quiet)" "silent_"
-	@echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
+	echo '  wolfCrypt .{text,data,rodata} sections containerized to .{text,data,rodata}.wolfcrypt'
 endif
 
 $(obj)/linuxkm/module_exports.c: rename-pie-text-and-data-sections
@@ -192,14 +193,20 @@ endif
 # auto-generate the exported symbol list, leveraging the WOLFSSL_API visibility tags.
 # exclude symbols that don't match wc_* or wolf*.
 $(obj)/linuxkm/module_exports.c: $(src)/module_exports.c.template $(WOLFSSL_OBJ_TARGETS)
-	@cp $< $@
-	@$(READELF) --symbols --wide $(WOLFSSL_OBJ_TARGETS) |				\
-		$(AWK) '/^ *[0-9]+: / {							\
-		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}				\
-		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {	\
-		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", EXPORT_SYMBOL_NS_Q(WOLFSSL));";\
-		  }									\
-		}' >> $@
-	@echo -e '#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, EXPORT_SYMBOL_NS_Q(WOLFSSL));\n#endif' >> $@
+	@cp $< $@ || exit $$?
+	if [[ "$${VERSION}" -gt 6 || ("$${VERSION}" -eq 6 && "$${PATCHLEVEL}" -ge 13) ]]; then
+	    # use ASCII octal escape to avoid syntax disruption in the awk script.
+	    ns='\042WOLFSSL\042'
+	else
+	    ns='WOLFSSL'
+	fi
+	$(READELF) --symbols --wide $(WOLFSSL_OBJ_TARGETS) |
+		$(AWK) '/^ *[0-9]+: / {
+		  if ($$8 !~ /^(wc_|wolf|WOLF|TLSX_)/){next;}
+		  if (($$4 == "FUNC") && ($$5 == "GLOBAL") && ($$6 == "DEFAULT")) {
+		    print "EXPORT_SYMBOL_NS_GPL(" $$8 ", '"$$ns"');";
+		  }
+		}' >> $@ || exit $$?
+	echo -e "#ifndef NO_CRYPT_TEST\nEXPORT_SYMBOL_NS_GPL(wolfcrypt_test, $${ns});\n#endif" >> $@
 
 clean-files := linuxkm src wolfcrypt

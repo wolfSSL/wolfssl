@@ -47,12 +47,6 @@
 #define EXPORT_SYMBOL_NS_GPL(sym, ns) EXPORT_SYMBOL_GPL(sym)
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0))
-#define EXPORT_SYMBOL_NS_Q(x) #x
-#else
-#define EXPORT_SYMBOL_NS_Q(x) x
-#endif
-
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/logging.h>
