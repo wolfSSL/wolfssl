@@ -77,6 +77,12 @@ jobs:
           ref: v${{ matrix.ref }}
           path: mosquitto
 
+      - name: Update certs
+        run: |
+            cd $GITHUB_WORKSPACE/mosquitto/test/ssl
+            ./gen.sh
+            cat all-ca.crt >> server.crt
+
       - name: Configure and build mosquitto
         run: |
             cd $GITHUB_WORKSPACE/mosquitto/
