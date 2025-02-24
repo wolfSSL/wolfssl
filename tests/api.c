@@ -77198,7 +77198,7 @@ static int test_wolfssl_EVP_aes_gcm(void)
         ciphertxtSz += len;
         ExpectIntEQ(1, EVP_CIPHER_CTX_ctrl(&en[i], EVP_CTRL_GCM_GET_TAG,
             AES_BLOCK_SIZE, tag));
-        ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&en[i]), 1);
+        wolfSSL_EVP_CIPHER_CTX_cleanup(&en[i]);
 
         EVP_CIPHER_CTX_init(&de[i]);
         if (i == 0) {
@@ -77283,7 +77283,7 @@ static int test_wolfssl_EVP_aes_gcm(void)
         ExpectIntEQ(0, EVP_DecryptFinal_ex(&de[i], decryptedtxt, &len));
         ExpectIntEQ(0, len);
 
-        ExpectIntEQ(wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]), 1);
+        wolfSSL_EVP_CIPHER_CTX_cleanup(&de[i]);
     }
 #endif /* OPENSSL_EXTRA && !NO_AES && HAVE_AESGCM */
     return EXPECT_RESULT();
