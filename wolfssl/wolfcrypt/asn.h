@@ -2732,6 +2732,12 @@ struct OcspEntry
     WC_BITFIELD used:1;                   /* entry used                */
 };
 
+#define OCSP_RESPONDER_ID_KEY_SZ 20
+#if !defined(NO_SHA)
+#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA
+#else
+#define OCSP_RESPONDER_ID_HASH_TYPE WC_SHA256
+#endif
 enum responderIdType {
     OCSP_RESPONDER_ID_INVALID = 0,
     OCSP_RESPONDER_ID_NAME = 1,
@@ -2750,7 +2756,7 @@ struct OcspResponse {
 
     enum responderIdType responderIdType;
     union {
-        byte keyHash[KEYID_SIZE];
+        byte keyHash[OCSP_RESPONDER_ID_KEY_SZ];
         byte nameHash[KEYID_SIZE];
     } responderId ;
 
