@@ -3620,6 +3620,22 @@ extern void uITRON4_free(void *p) ;
     #ifdef __PIE__
         #define WC_NO_INTERNAL_FUNCTION_POINTERS
     #endif
+
+    #ifndef NO_OLD_WC_NAMES
+        #define NO_OLD_WC_NAMES
+    #endif
+    #ifndef NO_OLD_SHA_NAMES
+        #define NO_OLD_SHA_NAMES
+    #endif
+    #ifndef NO_OLD_MD5_NAME
+        #define NO_OLD_MD5_NAME
+    #endif
+    #ifndef OPENSSL_COEXIST
+        #define OPENSSL_COEXIST
+    #endif
+    #ifndef NO_OLD_SSL_NAMES
+        #define NO_OLD_SSL_NAMES
+    #endif
 #endif
 
 
