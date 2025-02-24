@@ -38,7 +38,7 @@
     #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
     #include <windows.h>
     #include <wincrypt.h>
-    #undef _WINSOCKAPI_
+    #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
 
     /* mingw gcc does not support pragma comment, and the
      * linking with crypt32 is handled in configure.ac */

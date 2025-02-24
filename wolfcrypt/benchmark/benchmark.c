@@ -14584,7 +14584,7 @@ void bench_sphincsKeySign(byte level, byte optim)
     #define WIN32_LEAN_AND_MEAN
     #define _WINSOCKAPI_ /* block inclusion of winsock.h header file */
     #include <windows.h>
-    #undef _WINSOCKAPI_
+    #undef _WINSOCKAPI_ /* undefine it for MINGW winsock2.h header file */
 
     double current_time(int reset)
     {
