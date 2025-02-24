@@ -212,7 +212,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)
     #endif
     {
         ret = wc_CryptoCb_Cmac(cmac, NULL, 0, in, inSz,
-                NULL, NULL, cmac->type, NULL);
+            NULL, NULL, (int)cmac->type, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
         /* fall-through when unavailable */
@@ -294,8 +294,8 @@ int wc_CmacFinalNoFree(Cmac* cmac, byte* out, word32* outSz)
     if (cmac->devId != INVALID_DEVID)
     #endif
     {
-        ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz, cmac->type,
-                NULL);
+        ret = wc_CryptoCb_Cmac(cmac, NULL, 0, NULL, 0, out, outSz,
+            (int)cmac->type, NULL);
         if (ret != WC_NO_ERR_TRACE(CRYPTOCB_UNAVAILABLE))
             return ret;
 

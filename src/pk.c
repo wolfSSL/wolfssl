@@ -414,7 +414,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
 
     if (ret == 0) {
         /* Generate a random salt. */
-        if (wolfSSL_RAND_bytes(info->iv, info->ivSz) != 1) {
+        if (wolfSSL_RAND_bytes(info->iv, (int)info->ivSz) != 1) {
             WOLFSSL_MSG("generate iv failed");
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -422,7 +422,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
 
     if (ret == 0) {
         /* Calculate padding size - always a padding block. */
-        paddingSz = info->ivSz - ((*derSz) % info->ivSz);
+        paddingSz = (int)info->ivSz - ((*derSz) % (int)info->ivSz);
         /* Check der is big enough. */
         if (maxDerSz < (*derSz) + paddingSz) {
             WOLFSSL_MSG("not enough DER buffer allocated");
@@ -431,7 +431,7 @@ int EncryptDerKey(byte *der, int *derSz, const WOLFSSL_EVP_CIPHER* cipher,
     }
     if (ret == 0) {
         /* Set padding bytes to padding length. */
-        XMEMSET(der + (*derSz), (byte)paddingSz, paddingSz);
+        XMEMSET(der + (*derSz), (byte)paddingSz, (size_t)paddingSz);
         /* Add padding to DER size. */
         (*derSz) += (int)paddingSz;
 
@@ -5645,7 +5645,8 @@ static int dsa_do_verify(const unsigned char* d, int dLen, unsigned char* sig,
     ret = dLen == WC_SHA_DIGEST_SIZE ?
           wc_DsaVerify(d, sig, (DsaKey*)dsa->internal, dsacheck) : BAD_FUNC_ARG;
 #else
-    ret = wc_DsaVerify_ex(d, dLen, sig, (DsaKey*)dsa->internal, dsacheck);
+    ret = wc_DsaVerify_ex(d, (word32)dLen, sig, (DsaKey*)dsa->internal,
+        dsacheck);
 #endif
     if (ret != 0) {
         WOLFSSL_MSG("DsaVerify failed");
@@ -9490,16 +9491,16 @@ int wolfSSL_i2d_ECPKParameters(const WOLFSSL_EC_GROUP* grp, unsigned char** pp)
 
     /* Get the actual DER encoding of the OID. ecc_sets[grp->curve_idx].oid
      * is just the numerical representation. */
-    if (wc_ecc_get_oid(grp->curve_oid, &oid, &oidSz) < 0)
+    if (wc_ecc_get_oid((word32)grp->curve_oid, &oid, &oidSz) < 0)
         return WOLFSSL_FATAL_ERROR;
 
-    len = SetObjectId(oidSz, NULL) + oidSz;
+    len = SetObjectId((int)oidSz, NULL) + (int)oidSz;
 
     if (pp == NULL)
         return len;
 
     if (*pp == NULL) {
-        out = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ASN1);
+        out = (unsigned char*)XMALLOC((size_t)len, NULL, DYNAMIC_TYPE_ASN1);
         if (out == NULL)
             return WOLFSSL_FATAL_ERROR;
     }
@@ -9507,7 +9508,7 @@ int wolfSSL_i2d_ECPKParameters(const WOLFSSL_EC_GROUP* grp, unsigned char** pp)
         out = *pp;
     }
 
-    idx = SetObjectId(oidSz, out);
+    idx = SetObjectId((int)oidSz, out);
     XMEMCPY(out + idx, oid, oidSz);
     if (*pp == NULL)
         *pp = out;
@@ -10288,7 +10289,7 @@ WOLFSSL_EC_POINT* wolfSSL_EC_POINT_hex2point(const WOLFSSL_EC_GROUP *group,
 
     key_sz = (wolfSSL_EC_GROUP_get_degree(group) + 7) / 8;
     if (hex[0] ==  '0' && hex[1] == '4') { /* uncompressed mode */
-        str_sz = key_sz * 2;
+        str_sz = (size_t)key_sz * 2;
 
         XMEMSET(strGx, 0x0, str_sz + 1);
         XMEMCPY(strGx, hex + 2, str_sz);
@@ -10314,7 +10315,7 @@ WOLFSSL_EC_POINT* wolfSSL_EC_POINT_hex2point(const WOLFSSL_EC_GROUP *group,
         if (hex_to_bytes(hex + 2, octGx + 1, sz) != sz) {
             goto err;
         }
-        if (wolfSSL_ECPoint_d2i(octGx, key_sz + 1, group, p)
+        if (wolfSSL_ECPoint_d2i(octGx, (word32)key_sz + 1, group, p)
                                             != WOLFSSL_SUCCESS) {
             goto err;
         }
@@ -15495,7 +15496,7 @@ int wolfSSL_PEM_def_callback(char* buf, int num, int rwFlag, void* userData)
     if ((buf != NULL) && (userData != NULL)) {
         sz = (int)XSTRLEN((const char*)userData);
         sz = (int)min((word32)sz, (word32)num);
-        XMEMCPY(buf, userData, sz);
+        XMEMCPY(buf, userData, (size_t)sz);
     }
     else {
         WOLFSSL_MSG("Error, default password cannot be created.");
@@ -15989,7 +15990,7 @@ static void pem_find_pattern(char* pem, int pemLen, int idx, const char* prefix,
     /* Find prefix part. */
     for (; idx < pemLen - prefixLen; idx++) {
         if ((pem[idx] == prefix[0]) &&
-                (XMEMCMP(pem + idx, prefix, prefixLen) == 0)) {
+                (XMEMCMP(pem + idx, prefix, (size_t)prefixLen) == 0)) {
             idx += prefixLen;
             *start = idx;
             break;
@@ -15998,7 +15999,7 @@ static void pem_find_pattern(char* pem, int pemLen, int idx, const char* prefix,
     /* Find postfix part. */
     for (; idx < pemLen - postfixLen; idx++) {
         if ((pem[idx] == postfix[0]) &&
-                (XMEMCMP(pem + idx, postfix, postfixLen) == 0)) {
+                (XMEMCMP(pem + idx, postfix, (size_t)postfixLen) == 0)) {
             *len = idx - *start;
             break;
         }
@@ -16034,7 +16035,7 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
     /* Find header. */
     pem_find_pattern(pem, pemLen, 0, PEM_BEGIN, PEM_HDR_FIN, &start, &nameLen);
     /* Allocate memory for header name. */
-    *name = (char*)XMALLOC(nameLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    *name = (char*)XMALLOC((size_t)nameLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (*name == NULL) {
         ret = MEMORY_E;
     }
@@ -16045,7 +16046,7 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
             ret = ASN_NO_PEM_HEADER;
         }
         else {
-            XMEMCPY(*name, pem + start, nameLen);
+            XMEMCPY(*name, pem + start, (size_t)nameLen);
         }
     }
     if (ret == 0) {
@@ -16057,7 +16058,8 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
             hdrLen++;
         }
         /* Allocate memory for encryption header string. */
-        *header = (char*)XMALLOC(hdrLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        *header = (char*)XMALLOC((size_t)hdrLen + 1, NULL,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
         if (*header == NULL) {
             ret = MEMORY_E;
         }
@@ -16066,7 +16068,7 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
         /* Put in encryption header string. */
         (*header)[hdrLen] = '\0';
         if (hdrLen > 0) {
-            XMEMCPY(*header, pem + startHdr, hdrLen);
+            XMEMCPY(*header, pem + startHdr, (size_t)hdrLen);
             start = startHdr + hdrLen + 1;
         }
 
@@ -16075,7 +16077,7 @@ static int pem_read_data(char* pem, int pemLen, char **name, char **header,
             &endLen);
         /* Validate header name and footer name are the same. */
         if ((endLen != nameLen) ||
-                 (XMEMCMP(*name, pem + startEnd, nameLen) != 0)) {
+                 (XMEMCMP(*name, pem + startEnd, (size_t)nameLen) != 0)) {
             ret = ASN_NO_PEM_HEADER;
         }
     }
@@ -16125,13 +16127,13 @@ static int pem_write_data(const char *name, const char *header,
     pemLen  = (derLen + 2) / 3 * 4;
     pemLen += (pemLen + 63) / 64;
     /* Header */
-    pemLen += PEM_BEGIN_SZ + nameLen + PEM_HDR_FIN_EOL_SZ;
+    pemLen += (word32)(PEM_BEGIN_SZ + nameLen + PEM_HDR_FIN_EOL_SZ);
     if (headerLen > 0) {
         /* Encryption lines plus extra carriage return. */
-        pemLen += headerLen + 1;
+        pemLen += (word32)headerLen + 1;
     }
     /* Trailer */
-    pemLen += PEM_END_SZ + nameLen + PEM_HDR_FIN_EOL_SZ;
+    pemLen += (word32)(PEM_END_SZ + nameLen + PEM_HDR_FIN_EOL_SZ);
 
     pem = (char*)XMALLOC(pemLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (pem == NULL) {
@@ -16143,14 +16145,14 @@ static int pem_write_data(const char *name, const char *header,
         /* Add header. */
         XMEMCPY(p, PEM_BEGIN, PEM_BEGIN_SZ);
         p += PEM_BEGIN_SZ;
-        XMEMCPY(p, name, nameLen);
+        XMEMCPY(p, name, (size_t)nameLen);
         p += nameLen;
         XMEMCPY(p, PEM_HDR_FIN_EOL_NEWLINE, PEM_HDR_FIN_EOL_SZ);
         p += PEM_HDR_FIN_EOL_SZ;
 
         if (headerLen > 0) {
             /* Add encryption header. */
-            XMEMCPY(p, header, headerLen);
+            XMEMCPY(p, header, (size_t)headerLen);
             p += headerLen;
             /* Blank line after a header and before body. */
             *(p++) = '\n';
@@ -16166,7 +16168,7 @@ static int pem_write_data(const char *name, const char *header,
         /* Add trailer. */
         XMEMCPY(p, PEM_END, PEM_END_SZ);
         p += PEM_END_SZ;
-        XMEMCPY(p, name, nameLen);
+        XMEMCPY(p, name, (size_t)nameLen);
         p += nameLen;
         XMEMCPY(p, PEM_HDR_FIN_EOL_NEWLINE, PEM_HDR_FIN_EOL_SZ);
         p += PEM_HDR_FIN_EOL_SZ;
@@ -16214,13 +16216,13 @@ int wolfSSL_PEM_read_bio(WOLFSSL_BIO* bio, char **name, char **header,
     }
     if ((res == 1) && (!memAlloced)) {
         /* Need to return allocated memory - make sure it is allocated. */
-        char* p = (char*)XMALLOC(pemLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        char* p = (char*)XMALLOC((size_t)pemLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (p == NULL) {
             res = 0;
         }
         else {
             /* Copy the data into new buffer. */
-            XMEMCPY(p, pem, pemLen);
+            XMEMCPY(p, pem, (size_t)pemLen);
             pem = p;
         }
     }
@@ -16272,7 +16274,7 @@ int wolfSSL_PEM_write_bio(WOLFSSL_BIO* bio, const char *name,
     }
 
     XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return (!err) ? pemLen : 0;
+    return (!err) ? (int)pemLen : 0;
 }
 #endif /* !NO_BIO */
 
@@ -16497,7 +16499,7 @@ int pkcs8_encrypt(WOLFSSL_EVP_PKEY* pkey,
 
         if (ret == 0) {
             /* Encrypt private into buffer. */
-            ret = TraditionalEnc((byte*)pkey->pkey.ptr, pkey->pkey_sz,
+            ret = TraditionalEnc((byte*)pkey->pkey.ptr, (word32)pkey->pkey_sz,
                 key, keySz, passwd, passwdSz, PKCS5, PBES2, encAlgId,
                 NULL, 0, WC_PKCS12_ITT_DEFAULT, &rng, NULL);
             if (ret > 0) {
@@ -16531,7 +16533,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
     if (pkey->type == WC_EVP_PKEY_EC) {
         /* ECC private and get curve OID information. */
         algId = ECDSAk;
-        ret = wc_ecc_get_oid(pkey->ecc->group->curve_oid, &curveOid,
+        ret = wc_ecc_get_oid((word32)pkey->ecc->group->curve_oid, &curveOid,
             &oidSz);
     }
     else
@@ -16558,7 +16560,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
             if (keySz == NULL)
                 return BAD_FUNC_ARG;
 
-            *keySz = pkey->pkey_sz;
+            *keySz = (word32)pkey->pkey_sz;
             if (key == NULL)
                 return LENGTH_ONLY_E;
 
@@ -16579,7 +16581,7 @@ int pkcs8_encode(WOLFSSL_EVP_PKEY* pkey, byte* key, word32* keySz)
     if (ret >= 0) {
         /* Encode private key in PKCS#8 format. */
         ret = wc_CreatePKCS8Key(key, keySz, (byte*)pkey->pkey.ptr,
-            pkey->pkey_sz, algId, curveOid, oidSz);
+            (word32)pkey->pkey_sz, algId, curveOid, oidSz);
     }
 
     return ret;

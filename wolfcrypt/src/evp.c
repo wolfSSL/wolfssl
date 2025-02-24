@@ -2633,7 +2633,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
             return WOLFSSL_FAILURE;
         }
         if (ctx->pkey->hkdfMode == WOLFSSL_EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) {
-            if (wc_HKDF(hkdfHashType, ctx->pkey->hkdfKey, ctx->pkey->hkdfKeySz,
+            if (wc_HKDF((int)hkdfHashType, ctx->pkey->hkdfKey, ctx->pkey->hkdfKeySz,
                         ctx->pkey->hkdfSalt, ctx->pkey->hkdfSaltSz,
                         ctx->pkey->hkdfInfo, ctx->pkey->hkdfInfoSz, key,
                         (word32)*keylen) != 0) {
@@ -2642,7 +2642,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
             }
         }
         else if (ctx->pkey->hkdfMode == WOLFSSL_EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY) {
-            if (wc_HKDF_Extract(hkdfHashType, ctx->pkey->hkdfSalt,
+            if (wc_HKDF_Extract((int)hkdfHashType, ctx->pkey->hkdfSalt,
                                 ctx->pkey->hkdfSaltSz, ctx->pkey->hkdfKey,
                                 ctx->pkey->hkdfKeySz, key) != 0) {
                 WOLFSSL_MSG("wc_HKDF_Extract failed.");
@@ -2659,7 +2659,7 @@ int wolfSSL_EVP_PKEY_derive(WOLFSSL_EVP_PKEY_CTX *ctx, unsigned char *key, size_
             }
         }
         else if (ctx->pkey->hkdfMode == WOLFSSL_EVP_PKEY_HKDEF_MODE_EXPAND_ONLY) {
-            if (wc_HKDF_Expand(hkdfHashType, ctx->pkey->hkdfKey,
+            if (wc_HKDF_Expand((int)hkdfHashType, ctx->pkey->hkdfKey,
                                ctx->pkey->hkdfKeySz, ctx->pkey->hkdfInfo,
                                ctx->pkey->hkdfInfoSz, key,
                                (word32)*keylen) != 0) {
@@ -4863,6 +4863,7 @@ int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
 {
     const char *nostring = "";
     int ret = 0;
+    enum wc_HashType pbkdf2HashType;
 
     if (pass == NULL) {
         passlen = 0;
@@ -4871,8 +4872,10 @@ int wolfSSL_PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
         passlen = (int)XSTRLEN(pass);
     }
 
+    pbkdf2HashType = EvpMd2MacType(digest);
+
     ret = wc_PBKDF2((byte*)out, (byte*)pass, passlen, (byte*)salt, saltlen,
-                    iter, keylen, EvpMd2MacType(digest));
+                    iter, keylen, pbkdf2HashType);
     if (ret == 0)
         return WOLFSSL_SUCCESS;
     else
@@ -6295,14 +6298,16 @@ void wolfSSL_EVP_init(void)
                 case WC_AES_256_OFB_TYPE:
     #endif
                     wc_AesFree(&ctx->cipher.aes);
-                    ctx->flags &= ~WOLFSSL_EVP_CIPH_LOW_LEVEL_INITED;
+                    ctx->flags &=
+                        (unsigned long)~WOLFSSL_EVP_CIPH_LOW_LEVEL_INITED;
                     break;
     #if defined(WOLFSSL_AES_XTS) && \
         (!defined(HAVE_FIPS) || FIPS_VERSION_GE(5,3))
                 case WC_AES_128_XTS_TYPE:
                 case WC_AES_256_XTS_TYPE:
                     wc_AesXtsFree(&ctx->cipher.xts);
-                    ctx->flags &= ~WOLFSSL_EVP_CIPH_LOW_LEVEL_INITED;
+                    ctx->flags &=
+                        (unsigned long)~WOLFSSL_EVP_CIPH_LOW_LEVEL_INITED;
                     break;
     #endif
 #endif /* AES */
