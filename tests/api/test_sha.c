@@ -40,6 +40,7 @@
 #include <tests/unit.h>
 #include <tests/api/api.h>
 #include <tests/api/test_sha.h>
+#include <tests/api/test_digest.h>
 
 /*
  * Unit test for the wc_InitSha()
@@ -48,14 +49,7 @@ int test_wc_InitSha(void)
 {
     EXPECT_DECLS;
 #ifndef NO_SHA
-    wc_Sha sha;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitSha(&sha), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitSha(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_ShaFree(&sha);
+    DIGEST_INIT_AND_INIT_EX_TEST(wc_Sha, Sha);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_InitSha */
@@ -67,44 +61,7 @@ int test_wc_ShaUpdate(void)
 {
     EXPECT_DECLS;
 #ifndef NO_SHA
-    wc_Sha sha;
-    byte hash[WC_SHA_DIGEST_SIZE];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitSha(&sha), 0);
-
-    /* Input. */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-
-    ExpectIntEQ(wc_ShaUpdate(&sha, NULL, 0), 0);
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)a.input, 0), 0);
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_ShaFinal(&sha, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E\x25\x71\x78\x50\xC2"
-               "\x6C\x9C\xD0\xD8\x9D";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_ShaFinal(&sha, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_SHA_DIGEST_SIZE), 0);
-
-    /* Try passing in bad values. */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_SHA_DIGEST_SIZE;
-    ExpectIntEQ(wc_ShaUpdate(&sha, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaUpdate(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_ShaFree(&sha);
+    DIGEST_UPDATE_TEST(wc_Sha, Sha);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ShaUpdate() */
@@ -116,31 +73,142 @@ int test_wc_ShaFinal(void)
 {
     EXPECT_DECLS;
 #ifndef NO_SHA
-    wc_Sha sha;
-    byte* hash_test[3];
-    byte hash1[WC_SHA_DIGEST_SIZE];
-    byte hash2[2*WC_SHA_DIGEST_SIZE];
-    byte hash3[5*WC_SHA_DIGEST_SIZE];
-    int times, i;
-
-    /* Initialize*/
-    ExpectIntEQ(wc_InitSha(&sha), 0);
-
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test)/sizeof(byte*);
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_ShaFinal(&sha, hash_test[i]), 0);
-    }
-
-    /* Test bad args. */
-    ExpectIntEQ(wc_ShaFinal(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaFinal(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_ShaFinal(&sha, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_ShaFree(&sha);
+    DIGEST_FINAL_TEST(wc_Sha, Sha, SHA);
 #endif
     return EXPECT_RESULT();
 } /* END test_wc_ShaFinal */
+
+/*
+ * Unit test on wc_ShaFinalRaw
+ */
+int test_wc_ShaFinalRaw(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SHA) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_DEVCRYPTO) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3))) && \
+    !defined(WOLFSSL_NO_HASH_RAW)
+    DIGEST_FINAL_RAW_TEST(wc_Sha, Sha, SHA,
+                          "\x67\x45\x23\x01\xef\xcd\xab\x89"
+                          "\x98\xba\xdc\xfe\x10\x32\x54\x76"
+                          "\xc3\xd2\xe1\xf0");
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ShaFinal */
+
+#define SHA_KAT_CNT     7
+int test_wc_Sha_KATs(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_SHA
+    DIGEST_KATS_TEST_VARS(wc_Sha, SHA);
+
+    DIGEST_KATS_ADD("", 0,
+                    "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d"
+                    "\x32\x55\xbf\xef\x95\x60\x18\x90"
+                    "\xaf\xd8\x07\x09");
+    DIGEST_KATS_ADD("a", 1,
+                    "\x86\xf7\xe4\x37\xfa\xa5\xa7\xfc"
+                    "\xe1\x5d\x1d\xdc\xb9\xea\xea\xea"
+                    "\x37\x76\x67\xb8");
+    DIGEST_KATS_ADD("abc", 3,
+                    "\xa9\x99\x3e\x36\x47\x06\x81\x6a"
+                    "\xba\x3e\x25\x71\x78\x50\xc2\x6c"
+                    "\x9c\xd0\xd8\x9d");
+    DIGEST_KATS_ADD("message digest", 14,
+                    "\xc1\x22\x52\xce\xda\x8b\xe8\x99"
+                    "\x4d\x5f\xa0\x29\x0a\x47\x23\x1c"
+                    "\x1d\x16\xaa\xe3");
+    DIGEST_KATS_ADD("abcdefghijklmnopqrstuvwxyz", 26,
+                    "\x32\xd1\x0c\x7b\x8c\xf9\x65\x70"
+                    "\xca\x04\xce\x37\xf2\xa1\x9d\x84"
+                    "\x24\x0d\x3a\x89");
+    DIGEST_KATS_ADD("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                    "0123456789", 62,
+                    "\x76\x1c\x45\x7b\xf7\x3b\x14\xd2"
+                    "\x7e\x9e\x92\x65\xc4\x6f\x4b\x4d"
+                    "\xda\x11\xf9\x40");
+    DIGEST_KATS_ADD("1234567890123456789012345678901234567890"
+                    "1234567890123456789012345678901234567890", 80,
+                    "\x50\xab\xf5\x70\x6a\x15\x09\x90"
+                    "\xa0\x8b\x2c\x5e\xa4\x0f\xa0\xe5"
+                    "\x85\x55\x47\x32");
+
+    DIGEST_KATS_TEST(Sha, SHA);
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ShaFinal */
+
+int test_wc_Sha_other(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_SHA
+    DIGEST_OTHER_TEST(wc_Sha, Sha, SHA,
+                      "\xf0\xc2\x3f\xeb\xe0\xb0\xd9\x8c"
+                      "\x01\x23\x6c\x4c\x3b\x72\x7b\x01"
+                      "\xc7\x0d\x2b\x60");
+#endif
+    return EXPECT_RESULT();
+} /* END test_wc_ShaFinal */
+
+int test_wc_ShaCopy(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_SHA
+    DIGEST_COPY_TEST(wc_Sha, Sha, SHA,
+                     "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d"
+                     "\x32\x55\xbf\xef\x95\x60\x18\x90"
+                     "\xaf\xd8\x07\x09",
+                     "\xa9\x99\x3e\x36\x47\x06\x81\x6a"
+                     "\xba\x3e\x25\x71\x78\x50\xc2\x6c"
+                     "\x9c\xd0\xd8\x9d");
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_ShaGetHash(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_SHA
+    DIGEST_GET_HASH_TEST(wc_Sha, Sha, SHA,
+                         "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d"
+                         "\x32\x55\xbf\xef\x95\x60\x18\x90"
+                         "\xaf\xd8\x07\x09",
+                         "\xa9\x99\x3e\x36\x47\x06\x81\x6a"
+                         "\xba\x3e\x25\x71\x78\x50\xc2\x6c"
+                         "\x9c\xd0\xd8\x9d");
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_ShaTransform(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SHA) && (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 3)))
+    DIGEST_TRANSFORM_FINAL_RAW_TEST(wc_Sha, Sha, SHA,
+                                    "\x80\x63\x62\x61\x00\x00\x00\x00"
+                                    "\x00\x00\x00\x00\x00\x00\x00\x00"
+                                    "\x00\x00\x00\x00\x00\x00\x00\x00"
+                                    "\x00\x00\x00\x00\x00\x00\x00\x00"
+                                    "\x00\x00\x00\x00\x00\x00\x00\x00"
+                                    "\x00\x00\x00\x00\x00\x00\x00\x00"
+                                    "\x00\x00\x00\x00\x00\x00\x00\x00"
+                                    "\x00\x00\x00\x00\x18\x00\x00\x00",
+                                    "\xa9\x99\x3e\x36\x47\x06\x81\x6a"
+                                    "\xba\x3e\x25\x71\x78\x50\xc2\x6c"
+                                    "\x9c\xd0\xd8\x9d");
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Sha_Flags(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_SHA) && defined(WOLFSSL_HASH_FLAGS)
+    DIGEST_FLAGS_TEST(wc_Sha, Sha);
+#endif
+    return EXPECT_RESULT();
+}
 

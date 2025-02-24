@@ -25,5 +25,11 @@
 int test_wc_InitMd5(void);
 int test_wc_Md5Update(void);
 int test_wc_Md5Final(void);
+int test_wc_Md5_KATs(void);
+int test_wc_Md5_other(void);
+int test_wc_Md5Copy(void);
+int test_wc_Md5GetHash(void);
+int test_wc_Md5Transform(void);
+int test_wc_Md5_Flags(void);
 
 #endif /* WOLFCRYPT_TEST_MD5_H */

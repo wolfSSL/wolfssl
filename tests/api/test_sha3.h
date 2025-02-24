@@ -24,20 +24,36 @@
 
 int test_wc_InitSha3(void);
 int test_wc_Sha3_Update(void);
-int test_wc_Sha3_224_Final(void);
-int test_wc_Sha3_256_Final(void);
-int test_wc_Sha3_384_Final(void);
-int test_wc_Sha3_512_Final(void);
-int test_wc_Sha3_224_Copy(void);
-int test_wc_Sha3_256_Copy(void);
-int test_wc_Sha3_384_Copy(void);
-int test_wc_Sha3_512_Copy(void);
-int test_wc_Sha3_GetFlags(void);
+int test_wc_Sha3_Final(void);
+int test_wc_Sha3_224_KATs(void);
+int test_wc_Sha3_256_KATs(void);
+int test_wc_Sha3_384_KATs(void);
+int test_wc_Sha3_512_KATs(void);
+int test_wc_Sha3_other(void);
+int test_wc_Sha3_Copy(void);
+int test_wc_Sha3_GetHash(void);
+int test_wc_Sha3_Flags(void);
+
+int test_wc_InitShake128(void);
+int test_wc_Shake128_Update(void);
+int test_wc_Shake128_Final(void);
+int test_wc_Shake128_KATs(void);
+int test_wc_Shake128_other(void);
+int test_wc_Shake128_Copy(void);
+int test_wc_Shake128Hash(void);
+int test_wc_Shake128_Absorb(void);
+int test_wc_Shake128_SqueezeBlocks(void);
+int test_wc_Shake128_XOF(void);
 
 int test_wc_InitShake256(void);
 int test_wc_Shake256_Update(void);
 int test_wc_Shake256_Final(void);
+int test_wc_Shake256_KATs(void);
+int test_wc_Shake256_other(void);
 int test_wc_Shake256_Copy(void);
 int test_wc_Shake256Hash(void);
+int test_wc_Shake256_Absorb(void);
+int test_wc_Shake256_SqueezeBlocks(void);
+int test_wc_Shake256_XOF(void);
 
 #endif /* WOLFCRYPT_TEST_SHA3_H */

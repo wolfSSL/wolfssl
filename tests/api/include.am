@@ -23,6 +23,7 @@ EXTRA_DIST += tests/api/test_sha3.h
 EXTRA_DIST += tests/api/test_blake2.h
 EXTRA_DIST += tests/api/test_sm3.h
 EXTRA_DIST += tests/api/test_ripemd.h
+EXTRA_DIST += tests/api/test_digest.h
 EXTRA_DIST += tests/api/test_hash.h
 EXTRA_DIST += tests/api/test_ascon.h
 EXTRA_DIST += tests/api/test_ascon.h

@@ -22,12 +22,15 @@
 #ifndef WOLFCRYPT_TEST_SM3_H
 #define WOLFCRYPT_TEST_SM3_H
 
-int test_wc_InitSm3Free(void);
-int test_wc_Sm3UpdateFinal(void);
-int test_wc_Sm3GetHash(void);
-int test_wc_Sm3Copy(void);
+int test_wc_InitSm3(void);
+int test_wc_Sm3Update(void);
+int test_wc_Sm3Final(void);
 int test_wc_Sm3FinalRaw(void);
-int test_wc_Sm3GetSetFlags(void);
+int test_wc_Sm3_KATs(void);
+int test_wc_Sm3_other(void);
+int test_wc_Sm3Copy(void);
+int test_wc_Sm3GetHash(void);
+int test_wc_Sm3_Flags(void);
 int test_wc_Sm3Hash(void);
 
 #endif /* WOLFCRYPT_TEST_SM3_H */

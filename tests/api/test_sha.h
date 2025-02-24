@@ -25,5 +25,12 @@
 int test_wc_InitSha(void);
 int test_wc_ShaUpdate(void);
 int test_wc_ShaFinal(void);
+int test_wc_ShaFinalRaw(void);
+int test_wc_Sha_KATs(void);
+int test_wc_Sha_other(void);
+int test_wc_ShaCopy(void);
+int test_wc_ShaGetHash(void);
+int test_wc_ShaTransform(void);
+int test_wc_Sha_Flags(void);
 
 #endif /* WOLFCRYPT_TEST_SHA_H */

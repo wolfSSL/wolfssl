@@ -487,6 +487,16 @@ int wc_InitBlake2s_WithKey(Blake2s* b2s, word32 digestSz, const byte *key, word3
 /* Blake2s Update */
 int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz)
 {
+    if (b2s == NULL){
+        return BAD_FUNC_ARG;
+    }
+    if (data == NULL && sz != 0){
+        return BAD_FUNC_ARG;
+    }
+    if (sz == 0){
+        return 0;
+    }
+
     return blake2s_update(b2s->S, data, sz);
 }
 
@@ -494,7 +504,16 @@ int wc_Blake2sUpdate(Blake2s* b2s, const byte* data, word32 sz)
 /* Blake2s Final, if pass in zero size we use init digestSz */
 int wc_Blake2sFinal(Blake2s* b2s, byte* final, word32 requestSz)
 {
-    word32 sz = requestSz ? requestSz : b2s->digestSz;
+    word32 sz;
+
+    if (b2s == NULL){
+        return BAD_FUNC_ARG;
+    }
+    if (final == NULL){
+        return BAD_FUNC_ARG;
+    }
+
+    sz = requestSz ? requestSz : b2s->digestSz;
 
     return blake2s_final(b2s->S, final, (byte)sz);
 }

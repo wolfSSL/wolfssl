@@ -621,7 +621,7 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
 #ifdef WOLFSSL_SHA512
 
-int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
+static int Sha512FinalRaw(wc_Sha512* sha512, byte* hash, size_t digestSz)
 {
 #ifdef LITTLE_ENDIAN_ORDER
     word64 digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
@@ -633,13 +633,18 @@ int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
 
 #ifdef LITTLE_ENDIAN_ORDER
     ByteReverseWords64((word64*)digest, (word64*)sha512->digest,
-                                                         WC_SHA512_DIGEST_SIZE);
-    XMEMCPY(hash, digest, WC_SHA512_DIGEST_SIZE);
+        WC_SHA512_DIGEST_SIZE);
+    XMEMCPY(hash, digest, digestSz);
 #else
-    XMEMCPY(hash, sha512->digest, WC_SHA512_DIGEST_SIZE);
+    XMEMCPY(hash, sha512->digest, digestSz);
 #endif
 
     return 0;
+}
+
+int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
+{
+    return Sha512FinalRaw(sha512, hash, WC_SHA512_DIGEST_SIZE);
 }
 
 static int Sha512_Family_Final(wc_Sha512* sha512, byte* hash,
@@ -1039,7 +1044,7 @@ int wc_Sha512_224Update(wc_Sha512* sha, const byte* data, word32 len)
 }
 int wc_Sha512_224FinalRaw(wc_Sha512* sha, byte* hash)
 {
-    return wc_Sha512FinalRaw(sha, hash);
+    return Sha512FinalRaw(sha, hash, WC_SHA512_224_DIGEST_SIZE);
 }
 int wc_Sha512_224Final(wc_Sha512* sha512, byte* hash)
 {
@@ -1089,7 +1094,7 @@ int wc_Sha512_256Update(wc_Sha512* sha, const byte* data, word32 len)
 }
 int wc_Sha512_256FinalRaw(wc_Sha512* sha, byte* hash)
 {
-    return wc_Sha512FinalRaw(sha, hash);
+    return Sha512FinalRaw(sha, hash, WC_SHA512_256_DIGEST_SIZE);
 }
 int wc_Sha512_256Final(wc_Sha512* sha512, byte* hash)
 {

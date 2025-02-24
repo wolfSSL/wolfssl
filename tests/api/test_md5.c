@@ -40,104 +40,138 @@
 #include <tests/unit.h>
 #include <tests/api/api.h>
 #include <tests/api/test_md5.h>
+#include <tests/api/test_digest.h>
 
-/*
- * Unit test for the wc_InitMd5()
- */
+/* Unit test for wc_InitMd5() and wc_InitMd5_ex() */
 int test_wc_InitMd5(void)
 {
     EXPECT_DECLS;
 #ifndef NO_MD5
-    wc_Md5 md5;
-
-    /* Test good arg. */
-    ExpectIntEQ(wc_InitMd5(&md5), 0);
-    /* Test bad arg. */
-    ExpectIntEQ(wc_InitMd5(NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Md5Free(&md5);
+    DIGEST_INIT_AND_INIT_EX_TEST(wc_Md5, Md5);
 #endif
     return EXPECT_RESULT();
-}     /* END test_wc_InitMd5 */
+}
 
-
-/*
- * Testing wc_UpdateMd5()
- */
+/* Unit test for wc_UpdateMd5() */
 int test_wc_Md5Update(void)
 {
     EXPECT_DECLS;
 #ifndef NO_MD5
-    wc_Md5 md5;
-    byte hash[WC_MD5_DIGEST_SIZE];
-    testVector a, b, c;
-
-    ExpectIntEQ(wc_InitMd5(&md5), 0);
-
-    /* Input */
-    a.input = "a";
-    a.inLen = XSTRLEN(a.input);
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*)a.input, (word32)a.inLen), 0);
-    ExpectIntEQ(wc_Md5Final(&md5, hash), 0);
-
-    /* Update input. */
-    a.input = "abc";
-    a.output = "\x90\x01\x50\x98\x3c\xd2\x4f\xb0\xd6\x96\x3f\x7d\x28\xe1\x7f"
-               "\x72";
-    a.inLen = XSTRLEN(a.input);
-    a.outLen = XSTRLEN(a.output);
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*) a.input, (word32) a.inLen), 0);
-    ExpectIntEQ(wc_Md5Final(&md5, hash), 0);
-    ExpectIntEQ(XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE), 0);
-
-    /* Pass in bad values. */
-    b.input = NULL;
-    b.inLen = 0;
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*)b.input, (word32)b.inLen), 0);
-    c.input = NULL;
-    c.inLen = WC_MD5_DIGEST_SIZE;
-    ExpectIntEQ(wc_Md5Update(&md5, (byte*)c.input, (word32)c.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Update(NULL, (byte*)a.input, (word32)a.inLen),
-        WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-
-    wc_Md5Free(&md5);
+    DIGEST_UPDATE_TEST(wc_Md5, Md5);
 #endif
     return EXPECT_RESULT();
-} /* END test_wc_Md5Update()  */
+}
 
-/*
- *  Unit test on wc_Md5Final() in wolfcrypt/src/md5.c
- */
+/* Unit test for wc_Md5Final() */
 int test_wc_Md5Final(void)
 {
     EXPECT_DECLS;
 #ifndef NO_MD5
-    /* Instantiate */
-    wc_Md5 md5;
-    byte* hash_test[3];
-    byte hash1[WC_MD5_DIGEST_SIZE];
-    byte hash2[2*WC_MD5_DIGEST_SIZE];
-    byte hash3[5*WC_MD5_DIGEST_SIZE];
-    int times, i;
+    DIGEST_FINAL_TEST(wc_Md5, Md5, MD5);
+#endif
+    return EXPECT_RESULT();
+}
 
-    /* Initialize */
-    ExpectIntEQ(wc_InitMd5(&md5), 0);
+#define MD5_KAT_CNT     7
 
-    hash_test[0] = hash1;
-    hash_test[1] = hash2;
-    hash_test[2] = hash3;
-    times = sizeof(hash_test)/sizeof(byte*);
-    for (i = 0; i < times; i++) {
-        ExpectIntEQ(wc_Md5Final(&md5, hash_test[i]), 0);
-    }
+int test_wc_Md5_KATs(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_MD5
+    DIGEST_KATS_TEST_VARS(wc_Md5, MD5);
 
-    /* Test bad args. */
-    ExpectIntEQ(wc_Md5Final(NULL, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Final(NULL, hash1), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
-    ExpectIntEQ(wc_Md5Final(&md5, NULL), WC_NO_ERR_TRACE(BAD_FUNC_ARG));
+    /* From RFC 1321. */
+    DIGEST_KATS_ADD("", 0,
+                    "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04"
+                    "\xe9\x80\x09\x98\xec\xf8\x42\x7e");
+    DIGEST_KATS_ADD("a", 1,
+                    "\x0c\xc1\x75\xb9\xc0\xf1\xb6\xa8"
+                    "\x31\xc3\x99\xe2\x69\x77\x26\x61");
+    DIGEST_KATS_ADD("abc", 3,
+                    "\x90\x01\x50\x98\x3c\xd2\x4f\xb0"
+                    "\xd6\x96\x3f\x7d\x28\xe1\x7f\x72");
+    DIGEST_KATS_ADD("message digest", 14,
+                    "\xf9\x6b\x69\x7d\x7c\xb7\x93\x8d"
+                    "\x52\x5a\x2f\x31\xaa\xf1\x61\xd0");
+    DIGEST_KATS_ADD("abcdefghijklmnopqrstuvwxyz", 26,
+                    "\xc3\xfc\xd3\xd7\x61\x92\xe4\x00"
+                    "\x7d\xfb\x49\x6c\xca\x67\xe1\x3b");
+    DIGEST_KATS_ADD("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                    "0123456789", 62,
+                    "\xd1\x74\xab\x98\xd2\x77\xd9\xf5"
+                    "\xa5\x61\x1c\x2c\x9f\x41\x9d\x9f");
+    DIGEST_KATS_ADD("1234567890123456789012345678901234567890"
+                    "1234567890123456789012345678901234567890", 80,
+                    "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55"
+                    "\xac\x49\xda\x2e\x21\x07\xb6\x7a");
 
-    wc_Md5Free(&md5);
+    DIGEST_KATS_TEST(Md5, MD5);
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Md5_other(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_MD5
+    DIGEST_OTHER_TEST(wc_Md5, Md5, MD5,
+                      "\xd9\xa6\xc2\x1f\xf4\x05\xab\x62"
+                      "\xd6\xad\xa8\xcd\x0c\xb9\x49\x14");
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Md5Copy(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_MD5
+    DIGEST_COPY_TEST(wc_Md5, Md5, MD5,
+                     "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04"
+                     "\xe9\x80\x09\x98\xec\xf8\x42\x7e",
+                     "\x90\x01\x50\x98\x3c\xd2\x4f\xb0"
+                     "\xd6\x96\x3f\x7d\x28\xe1\x7f\x72");
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Md5GetHash(void)
+{
+    EXPECT_DECLS;
+#ifndef NO_MD5
+    DIGEST_GET_HASH_TEST(wc_Md5, Md5, MD5,
+                         "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04"
+                         "\xe9\x80\x09\x98\xec\xf8\x42\x7e",
+                         "\x90\x01\x50\x98\x3c\xd2\x4f\xb0"
+                         "\xd6\x96\x3f\x7d\x28\xe1\x7f\x72");
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Md5Transform(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_MD5) && (defined(OPENSSL_EXTRA) || defined(HAVE_CURL)) && \
+    !defined(HAVE_MD5_CUST_API)
+    DIGEST_TRANSFORM_TEST(wc_Md5, Md5, MD5,
+                          "\x61\x62\x63\x80\x00\x00\x00\x00"
+                          "\x00\x00\x00\x00\x00\x00\x00\x00"
+                          "\x00\x00\x00\x00\x00\x00\x00\x00"
+                          "\x00\x00\x00\x00\x00\x00\x00\x00"
+                          "\x00\x00\x00\x00\x00\x00\x00\x00"
+                          "\x00\x00\x00\x00\x00\x00\x00\x00"
+                          "\x00\x00\x00\x00\x00\x00\x00\x00"
+                          "\x18\x00\x00\x00\x00\x00\x00\x00",
+                          "\x90\x01\x50\x98\x3c\xd2\x4f\xb0"
+                          "\xd6\x96\x3f\x7d\x28\xe1\x7f\x72");
+#endif
+    return EXPECT_RESULT();
+}
+
+int test_wc_Md5_Flags(void)
+{
+    EXPECT_DECLS;
+#if !defined(NO_MD5) && defined(WOLFSSL_HASH_FLAGS)
+    DIGEST_FLAGS_TEST(wc_Md5, Md5);
 #endif
     return EXPECT_RESULT();
 }

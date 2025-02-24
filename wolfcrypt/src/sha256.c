@@ -2590,7 +2590,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 #endif
 
 #ifdef WOLFSSL_HASH_FLAGS
-     dst->flags |= WC_HASH_FLAG_ISCOPY;
+    dst->flags |= WC_HASH_FLAG_ISCOPY;
 #endif
 
 #if defined(WOLFSSL_HASH_KEEP)
