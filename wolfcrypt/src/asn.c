@@ -17271,6 +17271,10 @@ int ConfirmSignature(SignatureCtx* sigCtx,
                     else if (keyOID == DILITHIUM_LEVEL5k) {
                         level = WC_ML_DSA_87_DRAFT;
                     }
+                    else {
+                        WOLFSSL_MSG("Invalid Dilithium key OID");
+                        goto exit_cs;
+                    }
                 #endif
                     sigCtx->verify = 0;
                     sigCtx->key.dilithium = (dilithium_key*)XMALLOC(
