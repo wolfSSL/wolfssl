@@ -141,7 +141,7 @@ static const FLASH_QUALIFIER ALIGN32 word32 K[64] = {
             W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
                                                            DYNAMIC_TYPE_DIGEST);
             if (W == NULL)
-                return MEMORY_E;
+                return;
             sha256->W = W;
         }
     #elif defined(WOLFSSL_SMALL_STACK)
@@ -149,7 +149,7 @@ static const FLASH_QUALIFIER ALIGN32 word32 K[64] = {
         W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
-            return MEMORY_E;
+            return;
     #else
         word32 W[WC_SHA256_BLOCK_SIZE];
     #endif
@@ -1914,6 +1914,10 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     }
 #endif
 
+#ifdef WOLFSSL_HASH_FLAGS
+    dst->flags |= WC_HASH_FLAG_ISCOPY;
+#endif
+
     return ret;
 }
 
@@ -2142,6 +2146,10 @@ int wc_Sha256HashBlock(wc_Sha256* sha256, const unsigned char* data,
             return BAD_FUNC_ARG;
 
         XMEMCPY(dst, src, sizeof(wc_Sha224));
+
+    #ifdef WOLFSSL_HASH_FLAGS
+        dst->flags |= WC_HASH_FLAG_ISCOPY;
+    #endif
 
         return ret;
     }

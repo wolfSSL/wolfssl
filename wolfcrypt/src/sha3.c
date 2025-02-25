@@ -761,7 +761,9 @@ static int Sha3Update(wc_Sha3* sha3, const byte* data, word32 len, byte p)
     if (SHA3_BLOCK == sha3_block_avx2)
         RESTORE_VECTOR_REGISTERS();
 #endif
-    XMEMCPY(sha3->t, data, len);
+    if (len > 0) {
+        XMEMCPY(sha3->t, data, len);
+    }
     sha3->i = (byte)(sha3->i + len);
 
     return 0;
@@ -1499,6 +1501,10 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
 {
     int ret;
 
+    if ((shake == NULL) || (data == NULL && len != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     ret = Sha3Update(shake, data, len, WC_SHA3_128_COUNT);
     if (ret == 0) {
         byte hash[1];
@@ -1526,6 +1532,9 @@ int wc_Shake128_Absorb(wc_Shake* shake, const byte* data, word32 len)
  */
 int wc_Shake128_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
+    if ((shake == NULL) || (out == NULL && blockCnt != 0)) {
+        return BAD_FUNC_ARG;
+    }
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
     if (SHA3_BLOCK == sha3_block_avx2)
         SAVE_VECTOR_REGISTERS(return _svr_ret;);
@@ -1644,6 +1653,10 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
 {
     int ret;
 
+    if ((shake == NULL) || (data == NULL && len != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
     ret = Sha3Update(shake, data, len, WC_SHA3_256_COUNT);
     if (ret == 0) {
         byte hash[1];
@@ -1664,6 +1677,9 @@ int wc_Shake256_Absorb(wc_Shake* shake, const byte* data, word32 len)
  */
 int wc_Shake256_SqueezeBlocks(wc_Shake* shake, byte* out, word32 blockCnt)
 {
+    if ((shake == NULL) || (out == NULL && blockCnt != 0)) {
+        return BAD_FUNC_ARG;
+    }
 #if defined(WOLFSSL_LINUXKM) && defined(USE_INTEL_SPEEDUP)
     if (SHA3_BLOCK == sha3_block_avx2)
         SAVE_VECTOR_REGISTERS(return _svr_ret;);

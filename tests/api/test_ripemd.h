@@ -25,5 +25,7 @@
 int test_wc_InitRipeMd(void);
 int test_wc_RipeMdUpdate(void);
 int test_wc_RipeMdFinal(void);
+int test_wc_RipeMd_KATs(void);
+int test_wc_RipeMd_other(void);
 
 #endif /* WOLFCRYPT_TEST_RIPEMD_H */

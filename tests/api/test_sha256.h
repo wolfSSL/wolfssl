@@ -26,18 +26,20 @@ int test_wc_InitSha256(void);
 int test_wc_Sha256Update(void);
 int test_wc_Sha256Final(void);
 int test_wc_Sha256FinalRaw(void);
-int test_wc_Sha256GetFlags(void);
-int test_wc_Sha256Free(void);
-int test_wc_Sha256GetHash(void);
+int test_wc_Sha256_KATs(void);
+int test_wc_Sha256_other(void);
 int test_wc_Sha256Copy(void);
+int test_wc_Sha256GetHash(void);
+int test_wc_Sha256Transform(void);
+int test_wc_Sha256_Flags(void);
 
 int test_wc_InitSha224(void);
 int test_wc_Sha224Update(void);
 int test_wc_Sha224Final(void);
-int test_wc_Sha224SetFlags(void);
-int test_wc_Sha224GetFlags(void);
-int test_wc_Sha224Free(void);
-int test_wc_Sha224GetHash(void);
+int test_wc_Sha224_KATs(void);
+int test_wc_Sha224_other(void);
 int test_wc_Sha224Copy(void);
+int test_wc_Sha224GetHash(void);
+int test_wc_Sha224_Flags(void);
 
 #endif /* WOLFCRYPT_TEST_SHA256_H */

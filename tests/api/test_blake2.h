@@ -24,6 +24,16 @@
 
 int test_wc_InitBlake2b(void);
 int test_wc_InitBlake2b_WithKey(void);
+int test_wc_Blake2bUpdate(void);
+int test_wc_Blake2bFinal(void);
+int test_wc_Blake2b_KATs(void);
+int test_wc_Blake2b_other(void);
+
+int test_wc_InitBlake2s(void);
 int test_wc_InitBlake2s_WithKey(void);
+int test_wc_Blake2sUpdate(void);
+int test_wc_Blake2sFinal(void);
+int test_wc_Blake2s_KATs(void);
+int test_wc_Blake2s_other(void);
 
 #endif /* WOLFCRYPT_TEST_BLAKE2_H */
