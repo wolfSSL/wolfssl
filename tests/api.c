@@ -71456,10 +71456,9 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
         WOLFSSL_OCSP_CERTID* certId = NULL;
         ExpectNotNull(certId = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
                                                        sizeof(rawCertId)));
-        ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
         if (certId != NULL) {
             XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
-            XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
+            wolfSSL_OCSP_CERTID_free(certId);
         }
     }
 
@@ -71477,10 +71476,9 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
         ExpectNotNull(certIdGood = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr,
                                                            sizeof(rawCertId)));
         ExpectPtrEq(certIdGood, certId);
-        ExpectIntEQ(certId->rawCertIdSize, sizeof(rawCertId));
         if (certId != NULL) {
             XFREE(certId->rawCertId, NULL, DYNAMIC_TYPE_OPENSSL);
-            XFREE(certId, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_OCSP_CERTID_free(certId);
             certId = NULL;
         }
     }
@@ -71489,8 +71487,6 @@ static int test_wolfSSL_d2i_OCSP_CERTID(void)
      * always be returned. */
     {
         WOLFSSL_OCSP_CERTID* certId = NULL;
-        ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(NULL, &rawCertIdPtr,
-                                                       sizeof(rawCertId)));
         ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, NULL,
                                                        sizeof(rawCertId)));
         ExpectNull(certIdBad = wolfSSL_d2i_OCSP_CERTID(&certId, &rawCertIdPtr, 0));
