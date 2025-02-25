@@ -102,6 +102,12 @@ extern ${variable.value} ${variable.name};
     #undef  NO_STM32_CRYPTO
     #define STM32_HAL_V2
     #define HAL_CONSOLE_UART huart3
+#elif defined(STM32H7S3xx)
+    #define WOLFSSL_STM32H7S
+    #undef  NO_STM32_HASH
+    #undef  NO_STM32_CRYPTO
+    #define WOLFSSL_STM32_PKA
+    #define HAL_CONSOLE_UART huart3
 #elif defined(STM32H753xx)
     #define WOLFSSL_STM32H7
     #undef  NO_STM32_HASH
@@ -325,6 +331,10 @@ extern ${variable.value} ${variable.name};
 #endif
 #if defined(WOLF_CONF_DTLS) && WOLF_CONF_DTLS == 1
     #define WOLFSSL_DTLS
+#endif
+#if defined(WOLF_CONF_DTLS13) && WOLF_CONF_DTLS13 == 1
+    #define WOLFSSL_DTLS13
+    #define WOLFSSL_SEND_HRR_COOKIE
 #endif
 #if defined(WOLF_CONF_PSK) && WOLF_CONF_PSK == 0
     #define NO_PSK
@@ -575,25 +585,25 @@ extern ${variable.value} ${variable.name};
 /* NOTE: this is after the hashing section to override the potential SHA3 undef
  * above. */
 #if defined(WOLF_CONF_KYBER) && WOLF_CONF_KYBER == 1
-#undef  WOLFSSL_EXPERIMENTAL_SETTINGS
-#define WOLFSSL_EXPERIMENTAL_SETTINGS
+    #undef  WOLFSSL_EXPERIMENTAL_SETTINGS
+    #define WOLFSSL_EXPERIMENTAL_SETTINGS
 
-#undef  WOLFSSL_HAVE_KYBER
-#define WOLFSSL_HAVE_KYBER
+    #undef  WOLFSSL_HAVE_KYBER
+    #define WOLFSSL_HAVE_KYBER
 
-#undef  WOLFSSL_WC_KYBER
-#define WOLFSSL_WC_KYBER
+    #undef  WOLFSSL_WC_KYBER
+    #define WOLFSSL_WC_KYBER
 
-#undef  WOLFSSL_NO_SHAKE128
-#undef  WOLFSSL_SHAKE128
-#define WOLFSSL_SHAKE128
+    #undef  WOLFSSL_NO_SHAKE128
+    #undef  WOLFSSL_SHAKE128
+    #define WOLFSSL_SHAKE128
 
-#undef  WOLFSSL_NO_SHAKE256
-#undef  WOLFSSL_SHAKE256
-#define WOLFSSL_SHAKE256
+    #undef  WOLFSSL_NO_SHAKE256
+    #undef  WOLFSSL_SHAKE256
+    #define WOLFSSL_SHAKE256
 
-#undef  WOLFSSL_SHA3
-#define WOLFSSL_SHA3
+    #undef  WOLFSSL_SHA3
+    #define WOLFSSL_SHA3
 #endif /* WOLF_CONF_KYBER */
 
 /* ------------------------------------------------------------------------- */
@@ -608,6 +618,7 @@ extern ${variable.value} ${variable.name};
     #define WOLFSSL_ARMASM_INLINE
     #define WOLFSSL_ARMASM_NO_HW_CRYPTO
     #define WOLFSSL_ARMASM_NO_NEON
+    #define WOLFSSL_ARMASM_THUMB2
     #define WOLFSSL_ARM_ARCH 7
     /* Disable H/W offloading if accelerating S/W crypto */
     #undef  NO_STM32_HASH

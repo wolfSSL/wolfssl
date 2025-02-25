@@ -2096,7 +2096,8 @@ extern void uITRON4_free(void *p) ;
     defined(WOLFSSL_STM32WB) || defined(WOLFSSL_STM32H7) || \
     defined(WOLFSSL_STM32G0) || defined(WOLFSSL_STM32U5) || \
     defined(WOLFSSL_STM32H5) || defined(WOLFSSL_STM32WL) || \
-    defined(WOLFSSL_STM32G4) || defined(WOLFSSL_STM32MP13)
+    defined(WOLFSSL_STM32G4) || defined(WOLFSSL_STM32MP13) || \
+    defined(WOLFSSL_STM32H7S)
 
     #define SIZEOF_LONG_LONG 8
     #ifndef CHAR_BIT
@@ -2144,6 +2145,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f7xx_hal.h"
         #elif defined(WOLFSSL_STM32F1)
             #include "stm32f1xx_hal.h"
+        #elif defined(WOLFSSL_STM32H7S)
+            #include "stm32h7rsxx_hal.h"
         #elif defined(WOLFSSL_STM32H7)
             #include "stm32h7xx_hal.h"
         #elif defined(WOLFSSL_STM32WB)

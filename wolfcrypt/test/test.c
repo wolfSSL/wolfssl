@@ -292,7 +292,9 @@ const byte const_byte_array[] = "A+Gd\0\0\0";
 #include <wolfssl/wolfcrypt/srp.h>
 #include <wolfssl/wolfcrypt/chacha.h>
 #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
-#include <wolfssl/wolfcrypt/ascon.h>
+#ifdef HAVE_ASCON
+    #include <wolfssl/wolfcrypt/ascon.h>
+#endif
 #include <wolfssl/wolfcrypt/pwdbased.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
