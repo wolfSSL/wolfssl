@@ -95500,6 +95500,7 @@ TEST_CASE testCases[] = {
     TEST_DECL(test_ocsp_status_callback),
     TEST_DECL(test_ocsp_basic_verify),
     TEST_DECL(test_ocsp_response_parsing),
+    TEST_DECL(test_ocsp_certid_enc_dec),
     /* This test needs to stay at the end to clean up any caches allocated. */
     TEST_DECL(test_wolfSSL_Cleanup)
 };

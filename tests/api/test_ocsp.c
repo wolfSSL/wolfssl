@@ -592,3 +592,69 @@ int test_ocsp_status_callback(void)
         && defined(HAVE_CERTIFICATE_STATUS_REQUEST) &&                         \
         !defined(WOLFSSL_NO_TLS12)                                             \
         && defined(OPENSSL_ALL) */
+
+#if !defined (NO_SHA) && defined(OPENSSL_ALL) && defined(HAVE_OCSP)
+int test_ocsp_certid_enc_dec(void)
+{
+    EXPECT_DECLS;
+    WOLFSSL_OCSP_CERTID* certIdDec = NULL;
+    WOLFSSL_OCSP_CERTID* certId = NULL;
+    WOLFSSL_X509* subject = NULL;
+    WOLFSSL_X509* issuer = NULL;
+    unsigned char* temp = NULL;
+    unsigned char* der2 = NULL;
+    unsigned char* der = NULL;
+    int derSz = 0, derSz1 = 0;
+
+    /* Load test certificates */
+    ExpectNotNull(
+        subject = wolfSSL_X509_load_certificate_file(
+            "./certs/ocsp/intermediate1-ca-cert.pem", WOLFSSL_FILETYPE_PEM));
+    ExpectNotNull(issuer = wolfSSL_X509_load_certificate_file(
+                      "./certs/ocsp/root-ca-cert.pem", WOLFSSL_FILETYPE_PEM));
+
+    /* Create CERTID from certificates */
+    ExpectNotNull(certId = wolfSSL_OCSP_cert_to_id(NULL, subject, issuer));
+
+    /* get len */
+    ExpectIntGT(derSz = wolfSSL_i2d_OCSP_CERTID(certId, NULL), 0);
+
+    /* encode it */
+    ExpectIntGT(derSz1 = wolfSSL_i2d_OCSP_CERTID(certId, &der), 0);
+    ExpectIntEQ(derSz, derSz1);
+
+    temp = der2 = XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
+    ExpectNotNull(der2);
+    /* encode without allocation */
+    ExpectIntGT(derSz1 = wolfSSL_i2d_OCSP_CERTID(certId, &der2), 0);
+    ExpectIntEQ(derSz, derSz1);
+    ExpectPtrEq(der2, temp + derSz);
+    ExpectBufEQ(der, temp, derSz);
+    XFREE(temp, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    /* save original */
+    temp = der;
+    /* decode it */
+    ExpectNotNull(certIdDec = wolfSSL_d2i_OCSP_CERTID(NULL,
+                      (const unsigned char**)&der, derSz));
+    /* check ptr is advanced */
+    ExpectPtrEq(der, temp + derSz);
+    der = der2;
+    XFREE(temp, NULL, DYNAMIC_TYPE_OPENSSL);
+
+    /* compare */
+    ExpectIntEQ(wolfSSL_OCSP_id_cmp(certId, certIdDec), 0);
+
+    wolfSSL_OCSP_CERTID_free(certId);
+    wolfSSL_OCSP_CERTID_free(certIdDec);
+    wolfSSL_X509_free(subject);
+    wolfSSL_X509_free(issuer);
+
+    return EXPECT_SUCCESS();
+}
+#else
+int test_ocsp_certid_enc_dec(void)
+{
+    return TEST_SKIPPED;
+}
+#endif
